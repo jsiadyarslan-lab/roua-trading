@@ -1222,6 +1222,47 @@ export class TradingService {
   }
 
   /**
+   * FIX: Check API key permissions on the exchange.
+   * This helps diagnose why balance returns 0 (API key may lack permissions).
+   *
+   * @param exchange CCXT exchange instance
+   * @returns Permission info including IP restriction, trading enabled, etc.
+   */
+  private async _checkApiPermissions(
+    exchange: any,
+  ): Promise<{ success: boolean; permissions?: any; error?: string; rawResponse?: any }> {
+    try {
+      // Try to fetch API key permissions using CCXT's sapi (Binance specific)
+      // This requires a private API call to /sapi/v1/account/apiRestrictions
+      const response = await exchange.sapi_get_account_apiRestrictions();
+
+      this.logger.debug(
+        `🔍 API Permissions check: ${JSON.stringify(response)}`,
+      );
+
+      return {
+        success: true,
+        permissions: {
+          enableReading: response.enableReading,
+          enableSpotAndMarginTrading: response.enableSpotAndMarginTrading,
+          enableFutures: response.enableFutures,
+          enableWithdrawals: response.enableWithdrawals,
+          ipRestrict: response.ipRestrict,
+          createTime: response.createTime,
+        },
+        rawResponse: response,
+      };
+    } catch (error: any) {
+      this.logger.warn(`⚡ Failed to check API permissions: ${error.message}`);
+      return {
+        success: false,
+        error: error.message,
+        rawResponse: error,
+      };
+    }
+  }
+
+  /**
    * FIX: Simulate a paper trade (no real exchange connection).
    * When the credential exchange is 'paper-trading', CCXT can't execute the order
    * because there's no 'paper-trading' exchange class in CCXT. This method simulates
@@ -1366,22 +1407,39 @@ export class TradingService {
             .filter((v, i, a) => a.indexOf(v) === i) // unique
             .join(' | ');
 
+          // FIX: Check API permissions to diagnose why balance is 0
+          const apiPermissions = await this._checkApiPermissions(exchange);
+
           this.logger.error(
             `❌ ${request.symbol}: No ${balance.currency} balance found in any wallet. ` +
             `Checked: ${walletSummary}. ` +
             `All non-zero balances found: ${allNonZeroCurrencies || 'NONE'}. ` +
+            `API Permissions: ${JSON.stringify(apiPermissions.permissions || apiPermissions.error)}. ` +
             `This usually means: (1) Position was already closed on exchange, ` +
             `(2) API key lacks wallet read permission, ` +
             `(3) Balance is in a sub-account or different wallet type, ` +
             `(4) Position was opened on different exchange/account.`,
           );
 
+          // Build enhanced error message with API permissions info
+          let permissionsInfo = '';
+          if (apiPermissions.success && apiPermissions.permissions) {
+            const p = apiPermissions.permissions;
+            permissionsInfo = ` | صلاحيات API: ` +
+              `قراءة=${p.enableReading ? '✅' : '❌'}, ` +
+              `تداول Spot=${p.enableSpotAndMarginTrading ? '✅' : '❌'}, ` +
+              `تداول Futures=${p.enableFutures ? '✅' : '❌'}`;
+          } else if (apiPermissions.error) {
+            permissionsInfo = ` | خطأ في فحص صلاحيات API: ${apiPermissions.error}`;
+          }
+
           return {
             success: false,
             error: `رصيد ${balance.currency} غير متاح في أي محفظة. ` +
               `المحاولات: ${walletSummary}. ` +
               `العملات المتاحة: ${allNonZeroCurrencies || 'لا يوجد'}. ` +
-              `الأسباب المحتملة: (1) المركز مُغلق يدوياً في Binance، ` +
+              permissionsInfo +
+              ` | الأسباب المحتملة: (1) المركز مُغلق يدوياً في Binance، ` +
               `(2) مفتاح API لا يملك صلاحية قراءة المحفظة، ` +
               `(3) الرصيد في حساب فرعي أو محفظة غير مدعومة، ` +
               `(4) المركز مفتوح في بورصة أو حساب مختلف.`,

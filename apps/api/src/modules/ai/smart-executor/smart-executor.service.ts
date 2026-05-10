@@ -1085,10 +1085,6 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     }
 
-    if (openPositionsCount >= maxPositions) {
-      return; // At max positions
-    }
-
     // Process each brief
     for (const brief of briefs) {
       // Skip already processed briefs (per user) — Redis-backed for crash safety
@@ -1146,6 +1142,17 @@ export class SmartExecutorService implements OnModuleDestroy {
           this.logger.debug(`⚔️ Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
           continue;
         }
+      }
+
+      // FIX: Check max positions PER PAIR, not globally
+      // Previously, if user had ANY open position, ALL briefs were blocked
+      // Now: Only skip if this specific pair already has an open position
+      const currentOpenPositions = await this.prisma.position.count({
+        where: { userId, status: 'OPEN' },
+      });
+      if (currentOpenPositions >= maxPositions) {
+        this.logger.debug(`⚔️ User ${userId} at max positions (${currentOpenPositions}/${maxPositions}) — skipping brief ${brief.id}`);
+        continue;
       }
 
       try {

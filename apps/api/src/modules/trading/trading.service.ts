@@ -1045,6 +1045,37 @@ export class TradingService {
   }
 
   /**
+   * Get available balance for a specific symbol from the exchange.
+   * This checks the ACTUAL balance on the exchange (not the cached/expected balance).
+   * Used to prevent "Insufficient balance" errors when closing positions.
+   *
+   * @param exchange CCXT exchange instance
+   * @param symbol Trading pair (e.g., 'BTC/USDT')
+   * @returns Available and total balance for the base currency (e.g., BTC)
+   */
+  private async _getAvailableBalance(
+    exchange: any,
+    symbol: string,
+  ): Promise<{ available: number; total: number; currency: string }> {
+    try {
+      const balance = await exchange.fetchBalance();
+      const baseCurrency = symbol.split('/')[0];
+
+      if (!balance[baseCurrency]) {
+        return { available: 0, total: 0, currency: baseCurrency };
+      }
+
+      const available = parseFloat(balance[baseCurrency].free || '0');
+      const total = parseFloat(balance[baseCurrency].total || '0');
+
+      return { available, total, currency: baseCurrency };
+    } catch (error: any) {
+      this.logger.warn(`⚡ Failed to fetch balance for ${symbol}: ${error.message}`);
+      return { available: 0, total: 0, currency: symbol.split('/')[0] };
+    }
+  }
+
+  /**
    * FIX: Simulate a paper trade (no real exchange connection).
    * When the credential exchange is 'paper-trading', CCXT can't execute the order
    * because there's no 'paper-trading' exchange class in CCXT. This method simulates
@@ -1135,6 +1166,56 @@ export class TradingService {
         };
       }
 
+      // FIX: Check available balance before executing SELL orders.
+      // This prevents "Insufficient balance" errors when closing positions.
+      // The database may show a higher quantity than what's actually available
+      // due to fees, locked funds, or other pending orders.
+      if (request.side === 'SELL') {
+        const balance = await this._getAvailableBalance(exchange, request.symbol);
+
+        if (balance.available <= 0) {
+          return {
+            success: false,
+            error: `رصيد ${balance.currency} غير متاح في Binance. الرصيد المتاح: 0`,
+          };
+        }
+
+        if (request.quantity > balance.available) {
+          this.logger.warn(
+            `⚡ Adjusting SELL quantity for ${request.symbol}: requested ${request.quantity} but only ${balance.available} ${balance.currency} available`,
+          );
+
+          // Log the adjustment for audit purposes
+          if (userId) {
+            await this.auditService.log({
+              userId,
+              action: 'ORDER_QUANTITY_ADJUSTED',
+              resource: 'trading',
+              details: JSON.stringify({
+                symbol: request.symbol,
+                requestedQuantity: request.quantity,
+                availableBalance: balance.available,
+                adjustedQuantity: balance.available,
+                reason: 'Insufficient balance on exchange',
+              }),
+            });
+          }
+
+          // Use the available balance instead of the requested quantity
+          // Apply a small buffer (99.5%) to account for rounding/fee variations
+          const adjustedQuantity = Math.floor(balance.available * 0.995 * 10000) / 10000;
+
+          if (adjustedQuantity <= 0) {
+            return {
+              success: false,
+              error: `رصيد ${balance.currency} غير كافٍ: متاح ${balance.available}، مطلوب ${request.quantity}`,
+            };
+          }
+
+          // Update the request with the adjusted quantity
+          request.quantity = adjustedQuantity;
+        }
+      }
 
       let result: any;
 

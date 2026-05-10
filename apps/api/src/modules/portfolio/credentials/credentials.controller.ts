@@ -47,6 +47,36 @@ export class CredentialsController {
   }
 
   /**
+   * PUT /api/portfolio/credentials/:id — Update an existing credential (e.g., toggle testnet)
+   */
+  @Put(':id')
+  async updateCredential(
+    @Param('id') credentialId: string,
+    @Request() req: any,
+    @Body() body: { testnet?: boolean },
+  ) {
+    try {
+      const credential = await this.credentialsService.updateCredential(
+        req.user.id,
+        credentialId,
+        body,
+        req.ip,
+        req.headers['user-agent'],
+      );
+
+      return { success: true, data: credential };
+    } catch (error: any) {
+      if (error.constructor && error.constructor.name && error.constructor.name.endsWith('Exception')) {
+        throw error;
+      }
+      this.logger.error(`Unexpected error in updateCredential: ${error.message}`, error.stack);
+      throw new BadRequestException(
+        `خطأ في تحديث المفتاح: ${error.message || 'خطأ غير معروف'}`
+      );
+    }
+  }
+
+  /**
    * POST /api/portfolio/credentials — Add a new exchange credential
    * Security: validates key, rejects withdraw/transfer permissions, encrypts with AES-256-GCM
    */

@@ -245,6 +245,47 @@ export class CredentialsService {
   }
 
   /**
+   * Update a credential (e.g., toggle testnet mode)
+   */
+  async updateCredential(
+    userId: string,
+    credentialId: string,
+    data: { testnet?: boolean },
+    ipAddress?: string,
+    userAgent?: string,
+  ) {
+    const credential = await this.prisma.exchangeCredential.findUnique({
+      where: { id: credentialId },
+    });
+
+    if (!credential) {
+      throw new NotFoundException('بيانات الاعتماد غير موجودة');
+    }
+
+    if (credential.userId !== userId) {
+      throw new ForbiddenException('غير مصرح بتعديل بيانات الاعتماد هذه');
+    }
+
+    const updated = await this.prisma.exchangeCredential.update({
+      where: { id: credentialId },
+      data: {
+        ...(data.testnet !== undefined && { testnet: data.testnet }),
+      },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'CREDENTIAL_UPDATED',
+      resource: 'exchange-credential',
+      details: JSON.stringify({ credentialId, testnet: data.testnet }),
+      ipAddress,
+      userAgent,
+    });
+
+    return updated;
+  }
+
+  /**
    * Delete a credential
    */
   async deleteCredential(userId: string, credentialId: string, ipAddress?: string, userAgent?: string) {
@@ -252,7 +293,7 @@ export class CredentialsService {
       where: { id: credentialId },
     });
 
-    if (!credential || credential.userId !== userId) {
+    if (!credential) {
       throw new NotFoundException('بيانات الاعتماد غير موجودة');
     }
 

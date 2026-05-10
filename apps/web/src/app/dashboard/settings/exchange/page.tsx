@@ -117,6 +117,27 @@ export default function ExchangeSettingsPage() {
     }
   }
 
+  // Toggle testnet mode
+  const handleToggleTestnet = async (id: string, currentTestnet: boolean) => {
+    const action = currentTestnet ? 'إلغاء وضع التجريب' : 'تفعيل وضع التجريب'
+    if (!confirm(`هل أنت متأكد من ${action}؟ سيتم تغيير اتصال API key بين Testnet و Mainnet.`)) return
+
+    try {
+      const res = await fetch(`/api/portfolio/credentials/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ testnet: !currentTestnet })
+      })
+      if (res.ok) {
+        setCredentials(prev => prev.map(c => 
+          c.id === id ? { ...c, testnet: !currentTestnet } : c
+        ))
+      }
+    } catch {
+      // Error handled silently
+    }
+  }
+
   // Delete credential
   const handleDelete = async (id: string) => {
     if (!confirm('هل أنت متأكد من حذف هذا المفتاح؟ هذا الإجراء لا يمكن التراجع عنه.')) return
@@ -409,13 +430,23 @@ export default function ExchangeSettingsPage() {
                           </div>
                         </div>
 
+                        {cred.exchange.includes('binance') && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleToggleTestnet(cred.id, cred.testnet)}
+                            className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+                          >
+                            {cred.testnet ? '🌐' : '🧪'}
+                          </Button>
+                        )}
                         <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(cred.id)}
-                          className="text-muted-foreground hover:text-red-400"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteCredential(cred.id)}
+                          className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </div>
                     </CardContent>

@@ -93,11 +93,13 @@ export default function MobileNavBar() {
   const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
 
   const handleNav = (href: string) => {
+    console.log('[MobileNavBar] Clicked:', href)
     if (href === '__more__') {
       setShowMore(true)
       return
     }
     router.push(href)
+    console.log('[MobileNavBar] Pushed:', href)
   }
 
   const isActive = (href: string) => {
@@ -110,7 +112,7 @@ export default function MobileNavBar() {
     <>
       {/* Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 md:hidden"
+        className="fixed bottom-0 left-0 right-0"
         style={{
           zIndex: 50,
           pointerEvents: 'auto',
@@ -264,7 +266,7 @@ export default function MobileNavBar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMore(false)}
-              className="fixed inset-0 md:hidden"
+              className="fixed inset-0"
               style={{ 
                 background: 'rgba(0,0,0,0.75)', 
                 backdropFilter: 'blur(20px) saturate(180%)', 
@@ -279,7 +281,7 @@ export default function MobileNavBar() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="fixed bottom-0 left-0 right-0 md:hidden"
+              className="fixed bottom-0 left-0 right-0"
               style={{
                 zIndex: 50,
                 background: 'linear-gradient(180deg, rgba(0,212,255,0.08) 0%, rgba(11,14,20,0.95) 100%)',

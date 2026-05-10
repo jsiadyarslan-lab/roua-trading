@@ -328,7 +328,7 @@ function ChartPageContent() {
     <div style={{
       /* Direct calc: --app-height minus navbar padding (35px + safe-area).
          This avoids relying on the template's height which is now minHeight-only. */
-      height: 'calc(var(--app-height, 100dvh) - 35px - env(safe-area-inset-bottom, 0px))',
+      height: 'calc(var(--app-height, 100dvh) - 56px)',
       background: '#000000',
       display: 'flex',
       flexDirection: 'column',

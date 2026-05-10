@@ -1578,12 +1578,12 @@ export class TradingService {
           let permissionsInfo = '';
           if (apiPermissions.success && apiPermissions.permissions) {
             const p = apiPermissions.permissions;
-            permissionsInfo = ` | صلاحيات API: ` +
-              `قراءة=${p.enableReading ? '✅' : '❌'}, ` +
-              `تداول Spot=${p.enableSpotAndMarginTrading ? '✅' : '❌'}, ` +
-              `تداول Futures=${p.enableFutures ? '✅' : '❌'}`;
+            permissionsInfo = ` | API key يعمل للقراءة ✅. ` +
+              `⚠️ لا يمكن التحقق من صلاحيات التداول تلقائياً. ` +
+              `تأكد يدوياً في Binance: API Management → ` +
+              `Enable Spot & Margin Trading + Enable Futures.`;
           } else if (apiPermissions.error) {
-            permissionsInfo = ` | خطأ في فحص صلاحيات API: ${apiPermissions.error}`;
+            permissionsInfo = ` | خطأ في فحص API: ${apiPermissions.error}`;
           }
 
           return {

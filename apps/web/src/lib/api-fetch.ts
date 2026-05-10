@@ -312,6 +312,27 @@ export async function closePositionUnified(
           }
         }
 
+        // FIX: If balance is 0 on all wallets, try force-close (DB only)
+        // This handles positions already closed on exchange or stuck positions
+        if (errMsg.includes('رصيد') && errMsg.includes('غير متاح')) {
+          try {
+            const forceRes = await fetch('/api/trading/positions/force-close', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                positionId: nestjsId,
+                reason: 'Auto force-close after balance check failure',
+              }),
+            })
+            if (forceRes.ok) {
+              options?.onClosed?.()
+              return { success: true, source: 'nestjs', forceClosed: true }
+            }
+          } catch {
+            // Force close failed, return original error
+          }
+        }
+
         // FIX: If positionId is a UUID, do NOT fall through to Alpaca.
         // A UUID is not a valid asset symbol — sending it to Alpaca always fails.
         // Only fall through for non-UUID positionIds (like "BTCUSDT").

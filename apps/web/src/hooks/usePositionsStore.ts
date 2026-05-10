@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import { ensureAuth } from '@/lib/api-fetch'
+import { ensureAuth, isNestJsId } from '@/lib/api-fetch'
 import { useAuthStore } from '@/lib/auth-store'
 
 interface Position {
@@ -145,6 +145,12 @@ function mergePositions(current: Position[], incoming: Position[]): Position[] {
       unrealizedPnl: hasLivePriceUpdate ? existing.unrealizedPnl : inc.unrealizedPnl,
       unrealizedPnlPct: hasLivePriceUpdate ? existing.unrealizedPnlPct : inc.unrealizedPnlPct,
       marketValue: hasLivePriceUpdate ? existing.marketValue : inc.marketValue,
+      // FIX: Preserve dbId from existing position if incoming doesn't have it.
+      // When Alpaca data overwrites NestJS data in the merge, the incoming
+      // position from Alpaca has no dbId (undefined), overwriting the existing
+      // dbId from NestJS. This caused close buttons to fall through to Alpaca
+      // (which returns 404 for DB-only positions like paper-trading/Binance Testnet).
+      dbId: inc.dbId || existing.dbId || undefined,
     })
   }
 
@@ -435,12 +441,14 @@ export const usePositionsStore = create<PositionsState>()(
           const positions: Position[] = filteredRaw.map((p: any) => ({
             // FIX: Add fallback chain for id (same as Alpaca path)
             id: p.id || p.asset_id || p._id || p.symbol,
-            // FIX: Always preserve the DB UUID separately so close buttons
+            // FIX: Always preserve the DB ID separately so close buttons
             // can route through NestJS instead of falling through to Alpaca.
             // Without dbId, positions from NestJS that get displayed in
             // AlpacaPositions.tsx fall through to the Alpaca close endpoint,
             // which returns 404 for DB-only positions.
-            dbId: p.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id)
+            // CRITICAL: Use isNestJsId() instead of UUID regex — Prisma uses
+            // cuid() not uuid(), so IDs like "clm5x2j4d0001..." must be recognized.
+            dbId: p.id && isNestJsId(p.id)
               ? p.id
               : undefined,
             symbol: p.symbol,

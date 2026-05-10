@@ -17,7 +17,7 @@ import {
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { closePositionUnified, UUID_RE } from '@/lib/api-fetch'
+import { closePositionUnified, isNestJsId } from '@/lib/api-fetch'
 
 /* ─── helpers ─────────────────────────────── */
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
@@ -746,7 +746,8 @@ function MobilePositions() {
       // FIX: Use closePositionUnified which tries NestJS first (for DB positions)
       // and falls back to Alpaca (for exchange positions). Previously, this
       // always called Alpaca directly, causing 404 for DB-only positions.
-      const result = await closePositionUnified(id, undefined, { dbId: UUID_RE.test(id) ? id : undefined })
+      // CRITICAL: Use isNestJsId() instead of UUID_RE — Prisma uses cuid() IDs.
+      const result = await closePositionUnified(id, undefined, { dbId: isNestJsId(id) ? id : undefined })
       if (result.success) {
         await fetchPositions()
         await fetchAccount()

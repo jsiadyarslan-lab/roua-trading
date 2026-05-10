@@ -6,6 +6,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
+import { isNestJsId } from '@/lib/api-fetch'
 
 interface Position {
   symbol: string
@@ -80,12 +81,16 @@ export function AlpacaPositions() {
       return {
         ...position,
         // Store the real DB id separately so we can use it for closing.
-        // FIX: Only set dbId if it's a valid UUID — Alpaca positions have id=rawSymbol
-        // (like "BTCUSD") which is NOT a DB id. Without this check, the close button
-        // tries NestJS close with a symbol string, which fails with 404.
-        // Also check (position as any).dbId — the usePositionsStore now preserves it.
+        // FIX: Use isNestJsId() to detect both UUID and Prisma cuid IDs.
+        // Alpaca positions have id=rawSymbol (like "BTCUSD") which is NOT a DB id.
+        // Without this check, the close button tries NestJS close with a symbol
+        // string, which fails with 404.
+        // Also check (position as any).dbId — the usePositionsStore preserves it.
+        // CRITICAL: Old code used UUID regex which rejected Prisma cuid IDs
+        // (like "clm5x2j4d0001..."), causing ALL NestJS positions to have
+        // dbId=undefined, falling through to Alpaca close → 404 error.
         dbId: (position as any)?.dbId
-          || ((position as any)?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((position as any).id)
+          || ((position as any)?.id && isNestJsId((position as any).id)
             ? (position as any).id
             : undefined),
         id: position.rawSymbol ?? position.symbol,

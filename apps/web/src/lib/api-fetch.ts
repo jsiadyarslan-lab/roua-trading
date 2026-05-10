@@ -222,8 +222,29 @@ export async function fetchSummaryUnified(): Promise<{
  * - إذا كان positionId رمز أصل (مثل "BTCUSD") → يذهب مباشرة إلى Alpaca
  * - عند فشل NestJS (404/غير موجود)، يحاول Alpaca API مباشرة
  */
-/** Regex to detect UUID format — used for routing close requests to the right API */
-export const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/**
+ * Regex to detect NestJS database IDs — used for routing close requests to the right API.
+ *
+ * CRITICAL FIX: Prisma uses @default(cuid()) which generates IDs like "clm5x2j4d0001..."
+ * (starts with 'c', 25+ alphanumeric chars). The old UUID_RE only matched UUID format,
+ * so ALL NestJS position IDs failed the check, causing dbId to always be undefined.
+ * This meant the close flow always fell through to Alpaca, which returned 404
+ * for positions that only exist in the NestJS database (paper-trading, Binance Testnet, etc.).
+ *
+ * Now accepts both UUID and Prisma cuid formats:
+ *   UUID:  550e8400-e29b-41d4-a716-446655440000
+ *   Cuid: clm5x2j4d0001sample12id34
+ */
+export function isNestJsId(id: string): boolean {
+  // UUID format: 8-4-4-4-12 hex digits with dashes
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return true
+  // Prisma cuid format: starts with 'c', 8+ alphanumeric chars (typically 25+)
+  if (/^c[a-z0-9]{8,}$/i.test(id)) return true
+  return false
+}
+
+/** @deprecated Use isNestJsId() instead — UUID_RE only matched UUID format, not Prisma cuid */
+export const UUID_RE = { test: isNestJsId } as unknown as RegExp
 
 /**
  * إغلاق مركز مع رجوع تلقائي — النسخة المحسّنة
@@ -243,13 +264,13 @@ export async function closePositionUnified(
   // Ensure auth cookie exists before making API calls
   await ensureAuth()
 
-  // تحديد معرف قاعدة البيانات: إما من options.dbId أو من positionId إذا كان UUID
-  const nestjsId = options?.dbId || (UUID_RE.test(positionId) ? positionId : null)
+  // تحديد معرف قاعدة البيانات: إما من options.dbId أو من positionId إذا كان معرف NestJS
+  const nestjsId = options?.dbId || (isNestJsId(positionId) ? positionId : null)
 
   // ════════════════════════════════════════════════════════
   // المحاولة الأولى: NestJS API (إذا كان لدينا UUID صالح)
   // ════════════════════════════════════════════════════════
-  if (nestjsId && UUID_RE.test(nestjsId)) {
+  if (nestjsId && isNestJsId(nestjsId)) {
     try {
       const body: Record<string, unknown> = { positionId: nestjsId }
       if (quantity) body.quantity = quantity
@@ -269,7 +290,7 @@ export async function closePositionUnified(
       if (res.status === 401 || res.status === 403) {
         // Fall through to Alpaca — but only if positionId is NOT a UUID
         // (a UUID sent to Alpaca will always fail)
-        if (UUID_RE.test(positionId)) {
+        if (isNestJsId(positionId)) {
           const data = await res.json().catch(() => ({}))
           return { success: false, error: data.error || data.message || 'فشل المصادقة', source: 'nestjs' }
         }
@@ -294,7 +315,7 @@ export async function closePositionUnified(
         // FIX: If positionId is a UUID, do NOT fall through to Alpaca.
         // A UUID is not a valid asset symbol — sending it to Alpaca always fails.
         // Only fall through for non-UUID positionIds (like "BTCUSDT").
-        if (UUID_RE.test(positionId)) {
+        if (isNestJsId(positionId)) {
           return { success: false, error: data.error || data.message || 'فشل الإغلاق', source: 'nestjs' }
         }
 
@@ -312,7 +333,7 @@ export async function closePositionUnified(
       }
     } catch {
       // NestJS unavailable — only fall through if positionId is NOT a UUID
-      if (UUID_RE.test(positionId)) {
+      if (isNestJsId(positionId)) {
         return { success: false, error: 'خادم NestJS غير متاح', source: 'nestjs' }
       }
     }
@@ -349,7 +370,7 @@ export async function closePositionUnified(
             const pExchNorm = (p.exchangeSymbol || '').replace('/', '').toUpperCase()
             return pNorm === normalizedId || pExchNorm === normalizedId || p.id === positionId
           })
-          if (match && match.id && UUID_RE.test(match.id)) {
+          if (match && match.id && isNestJsId(match.id)) {
             const closeRes = await fetch('/api/trading/positions/close', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },

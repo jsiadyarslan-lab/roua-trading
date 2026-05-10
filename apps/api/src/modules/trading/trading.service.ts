@@ -109,7 +109,29 @@ export class TradingService {
         }
       }
 
-      this.logger.log('⚡ ExchangeCredential + Position schema verified — all columns present');
+      // FIX: Add missing AuditLog.updatedAt column.
+      // Prisma schema has `updatedAt DateTime @updatedAt` but the production DB
+      // doesn't have this column because Prisma migration didn't run properly.
+      // This causes "The column AuditLog.updatedAt does not exist" errors on
+      // every audit log query, which blocks trading operations and fills the logs.
+      const auditLogColumns = [
+        { name: 'updatedAt', type: 'TIMESTAMP DEFAULT NOW()' },
+      ];
+
+      for (const col of auditLogColumns) {
+        try {
+          await this.prisma.$executeRawUnsafe(`
+            ALTER TABLE "AuditLog"
+            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
+          `);
+        } catch (e: any) {
+          if (!e.message?.includes('already exists')) {
+            this.logger.warn(`⚡ Could not add AuditLog column ${col.name}: ${e.message}`);
+          }
+        }
+      }
+
+      this.logger.log('⚡ ExchangeCredential + Position + AuditLog schema verified — all columns present');
     } catch (error: any) {
       this.logger.error(`⚡ Failed to verify schema: ${error.message}`);
     }

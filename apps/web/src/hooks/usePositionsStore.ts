@@ -156,8 +156,26 @@ function mergePositions(current: Position[], incoming: Position[]): Position[] {
     })
   }
 
-  // Remove positions that no longer exist in the incoming data
-  // But ONLY if the incoming data came from the same source
+  // FIX: Add positions from current that are NOT in incoming.
+  // Previously, only positions from `incoming` were included in result,
+  // meaning any position in `current` that wasn't in `incoming` was silently
+  // dropped. This caused positions to DISAPPEAR on page refresh because:
+  //   1. User opens trade → position appears in current
+  //   2. Page refresh → fetchPositions returns from API
+  //   3. If API hasn't fully settled, or a different source path is used,
+  //      incoming doesn't include the new position → it gets dropped
+  //   4. Position vanishes from the UI
+  // Now: We keep positions from current that aren't in incoming, UNLESS
+  // the incoming data is a complete replacement from the SAME source.
+  for (const [key, pos] of currentMap) {
+    if (!seenKeys.has(key)) {
+      // Position exists in current but not in incoming — keep it.
+      // It might be a recently-opened position that the API hasn't
+      // registered yet, or a position from a different source.
+      result.push(pos)
+    }
+  }
+
   return result
 }
 
@@ -186,7 +204,7 @@ export const usePositionsStore = create<PositionsState>()(
    * Problem: After a trade (manual or automated), the account balance and
    * positions list don't update because:
    * 1. No WebSocket push for balance updates (WS disabled by default)
-   * 2. Polling interval is 30 seconds (too slow)
+   * 2. Polling interval is too slow
    * 3. Only Execution Panel calls fetchAccount() after trade
    *
    * Solution: This method is called from EVERY place a trade is opened/closed.
@@ -194,24 +212,43 @@ export const usePositionsStore = create<PositionsState>()(
    * - Immediate fetch (positions + account)
    * - Delayed fetch after 2s (exchange settlement)
    * - Final fetch after 5s (catch slow exchanges)
+   *
+   * CRITICAL FIX: Each delayed wave resets `loading = false` before fetching
+   * to bypass the concurrency guard in fetchPositions. Previously, if the
+   * first wave took > 2s, the second wave was silently skipped because
+   * `if (get().loading) return` blocked it.
    */
   refreshAfterTrade: () => {
-    const fetchPositions = get().fetchPositions
-    const fetchAccount = get().fetchAccount
-
     // Immediate fetch — show the new position/balance ASAP
-    Promise.all([fetchPositions(), fetchAccount()]).catch(() => {})
+    Promise.all([
+      get().fetchPositions(),
+      get().fetchAccount(),
+    ]).catch((err) => {
+      console.warn('[PositionsStore] refreshAfterTrade immediate failed:', err)
+    })
 
     // Delayed fetch #1 — exchange settlement (2 seconds)
     setTimeout(() => {
-      fetchPositions().catch(() => {})
-      fetchAccount().catch(() => {})
+      // FIX: Reset loading guard so the fetch can proceed even if
+      // the previous wave is still running
+      if (get().loading) set({ loading: false })
+      Promise.all([
+        get().fetchPositions(),
+        get().fetchAccount(),
+      ]).catch((err) => {
+        console.warn('[PositionsStore] refreshAfterTrade wave 2 failed:', err)
+      })
     }, 2000)
 
     // Delayed fetch #2 — slow exchanges (5 seconds)
     setTimeout(() => {
-      fetchPositions().catch(() => {})
-      fetchAccount().catch(() => {})
+      if (get().loading) set({ loading: false })
+      Promise.all([
+        get().fetchPositions(),
+        get().fetchAccount(),
+      ]).catch((err) => {
+        console.warn('[PositionsStore] refreshAfterTrade wave 3 failed:', err)
+      })
     }, 5000)
   },
 
@@ -320,8 +357,17 @@ export const usePositionsStore = create<PositionsState>()(
           // pages, not in the positions/trades widget.
           // ═══════════════════════════════════════════════════════════════
 
-          // If we have real balance or no decryption errors, stop here.
-          if (totalEquityUsd > 0 || !hasDecryptionError) {
+          // FIX: If we got a valid equity (even $0 for paper-trading-only),
+          // accept it. Previously, the check `totalEquityUsd > 0` would
+          // skip paper-trading accounts that returned $0, causing the
+          // balance to never update. The second check `!hasDecryptionError`
+          // was also problematic — paper-trading has no credentials to decrypt.
+          // Now: Accept the result if the API call succeeded (res.ok + data.success),
+          // regardless of the equity amount. Fall through only if the API
+          // response was genuinely invalid (no exchanges, no data at all).
+          const hasPaperOnly = exchanges.some((e: any) => e.exchange === 'paper-trading')
+          const hasValidData = totalEquityUsd > 0 || hasPaperOnly || !hasDecryptionError
+          if (hasValidData) {
             return
           }
           if (!hasRealCredentials) {

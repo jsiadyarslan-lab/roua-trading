@@ -525,12 +525,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
 
         const orderValue = command.quantity * currentPrice;
         const paperBalance = await this._getPaperBalance(command.userId);
-        const maxPaperOrderValue = Math.min(500, paperBalance * 0.05); // max $500 or 5% of balance
+
+        // FIX: Removed the $500 hard cap — it made paper trading impossible for
+        // any meaningful quantity. A $10K paper account was limited to $500/trade (5%),
+        // but a $100K account was also limited to $500 (0.5%) — far too restrictive.
+        // Now: The limit is simply 20% of paper balance (no hard cap).
+        // This is still conservative (prevents all-in on one trade) but allows
+        // trading assets like BTC, ETH, SOL which easily exceed $500/trade.
+        const maxPaperOrderValue = paperBalance * 0.20; // 20% of paper balance
 
         if (orderValue > maxPaperOrderValue) {
           return {
             allowed: false,
-            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 5% من الرصيد الورقي.`,
+            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 20% من الرصيد الورقي ($${paperBalance.toFixed(2)}).`,
             failedCheck: 'POSITION_SIZE_LIMIT',
           };
         }

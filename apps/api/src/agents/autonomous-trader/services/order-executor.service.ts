@@ -338,8 +338,24 @@ export class OrderExecutorService implements OnModuleDestroy {
         idempotencyKey,
       };
 
-      // Execute through TradingService (includes risk checks)
-      const order = await this.tradingService.placeOrder(userId, orderRequest);
+      // FIX: Route ALL orders (real + paper) through OrderDispatcher → BullMQ pipeline
+      const dispatchResult = await this.orderDispatcher.submitOrder({
+        source: 'agent',
+        userId,
+        credentialId: orderRequest.credentialId,
+        symbol: orderRequest.symbol,
+        side: (orderRequest.side as string).toUpperCase() === 'BUY' ? 'BUY' : 'SELL',
+        quantity: orderRequest.quantity,
+        price: typeof orderRequest.price === 'number' ? orderRequest.price : undefined,
+        stopLoss: orderRequest.stopLoss,
+        takeProfit: orderRequest.takeProfit,
+        signalId: signal?.id,
+        isPaperTrading: false,
+      });
+      if (!dispatchResult.success) {
+        throw new Error(dispatchResult.error || dispatchResult.message || 'فشل الموزع');
+      }
+      const order = { id: dispatchResult.orderId || 'unknown', filledQuantity: orderRequest.quantity, fee: 0, feeCurrency: 'USD', exchangeOrderId: null as any };
 
       const executionTimeMs = Date.now() - startTime;
 

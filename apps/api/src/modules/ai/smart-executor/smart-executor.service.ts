@@ -41,7 +41,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /** Configuration */
   private readonly config: ExecutorConfig = {
-    tickIntervalMs: 2000,           // 2 seconds (more reasonable than 1s)
+    tickIntervalMs: 10000,          // FIX: 10 seconds (was 2s) — reduces DB load by 5x
     maxOpenPositions: 10,
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%

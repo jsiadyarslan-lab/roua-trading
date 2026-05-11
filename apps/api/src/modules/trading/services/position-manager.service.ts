@@ -57,9 +57,9 @@ export class PositionManagerService {
       where: {
         userId,
         status: 'OPEN',
-        // EXCLUDE phantom positions from auto-trading systems
-        exchange: { not: 'paper-trading' },
-        source: { notIn: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] },
+        // FIX: Include ALL positions including paper trading.
+        // Paper positions are real simulated trades — should appear in portfolio.
+        // Previously excluded, causing portfolioValue = 0 for paper traders.
       },
       orderBy: { openedAt: 'desc' },
     });

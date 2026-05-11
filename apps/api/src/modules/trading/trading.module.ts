@@ -58,6 +58,9 @@ import { OrderDispatcherService } from './services/order-dispatcher.service';
     NotificationModule,
 
     // BullMQ queue for order execution (shared with ExecutionModule)
+    // FIX: Register execution_queue for @InjectQueue injection in OrderDispatcher.
+    // ExecutionModule owns the queue with full options (retries, backoff, TTL).
+    // TradingModule only registers it to allow @InjectQueue('execution_queue') injection.
     BullModule.registerQueue({
       name: 'execution_queue',
     }),

@@ -37,7 +37,9 @@ import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus
 @Injectable()
 export class TradingService {
   private readonly logger = new Logger(TradingService.name);
-  private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
+  private readonly exchangeCache = new Map<string, { instance: any; createdAt: number }>(); // credentialId:exchangeName -> exchange instance
+  private readonly EXCHANGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+  private readonly MAX_CACHE_SIZE = 50; // prevent unbounded growth
 
   constructor(
     private readonly prisma: PrismaService,
@@ -55,6 +57,27 @@ export class TradingService {
     // "The column ExchangeCredential.encryptedPassphrase does not exist"
     // which blocks ALL trade execution (paper and real).
     this._ensureExchangeCredentialColumns();
+    // FIX: Clean expired exchange instances every 10 minutes (prevent memory leak)
+    setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
+  }
+
+  private _cleanExchangeCache(): void {
+    const now = Date.now();
+    let cleaned = 0;
+    for (const [key, entry] of this.exchangeCache.entries()) {
+      if (now - entry.createdAt > this.EXCHANGE_CACHE_TTL_MS) {
+        this.exchangeCache.delete(key);
+        cleaned++;
+      }
+    }
+    if (cleaned > 0) {
+      this.logger.debug(`🗑️ ExchangeCache: cleaned ${cleaned} expired instances (${this.exchangeCache.size} remaining)`);
+    }
+    // Hard limit: evict oldest if over MAX_CACHE_SIZE
+    if (this.exchangeCache.size > this.MAX_CACHE_SIZE) {
+      const oldest = [...this.exchangeCache.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
+      oldest.slice(0, this.exchangeCache.size - this.MAX_CACHE_SIZE).forEach(([k]) => this.exchangeCache.delete(k));
+    }
   }
 
   /**

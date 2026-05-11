@@ -1,35 +1,58 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading — Order Dispatcher Service
+// Roua Trading — Order Dispatcher Service v2
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// المنسق الوحيد لجميع الأوامر الآلية.
-// يمنع التعارض بين المنفذ الذكي والوكيل الآلي.
 //
-// مبدأ العمل: Producer → Dispatcher → Executor
-//   - المنتج (SmartExecutor / AutonomousTrader): يقرر ماذا يتداول
-//   - الموزع (هذه الخدمة): يتلقى الأوامر وينسقها ويمنع التعارضات
-//   - المنفذ (TradingService): ينفذ الأمر الفعلي
+// الإصلاح الجذري: توحيد خط التنفيذ
+//
+// قبل الإصلاح (مسارات متوازية):
+//   SmartExecutor → TradingService.placeOrder() → CCXT مباشرة
+//   Agent         → TradingService.placeOrder() → CCXT مباشرة
+//   Frontend      → OrderController → BullMQ → ExecutionGatewayService
+//
+// بعد الإصلاح (مسار واحد):
+//   SmartExecutor ─┐
+//   Agent ──────────┼──→ OrderDispatcher → IdempotencyService
+//   Frontend ───────┘                   → RiskGatekeeperService
+//                                       → OrderStateManagerService (PENDING→ACCEPTED)
+//                                       → BullMQ execution_queue
+//                                       → OrderQueueProcessor
+//                                       → ExecutionGatewayService
+//                                       → BinanceAdapter | PaperTradingAdapter
+//
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
-import { TradingService } from '../trading.service';
+import { IdempotencyService } from './idempotency.service';
 import { RiskGatekeeperService } from './risk-gatekeeper.service';
-import { OrderSide, OrderType, PlaceOrderRequest } from '../trading.types';
-import { OrderSideEnum, OrderTypeEnum } from '../events/order.events';
+import { OrderStateManagerService } from './order-state-manager.service';
+import {
+  OrderCommand,
+  OrderSideEnum,
+  OrderTypeEnum,
+} from '../events/order.events';
+import { OrderSide, OrderType } from '@prisma/client';
+import * as crypto from 'crypto';
+
+// ── Types ──────────────────────────────────────────────────────
 
 export interface AutoOrderRequest {
-  /** المصدر: 'smart_executor' أو 'agent' */
+  /** المصدر: المنفذ الذكي أو الوكيل الآلي */
   source: 'smart_executor' | 'agent';
   userId: string;
   credentialId: string;
   symbol: string;
   side: 'BUY' | 'SELL';
   quantity: number;
-  price: number;
+  price?: number;
   stopLoss?: number;
   takeProfit?: number;
+  /** معرف الوثيقة من المجلس الاستراتيجي */
   briefId?: string;
+  /** معرف الإشارة من الوكيل */
   signalId?: string;
   isPaperTrading?: boolean;
 }
@@ -41,155 +64,188 @@ export interface OrderResult {
   error?: string;
 }
 
+// ── Service ────────────────────────────────────────────────────
+
 @Injectable()
 export class OrderDispatcherService {
   private readonly logger = new Logger(OrderDispatcherService.name);
 
-  // مفتاح Redis للقفل الذري — يمنع race condition
-  private readonly LOCK_PREFIX = 'dispatcher:lock:';
-  // مفتاح idempotency — يمنع تكرار نفس الأمر
-  private readonly IDEMPOTENCY_PREFIX = 'dispatcher:idem:';
-  // مدة القفل: 30 ثانية (كافية لإتمام أي عملية)
-  private readonly LOCK_TTL_SEC = 30;
-  // مدة idempotency: 5 دقائق (منع تكرار نفس الصفقة)
-  private readonly IDEM_TTL_SEC = 300;
+  /** مدة منع تكرار نفس الصفقة: 5 دقائق */
+  private readonly BRIEF_LOCK_TTL_SEC = 300;
 
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
+    private readonly idempotency: IdempotencyService,
     private readonly riskGatekeeper: RiskGatekeeperService,
-    private readonly tradingService: TradingService,
-  ) {}
+    private readonly stateManager: OrderStateManagerService,
+    @InjectQueue('execution_queue') private readonly executionQueue: Queue,
+  ) {
+    this.logger.log(
+      '🚦 OrderDispatcher v2 initialized — ALL automated orders route through BullMQ pipeline',
+    );
+  }
 
   /**
-   * تقديم أمر تداول آلي — النقطة الوحيدة لكل الأوامر الآلية
+   * تقديم أمر تداول آلي
    *
-   * الخطوات:
-   * 1. توليد مفتاح idempotency بناءً على محتوى الأمر (لا الوقت)
-   * 2. قفل ذري بـ SET NX لمنع race condition
-   * 3. التحقق من عدم وجود أمر مكرر
-   * 4. إرسال إلى حارس المخاطر
-   * 5. تنفيذ الأمر عبر TradingService
-   * 6. تسجيل النتيجة في قاعدة البيانات
+   * هذه النقطة الوحيدة لكل الأوامر الآلية.
+   * تمر عبر نفس pipeline الـ Frontend تماماً:
+   *   IdempotencyService → RiskGatekeeperService → OrderStateManager → BullMQ
    */
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
-    // ── الخطوة 1: توليد مفتاح idempotency بناءً على المحتوى ──
-    // FIX: لا نستخدم Date.now() لأنه يجعل كل أمر فريداً دائماً.
-    // نستخدم محتوى الأمر: source + معرف الوثيقة/الإشارة + الزوج + الاتجاه.
-    // هذا يضمن رفض نفس الأمر إذا جاء مرتين خلال 5 دقائق.
-    const idemKey = `${request.source}:${request.briefId || request.signalId || 'manual'}:${request.symbol}:${request.side}`;
-    const idemRedisKey = `${this.IDEMPOTENCY_PREFIX}${idemKey}`;
+    const startTime = Date.now();
 
-    // ── الخطوة 2: قفل ذري بـ SET NX (atomic) ──
-    // FIX: نستخدم SET NX بدلاً من GET ثم SET لمنع race condition.
-    // إذا كان القفل موجوداً (أمر آخر يُعالج)، نتجاهل هذا الأمر.
-    const lockKey = `${this.LOCK_PREFIX}${idemKey}`;
-    let locked = false;
+    // ── 1. توليد idempotency key ──────────────────────────────
+    // مبني على المحتوى وليس الوقت — يمنع تكرار نفس الصفقة خلال 5 دقائق
+    const briefRef = request.briefId || request.signalId || 'manual';
+    const contentKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
+    const idempotencyKey = crypto
+      .createHash('sha256')
+      .update(contentKey)
+      .digest('hex')
+      .slice(0, 32);
 
-    try {
-      // SET NX = Set if Not eXists (atomic operation)
-      const lockResult = await this.redis.set(lockKey, '1', this.LOCK_TTL_SEC);
-      locked = lockResult !== null;
-    } catch (redisErr: any) {
-      // إذا فشل Redis، نتابع بحذر (بدون حماية من التكرار)
-      this.logger.warn(`[Dispatcher] Redis lock failed — proceeding without lock: ${redisErr.message}`);
-      locked = true; // نتابع بدون قفل (أفضل من رفض الأمر كلياً)
+    this.logger.debug(
+      `[Dispatcher] ${request.source} → ${request.symbol} ${request.side} | key: ${idempotencyKey.slice(0, 8)}...`,
+    );
+
+    // ── 2. منع تكرار نفس الأمر (IdempotencyService — 24h TTL) ─
+    const isUnique = await this.idempotency.checkAndLock(idempotencyKey);
+    if (!isUnique) {
+      this.logger.debug(
+        `[Dispatcher] Duplicate order rejected: ${request.source} ${request.symbol} ${request.side}`,
+      );
+      return {
+        success: false,
+        message: `أمر مكرر — ${request.symbol} ${request.side} من ${request.source} تم استلامه مسبقاً`,
+      };
     }
 
-    if (!locked) {
-      this.logger.debug(`[Dispatcher] Order locked — another order for ${idemKey} is being processed`);
-      return { success: false, message: 'أمر يُعالج حالياً — يُرجى الانتظار' };
-    }
-
     try {
-      // ── الخطوة 3: التحقق من عدم وجود أمر مكرر ──
-      try {
-        const existing = await this.redis.get(idemRedisKey);
-        if (existing) {
-          this.logger.debug(`[Dispatcher] Duplicate order rejected: ${idemKey}`);
-          return { success: false, message: 'أمر مكرر — تم تجاهله (نفس الزوج والاتجاه خلال 5 دقائق)' };
-        }
-      } catch (redisErr: any) {
-        // FIX: إذا فشل Redis في التحقق، نتابع بدون منع التكرار
-        // (أفضل من رفض الأوامر الصحيحة بسبب انقطاع Redis)
-        this.logger.warn(`[Dispatcher] Redis idempotency check failed — proceeding: ${redisErr.message}`);
+      // ── 3. بناء OrderCommand ───────────────────────────────────
+      if (!request.stopLoss || request.stopLoss <= 0) {
+        await this.idempotency.releaseLock(idempotencyKey);
+        return {
+          success: false,
+          error: `وقف الخسارة إجباري — تم رفض الأمر من ${request.source}`,
+        };
       }
 
-      // ── الخطوة 4: إرسال إلى حارس المخاطر ──
-      let riskCheck: any;
-      try {
-        riskCheck = await this.riskGatekeeper.validateOrder({
-          userId: request.userId,
-          exchangeCredentialId: request.credentialId,
-          symbol: request.symbol,
-          side: request.side === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
-          type: OrderTypeEnum.MARKET,
-          quantity: request.quantity,
-          price: request.price ?? 0,
-          stopLoss: request.stopLoss ?? 0,
-          idempotencyKey: `dispatcher-${idemKey}`,
-        });
-      } catch (riskErr: any) {
-        this.logger.error(`[Dispatcher] RiskGatekeeper error: ${riskErr.message}`);
-        return { success: false, error: `خطأ في حارس المخاطر: ${riskErr.message}` };
-      }
-
-      if (!riskCheck.allowed) {
-        this.logger.warn(`[Dispatcher] Order blocked by risk gatekeeper: ${riskCheck.reason}`);
-        return { success: false, error: `مرفوض من حارس المخاطر: ${riskCheck.reason}` };
-      }
-
-      // ── الخطوة 5: تنفيذ الأمر عبر TradingService (النقطة الوحيدة للتنفيذ) ──
-      const orderRequest: PlaceOrderRequest = {
-        credentialId: request.credentialId,
+      const command: OrderCommand = {
+        userId: request.userId,
+        exchangeCredentialId: request.credentialId,
         symbol: request.symbol,
         side: request.side === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
         type: OrderType.MARKET,
         quantity: request.quantity,
-        price: request.price ?? 0,
+        price: request.price,
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
-        source: request.source as 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual',
+        idempotencyKey,
+        clientOrderId: `${request.source}-${briefRef}-${Date.now()}`,
       };
 
-      const orderResult = await this.tradingService.placeOrder(request.userId, orderRequest);
+      // ── 4. حارس المخاطر (5 نقاط) ─────────────────────────────
+      const riskCheck = await this.riskGatekeeper.validateOrder(command);
 
-      // ── الخطوة 6: تسجيل مفتاح idempotency (منع التكرار لـ 5 دقائق) ──
-      try {
-        await this.redis.set(
-          idemRedisKey,
-          JSON.stringify({ orderId: orderResult?.id, executedAt: new Date().toISOString() }),
-          this.IDEM_TTL_SEC,
+      if (!riskCheck.allowed) {
+        this.logger.warn(
+          `[Dispatcher] RiskGatekeeper BLOCKED ${request.source} order: ${riskCheck.reason}`,
         );
-      } catch { /* غير حرج */ }
+        // تحرير القفل — يسمح بالمحاولة مجدداً إذا تحسنت الظروف
+        await this.idempotency.releaseLock(idempotencyKey);
+        return {
+          success: false,
+          error: `مرفوض: ${riskCheck.reason}`,
+        };
+      }
 
-      this.logger.log(`[Dispatcher] ✅ Order executed: ${request.source} → ${request.symbol} ${request.side} @ ${request.price} | orderId: ${orderResult?.id}`);
+      // ── 5. إنشاء Order في قاعدة البيانات (PENDING) ───────────
+      const order = await this.stateManager.createOrder(command);
 
-      return {
-        success: true,
-        orderId: orderResult?.id || 'unknown',
-        message: `تم تنفيذ ${request.side === 'BUY' ? 'شراء' : 'بيع'} ${request.symbol} عبر ${request.source}`,
-      };
+      // ── 6. تحديث الحالة إلى ACCEPTED ─────────────────────────
+      await this.stateManager.updateOrderStatus(order.id, 'ACCEPTED');
 
-    } catch (error: any) {
-      this.logger.error(`[Dispatcher] Order execution failed: ${error.message}`);
-      return { success: false, error: error.message };
-    } finally {
-      // ── تحرير القفل دائماً (حتى عند الفشل) ──
+      // ── 7. إرسال إلى BullMQ execution_queue ──────────────────
+      // نفس الـ payload الذي يستخدمه OrderController تماماً
       try {
-        await this.redis.del(lockKey);
-      } catch { /* غير حرج */ }
+        await this.executionQueue.add(
+          'execute',
+          {
+            orderId: order.id,
+            userId: command.userId,
+            exchangeCredentialId: command.exchangeCredentialId,
+            symbol: command.symbol,
+            side: command.side,
+            type: command.type,
+            quantity: command.quantity,
+            price: command.price,
+            stopLoss: command.stopLoss,
+            takeProfit: command.takeProfit,
+            clientOrderId: command.clientOrderId,
+            idempotencyKey: command.idempotencyKey,
+          },
+          {
+            jobId: idempotencyKey,
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+          },
+        );
+
+        const elapsed = Date.now() - startTime;
+        this.logger.log(
+          `[Dispatcher] ✅ ${request.source} → ${request.symbol} ${request.side} | orderId: ${order.id} | queue: BullMQ | ${elapsed}ms`,
+        );
+
+        return {
+          success: true,
+          orderId: order.id,
+          message: `تم قبول الأمر وإرساله للتنفيذ — orderId: ${order.id}`,
+        };
+      } catch (queueErr: any) {
+        // BullMQ فشل — نحدث الحالة وننبّه
+        this.logger.error(
+          `[Dispatcher] BullMQ failed for order ${order.id}: ${queueErr.message}`,
+        );
+        await this.stateManager.updateOrderStatus(order.id, 'REJECTED', {
+          reason: `فشل إرسال الأمر للقائمة: ${queueErr.message}`,
+        });
+        return {
+          success: false,
+          error: `فشل إرسال للتنفيذ: ${queueErr.message}`,
+        };
+      }
+    } catch (error: any) {
+      this.logger.error(
+        `[Dispatcher] Unexpected error for ${request.source}: ${error.message}`,
+      );
+      // تحرير القفل عند الخطأ غير المتوقع
+      try {
+        await this.idempotency.releaseLock(idempotencyKey);
+      } catch { /* silent */ }
+      return { success: false, error: error.message };
     }
   }
 
   /**
-   * جلب الأوامر النشطة — اختياري: يمكن تصفيتها حسب المصدر
+   * جلب الأوامر النشطة للمستخدم
    */
   async getActiveOrders(userId: string, source?: string): Promise<any[]> {
     try {
-      const where: any = { userId, status: { in: ['PENDING', 'OPEN', 'PARTIALLY_FILLED'] } };
-      if (source) where.source = source;
-      return await this.prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
+      const where: any = {
+        userId,
+        status: { in: ['PENDING', 'ACCEPTED', 'SENT_TO_EXCHANGE'] },
+      };
+      if (source) {
+        // نفلتر بناءً على clientOrderId الذي يبدأ بـ source
+        where.clientOrderId = { startsWith: source };
+      }
+      return await this.prisma.order.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
     } catch {
       return [];
     }
@@ -200,9 +256,8 @@ export class OrderDispatcherService {
    */
   async cancelOrder(orderId: string, userId: string): Promise<boolean> {
     try {
-      await this.prisma.order.update({
-        where: { id: orderId, userId },
-        data: { status: 'CANCELLED' },
+      await this.stateManager.updateOrderStatus(orderId, 'CANCELLED', {
+        reason: 'إلغاء يدوي من OrderDispatcher',
       });
       return true;
     } catch {

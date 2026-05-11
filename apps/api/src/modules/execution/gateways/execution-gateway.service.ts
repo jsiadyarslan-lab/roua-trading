@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import { AuditService } from '../../../audit/audit.service';
@@ -60,6 +61,7 @@ export class ExecutionGatewayService {
     private readonly auditService: AuditService,
     private readonly aggregator: MarketDataAggregatorService,
     private readonly redisService: RedisService,
+    private readonly configService?: ConfigService,
   ) {
     this.logger.log('🚀 Execution Gateway initialized — adapter routing active');
   }
@@ -209,7 +211,9 @@ export class ExecutionGatewayService {
 
     switch (exchangeLower) {
       case 'binance':
-        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId);
+        // FIX: Read BINANCE_TESTNET env var
+        const isTestnet = this.configService?.get('BINANCE_TESTNET', 'false') === 'true' || (credential as any).testnet === true;
+        return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, isTestnet, 'spot');
       
       case 'binance_test':
         return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */, 'spot');

@@ -282,6 +282,17 @@ export class StrategicCouncilService {
    */
   @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
+    // FIX: Stop brief generation when auto-trading is disabled
+    const autoEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+    if (!autoEnabled) {
+      try {
+        const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
+        if (!s?.[0] || String(s[0].value) !== 'true') {
+          this.logger.debug('🏛️ Council skipped — AUTO_TRADING_ENABLED=false');
+          return { pairs: 0, briefs: 0, errors: 0, sessionId: 'skipped', durationMs: 0 } as any;
+        }
+      } catch { /* proceed */ }
+    }
     // ═══════════════════════════════════════════════════════
     // FIX: Check AUTO_TRADING_ENABLED before generating briefs.
     // If auto-trading is globally disabled (the default), there's no

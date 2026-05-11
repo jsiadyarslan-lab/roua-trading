@@ -3,6 +3,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
@@ -78,6 +79,7 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
     }),
 
     // Infrastructure
+    ConfigModule,
     PrismaModule,
     RedisModule,
     AuditModule,

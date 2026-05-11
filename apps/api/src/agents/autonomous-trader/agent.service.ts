@@ -16,6 +16,8 @@ import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
 import { OrderExecutorService } from './services/order-executor.service';
+import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
+import { TradingBriefDTO, AGENT_TIMEFRAMES, isAgentTimeframe } from '../../modules/ai/strategic-council/strategic-council.types';
 
 import {
   AgentStatus,
@@ -29,6 +31,9 @@ import {
   UpdateRiskParamsDto,
   UpdateAgentSettingsDto,
   AgentDecision,
+  EvaluatedSignal,
+  OrderSide,
+  OrderType,
 } from './types/agent.types';
 import { PerformanceTracker } from './models/performance';
 
@@ -86,6 +91,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly riskCalculator: RiskCalculatorService,
     private readonly orderExecutor: OrderExecutorService,
+    @Optional() private readonly councilService: StrategicCouncilService,
   ) {
     // FIX: Lazy readiness check — try to connect to dependencies on first use
     // instead of permanently blocking if they're unavailable at constructor time.
@@ -227,46 +233,20 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       }
 
       // ── PURGE: Clear volatile agent states from Redis ──
-      // ROOT FIX: Do NOT blindly clear ALL Redis agent states. Previously, this
-      // would delete every agent:state:* key, which meant that if a user had
-      // explicitly started their agent AND the Smart Executor was NOT active,
-      // the agent would be killed — even though the user wanted it running.
-      //
-      // NEW APPROACH: Only clear Redis agent states that conflict with the
-      // Smart Executor (mutual exclusion). Keep agent states where the Smart
-      // Executor is NOT active, so the agent can continue working after restart.
+      // Clear stale Redis agent states. Since the DB sessions are already
+      // marked as STOPPED above, these Redis states are stale and should be
+      // removed. The _getActiveAgents() DB recovery will re-populate from
+      // DB for any legitimately running agents.
       try {
         const agentKeys = await this.redis.scanKeys('agent:state:*');
         let cleared = 0;
-        let preserved = 0;
         for (const key of agentKeys) {
           try {
             const raw = await this.redis.get(key);
             if (raw) {
-              const state = JSON.parse(raw);
-              const userId = key.replace('agent:state:', '');
-
-              // Check if Smart Executor is also active for this user
-              let executorActive = false;
-              try {
-                const executorStateRaw = await this.redis.get(`smart-executor:user:${userId}`);
-                if (executorStateRaw) {
-                  const executorState = JSON.parse(executorStateRaw);
-                  executorActive = executorState && executorState.enabled;
-                }
-              } catch {}
-
-              if (executorActive) {
-                // Smart Executor is active — clear the agent state (mutual exclusion)
-                await this.redis.del(key);
-                cleared++;
-              } else {
-                // Smart Executor NOT active — preserve the agent state
-                // The DB already has sessions marked as STOPPED by the step above,
-                // but the Redis state (which the cron reads) should reflect the user's
-                // intent. The _getActiveAgents() DB recovery will re-populate if needed.
-                preserved++;
-              }
+              // Valid state but stale after restart — clear it
+              await this.redis.del(key);
+              cleared++;
             } else {
               // Empty/invalid key — delete it
               await this.redis.del(key);
@@ -278,11 +258,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             cleared++;
           }
         }
-        if (cleared > 0 || preserved > 0) {
-          this.logger.log(`🧠 STARTUP: Redis agent states: ${cleared} cleared (conflict), ${preserved} preserved (no conflict)`);
+        if (cleared > 0) {
+          this.logger.log(`🧠 STARTUP: Cleared ${cleared} stale Redis agent state(s)`);
         }
       } catch (err: any) {
-        this.logger.warn(`🧠 Failed to process agent Redis states: ${err.message}`);
+        this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
       }
 
       // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──
@@ -375,67 +355,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Try a lazy readiness check — maybe DB came up after initial cold start.
     this._tryMarkReady();
     this._ensureReady();
-
-    // ── MUTUAL EXCLUSION: Check shared lock first ──
-    // If the Smart Executor owns the lock, refuse to start the Agent.
-    // The user must disable the Smart Executor first.
-    try {
-      const lockRaw = await this.redis.get(`trading:active_controller:${userId}`);
-      if (lockRaw) {
-        const lock = JSON.parse(lockRaw);
-        if (lock && lock.controller === 'smart_executor') {
-          this.logger.warn(
-            `🧠 MUTUAL EXCLUSION: Smart Executor owns the trading lock for user ${userId} — refusing to start Agent`,
-          );
-          throw new BadRequestException('المنفذ الذكي يعمل حالياً — عطّله أولاً قبل تفعيل الوكيل');
-        }
-      }
-    } catch (lockCheckErr: any) {
-      // If the error is our own throw, re-throw it
-      if (lockCheckErr.message?.includes('عطّله أولاً')) throw lockCheckErr;
-      // Otherwise, log and continue (don't block on Redis failure)
-      this.logger.warn(`🧠 Could not check mutual exclusion lock: ${lockCheckErr.message}`);
-    }
-
-    // ── MUTUAL EXCLUSION: Disable Smart Executor if active for this user ──
-    // ROOT FIX: Both Agent and Smart Executor trading simultaneously for the same user
-    // causes duplicate trades, conflicting positions, and resource waste.
-    // They MUST be mutually exclusive — only one can be active per user at a time.
-    // When the user starts the Agent, we automatically disable the Smart Executor.
-    try {
-      const executorState = await this.redis.get(`smart-executor:user:${userId}`);
-      if (executorState) {
-        const parsed = JSON.parse(executorState);
-        if (parsed && parsed.enabled) {
-          this.logger.log(
-            `🧠 MUTUAL EXCLUSION: Smart Executor is active for user ${userId} — disabling it before starting Agent`,
-          );
-          await this.redis.del(`smart-executor:user:${userId}`);
-          // Also remove from DB persistence
-          try {
-            await this.prisma.setting.deleteMany({
-              where: { key: `SMART_EXECUTOR_USER_STATE:${userId}` },
-            });
-          } catch {}
-          this.logger.log(`🧠 Smart Executor disabled for user ${userId} — Agent takes exclusive control`);
-        }
-      }
-    } catch (exErr: any) {
-      this.logger.warn(`🧠 Could not check/disable Smart Executor: ${exErr.message} — proceeding with Agent start`);
-    }
-
-    // ── MUTUAL EXCLUSION: Set shared Redis lock to prevent Smart Executor from starting ──
-    // This lock ensures that even if Redis restarts and states are lost/recovered,
-    // the Smart Executor cannot re-enable itself while the Agent is running.
-    try {
-      await this.redis.set(
-        `trading:active_controller:${userId}`,
-        JSON.stringify({ controller: 'agent', enabledAt: new Date().toISOString() }),
-        86400000 * 7,  // 7 days — matches agent session TTL
-      );
-    } catch (lockErr: any) {
-      this.logger.warn(`🧠 Could not set mutual exclusion lock: ${lockErr.message}`);
-    }
 
     // Check if agent is already running
     const existingState = await this._getAgentState(userId);
@@ -699,12 +618,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     state.status = emergency ? AgentStatus.EMERGENCY_STOP : AgentStatus.STOPPED;
 
     await this._saveAgentState(userId, state);
-
-    // ── MUTUAL EXCLUSION: Release the shared Redis lock ──
-    // This allows the Smart Executor to start if the user wants to switch to it.
-    try {
-      await this.redis.del(`trading:active_controller:${userId}`);
-    } catch {}
 
     // Update DB session
     try {
@@ -1330,15 +1243,24 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
   /**
    * Process a single agent's trading cycle
+   *
+   * ARCHITECTURE: The Agent now reads TradingBriefs from the Strategic Council
+   * instead of generating its own signals via MarketAnalyzer + SignalEvaluator.
+   * This ensures a UNIFIED signal source — both Smart Executor and Agent
+   * read from the same Council, but each filters by its assigned timeframes:
+   *   - Smart Executor: M1, M5, M15 (quick/scalping)
+   *   - Agent: M30, H1, H4, D1, W1 (short/medium/long-term)
+   *
+   * The old self-contained pipeline (MarketAnalyzer → SignalEvaluator → RiskCalculator)
+   * is kept as a FALLBACK when the Council is unavailable, but the primary path
+   * is Council → Brief → Execute.
    */
   private async _processAgentCycle(userId: string): Promise<void> {
     const state = await this._getAgentState(userId);
     if (!state) return;
 
     // FIX: Reset daily stats BEFORE the status check so that agents with
-    // DAILY_LIMIT_REACHED status from a previous day can recover. Previously,
-    // the daily reset happened AFTER the status check, so DAILY_LIMIT_REACHED
-    // agents would always be skipped and could never recover on a new day.
+    // DAILY_LIMIT_REACHED status from a previous day can recover.
     this._resetDailyStatsIfNeeded(state);
 
     if (state.status !== AgentStatus.RUNNING) return;
@@ -1359,108 +1281,193 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // CRITICAL: Monitor existing positions for SL/TP exits BEFORE opening new ones
     await this._monitorOpenPositions(userId, state);
 
-    // Analyze markets for configured symbols
-    const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
+    // ── PRIMARY PATH: Read briefs from Strategic Council ──
+    // The Agent reads the SAME briefs as the Smart Executor, but filters
+    // for M30+ timeframes only. This ensures unified signal source.
+    let agentBriefs: TradingBriefDTO[] = [];
+    let usingCouncilBriefs = false;
 
-    // CRITICAL FIX: If ALL market analyses failed, record the error in agent state
-    // so the user can see WHY no trades are executing in the UI
-    if (analyses.size === 0 && state.config.symbols.length > 0) {
-      state.lastError = `فشل جلب بيانات السوق لجميع الرموز (${state.config.symbols.join(', ')}). قد يكون هناك مشكلة في الاتصال بمنصة البيانات.`;
-      this.logger.error(
-        `🧠 Agent ${userId}: ALL ${state.config.symbols.length} market analyses FAILED. ` +
-        `Symbols: ${state.config.symbols.join(', ')}. Check ExchangeService adapters.`,
-      );
-      await this._saveAgentState(userId, state);
-      return;
+    if (this.councilService) {
+      try {
+        const allBriefs = await this.councilService.getActiveBriefs();
+        // Filter: Agent handles M30+ timeframes only
+        agentBriefs = allBriefs.filter(
+          (brief: TradingBriefDTO) => isAgentTimeframe(brief.timeframe)
+        );
+        usingCouncilBriefs = agentBriefs.length > 0;
+
+        if (agentBriefs.length > 0) {
+          this.logger.log(
+            `🧠 Agent ${userId} cycle #${state.totalCycles + 1}: ` +
+            `${agentBriefs.length} council briefs for agent timeframes [${AGENT_TIMEFRAMES.join(',')}] ` +
+            `(total briefs: ${allBriefs.length})`,
+          );
+        }
+      } catch (councilErr: any) {
+        this.logger.warn(`🧠 Council briefs unavailable for agent ${userId}: ${councilErr.message} — falling back to self-analysis`);
+      }
     }
 
-    this.logger.log(
-      `🧠 Agent ${userId} cycle #${state.totalCycles + 1}: ` +
-      `analyzing ${analyses.size}/${state.config.symbols.length} symbols ` +
-      `(strategy: ${state.config.strategy})`,
-    );
+    // ── FALLBACK: Self-contained analysis when Council is unavailable ──
+    if (!usingCouncilBriefs) {
+      this.logger.debug(`🧠 Agent ${userId}: No council briefs available — using self-analysis fallback`);
+    }
 
     let signalsExecuted = 0;
     let signalsGenerated = 0;
     let signalsRejected = 0;
     const rejectionReasons: string[] = [];
 
-    for (const [symbol, analysis] of analyses) {
-      try {
-        // Step 1: Evaluate signal
-        const signal = await this.signalEvaluator.evaluate(
-          analysis,
-          state.config.strategy,
-          state.config.strategyParams,
-          userId,
-        );
-
-        if (!signal) {
-          this.logger.debug(
-            `🧠 No signal for ${symbol} (RSI: ${analysis.rsi.toFixed(1)}, ` +
-            `MACD: ${analysis.macd.crossover}, BB%: ${analysis.bollingerBands.percentB.toFixed(2)}, ` +
-            `trend: ${analysis.trend}, vol: ${analysis.volatility})`,
-          );
-          continue;
-        }
-
-        signalsGenerated++;
-        this.logger.log(
-          `🧠 Signal generated for ${symbol}: ${signal.action} (confidence: ${signal.confidence}%, R:R ${signal.riskRewardRatio.toFixed(2)})`,
-        );
-
-        // Step 2: Market hours check
-        const marketStatus = isMarketOpen(symbol);
-        if (!marketStatus.open) {
-          this.logger.debug(`🧠 Skipping ${symbol} — market closed: ${marketStatus.reason}`);
-          rejectionReasons.push(`${symbol}: سوق مغلق`);
-          continue;
-        }
-
-        // Step 3: Risk assessment
-        const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
-
-        if (!risk.canTrade) {
-          signalsRejected++;
-          // Record the rejection as an audit decision + update agent state
-          this.logger.warn(`🧠 Trade rejected for ${symbol}: ${risk.reason}`);
-          state.lastError = risk.reason;
-          rejectionReasons.push(`${symbol}: ${risk.reason}`);
-          // If auto-trading is disabled, record prominently in agent state
-          if (risk.reason?.includes('AUTO_TRADING_ENABLED')) {
-            this.logger.warn(`🚫 Agent ${userId}: AUTO_TRADING_ENABLED is false — no trades will execute`);
+    if (usingCouncilBriefs) {
+      // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
+      for (const brief of agentBriefs) {
+        try {
+          // Check if user already has position for this pair
+          const existingPosition = await this.prisma.position.findFirst({
+            where: { userId, symbol: brief.pair, status: 'OPEN' },
+          });
+          if (existingPosition) {
+            this.logger.debug(`🧠 Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
+            continue;
           }
-          continue;
-        }
 
-        // Step 4: Execute the trade
-        const execution = await this.orderExecutor.execute(
-          userId,
-          signal,
-          risk,
-          state.config.credentialId,
-        );
+          // Check confidence threshold (use agent-specific minimum)
+          const minConfidence = 40;
+          if (brief.confidence < minConfidence) {
+            this.logger.debug(`🧠 Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${minConfidence}%`);
+            continue;
+          }
 
-        if (execution.success) {
-          signalsExecuted++;
-          state.lastSignalAt = new Date();
+          // Check market hours
+          const marketStatus = isMarketOpen(brief.pair);
+          if (!marketStatus.open) {
+            rejectionReasons.push(`${brief.pair}: سوق مغلق`);
+            continue;
+          }
 
-          // Update daily stats
-          state.dailyTradesCount++;
+          signalsGenerated++;
 
-          this.logger.log(
-            `🧠 Trade executed for ${userId}: ${signal.action} ${signal.symbol}`,
+          // Risk assessment using the brief's SL/TP
+          const signal: EvaluatedSignal = {
+            id: brief.id,
+            symbol: brief.pair,
+            action: brief.direction === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+            type: OrderType.MARKET,
+            confidence: brief.confidence,
+            strategy: state.config.strategy,
+            entryPrice: brief.entryPrice,
+            stopLoss: brief.stopLoss,
+            takeProfit: brief.takeProfit,
+            quantity: 0, // Will be calculated by risk assessment
+            reasoning: brief.analysisSummary || `Council brief: ${brief.timeframe} ${brief.direction}`,
+            riskRewardRatio: Math.abs(brief.takeProfit - brief.entryPrice) / Math.abs(brief.entryPrice - brief.stopLoss),
+            riskScore: 100 - brief.confidence,
+            timestamp: new Date(),
+            metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
+          };
+
+          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
+
+          if (!risk.canTrade) {
+            signalsRejected++;
+            rejectionReasons.push(`${brief.pair}: ${risk.reason}`);
+            state.lastError = risk.reason;
+            continue;
+          }
+
+          // Execute the trade
+          const execution = await this.orderExecutor.execute(
+            userId,
+            signal,
+            risk,
+            state.config.credentialId,
           );
-        }
 
-        // Step 5: Check if we should stop after consecutive losses
-        if (state.consecutiveLosses >= 5) {
-          this.logger.warn(`🧠 User ${userId}: 5 consecutive losses — pausing agent`);
-          state.status = AgentStatus.PAUSED;
-          break;
+          if (execution.success) {
+            signalsExecuted++;
+            state.lastSignalAt = new Date();
+            state.dailyTradesCount++;
+
+            this.logger.log(
+              `🧠 Council trade executed for ${userId}: ${signal.action} ${signal.symbol} ` +
+              `(brief: ${brief.id}, timeframe: ${brief.timeframe})`,
+            );
+          }
+
+          // Check consecutive losses
+          if (state.consecutiveLosses >= 5) {
+            this.logger.warn(`🧠 User ${userId}: 5 consecutive losses — pausing agent`);
+            state.status = AgentStatus.PAUSED;
+            break;
+          }
+        } catch (error: any) {
+          this.logger.error(`Error processing council brief ${brief.id} for ${userId}: ${error.message}`);
         }
-      } catch (error: any) {
-        this.logger.error(`Error processing ${symbol} for ${userId}: ${error.message}`);
+      }
+    } else {
+      // ── FALLBACK: Self-contained analysis pipeline (old behavior) ──
+      // Used when Council is unavailable — MarketAnalyzer → SignalEvaluator
+      const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
+
+      if (analyses.size === 0 && state.config.symbols.length > 0) {
+        state.lastError = `فشل جلب بيانات السوق لجميع الرموز (${state.config.symbols.join(', ')})`;
+        this.logger.error(
+          `🧠 Agent ${userId}: ALL ${state.config.symbols.length} market analyses FAILED.`,
+        );
+        await this._saveAgentState(userId, state);
+        return;
+      }
+
+      for (const [symbol, analysis] of analyses) {
+        try {
+          const signal = await this.signalEvaluator.evaluate(
+            analysis,
+            state.config.strategy,
+            state.config.strategyParams,
+            userId,
+          );
+
+          if (!signal) {
+            continue;
+          }
+
+          signalsGenerated++;
+
+          const marketStatus = isMarketOpen(symbol);
+          if (!marketStatus.open) {
+            rejectionReasons.push(`${symbol}: سوق مغلق`);
+            continue;
+          }
+
+          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
+
+          if (!risk.canTrade) {
+            signalsRejected++;
+            state.lastError = risk.reason;
+            rejectionReasons.push(`${symbol}: ${risk.reason}`);
+            continue;
+          }
+
+          const execution = await this.orderExecutor.execute(
+            userId,
+            signal,
+            risk,
+            state.config.credentialId,
+          );
+
+          if (execution.success) {
+            signalsExecuted++;
+            state.lastSignalAt = new Date();
+            state.dailyTradesCount++;
+          }
+
+          if (state.consecutiveLosses >= 5) {
+            state.status = AgentStatus.PAUSED;
+            break;
+          }
+        } catch (error: any) {
+          this.logger.error(`Error processing ${symbol} for ${userId}: ${error.message}`);
+        }
       }
     }
 
@@ -1468,13 +1475,13 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     state.totalCycles++;
     state.lastCycleAt = new Date();
 
-    // Cycle summary log — crucial for debugging why trades don't execute
+    // Cycle summary log
     this.logger.log(
       `🧠 Agent ${userId} cycle #${state.totalCycles} complete: ` +
-      `${analyses.size} analyzed, ${signalsGenerated} signals, ` +
-      `${signalsRejected} rejected, ${signalsExecuted} executed` +
+      `${usingCouncilBriefs ? `${agentBriefs.length} council briefs` : 'self-analysis'}, ` +
+      `${signalsGenerated} signals, ${signalsRejected} rejected, ${signalsExecuted} executed` +
       (rejectionReasons.length > 0 ? ` — rejections: [${rejectionReasons.join('; ')}]` : '') +
-      (signalsGenerated === 0 ? ' — NO signals generated (strategy conditions not met)' : ''),
+      (signalsGenerated === 0 ? ' — NO signals generated' : ''),
     );
 
     await this._saveAgentState(userId, state);
@@ -1633,8 +1640,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // NEW APPROACH: Safe DB recovery that prevents phantom trades:
     //   1. Only recover sessions started in the LAST 24 HOURS (not old ones)
     //   2. Only recover sessions where the user ALSO has AgentSettings.autoTradingEnabled=true
-    //   3. Verify mutual exclusion — skip if Smart Executor is active for this user
-    //   4. Re-populate Redis so subsequent reads are fast
+    //   3. Re-populate Redis so subsequent reads are fast
     if (activeUsers.length === 0) {
       try {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -1664,26 +1670,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               continue;
             }
           } catch { /* settings check failed — proceed with caution */ }
-
-          // SAFETY CHECK 2: Mutual exclusion — skip if Smart Executor is active
-          try {
-            const executorStateRaw = await this.redis.get(`smart-executor:user:${session.userId}`);
-            if (executorStateRaw) {
-              const executorState = JSON.parse(executorStateRaw);
-              if (executorState && executorState.enabled) {
-                // Smart Executor is active — don't recover agent (mutual exclusion)
-                this.logger.log(
-                  `🧠 DB recovery: Skipping agent for user ${session.userId} — Smart Executor is active (mutual exclusion)`,
-                );
-                // Mark the DB session as STOPPED since the user chose Smart Executor
-                await this.prisma.agentSession.update({
-                  where: { id: session.id },
-                  data: { status: 'STOPPED', stoppedAt: new Date() },
-                }).catch(() => {});
-                continue;
-              }
-            }
-          } catch { /* executor check failed — proceed */ }
 
           // Re-populate Redis from DB so the agent cycle can process it
           try {

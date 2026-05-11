@@ -1168,6 +1168,7 @@ model ContentSchedule {
 // ── AI Council Restructuring: Strategic Council & Smart Executor (Phase 10) ──
 
 enum BriefTimeframe {
+  M1
   M5
   M15
   M30

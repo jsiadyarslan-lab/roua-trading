@@ -2,7 +2,7 @@
 // Roua Trading — Strategic Council Types
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export type BriefTimeframe = 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1' | 'W1';
+export type BriefTimeframe = 'M1' | 'M5' | 'M15' | 'M30' | 'H1' | 'H4' | 'D1' | 'W1';
 export type BriefDirection = 'BUY' | 'SELL';
 export type BriefReviewStatus = 'ACTIVE' | 'MODIFIED' | 'CANCELLED' | 'EXECUTED';
 
@@ -59,11 +59,12 @@ export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.COMMODITIES,
 ];
 
-/** Timeframes the Council covers (Focused on rapid scalping/intraday) */
-export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M5', 'M15', 'M30', 'H1'];
+/** Timeframes the Council covers (Focused on rapid scalping/intraday + swing/position) */
+export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
 
 /** Expiry durations per timeframe (in milliseconds) */
 export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
+  M1: 1 * 60 * 1000,                // 1 minute
   M5: 5 * 60 * 1000,                // 5 minutes
   M15: 15 * 60 * 1000,              // 15 minutes
   M30: 30 * 60 * 1000,              // 30 minutes
@@ -79,6 +80,7 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *  the price had already moved past the entry price + 0.1% tolerance.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
+  M1: { sl: 0.001, tp: 0.002, maxSlippage: 0.0005 },    // 0.1% SL, 0.2% TP, 0.05% slippage
   M5: { sl: 0.002, tp: 0.004, maxSlippage: 0.001 },     // 0.2% SL, 0.4% TP, 0.1% slippage
   M15: { sl: 0.003, tp: 0.006, maxSlippage: 0.002 },     // 0.3% SL, 0.6% TP, 0.2% slippage
   M30: { sl: 0.004, tp: 0.008, maxSlippage: 0.003 },     // 0.4% SL, 0.8% TP, 0.3% slippage
@@ -87,6 +89,21 @@ export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxS
   D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.008 },       // 2% SL, 4% TP, 0.8% slippage
   W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.010 },       // 4% SL, 8% TP, 1.0% slippage
 };
+
+/** Timeframe classification: Smart Executor vs Agent
+ *  Smart Executor: M1, M5, M15 (quick/scalping trades)
+ *  Agent: M30, H1, H4, D1, W1 (short/medium/long-term trades)
+ */
+export const EXECUTOR_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15'];
+export const AGENT_TIMEFRAMES: BriefTimeframe[] = ['M30', 'H1', 'H4', 'D1', 'W1'];
+
+export function isExecutorTimeframe(tf: BriefTimeframe): boolean {
+  return EXECUTOR_TIMEFRAMES.includes(tf);
+}
+
+export function isAgentTimeframe(tf: BriefTimeframe): boolean {
+  return AGENT_TIMEFRAMES.includes(tf);
+}
 
 /** Minimum confidence score to issue a brief — lowered from 50 to 40
  *  With only 3-5/8 AI models working, most briefs come from technical

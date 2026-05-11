@@ -19,7 +19,7 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { AuditService } from '../../../audit/audit.service';
 import { TradingService } from '../../trading/trading.service';
 import { StrategicCouncilService } from '../strategic-council/strategic-council.service';
-import { TradingBriefDTO, StrictRules } from '../strategic-council/strategic-council.types';
+import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
@@ -335,70 +335,6 @@ export class SmartExecutorService implements OnModuleDestroy {
     maxOpenPositions?: number;
     riskPerTradePercent?: number;
   }): Promise<UserExecutorState> {
-    // ── MUTUAL EXCLUSION: Check shared lock first ──
-    // If the Agent owns the lock, refuse to enable Smart Executor.
-    // The user must stop the Agent first.
-    try {
-      const lockRaw = await this.redis.get(`trading:active_controller:${userId}`);
-      if (lockRaw) {
-        const lock = JSON.parse(lockRaw);
-        if (lock && lock.controller === 'agent') {
-          this.logger.warn(
-            `⚔️ MUTUAL EXCLUSION: Agent owns the trading lock for user ${userId} — refusing to enable Smart Executor`,
-          );
-          throw new Error('الوكيل يعمل حالياً — أوقفه أولاً قبل تفعيل المنفذ الذكي');
-        }
-      }
-    } catch (lockCheckErr: any) {
-      // If the error is our own throw, re-throw it
-      if (lockCheckErr.message?.includes('أوقفه أولاً')) throw lockCheckErr;
-      // Otherwise, log and continue (don't block on Redis failure)
-      this.logger.warn(`⚔️ Could not check mutual exclusion lock: ${lockCheckErr.message}`);
-    }
-
-    // ── MUTUAL EXCLUSION: Stop Autonomous Agent if running for this user ──
-    // ROOT FIX: Both Agent and Smart Executor trading simultaneously for the same user
-    // causes duplicate trades, conflicting positions, and resource waste.
-    // They MUST be mutually exclusive — only one can be active per user at a time.
-    // When the user enables the Smart Executor, we automatically stop the Agent.
-    try {
-      const agentStateRaw = await this.redis.get(`agent:state:${userId}`);
-      if (agentStateRaw) {
-        const agentState = JSON.parse(agentStateRaw);
-        if (agentState && agentState.status === 'RUNNING') {
-          this.logger.log(
-            `⚔️ MUTUAL EXCLUSION: Agent is active for user ${userId} — stopping it before enabling Smart Executor`,
-          );
-          // Stop the agent by setting status to STOPPED
-          agentState.status = 'STOPPED';
-          await this.redis.set(`agent:state:${userId}`, JSON.stringify(agentState), 86400000);
-          // Also update DB session
-          try {
-            await this.prisma.agentSession.updateMany({
-              where: { userId, status: 'RUNNING' },
-              data: { status: 'STOPPED', stoppedAt: new Date() },
-            });
-          } catch {}
-          this.logger.log(`⚔️ Agent stopped for user ${userId} — Smart Executor takes exclusive control`);
-        }
-      }
-    } catch (exErr: any) {
-      this.logger.warn(`⚔️ Could not check/stop Agent: ${exErr.message} — proceeding with Smart Executor enable`);
-    }
-
-    // ── MUTUAL EXCLUSION: Set shared Redis lock to prevent Agent from starting ──
-    // This lock survives Redis restarts (re-populated from DB on recovery).
-    // The Agent checks this lock before starting and refuses if Smart Executor owns it.
-    try {
-      await this.redis.set(
-        `trading:active_controller:${userId}`,
-        JSON.stringify({ controller: 'smart_executor', enabledAt: new Date().toISOString() }),
-        86400000 * 7,  // 7 days — matches user state TTL
-      );
-    } catch (lockErr: any) {
-      this.logger.warn(`⚔️ Could not set mutual exclusion lock: ${lockErr.message}`);
-    }
-
     // ── FIX: Auto-start the executor if it's not running ──
     // Previously, the user had to click TWO buttons: "تشغيل" (start executor)
     // AND "تفعيل" (enable user). This was confusing — the user would enable
@@ -469,13 +405,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     // Remove from DB too
     await this._removeUserStateFromDB(userId);
 
-    // ── MUTUAL EXCLUSION: Release the shared Redis lock ──
-    // This allows the Agent to start if the user wants to switch to it.
-    try {
-      await this.redis.del(`trading:active_controller:${userId}`);
-    } catch {}
-
-    this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB + lock released`);
+    this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB`);
 
     // FIX: Check if any other users are still enabled.
     // If not, stop the tick loop to save resources.
@@ -1070,6 +1000,22 @@ export class SmartExecutorService implements OnModuleDestroy {
       return;
     }
 
+    // ── TIMEFRAME FILTER: Only process briefs for executor timeframes (M1/M5/M15) ──
+    // The Smart Executor handles quick/scalping trades only.
+    // Briefs for M30+ are handled by the Autonomous Agent.
+    const executorBriefs = activeBriefs.filter(
+      (brief: TradingBriefDTO) => isExecutorTimeframe(brief.timeframe)
+    );
+
+    if (executorBriefs.length === 0) {
+      this.logger.debug(
+        `⚔️ ${activeBriefs.length} briefs available but none match executor timeframes [${EXECUTOR_TIMEFRAMES.join(',')}] — waiting`,
+      );
+      return;
+    }
+
+    this.logger.debug(`⚔️ Timeframe filter: ${activeBriefs.length} total → ${executorBriefs.length} executor briefs (M1/M5/M15)`);
+
     // Get users with executor enabled
     const enabledUsers = await this._getEnabledUsers();
 
@@ -1078,12 +1024,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       return;
     }
 
-    this.logger.debug(`⚔️ Tick: ${activeBriefs.length} briefs, ${enabledUsers.length} users`);
+    this.logger.debug(`⚔️ Tick: ${executorBriefs.length} executor briefs (filtered from ${activeBriefs.length}), ${enabledUsers.length} users`);
 
     // Process each enabled user
     for (const userId of enabledUsers) {
       try {
-        await this._processUserBriefs(userId, activeBriefs);
+        await this._processUserBriefs(userId, executorBriefs);
       } catch (error: any) {
         this.logger.error(`⚔️ Error processing user ${userId}: ${error.message}`);
       }

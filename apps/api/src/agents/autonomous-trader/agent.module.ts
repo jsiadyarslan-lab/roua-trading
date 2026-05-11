@@ -8,6 +8,7 @@ import { RedisModule } from '../../common/redis/redis.module';
 import { AuditModule } from '../../audit/audit.module';
 import { TradingModule } from '../../modules/trading/trading.module';
 import { ExchangeModule } from '../../modules/exchange/exchange.module';
+import { AiModule } from '../../modules/ai/ai.module';
 
 // Agent Services
 import { MarketAnalyzerService } from './services/market-analyzer.service';
@@ -68,6 +69,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     forwardRef(() => AuditModule),
     forwardRef(() => TradingModule),
     forwardRef(() => ExchangeModule),
+    forwardRef(() => AiModule),
   ],
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [

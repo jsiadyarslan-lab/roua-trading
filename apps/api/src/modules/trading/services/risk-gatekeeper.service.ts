@@ -570,6 +570,34 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    */
   async checkDailyDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
     try {
+      // ═══════════════════════════════════════════════════════════════
+      // FIX: Skip daily drawdown check for paper-trading users.
+      // Paper trading is a simulation — blocking it for "daily drawdown"
+      // defeats the learning purpose. The user should be able to keep
+      // practicing even after a bad day. Real-money accounts still
+      // enforce this check to protect capital.
+      // ═══════════════════════════════════════════════════════════════
+      if (exchangeCredentialId) {
+        const credential = await this.prisma.exchangeCredential.findUnique({
+          where: { id: exchangeCredentialId },
+          select: { exchange: true },
+        });
+        if (credential && this._isTestExchange(credential.exchange)) {
+          this.logger.debug(`🛡️ Test exchange "${credential.exchange}" daily drawdown check: BYPASSED (simulation)`);
+          return { allowed: true };
+        }
+      } else {
+        // No credential specified — check if user only has paper credentials
+        const realCredential = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
+        });
+        if (!realCredential) {
+          // User only has paper-trading credentials — bypass
+          this.logger.debug(`🛡️ Paper-trading user daily drawdown check: BYPASSED`);
+          return { allowed: true };
+        }
+      }
+
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
@@ -912,6 +940,37 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async _estimatePortfolioValue(userId: string): Promise<number> {
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: For paper-trading users, use AgentSettings.paperBalance
+    // instead of the Portfolio table (which is often empty or stale).
+    // Previously, _estimatePortfolioValue() would return 0 for paper
+    // users with no Portfolio records, then fall back to summing open
+    // positions' notional value — which could be $400K+ and completely
+    // wrong as a "portfolio value". This caused the daily drawdown
+    // check to calculate absurd percentages like 832%.
+    // ═══════════════════════════════════════════════════════════════
+
+    // Step 1: Check if user has paper-trading credentials (primary)
+    const paperCredential = await this.prisma.exchangeCredential.findFirst({
+      where: { userId, exchange: 'paper-trading', isValid: true },
+    });
+
+    if (paperCredential) {
+      // Paper-trading user — use AgentSettings.paperBalance
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        if (settings && Number(settings.paperBalance) > 0) {
+          return Number(settings.paperBalance);
+        }
+      } catch {
+        // AgentSettings not available
+      }
+      return 10000; // Default paper balance
+    }
+
+    // Step 2: Real exchange user — use Portfolio table + open positions
     const portfolios = await this.prisma.portfolio.aggregate({
       where: { userId },
       _sum: { totalValue: true },

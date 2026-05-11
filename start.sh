@@ -424,14 +424,19 @@ if [ -n "${DATABASE_URL:-}" ]; then
     END $$;
 
     DO $$ BEGIN
-      CREATE TYPE "BriefTimeframe" AS ENUM ('M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1');
+      CREATE TYPE "BriefTimeframe" AS ENUM ('M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
 
-    -- FIX: Add rapid scalping timeframes if enum already exists from older deploy
+    -- FIX: Add all timeframes if enum already exists from older deploy (missing M1 caused 0 M1 briefs)
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M1';  EXCEPTION WHEN others THEN NULL; END $$;
     DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M5';  EXCEPTION WHEN others THEN NULL; END $$;
     DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M15'; EXCEPTION WHEN others THEN NULL; END $$;
     DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M30'; EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'H1';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'H4';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'D1';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'W1';  EXCEPTION WHEN others THEN NULL; END $$;
 
     DO $$ BEGIN
       CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
@@ -1239,9 +1244,19 @@ EOSQL
     END $$;
 
     DO $$ BEGIN
-      CREATE TYPE "BriefTimeframe" AS ENUM ('H1', 'H4', 'D1', 'W1');
+      CREATE TYPE "BriefTimeframe" AS ENUM ('M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1');
     EXCEPTION WHEN duplicate_object THEN NULL;
     END $$;
+
+    -- FIX: Add all timeframes if enum already exists from older deploy (missing M1 caused 0 M1 briefs)
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M1';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M5';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M15'; EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M30'; EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'H1';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'H4';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'D1';  EXCEPTION WHEN others THEN NULL; END $$;
+    DO $$ BEGIN ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'W1';  EXCEPTION WHEN others THEN NULL; END $$;
 
     DO $$ BEGIN
       CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');

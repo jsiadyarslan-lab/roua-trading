@@ -441,9 +441,11 @@ export class CredentialsService {
       where: { userId, isValid: true },
     });
 
-    if (allCredentials.length === 0) {
-      return { totalEquityUsd: 0, totalAvailableUsd: 0, exchanges: [] };
-    }
+    // FIX: Even if user has NO credentials, check if they have a paper trading
+    // balance in AgentSettings. This prevents the $0 balance problem for users
+    // who logged in before auto-credential-creation was added.
+    // Previously: if (allCredentials.length === 0) return { totalEquityUsd: 0 }
+    // Now: Fall through to the paper balance logic below.
 
     // FIX: INCLUDE paper-trading credentials in the balance response.
     // Previously, paper-trading was completely excluded, which meant users with
@@ -522,48 +524,49 @@ export class CredentialsService {
     // FIX: Add paper-trading balance from AgentSettings.
     // This is the MISSING PIECE — without it, paper-trading users see $0 balance.
     // The paper balance comes from AgentSettings.paperBalance (default: $10,000).
+    // Works even if the user has NO paper-trading credential (auto-creates a virtual one).
     let paperBalanceUsd = 0;
     let paperAvailableUsd = 0;
-    if (paperCredentials.length > 0) {
+    const hasPaperCredential = paperCredentials.length > 0;
+    // Always try to get paper balance from AgentSettings — even without a credential
+    try {
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+      paperBalanceUsd = settings ? Number(settings.paperBalance) : 10000;
+      // Subtract open position exposure from available balance
       try {
-        const settings = await this.prisma.agentSettings.findUnique({
-          where: { userId },
+        const openPositions = await this.prisma.position.findMany({
+          where: { userId, status: 'OPEN' },
+          select: { quantity: true, currentPrice: true, entryPrice: true },
         });
-        paperBalanceUsd = settings ? Number(settings.paperBalance) : 10000;
-        // Subtract open position exposure from available balance
-        try {
-          const openPositions = await this.prisma.position.findMany({
-            where: { userId, status: 'OPEN' },
-            select: { quantity: true, currentPrice: true, entryPrice: true },
-          });
-          const totalExposure = openPositions.reduce((sum, p) => {
-            const qty = Number(p.quantity) || 0;
-            const price = Number(p.currentPrice) || Number(p.entryPrice) || 0;
-            return sum + (qty * price);
-          }, 0);
-          paperAvailableUsd = Math.max(0, paperBalanceUsd - totalExposure);
-        } catch {
-          paperAvailableUsd = paperBalanceUsd;
-        }
-        // Add paper-trading as an exchange entry in the response
-        exchanges.push({
-          exchange: 'paper-trading',
-          label: paperCredentials[0].label || 'Paper Trading',
-          credentialId: paperCredentials[0].id,
-          isTestnet: true,
-          equity: paperBalanceUsd,
-          available: paperAvailableUsd,
-          currency: 'USD',
-          assets: [{
-            currency: 'USD',
-            free: paperAvailableUsd,
-            used: paperBalanceUsd - paperAvailableUsd,
-            total: paperBalanceUsd,
-          }],
-        });
-      } catch (err: any) {
-        this.logger.warn(`Failed to fetch paper balance: ${err.message}`);
+        const totalExposure = openPositions.reduce((sum, p) => {
+          const qty = Number(p.quantity) || 0;
+          const price = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+          return sum + (qty * price);
+        }, 0);
+        paperAvailableUsd = Math.max(0, paperBalanceUsd - totalExposure);
+      } catch {
+        paperAvailableUsd = paperBalanceUsd;
       }
+      // Add paper-trading as an exchange entry in the response
+      exchanges.push({
+        exchange: 'paper-trading',
+        label: hasPaperCredential ? (paperCredentials[0].label || 'Paper Trading') : 'Paper Trading',
+        credentialId: hasPaperCredential ? paperCredentials[0].id : 'paper-virtual',
+        isTestnet: true,
+        equity: paperBalanceUsd,
+        available: paperAvailableUsd,
+        currency: 'USD',
+        assets: [{
+          currency: 'USD',
+          free: paperAvailableUsd,
+          used: paperBalanceUsd - paperAvailableUsd,
+          total: paperBalanceUsd,
+        }],
+      });
+    } catch (err: any) {
+      this.logger.warn(`Failed to fetch paper balance: ${err.message}`);
     }
 
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);

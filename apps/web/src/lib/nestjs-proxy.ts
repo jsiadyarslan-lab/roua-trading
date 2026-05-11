@@ -228,8 +228,26 @@ async function ensureSession(request: NextRequest): Promise<{
     }
   }
 
-  // No valid cookie — do NOT auto-create guest sessions.
-  // This prevents database bloat from bots and anonymous visitors.
+  // No valid cookie — create a guest session so ALL API endpoints work.
+  // FIX: Previously disabled auto-creation to prevent DB bloat from bots,
+  // but this broke EVERYTHING — Smart Executor, Strategic Council, Autonomous
+  // Trader, portfolio, trading bot — all return 502 without a session.
+  // The correct approach: create guest sessions but with rate-limiting
+  // via the existing offline cache and NestJS bypass logic.
+
+  // Strategy 1: Create via NestJS /api/auth/guest (preferred — full auth flow)
+  const nestjsSession = await createSessionViaNestJS()
+  if (nestjsSession) {
+    return { token: nestjsSession.token, cookieAlreadySet: true }
+  }
+
+  // Strategy 2: Create directly via DB (fallback when NestJS is down)
+  const dbSession = await forceCreateSession()
+  if (dbSession) {
+    return { token: dbSession.token, cookieAlreadySet: true }
+  }
+
+  // Both strategies failed — system is truly unavailable
   return { token: '', cookieAlreadySet: false }
 }
 

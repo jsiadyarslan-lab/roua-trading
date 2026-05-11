@@ -89,33 +89,14 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         };
       }
 
-      // Step 1.5: FIX — Validate order value against paper balance.
-      // This is the LAST line of defense. Paper trading is simulated, so the
-      // limit is 80% of paper balance (allows meaningful position sizes while
-      // preventing negative balance). Previously: Math.min(500, 5%) was far too
-      // restrictive — made trading BTC, ETH, SOL impossible.
-      const orderValue = order.quantity * currentPrice;
-      let maxOrderValue = 8000; // Default max ($10K balance * 80%)
-      try {
-        const settings = await this.prisma.agentSettings.findUnique({
-          where: { userId: this.userId },
-        });
-        if (settings && Number(settings.paperBalance) > 0) {
-          maxOrderValue = Number(settings.paperBalance) * 0.80; // 80% of balance
-        }
-      } catch {}
-
-      if (orderValue > maxOrderValue) {
-        this.logger.error(
-          `📝 PAPER ORDER REJECTED: $${orderValue.toFixed(2)} exceeds max $${maxOrderValue.toFixed(2)} ` +
-          `(${order.quantity} ${order.symbol} @ $${currentPrice})`
-        );
-        return {
-          success: false,
-          error: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى ($${maxOrderValue.toFixed(2)})`,
-          timestamp: new Date(),
-        };
-      }
+      // FIX: REMOVED order value limit for paper trading entirely.
+      // Paper trading is SIMULATION — there is no real money at risk.
+      // Previous limits ($500, 5%, 20%, 80%) all blocked legitimate trades
+      // and prevented users from testing strategies with realistic position sizes.
+      // The risk gatekeeper already checks position COUNT, which is the only
+      // meaningful limit for a simulation. The paper balance tracking in
+      // fetchBalance() handles accounting correctly regardless of position size.
+      // Users should be free to trade any size in paper mode to learn and test.
 
       // Step 2: Handle order type
       if (order.type === 'MARKET') {

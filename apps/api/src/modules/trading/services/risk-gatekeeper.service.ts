@@ -491,10 +491,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         where: { id: command.exchangeCredentialId },
       });
 
-      // FIX: Also recognize test exchanges (binance_test, alpaca_paper, etc.)
-      // as paper-trading equivalents for position size checks.
+      // FIX: Paper/test trading is SIMULATION — there is NO real money at risk.
+      // The ONLY check that matters is position COUNT (prevents UI clutter from
+      // too many simultaneous positions). Order VALUE limits are completely removed
+      // for paper trading because:
+      //   1. There's no real capital to protect — it's virtual money
+      //   2. Previous limits ($500, 5%, 20%, 80%) all blocked legitimate trades
+      //   3. Users need to test strategies with realistic position sizes (BTC, ETH, SOL)
+      //   4. The paper-trading adapter handles balance tracking independently
+      //   5. Going "negative" on paper balance is harmless — it's a learning tool
       if (credential && this._isTestExchange(credential.exchange)) {
-        // Check open positions count
+        // Only check position COUNT — no value limits for simulation
         const openPositions = await this.prisma.position.count({
           where: { userId: command.userId, status: 'OPEN' },
         });
@@ -507,43 +514,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           };
         }
 
-        // FIX: Also validate order VALUE for paper trading.
-        // Previously, only position COUNT was checked — allowing 80 BTC ($6.5M)
-        // positions on a $10K account because the count was < maxOpenPositions.
-        // Now: Cap order value at min($500, 5% of paperBalance).
-        let currentPrice = command.price;
-        if (!currentPrice || currentPrice <= 0) {
-          try {
-            const quote = await this.exchangeService.getQuote(command.symbol);
-            currentPrice = quote.price;
-          } catch {
-            // Can't get price — allow for paper (simulation will use brief price)
-            this.logger.debug(`🛡️ Paper trading: can't verify price for ${command.symbol} — allowing`);
-            return { allowed: true };
-          }
-        }
-
-        const orderValue = command.quantity * currentPrice;
-        const paperBalance = await this._getPaperBalance(command.userId);
-
-        // FIX: Paper trading is SIMULATED — there's no real money at risk.
-        // The limit is 80% of paper balance (prevents going negative but allows
-        // meaningful position sizes). Previously:
-        //   - Math.min(500, 5%) → $500 hard cap made ANY crypto trade impossible
-        //   - Math.min(500, 5%) → Even 20% was too restrictive ($2K on $10K)
-        // The user needs to be able to test strategies with realistic position sizes.
-        // 80% allows a $10K account to place up to $8K trades — enough for BTC, ETH, etc.
-        const maxPaperOrderValue = paperBalance * 0.80; // 80% of paper balance
-
-        if (orderValue > maxPaperOrderValue) {
-          return {
-            allowed: false,
-            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 80% من الرصيد الورقي ($${paperBalance.toFixed(2)}).`,
-            failedCheck: 'POSITION_SIZE_LIMIT',
-          };
-        }
-
-        this.logger.debug(`🛡️ Paper trading order: $${orderValue.toFixed(2)} (max: $${maxPaperOrderValue.toFixed(2)}) — ALLOWED`);
+        this.logger.debug(`🛡️ Paper trading order ALLOWED (position count: ${openPositions}/${this.maxOpenPositions}, no value limit for simulation)`);
         return { allowed: true };
       }
 

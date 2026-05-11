@@ -201,11 +201,26 @@ export class TradingService {
     }
 
     // Step 2: Check if credential has trade permission
-    const permissions = JSON.parse(credential.permissions || '["read"]');
-    if (!permissions.includes('trade')) {
-      throw new ForbiddenException(
-        'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade',
-      );
+    // FIX: Skip permissions check for paper-trading and test exchange credentials.
+    // Paper-trading credentials have 'paper' as the API key (not real keys),
+    // and their permissions field is often the Prisma default "read" (a plain
+    // string, not a JSON array). JSON.parse("read") throws SyntaxError,
+    // which crashes the entire placeOrder — meaning paper trades NEVER create
+    // Position records in the DB, causing trades to disappear on page refresh.
+    // Paper trading is simulation — there are no real API permissions to check.
+    const isTestExchange = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'].includes(credential.exchange)
+      || credential.exchange.endsWith('_test')
+      || credential.exchange.endsWith('_paper')
+      || credential.exchange.endsWith('-test')
+      || credential.exchange.endsWith('-paper');
+
+    if (!isTestExchange) {
+      const permissions = JSON.parse(credential.permissions || '["read"]');
+      if (!permissions.includes('trade')) {
+        throw new ForbiddenException(
+          'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade',
+        );
+      }
     }
 
     // Step 3: Get current market price for risk check

@@ -386,14 +386,20 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     }
 
     // Step 2: Check per-user autoTradingEnabled from DB settings
+    // FIX: When the user clicks "Start Agent", the action itself IS consent to enable
+    // auto trading. We now SET autoTradingEnabled=true when the user explicitly
+    // starts the agent, instead of requiring them to find and toggle a separate
+    // setting first. The "Start Agent" button = enable + start. "Stop Agent" = disable.
+    // Previously, if autoTradingEnabled was false (from a previous stop or old DB row),
+    // the user got stuck: they couldn't start the agent without finding the hidden
+    // settings toggle, and the error message didn't help them find it.
     let userAutoTradingEnabled = true;
     try {
       let userSettings = await this.prisma.agentSettings.findUnique({
         where: { userId },
       });
-      // FIX: Auto-create settings with autoTradingEnabled=true if not exists.
-      // Previously, missing settings caused the agent to be blocked (default false).
       if (!userSettings) {
+        // Auto-create settings with autoTradingEnabled=true
         try {
           userSettings = await this.prisma.agentSettings.create({
             data: {
@@ -407,6 +413,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           });
           this.logger.log(`🔧 Auto-created agentSettings for user ${userId} with autoTradingEnabled=true`);
         } catch { /* settings may already exist from race condition */ }
+      } else if (!userSettings.autoTradingEnabled) {
+        // FIX: User clicked "Start Agent" → this IS the enable action.
+        // Set autoTradingEnabled=true instead of blocking with an error.
+        try {
+          userSettings = await this.prisma.agentSettings.update({
+            where: { userId },
+            data: { autoTradingEnabled: true },
+          });
+          this.logger.log(`🔧 autoTradingEnabled set to true for user ${userId} (user clicked Start Agent)`);
+        } catch (updateErr: any) {
+          this.logger.warn(`Could not enable autoTradingEnabled for user ${userId}: ${updateErr.message}`);
+        }
       }
       if (userSettings && !userSettings.autoTradingEnabled) {
         userAutoTradingEnabled = false;

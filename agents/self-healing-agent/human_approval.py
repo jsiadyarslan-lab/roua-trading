@@ -291,7 +291,7 @@ def send_periodic_summary(
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-    uptime_pct = ((total_checks - total_errors) / total_checks * 100) if total_checks > 0 else 100.0
+    uptime_pct = (max(0, total_checks - total_errors) / total_checks * 100) if total_checks > 0 else 100.0
 
     message = f"""📋 <b>وكيل الإصلاح الذاتي — ملخص دوري</b>
 

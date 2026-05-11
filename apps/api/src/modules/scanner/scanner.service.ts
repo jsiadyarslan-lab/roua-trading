@@ -117,12 +117,12 @@ export class ScannerService {
         symbolsScanned: symbols.length,
         source: 'Aggregated',
         timestamp: new Date(),
-        nextScanInSeconds: 60,
+        nextScanInSeconds: 120,
       },
     };
 
-    // Cache for 60 seconds
-    await this.redis.set(cacheKey, JSON.stringify(response), 60_000).catch(() => {});
+    // Cache for 120 seconds (increased from 60s to reduce API fan-out)
+    await this.redis.set(cacheKey, JSON.stringify(response), 120_000).catch(() => {});
 
     return response;
   }
@@ -177,7 +177,7 @@ export class ScannerService {
     // Sort by changePercent for heatmap visualization
     items.sort((a, b) => b.changePercent - a.changePercent);
 
-    await this.redis.set(cacheKey, JSON.stringify(items), 60_000).catch(() => {});
+    await this.redis.set(cacheKey, JSON.stringify(items), 120_000).catch(() => {});
 
     return items;
   }

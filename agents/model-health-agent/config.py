@@ -21,6 +21,10 @@ class ModelHealthConfig(BaseConfig):
     MONTHLY_BUDGET_HF: float = float(os.environ.get("MONTHLY_BUDGET_HF", "20"))
     MONTHLY_BUDGET_OLLAMA: float = float(os.environ.get("MONTHLY_BUDGET_OLLAMA", "0"))  # self-hosted, free
     MONTHLY_BUDGET_OPENAI: float = float(os.environ.get("MONTHLY_BUDGET_OPENAI", "50"))
+    MONTHLY_BUDGET_CEREBRAS: float = float(os.environ.get("MONTHLY_BUDGET_CEREBRAS", "0"))  # FREE tier
+    MONTHLY_BUDGET_NVIDIA: float = float(os.environ.get("MONTHLY_BUDGET_NVIDIA", "0"))  # FREE tier
+    MONTHLY_BUDGET_MISTRAL: float = float(os.environ.get("MONTHLY_BUDGET_MISTRAL", "0"))  # FREE tier
+    MONTHLY_BUDGET_DEEPSEEK: float = float(os.environ.get("MONTHLY_BUDGET_DEEPSEEK", "20"))
 
     # Global monthly budget
     MONTHLY_BUDGET_TOTAL: float = float(os.environ.get("MONTHLY_BUDGET_TOTAL", "300"))

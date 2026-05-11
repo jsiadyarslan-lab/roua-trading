@@ -35,15 +35,20 @@ interface UsageLogEntry {
 }
 
 const COST_PER_1K: Record<string, { input: number; output: number }> = {
-  'groq':        { input: 0.00059,  output: 0.00079  },
-  'gemini':      { input: 0.000075, output: 0.00030  },
-  'glm':         { input: 0.00140,  output: 0.00140  },
-  'huggingface': { input: 0,        output: 0        },
-  'ollama':      { input: 0,        output: 0        },
-  'bedrock':     { input: 0.00300,  output: 0.01500  },
-  'openrouter':  { input: 0,        output: 0        },  // Free models — $0 cost (paid models tracked separately)
+  'groq':        { input: 0.00059,  output: 0.00079   },
+  'gemini':      { input: 0.000075, output: 0.00030   },
+  'glm':         { input: 0.00140,  output: 0.00140   },
+  'huggingface': { input: 0,        output: 0         },
+  'ollama':      { input: 0,        output: 0         },
+  'bedrock':     { input: 0.000035, output: 0.00014   },  // Nova Micro (was Claude Sonnet $0.003/$0.015)
+  'openrouter':  { input: 0,        output: 0         },  // Free models — $0 cost
   'openrouter-paid': { input: 0.00015, output: 0.00015 },  // Paid models (e.g., Claude Haiku via OR)
-  'deepseek':    { input: 0.00014, output: 0.00028  },  // DeepSeek Chat via OpenRouter
+  'deepseek':    { input: 0.00014, output: 0.00028   },  // DeepSeek Chat via OpenRouter
+  'cerebras':    { input: 0,        output: 0         },  // Cerebras — FREE tier
+  'nvidia':      { input: 0,        output: 0         },  // NVIDIA NIM — FREE tier
+  'mistral':     { input: 0,        output: 0         },  // Mistral — FREE tier
+  'cache':       { input: 0,        output: 0         },  // Redis/memory cache hits
+  'system':      { input: 0,        output: 0         },  // Internal system (e.g., Orchestrator fallback)
 };
 
 function extractProvider(model: string): string {
@@ -55,11 +60,15 @@ function extractProvider(model: string): string {
   if (lower.includes('ollama')) return 'ollama';
   if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock';
   if (lower.includes('deepseek')) return 'deepseek';
+  if (lower.includes('cerebras')) return 'cerebras';
+  if (lower.includes('nvidia')) return 'nvidia';
+  if (lower.includes('mistral')) return 'mistral';
   if (lower.includes('openrouter')) {
-    // FIX: Differentiate between free and paid OpenRouter models
-    if (lower.includes(':free')) return 'openrouter';  // Free model
-    return 'openrouter-paid';  // Paid model
+    if (lower.includes(':free')) return 'openrouter';
+    return 'openrouter-paid';
   }
+  if (lower.includes('cache/') || lower.includes('cache:')) return 'cache';
+  if (lower.includes('orchestrator') || lower.includes('fallback')) return 'system';
   return 'unknown';
 }
 

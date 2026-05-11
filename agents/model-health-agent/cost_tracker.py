@@ -264,6 +264,10 @@ def check_budget_thresholds(
         "hf": config.MONTHLY_BUDGET_HF,
         "ollama": config.MONTHLY_BUDGET_OLLAMA,
         "openai": config.MONTHLY_BUDGET_OPENAI,
+        "cerebras": config.MONTHLY_BUDGET_CEREBRAS,
+        "nvidia": config.MONTHLY_BUDGET_NVIDIA,
+        "mistral": config.MONTHLY_BUDGET_MISTRAL,
+        "deepseek": config.MONTHLY_BUDGET_DEEPSEEK,
     }
 
     for provider, stats in usage_stats.items():

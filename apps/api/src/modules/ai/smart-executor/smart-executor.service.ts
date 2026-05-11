@@ -1711,10 +1711,10 @@ export class SmartExecutorService implements OnModuleDestroy {
       // the portfolio value, we DON'T execute — it's unsafe.
       // ═══════════════════════════════════════════════════
       if (totalValue <= 0) {
-        // Check if user is paper trading — use default paper balance
+        // Check if user is paper trading — use AgentSettings.paperBalance
         const userState = await this.getUserState(userId);
         if (userState?.isPaperTrading) {
-          return 100000; // Standard paper trading balance
+          return await this._getPaperPortfolioValue(userId);
         }
         // Real trading with unknown portfolio — don't execute
         this.logger.warn(`⚔️ Cannot determine portfolio value for user ${userId} — skipping execution for safety`);
@@ -1723,16 +1723,34 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       return totalValue;
     } catch (error: any) {
-      // On error, check if paper trading and use default balance
+      // On error, check if paper trading and use paper balance
       try {
         const userState = await this.getUserState(userId);
         if (userState?.isPaperTrading) {
-          return 100000; // Paper trading default
+          return await this._getPaperPortfolioValue(userId);
         }
       } catch {}
       this.logger.warn(`⚔️ Failed to get portfolio value for user ${userId}: ${error.message}`);
       return 0; // Don't execute with unknown portfolio
     }
+  }
+
+  /**
+   * Get paper-trading portfolio value from AgentSettings.paperBalance.
+   * FIX: Previously hardcoded to $100,000 everywhere, but users have
+   * $10,000 as their paper balance. This caused wrong position sizing
+   * and absurd daily drawdown percentages (832%).
+   */
+  private async _getPaperPortfolioValue(userId: string): Promise<number> {
+    try {
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+      if (settings && Number(settings.paperBalance) > 0) {
+        return Number(settings.paperBalance);
+      }
+    } catch {}
+    return 10000; // Default paper balance
   }
 
   /**
@@ -1950,7 +1968,7 @@ export class SmartExecutorService implements OnModuleDestroy {
 
             if (cred) {
               // Calculate quantity
-              const portfolioValue = userState.isPaperTrading ? 100000 : 0;
+              const portfolioValue = userState.isPaperTrading ? await this._getPaperPortfolioValue(testUserId) : 0;
               const riskPercent = (userState.riskPerTradePercent || 1) / 100;
               const riskAmount = Math.max(portfolioValue * riskPercent, 10);
               const priceRisk = Math.abs(testPrice - testBrief.stopLoss);

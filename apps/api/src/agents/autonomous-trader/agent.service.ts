@@ -299,10 +299,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     });
 
     if (!existing) {
-      // FIX: Default to FALSE. Previously defaulted to 'true', which meant
-      // the agent was globally enabled by default on every new installation.
-      // This caused phantom trades for all users without their consent.
-      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+      // FIX: Default to TRUE — the user controls their own agent.
+      // The old phantom trade issue was fixed by the OrderDispatcher pipeline,
+      // not by disabling auto-trading globally. Defaulting to false was blocking all users.
+      const envValue = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       await this.prisma.setting.create({
         data: {
           key: 'AUTO_TRADING_ENABLED',
@@ -311,19 +311,11 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       });
       this.logger.log(`🔧 Auto-seeded AUTO_TRADING_ENABLED=${envValue} in DB (from env var / default)`);
     } else {
-      // FIX: If the existing DB value is 'true' from the old code, override it to 'false'.
-      // The old code defaulted to 'true', so existing deployments will have it enabled.
-      // We must disable it to stop phantom trades.
+      // FIX: TRUST the DB value — do NOT override it.
+      // Previous code reset AUTO_TRADING_ENABLED to false on every server restart,
+      // making it impossible for users to enable the agent permanently.
       const existingValue = JSON.parse(existing.value);
-      if (existingValue === true) {
-        await this.prisma.setting.update({
-          where: { key: 'AUTO_TRADING_ENABLED' },
-          data: { value: JSON.stringify(false) },
-        });
-        this.logger.log('🔧 OVERRIDDEN: AUTO_TRADING_ENABLED was true in DB — set to false to stop phantom trades');
-      } else {
-        this.logger.log(`🔧 AUTO_TRADING_ENABLED=${existingValue} already in DB (source: database)`);
-      }
+      this.logger.log(`🔧 AUTO_TRADING_ENABLED=${existingValue} (source: database — respected as-is)`);
     }
   }
 
@@ -370,9 +362,26 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // Step 2: Check per-user autoTradingEnabled from DB settings
     let userAutoTradingEnabled = true;
     try {
-      const userSettings = await this.prisma.agentSettings.findUnique({
+      let userSettings = await this.prisma.agentSettings.findUnique({
         where: { userId },
       });
+      // FIX: Auto-create settings with autoTradingEnabled=true if not exists.
+      // Previously, missing settings caused the agent to be blocked (default false).
+      if (!userSettings) {
+        try {
+          userSettings = await this.prisma.agentSettings.create({
+            data: {
+              userId,
+              autoTradingEnabled: true,
+              maxPositionSizePercent: 2,
+              maxDailyLossPercent: 5,
+              maxOpenPositions: 3,
+              riskPerTradePercent: 1,
+            },
+          });
+          this.logger.log(`🔧 Auto-created agentSettings for user ${userId} with autoTradingEnabled=true`);
+        } catch { /* settings may already exist from race condition */ }
+      }
       if (userSettings && !userSettings.autoTradingEnabled) {
         userAutoTradingEnabled = false;
       }

@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { fetchPositionsUnified } from '@/lib/api-fetch'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -381,7 +382,12 @@ export default function TradingPage() {
       setPrice('')
       setStopPrice('')
 
-      // Refresh positions and orders after a short delay (v2 is async)
+      // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
+      // This updates BOTH positions AND account balance in usePositionsStore
+      // Previously, only fetchPositions() was called after 2s — balance never updated
+      usePositionsStore.getState().refreshAfterTrade()
+
+      // Also refresh the local page state
       setTimeout(() => {
         fetchPositions()
         fetchOrders()

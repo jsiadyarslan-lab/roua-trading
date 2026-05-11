@@ -90,17 +90,18 @@ export class PaperTradingAdapter implements IExchangeAdapter {
       }
 
       // Step 1.5: FIX — Validate order value against paper balance.
-      // This is the LAST line of defense. If position sizing or RiskGatekeeper
-      // fail to cap the order, this prevents absurd orders like 80 BTC ($6.5M)
-      // on a $10K account. Max order value = 20% of paper balance (no hard cap).
+      // This is the LAST line of defense. Paper trading is simulated, so the
+      // limit is 80% of paper balance (allows meaningful position sizes while
+      // preventing negative balance). Previously: Math.min(500, 5%) was far too
+      // restrictive — made trading BTC, ETH, SOL impossible.
       const orderValue = order.quantity * currentPrice;
-      let maxOrderValue = 2000; // Default max ($10K balance * 20%)
+      let maxOrderValue = 8000; // Default max ($10K balance * 80%)
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId: this.userId },
         });
         if (settings && Number(settings.paperBalance) > 0) {
-          maxOrderValue = Number(settings.paperBalance) * 0.20; // 20% of balance
+          maxOrderValue = Number(settings.paperBalance) * 0.80; // 80% of balance
         }
       } catch {}
 

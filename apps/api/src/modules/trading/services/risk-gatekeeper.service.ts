@@ -526,18 +526,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         const orderValue = command.quantity * currentPrice;
         const paperBalance = await this._getPaperBalance(command.userId);
 
-        // FIX: Removed the $500 hard cap — it made paper trading impossible for
-        // any meaningful quantity. A $10K paper account was limited to $500/trade (5%),
-        // but a $100K account was also limited to $500 (0.5%) — far too restrictive.
-        // Now: The limit is simply 20% of paper balance (no hard cap).
-        // This is still conservative (prevents all-in on one trade) but allows
-        // trading assets like BTC, ETH, SOL which easily exceed $500/trade.
-        const maxPaperOrderValue = paperBalance * 0.20; // 20% of paper balance
+        // FIX: Paper trading is SIMULATED — there's no real money at risk.
+        // The limit is 80% of paper balance (prevents going negative but allows
+        // meaningful position sizes). Previously:
+        //   - Math.min(500, 5%) → $500 hard cap made ANY crypto trade impossible
+        //   - Math.min(500, 5%) → Even 20% was too restrictive ($2K on $10K)
+        // The user needs to be able to test strategies with realistic position sizes.
+        // 80% allows a $10K account to place up to $8K trades — enough for BTC, ETH, etc.
+        const maxPaperOrderValue = paperBalance * 0.80; // 80% of paper balance
 
         if (orderValue > maxPaperOrderValue) {
           return {
             allowed: false,
-            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 20% من الرصيد الورقي ($${paperBalance.toFixed(2)}).`,
+            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 80% من الرصيد الورقي ($${paperBalance.toFixed(2)}).`,
             failedCheck: 'POSITION_SIZE_LIMIT',
           };
         }

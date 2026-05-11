@@ -47,15 +47,7 @@ export class GlmService {
   }
 
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
-    // FIX: GLM is DISABLED — averages 18s response time which causes timeout errors
-    // and wastes resources. Returns stub immediately so orchestrator falls through
-    // to faster models (Gemini, Groq, Cerebras). Re-enable by setting GLM_ENABLED=true.
-    const glmEnabled = this.configService.get<string>('GLM_ENABLED', 'false');
-    if (glmEnabled !== 'true') {
-      return this._stubResponse(request);
-    }
-
-    // FIX: Re-resolve key on every call
+    // Re-resolve key on every call (Railway may set env vars late)
     if (!this.apiKey) {
       const resolved = this._resolveApiKey();
       if (resolved) {

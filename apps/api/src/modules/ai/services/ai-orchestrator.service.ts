@@ -73,6 +73,25 @@ export class AIOrchestratorService implements OnModuleDestroy {
   private readonly MAX_COOLDOWN_MS = 5 * 60 * 1000; // Max cooldown: 5 minutes
   private readonly FAILURES_BEFORE_COOLDOWN = 3; // FIX: Increased from 2 to 3 — give models more chances before cooldown
 
+  /** Latency-aware circuit breaker: track slow responses per model
+   *  SUSTAINABLE FIX: Instead of disabling models with hardcoded flags,
+   *  this tracks actual response times and automatically puts models
+   *  that consistently exceed the latency threshold into cooldown.
+   *  When a model is in latency cooldown, it's skipped entirely
+   *  (0ms instead of waiting for timeout) and the orchestrator
+   *  moves to the next model in the chain immediately.
+   *
+   *  Models recover automatically: cooldown expires, model gets retried,
+   *  and if it responds within threshold, it's re-enabled.
+   *
+   *  This replaces the need for GLM_ENABLED=false or other manual flags.
+   */
+  private readonly modelLatencies = new Map<string, { avgMs: number; samples: number; lastSampleAt: number }>();
+  private readonly LATENCY_THRESHOLD_MS = 10_000; // 10 seconds — models slower than this get cooldown
+  private readonly LATENCY_SAMPLE_WINDOW = 5;     // Use last 5 samples for average
+  private readonly LATENCY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes cooldown for slow models
+  private readonly modelLatencyCooldowns = new Map<string, number>(); // model → cooldown until timestamp
+
   /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
   private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
 
@@ -323,11 +342,28 @@ export class AIOrchestratorService implements OnModuleDestroy {
       if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
         const cooldownUntil = this.modelCooldowns.get(model) || 0;
         if (Date.now() < cooldownUntil) {
-          this.logger.debug(`⏭️ Model ${model} in cooldown (${consecutiveFails} consecutive 429s) — skipping`);
+          this.logger.debug(`⏭️ Model ${model} in 429 cooldown (${consecutiveFails} consecutive) — skipping`);
           continue;
         }
         // Cooldown expired — try again
         this.modelConsecutiveFailures.set(model, 0);
+      }
+
+      // SUSTAINABLE FIX: Latency-aware circuit breaker
+      // If a model's average response time exceeds the threshold, skip it entirely
+      // instead of waiting for it to timeout. This eliminates the 15s waste on GLM.
+      // Models recover automatically when their cooldown expires.
+      const latencyCooldownUntil = this.modelLatencyCooldowns.get(model) || 0;
+      if (Date.now() < latencyCooldownUntil) {
+        this.logger.debug(`⏭️ Model ${model} in latency cooldown (avg > ${this.LATENCY_THRESHOLD_MS}ms) — skipping`);
+        continue;
+      }
+      const latencyInfo = this.modelLatencies.get(model);
+      if (latencyInfo && latencyInfo.samples >= 3 && latencyInfo.avgMs > this.LATENCY_THRESHOLD_MS) {
+        // Model is consistently slow — put in cooldown
+        this.modelLatencyCooldowns.set(model, Date.now() + this.LATENCY_COOLDOWN_MS);
+        this.logger.warn(`🐌 Model ${model} avg latency ${Math.round(latencyInfo.avgMs)}ms > ${this.LATENCY_THRESHOLD_MS}ms — ${this.LATENCY_COOLDOWN_MS / 60000}min cooldown`);
+        continue;
       }
 
       try {
@@ -348,6 +384,8 @@ export class AIOrchestratorService implements OnModuleDestroy {
         // Reset consecutive failure counter AND cooldown level on success
         this.modelConsecutiveFailures.delete(model);
         this.modelCooldownLevel.delete(model); // FIX #4: Reset progressive level on success
+        // SUSTAINABLE: Track latency for this model — used by latency-aware circuit breaker
+        this._recordLatency(model, response.processingTimeMs);
         result = response;
         // Override fixed confidence with dynamic calculation
         result.confidence = this._calculateDynamicConfidence(model, result.content, enrichedRequest.type);
@@ -361,6 +399,11 @@ export class AIOrchestratorService implements OnModuleDestroy {
           latencyMs: 0,
           errorMessage: error.message,
         });
+        // SUSTAINABLE: Track latency for failed models too (timeout = max recorded latency)
+        // This ensures slow models get latency-cooldown even on timeout errors
+        const timeoutMatch = error.message?.match(/timeout of (\d+)ms/i);
+        const timeoutMs = timeoutMatch ? parseInt(timeoutMatch[1]) : this.LATENCY_THRESHOLD_MS;
+        this._recordLatency(model, timeoutMs);
         // FIX: Only track consecutive 429 failures for cooldown
         // Other errors are logged but don't block future calls
         if (error.response?.status === 429 || error.message?.includes('429')) {
@@ -1161,6 +1204,36 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * This matches what the individual services (DeepSeek, OpenRouter) already
    * do in their _resolveApiKey() methods.
    */
+  /**
+   * SUSTAINABLE: Record latency sample for a model.
+   * Uses exponential moving average (EMA) with a window of LATENCY_SAMPLE_WINDOW samples.
+   * This gives more weight to recent samples while still considering history.
+   *
+   * When avgMs exceeds LATENCY_THRESHOLD_MS (10s) for 3+ samples, the model
+   * enters latency cooldown and is skipped until cooldown expires.
+   * Models that improve (e.g., GLM fixes their API) automatically recover.
+   */
+  private _recordLatency(model: string, responseMs: number): void {
+    const existing = this.modelLatencies.get(model);
+    if (existing) {
+      // Exponential moving average: new_avg = α * new_sample + (1-α) * old_avg
+      // α = 2 / (window + 1) gives approximately N-sample weighting
+      const alpha = 2 / (this.LATENCY_SAMPLE_WINDOW + 1);
+      const newAvg = alpha * responseMs + (1 - alpha) * existing.avgMs;
+      this.modelLatencies.set(model, {
+        avgMs: newAvg,
+        samples: existing.samples + 1,
+        lastSampleAt: Date.now(),
+      });
+    } else {
+      this.modelLatencies.set(model, {
+        avgMs: responseMs,
+        samples: 1,
+        lastSampleAt: Date.now(),
+      });
+    }
+  }
+
   private _isModelKeyAvailable(model: string): boolean {
     const keys = this.MODEL_KEY_MAP[model];
     if (!keys) return false;

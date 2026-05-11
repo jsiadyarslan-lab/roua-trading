@@ -1184,10 +1184,10 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Previously, if user had ANY open position, ALL briefs were blocked
       // Now: Only skip if this specific pair already has an open position
       const currentOpenPositions = await this.prisma.position.count({
-        where: { userId, status: 'OPEN' },
+        where: { userId, symbol: brief.pair, status: 'OPEN' },
       });
       if (currentOpenPositions >= maxPositions) {
-        this.logger.debug(`⚔️ User ${userId} at max positions (${currentOpenPositions}/${maxPositions}) — skipping brief ${brief.id}`);
+        this.logger.debug(`⚔️ User ${userId} at max positions for ${brief.pair} (${currentOpenPositions}/${maxPositions}) — skipping brief ${brief.id}`);
         continue;
       }
 

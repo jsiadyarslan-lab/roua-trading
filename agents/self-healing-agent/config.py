@@ -49,7 +49,7 @@ HEALTH_ENDPOINTS = [
     {"name": "API الأسعار",    "path": "/api/exchange/quote/AAPL",     "method": "GET",  "expect_status": 200},
     {"name": "API السكانر",    "path": "/api/scanner/scan?timeframe=1h","method": "GET",  "expect_status": 200},
     {"name": "API الإشارات",   "path": "/api/signals/smart",           "method": "GET",  "expect_status": 200},
-    {"name": "API المحفظة",    "path": "/api/portfolio/summary",       "method": "GET",  "expect_status": [200, 401, 404]},
+    {"name": "API المحفظة",    "path": "/api/portfolio/summary",       "method": "GET",  "expect_status": 200},
     {"name": "API الصحة",      "path": "/api/health",                  "method": "GET",  "expect_status": 200},
     {"name": "API التداول",    "path": "/api/trading/positions",       "method": "GET",  "expect_status": [200, 401]},
     {"name": "API البوت",      "path": "/api/bot/settings",            "method": "GET",  "expect_status": [200, 401]},

@@ -45,7 +45,7 @@ class PerformanceConfig(BaseConfig):
         {"name": "API الأخبار", "path": "/api/news/feed"},
         {"name": "صفحة الدخول", "path": "/dashboard/admin/login"},
         {"name": "API AI", "path": "/api/ai/status"},
-        {"name": "API التداول", "path": "/api/trading/account"},
+        {"name": "API التداول", "path": "/api/trading/positions/summary"},  # FIX: Was /api/trading/account which doesn't exist in NestJS — caused 10s 404 retry loop
     ]
 
     # ── ربط موقع الأخبار المالي ──

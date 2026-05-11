@@ -345,9 +345,11 @@ async function proxyWithToken(
 
     // 404 = route not found in NestJS — often means NestJS module is still loading during cold start.
     // FIX: Retry with delay (up to 2 times) to give NestJS time to register routes.
+    // REDUCED from 2000ms to 500ms — for non-existent routes (like /api/trading/account),
+    // the old 2s retry delay caused 4+ seconds of wasted time per request.
     if (response.status === 404 && retryCount < 2) {
-      console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found (attempt ${retryCount + 1}/3). NestJS module may still be loading, retrying in 2s...`);
-      await new Promise(r => setTimeout(r, 2000));
+      console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found (attempt ${retryCount + 1}/3). NestJS module may still be loading, retrying in 500ms...`);
+      await new Promise(r => setTimeout(r, 500));
       return proxyWithToken(request, method, token, false, retryCount + 1);
     }
     if (response.status === 404) {

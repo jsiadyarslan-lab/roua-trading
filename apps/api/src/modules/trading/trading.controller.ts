@@ -48,6 +48,29 @@ export class TradingController {
   // ── Order Endpoints ──
 
   /**
+   * Get trading account overview
+   * GET /api/trading/account
+   *
+   * FIX: This endpoint was missing — the performance agent was monitoring
+   * /api/trading/account which returned 404, causing a 10-second proxy
+   * retry loop (2 retries × 2s delay each). Now returns position summary
+   * quickly so the endpoint responds in <100ms instead of timing out.
+   */
+  @Get('account')
+  async getAccountOverview(@Req() req: any) {
+    try {
+      const userId = req.user.id;
+      return await this.tradingService.getPositionSummary(userId);
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch account overview: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Place a new order
    * POST /api/trading/orders
    */

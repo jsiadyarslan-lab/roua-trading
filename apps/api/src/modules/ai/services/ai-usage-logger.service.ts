@@ -17,7 +17,15 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
  * │ GLM-4         │ $0.00140     │ $0.00140    │ glm-4               │
  * │ HuggingFace   │ $0.00000     │ $0.00000    │ Mistral-7B (free)   │
  * │ Ollama        │ $0.00000     │ $0.00000    │ Qwen2.5 (self-host) │
- * │ Bedrock       │ $0.00300     │ $0.01500    │ Claude 3.5 Sonnet   │
+ * │ Bedrock       │ $0.000035    │ $0.00014    │ Nova Micro          │
+ * │ OpenRouter    │ $0.00000     │ $0.00000    │ Free models         │
+ * │ OpenRouter-Pd │ $0.00015     │ $0.00015    │ Paid (e.g. Haiku)   │
+ * │ DeepSeek      │ $0.00014     │ $0.00028    │ DeepSeek Chat       │
+ * │ Cerebras      │ $0.00000     │ $0.00000    │ FREE tier           │
+ * │ NVIDIA        │ $0.00000     │ $0.00000    │ FREE tier           │
+ * │ Mistral       │ $0.00000     │ $0.00000    │ FREE tier           │
+ * │ Cache         │ $0.00000     │ $0.00000    │ Redis/memory hits   │
+ * │ System        │ $0.00000     │ $0.00000    │ Internal fallback   │
  * └──────────────────────────────────────────────────────────────────────┘
  */
 

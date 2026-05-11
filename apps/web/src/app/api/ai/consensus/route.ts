@@ -17,7 +17,16 @@ function extractProviderFromModel(model: string): string {
   if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface'
   if (lower.includes('ollama')) return 'ollama'
   if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock'
-  if (lower.includes('openrouter')) return 'openrouter'
+  if (lower.includes('deepseek')) return 'deepseek'
+  if (lower.includes('cerebras')) return 'cerebras'
+  if (lower.includes('nvidia')) return 'nvidia'
+  if (lower.includes('mistral')) return 'mistral'
+  if (lower.includes('openrouter')) {
+    if (lower.includes(':free')) return 'openrouter'
+    return 'openrouter-paid'
+  }
+  if (lower.includes('cache/') || lower.includes('cache:')) return 'cache'
+  if (lower.includes('orchestrator') || lower.includes('fallback')) return 'system'
   return 'unknown'
 }
 

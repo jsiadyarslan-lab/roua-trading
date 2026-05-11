@@ -27,27 +27,27 @@ import axios from 'axios';
  * │ Model                 │ Key                │ Specialty              │
  * ├───────────────────────┼────────────────────┼────────────────────────┤
  * │ Groq/Llama 3.3 70B   │ GROQ_API_KEY       │ ⚡ سرعة — مشاعر/ترجمة │
- * │ Gemini 2.0 Flash     │ GOOGLE_AI_STUDIO   │ 💎 إبداعي — استراتيجية│
+ * │ Gemini 2.0 Flash     │ GOOGLE_AI_STUDIO   │ 💎 إبداعي — تنبؤ/استراتيجية│
+ * │ Cerebras              │ CEREBRAS_API_KEY   │ ⚡ مجاني — سرعة فائقة │
+ * │ Bedrock/Nova Micro    │ AWS_ACCESS_KEY_ID  │ ☁️ أرخص — مخاطر/أمان  │
  * │ GLM-4 (Zhipu AI)     │ GLM_API_KEY        │ 🧠 عربي — سياق طويل   │
- * │ HuggingFace/Mistral  │ HUGGINGFACE_API_KEY│ 🤗 مجاني — متنوع      │
  * │ Ollama/Qwen2.5       │ OLLAMA_API_KEY     │ 🏠 محلي — بدون تكلفة  │
- * │ Bedrock/Claude 3.5   │ AWS_ACCESS_KEY_ID  │ ☁️ مؤسسي — مخاطر/أمان │
- * │ OpenRouter/Llama 3.1 │ OPENROUTER_API_KEY │ 🔀 تباين — نماذج مجانية│
- * │ DeepSeek V3          │ DEEPSEEK_API_KEY   │ 🔬 سيناريوهات — تحليل │
+ * │ Mistral               │ MISTRAL_API_KEY    │ 🔮 مجاني — سيناريوهات │
+ * │ NVIDIA NIM            │ NVIDIA_API_KEY     │ 🟢 مجاني — تباين      │
  * └───────────────────────┴────────────────────┴────────────────────────┘
  *
- * Task → Model Routing:
- * ┌──────────────────────┬──────────────────────────────────────────────────────┐
- * │ Task Type            │ Best Model + Fallback Chain                          │
- * ├──────────────────────┼──────────────────────────────────────────────────────┤
- * │ sentiment            │ Groq → GLM → HuggingFace → Ollama → OpenRouter      │
- * │ market_analysis      │ Gemini → Bedrock → GLM → HuggingFace → OpenRouter   │
- * │ prediction           │ GLM → Ollama → Gemini → Bedrock → OpenRouter        │
- * │ signal_generation    │ Gemini → Bedrock → Groq → GLM → OpenRouter          │
- * │ risk_analysis        │ Bedrock → GLM → Ollama → Gemini → OpenRouter        │
- * │ translation          │ Groq → GLM → Ollama → HuggingFace → OpenRouter      │
- * │ general              │ Gemini → Groq → GLM → HuggingFace → Ollama → OR     │
- * └──────────────────────┴──────────────────────────────────────────────────────┘
+ * Task → Model Routing (FIX: GLM demoted from prediction primary due to 18s latency):
+ * ┌──────────────────────┬──────────────────────────────────────────────────────────────┐
+ * │ Task Type            │ Best Model + Fallback Chain                                  │
+ * ├──────────────────────┼──────────────────────────────────────────────────────────────┤
+ * │ sentiment            │ Groq → Cerebras → Gemini → Ollama → Bedrock → GLM → NV/NM  │
+ * │ market_analysis      │ Gemini → Bedrock → Cerebras → Groq → Ollama → GLM → NV/NM  │
+ * │ prediction           │ Gemini → Cerebras → Groq → Bedrock → Ollama → NV/NM → GLM  │
+ * │ signal_generation    │ Gemini → Groq → Bedrock → Cerebras → Ollama → GLM → NV/NM  │
+ * │ risk_analysis        │ Bedrock → Gemini → GLM → Cerebras → Ollama → Groq → NV/NM  │
+ * │ translation          │ Groq → Cerebras → Gemini → Ollama → Bedrock → GLM → NV/NM  │
+ * │ general              │ Gemini → Groq → Cerebras → Ollama → Bedrock → GLM → NV/NM  │
+ * └──────────────────────┴──────────────────────────────────────────────────────────────┘
  */
 @Injectable()
 export class AIOrchestratorService implements OnModuleDestroy {
@@ -148,15 +148,23 @@ export class AIOrchestratorService implements OnModuleDestroy {
     return url.includes('localhost') || url.includes('127.0.0.1') || url.includes('0.0.0.0');
   }
 
-  /** Model routing — 8 models with smart fallbacks */
+  /** Model routing — 8 models with smart fallbacks
+   *
+   * FIX: Re-routed prediction from GLM (avg 18s latency, expensive) to Gemini
+   * (avg 2s latency, 10x cheaper). GLM moved to last fallback for prediction.
+   *
+   * FIX: Bedrock now uses Nova Micro (cheapest) instead of Claude 3.5 Sonnet
+   * (most expensive). This reduces Bedrock costs by ~85x while maintaining quality.
+   * Bedrock is still primary for risk_analysis (enterprise-grade) but cheaper.
+   */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['glm', 'cerebras', 'ollama', 'gemini', 'bedrock', 'mistral', 'nvidia'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'glm', 'cerebras', 'ollama', 'groq', 'mistral', 'nvidia'] },
-    prediction:       { primary: 'glm',        fallback: ['ollama', 'gemini', 'bedrock', 'cerebras', 'groq', 'mistral', 'nvidia'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['bedrock', 'groq', 'glm', 'cerebras', 'ollama', 'mistral', 'nvidia'] },
-    risk_analysis:    { primary: 'bedrock',    fallback: ['glm', 'ollama', 'gemini', 'cerebras', 'groq', 'mistral', 'nvidia'] },
-    translation:      { primary: 'groq',       fallback: ['glm', 'ollama', 'cerebras', 'gemini', 'bedrock', 'mistral', 'nvidia'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'glm', 'cerebras', 'ollama', 'bedrock', 'mistral', 'nvidia'] },
+    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia'] },
+    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'bedrock', 'ollama', 'mistral', 'nvidia', 'glm'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'bedrock', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia'] },
+    risk_analysis:    { primary: 'bedrock',    fallback: ['gemini', 'glm', 'cerebras', 'ollama', 'groq', 'mistral', 'nvidia'] },
+    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
   };
 
   constructor(

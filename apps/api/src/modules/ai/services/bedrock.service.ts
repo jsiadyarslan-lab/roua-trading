@@ -31,23 +31,27 @@ export class BedrockService {
   private available: boolean; // FIX: Not readonly — re-evaluated on each call
   private client: BedrockRuntimeClient | null = null;
 
-  // Model fallback chain — try most capable models first, then cheaper ones
+  // Model fallback chain — try cheapest models first to reduce costs
+  // FIX: Reordered to prioritize Nova Micro ($0.000035/1K) over Claude 3.5 Sonnet ($0.003/1K).
+  // This reduces Bedrock costs by ~85x. Claude is kept as fallback for complex tasks.
+  // Cost comparison: Nova Micro = $0.000035 input / $0.00014 output per 1K tokens
+  //                   Claude 3.5 Sonnet = $0.003 input / $0.015 output per 1K tokens
   private readonly modelCandidates = [
-    // Cross-region inference IDs (work from any region, often more available)
-    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
-    'us.anthropic.claude-3-haiku-20240307-v1:0',
-    // Direct model IDs (region-specific)
-    'anthropic.claude-3-5-sonnet-20241022-v2:0',
-    'anthropic.claude-3-haiku-20240307-v1:0',
-    // Amazon Nova — newer, more available than Titan
+    // Amazon Nova — cheapest, fastest, good enough for most analysis tasks
     'amazon.nova-micro-v1:0',
     'amazon.nova-lite-v1:0',
     // Amazon Titan — usually available in all regions with basic model access
     'amazon.titan-text-premier-v1:0',
     'amazon.titan-text-express-v1',
-    // Meta Llama — commonly available
+    // Meta Llama — commonly available, mid-range cost
     'meta.llama3-1-8b-instruct-v1:0',
     'meta.llama3-8b-instruct-v1:0',
+    // Cross-region inference IDs (work from any region, often more available)
+    'us.anthropic.claude-3-haiku-20240307-v1:0',
+    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
+    // Direct model IDs (region-specific) — most expensive, last resort
+    'anthropic.claude-3-haiku-20240307-v1:0',
+    'anthropic.claude-3-5-sonnet-20241022-v2:0',
   ];
   private resolvedModel: string | null = null;
   private lastError: string = '';

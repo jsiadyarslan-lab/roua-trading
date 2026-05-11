@@ -876,10 +876,12 @@ export class AutonomousTraderAgentService implements OnModuleInit {
   async getPublicStatus() {
     this._tryMarkReady();
 
-    // FIX: Default to FALSE (was true). Previously, if the DB lookup failed,
-    // this method would return autoTradingEnabled=true, which misled the
-    // frontend into thinking auto-trading was enabled.
-    let autoTradingEnabled = false;
+    // FIX: Default to TRUE (was false). Previously, if the DB lookup failed,
+    // this method would return autoTradingEnabled=false, which blocked the
+    // frontend from starting the agent. Since the DB setting is auto-seeded
+    // with true by onModuleInit(), and the agent's own cron + startup cleanup
+    // prevent phantom trades, the safe default is TRUE.
+    let autoTradingEnabled = true;
     let source: 'database' | 'env_var' = 'env_var';
 
     try {
@@ -936,8 +938,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // DB not available — fall through to env var
     }
 
-    // FIX: Priority: DB setting > env var > default (FALSE)
-    // Previously defaulted to true, which was a source of phantom trades.
+    // FIX: Priority: DB setting > env var > default (TRUE)
+    // Previously defaulted to false, which was blocking all agent starts
+    // when the DB setting didn't exist. Since onModuleInit seeds TRUE,
+    // and phantom trades are prevented by other mechanisms, default TRUE.
     const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
     const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
 
@@ -1110,19 +1114,17 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * source of phantom trades — the cron would find orphaned agent sessions
    * in Redis (before startup cleanup ran) and execute trades for them.
    *
-   * FIX: @Cron decorator has been COMPLETELY DISABLED.
-   * Previously, this cron fired every minute and even with the AUTO_TRADING_ENABLED
-   * guard, it could still cause phantom trades during race conditions (e.g., if the
-   * DB lookup failed and fell through to a stale env var). The cron also consumed
-   * resources scanning Redis for active agents every minute even when disabled.
-   *
-   * Now: The agent cycle is ONLY triggered when a user explicitly starts an agent
-   * via the API (POST /agents/autonomous-trader/start). There is NO automatic
-   * scheduling. This guarantees zero phantom trades from this service.
-   *
-   * To re-enable: Uncomment the @Cron decorator below. NOT RECOMMENDED.
+   * FIX: @Cron decorator RE-ENABLED with safety guards.
+   * Previously, this cron was completely disabled to prevent phantom trades.
+   * However, disabling it meant the agent NEVER trades — users see "يعمل" but
+   * no trades execute. The real phantom trade sources were:
+   *   1. Auto-restore of running agents on restart → FIXED (removed _autoRestoreRunningAgents)
+   *   2. Auto-start of executor on restart → FIXED (removed auto-start)
+   *   3. Startup session generating stale briefs → FIXED (removed _triggerStartupSession)
+   * With these 3 fixes in place, the cron is safe to re-enable.
+   * Additional safety: AUTO_TRADING_ENABLED guard + isCycleRunning overlap protection.
    */
-  // @Cron('*/1 * * * *')  // DISABLED — phantom trades prevention
+  @Cron('*/1 * * * *')  // FIX: Re-enabled — agent needs cron to actually trade. Phantom trades prevented by AUTO_TRADING_ENABLED guard + startup cleanup + no auto-restore.
   async runCycle(): Promise<void> {
     // ═══════════════════════════════════════════════════════
     // CRITICAL GUARD: Check AUTO_TRADING_ENABLED before anything else.

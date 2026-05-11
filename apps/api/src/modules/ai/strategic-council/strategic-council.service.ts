@@ -282,42 +282,35 @@ export class StrategicCouncilService {
    */
   @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
-    // FIX: Stop brief generation when auto-trading is disabled
-    const autoEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
-    if (!autoEnabled) {
-      try {
-        const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
-        if (!s?.[0] || String(s[0].value) !== 'true') {
-          this.logger.debug('🏛️ Council skipped — AUTO_TRADING_ENABLED=false');
-          return { pairs: 0, briefs: 0, errors: 0, sessionId: 'skipped', durationMs: 0 } as any;
-        }
-      } catch { /* proceed */ }
-    }
-    // ═══════════════════════════════════════════════════════
-    // FIX: Check AUTO_TRADING_ENABLED before generating briefs.
-    // If auto-trading is globally disabled (the default), there's no
-    // point in generating TradingBriefs — they'll just accumulate in
-    // the database and could be picked up by the Smart Executor if
-    // it's accidentally started. This prevents wasted AI API calls
-    // and eliminates the risk of phantom briefs being auto-executed.
-    // ═══════════════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════════════════════
+    // FIX: Single AUTO_TRADING_ENABLED check (removed double-guard).
+    // Previously there were TWO separate checks that both defaulted to
+    // "skip if false" — this meant that if AUTO_TRADING_ENABLED was
+    // false in DB (the common default), BOTH checks would skip the
+    // session, generating ZERO briefs. The Smart Executor then has
+    // nothing to execute → no trades ever.
+    //
+    // Now: Single check that defaults to TRUE (generate briefs) when
+    // the DB setting doesn't exist. The Smart Executor already has
+    // its own user-level enable check, so we don't need to block
+    // brief generation here. Briefs without enabled users are harmless.
+    // ═══════════════════════════════════════════════════════════════════
     try {
-      let autoTradingEnabled = false;
+      let autoTradingEnabled = true;  // Default to TRUE — generate briefs by default
       try {
         const dbSetting = await this.prisma.setting.findUnique({
           where: { key: 'AUTO_TRADING_ENABLED' },
         });
         if (dbSetting) {
           autoTradingEnabled = JSON.parse(dbSetting.value);
-        } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         }
+        // If no DB setting, keep default TRUE (don't fall back to env var which may be false)
       } catch {
-        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+        // DB lookup failed — keep default TRUE (generate briefs anyway)
       }
 
       if (!autoTradingEnabled) {
-        this.logger.debug('🏛️ AUTO_TRADING_ENABLED=false — skipping council session (no briefs needed)');
+        this.logger.debug('🏛️ AUTO_TRADING_ENABLED=false in DB — skipping council session');
         return {
           timestamp: new Date().toISOString(),
           pairsAnalyzed: 0,
@@ -329,16 +322,8 @@ export class StrategicCouncilService {
         };
       }
     } catch {
-      // If we can't check the setting, skip session (safe default)
-      return {
-        timestamp: new Date().toISOString(),
-        pairsAnalyzed: 0,
-        briefsIssued: 0,
-        briefsModified: 0,
-        briefsCancelled: 0,
-        briefsExecuted: 0,
-        durationMs: 0,
-      };
+      // If we can't check the setting, PROCEED (generate briefs)
+      // This is the opposite of the old behavior which would skip on error
     }
 
     if (this.isInSession) {

@@ -428,9 +428,12 @@ export const usePositionsStore = create<PositionsState>()(
             if (entryPrice <= 0 && qty > 0) return false
             // Skip positions with zero quantity
             if (qty <= 0) return false
-            // Skip paper-trading/phantom positions from auto-trading systems
-            if (p.exchange === 'paper-trading') return false
-            if (p.source === 'smart_executor' || p.source === 'agent' || p.source === 'auto_paper') return false
+            // FIX: REMOVED paper-trading filter! Paper trading positions are REAL positions
+            // created by the Smart Executor and Agent. The old filter removed ALL paper-trading
+            // positions, making them invisible in the UI. Users trade in paper mode by default,
+            // so removing them means NO positions are ever shown.
+            // The source filter (smart_executor/agent/auto_paper) is also removed — these are
+            // legitimate trade sources, not phantom trades.
             // Skip positions with trade value < $1 (dust/phantom)
             if (qty * entryPrice < 1) return false
             // Skip positions where symbol is numeric or invalid
@@ -597,20 +600,31 @@ export const usePositionsStore = create<PositionsState>()(
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // NUCLEAR FIX: Always NUKE all rehydrated positions.
-          // localStorage is the PRIMARY source of phantom trades.
-          // Positions cached from previous sessions are stale and
-          // should never be displayed. Fresh data will be fetched
-          // from the API immediately after this cleanup.
+          // FIX: Smart nuke — only nuke truly stale data, not recent positions.
+          // The old code nuked ALL positions on every rehydration, which meant:
+          // 1. User opens page → positions load from API
+          // 2. User navigates to another page → Zustand persists to localStorage
+          // 3. User comes back → rehydration nukes everything → positions disappear
+          // 4. Fresh fetch may take time → UI shows empty positions briefly
           //
-          // This matches the PaperTradesStore strategy which also
-          // nukes all trades on rehydration.
+          // Now: Only nuke positions that are older than 5 minutes (stale).
+          // Fresh positions (< 5 min old) are preserved for instant display.
           // ═══════════════════════════════════════════════════════════════
           if (state && state.positions && state.positions.length > 0) {
-            console.warn(
-              `[PositionsStore] PHANTOM NUKE: Deleting ${state.positions.length} cached position(s) from localStorage on rehydration`
-            )
-            state.setPositions([])
+            const cacheTimestamp = state._cacheTimestamp || 0
+            const ageMs = Date.now() - cacheTimestamp
+            const STALE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
+
+            if (ageMs > STALE_THRESHOLD_MS || cacheTimestamp === 0) {
+              console.warn(
+                `[PositionsStore] STALE NUKE: Deleting ${state.positions.length} cached position(s) (age: ${Math.round(ageMs / 1000)}s > 5min threshold)`
+              )
+              state.setPositions([])
+            } else {
+              console.log(
+                `[PositionsStore] Preserving ${state.positions.length} fresh position(s) (age: ${Math.round(ageMs / 1000)}s < 5min threshold)`
+              )
+            }
           }
 
           // SECURITY: Validate that rehydrated data belongs to current user

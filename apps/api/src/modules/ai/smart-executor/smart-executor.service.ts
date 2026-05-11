@@ -27,6 +27,7 @@ import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events';
 import { NotificationService } from '../../notification/notification.service';
 import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
+import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -83,6 +84,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     // the DI container to resolve undefined in production builds.
     private readonly orchestrator: AIOrchestratorService,
     private readonly orderDispatcher: OrderDispatcherService,
+    private readonly exposureManager: ExposureManagerService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
 
@@ -212,8 +214,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       //   2. Both Agent AND Executor running simultaneously (duplicate trades)
       //   3. Users confused about why trades appear they didn't authorize
       // The executor MUST ONLY be enabled by explicit user action ("تشغيل" button).
-      // The mutual exclusion fix (enableUser stops Agent, startAgent stops Executor)
-      // ensures they can never both be active for the same user.
+      //
+      // Cross-system coordination is handled by ExposureManagerService:
+      //   - Tracks total open positions across BOTH systems (executor + agent)
+      //   - Prevents exceeding global limits regardless of source
+      //   - One position per symbol enforced at the exposure level
+      //   - No mutual exclusion lock needed — exposure-based coordination
 
       this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
     } catch (error: any) {
@@ -1060,24 +1066,26 @@ export class SmartExecutorService implements OnModuleDestroy {
       return;
     }
 
-    // Check max open positions (GLOBAL — across ALL pairs)
+    // ═══════════════════════════════════════════════════════════
+    // EXPOSURE MANAGER: Unified cross-system position check.
+    // Counts ALL open positions regardless of source (smart_executor,
+    // agent, auto_paper, user_manual) to prevent the user from
+    // exceeding global limits when both systems are active.
+    //
+    // Previous code only counted positions from the executor's own
+    // source, missing positions opened by the Agent. If the executor
+    // had 5 positions and the agent had 5, each system saw only 5
+    // (under the limit of 10) but the user actually had 10 total.
+    // ═══════════════════════════════════════════════════════════
     const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
-    let openPositionsCount = await this.prisma.position.count({
-      where: { userId, status: 'OPEN' },
-    });
+    const exposureSummary = await this.exposureManager.getExposureSummary(userId);
+    let openPositionsCount = exposureSummary.totalOpenPositions;
 
-    // ROOT FIX: Global max positions check BEFORE processing any briefs.
-    // Previously, the Smart Executor would process briefs even when the user
-    // was already at their global max open positions. The OrderDispatcher and
-    // RiskGatekeeper would eventually reject the order, but this wasted
-    // resources (DB queries, price fetches, risk calculations) on every tick.
-    // More importantly, for paper-trading users, the auto-close logic at the
-    // bottom only closed ONE position per tick, but the brief loop could try
-    // to open MANY — causing a mismatch where positions pile up beyond the max.
-    // Now: If the user is at or above max positions globally, skip ALL briefs
-    // (paper-trading auto-close logic still runs above to free up space).
     if (openPositionsCount >= maxPositions && !userState.isPaperTrading) {
-      this.logger.debug(`⚔️ User ${userId} at global max positions (${openPositionsCount}/${maxPositions}) — skipping all briefs`);
+      this.logger.debug(
+        `⚔️ User ${userId} at global max positions (${openPositionsCount}/${maxPositions}) ` +
+        `across sources: ${JSON.stringify(exposureSummary.positionsBySource)} — skipping all briefs`,
+      );
       return;
     }
 
@@ -1154,15 +1162,24 @@ export class SmartExecutorService implements OnModuleDestroy {
         continue;
       }
 
-      // Check if user already has position for this pair
-      const existingPosition = await this.prisma.position.findFirst({
-        where: { userId, symbol: brief.pair, status: 'OPEN' },
-      });
-      if (existingPosition) {
-        // FIX: Instead of silently skipping, close the stale position for paper trading
-        // and execute the new brief. Old positions block ALL new trades for that pair,
-        // causing 0 executions when the dashboard shows "5 open positions".
-        if (userState.isPaperTrading) {
+      // ── EXPOSURE MANAGER: Check if user already has position for this pair (ANY source) ──
+      // Previous code only checked executor's own positions, missing Agent positions.
+      // Now: ExposureManager checks across ALL sources before allowing a new trade.
+      const exposureCheck = await this.exposureManager.canOpenPosition(
+        userId,
+        brief.pair,
+        brief.direction,
+        0, // estimated value not needed for per-symbol check
+        { maxTotalPositions: maxPositions, onePositionPerSymbol: true },
+      );
+      // If exposure check blocked due to existing position on this symbol
+      if (!exposureCheck.allowed && exposureCheck.existingPositionOnSymbol) {
+        const existingPosition = await this.prisma.position.findFirst({
+          where: { userId, symbol: brief.pair, status: 'OPEN' },
+        });
+        // FIX: For paper trading, close the stale position and execute the new brief.
+        // For real trading, skip — don't risk real capital by auto-closing.
+        if (existingPosition && userState.isPaperTrading) {
           try {
             // FIX: Use TradingService.closePositionWithRetry() — NO direct DB bypass.
             // The direct prisma.position.update() fallback has been REMOVED because it

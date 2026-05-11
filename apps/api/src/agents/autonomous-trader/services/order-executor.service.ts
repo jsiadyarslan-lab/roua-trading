@@ -11,6 +11,7 @@ import { ExchangeService } from '../../../modules/exchange/exchange.service';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../../modules/trading/trading.types';
 import { EvaluatedSignal, TradeExecution, RiskAssessment, AgentDecision } from '../types/agent.types';
 import { OrderDispatcherService } from '../../../modules/trading/services/order-dispatcher.service';
+import { ExposureManagerService } from '../../../modules/trading/services/exposure-manager.service';
 
 /**
  * OrderExecutorService — Executes trades with safety and precision
@@ -58,6 +59,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     private readonly audit: AuditService,
     private readonly tradingService: TradingService,
     private readonly orderDispatcher: OrderDispatcherService,
+    private readonly exposureManager: ExposureManagerService,
     private readonly exchangeService: ExchangeService,
   ) {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
@@ -99,25 +101,25 @@ export class OrderExecutorService implements OnModuleDestroy {
       // it could open duplicate positions on the same pair that the
       // Smart Executor already had open. This caused both systems to
       // trade the same pair simultaneously.
+      //
+      // Now uses ExposureManager for unified cross-system checks.
       // ═══════════════════════════════════════════════════════════════
-      const existingPosition = await this.prisma.position.findFirst({
-        where: {
-          userId,
-          symbol: signal.symbol,
-          status: 'OPEN',
-        },
-      });
+      const exposureCheck = await this.exposureManager.canOpenPosition(
+        userId,
+        signal.symbol,
+        signal.action,
+        risk.positionSize * signal.entryPrice,
+        { maxTotalPositions: 10, onePositionPerSymbol: true },
+      );
 
-      if (existingPosition) {
-        const existingSource = existingPosition.source || 'unknown';
+      if (!exposureCheck.allowed) {
         this.logger.warn(
-          `⚡ ORDER REJECTED: Existing open position for ${signal.symbol} ` +
-          `(id: ${existingPosition.id}, source: ${existingSource}, ` +
-          `side: ${existingPosition.side}) — skipping to prevent duplicate`,
+          `⚡ ORDER REJECTED by Exposure Manager: ${exposureCheck.reason} ` +
+          `(total open: ${exposureCheck.totalOpenPositions}, sources: ${JSON.stringify(exposureCheck.positionsBySource)})`,
         );
         return {
           success: false,
-          error: `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} (من ${existingSource}) — لا يمكن فتح مركز مكرر`,
+          error: exposureCheck.reason || `لا يمكن فتح مركز على ${signal.symbol} — ${exposureCheck.reason}`,
           executionTimeMs: Date.now() - startTime,
         };
       }

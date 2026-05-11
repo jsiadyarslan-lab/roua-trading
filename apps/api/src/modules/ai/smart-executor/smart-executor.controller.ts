@@ -9,13 +9,17 @@ import { Controller, Get, Post, Body, UseGuards, Logger, Request } from '@nestjs
 import { SmartExecutorService } from './smart-executor.service';
 import { AuthGuard, Public } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
+import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
 
 @Controller('smart-executor')
 @UseGuards(AuthGuard)
 export class SmartExecutorController {
   private readonly logger = new Logger(SmartExecutorController.name);
 
-  constructor(private readonly executorService: SmartExecutorService) {}
+  constructor(
+    private readonly executorService: SmartExecutorService,
+    private readonly exposureManager: ExposureManagerService,
+  ) {}
 
   /**
    * GET /api/smart-executor/status — Get global executor status
@@ -185,5 +189,22 @@ export class SmartExecutorController {
       data: result,
       message: `تم حذف جميع البيانات الوهمية: ${result.briefs} وثيقة، ${result.positions} مركز، ${result.trades} صفقة، ${result.paperOrders} أمر ورقي، ${result.paperCredentials} بيانات ورقية`,
     };
+  }
+
+  /**
+   * GET /api/smart-executor/exposure — Get unified exposure summary
+   * Returns total open positions and exposure across ALL sources
+   * (smart_executor, agent, auto_paper, user_manual).
+   * This is the cross-system exposure view — both the executor
+   * and agent contribute to the same user's total exposure.
+   */
+  @Get('exposure')
+  async getExposure(@Request() req: any) {
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+    }
+    const summary = await this.exposureManager.getExposureSummary(userId);
+    return { success: true, data: summary };
   }
 }

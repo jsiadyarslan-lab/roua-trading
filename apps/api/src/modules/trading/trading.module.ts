@@ -25,6 +25,9 @@ import { ExchangeSyncService } from './services/exchange-sync.service';
 // ✅ NEW: Order Dispatcher — المنسق الوحيد لجميع الأوامر الآلية
 import { OrderDispatcherService } from './services/order-dispatcher.service';
 
+// ✅ NEW: Exposure Manager — مدير التعرض الموحد بين المنفذ الذكي والوكيل
+import { ExposureManagerService } from './services/exposure-manager.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -83,6 +86,9 @@ import { OrderDispatcherService } from './services/order-dispatcher.service';
 
     // ✅ NEW: Order Dispatcher
     OrderDispatcherService,
+
+    // ✅ NEW: Exposure Manager
+    ExposureManagerService,
   ],
   exports: [
     TradingService,
@@ -98,6 +104,9 @@ import { OrderDispatcherService } from './services/order-dispatcher.service';
 
     // ✅ NEW: Export so SmartExecutor and AutonomousTrader can inject it
     OrderDispatcherService,
+
+    // ✅ NEW: Export Exposure Manager for cross-system exposure tracking
+    ExposureManagerService,
   ],
 })
 export class TradingModule {}

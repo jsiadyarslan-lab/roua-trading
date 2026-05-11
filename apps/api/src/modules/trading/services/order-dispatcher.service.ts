@@ -96,6 +96,38 @@ export class OrderDispatcherService {
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
     const startTime = Date.now();
 
+    // ── 0. فحص المراكز المفتوحة (منع التكرار عبر المصادر) ──────────
+    // FIX: Before generating an idempotency key, check if there's already
+    // an open position for this user+symbol from ANY source. Previously,
+    // the idempotency key included `source`, so the Agent and Smart
+    // Executor had DIFFERENT keys for the same pair, bypassing dedup.
+    // This caused both systems to open duplicate positions on the same pair.
+    try {
+      const existingPosition = await this.prisma.position.findFirst({
+        where: {
+          userId: request.userId,
+          symbol: request.symbol,
+          status: 'OPEN',
+        },
+      });
+
+      if (existingPosition) {
+        const existingSource = (existingPosition as any).source || 'unknown';
+        this.logger.warn(
+          `[Dispatcher] BLOCKED: ${request.source} tried to open ${request.symbol} ${request.side} ` +
+          `but position already exists (id: ${existingPosition.id}, source: ${existingSource})`,
+        );
+        return {
+          success: false,
+          message: `مركز مفتوح بالفعل لـ ${request.symbol} من ${existingSource} — لا يمكن فتح مركز مكرر`,
+          error: `Duplicate position: ${request.symbol} already open from ${existingSource}`,
+        };
+      }
+    } catch (posErr: any) {
+      // DB check failed — log warning but continue (don't block trading if DB is slow)
+      this.logger.warn(`[Dispatcher] Could not check existing positions: ${posErr.message}`);
+    }
+
     // ── 1. توليد idempotency key ──────────────────────────────
     // مبني على المحتوى وليس الوقت — يمنع تكرار نفس الصفقة خلال 5 دقائق
     const briefRef = request.briefId || request.signalId || 'manual';

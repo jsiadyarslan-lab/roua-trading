@@ -92,7 +92,37 @@ export class OrderExecutorService implements OnModuleDestroy {
     );
 
     try {
-      // Pre-flight: Check for duplicate order
+      // ═══════════════════════════════════════════════════════════════
+      // FIX: Check for existing open positions from ANY source (Agent,
+      // Smart Executor, or manual). Previously, the Agent only checked
+      // its in-memory recentOrders map (30-second window), which meant
+      // it could open duplicate positions on the same pair that the
+      // Smart Executor already had open. This caused both systems to
+      // trade the same pair simultaneously.
+      // ═══════════════════════════════════════════════════════════════
+      const existingPosition = await this.prisma.position.findFirst({
+        where: {
+          userId,
+          symbol: signal.symbol,
+          status: 'OPEN',
+        },
+      });
+
+      if (existingPosition) {
+        const existingSource = existingPosition.source || 'unknown';
+        this.logger.warn(
+          `⚡ ORDER REJECTED: Existing open position for ${signal.symbol} ` +
+          `(id: ${existingPosition.id}, source: ${existingSource}, ` +
+          `side: ${existingPosition.side}) — skipping to prevent duplicate`,
+        );
+        return {
+          success: false,
+          error: `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} (من ${existingSource}) — لا يمكن فتح مركز مكرر`,
+          executionTimeMs: Date.now() - startTime,
+        };
+      }
+
+      // Pre-flight: Check for duplicate order (in-memory 30s window)
       if (this._isDuplicateOrder(userId, signal.symbol, signal.action)) {
         return {
           success: false,

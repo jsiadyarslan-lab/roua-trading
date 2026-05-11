@@ -179,12 +179,32 @@ export class PaperTradingAdapter implements IExchangeAdapter {
   }
 
   async fetchBalance(): Promise<UnifiedBalance> {
-    // Paper trading starts with $100,000 virtual balance
-    // In production, this would be tracked in a dedicated table
-    const defaultBalance = 100000;
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: Fetch the user's actual paper balance from AgentSettings.
+    // Previously hardcoded to $100,000 which was wrong for most users
+    // whose paper balance is $10,000. Also, the usedMargin calculation
+    // was wrong — it computed the full notional value (qty * price)
+    // instead of the actual margin used. For crypto paper trading
+    // without leverage, margin = notional value of the position.
+    // ═══════════════════════════════════════════════════════════════
+    const fallbackBalance = 10000;
+    let baseBalance = fallbackBalance;
+
+    try {
+      // Fetch user's configured paper balance from AgentSettings
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId: this.userId },
+      });
+      if (settings && Number(settings.paperBalance) > 0) {
+        baseBalance = Number(settings.paperBalance);
+      }
+    } catch {
+      // AgentSettings not available — use fallback
+    }
 
     try {
       // Calculate used margin from open positions
+      // FIX: For paper trading without explicit leverage, margin = notional value
       const openPositions = await this.prisma.position.findMany({
         where: { userId: this.userId, status: 'OPEN' },
       });
@@ -200,16 +220,25 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         0,
       );
 
-      const totalEquity = defaultBalance + unrealizedPnL;
+      // FIX: totalEquity = baseBalance + unrealizedPnL (not just baseBalance)
+      // This accounts for the floating P&L from open positions
+      const totalEquity = baseBalance + unrealizedPnL;
+      const freeMargin = Math.max(0, totalEquity - usedMargin);
+
+      this.logger.debug(
+        `📝 Paper balance: base=$${baseBalance}, usedMargin=$${usedMargin.toFixed(2)}, ` +
+        `unrealizedPnL=$${unrealizedPnL.toFixed(2)}, equity=$${totalEquity.toFixed(2)}, ` +
+        `free=$${freeMargin.toFixed(2)}, positions=${openPositions.length}`
+      );
 
       return {
         totalEquity,
-        availableBalance: Math.max(0, totalEquity - usedMargin),
+        availableBalance: freeMargin,
         usedMargin,
         currency: 'USD',
         balances: {
           USD: {
-            free: Math.max(0, totalEquity - usedMargin),
+            free: freeMargin,
             used: usedMargin,
             total: totalEquity,
           },
@@ -219,11 +248,11 @@ export class PaperTradingAdapter implements IExchangeAdapter {
     } catch (error: any) {
       this.logger.error(`Failed to fetch paper balance: ${error.message}`);
       return {
-        totalEquity: defaultBalance,
-        availableBalance: defaultBalance,
+        totalEquity: baseBalance,
+        availableBalance: baseBalance,
         usedMargin: 0,
         currency: 'USD',
-        balances: { USD: { free: defaultBalance, used: 0, total: defaultBalance } },
+        balances: { USD: { free: baseBalance, used: 0, total: baseBalance } },
         timestamp: new Date(),
       };
     }

@@ -234,18 +234,38 @@ export const usePositionsStore = create<PositionsState>()(
             (e: any) => e.exchange !== 'paper-trading'
           )
 
-          // Always set the account from this endpoint's data
+          // ═══════════════════════════════════════════════════════════════
+          // FIX: Compute longMarketValue and initialMargin from positions,
+          // not from totalEquityUsd. Previously:
+          //   longMarketValue = totalEquityUsd  ← WRONG (shows balance, not position value)
+          //   initialMargin = totalEquityUsd - totalAvailableUsd ← WRONG (0 for paper)
+          // This caused the dashboard to show:
+          //   "Position value: $10,000" (= balance, not actual positions)
+          //   "Margin amount: $0.00" (because available ≈ equity for paper)
+          //   "Free margin: $10,000" (= equity - 0 margin)
+          // Now: We calculate from actual loaded positions in the store.
+          // ═══════════════════════════════════════════════════════════════
+          const currentPositions = get().positions
+          const positionsMarketValue = currentPositions.reduce(
+            (sum, p) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)),
+            0,
+          )
+          const positionsUnrealizedPnl = currentPositions.reduce(
+            (sum, p) => sum + (p.unrealizedPnl || 0),
+            0,
+          )
+          const usedMargin = totalEquityUsd - totalAvailableUsd || positionsMarketValue
           const account = {
             equity: totalEquityUsd,
             cash: totalAvailableUsd,
             buyingPower: totalAvailableUsd,
             portfolioValue: totalEquityUsd,
-            longMarketValue: totalEquityUsd,
+            longMarketValue: positionsMarketValue > 0 ? positionsMarketValue : (totalEquityUsd - totalAvailableUsd),
             shortMarketValue: 0,
-            initialMargin: totalEquityUsd - totalAvailableUsd,
+            initialMargin: usedMargin,
             maintenanceMargin: 0,
-            unrealizedPnl: 0,
-            unrealizedPnlPct: 0,
+            unrealizedPnl: positionsUnrealizedPnl,
+            unrealizedPnlPct: totalEquityUsd > 0 ? (positionsUnrealizedPnl / totalEquityUsd) * 100 : 0,
             isPaperTrading: isTestnet,
             tradingBlocked: false,
             accountBlocked: false,

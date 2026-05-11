@@ -37,7 +37,8 @@ import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus
 @Injectable()
 export class TradingService {
   private readonly logger = new Logger(TradingService.name);
-  private readonly exchangeCache = new Map<string, { instance: any; createdAt: number }>(); // credentialId:exchangeName -> exchange instance
+  private readonly exchangeCache = new Map<string, any>(); // credentialId:exchangeName -> exchange instance
+  private readonly exchangeCacheTimestamps = new Map<string, number>(); // TTL tracking
   private readonly EXCHANGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
   private readonly MAX_CACHE_SIZE = 50; // prevent unbounded growth
 
@@ -64,9 +65,11 @@ export class TradingService {
   private _cleanExchangeCache(): void {
     const now = Date.now();
     let cleaned = 0;
-    for (const [key, entry] of this.exchangeCache.entries()) {
-      if (now - entry.createdAt > this.EXCHANGE_CACHE_TTL_MS) {
+    for (const [key] of this.exchangeCache.entries()) {
+      const ts = this.exchangeCacheTimestamps.get(key) || 0;
+      if (now - ts > this.EXCHANGE_CACHE_TTL_MS) {
         this.exchangeCache.delete(key);
+        this.exchangeCacheTimestamps.delete(key);
         cleaned++;
       }
     }
@@ -75,8 +78,8 @@ export class TradingService {
     }
     // Hard limit: evict oldest if over MAX_CACHE_SIZE
     if (this.exchangeCache.size > this.MAX_CACHE_SIZE) {
-      const oldest = [...this.exchangeCache.entries()].sort((a, b) => a[1].createdAt - b[1].createdAt);
-      oldest.slice(0, this.exchangeCache.size - this.MAX_CACHE_SIZE).forEach(([k]) => this.exchangeCache.delete(k));
+      const oldest = [...this.exchangeCache.entries()].sort((a, b) => (this.exchangeCacheTimestamps.get(a[0]) || 0) - (this.exchangeCacheTimestamps.get(b[0]) || 0));
+      oldest.slice(0, this.exchangeCache.size - this.MAX_CACHE_SIZE).forEach(([k]) => { this.exchangeCache.delete(k); this.exchangeCacheTimestamps.delete(k); });
     }
   }
 
@@ -1318,6 +1321,7 @@ export class TradingService {
       }
 
       this.exchangeCache.set(cacheKey, exchange);
+      this.exchangeCacheTimestamps.set(cacheKey, Date.now());
 
       // Auto-cleanup after 10 minutes
       setTimeout(() => this.exchangeCache.delete(cacheKey), 10 * 60 * 1000);

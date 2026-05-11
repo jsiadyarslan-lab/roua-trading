@@ -110,7 +110,7 @@ export class ExecutionGatewayService {
     const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(exchangeCredentialId, userId);
 
     // Step 5: Create the appropriate adapter
-    const adapter = this._createAdapter(credential.exchange, apiKey, apiSecret, userId);
+    const adapter = this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true);
 
     // Step 6: Cache the adapter
     this.adapterCache.set(exchangeCredentialId, {
@@ -206,13 +206,13 @@ export class ExecutionGatewayService {
   /**
    * Create the appropriate adapter based on exchange type
    */
-  private _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string): IExchangeAdapter {
+  private _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string, isCredentialTestnet: boolean = false): IExchangeAdapter {
     const exchangeLower = exchange.toLowerCase();
 
     switch (exchangeLower) {
       case 'binance':
         // FIX: Read BINANCE_TESTNET env var
-        const isTestnet = this.configService?.get('BINANCE_TESTNET', 'false') === 'true' || (credential as any).testnet === true;
+        const isTestnet = this.configService?.get('BINANCE_TESTNET', 'false') === 'true' || isCredentialTestnet;
         return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, isTestnet, 'spot');
       
       case 'binance_test':

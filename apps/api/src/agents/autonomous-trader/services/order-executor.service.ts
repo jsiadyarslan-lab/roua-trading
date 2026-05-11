@@ -355,7 +355,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (!dispatchResult.success) {
         throw new Error(dispatchResult.error || dispatchResult.message || 'فشل الموزع');
       }
-      const order = { id: dispatchResult.orderId || 'unknown', filledQuantity: orderRequest.quantity, fee: 0, feeCurrency: 'USD', exchangeOrderId: null as any };
+      const order = { id: dispatchResult.orderId || 'unknown', filledQuantity: orderRequest.quantity, averagePrice: orderRequest.price || 0, fee: 0, feeCurrency: 'USD', exchangeOrderId: null as any };
 
       const executionTimeMs = Date.now() - startTime;
 

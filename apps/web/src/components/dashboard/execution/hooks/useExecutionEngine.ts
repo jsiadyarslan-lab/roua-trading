@@ -98,6 +98,7 @@ export function useExecutionEngine() {
   const addNotification = useNotificationStore(state => state.addNotification)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
+  const refreshAfterTrade = usePositionsStore(state => state.refreshAfterTrade)
 
   // Form state
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
@@ -575,16 +576,10 @@ export function useExecutionEngine() {
         price: finalResult.filledAvgPrice || currentPrice,
       })
 
-      // Refresh data — batched to avoid 7 simultaneous API calls
-      // Instead of calling loadAccount + fetchAccount + fetchPositions + loadOpenOrders
-      // immediately AND again after 2s, we batch into a single refresh cycle
-      Promise.all([fetchAccount(), fetchPositions(), loadOpenOrders()]).then(() => {
-        // Single delayed refresh to catch exchange settlement
-        setTimeout(() => {
-          fetchAccount()
-          fetchPositions()
-        }, 2000)
-      })
+      // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
+      // This replaces the manual Promise.all + setTimeout pattern
+      refreshAfterTrade()
+      loadOpenOrders().catch(() => {})
     } else {
       setExecutionState('rejected')
       setStatus({

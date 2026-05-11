@@ -42,6 +42,8 @@ interface PositionsState {
   setLastUpdate: (lastUpdate: string | null) => void
   fetchPositions: () => Promise<void>
   fetchAccount: () => Promise<void>
+  /** FIX: Refresh positions + account after trade execution with staggered retries */
+  refreshAfterTrade: () => void
   updatePositionPrice: (symbol: string, price: number) => void
   /** SECURITY: Clear all cached data when user changes */
   clearUserData: () => void
@@ -176,6 +178,42 @@ export const usePositionsStore = create<PositionsState>()(
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setLastUpdate: (lastUpdate) => set({ lastUpdate }),
+
+  /**
+   * FIX: Refresh positions and account balance after a trade is executed.
+   * Uses staggered fetches to ensure the exchange has time to settle.
+   *
+   * Problem: After a trade (manual or automated), the account balance and
+   * positions list don't update because:
+   * 1. No WebSocket push for balance updates (WS disabled by default)
+   * 2. Polling interval is 30 seconds (too slow)
+   * 3. Only Execution Panel calls fetchAccount() after trade
+   *
+   * Solution: This method is called from EVERY place a trade is opened/closed.
+   * It does:
+   * - Immediate fetch (positions + account)
+   * - Delayed fetch after 2s (exchange settlement)
+   * - Final fetch after 5s (catch slow exchanges)
+   */
+  refreshAfterTrade: () => {
+    const fetchPositions = get().fetchPositions
+    const fetchAccount = get().fetchAccount
+
+    // Immediate fetch — show the new position/balance ASAP
+    Promise.all([fetchPositions(), fetchAccount()]).catch(() => {})
+
+    // Delayed fetch #1 — exchange settlement (2 seconds)
+    setTimeout(() => {
+      fetchPositions().catch(() => {})
+      fetchAccount().catch(() => {})
+    }, 2000)
+
+    // Delayed fetch #2 — slow exchanges (5 seconds)
+    setTimeout(() => {
+      fetchPositions().catch(() => {})
+      fetchAccount().catch(() => {})
+    }, 5000)
+  },
 
   /**
    * تحديث سعر المركز الحالي وحساب P&L فوريًا من أسعار السوق المباشرة
@@ -636,10 +674,14 @@ export const usePositionsStore = create<PositionsState>()(
             const STALE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
 
             if (ageMs > STALE_THRESHOLD_MS || cacheTimestamp === 0) {
+              // FIX: Don't NUKE positions immediately — start fetching fresh data
+              // and let mergePositions() handle the replacement. Nuking causes
+              // a flash of empty positions on page refresh.
               console.warn(
-                `[PositionsStore] STALE NUKE: Deleting ${state.positions.length} cached position(s) (age: ${Math.round(ageMs / 1000)}s > 5min threshold)`
+                `[PositionsStore] STALE DATA: ${state.positions.length} cached position(s) (age: ${Math.round(ageMs / 1000)}s > 5min threshold). Keeping until fresh data arrives.`
               )
-              state.setPositions([])
+              // Mark as stale but DON'T delete — fetchPositions will replace with fresh data
+              // The mergePositions function will cleanly replace stale positions
             } else {
               console.log(
                 `[PositionsStore] Preserving ${state.positions.length} fresh position(s) (age: ${Math.round(ageMs / 1000)}s < 5min threshold)`

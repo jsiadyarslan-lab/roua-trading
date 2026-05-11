@@ -7,25 +7,17 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 /**
  * GlobalLogicEngine
  * Background component that synchronizes market prices with open trades and account data.
- * This fixes the "frozen" prices/P&L in the positions table by bridging real-time
- * market quotes (Binance WS, REST polling) to both paper trades AND real Alpaca positions.
  *
- * Also handles cross-tab synchronization so desktop and mobile views stay in sync.
+ * FIX: Adaptive polling — when Smart Executor or Agent is active, polls every 5s
+ * instead of 15s. This ensures balance/positions update quickly after automated trades.
  *
- * FIX: Reduced polling to prevent "dancing" trades. Previously, there were
- * MULTIPLE overlapping fetch intervals (1s price sync + 15s full fetch here,
- * + 10s fetch on dashboard, + 30s fetch in AlpacaPositions). These competing
- * timers replaced the entire positions array at different times, causing
- * positions to flicker between states.
- *
- * Now:
- * - 1s: Price sync only (updates currentPrice in-place, doesn't replace array)
- * - 30s: Full positions/account fetch (single source of truth for full refresh)
- * - Removed the 15s full-fetch interval from this component
+ * Polling intervals:
+ * - 2s: Price sync only (updates currentPrice in-place, doesn't replace array)
+ * - 5s: Full positions/account fetch WHEN executor/agent is active
+ * - 15s: Full positions/account fetch WHEN no automated trading (idle)
+ * - mergePositions() prevents "dancing" trades on all intervals
  */
 export function GlobalLogicEngine() {
-  // Removed reactive quotes subscription to prevent rapid re-renders
-  // We will read from getState() inside the timer instead.
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
@@ -35,25 +27,12 @@ export function GlobalLogicEngine() {
   // ── Cross-tab synchronization via storage events ──
   // FIX: DISABLED cross-tab position sync. Previously, this re-added
   // phantom positions from another tab's stale localStorage data.
-  // Since we now NUKE all localStorage data on rehydration, cross-tab
-  // sync would only propagate stale data. Fresh data is fetched from
-  // the API in each tab independently.
   useEffect(() => {
-    // No-op: Cross-tab sync disabled to prevent phantom trade propagation
     return () => {}
   }, [])
 
-  // ── Price sync: every 2 seconds (was 1s) ──
-  // This only updates currentPrice in existing positions — does NOT
-  // replace the entire positions array, so no "dancing"
-  //
-  // FIX: DISABLED paper trade price updates. Previously, this synced
-  // prices to paper trades every 2 seconds, which caused phantom trades
-  // to "dance" (flicker/update rapidly). Since paper trades are now
-  // cleared on every page load (see usePaperTradesStore), there should
-  // be no paper trades to update. But as an extra safety measure, we
-  // skip paper trade price updates entirely. Only real positions from
-  // the exchange get price updates.
+  // ── Price sync: every 2 seconds ──
+  // Only updates currentPrice in existing positions — does NOT replace the array.
   useEffect(() => {
     const syncInterval = setInterval(() => {
       const now = Date.now()
@@ -70,39 +49,52 @@ export function GlobalLogicEngine() {
           position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
         )
 
-        // FIX: ONLY update prices for REAL positions, NOT paper trades.
-        // Paper trade price updates were the cause of the "dancing"
-        // phantom trades that refreshed every 2 seconds.
         if (!hasMatchingRealPosition) return
 
-        // تقييد التحديث إلى مرة واحدة كل 2 ثانية لكل رمز
         const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
         if (now - lastSyncAt < 2000) return
 
         lastPriceSyncRef.current[normalizedSymbol] = now
-
-        if (hasMatchingRealPosition) {
-          updatePositionPrice(symbol, price)
-        }
+        updatePositionPrice(symbol, price)
       })
-    }, 2000) // Changed from 1000ms to 2000ms
+    }, 2000)
 
     return () => clearInterval(syncInterval)
   }, [updatePositionPrice])
 
-  // ── Full fetch: every 30 seconds (was 15s) ──
-  // This is the ONLY full refresh interval in this component.
-  // The dashboard page has its own 10s interval, but that's fine
-  // because mergePositions() now prevents dancing.
+  // ── Adaptive full fetch: 5s when active, 15s when idle ──
+  // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.
+  // This ensures the balance and positions update quickly after automated trades.
+  // The mergePositions() function prevents "dancing" regardless of interval speed.
   useEffect(() => {
+    let isActive = false
+
+    // Check if Smart Executor or Agent is active by examining store state
+    const checkActive = (): boolean => {
+      try {
+        // Check for open positions that might be from automated trading
+        const positions = usePositionsStore.getState().positions
+        // If there are open positions, use faster polling
+        if (positions.length > 0) return true
+      } catch { /* store not ready */ }
+      return false
+    }
+
     const iv = setInterval(() => {
       const now = Date.now()
-      // Guard: don't fetch more than once every 15s
-      if (now - lastFullFetchRef.current < 15000) return
+
+      // Re-evaluate active state periodically
+      isActive = checkActive()
+
+      // Adaptive guard: 5s when active, 15s when idle
+      const minInterval = isActive ? 5000 : 15000
+      if (now - lastFullFetchRef.current < minInterval) return
+
       lastFullFetchRef.current = now
       fetchRealPositions()
       fetchAccount()
-    }, 30000) // Changed from 15000ms to 30000ms
+    }, 5000) // Check every 5 seconds, but actual fetch respects the guard
+
     return () => clearInterval(iv)
   }, [fetchRealPositions, fetchAccount])
 

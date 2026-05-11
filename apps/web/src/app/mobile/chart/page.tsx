@@ -47,6 +47,7 @@ function ChartPageContent() {
   const addNotification = useNotificationStore(s => s.addNotification)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const refreshAfterTrade = usePositionsStore(s => s.refreshAfterTrade)
   const account = usePositionsStore(s => s.account)
   const positions = usePositionsStore(s => s.positions)
 
@@ -253,9 +254,8 @@ function ChartPageContent() {
         price: filledPrice,
       })
 
-      fetchAccount()
-      fetchPositions()
-      setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
+      // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
+      refreshAfterTrade()
 
       setTimeout(() => {
         setShowOrderSheet(false)

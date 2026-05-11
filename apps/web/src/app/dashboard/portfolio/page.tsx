@@ -449,15 +449,28 @@ export default function PortfolioPage() {
   })()
 
   // ── Combined and Filtered History ──
+  // FIX: Only show CLOSED positions (status=CLOSED) from DB, not ENTRY trades.
+  // Previously mixed Position records with paper trades from localStorage causing
+  // duplicate entries. Now we only use closedPositions from the API (Position table)
+  // and filter out paper trades that are already recorded in the Position table.
   const combinedHistory = [
     ...closedPositions.map(p => ({
-              id: p.id, symbol: p.symbol, side: p.side, type: 'MARKET',
+              id: p.id, symbol: p.symbol, side: p.side,
+              type: (p as any).source === 'smart_executor' ? 'SMART' :
+                    (p as any).source === 'agent' ? 'AGENT' :
+                    (p as any).source === 'auto_paper' ? 'PAPER' : 'MANUAL',
               quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
               exitPrice: p.exitPrice,
               fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
       openedAt: p.openedAt
     })),
-    ...closedPaperTrades.map(t => ({
+    // FIX: Only include paper trades that are NOT already in closedPositions
+    // (paper trades from the Smart Executor are recorded in DB, not localStorage)
+    ...closedPaperTrades
+      .filter(t => !closedPositions.some(p =>
+        p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01
+      ))
+      .map(t => ({
       id: t.id, symbol: t.symbol, side: t.side === 'long' ? 'BUY' : 'SELL', type: 'PAPER',
       quantity: t.qty, price: t.entryPrice, exitPrice: t.exitPrice, pnl: t.realizedPnl,
       fee: null, feeCurrency: null, executedAt: new Date(t.closeTime).toISOString(),

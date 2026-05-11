@@ -114,6 +114,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
   const addNotification = useNotificationStore(state => state.addNotification)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
+  const refreshAfterTrade = usePositionsStore(state => state.refreshAfterTrade)
 
   const price = currentPrice ?? 0
 
@@ -198,9 +199,8 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           pair: selectedSymbol,
           price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
         })
-        fetchAccount()
-        fetchPositions()
-        setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
+        // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
+        refreshAfterTrade()
         setStatus({ msg: `✅ تم ${orderSide === 'buy' ? 'الشراء' : 'البيع'} بنجاح`, type: 'success' })
         setTimeout(() => onClose(), 1200)
       } else {

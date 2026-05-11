@@ -33,6 +33,7 @@ export function QuickExecutionMini({
   const addNotification = useNotificationStore(state => state.addNotification)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)
   const fetchPositions = usePositionsStore(state => state.fetchPositions)
+  const refreshAfterTrade = usePositionsStore(state => state.refreshAfterTrade)
 
   // Sync when global symbol changes
   useEffect(() => { setLocalSymbol(selectedSymbol) }, [selectedSymbol])
@@ -206,16 +207,14 @@ export function QuickExecutionMini({
           pair: responseSymbol,
           price: filledPrice || currentPrice,
         })
-        // Refresh account balance
+        // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
+        // This replaces the manual fetchAccount/fetchPositions calls + setTimeout
+        refreshAfterTrade()
+        // Also refresh the local Alpaca account state
         fetch('/api/alpaca/account').then(r=>r.json()).then(j => {
           if (j.success && j.data) setAccount({ cash: j.data.cash ?? 0, buyingPower: j.data.buyingPower ?? 0 })
           else if (j.offline || j.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED') setAccount({ cash: 0, buyingPower: 0 })
         }).catch(() => {})
-        // Refresh dashboard account + positions so balance/margin update immediately
-        fetchAccount()
-        fetchPositions()
-        // Refresh again after 2 seconds (Alpaca sometimes takes a moment to settle)
-        setTimeout(() => { fetchAccount(); fetchPositions() }, 2000)
       } else {
         // FIX: When Alpaca credentials are not configured (503), fall back to
         // paper-only mode instead of showing an error. The trade still gets
@@ -251,8 +250,8 @@ export function QuickExecutionMini({
             pair: localSymbol,
             price: currentPrice,
           })
-          fetchAccount()
-          fetchPositions()
+          // FIX: Use refreshAfterTrade for paper trade fallback too
+          refreshAfterTrade()
         } else {
           setExecutionState('rejected')
           setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })

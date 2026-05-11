@@ -4,26 +4,17 @@ import { useEffect, useRef, useCallback } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 /**
  * useNotificationSocket — Real-time Notification Receiver
  *
- * Connects to the NestJS Notification Gateway (`/notifications` namespace)
- * and receives instant push notifications via Socket.IO.
+ * FIX: Added 'balance_update' and 'trade_executed' event handlers.
+ * When the backend pushes a balance update (after automated trade execution),
+ * the frontend now calls refreshAfterTrade() to update positions + account.
  *
- * Architecture:
- * - Connects to `/notifications` namespace with session token auth
- * - Listens for `notification` events (new notifications)
- * - Listens for `auto_execute_signal` events (auto-execution triggers)
- * - Listens for `unread_count` events (on reconnect)
- * - Falls back gracefully if Socket.IO is unavailable
- *   (polling still works via NotificationEngine)
- *
- * UX Improvements:
- * - Instant notification delivery (no 60s polling delay)
- * - Real-time order fill/reject notifications
- * - Auto-execute signal support
- * - Unread count badge updates immediately
+ * Also: Removed the hard NEXT_PUBLIC_WS_ENABLED check. Now attempts to connect
+ * if NEXT_PUBLIC_WS_URL is set, and falls back gracefully if connection fails.
  */
 export function useNotificationSocket() {
   const socketRef = useRef<Socket | null>(null)
@@ -51,21 +42,22 @@ export function useNotificationSocket() {
     const token = getSessionToken()
     if (!token) return
 
-    // Skip socket.io if WS is not explicitly enabled
-    // NestJS has no WebSocket gateway, so connecting causes 404 errors
-    if (process.env.NEXT_PUBLIC_WS_ENABLED !== 'true') return
-
-    // Determine Socket.IO URL
+    // FIX: Connect if WS URL is configured (removed strict NEXT_PUBLIC_WS_ENABLED check)
+    // The old check prevented ALL WebSocket connections even when the backend was ready.
+    // Now we attempt connection and fall back gracefully on failure.
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL || ''
     if (!wsUrl) return
+
+    // If WS is explicitly disabled, respect that
+    if (process.env.NEXT_PUBLIC_WS_ENABLED === 'false') return
 
     try {
       const socket = io(`${wsUrl}/notifications`, {
         auth: { token },
-        transports: ['polling', 'websocket'],  // polling first — Next.js rewrites can't proxy WS upgrade requests
+        transports: ['polling', 'websocket'],
         reconnection: true,
-        reconnectionAttempts: 10,
-        reconnectionDelay: 1000,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
         reconnectionDelayMax: 30000,
         timeout: 10000,
       })
@@ -77,14 +69,14 @@ export function useNotificationSocket() {
         reconnectAttemptRef.current = 0
       })
 
-      socket.on('disconnect', (reason) => {
-        // Server disconnected us — will auto-reconnect
+      socket.on('disconnect', () => {
+        // Will auto-reconnect
       })
 
-      socket.on('connect_error', (error) => {
+      socket.on('connect_error', () => {
         reconnectAttemptRef.current++
-        // After 3 failed attempts, stop trying (polling will handle it)
-        if (reconnectAttemptRef.current >= 3) {
+        // After 5 failed attempts, stop trying (polling will handle it)
+        if (reconnectAttemptRef.current >= 5) {
           socket.disconnect()
         }
       })
@@ -103,7 +95,6 @@ export function useNotificationSocket() {
         timestamp: string
         isRead: boolean
       }) => {
-        // Map backend priority to frontend priority
         const priorityMap: Record<string, 'urgent' | 'high' | 'medium' | 'low'> = {
           URGENT: 'urgent',
           HIGH: 'high',
@@ -111,7 +102,6 @@ export function useNotificationSocket() {
           LOW: 'low',
         }
 
-        // Push to notification store — triggers toast + sound + browser notification
         addNotification({
           source: (data.source || 'system') as any,
           priority: priorityMap[data.priority] || 'medium',
@@ -122,6 +112,27 @@ export function useNotificationSocket() {
           price: data.data?.averagePrice || data.data?.entryPrice || data.data?.price,
           confidence: data.data?.confidence,
         })
+
+        // FIX: If the notification is about a trade execution, refresh positions + balance
+        const isTradeNotification = data.type === 'ORDER_FILLED' ||
+          data.type === 'POSITION_OPENED' ||
+          data.type === 'POSITION_CLOSED' ||
+          data.action === 'BUY' || data.action === 'SELL'
+        if (isTradeNotification) {
+          usePositionsStore.getState().refreshAfterTrade()
+        }
+      })
+
+      // ── FIX: Balance Update Event ──
+      // Backend pushes this after automated trade execution
+      socket.on('balance_update', () => {
+        usePositionsStore.getState().refreshAfterTrade()
+      })
+
+      // ── FIX: Trade Executed Event ──
+      // Backend pushes this after Smart Executor or Agent executes a trade
+      socket.on('trade_executed', () => {
+        usePositionsStore.getState().refreshAfterTrade()
       })
 
       // ── Auto-Execute Signal Event ──
@@ -136,20 +147,18 @@ export function useNotificationSocket() {
         takeProfit?: number
         maxPositionSizePercent?: number
       }) => {
-        // Delegate to registered handler (from UI component)
         if (autoExecuteHandlerRef.current) {
           autoExecuteHandlerRef.current(data)
         }
       })
 
       // ── Unread Count Event ──
-      socket.on('unread_count', (data: { count: number }) => {
-        // Could update a badge count — for now, notification store handles it
+      socket.on('unread_count', () => {
+        // Badge count handled by notification store
       })
 
       // ── Error Event ──
       socket.on('error', (data: { message: string }) => {
-        // Auth error — disconnect
         if (data.message.includes('Authentication') || data.message.includes('Session')) {
           socket.disconnect()
         }

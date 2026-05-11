@@ -41,6 +41,7 @@ export default function TradingPage() {
   const addNotification = useNotificationStore(s => s.addNotification)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const refreshAfterTrade = usePositionsStore(s => s.refreshAfterTrade)
 
   // Trading state
   const [side, setSide] = useState<'buy' | 'sell'>('buy')
@@ -254,10 +255,9 @@ export default function TradingPage() {
         price: filledPrice,
       })
 
-      fetchAccount()
-      fetchPositions()
+      // FIX: Use refreshAfterTrade for staggered refresh
+      refreshAfterTrade()
       loadOrders()
-      setTimeout(() => { fetchAccount(); fetchPositions(); loadOrders() }, 2000)
 
       setTimeout(() => {
         setExecStatus('idle')

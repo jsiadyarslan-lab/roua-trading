@@ -1064,11 +1064,26 @@ export class SmartExecutorService implements OnModuleDestroy {
       return;
     }
 
-    // Check max open positions
+    // Check max open positions (GLOBAL — across ALL pairs)
     const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
     let openPositionsCount = await this.prisma.position.count({
       where: { userId, status: 'OPEN' },
     });
+
+    // ROOT FIX: Global max positions check BEFORE processing any briefs.
+    // Previously, the Smart Executor would process briefs even when the user
+    // was already at their global max open positions. The OrderDispatcher and
+    // RiskGatekeeper would eventually reject the order, but this wasted
+    // resources (DB queries, price fetches, risk calculations) on every tick.
+    // More importantly, for paper-trading users, the auto-close logic at the
+    // bottom only closed ONE position per tick, but the brief loop could try
+    // to open MANY — causing a mismatch where positions pile up beyond the max.
+    // Now: If the user is at or above max positions globally, skip ALL briefs
+    // (paper-trading auto-close logic still runs above to free up space).
+    if (openPositionsCount >= maxPositions && !userState.isPaperTrading) {
+      this.logger.debug(`⚔️ User ${userId} at global max positions (${openPositionsCount}/${maxPositions}) — skipping all briefs`);
+      return;
+    }
 
     // ── FIX: Auto-close stale positions for paper trading ──
     // When the user is at max open positions AND is paper trading, automatically

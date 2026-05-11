@@ -129,9 +129,16 @@ export class OrderDispatcherService {
     }
 
     // ── 1. توليد idempotency key ──────────────────────────────
-    // مبني على المحتوى وليس الوقت — يمنع تكرار نفس الصفقة خلال 5 دقائق
+    // مبني على المحتوى وليس الوقت — يمنع تكرار نفس الصفقة خلال 24 ساعة
+    // ROOT FIX: Do NOT include `source` in the content key. Previously,
+    // the key was `source:userId:briefRef:symbol:side`, which meant the
+    // Agent and Smart Executor produced DIFFERENT keys for the same trade
+    // (e.g., agent:userId:BTC:BUY vs smart_executor:userId:BTC:BUY).
+    // This bypassed the 24h dedup, allowing both systems to open duplicate
+    // positions on the same pair. Now: the key is `userId:briefRef:symbol:side`,
+    // so both sources produce the SAME key, and the second one is blocked.
     const briefRef = request.briefId || request.signalId || 'manual';
-    const contentKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
+    const contentKey = `${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
     const idempotencyKey = crypto
       .createHash('sha256')
       .update(contentKey)

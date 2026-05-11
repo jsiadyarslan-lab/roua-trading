@@ -76,19 +76,26 @@ export class PositionMonitorService {
 
     try {
       // Step 1: Get all open positions
-      // FIX: EXCLUDE phantom/paper-trading positions. Previously, the monitor
-      // would process ALL open positions including those created by the
-      // Smart Executor and Autonomous Trader. This caused phantom positions
-      // to be auto-closed (creating phantom Trade records) and phantom
-      // trailing-stop updates. Now we only monitor REAL user positions.
+      // ROOT FIX: Include ALL positions regardless of source or exchange.
+      // Previously, positions from 'smart_executor', 'agent', 'paper_trading'
+      // were EXCLUDED from monitoring. This meant:
+      //   1. Auto-traded positions NEVER had their SL/TP checked → stayed open forever
+      //   2. Paper-trading positions were never monitored → no automated exits
+      //   3. Smart Executor "only 1 trade" bug — first position stays open forever,
+      //      blocking all new trades when user hits maxOpenPositions
+      //
+      // Now: ALL positions are monitored. Paper-trading positions get simulated
+      // closes via TradingService (which routes to PaperTradingAdapter), and
+      // real-exchange positions get proper exchange closes.
+      //
+      // Phantom positions (zero-value/dust) are still filtered out via the
+      // entryPrice > 0 check below.
       let positions: any[];
       try {
         positions = await this.prisma.position.findMany({
           where: {
             status: 'OPEN',
-            // EXCLUDE phantom positions from auto-trading systems
-            exchange: { not: 'paper-trading' },
-            source: { notIn: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] },
+            entryPrice: { gt: 0 }, // Filter out phantom positions (zero-price dust)
           },
         });
       } catch (dbError: any) {

@@ -225,6 +225,12 @@ export class ExecutionGatewayService {
         return new AlpacaAdapter(apiKey, apiSecret, this.auditService, userId, true /* paper first */);
 
       case 'paper':
+      case 'paper-trading':  // FIX: DB stores 'paper-trading' but switch only matched 'paper'
+                             // This was the ROOT CAUSE of ALL paper-trading orders failing — they
+                             // fell through to the default case and created a BinanceAdapter with
+                             // dummy API keys, which immediately fails on authentication.
+                             // The RiskGatekeeper's _isTestExchange() correctly recognizes both
+                             // 'paper' and 'paper-trading', but the ExecutionGateway did not.
         return new PaperTradingAdapter(
           this.prisma,
           this.aggregator,

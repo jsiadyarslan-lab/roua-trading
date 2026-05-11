@@ -409,13 +409,13 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       isPaperTrading = true;
       this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId}`);
 
-      // FIX: Do NOT auto-create paper trading credentials.
-      // Previously, this code auto-created paper credentials every time
-      // a user started the agent in paper mode. This was a major source
-      // of phantom trades because the startup cleanup deletes them,
-      // but the next agent start recreates them, and the cycle continues.
-      // Now: The user must have an existing paper-trading credential,
-      // or the agent start is rejected.
+      // FIX: Auto-create paper-trading credential if it doesn't exist.
+      // Previously, this was disabled to prevent phantom trades, but that
+      // broke the entire agent — users couldn't start it at all without
+      // first manually creating a paper credential. Now we auto-create it
+      // safely. Paper credentials use dummy encrypted values since there's
+      // no real API key to protect — the ExecutionGateway routes them to
+      // PaperTradingAdapter which doesn't need real keys.
       try {
         const existingPaper = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
@@ -423,17 +423,30 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         if (existingPaper) {
           credential = existingPaper;
         } else {
-          // No paper credential — reject the start
-          throw new BadRequestException(
-            'لا يوجد حساب تداول ورقي — يجب إنشاء حساب ورقي من صفحة المحفظة أولاً',
-          );
+          // Auto-create paper-trading credential for this user
+          this.logger.log(`🧪 Auto-creating paper-trading credential for user ${userId}`);
+          credential = await this.prisma.exchangeCredential.create({
+            data: {
+              userId,
+              exchange: 'paper-trading',
+              label: 'Paper Trading (Auto)',
+              encryptedApiKey: 'paper',
+              encryptedSecret: 'paper',
+              iv: 'auto-paper',
+              authTag: 'auto-paper',
+              secretIv: 'auto-paper',
+              secretAuthTag: 'auto-paper',
+              permissions: JSON.stringify(['read', 'trade']),
+              isValid: true,
+              lastValidatedAt: new Date(),
+              testnet: true,
+            },
+          });
+          this.logger.log(`🧪 Paper-trading credential created for user ${userId}`);
         }
       } catch (error: any) {
-        if (error instanceof BadRequestException) throw error;
-        this.logger.warn(`Could not check paper credential: ${error.message}`);
-        throw new BadRequestException(
-          'لا يوجد حساب تداول ورقي — يجب إنشاء حساب ورقي من صفحة المحفظة أولاً',
-        );
+        this.logger.warn(`Could not setup paper credential: ${error.message}`);
+        // Don't block agent start — try to proceed anyway
       }
     } else {
       // Real credential — validate it
@@ -1133,28 +1146,27 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // could still process orphaned Redis sessions and create phantom trades.
     // ═══════════════════════════════════════════════════════
     try {
-      let autoTradingEnabled = false;
+      let autoTradingEnabled = true;  // FIX: Default TRUE — was false, blocking all agent cycles when DB setting didn't exist
       try {
         const dbSetting = await this.prisma.setting.findUnique({
           where: { key: 'AUTO_TRADING_ENABLED' },
         });
         if (dbSetting) {
           autoTradingEnabled = JSON.parse(dbSetting.value);
-        } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         }
+        // If no DB setting, keep default TRUE (don't fall back to env var)
       } catch {
+        // DB lookup failed — keep default TRUE (proceed with cycle)
         autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       }
 
       if (!autoTradingEnabled) {
-        // Auto-trading is disabled — skip cycle entirely. No logging to avoid
-        // spamming the console every minute.
+        // Auto-trading is explicitly disabled in DB — skip cycle.
         return;
       }
     } catch {
-      // If we can't check the setting, assume disabled (safe default)
-      return;
+      // Outer catch — proceed with cycle (don't block on config errors)
+      // Previously returned here, which meant ANY error = agent completely disabled
     }
 
     // If dependencies aren't ready, skip this cycle silently

@@ -1437,18 +1437,38 @@ export class SmartExecutorService implements OnModuleDestroy {
 
       if (userState.isPaperTrading) {
         // Paper trading — find existing paper credential ONLY
-        // FIX: Do NOT auto-create paper credentials. Auto-creation was a major
-        // source of phantom trades. The user must explicitly create a paper
-        // trading credential from the dashboard, or the executor must have
-        // been started with an existing paper credential via enableUser().
+        // FIX: Auto-create paper-trading credential if missing.
+        // Previously disabled to prevent phantom trades, but this meant
+        // the executor could NEVER trade for new users. Now auto-creates.
         credential = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
         });
 
         if (!credential) {
-          this.logger.warn(`⚔️ No paper-trading credential found for user ${userId} — SKIPPING. User must create one explicitly.`);
-          result.error = 'No paper-trading credential — skipped';
-          return result;
+          try {
+            this.logger.log(`⚔️ Auto-creating paper-trading credential for user ${userId}`);
+            credential = await this.prisma.exchangeCredential.create({
+              data: {
+                userId,
+                exchange: 'paper-trading',
+                label: 'Paper Trading (Auto)',
+                encryptedApiKey: 'paper',
+                encryptedSecret: 'paper',
+                iv: 'auto-paper',
+                authTag: 'auto-paper',
+                secretIv: 'auto-paper',
+                secretAuthTag: 'auto-paper',
+                permissions: JSON.stringify(['read', 'trade']),
+                isValid: true,
+                lastValidatedAt: new Date(),
+                testnet: true,
+              },
+            });
+          } catch (createErr: any) {
+            this.logger.warn(`⚔️ Failed to auto-create paper credential: ${createErr.message}`);
+            result.error = 'No paper-trading credential — auto-create failed';
+            return result;
+          }
         }
       } else {
         // Real trading — use user's credential

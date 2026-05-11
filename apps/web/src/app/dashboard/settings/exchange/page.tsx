@@ -29,6 +29,7 @@ interface Credential {
   isValid: boolean
   lastValidatedAt: string | null
   createdAt: string
+  testnet?: boolean
 }
 
 const SUPPORTED_EXCHANGES = [
@@ -434,7 +435,7 @@ export default function ExchangeSettingsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleToggleTestnet(cred.id, cred.testnet)}
+                            onClick={() => handleToggleTestnet(cred.id, !!cred.testnet)}
                             className="text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
                           >
                             {cred.testnet ? '🌐' : '🧪'}
@@ -443,7 +444,7 @@ export default function ExchangeSettingsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteCredential(cred.id)}
+                          onClick={() => handleDelete(cred.id)}
                           className="text-red-400 hover:text-red-300 hover:bg-red-500/10"
                         >
                           <Trash2 className="w-3 h-3" />

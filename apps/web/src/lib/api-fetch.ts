@@ -260,7 +260,7 @@ export async function closePositionUnified(
   positionId: string,
   quantity?: number,
   options?: { onClosed?: () => void; dbId?: string },
-): Promise<{ success: boolean; error?: string; source: 'nestjs' | 'alpaca' }> {
+): Promise<{ success: boolean; error?: string; source: 'nestjs' | 'alpaca'; forceClosed?: boolean }> {
   // Ensure auth cookie exists before making API calls
   await ensureAuth()
 

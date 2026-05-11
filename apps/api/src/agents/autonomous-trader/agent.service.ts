@@ -227,16 +227,62 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       }
 
       // ── PURGE: Clear volatile agent states from Redis ──
+      // ROOT FIX: Do NOT blindly clear ALL Redis agent states. Previously, this
+      // would delete every agent:state:* key, which meant that if a user had
+      // explicitly started their agent AND the Smart Executor was NOT active,
+      // the agent would be killed — even though the user wanted it running.
+      //
+      // NEW APPROACH: Only clear Redis agent states that conflict with the
+      // Smart Executor (mutual exclusion). Keep agent states where the Smart
+      // Executor is NOT active, so the agent can continue working after restart.
       try {
         const agentKeys = await this.redis.scanKeys('agent:state:*');
+        let cleared = 0;
+        let preserved = 0;
         for (const key of agentKeys) {
-          await this.redis.del(key);
+          try {
+            const raw = await this.redis.get(key);
+            if (raw) {
+              const state = JSON.parse(raw);
+              const userId = key.replace('agent:state:', '');
+
+              // Check if Smart Executor is also active for this user
+              let executorActive = false;
+              try {
+                const executorStateRaw = await this.redis.get(`smart-executor:user:${userId}`);
+                if (executorStateRaw) {
+                  const executorState = JSON.parse(executorStateRaw);
+                  executorActive = executorState && executorState.enabled;
+                }
+              } catch {}
+
+              if (executorActive) {
+                // Smart Executor is active — clear the agent state (mutual exclusion)
+                await this.redis.del(key);
+                cleared++;
+              } else {
+                // Smart Executor NOT active — preserve the agent state
+                // The DB already has sessions marked as STOPPED by the step above,
+                // but the Redis state (which the cron reads) should reflect the user's
+                // intent. The _getActiveAgents() DB recovery will re-populate if needed.
+                preserved++;
+              }
+            } else {
+              // Empty/invalid key — delete it
+              await this.redis.del(key);
+              cleared++;
+            }
+          } catch {
+            // Invalid state — delete it
+            await this.redis.del(key);
+            cleared++;
+          }
         }
-        if (agentKeys.length > 0) {
-          this.logger.log(`🧠 STARTUP: Cleared ${agentKeys.length} volatile Redis agent state(s)`);
+        if (cleared > 0 || preserved > 0) {
+          this.logger.log(`🧠 STARTUP: Redis agent states: ${cleared} cleared (conflict), ${preserved} preserved (no conflict)`);
         }
       } catch (err: any) {
-        this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
+        this.logger.warn(`🧠 Failed to process agent Redis states: ${err.message}`);
       }
 
       // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──
@@ -1509,10 +1555,6 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     const seenUserIds = new Set<string>();
 
     // Step 1: Check Redis for active agent states
-    // ONLY Redis is the source of truth. Agents are ONLY in Redis when
-    // the user EXPLICITLY starts them via startAgent(). On server restart,
-    // the startup cleanup clears ALL Redis states and sets all DB sessions
-    // to STOPPED. This ensures no phantom trades are ever auto-recovered.
     try {
       const keys = await this.redis.scanKeys('agent:state:*');
 
@@ -1535,18 +1577,129 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       this.logger.warn(`Redis scanKeys failed in _getActiveAgents: ${redisError?.message || redisError}`);
     }
 
-    // REMOVED: Step 2 (DB recovery of agent sessions) has been DELETED.
-    // Previously, this code would find RUNNING sessions in the DB and
-    // auto-recover them to Redis, even if the user didn't explicitly start
-    // the agent in the current session. This caused phantom trades because:
-    // 1. Old RUNNING sessions from before server restart were recovered
-    // 2. The cron would process these "recovered" agents and execute trades
-    // 3. Even though startup cleanup sets sessions to STOPPED, any session
-    //    that somehow remained RUNNING in DB would be picked up here
+    // Step 2: DB fallback — recover RUNNING agents that were lost from Redis.
+    // ROOT FIX: Previously this was completely DELETED to prevent phantom trades.
+    // However, that caused a worse problem: when Redis restarts (common on Railway),
+    // the user's explicitly-started agent disappears and the cron finds 0 active agents.
+    // The user sees "يعمل" on the dashboard but the agent NEVER trades.
     //
-    // Now: ONLY Redis is the source of truth. If Redis loses state (restart),
-    // the user must explicitly re-start their agent. This is a one-time
-    // inconvenience vs. the ongoing problem of phantom trades.
+    // NEW APPROACH: Safe DB recovery that prevents phantom trades:
+    //   1. Only recover sessions started in the LAST 24 HOURS (not old ones)
+    //   2. Only recover sessions where the user ALSO has AgentSettings.autoTradingEnabled=true
+    //   3. Verify mutual exclusion — skip if Smart Executor is active for this user
+    //   4. Re-populate Redis so subsequent reads are fast
+    if (activeUsers.length === 0) {
+      try {
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const runningSessions = await this.prisma.agentSession.findMany({
+          where: {
+            status: 'RUNNING',
+            startedAt: { gte: twentyFourHoursAgo },
+          },
+          orderBy: { startedAt: 'desc' },
+        });
+
+        for (const session of runningSessions) {
+          if (seenUserIds.has(session.userId)) continue;
+
+          // SAFETY CHECK 1: Verify autoTradingEnabled in AgentSettings
+          try {
+            const settings = await this.prisma.agentSettings.findUnique({
+              where: { userId: session.userId },
+            });
+            if (settings && !settings.autoTradingEnabled) {
+              // User explicitly disabled auto-trading — don't recover this session
+              // Instead, mark it as STOPPED in DB
+              await this.prisma.agentSession.update({
+                where: { id: session.id },
+                data: { status: 'STOPPED', stoppedAt: new Date() },
+              }).catch(() => {});
+              continue;
+            }
+          } catch { /* settings check failed — proceed with caution */ }
+
+          // SAFETY CHECK 2: Mutual exclusion — skip if Smart Executor is active
+          try {
+            const executorStateRaw = await this.redis.get(`smart-executor:user:${session.userId}`);
+            if (executorStateRaw) {
+              const executorState = JSON.parse(executorStateRaw);
+              if (executorState && executorState.enabled) {
+                // Smart Executor is active — don't recover agent (mutual exclusion)
+                this.logger.log(
+                  `🧠 DB recovery: Skipping agent for user ${session.userId} — Smart Executor is active (mutual exclusion)`,
+                );
+                // Mark the DB session as STOPPED since the user chose Smart Executor
+                await this.prisma.agentSession.update({
+                  where: { id: session.id },
+                  data: { status: 'STOPPED', stoppedAt: new Date() },
+                }).catch(() => {});
+                continue;
+              }
+            }
+          } catch { /* executor check failed — proceed */ }
+
+          // Re-populate Redis from DB so the agent cycle can process it
+          try {
+            let config: AgentConfig;
+            try {
+              config = JSON.parse(session.config);
+            } catch {
+              config = {
+                userId: session.userId,
+                strategy: session.strategy as StrategyType,
+                enabled: true,
+                maxPositionSizePercent: 2,
+                maxDailyLossPercent: 5,
+                maxOpenPositions: 5,
+                riskPerTradePercent: 1.5,
+                strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
+                symbols: this.DEFAULT_SYMBOLS,
+                credentialId: session.credentialId,
+                isPaperTrading: true,
+                createdAt: session.startedAt,
+                updatedAt: session.updatedAt,
+              };
+            }
+
+            const state: AgentState = {
+              status: AgentStatus.RUNNING,
+              config,
+              startedAt: session.startedAt,
+              dailyPnL: Number(session.dailyPnL),
+              dailyTradesCount: session.dailyTradesCount,
+              dailyResetAt: session.dailyResetAt ?? new Date(),
+              consecutiveLosses: session.consecutiveLosses,
+              totalCycles: session.totalCycles,
+              lastError: session.lastError ?? undefined,
+              lastCycleAt: session.lastCycleAt ?? undefined,
+              lastSignalAt: session.lastSignalAt ?? undefined,
+            };
+
+            await this.redis.set(
+              `agent:state:${session.userId}`,
+              JSON.stringify(state),
+              86400000,
+            );
+
+            activeUsers.push(session.userId);
+            seenUserIds.add(session.userId);
+
+            this.logger.log(
+              `🧠 DB recovery: Restored agent state for user ${session.userId} from DB (Redis lost it — likely restart). ` +
+              `Session ${session.agentRunId}, strategy: ${session.strategy}`,
+            );
+          } catch (restoreErr: any) {
+            this.logger.warn(`🧠 Failed to restore agent state for user ${session.userId}: ${restoreErr.message}`);
+          }
+        }
+
+        if (activeUsers.length > 0) {
+          this.logger.log(`🧠 Recovered ${activeUsers.length} active agent(s) from DB (Redis was empty)`);
+        }
+      } catch (dbError: any) {
+        this.logger.warn(`🧠 DB fallback for _getActiveAgents failed: ${dbError.message}`);
+      }
+    }
 
     return activeUsers;
   }

@@ -1336,26 +1336,51 @@ export class StrategicCouncilService {
    */
   private async _markExecutedBriefs(): Promise<void> {
     try {
-      // Find briefs marked as EXECUTED by the Smart Executor
-      // This is already handled by markBriefExecuted(), but we double-check here
-      const executedBriefs = await this.prisma.tradingBrief.findMany({
+      // ═══════════════════════════════════════════════════════════════════
+      // ROOT FIX: Do NOT deactivate executed briefs automatically.
+      //
+      // Previously, this method would find briefs with reviewStatus='EXECUTED'
+      // and set isActive=false, removing them from the active briefs pool.
+      // This DIRECTLY CONFLICTED with the Smart Executor's dedup fix that
+      // keeps briefs ACTIVE after execution (line 1315-1333 in
+      // smart-executor.service.ts). The dedup is handled by:
+      //   1. Redis processedKey (prevents same brief+user re-execution)
+      //   2. Position.findFirst in OrderDispatcher (prevents duplicate positions)
+      //   3. Brief natural expiry (expiresAt)
+      //
+      // This method was the ROOT CAUSE of the "Smart Executor only opens 1 trade"
+      // bug — after the first brief was executed and the next council session
+      // ran (15 min), this method would set isActive=false, removing it from
+      // getActiveBriefs(). If the council didn't generate NEW briefs for
+      // different pairs, the executor had nothing to process.
+      //
+      // Now: We ONLY mark briefs as inactive if they are EXPIRED (past expiresAt).
+      // The Smart Executor's own dedup (processedKey + Position.findFirst)
+      // prevents duplicate execution, so keeping briefs active is safe.
+      // ═══════════════════════════════════════════════════════════════════
+
+      // Only deactivate briefs that are BOTH executed AND expired
+      const now = new Date();
+      const expiredAndExecuted = await this.prisma.tradingBrief.findMany({
         where: {
           reviewStatus: 'EXECUTED',
-          isActive: true, // Should be false, but fix if missed
+          isActive: true,
+          expiresAt: { lt: now },  // Only if also expired
         },
       });
 
-      if (executedBriefs.length > 0) {
+      if (expiredAndExecuted.length > 0) {
         await this.prisma.tradingBrief.updateMany({
           where: {
             reviewStatus: 'EXECUTED',
             isActive: true,
+            expiresAt: { lt: now },
           },
           data: {
             isActive: false,
           },
         });
-        this.logger.log(`🏛️ Fixed ${executedBriefs.length} executed briefs still marked as active`);
+        this.logger.log(`🏛️ Deactivated ${expiredAndExecuted.length} EXPIRED+EXECUTED brief(s) (keeping non-expired active briefs for Smart Executor)`);
       }
     } catch (error: any) {
       this.logger.error(`Failed to mark executed briefs: ${error.message}`);

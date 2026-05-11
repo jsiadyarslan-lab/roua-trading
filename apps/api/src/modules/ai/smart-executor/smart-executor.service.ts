@@ -335,6 +335,27 @@ export class SmartExecutorService implements OnModuleDestroy {
     maxOpenPositions?: number;
     riskPerTradePercent?: number;
   }): Promise<UserExecutorState> {
+    // ── MUTUAL EXCLUSION: Check shared lock first ──
+    // If the Agent owns the lock, refuse to enable Smart Executor.
+    // The user must stop the Agent first.
+    try {
+      const lockRaw = await this.redis.get(`trading:active_controller:${userId}`);
+      if (lockRaw) {
+        const lock = JSON.parse(lockRaw);
+        if (lock && lock.controller === 'agent') {
+          this.logger.warn(
+            `⚔️ MUTUAL EXCLUSION: Agent owns the trading lock for user ${userId} — refusing to enable Smart Executor`,
+          );
+          throw new Error('الوكيل يعمل حالياً — أوقفه أولاً قبل تفعيل المنفذ الذكي');
+        }
+      }
+    } catch (lockCheckErr: any) {
+      // If the error is our own throw, re-throw it
+      if (lockCheckErr.message?.includes('أوقفه أولاً')) throw lockCheckErr;
+      // Otherwise, log and continue (don't block on Redis failure)
+      this.logger.warn(`⚔️ Could not check mutual exclusion lock: ${lockCheckErr.message}`);
+    }
+
     // ── MUTUAL EXCLUSION: Stop Autonomous Agent if running for this user ──
     // ROOT FIX: Both Agent and Smart Executor trading simultaneously for the same user
     // causes duplicate trades, conflicting positions, and resource waste.
@@ -363,6 +384,19 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     } catch (exErr: any) {
       this.logger.warn(`⚔️ Could not check/stop Agent: ${exErr.message} — proceeding with Smart Executor enable`);
+    }
+
+    // ── MUTUAL EXCLUSION: Set shared Redis lock to prevent Agent from starting ──
+    // This lock survives Redis restarts (re-populated from DB on recovery).
+    // The Agent checks this lock before starting and refuses if Smart Executor owns it.
+    try {
+      await this.redis.set(
+        `trading:active_controller:${userId}`,
+        JSON.stringify({ controller: 'smart_executor', enabledAt: new Date().toISOString() }),
+        86400000 * 7,  // 7 days — matches user state TTL
+      );
+    } catch (lockErr: any) {
+      this.logger.warn(`⚔️ Could not set mutual exclusion lock: ${lockErr.message}`);
     }
 
     // ── FIX: Auto-start the executor if it's not running ──
@@ -435,7 +469,13 @@ export class SmartExecutorService implements OnModuleDestroy {
     // Remove from DB too
     await this._removeUserStateFromDB(userId);
 
-    this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB`);
+    // ── MUTUAL EXCLUSION: Release the shared Redis lock ──
+    // This allows the Agent to start if the user wants to switch to it.
+    try {
+      await this.redis.del(`trading:active_controller:${userId}`);
+    } catch {}
+
+    this.logger.log(`⚔️ Executor disabled for user ${userId} — removed from Redis + DB + lock released`);
 
     // FIX: Check if any other users are still enabled.
     // If not, stop the tick loop to save resources.
@@ -667,6 +707,16 @@ export class SmartExecutorService implements OnModuleDestroy {
     try {
       const where: any = { status: 'OPEN' };
       if (userId) where.userId = userId;
+
+      // ═══════════════════════════════════════════════════════════
+      // SOURCE FILTER: Only show positions created by the
+      // Smart Executor (source='smart_executor' or 'auto_paper').
+      // Previously, this returned ALL positions including those
+      // created by the Agent (source='agent'), making both logs
+      // show identical trades — confusing users into thinking
+      // trades are being duplicated.
+      // ═══════════════════════════════════════════════════════════
+      where.source = { in: ['smart_executor', 'auto_paper'] };
 
       const positions = await this.prisma.position.findMany({
         where,

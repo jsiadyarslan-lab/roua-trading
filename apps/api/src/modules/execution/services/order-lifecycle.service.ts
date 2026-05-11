@@ -338,7 +338,16 @@ export class OrderLifecycleService {
               lowestPrice: result.averagePrice ?? 0,
               stopLoss: Number(order.stopLoss) || null,
               takeProfit: Number(order.takeProfit) || null,
-              source: (order as any).source || 'user_manual',
+              // ═══════════════════════════════════════════════════════════
+              // SOURCE EXTRACTION: Extract source from clientOrderId prefix.
+              // The OrderDispatcher sets clientOrderId to:
+              //   `${source}-${briefRef}-${timestamp}`
+              // e.g., "smart_executor-BTC_USDT-1715487362000"
+              //       "agent-BTC_USDT-1715487362000"
+              // This is the ONLY reliable way to determine which system
+              // created the order, since the Order table has no `source` field.
+              // ═══════════════════════════════════════════════════════════
+              source: this._extractSourceFromClientOrderId(order.clientOrderId),
             },
           });
         }
@@ -400,5 +409,21 @@ export class OrderLifecycleService {
       REJECTED: 'RISK_REJECTED',
     };
     return mapping[status] || 'CREATED';
+  }
+
+  /**
+   * Extract the source (smart_executor / agent / auto_paper) from clientOrderId.
+   * The OrderDispatcher sets clientOrderId to: `${source}-${briefRef}-${timestamp}`
+   * e.g., "smart_executor-BTC_USDT-1715487362000" → "smart_executor"
+   *       "agent-BTC_USDT-1715487362000" → "agent"
+   * Falls back to 'user_manual' if no known prefix is found.
+   */
+  private _extractSourceFromClientOrderId(clientOrderId: string | null): string {
+    if (!clientOrderId) return 'user_manual';
+    const knownSources = ['smart_executor', 'agent', 'auto_paper'];
+    for (const src of knownSources) {
+      if (clientOrderId.startsWith(src + '-')) return src;
+    }
+    return 'user_manual';
   }
 }

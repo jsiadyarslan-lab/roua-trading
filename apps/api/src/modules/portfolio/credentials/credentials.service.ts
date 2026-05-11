@@ -29,6 +29,17 @@ export class CredentialsService {
   /** Permissions that are strictly FORBIDDEN — non-custodial principle */
   private readonly FORBIDDEN_PERMISSIONS = ['withdraw', 'transfer', 'withdrawal', 'internaltransfer'];
 
+  /** Balance cache — prevents hitting exchange APIs on every request.
+   * Before this cache, fetchAllExchangeBalances() created fresh CCXT instances
+   * and called fetchBalance() on EVERY page load, causing 10+ second delays
+   * when Binance Testnet was unreachable.
+   * Now: first request fetches from exchange, subsequent requests within TTL use cache.
+   */
+  private readonly balanceCache = new Map<string, { data: any; timestamp: number }>();
+  private readonly BALANCE_CACHE_TTL_MS = 60_000;  // 1 minute — balances don't change every second
+  private readonly BALANCE_CACHE_MAX_SIZE = 50;    // Max users to cache
+  private balanceCleanupInterval: NodeJS.Timeout | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
@@ -110,6 +121,16 @@ export class CredentialsService {
         );
       }
     }
+
+    // Balance cache cleanup — runs every 10 minutes, evicts expired entries
+    this.balanceCleanupInterval = setInterval(() => {
+      const now = Date.now();
+      for (const [key, entry] of this.balanceCache) {
+        if (now - entry.timestamp > this.BALANCE_CACHE_TTL_MS * 2) {
+          this.balanceCache.delete(key);
+        }
+      }
+    }, 10 * 60 * 1000);
   }
 
   /**
@@ -406,6 +427,16 @@ export class CredentialsService {
       error?: string;
     }>;
   }> {
+    // FIX: Check balance cache first — prevents 10+ second delays on every page load.
+    // Before this cache, every call created fresh CCXT instances and hit exchange APIs,
+    // causing /api/trading/account to take 10091ms when Binance Testnet was unreachable.
+    const cacheKey = `balances:${userId}`;
+    const cached = this.balanceCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < this.BALANCE_CACHE_TTL_MS) {
+      this.logger.debug(`Balance cache HIT for user ${userId} (${Date.now() - cached.timestamp}ms old)`);
+      return cached.data;
+    }
+
     const allCredentials = await this.prisma.exchangeCredential.findMany({
       where: { userId, isValid: true },
     });
@@ -487,7 +518,16 @@ export class CredentialsService {
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
 
-    return { totalEquityUsd, totalAvailableUsd, exchanges };
+    const result = { totalEquityUsd, totalAvailableUsd, exchanges };
+
+    // FIX: Store in balance cache — subsequent requests within 60s will be instant
+    if (this.balanceCache.size >= this.BALANCE_CACHE_MAX_SIZE) {
+      const oldestKey = this.balanceCache.keys().next().value;
+      if (oldestKey) this.balanceCache.delete(oldestKey);
+    }
+    this.balanceCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    return result;
   }
 
   /**
@@ -531,7 +571,7 @@ export class CredentialsService {
       apiKey,
       secret: apiSecret,
       enableRateLimit: true,
-      timeout: 15000, // 15-second timeout for balance fetch (testnet can be slow)
+      timeout: 5000, // FIX: Reduced from 15000ms — Binance Testnet often unreachable, burning 15s per request
       options: {
         defaultType: exchange === 'binance_future_test' ? 'future' : 'spot',
         adjustForTimeDifference: true,
@@ -567,7 +607,7 @@ export class CredentialsService {
     }
 
     // Fetch balance with explicit timeout wrapper for extra safety
-    const BALANCE_TIMEOUT_MS = 15_000;
+    const BALANCE_TIMEOUT_MS = 5_000; // FIX: Reduced from 15_000 — fail fast, cache result
     let balance: any;
     try {
       balance = await Promise.race([

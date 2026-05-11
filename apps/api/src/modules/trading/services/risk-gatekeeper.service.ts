@@ -494,7 +494,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // FIX: Also recognize test exchanges (binance_test, alpaca_paper, etc.)
       // as paper-trading equivalents for position size checks.
       if (credential && this._isTestExchange(credential.exchange)) {
-        // Only check open positions count for test/paper trading
+        // Check open positions count
         const openPositions = await this.prisma.position.count({
           where: { userId: command.userId, status: 'OPEN' },
         });
@@ -507,7 +507,35 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           };
         }
 
-        this.logger.debug(`🛡️ Test exchange "${credential.exchange}" position size check: BYPASSED (virtual balance) — only position count enforced`);
+        // FIX: Also validate order VALUE for paper trading.
+        // Previously, only position COUNT was checked — allowing 80 BTC ($6.5M)
+        // positions on a $10K account because the count was < maxOpenPositions.
+        // Now: Cap order value at min($500, 5% of paperBalance).
+        let currentPrice = command.price;
+        if (!currentPrice || currentPrice <= 0) {
+          try {
+            const quote = await this.exchangeService.getQuote(command.symbol);
+            currentPrice = quote.price;
+          } catch {
+            // Can't get price — allow for paper (simulation will use brief price)
+            this.logger.debug(`🛡️ Paper trading: can't verify price for ${command.symbol} — allowing`);
+            return { allowed: true };
+          }
+        }
+
+        const orderValue = command.quantity * currentPrice;
+        const paperBalance = await this._getPaperBalance(command.userId);
+        const maxPaperOrderValue = Math.min(500, paperBalance * 0.05); // max $500 or 5% of balance
+
+        if (orderValue > maxPaperOrderValue) {
+          return {
+            allowed: false,
+            reason: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى للتداول الورقي ($${maxPaperOrderValue.toFixed(2)}). الحد: 5% من الرصيد الورقي.`,
+            failedCheck: 'POSITION_SIZE_LIMIT',
+          };
+        }
+
+        this.logger.debug(`🛡️ Paper trading order: $${orderValue.toFixed(2)} (max: $${maxPaperOrderValue.toFixed(2)}) — ALLOWED`);
         return { allowed: true };
       }
 
@@ -987,6 +1015,22 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     }, 0);
 
     return manualValue + positionsValue;
+  }
+
+  /**
+   * Get paper-trading balance from AgentSettings.
+   * Used by checkPositionSizeLimit() to cap order value for paper trading.
+   */
+  private async _getPaperBalance(userId: string): Promise<number> {
+    try {
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+      if (settings && Number(settings.paperBalance) > 0) {
+        return Number(settings.paperBalance);
+      }
+    } catch {}
+    return 10000; // Default paper balance
   }
 
   private async _calculateRiskScore(command: OrderCommand): Promise<number> {

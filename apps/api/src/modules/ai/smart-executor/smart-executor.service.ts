@@ -1695,41 +1695,34 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   private async _getPortfolioValue(userId: string): Promise<number> {
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: For paper-trading users, ALWAYS use AgentSettings.paperBalance.
+    // Previously, when positions existed, getPositionSummary() returned
+    // the SUM of position notional values (e.g., 80 BTC × $81K = $6.5M)
+    // as the "portfolio value". This created a positive feedback loop:
+    //   1. Phantom position inflates portfolioValue to $6.5M
+    //   2. riskAmount = $6.5M × 1% = $65,000
+    //   3. Next position is even bigger → infinite loop
+    // Now: Paper users ALWAYS get their paperBalance ($10K) regardless
+    // of what positions are open. Real users use position summary.
+    // ═══════════════════════════════════════════════════════════════
+    try {
+      const userState = await this.getUserState(userId);
+      if (userState?.isPaperTrading) {
+        return await this._getPaperPortfolioValue(userId);
+      }
+    } catch {}
+
+    // Real trading: use position summary
     try {
       const summary = await this.tradingService.getPositionSummary(userId);
       const totalValue = summary.totalValue || 0;
+      if (totalValue > 0) return totalValue;
 
-      // ═══════════════════════════════════════════════════
-      // FIX: Previously, when the portfolio value was 0 (due
-      // to DB error, missing positions, or paper trading with
-      // no balance), the riskAmount would floor to $10 minimum,
-      // producing tiny quantities like 0.00014925 BTC ≈ $0.01.
-      // These phantom $0.01 trades cluttered the dashboard.
-      //
-      // Now: For paper trading, use the standard $100,000
-      // paper balance. For real trading, if we can't determine
-      // the portfolio value, we DON'T execute — it's unsafe.
-      // ═══════════════════════════════════════════════════
-      if (totalValue <= 0) {
-        // Check if user is paper trading — use AgentSettings.paperBalance
-        const userState = await this.getUserState(userId);
-        if (userState?.isPaperTrading) {
-          return await this._getPaperPortfolioValue(userId);
-        }
-        // Real trading with unknown portfolio — don't execute
-        this.logger.warn(`⚔️ Cannot determine portfolio value for user ${userId} — skipping execution for safety`);
-        return 0;
-      }
-
-      return totalValue;
+      // Real trading with unknown portfolio — don't execute
+      this.logger.warn(`⚔️ Cannot determine portfolio value for user ${userId} — skipping execution for safety`);
+      return 0;
     } catch (error: any) {
-      // On error, check if paper trading and use paper balance
-      try {
-        const userState = await this.getUserState(userId);
-        if (userState?.isPaperTrading) {
-          return await this._getPaperPortfolioValue(userId);
-        }
-      } catch {}
       this.logger.warn(`⚔️ Failed to get portfolio value for user ${userId}: ${error.message}`);
       return 0; // Don't execute with unknown portfolio
     }

@@ -681,6 +681,28 @@ export class StrategicCouncilService {
     'AAPL': 210.0, 'MSFT': 440.0, 'GOOGL': 168.0, 'TSLA': 280.0,
     // Commodities
     'XAU/USD': 3250.0,
+    // Crypto (added 2026-05 — were MISSING, causing wrong prices)
+    'BTC/USDT': 81000.0, 'ETH/USDT': 2340.0, 'SOL/USDT': 95.0,
+    'BNB/USDT': 652.0, 'XRP/USDT': 2.4, 'ADA/USDT': 0.75,
+    'DOGE/USDT': 0.22, 'DOT/USDT': 7.0, 'AVAX/USDT': 35.0,
+    'MATIC/USDT': 0.50, 'LINK/USDT': 15.0, 'UNI/USDT': 8.0,
+  };
+
+  /**
+   * Price sanity ranges — reject absurd prices that would produce
+   * broken SL/TP (e.g., BTC at $35 instead of $81,000).
+   */
+  private readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
+    'BTC/USDT': { min: 20000, max: 200000 },
+    'ETH/USDT': { min: 500, max: 10000 },
+    'SOL/USDT': { min: 5, max: 500 },
+    'BNB/USDT': { min: 100, max: 2000 },
+    'XRP/USDT': { min: 0.1, max: 10 },
+    'EUR/USD': { min: 0.8, max: 1.5 },
+    'GBP/USD': { min: 1.0, max: 1.8 },
+    'USD/JPY': { min: 100, max: 200 },
+    'XAU/USD': { min: 1000, max: 5000 },
+    'AAPL': { min: 100, max: 400 },
   };
 
   /**
@@ -735,6 +757,28 @@ export class StrategicCouncilService {
     }
 
     result.diagnostics?.push(`${pair}: price=${currentPrice} from ${priceSource}`);
+
+    // FIX: Price sanity check — reject absurd prices.
+    // If BTC/USDT returns $35 instead of $81,000 (e.g., data source returned
+    // a different asset's price), the resulting SL=$35.29 and TP=$35.82 would
+    // be completely wrong, and position sizing would produce 80+ BTC trades.
+    const sanity = this.PRICE_SANITY[pair];
+    if (sanity && (currentPrice < sanity.min || currentPrice > sanity.max)) {
+      this.logger.error(
+        `🏛️ PRICE SANITY FAILED for ${pair}: $${currentPrice} outside range [$${sanity.min}, $${sanity.max}] ` +
+        `— source: ${priceSource}. Using reference price as fallback.`
+      );
+      const refPrice = this.REFERENCE_PRICES[pair];
+      if (refPrice && refPrice >= sanity.min && refPrice <= sanity.max) {
+        currentPrice = refPrice;
+        priceSource = 'reference-table (sanity-fallback)';
+        result.diagnostics?.push(`${pair}: SANITY CHECK FAILED — using reference price $${refPrice}`);
+      } else {
+        this.logger.error(`🏛️ No valid reference price for ${pair} — skipping`);
+        result.diagnostics?.push(`${pair}: SANITY CHECK FAILED and no valid reference — SKIPPED`);
+        return;
+      }
+    }
 
     // Analyze each timeframe
     for (const timeframe of COUNCIL_TIMEFRAMES) {

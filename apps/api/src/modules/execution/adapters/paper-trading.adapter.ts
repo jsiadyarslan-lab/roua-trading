@@ -89,6 +89,33 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         };
       }
 
+      // Step 1.5: FIX — Validate order value against paper balance.
+      // This is the LAST line of defense. If position sizing or RiskGatekeeper
+      // fail to cap the order, this prevents absurd orders like 80 BTC ($6.5M)
+      // on a $10K account. Max order value = 5% of paper balance or $500.
+      const orderValue = order.quantity * currentPrice;
+      let maxOrderValue = 500; // Default max
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId: this.userId },
+        });
+        if (settings && Number(settings.paperBalance) > 0) {
+          maxOrderValue = Math.min(500, Number(settings.paperBalance) * 0.05);
+        }
+      } catch {}
+
+      if (orderValue > maxOrderValue) {
+        this.logger.error(
+          `📝 PAPER ORDER REJECTED: $${orderValue.toFixed(2)} exceeds max $${maxOrderValue.toFixed(2)} ` +
+          `(${order.quantity} ${order.symbol} @ $${currentPrice})`
+        );
+        return {
+          success: false,
+          error: `قيمة الطلب ($${orderValue.toFixed(2)}) تتجاوز الحد الأقصى ($${maxOrderValue.toFixed(2)})`,
+          timestamp: new Date(),
+        };
+      }
+
       // Step 2: Handle order type
       if (order.type === 'MARKET') {
         return await this._executeMarketOrder(order, currentPrice);

@@ -315,7 +315,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
-      // Check permissions
+      // ── Paper/Test Trading Bypass (MOVED BEFORE PERMISSIONS CHECK) ──
+      // FIX: Previously, _isTestExchange() was checked AFTER JSON.parse(permissions).
+      // If permissions was a plain string like "read" (the Prisma default), JSON.parse
+      // would throw SyntaxError, and the catch block would reject the order before
+      // ever reaching the _isTestExchange check. This caused ALL paper-trading orders
+      // to be silently rejected with "فشل في التحقق من الرصيد".
+      // Now: Check test exchange FIRST — if it's paper/demo, bypass entirely.
+      if (this._isTestExchange(credential.exchange)) {
+        this.logger.debug(`🛡️ Test exchange "${credential.exchange}" balance check: BYPASSED (virtual balance) — allowing order`);
+        return { allowed: true };
+      }
+
+      // Check permissions (only for REAL exchanges — paper already bypassed above)
       const permissions = JSON.parse(credential.permissions || '["read"]');
       if (!permissions.includes('trade')) {
         return {
@@ -323,17 +335,6 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           reason: 'مفتاح API لا يملك صلاحية التداول — أضف مفتاحاً بصلاحية trade.',
           failedCheck: 'BALANCE_CHECK',
         };
-      }
-
-      // ── Paper/Test Trading Bypass (MOVED BEFORE PRICE FETCH) ──
-      // FIX: Previously, only 'paper-trading' was recognized as a test exchange.
-      // Now we also detect 'binance_test', 'alpaca_paper', 'kucoin_demo', etc.
-      // These all represent simulated environments with virtual balance.
-      // Without this fix, test exchange names not found in CCXT caused:
-      // "لا يمكن التحقق من الرصيد للبورصة" — rejecting ALL orders.
-      if (this._isTestExchange(credential.exchange)) {
-        this.logger.debug(`🛡️ Test exchange "${credential.exchange}" balance check: BYPASSED (virtual balance) — allowing order`);
-        return { allowed: true };
       }
 
       // Try to get current price for order value estimation

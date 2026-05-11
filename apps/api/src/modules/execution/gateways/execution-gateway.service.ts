@@ -106,8 +106,19 @@ export class ExecutionGatewayService {
     // Step 3: Re-validate permissions (security: check before EVERY execution)
     await this._validatePermissions(credential, userId);
 
-    // Step 4: Decrypt credentials (SECURITY: userId verified above in _validatePermissions)
-    const { apiKey, apiSecret } = await this.credentialsService.decryptCredential(exchangeCredentialId, userId);
+    // Step 4: Decrypt credentials — skip for paper/test exchanges
+    // FIX: Paper-trading credentials use demo values ("demo-xxx") that would
+    // fail AES decryption. PaperTradingAdapter doesn't need real API keys.
+    let apiKey: string;
+    let apiSecret: string;
+    if (this._isTestExchange(credential.exchange)) {
+      apiKey = 'paper';
+      apiSecret = 'paper';
+    } else {
+      const decrypted = await this.credentialsService.decryptCredential(exchangeCredentialId, userId);
+      apiKey = decrypted.apiKey;
+      apiSecret = decrypted.apiSecret;
+    }
 
     // Step 5: Create the appropriate adapter
     const adapter = this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true);
@@ -252,6 +263,15 @@ export class ExecutionGatewayService {
    * SECURITY: This check runs before EVERY order execution
    */
   private async _validatePermissions(credential: any, userId: string): Promise<void> {
+    // FIX: Skip permission validation for paper/test exchanges.
+    // These credentials have demo values ("demo-xxx") that would fail JSON.parse
+    // if permissions is the Prisma default string "read" (not a JSON array).
+    // Paper trading doesn't need real API permissions — it's a simulation.
+    if (this._isTestExchange(credential.exchange)) {
+      this.logger.debug(`🛡️ Test exchange "${credential.exchange}" permission check: BYPASSED (simulation)`);
+      return;
+    }
+
     const FORBIDDEN_PERMISSIONS = ['withdraw', 'transfer', 'withdrawal', 'internaltransfer'];
 
     try {
@@ -298,5 +318,20 @@ export class ExecutionGatewayService {
         'لا يمكن التحقق من صلاحيات مفتاح API — يرجى إعادة إنشاء المفتاح أو التحقق من إعدادات البورصة',
       );
     }
+  }
+
+  /**
+   * Check if an exchange name represents a test/paper/simulation environment.
+   * Mirrors the same logic in RiskGatekeeperService._isTestExchange().
+   */
+  private _isTestExchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+    if (exactMatches.includes(lower)) return true;
+    const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
+    if (suffixes.some(s => lower.endsWith(s))) return true;
+    if (lower.includes('testnet')) return true;
+    return false;
   }
 }

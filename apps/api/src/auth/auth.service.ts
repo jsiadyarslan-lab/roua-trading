@@ -340,6 +340,8 @@ export class AuthService {
               encryptedSecret: `demo-secret-${user.id}`,
               iv: 'demo-iv',
               authTag: 'demo-auth-tag',
+              permissions: JSON.stringify(['read', 'trade']),  // FIX: valid JSON array (Prisma default "read" breaks JSON.parse)
+              isValid: true,                                     // FIX: explicitly valid
             },
           });
 

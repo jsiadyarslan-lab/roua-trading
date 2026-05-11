@@ -8,6 +8,7 @@
 """
 
 import json
+import time
 import requests
 from typing import Optional
 
@@ -145,8 +146,8 @@ def _build_analysis_prompt(
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # استدعاء GLM-5.1 API
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-def _call_glm(prompt: str) -> dict:
-    """يرسل موجهًا إلى GLM-5.1 ويعيد الرد."""
+def _call_glm(prompt: str, max_retries: int = 3) -> dict:
+    """يرسل موجهًا إلى GLM ويعيد الرد مع إعادة المحاولة عند الفشل المؤقت."""
     headers = {
         "Authorization": f"Bearer {GLM_API_KEY}",
         "Content-Type": "application/json",
@@ -164,27 +165,56 @@ def _call_glm(prompt: str) -> dict:
         "max_tokens": 2048,
     }
 
-    try:
-        resp = requests.post(GLM_API_URL, headers=headers, json=data, timeout=60)
-        resp_json = resp.json()
+    last_error = None
+    for attempt in range(max_retries):
+        try:
+            resp = requests.post(GLM_API_URL, headers=headers, json=data, timeout=60)
+            resp_json = resp.json()
 
-        if resp.status_code != 200:
-            return {
-                "success": False,
-                "error": f"GLM API أرجع HTTP {resp.status_code}: {resp_json}",
-            }
+            if resp.status_code == 429:
+                # تجاوز الحد — انتظار أطول
+                wait_time = min(2 ** attempt * 5, 30)  # تراجع أسي: 5، 10، 20 ثانية
+                print(f"  ⏳ تجاوز حد GLM API (429) — انتظار {wait_time}ث (محاولة {attempt + 1}/{max_retries})")
+                time.sleep(wait_time)
+                last_error = f"GLM API أرجع HTTP 429: {resp_json}"
+                continue
 
-        content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "")
+            if resp.status_code >= 500:
+                # خطأ خادم — إعادة محاولة
+                wait_time = 2 ** attempt  # تراجع أسي: 1، 2، 4 ثواني
+                print(f"  ⚠️ خطأ خادم GLM ({resp.status_code}) — إعادة محاولة بعد {wait_time}ث")
+                time.sleep(wait_time)
+                last_error = f"GLM API أرجع HTTP {resp.status_code}: {resp_json}"
+                continue
 
-        if not content:
-            return {"success": False, "error": "GLM أرجع رداً فارغاً"}
+            if resp.status_code != 200:
+                return {
+                    "success": False,
+                    "error": f"GLM API أرجع HTTP {resp.status_code}: {resp_json}",
+                }
 
-        return {"success": True, "content": content}
+            content = resp_json.get("choices", [{}])[0].get("message", {}).get("content", "")
 
-    except requests.exceptions.Timeout:
-        return {"success": False, "error": "انتهت مهلة GLM API"}
-    except Exception as e:
-        return {"success": False, "error": f"فشل استدعاء GLM: {e}"}
+            if not content:
+                return {"success": False, "error": "GLM أرجع رداً فارغاً"}
+
+            return {"success": True, "content": content}
+
+        except requests.exceptions.Timeout:
+            last_error = "انتهت مهلة GLM API"
+            wait_time = 2 ** attempt
+            print(f"  ⚠️ انتهت مهلة GLM — إعادة محاولة بعد {wait_time}ث ({attempt + 1}/{max_retries})")
+            time.sleep(wait_time)
+        except requests.exceptions.ConnectionError:
+            last_error = "فشل الاتصال بـ GLM API"
+            wait_time = 2 ** attempt
+            print(f"  ⚠️ فشل اتصال GLM — إعادة محاولة بعد {wait_time}ث ({attempt + 1}/{max_retries})")
+            time.sleep(wait_time)
+        except Exception as e:
+            last_error = f"فشل استدعاء GLM: {e}"
+            break  # خطأ غير متوقع — لا نعيد المحاولة
+
+    return {"success": False, "error": last_error or "فشل استدعاء GLM بعد عدة محاولات"}
 
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

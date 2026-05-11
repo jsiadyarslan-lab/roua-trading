@@ -123,8 +123,13 @@ def create_fix_branch(fix_result, error_info: dict) -> dict:
     current_content = file_result["content"]
     file_sha = file_result["sha"]
 
-    # 5. تطبيق الإصلاح (بحث واستبدال)
-    if fix_result.search_code in current_content:
+    # 5. تطبيق الإصلاح (بحث واستبدال أو إضافة)
+    if not fix_result.search_code:
+        # وضع الإضافة: نضيف الكود الجديد في نهاية الملف
+        # هذا يُستخدم عندما لا يوفر GLM كود البحث
+        new_content = current_content.rstrip() + "\n\n" + fix_result.fix_code + "\n"
+        print(f"  📝 وضع الإضافة: إضافة الكود في نهاية الملف {fix_result.file_path}")
+    elif fix_result.search_code in current_content:
         new_content = current_content.replace(fix_result.search_code, fix_result.fix_code, 1)
     else:
         # محاولة تقريبية: البحث عن سطر يحتوي على جزء من الكود
@@ -362,14 +367,14 @@ def _check_build_status(branch_name: str, timeout: int) -> TestResult:
         check_runs = data.get("check_runs", [])
 
         if not check_runs:
-            # لا توجد فحوصات — نعتبر هذا نجاحاً مشروطاً
+            # لا توجد فحوصات — لا نستطيع التحقق من صحة الإصلاح
             print(f"  ⚠️ لا توجد فحوصات CI على الفرع {branch_name}")
             return TestResult(
-                success=True,
+                success=False,
                 branch_name=branch_name,
-                tests_passed=True,
-                build_passed=True,
-                error="لا توجد فحوصات CI — مراجعة بشرية مطلوبة",
+                tests_passed=False,
+                build_passed=False,
+                error="لا توجد فحوصات CI — لا يمكن التحقق من صحة الإصلاح تلقائياً",
             )
 
         # التحقق من حالة كل فحص
@@ -385,14 +390,10 @@ def _check_build_status(branch_name: str, timeout: int) -> TestResult:
         )
 
         if pending:
-            print(f"  ⏳ الفحوصات قيد التشغيل على {branch_name}...")
-            return TestResult(
-                success=True,
-                branch_name=branch_name,
-                tests_passed=True,
-                build_passed=True,
-                error="الفحوصات قيد التشغيل — المراجعة البشرية مطلوبة",
-            )
+            print(f"  ⏳ الفحوصات قيد التشغيل على {branch_name} — انتظار اكتمالها...")
+            # انتظار إضافي ثم إعادة الفحص بدلاً من اعتبارها نجاحاً
+            time.sleep(20)
+            return _check_build_status_retry(branch_name, max_retries=2)
 
         return TestResult(
             success=all_passed,
@@ -408,6 +409,73 @@ def _check_build_status(branch_name: str, timeout: int) -> TestResult:
             branch_name=branch_name,
             error=str(e),
         )
+
+
+def _check_build_status_retry(branch_name: str, max_retries: int = 2) -> TestResult:
+    """يعيد فحص حالة البناء مع عدة محاولات عند وجود فحوصات قيد التشغيل."""
+    for attempt in range(max_retries + 1):
+        url = f"https://api.github.com/repos/{GITHUB_REPO}/commits/{branch_name}/check-runs"
+        try:
+            time.sleep(15)  # انتظار بين كل محاولة
+            resp = requests.get(url, headers=_github_headers(), timeout=15)
+            if resp.status_code != 200:
+                continue
+
+            data = resp.json()
+            check_runs = data.get("check_runs", [])
+
+            if not check_runs:
+                if attempt == max_retries:
+                    return TestResult(
+                        success=False,
+                        branch_name=branch_name,
+                        tests_passed=False,
+                        build_passed=False,
+                        error="لا توجد فحوصات CI بعد الانتظار — لا يمكن التحقق من صحة الإصلاح",
+                    )
+                continue
+
+            pending = any(
+                run["status"] in ("queued", "in_progress")
+                for run in check_runs
+            )
+
+            if not pending:
+                all_passed = all(
+                    run["conclusion"] == "success"
+                    for run in check_runs
+                    if run["status"] == "completed"
+                )
+                return TestResult(
+                    success=all_passed,
+                    branch_name=branch_name,
+                    tests_passed=all_passed,
+                    build_passed=all_passed,
+                    test_output=str(check_runs[:3]),
+                )
+
+            if attempt == max_retries:
+                return TestResult(
+                    success=False,
+                    branch_name=branch_name,
+                    tests_passed=False,
+                    build_passed=False,
+                    error=f"الفحوصات لا تزال قيد التشغيل بعد {max_retries + 1} محاولات — مراجعة بشرية مطلوبة",
+                )
+
+        except Exception as e:
+            if attempt == max_retries:
+                return TestResult(
+                    success=False,
+                    branch_name=branch_name,
+                    error=f"فشل فحص حالة البناء: {e}",
+                )
+
+    return TestResult(
+        success=False,
+        branch_name=branch_name,
+        error="فشل فحص حالة البناء بعد عدة محاولات",
+    )
 
 
 def _wait_for_workflow(run_id: int, branch_name: str, timeout: int) -> TestResult:

@@ -334,7 +334,7 @@ def _parse_error_line(line: str) -> Optional[dict]:
         }
 
     # نمط خطأ NestJS / API
-    if "InternalServerError" in line or "Nest" in line and "ERROR" in line:
+    if "InternalServerError" in line or ("Nest" in line and "ERROR" in line):
         return {
             "type": "api_error",
             "subtype": "server_error",
@@ -345,7 +345,7 @@ def _parse_error_line(line: str) -> Optional[dict]:
         }
 
     # نمط خطأ Prisma
-    if "PrismaClient" in line or "prisma" in line.lower() and "error" in line.lower():
+    if "PrismaClient" in line or ("prisma" in line.lower() and "error" in line.lower()):
         return {
             "type": "api_error",
             "subtype": "database_error",

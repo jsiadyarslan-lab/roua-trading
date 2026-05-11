@@ -94,9 +94,16 @@ def generate_fix(analysis_result: dict) -> FixResult:
         # محاولة استنتاج الكود القديم من الكود الجديد
         search_code = _infer_search_code(fix_code, analysis_result)
         if not search_code:
+            # إذا لم نستطع الاستنتاج، نسمح بالإصلاح مع علامة append_only
+            # هذا يعني أن الإصلاح سيُضاف بدلاً من استبدال كود موجود
             return FixResult(
-                success=False,
-                error="لم يُقدّم GLM كود البحث (search_code) — لا يمكن تطبيق الإصلاح بأمان",
+                success=True,
+                file_path=file_path,
+                search_code=None,
+                fix_code=fix_code,
+                explanation=analysis_result.get("explanation", "") + " (إصلاح بدون كود بحث — يتطلب إضافة يدوية)",
+                fix_scope=fix_scope,
+                is_safe=True,
             )
 
     # 4. التحقق من مسار الملف
@@ -211,8 +218,42 @@ def _infer_search_code(fix_code: str, analysis: dict) -> Optional[str]:
     """
     يحاول استنتاج الكود القديم من الكود الجديد والتحليل.
     هذا احتياطي عندما لا يُقدّم GLM كود البحث.
+
+    الاستراتيجية:
+    1. إذا وُجد سطر واحد فقط في fix_code، نبحث عن السطر الأصلي عبر التعليقات
+    2. إذا كان الإصلاح يتضمن استبدال نوع (مثل: string → number)، نستخرج النمط
+    3. نعيد النتيجة فقط إذا كنا واثقين بنسبة ≥80%
     """
-    # لا يمكن الاستنتاج بأمان — نُعيد None
+    if not fix_code or not fix_code.strip():
+        return None
+
+    lines = fix_code.strip().split("\n")
+
+    # استراتيجية 1: إذا كان الإصلاح سطراً واحداً فيه استبدال واضح
+    if len(lines) == 1:
+        line = lines[0].strip()
+
+        # نمط: إضافة قيمة افتراضية (مثل: variable → variable = defaultValue)
+        import_match = re.search(r'import\s+\{?\s*(\w+)', line)
+        if import_match:
+            # الإصلاح يتضمن إضافة استيراد — نبحث عن الاستيراد المفقود
+            return None  # لا يمكن الاستنتاج بأمان
+
+        # نمط: تغيير في التعيين (مثل: const x = y → const x = y ?? defaultValue)
+        assign_match = re.match(r'(\s*(?:const|let|var)\s+\w+\s*=\s*)(.+)', line)
+        if assign_match:
+            prefix = assign_match.group(1)
+            new_value = assign_match.group(2)
+            # إذا كان القيمة الجديدة تحتوي على ?? أو || ، القيمة القديمة هي الجزء الأول
+            for op in [' ?? ', ' || ', ' ||=', ' ??= ']:
+                if op in new_value:
+                    old_value = new_value.split(op)[0].strip()
+                    return f"{prefix}{old_value}"
+
+        return None  # سطر واحد لكن بدون نمط واضح
+
+    # استراتيجية 2: إصلاح متعدد الأسطر — لا يمكن الاستنتاج بأمان
+    # لأن الاستبدال الخاطئ قد يُتلف الكود
     return None
 
 

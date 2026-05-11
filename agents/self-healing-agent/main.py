@@ -198,6 +198,7 @@ total_errors = 0
 total_fixes = 0
 total_prs = 0
 total_failed_fixes = 0
+total_alerts = 0
 last_summary_time = 0.0
 
 # سجل محاولات الإصلاح (لتجنب التكرار)
@@ -282,7 +283,7 @@ def self_heal_workflow(failed_result) -> dict:
     الخطوات:
     1. جلب السجلات من Railway
     2. استخراج أنماط الأخطاء
-    3. تحليل الخطأ عبر GLM-5.1
+    3. تحليل الخطأ عبر GLM
     4. توليد الإصلاح
     5. إنشاء فرع وتطبيق الإصلاح
     6. تشغيل الاختبارات
@@ -292,6 +293,8 @@ def self_heal_workflow(failed_result) -> dict:
     يعيد:
         قاموس يحتوي على نتيجة كل خطوة
     """
+    global total_fixes, total_prs, total_failed_fixes, total_alerts
+
     if not _MODULES_AVAILABLE:
         print("  ⚠️ وحدات الإصلاح غير متاحة — لا يمكن تنفيذ سير العمل")
         return {"outcome": "modules_unavailable"}
@@ -399,7 +402,7 @@ def self_heal_workflow(failed_result) -> dict:
 
         if not test_result.success:
             print(f"  ❌ فشلت الاختبارات: {test_result.error}")
-            total_failed_fixes += 1  # type: ignore
+            total_failed_fixes += 1
 
             # حذف الفرع الفاشل
             print(f"  🗑️ حذف الفرع الفاشل: {branch_name}")
@@ -418,11 +421,11 @@ def self_heal_workflow(failed_result) -> dict:
 
         if not pr_result.success:
             print(f"  ❌ فشل فتح PR: {pr_result.error}")
-            total_failed_fixes += 1  # type: ignore
+            total_failed_fixes += 1
             continue
 
-        total_prs += 1  # type: ignore
-        total_fixes += 1  # type: ignore
+        total_prs += 1
+        total_fixes += 1
         print(f"  ✅ تم فتح PR #{pr_result.pr_number}: {pr_result.pr_html_url}")
 
         # ── الخطوة 8: إرسال إشعار الموافقة البشرية ──
@@ -431,6 +434,7 @@ def self_heal_workflow(failed_result) -> dict:
 
         if approval.get("success"):
             print(f"  ✅ تم إرسال إشعار الموافقة")
+            total_alerts += 1
         else:
             print(f"  ⚠️ فشل إرسال إشعار الموافقة: {approval.get('error', '')}")
 
@@ -449,6 +453,8 @@ def self_heal_workflow(failed_result) -> dict:
 def main():
     global running, consecutive_failures, total_checks, total_alerts
     global total_errors, total_fixes, total_prs, total_failed_fixes, last_summary_time
+
+    total_alerts = 0  # إعادة تعيين العداد عند بدء الحلقة
 
     # بانر البدء
     log.banner([

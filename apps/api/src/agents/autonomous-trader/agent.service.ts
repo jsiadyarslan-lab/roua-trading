@@ -330,6 +330,33 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     this._tryMarkReady();
     this._ensureReady();
 
+    // ── MUTUAL EXCLUSION: Disable Smart Executor if active for this user ──
+    // ROOT FIX: Both Agent and Smart Executor trading simultaneously for the same user
+    // causes duplicate trades, conflicting positions, and resource waste.
+    // They MUST be mutually exclusive — only one can be active per user at a time.
+    // When the user starts the Agent, we automatically disable the Smart Executor.
+    try {
+      const executorState = await this.redis.get(`smart-executor:user:${userId}`);
+      if (executorState) {
+        const parsed = JSON.parse(executorState);
+        if (parsed && parsed.enabled) {
+          this.logger.log(
+            `🧠 MUTUAL EXCLUSION: Smart Executor is active for user ${userId} — disabling it before starting Agent`,
+          );
+          await this.redis.del(`smart-executor:user:${userId}`);
+          // Also remove from DB persistence
+          try {
+            await this.prisma.setting.deleteMany({
+              where: { key: `SMART_EXECUTOR_USER_STATE:${userId}` },
+            });
+          } catch {}
+          this.logger.log(`🧠 Smart Executor disabled for user ${userId} — Agent takes exclusive control`);
+        }
+      }
+    } catch (exErr: any) {
+      this.logger.warn(`🧠 Could not check/disable Smart Executor: ${exErr.message} — proceeding with Agent start`);
+    }
+
     // Check if agent is already running
     const existingState = await this._getAgentState(userId);
     if (existingState && existingState.status === AgentStatus.RUNNING) {

@@ -205,39 +205,15 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge stale PaperOrder records: ${paperErr.message}`);
       }
 
-      // ── STEP 5: Auto-enable users with paper-trading credentials ──
-      // FIX: Many users create paper-trading credentials but forget to enable the executor.
-      // This causes confusion - they see 10+ active briefs but no trades execute.
-      // Now: Auto-enable the executor for users who have paper-trading credentials.
-      try {
-        const paperCredentialUsers = await this.prisma.exchangeCredential.findMany({
-          where: { exchange: 'paper-trading', isValid: true },
-          select: { userId: true },
-          distinct: ['userId'],
-        });
-
-        if (paperCredentialUsers.length > 0) {
-          this.logger.log(`⚔️ AUTO-ENABLE: Found ${paperCredentialUsers.length} users with paper-trading credentials`);
-          
-          for (const cred of paperCredentialUsers) {
-            const userId = cred.userId;
-            const existingState = await this.getUserState(userId);
-            
-            if (!existingState || !existingState.enabled) {
-              // Auto-enable with paper trading settings
-              await this.enableUser(userId, {
-                isPaperTrading: true,
-                maxOpenPositions: 10,
-                riskPerTradePercent: 1,
-              });
-              
-              this.logger.log(`⚔️ AUTO-ENABLE: Enabled Smart Executor for user ${userId} (paper-trading)`);
-            }
-          }
-        }
-      } catch (autoErr: any) {
-        this.logger.warn(`⚔️ Auto-enable failed: ${autoErr.message}`);
-      }
+      // ── REMOVED: Auto-enable for paper-trading users ──
+      // ROOT FIX: Auto-enabling the Smart Executor for ALL users with paper-trading
+      // credentials violates explicit user consent. It causes:
+      //   1. Trades executing without the user's knowledge
+      //   2. Both Agent AND Executor running simultaneously (duplicate trades)
+      //   3. Users confused about why trades appear they didn't authorize
+      // The executor MUST ONLY be enabled by explicit user action ("تشغيل" button).
+      // The mutual exclusion fix (enableUser stops Agent, startAgent stops Executor)
+      // ensures they can never both be active for the same user.
 
       this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
     } catch (error: any) {
@@ -359,6 +335,36 @@ export class SmartExecutorService implements OnModuleDestroy {
     maxOpenPositions?: number;
     riskPerTradePercent?: number;
   }): Promise<UserExecutorState> {
+    // ── MUTUAL EXCLUSION: Stop Autonomous Agent if running for this user ──
+    // ROOT FIX: Both Agent and Smart Executor trading simultaneously for the same user
+    // causes duplicate trades, conflicting positions, and resource waste.
+    // They MUST be mutually exclusive — only one can be active per user at a time.
+    // When the user enables the Smart Executor, we automatically stop the Agent.
+    try {
+      const agentStateRaw = await this.redis.get(`agent:state:${userId}`);
+      if (agentStateRaw) {
+        const agentState = JSON.parse(agentStateRaw);
+        if (agentState && agentState.status === 'RUNNING') {
+          this.logger.log(
+            `⚔️ MUTUAL EXCLUSION: Agent is active for user ${userId} — stopping it before enabling Smart Executor`,
+          );
+          // Stop the agent by setting status to STOPPED
+          agentState.status = 'STOPPED';
+          await this.redis.set(`agent:state:${userId}`, JSON.stringify(agentState), 86400000);
+          // Also update DB session
+          try {
+            await this.prisma.agentSession.updateMany({
+              where: { userId, status: 'RUNNING' },
+              data: { status: 'STOPPED', stoppedAt: new Date() },
+            });
+          } catch {}
+          this.logger.log(`⚔️ Agent stopped for user ${userId} — Smart Executor takes exclusive control`);
+        }
+      }
+    } catch (exErr: any) {
+      this.logger.warn(`⚔️ Could not check/stop Agent: ${exErr.message} — proceeding with Smart Executor enable`);
+    }
+
     // ── FIX: Auto-start the executor if it's not running ──
     // Previously, the user had to click TWO buttons: "تشغيل" (start executor)
     // AND "تفعيل" (enable user). This was confusing — the user would enable
@@ -1291,10 +1297,25 @@ export class SmartExecutorService implements OnModuleDestroy {
           `(brief: ${brief.id}, order: ${result.orderId}, user: ${userId})`,
         );
 
-        // Mark brief as executed in council
-        if (result.orderId) {
-          await this.councilService.markBriefExecuted(brief.id, result.orderId);
-        }
+        // ── ROOT FIX: Do NOT mark brief as EXECUTED (isActive=false) ──
+        // Previously, after executing a brief, we called markBriefExecuted() which
+        // sets isActive=false, removing it from the active briefs pool. This caused
+        // the "only 1 trade" bug — after the first brief was executed and deactivated,
+        // there were no more active briefs to process, even though dozens existed.
+        //
+        // Now: Keep the brief ACTIVE. The deduplication is handled by:
+        //   1. Redis processedKey (smart-executor:processed:{briefId}:{userId}) — 24h TTL
+        //      prevents the SAME brief from being executed twice for the SAME user
+        //   2. Position.findFirst in OrderDispatcher — prevents duplicate positions
+        //      for the same user+symbol from ANY source
+        //   3. Brief natural expiry (expiresAt) — briefs automatically become inactive
+        //      after their timeframe expires
+        //
+        // This allows the brief to remain visible in the Council dashboard and
+        // available for other users who haven't executed it yet.
+        // The brief will be cleaned up naturally when it expires or when the next
+        // Council session reviews it.
+        this.logger.debug(`⚔️ Brief ${brief.id} remains ACTIVE after execution — dedup handled by processedKey + Position.findFirst`);
 
         // Update user state (persist to both Redis and DB)
         userState.dailyTrades++;

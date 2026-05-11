@@ -346,10 +346,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       if (dbSetting) {
         globalAutoTradingEnabled = JSON.parse(dbSetting.value);
       } else {
-        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       }
     } catch {
-      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
     }
 
     if (!globalAutoTradingEnabled) {
@@ -885,7 +885,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     try {
       if (!this.prisma) {
         // Prisma not available — fall back to env var
-        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         source = 'env_var';
       } else {
         const dbSetting = await this.prisma.setting.findUnique({
@@ -895,12 +895,12 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           autoTradingEnabled = JSON.parse(dbSetting.value);
           source = 'database';
         } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
           source = 'env_var';
         }
       }
     } catch {
-      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+      autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       source = 'env_var';
     }
 
@@ -938,7 +938,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     // FIX: Priority: DB setting > env var > default (FALSE)
     // Previously defaulted to true, which was a source of phantom trades.
-    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+    const envAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
     const autoTradingEnabled = dbAutoTradingEnabled !== null ? dbAutoTradingEnabled : envAutoTradingEnabled;
 
     const defaultPaperBalance = parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000;
@@ -962,18 +962,17 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    * Create default settings for a user, combining env var defaults with DB persistence.
    */
   private async _createDefaultSettings(userId: string) {
-    // FIX: autoTradingEnabled defaults to FALSE. Previously defaulted to true,
-    // which meant every new user who visited the agent settings page would
-    // have auto-trading enabled without their consent. The global
-    // AUTO_TRADING_ENABLED setting already blocks the cron from running,
-    // but having per-user default as true is still dangerous — if a system
-    // admin enables the global toggle, ALL users would immediately start
-    // auto-trading without their knowledge. With this fix, each user must
-    // explicitly opt-in to auto-trading from their settings page.
+    // FIX: autoTradingEnabled defaults to TRUE to match Prisma schema @default(true)
+    // and the startAgent() auto-creation logic. The global AUTO_TRADING_ENABLED
+    // setting still controls the system-level switch, so per-user default of true
+    // is safe — the system won't auto-trade unless both the global switch AND
+    // per-user setting are true. Previously defaulting to false caused a bug:
+    // visiting Settings page before starting the agent would create settings with
+    // false, then startAgent() would find existing settings and refuse to start.
     return this.prisma.agentSettings.create({
       data: {
         userId,
-        autoTradingEnabled: false,
+        autoTradingEnabled: true,
         paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
         maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
         maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
@@ -1140,10 +1139,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         if (dbSetting) {
           autoTradingEnabled = JSON.parse(dbSetting.value);
         } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         }
       } catch {
-        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       }
 
       if (!autoTradingEnabled) {

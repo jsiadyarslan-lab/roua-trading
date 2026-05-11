@@ -201,10 +201,10 @@ export class RiskCalculatorService {
       if (dbSetting) {
         globalAutoTradingEnabled = JSON.parse(dbSetting.value);
       } else {
-        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       }
     } catch {
-      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
     }
 
     if (!globalAutoTradingEnabled) {

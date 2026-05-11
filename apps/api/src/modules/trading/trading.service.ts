@@ -517,17 +517,14 @@ export class TradingService {
    * Uses parallel quote fetching and batch DB updates to avoid N+1 queries
    */
   async getOpenPositions(userId: string): Promise<any[]> {
-    // FIX: Filter out phantom/paper-trading positions at the DB query level.
-    // These positions were auto-created by Smart Executor / Autonomous Trader
-    // and are NOT real user positions. Returning them causes phantom trades
-    // to appear in the dashboard.
+    // FIX: Include ALL positions including paper-trading.
+    // Paper positions are real simulated trades — they should appear in portfolio.
+    // Previously excluded, causing portfolioValue = 0 for paper traders.
+    // PositionManagerService also includes them (must be consistent).
     const positions = await this.prisma.position.findMany({
       where: {
         userId,
         status: 'OPEN',
-        // EXCLUDE phantom positions from auto-trading systems
-        exchange: { not: 'paper-trading' },
-        source: { notIn: ['smart_executor', 'agent', 'paper_trading', 'auto_paper'] },
       },
       orderBy: { openedAt: 'desc' },
     });

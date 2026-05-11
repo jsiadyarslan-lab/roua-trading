@@ -283,7 +283,7 @@ export class StrategicCouncilService {
   @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
     // FIX: Stop brief generation when auto-trading is disabled
-    const autoEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+    const autoEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
     if (!autoEnabled) {
       try {
         const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
@@ -310,10 +310,10 @@ export class StrategicCouncilService {
         if (dbSetting) {
           autoTradingEnabled = JSON.parse(dbSetting.value);
         } else {
-          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+          autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
         }
       } catch {
-        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'false') === 'true';
+        autoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
       }
 
       if (!autoTradingEnabled) {

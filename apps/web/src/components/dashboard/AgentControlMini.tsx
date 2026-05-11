@@ -217,7 +217,7 @@ export function AgentControlMini() {
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',
         borderRadius: 16,
         border: `1px solid ${isRunning ? 'rgba(0,255,163,0.15)' : isEmergency ? 'rgba(255,71,87,0.2)' : 'rgba(0,229,255,0.08)'}`,
-        overflow: 'hidden',
+        overflow: 'visible',
         touchAction: 'manipulation',
         transition: 'border-color 0.3s ease',
         boxShadow: isRunning
@@ -479,7 +479,8 @@ export function AgentControlMini() {
         href="/dashboard/autonomous-trader"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          padding: '6px 8px', borderRadius: 0,
+          padding: '6px 8px', borderRadius: '0 0 16px 16px',
+          position: 'relative', zIndex: 10,
           background: isRunning
             ? 'rgba(0,255,163,0.04)'
             : 'rgba(0,212,255,0.04)',

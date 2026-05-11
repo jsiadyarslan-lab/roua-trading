@@ -134,6 +134,25 @@ else
   fi
 fi
 
+# ── FIX: Seed AUTO_TRADING_ENABLED=true if not already set ──
+# This ensures the agent can be started without manual intervention.
+# The value is ONLY set if it doesn't exist — existing values are respected.
+echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+prisma.setting.upsert({
+  where: { key: 'AUTO_TRADING_ENABLED' },
+  update: {},
+  create: { key: 'AUTO_TRADING_ENABLED', value: 'true' }
+}).then(() => {
+  console.log('✅ AUTO_TRADING_ENABLED seeded');
+  return prisma.\$disconnect();
+}).catch(e => {
+  console.log('⚠️ Could not seed AUTO_TRADING_ENABLED:', e.message);
+});
+" 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
+
 # ── Step 3: Verify critical tables exist ──
 # Prisma db:push sometimes silently fails to create new tables when
 # there are existing schema conflicts. We write a SQL file and execute

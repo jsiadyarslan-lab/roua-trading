@@ -207,7 +207,7 @@ export class PositionMonitorService {
       // positions shared the same symbol. Now deduplicates by symbol.
       const uniqueSymbols = [...new Set(allPositions.map(p => p.symbol))];
       const quoteMap = new Map<string, any>();
-      const quotePromises = uniqueSymbols.map(async (symbol) => {
+      const quotePromises = uniqueSymbols.map(async (symbol: string) => {
         try {
           const quote = await this.exchangeService.getQuote(symbol);
           if (quote?.price) quoteMap.set(symbol, quote);

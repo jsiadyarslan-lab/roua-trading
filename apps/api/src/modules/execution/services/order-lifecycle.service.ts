@@ -364,7 +364,7 @@ export class OrderLifecycleService {
           },
         });
       }, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        isolationLevel: 'Serializable' as any, // FIX: Prisma.TransactionIsolationLevel removed in v6
       });
 
       this.logger.log(

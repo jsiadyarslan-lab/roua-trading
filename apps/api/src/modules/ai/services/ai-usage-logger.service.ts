@@ -26,6 +26,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
  * │ Mistral       │ $0.00000     │ $0.00000    │ FREE tier           │
  * │ Cache         │ $0.00000     │ $0.00000    │ Redis/memory hits   │
  * │ System        │ $0.00000     │ $0.00000    │ Internal fallback   │
+ * │ Prediction    │ $0.00000     │ $0.00000    │ Polymarket etc.     │
  * └──────────────────────────────────────────────────────────────────────┘
  */
 
@@ -57,6 +58,7 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   'mistral':     { input: 0,        output: 0         },  // Mistral — FREE tier
   'cache':       { input: 0,        output: 0         },  // Redis/memory cache hits
   'system':      { input: 0,        output: 0         },  // Internal system (e.g., Orchestrator fallback)
+  'prediction':  { input: 0,        output: 0         },  // Prediction Market (Polymarket etc.) — no LLM cost
 };
 
 function extractProvider(model: string): string {
@@ -76,6 +78,7 @@ function extractProvider(model: string): string {
     return 'openrouter-paid';
   }
   if (lower.includes('cache/') || lower.includes('cache:')) return 'cache';
+  if (lower.includes('predictionmarket') || lower.includes('prediction')) return 'prediction';  // FIX: PredictionMarket/8th was falling through to 'unknown'
   if (lower.includes('orchestrator') || lower.includes('fallback')) return 'system';
   return 'unknown';
 }

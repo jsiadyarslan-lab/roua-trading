@@ -252,6 +252,8 @@ def check_budget_thresholds(
     alerts = []
 
     # Provider budget mapping
+    # FIX: Added 'prediction' provider — PredictionMarket/8th was falling through
+    # to 'unknown' in extractProvider() and not matching any budget entry.
     provider_budgets = {
         "groq": config.MONTHLY_BUDGET_GROQ,
         "zhipu": config.MONTHLY_BUDGET_GLM,
@@ -268,6 +270,7 @@ def check_budget_thresholds(
         "nvidia": config.MONTHLY_BUDGET_NVIDIA,
         "mistral": config.MONTHLY_BUDGET_MISTRAL,
         "deepseek": config.MONTHLY_BUDGET_DEEPSEEK,
+        "prediction": 0,  # Prediction Market — no LLM cost (Polymarket API)
     }
 
     for provider, stats in usage_stats.items():

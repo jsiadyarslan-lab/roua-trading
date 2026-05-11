@@ -94,7 +94,9 @@ export class MistralService {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 45000, // Mistral can be slower than Cerebras
+            timeout: 15000,  // FIX: Reduced from 45000ms — Mistral averages 5.5s which triggers
+                             // latency warnings at the 5000ms threshold. 15s is sufficient for
+                             // most responses while preventing the council from stalling.
           },
         );
 

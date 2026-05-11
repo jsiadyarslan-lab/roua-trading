@@ -31,11 +31,21 @@ export class BedrockService {
   private available: boolean; // FIX: Not readonly — re-evaluated on each call
   private client: BedrockRuntimeClient | null = null;
 
-  // Model fallback chain — try cheapest models first to reduce costs
-  // FIX: Reordered to prioritize Nova Micro ($0.000035/1K) over Claude 3.5 Sonnet ($0.003/1K).
-  // This reduces Bedrock costs by ~85x. Claude is kept as fallback for complex tasks.
-  // Cost comparison: Nova Micro = $0.000035 input / $0.00014 output per 1K tokens
-  //                   Claude 3.5 Sonnet = $0.003 input / $0.015 output per 1K tokens
+  // Model fallback chain — ONLY use cheap Amazon models to control costs.
+  // FIX: Removed ALL Claude models from fallback chain. Claude 3.5 Sonnet costs
+  // $0.003/$0.015 per 1K tokens — 85x more expensive than Nova Micro ($0.000035/$0.00014).
+  // Previously, when Nova Micro failed (e.g., model access not enabled in AWS Console),
+  // the service silently fell back to Claude, causing the $100/month Bedrock budget to be
+  // consumed at 97.7% — with actual AWS charges potentially much higher than logged costs
+  // since calculateCost() uses Nova Micro rates for all 'bedrock' provider entries.
+  //
+  // Cost comparison per 1K tokens:
+  //   Nova Micro:  $0.000035 input  / $0.00014 output  ← USE THIS
+  //   Nova Lite:   $0.00006   input  / $0.00024  output
+  //   Titan:       $0.0005    input  / $0.0015   output  (3-10x more)
+  //   Llama3 8B:   $0.0003    input  / $0.0006   output
+  //   Claude Haiku: $0.00025  input  / $0.00125  output  ← REMOVED
+  //   Claude Sonnet: $0.003   input  / $0.015    output  ← REMOVED (85x Nova Micro!)
   private readonly modelCandidates = [
     // Amazon Nova — cheapest, fastest, good enough for most analysis tasks
     'amazon.nova-micro-v1:0',
@@ -46,12 +56,8 @@ export class BedrockService {
     // Meta Llama — commonly available, mid-range cost
     'meta.llama3-1-8b-instruct-v1:0',
     'meta.llama3-8b-instruct-v1:0',
-    // Cross-region inference IDs (work from any region, often more available)
-    'us.anthropic.claude-3-haiku-20240307-v1:0',
-    'us.anthropic.claude-3-5-sonnet-20241022-v2:0',
-    // Direct model IDs (region-specific) — most expensive, last resort
-    'anthropic.claude-3-haiku-20240307-v1:0',
-    'anthropic.claude-3-5-sonnet-20241022-v2:0',
+    // REMOVED: All Claude models — too expensive for a budget-constrained service.
+    // If you need Claude, add it back with a SEPARATE cost tier in ai-usage-logger.
   ];
   private resolvedModel: string | null = null;
   private lastError: string = '';
@@ -278,8 +284,9 @@ export class BedrockService {
 
   private _stubResponse(request: AIAnalysisRequest): AIAnalysisResponse {
     return {
-      model: 'Bedrock/Claude-3.5-Sonnet',
-      content: `⚠️ نماذج Bedrock غير متاحة حالياً. تأكد من: 1) تفعيل Model Access في AWS Console → Bedrock، 2) صلاحيات IAM bedrock:InvokeModel، 3) المنطقة صحيحة.`,
+      // FIX: Was 'Bedrock/Claude-3.5-Sonnet' — misleading since we now use Nova Micro
+      model: 'Bedrock/Nova-Micro',
+      content: `⚠️ نماذج Bedrock غير متاحة حالياً. تأكد من: 1) تفعيل Model Access في AWS Console → Bedrock (خاصة Amazon Nova)، 2) صلاحيات IAM bedrock:InvokeModel، 3) المنطقة صحيحة.`,
       confidence: 0,
       processingTimeMs: 0,
       language: request.language || 'ar',

@@ -37,8 +37,12 @@ class ModelHealthConfig(BaseConfig):
     DAILY_REPORT_HOUR: int = int(os.environ.get("DAILY_REPORT_HOUR", "8"))
 
     # Latency thresholds (ms)
-    LATENCY_WARNING_MS: int = int(os.environ.get("LATENCY_WARNING_MS", "5000"))
-    LATENCY_CRITICAL_MS: int = int(os.environ.get("LATENCY_CRITICAL_MS", "15000"))
+    # FIX: Increased LATENCY_WARNING_MS from 5000 to 8000 — NVIDIA and Mistral
+    # are FREE-tier models with inherent latency (8-12s typical). A 5000ms
+    # warning threshold generates constant false alerts for these providers.
+    # Only alert on genuinely slow responses (>15s) or consistently slow paid models.
+    LATENCY_WARNING_MS: int = int(os.environ.get("LATENCY_WARNING_MS", "8000"))
+    LATENCY_CRITICAL_MS: int = int(os.environ.get("LATENCY_CRITICAL_MS", "20000"))
 
     # Cache hit rate threshold
     CACHE_HIT_MIN_PERCENT: float = float(os.environ.get("CACHE_HIT_MIN_PERCENT", "10"))

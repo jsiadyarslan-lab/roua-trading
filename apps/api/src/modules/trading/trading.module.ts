@@ -10,6 +10,7 @@ import { PortfolioModule } from '../portfolio/portfolio.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AuditModule } from '../../audit/audit.module';
 import { NotificationModule } from '../notification/notification.module';
+import { ExecutionModule } from '../execution/execution.module';
 
 // New Trading Engine Services
 import { OrderController } from './controllers/order.controller';
@@ -59,6 +60,12 @@ import { ExposureManagerService } from './services/exposure-manager.service';
     AnalyticsModule,
     AuditModule,
     NotificationModule,
+
+    // CRITICAL FIX: ExecutionModule provides ExecutionGatewayService which
+    // OrderDispatcherService depends on. Without this import, NestJS crashes with:
+    // "Nest can't resolve dependencies of the OrderDispatcherService →
+    //  ExecutionGatewayService at index [5] is not available in TradingModule"
+    ExecutionModule,
 
     // BullMQ queue for order execution (shared with ExecutionModule)
     // FIX: Register execution_queue for @InjectQueue injection in OrderDispatcher.

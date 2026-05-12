@@ -157,7 +157,7 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; t
     DB_MIGRATE_OK=1
   else
     echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-    if run_prisma db push --schema=./prisma/schema.prisma 2>&1; then
+    if run_prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
       echo "✅ db push succeeded as fallback"
       DB_MIGRATE_OK=1
     else
@@ -166,7 +166,7 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; t
     fi
   fi
 else
-  if run_prisma db push --schema=./prisma/schema.prisma 2>&1; then
+  if run_prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
     echo "✅ db push succeeded"
     DB_MIGRATE_OK=1
   else

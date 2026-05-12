@@ -17,7 +17,14 @@ import crypto from 'crypto'
  * - Sets roua_session cookie on response
  */
 
-const API_TARGET = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+// FIX: Use 127.0.0.1 instead of localhost.
+// Node.js 18+ resolves 'localhost' to ::1 (IPv6) by default,
+// but NestJS listens on 0.0.0.0 (IPv4 only). This mismatch
+// causes ECONNREFUSED → "server not found" in the frontend.
+// Force IPv4 with 127.0.0.1 to match NestJS binding.
+const rawTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
+// Also fix Docker Compose hostnames (http://api:3001) that don't work on Railway single-container
+const API_TARGET = rawTarget.includes('http://api:') ? 'http://127.0.0.1:3001' : rawTarget;
 
 /**
  * DATA ISOLATION FIX: Generate a unique guest email per session instead of

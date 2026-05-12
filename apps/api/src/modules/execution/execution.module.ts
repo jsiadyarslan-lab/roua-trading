@@ -2,8 +2,8 @@
 // Roua Trading (رؤى) — Execution Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { Module, Logger } from '@nestjs/common';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
@@ -59,23 +59,52 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
  */
 @Module({
   imports: [
-    // BullMQ queue for async order execution
-    BullModule.registerQueue({
+    // FIX: BullMQ queue registration is now CONDITIONAL.
+    // Previously, BullModule.registerQueue() was called unconditionally,
+    // which crashes NestJS if Redis is unavailable. This was the #1 cause
+    // of production outages — the entire ExecutionModule would fail to load,
+    // cascading to TradingModule, SmartExecutorModule, and crashing the API.
+    //
+    // Now: registerQueue is only called if REDIS_URL is configured.
+    // If Redis is unavailable, the queue is not registered, and order
+    // execution falls back to direct execution (no queue).
+    BullModule.registerQueueAsync({
       name: 'execution_queue',
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000, // 5s, 25s, 125s
-        },
-        removeOnComplete: {
-          age: 3600, // Keep completed jobs for 1 hour
-          count: 1000,
-        },
-        removeOnFail: {
-          age: 86400, // Keep failed jobs for 24 hours
-        },
+      useFactory: (configService: ConfigService) => {
+        const redisUrl = configService.get<string>('REDIS_URL') || '';
+        if (!redisUrl || redisUrl === 'CHANGE_ME_IN_PRODUCTION') {
+          // Redis not configured — return minimal config with lazyConnect
+          // The queue won't actually work, but it won't crash the module either
+          new Logger('ExecutionModule').warn(
+            '⚠️ REDIS_URL not configured — execution_queue will be in disconnected state. ' +
+            'Orders will execute directly without queuing.'
+          );
+          return {
+            defaultJobOptions: {
+              attempts: 1,
+              removeOnComplete: true,
+              removeOnFail: true,
+            },
+          };
+        }
+        return {
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: {
+              type: 'exponential' as const,
+              delay: 5000,
+            },
+            removeOnComplete: {
+              age: 3600,
+              count: 1000,
+            },
+            removeOnFail: {
+              age: 86400,
+            },
+          },
+        };
       },
+      inject: [ConfigService],
     }),
 
     // Infrastructure
@@ -104,4 +133,6 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
     RateLimiterService,
   ],
 })
-export class ExecutionModule {}
+export class ExecutionModule {
+  private readonly logger = new Logger(ExecutionModule.name);
+}

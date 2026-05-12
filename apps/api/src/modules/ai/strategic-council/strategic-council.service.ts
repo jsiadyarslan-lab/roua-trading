@@ -66,7 +66,12 @@ export class StrategicCouncilService {
     // The Prisma migration for this table failed in production because
     // it tried to CREATE TABLE before creating the enum types.
     // This method creates the table directly if missing.
-    this._ensureTradingBriefTable();
+    // CRITICAL FIX: Added .catch() to prevent unhandled promise rejection.
+    // Previously, calling async methods from constructor without .catch()
+    // caused unhandled rejections that could crash Node.js (15+).
+    this._ensureTradingBriefTable().catch((err) =>
+      this.logger.error(`🏛️ _ensureTradingBriefTable failed: ${err?.message || err}`),
+    );
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
     // FIX: REMOVED _triggerStartupSession(). Previously, the Strategic Council

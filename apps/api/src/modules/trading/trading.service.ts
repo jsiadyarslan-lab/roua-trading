@@ -57,7 +57,12 @@ export class TradingService {
     // This causes ALL queries on ExchangeCredential to fail with:
     // "The column ExchangeCredential.encryptedPassphrase does not exist"
     // which blocks ALL trade execution (paper and real).
-    this._ensureExchangeCredentialColumns();
+    // CRITICAL FIX: Added .catch() to prevent unhandled promise rejection.
+    // Previously, calling async methods from constructor without .catch()
+    // caused unhandled rejections that could crash Node.js (15+).
+    this._ensureExchangeCredentialColumns().catch((err) =>
+      this.logger.error(`⚡ _ensureExchangeCredentialColumns failed: ${err?.message || err}`),
+    );
     // FIX: Clean expired exchange instances every 10 minutes (prevent memory leak)
     setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
   }

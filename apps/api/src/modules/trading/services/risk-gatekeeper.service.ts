@@ -98,7 +98,8 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     );
 
     // Load settings from DB on startup
-    this.syncSettingsFromDB();
+    // FIX: Added .catch() to prevent unhandled promise rejection from constructor
+    this.syncSettingsFromDB().catch((err) => this.logger.warn(`syncSettingsFromDB failed at startup: ${err?.message || err}`));
 
     this.logger.log('🛡️ Risk Gatekeeper initialized — pre-trade validation active (with DB sync)');
   }

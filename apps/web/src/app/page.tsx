@@ -1,8 +1,15 @@
 'use client';
 
 import { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import './landing.css';
-import CosmicCanvas from '@/components/landing/CosmicCanvas';
+
+// Heavy canvas animation — load only on client, skip SSR
+const CosmicCanvas = dynamic(() => import('@/components/landing/CosmicCanvas'), {
+  ssr: false,
+  loading: () => <div className="fixed inset-0" style={{ background: '#0B0E14' }} />,
+});
+
 import MarketPulse from '@/components/landing/MarketPulse';
 import LiveSignals from '@/components/landing/LiveSignals';
 import CosmicNavbar from '@/components/landing/CosmicNavbar';

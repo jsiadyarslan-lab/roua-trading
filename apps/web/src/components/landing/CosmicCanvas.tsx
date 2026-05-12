@@ -406,6 +406,8 @@ export default function CosmicCanvas() {
       });
     }
 
+    let animationId: number;
+
     function animate() {
       ctx!.clearRect(0, 0, width, height);
       mouseX += (targetMouseX - mouseX) * 0.05;
@@ -418,7 +420,7 @@ export default function CosmicCanvas() {
       const center = drawSphere();
       drawSatellites(center.centerX, center.centerY);
       drawClickExplosions();
-      requestAnimationFrame(animate);
+      animationId = requestAnimationFrame(animate);
     }
 
     const handleResize = () => resize();
@@ -441,9 +443,10 @@ export default function CosmicCanvas() {
     canvas.addEventListener('click', handleClick);
 
     init();
-    animate();
+    animationId = requestAnimationFrame(animate);
 
     return () => {
+      cancelAnimationFrame(animationId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('click', handleClick);

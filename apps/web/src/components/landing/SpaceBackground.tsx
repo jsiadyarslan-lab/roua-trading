@@ -591,9 +591,28 @@ function Scene({ reduced }: { reduced: boolean }) {
 
 function SpaceBackground() {
   const reduced = useReducedMotion();
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Ensure WebGL context is released when component unmounts
+  useEffect(() => {
+    return () => {
+      const container = containerRef.current;
+      if (container) {
+        const canvas = container.querySelector('canvas');
+        if (canvas) {
+          const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+          if (gl && 'getExtension' in gl) {
+            const ext = (gl as WebGLRenderingContext).getExtension('WEBGL_lose_context');
+            if (ext) ext.loseContext();
+          }
+        }
+      }
+    };
+  }, []);
 
   return (
     <div
+      ref={containerRef}
       style={{
         position: 'fixed',
         inset: 0,

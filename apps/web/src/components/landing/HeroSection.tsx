@@ -25,6 +25,7 @@ export default function HeroSection() {
   useEffect(() => {
     if (!statsVisible) return;
     const counters = document.querySelectorAll('.stat-number');
+    const rafIds: number[] = [];
     counters.forEach(counter => {
       const target = parseInt(counter.getAttribute('data-target') || '0');
       const duration = 2000;
@@ -34,13 +35,16 @@ export default function HeroSection() {
         current += step;
         if (current < target) {
           counter.textContent = String(Math.floor(current));
-          requestAnimationFrame(update);
+          rafIds.push(requestAnimationFrame(update));
         } else {
           counter.textContent = String(target);
         }
       };
-      update();
+      rafIds.push(requestAnimationFrame(update));
     });
+    return () => {
+      rafIds.forEach(id => cancelAnimationFrame(id));
+    };
   }, [statsVisible]);
 
   // Intersection observer for stats

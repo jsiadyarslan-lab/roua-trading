@@ -1521,119 +1521,20 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         }
       }
     } else {
-      // ── FALLBACK: Self-contained analysis pipeline (old behavior) ──
-      // Used when Council is unavailable — MarketAnalyzer → SignalEvaluator
-      const analyses = await this.marketAnalyzer.analyzeMultiple(state.config.symbols);
+      // ── FALLBACK DISABLED ──
+      // The Agent MUST NOT fall back to self-analysis (MarketAnalyzer + SignalEvaluator).
+      // Self-analysis uses the same symbols and short timeframes as SmartExecutor,
+      // causing the Agent to steal SmartExecutor trades (source='agent' instead of 'smart_executor').
+      //
+      // Rule: Agent ONLY executes when StrategicCouncil has M30+ briefs.
+      // If no M30+ briefs exist → Agent waits for the next Council session.
+      // SmartExecutor handles M5/M15 scalping independently.
+      this.logger.debug(
+        `🧠 Agent ${userId}: No M30+ council briefs available — waiting for next Council session. ` +
+        `Agent does NOT fall back to self-analysis to avoid competing with SmartExecutor.`,
+      );
 
-      if (analyses.size === 0 && state.config.symbols.length > 0) {
-        state.lastError = `فشل جلب بيانات السوق لجميع الرموز (${state.config.symbols.join(', ')})`;
-        this.logger.error(
-          `🧠 Agent ${userId}: ALL ${state.config.symbols.length} market analyses FAILED.`,
-        );
-        await this._saveAgentState(userId, state);
-        return;
-      }
-
-      for (const [symbol, analysis] of analyses) {
-        try {
-          const signal = await this.signalEvaluator.evaluate(
-            analysis,
-            state.config.strategy,
-            state.config.strategyParams,
-            userId,
-          );
-
-          if (!signal) {
-            continue;
-          }
-
-          signalsGenerated++;
-
-          const marketStatus = isMarketOpen(symbol);
-          if (!marketStatus.open) {
-            rejectionReasons.push(`${symbol}: سوق مغلق`);
-            continue;
-          }
-
-          const risk = await this.riskCalculator.assessRisk(userId, signal, state.config);
-
-          if (!risk.canTrade) {
-            signalsRejected++;
-            state.lastError = risk.reason;
-            rejectionReasons.push(`${symbol}: ${risk.reason}`);
-            continue;
-          }
-
-          // ═══════════════════════════════════════════════════════════════
-          // Agent EXECUTES trades for M30+ timeframes (fallback path).
-          // Same as Council path — the Agent executes, Smart Executor
-          // handles M1/M5/M15 scalping. No racing because different
-          // timeframes and ExposureManager prevents duplicate positions.
-          // ═══════════════════════════════════════════════════════════════
-          this.logger.log(
-            `🧠 Agent ${userId}: Executing fallback signal — ${signal.action} ${symbol} ` +
-            `(confidence: ${signal.confidence}%, strategy: ${signal.strategy})`,
-          );
-
-          // Execute the trade via OrderDispatcher (source: 'agent')
-          const execution = await this.orderExecutor.execute(
-            userId,
-            signal,
-            risk,
-            state.config.credentialId,
-          );
-
-          if (execution.success) {
-            signalsExecuted++;
-            state.dailyTradesCount++;
-            state.dailyPnL -= (execution.fee || 0);
-            this.logger.log(
-              `✅ Agent ${userId}: Fallback trade executed — ${signal.action} ${symbol} ` +
-              `@ ${execution.averagePrice?.toFixed(2)} (order: ${execution.orderId})`,
-            );
-          } else {
-            signalsRejected++;
-            rejectionReasons.push(`${symbol}: ${execution.error}`);
-            state.lastError = execution.error || 'فشل تنفيذ الصفقة';
-            this.logger.warn(
-              `⚠️ Agent ${userId}: Fallback trade rejected — ${signal.action} ${symbol}: ${execution.error}`,
-            );
-          }
-
-          // Store the decision in Redis for dashboard display
-          try {
-            await this.redis.set(
-              `agent:decision:${userId}:${symbol}`,
-              JSON.stringify({
-                action: signal.action,
-                symbol,
-                confidence: signal.confidence,
-                entryPrice: signal.entryPrice,
-                stopLoss: signal.stopLoss,
-                takeProfit: signal.takeProfit,
-                strategy: signal.strategy,
-                reasoning: signal.reasoning,
-                generatedAt: new Date().toISOString(),
-                status: execution.success ? 'EXECUTED' : 'REJECTED',
-                source: 'self-analysis',
-                orderId: execution.orderId,
-              }),
-              300, // 5 minutes TTL
-            );
-          } catch (redisErr: any) {
-            this.logger.debug(`Could not cache agent decision: ${redisErr.message}`);
-          }
-
-          state.lastSignalAt = new Date();
-
-          if (state.consecutiveLosses >= 5) {
-            state.status = AgentStatus.PAUSED;
-            break;
-          }
-        } catch (error: any) {
-          this.logger.error(`Error processing ${symbol} for ${userId}: ${error.message}`);
-        }
-      }
+      // Agent waits — no fallback execution
     }
 
     // Update cycle stats

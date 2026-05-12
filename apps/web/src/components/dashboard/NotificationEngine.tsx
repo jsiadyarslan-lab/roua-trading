@@ -26,6 +26,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   const prevLogLengthRef = useRef(0)
   const lastAiCheckRef = useRef(0)
   const lastScanCheckRef = useRef(0)
+  const lastTradeAlertsRef = useRef<Record<string, number>>({})
   const quotesRef = useRef(quotes)
   const [hydrated, setHydrated] = useState(false)
   const [autoExecuting, setAutoExecuting] = useState<Set<string>>(new Set())
@@ -175,107 +176,90 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   }, [botLogs, botOn, hydrated, addNotification, selectedSymbol])
 
   // ── 2. مراقبة AI Narrator كل 10 دقائق ────────────────────
-  useEffect(() => {
+  const fetchAiAlert = useCallback(async () => {
     if (!hydrated || !settings.aiAlerts) return
-
     const AI_ALERT_COOLDOWN = 600_000
+    const now = Date.now()
+    if (now - lastAiCheckRef.current < AI_ALERT_COOLDOWN) return
+    lastAiCheckRef.current = now
 
-    const fetchAiAlert = async () => {
-      const now = Date.now()
-      if (now - lastAiCheckRef.current < AI_ALERT_COOLDOWN) return
-      lastAiCheckRef.current = now
+    try {
+      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
+      const data = await res.json()
+      if (!data.success) return
+      const { narrative, sentiment, confidence } = data.data
+      if (!narrative || (confidence ?? 0) < settings.minConfidence) return
 
-      try {
-        const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
-        const data = await res.json()
-        if (!data.success) return
-        const { narrative, sentiment, confidence } = data.data
-        if (!narrative || (confidence ?? 0) < settings.minConfidence) return
+      addNotification({
+        source: 'ai',
+        priority: confidence >= 85 ? 'high' : 'medium',
+        action: sentiment === 'bullish' ? 'BUY' : sentiment === 'bearish' ? 'SELL' : 'INFO',
+        title: `🧠 تحليل AI: ${sentiment === 'bullish' ? 'توقع صعود' : sentiment === 'bearish' ? 'توقع هبوط' : 'تحليل محايد'}`,
+        body: narrative.slice(0, 120) + (narrative.length > 120 ? '...' : ''),
+        confidence: confidence ?? 70,
+        pair: selectedSymbol,
+      })
+    } catch {}
+  }, [hydrated, settings.aiAlerts, settings.minConfidence, selectedSymbol, addNotification])
 
-        addNotification({
-          source: 'ai',
-          priority: confidence >= 85 ? 'high' : 'medium',
-          action: sentiment === 'bullish' ? 'BUY' : sentiment === 'bearish' ? 'SELL' : 'INFO',
-          title: `🧠 تحليل AI: ${sentiment === 'bullish' ? 'توقع صعود' : sentiment === 'bearish' ? 'توقع هبوط' : 'تحليل محايد'}`,
-          body: narrative.slice(0, 120) + (narrative.length > 120 ? '...' : ''),
-          confidence: confidence ?? 70,
-          pair: selectedSymbol,
-        })
-      } catch {}
-    }
-
-    fetchAiAlert()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, settings.aiAlerts])
-
+  useEffect(() => { fetchAiAlert() }, [fetchAiAlert])
   // Poll AI alerts every 60s — pauses when tab hidden
   useVisibleInterval(fetchAiAlert, 60_000)
 
   // ── 3. مراقبة السكانر كل 5 دقائق ──────────────────────────
-  useEffect(() => {
+  const fetchScanAlert = useCallback(async () => {
     if (!hydrated || !settings.scannerAlerts) return
+    const now = Date.now()
+    if (now - lastScanCheckRef.current < 300_000) return
+    lastScanCheckRef.current = now
 
-    const fetchScanAlert = async () => {
-      const now = Date.now()
-      if (now - lastScanCheckRef.current < 300_000) return
-      lastScanCheckRef.current = now
+    try {
+      const res = await fetch('/api/scanner/scan?timeframe=1h')
+      const data = await res.json()
+      if (!data.success || !data.items?.length) return
 
-      try {
-        const res = await fetch('/api/scanner/scan?timeframe=1h')
-        const data = await res.json()
-        if (!data.success || !data.items?.length) return
+      const top = data.items[0]
+      if (top.confidence < settings.minConfidence) return
 
-        const top = data.items[0]
-        if (top.confidence < settings.minConfidence) return
+      addNotification({
+        source: 'scanner',
+        priority: top.confidence >= 80 ? 'high' : 'medium',
+        action: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'BUY' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'SELL' : 'INFO',
+        title: `📡 سكانر: ${top.symbol} — ${top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'إشارة شراء' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'إشارة بيع' : 'مراقبة'}`,
+        body: `قوة الإشارة ${top.confidence}% | ${(top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ')}`,
+        pair: top.symbol,
+        price: top.price,
+        confidence: top.confidence,
+      })
+    } catch {}
+  }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 
-        addNotification({
-          source: 'scanner',
-          priority: top.confidence >= 80 ? 'high' : 'medium',
-          action: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'BUY' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'SELL' : 'INFO',
-          title: `📡 سكانر: ${top.symbol} — ${top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'إشارة شراء' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'إشارة بيع' : 'مراقبة'}`,
-          body: `قوة الإشارة ${top.confidence}% | ${(top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ')}`,
-          pair: top.symbol,
-          price: top.price,
-          confidence: top.confidence,
-        })
-      } catch {}
-    }
-
-    fetchScanAlert()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, settings.scannerAlerts])
-
+  useEffect(() => { fetchScanAlert() }, [fetchScanAlert])
   // Poll scanner alerts every 60s — pauses when tab hidden
   useVisibleInterval(fetchScanAlert, 60_000)
 
   // ── 4. مراقبة تغيرات حادة في أسعار السوق ─────────────────
-  useEffect(() => {
+  // Replaces manual setInterval with useVisibleInterval — pauses when tab hidden
+  useVisibleInterval(() => {
     if (!hydrated || !settings.tradeAlerts) return
-
-    let lastTradeAlerts: Record<string, number> = {}
-    const iv = setInterval(() => {
-      if (document.visibilityState === 'hidden') return
-      const currentQuotes = quotesRef.current
-      currentQuotes.forEach((q, symbol) => {
-        const change = Math.abs(q.changePercent || 0)
-        const now = Date.now()
-        if (change > 4 && (!lastTradeAlerts[symbol] || now - lastTradeAlerts[symbol] > 300_000)) {
-          lastTradeAlerts[symbol] = now
-          addNotification({
-            source: 'trade',
-            priority: change > 8 ? 'urgent' : 'high',
-            action: (q.changePercent || 0) > 0 ? 'BUY' : 'SELL',
-            title: `⚡ تحرك حاد: ${symbol}`,
-            body: `السعر تغيّر بنسبة ${q.changePercent?.toFixed(2)}% — قد تكون فرصة تداول`,
-            pair: symbol,
-            price: q.price,
-          })
-        }
-      })
-    }, 30_000)
-
-    return () => clearInterval(iv)
-  }, [hydrated, settings.tradeAlerts, addNotification])
+    const currentQuotes = quotesRef.current
+    const now = Date.now()
+    currentQuotes.forEach((q, symbol) => {
+      const change = Math.abs(q.changePercent || 0)
+      if (change > 4 && (!lastTradeAlertsRef.current[symbol] || now - lastTradeAlertsRef.current[symbol] > 300_000)) {
+        lastTradeAlertsRef.current[symbol] = now
+        addNotification({
+          source: 'trade',
+          priority: change > 8 ? 'urgent' : 'high',
+          action: (q.changePercent || 0) > 0 ? 'BUY' : 'SELL',
+          title: `⚡ تحرك حاد: ${symbol}`,
+          body: `السعر تغيّر بنسبة ${q.changePercent?.toFixed(2)}% — قد تكون فرصة تداول`,
+          pair: symbol,
+          price: q.price,
+        })
+      }
+    })
+  }, 30_000)
 
   return null
 }

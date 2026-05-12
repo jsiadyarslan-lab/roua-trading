@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
@@ -48,10 +49,9 @@ export function BotEngine() {
   useEffect(() => {
     setHydrated(true)
     syncFromDB()
-    // Re-sync every 60 seconds to pick up admin changes
-    const syncInterval = setInterval(syncFromDB, 60000)
-    return () => clearInterval(syncInterval)
   }, [syncFromDB])
+  // Re-sync every 60s to pick up admin changes — pauses when tab hidden
+  useVisibleInterval(syncFromDB, 60000)
 
   useEffect(() => {
     const unsubscribe = usePaperTradesStore.subscribe((state) => {
@@ -332,6 +332,7 @@ export function BotEngine() {
     
     // Only manage existing open trades — do NOT scan for new ones
     const manageInterval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return // Pause when tab hidden
       const botTrades = tradesRef.current.filter((trade) => trade.source === 'bot')
       if (botTrades.length > 0) {
         manageOpenTrades()

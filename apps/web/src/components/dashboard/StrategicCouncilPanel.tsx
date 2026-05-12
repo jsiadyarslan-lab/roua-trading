@@ -58,26 +58,24 @@ export function StrategicCouncilPanel() {
   const [currentScanSymbol, setCurrentScanSymbol] = useState('BTC/USDT')
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const pollTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const SCAN_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
   // Cleanup polling on unmount
   useEffect(() => {
-    // Symbol Scanning Animation (Visual Only)
-    scanIntervalRef.current = setInterval(() => {
-      setCurrentScanSymbol(prev => {
-        const idx = SCAN_SYMBOLS.indexOf(prev)
-        return SCAN_SYMBOLS[(idx + 1) % SCAN_SYMBOLS.length]
-      })
-    }, 3000)
-
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current)
       if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current)
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
     }
   }, [])
+
+  // Symbol Scanning Animation (Visual Only) — pauses when tab hidden
+  useVisibleInterval(() => {
+    setCurrentScanSymbol(prev => {
+      const idx = SCAN_SYMBOLS.indexOf(prev)
+      return SCAN_SYMBOLS[(idx + 1) % SCAN_SYMBOLS.length]
+    })
+  }, 3000)
 
   const fetchActiveBriefs = useCallback(async () => {
     try {

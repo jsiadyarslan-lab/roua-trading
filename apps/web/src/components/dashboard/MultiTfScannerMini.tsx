@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
@@ -29,65 +29,59 @@ export function MultiTfScannerMini() {
   const [lastUpdate, setLastUpdate] = useState<string>('')
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    let mounted = true
-    const fetchData = async () => {
-      setLoading(true)
-      try {
-        // Use new multi-timeframe backend API
-        const res = await fetch(`/api/scanner/multi-tf/${encodeURIComponent(selectedSymbol)}`, { signal: AbortSignal.timeout(30000) })
-        const result = await res.json()
+  const fetchData = useCallback(async () => {
+    setLoading(true)
+    try {
+      // Use new multi-timeframe backend API
+      const res = await fetch(`/api/scanner/multi-tf/${encodeURIComponent(selectedSymbol)}`, { signal: AbortSignal.timeout(30000) })
+      const result = await res.json()
 
-        if (!mounted) return
+      if (result.success && result.data) {
+        const mtData = result.data
+        const tfLabels: Record<string, string> = { '15min': '15M', '1h': '1H', '4h': '4H', '1day': '1D' }
 
-        if (result.success && result.data) {
-          const mtData = result.data
-          const tfLabels: Record<string, string> = { '15min': '15M', '1h': '1H', '4h': '4H', '1day': '1D' }
+        const processed = mtData.timeframes.map((tf: any) => ({
+          tf: tfLabels[tf.timeframe] || tf.timeframe.toUpperCase(),
+          state: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? 'Bullish' : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? 'Bearish' : 'Neutral',
+          strength: tf.confidence,
+          color: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? T.green : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? T.red : T.amber,
+          technicalScore: tf.technicalScore,
+          rsi: tf.rsi,
+          macdSignal: tf.macdSignal,
+          adx: tf.adx,
+        }))
 
-          const processed = mtData.timeframes.map((tf: any) => ({
-            tf: tfLabels[tf.timeframe] || tf.timeframe.toUpperCase(),
-            state: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? 'Bullish' : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? 'Bearish' : 'Neutral',
-            strength: tf.confidence,
-            color: tf.direction === 'STRONG_BUY' || tf.direction === 'BUY' ? T.green : tf.direction === 'STRONG_SELL' || tf.direction === 'SELL' ? T.red : T.amber,
-            technicalScore: tf.technicalScore,
-            rsi: tf.rsi,
-            macdSignal: tf.macdSignal,
-            adx: tf.adx,
-          }))
+        setData(processed)
+        setScanCount(prev => prev + 1)
+        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
-          setData(processed)
-          setScanCount(prev => prev + 1)
-          setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        setSummary({
+          alignment: mtData.alignment === 'STRONG_BULLISH' ? 'توافق صعودي قوي' : mtData.alignment === 'BULLISH' ? 'توافق صعودي' : mtData.alignment === 'STRONG_BEARISH' ? 'توافق هبوطي قوي' : mtData.alignment === 'BEARISH' ? 'توافق هبوطي' : 'إشارات مختلطة',
+          executionHint: mtData.executionHintAr || mtData.executionHint || '',
+        })
 
-          setSummary({
-            alignment: mtData.alignment === 'STRONG_BULLISH' ? 'توافق صعودي قوي' : mtData.alignment === 'BULLISH' ? 'توافق صعودي' : mtData.alignment === 'STRONG_BEARISH' ? 'توافق هبوطي قوي' : mtData.alignment === 'BEARISH' ? 'توافق هبوطي' : 'إشارات مختلطة',
-            executionHint: mtData.executionHintAr || mtData.executionHint || '',
+        // Push alert for strong alignment
+        if (Math.abs(mtData.alignmentScore) > 30) {
+          const direction = mtData.alignmentScore > 0 ? 'BUY' : 'SELL'
+          useTabAlertStore.getState().pushAlert('multi-tf', {
+            action: direction,
+            label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
+            color: direction === 'BUY' ? '#00FFA3' : '#FF4757',
           })
-
-          // Push alert for strong alignment
-          if (Math.abs(mtData.alignmentScore) > 30) {
-            const direction = mtData.alignmentScore > 0 ? 'BUY' : 'SELL'
-            useTabAlertStore.getState().pushAlert('multi-tf', {
-              action: direction,
-              label: `${direction === 'BUY' ? '⬆' : '⬇'} ${mtData.alignment} ${selectedSymbol}`,
-              color: direction === 'BUY' ? '#00FFA3' : '#FF4757',
-            })
-          }
-        } else {
-          // Fallback: no data available
-          setData([])
-          setSummary(null)
         }
-      } catch (e) {
-        console.error(e)
-      } finally {
-        if (mounted) setLoading(false)
+      } else {
+        // Fallback: no data available
+        setData([])
+        setSummary(null)
       }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setLoading(false)
     }
-
-    fetchData()
-    return () => { mounted = false }
   }, [selectedSymbol])
+
+  useEffect(() => { fetchData() }, [fetchData])
 
   // Poll every 60s — pauses when tab hidden
   useVisibleInterval(fetchData, 60000)

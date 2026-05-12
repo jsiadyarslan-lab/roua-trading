@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown, Brain, Crosshair } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { ScopedStyle } from '@/components/ScopedStyle'
@@ -74,9 +75,9 @@ export function AlNarratorMini({
 
   useEffect(() => {
     fetchNarrative()
-    const interval = setInterval(fetchNarrative, 30000)
-    return () => clearInterval(interval)
   }, [fetchNarrative])
+  // Poll every 30s — pauses when tab hidden
+  useVisibleInterval(fetchNarrative, 30000)
 
   // ── Smart Recommendation (functional) ──
   const handleSmartRecommendation = async () => {

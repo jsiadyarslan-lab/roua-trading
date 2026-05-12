@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 
 interface NewsItem {
@@ -20,52 +20,49 @@ export default function NewsTicker() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>(emptyNewsItems)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch from /api/news/feed on mount, then refresh every 5 minutes
-  useEffect(() => {
-    const fetchNews = async () => {
-      try {
-        const controller = new AbortController()
-        const timeoutId = setTimeout(() => controller.abort(), 5000)
-        const response = await fetch('/api/news/feed', { signal: controller.signal })
-        clearTimeout(timeoutId)
-        if (response.ok) {
-          const data = await response.json()
-          if (Array.isArray(data) && data.length > 0) {
-            const errorPatterns = [
-              '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة',
-              'التحليل غير متاح حالياً',
-              'يرجى التحقق من مفاتيح API',
-              'يرجى المحاولة لاحقاً',
-            ];
-            const mapped: NewsItem[] = data.slice(0, 15)
-              .filter((item: any) => {
-                // Filter out articles with AI error messages
-                const title = (item.translatedTitle || '') + (item.title || '');
-                const content = (item.translatedContent || '') + (item.content || '');
-                return !errorPatterns.some(p => title.includes(p) || content.includes(p));
-              })
-              .map((item: any) => ({
-              category: item.category || 'General',
-              categoryAr: item.categoryAr || item.category || 'عام',
-              color: item.color || '#8B92A8',
-              bgColor: item.bgColor || '#8B92A812',
-              text: item.text || item.headline || item.title || '',
-              textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
-              impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
-            }))
-            if (mapped.length > 0) setNewsItems(mapped)
-          }
+  // Fetch from /api/news/feed
+  const fetchNews = useCallback(async () => {
+    try {
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 5000)
+      const response = await fetch('/api/news/feed', { signal: controller.signal })
+      clearTimeout(timeoutId)
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data) && data.length > 0) {
+          const errorPatterns = [
+            '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة',
+            'التحليل غير متاح حالياً',
+            'يرجى التحقق من مفاتيح API',
+            'يرجى المحاولة لاحقاً',
+          ];
+          const mapped: NewsItem[] = data.slice(0, 15)
+            .filter((item: any) => {
+              // Filter out articles with AI error messages
+              const title = (item.translatedTitle || '') + (item.title || '');
+              const content = (item.translatedContent || '') + (item.content || '');
+              return !errorPatterns.some(p => title.includes(p) || content.includes(p));
+            })
+            .map((item: any) => ({
+            category: item.category || 'General',
+            categoryAr: item.categoryAr || item.category || 'عام',
+            color: item.color || '#8B92A8',
+            bgColor: item.bgColor || '#8B92A812',
+            text: item.text || item.headline || item.title || '',
+            textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
+            impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
+          }))
+          if (mapped.length > 0) setNewsItems(mapped)
         }
-      } catch {
-        // Silently handle fetch errors — component will show empty state
-      } finally {
-        setIsLoading(false)
       }
+    } catch {
+      // Silently handle fetch errors — component will show empty state
+    } finally {
+      setIsLoading(false)
     }
-    fetchNews()
-    return
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  useEffect(() => { fetchNews() }, [fetchNews])
 
   // Auto-refresh news every 5 min — pauses when tab hidden
   useVisibleInterval(fetchNews, 5 * 60 * 1000)

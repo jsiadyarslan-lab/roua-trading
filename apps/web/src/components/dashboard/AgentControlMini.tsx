@@ -171,36 +171,13 @@ export function AgentControlMini() {
   // Poll every 15s — pauses when tab hidden
   useVisibleInterval(() => { fetchStatus(); fetchPositions() }, 15000)
 
-    // Visual-only eval symbol animation — paused when tab hidden
-    let evalIntervalId: ReturnType<typeof setInterval> | null = null
-
-    const startEvalInterval = () => {
-      if (evalIntervalId) clearInterval(evalIntervalId)
-      evalIntervalId = setInterval(() => {
-        setCurrentEvalSymbol(prev => {
-          const idx = EVAL_SYMBOLS.indexOf(prev)
-          return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
-        })
-      }, 3500)
-    }
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        if (evalIntervalId) { clearInterval(evalIntervalId); evalIntervalId = null }
-      } else {
-        startEvalInterval()
-      }
-    }
-
-    startEvalInterval()
-    document.addEventListener('visibilitychange', handleVisibility)
-
-    return () => {
-      clearInterval(interval)
-      if (evalIntervalId) clearInterval(evalIntervalId)
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
-  }, [fetchStatus, fetchCredentials, fetchPositions, fetchPerformance])
+  // Visual-only eval symbol animation — pauses when tab hidden
+  useVisibleInterval(() => {
+    setCurrentEvalSymbol(prev => {
+      const idx = EVAL_SYMBOLS.indexOf(prev)
+      return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
+    })
+  }, 3500)
 
   // Auto-hide confirm dialog after 5s
   useEffect(() => {

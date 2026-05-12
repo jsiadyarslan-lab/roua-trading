@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
@@ -25,81 +25,55 @@ export function GlobalLogicEngine() {
   const lastPriceSyncRef = useRef<Record<string, number>>({})
   const lastFullFetchRef = useRef<number>(0)
 
-  // ── Cross-tab synchronization via storage events ──
-  // FIX: DISABLED cross-tab position sync. Previously, this re-added
-  // phantom positions from another tab's stale localStorage data.
-  useEffect(() => {
-    return () => {}
-  }, [])
-
   // ── Price sync: every 2 seconds ──
   // Only updates currentPrice in existing positions — does NOT replace the array.
-  useEffect(() => {
-    const syncInterval = setInterval(() => {
-      if (document.visibilityState === 'hidden') return
-      const now = Date.now()
-      const quotes = useMarketStore.getState().quotes
-      const realPositions = usePositionsStore.getState().positions
+  useVisibleInterval(() => {
+    const now = Date.now()
+    const quotes = useMarketStore.getState().quotes
+    const realPositions = usePositionsStore.getState().positions
 
-      Object.entries(quotes).forEach(([symbol, q]) => {
-        const price = q?.price
-        if (typeof price !== 'number' || Number.isNaN(price)) return
+    Object.entries(quotes).forEach(([symbol, q]) => {
+      const price = q?.price
+      if (typeof price !== 'number' || Number.isNaN(price)) return
 
-        const normalizedSymbol = symbol.toUpperCase().replace('/', '')
+      const normalizedSymbol = symbol.toUpperCase().replace('/', '')
 
-        const hasMatchingRealPosition = realPositions.some(
-          position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
-        )
+      const hasMatchingRealPosition = realPositions.some(
+        position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
+      )
 
-        if (!hasMatchingRealPosition) return
+      if (!hasMatchingRealPosition) return
 
-        const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-        if (now - lastSyncAt < 2000) return
+      const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
+      if (now - lastSyncAt < 2000) return
 
-        lastPriceSyncRef.current[normalizedSymbol] = now
-        updatePositionPrice(symbol, price)
-      })
-    }, 2000)
-
-    return () => clearInterval(syncInterval)
-  }, [updatePositionPrice])
+      lastPriceSyncRef.current[normalizedSymbol] = now
+      updatePositionPrice(symbol, price)
+    })
+  }, 2000)
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.
   // This ensures the balance and positions update quickly after automated trades.
   // The mergePositions() function prevents "dancing" regardless of interval speed.
-  useEffect(() => {
-    let isActive = false
+  useVisibleInterval(() => {
+    const now = Date.now()
 
     // Check if Smart Executor or Agent is active by examining store state
-    const checkActive = (): boolean => {
-      try {
-        // Check for open positions that might be from automated trading
-        const positions = usePositionsStore.getState().positions
-        // If there are open positions, use faster polling
-        if (positions.length > 0) return true
-      } catch { /* store not ready */ }
-      return false
-    }
+    let isActive = false
+    try {
+      const positions = usePositionsStore.getState().positions
+      if (positions.length > 0) isActive = true
+    } catch { /* store not ready */ }
 
-    const iv = setInterval(() => {
-      if (document.visibilityState === 'hidden') return
-      const now = Date.now()
+    // Adaptive guard: 5s when active, 15s when idle
+    const minInterval = isActive ? 5000 : 15000
+    if (now - lastFullFetchRef.current < minInterval) return
 
-      // Re-evaluate active state periodically
-      isActive = checkActive()
-
-      // Adaptive guard: 5s when active, 15s when idle
-      const minInterval = isActive ? 5000 : 15000
-      if (now - lastFullFetchRef.current < minInterval) return
-
-      lastFullFetchRef.current = now
-      fetchRealPositions()
-      fetchAccount()
-    }, 5000) // Check every 5 seconds, but actual fetch respects the guard
-
-    return () => clearInterval(iv)
-  }, [fetchRealPositions, fetchAccount])
+    lastFullFetchRef.current = now
+    fetchRealPositions()
+    fetchAccount()
+  }, 5000) // Check every 5 seconds, but actual fetch respects the adaptive guard
 
   return null
 }

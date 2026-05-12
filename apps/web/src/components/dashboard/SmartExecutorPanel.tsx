@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { getPnlColor } from '@/lib/unified-tokens'
 
@@ -74,7 +74,6 @@ export function SmartExecutorPanel() {
   const [backendOffline, setBackendOffline] = useState(false)
   const [currentMonitoredSymbol, setCurrentMonitoredSymbol] = useState('BTC/USDT')
   const MONITORED_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'EUR/USD', 'XAU/USD', 'AAPL']
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const fetchStatus = useCallback(async () => {
     try {
@@ -135,34 +134,13 @@ export function SmartExecutorPanel() {
   // Poll every 10s — pauses when tab hidden
   useVisibleInterval(() => { fetchUserState(); fetchPositions() }, 10000)
 
-  // Symbol Monitoring Animation (Visual Only) — paused when tab hidden
-  useEffect(() => {
-    const startInterval = () => {
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
-      scanIntervalRef.current = setInterval(() => {
-        setCurrentMonitoredSymbol(prev => {
-          const idx = MONITORED_SYMBOLS.indexOf(prev)
-          return MONITORED_SYMBOLS[(idx + 1) % MONITORED_SYMBOLS.length]
-        })
-      }, 4000)
-    }
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        if (scanIntervalRef.current) { clearInterval(scanIntervalRef.current); scanIntervalRef.current = null }
-      } else {
-        startInterval()
-      }
-    }
-
-    startInterval()
-    document.addEventListener('visibilitychange', handleVisibility)
-
-    return () => {
-      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
-      document.removeEventListener('visibilitychange', handleVisibility)
-    }
-  }, [])
+  // Symbol Monitoring Animation (Visual Only) — pauses when tab hidden
+  useVisibleInterval(() => {
+    setCurrentMonitoredSymbol(prev => {
+      const idx = MONITORED_SYMBOLS.indexOf(prev)
+      return MONITORED_SYMBOLS[(idx + 1) % MONITORED_SYMBOLS.length]
+    })
+  }, 4000)
 
   // FIX: Removed auto-recovery based on global isRunning flag.
   // Previously, if the global isRunning was true but userState was null,

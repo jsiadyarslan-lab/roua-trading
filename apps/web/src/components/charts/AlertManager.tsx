@@ -44,6 +44,27 @@ const ALERT_TYPE_ICONS: Record<AlertType, string> = {
 
 let alertIdCounter = 0;
 
+/* ── AudioContext singleton ──
+ * Reuse a single AudioContext instead of creating a new one per alert.
+ * The context is lazily created on first use and auto-closes after the sound plays.
+ */
+let _alertAudioCtx: AudioContext | null = null;
+
+function getAlertAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!_alertAudioCtx || _alertAudioCtx.state === 'closed') {
+    try {
+      _alertAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch {
+      return null;
+    }
+  }
+  if (_alertAudioCtx.state === 'suspended') {
+    _alertAudioCtx.resume().catch(() => {});
+  }
+  return _alertAudioCtx;
+}
+
 export function createAlert(params: {
   type: AlertType;
   symbol: string;
@@ -90,15 +111,17 @@ export function checkAlert(alert: Alert, currentPrice: number): boolean {
     }
     if (alert.notifySound && typeof window !== 'undefined') {
       try {
-        const ac = new AudioContext();
-        const osc = ac.createOscillator();
-        const gain = ac.createGain();
-        osc.connect(gain);
-        gain.connect(ac.destination);
-        osc.frequency.value = alert.type === 'whale' ? 220 : 880;
-        gain.gain.value = 0.1;
-        osc.start();
-        setTimeout(() => { osc.stop(); ac.close(); }, 200);
+        const ac = getAlertAudioContext();
+        if (ac) {
+          const osc = ac.createOscillator();
+          const gain = ac.createGain();
+          osc.connect(gain);
+          gain.connect(ac.destination);
+          osc.frequency.value = alert.type === 'whale' ? 220 : 880;
+          gain.gain.value = 0.1;
+          osc.start();
+          setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect(); }, 200);
+        }
       } catch {}
     }
   }

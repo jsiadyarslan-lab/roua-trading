@@ -79,10 +79,30 @@ function saveAlerts(alerts: PriceAlert[], symbol: string) {
   } catch { /* quota exceeded */ }
 }
 
+// ── AudioContext singleton ────────────────────────────────
+// Reuse a single AudioContext instead of creating a new one per alert trigger.
+let _priceAlertAudioCtx: AudioContext | null = null;
+
+function getPriceAlertAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null;
+  if (!_priceAlertAudioCtx || _priceAlertAudioCtx.state === 'closed') {
+    try {
+      _priceAlertAudioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch {
+      return null;
+    }
+  }
+  if (_priceAlertAudioCtx.state === 'suspended') {
+    _priceAlertAudioCtx.resume().catch(() => {});
+  }
+  return _priceAlertAudioCtx;
+}
+
 // ── Sound notification ────────────────────────────────────
 function playAlertSound(direction: PriceAlertDirection) {
   try {
-    const ac = new AudioContext();
+    const ac = getPriceAlertAudioContext();
+    if (!ac) return;
     const osc = ac.createOscillator();
     const gain = ac.createGain();
     osc.connect(gain);
@@ -98,7 +118,8 @@ function playAlertSound(direction: PriceAlertDirection) {
     }, 100);
     setTimeout(() => {
       osc.stop();
-      ac.close();
+      osc.disconnect();
+      gain.disconnect();
     }, 250);
   } catch { /* AudioContext not available */ }
 }

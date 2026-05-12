@@ -24,7 +24,7 @@
 
   background: #000000;
   color: #f0f9ff;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
   overflow-x: hidden;
   line-height: 1.7;
   position: relative;
@@ -54,6 +54,7 @@
   background-size: 400% 100%;
   animation: shimmer 5s infinite linear;
   z-index: 1000;
+  contain: paint;
 }
 @keyframes shimmer {
   0% { background-position: -400% 0; }
@@ -68,8 +69,9 @@
   background: linear-gradient(to top, rgba(0,0,0,0.95), transparent);
   padding: 0.8rem 0;
   border-top: 1px solid var(--glass-border);
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(12px);
   overflow: hidden;
+  contain: paint;
 }
 .landing-page .live-signals-track {
   display: flex;
@@ -125,7 +127,7 @@
   justify-content: space-between;
   align-items: center;
   background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
-  backdrop-filter: blur(30px);
+  backdrop-filter: blur(16px);
   transition: all 0.4s;
 }
 .landing-page .nav.scrolled {
@@ -134,7 +136,7 @@
   border-bottom: 1px solid var(--glass-border);
 }
 .landing-page .nav-brand {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 2.2rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--ai-cyan), var(--light-blue), var(--ice-blue));
@@ -185,7 +187,7 @@
 .landing-page .btn {
   padding: 0.6rem 1.8rem;
   border-radius: 50px;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -261,7 +263,7 @@
   font-size: 0.85rem;
   color: var(--light-blue);
   margin-bottom: 3rem;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(12px);
   font-weight: 500;
   animation: float 6s ease-in-out infinite;
 }
@@ -281,7 +283,7 @@
   50% { opacity: 0.3; transform: scale(1.8); }
 }
 .landing-page .hero-title {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: clamp(5rem, 12vw, 10rem);
   font-weight: 700;
   background: linear-gradient(135deg, var(--ai-cyan) 0%, var(--light-blue) 40%, var(--ice-blue) 70%, var(--ai-cyan) 100%);
@@ -298,7 +300,7 @@
   content: '\u0631\u0624\u0649';
   position: absolute;
   top: 0; left: 0; right: 0;
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: inherit;
   font-weight: 700;
   background: linear-gradient(135deg, var(--ai-cyan), var(--light-blue));
@@ -359,7 +361,7 @@
 }
 .landing-page .stat-item:first-child::after { display: none; }
 .landing-page .stat-number {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 2.8rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--light-blue), var(--ice-blue));
@@ -389,7 +391,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 2rem;
-  backdrop-filter: blur(20px);
+  backdrop-filter: blur(12px);
   flex-wrap: wrap;
 }
 .landing-page .countdown-label {
@@ -419,7 +421,7 @@
   text-align: center;
 }
 .landing-page .countdown-unit .value {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.8rem;
   font-weight: 700;
   color: var(--danger);
@@ -461,10 +463,10 @@
   padding: 8px 20px;
   border-radius: 50px;
   background: var(--glass);
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
 }
 .landing-page .section-title {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: clamp(2.2rem, 4.5vw, 3.2rem);
   font-weight: 700;
   margin-bottom: 1.2rem;
@@ -492,7 +494,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.8rem;
-  perspective: 1000px;
+  perspective: 600px;
 }
 .landing-page .model-card {
   background: var(--glass);
@@ -502,7 +504,7 @@
   position: relative;
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(8px);
   transform-style: preserve-3d;
   will-change: transform;
 }
@@ -550,7 +552,7 @@
   border-color: rgba(0, 212, 255, 0.3);
 }
 .landing-page .model-card h3 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.15rem;
   font-weight: 700;
   margin-bottom: 0.7rem;
@@ -603,7 +605,7 @@
 .landing-page .ticker-item .symbol {
   color: var(--text-primary);
   font-weight: 700;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
 }
 .landing-page .ticker-item .change-up { color: var(--lp-profit); font-weight: 600; }
 .landing-page .ticker-item .change-down { color: var(--danger); font-weight: 600; }
@@ -626,7 +628,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
   gap: 2.2rem;
-  perspective: 1200px;
+  perspective: 600px;
 }
 .landing-page .feature-card {
   background: var(--glass);
@@ -636,7 +638,7 @@
   position: relative;
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(8px);
   transform-style: preserve-3d;
   will-change: transform;
 }
@@ -673,7 +675,7 @@
   box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
 }
 .landing-page .feature-number {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 3.5rem;
   font-weight: 700;
   color: rgba(0, 212, 255, 0.06);
@@ -700,7 +702,7 @@
   box-shadow: 0 0 30px rgba(0, 212, 255, 0.15);
 }
 .landing-page .feature-card h3 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.25rem;
   font-weight: 700;
   margin-bottom: 0.9rem;
@@ -711,7 +713,7 @@
   font-size: 0.85rem;
   color: var(--text-muted);
   font-weight: 400;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
   margin-top: 3px;
 }
 .landing-page .feature-card p {
@@ -767,7 +769,7 @@
   align-items: center;
   justify-content: center;
   margin: 0 auto 1.8rem;
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 2rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--ai-cyan), var(--light-blue));
@@ -794,7 +796,7 @@
   100% { transform: scale(1.4); opacity: 0; }
 }
 .landing-page .step-card h3 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.15rem;
   font-weight: 700;
   margin-bottom: 0.6rem;
@@ -804,7 +806,7 @@
   font-size: 0.8rem;
   color: var(--text-muted);
   font-weight: 400;
-  font-family: 'IBM Plex Sans Arabic', sans-serif;
+  font-family: var(--font-ibm-plex-ar, 'IBM Plex Sans Arabic'), sans-serif;
   margin-top: 3px;
 }
 .landing-page .step-card p {
@@ -818,7 +820,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 1.8rem;
-  perspective: 1000px;
+  perspective: 600px;
 }
 .landing-page .testimonial-card {
   background: var(--glass);
@@ -827,9 +829,7 @@
   padding: 2.2rem;
   position: relative;
   transition: all 0.4s;
-  backdrop-filter: blur(10px);
-  transform-style: preserve-3d;
-  will-change: transform;
+  backdrop-filter: blur(6px);
 }
 .landing-page .testimonial-card:hover {
   border-color: rgba(125, 211, 252, 0.12);
@@ -862,7 +862,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-weight: 700;
   color: #000;
   font-size: 1.1rem;
@@ -900,6 +900,7 @@
   padding: 7rem 2rem;
   z-index: 10;
   overflow: hidden;
+  contain: paint;
 }
 .landing-page .blackhole-section::before {
   content: '';
@@ -971,7 +972,7 @@
   pointer-events: none;
 }
 .landing-page .cta-text h2 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
@@ -993,7 +994,7 @@
   z-index: 2;
 }
 .landing-page .blackhole-caption h2 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: clamp(2rem, 4.5vw, 2.8rem);
   font-weight: 700;
   margin-bottom: 1.2rem;
@@ -1027,7 +1028,7 @@
   background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
 }
 .landing-page .footer-brand {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.8rem;
   font-weight: 700;
   background: linear-gradient(135deg, var(--ai-cyan), var(--light-blue));
@@ -1051,7 +1052,7 @@
   border: 1px solid var(--glass-border);
   border-radius: 24px;
   padding: 1.8rem;
-  backdrop-filter: blur(40px);
+  backdrop-filter: blur(20px);
   max-width: 320px;
   display: none;
   box-shadow: 0 25px 80px rgba(0,0,0,0.9);
@@ -1062,7 +1063,7 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .landing-page .satellites-info h3 {
-  font-family: 'Noto Naskh Arabic', serif;
+  font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
   font-size: 1.1rem;
   margin-bottom: 0.6rem;
 }

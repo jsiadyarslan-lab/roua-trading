@@ -1,6 +1,60 @@
 import type { Metadata, Viewport } from "next";
+import { Cairo, Noto_Naskh_Arabic, IBM_Plex_Sans_Arabic, Inter, JetBrains_Mono, Orbitron } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+
+/* ── Font Loading via next/font/google ──
+ * Loads only the glyphs needed (Arabic subset) with zero layout shift.
+ * CSS variables are set so existing font-family references resolve correctly.
+ */
+const cairo = Cairo({
+  subsets: ["arabic", "latin"],
+  variable: "--font-cairo",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const notoNaskhArabic = Noto_Naskh_Arabic({
+  subsets: ["arabic"],
+  variable: "--font-noto-naskh",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
+
+const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
+  subsets: ["arabic", "latin"],
+  variable: "--font-ibm-plex-ar",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700"],
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-jetbrains",
+  display: "swap",
+});
+
+const orbitron = Orbitron({
+  subsets: ["latin"],
+  variable: "--font-orbitron",
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800", "900"],
+});
+
+const fontVars = [
+  cairo.variable,
+  notoNaskhArabic.variable,
+  ibmPlexSansArabic.variable,
+  inter.variable,
+  jetbrainsMono.variable,
+  orbitron.variable,
+].join(" ");
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
@@ -81,7 +135,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
-      <body className="antialiased">
+      <body className={`${fontVars} antialiased`}>
         <GlobalStyleRegistry />
         {children}
         <Toaster />

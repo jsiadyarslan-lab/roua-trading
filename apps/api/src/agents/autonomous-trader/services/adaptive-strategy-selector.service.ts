@@ -199,8 +199,9 @@ export class AdaptiveStrategySelectorService {
     userId: string,
     regime: RegimeDetection,
   ): Promise<StrategyScore[]> {
+    // FIX: SCALPING excluded from Agent strategies — it belongs to the
+    // Smart Executor (M1/M5/M15). The Agent handles M30+ timeframes only.
     const allStrategies: StrategyType[] = [
-      StrategyType.SCALPING,
       StrategyType.SWING,
       StrategyType.GRID,
       StrategyType.MEAN_REVERSION,
@@ -336,8 +337,9 @@ export class AdaptiveStrategySelectorService {
    * Based on research:
    * - Trending → Trend Following (SWING), Breakout (MOMENTUM_BREAKOUT)
    * - Ranging → Mean Reversion (MEAN_REVERSION), Grid (GRID), Scalping (SCALPING)
-   * - Volatile → DCA (safe accumulation), Scalping (small quick trades)
-   * - Transitional → Scalping (flexible), DCA (cautious accumulation)
+   * - Volatile → DCA (safe accumulation), Mean Reversion
+   * - Transitional → DCA (cautious accumulation), VWAP+RSI
+   * FIX: SCALPING removed — it belongs to Smart Executor, not Agent
    */
   private _mapRegimeToStrategies(
     regime: MarketRegime,
@@ -348,7 +350,7 @@ export class AdaptiveStrategySelectorService {
       case MarketRegime.TRENDING_UP:
         // Strong uptrend: ride the trend
         if (rsi < 65) {
-          return [StrategyType.SWING, StrategyType.MOMENTUM_BREAKOUT, StrategyType.VWAP_RSI, StrategyType.SCALPING];
+          return [StrategyType.SWING, StrategyType.MOMENTUM_BREAKOUT, StrategyType.VWAP_RSI];
         } else {
           // Overbought in uptrend — still follow but be cautious
           return [StrategyType.SWING, StrategyType.VWAP_RSI, StrategyType.DCA];
@@ -365,18 +367,18 @@ export class AdaptiveStrategySelectorService {
 
       case MarketRegime.RANGING:
         // Sideways market: mean reversion and grid excel
-        return [StrategyType.MEAN_REVERSION, StrategyType.GRID, StrategyType.SCALPING, StrategyType.VWAP_RSI];
+        return [StrategyType.MEAN_REVERSION, StrategyType.GRID, StrategyType.VWAP_RSI];
 
       case MarketRegime.VOLATILE:
         // High volatility: cautious strategies with small positions
-        return [StrategyType.DCA, StrategyType.SCALPING, StrategyType.MEAN_REVERSION];
+        return [StrategyType.DCA, StrategyType.MEAN_REVERSION, StrategyType.GRID];
 
       case MarketRegime.TRANSITIONAL:
         // Unclear: flexible strategies
-        return [StrategyType.SCALPING, StrategyType.DCA, StrategyType.VWAP_RSI];
+        return [StrategyType.DCA, StrategyType.VWAP_RSI, StrategyType.MEAN_REVERSION];
 
       default:
-        return [StrategyType.SCALPING, StrategyType.DCA];
+        return [StrategyType.DCA, StrategyType.SWING];
     }
   }
 
@@ -391,7 +393,7 @@ export class AdaptiveStrategySelectorService {
     if (index === -1) {
       // Strategy is not recommended for this regime — low match
       // But don't give 0 — some strategies are versatile
-      const versatileStrategies = [StrategyType.DCA, StrategyType.SCALPING];
+      const versatileStrategies = [StrategyType.DCA, StrategyType.SWING];
       return versatileStrategies.includes(strategy) ? 25 : 10;
     }
 

@@ -173,8 +173,8 @@ export class SignalEvaluatorService {
     strategyParams: StrategyParams,
     userId: string,
   ): Promise<EvaluatedSignal | null> {
+    // FIX: SCALPING excluded — it belongs to the Smart Executor, not the Agent
     const strategies: StrategyType[] = [
-      StrategyType.SCALPING,
       StrategyType.SWING,
       StrategyType.GRID,
       StrategyType.MEAN_REVERSION,

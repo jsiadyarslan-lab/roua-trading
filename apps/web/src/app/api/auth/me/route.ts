@@ -136,7 +136,14 @@ export async function GET(request: NextRequest) {
         hasOtpVerification = !!otpRecord
       } catch { /* Ignore DB errors */ }
 
-      const isVerified = !!(user.passkeyId || user.accounts.length > 0 || hasOtpVerification || hasValidSession)
+      // ── Verification check ──
+      // A user is considered verified if ANY of these is true:
+      // 1. Has a passkey registered (passkeyId)
+      // 2. Has an OAuth account linked (e.g., Google, GitHub) — checked by provider
+      // 3. Has completed OTP verification
+      // 4. Has a currently valid session (re-login after previous verification)
+      const hasGoogleAccount = user.accounts.some(a => a.provider === 'google')
+      const isVerified = !!(user.passkeyId || hasGoogleAccount || hasOtpVerification || hasValidSession)
 
       if (!isVerified) {
         return NextResponse.json({
@@ -272,7 +279,10 @@ export async function POST(request: NextRequest) {
       hasOtpVerification = !!otpRecord
     } catch { /* Ignore DB errors */ }
 
-    const isVerified = !!(user.passkeyId || user.accounts.length > 0 || hasOtpVerification)
+    // ── Verification check (POST method) ──
+    // Same logic as GET but without hasValidSession (POST is initial login attempt)
+    const hasGoogleAccount = user.accounts.some(a => a.provider === 'google')
+    const isVerified = !!(user.passkeyId || hasGoogleAccount || hasOtpVerification)
 
     if (!isVerified) {
       return NextResponse.json({

@@ -134,37 +134,84 @@ export async function GET(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?error=db_unavailable', getPublicOrigin(request)))
     }
 
-    let user = await db.user.findUnique({ where: { email } })
-
-    if (!user) {
-      try {
-        user = await db.user.create({
-          data: {
-            email,
-            displayName,
-            tier: 'FREE',
-            avatar: googleUser.picture || null,
-          },
-        })
-        console.log(`[auth/callback/google] Created new user: ${user.id}`)
-      } catch {
-        user = await db.user.findUnique({ where: { email } })
-      }
-    } else {
-      try {
-        user = await db.user.update({
-          where: { id: user.id },
-          data: {
-            displayName: displayName || user.displayName,
-            avatar: googleUser.picture || user.avatar,
-          },
-        })
-      } catch { /* Non-critical */ }
+    // ── Upsert User: find or create in a single atomic operation ──
+    // Previously used separate create + findUnique which was fragile under race conditions.
+    // upsert handles the "user already exists" case atomically.
+    let user
+    try {
+      user = await db.user.upsert({
+        where: { email },
+        create: {
+          email,
+          displayName,
+          tier: 'FREE',
+          avatar: googleUser.picture || null,
+        },
+        update: {
+          displayName: displayName || undefined,
+          avatar: googleUser.picture || undefined,
+        },
+        include: { accounts: true },
+      })
+      console.error(`[auth/callback/google] User upserted: ${user.id} (accounts: ${user.accounts.length})`)
+    } catch (upsertErr: any) {
+      console.error(`[auth/callback/google] User upsert failed: ${upsertErr?.message}`)
+      // Fallback: try findUnique in case upsert fails for unexpected reasons
+      user = await db.user.findUnique({
+        where: { email },
+        include: { accounts: true },
+      })
     }
 
     if (!user) {
       console.error('[auth/callback/google] User creation/lookup failed')
       return NextResponse.redirect(new URL('/login?error=user_creation_failed', getPublicOrigin(request)))
+    }
+
+    // ── Upsert Account: link Google OAuth to the user ──
+    // This is CRITICAL for:
+    // 1. isVerified check in /api/auth/me (user.accounts.length > 0)
+    // 2. Refreshing Google access tokens when they expire
+    // 3. Unlinking Google accounts in account settings
+    // 4. Distinguishing Google-authenticated users from email-only users
+    const googleAccountId = googleUser.id || googleUser.sub
+    if (googleAccountId) {
+      try {
+        await db.account.upsert({
+          where: {
+            provider_providerAccountId: {
+              provider: 'google',
+              providerAccountId: String(googleAccountId),
+            },
+          },
+          create: {
+            userId: user.id,
+            type: 'oauth',
+            provider: 'google',
+            providerAccountId: String(googleAccountId),
+            access_token: accessToken,
+            refresh_token: tokenData.refresh_token || null,
+            expires_at: tokenData.expires_in
+              ? Math.floor(Date.now() / 1000) + tokenData.expires_in
+              : null,
+            token_type: tokenData.token_type || 'Bearer',
+            scope: tokenData.scope || 'openid email profile',
+          },
+          update: {
+            access_token: accessToken,
+            refresh_token: tokenData.refresh_token || undefined,
+            expires_at: tokenData.expires_in
+              ? Math.floor(Date.now() / 1000) + tokenData.expires_in
+              : undefined,
+          },
+        })
+        console.error(`[auth/callback/google] Account upserted for user ${user.id} (provider: google)`)
+      } catch (accountErr: any) {
+        // Non-fatal: session creation will still proceed, but the user won't have
+        // a linked Google Account record. This means email login may fail later
+        // if no other verification method exists.
+        console.error(`[auth/callback/google] Account upsert failed (non-fatal): ${accountErr?.message}`)
+      }
     }
 
     // Create session with device info using the safe helper

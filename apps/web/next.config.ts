@@ -21,11 +21,11 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   // PERFORMANCE: Remove all console.* calls from the production bundle.
-  // There are 281 console.log/warn calls across the frontend codebase.
-  // In production, these add unnecessary overhead and can leak debug info.
+  // Keep console.error (critical issues) and console.warn (auth/debug diagnostics).
+  // console.warn is essential for diagnosing OAuth flow failures in production.
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production'
-      ? { exclude: ['error'] }  // Keep console.error for critical issues
+      ? { exclude: ['error', 'warn'] }  // Keep error + warn for production diagnostics
       : false,
   },
   // NOTE: eslint.ignoreDuringBuilds removed in Next.js 16.
@@ -100,10 +100,10 @@ const nextConfig: NextConfig = {
         source: '/api/auth/session',
         destination: `${apiTarget}/api/auth/session`,
       },
-      {
-        source: '/api/auth/guest',
-        destination: `${apiTarget}/api/auth/guest`,
-      },
+      // NOTE: /api/auth/guest rewrite REMOVED — it was shadowing the Next.js
+      // route handler at apps/web/src/app/api/auth/guest/route.ts. The rewrite
+      // sent requests to NestJS which may not be ready, causing 502 errors.
+      // The local Next.js route handler is more reliable and faster.
       // ── News endpoints (proxied to NestJS) ──
       {
         source: '/api/news/nest/latest',

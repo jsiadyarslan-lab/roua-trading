@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v80
+ARG BUILD_CACHE=v81
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -114,7 +114,8 @@ COPY --from=builder --chown=webuser:roua /app/apps/web/.next ./apps/web/.next
 COPY --from=builder --chown=webuser:roua /app/apps/web/public ./apps/web/public
 COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web/next.config.ts
 COPY --from=builder --chown=webuser:roua /app/apps/web/package.json ./apps/web/
-COPY --from=builder --chown=webuser:roua /app/apps/web/node_modules ./apps/web/node_modules
+# NOTE: apps/web/node_modules is NOT copied — with --install-strategy=hoisted,
+# all dependencies live in the root node_modules/ (already copied above).
 COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
 
 # Ensure required directories exist

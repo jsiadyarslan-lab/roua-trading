@@ -145,6 +145,10 @@ export function AlpacaPositions() {
       entryTime: manualPaper?.entryTime || null,
       tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
       sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
+      // FIX: Pass both source and tradeSource explicitly so getTradeSourceLabel
+      // can correctly determine the trade origin. The position.source is 'nestjs'
+      // (data source), while tradeSource is the actual trade source from DB.
+      source: (position as any)?.source,
       tradeSource: (position as any)?.tradeSource || undefined,
     })
   }
@@ -168,10 +172,12 @@ export function AlpacaPositions() {
     // FIX: Don't default to 'agent' — check multiple fields to determine the
     // actual source. The agent store may contain positions from the smart executor
     // if they share the same DB query. Check source, then tradeSource, then only
-    // fall back to 'agent' if the position was genuinely created by the agent.
+    // fall back to 'user_manual' as the safe default (NOT 'agent').
+    // Previously defaulting to 'agent' caused ALL positions from this source to
+    // show 'الوكيل' even if they were created by the Smart Executor.
     const actualSource = (ap as any)?.source
       || (ap as any)?.tradeSource
-      || 'agent'
+      || 'user_manual'
 
     allPositions.push({
       symbol: ap.symbol,

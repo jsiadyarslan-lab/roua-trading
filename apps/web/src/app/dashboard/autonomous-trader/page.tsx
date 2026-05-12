@@ -452,6 +452,7 @@ export default function AutonomousTraderPage() {
                       [StrategyType.MOMENTUM_BREAKOUT]: '#FF6B9D',
                       [StrategyType.DCA]: '#00B894',
                       [StrategyType.VWAP_RSI]: '#A29BFE',
+                      [StrategyType.SCALPING]: '#00D4FF', // kept for type safety even though removed from UI
                     }
                     const accent = accentMap[s]
                     return (

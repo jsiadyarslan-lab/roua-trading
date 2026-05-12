@@ -85,7 +85,7 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
       icon: '\uD83D\uDD04',
     },
   }
-  return map[source] || null
+  return map[effectiveSource] || null
 }
 
 // ── Stat Card Component ──

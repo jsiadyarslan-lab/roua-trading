@@ -714,7 +714,11 @@ function MobilePositions() {
       currentPrice: p.currentPrice,
       unrealizedPnl: p.unrealizedPnl,
       isPaper: false,
+      // FIX: Pass both source (data source) and tradeSource (trade origin from DB).
+      // Previously only source was passed (which is 'nestjs'), so the UI couldn't
+      // determine whether the trade was from the agent or smart executor.
       source: (p as any).source,
+      tradeSource: (p as any).tradeSource,
     }))
 
     // Only include paper trades if no real exchange is linked (pure demo mode)
@@ -849,18 +853,29 @@ function MobilePositions() {
                       {pos.isPaper && (
                         <span style={{
                           padding: '1px 4px', borderRadius: 6,
-                          background: 'rgba(0,212,255,0.1)', color: '#00D4FF',
+                          background: 'rgba(255,184,0,0.1)', color: '#FFB800',
                           fontSize: 6, fontWeight: 800,
-                          border: '0.5px solid rgba(0,212,255,0.2)',
+                          border: '0.5px solid rgba(255,184,0,0.2)',
                         }}>ورقي</span>
                       )}
-                      {pos.source === 'bot' && (
+                      {/* FIX: Check tradeSource (from DB) for correct source badge.
+                          Previously only checked source='bot' which never matched
+                          because source='nestjs' (data source, not trade source). */}
+                      {(pos.tradeSource === 'smart_executor' || pos.tradeSource === 'auto_paper' || pos.source === 'bot') && (
                         <span style={{
                           padding: '1px 4px', borderRadius: 6,
                           background: 'rgba(0,212,255,0.1)', color: '#00D4FF',
                           fontSize: 6, fontWeight: 800,
                           border: '0.5px solid rgba(0,212,255,0.2)',
                         }}>المنفذ</span>
+                      )}
+                      {pos.tradeSource === 'agent' && (
+                        <span style={{
+                          padding: '1px 4px', borderRadius: 6,
+                          background: 'rgba(162,89,255,0.1)', color: '#A259FF',
+                          fontSize: 6, fontWeight: 800,
+                          border: '0.5px solid rgba(162,89,255,0.2)',
+                        }}>الوكيل</span>
                       )}
                     </div>
                     <span style={{ fontSize: 9, color: 'rgba(235,235,245,0.3)', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -941,8 +956,12 @@ function MobilePositions() {
                         {isLong ? '⬆' : '⬇'}
                       </span>
                       <span style={{ fontSize: 10, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
-                      {ct.source === 'bot' && (
+                      {/* FIX: Check both source and tradeSource for closed trade badges */}
+                      {(ct.source === 'bot' || ct.source === 'smart_executor' || ct.tradeSource === 'smart_executor') && (
                         <span style={{ padding: '1px 3px', borderRadius: 4, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', fontSize: 6, fontWeight: 800 }}>المنفذ</span>
+                      )}
+                      {(ct.source === 'agent' || ct.tradeSource === 'agent') && (
+                        <span style={{ padding: '1px 3px', borderRadius: 4, background: 'rgba(162,89,255,0.1)', color: '#A259FF', fontSize: 6, fontWeight: 800 }}>الوكيل</span>
                       )}
                     </div>
                     <span style={{ fontSize: 10, fontWeight: 900, color: pnlUp ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>

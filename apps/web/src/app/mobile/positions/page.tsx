@@ -26,15 +26,18 @@ const FONT_AR   = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 
 /* ─── Source Label Mapping ─── */
-function getSourceBadge(source?: string | null) {
-  if (!source || source === 'manual') return null
+function getSourceBadge(source?: string | null, tradeSource?: string | null) {
+  // FIX: Use tradeSource (from DB) first, then fallback to source (data source)
+  const effectiveSource = tradeSource || source
+  if (!effectiveSource || effectiveSource === 'manual' || effectiveSource === 'user_manual' || effectiveSource === 'nestjs' || effectiveSource === 'alpaca') return null
   const map: Record<string, { label: string; bg: string; color: string }> = {
     bot:       { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
     smart_executor: { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
     agent:     { label: 'الوكيل', bg: 'rgba(162,89,255,0.15)', color: '#A259FF' },
     auto_paper: { label: 'ورقي', bg: 'rgba(255,184,0,0.15)', color: '#FFB800' },
+    reconciliation: { label: 'تسوية', bg: 'rgba(48,209,88,0.15)', color: '#30D158' },
   }
-  return map[source] || null
+  return map[effectiveSource] || null
 }
 
 /* ─── Helpers ─── */
@@ -422,7 +425,10 @@ export default function MobilePositionsPage() {
         unrealizedPct: p.unrealizedPnlPct || 0,
         entryTime: p.openedAt ? new Date(p.openedAt).getTime() : Date.now(),
         strategy: 'real',
-        source: 'manual' as const,
+        // FIX: Use the actual tradeSource from the position data instead of
+        // hardcoding 'manual'. Previously, ALL mobile positions showed no source
+        // badge because getSourceBadge('manual') returned null.
+        source: ((p as any)?.tradeSource || (p as any)?.source || 'manual'),
       }))
   }, [positions])
 

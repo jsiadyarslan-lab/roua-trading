@@ -184,12 +184,12 @@ run_prisma generate --schema=./prisma/schema.prisma
 echo "📦 Applying Prisma schema..."
 DB_MIGRATE_OK=0
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-  if run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
+  if timeout 60 npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
     echo "✅ Migrations applied successfully"
     DB_MIGRATE_OK=1
   else
     echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-    if run_prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
+    if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
       echo "✅ db push succeeded as fallback"
       DB_MIGRATE_OK=1
     else
@@ -198,7 +198,7 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; t
     fi
   fi
 else
-  if run_prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
+  if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
     echo "✅ db push succeeded"
     DB_MIGRATE_OK=1
   else
@@ -211,7 +211,7 @@ fi
 # This ensures the agent can be started without manual intervention.
 # The value is ONLY set if it doesn't exist — existing values are respected.
 echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
-node -e "
+timeout 15 node -e "
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 prisma.setting.upsert({
@@ -221,8 +221,9 @@ prisma.setting.upsert({
 }).then(() => {
   console.log('✅ AUTO_TRADING_ENABLED seeded');
   return prisma.\$disconnect();
-}).catch(e => {
+}).then(() => process.exit(0)).catch(e => {
   console.log('⚠️ Could not seed AUTO_TRADING_ENABLED:', e.message);
+  process.exit(0);
 });
 " 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
 

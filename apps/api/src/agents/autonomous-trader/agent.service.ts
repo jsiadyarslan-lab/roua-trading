@@ -1417,28 +1417,44 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // FIX: Agent does NOT execute trades — it only ANALYZES.
-          // The Smart Executor (المنفذ الذكي) is the sole executor.
-          // The Agent (الوكيل) generates signals/decisions but does NOT
-          // call orderExecutor.execute(). This prevents the Agent and
-          // Smart Executor from racing to open positions on the same pair.
-          //
-          // Previous behavior: Agent called orderExecutor.execute() which
-          // opened positions — competing with the Smart Executor and
-          // causing duplicate trades, mislabeling, and user confusion.
-          //
-          // New behavior: Agent records its decision as a Signal in the DB
-          // for the Strategic Council to incorporate into TradingBriefs.
-          // The Smart Executor then executes the briefs.
+          // Agent EXECUTES trades for M30+ timeframes.
+          // The Smart Executor handles M1/M5/M15 (scalping/quick trades).
+          // The Agent handles M30/H1/H4/D1/W1 (short/medium/long trades).
+          // They DON'T race because they filter by different timeframes
+          // and ExposureManager prevents duplicate positions per symbol.
           // ═══════════════════════════════════════════════════════════════
           this.logger.log(
-            `🧠 Agent ${userId}: Signal generated — ${signal.action} ${signal.symbol} ` +
+            `🧠 Agent ${userId}: Executing signal — ${signal.action} ${signal.symbol} ` +
             `(confidence: ${signal.confidence}%, RR: ${signal.riskRewardRatio?.toFixed(2)}, ` +
-            `brief: ${brief.id}, timeframe: ${brief.timeframe}) — NOT executing (analyze-only mode)`,
+            `brief: ${brief.id}, timeframe: ${brief.timeframe})`,
           );
 
-          // Record the signal as a pending decision (not executed)
           signalsGenerated++;
+
+          // Execute the trade via OrderDispatcher (source: 'agent')
+          const execution = await this.orderExecutor.execute(
+            userId,
+            signal,
+            risk,
+            state.config.credentialId,
+          );
+
+          if (execution.success) {
+            signalsExecuted++;
+            state.dailyTradesCount++;
+            state.dailyPnL -= (execution.fee || 0);
+            this.logger.log(
+              `✅ Agent ${userId}: Trade executed — ${signal.action} ${signal.symbol} ` +
+              `@ ${execution.averagePrice?.toFixed(2)} (order: ${execution.orderId})`,
+            );
+          } else {
+            signalsRejected++;
+            rejectionReasons.push(`${brief.pair}: ${execution.error}`);
+            state.lastError = execution.error || 'فشل تنفيذ الصفقة';
+            this.logger.warn(
+              `⚠️ Agent ${userId}: Trade rejected — ${signal.action} ${signal.symbol}: ${execution.error}`,
+            );
+          }
 
           // Store the decision in Redis for dashboard display
           try {
@@ -1456,7 +1472,8 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 briefId: brief.id,
                 timeframe: brief.timeframe,
                 generatedAt: new Date().toISOString(),
-                status: 'SIGNAL_ONLY', // Not executed — just a recommendation
+                status: execution.success ? 'EXECUTED' : 'REJECTED',
+                orderId: execution.orderId,
               }),
               300, // 5 minutes TTL
             );
@@ -1548,14 +1565,40 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           }
 
           // ═══════════════════════════════════════════════════════════════
-          // FIX: Agent does NOT execute — analyze-only mode.
-          // Same as the Council path above: generate signal, don't execute.
-          // The Smart Executor is the sole executor.
+          // Agent EXECUTES trades for M30+ timeframes (fallback path).
+          // Same as Council path — the Agent executes, Smart Executor
+          // handles M1/M5/M15 scalping. No racing because different
+          // timeframes and ExposureManager prevents duplicate positions.
           // ═══════════════════════════════════════════════════════════════
           this.logger.log(
-            `🧠 Agent ${userId}: Fallback signal — ${signal.action} ${symbol} ` +
-            `(confidence: ${signal.confidence}%, strategy: ${signal.strategy}) — NOT executing (analyze-only mode)`,
+            `🧠 Agent ${userId}: Executing fallback signal — ${signal.action} ${symbol} ` +
+            `(confidence: ${signal.confidence}%, strategy: ${signal.strategy})`,
           );
+
+          // Execute the trade via OrderDispatcher (source: 'agent')
+          const execution = await this.orderExecutor.execute(
+            userId,
+            signal,
+            risk,
+            state.config.credentialId,
+          );
+
+          if (execution.success) {
+            signalsExecuted++;
+            state.dailyTradesCount++;
+            state.dailyPnL -= (execution.fee || 0);
+            this.logger.log(
+              `✅ Agent ${userId}: Fallback trade executed — ${signal.action} ${symbol} ` +
+              `@ ${execution.averagePrice?.toFixed(2)} (order: ${execution.orderId})`,
+            );
+          } else {
+            signalsRejected++;
+            rejectionReasons.push(`${symbol}: ${execution.error}`);
+            state.lastError = execution.error || 'فشل تنفيذ الصفقة';
+            this.logger.warn(
+              `⚠️ Agent ${userId}: Fallback trade rejected — ${signal.action} ${symbol}: ${execution.error}`,
+            );
+          }
 
           // Store the decision in Redis for dashboard display
           try {
@@ -1571,8 +1614,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 strategy: signal.strategy,
                 reasoning: signal.reasoning,
                 generatedAt: new Date().toISOString(),
-                status: 'SIGNAL_ONLY',
+                status: execution.success ? 'EXECUTED' : 'REJECTED',
                 source: 'self-analysis',
+                orderId: execution.orderId,
               }),
               300, // 5 minutes TTL
             );

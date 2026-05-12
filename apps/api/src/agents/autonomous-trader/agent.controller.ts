@@ -159,9 +159,16 @@ export class AutonomousTraderAgentController {
     }
 
     // Validate strategy — fallback to AUTO if invalid
-    const validStrategies = [StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
+    // FIX: SCALPING is NOT valid for the Agent — it belongs to the Smart Executor.
+    // The Agent handles M30+ timeframes (short/medium/long-term trades).
+    // The Smart Executor handles M1/M5/M15 (scalping/quick trades).
+    const validStrategies = [StrategyType.AUTO, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI];
     if (!dto.strategy || !validStrategies.includes(dto.strategy)) {
-      this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to AUTO`);
+      if (dto.strategy === StrategyType.SCALPING) {
+        this.logger.warn(`[startAgent] SCALPING is not valid for the Agent — use the Smart Executor instead. Defaulting to AUTO`);
+      } else {
+        this.logger.warn(`[startAgent] Invalid strategy "${dto.strategy}" — defaulting to AUTO`);
+      }
       dto.strategy = StrategyType.AUTO;
     }
 

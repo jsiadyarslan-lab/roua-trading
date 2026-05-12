@@ -252,7 +252,7 @@ export default function AutonomousTraderPage() {
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const config = agentState?.config
-  const strategy = config?.strategy ?? StrategyType.SCALPING
+  const strategy = config?.strategy ?? StrategyType.AUTO
   const hasCredential = !!selectedCredentialId && selectedCredentialId.trim() !== ''
   const isPaperTrading = config?.isPaperTrading ?? false
   const globalAutoTrading = systemStatus?.globalAutoTradingEnabled ?? true
@@ -413,7 +413,7 @@ export default function AutonomousTraderPage() {
             )}
             {(status === AgentStatus.STOPPED || status === AgentStatus.EMERGENCY_STOP || status === AgentStatus.PAUSED) && !isRunning && agentState && (
               <button
-                onClick={() => startAgent(config?.strategy ?? StrategyType.SCALPING)}
+                onClick={() => startAgent(config?.strategy ?? StrategyType.AUTO)}
                 disabled={loading}
                 style={{
                   ...btnStyle,
@@ -441,11 +441,11 @@ export default function AutonomousTraderPage() {
                   اختر استراتيجية التداول
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-                  {[StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI].map((s) => {
+                  {/* FIX: SCALPING removed — it belongs to the Smart Executor (المنفذ الذكي), not the Agent */}
+                  {[StrategyType.AUTO, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI].map((s) => {
                     const isActive = strategy === s
                     const accentMap: Record<StrategyType, string> = {
                       [StrategyType.AUTO]: '#FF9F43',
-                      [StrategyType.SCALPING]: '#00D4FF',
                       [StrategyType.SWING]: '#00FFA3',
                       [StrategyType.GRID]: '#B388FF',
                       [StrategyType.MEAN_REVERSION]: '#FFB800',
@@ -1388,7 +1388,7 @@ export default function AutonomousTraderPage() {
       maxDailyLossPercent: settings?.maxDailyLossPercent ?? config?.maxDailyLossPercent ?? 5,
       maxOpenPositions: settings?.maxOpenPositions ?? config?.maxOpenPositions ?? 5,
       riskPerTradePercent: settings?.riskPerTradePercent ?? config?.riskPerTradePercent ?? 1.5,
-      defaultStrategy: settings?.defaultStrategy ?? 'SCALPING',
+      defaultStrategy: settings?.defaultStrategy ?? 'AUTO',
       scalpingTimeframe: settings?.scalpingTimeframe ?? '5m',
       scalpingTakeProfitPips: settings?.scalpingTakeProfitPips ?? 15,
       scalpingStopLossPips: settings?.scalpingStopLossPips ?? 10,
@@ -1590,7 +1590,8 @@ export default function AutonomousTraderPage() {
                   <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الاستراتيجية الافتراضية</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[
-                      { value: 'SCALPING', label: 'سكالبينغ', icon: <Zap size={12} /> },
+                      // FIX: SCALPING removed — it belongs to the Smart Executor
+                      { value: 'AUTO', label: 'تلقائي', icon: <Brain size={12} /> },
                       { value: 'SWING', label: 'سوينغ', icon: <TrendingUp size={12} /> },
                       { value: 'GRID', label: 'شبكة', icon: <Layers size={12} /> },
                     ].map(s => (

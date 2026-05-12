@@ -331,7 +331,9 @@ export class StrategyParamsDto implements StrategyParams {
 }
 
 export class StartAgentDto {
-  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  // FIX: SCALPING removed — it belongs to the Smart Executor, not the Agent.
+  // The Agent handles M30+ timeframes (short/medium/long-term trades).
+  @IsIn(['AUTO', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -374,7 +376,8 @@ export class StartAgentDto {
 }
 
 export class ChangeStrategyDto {
-  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  // FIX: SCALPING removed — it belongs to the Smart Executor, not the Agent.
+  @IsIn(['AUTO', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   strategy: StrategyType;
 
   @IsOptional()
@@ -448,8 +451,9 @@ export class UpdateAgentSettingsDto {
   riskPerTradePercent?: number;
 
   // Default Strategy
+  // FIX: SCALPING removed — it belongs to the Smart Executor, not the Agent.
   @IsOptional()
-  @IsIn(['AUTO', 'SCALPING', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
+  @IsIn(['AUTO', 'SWING', 'GRID', 'MEAN_REVERSION', 'MOMENTUM_BREAKOUT', 'DCA', 'VWAP_RSI'])
   defaultStrategy?: string;
 
   // Scalping Params

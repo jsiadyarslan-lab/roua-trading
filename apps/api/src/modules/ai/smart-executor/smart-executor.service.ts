@@ -1703,44 +1703,26 @@ export class SmartExecutorService implements OnModuleDestroy {
    * is reached. This method is called on startup and during tick processing.
    */
   private async _autoCloseStalePaperPositions(): Promise<number> {
-    let closed = 0;
-    try {
-      const staleThreshold = new Date(Date.now() - 24 * 60 * 60 * 1000); // 24 hours ago
-      const stalePositions = await this.prisma.position.findMany({
-        where: {
-          status: 'OPEN',
-          exchange: 'paper-trading',
-          openedAt: { lt: staleThreshold },
-        },
-      });
-
-      for (const pos of stalePositions) {
-        try {
-          // FIX: Use TradingService.closePositionWithRetry() instead of
-          // direct prisma.position.update() — ensures all business logic
-          // (Trade/Order records, optimistic lock, audit log) is properly handled.
-          await this.tradingService.closePositionWithRetry(pos.userId, {
-            positionId: pos.id,
-          });
-
-          closed++;
-          this.logger.log(
-            `⚔️ Auto-closed stale paper position ${pos.symbol} (id: ${pos.id}, opened: ${pos.openedAt.toISOString()})`,
-          );
-        } catch (closeErr: any) {
-          // If the position is already closed, that's fine — count it as success
-          if (closeErr.message?.includes('already') || closeErr.message?.includes('ليس مفتوحاً') || closeErr.message?.includes('not open')) {
-            closed++;
-            this.logger.debug(`⚔️ Stale paper position ${pos.id} was already closed`);
-          } else {
-            this.logger.warn(`⚔️ Failed to close stale position ${pos.id}: ${closeErr.message}`);
-          }
-        }
-      }
-    } catch (error: any) {
-      this.logger.error(`⚔️ Failed to auto-close stale paper positions: ${error.message}`);
-    }
-    return closed;
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: DISABLED auto-closing of paper positions on startup.
+    // Previously, any paper position older than 24h was auto-closed
+    // on server restart. This caused paper trades to DISAPPEAR on
+    // page refresh because:
+    //   1. User opens paper trade → position in DB with status=OPEN
+    //   2. Server restarts (deploy, crash, etc.)
+    //   3. This function closes ALL paper positions > 24h
+    //   4. User refreshes page → API returns no position → DISAPPEARED
+    //
+    // Paper positions should only be closed when:
+    // - The user manually closes them
+    // - Stop-loss or take-profit is hit (monitored by _monitorOpenPositions)
+    // - The position's SL/TP monitoring detects the condition
+    //
+    // Do NOT auto-close based on age alone. A position that has been
+    // open for 48 hours with a valid SL/TP is a LEGITIMATE position.
+    // ═══════════════════════════════════════════════════════════════
+    this.logger.log('⚔️ Auto-close stale paper positions: DISABLED (positions kept until SL/TP hit or manual close)');
+    return 0;
   }
 
   private async _getPortfolioValue(userId: string): Promise<number> {

@@ -42,7 +42,8 @@ const STRATEGIES: Array<{
   tags: string[]
 }> = [
   { id: StrategyType.AUTO, icon: Brain, nameAr: 'تلقائي', desc: 'اختيار تلقائي لأفضل استراتيجية حسب ظروف السوق', color: '#FF9F43', tags: ['كشف النظام', 'تبديل ذكي', 'مُوصى به'] },
-  { id: StrategyType.SCALPING, icon: Zap, nameAr: 'سكالبينغ', desc: 'صفقات سريعة — أرباح صغيرة متكررة', color: C.accent, tags: ['فريم: 1m-5m', 'TP: 1.5x ATR', 'SL: 1x ATR'] },
+  // FIX: SCALPING removed from Agent — it belongs to the Smart Executor (المنفذ الذكي).
+  // The Agent handles M30+ timeframes. The Smart Executor handles M1/M5/M15 scalping.
   { id: StrategyType.SWING, icon: TrendingUp, nameAr: 'سوينغ', desc: 'صفقات متأرجحة — أرباح أكبر على مدى أيام', color: C.success, tags: ['فريم: 1h-4h', 'TP: 4x ATR', 'SL: 2x ATR'] },
   { id: StrategyType.GRID, icon: Layers, nameAr: 'شبكة', desc: 'شبكة أوامر — ربح من التذبذب', color: C.purple, tags: ['أوامر حدية', 'ربح من التذبذب', 'بدون اتجاه'] },
   { id: StrategyType.MEAN_REVERSION, icon: RotateCcw, nameAr: 'عودة للمتوسط', desc: 'العودة للمتوسط — نسبة فوز عالية', color: C.amber, tags: ['نسبة فوز: 60-70%', 'TP: عند المتوسط', 'SL: 2x ATR'] },

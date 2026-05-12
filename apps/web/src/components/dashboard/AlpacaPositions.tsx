@@ -45,7 +45,11 @@ function normalizeSide(side: string | undefined): 'long' | 'short' {
   const s = side.toUpperCase()
   if (s === 'LONG' || s === 'BUY') return 'long'
   if (s === 'SHORT' || s === 'SELL') return 'short'
-  return side === 'long' ? 'long' : 'short'
+  // FIX: Previously defaulted unknown values to 'short', causing ALL trades
+  // to show as "sell" (بيع) when side was an unexpected format. Now default to
+  // 'long' since that's the most common trade direction and matches the
+  // default when side is undefined.
+  return 'long'
 }
 
 /**
@@ -58,22 +62,23 @@ function getTradeSourceLabel(
   tradeSource?: string,
   exchange?: string,
 ): { label: string; color: string; bg: string; border: string } | null {
-  // Priority 1: Agent source (from paper trades or DB)
+  // Priority 1: Smart Executor source (check BEFORE agent to prevent mislabeling)
+  if (source === 'bot' || source === 'executor' || source === 'smart_executor'
+      || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {
+    return {
+      label: 'المنفذ',
+      color: T.cyan,
+      bg: 'rgba(0,212,255,0.12)',
+      border: 'rgba(0,212,255,0.20)',
+    }
+  }
+  // Priority 2: Agent source
   if (source === 'agent' || tradeSource === 'agent') {
     return {
       label: 'الوكيل',
       color: T.purple,
       bg: 'rgba(168,85,247,0.12)',
       border: 'rgba(168,85,247,0.20)',
-    }
-  }
-  // Priority 2: Executor/Smart Executor source
-  if (source === 'bot' || source === 'executor' || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {
-    return {
-      label: 'المنفذ',
-      color: T.cyan,
-      bg: 'rgba(0,212,255,0.12)',
-      border: 'rgba(0,212,255,0.20)',
     }
   }
   // Priority 3: Paper trading (from exchange name or isPaper flag)
@@ -160,8 +165,13 @@ export function AlpacaPositions() {
     if (seenSymbols.has(key)) continue
     seenSymbols.add(key)
 
-    // Use the actual source from the DB if available, fallback to 'agent'
-    const actualSource = (ap as any)?.source || 'agent'
+    // FIX: Don't default to 'agent' — check multiple fields to determine the
+    // actual source. The agent store may contain positions from the smart executor
+    // if they share the same DB query. Check source, then tradeSource, then only
+    // fall back to 'agent' if the position was genuinely created by the agent.
+    const actualSource = (ap as any)?.source
+      || (ap as any)?.tradeSource
+      || 'agent'
 
     allPositions.push({
       symbol: ap.symbol,

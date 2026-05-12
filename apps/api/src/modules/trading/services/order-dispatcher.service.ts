@@ -1,30 +1,12 @@
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Roua Trading — Order Dispatcher Service v3
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-//
-// المرحلة 2: تبسيط البنية
-// الأوامر الآلية → ExchangeGateway مباشرة (بدون BullMQ)
-// BullMQ يبقى للتنفيذ اليدوي فقط
-//
-// المسار الجديد:
-//   SmartExecutor / Agent
-//       → OrderDispatcher
-//       → IdempotencyService
-//       → RiskGatekeeperService
-//       → OrderStateManager (PENDING)
-//       → ExecutionGatewayService (مباشرة)
-//       → BinanceAdapter / PaperTradingAdapter
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { IdempotencyService } from './idempotency.service';
 import { RiskGatekeeperService } from './risk-gatekeeper.service';
 import { OrderStateManagerService } from './order-state-manager.service';
-import { ExecutionGatewayService } from '../../execution/gateways/execution-gateway.service';
-import { OrderCommand, OrderSideEnum, OrderTypeEnum } from '../events/order.events';
+import { TradingService } from '../trading.service';
 import { OrderSide, OrderType } from '@prisma/client';
+import { OrderCommand } from '../events/order.events';
 import * as crypto from 'crypto';
 
 export interface AutoOrderRequest {
@@ -59,42 +41,33 @@ export class OrderDispatcherService {
     private readonly idempotency: IdempotencyService,
     private readonly riskGatekeeper: RiskGatekeeperService,
     private readonly stateManager: OrderStateManagerService,
-    private readonly executionGateway: ExecutionGatewayService,
-  ) {
-    this.logger.log('🚦 OrderDispatcher v3 — direct ExchangeGateway (no BullMQ)');
-  }
+    private readonly tradingService: TradingService,
+  ) {}
 
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
-    const start = Date.now();
     const briefRef = request.briefId || request.signalId || 'manual';
-
-    // ── 1. Idempotency key (content-based, not time-based) ──
     const contentKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
     const idempotencyKey = crypto.createHash('sha256').update(contentKey).digest('hex').slice(0, 32);
 
-    // ── 2. منع تكرار نفس الأمر ──
     const isUnique = await this.idempotency.checkAndLock(idempotencyKey);
     if (!isUnique) {
       return { success: false, message: `أمر مكرر — ${request.symbol} ${request.side}` };
     }
 
     try {
-      // ── 3. stop-loss إجباري ──
       if (!request.stopLoss || request.stopLoss <= 0) {
         await this.idempotency.releaseLock(idempotencyKey);
-        return { success: false, error: `وقف الخسارة إجباري — رُفض من ${request.source}` };
+        return { success: false, error: `وقف الخسارة إجباري` };
       }
 
-      // ── 4. منع صفقة مكررة على نفس الزوج ──
-      const existingPosition = await this.prisma.position.findFirst({
+      const existing = await this.prisma.position.findFirst({
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
       });
-      if (existingPosition) {
+      if (existing) {
         await this.idempotency.releaseLock(idempotencyKey);
         return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
       }
 
-      // ── 5. حارس المخاطر ──
       const command: OrderCommand = {
         userId: request.userId,
         exchangeCredentialId: request.credentialId,
@@ -115,64 +88,35 @@ export class OrderDispatcherService {
         return { success: false, error: `مرفوض: ${riskCheck.reason}` };
       }
 
-      // ── 6. إنشاء Order في DB ──
-      const order = await this.stateManager.createOrder(command);
-      await this.stateManager.updateOrderStatus(order.id, 'ACCEPTED');
-
-      // ── 7. التنفيذ المباشر عبر ExchangeGateway (لا BullMQ) ──
-      const execResult = await this.executionGateway.placeOrder(request.userId, {
-        id: order.id,
-        userId: request.userId,
-        exchangeCredentialId: request.credentialId,
+      const result = await this.tradingService.placeOrder(request.userId, {
+        credentialId: request.credentialId,
         symbol: request.symbol,
-        side: request.side as any,
+        side: request.side === 'BUY' ? 'BUY' as any : 'SELL' as any,
         type: 'MARKET' as any,
         quantity: request.quantity,
         price: request.price,
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
-        clientOrderId: command.clientOrderId,
-        idempotencyKey,
+        source: request.source as any,
       });
 
-      if (execResult.success) {
-        await this.stateManager.updateOrderStatus(order.id, 'FILLED', {
-          exchangeOrderId: execResult.exchangeOrderId,
-          filledQty: request.quantity,
-          avgPrice: execResult.averagePrice,
-        });
+      this.logger.log(`✅ [${request.source}] ${request.symbol} ${request.side} | orderId: ${result?.id}`);
+      return { success: true, orderId: result?.id || 'unknown' };
 
-        const elapsed = Date.now() - start;
-        this.logger.log(
-          `✅ [${request.source}] ${request.symbol} ${request.side} ` +
-          `| orderId: ${order.id} | ${elapsed}ms`,
-        );
-        return { success: true, orderId: order.id };
-      } else {
-        await this.stateManager.updateOrderStatus(order.id, 'REJECTED', {
-          reason: execResult.error,
-        });
-        return { success: false, error: execResult.error };
-      }
     } catch (err: any) {
-      this.logger.error(`[Dispatcher] Error: ${err.message}`);
+      this.logger.error(`[Dispatcher] ${err.message}`);
       try { await this.idempotency.releaseLock(idempotencyKey); } catch {}
       return { success: false, error: err.message };
     }
   }
 
-  async getActiveOrders(userId: string, source?: string): Promise<any[]> {
+  async getActiveOrders(userId: string): Promise<any[]> {
     try {
-      const where: any = { userId, status: { in: ['PENDING', 'ACCEPTED', 'SENT_TO_EXCHANGE'] } };
-      if (source) where.clientOrderId = { startsWith: source };
-      return await this.prisma.order.findMany({ where, orderBy: { createdAt: 'desc' }, take: 50 });
+      return await this.prisma.order.findMany({
+        where: { userId, status: { in: ['PENDING', 'ACCEPTED'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 50,
+      });
     } catch { return []; }
-  }
-
-  async cancelOrder(orderId: string, userId: string): Promise<boolean> {
-    try {
-      await this.stateManager.updateOrderStatus(orderId, 'CANCELLED', { reason: 'إلغاء يدوي' });
-      return true;
-    } catch { return false; }
   }
 }

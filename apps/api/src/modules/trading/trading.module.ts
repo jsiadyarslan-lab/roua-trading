@@ -9,7 +9,6 @@ import { PortfolioModule } from '../portfolio/portfolio.module';
 import { AnalyticsModule } from '../analytics/analytics.module';
 import { AuditModule } from '../../audit/audit.module';
 import { NotificationModule } from '../notification/notification.module';
-import { ExecutionModule } from '../execution/execution.module';
 
 // New Trading Engine Services
 import { OrderController } from './controllers/order.controller';
@@ -69,7 +68,6 @@ import { ExposureManagerService } from './services/exposure-manager.service';
     // (retries, backoff, TTL). TradingModule no longer registers the queue separately
     // to avoid double-registration conflicts that can crash NestJS on startup.
     // OrderController uses @Optional() @InjectQueue for graceful degradation.
-    ExecutionModule,
   ],
   controllers: [TradingController, OrderController],
   providers: [

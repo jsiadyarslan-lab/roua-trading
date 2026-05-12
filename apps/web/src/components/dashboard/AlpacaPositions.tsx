@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
@@ -233,13 +234,9 @@ export function AlpacaPositions() {
   useEffect(() => {
     fetchPositions()
     fetchAccount()
-    // Poll every 30s — GlobalLogicEngine also polls, no need for 10s here
-    const interval = setInterval(() => {
-      fetchPositions()
-      fetchAccount()
-    }, 30000)
-    return () => clearInterval(interval)
   }, [fetchPositions, fetchAccount])
+  // Poll every 30s — pauses when tab hidden
+  useVisibleInterval(() => { fetchPositions(); fetchAccount() }, 30000)
 
   const closePosition = async (pos: typeof allPositions[0]) => {
     const id = pos.id

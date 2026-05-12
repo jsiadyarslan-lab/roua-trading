@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { RefreshCw, Layers, Activity } from 'lucide-react'
@@ -85,9 +86,11 @@ export function MultiTfScannerMini() {
     }
 
     fetchData()
-    const iv = setInterval(fetchData, 60000)
-    return () => { mounted = false; clearInterval(iv) }
+    return () => { mounted = false }
   }, [selectedSymbol])
+
+  // Poll every 60s — pauses when tab hidden
+  useVisibleInterval(fetchData, 60000)
 
   // Countdown timer
   useEffect(() => {

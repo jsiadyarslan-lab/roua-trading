@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, Layers, AlertCircle, Cpu, Wifi, WifiOff, Heart, Activity } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
@@ -93,12 +94,10 @@ export function AICouncilPanel() {
     }
   }, [])
 
-  // Initial keep-alive ping + periodic every 5 min
-  useEffect(() => {
-    pingKeepAlive()
-    const interval = setInterval(pingKeepAlive, 5 * 60 * 1000)
-    return () => clearInterval(interval)
-  }, [pingKeepAlive])
+  // Initial keep-alive ping
+  useEffect(() => { pingKeepAlive() }, [pingKeepAlive])
+  // Periodic every 5 min — pauses when tab hidden
+  useVisibleInterval(pingKeepAlive, 5 * 60 * 1000)
 
   const fetchConsensus = useCallback(async () => {
     setLoading(true)

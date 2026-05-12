@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { binanceWS, useMarketStore } from '@/hooks/useMarketStore'
 import { useDashboardStore } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -127,13 +128,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
       fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS)
     }
     pollNonCrypto()
-    const pollInterval = setInterval(pollNonCrypto, 600_000)
-
     return () => {
-      clearInterval(pollInterval)
       WS_CRYPTO_SYMBOLS.forEach(sym => binanceWS.unsubscribe(sym))
     }
   }, [])
+
+  // Poll non-crypto every 10 min — pauses when tab hidden
+  useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 600_000)
 
   return (
     <>

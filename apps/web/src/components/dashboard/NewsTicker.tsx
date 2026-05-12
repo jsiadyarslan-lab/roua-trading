@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 
 interface NewsItem {
   category: string
@@ -62,10 +63,12 @@ export default function NewsTicker() {
       }
     }
     fetchNews()
-    // Auto-refresh news every 5 minutes
-    const refreshInterval = setInterval(fetchNews, 5 * 60 * 1000)
-    return () => clearInterval(refreshInterval)
+    return
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Auto-refresh news every 5 min — pauses when tab hidden
+  useVisibleInterval(fetchNews, 5 * 60 * 1000)
 
   useEffect(() => {
     if (tickerRef.current) {

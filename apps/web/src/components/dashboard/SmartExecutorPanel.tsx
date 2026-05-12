@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { getPnlColor } from '@/lib/unified-tokens'
 
 const T = {
@@ -128,16 +128,12 @@ export function SmartExecutorPanel() {
     }
   }, [])
 
-  // Poll every 10 seconds
   useEffect(() => {
     fetchUserState()
     fetchPositions()
-    const interval = setInterval(() => {
-      fetchUserState()
-      fetchPositions()
-    }, 10000)
-    return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
+  // Poll every 10s — pauses when tab hidden
+  useVisibleInterval(() => { fetchUserState(); fetchPositions() }, 10000)
 
   // Symbol Monitoring Animation (Visual Only) — paused when tab hidden
   useEffect(() => {

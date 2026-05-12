@@ -13,7 +13,6 @@ import { ExchangeModule } from '../exchange/exchange.module';
 import { AiModule } from '../ai/ai.module';
 import { AuditModule } from '../../audit/audit.module';
 import { PerformanceTrackerService } from '../analytics/services/performance-tracker.service';
-import { ScheduleModule } from '@nestjs/schedule';
 
 /**
  * NeuralModule — AI-Powered Trading Lab
@@ -40,7 +39,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 @Module({
   imports: [
     PrismaModule,
-    ScheduleModule.forRoot(),
+    // NOTE: ScheduleModule.forRoot() is already called in AppModule — do NOT duplicate here
     RedisModule,
     ExchangeModule,
     AiModule,

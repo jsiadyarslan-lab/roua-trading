@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 
 const T = {
   bg: '#0B0E14',
@@ -165,12 +166,11 @@ export function StrategicCouncilPanel() {
       })
       .catch(() => { /* ignore — will retry on next poll */ })
 
-    const interval = setInterval(() => {
-      fetchActiveBriefs()
-      fetchLastSession()
-    }, 15000)
-    return () => clearInterval(interval)
-  }, [fetchActiveBriefs, fetchLastSession])
+    fetchActiveBriefs()
+    fetchLastSession()
+  }, [])
+  // Poll every 15s — pauses when tab hidden
+  useVisibleInterval(() => { fetchActiveBriefs(); fetchLastSession() }, 15000)
 
   const triggerSession = async () => {
     setTriggerLoading(true)

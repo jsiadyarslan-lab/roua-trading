@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useVisibleInterval } from '@/hooks/useVisibleInterval';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { useTabAlertStore } from '@/hooks/useTabAlertStore';
 import { formatFreshness } from '@/lib/dashboard-live';
@@ -117,11 +118,9 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
     }
   }, [activeSymbol]);
 
-  useEffect(() => {
-    void doScan();
-    const iv = setInterval(() => { void doScan(); }, 60000);
-    return () => clearInterval(iv);
-  }, [doScan, activeSymbol]);
+  useEffect(() => { void doScan(); }, [doScan, activeSymbol]);
+  // Poll every 60s — pauses when tab hidden
+  useVisibleInterval(() => { void doScan(); }, 60000);
 
   useEffect(() => {
     setCountdown(60)

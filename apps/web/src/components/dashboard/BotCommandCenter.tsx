@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Play, Pause, ShieldAlert, Zap, Settings2, RefreshCw, Layers, CheckCircle, Cpu } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
@@ -88,11 +89,9 @@ export function BotCommandCenter() {
     }
   }, [])
 
-  useEffect(() => {
-    fetchSignals()
-    const int = setInterval(fetchSignals, 30000)
-    return () => clearInterval(int)
-  }, [fetchSignals])
+  useEffect(() => { fetchSignals() }, [fetchSignals])
+  // Poll every 30s — pauses when tab hidden
+  useVisibleInterval(fetchSignals, 30000)
 
   useEffect(() => {
     countdownRef.current = setInterval(() => {

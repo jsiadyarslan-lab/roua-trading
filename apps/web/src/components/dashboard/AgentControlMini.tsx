@@ -9,6 +9,7 @@ import {
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { getPnlColor, getPnlSign } from '@/lib/unified-tokens'
 
 /* ═══════════════════════════════════════════════
@@ -166,11 +167,9 @@ export function AgentControlMini() {
     fetchCredentials()
     fetchPositions()
     fetchPerformance()
-    
-    const interval = setInterval(() => {
-      fetchStatus()
-      fetchPositions()
-    }, 15000)
+  }, [])
+  // Poll every 15s — pauses when tab hidden
+  useVisibleInterval(() => { fetchStatus(); fetchPositions() }, 15000)
 
     // Visual-only eval symbol animation — paused when tab hidden
     let evalIntervalId: ReturnType<typeof setInterval> | null = null

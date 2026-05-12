@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
@@ -35,6 +36,7 @@ export function GlobalLogicEngine() {
   // Only updates currentPrice in existing positions — does NOT replace the array.
   useEffect(() => {
     const syncInterval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return
       const now = Date.now()
       const quotes = useMarketStore.getState().quotes
       const realPositions = usePositionsStore.getState().positions
@@ -81,6 +83,7 @@ export function GlobalLogicEngine() {
     }
 
     const iv = setInterval(() => {
+      if (document.visibilityState === 'hidden') return
       const now = Date.now()
 
       // Re-evaluate active state periodically

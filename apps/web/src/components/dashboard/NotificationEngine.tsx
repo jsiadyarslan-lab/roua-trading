@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -203,9 +204,12 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    const iv = setInterval(fetchAiAlert, 60_000)
-    return () => clearInterval(iv)
-  }, [hydrated, settings.aiAlerts, settings.minConfidence, addNotification, selectedSymbol])
+    fetchAiAlert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, settings.aiAlerts])
+
+  // Poll AI alerts every 60s — pauses when tab hidden
+  useVisibleInterval(fetchAiAlert, 60_000)
 
   // ── 3. مراقبة السكانر كل 5 دقائق ──────────────────────────
   useEffect(() => {
@@ -237,9 +241,12 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       } catch {}
     }
 
-    const iv = setInterval(fetchScanAlert, 60_000)
-    return () => clearInterval(iv)
-  }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
+    fetchScanAlert()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, settings.scannerAlerts])
+
+  // Poll scanner alerts every 60s — pauses when tab hidden
+  useVisibleInterval(fetchScanAlert, 60_000)
 
   // ── 4. مراقبة تغيرات حادة في أسعار السوق ─────────────────
   useEffect(() => {
@@ -247,6 +254,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
 
     let lastTradeAlerts: Record<string, number> = {}
     const iv = setInterval(() => {
+      if (document.visibilityState === 'hidden') return
       const currentQuotes = quotesRef.current
       currentQuotes.forEach((q, symbol) => {
         const change = Math.abs(q.changePercent || 0)

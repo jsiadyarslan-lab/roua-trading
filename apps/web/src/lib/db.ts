@@ -245,57 +245,50 @@ async function runSchemaMigrations(): Promise<void> {
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
-  const MAX_RETRIES = 5
+  const MAX_RETRIES = 10 // Increased from 5 to handle slow Railway cold starts
   const dbUrl = process.env.DATABASE_URL || '(not set)'
 
-  console.log(`[db] ensureDbReady() called — DATABASE_URL prefix: ${dbUrl.substring(0, 35)}...`)
+  console.log(`[db] ensureDbReady() starting — Retries: ${MAX_RETRIES}, URL prefix: ${dbUrl.substring(0, 35)}...`)
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // Explicitly connect before querying — this establishes the connection
-      // pool instead of relying on lazy connection which can fail silently
+      // 1. Establish connection
       await db.$connect()
 
-      // FIX: Run migrations only on the FIRST successful connection attempt.
-      // Previously, migrations ran on EVERY retry, wasting 5-10s per attempt
-      // executing 30+ ALTER/CREATE statements that likely already succeeded.
+      // 2. Run migrations if needed (only once per process)
       if (!globalForPrisma.schemaMigrated) {
+        console.log(`[db] Running safety-net migrations (Attempt ${attempt + 1})...`)
         await runSchemaMigrations()
       }
 
-      // Verify by querying the User table (core table for auth)
+      // 3. Verify core table access
       await db.user.findFirst()
 
       globalForPrisma.dbInitialized = true
       globalForPrisma.dbInitError = undefined
-      console.log('[db] Database connection established and verified')
+      console.log('[db] Database successfully initialized and verified.')
       return true
     } catch (error: any) {
-      const message = error?.message || 'Database is not ready'
-      const code = error?.code || '(no code)'
+      const message = error?.message || 'Unknown database error'
+      const code = error?.code || 'NO_CODE'
       globalForPrisma.dbInitError = `[${code}] ${message}`
 
-      if (message.includes('does not exist') || message.includes('no such table')) {
-        console.error('[db] User table not found — Prisma schema may not be applied:', message)
-        // Table doesn't exist — retrying won't help, break early
-        return false
+      // Specific handling for "Table not found" — usually means db push didn't run yet
+      if (message.includes('does not exist') || message.includes('P2021')) {
+        console.warn(`[db] Table missing (Attempt ${attempt + 1}). This is expected if migrations are still running.`)
+      } else {
+        console.error(`[db] Connection attempt ${attempt + 1} failed: [${code}] ${message.substring(0, 200)}`)
       }
 
-      console.error(
-        `[db] Database readiness check failed (attempt ${attempt + 1}/${MAX_RETRIES}):`,
-        `[${code}] ${message}`,
-      )
-
       if (attempt < MAX_RETRIES - 1) {
-        // Exponential backoff: 2s, 4s, 6s, 8s, 10s
-        const delay = 2000 * (attempt + 1)
-        console.log(`[db] Retrying in ${delay}ms...`)
+        // Incremental delay: 1s, 2s, 3s, ... 10s (Total ~55s)
+        const delay = 1000 * (attempt + 1)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
   }
 
-  console.error('[db] All connection attempts failed — DB is unavailable')
+  console.error('[db] CRITICAL: Database initialization failed after all retries.')
   return false
 }
 

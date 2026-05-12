@@ -4,6 +4,8 @@ import { getPublicOrigin } from '@/lib/origin'
 import { createSessionSafely } from '@/lib/session-create'
 import crypto from 'crypto'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/callback/google — Google OAuth callback
  *
@@ -134,7 +136,9 @@ export async function GET(request: NextRequest) {
 
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      console.error('[auth/callback/google] Database not ready')
+      const { getDbInitError } = await import('@/lib/db')
+      const lastError = getDbInitError()
+      console.error(`[auth/callback/google] Database initialization failed. Last error: ${lastError}`)
       return NextResponse.redirect(new URL('/login?error=db_unavailable', getPublicOrigin(request)))
     }
 

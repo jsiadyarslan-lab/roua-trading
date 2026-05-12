@@ -159,9 +159,10 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # as healthy within seconds. All other setup runs after.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ACTUAL_WEB_PORT=${PORT:-3000}
-echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT) FIRST — before all other setup..."
+echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT) FIRST..."
 cd apps/web
-run_web_start > /tmp/next-startup.log 2>&1 &
+# FIX: Pipe logs to stdout so they appear in Railway logs
+run_web_start 2>&1 &
 WEB_PID=$!
 cd "$PROJECT_ROOT"
 
@@ -241,16 +242,16 @@ echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
 cd apps/api
 
 if [ -d "dist" ]; then
-  node dist/main > /tmp/nestjs-startup.log 2>&1 &
+  # FIX: Pipe logs to stdout so they appear in Railway logs
+  node dist/main 2>&1 &
   API_PID=$!
-  echo "📋 NestJS started from dist/ (PID: $API_PID, logs: /tmp/nestjs-startup.log)"
+  echo "📋 NestJS started from dist/ (PID: $API_PID)"
 
   # Check if the process crashed within 10 seconds (increased from 3 — module
   # initialization with many providers can take 5-8 seconds on Railway)
   sleep 10
   if ! kill -0 $API_PID 2>/dev/null; then
-    echo "❌ NestJS CRASHED within 10 seconds! Full startup log:"
-    cat /tmp/nestjs-startup.log 2>/dev/null || echo "(no log output)"
+    echo "❌ NestJS CRASHED within 10 seconds!"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "❌ Common causes:"
     echo "   1. Dependency injection error (check module imports)"
@@ -262,12 +263,11 @@ if [ -d "dist" ]; then
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "🔄 Restarting NestJS in 5 seconds (attempt 2)..."
     sleep 5
-    node dist/main > /tmp/nestjs-startup-retry.log 2>&1 &
+    node dist/main 2>&1 &
     API_PID=$!
     sleep 10
     if ! kill -0 $API_PID 2>/dev/null; then
-      echo "❌ NestJS CRASHED again on retry! Full retry log:"
-      cat /tmp/nestjs-startup-retry.log 2>/dev/null || echo "(no log output)"
+      echo "❌ NestJS CRASHED again on retry!"
       echo "❌ Giving up — the site will show 502 errors for all API endpoints"
     else
       echo "✅ NestJS started successfully on retry (PID: $API_PID)"

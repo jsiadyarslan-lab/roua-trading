@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getPublicOrigin } from '@/lib/origin'
 
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/auth/signin/google — Initiate Google OAuth flow
  *

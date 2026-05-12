@@ -46,8 +46,8 @@ export function SidebarContentPanel({
         }
       `)
   const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
-  const quotes = useMarketStore((s) => s.quotes)
-  const activeQuote = selectedSymbol ? quotes[selectedSymbol] : null
+  // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
+  const activeQuote = useMarketStore((s) => selectedSymbol ? s.quotes[selectedSymbol] : null)
   const quoteStatus = getDataStatus(activeQuote)
   const sourceLabel = getSourceLabel(activeQuote?.source)
 

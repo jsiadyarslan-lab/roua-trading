@@ -64,9 +64,9 @@ export function QuickExecutionMini({
   const [pendingAction, setPendingAction] = useState<'buy' | 'sell' | null>(null)
   const [executionState, setExecutionState] = useState<ExecutionState>('idle')
 
-  // Live price from market store for risk calculations
-  const globalQuotes = useMarketStore(state => state.quotes)
-  const currentPrice = globalQuotes[localSymbol]?.price ?? 0
+  // Only subscribe to the current symbol's quote — prevents re-renders from other symbol updates
+  const currentQuote = useMarketStore(state => state.quotes[localSymbol])
+  const currentPrice = currentQuote?.price ?? 0
 
   // Risk Calculator: auto-compute position size
   const riskAmount = account?.cash ? (account.cash * (parseFloat(riskPct) / 100)) : 0

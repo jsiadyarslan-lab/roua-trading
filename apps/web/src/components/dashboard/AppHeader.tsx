@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 import { getPortalRoot } from '@/lib/portal-root'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useShallow } from 'zustand/react/shallow'
 
 /**
  * SafeLink — Navigation wrapper that guarantees page transitions work.
@@ -350,7 +351,16 @@ const SYMBOLS = [
 ]
 
 function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
-  const globalQuotes = useMarketStore(state => state.quotes)
+  // Only subscribe to quotes for header symbols — prevents re-renders from unrelated symbol updates
+  const globalQuotes = useMarketStore(
+    useShallow((state) => {
+      const result: Record<string, (typeof state.quotes)[string]> = {}
+      for (const s of SYMBOLS) {
+        if (state.quotes[s]) result[s] = state.quotes[s]
+      }
+      return result
+    })
+  )
   const quotes = new Map(SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
 
@@ -1241,12 +1251,13 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
 
 /* ─── Dynamic Header Status LED ─── */
 function HeaderStatusLED() {
-  const quotes = useMarketStore((s) => s.quotes)
-  // Check if we have ANY live quote data
-  const quoteEntries = Object.values(quotes)
-  const hasLive = quoteEntries.length > 0 && quoteEntries.some(q => {
-    const age = Date.now() - new Date(q.timestamp).getTime()
-    return age < 120000 // Less than 2 minutes old
+  // Derived boolean selector — only re-renders when live status actually changes
+  const hasLive = useMarketStore((state) => {
+    const entries = Object.values(state.quotes)
+    return entries.length > 0 && entries.some(q => {
+      const age = Date.now() - new Date(q.timestamp).getTime()
+      return age < 120000
+    })
   })
   
   const color = hasLive ? 'var(--success)' : T.amber
@@ -1373,6 +1384,9 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
   )
 }
 
+/* ─── Symbols used by AppHeader's market state orb ─── */
+const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
+
 /* ══ Root export ══ */
 export function AppHeader() {
   useScopedStyle(KF)
@@ -1387,8 +1401,16 @@ export function AppHeader() {
 
   const authLogout = useAuthStore(state => state.logout)
 
-  const globalQuotes = useMarketStore(state => state.quotes)
-  const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
+  // Only subscribe to ORBS symbol quotes — prevents re-renders from other symbol updates
+  const globalQuotes = useMarketStore(
+    useShallow((state) => {
+      const result: Record<string, (typeof state.quotes)[string]> = {}
+      for (const s of ORBS) {
+        if (state.quotes[s]) result[s] = state.quotes[s]
+      }
+      return result
+    })
+  )
   const quotes = new Map(ORBS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
 
   const marketState: MarketState = (() => {

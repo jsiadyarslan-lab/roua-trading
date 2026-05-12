@@ -280,6 +280,31 @@ export class AiUsageLoggerService {
   }
 
   /**
+   * FIX: Get monthly spend for a specific provider.
+   * Used by the Bedrock budget guard in AIOrchestratorService.
+   * Returns total costUsd for the given provider this month.
+   */
+  async getMonthlySpendForProvider(provider: string): Promise<number> {
+    try {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const result = await this.prisma.aiUsageLog.aggregate({
+        where: {
+          provider,
+          createdAt: { gte: monthStart },
+        },
+        _sum: { costUsd: true },
+      });
+
+      return result._sum.costUsd?.toNumber() ?? 0;
+    } catch {
+      // DB unavailable — return 0 to allow calls (fail open)
+      return 0;
+    }
+  }
+
+  /**
    * Force flush all pending entries (call on shutdown)
    */
   async onModuleDestroy(): Promise<void> {

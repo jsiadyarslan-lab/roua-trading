@@ -70,8 +70,10 @@
   padding: 0.8rem 0;
   border-top: 1px solid var(--glass-border);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   overflow: hidden;
   contain: paint;
+  will-change: transform;
 }
 .landing-page .live-signals-track {
   display: flex;
@@ -128,7 +130,9 @@
   align-items: center;
   background: linear-gradient(to bottom, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, transparent 100%);
   backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   transition: all 0.4s;
+  contain: layout paint;
 }
 .landing-page .nav.scrolled {
   background: rgba(0,0,0,0.92);
@@ -264,8 +268,10 @@
   color: var(--light-blue);
   margin-bottom: 3rem;
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   font-weight: 500;
   animation: float 6s ease-in-out infinite;
+  contain: layout paint;
 }
 @keyframes float {
   0%, 100% { transform: translateY(0); }
@@ -392,7 +398,9 @@
   justify-content: space-between;
   gap: 2rem;
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   flex-wrap: wrap;
+  contain: layout paint;
 }
 .landing-page .countdown-label {
   display: flex;
@@ -464,6 +472,8 @@
   border-radius: 50px;
   background: var(--glass);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  contain: layout paint;
 }
 .landing-page .section-title {
   font-family: var(--font-noto-naskh, 'Noto Naskh Arabic'), serif;
@@ -505,8 +515,10 @@
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transform-style: preserve-3d;
   will-change: transform;
+  contain: layout paint;
 }
 .landing-page .model-card::before {
   content: '';
@@ -639,8 +651,10 @@
   overflow: hidden;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   transform-style: preserve-3d;
   will-change: transform;
+  contain: layout paint;
 }
 .landing-page .feature-card::before {
   content: '';
@@ -830,6 +844,8 @@
   position: relative;
   transition: all 0.4s;
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  contain: layout paint;
 }
 .landing-page .testimonial-card:hover {
   border-color: rgba(125, 211, 252, 0.12);
@@ -1053,7 +1069,9 @@
   border-radius: 24px;
   padding: 1.8rem;
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   max-width: 320px;
+  contain: layout paint;
   display: none;
   box-shadow: 0 25px 80px rgba(0,0,0,0.9);
 }
@@ -1082,6 +1100,23 @@
 .landing-page .fade-in.visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* ===== REDUCED MOTION — Accessibility & Performance ===== */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page .market-pulse,
+  .landing-page .live-signals-track,
+  .landing-page .signal-star,
+  .landing-page .hero-badge,
+  .landing-page .pulse-dot,
+  .landing-page .cursor-blink,
+  .landing-page .countdown-banner .alert-dot,
+  .landing-page .ticker-track,
+  .landing-page .step-number::after,
+  .landing-page .accretion-disk,
+  .landing-page .accretion-inner {
+    animation: none !important;
+  }
 }
 
 /* ===== MOBILE ===== */

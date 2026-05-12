@@ -174,17 +174,30 @@ export class AIOrchestratorService implements OnModuleDestroy {
    *
    * FIX: Bedrock now uses Nova Micro (cheapest) instead of Claude 3.5 Sonnet
    * (most expensive). This reduces Bedrock costs by ~85x while maintaining quality.
-   * Bedrock is still primary for risk_analysis (enterprise-grade) but cheaper.
+   *
+   * FIX: Bedrock budget guard — Bedrock budget was at 97.9% ($97.87/$100).
+   * Moved Bedrock from primary for risk_analysis → last fallback in ALL routes.
+   * This ensures Bedrock is only used when all free/cheaper models fail.
+   * Gemini (with budget $50) takes over as primary for risk_analysis.
+   * A runtime budget guard in _callModel() also blocks Bedrock calls when
+   * the monthly budget is exceeded.
    */
   private readonly ROUTING: Record<string, { primary: string; fallback: string[] }> = {
-    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
-    market_analysis:  { primary: 'gemini',     fallback: ['bedrock', 'cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia'] },
-    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'bedrock', 'ollama', 'mistral', 'nvidia', 'glm'] },
-    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'bedrock', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia'] },
-    risk_analysis:    { primary: 'bedrock',    fallback: ['gemini', 'glm', 'cerebras', 'ollama', 'groq', 'mistral', 'nvidia'] },
-    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
-    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'bedrock', 'glm', 'mistral', 'nvidia'] },
+    sentiment:        { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    market_analysis:  { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    prediction:       { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'mistral', 'nvidia', 'glm', 'bedrock'] },
+    signal_generation:{ primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    risk_analysis:    { primary: 'gemini',     fallback: ['cerebras', 'groq', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    translation:      { primary: 'groq',       fallback: ['cerebras', 'gemini', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
+    general:          { primary: 'gemini',     fallback: ['groq', 'cerebras', 'ollama', 'glm', 'mistral', 'nvidia', 'bedrock'] },
   };
+
+  /** Bedrock monthly budget guard — blocks Bedrock calls when budget exceeded
+   *  Tracked via AiUsageLogger. Reset manually each month or automatically on 1st.
+   */
+  private readonly BEDROCK_MONTHLY_BUDGET_USD = 100;
+  private bedrockMonthlySpend = 0;
+  private bedrockBudgetLastChecked = 0; // timestamp of last budget check
 
   constructor(
     private readonly configService: ConfigService,
@@ -1469,6 +1482,17 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
   // ── Private: Model Routing ──
   private async _callModel(model: string, request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    // FIX: Bedrock budget guard — skip Bedrock entirely when monthly budget exceeded.
+    // This prevents the $100/month Bedrock budget from being consumed beyond its limit.
+    // Budget is refreshed by querying AiUsageLog (every 5 minutes or on each Bedrock call).
+    if (model === 'bedrock') {
+      await this._refreshBedrockBudget();
+      if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD) {
+        this.logger.warn(`☁️ Bedrock budget guard: $${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD} — skipping Bedrock call`);
+        throw new Error(`Bedrock monthly budget exceeded ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
+      }
+    }
+
     // FIX #10/#17: Wrap model calls with exponential backoff retry.
     // Only retries on 429 rate-limit and network errors.
     // Auth errors (401/403), validation errors (400), and 404s are NOT retried.
@@ -1498,6 +1522,40 @@ export class AIOrchestratorService implements OnModuleDestroy {
         logger: { warn: (msg: string) => this.logger.warn(msg) }, // FIX #16: Consistent logging
       },
     );
+  }
+
+  /**
+   * FIX: Refresh Bedrock monthly spend from AiUsageLog.
+   * Queries the database at most once every 5 minutes to avoid overhead.
+   * Automatically resets on the 1st of each month.
+   */
+  private async _refreshBedrockBudget(): Promise<void> {
+    const now = Date.now();
+    const fiveMinutes = 5 * 60 * 1000;
+
+    // Auto-reset on new month
+    const currentMonth = new Date().getMonth();
+    const lastCheckMonth = new Date(this.bedrockBudgetLastChecked).getMonth();
+    if (currentMonth !== lastCheckMonth && this.bedrockBudgetLastChecked > 0) {
+      this.bedrockMonthlySpend = 0;
+    }
+
+    // Throttle: only refresh every 5 minutes
+    if (now - this.bedrockBudgetLastChecked < fiveMinutes) return;
+
+    try {
+      this.bedrockBudgetLastChecked = now;
+      // Query usage logger for monthly Bedrock spend
+      const stats = await this.usageLogger?.getMonthlySpendForProvider('bedrock');
+      if (stats !== undefined && stats !== null) {
+        this.bedrockMonthlySpend = stats;
+        if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD * 0.9) {
+          this.logger.warn(`☁️ Bedrock budget at ${((this.bedrockMonthlySpend / this.BEDROCK_MONTHLY_BUDGET_USD) * 100).toFixed(1)}% ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
+        }
+      }
+    } catch {
+      // If we can't check budget, allow the call — fail open rather than block
+    }
   }
 
   /**

@@ -214,16 +214,32 @@ export function AICouncilPanel() {
       })
     }, 1000)
 
-    trendScanIntervalRef.current = setInterval(() => {
-      setCurrentTrendSymbol(prev => {
-        const idx = TREND_SYMBOLS.indexOf(prev)
-        return TREND_SYMBOLS[(idx + 1) % TREND_SYMBOLS.length]
-      })
-    }, 5000)
+    // Visual-only trend symbol animation — paused when tab hidden
+    const startTrendInterval = () => {
+      if (trendScanIntervalRef.current) clearInterval(trendScanIntervalRef.current)
+      trendScanIntervalRef.current = setInterval(() => {
+        setCurrentTrendSymbol(prev => {
+          const idx = TREND_SYMBOLS.indexOf(prev)
+          return TREND_SYMBOLS[(idx + 1) % TREND_SYMBOLS.length]
+        })
+      }, 5000)
+    }
+
+    const handleTrendVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (trendScanIntervalRef.current) { clearInterval(trendScanIntervalRef.current); trendScanIntervalRef.current = null }
+      } else {
+        startTrendInterval()
+      }
+    }
+
+    startTrendInterval()
+    document.addEventListener('visibilitychange', handleTrendVisibility)
 
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current)
       if (trendScanIntervalRef.current) clearInterval(trendScanIntervalRef.current)
+      document.removeEventListener('visibilitychange', handleTrendVisibility)
     }
   }, [loading, fetchConsensus])
 

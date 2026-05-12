@@ -139,17 +139,32 @@ export function SmartExecutorPanel() {
     return () => clearInterval(interval)
   }, [fetchUserState, fetchPositions])
 
-  // Symbol Monitoring Animation (Visual Only)
+  // Symbol Monitoring Animation (Visual Only) — paused when tab hidden
   useEffect(() => {
-    scanIntervalRef.current = setInterval(() => {
-      setCurrentMonitoredSymbol(prev => {
-        const idx = MONITORED_SYMBOLS.indexOf(prev)
-        return MONITORED_SYMBOLS[(idx + 1) % MONITORED_SYMBOLS.length]
-      })
-    }, 4000)
+    const startInterval = () => {
+      if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = setInterval(() => {
+        setCurrentMonitoredSymbol(prev => {
+          const idx = MONITORED_SYMBOLS.indexOf(prev)
+          return MONITORED_SYMBOLS[(idx + 1) % MONITORED_SYMBOLS.length]
+        })
+      }, 4000)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (scanIntervalRef.current) { clearInterval(scanIntervalRef.current); scanIntervalRef.current = null }
+      } else {
+        startInterval()
+      }
+    }
+
+    startInterval()
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       if (scanIntervalRef.current) clearInterval(scanIntervalRef.current)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

@@ -172,16 +172,34 @@ export function AgentControlMini() {
       fetchPositions()
     }, 15000)
 
-    const evalInterval = setInterval(() => {
-      setCurrentEvalSymbol(prev => {
-        const idx = EVAL_SYMBOLS.indexOf(prev)
-        return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
-      })
-    }, 6000)
+    // Visual-only eval symbol animation — paused when tab hidden
+    let evalIntervalId: ReturnType<typeof setInterval> | null = null
+
+    const startEvalInterval = () => {
+      if (evalIntervalId) clearInterval(evalIntervalId)
+      evalIntervalId = setInterval(() => {
+        setCurrentEvalSymbol(prev => {
+          const idx = EVAL_SYMBOLS.indexOf(prev)
+          return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
+        })
+      }, 3500)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (evalIntervalId) { clearInterval(evalIntervalId); evalIntervalId = null }
+      } else {
+        startEvalInterval()
+      }
+    }
+
+    startEvalInterval()
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       clearInterval(interval)
-      clearInterval(evalInterval)
+      if (evalIntervalId) clearInterval(evalIntervalId)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [fetchStatus, fetchCredentials, fetchPositions, fetchPerformance])
 

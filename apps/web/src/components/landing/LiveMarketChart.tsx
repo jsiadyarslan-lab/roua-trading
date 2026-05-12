@@ -182,15 +182,31 @@ export default function LiveMarketChart() {
 
   useEffect(() => {
     let current = 67000
-    priceUpdateRef.current = setInterval(() => {
-      const drift = (Math.random() - 0.48) * 0.003
-      current = current * (1 + drift)
-      setLastPrice(Math.round(current * 100) / 100)
-      setPriceChange(Math.round((current - 67000) * 100) / 100)
-    }, 3000)
+    // Fake price animation for landing page — paused when tab hidden
+    const startPriceInterval = () => {
+      if (priceUpdateRef.current) clearInterval(priceUpdateRef.current)
+      priceUpdateRef.current = setInterval(() => {
+        const drift = (Math.random() - 0.48) * 0.003
+        current = current * (1 + drift)
+        setLastPrice(Math.round(current * 100) / 100)
+        setPriceChange(Math.round((current - 67000) * 100) / 100)
+      }, 3000)
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        if (priceUpdateRef.current) { clearInterval(priceUpdateRef.current); priceUpdateRef.current = null }
+      } else {
+        startPriceInterval()
+      }
+    }
+
+    startPriceInterval()
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
       if (priceUpdateRef.current) clearInterval(priceUpdateRef.current)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
 

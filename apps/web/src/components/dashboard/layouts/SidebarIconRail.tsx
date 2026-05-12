@@ -17,6 +17,8 @@ import {
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 
+const FONT_MONO = "'JetBrains Mono', monospace"
+
 export interface TabConfig {
   id: string
   label: string

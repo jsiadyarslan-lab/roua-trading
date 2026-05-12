@@ -488,6 +488,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 }
 
 export default function DashboardPage() {
+  const { collapsed: sidebarCollapsed } = useSidebarState()
   useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
           background: ${T.bg};
@@ -968,7 +969,6 @@ export default function DashboardPage() {
 
 
   const [chartExpanded, setChartExpanded] = useState(false)
-  const { collapsed: sidebarCollapsed } = useSidebarState()
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)

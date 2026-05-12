@@ -16,7 +16,6 @@ const TAB_TONES: Record<string, string> = {
   watch: 'الرموز النشطة',
   alerts: 'الشروط والتنبيه',
   ai: 'القراءة التفسيرية',
-  trader: 'التداول الآلي',
   news: 'السياق الإخباري',
   calendar: 'الماكرو القادم',
   backtest: 'صلاحية الفكرة',

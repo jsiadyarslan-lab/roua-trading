@@ -18,7 +18,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     let dbUrl = process.env.DATABASE_URL!;
     try {
       const url = new URL(dbUrl);
-      url.searchParams.set('connection_limit', '20');
+      // REDUCED: From 20 to 5 to prevent "too many clients" error in Railway
+      url.searchParams.set('connection_limit', '5');
       url.searchParams.set('pool_timeout', '10');
       // FIX: Add connect_timeout=10 to prevent TCP SYN timeout from blocking
       // $connect() for 60-120s when the database server is unreachable.
@@ -53,8 +54,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // BUG 12 FIX: Updated connection pool params — connection_limit=20, pool_timeout=10
-    this.logger.log('📦 Prisma connection pool: connection_limit=20, pool_timeout=10');
+    // REDUCED: connection_limit=5
+    this.logger.log('📦 Prisma connection pool: connection_limit=5, pool_timeout=10');
 
     // FIX: Add a timeout to Prisma $connect() so that an unreachable database
     // doesn't block the entire NestJS bootstrap. Without this timeout,

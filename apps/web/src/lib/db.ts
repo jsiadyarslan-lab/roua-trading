@@ -19,8 +19,9 @@ export const db =
     if (dbUrl) {
       try {
         const url = new URL(dbUrl)
-        url.searchParams.set('connection_limit', '10')
-        url.searchParams.set('pool_timeout', '30')
+        // REDUCED: From 10 to 3 to prevent "too many clients" error in Railway
+        url.searchParams.set('connection_limit', '3')
+        url.searchParams.set('pool_timeout', '20')
         dbUrl = url.toString()
       } catch {
         // If URL parsing fails, use original URL as-is

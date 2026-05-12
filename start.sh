@@ -183,14 +183,15 @@ run_prisma generate --schema=./prisma/schema.prisma
 # migrate deploy only applies pending migrations and never drops data.
 # Fall back to db push if no migration files exist (first deploy).
 echo "📦 Applying Prisma schema..."
+DB_URL_WITH_LIMIT="${DATABASE_URL}&connection_limit=2"
 DB_MIGRATE_OK=0
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-  if timeout 60 npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
+  if timeout 60 npx prisma migrate deploy --schema=./prisma/schema.prisma --url="$DB_URL_WITH_LIMIT" 2>&1; then
     echo "✅ Migrations applied successfully"
     DB_MIGRATE_OK=1
   else
     echo "⚠️ prisma migrate deploy had issues — trying db push as fallback"
-    if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
+    if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma --url="$DB_URL_WITH_LIMIT" 2>&1; then
       echo "✅ db push succeeded as fallback"
       DB_MIGRATE_OK=1
     else
@@ -199,7 +200,7 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; t
     fi
   fi
 else
-  if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma 2>&1; then
+  if timeout 60 npx prisma db push --accept-data-loss --schema=./prisma/schema.prisma --url="$DB_URL_WITH_LIMIT" 2>&1; then
     echo "✅ db push succeeded"
     DB_MIGRATE_OK=1
   else

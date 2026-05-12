@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Order Executor Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { AuditService } from '../../../audit/audit.service';
@@ -53,14 +53,17 @@ export class OrderExecutorService implements OnModuleDestroy {
   /** Reference to the cleanup interval for proper disposal */
   private cleanupInterval: ReturnType<typeof setInterval> | null = null;
 
+  // FIX: Dependencies from forwardRef modules are marked @Optional() to prevent
+  // NestJS crash if forwardRef resolution fails. When null, the execute method
+  // returns an error instead of crashing the entire AutonomousTraderAgentModule.
   constructor(
     private readonly prisma: PrismaService,
     private readonly redis: RedisService,
-    private readonly audit: AuditService,
-    private readonly tradingService: TradingService,
-    private readonly orderDispatcher: OrderDispatcherService,
-    private readonly exposureManager: ExposureManagerService,
-    private readonly exchangeService: ExchangeService,
+    @Optional() private readonly audit: AuditService,
+    @Optional() private readonly tradingService: TradingService,
+    @Optional() private readonly orderDispatcher: OrderDispatcherService,
+    @Optional() private readonly exposureManager: ExposureManagerService,
+    @Optional() private readonly exchangeService: ExchangeService,
   ) {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
 
@@ -87,6 +90,15 @@ export class OrderExecutorService implements OnModuleDestroy {
   ): Promise<TradeExecution> {
     const startTime = Date.now();
     const idempotencyKey = `${userId}-${signal.id}`;
+
+    // FIX: Guard against missing forwardRef dependencies
+    if (!this.orderDispatcher) {
+      return {
+        success: false,
+        error: 'نظام التنفيذ غير متاح حالياً — يرجى المحاولة لاحقاً',
+        executionTimeMs: Date.now() - startTime,
+      };
+    }
 
     this.logger.log(
       `⚡ Executing: ${signal.action} ${risk.positionSize.toFixed(6)} ${signal.symbol} ` +
@@ -287,7 +299,7 @@ export class OrderExecutorService implements OnModuleDestroy {
           this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
 
           // Audit log
-          await this.audit.log({
+          await this.audit?.log({
             userId,
             action: 'AGENT_PAPER_TRADE_EXECUTED',
             resource: 'autonomous-trader',
@@ -395,7 +407,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       this.recentOrders.set(`${userId}:${signal.symbol}:${signal.action}`, new Date());
 
       // Audit log — detailed record for compliance
-      await this.audit.log({
+      await this.audit?.log({
         userId,
         action: 'AGENT_TRADE_EXECUTED',
         resource: 'autonomous-trader',
@@ -486,7 +498,7 @@ export class OrderExecutorService implements OnModuleDestroy {
       );
 
       // Audit the failure
-      await this.audit.log({
+      await this.audit?.log({
         userId,
         action: 'AGENT_TRADE_FAILED',
         resource: 'autonomous-trader',
@@ -521,6 +533,12 @@ export class OrderExecutorService implements OnModuleDestroy {
     let errors = 0;
     let totalPnL = 0;
 
+    // FIX: Guard against missing forwardRef dependencies
+    if (!this.tradingService) {
+      this.logger.error('🚨 TradingService not available — cannot close positions');
+      return { closedCount: 0, errors: 0, totalPnL: 0 };
+    }
+
     try {
       const positions = await this.prisma.position.findMany({
         where: { userId, status: 'OPEN' },
@@ -538,7 +556,7 @@ export class OrderExecutorService implements OnModuleDestroy {
 
           closedCount++;
 
-          await this.audit.log({
+          await this.audit?.log({
             userId,
             action: 'AGENT_EMERGENCY_CLOSE',
             resource: 'autonomous-trader',

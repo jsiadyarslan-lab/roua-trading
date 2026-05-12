@@ -16,6 +16,7 @@ import {
   NotFoundException,
   Logger,
   Inject,
+  Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -72,7 +73,11 @@ export class OrderController {
     private readonly stateManager: OrderStateManagerService,
     private readonly positionManager: PositionManagerService,
     private readonly orderProducer: OrderProducerService,
-    @InjectQueue('execution_queue') private readonly executionQueue: Queue,
+    // FIX: Made @Optional() to prevent NestJS crash when BullMQ queue is unavailable.
+    // If the execution_queue can't be registered (e.g., Redis down), the controller
+    // still initializes. The RabbitMQ fallback via orderProducer is the primary path.
+    // BullMQ queue is only used as secondary fallback.
+    @Optional() @InjectQueue('execution_queue') private readonly executionQueue: Queue | null,
   ) {
     this.logger.log('📋 Order Controller initialized (with BullMQ execution_queue)');
   }
@@ -196,6 +201,11 @@ export class OrderController {
       );
 
       try {
+        // FIX: Check if executionQueue is available before using it.
+        // It may be null if BullMQ registration failed (e.g., Redis unavailable).
+        if (!this.executionQueue) {
+          throw new Error('BullMQ execution_queue not available');
+        }
         await this.executionQueue.add(
           'execute',
           {

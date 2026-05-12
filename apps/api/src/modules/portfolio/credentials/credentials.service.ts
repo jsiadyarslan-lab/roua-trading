@@ -45,82 +45,98 @@ export class CredentialsService {
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
   ) {
-    const key = this.configService.get<string>('ENCRYPTION_KEY');
-    const isProduction = this.configService.get('NODE_ENV') === 'production';
+    // FIX: Wrap entire key derivation in try-catch to prevent NestJS crash.
+    // If ANY step of the key derivation fails (invalid hex, scryptSync error,
+    // etc.), fall back to a temporary random key. This is better than crashing
+    // the entire application, which would take down ALL API endpoints.
+    let encryptionKey: Buffer | undefined;
+    try {
+      const key = this.configService.get<string>('ENCRYPTION_KEY');
+      const isProduction = this.configService.get('NODE_ENV') === 'production';
 
-    if (key) {
-      const keyBuffer = Buffer.from(key, 'hex');
-      // FIX: AES-256-GCM requires exactly 32 bytes (64 hex chars).
-      // If ENCRYPTION_KEY is set but not 32 bytes, the crypto operations
-      // will throw "invalid key length". We validate here and fall back
-      // to scryptSync derivation if the key is the wrong length.
-      if (keyBuffer.length === 32) {
-        this.encryptionKey = keyBuffer;
+      if (key) {
+        const keyBuffer = Buffer.from(key, 'hex');
+        // FIX: AES-256-GCM requires exactly 32 bytes (64 hex chars).
+        // If ENCRYPTION_KEY is set but not 32 bytes, the crypto operations
+        // will throw "invalid key length". We validate here and fall back
+        // to scryptSync derivation if the key is the wrong length.
+        if (keyBuffer.length === 32) {
+          encryptionKey = keyBuffer;
+        } else {
+          this.logger.error(
+            `🚨 ENCRYPTION_KEY is ${keyBuffer.length} bytes (expected 32). ` +
+            `Deriving a valid 32-byte key from it via scryptSync. ` +
+            `Generate a proper key with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+          );
+          const salt = crypto.createHash('sha256').update(`encryption-key-fix:${key}`).digest().slice(0, 16);
+          encryptionKey = crypto.scryptSync(key, salt, 32);
+        }
+      } else if (isProduction) {
+        // FIX: Instead of throwing (which crashes the ENTIRE NestJS app and takes
+        // down ALL routes), we now fall back to NEXTAUTH_SECRET-derived key with
+        // a strong warning. This is still not ideal for production, but it's better
+        // than having the whole app down. The operator should set ENCRYPTION_KEY
+        // explicitly for best security. Any credentials encrypted with this fallback
+        // key will be accessible, but at least the app doesn't crash.
+        const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
+        if (fallback) {
+          // FIXED: Do NOT include hostname() in the derivation.
+          // On Railway, each redeploy creates a new container with a different hostname,
+          // which changed the encryption key and made all stored credentials unreadable.
+          const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}`;
+          const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
+          encryptionKey = crypto.scryptSync(fallback, salt, 32);
+          this.logger.warn(
+            '⚠️ ENCRYPTION_KEY not set in production — using derived key from NEXTAUTH_SECRET. ' +
+            'This is NOT recommended for production! Generate a proper key with: ' +
+            'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
+            'and add ENCRYPTION_KEY to your environment variables.'
+          );
+        } else {
+          // No fallback at all — use temporary key (credentials won't survive restart)
+          this.logger.error(
+            '🚨 CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production! ' +
+            'Using temporary random key — credentials will be lost on restart. ' +
+            'Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+          );
+          encryptionKey = crypto.randomBytes(32);
+        }
       } else {
-        this.logger.error(
-          `🚨 ENCRYPTION_KEY is ${keyBuffer.length} bytes (expected 32). ` +
-          `Deriving a valid 32-byte key from it via scryptSync. ` +
-          `Generate a proper key with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
-        );
-        const salt = crypto.createHash('sha256').update(`encryption-key-fix:${key}`).digest().slice(0, 16);
-        this.encryptionKey = crypto.scryptSync(key, salt, 32);
+        // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt
+        // This is acceptable for local development where no real credentials are stored
+        const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
+        if (!fallback) {
+          // No fallback available — generate temporary random key
+          // Credentials encrypted with this key will NOT survive a restart
+          this.logger.error(
+            '⚠️ CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET not set! ' +
+            'Using temporary random key — credentials will be lost on restart. ' +
+            'Set ENCRYPTION_KEY for development: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+          );
+          encryptionKey = crypto.randomBytes(32);
+        } else {
+          // FIXED: Do NOT include hostname() in the derivation.
+          // On Railway, each redeploy creates a new container with a different hostname,
+          // which changed the encryption key and made all stored credentials unreadable.
+          const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}`;
+          const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
+          encryptionKey = crypto.scryptSync(fallback, salt, 32);
+          this.logger.warn(
+            '⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment (development only). ' +
+            'Set ENCRYPTION_KEY for production!'
+          );
+        }
       }
-    } else if (isProduction) {
-      // FIX: Instead of throwing (which crashes the ENTIRE NestJS app and takes
-      // down ALL routes), we now fall back to NEXTAUTH_SECRET-derived key with
-      // a strong warning. This is still not ideal for production, but it's better
-      // than having the whole app down. The operator should set ENCRYPTION_KEY
-      // explicitly for best security. Any credentials encrypted with this fallback
-      // key will be accessible, but at least the app doesn't crash.
-      const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
-      if (fallback) {
-        // FIXED: Do NOT include hostname() in the derivation.
-        // On Railway, each redeploy creates a new container with a different hostname,
-        // which changed the encryption key and made all stored credentials unreadable.
-        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}`;
-        const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
-        this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
-        this.logger.warn(
-          '⚠️ ENCRYPTION_KEY not set in production — using derived key from NEXTAUTH_SECRET. ' +
-          'This is NOT recommended for production! Generate a proper key with: ' +
-          'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
-          'and add ENCRYPTION_KEY to your environment variables.'
-        );
-      } else {
-        // No fallback at all — use temporary key (credentials won't survive restart)
-        this.logger.error(
-          '🚨 CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production! ' +
-          'Using temporary random key — credentials will be lost on restart. ' +
-          'Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
-        );
-        this.encryptionKey = crypto.randomBytes(32);
-      }
-    } else {
-      // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt
-      // This is acceptable for local development where no real credentials are stored
-      const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
-      if (!fallback) {
-        // No fallback available — generate temporary random key
-        // Credentials encrypted with this key will NOT survive a restart
-        this.logger.error(
-          '⚠️ CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET not set! ' +
-          'Using temporary random key — credentials will be lost on restart. ' +
-          'Set ENCRYPTION_KEY for development: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
-        );
-        this.encryptionKey = crypto.randomBytes(32);
-      } else {
-        // FIXED: Do NOT include hostname() in the derivation.
-        // On Railway, each redeploy creates a new container with a different hostname,
-        // which changed the encryption key and made all stored credentials unreadable.
-        const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'development')}`;
-        const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
-        this.encryptionKey = crypto.scryptSync(fallback, salt, 32);
-        this.logger.warn(
-          '⚠️ ENCRYPTION_KEY not set — using derived key from NEXTAUTH_SECRET+deployment (development only). ' +
-          'Set ENCRYPTION_KEY for production!'
-        );
-      }
+    } catch (err: any) {
+      this.logger.error(
+        `🚨 CRITICAL: Encryption key derivation failed: ${err.message}. ` +
+        `Using temporary random key — encrypted credentials will NOT be accessible. ` +
+        `Set ENCRYPTION_KEY environment variable to fix this.`
+      );
+      encryptionKey = crypto.randomBytes(32);
     }
+
+    this.encryptionKey = encryptionKey;
 
     // Balance cache cleanup — runs every 10 minutes, evicts expired entries
     this.balanceCleanupInterval = setInterval(() => {

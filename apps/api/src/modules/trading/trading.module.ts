@@ -1,5 +1,4 @@
 import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bullmq';
 import { TradingController } from './trading.controller';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
@@ -65,15 +64,12 @@ import { ExposureManagerService } from './services/exposure-manager.service';
     // OrderDispatcherService depends on. Without this import, NestJS crashes with:
     // "Nest can't resolve dependencies of the OrderDispatcherService →
     //  ExecutionGatewayService at index [5] is not available in TradingModule"
+    //
+    // ExecutionModule also registers the BullMQ 'execution_queue' with full options
+    // (retries, backoff, TTL). TradingModule no longer registers the queue separately
+    // to avoid double-registration conflicts that can crash NestJS on startup.
+    // OrderController uses @Optional() @InjectQueue for graceful degradation.
     ExecutionModule,
-
-    // BullMQ queue for order execution (shared with ExecutionModule)
-    // FIX: Register execution_queue for @InjectQueue injection in OrderDispatcher.
-    // ExecutionModule owns the queue with full options (retries, backoff, TTL).
-    // TradingModule only registers it to allow @InjectQueue('execution_queue') injection.
-    BullModule.registerQueue({
-      name: 'execution_queue',
-    }),
   ],
   controllers: [TradingController, OrderController],
   providers: [

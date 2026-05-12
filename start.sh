@@ -242,16 +242,35 @@ if [ -d "dist" ]; then
   API_PID=$!
   echo "📋 NestJS started from dist/ (PID: $API_PID, logs: /tmp/nestjs-startup.log)"
 
-  # Check if the process crashed within 3 seconds
-  sleep 3
+  # Check if the process crashed within 10 seconds (increased from 3 — module
+  # initialization with many providers can take 5-8 seconds on Railway)
+  sleep 10
   if ! kill -0 $API_PID 2>/dev/null; then
-    echo "❌ NestJS CRASHED immediately! Startup log:"
+    echo "❌ NestJS CRASHED within 10 seconds! Full startup log:"
     cat /tmp/nestjs-startup.log 2>/dev/null || echo "(no log output)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "❌ Common causes:"
-    echo "   1. dist/main.js missing or corrupt (TypeScript build failure)"
+    echo "   1. Dependency injection error (check module imports)"
     echo "   2. Missing NODE_ENV or DATABASE_URL environment variables"
     echo "   3. Module resolution error (check node_modules)"
     echo "   4. Port ${API_PORT:-3001} already in use (PORT conflict)"
+    echo "   5. BullMQ/Redis connection failure crashing module init"
+    echo "   6. Constructor throwing in a provider (check CredentialsService)"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "🔄 Restarting NestJS in 5 seconds (attempt 2)..."
+    sleep 5
+    node dist/main > /tmp/nestjs-startup-retry.log 2>&1 &
+    API_PID=$!
+    sleep 10
+    if ! kill -0 $API_PID 2>/dev/null; then
+      echo "❌ NestJS CRASHED again on retry! Full retry log:"
+      cat /tmp/nestjs-startup-retry.log 2>/dev/null || echo "(no log output)"
+      echo "❌ Giving up — the site will show 502 errors for all API endpoints"
+    else
+      echo "✅ NestJS started successfully on retry (PID: $API_PID)"
+    fi
+  else
+    echo "✅ NestJS is running (PID: $API_PID)"
   fi
 else
   echo "⚠️ dist/ not found — API build output is missing"

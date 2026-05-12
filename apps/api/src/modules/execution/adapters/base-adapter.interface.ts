@@ -19,6 +19,9 @@ export interface UnifiedOrder {
   takeProfit?: number;
   idempotencyKey: string;
   clientOrderId?: string;
+  /** FIX: Source of the trade — propagated from OrderDispatcher.
+   * Values: 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual' */
+  source?: string;
 }
 
 /**

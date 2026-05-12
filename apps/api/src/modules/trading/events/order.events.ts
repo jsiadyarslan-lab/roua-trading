@@ -88,4 +88,9 @@ export class OrderQueueMessage {
   clientOrderId?: string;
   idempotencyKey: string;
   submittedAt: Date;
+  /** FIX: Source of the trade — propagated from OrderDispatcher through BullMQ.
+   * Values: 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual'
+   * Previously this field was missing, causing ALL positions to be labeled
+   * 'auto_paper' or 'user_manual' regardless of actual source. */
+  source?: string;
 }

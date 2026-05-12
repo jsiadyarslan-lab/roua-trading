@@ -76,7 +76,7 @@ export class OrderQueueProcessor extends WorkerHost {
    * @param token Optional token for job stabilization
    */
   async process(job: Job<ExecutionJobData>, token?: string): Promise<ExecutionJobResult> {
-    const { orderId, userId, exchangeCredentialId, symbol, side, type, quantity, price, stopLoss, takeProfit, idempotencyKey, clientOrderId } = job.data;
+    const { orderId, userId, exchangeCredentialId, symbol, side, type, quantity, price, stopLoss, takeProfit, idempotencyKey, clientOrderId, source } = job.data;
 
     this.logger.log(
       `⚙️ Processing execution job: ${orderId} (${side} ${quantity} ${symbol}) — attempt ${(job as any).attemptsStarted || 1}`,
@@ -140,6 +140,8 @@ export class OrderQueueProcessor extends WorkerHost {
         takeProfit,
         idempotencyKey,
         clientOrderId,
+        // FIX: Propagate source through UnifiedOrder
+        source,
       };
 
       // Step 4: Record SENT_TO_EXCHANGE event
@@ -272,6 +274,9 @@ export interface ExecutionJobData {
   takeProfit?: number;
   idempotencyKey: string;
   clientOrderId?: string;
+  /** FIX: Source of the trade — propagated from OrderDispatcher.
+   * Values: 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual' */
+  source?: string;
 }
 
 export interface ExecutionJobResult {

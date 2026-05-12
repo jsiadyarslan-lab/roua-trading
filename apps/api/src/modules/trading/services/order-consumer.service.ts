@@ -379,7 +379,11 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               lowestPrice: fillPrice,
               stopLoss: message.stopLoss,
               takeProfit: message.takeProfit,
-              source: (message as any).source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
+              // FIX: Use message.source (propagated from OrderDispatcher) instead of
+              // always defaulting to 'auto_paper'/'user_manual'. Previously, source was
+              // not included in the BullMQ payload, so executor trades were mislabeled
+              // as 'auto_paper' and agent trades as 'auto_paper' too.
+              source: message.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
             },
           });
         }
@@ -394,7 +398,8 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
             type: 'ENTRY',
             quantity: filledQuantity,
             price: fillPrice,
-            source: (message as any).source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
+            // FIX: Same source propagation fix for Trade records
+            source: message.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
         });
       }, {

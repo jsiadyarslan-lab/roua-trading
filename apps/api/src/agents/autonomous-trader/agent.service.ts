@@ -1416,24 +1416,91 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             continue;
           }
 
-          // Execute the trade
-          const execution = await this.orderExecutor.execute(
-            userId,
-            signal,
-            risk,
-            state.config.credentialId,
+          // ═══════════════════════════════════════════════════════════════
+          // FIX: Agent does NOT execute trades — it only ANALYZES.
+          // The Smart Executor (المنفذ الذكي) is the sole executor.
+          // The Agent (الوكيل) generates signals/decisions but does NOT
+          // call orderExecutor.execute(). This prevents the Agent and
+          // Smart Executor from racing to open positions on the same pair.
+          //
+          // Previous behavior: Agent called orderExecutor.execute() which
+          // opened positions — competing with the Smart Executor and
+          // causing duplicate trades, mislabeling, and user confusion.
+          //
+          // New behavior: Agent records its decision as a Signal in the DB
+          // for the Strategic Council to incorporate into TradingBriefs.
+          // The Smart Executor then executes the briefs.
+          // ═══════════════════════════════════════════════════════════════
+          this.logger.log(
+            `🧠 Agent ${userId}: Signal generated — ${signal.action} ${signal.symbol} ` +
+            `(confidence: ${signal.confidence}%, RR: ${signal.riskRewardRatio?.toFixed(2)}, ` +
+            `brief: ${brief.id}, timeframe: ${brief.timeframe}) — NOT executing (analyze-only mode)`,
           );
 
-          if (execution.success) {
-            signalsExecuted++;
-            state.lastSignalAt = new Date();
-            state.dailyTradesCount++;
+          // Record the signal as a pending decision (not executed)
+          signalsGenerated++;
 
-            this.logger.log(
-              `🧠 Council trade executed for ${userId}: ${signal.action} ${signal.symbol} ` +
-              `(brief: ${brief.id}, timeframe: ${brief.timeframe})`,
+          // Store the decision in Redis for dashboard display
+          try {
+            await this.redis.set(
+              `agent:decision:${userId}:${signal.symbol}`,
+              JSON.stringify({
+                action: signal.action,
+                symbol: signal.symbol,
+                confidence: signal.confidence,
+                entryPrice: signal.entryPrice,
+                stopLoss: signal.stopLoss,
+                takeProfit: signal.takeProfit,
+                strategy: signal.strategy,
+                reasoning: signal.reasoning,
+                briefId: brief.id,
+                timeframe: brief.timeframe,
+                generatedAt: new Date().toISOString(),
+                status: 'SIGNAL_ONLY', // Not executed — just a recommendation
+              }),
+              300, // 5 minutes TTL
             );
+          } catch (redisErr: any) {
+            this.logger.debug(`Could not cache agent decision: ${redisErr.message}`);
           }
+
+          // Store signal in DB for the Strategic Council to potentially pick up
+          try {
+            await this.prisma.signal.upsert({
+              where: { id: `agent-${brief.id}` },
+              create: {
+                id: `agent-${brief.id}`,
+                userId,
+                symbol: signal.symbol,
+                side: signal.action as any,
+                type: signal.type as any,
+                status: 'PENDING',
+                entryPrice: signal.entryPrice,
+                stopLoss: signal.stopLoss,
+                takeProfit: signal.takeProfit,
+                confidence: signal.confidence,
+                strategy: signal.strategy as any,
+                reasoning: signal.reasoning,
+                riskScore: signal.riskScore,
+                source: 'agent',
+                metadata: JSON.stringify({
+                  briefId: brief.id,
+                  timeframe: brief.timeframe,
+                  riskRewardRatio: signal.riskRewardRatio,
+                  quantity: risk.positionSize,
+                }),
+              },
+              update: {
+                status: 'PENDING',
+                confidence: signal.confidence,
+                updatedAt: new Date(),
+              },
+            });
+          } catch (signalErr: any) {
+            this.logger.debug(`Could not store agent signal: ${signalErr.message}`);
+          }
+
+          state.lastSignalAt = new Date();
 
           // Check consecutive losses
           if (state.consecutiveLosses >= 5) {
@@ -1489,18 +1556,40 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             continue;
           }
 
-          const execution = await this.orderExecutor.execute(
-            userId,
-            signal,
-            risk,
-            state.config.credentialId,
+          // ═══════════════════════════════════════════════════════════════
+          // FIX: Agent does NOT execute — analyze-only mode.
+          // Same as the Council path above: generate signal, don't execute.
+          // The Smart Executor is the sole executor.
+          // ═══════════════════════════════════════════════════════════════
+          this.logger.log(
+            `🧠 Agent ${userId}: Fallback signal — ${signal.action} ${symbol} ` +
+            `(confidence: ${signal.confidence}%, strategy: ${signal.strategy}) — NOT executing (analyze-only mode)`,
           );
 
-          if (execution.success) {
-            signalsExecuted++;
-            state.lastSignalAt = new Date();
-            state.dailyTradesCount++;
+          // Store the decision in Redis for dashboard display
+          try {
+            await this.redis.set(
+              `agent:decision:${userId}:${symbol}`,
+              JSON.stringify({
+                action: signal.action,
+                symbol,
+                confidence: signal.confidence,
+                entryPrice: signal.entryPrice,
+                stopLoss: signal.stopLoss,
+                takeProfit: signal.takeProfit,
+                strategy: signal.strategy,
+                reasoning: signal.reasoning,
+                generatedAt: new Date().toISOString(),
+                status: 'SIGNAL_ONLY',
+                source: 'self-analysis',
+              }),
+              300, // 5 minutes TTL
+            );
+          } catch (redisErr: any) {
+            this.logger.debug(`Could not cache agent decision: ${redisErr.message}`);
           }
+
+          state.lastSignalAt = new Date();
 
           if (state.consecutiveLosses >= 5) {
             state.status = AgentStatus.PAUSED;
@@ -1520,7 +1609,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     this.logger.log(
       `🧠 Agent ${userId} cycle #${state.totalCycles} complete: ` +
       `${usingCouncilBriefs ? `${agentBriefs.length} council briefs` : 'self-analysis'}, ` +
-      `${signalsGenerated} signals, ${signalsRejected} rejected, ${signalsExecuted} executed` +
+      `${signalsGenerated} signals, ${signalsRejected} rejected — ANALYZE-ONLY MODE (no execution)` +
       (rejectionReasons.length > 0 ? ` — rejections: [${rejectionReasons.join('; ')}]` : '') +
       (signalsGenerated === 0 ? ' — NO signals generated' : ''),
     );

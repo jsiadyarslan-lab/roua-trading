@@ -135,7 +135,7 @@ export class OrderDispatcherService {
           userId: request.userId,
           symbol: request.symbol,
           side: request.side === 'BUY' ? 'BUY' : 'SELL',
-          status: { in: ['PENDING', 'ACCEPTED', 'SENT_TO_EXCHANGE'] },
+          status: { in: ['PENDING', 'ACCEPTED'] },
         },
       });
 
@@ -262,6 +262,12 @@ export class OrderDispatcherService {
             takeProfit: command.takeProfit,
             clientOrderId: command.clientOrderId,
             idempotencyKey: command.idempotencyKey,
+            // FIX: Propagate source through BullMQ pipeline so positions/trades
+            // are labeled correctly (smart_executor vs agent vs user_manual).
+            // Previously, source was NOT included in the queue message,
+            // causing ALL positions to be labeled 'auto_paper' or 'user_manual'
+            // regardless of which system actually created the trade.
+            source: request.source,
           },
           {
             jobId: idempotencyKey,
@@ -312,7 +318,7 @@ export class OrderDispatcherService {
     try {
       const where: any = {
         userId,
-        status: { in: ['PENDING', 'ACCEPTED', 'SENT_TO_EXCHANGE'] },
+        status: { in: ['PENDING', 'ACCEPTED'] },
       };
       if (source) {
         // نفلتر بناءً على clientOrderId الذي يبدأ بـ source

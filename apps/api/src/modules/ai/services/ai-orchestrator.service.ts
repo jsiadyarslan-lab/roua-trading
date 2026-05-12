@@ -544,7 +544,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       const roles = [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'bedrock',    fallbackModels: ['gemini', 'cerebras', 'groq', 'ollama', 'deepseek', 'glm'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
         // FIX: Demoted GLM from macro primary → 5th fallback. GLM averages 18s latency
         // (well over the 15s timeout) and is expensive ($0.00140/1K). Gemini or Cerebras
         // handle macro analysis faster and cheaper. GLM stays in fallback for its Arabic

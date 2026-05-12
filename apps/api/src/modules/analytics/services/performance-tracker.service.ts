@@ -249,7 +249,7 @@ export class PerformanceTrackerService {
 
   private async _getFirstActiveUser(): Promise<string | null> {
     try {
-      const user = await this.prisma.user.findFirst({ where: { status: 'ACTIVE' } });
+      const user = await this.prisma.user.findFirst({ where: {} });
       return user?.id || null;
     } catch { return null; }
   }

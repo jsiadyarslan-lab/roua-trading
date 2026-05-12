@@ -66,7 +66,9 @@ run_api_build() {
   else
     # Use tsc directly — avoids npm workspace binary resolution issues
     # (same output as `nest build` with webpack:false in nest-cli.json)
-    rm -rf dist && tsc
+    # CRITICAL FIX: Also remove tsconfig.tsbuildinfo to prevent stale
+    # incremental build state from producing incomplete JS output.
+    rm -rf dist tsconfig.tsbuildinfo && tsc
   fi
 }
 

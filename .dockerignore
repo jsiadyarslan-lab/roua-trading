@@ -11,6 +11,7 @@
 # Build outputs (rebuilt inside container)
 **/dist
 **/.turbo
+**/tsconfig.tsbuildinfo
 
 # Database
 **/*.db

@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v82
+ARG BUILD_CACHE=v83
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -68,13 +68,20 @@ RUN cd packages/shared && tsc
 # Build the NestJS API — use tsc directly instead of `nest build`.
 # With webpack:false, `nest build` is just `rm -rf dist && tsc`.
 # Using tsc directly avoids npx resolution failures in hoisted workspaces.
-RUN cd apps/api && rm -rf dist && tsc
+# CRITICAL FIX: Must also remove tsconfig.tsbuildinfo before tsc.
+# With incremental:true in tsconfig, TypeScript caches build state in
+# tsbuildinfo. If dist/ is deleted but tsbuildinfo remains, TypeScript
+# thinks files are already compiled and SKIPS them, producing an
+# incomplete build (missing common/, audit/, auth/ directories).
+# This was the ROOT CAUSE of 502 errors on Railway: incomplete JS output
+# → module resolution failures → NestJS crash at startup.
+RUN cd apps/api && rm -rf dist tsconfig.tsbuildinfo && tsc
 
 # Build the Next.js web app — use next directly from PATH.
 RUN cd apps/web && next build --webpack
 
 # ─────────────────────────────────────────────────────────────
-# Stage 3: Production image with API + Web
+# Stage 3: Production image with API + Web (optimized)
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
 
@@ -93,11 +100,26 @@ ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
-# FIX: Copy all source from builder. The previous selective copy approach
-# missed files needed at runtime (e.g., apps/api/src for on-the-fly rebuild,
-# .env files, tsconfig for module resolution). Reverting to full copy for reliability.
-# Image size optimization can be done later once the app is stable.
-COPY --from=builder --chown=webuser:roua /app .
+# FIX: Selective copy — only runtime files, NOT devDependencies or source.
+# The previous "COPY --from=builder /app ." copied EVERYTHING including
+# 800MB+ of devDependencies and source files, causing memory pressure.
+# Now we copy only what's needed at runtime:
+COPY --from=builder --chown=webuser:roua /app/node_modules ./node_modules
+COPY --from=builder --chown=webuser:roua /app/package.json ./
+COPY --from=builder --chown=webuser:roua /app/package-lock.json ./
+COPY --from=builder --chown=webuser:roua /app/start.sh ./
+COPY --from=builder --chown=webuser:roua /app/prisma ./prisma
+# API: compiled JS output + tsconfig for module resolution
+COPY --from=builder --chown=webuser:roua /app/apps/api/dist ./apps/api/dist
+COPY --from=builder --chown=webuser:roua /app/apps/api/package.json ./apps/api/
+COPY --from=builder --chown=webuser:roua /app/apps/api/tsconfig.json ./apps/api/
+# Web: Next.js standalone output
+COPY --from=builder --chown=webuser:roua /app/apps/web/.next ./apps/web/.next
+COPY --from=builder --chown=webuser:roua /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=webuser:roua /app/apps/web/package.json ./apps/web/
+COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web/
+# Shared package
+COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
 
 # Ensure required directories exist
 RUN mkdir -p apps/web/public apps/api/dist
@@ -124,4 +146,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v80 - Conditional BullMQ + async constructor fixes + optimized Docker image
+# Build v83 - CRITICAL FIX: Stale tsbuildinfo causing incomplete builds + image optimization

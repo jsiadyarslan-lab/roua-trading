@@ -82,10 +82,16 @@ const nextConfig: NextConfig = {
         destination: `${apiTarget}/socket.io/:path*`,
       },
       // ── Health check ──
-      {
-        source: '/api/health',
-        destination: `${apiTarget}/api/health`,
-      },
+      // REMOVED: Previously this rewrote /api/health → NestJS API.
+      // This caused Railway healthcheck to FAIL during startup because
+      // Next.js rewrites take precedence over route handlers, so the
+      // rewrite proxied to NestJS before it was ready, returning 502/503.
+      // Now the Next.js route handler at apps/web/src/app/api/health/route.ts
+      // handles health checks directly — it returns 200 even when the API
+      // is still starting, allowing Railway to mark the replica as healthy.
+      // The NestJS /api/health endpoint is still available on port 3001
+      // for internal monitoring and the route handler proxies to it with
+      // graceful degradation.
       // ── Auth endpoints (proxied to NestJS) ──
       // FIX: /api/auth/session was returning 404 because it was only in NestJS
       // but not proxied through Next.js. This caused the frontend to think

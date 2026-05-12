@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v71
+ARG BUILD_CACHE=v72
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -107,13 +107,14 @@ USER webuser
 # Expose both ports: web (3000) and API (3001)
 EXPOSE 3000 3001
 
-# Health check — verify both services are responding
-# FIX: Use a shell script that reads PORT and API_PORT at runtime,
-# because Railway overrides PORT with a random value.
-# Docker HEALTHCHECK CMD does NOT support variable expansion directly,
-# so we use a shell invocation to resolve env vars at check time.
+# Health check — verify Next.js health endpoint (which also checks NestJS API).
+# FIX: Changed from checking API_PORT directly to checking PORT (Next.js).
+# Previously checked http://localhost:${API_PORT}/api/health directly, but
+# Railway's healthcheck uses the Next.js PORT. The Next.js route handler
+# at /api/health returns 200 even when the API is still starting,
+# preventing "1/1 replicas never became healthy" deployment failures.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
-  CMD bash -c 'curl -fsS "http://localhost:${API_PORT:-3001}/api/health" > /dev/null 2>&1 || exit 1'
+  CMD bash -c 'curl -fsS "http://localhost:${PORT:-3000}/api/health" > /dev/null 2>&1 || exit 1'
 
 # FIX: Use start.sh which runs BOTH NestJS API (port 3001)
 # AND Next.js Web (port 3000) in a single container.

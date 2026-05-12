@@ -170,14 +170,14 @@ export function AgentControlMini() {
     const interval = setInterval(() => {
       fetchStatus()
       fetchPositions()
-    }, 10000)
+    }, 15000)
 
     const evalInterval = setInterval(() => {
       setCurrentEvalSymbol(prev => {
         const idx = EVAL_SYMBOLS.indexOf(prev)
         return EVAL_SYMBOLS[(idx + 1) % EVAL_SYMBOLS.length]
       })
-    }, 3500)
+    }, 6000)
 
     return () => {
       clearInterval(interval)
@@ -241,19 +241,19 @@ export function AgentControlMini() {
         gap: 8,
         alignItems: 'center',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           {/* Status LED */}
           <div style={{
-            width: 8, height: 8, borderRadius: '50%',
+            width: 10, height: 10, borderRadius: '50%',
             background: statusColor,
-            boxShadow: isRunning ? `0 0 10px ${T.green}, 0 0 20px rgba(0,255,163,0.3)` : `0 0 6px ${statusColor}`,
+            boxShadow: isRunning ? `0 0 12px ${T.green}, 0 0 24px rgba(0,255,163,0.3)` : `0 0 8px ${statusColor}`,
             animation: isRunning ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
             flexShrink: 0,
           }} />
 
           {/* Title */}
           <span style={{
-            fontSize: 10, fontWeight: 800, color: T.text,
+            fontSize: 13, fontWeight: 800, color: T.text,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
             وكيل التداول الذاتي
@@ -262,26 +262,26 @@ export function AgentControlMini() {
           {/* Evaluating Heartbeat */}
           {isRunning && (
             <div style={{ 
-              display: 'flex', alignItems: 'center', gap: 4, 
-              background: 'rgba(0,255,163,0.05)', padding: '1px 6px', 
-              borderRadius: 10, border: '1px solid rgba(0,255,163,0.1)'
+              display: 'flex', alignItems: 'center', gap: 5, 
+              background: 'rgba(0,255,163,0.08)', padding: '2px 8px', 
+              borderRadius: 12, border: '1px solid rgba(0,255,163,0.15)'
             }}>
               <div style={{ 
-                width: 4, height: 4, borderRadius: '50%', background: T.green,
-                boxShadow: `0 0 5px ${T.green}`,
+                width: 5, height: 5, borderRadius: '50%', background: T.green,
+                boxShadow: `0 0 6px ${T.green}`,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
-              <span style={{ fontSize: 7, color: T.green, fontWeight: 700, fontFamily: 'monospace' }}>
-                ANALYZING: {currentEvalSymbol}
+              <span style={{ fontSize: 9, color: T.green, fontWeight: 700, fontFamily: FONT_MONO }}>
+                {currentEvalSymbol}
               </span>
             </div>
           )}
 
           {/* Status Badge */}
           <span style={{
-            fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
+            fontSize: 10, padding: '2px 7px', borderRadius: 6,
             background: `${statusColor}18`,
-            color: statusColor, fontWeight: 700, fontFamily: FONT_MONO,
+            color: statusColor, fontWeight: 700, fontFamily: FONT_AR,
             flexShrink: 0,
           }}>
             {getStatusLabel(status)}
@@ -290,9 +290,9 @@ export function AgentControlMini() {
           {/* Paper Trading Badge */}
           {isPaperTrading && isRunning && (
             <span style={{
-              fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
+              fontSize: 10, padding: '2px 7px', borderRadius: 6,
               background: 'rgba(0,212,255,0.10)', color: T.accent,
-              fontWeight: 700, fontFamily: FONT_MONO, flexShrink: 0,
+              fontWeight: 700, fontFamily: FONT_AR, flexShrink: 0,
             }}>
               ورقي
             </span>
@@ -307,52 +307,53 @@ export function AgentControlMini() {
             disabled={loading}
             className={isRunning ? 'btn-danger-active' : 'btn-cyan-active'}
             style={{
-              fontSize: 8, minHeight: 26, minWidth: 54,
-              padding: '4px 8px', borderRadius: 7,
+              fontSize: 12, minHeight: 36, minWidth: 70,
+              padding: '6px 12px', borderRadius: 10,
               touchAction: 'manipulation', lineHeight: 1,
-              display: 'flex', alignItems: 'center', gap: 3,
+              display: 'flex', alignItems: 'center', gap: 6,
+              fontWeight: 900,
             }}
           >
             {loading ? (
               <span style={{ animation: 'agentCtrlSpin 1s linear infinite', display: 'inline-block' }}>
-                <Activity size={9} />
+                <Activity size={14} />
               </span>
             ) : isRunning ? (
-              <Square size={8} />
+              <Square size={12} fill="currentColor" />
             ) : (
-              <Play size={8} fill="currentColor" />
+              <Play size={12} fill="currentColor" />
             )}
             {loading ? '...' : isRunning ? 'إيقاف' : 'تشغيل'}
           </button>
         ) : (
-          <div style={{ display: 'flex', gap: 3 }}>
+          <div style={{ display: 'flex', gap: 5 }}>
             <button
               type="button"
               onClick={() => handleConfirmStop(false)}
               style={{
-                fontSize: 7, minHeight: 26, padding: '4px 6px',
-                borderRadius: 7, border: '1px solid rgba(255,184,0,0.3)',
+                fontSize: 11, minHeight: 36, padding: '6px 12px',
+                borderRadius: 10, border: '1px solid rgba(255,184,0,0.3)',
                 background: 'rgba(255,184,0,0.15)', color: T.amber,
                 fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
-                display: 'flex', alignItems: 'center', gap: 2,
+                display: 'flex', alignItems: 'center', gap: 4,
               }}
             >
-              <Square size={7} />
+              <Square size={11} />
               إيقاف
             </button>
             <button
               type="button"
               onClick={() => handleConfirmStop(true)}
               style={{
-                fontSize: 7, minHeight: 26, padding: '4px 6px',
-                borderRadius: 7, border: '1px solid rgba(255,71,87,0.3)',
+                fontSize: 11, minHeight: 36, padding: '6px 12px',
+                borderRadius: 10, border: '1px solid rgba(255,71,87,0.3)',
                 background: 'rgba(255,71,87,0.2)', color: T.red,
                 fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
-                display: 'flex', alignItems: 'center', gap: 2,
+                display: 'flex', alignItems: 'center', gap: 4,
                 animation: 'agentCtrlPulse 1s ease-in-out infinite',
               }}
             >
-              <AlertTriangle size={7} />
+              <AlertTriangle size={11} />
               طارئ
             </button>
           </div>
@@ -361,27 +362,27 @@ export function AgentControlMini() {
 
       {/* ── Info Row: Strategy + Last Signal ── */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 6,
-        padding: '4px 10px',
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '6px 12px',
         background: 'rgba(5,10,18,0.45)',
         borderBottom: `1px solid rgba(0,229,255,0.08)`,
       }}>
         {/* Strategy */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Zap size={8} color={strategyAccent} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 7, color: T.text3, fontWeight: 600 }}>الاستراتيجية:</span>
-          <span style={{ fontSize: 7, fontWeight: 800, color: strategyAccent }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Zap size={11} color={strategyAccent} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>الاستراتيجية:</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: strategyAccent }}>
             {config ? getStrategyLabel(config.strategy as StrategyType) : '—'}
           </span>
         </div>
 
-        <div style={{ width: 1, height: 10, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
+        <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} />
 
         {/* Last Signal */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Clock size={8} color={T.text3} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 7, color: T.text3, fontWeight: 600 }}>آخر إشارة:</span>
-          <span style={{ fontSize: 7, fontWeight: 700, color: lastSignalAt ? T.text2 : T.text3 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Clock size={11} color={T.text3} style={{ flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>آخر إشارة:</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: lastSignalAt ? T.text2 : T.text3 }}>
             {formatTimeAgo(lastSignalAt || lastCycleAt)}
           </span>
         </div>
@@ -389,17 +390,17 @@ export function AgentControlMini() {
 
       {/* ── Quick Stats Row ── */}
       <div style={{
-        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 6,
+        display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: 10,
         borderBottom: `1px solid rgba(0,229,255,0.08)`,
       }}>
         {/* Daily P&L */}
         <div style={{
-          padding: 5, textAlign: 'center', minHeight: 30,
-          background: 'rgba(255,255,255,0.02)', borderRadius: 6,
+          padding: 8, textAlign: 'center', minHeight: 44,
+          background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 7, color: T.text3 }}>ر/خ اليوم</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>ر/خ اليوم</div>
           <div style={{
-            fontSize: 10, fontWeight: 800,
+            fontSize: 13, fontWeight: 800,
             color: dailyPnL > 0 ? T.green : dailyPnL < 0 ? T.red : T.text2,
             fontFamily: FONT_MONO, direction: 'ltr', textAlign: 'center',
           }}>
@@ -409,12 +410,12 @@ export function AgentControlMini() {
 
         {/* Win Rate */}
         <div style={{
-          padding: 5, textAlign: 'center', minHeight: 30,
-          background: 'rgba(255,255,255,0.02)', borderRadius: 6,
+          padding: 8, textAlign: 'center', minHeight: 44,
+          background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 7, color: T.text3 }}>نسبة الفوز</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>نسبة الفوز</div>
           <div style={{
-            fontSize: 10, fontWeight: 800,
+            fontSize: 13, fontWeight: 800,
             color: (performance?.winRate ?? 0) >= 50 ? T.green : T.amber,
             fontFamily: FONT_MONO,
           }}>
@@ -424,12 +425,12 @@ export function AgentControlMini() {
 
         {/* Open Positions */}
         <div style={{
-          padding: 5, textAlign: 'center', minHeight: 30,
-          background: 'rgba(255,255,255,0.02)', borderRadius: 6,
+          padding: 8, textAlign: 'center', minHeight: 44,
+          background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 7, color: T.text3 }}>مراكز مفتوحة</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>مراكز مفتوحة</div>
           <div style={{
-            fontSize: 10, fontWeight: 800, color: positions.length > 0 ? T.accent : T.text3,
+            fontSize: 13, fontWeight: 800, color: positions.length > 0 ? T.accent : T.text3,
             fontFamily: FONT_MONO,
           }}>
             {positions.length}
@@ -440,21 +441,21 @@ export function AgentControlMini() {
       {/* ── Compact Positions List (if any) ── */}
       {positions.length > 0 && (
         <div style={{
-          padding: '0 6px 4px', maxHeight: 80, overflowY: 'auto',
+          padding: '4px 8px 6px', maxHeight: 120, overflowY: 'auto',
           background: 'rgba(5,10,18,0.45)',
         }} className="custom-scrollbar">
-          {positions.slice(0, 3).map((pos) => (
+          {positions.slice(0, 5).map((pos) => (
             <div key={pos.id} style={{
-              display: 'flex', alignItems: 'center', gap: 4,
-              padding: '3px 5px', borderRadius: 4,
-              background: 'rgba(255,255,255,0.02)', marginBottom: 2,
-              fontSize: 8,
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '6px 8px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.03)', marginBottom: 4,
+              fontSize: 11,
             }}>
               {pos.side === 'BUY'
-                ? <TrendingUp size={8} color={T.green} />
-                : <TrendingUp size={8} color={T.red} style={{ transform: 'scaleY(-1)' }} />}
+                ? <TrendingUp size={11} color={T.green} />
+                : <TrendingUp size={11} color={T.red} style={{ transform: 'scaleY(-1)' }} />}
               <span style={{ color: T.text, fontWeight: 700, fontFamily: FONT_MONO }}>{pos.symbol}</span>
-              <span style={{ color: pos.side === 'BUY' ? T.green : T.red, fontWeight: 800, fontSize: 7 }}>
+              <span style={{ color: pos.side === 'BUY' ? T.green : T.red, fontWeight: 800, fontSize: 10 }}>
                 {pos.side === 'BUY' ? 'شراء' : 'بيع'}
               </span>
               <div style={{ flex: 1 }} />
@@ -466,9 +467,9 @@ export function AgentControlMini() {
               </span>
             </div>
           ))}
-          {positions.length > 3 && (
-            <div style={{ fontSize: 7, color: T.text3, textAlign: 'center', padding: '2px 0' }}>
-              +{positions.length - 3} أخرى
+          {positions.length > 5 && (
+            <div style={{ fontSize: 10, color: T.text3, textAlign: 'center', padding: '4px 0' }}>
+              +{positions.length - 5} أخرى
             </div>
           )}
         </div>
@@ -478,20 +479,20 @@ export function AgentControlMini() {
       <Link 
         href="/dashboard/autonomous-trader"
         style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-          padding: '6px 8px', borderRadius: '0 0 16px 16px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          padding: '12px 10px', borderRadius: '0 0 16px 16px',
           position: 'relative', zIndex: 10,
           background: isRunning
-            ? 'rgba(0,255,163,0.04)'
-            : 'rgba(0,212,255,0.04)',
-          borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.1)' : 'rgba(0,212,255,0.1)'}`,
-          color: isRunning ? T.green : T.accent, fontSize: 9, fontWeight: 700,
+            ? 'rgba(0,255,163,0.06)'
+            : 'rgba(0,212,255,0.06)',
+          borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.15)'}`,
+          color: isRunning ? T.green : T.accent, fontSize: 12, fontWeight: 800,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
           textDecoration: 'none'
         }}>
-          <Settings2 size={9} />
+          <Settings2 size={13} />
           لوحة التحكم الكاملة
-          <ExternalLink size={8} />
+          <ExternalLink size={11} />
       </Link>
 
       {/* ── Error Warning ── */}

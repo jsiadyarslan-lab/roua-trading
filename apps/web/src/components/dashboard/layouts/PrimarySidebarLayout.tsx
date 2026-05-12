@@ -23,7 +23,7 @@ const TAB_TONES: Record<string, string> = {
   correlation: 'مخاطر التداخل',
 }
 
-export function LeftSidebarLayout() {
+export function PrimarySidebarLayout() {
   const {
     activeTab,
     setActiveTab,

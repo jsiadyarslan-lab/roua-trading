@@ -51,12 +51,6 @@ export function SidebarContentPanel({
   const quoteStatus = getDataStatus(activeQuote)
   const sourceLabel = getSourceLabel(activeQuote?.source)
 
-  const [contentKey, setContentKey] = useState(activeTab)
-
-  useMemo(() => {
-    setContentKey(activeTab)
-  }, [activeTab])
-
   return (
     <section
       className="flex flex-col min-w-0 min-h-0"
@@ -78,7 +72,6 @@ export function SidebarContentPanel({
           }}
         >
           <div
-            key={contentKey}
             className="w-full h-full overflow-hidden"
             style={{ animation: 'sidebarContentFadeIn 0.2s ease-out' }}
           >

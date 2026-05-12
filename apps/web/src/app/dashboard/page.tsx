@@ -7,7 +7,7 @@ import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { fmtPriceLocale } from '@/lib/price-format'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
-import { LeftSidebarLayout } from '@/components/dashboard/layouts/LeftSidebarLayout'
+import { PrimarySidebarLayout } from '@/components/dashboard/layouts/PrimarySidebarLayout'
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
 import { WatchlistMini } from '@/components/dashboard/WatchlistMini'
@@ -18,6 +18,7 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useSidebarState } from '@/hooks/useSidebarState'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
 
@@ -499,8 +500,8 @@ export default function DashboardPage() {
 
         .dash-grid {
           display: grid;
-          grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(300px, 350px);
-          gap: 8px;
+          grid-template-columns: ${sidebarCollapsed ? '40px' : 'minmax(240px, 280px)'} minmax(0, 1fr) minmax(300px, 350px);
+          gap: 12px;
           min-height: calc(100dvh - ${HEADER_H}px);
           height: calc(100dvh - ${HEADER_H}px);
           padding: 8px;
@@ -967,6 +968,7 @@ export default function DashboardPage() {
 
 
   const [chartExpanded, setChartExpanded] = useState(false)
+  const { collapsed: sidebarCollapsed } = useSidebarState()
   const [isMobileViewport, setIsMobileViewport] = useState(false)
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
@@ -1134,7 +1136,7 @@ export default function DashboardPage() {
           {/* Left Sidebar — hidden on compact desktop when drawer is used */}
           {!(isCompactDesktopViewport && !sidebarPinned) && (
             <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
-              <LeftSidebarLayout />
+              <PrimarySidebarLayout />
             </div>
           )}
 

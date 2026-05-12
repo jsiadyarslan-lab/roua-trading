@@ -30,7 +30,6 @@ const TAB_CONFIG: TabConfig[] = [
   { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: '#00FFA3', icon: Zap },
   { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: '#FF4757', icon: BookOpen },
   { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: '#00D4FF', icon: Eye },
-  { id: 'trader', label: 'الوكيل الذكي', helper: 'تداول آلي', accent: '#00FFA3', icon: Bot },
   { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: '#FFB800', icon: Bell },
   { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: '#B388FF', icon: Brain },
   { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: '#00D4FF', icon: Newspaper },
@@ -59,8 +58,8 @@ export function SidebarIconRail({
   return (
     <aside
       style={{
-        width: 32,
-        minWidth: 32,
+        width: 40,
+        minWidth: 40,
         minHeight: 0,
         display: 'flex',
         flexDirection: 'column',
@@ -79,11 +78,11 @@ export function SidebarIconRail({
           minHeight: 0,
           overflowY: 'auto',
           overflowX: 'visible',
-          padding: '2px 0',
+          padding: '4px 0',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: 0,
+          gap: 4,
         }}
       >
         {tabs.map((tab) => {
@@ -95,7 +94,7 @@ export function SidebarIconRail({
           return (
             <div
               key={tab.id}
-              style={{ position: 'relative', width: 28 }}
+              style={{ position: 'relative', width: 34 }}
               onMouseEnter={() => setHoveredTab(tab.id)}
               onMouseLeave={() => setHoveredTab(null)}
             >
@@ -105,8 +104,8 @@ export function SidebarIconRail({
                 aria-label={tab.label}
                 title={tab.label}
                 style={{
-                  width: 28,
-                  height: 26,
+                  width: 34,
+                  height: 32,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -114,12 +113,12 @@ export function SidebarIconRail({
                   cursor: 'pointer',
                   position: 'relative',
                   background: isActive
-                    ? `linear-gradient(135deg, ${tab.accent}10, rgba(255,255,255,0.01))`
+                    ? `linear-gradient(135deg, ${tab.accent}15, rgba(255,255,255,0.01))`
                     : isHovered
-                      ? 'rgba(255,255,255,0.06)'
+                      ? 'rgba(255,255,255,0.08)'
                       : 'transparent',
                   transition: 'all 0.15s ease',
-                  borderRadius: 4,
+                  borderRadius: 6,
                 }}
               >
                 {/* Active indicator bar */}
@@ -139,8 +138,9 @@ export function SidebarIconRail({
                 )}
 
                 <Icon
-                  size={isActive ? 11 : 10}
+                  size={isActive ? 15 : 14}
                   color={isActive ? tab.accent : isHovered ? '#A0B4CC' : '#6F849C'}
+                  strokeWidth={isActive ? 2.5 : 2}
                   style={{
                     transition: 'all 0.15s ease',
                     position: 'relative',
@@ -154,22 +154,23 @@ export function SidebarIconRail({
                 <div
                   style={{
                     position: 'absolute',
-                    top: 1,
-                    right: 1,
-                    minWidth: 8,
-                    height: 8,
+                    top: 2,
+                    right: 2,
+                    minWidth: 12,
+                    height: 12,
                     borderRadius: 999,
                     background: tab.accent,
-                    color: '#fff',
-                    fontSize: 5,
-                    fontWeight: 800,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    color: '#000',
+                    fontSize: 7,
+                    fontWeight: 900,
+                    fontFamily: FONT_MONO,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 1px',
-                    boxShadow: `0 0 3px ${tab.accent}44`,
+                    padding: '0 2px',
+                    boxShadow: `0 0 6px ${tab.accent}66`,
                     zIndex: 2,
+                    border: '1.5px solid #0A0D14',
                   }}
                 >
                   {badgeCount > 99 ? '99+' : badgeCount}
@@ -210,7 +211,7 @@ export function SidebarIconRail({
                 >
                   <span
                     style={{
-                      fontSize: 9,
+                      fontSize: 11,
                       fontWeight: 800,
                       color: tab.accent,
                       fontFamily: "'Cairo', sans-serif",

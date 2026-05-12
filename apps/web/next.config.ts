@@ -100,6 +100,12 @@ const nextConfig: NextConfig = {
         source: '/api/auth/session',
         destination: `${apiTarget}/api/auth/session`,
       },
+      // ── OAuth Callbacks (EXPLICIT BYPASS) ──
+      // These routes MUST be handled by Next.js Route Handlers, NOT proxied to NestJS.
+      // Next.js processes rewrites in order; these don't have a destination, so they pass through.
+      // NOTE: We don't need explicit 'bypass' entries because Next.js only rewrites what matches
+      // the 'source' fields below. We ensure no catch-all /api/:path* exists.
+
       // NOTE: /api/auth/guest rewrite REMOVED — it was shadowing the Next.js
       // route handler at apps/web/src/app/api/auth/guest/route.ts. The rewrite
       // sent requests to NestJS which may not be ready, causing 502 errors.

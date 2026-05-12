@@ -50,6 +50,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL('/login?error=access_denied', getPublicOrigin(request)))
   }
 
+  // DIAGNOSTIC LOG: This confirms the request reached the Next.js handler (not hijacked by NestJS/Proxy)
+  console.warn(`[auth/callback/google] PROD_DIAGNOSTIC: Callback initiated. Code present, State: ${stateParam ? 'YES' : 'NO'}`)
+
+
   const clientId = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
 

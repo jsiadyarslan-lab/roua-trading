@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef } from 'react'
-import { useMarketStore } from '@/hooks/useMarketStore'
+import { useMarketStore, type QuoteData } from '@/hooks/useMarketStore'
+import { useShallow } from 'zustand/react/shallow'
 import { fmtPriceLocale } from '@/lib/price-format'
 
 const TICKER_SYMBOLS = ['EUR/USD', 'GBP/USD', 'BTC/USDT', 'XAU/USD', 'AAPL', 'TSLA', 'USD/JPY']
@@ -15,8 +16,17 @@ interface TickItem {
 
 export default function TickerBar() {
   const tickerRef = useRef<HTMLDivElement>(null)
-  const globalQuotes = useMarketStore(state => state.quotes)
-  const quotes = new Map(TICKER_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
+  // Only subscribe to quotes for ticker symbols — prevents re-renders from unrelated symbol updates
+  const tickerQuotes = useMarketStore(
+    useShallow((state) => {
+      const result: Record<string, QuoteData> = {}
+      for (const s of TICKER_SYMBOLS) {
+        if (state.quotes[s]) result[s] = state.quotes[s]
+      }
+      return result
+    })
+  )
+  const quotes = new Map(TICKER_SYMBOLS.map(s => tickerQuotes[s] ? [s, tickerQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
 
   // Convert quotes to tick items
   const ticks: TickItem[] = TICKER_SYMBOLS.map(symbol => {

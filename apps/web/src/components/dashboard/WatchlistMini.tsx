@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { useMarketStore } from '@/hooks/useMarketStore'
+import { useMarketStore, type QuoteData } from '@/hooks/useMarketStore'
+import { useShallow } from 'zustand/react/shallow'
 import { Flame, TrendingUp, TrendingDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getDataStatus, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
@@ -63,7 +64,16 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
         }
       `)
   const [activeTab, setActiveTab] = useState<'Crypto' | 'Forex' | 'Stocks'>('Crypto')
-  const globalQuotes = useMarketStore(state => state.quotes)
+  // Only subscribe to quotes for watchlist symbols — prevents re-renders from unrelated symbol updates
+  const globalQuotes = useMarketStore(
+    useShallow((state) => {
+      const result: Record<string, QuoteData> = {}
+      for (const s of ALL_SYMBOLS) {
+        if (state.quotes[s]) result[s] = state.quotes[s]
+      }
+      return result
+    })
+  )
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({})

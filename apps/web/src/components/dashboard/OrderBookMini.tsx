@@ -45,7 +45,8 @@ function buildRowsFromDepth(
 export function OrderBookMini() {
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
-  const globalQuotes = useMarketStore(state => state.quotes)
+  // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
+  const selectedQuote = useMarketStore(state => state.quotes[selectedSymbol])
 
   const [asks, setAsks] = useState<OrderRow[]>([])
   const [bids, setBids] = useState<OrderRow[]>([])
@@ -141,10 +142,9 @@ export function OrderBookMini() {
   // For non-crypto, simulate from quote data
   useEffect(() => {
     if (isCrypto) return
-    const q = globalQuotes[selectedSymbol]
-    if (!q || q.price === 0) return
+    if (!selectedQuote || selectedQuote.price === 0) return
 
-    const basePrice = q.price
+    const basePrice = selectedQuote.price
     const spread = basePrice * 0.0005
 
     const simAsks: OrderRow[] = []
@@ -162,9 +162,9 @@ export function OrderBookMini() {
 
     setAsks(simAsks.reverse())
     setBids(simBids)
-  }, [globalQuotes, selectedSymbol, isCrypto])
+  }, [selectedQuote, selectedSymbol, isCrypto])
 
-  const quote = globalQuotes[selectedSymbol]
+  const quote = selectedQuote
   const basePrice = quote?.price ?? 0
   const isPositive = (quote?.changePercent ?? 0) >= 0
   const maxTotal = Math.max(

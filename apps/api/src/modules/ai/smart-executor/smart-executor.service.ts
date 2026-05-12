@@ -995,7 +995,11 @@ export class SmartExecutorService implements OnModuleDestroy {
     // Get active briefs from the Strategic Council
     let activeBriefs: any[] = [];
     try {
-      activeBriefs = await this.councilService.getActiveBriefs();
+      // FIX: SmartExecutor handles ONLY fast timeframes (M5, M15) from StrategicCouncil
+      // Slower timeframes (M30, H1, H4, D1, W1) belong to the Agent via AIOrchestratorService
+      activeBriefs = (await this.councilService.getActiveBriefs()).filter(
+        b => ['M5', 'M15'].includes(b.timeframe)
+      );
     } catch (e: any) {
       this.logger.error(`⚔️ Failed to get active briefs: ${e.message}`);
       return;

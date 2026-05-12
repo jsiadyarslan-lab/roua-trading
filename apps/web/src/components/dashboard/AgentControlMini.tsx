@@ -493,25 +493,24 @@ export function AgentControlMini() {
         </div>
       )}
 
-      {/* ── Footer: Link to Full Settings ── */}
-      <Link 
-        href="/dashboard/autonomous-trader"
+      {/* ── Footer: Button to Full Dashboard ── */}
+      <button
+        onClick={() => router.push('/dashboard/autonomous-trader')}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           padding: '12px 10px', borderRadius: '0 0 16px 16px',
-          position: 'relative', zIndex: 10,
+          width: '100%', border: 'none',
           background: isRunning
             ? 'rgba(0,255,163,0.06)'
             : 'rgba(0,212,255,0.06)',
           borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.15)'}`,
           color: isRunning ? T.green : T.accent, fontSize: 12, fontWeight: 800,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
-          textDecoration: 'none'
         }}>
           <Settings2 size={13} />
           لوحة التحكم الكاملة
           <ExternalLink size={11} />
-      </Link>
+      </button>
 
       {/* ── Error Warning ── */}
       {error && (

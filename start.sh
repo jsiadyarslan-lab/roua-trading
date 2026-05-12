@@ -141,7 +141,37 @@ echo "⚠️ NOTE: The PORT/API_PORT values above are ENV VARS, not proof the se
 echo "   Real verification happens below after services start."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-# ── Step 1: Generate Prisma client (must be done before db push) ──
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRITICAL FIX: Start Next.js FIRST, before ANY other operation
+#
+# Railway health check has a 5-minute window. If the health check
+# endpoint doesn't return HTTP 200 within that window, the entire
+# deployment FAILS with "1/1 replicas never became healthy".
+#
+# Previously, start.sh ran Prisma operations (which can take 10-60s)
+# BEFORE starting Next.js. If Prisma was slow or hanging, the
+# health check would fail before Next.js even started.
+#
+# Now: Start Next.js IMMEDIATELY. The /api/health endpoint returns
+# HTTP 200 even when NestJS is down, so Railway marks the replica
+# as healthy within seconds. All other setup runs after.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTUAL_WEB_PORT=${PORT:-3000}
+echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT) FIRST — before all other setup..."
+cd apps/web
+run_web_start > /tmp/next-startup.log 2>&1 &
+WEB_PID=$!
+cd "$PROJECT_ROOT"
+
+# Brief wait for Next.js to bind the port
+sleep 5
+if curl -fsS "http://127.0.0.1:${ACTUAL_WEB_PORT}/api/health" > /dev/null 2>&1; then
+  echo "✅ Next.js HEALTHY on port $ACTUAL_WEB_PORT — Railway health check should pass!"
+else
+  echo "⏳ Next.js still starting on port $ACTUAL_WEB_PORT (will retry later)..."
+fi
+
+# ── Prisma Setup (runs AFTER Next.js is already serving health checks) ──
 echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
 
@@ -195,22 +225,8 @@ prisma.setting.upsert({
 " 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL FIX: Start Next.js FIRST, then NestJS in background
-#
-# Railway health check has a 5-minute window. If Next.js doesn't
-# start within that window, the deployment FAILS with
-# "1/1 replicas never became healthy".
-#
-# Previously, start.sh waited up to 60s for NestJS health before
-# starting Next.js. If NestJS crashed (like the ExecutionGatewayService
-# bug), Next.js didn't start until 60s later, and by then the
-# health check might have already failed.
-#
-# Now: Start Next.js IMMEDIATELY after essential Prisma setup.
-# The /api/health endpoint always returns HTTP 200 (even when
-# NestJS is down), so Railway marks the replica as healthy.
-# NestJS starts in the background and the monitor restarts it
-# if it crashes.
+# START NESTJS IN BACKGROUND — after Prisma setup
+# Next.js was already started at the top of this script.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Build artifacts on the fly if they are missing
@@ -218,33 +234,6 @@ if [ ! -f "apps/api/dist/main.js" ]; then
   echo "⚠️ API dist missing — building API..."
   (cd apps/api && run_api_build)
 fi
-
-if [ ! -d "apps/web/.next" ]; then
-  echo "⚠️ Next build missing — building web..."
-  (cd apps/web && run_web_build)
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# START NEXT.JS FIRST — Railway health check needs HTTP 200 ASAP
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ACTUAL_WEB_PORT=${PORT:-3000}
-echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT) IMMEDIATELY..."
-cd apps/web
-run_web_start &
-WEB_PID=$!
-cd "$PROJECT_ROOT"
-
-# Verify Next.js is actually listening (quick check, non-blocking)
-sleep 5
-if curl -fsS "http://127.0.0.1:${ACTUAL_WEB_PORT}/" > /dev/null 2>&1; then
-  echo "✅ Next.js VERIFIED listening on port $ACTUAL_WEB_PORT"
-else
-  echo "⏳ Next.js still starting on port $ACTUAL_WEB_PORT (will retry later)..."
-fi
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# START NESTJS IN BACKGROUND — non-blocking
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
 cd apps/api
 

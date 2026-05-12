@@ -1495,7 +1495,7 @@ export default function DashboardPage() {
           onPin={() => setSidebarPinned(true)}
           pinned={sidebarPinned}
         >
-          <LeftSidebarLayout />
+          <PrimarySidebarLayout />
         </SidebarDrawer>
       )}
 
@@ -1531,7 +1531,7 @@ export default function DashboardPage() {
           open={sidebarDrawerOpen}
           onClose={() => setSidebarDrawerOpen(false)}
         >
-          <LeftSidebarLayout />
+          <PrimarySidebarLayout />
         </SidebarDrawer>
       )}
     </>

@@ -899,6 +899,9 @@ enum AgentTradeStatus {
   PARTIALLY_FILLED
   CANCELLED
   FAILED
+  REJECTED
+  CLOSED
+  EXPIRED
 }
 
 enum AgentExitReason {
@@ -907,6 +910,8 @@ enum AgentExitReason {
   MANUAL
   TRAILING_STOP
   STRATEGY_EXIT
+  TIMEOUT
+  SIGNAL_REVERSAL
 }
 
 model AutonomousTrade {

@@ -1842,23 +1842,24 @@ EOSQL
     ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'DCA';
     ALTER TYPE "AgentStrategy" ADD VALUE IF NOT EXISTS 'VWAP_RSI';
 
-    -- AgentTradeStatus: matches Prisma enum exactly
-    -- (PENDING, FILLED, PARTIALLY_FILLED, CANCELLED, FAILED only)
-    -- NOTE: REJECTED, CLOSED, EXPIRED were previously added erroneously — removed.
+    -- AgentTradeStatus: matches Prisma enum (8 values)
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PENDING';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FILLED';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'PARTIALLY_FILLED';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CANCELLED';
     ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'FAILED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'REJECTED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'CLOSED';
+    ALTER TYPE "AgentTradeStatus" ADD VALUE IF NOT EXISTS 'EXPIRED';
 
-    -- AgentExitReason: matches Prisma enum exactly
-    -- (TAKE_PROFIT, STOP_LOSS, MANUAL, TRAILING_STOP, STRATEGY_EXIT only)
-    -- NOTE: TIMEOUT, SIGNAL_REVERSAL were previously added erroneously — removed.
+    -- AgentExitReason: matches Prisma enum (7 values)
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TAKE_PROFIT';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STOP_LOSS';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'MANUAL';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TRAILING_STOP';
     ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'STRATEGY_EXIT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'TIMEOUT';
+    ALTER TYPE "AgentExitReason" ADD VALUE IF NOT EXISTS 'SIGNAL_REVERSAL';
 EOSQL
 
   echo "📦 Fixing AgentStrategy enum values..."

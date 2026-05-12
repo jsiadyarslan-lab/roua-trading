@@ -21,6 +21,7 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import {
   ALL_COUNCIL_PAIRS,
   COUNCIL_TIMEFRAMES,
+  AGENT_FAST_TIMEFRAMES,
   TIMEFRAME_EXPIRY_MS,
   TIMEFRAME_RR,
   MIN_BRIEF_CONFIDENCE,
@@ -280,6 +281,43 @@ export class StrategicCouncilService {
    * Main council session — runs every 15 minutes for rapid scalping/intraday trades
    * Reviews ALL pairs across rapid timeframes
    */
+
+  /**
+   * Agent Council Session — M30/H1 briefs for the Agent
+   * Runs every 15 minutes alongside the main session
+   * Generates medium-term briefs the Agent reads
+   */
+  @Cron('*/15 * * * *')
+  async runAgentSession(): Promise<void> {
+    // Check AUTO_TRADING_ENABLED
+    try {
+      const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
+      if (s?.[0] && String(s[0].value) !== 'true') return;
+    } catch {}
+
+    if (this.isInSession) return; // don't run if main session is active
+
+    try {
+      this.logger.debug('🏛️ Agent Council: generating M30/H1 briefs...');
+      // Reuse _analyzePair but for agent timeframes only
+      const pairs = ALL_COUNCIL_PAIRS.slice(0, 5); // top 5 pairs for agent
+      for (const pair of pairs) {
+        try {
+          const marketData = await this.orchestrator.fetchQuickMarketData(pair);
+          if (!marketData?.price) continue;
+
+          for (const tf of AGENT_FAST_TIMEFRAMES as any[]) {
+            await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
+          }
+        } catch (e: any) {
+          this.logger.debug(`Agent session: ${pair} failed — ${e.message}`);
+        }
+      }
+    } catch (e: any) {
+      this.logger.debug(`Agent session error: ${e.message}`);
+    }
+  }
+
   @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
     // ═══════════════════════════════════════════════════════════════════

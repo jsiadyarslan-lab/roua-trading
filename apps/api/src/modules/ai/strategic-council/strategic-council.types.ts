@@ -60,7 +60,7 @@ export const ALL_COUNCIL_PAIRS: string[] = [
 ];
 
 /** Timeframes the Council covers (Focused on rapid scalping/intraday + swing/position) */
-export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1'];
+export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M5', 'M15'];
 
 /** Expiry durations per timeframe (in milliseconds) */
 export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
@@ -120,3 +120,6 @@ export const MIN_BRIEF_CONFIDENCE = 40;
  *  Risk management (SL/TP) handles downside protection.
  */
 export const MIN_CONSENSUS_SCORE = 40;
+
+export const AGENT_FAST_TIMEFRAMES: BriefTimeframe[] = ['M30', 'H1'];
+export const AGENT_SLOW_TIMEFRAMES: BriefTimeframe[] = ['H4', 'D1', 'W1'];

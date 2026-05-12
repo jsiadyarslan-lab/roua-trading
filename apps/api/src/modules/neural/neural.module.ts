@@ -12,6 +12,8 @@ import { RedisModule } from '../../common/redis/redis.module';
 import { ExchangeModule } from '../exchange/exchange.module';
 import { AiModule } from '../ai/ai.module';
 import { AuditModule } from '../../audit/audit.module';
+import { PerformanceTrackerService } from '../analytics/services/performance-tracker.service';
+import { ScheduleModule } from '@nestjs/schedule';
 
 /**
  * NeuralModule — AI-Powered Trading Lab
@@ -38,6 +40,7 @@ import { AuditModule } from '../../audit/audit.module';
 @Module({
   imports: [
     PrismaModule,
+    ScheduleModule.forRoot(),
     RedisModule,
     ExchangeModule,
     AiModule,
@@ -47,11 +50,13 @@ import { AuditModule } from '../../audit/audit.module';
   providers: [
     NeuralPredictorService,
     BacktestRunnerService,
+    PerformanceTrackerService,
     NeuralSwarmService,
   ],
   exports: [
     NeuralPredictorService,
     BacktestRunnerService,
+    PerformanceTrackerService,
     NeuralSwarmService,
   ],
 })

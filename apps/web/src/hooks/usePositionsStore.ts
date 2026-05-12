@@ -49,33 +49,29 @@ interface PositionsState {
   clearUserData: () => void
   /** SECURITY: Current userId that the store data belongs to */
   _ownerUserId: string | null
+  /** Timestamp-based concurrency guard for fetchPositions */
+  _lastFetchStart: number | null
 }
 
 /**
  * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
- * Without userId in the key, user B would see user A's cached positions.
  *
- * FIX: This now returns a DYNAMIC key function, not a static string.
- * The old version evaluated once at module load time (before auth was ready),
- * so ALL users shared the 'guest' key.
+ * CRITICAL FIX: Previous implementation used a DYNAMIC key that depended on
+ * useAuthStore.getState().user, which is NOT available during Zustand
+ * rehydration (page refresh). This caused:
+ *   1. User opens trade → positions stored under `roua-positions-store:${userId}`
+ *   2. Page refresh → rehydration tries getStorageKey() → auth not ready → returns guest key
+ *   3. Guest key has NO data → positions rehydrated as []
+ *   4. API fetch fires but may fail/timeout → positions stay empty → DISAPPEARED
+ *
+ * NEW APPROACH: Use a STATIC key ('roua-positions-store') for ALL users.
+ * Owner validation is done during rehydration via _ownerUserId field.
+ * If the rehydrated data belongs to a different user, it's cleared.
+ * This ensures positions are ALWAYS rehydrated from localStorage on page refresh,
+ * giving instant display while the API fetch runs in the background.
  */
 function getStorageKey(): string {
-  try {
-    const user = useAuthStore.getState().user
-    if (user?.id) return `roua-positions-store:${user.id}`
-  } catch { /* Auth store not yet initialized */ }
-  // Use a session-unique key to prevent guest-to-guest data leakage
-  // Each browser session gets its own key via sessionStorage
-  try {
-    let sessionId = sessionStorage.getItem('roua-guest-session-id')
-    if (!sessionId) {
-      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-      sessionStorage.setItem('roua-guest-session-id', sessionId)
-    }
-    return `roua-positions-store:${sessionId}`
-  } catch {
-    return 'roua-positions-store:guest'
-  }
+  return 'roua-positions-store'
 }
 
 /**
@@ -191,6 +187,7 @@ export const usePositionsStore = create<PositionsState>()(
   dataSource: null,
   /** Current userId that the store data belongs to */
   _ownerUserId: null as string | null,
+  _lastFetchStart: null as number | null,
   setPositions: (positions) => set({ positions }),
   setAccount: (account) => set({ account }),
   setLoading: (loading) => set({ loading }),
@@ -220,6 +217,8 @@ export const usePositionsStore = create<PositionsState>()(
    */
   refreshAfterTrade: () => {
     // Immediate fetch — show the new position/balance ASAP
+    // FIX: Reset the dedup timestamp so this fetch isn't blocked
+    set({ _lastFetchStart: 0 } as any)
     Promise.all([
       get().fetchPositions(),
       get().fetchAccount(),
@@ -229,9 +228,7 @@ export const usePositionsStore = create<PositionsState>()(
 
     // Delayed fetch #1 — exchange settlement (2 seconds)
     setTimeout(() => {
-      // FIX: Reset loading guard so the fetch can proceed even if
-      // the previous wave is still running
-      if (get().loading) set({ loading: false })
+      set({ _lastFetchStart: 0, loading: false } as any)
       Promise.all([
         get().fetchPositions(),
         get().fetchAccount(),
@@ -242,7 +239,7 @@ export const usePositionsStore = create<PositionsState>()(
 
     // Delayed fetch #2 — slow exchanges (5 seconds)
     setTimeout(() => {
-      if (get().loading) set({ loading: false })
+      set({ _lastFetchStart: 0, loading: false } as any)
       Promise.all([
         get().fetchPositions(),
         get().fetchAccount(),
@@ -478,17 +475,11 @@ export const usePositionsStore = create<PositionsState>()(
       dataSource: null,
       error: null,
       _ownerUserId: null,
+      _lastFetchStart: null,
     })
-    // Also remove ALL position-related keys from localStorage
+    // Remove the static localStorage key
     try {
-      const keysToRemove: string[] = []
-      for (let i = 0; i < localStorage.length; i++) {
-        const key = localStorage.key(i)
-        if (key && key.startsWith('roua-positions-store')) {
-          keysToRemove.push(key)
-        }
-      }
-      keysToRemove.forEach(key => localStorage.removeItem(key))
+      localStorage.removeItem('roua-positions-store')
     } catch { /* localStorage unavailable */ }
   },
 
@@ -503,8 +494,17 @@ export const usePositionsStore = create<PositionsState>()(
     // Track current user as owner of this data
     if (currentUserId) set({ _ownerUserId: currentUserId })
 
-    // FIX: Prevent concurrent fetches — if already loading, skip
-    if (get().loading) return
+    // FIX: Use timestamp-based concurrency guard instead of boolean.
+    // The old `if (get().loading) return` was too aggressive — it blocked
+    // ALL fetches while any fetch was in progress, including legitimate
+    // refresh attempts after a trade. If a fetch took > 2s, the staggered
+    // refreshAfterTrade retries were all silently dropped.
+    // Now: Only block if a fetch started less than 1 second ago (dedup),
+    // but allow fetches after 1s even if the previous one is still running.
+    const lastFetchStart = get()._lastFetchStart || 0
+    const DEDUP_INTERVAL_MS = 1000
+    if (Date.now() - lastFetchStart < DEDUP_INTERVAL_MS) return
+    set({ _lastFetchStart: Date.now() } as any)
 
     set({ loading: true, error: null })
     await ensureAuth()
@@ -666,27 +666,15 @@ export const usePositionsStore = create<PositionsState>()(
 }),
     {
       /**
-       * SECURITY FIX: Dynamic storage key to prevent data leakage.
+       * STORAGE CONFIG: Static key for reliable rehydration.
+       *
+       * CRITICAL FIX: Previously used a dynamic storage key based on auth state.
+       * This broke rehydration on page refresh because auth wasn't ready when
+       * localStorage was read. Now using a STATIC key with _ownerUserId validation
+       * in onRehydrateStorage to prevent data leakage between users.
        */
       name: 'roua-positions-store',
-      storage: (() => {
-        const bs = createJSONStorage(() => localStorage)
-        const baseStorage = bs as any
-        return {
-          getItem: (name: string): any => {
-            const dynamicKey = getStorageKey()
-            return baseStorage.getItem(dynamicKey)
-          },
-          setItem: (name: string, value: any) => {
-            const dynamicKey = getStorageKey()
-            baseStorage.setItem(dynamicKey, value as string)
-          },
-          removeItem: (name: string) => {
-            const dynamicKey = getStorageKey()
-            baseStorage.removeItem(dynamicKey)
-          },
-        }
-      })(),
+      storage: createJSONStorage(() => localStorage),
       // Only persist account data and positions (not loading/error states)
       partialize: (state) => ({
         account: state.account,
@@ -703,53 +691,60 @@ export const usePositionsStore = create<PositionsState>()(
             console.warn('[PositionsStore] Rehydration failed:', error)
           }
 
+          if (!state) return
+
           // ═══════════════════════════════════════════════════════════════
-          // FIX: Smart nuke — only nuke truly stale data, not recent positions.
-          // The old code nuked ALL positions on every rehydration, which meant:
-          // 1. User opens page → positions load from API
-          // 2. User navigates to another page → Zustand persists to localStorage
-          // 3. User comes back → rehydration nukes everything → positions disappear
-          // 4. Fresh fetch may take time → UI shows empty positions briefly
+          // SECURITY: Validate that rehydrated data belongs to current user.
+          // Since we use a STATIC localStorage key, we must check that
+          // the stored data belongs to the current user. If not, clear it.
+          // ═══════════════════════════════════════════════════════════════
+          const currentUserId = getCurrentUserId()
+          const storedOwner = state._ownerUserId
+
+          if (storedOwner && currentUserId && storedOwner !== currentUserId) {
+            console.warn('[PositionsStore] SECURITY: Data belongs to different user, clearing')
+            state.clearUserData()
+            // After clearing, fetch fresh data for the new user
+            setTimeout(() => {
+              state.fetchPositions()
+              state.fetchAccount()
+            }, 100)
+            return
+          }
+
+          // ═══════════════════════════════════════════════════════════════
+          // FIX: Keep rehydrated positions! They provide INSTANT display
+          // while the API fetch runs in the background.
           //
-          // Now: Only nuke positions that are older than 5 minutes (stale).
-          // Fresh positions (< 5 min old) are preserved for instant display.
+          // Previous code nuked ALL positions on every rehydration,
+          // causing a flash of empty positions on every page refresh.
+          // Now: positions from localStorage are shown immediately,
+          // then updated when the API response arrives.
+          //
+          // Stale detection: If positions are older than 5 minutes,
+          // we still show them but mark them for priority refresh.
           // ═══════════════════════════════════════════════════════════════
-          if (state && state.positions && state.positions.length > 0) {
+          if (state.positions && state.positions.length > 0) {
             const cacheTimestamp = state._cacheTimestamp || 0
             const ageMs = Date.now() - cacheTimestamp
             const STALE_THRESHOLD_MS = 5 * 60 * 1000 // 5 minutes
 
             if (ageMs > STALE_THRESHOLD_MS || cacheTimestamp === 0) {
-              // FIX: Don't NUKE positions immediately — start fetching fresh data
-              // and let mergePositions() handle the replacement. Nuking causes
-              // a flash of empty positions on page refresh.
-              console.warn(
-                `[PositionsStore] STALE DATA: ${state.positions.length} cached position(s) (age: ${Math.round(ageMs / 1000)}s > 5min threshold). Keeping until fresh data arrives.`
+              console.log(
+                `[PositionsStore] Showing ${state.positions.length} cached position(s) (age: ${Math.round(ageMs / 1000)}s) while fetching fresh data...`
               )
-              // Mark as stale but DON'T delete — fetchPositions will replace with fresh data
-              // The mergePositions function will cleanly replace stale positions
             } else {
               console.log(
-                `[PositionsStore] Preserving ${state.positions.length} fresh position(s) (age: ${Math.round(ageMs / 1000)}s < 5min threshold)`
+                `[PositionsStore] Preserving ${state.positions.length} fresh position(s) (age: ${Math.round(ageMs / 1000)}s)`
               )
             }
           }
 
-          // SECURITY: Validate that rehydrated data belongs to current user
-          if (state) {
-            const currentUserId = getCurrentUserId()
-            const storedOwner = state._ownerUserId
-            if (storedOwner && currentUserId && storedOwner !== currentUserId) {
-              console.warn('[PositionsStore] SECURITY: Data belongs to different user, clearing')
-              state.clearUserData()
-            }
-          }
-
-          // Always fetch fresh data after clearing localStorage cache
-          if (state) {
-            state.fetchAccount()
-            state.fetchPositions()
-          }
+          // Always fetch fresh data in the background to update stale positions.
+          // The mergePositions() function will cleanly merge API data with
+          // the rehydrated positions, keeping the most accurate data.
+          state.fetchPositions()
+          state.fetchAccount()
         }
       },
     }

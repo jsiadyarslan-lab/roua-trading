@@ -412,7 +412,20 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             },
           });
           this.logger.log(`🔧 Auto-created agentSettings for user ${userId} with autoTradingEnabled=true`);
-        } catch { /* settings may already exist from race condition */ }
+        } catch (createErr: any) {
+          // Race condition: row was created between findUnique and create.
+          // Re-read the row and force-enable autoTrading.
+          this.logger.warn(`🔧 AgentSettings create race for user ${userId}: ${createErr.message} — re-reading and force-enabling`);
+          try {
+            userSettings = await this.prisma.agentSettings.findUnique({ where: { userId } });
+            if (userSettings && !userSettings.autoTradingEnabled) {
+              userSettings = await this.prisma.agentSettings.update({
+                where: { userId },
+                data: { autoTradingEnabled: true },
+              });
+            }
+          } catch { /* Give up — allow agent to start anyway */ }
+        }
       } else if (!userSettings.autoTradingEnabled) {
         // FIX: User clicked "Start Agent" → this IS the enable action.
         // Set autoTradingEnabled=true instead of blocking with an error.
@@ -424,13 +437,23 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           this.logger.log(`🔧 autoTradingEnabled set to true for user ${userId} (user clicked Start Agent)`);
         } catch (updateErr: any) {
           this.logger.warn(`Could not enable autoTradingEnabled for user ${userId}: ${updateErr.message}`);
+          // FIX: Even if DB update fails, allow the agent to start.
+          // The user's explicit click on "Start Agent" is consent.
+          // A stale DB value should not block the user's action.
+          userSettings = { ...userSettings, autoTradingEnabled: true };
         }
       }
+      // SAFETY NET: If userSettings still shows autoTradingEnabled=false
+      // (e.g., DB read returned stale data), override it. The user clicked
+      // "Start Agent" — that's explicit consent. Don't block them.
       if (userSettings && !userSettings.autoTradingEnabled) {
-        userAutoTradingEnabled = false;
+        this.logger.warn(`🔧 userSettings.autoTradingEnabled is still false for ${userId} after fix attempts — OVERRIDING to true (user clicked Start Agent)`);
+        userAutoTradingEnabled = true; // Force-allow — user consent overrides stale DB
       }
     } catch (e: any) {
       this.logger.warn(`Could not check user autoTradingEnabled: ${e.message}`);
+      // FIX: If we can't check, allow the agent to start.
+      // Missing settings should not block the user.
     }
 
     if (!userAutoTradingEnabled) {

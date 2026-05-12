@@ -1644,7 +1644,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     this.logger.log(
       `🧠 Agent ${userId} cycle #${state.totalCycles} complete: ` +
       `${usingCouncilBriefs ? `${agentBriefs.length} council briefs` : 'self-analysis'}, ` +
-      `${signalsGenerated} signals, ${signalsRejected} rejected — ANALYZE-ONLY MODE (no execution)` +
+      `${signalsGenerated} signals, ${signalsExecuted} executed, ${signalsRejected} rejected` +
       (rejectionReasons.length > 0 ? ` — rejections: [${rejectionReasons.join('; ')}]` : '') +
       (signalsGenerated === 0 ? ' — NO signals generated' : ''),
     );

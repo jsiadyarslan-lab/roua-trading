@@ -5,7 +5,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MarketAnalysis, EvaluatedSignal, StrategyType, StrategyParams } from '../types/agent.types';
 import { BaseStrategy } from '../strategies/base-strategy';
-import { ScalpingStrategy } from '../strategies/scalping.strategy';
 import { SwingStrategy } from '../strategies/swing.strategy';
 import { GridStrategy } from '../strategies/grid.strategy';
 import { MeanReversionStrategy } from '../strategies/mean-reversion.strategy';
@@ -266,9 +265,6 @@ export class SignalEvaluatorService {
     if (strategy) return strategy;
 
     switch (strategyType) {
-      case StrategyType.SCALPING:
-        strategy = new ScalpingStrategy(params);
-        break;
       case StrategyType.SWING:
         strategy = new SwingStrategy(params);
         break;

@@ -1092,13 +1092,14 @@ export class SmartExecutorService implements OnModuleDestroy {
     // ── FIX: Auto-close stale positions for paper trading ──
     // When the user is at max open positions AND is paper trading, automatically
     // close the oldest position to make room for new briefs. This prevents the
-    // executor from being permanently stuck at max positions with stale trades
-    // that have been open for too long. Paper trading is simulated, so closing
-    // stale positions doesn't risk real capital.
+    // executor from being permanently stuck at max positions with stale trades.
+    // Paper trading is simulated, so closing stale positions doesn't risk real capital.
+    // IMPORTANT: Only close positions older than 4 hours to avoid killing active trades.
     if (openPositionsCount >= maxPositions && userState.isPaperTrading) {
       try {
+        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
         const oldestPosition = await this.prisma.position.findFirst({
-          where: { userId, status: 'OPEN' },
+          where: { userId, status: 'OPEN', openedAt: { lt: fourHoursAgo } },
           orderBy: { openedAt: 'asc' },
         });
 

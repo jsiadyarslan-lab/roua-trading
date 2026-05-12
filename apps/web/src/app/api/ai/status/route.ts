@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   // Try NestJS models endpoint
   try {
-    const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+    const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
     const modelsUrl = `${baseUrl}/api/ai/models`
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',

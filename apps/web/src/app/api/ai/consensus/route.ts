@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
     // circular calls — Next.js calling itself instead of NestJS backend.
     const apiTargets = [
       process.env.API_INTERNAL_URL,
-      'http://localhost:3001',
+      'http://127.0.0.1:3001',
       'http://127.0.0.1:3001',
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
 

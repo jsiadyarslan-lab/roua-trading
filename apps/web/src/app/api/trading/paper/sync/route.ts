@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from 'next/server'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+  const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 
   try {
     const res = await fetch(`${baseUrl}/api/trading/paper/orders?status=FILLED&limit=200`, {
@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+  const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 
   try {
     const body = await req.json()

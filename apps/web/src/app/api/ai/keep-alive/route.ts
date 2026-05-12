@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   // Fire-and-forget: don't await, don't block the response
   const apiTargets = [
     process.env.API_INTERNAL_URL,
-    'http://localhost:3001',
+    'http://127.0.0.1:3001',
     'http://127.0.0.1:3001',
   ].filter(Boolean) as string[]
 

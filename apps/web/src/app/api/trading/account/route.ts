@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  * Expected: 500ms instead of 6000ms.
  */
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+  const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
   const sessionToken = req.cookies.get('roua_session')?.value
 
   try {

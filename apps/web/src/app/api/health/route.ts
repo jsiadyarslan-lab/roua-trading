@@ -20,7 +20,9 @@ import { NextResponse } from 'next/server';
  */
 export async function GET() {
   const start = Date.now();
-  const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+  // FIX: Use 127.0.0.1 instead of localhost (Node.js 18+ resolves localhost to IPv6 ::1,
+  // but NestJS listens on IPv4 0.0.0.0, causing ECONNREFUSED "fetch failed").
+  const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 
   const checks: Record<string, { status: string; latencyMs?: number; detail?: string }> = {};
 

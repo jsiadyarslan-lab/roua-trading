@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Priority 2: NestJS internal news ──
-    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
     const sessionToken = request.cookies.get('roua_session')?.value;
 
     const headers: Record<string, string> = {

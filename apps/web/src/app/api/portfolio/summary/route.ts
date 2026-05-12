@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
  * with proper cookie forwarding, and always returns 200 with a fallback summary.
  */
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+  const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 
   try {
     // Build auth headers from the incoming request

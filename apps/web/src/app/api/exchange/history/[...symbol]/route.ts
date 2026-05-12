@@ -225,7 +225,7 @@ export async function GET(
       // - Caching via ExchangeService
       // - Auth and request tracking
       try {
-        const backendUrl = `${process.env.NESTJS_API_URL || 'http://localhost:3001'}/api/exchange/history/${encodeURIComponent(symbol)}?interval=${interval}`
+        const backendUrl = `${process.env.NESTJS_API_URL || 'http://127.0.0.1:3001'}/api/exchange/history/${encodeURIComponent(symbol)}?interval=${interval}`
         const backendRes = await fetch(backendUrl, {
           signal: AbortSignal.timeout(6000),
           headers: { 'Accept': 'application/json' },

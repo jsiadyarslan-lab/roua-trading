@@ -108,7 +108,7 @@ export async function GET() {
     }
 
     // ── Priority 2: NestJS internal news ──
-    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
     try {
       const nestRes = await fetch(`${apiTarget}/api/news/latest?limit=15`, {
         headers: {

@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function POST(request: NextRequest) {
   try {
-    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 
     // Get session token from cookie — proxy handles auto-auth
     const sessionToken = request.cookies.get('roua_session')?.value;

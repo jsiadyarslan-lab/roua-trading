@@ -9,7 +9,7 @@ import { NextRequest, NextResponse } from 'next/server'
  * controller requires AuthGuard, so we must pass the session token.
  */
 
-const API_BASE = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+const API_BASE = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 
 export async function GET(req: NextRequest) {
   try {

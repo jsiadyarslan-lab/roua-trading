@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
  * If NestJS is unavailable, returns a calculated summary from paper trades.
  */
 export async function GET(req: NextRequest) {
-  const baseUrl = process.env.API_INTERNAL_URL || 'http://localhost:3001'
+  const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 
   try {
     // Try NestJS first

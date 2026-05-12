@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Try NestJS first
-    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
     const sessionToken = request.cookies.get('roua_session')?.value;
 
     const headers: Record<string, string> = {

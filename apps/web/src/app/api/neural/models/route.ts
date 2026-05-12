@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 export async function GET(request: NextRequest) {
   try {
-    const apiTarget = process.env.API_INTERNAL_URL || 'http://localhost:3001';
+    const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 
     // Extract session token from cookie to also pass as Bearer header
     const sessionToken = request.cookies.get('roua_session')?.value;

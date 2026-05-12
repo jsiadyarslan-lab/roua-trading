@@ -95,10 +95,10 @@ export class NvidiaService {
               Authorization: `Bearer ${this.apiKey}`,
               'Content-Type': 'application/json',
             },
-            timeout: 15000,  // FIX: Reduced from 45000ms — NVIDIA averages 11.5s which is over
-                             // the 5000ms latency warning threshold. 15s timeout ensures we
-                             // fail faster and fall through to fallback models instead of
-                             // blocking the council for 45 seconds per role.
+            timeout: 8000,  // FIX: Reduced from 15000ms — NVIDIA averages 11.1s which is
+                             // too slow. 8s timeout ensures we fail faster and fall
+                             // through to cheaper/faster fallback models instead of
+                             // blocking the entire analysis chain.
           },
         );
 

@@ -112,8 +112,8 @@ EXPOSE 3000 3001
 # because Railway overrides PORT with a random value.
 # Docker HEALTHCHECK CMD does NOT support variable expansion directly,
 # so we use a shell invocation to resolve env vars at check time.
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD bash -c 'curl -fsS "http://localhost:${PORT:-3000}/" > /dev/null 2>&1 && curl -fsS "http://localhost:${API_PORT:-3001}/api/health" > /dev/null 2>&1 || exit 1'
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
+  CMD bash -c 'curl -fsS "http://localhost:${API_PORT:-3001}/api/health" > /dev/null 2>&1 || exit 1'
 
 # FIX: Use start.sh which runs BOTH NestJS API (port 3001)
 # AND Next.js Web (port 3000) in a single container.

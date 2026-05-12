@@ -83,9 +83,10 @@ export class GlmService {
               Authorization: `Bearer ${this._generateJwt()}`,
               'Content-Type': 'application/json',
             },
-            timeout: 15000,  // FIX: Reduced from 60000ms — GLM averages 18s which is too slow.
-                             // With 15s timeout, requests exceeding the limit will fail faster
-                             // and fall through to cheaper/faster fallback models.
+            timeout: 10000,  // FIX: Reduced from 15000ms — GLM averages 17.9s which is
+                             // too slow. 10s timeout ensures we fail faster and fall
+                             // through to cheaper/faster fallback models instead of
+                             // blocking the entire analysis chain.
           },
         );
 

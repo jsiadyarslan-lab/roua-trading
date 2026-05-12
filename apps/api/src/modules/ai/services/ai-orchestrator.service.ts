@@ -198,6 +198,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
   private readonly BEDROCK_MONTHLY_BUDGET_USD = 100;
   private bedrockMonthlySpend = 0;
   private bedrockBudgetLastChecked = 0; // timestamp of last budget check
+  // FIX: Budget threshold at 95% instead of 100%.
+  // At 97.9% the budget was already critical. Setting the guard at 95%
+  // provides a safety buffer before AWS charges exceed the monthly limit.
+  private readonly BEDROCK_BUDGET_THRESHOLD_PERCENT = 0.95;
 
   constructor(
     private readonly configService: ConfigService,
@@ -1487,18 +1491,40 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // Budget is refreshed by querying AiUsageLog (every 5 minutes or on each Bedrock call).
     if (model === 'bedrock') {
       await this._refreshBedrockBudget();
-      if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD) {
-        this.logger.warn(`☁️ Bedrock budget guard: $${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD} — skipping Bedrock call`);
-        throw new Error(`Bedrock monthly budget exceeded ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
+      // FIX: Block Bedrock at 95% of budget, not 100%.
+      // At 97.9% the budget was already exceeded — the 100% guard was too late.
+      const budgetLimit = this.BEDROCK_MONTHLY_BUDGET_USD * this.BEDROCK_BUDGET_THRESHOLD_PERCENT;
+      if (this.bedrockMonthlySpend >= budgetLimit) {
+        this.logger.warn(`☁️ Bedrock budget guard: $${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD} (>= ${this.BEDROCK_BUDGET_THRESHOLD_PERCENT * 100}%) — skipping Bedrock call`);
+        throw new Error(`Bedrock monthly budget exceeded ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD}, threshold ${this.BEDROCK_BUDGET_THRESHOLD_PERCENT * 100}%)`);
       }
     }
 
-    // FIX #10/#17: Wrap model calls with exponential backoff retry.
-    // Only retries on 429 rate-limit and network errors.
-    // Auth errors (401/403), validation errors (400), and 404s are NOT retried.
-    // FIX #16: Pass logger to retry utility for consistent logging
-    return withExponentialBackoff(
-      () => {
+    // FIX: Per-model timeout enforced at orchestrator level.
+    // Even if an individual service has a long timeout, the orchestrator
+    // will abort the call after MODEL_TIMEOUT_MS to prevent the fallback
+    // chain from being blocked by a single slow model.
+    // GLM: 10s, NVIDIA: 8s, Mistral: 6s, Others: 15s
+    const MODEL_TIMEOUT_MS: Record<string, number> = {
+      glm: 10_000,
+      nvidia: 8_000,
+      mistral: 6_000,
+      groq: 15_000,
+      gemini: 15_000,
+      cerebras: 15_000,
+      bedrock: 15_000,
+      ollama: 15_000,
+      huggingface: 15_000,
+      openrouter: 15_000,
+      deepseek: 15_000,
+    };
+    const timeoutMs = MODEL_TIMEOUT_MS[model] || 15_000;
+
+    const callWithTimeout = async (): Promise<AIAnalysisResponse> => {
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Orchestrator timeout: model ${model} exceeded ${timeoutMs}ms`)), timeoutMs)
+      );
+      const modelCall = (): Promise<AIAnalysisResponse> => {
         switch (model) {
           case 'groq':        return this.groqService.analyze(request);
           case 'glm':         return this.glmService.analyze(request);
@@ -1513,7 +1539,16 @@ export class AIOrchestratorService implements OnModuleDestroy {
           case 'nvidia':      return this.nvidiaService.analyze(request);
           default:            return this.geminiService.analyze(request);
         }
-      },
+      };
+      return Promise.race([modelCall(), timeoutPromise]);
+    };
+
+    // FIX #10/#17: Wrap model calls with exponential backoff retry.
+    // Only retries on 429 rate-limit and network errors.
+    // Auth errors (401/403), validation errors (400), and 404s are NOT retried.
+    // FIX #16: Pass logger to retry utility for consistent logging
+    return withExponentialBackoff(
+      callWithTimeout,
       {
         maxAttempts: 2,        // 2 retries (3 total attempts) — keep it low to avoid blocking the fallback chain
         baseDelayMs: 1000,    // Start with 1s delay
@@ -1549,7 +1584,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       const stats = await this.usageLogger?.getMonthlySpendForProvider('bedrock');
       if (stats !== undefined && stats !== null) {
         this.bedrockMonthlySpend = stats;
-        if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD * 0.9) {
+        if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD * 0.85) {
           this.logger.warn(`☁️ Bedrock budget at ${((this.bedrockMonthlySpend / this.BEDROCK_MONTHLY_BUDGET_USD) * 100).toFixed(1)}% ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
         }
       }

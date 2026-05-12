@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v81
+ARG BUILD_CACHE=v82
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -93,30 +93,11 @@ ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 
-# FIX: Copy only production-necessary files from builder.
-# Previously copied EVERYTHING (all node_modules incl. devDeps, full source,
-# .next cache, etc.) resulting in a 1-2GB image. Now we copy selectively:
-# - node_modules (production deps — still need hoisted structure for both apps)
-# - Built API dist/ directory
-# - Built Next.js .next/ directory + public/ + next.config.ts
-# - Prisma schema + generated client
-# - start.sh + package.json for runtime scripts
-# - packages/shared dist/
-# - apps/web/ for Next.js start mode
-# - apps/api/package.json for module resolution
-COPY --from=builder --chown=webuser:roua /app/node_modules ./node_modules
-COPY --from=builder --chown=webuser:roua /app/package.json /app/package-lock.json ./
-COPY --from=builder --chown=webuser:roua /app/start.sh ./start.sh
-COPY --from=builder --chown=webuser:roua /app/prisma ./prisma
-COPY --from=builder --chown=webuser:roua /app/apps/api/dist ./apps/api/dist
-COPY --from=builder --chown=webuser:roua /app/apps/api/package.json ./apps/api/
-COPY --from=builder --chown=webuser:roua /app/apps/web/.next ./apps/web/.next
-COPY --from=builder --chown=webuser:roua /app/apps/web/public ./apps/web/public
-COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web/next.config.ts
-COPY --from=builder --chown=webuser:roua /app/apps/web/package.json ./apps/web/
-# NOTE: apps/web/node_modules is NOT copied — with --install-strategy=hoisted,
-# all dependencies live in the root node_modules/ (already copied above).
-COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
+# FIX: Copy all source from builder. The previous selective copy approach
+# missed files needed at runtime (e.g., apps/api/src for on-the-fly rebuild,
+# .env files, tsconfig for module resolution). Reverting to full copy for reliability.
+# Image size optimization can be done later once the app is stable.
+COPY --from=builder --chown=webuser:roua /app .
 
 # Ensure required directories exist
 RUN mkdir -p apps/web/public apps/api/dist

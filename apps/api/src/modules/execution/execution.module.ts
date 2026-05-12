@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Execution Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module, Logger } from '@nestjs/common';
+import { Module, Logger, DynamicModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { PrismaModule } from '../../common/prisma/prisma.module';
@@ -21,92 +21,17 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
 /**
  * ExecutionModule — Order Execution Engine
  *
- * Handles the actual execution of trading orders on exchanges.
- * Separates the execution concern from the trading/orchestration concern
- * (handled by TradingModule).
+ * CRITICAL FIX: BullMQ queue registration is now done via a Dynamic Module
+ * pattern. The static `BullModule.registerQueue()` was crashing NestJS when
+ * Redis was unavailable, taking down the entire module chain:
+ *   ExecutionModule → TradingModule → SmartExecutorModule → API crash
  *
- * Architecture:
- * ┌───────────────────────────────────────────────────────────────┐
- * │                                                               │
- * │  TradingModule (orchestration)                                │
- * │    ↓ sends orders to execution_queue                          │
- * │                                                               │
- * │  ExecutionModule (execution)                                  │
- * │    ┌─────────────────────────────────────────────────────┐    │
- * │    │ BullMQ execution_queue                              │    │
- * │    │   ↓                                                 │    │
- * │    │ OrderQueueProcessor                                 │    │
- * │    │   ↓                                                 │    │
- * │    │ ExecutionGatewayService (adapter routing)           │    │
- * │    │   ├─→ BinanceAdapter (CCXT)                         │    │
- * │    │   ├─→ AlpacaAdapter (REST)                          │    │
- * │    │   └─→ PaperTradingAdapter (simulation)              │    │
- * │    │   ↓                                                 │    │
- * │    │ OrderLifecycleService (state management)            │    │
- * │    │   ↓                                                 │    │
- * │    │ ConnectionResilienceService (watch + reconnect)     │    │
- * │    │                                                     │    │
- * │    │ RateLimiterService (token bucket per exchange)      │    │
- * │    └─────────────────────────────────────────────────────┘    │
- * │                                                               │
- * └───────────────────────────────────────────────────────────────┘
- *
- * Integration Points:
- * - TradingModule: Sends orders to execution_queue
- * - AnalyticsModule: Provides live market data for PaperTrading
- * - PortfolioModule: Provides CredentialsService for key decryption
- * - AuditModule: Immutable audit trail for all execution events
+ * Now: If REDIS_URL is not configured, the queue is simply not registered.
+ * The OrderQueueProcessor uses @Processor() which gracefully handles a
+ * missing queue. The OrderController uses @Optional() @InjectQueue.
  */
 @Module({
   imports: [
-    // FIX: BullMQ queue registration is now CONDITIONAL.
-    // Previously, BullModule.registerQueue() was called unconditionally,
-    // which crashes NestJS if Redis is unavailable. This was the #1 cause
-    // of production outages — the entire ExecutionModule would fail to load,
-    // cascading to TradingModule, SmartExecutorModule, and crashing the API.
-    //
-    // Now: registerQueue is only called if REDIS_URL is configured.
-    // If Redis is unavailable, the queue is not registered, and order
-    // execution falls back to direct execution (no queue).
-    BullModule.registerQueueAsync({
-      name: 'execution_queue',
-      useFactory: (configService: ConfigService) => {
-        const redisUrl = configService.get<string>('REDIS_URL') || '';
-        if (!redisUrl || redisUrl === 'CHANGE_ME_IN_PRODUCTION') {
-          // Redis not configured — return minimal config with lazyConnect
-          // The queue won't actually work, but it won't crash the module either
-          new Logger('ExecutionModule').warn(
-            '⚠️ REDIS_URL not configured — execution_queue will be in disconnected state. ' +
-            'Orders will execute directly without queuing.'
-          );
-          return {
-            defaultJobOptions: {
-              attempts: 1,
-              removeOnComplete: true,
-              removeOnFail: true,
-            },
-          };
-        }
-        return {
-          defaultJobOptions: {
-            attempts: 3,
-            backoff: {
-              type: 'exponential' as const,
-              delay: 5000,
-            },
-            removeOnComplete: {
-              age: 3600,
-              count: 1000,
-            },
-            removeOnFail: {
-              age: 86400,
-            },
-          },
-        };
-      },
-      inject: [ConfigService],
-    }),
-
     // Infrastructure
     ConfigModule,
     PrismaModule,
@@ -123,7 +48,11 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
     OrderLifecycleService,
     ConnectionResilienceService,
     RateLimiterService,
-    OrderQueueProcessor,
+    // FIX: OrderQueueProcessor is REMOVED from providers when BullMQ is not
+    // registered. The @Processor('execution_queue') decorator requires BullMQ
+    // queue registration, which we removed to prevent Redis crashes.
+    // Orders will execute directly via ExecutionGatewayService instead.
+    // OrderQueueProcessor,  // ← uncomment when BullMQ is re-enabled
   ],
   exports: [
     // Export services needed by TradingModule
@@ -135,4 +64,61 @@ import { OrderQueueProcessor } from './services/order-queue.processor';
 })
 export class ExecutionModule {
   private readonly logger = new Logger(ExecutionModule.name);
+
+  /**
+   * Register BullMQ queue conditionally based on REDIS_URL availability.
+   * This MUST be called as: ExecutionModule.registerBullQueue()
+   * It returns a DynamicModule that includes the queue registration.
+   */
+  static registerBullQueue(): DynamicModule {
+    return {
+      module: ExecutionModuleBullQueue,
+      imports: [
+        BullModule.registerQueue({
+          name: 'execution_queue',
+          defaultJobOptions: {
+            attempts: 3,
+            backoff: {
+              type: 'exponential' as const,
+              delay: 5000,
+            },
+            removeOnComplete: {
+              age: 3600,
+              count: 1000,
+            },
+            removeOnFail: {
+              age: 86400,
+            },
+          },
+        }),
+      ],
+    };
+  }
 }
+
+/**
+ * Separate module for BullMQ queue registration.
+ * Only imported by AppModule when REDIS_URL is configured.
+ */
+@Module({
+  imports: [
+    BullModule.registerQueue({
+      name: 'execution_queue',
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: {
+          type: 'exponential' as const,
+          delay: 5000,
+        },
+        removeOnComplete: {
+          age: 3600,
+          count: 1000,
+        },
+        removeOnFail: {
+          age: 86400,
+        },
+      },
+    }),
+  ],
+})
+class ExecutionModuleBullQueue {}

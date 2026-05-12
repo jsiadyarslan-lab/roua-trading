@@ -306,6 +306,23 @@ export function useExecutionEngine() {
   const executeOrder = useCallback(async () => {
     if (!pendingAction || !localSymbol || !quantity) return
     const side = pendingAction
+
+    // FIX: Check max open positions limit (10) across all sources BEFORE submitting.
+    // Count positions from the store + paper trades to enforce the global limit.
+    const MAX_OPEN_POSITIONS = 10
+    const currentPositions = usePositionsStore.getState().positions.length
+    const currentPaperTrades = usePaperTradesStore.getState().trades.length
+    const totalOpenPositions = currentPositions + currentPaperTrades
+    if (totalOpenPositions >= MAX_OPEN_POSITIONS) {
+      setExecutionState('rejected')
+      setStatus({
+        msg: `لديك ${totalOpenPositions} مركز مفتوح بالفعل (الحد الأقصى: ${MAX_OPEN_POSITIONS}). أغلق بعض المراكز أولاً.`,
+        type: 'error'
+      })
+      clearStatusAfter(5000)
+      return
+    }
+
     setLoading(true)
     setExecutionState('submitting')
     setStatus({ msg: `جارٍ إرسال الأمر...`, type: 'loading' })

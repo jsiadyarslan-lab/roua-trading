@@ -24,6 +24,8 @@ interface Position {
   exchange?: string
   openedAt?: string
   source?: 'nestjs' | 'alpaca'
+  /** Trade source from DB: user_manual, smart_executor, agent, auto_paper */
+  tradeSource?: string
 }
 
 interface PositionsState {
@@ -559,7 +561,14 @@ export const usePositionsStore = create<PositionsState>()(
               ? p.id
               : undefined,
             symbol: p.symbol,
-            side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
+            // FIX: Normalize side from DB enum (BUY/SELL) to UI convention (long/short).
+            // The Prisma schema uses OrderSide enum (BUY/SELL), but the UI checks
+            // for 'long'/'short' to show شراء/بيع. Without this normalization,
+            // positions from the API with side='BUY' fall through to the else
+            // branch and show as 'بيع' (sell) — which is WRONG.
+            side: p.side === 'long' || p.side === 'BUY' ? 'long'
+               : p.side === 'short' || p.side === 'SELL' ? 'short'
+               : p.side,
             qty: Number(p.quantity ?? p.qty ?? 0),
             entryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
             avgEntryPrice: Number(p.entryPrice) || Number(p.avgEntryPrice) || 0,
@@ -573,6 +582,9 @@ export const usePositionsStore = create<PositionsState>()(
             exchange: p.exchange,
             openedAt: p.openedAt,
             source: 'nestjs' as const,
+            // FIX: Preserve the trade source from DB (user_manual/smart_executor/agent/auto_paper)
+            // This is needed to show the correct source badge (ورقي/المنفذ/الوكيل) in the UI.
+            tradeSource: p.source || undefined,
           }))
 
           // FIX: Use merge instead of replace to prevent "dancing"
@@ -623,7 +635,7 @@ export const usePositionsStore = create<PositionsState>()(
           id: p.id || p.rawSymbol || p.symbol,
           symbol: p.symbol,
           rawSymbol: p.rawSymbol,
-          side: p.side === 'long' ? 'long' : p.side === 'short' ? 'short' : p.side,
+          side: p.side === 'long' || p.side === 'BUY' ? 'long' : p.side === 'short' || p.side === 'SELL' ? 'short' : p.side,
           qty: Number(p.qty ?? 0),
           entryPrice: Number(p.avgEntryPrice ?? p.entryPrice ?? 0),
           avgEntryPrice: Number(p.avgEntryPrice ?? p.entryPrice ?? 0),

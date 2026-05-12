@@ -53,15 +53,21 @@ interface PaperTradesState {
 }
 
 /**
- * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
- * Without userId in the key, user B would see user A's paper trades.
+ * SECURITY: Static localStorage key for reliable rehydration.
+ *
+ * CRITICAL FIX: Previously used a DYNAMIC key (roua-paper-trades:${userId})
+ * that depended on useAuthStore.getState().user, which is NOT available
+ * during Zustand rehydration (page refresh). This caused:
+ *   1. User opens trade → stored under roua-paper-trades:${userId}
+ *   2. Page refresh → rehydration tries getStorageKey() → auth not ready → returns guest key
+ *   3. Guest key has NO data → trades rehydrated as [] → DISAPPEARED
+ *
+ * NEW APPROACH: Use a STATIC key ('roua-paper-trades-store') for ALL users.
+ * Owner validation is done during rehydration via _ownerUserId field.
+ * This ensures trades are ALWAYS rehydrated from localStorage on page refresh.
  */
 function getStorageKey(): string {
-  try {
-    const user = useAuthStore.getState().user
-    if (user?.id) return `roua-paper-trades:${user.id}`
-  } catch { /* Auth store not yet initialized */ }
-  return 'roua-paper-trades:guest'
+  return 'roua-paper-trades-store'
 }
 
 /**
@@ -236,16 +242,9 @@ export const usePaperTradesStore = create<PaperTradesState>()(
           closedTrades: [],
           _ownerUserId: null,
         })
-        // Remove ALL paper-trades-related keys from localStorage
+        // Remove the static localStorage key
         try {
-          const keysToRemove: string[] = []
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i)
-            if (key && key.startsWith('roua-paper-trades')) {
-              keysToRemove.push(key)
-            }
-          }
-          keysToRemove.forEach(key => localStorage.removeItem(key))
+          localStorage.removeItem('roua-paper-trades-store')
         } catch { /* localStorage unavailable */ }
       },
       
@@ -268,33 +267,15 @@ export const usePaperTradesStore = create<PaperTradesState>()(
     }),
     {
       /**
-       * SECURITY: Use user-scoped storage key to prevent data leakage.
-       * Each user gets their own localStorage key: roua-paper-trades:${userId}
+       * STORAGE CONFIG: Static key for reliable rehydration.
        *
-       * FIX: The old `name: getStorageKey()` was evaluated ONCE at module load time
-       * (before auth was initialized), so all users shared the same 'guest' key.
-       * Now we use a custom storage adapter that dynamically resolves the key
-       * on every getItem/setItem call based on the current auth state.
+       * CRITICAL FIX: Previously used a dynamic storage key based on auth state.
+       * This broke rehydration on page refresh because auth wasn't ready when
+       * localStorage was read. Now using a STATIC key with _ownerUserId validation
+       * in onRehydrateStorage to prevent data leakage between users.
        */
-      name: 'roua-paper-trades', // Base name — actual key is resolved dynamically
-      storage: (() => {
-        const bs = createJSONStorage(() => localStorage)
-        const baseStorage = bs as any
-        return {
-          getItem: (name: string): any => {
-            const dynamicKey = getStorageKey()
-            return baseStorage.getItem(dynamicKey)
-          },
-          setItem: (name: string, value: any) => {
-            const dynamicKey = getStorageKey()
-            baseStorage.setItem(dynamicKey, value as string)
-          },
-          removeItem: (name: string) => {
-            const dynamicKey = getStorageKey()
-            baseStorage.removeItem(dynamicKey)
-          },
-        }
-      })(),
+      name: 'roua-paper-trades-store',
+      storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
         trades: state.trades,
         closedTrades: state.closedTrades,
@@ -308,25 +289,24 @@ export const usePaperTradesStore = create<PaperTradesState>()(
 
           // ═══════════════════════════════════════════════════════════════
           // FIX: Filter out PHANTOM trades on rehydration, but KEEP
-          // legitimate manual trades. The previous "NUCLEAR FIX" deleted
-          // ALL trades including real user trades, which caused trades
-          // to disappear when navigating between pages.
+          // ALL legitimate trades including bot/executor/agent trades.
           //
-          // Now we only filter out:
-          // - Trades with zero/negative entry price (phantom)
-          // - Trades with trade value < $1 (dust/phantom)
-          // - Trades from auto-trading bots (source: bot/executor/agent)
-          // - Trades with numeric-only symbols (phantom)
+          // Previously, bot/executor/agent trades were FILTERED OUT on
+          // rehydration (deleted from localStorage on page refresh), which
+          // caused them to disappear. This was wrong because:
+          // 1. These trades exist in the DB and should survive refresh
+          // 2. The user can see them in the positions list
+          // 3. Filtering them means losing track of open positions
           //
-          // Manual trades (source: 'manual') with valid data are preserved.
+          // Now we only filter out truly phantom/invalid trades:
+          // - Trades with zero/negative entry price
+          // - Trades with trade value < $1 (dust)
+          // - Trades with numeric-only symbols
+          //
+          // ALL valid trades (including bot/executor/agent) are preserved.
           // ═══════════════════════════════════════════════════════════════
           if (state && state.trades && state.trades.length > 0) {
             const validTrades = state.trades.filter((t: PaperTrade) => {
-              // Always keep manual trades with valid data
-              if (t.source === 'manual' && t.entryPrice > 0 && t.qty > 0) {
-                const tradeValue = Math.abs(t.qty * t.entryPrice)
-                if (tradeValue >= 1) return true
-              }
               // Filter out phantom/invalid trades
               if (!t.entryPrice || t.entryPrice <= 0) return false
               if (!t.qty || t.qty <= 0) return false
@@ -335,8 +315,8 @@ export const usePaperTradesStore = create<PaperTradesState>()(
               // Filter out numeric-only symbols
               const base = t.symbol.split('/')[0]
               if (/^\d+$/.test(base)) return false
-              // Filter out auto-trading bot trades (they re-create themselves)
-              if (t.source === 'bot' || t.source === 'executor' || t.source === 'agent') return false
+              // FIX: REMOVED the filter that deleted bot/executor/agent trades.
+              // All valid trades are kept regardless of source.
               return true
             })
 

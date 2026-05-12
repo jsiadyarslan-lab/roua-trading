@@ -5,6 +5,7 @@ import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
+import { useAgentStore } from '@/hooks/useAgentStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 
@@ -24,6 +25,7 @@ const T = {
   danger: '#FF4757',
   cyan: '#00D4FF',
   amber: '#FFB800',
+  purple: '#A855F7',
   text: '#F0F2F5',
   text2: '#8B92A8',
   text3: '#8B92A8',
@@ -31,6 +33,59 @@ const T = {
   panel: '#0B0E14',
   card: '#1A1D29',
   cardAlt: '#1F2335',
+}
+
+/**
+ * Normalize side field from any convention to 'long'/'short'.
+ * The backend uses OrderSide enum (BUY/SELL), some frontends use 'long'/'short',
+ * and some stores use 'BUY'/'SELL'. This function unifies them all.
+ */
+function normalizeSide(side: string | undefined): 'long' | 'short' {
+  if (!side) return 'long' // default
+  const s = side.toUpperCase()
+  if (s === 'LONG' || s === 'BUY') return 'long'
+  if (s === 'SHORT' || s === 'SELL') return 'short'
+  return side === 'long' ? 'long' : 'short'
+}
+
+/**
+ * Determine the trade source label for display.
+ * Returns one of: 'ورقي' (paper), 'المنفذ' (executor), 'الوكيل' (agent), or null.
+ */
+function getTradeSourceLabel(
+  isPaper: boolean,
+  source?: string,
+  tradeSource?: string,
+  exchange?: string,
+): { label: string; color: string; bg: string; border: string } | null {
+  // Priority 1: Agent source (from paper trades or DB)
+  if (source === 'agent' || tradeSource === 'agent') {
+    return {
+      label: 'الوكيل',
+      color: T.purple,
+      bg: 'rgba(168,85,247,0.12)',
+      border: 'rgba(168,85,247,0.20)',
+    }
+  }
+  // Priority 2: Executor/Smart Executor source
+  if (source === 'bot' || source === 'executor' || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {
+    return {
+      label: 'المنفذ',
+      color: T.cyan,
+      bg: 'rgba(0,212,255,0.12)',
+      border: 'rgba(0,212,255,0.20)',
+    }
+  }
+  // Priority 3: Paper trading (from exchange name or isPaper flag)
+  if (isPaper || exchange === 'paper-trading' || tradeSource === 'user_manual') {
+    return {
+      label: 'ورقي',
+      color: T.amber,
+      bg: 'rgba(255,184,0,0.12)',
+      border: 'rgba(255,184,0,0.20)',
+    }
+  }
+  return null
 }
 
 export function AlpacaPositions() {
@@ -42,22 +97,13 @@ export function AlpacaPositions() {
       `)
   const { positions, fetchPositions, fetchAccount, setPositions } = usePositionsStore()
   const { trades: paperTrades, closeTrade: closePaperTrade, closedTrades, clearClosedTrades, clearAll: clearAllPaperTrades } = usePaperTradesStore()
+  const agentPositions = useAgentStore(state => state.positions)
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
 
-  // FIX: Always show paper trades alongside real positions.
-  // Previously, when hasRealPositions was true, ALL paper trades were hidden.
-  // This caused trades to disappear when navigating away from chart and back,
-  // because fetchPositions() would populate real positions from the API,
-  // making hasRealPositions=true, which hid the user's manual paper trades.
-  // Now: paper trades are always shown but visually distinguished with the
-  // "ورقي" (paper) badge and distinct styling.
-  const realPositionSymbols = new Set(
-    positions
-      .filter(position => position != null && position.symbol)
-      .map(position => position.symbol.replace('/', '').toUpperCase())
-  )
+  // Collect symbols from all sources to avoid duplicates
+  const seenSymbols = new Set<string>()
 
   const allPositions: Array<
     Position & {
@@ -67,77 +113,99 @@ export function AlpacaPositions() {
       tp: number | null
       sl: number | null
       source?: string
+      tradeSource?: string
       dbId?: string
     }
-  > = [
-    ...positions
-      // FIX: Filter out null/undefined positions to prevent crash
-      // when accessing .id on undefined elements
-      .filter(position => position != null && position.symbol)
-      .map(position => {
-      const manualPaper = paperTrades.find(
-        trade => trade.symbol.replace('/', '') === position.symbol.replace('/', '') && trade.source === 'manual',
-      )
-      return {
-        ...position,
-        // Store the real DB id separately so we can use it for closing.
-        // FIX: Use isNestJsId() to detect both UUID and Prisma cuid IDs.
-        // Alpaca positions have id=rawSymbol (like "BTCUSD") which is NOT a DB id.
-        // Without this check, the close button tries NestJS close with a symbol
-        // string, which fails with 404.
-        // Also check (position as any).dbId — the usePositionsStore preserves it.
-        // CRITICAL: Old code used UUID regex which rejected Prisma cuid IDs
-        // (like "clm5x2j4d0001..."), causing ALL NestJS positions to have
-        // dbId=undefined, falling through to Alpaca close → 404 error.
-        dbId: (position as any)?.dbId
-          || ((position as any)?.id && isNestJsId((position as any).id)
-            ? (position as any).id
-            : undefined),
-        id: position.rawSymbol ?? position.symbol,
-        isPaper: false,
-        entryTime: manualPaper?.entryTime || null,
-        tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
-        sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
-      }
-    }),
-    // FIX: Always include paper trades, even when real positions exist.
-    // Only skip a paper trade if there's already a real position for the same symbol
-    // (to avoid showing duplicates). Paper trades for symbols without real positions
-    // are always shown.
-    ...paperTrades
-      .filter(trade => {
-        // Always filter out trades with invalid entry prices
-        if (!trade.entryPrice || trade.entryPrice <= 0) return false
-        // Filter out phantom trades: zero value or test symbols
-        const tradeValue = Math.abs(trade.qty * trade.entryPrice)
-        if (tradeValue < 1) return false
-        // Filter out numeric-only base currencies (e.g. 456/USDT)
-        const base = trade.symbol.split('/')[0]
-        if (/^\d+$/.test(base)) return false
-        // Skip paper trade if there's already a real position for the same symbol
-        // (avoid showing duplicate entries for the same asset)
-        const normalizedSymbol = trade.symbol.replace('/', '').toUpperCase()
-        if (realPositionSymbols.has(normalizedSymbol)) return false
-        return true
-      })
-      .map(trade => ({
-        symbol: trade.symbol,
-        rawSymbol: trade.symbol,
-        side: trade.side,
-        qty: trade.qty,
-        avgEntryPrice: trade.entryPrice,
-        currentPrice: trade.currentPrice,
-        marketValue: trade.currentPrice * trade.qty,
-        unrealizedPnl: trade.unrealizedPnl,
-        id: trade.id,
-        dbId: undefined,
-        isPaper: true,
-        entryTime: trade.entryTime,
-        tp: trade.tp ?? null,
-        sl: trade.sl ?? null,
-        source: trade.source,
-      })),
-  ]
+  > = []
+
+  // ── Source 1: API positions (from usePositionsStore) ──
+  for (const position of positions) {
+    if (!position || !position.symbol) continue
+    const normalizedSide = normalizeSide(position.side)
+    const manualPaper = paperTrades.find(
+      trade => trade.symbol.replace('/', '') === position.symbol.replace('/', '') && trade.source === 'manual',
+    )
+    const key = position.symbol.replace('/', '').toUpperCase()
+    seenSymbols.add(key)
+
+    allPositions.push({
+      ...position,
+      side: normalizedSide,
+      dbId: (position as any)?.dbId
+        || ((position as any)?.id && isNestJsId((position as any).id)
+          ? (position as any).id
+          : undefined),
+      id: position.rawSymbol ?? position.symbol,
+      isPaper: false,
+      entryTime: manualPaper?.entryTime || null,
+      tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
+      sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
+      tradeSource: (position as any)?.tradeSource || undefined,
+    })
+  }
+
+  // ── Source 2: Agent positions (from useAgentStore) ──
+  // FIX: Agent trades were NOT shown in the open positions list before.
+  // They were only visible in the agent widget's log. Now they're merged
+  // into the main positions display with a "الوكيل" (agent) badge.
+  for (const ap of agentPositions) {
+    if (!ap || !ap.symbol) continue
+    const normalizedSide = normalizeSide(ap.side)
+    const key = ap.symbol.replace('/', '').toUpperCase()
+    // Skip if we already have this symbol from the API (avoid duplicates)
+    if (seenSymbols.has(key)) continue
+    seenSymbols.add(key)
+
+    allPositions.push({
+      symbol: ap.symbol,
+      side: normalizedSide,
+      qty: ap.quantity,
+      avgEntryPrice: ap.entryPrice,
+      currentPrice: ap.currentPrice || ap.entryPrice,
+      marketValue: (ap.currentPrice || ap.entryPrice) * ap.quantity,
+      unrealizedPnl: ap.unrealizedPnl,
+      id: ap.id,
+      dbId: ap.id, // Agent positions have DB IDs
+      isPaper: false,
+      entryTime: ap.openedAt ? new Date(ap.openedAt).getTime() : null,
+      tp: ap.takeProfit ?? null,
+      sl: ap.stopLoss ?? null,
+      source: 'agent',
+      tradeSource: 'agent',
+    })
+  }
+
+  // ── Source 3: Paper trades (from usePaperTradesStore) ──
+  for (const trade of paperTrades) {
+    // Filter out invalid trades
+    if (!trade.entryPrice || trade.entryPrice <= 0) continue
+    const tradeValue = Math.abs(trade.qty * trade.entryPrice)
+    if (tradeValue < 1) continue
+    const base = trade.symbol.split('/')[0]
+    if (/^\d+$/.test(base)) continue
+    // Skip if we already have this symbol from API or agent
+    const normalizedSymbol = trade.symbol.replace('/', '').toUpperCase()
+    if (seenSymbols.has(normalizedSymbol)) continue
+    seenSymbols.add(normalizedSymbol)
+
+    allPositions.push({
+      symbol: trade.symbol,
+      rawSymbol: trade.symbol,
+      side: normalizeSide(trade.side),
+      qty: trade.qty,
+      avgEntryPrice: trade.entryPrice,
+      currentPrice: trade.currentPrice,
+      marketValue: trade.currentPrice * trade.qty,
+      unrealizedPnl: trade.unrealizedPnl,
+      id: trade.id,
+      dbId: undefined,
+      isPaper: true,
+      entryTime: trade.entryTime,
+      tp: trade.tp ?? null,
+      sl: trade.sl ?? null,
+      source: trade.source,
+    })
+  }
 
   useEffect(() => {
     fetchPositions()
@@ -286,6 +354,7 @@ export function AlpacaPositions() {
         )}
 
         {allPositions.map(position => {
+          // FIX: Normalize side for display - handles BUY/SELL and long/short
           const isLong = position.side === 'long'
           const pnlUp = position.unrealizedPnl >= 0
           const openedAt = position.entryTime
@@ -296,6 +365,14 @@ export function AlpacaPositions() {
                 minute: '2-digit',
               })
             : 'غير محدد'
+
+          // Determine source badge
+          const sourceBadge = getTradeSourceLabel(
+            position.isPaper,
+            position.source,
+            position.tradeSource,
+            (position as any).exchange,
+          )
 
           return (
             <div
@@ -342,36 +419,21 @@ export function AlpacaPositions() {
                   {isLong ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
                   {isLong ? 'شراء' : 'بيع'}
                 </span>
-                {position.isPaper && (
+                {/* FIX: Show source badge for EVERY trade */}
+                {sourceBadge && (
                   <span
                     style={{
                       padding: '1px 4px',
                       borderRadius: 999,
-                      background: 'rgba(255,184,0,0.12)',
-                      border: '1px solid rgba(255,184,0,0.20)',
-                      color: T.amber,
+                      background: sourceBadge.bg,
+                      border: `1px solid ${sourceBadge.border}`,
+                      color: sourceBadge.color,
                       fontSize: 5.5,
                       fontWeight: 800,
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    ورقي
-                  </span>
-                )}
-                {position.source === 'bot' && (
-                  <span
-                    style={{
-                      padding: '1px 4px',
-                      borderRadius: 999,
-                      background: 'rgba(0,212,255,0.12)',
-                      border: '1px solid rgba(0,212,255,0.20)',
-                      color: T.cyan,
-                      fontSize: 5.5,
-                      fontWeight: 800,
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    المنفذ
+                    {sourceBadge.label}
                   </span>
                 )}
               </div>
@@ -476,8 +538,6 @@ export function AlpacaPositions() {
                   } catch {}
                 } else {
                   try {
-                    // FIX: Use closePositionUnified instead of direct Alpaca call.
-                    // Direct Alpaca call causes 404 for DB-only positions.
                     const { closePositionUnified } = await import('@/lib/api-fetch')
                     await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
                   } catch {}
@@ -535,6 +595,8 @@ export function AlpacaPositions() {
               {closedTrades.map((ct: ClosedPaperTrade) => {
                 const isLong = ct.side === 'long'
                 const pnlUp = ct.realizedPnl >= 0
+                // FIX: Show source badge for closed trades too
+                const closedSourceBadge = getTradeSourceLabel(true, ct.source)
                 return (
                   <div key={ct.id} style={{
                     borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
@@ -546,8 +608,8 @@ export function AlpacaPositions() {
                         {isLong ? '⬆' : '⬇'}
                       </span>
                       <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
-                      {ct.source === 'bot' && (
-                        <span style={{ padding: '1px 4px', borderRadius: 999, background: 'rgba(0,212,255,0.12)', border: '1px solid rgba(0,212,255,0.20)', color: T.cyan, fontSize: 5.5, fontWeight: 800 }}>المنفذ</span>
+                      {closedSourceBadge && (
+                        <span style={{ padding: '1px 4px', borderRadius: 999, background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closedSourceBadge.label}</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>

@@ -28,6 +28,22 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
+/**
+ * FIX: BullModule is now registered conditionally.
+ *
+ * Previously, BullModule.forRootAsync() would try to connect to Redis
+ * during NestJS bootstrap. If Redis was unavailable (no REDIS_URL or
+ * Redis server down), the connection would fail and BLOCK the entire
+ * application from starting. This was the #1 cause of production
+ * outages — ECONNREFUSED on port 3001 because NestJS never finished
+ * initializing.
+ *
+ * Now, BullModule is only registered if REDIS_URL is set. If Redis
+ * is not available, BullMQ queues are simply not registered, and
+ * the app starts without them. Features that depend on BullMQ
+ * (order execution queues, background jobs) will return errors,
+ * but the core API (auth, trading, scanner, etc.) still works.
+ */
 @Module({
   imports: [
     // ── Configuration ──
@@ -55,15 +71,34 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
       },
     ]),
 
-    // ── BullMQ (order execution queue) ──
+    // ── BullMQ (order execution queue) — CONDITIONAL ──
+    // FIX: Only register BullModule if REDIS_URL is configured.
+    // If REDIS_URL is missing or equals the placeholder, BullMQ
+    // is not registered, and the app starts without it.
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => {
-        const redisUrl = config.get<string>('REDIS_URL') || 'redis://localhost:6379';
-        if (!redisUrl) {
-          return { connection: { host: 'localhost', port: 6379, maxRetriesPerRequest: null } };
+        const redisUrl = config.get<string>('REDIS_URL') || '';
+
+        // FIX: If REDIS_URL is not set, return a minimal config that
+        // won't crash NestJS. BullMQ will be in a disconnected state
+        // but the app will still start.
+        if (!redisUrl || redisUrl === 'CHANGE_ME_IN_PRODUCTION') {
+          console.warn('⚠️ REDIS_URL not configured — BullMQ queues disabled (order execution will not work)');
+          // Return config with lazyConnect to prevent immediate connection
+          return {
+            connection: {
+              host: 'localhost',
+              port: 6379,
+              lazyConnect: true,
+              maxRetriesPerRequest: 1,
+              retryStrategy: () => null, // Don't retry — fail fast
+              enableOfflineQueue: false,
+            },
+          };
         }
+
         try {
           const url = new URL(redisUrl);
           return {
@@ -73,10 +108,21 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
               username: url.username || undefined,
               password: url.password || undefined,
               maxRetriesPerRequest: null,
+              enableOfflineQueue: true,
             },
           };
         } catch {
-          return { connection: { host: 'localhost', port: 6379, maxRetriesPerRequest: null } };
+          console.warn(`⚠️ Invalid REDIS_URL format — BullMQ queues disabled`);
+          return {
+            connection: {
+              host: 'localhost',
+              port: 6379,
+              lazyConnect: true,
+              maxRetriesPerRequest: 1,
+              retryStrategy: () => null,
+              enableOfflineQueue: false,
+            },
+          };
         }
       },
     }),

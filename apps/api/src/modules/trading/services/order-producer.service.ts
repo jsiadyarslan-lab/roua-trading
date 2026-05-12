@@ -61,7 +61,17 @@ export class OrderProducerService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      await this._connect(rabbitUrl);
+      // FIX: Add a timeout to RabbitMQ connection so that an unreachable
+      // RabbitMQ server doesn't block the entire NestJS bootstrap.
+      // Without this, amqplib.connect() can hang for 60-120s (OS TCP SYN
+      // timeout), preventing app.listen() from executing → ECONNREFUSED on port 3001.
+      const CONNECT_TIMEOUT_MS = 5_000; // 5 seconds
+      await Promise.race([
+        this._connect(rabbitUrl),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`RabbitMQ connection timed out after ${CONNECT_TIMEOUT_MS / 1000}s`)), CONNECT_TIMEOUT_MS),
+        ),
+      ]);
       this.rabbitAvailable = true;
       this.logger.log('🐰 Order Producer connected to RabbitMQ');
     } catch (error: any) {
@@ -124,7 +134,10 @@ export class OrderProducerService implements OnModuleInit, OnModuleDestroy {
   private async _connect(url: string): Promise<void> {
     try {
       const amqp = await import('amqplib');
-      this.connection = await amqp.connect(url);
+      // FIX: Pass timeout option to amqplib.connect() — this sets the socket
+      // timeout for the TCP connection handshake. Without it, amqplib uses
+      // the OS default TCP SYN timeout (60-120s), which can block NestJS startup.
+      this.connection = await amqp.connect(url, { timeout: 5000 });
 
       this.connection.on('error', (err: any) => {
         this.logger.error(`🐰 RabbitMQ connection error: ${err.message}`);

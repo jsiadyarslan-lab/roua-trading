@@ -2,100 +2,170 @@ import { Injectable, OnModuleDestroy, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import Redis from 'ioredis';
 
+/**
+ * FIX: RedisService now gracefully degrades when Redis is unavailable.
+ *
+ * Previously, if REDIS_URL was not set or the Redis server was unreachable,
+ * the ioredis client would repeatedly try to connect, causing:
+ * 1. Connection errors flooding the logs
+ * 2. BullModule (which depends on Redis) blocking NestJS bootstrap
+ * 3. The entire API failing to start (ECONNREFUSED on port 3001)
+ *
+ * Now:
+ * - If REDIS_URL is not set, we create a "no-op" mode that silently
+ *   handles all Redis operations without crashing
+ * - Connection errors are logged at 'warn' level, not 'error'
+ * - The app can start even without Redis
+ * - Features that need Redis will return degraded data instead of crashing
+ */
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private readonly logger = new Logger(RedisService.name);
   private readonly client: Redis;
+  private readonly isAvailable: boolean;
 
   constructor(private readonly configService: ConfigService) {
-    const redisUrl = this.configService.get<string>('REDIS_URL', 'redis://localhost:6379');
+    const redisUrl = this.configService.get<string>('REDIS_URL', '');
 
+    // FIX: If REDIS_URL is not set, operate in degraded mode
+    if (!redisUrl || redisUrl === 'CHANGE_ME_IN_PRODUCTION') {
+      this.logger.warn('REDIS_URL not configured — operating in degraded mode (no caching, no BullMQ queues)');
+      this.isAvailable = false;
+      // Create a dummy Redis client that won't actually connect
+      // We'll check isAvailable before every operation
+      this.client = new Redis({
+        lazyConnect: true, // Don't connect immediately
+        maxRetriesPerRequest: 1,
+        retryStrategy: () => null, // Don't retry
+        enableOfflineQueue: false,
+      });
+      return;
+    }
+
+    this.isAvailable = true;
     this.client = new Redis(redisUrl, {
       maxRetriesPerRequest: 3,
+      enableOfflineQueue: true,
       retryStrategy: (times) => {
+        // FIX: Stop retrying after 10 attempts to prevent infinite loops
+        if (times > 10) {
+          this.logger.warn(`Redis retry limit reached (${times} attempts) — giving up`);
+          return null; // Stop retrying
+        }
         const delay = Math.min(times * 200, 5000);
         return delay;
       },
     });
 
     this.client.on('connect', () => {
-      this.logger.log('🔴 Redis connected');
+      this.logger.log('Redis connected');
     });
 
     this.client.on('error', (err) => {
-      this.logger.error('Redis connection error:', err.message);
+      // FIX: Log as 'warn' not 'error' — Redis being down is not fatal
+      this.logger.warn(`Redis connection error: ${err.message}`);
+    });
+
+    this.client.on('close', () => {
+      this.logger.warn('Redis connection closed');
     });
   }
 
-  async get(key: string): Promise<string | null> {
-    return this.client.get(key);
+  private handleUnavailable<T>(fallback: T, operation: string): T {
+    this.logger.debug(`Redis unavailable — skipping ${operation}`);
+    return fallback;
   }
 
-  async set(key: string, value: string, ttlMs?: number): Promise<void> {
-    if (ttlMs) {
-      await this.client.set(key, value, 'PX', ttlMs);
-    } else {
-      // FIX #11: Warn and set a default 24h TTL in production when no TTL is provided.
-      // Keys without TTL cause memory leaks as they persist indefinitely.
-      const env = process.env.NODE_ENV || 'development';
-      const defaultTtlMs = 24 * 60 * 60 * 1000; // 24 hours
-      if (env === 'production') {
-        this.logger.warn(`[Redis] Setting key "${key}" without TTL in production — defaulting to 24h. Pass ttlMs to set() to avoid this warning.`);
-        await this.client.set(key, value, 'PX', defaultTtlMs);
-      } else {
-        await this.client.set(key, value);
-      }
+  async get(key: string): Promise<string | null> {
+    if (!this.isAvailable) return this.handleUnavailable(null, `get(${key})`);
+    try {
+      return await this.client.get(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis GET failed for key "${key}": ${err.message}`);
+      return null;
     }
   }
 
-  /**
-   * Set a key only if it does not already exist (atomic SET NX).
-   * Returns true if the key was set (did NOT exist before), false if it already existed.
-   * Implements the pattern: redis.set(key, value, 'EX', seconds, 'NX')
-   *
-   * @param key The Redis key
-   * @param value The value to set
-   * @param ttlSeconds Time-to-live in seconds (default: 86400 = 24 hours)
-   * @returns true if lock was acquired, false if key already existed
-   */
+  async set(key: string, value: string, ttlMs?: number): Promise<void> {
+    if (!this.isAvailable) return this.handleUnavailable(undefined, `set(${key})`);
+    try {
+      if (ttlMs) {
+        await this.client.set(key, value, 'PX', ttlMs);
+      } else {
+        const env = process.env.NODE_ENV || 'development';
+        const defaultTtlMs = 24 * 60 * 60 * 1000;
+        if (env === 'production') {
+          this.logger.warn(`[Redis] Setting key "${key}" without TTL in production — defaulting to 24h.`);
+          await this.client.set(key, value, 'PX', defaultTtlMs);
+        } else {
+          await this.client.set(key, value);
+        }
+      }
+    } catch (err: any) {
+      this.logger.warn(`Redis SET failed for key "${key}": ${err.message}`);
+    }
+  }
+
   async setIfNotExists(key: string, value: string, ttlSeconds: number = 86400): Promise<boolean> {
-    const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
-    return result === 'OK';
+    if (!this.isAvailable) return this.handleUnavailable(false, `setIfNotExists(${key})`);
+    try {
+      const result = await this.client.set(key, value, 'EX', ttlSeconds, 'NX');
+      return result === 'OK';
+    } catch (err: any) {
+      this.logger.warn(`Redis SETNX failed for key "${key}": ${err.message}`);
+      return false;
+    }
   }
 
   async del(key: string): Promise<void> {
-    await this.client.del(key);
+    if (!this.isAvailable) return this.handleUnavailable(undefined, `del(${key})`);
+    try {
+      await this.client.del(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis DEL failed for key "${key}": ${err.message}`);
+    }
   }
 
   async incr(key: string): Promise<number> {
-    return this.client.incr(key);
+    if (!this.isAvailable) return this.handleUnavailable(0, `incr(${key})`);
+    try {
+      return await this.client.incr(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis INCR failed for key "${key}": ${err.message}`);
+      return 0;
+    }
   }
 
   async expire(key: string, ttlMs: number): Promise<void> {
-    await this.client.pexpire(key, ttlMs);
+    if (!this.isAvailable) return this.handleUnavailable(undefined, `expire(${key})`);
+    try {
+      await this.client.pexpire(key, ttlMs);
+    } catch (err: any) {
+      this.logger.warn(`Redis EXPIRE failed for key "${key}": ${err.message}`);
+    }
   }
 
   async ttl(key: string): Promise<number> {
-    return this.client.pttl(key);
+    if (!this.isAvailable) return this.handleUnavailable(-2, `ttl(${key})`);
+    try {
+      return await this.client.pttl(key);
+    } catch (err: any) {
+      this.logger.warn(`Redis TTL failed for key "${key}": ${err.message}`);
+      return -2;
+    }
   }
 
   async exists(key: string): Promise<boolean> {
-    const result = await this.client.exists(key);
-    return result === 1;
+    if (!this.isAvailable) return this.handleUnavailable(false, `exists(${key})`);
+    try {
+      const result = await this.client.exists(key);
+      return result === 1;
+    } catch (err: any) {
+      this.logger.warn(`Redis EXISTS failed for key "${key}": ${err.message}`);
+      return false;
+    }
   }
 
-  /**
-   * Rate limit check using atomic Lua script (INCR + EXPIRE in one round trip).
-   *
-   * FIX: Previously used separate INCR + EXPIRE commands, which created a race condition.
-   * If the process crashed between INCR returning 1 and EXPIRE, the key would persist
-   * forever with no TTL, permanently blocking that rate limit key.
-   *
-   * The Lua script is atomic — Redis executes it as a single operation:
-   * 1. INCR the counter
-   * 2. If counter is 1 (first request), set the TTL
-   * 3. Return [currentCount, ttlMs]
-   */
   private readonly rateLimitScript = `
     local current = redis.call('INCR', KEYS[1])
     if current == 1 then
@@ -106,33 +176,44 @@ export class RedisService implements OnModuleDestroy {
   `;
 
   async checkRateLimit(key: string, limit: number, windowMs: number): Promise<{ allowed: boolean; remaining: number; resetIn: number }> {
-    const result = await this.client.eval(
-      this.rateLimitScript,
-      1,          // number of keys
-      key,        // KEYS[1]
-      windowMs,   // ARGV[1]
-    ) as [number, number];
-
-    const current = result[0];
-    const ttl = result[1];
-
-    if (current > limit) {
-      return { allowed: false, remaining: 0, resetIn: ttl };
+    if (!this.isAvailable) {
+      // FIX: When Redis is unavailable, ALLOW all requests (fail-open)
+      // This prevents Redis outages from blocking legitimate traffic
+      return { allowed: true, remaining: limit, resetIn: windowMs };
     }
+    try {
+      const result = await this.client.eval(
+        this.rateLimitScript,
+        1,
+        key,
+        windowMs,
+      ) as [number, number];
 
-    return { allowed: true, remaining: limit - current, resetIn: ttl };
+      const current = result[0];
+      const ttl = result[1];
+
+      if (current > limit) {
+        return { allowed: false, remaining: 0, resetIn: ttl };
+      }
+
+      return { allowed: true, remaining: limit - current, resetIn: ttl };
+    } catch (err: any) {
+      this.logger.warn(`Redis rate limit check failed: ${err.message}`);
+      return { allowed: true, remaining: limit, resetIn: windowMs };
+    }
   }
 
-  /**
-   * Cache with TTL - get from cache or set from factory
-   */
   async cacheOrGet<T>(key: string, factory: () => Promise<T>, ttlMs: number): Promise<T> {
+    if (!this.isAvailable) {
+      // No cache — just run the factory
+      return factory();
+    }
     const cached = await this.get(key);
     if (cached) {
       try {
         return JSON.parse(cached) as T;
       } catch {
-        // If parsing fails, re-fetch
+        // Parse error — re-fetch
       }
     }
 
@@ -141,76 +222,79 @@ export class RedisService implements OnModuleDestroy {
     return value;
   }
 
-  /**
-   * Scan for keys matching a pattern using Redis SCAN (safe for production).
-   * Returns all matching keys without blocking the server.
-   *
-   * @param pattern Glob pattern to match (e.g., 'agent:state:*')
-   * @param count Approximate number of keys per scan iteration (default: 100)
-   * @returns Array of matching key strings
-   */
   async scanKeys(pattern: string, count: number = 100): Promise<string[]> {
-    const keys: string[] = [];
-    let cursor = '0';
+    if (!this.isAvailable) return this.handleUnavailable([], `scanKeys(${pattern})`);
+    try {
+      const keys: string[] = [];
+      let cursor = '0';
 
-    do {
-      const result = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', count);
-      cursor = result[0];
-      keys.push(...result[1]);
-    } while (cursor !== '0');
+      do {
+        const result = await this.client.scan(cursor, 'MATCH', pattern, 'COUNT', count);
+        cursor = result[0];
+        keys.push(...result[1]);
+      } while (cursor !== '0');
 
-    return keys;
+      return keys;
+    } catch (err: any) {
+      this.logger.warn(`Redis SCAN failed: ${err.message}`);
+      return [];
+    }
   }
 
-  /**
-   * FIX #11: Scan and clean up keys that have no TTL set.
-   * Finds keys matching a pattern that have TTL = -1 (no expiry) and sets a default TTL.
-   * This prevents memory leaks from keys set without TTL.
-   *
-   * @param pattern Key pattern to scan (default: '*' — all keys)
-   * @param defaultTtlMs Default TTL to set on keys without TTL (default: 24 hours)
-   * @returns Number of keys that were cleaned up
-   */
   async scanAndCleanup(pattern: string = '*', defaultTtlMs: number = 24 * 60 * 60 * 1000): Promise<number> {
+    if (!this.isAvailable) return 0;
     let cleaned = 0;
     try {
       const keys = await this.scanKeys(pattern);
       for (const key of keys) {
         const ttl = await this.client.pttl(key);
-        // ttl === -1 means no expiry set, ttl === -2 means key doesn't exist
         if (ttl === -1) {
           await this.client.pexpire(key, defaultTtlMs);
           cleaned++;
-          this.logger.debug(`[Redis] Set TTL ${defaultTtlMs}ms on key "${key}" (was -1 = no expiry)`);
         }
       }
       if (cleaned > 0) {
         this.logger.log(`[Redis] Cleanup: set default TTL on ${cleaned}/${keys.length} keys matching "${pattern}"`);
       }
     } catch (error: any) {
-      this.logger.error(`[Redis] Cleanup scan failed: ${error?.message || error}`);
+      this.logger.warn(`[Redis] Cleanup scan failed: ${error?.message || error}`);
     }
     return cleaned;
   }
 
-  /**
-   * Publish a message to a Redis channel (Pub/Sub).
-   * Used by Strategic Council and other services to broadcast events.
-   */
   async publish(channel: string, message: string): Promise<number> {
-    return this.client.publish(channel, message);
+    if (!this.isAvailable) return this.handleUnavailable(0, `publish(${channel})`);
+    try {
+      return await this.client.publish(channel, message);
+    } catch (err: any) {
+      this.logger.warn(`Redis PUBLISH failed on channel "${channel}": ${err.message}`);
+      return 0;
+    }
   }
 
   async onModuleDestroy() {
-    await this.client.quit();
-    this.logger.log('🔴 Redis disconnected');
+    if (this.isAvailable) {
+      try {
+        await this.client.quit();
+        this.logger.log('Redis disconnected');
+      } catch {
+        // Already disconnected
+      }
+    }
   }
 
-  /**
-   * Ping the Redis server to check connectivity.
-   * Returns 'PONG' on success.
-   */
   async ping(): Promise<string> {
-    return this.client.ping();
+    if (!this.isAvailable) return 'DEGRADED';
+    try {
+      return await this.client.ping();
+    } catch (err: any) {
+      this.logger.warn(`Redis PING failed: ${err.message}`);
+      return 'ERROR';
+    }
+  }
+
+  /** Check if Redis is available */
+  getIsAvailable(): boolean {
+    return this.isAvailable;
   }
 }

@@ -3,22 +3,46 @@
 # Production startup with full stack: NestJS API + Next.js Web
 # Supports Bun when available, otherwise falls back to npm/npx
 
-set -euo pipefail
+set -uo pipefail
+# FIX: Removed -e flag (was causing silent exits on SQL failures).
+# The -e flag makes bash exit immediately if any command fails.
+# During startup, some SQL commands may fail (e.g., column already exists,
+# enum already created) which is expected and non-fatal.
+# Individual critical commands use explicit error checking instead.
 
 # Load local environment fallback when running outside Railway or when env vars are absent.
+# FIX: Improved .env parser that preserves '#' in values.
+# The old parser used `value="${value%% #*}"` which would corrupt values
+# containing '#' (common in API keys, connection strings, base64 tokens).
+# Example: DATABASE_URL=postgresql://user:p#ss@host → would become postgresql://user:p
 if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
-  while IFS='=' read -r key value; do
-    case "$key" in
+  while IFS= read -r line || [ -n "$line" ]; do
+    # Skip empty lines and comment-only lines
+    case "$line" in
       ''|\#*) continue ;;
     esac
+    # Extract key (everything before first =)
+    key="${line%%=*}"
+    # Extract value (everything after first =)
+    value="${line#*=}"
+    # Remove carriage return
     value="${value%$'\r'}"
-    # Strip inline comments (e.g., KEY=value # comment -> KEY=value)
-    value="${value%% #*}"
-    value="${value%%\#*}"
+    # Strip inline comments ONLY if preceded by a space (# without space is part of value)
+    # This preserves: KEY=abc#def → abc#def
+    # But removes:    KEY=abc # comment → abc
+    if [[ "$value" == *' #'* ]]; then
+      value="${value%% #*}"
+    fi
+    # Trim trailing whitespace
     value="${value%"${value##*[! ]}"}"
+    # Remove surrounding quotes if present
     if [[ "$value" == \"*\" && "$value" == *\" ]]; then
       value="${value:1:-1}"
+    elif [[ "$value" == \'*\' && "$value" == *\' ]]; then
+      value="${value:1:-1}"
     fi
+    # Skip if key is empty after processing
+    [ -z "$key" ] && continue
     export "$key=$value"
   done < .env
 fi
@@ -59,7 +83,11 @@ run_web_start() {
   if [ "$USE_BUN" -eq 1 ]; then
     bunx next start -H 0.0.0.0
   else
-    npm run start
+    # FIX: Use npx next start directly instead of `npm run start`.
+    # In npm workspaces, `npm run start` from apps/web/ may resolve to
+    # the root package.json's "start": "bash start.sh", causing infinite
+    # recursion. Using npx directly avoids this risk entirely.
+    npx next start -H 0.0.0.0
   fi
 }
 
@@ -71,6 +99,19 @@ PROJECT_ROOT="$(pwd)"
 # This is the #1 cause of "fetch failed" errors in production —
 # the frontend can't find the API because this env var is missing.
 export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
+
+# FIX: Protect API_PORT from being overwritten by Railway's PORT variable.
+# Railway sets PORT to the port it routes external traffic to (e.g., 3000 or a
+# dynamic high port). If PORT=3001, Next.js would try to bind 3001 and conflict
+# with NestJS. We explicitly set API_PORT=3001 and ensure PORT is used only by
+# Next.js. This is critical for single-container deployments where both services
+# run in the same process namespace.
+export API_PORT="${API_PORT:-3001}"
+# If Railway set PORT=3001 (which would conflict with API_PORT), force PORT=3000
+if [ "${PORT:-3000}" = "3001" ]; then
+  echo "⚠️ PORT was set to 3001 (conflicts with API_PORT) — forcing PORT=3000 for Next.js"
+  export PORT=3000
+fi
 
 # FIX: Auto-detect ORIGIN from Railway's public domain.
 # This is CRITICAL for Google OAuth — without it, redirect_uri
@@ -153,12 +194,67 @@ prisma.setting.upsert({
 });
 " 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
 
-# ── Step 3: Verify critical tables exist ──
-# Prisma db:push sometimes silently fails to create new tables when
-# there are existing schema conflicts. We write a SQL file and execute
-# it via prisma db execute to create any missing tables.
-echo "📦 Verifying critical tables..."
-if [ -n "${DATABASE_URL:-}" ]; then
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX: Start NestJS BEFORE the safety-net SQL (was the #1 cause of 502s)
+#
+# Previously, ~1800 lines of SQL executed BEFORE starting NestJS,
+# causing 60-180 seconds of API downtime on every deploy.
+# During this window, ALL API requests returned 502.
+#
+# Now:
+# 1. Start NestJS immediately after essential Prisma setup
+# 2. Run safety-net SQL in the background while NestJS starts
+# 3. NestJS handles missing tables gracefully (PrismaService has
+#    reconnection logic, main.ts has fallback column-fixing)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Build artifacts on the fly if they are missing
+if [ ! -f "apps/api/dist/main.js" ]; then
+  echo "⚠️ API dist missing — building API..."
+  (cd apps/api && run_api_build)
+fi
+
+if [ ! -d "apps/web/.next" ]; then
+  echo "⚠️ Next build missing — building web..."
+  (cd apps/web && run_web_build)
+fi
+
+# Start the NestJS API in the background
+echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
+cd apps/api
+
+# Use the compiled JS entrypoint in production
+if [ -d "dist" ]; then
+  # FIX: Capture NestJS stdout/stderr to a log file for debugging.
+  node dist/main > /tmp/nestjs-startup.log 2>&1 &
+  API_PID=$!
+  echo "📋 NestJS started from dist/ (PID: $API_PID, logs: /tmp/nestjs-startup.log)"
+
+  # FIX: Immediately check if the process crashed within 3 seconds.
+  sleep 3
+  if ! kill -0 $API_PID 2>/dev/null; then
+    echo "❌ NestJS CRASHED immediately! Startup log:"
+    cat /tmp/nestjs-startup.log 2>/dev/null || echo "(no log output)"
+    echo "❌ Common causes:"
+    echo "   1. dist/main.js missing or corrupt (TypeScript build failure)"
+    echo "   2. Missing NODE_ENV or DATABASE_URL environment variables"
+    echo "   3. Module resolution error (check node_modules)"
+    echo "   4. Port ${API_PORT:-3001} already in use (PORT conflict)"
+  fi
+else
+  echo "⚠️ dist/ not found — API build output is missing"
+  exit 1
+fi
+
+cd "$PROJECT_ROOT"
+
+# ── Run safety-net SQL in the background ──
+# This SQL adds missing tables/columns that Prisma migrations may have missed.
+# Running it in the background means NestJS can start serving requests
+# while we fix any schema issues.
+(
+  echo "📦 [BG] Starting safety-net SQL setup..."
+  if [ -n "${DATABASE_URL:-}" ]; then
   # Write safety-net SQL to a temp file
   cat > /tmp/ensure_tables.sql <<'EOSQL'
     -- Position table (critical for trading engine)
@@ -1793,36 +1889,15 @@ EOSQL
   fi
 
   rm -f /tmp/ensure_tables.sql /tmp/add_missing_columns.sql /tmp/fix_agent_strategy_enum.sql /tmp/fix_enum_columns.sql
-else
-  echo "⚠️ No DATABASE_URL — skipping table verification"
-fi
+  else
+    echo "⚠️ No DATABASE_URL — skipping table verification"
+  fi
+  echo "✅ [BG] Safety-net SQL setup complete"
+) &
+SQL_BG_PID=$!
+echo "📦 Safety-net SQL running in background (PID: $SQL_BG_PID) — NestJS is already starting"
 
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-# Build artifacts on the fly if they are missing
-if [ ! -f "apps/api/dist/main.js" ]; then
-  echo "⚠️ API dist missing — building API..."
-  (cd apps/api && run_api_build)
-fi
-
-if [ ! -d "apps/web/.next" ]; then
-  echo "⚠️ Next build missing — building web..."
-  (cd apps/web && run_web_build)
-fi
-
-# Start the NestJS API in the background
-echo "🔧 Starting NestJS API server (port 3001)..."
-cd apps/api
-
-# Use the compiled JS entrypoint in production
-if [ -d "dist" ]; then
-  node dist/main &
-  API_PID=$!
-  echo "📋 NestJS started from dist/ (PID: $API_PID)"
-else
-  echo "⚠️ dist/ not found — API build output is missing"
-  exit 1
-fi
 
 # Wait for API to be ready
 echo "⏳ Waiting for API to be ready..."

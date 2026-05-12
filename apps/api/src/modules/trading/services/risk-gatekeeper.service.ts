@@ -105,7 +105,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     // Load circuit breaker state from Redis on startup
-    await this._loadCircuitBreakerStateFromRedis();
+    // FIX: Add a timeout so that an unreachable Redis doesn't block
+    // NestJS bootstrap. Without this, scanKeys() waits for ioredis to
+    // connect, which can hang if Redis is slow/unreachable → ECONNREFUSED.
+    const INIT_TIMEOUT_MS = 5_000; // 5 seconds
+    await Promise.race([
+      this._loadCircuitBreakerStateFromRedis(),
+      new Promise<void>((resolve) =>
+        setTimeout(() => {
+          this.logger.warn(`🛡️ Circuit breaker Redis load timed out after ${INIT_TIMEOUT_MS / 1000}s — continuing with empty state`);
+          resolve();
+        }, INIT_TIMEOUT_MS),
+      ),
+    ]);
   }
 
   async onModuleDestroy() {

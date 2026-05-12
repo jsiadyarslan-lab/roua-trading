@@ -20,6 +20,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       const url = new URL(dbUrl);
       url.searchParams.set('connection_limit', '20');
       url.searchParams.set('pool_timeout', '10');
+      // FIX: Add connect_timeout=10 to prevent TCP SYN timeout from blocking
+      // $connect() for 60-120s when the database server is unreachable.
+      // This sets the PostgreSQL client-side connect_timeout (in seconds),
+      // so $connect() fails fast and the onModuleInit timeout can trigger.
+      url.searchParams.set('connect_timeout', '10');
       dbUrl = url.toString();
     } catch {
       // Fallback: if URL parsing fails, use original URL as-is
@@ -51,7 +56,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // BUG 12 FIX: Updated connection pool params — connection_limit=20, pool_timeout=10
     this.logger.log('📦 Prisma connection pool: connection_limit=20, pool_timeout=10');
 
-    const connected = await this.tryConnect();
+    // FIX: Add a timeout to Prisma $connect() so that an unreachable database
+    // doesn't block the entire NestJS bootstrap. Without this timeout,
+    // $connect() can hang for 60-120s (OS TCP SYN timeout), preventing
+    // app.listen() from ever executing → ECONNREFUSED on port 3001.
+    const INIT_TIMEOUT_MS = 10_000; // 10 seconds
+    const connected = await Promise.race([
+      this.tryConnect(),
+      new Promise<boolean>((resolve) =>
+        setTimeout(() => {
+          this.logger.warn(`📦 Prisma $connect() timed out after ${INIT_TIMEOUT_MS / 1000}s — will retry in background`);
+          resolve(false);
+        }, INIT_TIMEOUT_MS),
+      ),
+    ]);
 
     if (!connected) {
       this.logger.warn(

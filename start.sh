@@ -195,17 +195,22 @@ prisma.setting.upsert({
 " 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# FIX: Start NestJS BEFORE the safety-net SQL (was the #1 cause of 502s)
+# CRITICAL FIX: Start Next.js FIRST, then NestJS in background
 #
-# Previously, ~1800 lines of SQL executed BEFORE starting NestJS,
-# causing 60-180 seconds of API downtime on every deploy.
-# During this window, ALL API requests returned 502.
+# Railway health check has a 5-minute window. If Next.js doesn't
+# start within that window, the deployment FAILS with
+# "1/1 replicas never became healthy".
 #
-# Now:
-# 1. Start NestJS immediately after essential Prisma setup
-# 2. Run safety-net SQL in the background while NestJS starts
-# 3. NestJS handles missing tables gracefully (PrismaService has
-#    reconnection logic, main.ts has fallback column-fixing)
+# Previously, start.sh waited up to 60s for NestJS health before
+# starting Next.js. If NestJS crashed (like the ExecutionGatewayService
+# bug), Next.js didn't start until 60s later, and by then the
+# health check might have already failed.
+#
+# Now: Start Next.js IMMEDIATELY after essential Prisma setup.
+# The /api/health endpoint always returns HTTP 200 (even when
+# NestJS is down), so Railway marks the replica as healthy.
+# NestJS starts in the background and the monitor restarts it
+# if it crashes.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Build artifacts on the fly if they are missing
@@ -219,18 +224,36 @@ if [ ! -d "apps/web/.next" ]; then
   (cd apps/web && run_web_build)
 fi
 
-# Start the NestJS API in the background
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# START NEXT.JS FIRST — Railway health check needs HTTP 200 ASAP
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ACTUAL_WEB_PORT=${PORT:-3000}
+echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT) IMMEDIATELY..."
+cd apps/web
+run_web_start &
+WEB_PID=$!
+cd "$PROJECT_ROOT"
+
+# Verify Next.js is actually listening (quick check, non-blocking)
+sleep 5
+if curl -fsS "http://127.0.0.1:${ACTUAL_WEB_PORT}/" > /dev/null 2>&1; then
+  echo "✅ Next.js VERIFIED listening on port $ACTUAL_WEB_PORT"
+else
+  echo "⏳ Next.js still starting on port $ACTUAL_WEB_PORT (will retry later)..."
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# START NESTJS IN BACKGROUND — non-blocking
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
 cd apps/api
 
-# Use the compiled JS entrypoint in production
 if [ -d "dist" ]; then
-  # FIX: Capture NestJS stdout/stderr to a log file for debugging.
   node dist/main > /tmp/nestjs-startup.log 2>&1 &
   API_PID=$!
   echo "📋 NestJS started from dist/ (PID: $API_PID, logs: /tmp/nestjs-startup.log)"
 
-  # FIX: Immediately check if the process crashed within 3 seconds.
+  # Check if the process crashed within 3 seconds
   sleep 3
   if ! kill -0 $API_PID 2>/dev/null; then
     echo "❌ NestJS CRASHED immediately! Startup log:"
@@ -1988,16 +2011,11 @@ echo "🔍 Starting NestJS process monitor..."
 monitor_nestjs &
 MONITOR_PID=$!
 
-# Start the Next.js web application
-# Verify actual port binding — this is REAL verification, not just env vars
-ACTUAL_WEB_PORT=${PORT:-3000}
-echo "🌐 Starting Next.js server (port $ACTUAL_WEB_PORT)..."
-cd apps/web
+# Next.js was already started early (before NestJS) for fast health check response.
+# Just set up the trap and wait for it.
 trap "kill $API_PID $MONITOR_PID 2>/dev/null || true" EXIT
-run_web_start &
-WEB_PID=$!
 
-# Wait briefly and verify Next.js is actually listening
+# Verify Next.js is still listening (it was started earlier)
 WEB_READY=0
 for i in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${ACTUAL_WEB_PORT}/" > /dev/null 2>&1; then

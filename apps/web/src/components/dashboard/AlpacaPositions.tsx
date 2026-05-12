@@ -147,7 +147,11 @@ export function AlpacaPositions() {
   // ── Source 2: Agent positions (from useAgentStore) ──
   // FIX: Agent trades were NOT shown in the open positions list before.
   // They were only visible in the agent widget's log. Now they're merged
-  // into the main positions display with a "الوكيل" (agent) badge.
+  // into the main positions display with the correct source badge.
+  // CRITICAL FIX: Read the actual `source` from the position data instead
+  // of hardcoding 'agent'. If a position has source='smart_executor' in the DB
+  // but was fetched through the agent store (shouldn't happen normally, but
+  // as a safeguard), we show the correct label.
   for (const ap of agentPositions) {
     if (!ap || !ap.symbol) continue
     const normalizedSide = normalizeSide(ap.side)
@@ -155,6 +159,9 @@ export function AlpacaPositions() {
     // Skip if we already have this symbol from the API (avoid duplicates)
     if (seenSymbols.has(key)) continue
     seenSymbols.add(key)
+
+    // Use the actual source from the DB if available, fallback to 'agent'
+    const actualSource = (ap as any)?.source || 'agent'
 
     allPositions.push({
       symbol: ap.symbol,
@@ -170,8 +177,8 @@ export function AlpacaPositions() {
       entryTime: ap.openedAt ? new Date(ap.openedAt).getTime() : null,
       tp: ap.takeProfit ?? null,
       sl: ap.stopLoss ?? null,
-      source: 'agent',
-      tradeSource: 'agent',
+      source: actualSource,
+      tradeSource: actualSource,
     })
   }
 

@@ -369,7 +369,11 @@ export class OrderLifecycleService {
             price: result.averagePrice,
             fee: result.fee || 0,
             feeCurrency: result.feeCurrency,
-            
+            // FIX: Set the source field on Trade records from clientOrderId.
+            // Previously, this field was missing, causing all Trade records
+            // created through the V2 pipeline to default to 'user_manual'.
+            // This broke trade history queries and source-based analytics.
+            source: this._extractSourceFromClientOrderId(order.clientOrderId),
           },
         });
       }, {

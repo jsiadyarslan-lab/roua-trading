@@ -36,6 +36,8 @@ interface Position {
   takeProfit?: number
   openedAt: string
   source?: string
+  /** Trade source from DB: smart_executor, agent, auto_paper, user_manual */
+  tradeSource?: string
 }
 
 interface PositionSummary {
@@ -49,8 +51,10 @@ const EXCHANGES = ['الكل', 'binance', 'kucoin', 'bybit', 'okx', 'gate']
 const SYMBOLS = ['الكل', 'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT']
 
 // ── Source Label Mapping ──
-function getSourceBadge(source?: string | null) {
-  if (!source || source === 'user_manual') return null
+function getSourceBadge(source?: string | null, tradeSource?: string | null) {
+  // Use tradeSource (from DB) first, then fallback to source (data source)
+  const effectiveSource = tradeSource || source
+  if (!effectiveSource || effectiveSource === 'user_manual' || effectiveSource === 'nestjs' || effectiveSource === 'alpaca') return null
   const map: Record<string, { label: string; bg: string; color: string; border: string; icon: string }> = {
     smart_executor: {
       label: 'المنفذ',
@@ -447,7 +451,7 @@ export default function PositionsPage() {
                         </div>
                         <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }}>{pos.symbol}</span>
                         <span style={{ fontSize: 8, fontWeight: 600, background: 'var(--bg-input)', border: '1px solid var(--border-subtle)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }}>{pos.exchange}</span>
-                        {(() => { const badge = getSourceBadge(pos.source); return badge ? <span style={{ fontSize: 8, fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, padding: '1px 5px', borderRadius: '4px', color: badge.color, fontFamily: 'var(--font-ar)' }}>{badge.icon} {badge.label}</span> : null })()}
+                        {(() => { const badge = getSourceBadge(pos.source, pos.tradeSource); return badge ? <span style={{ fontSize: 8, fontWeight: 700, background: badge.bg, border: `1px solid ${badge.border}`, padding: '1px 5px', borderRadius: '4px', color: badge.color, fontFamily: 'var(--font-ar)' }}>{badge.icon} {badge.label}</span> : null })()}
                       </div>
                       <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: 'var(--font-mono)', color: (pos.unrealizedPnl || 0) > 0 ? 'var(--profit)' : (pos.unrealizedPnl || 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)' }}>
                         {(pos.unrealizedPnl || 0) > 0 ? '+' : ''}{formatCurrency(pos.unrealizedPnl || 0)}
@@ -514,7 +518,7 @@ export default function PositionsPage() {
                         </td>
                         <td style={{ padding: '8px 10px' }}>
                           {(() => {
-                            const badge = getSourceBadge(pos.source)
+                            const badge = getSourceBadge(pos.source, pos.tradeSource)
                             return badge
                               ? <span style={{ fontSize: '8px', fontWeight: 700, padding: '2px 6px', borderRadius: '5px', fontFamily: 'var(--font-ar)', background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`, whiteSpace: 'nowrap' }}>{badge.icon} {badge.label}</span>
                               : <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar)' }}>يدوي</span>

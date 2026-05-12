@@ -23,6 +23,8 @@ export interface UnifiedPosition {
   openedAt?: string
   /** مصدر البيانات: nestjs أو alpaca */
   source?: 'nestjs' | 'alpaca'
+  /** مصدر الصفقة من قاعدة البيانات: smart_executor, agent, auto_paper, user_manual */
+  tradeSource?: string
   /** DB position ID (UUID) — for NestJS close path */
   dbId?: string
   /** Exchange-specific symbol — for Alpaca/Exchange reconciliation */
@@ -109,6 +111,11 @@ export async function fetchPositionsUnified(): Promise<{
         takeProfit: p.takeProfit,
         openedAt: p.openedAt,
         source: 'nestjs' as const,
+        // FIX: Preserve the trade source from DB (smart_executor/agent/auto_paper/user_manual).
+        // This is needed for the positions page to show the correct source badge
+        // (المنفذ/الوكيل/ورقي). Previously, only 'source' was set (to 'nestjs'),
+        // which is the DATA source, not the TRADE source.
+        tradeSource: p.source || undefined,
         dbId: p.id,              // FIX: Always pass DB UUID so closePositionUnified can use it
         exchangeSymbol: p.exchangeSymbol,  // FIX: Pass exchange-specific symbol for reconciliation
       }))

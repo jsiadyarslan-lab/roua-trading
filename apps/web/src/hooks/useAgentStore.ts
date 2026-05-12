@@ -122,6 +122,8 @@ export interface AgentPosition {
   confidence: number
   reasoning: string
   openedAt: string
+  /** Trade source from DB: 'agent', 'smart_executor', 'auto_paper', 'user_manual' */
+  source?: string
 }
 
 export interface AgentLog {

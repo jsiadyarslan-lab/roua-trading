@@ -96,13 +96,15 @@ export class OrderDispatcherService {
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
     const startTime = Date.now();
 
-    // ── 0. فحص المراكز المفتوحة (منع التكرار عبر المصادر) ──────────
-    // FIX: Before generating an idempotency key, check if there's already
-    // an open position for this user+symbol from ANY source. Previously,
-    // the idempotency key included `source`, so the Agent and Smart
-    // Executor had DIFFERENT keys for the same pair, bypassing dedup.
-    // This caused both systems to open duplicate positions on the same pair.
+    // ── 0. فحص المراكز المفتوحة والأوامر المعلقة (منع التكرار عبر المصادر) ──
+    // FIX: Check for BOTH existing open positions AND pending/accepted orders.
+    // Previously, we only checked for OPEN positions, but since BullMQ is async,
+    // a position might not exist yet when a second order for the same pair
+    // arrives. This caused both the Agent and Smart Executor to open
+    // positions on the same pair — the position would be labeled with
+    // whichever source was processed first, confusing users.
     try {
+      // Check 1: Existing open positions
       const existingPosition = await this.prisma.position.findFirst({
         where: {
           userId: request.userId,
@@ -123,9 +125,45 @@ export class OrderDispatcherService {
           error: `Duplicate position: ${request.symbol} already open from ${existingSource}`,
         };
       }
+
+      // Check 2: Pending/accepted orders (prevents race condition)
+      // When the first order is in the BullMQ queue but hasn't been executed yet,
+      // no position exists yet. A second order from a different source would
+      // pass the position check above. This order check prevents that.
+      const existingOrder = await this.prisma.order.findFirst({
+        where: {
+          userId: request.userId,
+          symbol: request.symbol,
+          side: request.side === 'BUY' ? 'BUY' : 'SELL',
+          status: { in: ['PENDING', 'ACCEPTED', 'SENT_TO_EXCHANGE'] },
+        },
+      });
+
+      if (existingOrder) {
+        // Extract source from clientOrderId to identify which system placed the order
+        let orderSource = 'unknown';
+        if (existingOrder.clientOrderId) {
+          const knownSources = ['smart_executor', 'agent', 'auto_paper'];
+          for (const src of knownSources) {
+            if (existingOrder.clientOrderId.startsWith(src + '-')) {
+              orderSource = src;
+              break;
+            }
+          }
+        }
+        this.logger.warn(
+          `[Dispatcher] BLOCKED: ${request.source} tried to open ${request.symbol} ${request.side} ` +
+          `but order already pending (id: ${existingOrder.id}, source: ${orderSource})`,
+        );
+        return {
+          success: false,
+          message: `يوجد أمر معلق بالفعل لـ ${request.symbol} من ${orderSource} — لا يمكن فتح مركز مكرر`,
+          error: `Duplicate order: ${request.symbol} already pending from ${orderSource}`,
+        };
+      }
     } catch (posErr: any) {
       // DB check failed — log warning but continue (don't block trading if DB is slow)
-      this.logger.warn(`[Dispatcher] Could not check existing positions: ${posErr.message}`);
+      this.logger.warn(`[Dispatcher] Could not check existing positions/orders: ${posErr.message}`);
     }
 
     // ── 1. توليد idempotency key ──────────────────────────────

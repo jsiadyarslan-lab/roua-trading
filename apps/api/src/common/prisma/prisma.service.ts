@@ -18,7 +18,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     let dbUrl = process.env.DATABASE_URL!;
     try {
       const url = new URL(dbUrl);
-      // REDUCED: From 20 to 5 to prevent "too many clients" error in Railway
+      // FIX: Reduced connection_limit from 20 to 5 to prevent pool exhaustion.
+      // Railway free-tier PostgreSQL has a low max_connections limit (~20-30).
+      // With Next.js also using 5 connections, total = 10 — safe margin.
       url.searchParams.set('connection_limit', '5');
       url.searchParams.set('pool_timeout', '10');
       // FIX: Add connect_timeout=10 to prevent TCP SYN timeout from blocking
@@ -54,7 +56,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // REDUCED: connection_limit=5
+    // FIX: Updated connection pool params — connection_limit=5, pool_timeout=10
     this.logger.log('📦 Prisma connection pool: connection_limit=5, pool_timeout=10');
 
     // FIX: Add a timeout to Prisma $connect() so that an unreachable database

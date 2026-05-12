@@ -57,77 +57,15 @@ const OFFLINE_CACHE_MS = 10_000; // Cache offline status for 10 seconds
  * Create a guest session via NestJS's /api/auth/guest endpoint.
  * Fallback when Next.js can't create sessions directly.
  *
- * FIX #1: Previous version had a broken flow:
- * 1. It tried to extract sessionToken from response body, but NestJS sets
- *    it as an httpOnly cookie (not in body for security).
- * 2. It didn't retry on transient failures (e.g., cold start 502s).
- * 3. If NestJS is cold-starting, the first request returns 502.
- *
- * New approach:
- * - Extract token from set-cookie header (Strategy 1)
- * - Fall back to response body field (Strategy 2, backward compat)
- * - Retry up to 2 times with 3s delay on 502/503 (cold start recovery)
- * - Forward the cookie to the client so subsequent requests work
+ * FIX: NestJS does NOT have a /api/auth/guest endpoint (returns 404).
+ * This function previously sent POST requests to NestJS that always failed,
+ * wasting DB connections on retries. Now it immediately returns null and
+ * the caller falls through to forceCreateSession() which uses the
+ * Next.js DB directly.
  */
 async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeader?: string } | null> {
-  const maxRetries = 2;
-  const retryDelayMs = 3000;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      if (attempt > 0) {
-        console.log(`[nestjs-proxy] Retrying createSessionViaNestJS (attempt ${attempt}/${maxRetries})...`);
-        await new Promise(r => setTimeout(r, retryDelayMs));
-      }
-
-      const response = await fetch(`${API_TARGET}/api/auth/guest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(15000), // FIX: 15s timeout (was 10s) — cold starts take longer
-      })
-
-      // FIX #1: If NestJS returns 502/503, it's likely cold-starting — retry
-      if (response.status === 502 || response.status === 503) {
-        console.warn(`[nestjs-proxy] NestJS returned ${response.status} on guest session (attempt ${attempt + 1}) — likely cold start`);
-        continue;
-      }
-
-      if (response.ok) {
-        const data = await response.json()
-
-        if (data.success) {
-          // Strategy 1: Extract from set-cookie header
-          const setCookie = response.headers.get('set-cookie')
-          if (setCookie) {
-            const match = setCookie.match(/roua_session=([^;]+)/)
-            if (match) {
-              return { token: match[1], setCookieHeader: setCookie }
-            }
-          }
-
-          // Strategy 2: Check response body (NestJS auth.controller returns sessionToken in body)
-          if (data.sessionToken) {
-            return { token: data.sessionToken }
-          }
-
-          // Strategy 3: Check for token in data.token or data.data.token
-          if (data.token) {
-            return { token: data.token }
-          }
-          if (data.data?.token) {
-            return { token: data.data.token }
-          }
-
-          // FIX #1: sessionToken was returned by NestJS but we couldn't find it — log for debugging
-          console.warn('[nestjs-proxy] Guest session succeeded but no token found in response:', JSON.stringify(data).substring(0, 200))
-        }
-      } else {
-        console.warn(`[nestjs-proxy] NestJS guest session failed: HTTP ${response.status}`)
-      }
-    } catch (error: any) {
-      console.warn(`[nestjs-proxy] createSessionViaNestJS error (attempt ${attempt + 1}): ${error?.message || error}`)
-    }
-  }
+  // FIX: NestJS has no /api/auth/guest endpoint — skip NestJS entirely.
+  // Guest sessions are created directly via the Next.js DB (forceCreateSession).
   return null
 }
 
@@ -380,11 +318,7 @@ async function proxyWithToken(
         // setCookie=false to avoid overwriting real user's cookie with guest token
         return proxyWithToken(request, method, newSession.token, false, retryCount + 1)
       }
-      // Can't create new session — try NestJS fallback
-      const nestjsSession = await createSessionViaNestJS()
-      if (nestjsSession) {
-        return proxyWithToken(request, method, nestjsSession.token, false, retryCount + 1)
-      }
+      // FIX: Removed createSessionViaNestJS() fallback — NestJS has no /api/auth/guest endpoint.
     }
 
     // FIX #9: Handle 403 Forbidden — usually means the session token is valid but

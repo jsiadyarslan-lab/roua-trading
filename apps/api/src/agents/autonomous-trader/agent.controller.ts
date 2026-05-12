@@ -18,6 +18,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
+import { PrismaService } from '../../common/prisma/prisma.service';
 import { AutonomousTraderAgentService } from './agent.service';
 import { MarketAnalyzerService } from './services/market-analyzer.service';
 import { SignalEvaluatorService } from './services/signal-evaluator.service';
@@ -30,7 +31,10 @@ import { StartAgentDto, ChangeStrategyDto, UpdateRiskParamsDto, UpdateAgentSetti
  */
 @Controller('agent/trader')
 export class AutonomousTraderPublicController {
-  constructor(private readonly agentService: AutonomousTraderAgentService) {}
+  constructor(
+    private readonly agentService: AutonomousTraderAgentService,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Get('health')
   @Public()
@@ -65,15 +69,14 @@ export class AutonomousTraderPublicController {
     }
 
     try {
-      // Use parameterized queries to prevent SQL injection
-      const { PrismaClient } = require('@prisma/client');
-      const prisma = new PrismaClient();
-      
+      // FIX: Use injected PrismaService (singleton, shared connection pool)
+      // instead of creating a rogue new PrismaClient() per request which
+      // opens 10 additional DB connections and can exhaust the pool.
       let logs: string[] = [];
       logs.push("Starting diagnostic DB fix...");
       
       // 1. Find unique indexes on Position table using parameterized query
-      const indexes = await prisma.$queryRaw`
+      const indexes = await this.prisma.$queryRaw`
         SELECT i.relname AS index_name
         FROM pg_class t
         JOIN pg_index ix ON t.oid = ix.indrelid
@@ -87,14 +90,13 @@ export class AutonomousTraderPublicController {
         const indexName = String(idx.index_name);
         if (indexName !== 'Position_pkey' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(indexName)) {
           logs.push("Dropping " + indexName + "...");
-          await prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${indexName}" CASCADE;`);
+          await this.prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${indexName}" CASCADE;`);
           logs.push("Dropped " + indexName + " successfully!");
         } else if (indexName !== 'Position_pkey') {
           logs.push("Skipping suspicious index name: " + indexName);
         }
       }
       
-      await prisma.$disconnect();
       return { success: true, message: "Fixed successfully", logs };
     } catch (e: any) {
       return { success: false, error: e.message };

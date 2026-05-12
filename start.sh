@@ -215,7 +215,12 @@ fi
 echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
 timeout 15 node -e "
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+// FIX: Add connection_limit=2 to prevent this short-lived script from
+// exhausting the DB connection pool. Without this, PrismaClient defaults
+// to connection_limit=10, which adds to the already limited pool.
+let dbUrl = process.env.DATABASE_URL;
+if (dbUrl) { try { const u = new URL(dbUrl); u.searchParams.set('connection_limit', '2'); u.searchParams.set('pool_timeout', '5'); dbUrl = u.toString(); } catch {} }
+const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 prisma.setting.upsert({
   where: { key: 'AUTO_TRADING_ENABLED' },
   update: {},

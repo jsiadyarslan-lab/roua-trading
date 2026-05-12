@@ -19,9 +19,12 @@ export const db =
     if (dbUrl) {
       try {
         const url = new URL(dbUrl)
-        // REDUCED: From 10 to 3 to prevent "too many clients" error in Railway
-        url.searchParams.set('connection_limit', '3')
-        url.searchParams.set('pool_timeout', '20')
+        // FIX: Reduced connection_limit from 10 to 5 and pool_timeout from 30 to 10
+        // to prevent DB connection pool exhaustion on Railway free-tier PostgreSQL.
+        // With NestJS also using 5 connections, total = 10 — safe margin.
+        // pool_timeout=10 means requests fail fast instead of waiting 30s holding connections.
+        url.searchParams.set('connection_limit', '5')
+        url.searchParams.set('pool_timeout', '10')
         dbUrl = url.toString()
       } catch {
         // If URL parsing fails, use original URL as-is

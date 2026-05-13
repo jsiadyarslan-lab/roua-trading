@@ -216,6 +216,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    */
   private async _startupCleanup(): Promise<void> {
     try {
+      // SUSTAINABLE FIX: Skip cleanup if DB is not available.
+      // Each query on an unavailable DB creates a new Prisma connection pool,
+      // which leaks a PostgreSQL connection slot. On Railway's limited PostgreSQL,
+      // this causes "too many clients already" cascading failures.
+      if (!this.prisma?.isAvailable?.()) {
+        this.logger.warn('🧠 Skipping startup cleanup — DB not yet available');
+        return;
+      }
+
       this.logger.log('🧠 Running startup phantom cleanup (preserving user data)...');
 
       // ── STOP: Set stale RUNNING agent sessions to STOPPED in DB ──

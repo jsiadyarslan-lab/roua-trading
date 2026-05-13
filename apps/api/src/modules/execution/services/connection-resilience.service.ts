@@ -354,6 +354,12 @@ export class ConnectionResilienceService implements OnModuleInit, OnModuleDestro
   private async _performSnapshotRecovery(exchangeId: string): Promise<void> {
     this.logger.log(`🔗 Starting snapshot recovery for ${exchangeId}`);
 
+    // SUSTAINABLE FIX: Skip if DB not available to avoid leaking connection pools
+    if (!this.prisma?.isAvailable?.()) {
+      this.logger.warn(`🔗 Skipping snapshot recovery for ${exchangeId} — DB not yet available`);
+      return;
+    }
+
     try {
       // Find all orders for this exchange that are in non-terminal states
       const activeOrders = await this.prisma.order.findMany({

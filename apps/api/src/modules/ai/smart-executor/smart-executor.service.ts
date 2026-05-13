@@ -120,6 +120,14 @@ export class SmartExecutorService implements OnModuleDestroy {
    */
   private async _startupCleanup(): Promise<void> {
     try {
+      // SUSTAINABLE FIX: Skip cleanup if DB is not available.
+      // Each query on an unavailable DB creates a new connection pool,
+      // leaking PostgreSQL connection slots and causing cascading failures.
+      if (!this.prisma?.isAvailable?.()) {
+        this.logger.warn('⚔️ Skipping startup cleanup — DB not yet available');
+        return;
+      }
+
       this.logger.log('⚔️ Running startup phantom cleanup (preserving user data)...');
 
       // ── STEP 1: Clean phantom/stale positions (zero-value only) ──

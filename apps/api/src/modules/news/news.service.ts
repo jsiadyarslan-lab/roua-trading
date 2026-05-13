@@ -209,6 +209,14 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    * Fetch news from multiple sources and analyze them
    */
   async fetchAndAnalyzeNews() {
+    // SUSTAINABLE FIX: Skip if DB not available.
+    // Each prisma query on an unavailable DB creates a new connection pool,
+    // leaking PostgreSQL connection slots and causing cascading failures.
+    if (!this.prisma?.isAvailable?.()) {
+      this.logger.warn('📰 Skipping news fetch — DB not yet available');
+      return;
+    }
+
     this.logger.log('📰 Starting news fetch and analysis...');
 
     const rawNews = await this._fetchAllSources();

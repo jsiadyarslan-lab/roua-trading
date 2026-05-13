@@ -7,33 +7,24 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /**
- * SUSTAINABLE FIX: Lazy PrismaClient initialization.
+ * SUSTAINABLE FIX: Lazy PrismaClient initialization with PgBouncer.
  *
- * PREVIOUS PROBLEM:
- *   The old code created PrismaClient at MODULE LOAD TIME:
- *     export const db = globalForPrisma.prisma ?? new PrismaClient({...})
+ * ARCHITECTURE:
+ *   App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL
  *
- *   When Next.js starts, it eagerly evaluates imported modules.
- *   If any route or lib imports from db.ts, the PrismaClient is created
- *   immediately, opening a connection pool BEFORE start.sh has finished
- *   running prisma db push. This caused "too many clients already" errors
- *   because:
- *     1. start.sh starts Next.js first (for health checks)
- *     2. Next.js creates PrismaClient → opens 1 connection
- *     3. start.sh runs prisma db push → tries to open connection
- *     4. Old deployment connections still exist → total exceeds max_connections
+ * PgBouncer multiplexes many app connections onto few real PG connections.
+ * In transaction mode, connections are released after each transaction.
+ * This means 15+ app connections share ~5 real PostgreSQL connections.
  *
- * SUSTAINABLE FIX:
- *   PrismaClient is now created ONLY when first needed (lazy init).
- *   The `db` export is a Proxy that delegates all property access to the
- *   real PrismaClient instance, which is created on first access.
+ * LAZY INIT:
+ *   PrismaClient is created ONLY when first needed. The `db` export is
+ *   a Proxy that delegates all property access to the real PrismaClient
+ *   instance, created on first access. This prevents opening connections
+ *   at module load time.
  *
- *   This means Next.js can start without opening any DB connections.
- *   The connection is opened only when the first actual API request comes in,
- *   by which time start.sh has finished its Prisma operations.
- *
- *   connection_limit=1 is set by start.sh in DATABASE_URL itself, so
- *   no URL modification is needed here.
+ * PgBouncer handles connection pooling centrally. No per-client URL
+ * modification needed. If PgBouncer is unavailable (local dev),
+ * DATABASE_URL connects directly to PostgreSQL.
  */
 
 let _prismaInstance: PrismaClient | undefined = undefined;
@@ -43,9 +34,8 @@ function getOrCreatePrisma(): PrismaClient {
     return globalForPrisma.prisma;
   }
 
-  // SUSTAINABLE FIX: No URL modification needed here.
-  // start.sh injects connection_limit=1 into DATABASE_URL at the
-  // environment level before any process starts.
+  // PgBouncer handles connection pooling centrally.
+  // DATABASE_URL already has the correct pooling parameters from start.sh.
   _prismaInstance = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
   });
@@ -95,6 +85,21 @@ export async function ensureDbReady(): Promise<boolean> {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      // SUSTAINABLE FIX: Disconnect before each connect attempt.
+      //
+      // ROOT CAUSE: When $connect() fails, Prisma internally creates a
+      // connection pool but doesn't properly clean it up. On the next
+      // $connect() attempt, Prisma creates ANOTHER pool instead of
+      // reusing the failed one. Each failed pool leaks a connection slot.
+      //
+      // FIX: Call $disconnect() before each $connect() to ensure the
+      // previous (failed) pool is cleaned up before creating a new one.
+      try {
+        await db.$disconnect()
+      } catch {
+        // Ignore — pool may not exist yet
+      }
+
       // 1. Establish connection
       await db.$connect()
 

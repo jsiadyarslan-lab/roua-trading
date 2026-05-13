@@ -138,6 +138,11 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     }
     this.lastSettingsSync = now;
 
+    // SUSTAINABLE FIX: Skip if DB not available to avoid leaking connection pools
+    if (!this.prisma?.isAvailable?.()) {
+      return; // Will retry on next sync interval
+    }
+
     try {
       const settings = await this.prisma.setting.findMany();
       const settingsMap: Record<string, any> = {};

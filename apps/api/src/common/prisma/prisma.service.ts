@@ -16,21 +16,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // SUSTAINABLE FIX: No longer modifying DATABASE_URL here.
+    // SUSTAINABLE FIX: Connection pooling handled by PgBouncer.
     //
-    // Previously, this constructor added connection_limit=1 to DATABASE_URL.
-    // But this ONLY affected the NestJS PrismaService — Prisma CLI commands
-    // (db push, db execute, migrate deploy) used the raw URL with DEFAULT
-    // pool size of 5, causing connection exhaustion.
+    // ARCHITECTURE:
+    //   App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL
     //
-    // Now: start.sh injects connection_limit=1 into DATABASE_URL at the
-    // ENVIRONMENT LEVEL before any process starts. This ensures ALL Prisma
-    // operations (CLI + application) use 1 connection. No per-client
-    // URL modification needed.
+    // PgBouncer multiplexes many app connections onto few real PG connections.
+    // In transaction mode, connections are only held during active transactions.
+    // This means 15+ app connections share ~5 real PostgreSQL connections.
     //
-    // If DATABASE_URL already has connection_limit (from start.sh), Prisma
-    // will respect it. If not (e.g., running locally without start.sh),
-    // Prisma uses its default pool size, which is fine for development.
+    // DATABASE_URL points to PgBouncer (with pgbouncer=true parameter).
+    // DIRECT_DATABASE_URL points to real PostgreSQL (for Prisma CLI commands).
+    //
+    // If PgBouncer is unavailable (local dev), DATABASE_URL connects directly.
+    // No per-client URL modification needed — pooling is handled centrally.
     super({
       datasources: {
         db: {
@@ -45,14 +44,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       ],
     });
 
-    // Log the effective connection_limit from the URL (for diagnostics)
-    let effectiveLimit = 'default (5)';
+    // Log the effective connection mode (PgBouncer vs direct)
+    let connectionMode = 'direct';
     try {
       const url = new URL(process.env.DATABASE_URL || '');
+      if (url.searchParams.get('pgbouncer') === 'true') {
+        connectionMode = 'PgBouncer (transaction mode)';
+      }
       const limit = url.searchParams.get('connection_limit');
-      if (limit) effectiveLimit = limit;
+      if (limit) connectionMode += ` connection_limit=${limit}`;
     } catch {}
-    this.logger.log(`📦 Prisma connection pool: connection_limit=${effectiveLimit}, pool_timeout=10`);
+    this.logger.log(`📦 Prisma connection: ${connectionMode}`);
 
     // Only attach query event listener in development mode
     if (isDev) {
@@ -111,6 +113,26 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.connectInProgress = true;
 
     try {
+      // SUSTAINABLE FIX: Always disconnect before connecting.
+      //
+      // ROOT CAUSE of multiple "Starting a postgresql pool" messages:
+      //   When $connect() fails, Prisma internally creates a connection pool
+      //   but doesn't properly clean it up. On the next $connect() attempt,
+      //   Prisma creates ANOTHER pool instead of reusing the failed one.
+      //   Each failed pool leaks a PostgreSQL connection slot.
+      //
+      //   On Railway's PostgreSQL (max ~5-25 connections), even 3-4 leaked
+      //   pools + the original pool = immediate "too many clients already".
+      //
+      // FIX: Call $disconnect() before each $connect() attempt. This
+      //   properly closes the previous (failed) pool before creating a new one.
+      //   This ensures we never have more than 1 pool from PrismaService.
+      try {
+        await this.$disconnect();
+      } catch {
+        // Ignore disconnect errors — the pool may not exist yet
+      }
+
       await this.$connect();
       this.connected = true;
       this.consecutiveFailures = 0;

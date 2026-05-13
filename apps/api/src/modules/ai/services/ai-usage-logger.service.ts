@@ -113,15 +113,24 @@ export class AiUsageLoggerService {
     this.flushTimer = setInterval(() => this.flush(), this.FLUSH_INTERVAL_MS);
     this.logger.log('📊 AI Usage Logger initialized — will log all AI API calls to AiUsageLog');
 
-    // Test DB connection asynchronously — if it fails, we'll retry on each flush
-    this.prisma.aiUsageLog.count().then(() => {
-      this.dbAvailable = true;
-      this.dbRetryAttempts = 0;
-      this.logger.log('📊 AI Usage Logger DB connection verified');
-    }).catch((err) => {
+    // SUSTAINABLE FIX: Check isAvailable() before making the test query.
+    // The old code called this.prisma.aiUsageLog.count() immediately in the
+    // constructor, which creates a new connection pool even when the DB is
+    // unavailable. Each such pool leaks a PostgreSQL connection slot.
+    // Now: Defer the test until the DB is confirmed available.
+    if (this.prisma?.isAvailable?.()) {
+      this.prisma.aiUsageLog.count().then(() => {
+        this.dbAvailable = true;
+        this.dbRetryAttempts = 0;
+        this.logger.log('📊 AI Usage Logger DB connection verified');
+      }).catch((err) => {
+        this.dbAvailable = false;
+        this.logger.warn(`📊 AI Usage Logger: DB not yet available (${err.message}) — will retry on flush`);
+      });
+    } else {
       this.dbAvailable = false;
-      this.logger.warn(`📊 AI Usage Logger: DB not yet available (${err.message}) — will retry on flush`);
-    });
+      this.logger.warn('📊 AI Usage Logger: DB not yet available — will retry on flush');
+    }
   }
 
   /**

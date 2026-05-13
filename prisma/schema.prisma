@@ -1240,3 +1240,54 @@ model TradingBrief {
   @@index([pair, timeframe, isActive])
   @@index([userId, isActive, reviewStatus])
 }
+
+// ── Infographic System (Phase 11 — AI Visual Content) ──
+
+enum InfographicStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+model Infographic {
+  id          String            @id @default(cuid())
+  slug        String            @unique
+  titleAr     String
+  titleEn     String?
+  contentAr   String            @db.MediumText
+  contentEn   String?           @db.MediumText
+  summaryAr   String?           @db.Text
+  summaryEn   String?           @db.Text
+  category    String            @default("general") // general, crypto, forex, stocks, economy, education
+  categoryAr  String?           // Arabic category name
+  tags        String            @default("[]") // JSON array of tags
+  relatedSymbols String         @default("[]") // JSON: ["BTC/USDT", "ETH/USDT"]
+
+  // Image
+  imageUrl    String?           // Pollinations URL or R2 URL
+  imagePrompt String?           // Prompt used for AI image generation
+  imageSource String?           @default("none") // "pollinations", "r2", "none"
+
+  // AI Generation
+  aiModel     String?           // e.g., "glm-5", "gpt-4"
+  confidence  Int               @default(0) // 0-100
+  qualityScore Int              @default(0) // 0-100
+
+  // Publishing
+  status      InfographicStatus @default(DRAFT)
+  publishedAt DateTime?
+  views       Int               @default(0)
+  likes       Int               @default(0)
+  shares      Int               @default(0)
+
+  // Timestamps
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([slug])
+  @@index([category])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([status, publishedAt])
+}

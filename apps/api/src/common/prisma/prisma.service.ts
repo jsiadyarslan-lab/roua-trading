@@ -131,7 +131,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return;
     }
 
-    const baseDelay = 60_000;
+    const baseDelay = 10_000; // FIX v13: Reduced from 60s to 10s for faster reconnection
     const delay = Math.min(baseDelay * Math.pow(2, Math.min(this.consecutiveFailures, 3)), 300_000);
 
     this.reconnectTimer = setTimeout(async () => {

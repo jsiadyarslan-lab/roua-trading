@@ -222,7 +222,7 @@ if [ "$DB_REACHABLE" -ne 1 ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA SETUP
+# PRISMA SETUP — Generate only (migrations run AFTER apps start)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo "━━━ Prisma Setup ━━━"
@@ -230,33 +230,12 @@ echo "━━━ Prisma Setup ━━━"
 echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
 
-echo "📦 Applying Prisma schema..."
-DB_MIGRATE_OK=0
-if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
-  if timeout 60 npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
-    echo "✅ Migrations applied"
-    DB_MIGRATE_OK=1
-  else
-    echo "⚠️ migrate deploy failed — trying db push"
-    if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
-      echo "✅ db push succeeded"
-      DB_MIGRATE_OK=1
-    else
-      echo "❌ db push failed — will proceed, apps will retry"
-    fi
-  fi
-else
-  if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
-    echo "✅ db push succeeded"
-    DB_MIGRATE_OK=1
-  else
-    echo "❌ db push failed — will proceed, apps will retry"
-  fi
-fi
-
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# START APPS
+# START APPS IMMEDIATELY — grab freed connection slots before others
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX v13: Start apps RIGHT AFTER cleanup, BEFORE migrations.
+# The cleanup freed connection slots — we need to grab them immediately
+# before other services take them. Migrations can run in the background.
 
 # Start Next.js
 ACTUAL_WEB_PORT=${PORT:-8080}
@@ -301,6 +280,13 @@ for i in $(seq 1 30); do
   fi
   sleep 1
 done
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PRISMA MIGRATIONS — Run in background after apps start
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo ""
+echo "━━━ Prisma Migrations (background) ━━━"
+(run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || echo "⚠️ Migrations skipped") &
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # NESTJS PROCESS MONITOR

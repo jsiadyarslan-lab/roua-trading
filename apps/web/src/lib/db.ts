@@ -15,14 +15,14 @@ export const db =
   globalForPrisma.prisma ??
   (() => {
     let dbUrl = process.env.DATABASE_URL
-    const poolParams = 'connection_limit=2&pool_timeout=10&connect_timeout=10'
+    const poolParams = 'connection_limit=1&pool_timeout=10&connect_timeout=10'
     let urlModified = false
 
     if (dbUrl) {
       // Strategy 1: URL API (handles most cases, preserves existing params)
       try {
         const url = new URL(dbUrl)
-        url.searchParams.set('connection_limit', '2')
+        url.searchParams.set('connection_limit', '1')
         url.searchParams.set('pool_timeout', '10')
         url.searchParams.set('connect_timeout', '10')
         dbUrl = url.toString()
@@ -43,7 +43,7 @@ export const db =
       }
 
       if (urlModified) {
-        console.log('[db] URL modification successful — pool params injected (connection_limit=2)')
+        console.log('[db] URL modification successful — pool params injected (connection_limit=1)')
       } else {
         console.error('[db] WARNING: Could not modify DATABASE_URL — Prisma will use DEFAULT pool size (5)')
       }

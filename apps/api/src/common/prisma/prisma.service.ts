@@ -23,13 +23,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // This was the ROOT CAUSE of connection pool exhaustion — "Starting a postgresql
     // pool with 5 connections" appearing 20+ times in logs, each creating a NEW pool.
     let dbUrl = process.env.DATABASE_URL!;
-    const poolParams = 'connection_limit=2&pool_timeout=10&connect_timeout=10';
+    const poolParams = 'connection_limit=1&pool_timeout=10&connect_timeout=10';
     let urlModified = false;
 
     // Strategy 1: URL API (handles most cases, preserves existing params)
     try {
       const url = new URL(dbUrl);
-      url.searchParams.set('connection_limit', '2');
+      url.searchParams.set('connection_limit', '1');
       url.searchParams.set('pool_timeout', '10');
       url.searchParams.set('connect_timeout', '10');
       dbUrl = url.toString();
@@ -79,10 +79,12 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // FIX: Reduced from connection_limit=3 to connection_limit=2.
-    // With Next.js also using 2, total = 4 — well under Railway's ~20 max_connections.
-    // Even if both processes create 2 pools each (4+4=8), we stay under the limit.
-    this.logger.log('📦 Prisma connection pool: connection_limit=2, pool_timeout=10');
+    // FIX: Reduced from connection_limit=2 to connection_limit=1.
+    // Railway PostgreSQL has ~25 max_connections. With Next.js also using 1,
+    // total = 2 — well under the limit. Multiple pools are created during
+    // startup (prisma db push, seed script, Next.js, NestJS), so each must
+    // use the absolute minimum to avoid 'too many clients already' errors.
+    this.logger.log('📦 Prisma connection pool: connection_limit=1, pool_timeout=10');
 
     // FIX: Add a timeout to Prisma $connect() so that an unreachable database
     // doesn't block the entire NestJS bootstrap. Without this timeout,

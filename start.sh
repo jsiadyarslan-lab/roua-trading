@@ -174,6 +174,35 @@ else
   echo "⏳ Next.js still starting on port $ACTUAL_WEB_PORT (will retry later)..."
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRITICAL FIX: Terminate stale DB connections from previous deployments
+#
+# When Railway redeploys, the new container starts BEFORE the old one
+# has fully shut down. The old container's PostgreSQL connections remain
+# open, and since Railway PostgreSQL has ~25 max_connections, the new
+# container immediately hits "too many clients already" errors.
+#
+# This step terminates ALL idle connections before we start our own,
+# freeing up the connection pool for the new deployment.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo "🧹 Terminating stale DB connections from previous deployment..."
+if [ -n "${DATABASE_URL:-}" ]; then
+  # Extract connection params from DATABASE_URL
+  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
+  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
+  DB_USER=$(echo "$DATABASE_URL" | sed -n 's/.*\/\/\([^:]*\):.*/\1/p')
+  DB_PASS=$(echo "$DATABASE_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
+  DB_NAME=$(echo "$DATABASE_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+
+  if command -v psql >/dev/null 2>&1 && [ -n "$DB_HOST" ]; then
+    PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
+      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid() AND state = 'idle';" \
+      2>/dev/null && echo "✅ Stale idle connections terminated" || echo "⚠️ Could not terminate stale connections (non-critical)"
+  else
+    echo "⚠️ psql not available — skipping stale connection cleanup"
+  fi
+fi
+
 # ── Prisma Setup (runs AFTER Next.js is already serving health checks) ──
 echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
@@ -191,10 +220,6 @@ if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; t
   else
     echo "⚠️ prisma migrate deploy had issues — using db push WITHOUT --accept-data-loss"
     # CRITICAL: NEVER use --accept-data-loss in production!
-    # This flag was previously used as a fallback and caused catastrophic
-    # data loss by dropping tables/columns that didn't match the schema.
-    # prisma db push (without --accept-data-loss) will fail safely if
-    # data loss would occur, rather than silently deleting data.
     if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
       echo "✅ db push succeeded (safe — no data loss)"
       DB_MIGRATE_OK=1
@@ -214,35 +239,23 @@ else
   fi
 fi
 
-# ── FIX: Seed AUTO_TRADING_ENABLED using raw SQL instead of PrismaClient ──
-# Previously, this script created a separate PrismaClient instance (with its own
-# connection pool), contributing to connection pool exhaustion. Now uses raw psql
-# or the same prisma db execute command that's already available, avoiding an
-# additional PrismaClient pool.
+# ── FIX: Seed AUTO_TRADING_ENABLED using prisma db execute ──
+# Previously, this script created a PrismaClient instance (with its own
+# connection pool), contributing to connection pool exhaustion. Now uses
+# `prisma db execute` which uses the CLI's own temporary connection and
+# doesn't create a persistent pool.
 echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
-timeout 15 node -e "
-const { PrismaClient } = require('@prisma/client');
-// FIX: Robust URL modification (same pattern as PrismaService)
-let dbUrl = process.env.DATABASE_URL;
-const poolParams = 'connection_limit=1&pool_timeout=5&connect_timeout=5';
-if (dbUrl) {
-  try { const u = new URL(dbUrl); u.searchParams.set('connection_limit', '1'); u.searchParams.set('pool_timeout', '5'); u.searchParams.set('connect_timeout', '5'); dbUrl = u.toString(); }
-  catch { const sep = dbUrl.includes('?') ? '&' : '?'; dbUrl = dbUrl + sep + poolParams; }
-}
-const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
-prisma.setting.upsert({
-  where: { key: 'AUTO_TRADING_ENABLED' },
-  update: {},
-  create: { key: 'AUTO_TRADING_ENABLED', value: 'true' }
-}).then(() => {
-  console.log('✅ AUTO_TRADING_ENABLED seeded');
-  return prisma.\$disconnect();
-}).then(() => process.exit(0)).catch(e => {
-  console.log('⚠️ Could not seed AUTO_TRADING_ENABLED:', e.message);
-  try { prisma.\$disconnect(); } catch {}
-  process.exit(0);
-});
-" 2>/dev/null || echo "⚠️ Seed skipped (non-critical)"
+timeout 15 npx prisma db execute --schema=./prisma/schema.prisma \
+  --stdin <<'SQL' 2>/dev/null && echo "✅ AUTO_TRADING_ENABLED seeded" || echo "⚠️ Seed skipped (non-critical)"
+INSERT INTO "Setting" ("id", "key", "value", "createdAt", "updatedAt")
+VALUES (
+  gen_random_uuid(),
+  'AUTO_TRADING_ENABLED',
+  'true',
+  NOW(),
+  NOW()
+) ON CONFLICT ("key") DO NOTHING;
+SQL
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # START NESTJS IN BACKGROUND — after Prisma setup
@@ -256,11 +269,18 @@ if [ ! -f "apps/api/dist/main.js" ]; then
 fi
 
 # ── RECOVERY: إنشاء حساب المالك إذا لم يوجد أي مستخدم ──
+# FIX: Uses a single PrismaClient with connection_limit=1 instead of the
+# default pool size of 5. Also disconnects immediately after use.
 echo "🔑 Checking for admin user..."
-node -e "
+timeout 15 node -e "
 const { PrismaClient } = require('@prisma/client');
-const crypto = require('crypto');
-const prisma = new PrismaClient();
+// FIX: connection_limit=1 to minimize pool usage during startup
+let dbUrl = process.env.DATABASE_URL;
+if (dbUrl) {
+  try { const u = new URL(dbUrl); u.searchParams.set('connection_limit', '1'); u.searchParams.set('pool_timeout', '5'); u.searchParams.set('connect_timeout', '5'); dbUrl = u.toString(); }
+  catch { const sep = dbUrl.includes('?') ? '&' : '?'; dbUrl = dbUrl + sep + 'connection_limit=1&pool_timeout=5&connect_timeout=5'; }
+}
+const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
 
 async function recover() {
   try {
@@ -272,7 +292,6 @@ async function recover() {
 
     console.log('⚠️ No users found — creating admin account...');
 
-    // إنشاء المستخدم
     const user = await prisma.user.create({
       data: {
         email: 'admin@roua-trading.com',
@@ -281,7 +300,7 @@ async function recover() {
       }
     });
 
-    // إنشاء جلسة صالحة لمدة 7 أيام
+    const crypto = require('crypto');
     const token = crypto.randomBytes(32).toString('hex');
     const refreshToken = crypto.randomBytes(48).toString('hex');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -319,7 +338,7 @@ async function recover() {
   }
 }
 recover();
-" 2>/dev/null || echo "Recovery check skipped"
+" 2>/dev/null || echo "⚠️ Recovery check skipped"
 
 echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
 cd apps/api

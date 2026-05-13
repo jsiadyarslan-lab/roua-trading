@@ -121,10 +121,10 @@ echo "NODE_ENV:               ${NODE_ENV:-development}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE CONNECTIVITY TEST
+# DATABASE CONNECTIVITY TEST + STALE CONNECTION CLEANUP
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
-echo "━━━ Database Connectivity Test ━━━"
+echo "━━━ Database Connectivity Test + Cleanup ━━━"
 DB_REACHABLE=0
 for DB_TRY in 1 2 3; do
   DB_TEST_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
@@ -139,7 +139,36 @@ for DB_TRY in 1 2 3; do
         try {
           const mc = await client.query('SHOW max_connections');
           const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
-          console.log('DB_OK max=' + (mc.rows[0].max_connections || mc.rows[0].Value) + ' active=' + ac.rows[0].cnt);
+          const maxConn = mc.rows[0].max_connections || mc.rows[0].Value;
+          const activeConn = ac.rows[0].cnt;
+          console.log('DB_OK max=' + maxConn + ' active=' + activeConn);
+          
+          // FIX v13: Kill stale/idle connections from old deployments.
+          // When Railway replaces a deployment, the old container's PostgreSQL
+          // connections may not be released immediately. This causes 'too many clients'
+          // errors for the new deployment. We terminate idle connections here.
+          if (parseInt(activeConn) > parseInt(maxConn) * 0.5) {
+            console.log('Cleaning up stale connections...');
+            try {
+              // Terminate idle connections (not our current one)
+              const terminateResult = await client.query(\`
+                SELECT pg_terminate_backend(pid)
+                FROM pg_stat_activity
+                WHERE datname = current_database()
+                  AND pid <> pg_backend_pid()
+                  AND state = 'idle'
+                  AND query_start < now() - interval '30 seconds'
+              \`);
+              const terminated = terminateResult.rowCount || 0;
+              console.log('Terminated ' + terminated + ' stale idle connections');
+              
+              // Check active connections after cleanup
+              const ac2 = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
+              console.log('After cleanup: active=' + ac2.rows[0].cnt + '/' + maxConn);
+            } catch(e2) {
+              console.log('Cleanup failed (non-fatal): ' + e2.message.substring(0, 100));
+            }
+          }
         } catch {
           console.log('DB_OK');
         }

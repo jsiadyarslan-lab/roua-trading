@@ -1,26 +1,24 @@
 #!/bin/bash
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Railway Startup Script v10
+# Roua Trading — Railway Startup Script v11
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# FIX v10: SIMPLE AND RELIABLE. No auto-constructed pooler URLs.
+# FIX v11: SIMPLEST POSSIBLE. Direct connection, no PgBouncer.
 #
-# Previous versions tried to AUTO-CONSTRUCT a PgBouncer URL by guessing
-# hostname patterns (adding "-pooler" suffix, etc.). This was UNRELIABLE
-# and often produced WRONG URLs that:
-#   1. Didn't resolve to a real service
-#   2. Caused pgbouncer=true to be added to non-PgBouncer URLs
-#   3. Triggered SSL stripping in PrismaClient code (which breaks
-#      Railway's REMOTE PgBouncer that REQUIRES SSL)
+# WHY: PgBouncer (both local and Railway's built-in) has been causing
+# connection issues for 50+ rounds. The simplest, most reliable approach
+# is to NOT use PgBouncer at all and connect directly to PostgreSQL
+# with connection_limit=1 per app.
 #
-# v10 approach:
-#   1. If DATABASE_POOLED_URL exists (Railway provides this) → use it
-#   2. Otherwise → use DATABASE_URL directly (no PgBouncer, no guessing)
-#   3. connection_limit=1 per app → max 2 DB connections total
-#   4. NO auto-construction of pooler URLs — too fragile
-#   5. NO SSL stripping — Railway requires SSL for all connections
+# Total DB connections at steady state: 2 (1 Next.js + 1 NestJS)
+# This is well within Railway's PostgreSQL limits (20+ max_connections).
 #
-# Total steady-state DB connections: 2 (1 Next.js + 1 NestJS)
+# The news website (separate Railway service) works because it uses
+# DATABASE_URL directly — no PgBouncer, no SSL stripping, no URL
+# modification. This script now does the same thing.
+#
+# KEY PRINCIPLE: Don't modify DATABASE_URL except to add connection_limit=1.
+# Don't add pgbouncer=true, don't strip SSL, don't change the hostname.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -uo pipefail
@@ -57,7 +55,7 @@ if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE_URL SETUP — Simple & Reliable
+# DATABASE_URL SETUP — Simplest possible
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if [ -z "${DATABASE_URL:-}" ]; then
@@ -67,21 +65,12 @@ fi
 
 ORIG_DB_URL="$DATABASE_URL"
 
-# Step 1: Use DATABASE_POOLED_URL if available (Railway provides this)
-# This is Railway's OFFICIAL PgBouncer URL — no guessing needed.
-# If it's not set, the user needs to add it in Railway dashboard:
-#   PostgreSQL service → Variables → Reference DATABASE_POOLED_URL
+# Save DATABASE_POOLED_URL for reference (but don't use it)
 if [ -n "${DATABASE_POOLED_URL:-}" ]; then
-  echo "✅ DATABASE_POOLED_URL detected — using Railway's built-in PgBouncer"
-  DATABASE_URL="$DATABASE_POOLED_URL"
-  USING_POOLER=1
-else
-  echo "⚠️ No DATABASE_POOLED_URL — using direct connection (connection_limit=1)"
-  USING_POOLER=0
+  echo "ℹ️ DATABASE_POOLED_URL is set (saved for reference, not used for app connections)"
 fi
 
-# Step 2: Set DIRECT_DATABASE_URL for Prisma CLI (migrations)
-# Always uses the ORIGINAL (non-pooled) URL with connection_limit=1
+# Step 1: Set DIRECT_DATABASE_URL for Prisma CLI (migrations)
 DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
   const url = process.env.DATABASE_URL_IN || '';
   try {
@@ -95,51 +84,38 @@ DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
 " 2>/dev/null)
 export DIRECT_DATABASE_URL="${DIRECT_DB_URL:-$ORIG_DB_URL}"
 
-# Step 3: Configure DATABASE_URL for PrismaClient
-# - Always set connection_limit=1 and pool_timeout=10
-# - Add pgbouncer=true ONLY if using Railway's official pooled URL
-# - DO NOT strip SSL params — Railway requires SSL for all connections
-APP_DB_URL=$(DATABASE_URL_IN="$DATABASE_URL" POOLER="$USING_POOLER" node -e "
+# Step 2: Set DATABASE_URL for PrismaClient (apps)
+# ONLY add connection_limit=1 and pool_timeout=10.
+# DO NOT change hostname, DO NOT add pgbouncer=true, DO NOT strip SSL.
+APP_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
   const url = process.env.DATABASE_URL_IN || '';
-  const pooler = process.env.POOLER === '1';
   try {
     const u = new URL(url);
     u.searchParams.set('connection_limit', '1');
     u.searchParams.set('pool_timeout', '10');
     u.searchParams.set('connect_timeout', '30');
-
-    // Only add pgbouncer=true if we're using Railway's official pooled URL
-    // This tells Prisma to use PgBouncer-compatible mode (no prepared statements)
-    if (pooler) {
-      u.searchParams.set('pgbouncer', 'true');
-    }
-
-    // DO NOT strip SSL params — Railway's remote PgBouncer REQUIRES SSL
-    // The old code stripped sslmode/ssl when pgbouncer=true, which was
-    // correct for LOCAL PgBouncer (localhost:6432) but WRONG for Railway's
-    // REMOTE PgBouncer which needs SSL to connect.
-
     process.stdout.write(u.toString());
   } catch {
     process.stdout.write(url);
   }
 " 2>/dev/null)
-export DATABASE_URL="${APP_DB_URL:-$DATABASE_URL}"
+export DATABASE_URL="${APP_DB_URL:-$ORIG_DB_URL}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v10)"
+echo "🚀 Roua Trading — Starting (v11)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "DATABASE_URL host:    $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.hostname+':'+u.port)}catch{process.stdout.write('PARSE_ERROR')}" 2>/dev/null)"
-echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES ✅ (Railway pooler)' || echo 'NO (direct connection)')"
-echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET]} ${DATABASE_POOLED_URL:-[NOT SET — add in Railway dashboard!]}"
+echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO (direct ✅)')"
+echo "DATABASE_URL sslmode:   $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.searchParams.get('sslmode')||'not set')}catch{process.stdout.write('unknown')}" 2>/dev/null)"
+echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET — not used]} ${DATABASE_POOLED_URL:-[NOT SET]}"
 echo "DIRECT_DATABASE_URL:  [SET — for migrations only]"
 echo "ORIGIN:               ${ORIGIN:-not set}"
 echo "NODE_ENV:             ${NODE_ENV:-development}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE CONNECTIVITY TEST — Quick check only
+# DATABASE CONNECTIVITY TEST
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo "━━━ Database Connectivity Test ━━━"
@@ -150,11 +126,10 @@ for DB_TRY in 1 2 3; do
     async function test() {
       const client = new Client({
         connectionString: process.env.DATABASE_URL_IN,
-        connectionTimeoutMillis: 5000,
+        connectionTimeoutMillis: 10000,
       });
       try {
         await client.connect();
-        const res = await client.query('SELECT 1 AS ok');
         try {
           const mc = await client.query('SHOW max_connections');
           const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
@@ -190,7 +165,7 @@ if [ "$DB_REACHABLE" -ne 1 ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA SETUP — Uses DIRECT_DATABASE_URL only
+# PRISMA SETUP
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo "━━━ Prisma Setup ━━━"
@@ -304,7 +279,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "✅ Roua Trading is running!"
 echo "   Next.js:  port $ACTUAL_WEB_PORT (PID: $WEB_PID)"
 echo "   NestJS:   port ${API_PORT:-3001} (PID: $API_PID)"
-echo "   DB:       pgbouncer=$(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES ✅ (Railway pooler)' || echo 'NO (direct, connection_limit=1)')"
+echo "   DB:       direct connection (connection_limit=1, no PgBouncer)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 wait

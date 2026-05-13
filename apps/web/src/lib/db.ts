@@ -7,23 +7,24 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /**
- * FIX v10: Lazy PrismaClient initialization with RELIABLE connection management.
+ * FIX v11: Lazy PrismaClient initialization — SIMPLE AND RELIABLE.
  *
- * ARCHITECTURE:
- *   With DATABASE_POOLED_URL: App → Railway PgBouncer → PostgreSQL (pgbouncer=true)
- *   Without:                  App → PostgreSQL (direct, connection_limit=1)
+ * ARCHITECTURE: App (PrismaClient) → PostgreSQL (direct, connection_limit=1)
  *
- * FIX v10 CRITICAL: DO NOT strip SSL params for pgbouncer=true!
+ * No PgBouncer, no pooler, no SSL stripping, no URL modification.
+ * Just add connection_limit=1 and pool_timeout=10 to DATABASE_URL.
+ * This matches what the news website does — and the news website works!
  *
- * Previous versions stripped sslmode/ssl/sslrootcert when pgbouncer=true
- * was detected. This was correct for LOCAL PgBouncer (localhost:6432)
- * but WRONG for Railway's REMOTE PgBouncer which REQUIRES SSL.
+ * FIX v11 CRITICAL: DO NOT add pgbouncer=true and DO NOT strip SSL.
  *
- * Stripping SSL caused: ECONNREFUSED / SSL required / connection failed
- * → Google OAuth callback fails → "database currently unavailable"
+ * Previous versions added pgbouncer=true and stripped SSL params when
+ * it was detected. This broke connections to Railway's PostgreSQL because:
+ * 1. pgbouncer=true changes Prisma's driver mode (disables prepared statements)
+ * 2. SSL stripping breaks connections to Railway's remote PostgreSQL/PgBouncer
+ * 3. The auto-constructed pooler URLs were often wrong
  *
- * The news website (separate Railway service) works because it uses
- * DATABASE_URL directly without pgbouncer=true or SSL stripping.
+ * The news website works because it uses DATABASE_URL directly without
+ * any modification. This code now does the same thing.
  */
 
 let _prismaInstance: PrismaClient | undefined = undefined;
@@ -37,18 +38,13 @@ function getOrCreatePrisma(): PrismaClient {
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
     datasources: {
       db: {
-        // FIX v10: Force connection_limit=1 and pool_timeout=10.
-        // DO NOT strip SSL params — Railway requires SSL for all connections,
-        // including connections to its remote PgBouncer.
+        // FIX v11: ONLY add connection_limit=1 and pool_timeout=10.
+        // DO NOT add pgbouncer=true, DO NOT strip SSL.
         url: (() => {
           try {
             const u = new URL(process.env.DATABASE_URL || '');
             u.searchParams.set('connection_limit', '1');
             u.searchParams.set('pool_timeout', '10');
-            // FIX v10: REMOVED SSL stripping when pgbouncer=true.
-            // Railway's PgBouncer is NOT localhost — it requires SSL.
-            // The old code deleted sslmode/ssl/sslrootcert which broke
-            // the connection to Railway's remote PgBouncer.
             return u.toString();
           } catch {
             return process.env.DATABASE_URL;
@@ -63,12 +59,10 @@ function getOrCreatePrisma(): PrismaClient {
 }
 
 // Proxy-based lazy initialization: PrismaClient is created on first property access.
-// This prevents opening a DB connection at module load time.
 export const db = new Proxy({} as PrismaClient, {
   get(_target, prop: string | symbol) {
     const instance = getOrCreatePrisma();
     const value = (instance as any)[prop];
-    // Bind methods to the PrismaClient instance so `this` is correct
     if (typeof value === 'function') {
       return value.bind(instance);
     }
@@ -79,18 +73,14 @@ export const db = new Proxy({} as PrismaClient, {
 /**
  * Ensure the database is ready for queries.
  *
- * FIX v10: Do NOT call $disconnect() on failure.
- * $disconnect() destroys the entire connection pool. The next
- * $connect() creates a NEW pool with a NEW connection. This cycle
- * exhausts max_connections.
- *
- * Instead, on failure, just return false and let Prisma handle
- * reconnection internally.
+ * FIX v11: Do NOT call $disconnect() on failure.
+ * $disconnect() destroys the pool and creates a new one on next $connect(),
+ * which leaks connections and causes "too many clients" errors.
  */
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
-  // Prevent tight retry loops when Postgres is saturated ("too many clients").
+  // Prevent tight retry loops when Postgres is saturated
   const now = Date.now()
   const cooldownMs = 15_000
   const lastFail = (globalForPrisma as any).dbLastInitFailAt as number | undefined
@@ -101,16 +91,12 @@ export async function ensureDbReady(): Promise<boolean> {
 
   const MAX_RETRIES = 2
   const dbUrl = process.env.DATABASE_URL || '(not set)'
-  const isPgbouncer = dbUrl.includes('pgbouncer=true')
 
-  console.log(`[db] ensureDbReady() — PgBouncer: ${isPgbouncer}, URL prefix: ${dbUrl.substring(0, 50)}...`)
+  console.log(`[db] ensureDbReady() — URL prefix: ${dbUrl.substring(0, 50)}...`)
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // Try $connect(). If already connected, $connect() is a no-op.
       await db.$connect()
-
-      // Verify connection with SELECT 1
       await db.$queryRaw`SELECT 1`
 
       globalForPrisma.dbInitialized = true
@@ -119,8 +105,6 @@ export async function ensureDbReady(): Promise<boolean> {
       console.log('[db] Database successfully initialized and verified.')
       return true
     } catch (error: any) {
-      // FIX: Do NOT call $disconnect() here!
-
       const message = error?.message || 'Unknown database error'
       const code = error?.code || 'NO_CODE'
       globalForPrisma.dbInitError = `[${code}] ${message}`
@@ -135,26 +119,17 @@ export async function ensureDbReady(): Promise<boolean> {
     }
   }
 
-  // Record failure timestamp for cooldown logic
   ;(globalForPrisma as any).dbLastInitFailAt = Date.now()
 
   console.error('[db] CRITICAL: Database initialization failed after all retries.')
   console.error(`[db] Last error: ${globalForPrisma.dbInitError}`)
-  console.error(`[db] DATABASE_URL has pgbouncer=true: ${isPgbouncer}`)
   return false
 }
 
-/**
- * Get the last DB initialization error message (for diagnostics).
- */
 export function getDbInitError(): string | undefined {
   return globalForPrisma.dbInitError
 }
 
-/**
- * Reset the DB initialized flag so the next ensureDbReady() call
- * will attempt to reconnect.
- */
 export function resetDbInitialized() {
   globalForPrisma.dbInitialized = false
 }

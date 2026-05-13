@@ -8,33 +8,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private connectInProgress = false;
   private connected = false;
   private consecutiveFailures = 0;
-  // FIX: Shared flag so background services can check DB availability
-  // before attempting queries that would create new connection pools.
   private static _dbAvailable = false;
   static get dbAvailable(): boolean { return PrismaService._dbAvailable; }
 
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX v10: DO NOT strip SSL params for pgbouncer=true!
+    // FIX v11: SIMPLE AND RELIABLE. Direct connection, no PgBouncer.
     //
-    // Previous versions stripped sslmode/ssl/sslrootcert when pgbouncer=true
-    // was detected. This was correct for LOCAL PgBouncer (localhost:6432)
-    // but WRONG for Railway's REMOTE PgBouncer which REQUIRES SSL.
+    // DO NOT add pgbouncer=true, DO NOT strip SSL.
+    // Only add connection_limit=1 and pool_timeout=10.
     //
-    // Stripping SSL caused: ECONNREFUSED / SSL required / connection failed
-    // → All DB operations fail → "database currently unavailable"
-    //
-    // The news website (separate service) works because it uses DATABASE_URL
-    // directly without pgbouncer=true or SSL stripping.
+    // Previous versions added pgbouncer=true and stripped SSL params,
+    // which broke connections to Railway's remote PostgreSQL.
+    // The news website works because it doesn't do any of this.
     const dbUrl = (() => {
       try {
         const u = new URL(process.env.DATABASE_URL || '');
         u.searchParams.set('connection_limit', '1');
         u.searchParams.set('pool_timeout', '10');
-        // FIX v10: REMOVED SSL stripping when pgbouncer=true.
-        // Railway's PgBouncer is NOT localhost — it requires SSL.
-        // Keeping sslmode/ssl/sslrootcert intact.
         return u.toString();
       } catch {
         return process.env.DATABASE_URL;
@@ -54,21 +46,17 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       ],
     });
 
-    // Log the effective connection mode (PgBouncer vs direct)
-    let connectionMode = 'direct';
+    // Log the effective connection mode
+    let connectionMode = 'direct (no PgBouncer)';
     try {
       const url = new URL(dbUrl || '');
-      if (url.searchParams.get('pgbouncer') === 'true') {
-        connectionMode = 'PgBouncer (Railway pooler)';
-      }
       const limit = url.searchParams.get('connection_limit');
       if (limit) connectionMode += ` connection_limit=${limit}`;
-      const sslmode = url.searchParams.get('sslmode');
-      if (sslmode) connectionMode += ` sslmode=${sslmode}`;
+      const poolTimeout = url.searchParams.get('pool_timeout');
+      if (poolTimeout) connectionMode += ` pool_timeout=${poolTimeout}`;
     } catch {}
     this.logger.log(`📦 Prisma connection: ${connectionMode}`);
 
-    // Only attach query event listener in development mode
     if (isDev) {
       (this as any).$on('query', (e: any) => {
         this.logger.debug(`Query: ${e.query} — ${e.duration}ms`);
@@ -77,8 +65,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // FIX: Add a timeout to Prisma $connect() so that an unreachable database
-    // doesn't block the entire NestJS bootstrap.
     const INIT_TIMEOUT_MS = 15_000;
     const connected = await Promise.race([
       this.tryConnect(),
@@ -123,9 +109,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.connectInProgress = true;
 
     try {
-      // FIX v10: Do NOT call $disconnect() on failure.
-      // $disconnect() destroys the pool, and the next $connect() creates
-      // a new pool with a new connection. This cycle exhausts max_connections.
+      // FIX v11: Do NOT call $disconnect() on failure.
       await this.$connect();
       this.connected = true;
       this.consecutiveFailures = 0;
@@ -164,11 +148,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     }, delay);
   }
 
-  /**
-   * Check if the database is currently available.
-   * Background services should call this before making queries to avoid
-   * creating new connection pools when DB is unreachable.
-   */
   isAvailable(): boolean {
     return this.connected && PrismaService._dbAvailable;
   }

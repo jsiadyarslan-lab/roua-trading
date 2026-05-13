@@ -37,6 +37,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       try {
         const u = new URL(process.env.DATABASE_URL || '');
         u.searchParams.set('connection_limit', '1');
+        // FIX v5: pool_timeout=3 — release idle connections FAST.
+        // With direct PG connections (no PgBouncer), each idle connection
+        // occupies a real slot. pool_timeout=3 releases them after 3s idle.
+        u.searchParams.set('pool_timeout', '3');
         // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
         // PgBouncer on localhost doesn't use SSL. If sslmode=require
         // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.
@@ -61,7 +65,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       },
       log: [
         ...(isDev ? [{ emit: 'event' as const, level: 'query' as const }] : []),
-        { emit: 'stdout', level: 'info' },
+        // FIX v5: Changed 'info' to 'warn' to reduce log noise.
+        // 'info' level logs every pool creation ("Starting a postgresql pool")
+        // which fills logs with noise. 'warn' level is sufficient for production.
         { emit: 'stdout', level: 'warn' },
         { emit: 'stdout', level: 'error' },
       ],
@@ -93,7 +99,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     // doesn't block the entire NestJS bootstrap. Without this timeout,
     // $connect() can hang for 60-120s (OS TCP SYN timeout), preventing
     // app.listen() from ever executing → ECONNREFUSED on port 3001.
-    const INIT_TIMEOUT_MS = 10_000; // 10 seconds
+    // FIX v5: Increased from 10s to 15s timeout.
+    // With direct PG connections, $connect() might need more time to
+    // establish a TLS connection to Railway PostgreSQL.
+    const INIT_TIMEOUT_MS = 15_000;
     const connected = await Promise.race([
       this.tryConnect(),
       new Promise<boolean>((resolve) =>
@@ -178,13 +187,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return;
     }
 
-    // FIX: Exponential backoff — 10s, 20s, 40s, 80s, max 120s
-    // Previously used fixed 10s interval which created a feedback loop:
-    // each failed $connect() created a new pool (5 connections), exhausting
-    // PostgreSQL max_connections, causing the NEXT $connect() to fail too.
-    // Exponential backoff gives PostgreSQL time to free connections.
-    const baseDelay = 10_000;
-    const delay = Math.min(baseDelay * Math.pow(2, Math.min(this.consecutiveFailures, 4)), 120_000);
+    // FIX v5: Increased base delay from 10s to 60s.
+    // WHY: With connection_limit=1 and direct PG connections, each failed
+    // $connect() attempt consumes a connection slot. If we retry every 10s,
+    // we accumulate failed connections faster than PG releases them.
+    // 60s base delay gives PG plenty of time to release the slot.
+    const baseDelay = 60_000;
+    const delay = Math.min(baseDelay * Math.pow(2, Math.min(this.consecutiveFailures, 3)), 300_000);
 
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;

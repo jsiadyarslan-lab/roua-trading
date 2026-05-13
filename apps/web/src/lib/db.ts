@@ -7,24 +7,21 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 /**
- * SUSTAINABLE FIX: Lazy PrismaClient initialization with PgBouncer.
+ * SUSTAINABLE FIX v5: Lazy PrismaClient initialization with Dual-Mode connections.
  *
  * ARCHITECTURE:
- *   App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL
+ *   Mode A: App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL
+ *   Mode B: App (PrismaClient) → PostgreSQL (direct, connection_limit=1, pool_timeout=3)
  *
- * PgBouncer multiplexes many app connections onto few real PG connections.
- * In transaction mode, connections are released after each transaction.
- * This means 15+ app connections share ~5 real PostgreSQL connections.
+ * PgBouncer is preferred but may fail on Railway. When it fails, DATABASE_URL
+ * does NOT include pgbouncer=true, and PrismaClient connects directly with
+ * aggressive connection limits to avoid exhausting max_connections.
  *
  * LAZY INIT:
  *   PrismaClient is created ONLY when first needed. The `db` export is
  *   a Proxy that delegates all property access to the real PrismaClient
  *   instance, created on first access. This prevents opening connections
  *   at module load time.
- *
- * PgBouncer handles connection pooling centrally. No per-client URL
- * modification needed. If PgBouncer is unavailable (local dev),
- * DATABASE_URL connects directly to PostgreSQL.
  */
 
 let _prismaInstance: PrismaClient | undefined = undefined;
@@ -34,20 +31,19 @@ function getOrCreatePrisma(): PrismaClient {
     return globalForPrisma.prisma;
   }
 
-  // PgBouncer handles connection pooling centrally.
-  // DATABASE_URL already has the correct pooling parameters from start.sh.
   _prismaInstance = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
     datasources: {
       db: {
-        // FIX: Force connection_limit=1 for PgBouncer mode.
-        // With PgBouncer transaction pooling, 1 connection is sufficient
-        // because PgBouncer multiplexes multiple queries onto real PG connections.
-        // Total: 1 (Next.js) + 1 (NestJS) = 2 client → PgBouncer → 2-5 real PG connections.
+        // FIX v5: Force connection_limit=1 AND pool_timeout=3.
+        // connection_limit=1: Only 1 connection per PrismaClient (2 total: Next.js + NestJS).
+        // pool_timeout=3: Release idle connections after 3s (critical for direct PG mode).
+        // With PgBouncer, pool_timeout is ignored (PgBouncer manages pooling).
         url: (() => {
           try {
             const u = new URL(process.env.DATABASE_URL || '');
             u.searchParams.set('connection_limit', '1');
+            u.searchParams.set('pool_timeout', '3');
             if (u.searchParams.get('pgbouncer') === 'true') {
               u.searchParams.delete('sslmode');
               u.searchParams.delete('ssl');
@@ -89,22 +85,13 @@ export const db = new Proxy({} as PrismaClient, {
  * schema migrations. All schema changes must be done via:
  *   1. `prisma migrate deploy` (in start.sh — production-safe)
  *   2. `prisma migrate dev` (local development)
- *
- * Previously, this function ran ~70 DDL statements (runSchemaMigrations)
- * on every first connection. This was DANGEROUS because:
- *   - ALTER TABLE ... TYPE could fail and corrupt data
- *   - Running DDL from application code is an anti-pattern
- *   - It competed with start.sh migrations causing race conditions
- *   - It masked real migration issues instead of fixing them
- *
- * Now: just connect, verify, and return. Clean and safe.
  */
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
   // Prevent tight retry loops when Postgres is saturated ("too many clients").
   // If DB recently failed init, bail out quickly instead of re-running
-  // connect+findFirst retries on every auth request.
+  // connect+query retries on every auth request.
   const now = Date.now()
   const cooldownMs = 30_000
   const lastFail = (globalForPrisma as any).dbLastInitFailAt as number | undefined
@@ -112,55 +99,63 @@ export async function ensureDbReady(): Promise<boolean> {
     return false
   }
 
-  // INCREASED: 10 retries with exponential backoff (was 5)
-  // Startup takes time on Railway — PgBouncer needs to establish its
-  // pool, stale connections from old deployment need to expire, etc.
-  const MAX_RETRIES = 10
+  // FIX v5: Reduced from 10 to 3 retries with LONG 15s backoff.
+  // WHY: Each retry creates a new connection attempt. With 10 retries and
+  // exponential backoff starting at 2s, we accumulate ~10 connection attempts
+  // in 2 minutes. On Railway with max_connections~20, this EXHAUSTS all slots.
+  // With 3 retries and 15s delay, we try 3 times in ~1 minute but
+  // each attempt has time to fully release its connection before the next.
+  const MAX_RETRIES = 3
   const dbUrl = process.env.DATABASE_URL || '(not set)'
   const isPgbouncer = dbUrl.includes('pgbouncer=true')
 
   console.log(`[db] ensureDbReady() starting — Retries: ${MAX_RETRIES}, PgBouncer: ${isPgbouncer}, URL prefix: ${dbUrl.substring(0, 40)}...`)
 
-    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      // Try $connect() first. If already connected, $connect() is a no-op.
       try {
-        // FIX: Try $connect() first WITHOUT $disconnect().
-        // If already connected, $connect() is a no-op. Only disconnect
-        // if connect fails, to clean up any leaked pool.
-        try {
-          await db.$connect()
-        } catch (connectErr: any) {
-          // Connect failed — disconnect to clean up any leaked pool, then rethrow
-          try { await db.$disconnect() } catch { /* ignore */ }
-          throw connectErr
-        }
+        await db.$connect()
+      } catch (connectErr: any) {
+        // Connect failed — disconnect to clean up any leaked pool, then rethrow
+        try { await db.$disconnect() } catch { /* ignore */ }
+        throw connectErr
+      }
 
-        // Verify core table access
-        await db.user.findFirst()
+      // FIX v5: Use $queryRaw`SELECT 1` instead of user.findFirst().
+      // SELECT 1 is the simplest possible query — it only verifies the
+      // connection works without creating additional overhead.
+      await db.$queryRaw`SELECT 1`
 
-        globalForPrisma.dbInitialized = true
-        globalForPrisma.dbInitError = undefined
-        console.log('[db] Database successfully initialized and verified.')
-        return true
-      } catch (error: any) {
-        // CRITICAL: Prevent connection buildup during "too many clients already"
-        // by explicitly disconnecting on ANY failure, not only on connect failure.
-        try { await db.$disconnect() } catch { /* ignore disconnect errors */ }
+      globalForPrisma.dbInitialized = true
+      globalForPrisma.dbInitError = undefined
+      ;(globalForPrisma as any).dbLastInitFailAt = undefined
+      console.log('[db] Database successfully initialized and verified.')
+      return true
+    } catch (error: any) {
+      // CRITICAL: Prevent connection buildup during "too many clients already"
+      // by explicitly disconnecting on ANY failure, not only on connect failure.
+      try { await db.$disconnect() } catch { /* ignore disconnect errors */ }
 
-        const message = error?.message || 'Unknown database error'
-        const code = error?.code || 'NO_CODE'
-        globalForPrisma.dbInitError = `[${code}] ${message}`
+      const message = error?.message || 'Unknown database error'
+      const code = error?.code || 'NO_CODE'
+      globalForPrisma.dbInitError = `[${code}] ${message}`
 
-        if (attempt < 3 || attempt % 3 === 0 || attempt === MAX_RETRIES - 1) {
-          console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
-        }
+      console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
 
-        if (attempt < MAX_RETRIES - 1) {
-          const delay = Math.min(1000 * Math.pow(2, attempt + 1) + 1000, 30000)
-          console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
-          await new Promise((resolve) => setTimeout(resolve, delay))
-        }
+      if (attempt < MAX_RETRIES - 1) {
+        // FIX v5: Fixed 15s delay (was exponential 2-30s).
+        // Long fixed delay gives PostgreSQL time to release the failed
+        // connection slot before we try again.
+        const delay = 15000
+        console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
+  }
+
+  // Record failure timestamp for cooldown logic
+  ;(globalForPrisma as any).dbLastInitFailAt = Date.now()
 
   console.error('[db] CRITICAL: Database initialization failed after all retries.')
   console.error(`[db] Last error: ${globalForPrisma.dbInitError}`)

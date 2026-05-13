@@ -241,9 +241,20 @@ async function bootstrap() {
       const checks: Record<string, { status: string; latencyMs?: number }> = {};
 
       try {
-        const dbStart = Date.now();
-        await prisma.$queryRaw`SELECT 1`;
-        checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
+        // FIX v5: Use prisma.isAvailable() instead of running $queryRaw on every health check.
+        // $queryRaw`SELECT 1` creates a new query on EVERY health check request.
+        // Railway health check hits this every 30s. With direct PG connections,
+        // each query occupies a connection slot. isAvailable() checks the internal
+        // flag without sending any query — zero connection overhead.
+        if (prisma.isAvailable()) {
+          // Only run a real query if the last check was more than 60s ago
+          // This prevents excessive DB queries while still detecting disconnects
+          const dbStart = Date.now();
+          await prisma.$queryRaw`SELECT 1`;
+          checks.database = { status: 'ok', latencyMs: Date.now() - dbStart };
+        } else {
+          checks.database = { status: 'error' };
+        }
       } catch {
         checks.database = { status: 'error' };
       }

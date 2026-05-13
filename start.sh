@@ -37,6 +37,35 @@
 
 set -uo pipefail
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRITICAL FIX v5: Dual-Mode Connection Management
+#
+# ROOT CAUSE ANALYSIS (from Railway deployment logs):
+#
+#   SYMPTOM: "DATABASE_URL has pgbouncer=true: false" in logs
+#   MEANING: PgBouncer is FAILING its pre-flight check → PGBOUNCER_OK=0
+#   RESULT: DATABASE_URL is NOT rewritten to point to PgBouncer
+#   CONSEQUENCE: Every PrismaClient connects directly to PostgreSQL
+#   PROBLEM: Direct connections + retries + health checks exhaust max_connections
+#
+#   WHY PgBouncer fails (2 possible causes):
+#   1. TLS auth failure: PgBouncer can't establish TLS to PostgreSQL
+#      (wrong TLS mode, missing CA, or PgBouncer compiled without TLS)
+#   2. Stale connections: Old deployment's connections fill max_connections
+#      before PgBouncer can connect (25s wait might not be enough)
+#
+# FIX v5 APPROACH (Dual-Mode):
+#   Mode A: If PgBouncer works → use it (multiplexed connections)
+#   Mode B: If PgBouncer fails → use DIRECT connections with AGGRESSIVE limits:
+#     - connection_limit=1 per PrismaClient (max 2 total)
+#     - pool_timeout=3 (release idle connections fast)
+#     - Ensure NestJS health check uses SAME connection (no new pool)
+#     - Reduce ensureDbReady() retries from 10 to 3
+#     - Increase NestJS reconnect backoff from 10s→60s base
+#
+#   Both modes also add diagnostic logging so we can see what's happening.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 # Load local environment fallback
 if [ -z "${DATABASE_URL:-}" ] && [ -f ".env" ]; then
   while IFS= read -r line || [ -n "$line" ]; do
@@ -154,20 +183,14 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 1.5: INITIAL DELAY — Wait for old deployment to shut down
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL FIX: When Railway redeploys, the new container starts BEFORE
-# the old one fully shuts down. Old PostgreSQL connections remain open.
-# Without this delay, ALL subsequent DB operations will fail with
-# "too many clients already" because old connections fill all slots.
-#
-# 15 seconds gives the old container enough time to:
-#   1. Receive SIGTERM from Railway
-#   2. Gracefully close PrismaClient pools
-#   3. Release PostgreSQL connections
-#
-# This is the SINGLE MOST IMPORTANT FIX for the connection exhaustion problem.
+# CRITICAL FIX v5: Increased from 25s to 35s.
+# Railway sometimes takes 30+ seconds to fully terminate the old container.
+# The old container's PrismaClient connections can persist for 20-30 seconds
+# after SIGTERM. If we start too early, we compete for the same limited
+# max_connections slots and BOTH deployments fail.
 echo ""
-echo "━━━ Phase 1.5: Waiting for old deployment to shut down (25s) ━━━"
-sleep 25
+echo "━━━ Phase 1.5: Waiting for old deployment to shut down (35s) ━━━"
+sleep 35
 echo "✅ Initial delay complete — old deployment should have released connections"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -404,15 +427,15 @@ auth_file = /tmp/pgbouncer_users.txt
 
 pool_mode = transaction
 
-; Connection limits — BALANCED for Railway's low max_connections
-; FIX: Increased from 2 to 5 to handle NestJS + Next.js + occasional scripts
-; With connection_limit=1 per PrismaClient, we have:
-;   1 (Next.js) + 1 (NestJS) = 2 active client connections
-;   Pool of 5 gives headroom for bursts + recovery scripts
-max_client_conn = 100
-default_pool_size = 5
-min_pool_size = 2
-reserve_pool_size = 2
+; Connection limits — TIGHT for Railway's low max_connections (~20)
+; FIX v5: Reduced pool sizes. PgBouncer multiplexes in transaction mode,
+; so 3 real PG connections can serve many client connections.
+;   1 (Next.js) + 1 (NestJS) = 2 client connections
+;   3 real PG connections leaves ~17 slots for other clients
+max_client_conn = 20
+default_pool_size = 3
+min_pool_size = 1
+reserve_pool_size = 1
 reserve_pool_timeout = 5
 
 ; CRITICAL FIX v3: TLS for PgBouncer → PostgreSQL connection
@@ -509,7 +532,7 @@ EOF
         # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
         echo "🔍 PgBouncer pre-flight check: verifying App → PgBouncer → PostgreSQL path..."
         PGBOUNCER_QUERY_OK=0
-        for PREFLIGHT in 1 2 3 4 5; do
+        for PREFLIGHT in 1 2 3; do
           PREFLIGHT_RESULT=$(PGHOST_IN="127.0.0.1" PGPORT_IN="6432" PGDB_IN="$PG_DB" PGUSER_IN="$PG_USER" PGPASS_IN="$PG_PASS" node -e "
             const { Client } = require('pg');
             async function check() {
@@ -519,17 +542,20 @@ EOF
                 database: process.env.PGDB_IN,
                 user: process.env.PGUSER_IN,
                 password: process.env.PGPASS_IN,
-                connectionTimeoutMillis: 5000,
+                connectionTimeoutMillis: 10000,
                 ssl: false  // No SSL needed for localhost PgBouncer
               });
               try {
                 await client.connect();
                 const res = await client.query('SELECT 1 AS ok');
                 console.log('PREFLIGHT_OK:' + JSON.stringify(res.rows[0]));
-                // Also query max_connections for diagnostics
                 try {
                   const mc = await client.query('SHOW max_connections');
-                  console.log('MAX_CONN:' + mc.rows[0].max_connections || mc.rows[0].Value || 'unknown');
+                  console.log('MAX_CONN:' + (mc.rows[0].max_connections || mc.rows[0].Value || 'unknown'));
+                } catch {}
+                try {
+                  const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
+                  console.log('ACTIVE_CONN:' + ac.rows[0].cnt);
                 } catch {}
                 await client.end();
               } catch(e) {
@@ -543,34 +569,27 @@ EOF
           if echo "$PREFLIGHT_RESULT" | grep -q "PREFLIGHT_OK:"; then
             echo "✅ PgBouncer → PostgreSQL: WORKING"
             MAX_CONN=$(echo "$PREFLIGHT_RESULT" | grep "MAX_CONN:" | sed 's/MAX_CONN://')
+            ACTIVE_CONN=$(echo "$PREFLIGHT_RESULT" | grep "ACTIVE_CONN:" | sed 's/ACTIVE_CONN://')
             if [ -n "$MAX_CONN" ]; then
-              echo "📊 PostgreSQL max_connections = $MAX_CONN"
+              echo "📊 PostgreSQL max_connections = $MAX_CONN, active = ${ACTIVE_CONN:-?}"
             fi
             PGBOUNCER_QUERY_OK=1
             PGBOUNCER_OK=1
             break
           else
-            echo "⚠️ Pre-flight attempt $PREFLIGHT/5 failed: $(echo "$PREFLIGHT_RESULT" | grep -o 'PREFLIGHT_ERROR:.*' | head -1)"
-            # Check PgBouncer log for clues
-            if [ "$PREFLIGHT" -eq 1 ]; then
-              echo "   PgBouncer log (last 5 lines):"
-              tail -5 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
-            fi
-            sleep 3
+            PREFLIGHT_ERR=$(echo "$PREFLIGHT_RESULT" | grep -o 'PREFLIGHT_ERROR:.*' | head -1)
+            echo "⚠️ Pre-flight attempt $PREFLIGHT/3 failed: $PREFLIGHT_ERR"
+            echo "   PgBouncer log (last 10 lines):"
+            tail -10 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+            sleep 5
           fi
         done
 
         if [ "$PGBOUNCER_QUERY_OK" -ne 1 ]; then
           echo "❌ PgBouncer can't reach PostgreSQL — falling back to direct connections"
-          echo "   This usually means:"
-          echo "   1. PgBouncer auth doesn't match PostgreSQL's scram-sha-256, OR"
-          echo "   2. PgBouncer TLS config is wrong, OR"
-          echo "   3. PostgreSQL max_connections is full (stale connections)"
+          echo "   PgBouncer log (FULL):"
+          cat /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
           echo ""
-          echo "   PgBouncer log (last 15 lines):"
-          tail -15 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
-          echo ""
-          kill "$PGBOUNCER_PID" 2>/dev/null || true
           PGBOUNCER_OK=0
         fi
       fi
@@ -632,24 +651,27 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
   fi
 fi
 
-# Fallback: If PgBouncer is not available, use direct connections with connection_limit=1
+# Fallback: If PgBouncer is not available, use direct connections with AGGRESSIVE limits
+# FIX v5: pool_timeout=3 (was 10) — release idle connections FAST to free PG slots.
+# With direct connections, each idle connection occupies a real PostgreSQL slot.
+# Reducing pool_timeout from 10s to 3s means connections are released much faster.
 if [ "$PGBOUNCER_OK" -ne 1 ]; then
   MODIFIED_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     const url = process.env.DATABASE_URL_IN || '';
     try {
       const u = new URL(url);
       u.searchParams.set('connection_limit', '1');
-      u.searchParams.set('pool_timeout', '10');
-      u.searchParams.set('connect_timeout', '10');
+      u.searchParams.set('pool_timeout', '3');
+      u.searchParams.set('connect_timeout', '30');
       process.stdout.write(u.toString());
     } catch {
       const sep = url.includes('?') ? '&' : '?';
-      process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=10&connect_timeout=10');
+      process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=3&connect_timeout=30');
     }
   " 2>/dev/null)
   if [ -n "$MODIFIED_URL" ]; then
     export DATABASE_URL="$MODIFIED_URL"
-    echo "🔧 DATABASE_URL → Direct PostgreSQL (connection_limit=1 — PgBouncer unavailable)"
+    echo "🔧 DATABASE_URL → Direct PostgreSQL (connection_limit=1, pool_timeout=3 — PgBouncer unavailable)"
   fi
 fi
 

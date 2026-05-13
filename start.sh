@@ -244,6 +244,73 @@ if [ ! -f "apps/api/dist/main.js" ]; then
   echo "⚠️ API dist missing — building API..."
   (cd apps/api && run_api_build)
 fi
+
+# ── RECOVERY: إنشاء حساب المالك إذا لم يوجد أي مستخدم ──
+echo "🔑 Checking for admin user..."
+node -e "
+const { PrismaClient } = require('@prisma/client');
+const crypto = require('crypto');
+const prisma = new PrismaClient();
+
+async function recover() {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount > 0) {
+      console.log('✅ Users exist (' + userCount + ') — no recovery needed');
+      return;
+    }
+
+    console.log('⚠️ No users found — creating admin account...');
+
+    // إنشاء المستخدم
+    const user = await prisma.user.create({
+      data: {
+        email: 'admin@roua-trading.com',
+        displayName: 'جابر - المدير',
+        tier: 'INSTITUTIONAL',
+      }
+    });
+
+    // إنشاء جلسة صالحة لمدة 7 أيام
+    const token = crypto.randomBytes(32).toString('hex');
+    const refreshToken = crypto.randomBytes(48).toString('hex');
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    await prisma.session.create({
+      data: {
+        userId: user.id,
+        token,
+        refreshToken,
+        isActive: true,
+        expiresAt,
+        deviceInfo: JSON.stringify({ browser: 'Recovery', type: 'desktop' }),
+      }
+    });
+
+    console.log('');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ RECOVERY ACCOUNT CREATED');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('Email: admin@roua-trading.com');
+    console.log('User ID: ' + user.id);
+    console.log('');
+    console.log('RECOVERY TOKEN (صالح 7 أيام):');
+    console.log(token);
+    console.log('');
+    console.log('افتح هذا الرابط لتسجيل الدخول:');
+    console.log('https://roua-trading-production.up.railway.app/api/auth/recover?token=' + token);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+  } catch(e) {
+    console.log('Recovery error: ' + e.message);
+  } finally {
+    await prisma.\$disconnect();
+    process.exit(0);
+  }
+}
+recover();
+" 2>/dev/null || echo "Recovery check skipped"
+
 echo "🔧 Starting NestJS API server (port ${API_PORT:-3001})..."
 cd apps/api
 

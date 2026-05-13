@@ -80,7 +80,15 @@ async function main() {
       return;
     }
 
-    const prisma = new PrismaClient();
+    // Create PrismaClient with the already-normalized PgBouncer-safe DATABASE_URL
+    // so this standalone script doesn't accidentally open extra connections.
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: process.env.DATABASE_URL as string,
+        },
+      },
+    });
 
     try {
       const totalUsers = await prisma.user.count();

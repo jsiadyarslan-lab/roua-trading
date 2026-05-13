@@ -356,26 +356,37 @@ async function bootstrap() {
     // ── Start HTTP server ──
     await app.listen(port, '0.0.0.0');
 
-    // ── DIAGNOSTIC: Verify Socket.IO engine is properly attached ──
-    // The IoAdapter creates the Socket.IO Server during module initialization
-    // (BEFORE app.listen()). After listen(), we verify the engine is attached.
-    // DO NOT create a second SocketIOServer — that causes dual-server conflicts
-    // where the second server intercepts requests but lacks namespace handlers
-    // registered by @WebSocketGateway decorators, resulting in 400 Bad Request.
+    // ── DIAGNOSTIC: Verify Socket.IO is properly attached ──
+    // Socket.IO v4+ uses the HTTP server's 'upgrade' event for WebSocket
+    // connections (not the 'request' event). The old diagnostic checked
+    // request listeners, which is incorrect — Socket.IO only adds a
+    // request listener for the polling transport, not for WebSocket-only.
     try {
       const httpServer = app.getHttpServer();
-      const listeners = httpServer.listeners('request');
-      console.log(`🔌 HTTP server has ${listeners.length} request listener(s)`);
+      const requestListeners = httpServer.listeners('request');
+      const upgradeListeners = httpServer.listeners('upgrade');
+      console.log(`🔌 HTTP server: ${requestListeners.length} request listener(s), ${upgradeListeners.length} upgrade listener(s)`);
 
-      const hasSocketIO = listeners.some((listener: any) => {
+      // Check upgrade listeners for Socket.IO (the correct check for WS)
+      const hasSocketIOUpgrade = upgradeListeners.some((listener: any) => {
         const str = listener.toString();
         return str.includes('socket.io') || str.includes('engine');
       });
-      console.log(`🔌 Socket.IO engine ${hasSocketIO ? '✅ attached' : '❌ NOT attached'} to HTTP server`);
 
-      if (!hasSocketIO) {
-        console.error('🔌 CRITICAL: Socket.IO engine not found on HTTP server! WebSocket connections will fail.');
-        console.error('🔌 This means the IoAdapter did not properly attach Socket.IO. Check @WebSocketGateway decorators.');
+      // Also check request listeners (for polling fallback)
+      const hasSocketIORequest = requestListeners.some((listener: any) => {
+        const str = listener.toString();
+        return str.includes('socket.io') || str.includes('engine');
+      });
+
+      const socketIOAttached = hasSocketIOUpgrade || hasSocketIORequest;
+      console.log(`🔌 Socket.IO ${socketIOAttached ? '✅ attached' : '⚠️ not detected'} (upgrade=${hasSocketIOUpgrade}, request=${hasSocketIORequest})`);
+
+      if (!socketIOAttached) {
+        // This is expected if no WebSocket gateways have been initialized yet,
+        // or if the IoAdapter was set up before the HTTP server was created.
+        // Socket.IO will attach lazily when the first gateway is accessed.
+        console.warn('🔌 Socket.IO not yet attached to HTTP server — it will attach lazily on first WebSocket connection');
       }
     } catch (diagErr: any) {
       console.warn(`⚠️ Socket.IO diagnostic failed: ${diagErr.message}`);

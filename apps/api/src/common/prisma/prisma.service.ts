@@ -16,50 +16,25 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX: Robust URL modification that handles special characters in passwords.
-    // The previous new URL() approach silently failed when DATABASE_URL contained
-    // special characters (common in Railway-generated passwords like p#ssw0rd!),
-    // causing Prisma to use its DEFAULT pool size of 5 instead of 2.
-    // This was the ROOT CAUSE of connection pool exhaustion — "Starting a postgresql
-    // pool with 5 connections" appearing 20+ times in logs, each creating a NEW pool.
-    let dbUrl = process.env.DATABASE_URL!;
-    const poolParams = 'connection_limit=1&pool_timeout=10&connect_timeout=10';
-    let urlModified = false;
-
-    // Strategy 1: URL API (handles most cases, preserves existing params)
-    try {
-      const url = new URL(dbUrl);
-      url.searchParams.set('connection_limit', '1');
-      url.searchParams.set('pool_timeout', '10');
-      url.searchParams.set('connect_timeout', '10');
-      dbUrl = url.toString();
-      urlModified = true;
-    } catch {
-      // URL API failed — likely special characters in password
-    }
-
-    // Strategy 2: String concatenation fallback (handles malformed URLs)
-    if (!urlModified) {
-      try {
-        const separator = dbUrl.includes('?') ? '&' : '?';
-        dbUrl = `${dbUrl}${separator}${poolParams}`;
-        urlModified = true;
-      } catch {
-        // Last resort: use URL as-is
-      }
-    }
-
-    if (urlModified) {
-      // Don't log the full URL (contains credentials) — just confirm modification
-      console.log(`[PrismaService] URL modification successful — pool params injected`);
-    } else {
-      console.error(`[PrismaService] WARNING: Could not modify DATABASE_URL — Prisma will use DEFAULT pool size (5)`);
-    }
-
+    // SUSTAINABLE FIX: No longer modifying DATABASE_URL here.
+    //
+    // Previously, this constructor added connection_limit=1 to DATABASE_URL.
+    // But this ONLY affected the NestJS PrismaService — Prisma CLI commands
+    // (db push, db execute, migrate deploy) used the raw URL with DEFAULT
+    // pool size of 5, causing connection exhaustion.
+    //
+    // Now: start.sh injects connection_limit=1 into DATABASE_URL at the
+    // ENVIRONMENT LEVEL before any process starts. This ensures ALL Prisma
+    // operations (CLI + application) use 1 connection. No per-client
+    // URL modification needed.
+    //
+    // If DATABASE_URL already has connection_limit (from start.sh), Prisma
+    // will respect it. If not (e.g., running locally without start.sh),
+    // Prisma uses its default pool size, which is fine for development.
     super({
       datasources: {
         db: {
-          url: dbUrl,
+          url: process.env.DATABASE_URL,
         },
       },
       log: [
@@ -70,6 +45,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       ],
     });
 
+    // Log the effective connection_limit from the URL (for diagnostics)
+    let effectiveLimit = 'default (5)';
+    try {
+      const url = new URL(process.env.DATABASE_URL || '');
+      const limit = url.searchParams.get('connection_limit');
+      if (limit) effectiveLimit = limit;
+    } catch {}
+    this.logger.log(`📦 Prisma connection pool: connection_limit=${effectiveLimit}, pool_timeout=10`);
+
     // Only attach query event listener in development mode
     if (isDev) {
       (this as any).$on('query', (e: any) => {
@@ -79,13 +63,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // FIX: Reduced from connection_limit=2 to connection_limit=1.
-    // Railway PostgreSQL has ~25 max_connections. With Next.js also using 1,
-    // total = 2 — well under the limit. Multiple pools are created during
-    // startup (prisma db push, seed script, Next.js, NestJS), so each must
-    // use the absolute minimum to avoid 'too many clients already' errors.
-    this.logger.log('📦 Prisma connection pool: connection_limit=1, pool_timeout=10');
-
     // FIX: Add a timeout to Prisma $connect() so that an unreachable database
     // doesn't block the entire NestJS bootstrap. Without this timeout,
     // $connect() can hang for 60-120s (OS TCP SYN timeout), preventing

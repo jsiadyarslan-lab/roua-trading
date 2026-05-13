@@ -6,59 +6,67 @@ const globalForPrisma = globalThis as unknown as {
   dbInitError: string | undefined
 }
 
-// FIX: Robust URL modification that handles special characters in passwords.
-// The previous new URL() approach silently failed when DATABASE_URL contained
-// special characters (common in Railway-generated passwords like p#ssw0rd!),
-// causing Prisma to use its DEFAULT pool size of 5 instead of 2.
-// This was a MAJOR contributor to connection pool exhaustion.
-export const db =
-  globalForPrisma.prisma ??
-  (() => {
-    let dbUrl = process.env.DATABASE_URL
-    const poolParams = 'connection_limit=1&pool_timeout=10&connect_timeout=10'
-    let urlModified = false
+/**
+ * SUSTAINABLE FIX: Lazy PrismaClient initialization.
+ *
+ * PREVIOUS PROBLEM:
+ *   The old code created PrismaClient at MODULE LOAD TIME:
+ *     export const db = globalForPrisma.prisma ?? new PrismaClient({...})
+ *
+ *   When Next.js starts, it eagerly evaluates imported modules.
+ *   If any route or lib imports from db.ts, the PrismaClient is created
+ *   immediately, opening a connection pool BEFORE start.sh has finished
+ *   running prisma db push. This caused "too many clients already" errors
+ *   because:
+ *     1. start.sh starts Next.js first (for health checks)
+ *     2. Next.js creates PrismaClient → opens 1 connection
+ *     3. start.sh runs prisma db push → tries to open connection
+ *     4. Old deployment connections still exist → total exceeds max_connections
+ *
+ * SUSTAINABLE FIX:
+ *   PrismaClient is now created ONLY when first needed (lazy init).
+ *   The `db` export is a Proxy that delegates all property access to the
+ *   real PrismaClient instance, which is created on first access.
+ *
+ *   This means Next.js can start without opening any DB connections.
+ *   The connection is opened only when the first actual API request comes in,
+ *   by which time start.sh has finished its Prisma operations.
+ *
+ *   connection_limit=1 is set by start.sh in DATABASE_URL itself, so
+ *   no URL modification is needed here.
+ */
 
-    if (dbUrl) {
-      // Strategy 1: URL API (handles most cases, preserves existing params)
-      try {
-        const url = new URL(dbUrl)
-        url.searchParams.set('connection_limit', '1')
-        url.searchParams.set('pool_timeout', '10')
-        url.searchParams.set('connect_timeout', '10')
-        dbUrl = url.toString()
-        urlModified = true
-      } catch {
-        // URL API failed — likely special characters in password
-      }
+let _prismaInstance: PrismaClient | undefined = undefined;
 
-      // Strategy 2: String concatenation fallback (handles malformed URLs)
-      if (!urlModified) {
-        try {
-          const separator = dbUrl.includes('?') ? '&' : '?'
-          dbUrl = `${dbUrl}${separator}${poolParams}`
-          urlModified = true
-        } catch {
-          // Last resort: use URL as-is
-        }
-      }
+function getOrCreatePrisma(): PrismaClient {
+  if (globalForPrisma.prisma) {
+    return globalForPrisma.prisma;
+  }
 
-      if (urlModified) {
-        console.log('[db] URL modification successful — pool params injected (connection_limit=1)')
-      } else {
-        console.error('[db] WARNING: Could not modify DATABASE_URL — Prisma will use DEFAULT pool size (5)')
-      }
-    }
+  // SUSTAINABLE FIX: No URL modification needed here.
+  // start.sh injects connection_limit=1 into DATABASE_URL at the
+  // environment level before any process starts.
+  _prismaInstance = new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
+  });
 
-    return new PrismaClient({
-      ...(dbUrl ? { datasources: { db: { url: dbUrl } } } : {}),
-      log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
-    })
-  })()
-
-// Always cache on globalThis (not just in dev)
-if (!globalForPrisma.prisma) {
-  globalForPrisma.prisma = db
+  globalForPrisma.prisma = _prismaInstance;
+  return _prismaInstance;
 }
+
+// Proxy-based lazy initialization: PrismaClient is created on first property access.
+// This prevents opening a DB connection at module load time.
+export const db = new Proxy({} as PrismaClient, {
+  get(_target, prop: string | symbol) {
+    const instance = getOrCreatePrisma();
+    const value = (instance as any)[prop];
+    // Bind methods to the PrismaClient instance so `this` is correct
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});
 
 /**
  * Ensure the database is ready for queries.

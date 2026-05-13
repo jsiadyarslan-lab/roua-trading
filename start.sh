@@ -126,6 +126,48 @@ if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
   fi
 fi
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# SUSTAINABLE FIX: Inject connection_limit=1 into DATABASE_URL itself
+#
+# ROOT CAUSE of "too many clients already":
+#   Prisma CLI commands (db push, db execute, migrate deploy) use
+#   the raw DATABASE_URL without connection_limit, creating pools
+#   of 5 connections each. On Railway's PostgreSQL (max ~5-25
+#   connections), this immediately exhausts the pool.
+#
+#   Previously, only application code (PrismaService, db.ts) added
+#   connection_limit=1 to the URL. But CLI commands didn't benefit
+#   from this, creating 5-connection pools each time.
+#
+# SUSTAINABLE FIX: Modify DATABASE_URL at the ENVIRONMENT LEVEL
+# so ALL Prisma operations (CLI + application) use 1 connection.
+# This is the single most impactful fix for connection exhaustion.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+if [ -n "${DATABASE_URL:-}" ]; then
+  ORIG_DB_URL="$DATABASE_URL"
+  # Use Node.js for robust URL manipulation (handles special chars in passwords)
+  # Pass URL via env var to avoid shell interpolation issues with special characters
+  MODIFIED_URL=$(DATABASE_URL_IN="$DATABASE_URL" node -e "
+    const url = process.env.DATABASE_URL_IN || '';
+    try {
+      const u = new URL(url);
+      u.searchParams.set('connection_limit', '1');
+      u.searchParams.set('pool_timeout', '10');
+      u.searchParams.set('connect_timeout', '10');
+      process.stdout.write(u.toString());
+    } catch {
+      const sep = url.includes('?') ? '&' : '?';
+      process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=10&connect_timeout=10');
+    }
+  " 2>/dev/null)
+  if [ -n "$MODIFIED_URL" ]; then
+    export DATABASE_URL="$MODIFIED_URL"
+    echo "🔧 DATABASE_URL: Injected connection_limit=1&pool_timeout=10&connect_timeout=10 globally"
+  else
+    echo "⚠️ Could not modify DATABASE_URL — Prisma will use DEFAULT pool size (5)"
+  fi
+fi
+
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🚀 Roua Trading - Starting Full Stack"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -175,31 +217,57 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL FIX: Terminate stale DB connections from previous deployments
+# SUSTAINABLE FIX: Terminate stale DB connections from previous deployments
 #
-# When Railway redeploys, the new container starts BEFORE the old one
-# has fully shut down. The old container's PostgreSQL connections remain
-# open, and since Railway PostgreSQL has ~25 max_connections, the new
-# container immediately hits "too many clients already" errors.
+# ROOT CAUSE: When Railway redeploys, the new container starts BEFORE
+# the old one fully shuts down. Old PostgreSQL connections remain open,
+# and Railway PostgreSQL (hobby tier ~5-25 max_connections) immediately
+# hits "too many clients already" errors.
 #
-# This step terminates ALL idle connections before we start our own,
-# freeing up the connection pool for the new deployment.
+# PREVIOUS FIX: Used psql to terminate idle connections. But psql is
+# NOT available in the Railway container, so cleanup was silently skipped.
+#
+# SUSTAINABLE FIX: Use Node.js + pg package (already installed) to
+# terminate ALL non-current connections. This works without psql and
+# handles special characters in DATABASE_URL correctly.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo "🧹 Terminating stale DB connections from previous deployment..."
-if [ -n "${DATABASE_URL:-}" ]; then
-  # Extract connection params from DATABASE_URL
-  DB_HOST=$(echo "$DATABASE_URL" | sed -n 's/.*@\([^:]*\):.*/\1/p')
-  DB_PORT=$(echo "$DATABASE_URL" | sed -n 's/.*:\([0-9]*\)\/.*/\1/p')
-  DB_USER=$(echo "$DATABASE_URL" | sed -n 's/.*\/\/\([^:]*\):.*/\1/p')
-  DB_PASS=$(echo "$DATABASE_URL" | sed -n 's/.*:\/\/[^:]*:\([^@]*\)@.*/\1/p')
-  DB_NAME=$(echo "$DATABASE_URL" | sed -n 's/.*\/\([^?]*\).*/\1/p')
+if [ -n "${ORIG_DB_URL:-}" ]; then
+  # Use Node.js + pg package to terminate stale connections
+  # (psql is not available in Railway containers)
+  # Use ORIGINAL URL (without connection_limit) for cleanup
+  DB_CLEANUP_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
+    const { Client } = require('pg');
+    async function cleanup() {
+      // Use ORIGINAL URL (without connection_limit) for cleanup
+      // so we connect via superuser reserved slot
+      const rawUrl = process.env.DATABASE_URL_IN || '';
+      const client = new Client({ connectionString: rawUrl, connectionTimeoutMillis: 5000 });
+      try {
+        await client.connect();
+        const result = await client.query(
+          \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state = 'idle'\"
+        );
+        console.log('TERMINATED:' + result.rows.length);
+        // Also terminate 'idle in transaction' connections (these block the most)
+        const result2 = await client.query(
+          \"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = current_database() AND pid <> pg_backend_pid() AND state = 'idle in transaction'\"
+        );
+        console.log('TERMINATED_TX:' + result2.rows.length);
+        await client.end();
+      } catch(e) {
+        console.error('CLEANUP_ERROR:' + e.message);
+        try { await client.end(); } catch {}
+      }
+    }
+    cleanup();
+  " 2>&1)
 
-  if command -v psql >/dev/null 2>&1 && [ -n "$DB_HOST" ]; then
-    PGPASSWORD="$DB_PASS" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c \
-      "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '$DB_NAME' AND pid <> pg_backend_pid() AND state = 'idle';" \
-      2>/dev/null && echo "✅ Stale idle connections terminated" || echo "⚠️ Could not terminate stale connections (non-critical)"
+  if echo "$DB_CLEANUP_RESULT" | grep -q "TERMINATED:"; then
+    IDLE_COUNT=$(echo "$DB_CLEANUP_RESULT" | grep "TERMINATED:" | sed 's/TERMINATED://')
+    echo "✅ Terminated $IDLE_COUNT stale idle connections from previous deployment"
   else
-    echo "⚠️ psql not available — skipping stale connection cleanup"
+    echo "⚠️ Stale connection cleanup had issues (non-critical): $(echo "$DB_CLEANUP_RESULT" | head -1)"
   fi
 fi
 

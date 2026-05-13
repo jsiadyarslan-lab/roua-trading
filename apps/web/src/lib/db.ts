@@ -38,6 +38,22 @@ function getOrCreatePrisma(): PrismaClient {
   // DATABASE_URL already has the correct pooling parameters from start.sh.
   _prismaInstance = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
+    datasources: {
+      db: {
+        // SUSTAINABLE FIX: Force connection_limit=2 even if DATABASE_URL has a higher value.
+        // With PgBouncer, 2 connections per PrismaClient is sufficient.
+        // Total: 2 (Next.js) + 2 (NestJS) = 4 client → PgBouncer → 3 real PG connections.
+        url: (() => {
+          try {
+            const u = new URL(process.env.DATABASE_URL || '');
+            u.searchParams.set('connection_limit', '2');
+            return u.toString();
+          } catch {
+            return process.env.DATABASE_URL;
+          }
+        })(),
+      },
+    },
   });
 
   globalForPrisma.prisma = _prismaInstance;

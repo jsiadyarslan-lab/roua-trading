@@ -3,27 +3,24 @@
 # Roua Trading — Railway Startup Script with PgBouncer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# SUSTAINABLE FIX: PgBouncer Connection Pooler
+# SUSTAINABLE FIX v2: PgBouncer + Aggressive Connection Management
 #
 # ROOT CAUSE of "too many clients already":
-#   Each PrismaClient instance creates its own connection pool.
-#   With 10+ instances (NestJS services, Next.js, CLI, scripts),
-#   even with connection_limit=1, total connections exceed PostgreSQL's
-#   max_connections on Railway's hobby tier (~20-25).
+#   When Railway redeploys, the NEW container starts BEFORE the old one
+#   fully shuts down. Old PostgreSQL connections remain open, filling
+#   all available connection slots. The new container can't even connect
+#   to run pg_terminate_backend.
 #
-# SUSTAINABLE SOLUTION:
-#   PgBouncer sits between the app and PostgreSQL, multiplexing many
-#   application connections onto a small number of real PostgreSQL
-#   connections. In transaction mode, connections are only held during
-#   active transactions.
+# SUSTAINABLE SOLUTION (4-pronged):
+#   1. INITIAL DELAY: Wait 15s for old container to shut down
+#   2. PgBouncer: Multiplex many app connections onto few real PG connections
+#   3. LOW connection_limit=2 per PrismaClient (was 5)
+#   4. SKIP non-critical DB operations when DB is unavailable
 #
 #   Architecture:
-#     App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL (Railway)
-#
-#   15+ app connections → PgBouncer → 5 real PostgreSQL connections
-#
-#   Prisma CLI commands (migrate, db push) bypass PgBouncer via
-#   DIRECT_DATABASE_URL (configured in schema.prisma directUrl).
+#     App (PrismaClient x2, limit=2 each) → PgBouncer (localhost:6432) → PostgreSQL
+#     4 client connections → PgBouncer → 3 real PostgreSQL connections
+#     This leaves ~17 connection slots free on Railway's 20-25 max_connections
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -uo pipefail
@@ -86,9 +83,11 @@ PROJECT_ROOT="$(pwd)"
 export API_INTERNAL_URL="${API_INTERNAL_URL:-http://127.0.0.1:3001}"
 export API_PORT="${API_PORT:-3001}"
 if [ "${PORT:-3000}" = "3001" ]; then
-  echo "⚠️ PORT was set to 3001 (conflicts with API_PORT) — forcing PORT=3000 for Next.js"
-  export PORT=3000
+  echo "⚠️ PORT was set to 3001 (conflicts with API_PORT) — forcing PORT=8080 for Next.js"
+  export PORT=8080
 fi
+# Ensure PORT has a default
+export PORT="${PORT:-8080}"
 
 if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
   if [ -z "${ORIGIN:-}" ] || [[ "${ORIGIN}" == *"localhost"* ]] || [[ "${ORIGIN}" == *"0.0.0.0"* ]]; then
@@ -110,20 +109,18 @@ fi
 ORIG_DB_URL="$DATABASE_URL"
 
 # DIRECT_DATABASE_URL: Direct connection to PostgreSQL for Prisma CLI
-# (migrate, db push, db execute). These commands need session-level features
-# that don't work through PgBouncer in transaction mode.
-# Add connection_limit=1 to minimize connection usage during migrations.
+# CRITICAL: Use connection_limit=1 to minimize connection usage during migrations.
 DIRECT_DB_URL=$(DATABASE_URL_IN="$DATABASE_URL" node -e "
   const url = process.env.DATABASE_URL_IN || '';
   try {
     const u = new URL(url);
-    u.searchParams.set('connection_limit', '2');
+    u.searchParams.set('connection_limit', '1');
     u.searchParams.set('pool_timeout', '10');
-    u.searchParams.set('connect_timeout', '15');
+    u.searchParams.set('connect_timeout', '30');
     process.stdout.write(u.toString());
   } catch {
     const sep = url.includes('?') ? '&' : '?';
-    process.stdout.write(url + sep + 'connection_limit=2&pool_timeout=10&connect_timeout=15');
+    process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=10&connect_timeout=30');
   }
 " 2>/dev/null)
 export DIRECT_DATABASE_URL="${DIRECT_DB_URL:-$ORIG_DB_URL}"
@@ -137,26 +134,43 @@ echo "API_INTERNAL_URL:   ${API_INTERNAL_URL:-[NOT SET]}"
 echo "RP_ID:              ${RP_ID:-localhost}"
 echo "ORIGIN:             ${ORIGIN:-not set}"
 echo "NODE_ENV:           ${NODE_ENV:-development}"
-echo "PORT:               ${PORT:-3000}"
+echo "PORT:               ${PORT:-8080}"
 echo "API_PORT:           ${API_PORT:-3001}"
 echo "PgBouncer:          $(command -v pgbouncer >/dev/null 2>&1 && echo 'AVAILABLE' || echo 'NOT AVAILABLE — will use direct connections')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# PHASE 1.5: INITIAL DELAY — Wait for old deployment to shut down
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRITICAL FIX: When Railway redeploys, the new container starts BEFORE
+# the old one fully shuts down. Old PostgreSQL connections remain open.
+# Without this delay, ALL subsequent DB operations will fail with
+# "too many clients already" because old connections fill all slots.
+#
+# 15 seconds gives the old container enough time to:
+#   1. Receive SIGTERM from Railway
+#   2. Gracefully close PrismaClient pools
+#   3. Release PostgreSQL connections
+#
+# This is the SINGLE MOST IMPORTANT FIX for the connection exhaustion problem.
+echo ""
+echo "━━━ Phase 1.5: Waiting for old deployment to shut down (15s) ━━━"
+sleep 15
+echo "✅ Initial delay complete — old deployment should have released connections"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 2: Kill Stale DB Connections from Previous Deployment
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL: When Railway redeploys, the new container starts BEFORE
-# the old one fully shuts down. Old PostgreSQL connections remain open.
-# We must terminate them BEFORE starting anything else.
 echo ""
 echo "━━━ Phase 2: Terminating Stale DB Connections ━━━"
 
 DB_CLEANUP_OK=0
-for CLEANUP_ATTEMPT in 1 2 3; do
+# INCREASED: 5 attempts with longer delays (was 3 with 3s)
+for CLEANUP_ATTEMPT in 1 2 3 4 5; do
   DB_CLEANUP_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     const { Client } = require('pg');
     async function cleanup() {
-      const client = new Client({ connectionString: process.env.DATABASE_URL_IN, connectionTimeoutMillis: 5000 });
+      const client = new Client({ connectionString: process.env.DATABASE_URL_IN, connectionTimeoutMillis: 10000 });
       try {
         await client.connect();
         const result = await client.query(
@@ -176,27 +190,27 @@ for CLEANUP_ATTEMPT in 1 2 3; do
     COUNT=$(echo "$DB_CLEANUP_RESULT" | grep "TERMINATED:" | sed 's/TERMINATED://')
     echo "✅ Terminated $COUNT stale connections (attempt $CLEANUP_ATTEMPT)"
     DB_CLEANUP_OK=1
-    sleep 2
+    sleep 3
     break
   else
     echo "⚠️ Cleanup attempt $CLEANUP_ATTEMPT failed: $(echo "$DB_CLEANUP_RESULT" | head -1)"
-    if [ "$CLEANUP_ATTEMPT" -lt 3 ]; then
-      echo "   Retrying in 3s..."
-      sleep 3
+    if [ "$CLEANUP_ATTEMPT" -lt 5 ]; then
+      # INCREASED: Progressive delay — 5s, 10s, 15s, 20s
+      DELAY=$((CLEANUP_ATTEMPT * 5))
+      echo "   Retrying in ${DELAY}s..."
+      sleep $DELAY
     fi
   fi
 done
 
 if [ "$DB_CLEANUP_OK" -ne 1 ]; then
   echo "⚠️ All cleanup attempts failed — will proceed anyway"
+  echo "   (Old deployment may still be shutting down — apps will retry connections)"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 3: Prisma Database Setup (Using DIRECT Connection)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# These commands connect DIRECTLY to PostgreSQL (via DIRECT_DATABASE_URL
-# configured as directUrl in schema.prisma). They need session-level
-# features that don't work through PgBouncer.
 echo ""
 echo "━━━ Phase 3: Prisma Database Setup (Direct Connection) ━━━"
 
@@ -205,32 +219,54 @@ run_prisma generate --schema=./prisma/schema.prisma
 
 echo "📦 Applying Prisma schema..."
 DB_MIGRATE_OK=0
+
+# Helper: Try prisma db push with retries
+try_db_push() {
+  local MAX_RETRIES=3
+  local RETRY_NUM=1
+  while [ $RETRY_NUM -le $MAX_RETRIES ]; do
+    echo "   db push attempt $RETRY_NUM/$MAX_RETRIES..."
+    if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
+      return 0
+    else
+      if [ $RETRY_NUM -lt $MAX_RETRIES ]; then
+        local DELAY=$((RETRY_NUM * 10))
+        echo "   ⏳ db push failed — waiting ${DELAY}s before retry..."
+        sleep $DELAY
+      fi
+    fi
+    RETRY_NUM=$((RETRY_NUM + 1))
+  done
+  return 1
+}
+
 if [ -d "prisma/migrations" ] && [ "$(ls -A prisma/migrations 2>/dev/null)" ]; then
   if timeout 60 npx prisma migrate deploy --schema=./prisma/schema.prisma 2>&1; then
     echo "✅ Migrations applied successfully"
     DB_MIGRATE_OK=1
   else
-    echo "⚠️ prisma migrate deploy had issues — trying db push (safe, no data loss)"
-    if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
+    echo "⚠️ prisma migrate deploy had issues — trying db push"
+    if try_db_push; then
       echo "✅ db push succeeded"
       DB_MIGRATE_OK=1
     else
-      echo "❌ prisma db push failed — schema may be out of sync"
+      echo "❌ prisma db push failed after retries — schema may be out of sync"
     fi
   fi
 else
-  if timeout 60 npx prisma db push --schema=./prisma/schema.prisma 2>&1; then
+  if try_db_push; then
     echo "✅ db push succeeded"
     DB_MIGRATE_OK=1
   else
-    echo "❌ prisma db push failed — database may be unreachable"
+    echo "❌ prisma db push failed after retries — database may be unreachable"
   fi
 fi
 
-# Seed AUTO_TRADING_ENABLED setting
-echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
-timeout 15 npx prisma db execute --schema=./prisma/schema.prisma \
-  --stdin <<'SQL' 2>/dev/null && echo "✅ AUTO_TRADING_ENABLED seeded" || echo "⚠️ Seed skipped (non-critical)"
+# Seed AUTO_TRADING_ENABLED setting — SKIP if DB is unavailable
+if [ "$DB_MIGRATE_OK" -eq 1 ]; then
+  echo "🔧 Seeding AUTO_TRADING_ENABLED setting..."
+  timeout 15 npx prisma db execute --schema=./prisma/schema.prisma \
+    --stdin <<'SQL' 2>/dev/null && echo "✅ AUTO_TRADING_ENABLED seeded" || echo "⚠️ Seed skipped (non-critical)"
 INSERT INTO "Setting" ("id", "key", "value", "createdAt", "updatedAt")
 VALUES (
   gen_random_uuid(),
@@ -240,17 +276,13 @@ VALUES (
   NOW()
 ) ON CONFLICT ("key") DO NOTHING;
 SQL
+else
+  echo "⚠️ Skipping seed — DB schema not applied (non-critical, will work with existing schema)"
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 4: Start PgBouncer Connection Pooler
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PgBouncer multiplexes many app connections onto few real PG connections.
-# This is the SUSTAINABLE solution for connection exhaustion.
-#
-# Architecture: App → PgBouncer (localhost:6432) → PostgreSQL (Railway)
-#
-# Transaction mode: connections are released back to the pool after each
-# transaction, allowing 15+ app connections to share ~5 real PG connections.
 echo ""
 echo "━━━ Phase 4: Starting PgBouncer Connection Pooler ━━━"
 
@@ -260,11 +292,10 @@ if command -v pgbouncer >/dev/null 2>&1; then
   PG_CONFIG=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     try {
       const u = new URL(process.env.DATABASE_URL_IN);
-      // Output: host|port|database|user|password
       process.stdout.write([
         u.hostname,
         u.port || '5432',
-        u.pathname.slice(1),  // remove leading /
+        u.pathname.slice(1),
         decodeURIComponent(u.username),
         decodeURIComponent(u.password)
       ].join('|'));
@@ -278,15 +309,12 @@ if command -v pgbouncer >/dev/null 2>&1; then
     echo "⚠️ Failed to parse DATABASE_URL for PgBouncer: $PG_CONFIG"
     echo "   Falling back to direct connections"
   else
-    # Parse the config components
     PG_HOST=$(echo "$PG_CONFIG" | cut -d'|' -f1)
     PG_PORT=$(echo "$PG_CONFIG" | cut -d'|' -f2)
     PG_DB=$(echo "$PG_CONFIG" | cut -d'|' -f3)
     PG_USER=$(echo "$PG_CONFIG" | cut -d'|' -f4)
     PG_PASS=$(echo "$PG_CONFIG" | cut -d'|' -f5)
 
-    # Generate MD5 password hash for PgBouncer auth file
-    # Format: "md5" + md5(password + username)
     PG_MD5_HASH=$(PG_PASS_IN="$PG_PASS" PG_USER_IN="$PG_USER" node -e "
       const crypto = require('crypto');
       const pass = process.env.PG_PASS_IN;
@@ -295,59 +323,68 @@ if command -v pgbouncer >/dev/null 2>&1; then
       process.stdout.write(hash);
     " 2>/dev/null)
 
-    # Write PgBouncer auth file (userlist.txt)
     cat > /tmp/pgbouncer_users.txt <<EOF
 "${PG_USER}" "${PG_MD5_HASH}"
 EOF
     chmod 600 /tmp/pgbouncer_users.txt
 
-    # Write PgBouncer configuration
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # PgBouncer Configuration — OPTIMIZED for Railway's low max_connections
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # CHANGES from v1:
+    #   default_pool_size: 5 → 3 (fewer real PG connections)
+    #   reserve_pool_size: 2 → 1 (fewer reserve connections)
+    #   min_pool_size: 0 → 2 (keep minimum ready)
+    #   Total max real connections: 3 + 1 = 4 (leaves ~16 for direct/migration)
+    #
+    # With connection_limit=2 per PrismaClient and 2 PrismaClient instances
+    # (NestJS + Next.js), we have 4 client connections to PgBouncer.
+    # PgBouncer multiplexes these onto 3-4 real PG connections.
+    # This leaves plenty of room for direct connections (prisma CLI, cleanup).
     cat > /tmp/pgbouncer.ini <<EOF
 ;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-;; PgBouncer Configuration for Roua Trading
+;; PgBouncer Configuration v2 — Optimized for Railway
 ;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-;; Transaction mode multiplexes connections efficiently.
-;; 15+ app connections → 5 real PostgreSQL connections.
+;; 4 client connections → 3 real PG connections
+;; Leaves ~17 slots free on Railway's ~20-25 max_connections
 
 [databases]
-; Route all connections to the real PostgreSQL server
 ${PG_DB} = host=${PG_HOST} port=${PG_PORT} dbname=${PG_DB}
 
 [pgbouncer]
-; Listen on localhost only (same container as app)
 listen_addr = 127.0.0.1
 listen_port = 6432
 
-; Authentication: MD5 for client → PgBouncer
 auth_type = md5
 auth_file = /tmp/pgbouncer_users.txt
 
-; Pool mode: transaction = release connection after each transaction
-; This maximizes multiplexing — 15+ clients share ~5 server connections
 pool_mode = transaction
 
-; Connection limits
+; Connection limits — REDUCED for Railway's low max_connections
 max_client_conn = 100
-default_pool_size = 5
-reserve_pool_size = 2
-reserve_pool_timeout = 3
+default_pool_size = 3
+min_pool_size = 2
+reserve_pool_size = 1
+reserve_pool_timeout = 5
 
-; Timeouts — release idle connections back to PostgreSQL
+; Timeouts
 server_idle_timeout = 300
 server_lifetime = 600
 server_connect_timeout = 15
 server_login_retry = 3
+server_check_query = SELECT 1
+server_check_delay = 30
 
-; Logging (minimal to reduce log spam)
+; Logging
 log_connections = 0
 log_disconnections = 0
 stats_period = 60
 
-; File locations (writable by non-root user)
+; File locations
 pidfile = /tmp/pgbouncer.pid
 logfile = /tmp/pgbouncer.log
 
-; Admin console (useful for debugging: SHOW POOLS, SHOW CLIENTS)
+; Admin
 admin_users = ${PG_USER}
 stats_users = ${PG_USER}
 EOF
@@ -378,7 +415,6 @@ EOF
 
     if [ "$PGBOUNCER_OK" -ne 1 ]; then
       echo "⚠️ PgBouncer failed to start within 10s — falling back to direct connections"
-      # Kill any partial PgBouncer process
       pkill -f pgbouncer 2>/dev/null || true
     fi
   fi
@@ -392,21 +428,19 @@ fi
 
 if [ "$PGBOUNCER_OK" -eq 1 ]; then
   # Application connects through PgBouncer
-  # pgbouncer=true tells Prisma to disable prepared statements
-  # (not compatible with PgBouncer transaction mode)
+  # CRITICAL: connection_limit=2 (was 5) to reduce total connections
+  # With 2 PrismaClient instances (NestJS + Next.js), that's 4 client connections
+  # PgBouncer multiplexes these onto 3 real PG connections.
   POOLED_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     try {
       const u = new URL(process.env.DATABASE_URL_IN);
-      // Replace host/port with PgBouncer
       u.hostname = '127.0.0.1';
       u.port = '6432';
-      // Remove old connection pool params — PgBouncer handles pooling now
       u.searchParams.delete('connection_limit');
       u.searchParams.delete('pool_timeout');
       u.searchParams.delete('connect_timeout');
-      // Add Prisma PgBouncer compatibility flag
       u.searchParams.set('pgbouncer', 'true');
-      u.searchParams.set('connection_limit', '5');
+      u.searchParams.set('connection_limit', '2');
       process.stdout.write(u.toString());
     } catch(e) {
       process.stderr.write('ERROR:' + e.message);
@@ -416,7 +450,7 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
 
   if [ -n "$POOLED_URL" ]; then
     export DATABASE_URL="$POOLED_URL"
-    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, pool_mode=transaction)"
+    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, connection_limit=2, pool_mode=transaction)"
   else
     echo "⚠️ Failed to construct PgBouncer URL — falling back to direct connections"
     PGBOUNCER_OK=0
@@ -448,21 +482,15 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 Connection Architecture:"
 echo "   Mode: $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer (POOLED) ✅' || echo 'Direct (NO POOLING) ⚠️')"
-echo "   DATABASE_URL:       $([ "$PGBOUNCER_OK" -eq 1 ] && echo '→ PgBouncer:6432' || echo '→ Direct PG')"
-echo "   DIRECT_DATABASE_URL: → Direct PG (for migrations)"
+echo "   DATABASE_URL:       $([ "$PGBOUNCER_OK" -eq 1 ] && echo '→ PgBouncer:6432 (limit=2)' || echo '→ Direct PG (limit=1)')"
+echo "   DIRECT_DATABASE_URL: → Direct PG (limit=1, for migrations)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 5: Start Next.js (Health Check Priority)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Start Next.js FIRST for Railway health checks.
-# The /api/health endpoint returns 200 even when NestJS is down,
-# preventing "1/1 replicas never became healthy" deployment failures.
-# With PgBouncer, Next.js PrismaClient connects through the pooler,
-# using only a shared pool connection (not a dedicated PG connection).
-
-ACTUAL_WEB_PORT=${PORT:-3000}
+ACTUAL_WEB_PORT=${PORT:-8080}
 echo "━━━ Phase 5: Starting Next.js (port $ACTUAL_WEB_PORT) ━━━"
 cd apps/web
 run_web_start 2>&1 &
@@ -477,8 +505,11 @@ else
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PHASE 6: Admin User Recovery
+# PHASE 6: Admin User Recovery — SKIP if DB is unavailable
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# CRITICAL FIX: Do NOT create an additional PrismaClient if the DB
+# is already exhausted. This was creating a 3rd connection pool,
+# adding to the connection pressure. Only run recovery if DB is reachable.
 echo ""
 echo "━━━ Phase 6: Checking Admin User ━━━"
 
@@ -488,9 +519,9 @@ if [ ! -f "apps/api/dist/main.js" ]; then
   (cd apps/api && run_api_build)
 fi
 
-# Use the application's own PrismaClient (through PgBouncer if available)
-# connection_limit=1 ensures minimal connection usage during recovery
-timeout 15 node -e "
+# ONLY attempt recovery if DB cleanup or migration succeeded
+if [ "$DB_CLEANUP_OK" -eq 1 ] || [ "$DB_MIGRATE_OK" -eq 1 ]; then
+  timeout 15 node -e "
 const { PrismaClient } = require('@prisma/client');
 let dbUrl = process.env.DATABASE_URL;
 if (dbUrl) {
@@ -540,6 +571,10 @@ async function recover() {
 }
 recover();
 " 2>/dev/null || echo "⚠️ Recovery check skipped"
+else
+  echo "⚠️ Skipping admin recovery — DB was unreachable during startup (non-critical)"
+  echo "   Recovery will be attempted on next successful deployment"
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PHASE 7: Start NestJS API Server
@@ -669,10 +704,10 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 ROUA TRADING — STARTUP COMPLETE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   Connection Mode:  $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer ✅ (TRANSACTION MODE)' || echo 'Direct ⚠️ (NO POOLER)')"
+echo "   Connection Mode:  $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer ✅ (TRANSACTION MODE, limit=2)' || echo 'Direct ⚠️ (NO POOLER, limit=1)')"
 echo "   API (NestJS):     port ${API_PORT:-3001} — $([ "$API_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
 echo "   Web (Next.js):    port $ACTUAL_WEB_PORT — $([ "$WEB_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
-echo "   DB Migrations:    $([ "$DB_MIGRATE_OK" -eq 1 ] && echo '✅ APPLIED' || echo '❌ FAILED')"
+echo "   DB Migrations:    $([ "$DB_MIGRATE_OK" -eq 1 ] && echo '✅ APPLIED' || echo '❌ FAILED (will retry on next deploy)')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Cleanup trap

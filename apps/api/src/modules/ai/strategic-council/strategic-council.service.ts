@@ -62,16 +62,10 @@ export class StrategicCouncilService {
     private readonly configService: ConfigService,
   ) {
     this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
-    // FIX: Ensure TradingBrief table exists before any operations.
-    // The Prisma migration for this table failed in production because
-    // it tried to CREATE TABLE before creating the enum types.
-    // This method creates the table directly if missing.
-    // CRITICAL FIX: Added .catch() to prevent unhandled promise rejection.
-    // Previously, calling async methods from constructor without .catch()
-    // caused unhandled rejections that could crash Node.js (15+).
-    this._ensureTradingBriefTable().catch((err) =>
-      this.logger.error(`🏛️ _ensureTradingBriefTable failed: ${err?.message || err}`),
-    );
+    // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
+    // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+    // Running DDL from application code causes connection pool exhaustion and
+    // conflicts with Prisma schema management.
     // Startup health check: warn if no AI models are available
     this._checkAIHealth();
     // FIX: REMOVED _triggerStartupSession(). Previously, the Strategic Council
@@ -84,124 +78,8 @@ export class StrategicCouncilService {
     // chance to purge phantom data.
   }
 
-  /**
-   * FIX: Ensure the TradingBrief table exists in the database.
-   * This is a safety-net that creates the table and its enum types
-   * directly via raw SQL if they don't exist. The Prisma migration
-   * for this table failed because it tried to CREATE TABLE before
-   * creating the enum types, which PostgreSQL doesn't allow.
-   */
-  private async _ensureTradingBriefTable(): Promise<void> {
-    try {
-      // Check if table exists
-      const result = await this.prisma.$queryRaw<Array<{ exists: boolean }>>`
-        SELECT EXISTS (
-          SELECT 1 FROM information_schema.tables
-          WHERE table_schema = 'public' AND table_name = 'TradingBrief'
-        ) as exists
-      `;
-
-      if (result[0]?.exists) {
-        this.logger.log('🏛️ TradingBrief table exists — skipping creation');
-        return;
-      }
-
-      this.logger.warn('🏛️ TradingBrief table MISSING — creating it now...');
-
-      // Create enum types first (PostgreSQL requires them before table creation)
-      await this.prisma.$executeRawUnsafe(`
-        DO $$ BEGIN
-          CREATE TYPE "BriefDirection" AS ENUM ('BUY', 'SELL');
-        EXCEPTION WHEN duplicate_object THEN NULL;
-        END $$;
-      `);
-
-      await this.prisma.$executeRawUnsafe(`
-        DO $$ BEGIN
-          CREATE TYPE "BriefTimeframe" AS ENUM ('M5', 'M15', 'M30', 'H1', 'H4', 'D1', 'W1');
-        EXCEPTION WHEN duplicate_object THEN NULL;
-        END $$;
-      `);
-
-      // Ensure new fast timeframes exist in case the enum was created previously
-      try {
-        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M5';`);
-        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M15';`);
-        await this.prisma.$executeRawUnsafe(`ALTER TYPE "BriefTimeframe" ADD VALUE IF NOT EXISTS 'M30';`);
-      } catch (e) {
-        // Ignore if already added or not supported
-      }
-
-      await this.prisma.$executeRawUnsafe(`
-        DO $$ BEGIN
-          CREATE TYPE "BriefReviewStatus" AS ENUM ('ACTIVE', 'MODIFIED', 'CANCELLED', 'EXECUTED');
-        EXCEPTION WHEN duplicate_object THEN NULL;
-        END $$;
-      `);
-
-      // Create the table
-      await this.prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "TradingBrief" (
-          "id" TEXT NOT NULL,
-          "userId" TEXT,
-          "pair" TEXT NOT NULL,
-          "direction" "BriefDirection" NOT NULL,
-          "entryPrice" DECIMAL(19,8) NOT NULL,
-          "stopLoss" DECIMAL(19,8) NOT NULL,
-          "takeProfit" DECIMAL(19,8) NOT NULL,
-          "confidence" INTEGER NOT NULL DEFAULT 0,
-          "timeframe" "BriefTimeframe" NOT NULL,
-          "issuedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "expiresAt" TIMESTAMP(3) NOT NULL,
-          "isActive" BOOLEAN NOT NULL DEFAULT true,
-          "strictRules" TEXT NOT NULL DEFAULT '{}',
-          "lastReviewedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "reviewStatus" "BriefReviewStatus" NOT NULL DEFAULT 'ACTIVE',
-          "analysisSummary" TEXT,
-          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          CONSTRAINT "TradingBrief_pkey" PRIMARY KEY ("id")
-        );
-      `);
-
-      // Create indexes
-      const indexes = [
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_idx" ON "TradingBrief"("pair")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_idx" ON "TradingBrief"("isActive")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_reviewStatus_idx" ON "TradingBrief"("reviewStatus")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_expiresAt_idx" ON "TradingBrief"("expiresAt")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_isActive_reviewStatus_idx" ON "TradingBrief"("pair", "isActive", "reviewStatus")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_reviewStatus_idx" ON "TradingBrief"("isActive", "reviewStatus")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_userId_idx" ON "TradingBrief"("userId")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_timeframe_idx" ON "TradingBrief"("timeframe")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_userId_isActive_reviewStatus_idx" ON "TradingBrief"("userId", "isActive", "reviewStatus")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_isActive_expiresAt_idx" ON "TradingBrief"("isActive", "expiresAt")`,
-        `CREATE INDEX IF NOT EXISTS "TradingBrief_pair_timeframe_isActive_idx" ON "TradingBrief"("pair", "timeframe", "isActive")`,
-      ];
-
-      for (const sql of indexes) {
-        await this.prisma.$executeRawUnsafe(sql);
-      }
-
-      // Add foreign key constraint (if User table exists)
-      await this.prisma.$executeRawUnsafe(`
-        DO $$ BEGIN
-          IF NOT EXISTS (
-            SELECT 1 FROM information_schema.table_constraints
-            WHERE constraint_name = 'TradingBrief_userId_fkey'
-          ) THEN
-            ALTER TABLE "TradingBrief" ADD CONSTRAINT "TradingBrief_userId_fkey"
-              FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-          END IF;
-        END $$;
-      `);
-
-      this.logger.log('🏛️ TradingBrief table created successfully with all indexes and foreign key');
-    } catch (error: any) {
-      this.logger.error(`🏛️ Failed to create TradingBrief table: ${error.message}`);
-      this.logger.error(`🏛️ The Strategic Council will NOT be able to create briefs until this is fixed`);
-    }
-  }
+  // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
+  // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
 
   /**
    * FIX: Trigger an initial council session after startup — but ONLY after
@@ -294,6 +172,11 @@ export class StrategicCouncilService {
    */
   @Cron('*/15 * * * *')
   async runAgentSession(): Promise<void> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
     // Check AUTO_TRADING_ENABLED
     try {
       const s = await this.prisma.$queryRaw<any[]>`SELECT value FROM "Setting" WHERE key = 'AUTO_TRADING_ENABLED' LIMIT 1`.catch(() => []);
@@ -325,6 +208,19 @@ export class StrategicCouncilService {
 
   @Cron('*/15 * * * *')
   async runHourlySession(): Promise<CouncilSessionResult> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return {
+        timestamp: new Date().toISOString(),
+        pairsAnalyzed: 0,
+        briefsIssued: 0,
+        briefsModified: 0,
+        briefsCancelled: 0,
+        briefsExecuted: 0,
+        durationMs: 0,
+      };
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     // FIX: Single AUTO_TRADING_ENABLED check (removed double-guard).
     // Previously there were TWO separate checks that both defaulted to
@@ -422,6 +318,11 @@ export class StrategicCouncilService {
           // Small delay between pairs to respect rate limits
           await this._sleep(1000);
         } catch (error: any) {
+          // FIX: Break loop early on DB connection exhaustion
+          if (error.message?.includes('Too many database connections') || error.message?.includes('connection pool')) {
+            this.logger.error(`🏛️ DB connection exhaustion detected during ${pair} analysis — breaking loop early`);
+            break;
+          }
           this.logger.error(`🏛️ Council failed for ${pair}: ${error.message}`);
         }
       }

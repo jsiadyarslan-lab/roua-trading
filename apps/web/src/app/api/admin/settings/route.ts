@@ -164,22 +164,21 @@ export async function POST(req: NextRequest) {
     const { botConfig, riskConfig, platformConfig } = body
 
     // Verify Setting table exists before attempting upsert
+    // FIX: DDL (CREATE TABLE, ALTER TABLE) has been REMOVED from application code.
+    // All schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+    // Previously, this code ran CREATE TABLE IF NOT EXISTS as a "safety net",
+    // which conflicts with Prisma schema management and can cause connection
+    // pool exhaustion during deployment.
     try {
       await db.setting.findFirst()
     } catch (tableErr: any) {
       const msg = tableErr?.message || String(tableErr)
+      const code = (tableErr as any)?.code
       console.error('[admin/settings] Setting table error:', msg)
-      if (msg.includes('does not exist') || msg.includes('not found') || tableErr?.code === 'P2021') {
-        // Try to create the table as a safety net
-        try {
-          await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Setting" ("id" TEXT NOT NULL, "key" TEXT NOT NULL, "value" TEXT NOT NULL DEFAULT '{}', "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, CONSTRAINT "Setting_pkey" PRIMARY KEY ("id"))`)
-          await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Setting_key_key" ON "Setting"("key")`)
-          await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Setting_key_idx" ON "Setting"("key")`)
-          console.log('[admin/settings] Setting table created as safety net')
-        } catch (createErr: any) {
-          console.error('[admin/settings] Failed to create Setting table:', createErr?.message)
-          return NextResponse.json({ error: 'جدول الإعدادات غير موجود وفشل إنشاؤه — يرجى تشغيل prisma db push' }, { status: 500 })
-        }
+      if (msg.includes('does not exist') || msg.includes('not found') || code === 'P2021') {
+        return NextResponse.json({
+          error: 'جدول الإعدادات غير موجود — يرجى تشغيل prisma db push أو prisma migrate deploy من خلال start.sh',
+        }, { status: 500 })
       }
     }
 

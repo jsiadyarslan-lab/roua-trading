@@ -49,6 +49,11 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
    * Process all PENDING reconciliation records
    */
   private async _processPending(): Promise<void> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
     try {
       const pending = await this.prisma.positionReconciliation.findMany({
         where: {

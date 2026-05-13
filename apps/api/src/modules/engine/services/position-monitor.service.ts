@@ -68,6 +68,11 @@ export class PositionMonitorService {
    */
   @Interval(30000)
   async runPositionMonitor(): Promise<void> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
     if (this.isMonitoring) {
       return; // Skip if previous cycle still running
     }

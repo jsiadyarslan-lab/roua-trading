@@ -4,33 +4,56 @@ import { PrismaClient } from '@prisma/client';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(PrismaService.name);
-  private readonly reconnectDelayMs = 10000;
   private reconnectTimer: NodeJS.Timeout | null = null;
   private connectInProgress = false;
   private connected = false;
+  private consecutiveFailures = 0;
+  // FIX: Shared flag so background services can check DB availability
+  // before attempting queries that would create new connection pools.
+  private static _dbAvailable = false;
+  static get dbAvailable(): boolean { return PrismaService._dbAvailable; }
 
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX: Use URL API instead of string concatenation for connection pool params.
-    // String concatenation can produce malformed URLs if DATABASE_URL already has
-    // query params or fragments — URL.searchParams handles all edge cases.
+    // FIX: Robust URL modification that handles special characters in passwords.
+    // The previous new URL() approach silently failed when DATABASE_URL contained
+    // special characters (common in Railway-generated passwords like p#ssw0rd!),
+    // causing Prisma to use its DEFAULT pool size of 5 instead of 2.
+    // This was the ROOT CAUSE of connection pool exhaustion — "Starting a postgresql
+    // pool with 5 connections" appearing 20+ times in logs, each creating a NEW pool.
     let dbUrl = process.env.DATABASE_URL!;
+    const poolParams = 'connection_limit=2&pool_timeout=10&connect_timeout=10';
+    let urlModified = false;
+
+    // Strategy 1: URL API (handles most cases, preserves existing params)
     try {
       const url = new URL(dbUrl);
-      // FIX: Reduced connection_limit from 20 to 5 to prevent pool exhaustion.
-      // Railway free-tier PostgreSQL has a low max_connections limit (~20-30).
-      // With Next.js also using 5 connections, total = 10 — safe margin.
-      url.searchParams.set('connection_limit', '5');
+      url.searchParams.set('connection_limit', '2');
       url.searchParams.set('pool_timeout', '10');
-      // FIX: Add connect_timeout=10 to prevent TCP SYN timeout from blocking
-      // $connect() for 60-120s when the database server is unreachable.
-      // This sets the PostgreSQL client-side connect_timeout (in seconds),
-      // so $connect() fails fast and the onModuleInit timeout can trigger.
       url.searchParams.set('connect_timeout', '10');
       dbUrl = url.toString();
+      urlModified = true;
     } catch {
-      // Fallback: if URL parsing fails, use original URL as-is
+      // URL API failed — likely special characters in password
+    }
+
+    // Strategy 2: String concatenation fallback (handles malformed URLs)
+    if (!urlModified) {
+      try {
+        const separator = dbUrl.includes('?') ? '&' : '?';
+        dbUrl = `${dbUrl}${separator}${poolParams}`;
+        urlModified = true;
+      } catch {
+        // Last resort: use URL as-is
+      }
+    }
+
+    if (urlModified) {
+      // Don't log the full URL (contains credentials) — just confirm modification
+      console.log(`[PrismaService] URL modification successful — pool params injected`);
+    } else {
+      console.error(`[PrismaService] WARNING: Could not modify DATABASE_URL — Prisma will use DEFAULT pool size (5)`);
     }
 
     super({
@@ -56,8 +79,10 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   }
 
   async onModuleInit() {
-    // FIX: Updated connection pool params — connection_limit=5, pool_timeout=10
-    this.logger.log('📦 Prisma connection pool: connection_limit=5, pool_timeout=10');
+    // FIX: Reduced from connection_limit=3 to connection_limit=2.
+    // With Next.js also using 2, total = 4 — well under Railway's ~20 max_connections.
+    // Even if both processes create 2 pools each (4+4=8), we stay under the limit.
+    this.logger.log('📦 Prisma connection pool: connection_limit=2, pool_timeout=10');
 
     // FIX: Add a timeout to Prisma $connect() so that an unreachable database
     // doesn't block the entire NestJS bootstrap. Without this timeout,
@@ -76,7 +101,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     if (!connected) {
       this.logger.warn(
-        `📦 Prisma database unavailable at startup — API will continue and retry every ${this.reconnectDelayMs / 1000}s`,
+        `📦 Prisma database unavailable at startup — API will continue and retry with exponential backoff`,
       );
       this.scheduleReconnect();
     }
@@ -90,6 +115,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     try {
       await this.$disconnect();
+      this.connected = false;
+      PrismaService._dbAvailable = false;
       this.logger.log('📦 Prisma disconnected from database');
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error';
@@ -107,12 +134,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     try {
       await this.$connect();
       this.connected = true;
+      this.consecutiveFailures = 0;
+      PrismaService._dbAvailable = true;
       this.logger.log('📦 Prisma connected to database');
       return true;
     } catch (error: unknown) {
       this.connected = false;
+      PrismaService._dbAvailable = false;
+      this.consecutiveFailures++;
       const message = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error(`📦 Prisma connection failed: ${message}`);
+      // FIX: Only log every 5th failure to avoid log spam
+      if (this.consecutiveFailures <= 3 || this.consecutiveFailures % 5 === 0) {
+        this.logger.error(`📦 Prisma connection failed (attempt ${this.consecutiveFailures}): ${message}`);
+      }
       return false;
     } finally {
       this.connectInProgress = false;
@@ -124,6 +158,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       return;
     }
 
+    // FIX: Exponential backoff — 10s, 20s, 40s, 80s, max 120s
+    // Previously used fixed 10s interval which created a feedback loop:
+    // each failed $connect() created a new pool (5 connections), exhausting
+    // PostgreSQL max_connections, causing the NEXT $connect() to fail too.
+    // Exponential backoff gives PostgreSQL time to free connections.
+    const baseDelay = 10_000;
+    const delay = Math.min(baseDelay * Math.pow(2, Math.min(this.consecutiveFailures, 4)), 120_000);
+
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null;
 
@@ -131,6 +173,15 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       if (!connected) {
         this.scheduleReconnect();
       }
-    }, this.reconnectDelayMs);
+    }, delay);
+  }
+
+  /**
+   * Check if the database is currently available.
+   * Background services should call this before making queries to avoid
+   * creating new connection pools when DB is unreachable.
+   */
+  isAvailable(): boolean {
+    return this.connected && PrismaService._dbAvailable;
   }
 }

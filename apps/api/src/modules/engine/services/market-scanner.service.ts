@@ -80,6 +80,11 @@ export class MarketScannerService {
    */
   @Cron(CronExpression.EVERY_5_MINUTES)
   async runMarketScan(): Promise<void> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
     if (this.isScanning) {
       this.logger.warn('🔍 Previous scan still running — skipping this cycle');
       return;

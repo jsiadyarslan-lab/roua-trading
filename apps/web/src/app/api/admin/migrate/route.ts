@@ -1,88 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, ensureDbReady } from '@/lib/db'
 import { verifyAdminAuth } from '@/lib/admin-auth'
 
 /**
- * Emergency migration endpoint — adds missing columns to existing tables.
+ * Emergency migration endpoint — DEPRECATED.
  *
- * This is needed because `prisma db push` in start.sh may fail silently,
- * and `CREATE TABLE IF NOT EXISTS` doesn't add columns to existing tables.
- * The result is schema drift where Prisma expects columns that don't exist
- * in the actual database, causing P2022 errors and 401 responses.
+ * ALL schema changes must ONLY be done via:
+ *   1. `prisma migrate deploy` (in start.sh — production-safe, tracked)
+ *   2. `prisma migrate dev` (local development)
  *
- * Call this endpoint once after deployment to sync the schema.
- * It's safe to call multiple times — all statements are idempotent.
+ * This endpoint previously ran ALTER TABLE statements via $executeRawUnsafe,
+ * which is an anti-pattern that:
+ *   - Conflicts with Prisma schema management
+ *   - Competes for DB connections during deployment
+ *   - Can cause schema drift and data corruption
+ *   - Masked real migration issues instead of fixing them
+ *
+ * Now: This endpoint only VERIFIES the schema is in sync and reports status.
+ * It does NOT execute any DDL (CREATE/ALTER/DROP).
  *
  * 🔒 SECURITY: Requires admin authentication.
- * This endpoint executes raw SQL and MUST NOT be accessible without auth.
  */
 export async function POST(req: NextRequest) {
-  // 🔒 Require admin auth — this endpoint modifies the database schema
+  // 🔒 Require admin auth
   const authError = await verifyAdminAuth(req)
   if (authError) return authError
+
   const results: Record<string, any> = {}
 
-  const migrations = [
-    {
-      name: 'Session.updatedAt',
-      sql: `ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'User.updatedAt',
-      sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'User.riskTolerance',
-      sql: `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "riskTolerance" TEXT DEFAULT 'moderate'`,
-    },
-    {
-      name: 'Position.updatedAt',
-      sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'ExchangeCredential.updatedAt',
-      sql: `ALTER TABLE "ExchangeCredential" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'PaperOrder.updatedAt',
-      sql: `ALTER TABLE "PaperOrder" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'TradingBot.createdAt',
-      sql: `ALTER TABLE "TradingBot" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'ChartPreference.updatedAt',
-      sql: `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'ChartPreference.createdAt',
-      sql: `ALTER TABLE "ChartPreference" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP`,
-    },
-    {
-      name: 'AuditLog.userId',
-      sql: `ALTER TABLE "AuditLog" ADD COLUMN IF NOT EXISTS "userId" TEXT`,
-    },
+  // Verify database connectivity
+  try {
+    const dbReady = await ensureDbReady()
+    if (!dbReady) {
+      return NextResponse.json({
+        success: false,
+        error: 'قاعدة البيانات غير متاحة — لا يمكن التحقق من Schema',
+        migrations: {},
+      }, { status: 503 })
+    }
+  } catch (error: any) {
+    return NextResponse.json({
+      success: false,
+      error: `فشل الاتصال بقاعدة البيانات: ${error?.message || 'خطأ غير معروف'}`,
+      migrations: {},
+    }, { status: 503 })
+  }
+
+  // Verify critical tables exist by attempting a simple query on each
+  const tableChecks = [
+    { name: 'Session', fn: () => db.session.findFirst() },
+    { name: 'User', fn: () => db.user.findFirst() },
+    { name: 'Setting', fn: () => db.setting.findFirst() },
+    { name: 'Position', fn: () => db.position.findFirst() },
+    { name: 'ExchangeCredential', fn: () => db.exchangeCredential.findFirst() },
+    { name: 'TradingBrief', fn: () => db.tradingBrief.findFirst() },
+    { name: 'AuditLog', fn: () => db.auditLog.findFirst() },
   ]
 
-  for (const migration of migrations) {
+  for (const check of tableChecks) {
     try {
-      await db.$executeRawUnsafe(migration.sql)
-      results[migration.name] = 'OK'
+      await check.fn()
+      results[check.name] = 'OK — table exists and accessible'
     } catch (error: any) {
-      results[migration.name] = `FAILED: ${error?.message || String(error)}`
+      const msg = error?.message || String(error)
+      if (msg.includes('does not exist') || error?.code === 'P2021') {
+        results[check.name] = 'MISSING — table does not exist, run `prisma db push` or `prisma migrate deploy`'
+      } else {
+        results[check.name] = `ERROR: ${msg.substring(0, 200)}`
+      }
     }
   }
 
-  // Verify the critical Session table
-  try {
-    await db.session.findFirst()
-    results['_verification'] = 'Session table works correctly'
-  } catch (error: any) {
-    results['_verification'] = `FAILED: ${error?.message || String(error)}`
-  }
-
-  // Count sessions to verify
+  // Count sessions for verification
   try {
     const count = await db.session.count()
     results['_sessionCount'] = count
@@ -90,5 +79,40 @@ export async function POST(req: NextRequest) {
     results['_sessionCount'] = `FAILED: ${error?.message || String(error)}`
   }
 
-  return NextResponse.json({ success: true, migrations: results })
+  const hasErrors = Object.values(results).some(v => typeof v === 'string' && (v.includes('MISSING') || v.includes('ERROR')))
+
+  return NextResponse.json({
+    success: !hasErrors,
+    message: hasErrors
+      ? 'بعض الجداول مفقودة — يرجى تشغيل prisma db push أو prisma migrate deploy'
+      : 'جميع الجداول موجودة ويمكن الوصول إليها',
+    migrations: results,
+  })
+}
+
+/**
+ * GET — Quick schema verification (read-only, no modifications)
+ */
+export async function GET(req: NextRequest) {
+  const authError = await verifyAdminAuth(req)
+  if (authError) return authError
+
+  const results: Record<string, any> = {}
+
+  // Quick table existence check
+  const tables = ['Session', 'User', 'Setting', 'Position', 'TradingBrief', 'AuditLog']
+  for (const table of tables) {
+    try {
+      // Use a raw query to check table existence without Prisma model dependency
+      const result = await db.$queryRawUnsafe(
+        `SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = $1)`,
+        table
+      )
+      results[table] = result
+    } catch (error: any) {
+      results[table] = `ERROR: ${error?.message || 'unknown'}`
+    }
+  }
+
+  return NextResponse.json({ success: true, tables: results })
 }

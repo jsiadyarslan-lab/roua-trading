@@ -52,17 +52,12 @@ export class TradingService {
     this.logger.log(
       '⚡ Trading Engine initialized — ready for execution',
     );
-    // FIX: Ensure ExchangeCredential table has all columns from Prisma schema.
-    // Prisma migration sometimes fails silently, leaving the DB schema out of sync.
-    // This causes ALL queries on ExchangeCredential to fail with:
-    // "The column ExchangeCredential.encryptedPassphrase does not exist"
-    // which blocks ALL trade execution (paper and real).
-    // CRITICAL FIX: Added .catch() to prevent unhandled promise rejection.
-    // Previously, calling async methods from constructor without .catch()
-    // caused unhandled rejections that could crash Node.js (15+).
-    this._ensureExchangeCredentialColumns().catch((err) =>
-      this.logger.error(`⚡ _ensureExchangeCredentialColumns failed: ${err?.message || err}`),
-    );
+    // REMOVED: _ensureExchangeCredentialColumns() — all DDL (ALTER TABLE, CREATE TABLE)
+    // has been removed from application code. Schema changes must ONLY be done via
+    // `prisma migrate deploy` in start.sh. Running DDL from application code:
+    //   1. Causes connection pool exhaustion (each DDL query opens connections)
+    //   2. Conflicts with prisma db push / migrate deploy
+    //   3. Was a contributing factor to the catastrophic data loss incident
     // FIX: Clean expired exchange instances every 10 minutes (prevent memory leak)
     setInterval(() => this._cleanExchangeCache(), 10 * 60 * 1000);
   }
@@ -88,86 +83,8 @@ export class TradingService {
     }
   }
 
-  /**
-   * FIX: Ensure the ExchangeCredential table has all columns from the Prisma schema.
-   * Prisma migration failed in production, leaving the DB schema out of sync with
-   * the Prisma schema. This caused every query on ExchangeCredential to fail because
-   * Prisma generates SELECT * including columns that don't exist in the DB.
-   *
-   * This method adds missing columns via raw SQL (safe, idempotent).
-   */
-  private async _ensureExchangeCredentialColumns(): Promise<void> {
-    try {
-      const missingColumns = [
-        { name: 'secretIv', type: 'TEXT' },
-        { name: 'secretAuthTag', type: 'TEXT' },
-        { name: 'encryptedPassphrase', type: 'TEXT' },
-        { name: 'passphraseIv', type: 'TEXT' },
-        { name: 'passphraseAuthTag', type: 'TEXT' },
-        { name: 'testnet', type: 'BOOLEAN DEFAULT FALSE' },
-      ];
-
-      for (const col of missingColumns) {
-        try {
-          await this.prisma.$executeRawUnsafe(`
-            ALTER TABLE "ExchangeCredential"
-            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
-          `);
-        } catch (e: any) {
-          if (!e.message?.includes('already exists')) {
-            this.logger.warn(`⚡ Could not add column ${col.name}: ${e.message}`);
-          }
-        }
-      }
-
-      // FIX: Add optimistic locking and exchange symbol columns to Position table
-      // These new columns need to be added via raw SQL since Prisma migration
-      // may not run on production (Railway).
-      const positionColumns = [
-        { name: 'version', type: 'INTEGER DEFAULT 0' },
-        { name: 'exchangeSymbol', type: 'TEXT' },
-      ];
-
-      for (const col of positionColumns) {
-        try {
-          await this.prisma.$executeRawUnsafe(`
-            ALTER TABLE "Position"
-            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
-          `);
-        } catch (e: any) {
-          if (!e.message?.includes('already exists')) {
-            this.logger.warn(`⚡ Could not add Position column ${col.name}: ${e.message}`);
-          }
-        }
-      }
-
-      // FIX: Add missing AuditLog.updatedAt column.
-      // Prisma schema has `updatedAt DateTime @updatedAt` but the production DB
-      // doesn't have this column because Prisma migration didn't run properly.
-      // This causes "The column AuditLog.updatedAt does not exist" errors on
-      // every audit log query, which blocks trading operations and fills the logs.
-      const auditLogColumns = [
-        { name: 'updatedAt', type: 'TIMESTAMP DEFAULT NOW()' },
-      ];
-
-      for (const col of auditLogColumns) {
-        try {
-          await this.prisma.$executeRawUnsafe(`
-            ALTER TABLE "AuditLog"
-            ADD COLUMN IF NOT EXISTS "${col.name}" ${col.type};
-          `);
-        } catch (e: any) {
-          if (!e.message?.includes('already exists')) {
-            this.logger.warn(`⚡ Could not add AuditLog column ${col.name}: ${e.message}`);
-          }
-        }
-      }
-
-      this.logger.log('⚡ ExchangeCredential + Position + AuditLog schema verified — all columns present');
-    } catch (error: any) {
-      this.logger.error(`⚡ Failed to verify schema: ${error.message}`);
-    }
-  }
+  // REMOVED: _ensureExchangeCredentialColumns() — all DDL removed from application code.
+  // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
 
   // ── Order Management ──
 

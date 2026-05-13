@@ -106,6 +106,11 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
    * Run a single sync cycle
    */
   private async _syncCycle(): Promise<void> {
+    // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
+    if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
     if (this.isRunning) return; // Prevent overlapping cycles
     this.isRunning = true;
 

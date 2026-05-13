@@ -381,60 +381,13 @@ async function bootstrap() {
       console.warn(`⚠️ Socket.IO diagnostic failed: ${diagErr.message}`);
     }
 
-    // ── CRITICAL: Ensure database columns match Prisma schema ──
-    // The start.sh safety-net SQL sometimes fails to add columns.
-    // This is a fallback that adds missing columns directly via Prisma.
-    try {
-      const missingColumns: Array<{table: string; column: string; sql: string}> = [
-        { table: 'Position', column: 'source', sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "source" TEXT DEFAULT 'user_manual'` },
-        { table: 'Position', column: 'updatedAt', sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP` },
-        { table: 'Trade', column: 'source', sql: `ALTER TABLE "Trade" ADD COLUMN IF NOT EXISTS "source" TEXT DEFAULT 'user_manual'` },
-        { table: 'Trade', column: 'updatedAt', sql: `ALTER TABLE "Trade" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP` },
-      ];
-
-      for (const col of missingColumns) {
-        try {
-          // Check if column exists
-          const result = await prisma.$queryRaw<Array<{exists: boolean}>>`
-            SELECT EXISTS (
-              SELECT 1 FROM information_schema.columns
-              WHERE table_name = ${col.table} AND column_name = ${col.column}
-            ) as exists
-          `;
-          if (!result[0]?.exists) {
-            console.log(`🔧 Adding missing column ${col.table}.${col.column}...`);
-            await prisma.$executeRawUnsafe(col.sql);
-            console.log(`✅ Added ${col.table}.${col.column}`);
-          }
-        } catch (colErr: any) {
-          // Column might already exist — ignore error
-          if (!colErr.message?.includes('already exists')) {
-            console.warn(`⚠️ Could not add ${col.table}.${col.column}: ${colErr.message}`);
-          }
-        }
-      }
-
-      // Fix DECIMAL precision for Position
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Position" ALTER COLUMN "unrealizedPnl" TYPE DECIMAL(18,4)`);
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Position" ALTER COLUMN "realizedPnl" TYPE DECIMAL(18,4)`);
-        console.log(`✅ Fixed Position DECIMAL precision`);
-      } catch { /* May already be correct */ }
-
-      // The unique constraint on Position was removed to allow closing multiple positions.
-      // Do NOT re-add it here!
-
-      // Make source columns nullable
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Position" ALTER COLUMN "source" DROP NOT NULL`);
-      } catch { /* May already be nullable */ }
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Trade" ALTER COLUMN "source" DROP NOT NULL`);
-      } catch { /* May already be nullable */ }
-
-    } catch (schemaFixErr: any) {
-      console.warn(`⚠️ Database schema fix failed: ${schemaFixErr.message}`);
-    }
+    // SAFETY: All DDL (ALTER TABLE, CREATE TABLE, etc.) has been REMOVED from
+    // application code. Schema changes must ONLY be done via:
+    //   1. `prisma migrate deploy` (in start.sh — production-safe, tracked)
+    //   2. `prisma migrate dev` (local development)
+    // Running DDL from application code caused catastrophic data loss when
+    // `prisma db push --accept-data-loss` was used as a fallback in start.sh.
+    // Never run ALTER/CREATE/DROP from NestJS or Next.js code again.
 
     console.log(`🚀 Roua API running on http://0.0.0.0:${port}/api`);
     console.log(`🔌 Socket.IO available via NestJS IoAdapter + @WebSocketGateway`);

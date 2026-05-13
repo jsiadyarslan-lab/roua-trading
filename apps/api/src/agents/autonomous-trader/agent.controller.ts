@@ -68,39 +68,14 @@ export class AutonomousTraderPublicController {
       throw new ForbiddenException('فقط المستخدمون المؤسسيون يمكنهم تنفيذ إصلاحات قاعدة البيانات');
     }
 
-    try {
-      // FIX: Use injected PrismaService (singleton, shared connection pool)
-      // instead of creating a rogue new PrismaClient() per request which
-      // opens 10 additional DB connections and can exhaust the pool.
-      let logs: string[] = [];
-      logs.push("Starting diagnostic DB fix...");
-      
-      // 1. Find unique indexes on Position table using parameterized query
-      const indexes = await this.prisma.$queryRaw`
-        SELECT i.relname AS index_name
-        FROM pg_class t
-        JOIN pg_index ix ON t.oid = ix.indrelid
-        JOIN pg_class i ON i.oid = ix.indexrelid
-        WHERE t.relname = 'Position' AND ix.indisunique = true
-      `;
-      logs.push("Found unique indexes: " + JSON.stringify(indexes));
-
-      // 2. Try dropping them with parameterized name (validate index name format)
-      for (const idx of (indexes as any[])) {
-        const indexName = String(idx.index_name);
-        if (indexName !== 'Position_pkey' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(indexName)) {
-          logs.push("Dropping " + indexName + "...");
-          await this.prisma.$executeRawUnsafe(`DROP INDEX IF EXISTS "${indexName}" CASCADE;`);
-          logs.push("Dropped " + indexName + " successfully!");
-        } else if (indexName !== 'Position_pkey') {
-          logs.push("Skipping suspicious index name: " + indexName);
-        }
-      }
-      
-      return { success: true, message: "Fixed successfully", logs };
-    } catch (e: any) {
-      return { success: false, error: e.message };
-    }
+    // REMOVED: DROP INDEX CASCADE — all DDL removed from application code.
+    // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+    // Running DDL from endpoints is extremely dangerous and can cause data loss.
+    return { 
+      success: true, 
+      message: "DB fix endpoint disabled — use prisma migrate deploy for schema changes", 
+      logs: ["DDL operations removed from application code for safety"] 
+    };
   }
 }
 

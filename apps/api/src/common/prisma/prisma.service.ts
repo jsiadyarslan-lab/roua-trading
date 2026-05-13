@@ -137,27 +137,22 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.connectInProgress = true;
 
     try {
-      // SUSTAINABLE FIX: Always disconnect before connecting.
+      // SUSTAINABLE FIX: Try $connect() first. Only $disconnect() if connect fails.
       //
-      // ROOT CAUSE of multiple "Starting a postgresql pool" messages:
-      //   When $connect() fails, Prisma internally creates a connection pool
-      //   but doesn't properly clean it up. On the next $connect() attempt,
-      //   Prisma creates ANOTHER pool instead of reusing the failed one.
-      //   Each failed pool leaks a PostgreSQL connection slot.
+      // OLD PROBLEM: Calling $disconnect() before $connect() releases the PgBouncer
+      // connection slot briefly. Between disconnect and connect, another process
+      // (Next.js, recovery script) grabs the slot. The connect fails → retry →
+      // same cycle → ALL retries fail → "too many clients".
       //
-      //   On Railway's PostgreSQL (max ~5-25 connections), even 3-4 leaked
-      //   pools + the original pool = immediate "too many clients already".
-      //
-      // FIX: Call $disconnect() before each $connect() attempt. This
-      //   properly closes the previous (failed) pool before creating a new one.
-      //   This ensures we never have more than 1 pool from PrismaService.
+      // NEW APPROACH: Try $connect() first (it's a no-op if already connected).
+      // Only disconnect if connect fails, to clean up any leaked internal pool.
       try {
-        await this.$disconnect();
-      } catch {
-        // Ignore disconnect errors — the pool may not exist yet
+        await this.$connect();
+      } catch (connectErr) {
+        // Connect failed — disconnect to clean up any leaked pool, then rethrow
+        try { await this.$disconnect(); } catch { /* ignore */ }
+        throw connectErr;
       }
-
-      await this.$connect();
       this.connected = true;
       this.consecutiveFailures = 0;
       PrismaService._dbAvailable = true;

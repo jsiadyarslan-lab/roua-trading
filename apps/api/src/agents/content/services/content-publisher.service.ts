@@ -325,6 +325,12 @@ export class ContentPublisherService {
    */
   @Cron('*/5 * * * *')
   async processScheduledPublications(): Promise<void> {
+    // SUSTAINABLE FIX: Don't attempt DB queries when DB is unavailable.
+    // Without this check, every cron tick creates a new connection attempt,
+    // leaking connections and making the exhaustion problem worse.
+    if (!this.prisma.isAvailable()) {
+      return;
+    }
     try {
       const now = new Date();
 

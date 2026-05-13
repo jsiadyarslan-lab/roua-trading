@@ -299,6 +299,7 @@ echo ""
 echo "━━━ Phase 4: Starting PgBouncer Connection Pooler ━━━"
 
 PGBOUNCER_OK=0
+PGBOUNCER_PID=""
 if command -v pgbouncer >/dev/null 2>&1; then
   # Parse DATABASE_URL to extract connection components for PgBouncer config
   PG_CONFIG=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
@@ -307,7 +308,7 @@ if command -v pgbouncer >/dev/null 2>&1; then
       process.stdout.write([
         u.hostname,
         u.port || '5432',
-        u.pathname.slice(1),
+        decodeURIComponent(u.pathname.slice(1)),
         decodeURIComponent(u.username),
         decodeURIComponent(u.password)
       ].join('|'));
@@ -346,7 +347,9 @@ if command -v pgbouncer >/dev/null 2>&1; then
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
     # Escape any special characters in password for the auth file
-    PG_PASS_ESCAPED=$(printf '%s' "$PG_PASS" | sed 's/"/\\"/g')
+    # PgBouncer auth file format: backslashes must be escaped as \\
+    # and double quotes must be escaped as \"
+    PG_PASS_ESCAPED=$(printf '%s' "$PG_PASS" | sed 's/\\/\\\\/g; s/"/\\"/g')
 
     cat > /tmp/pgbouncer_users.txt <<PGEOF
 "${PG_USER}" "${PG_PASS_ESCAPED}"
@@ -366,6 +369,11 @@ PGEOF
     # (NestJS + Next.js), we have 4 client connections to PgBouncer.
     # PgBouncer multiplexes these onto 3-4 real PG connections.
     # This leaves plenty of room for direct connections (prisma CLI, cleanup).
+    # CRITICAL FIX v4: Remove stale PID/log files from previous runs
+    # On container restart (not redeploy), old PID/log files may persist in /tmp.
+    # PgBouncer refuses to start if a PID file exists with a running PID.
+    rm -f /tmp/pgbouncer.pid /tmp/pgbouncer.log
+
     cat > /tmp/pgbouncer.ini <<EOF
 ;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ;; PgBouncer Configuration v3 — Auth + SSL Fix for Railway
@@ -436,106 +444,135 @@ EOF
     chmod 600 /tmp/pgbouncer.ini
 
     # Start PgBouncer
+    # CRITICAL FIX v4: Do NOT use `pgbouncer -d` (daemon mode).
+    #
+    # PROBLEM with `-d` in Docker containers:
+    #   1. `pgbouncer -d` forks a child and the parent exits with code 0
+    #      IMMEDIATELY — even if the child crashes right after forking.
+    #      The script can't detect child-process failures from the exit code.
+    #   2. The child process uses setsid() to create a new session.
+    #      In Docker containers (especially as non-root user), this can fail
+    #      silently or the orphaned child can be reaped by PID 1.
+    #   3. When running as `webuser` (non-root), the daemonized process
+    #      may not have proper process group leadership, causing the child
+    #      to be killed when the shell exits or receives signals.
+    #
+    # FIX: Run PgBouncer in the BACKGROUND without daemonizing.
+    #   `pgbouncer /tmp/pgbouncer.ini &` keeps PgBouncer as a direct
+    #   child of the shell. It stays in the process group, receives
+    #   signals properly, and any startup errors are visible immediately.
     echo "🔧 Starting PgBouncer on 127.0.0.1:6432 (auth=plain, tls=require)..."
-    pgbouncer -d /tmp/pgbouncer.ini 2>&1
-    PGBOUNCER_PID=$(pgrep -f "pgbouncer" 2>/dev/null | head -1)
+    pgbouncer /tmp/pgbouncer.ini &
+    PGBOUNCER_PID=$!
+    sleep 1
 
-    # Wait for PgBouncer to accept TCP connections
-    PGBOUNCER_TCP_OK=0
-    for i in $(seq 1 10); do
-      if node -e "
-        const net = require('net');
-        const client = new net.Socket();
-        client.setTimeout(1000);
-        client.on('connect', () => { client.destroy(); process.exit(0); });
-        client.on('error', () => { client.destroy(); process.exit(1); });
-        client.on('timeout', () => { client.destroy(); process.exit(1); });
-        client.connect(6432, '127.0.0.1');
-      " 2>/dev/null; then
-        echo "✅ PgBouncer accepting TCP on 127.0.0.1:6432 (PID: ${PGBOUNCER_PID:-unknown})"
-        PGBOUNCER_TCP_OK=1
-        break
-      fi
-      sleep 1
-    done
-
-    if [ "$PGBOUNCER_TCP_OK" -ne 1 ]; then
-      echo "⚠️ PgBouncer failed to start within 10s — falling back to direct connections"
+    # Check if PgBouncer process is still alive (detects immediate crashes)
+    if ! kill -0 "$PGBOUNCER_PID" 2>/dev/null; then
+      echo "❌ PgBouncer process died immediately!"
       echo "   PgBouncer log (last 10 lines):"
       tail -10 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
-      pkill -f pgbouncer 2>/dev/null || true
+      echo "   Config file contents:"
+      head -20 /tmp/pgbouncer.ini 2>/dev/null || echo "   (config not available)"
+      echo "   Auth file exists: $([ -f /tmp/pgbouncer_users.txt ] && echo 'yes' || echo 'NO')"
+      echo "   Falling back to direct connections"
     else
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      # CRITICAL FIX v3: Pre-flight query check
-      # PgBouncer can accept TCP connections but STILL fail to reach
-      # PostgreSQL (auth failure, TLS failure, max_connections reached).
-      # This check verifies the FULL PATH: App → PgBouncer → PostgreSQL.
-      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-      echo "🔍 PgBouncer pre-flight check: verifying App → PgBouncer → PostgreSQL path..."
-      PGBOUNCER_QUERY_OK=0
-      for PREFLIGHT in 1 2 3 4 5; do
-        PREFLIGHT_RESULT=$(PGHOST_IN="127.0.0.1" PGPORT_IN="6432" PGDB_IN="$PG_DB" PGUSER_IN="$PG_USER" PGPASS_IN="$PG_PASS" node -e "
-          const { Client } = require('pg');
-          async function check() {
-            const client = new Client({
-              host: process.env.PGHOST_IN,
-              port: parseInt(process.env.PGPORT_IN),
-              database: process.env.PGDB_IN,
-              user: process.env.PGUSER_IN,
-              password: process.env.PGPASS_IN,
-              connectionTimeoutMillis: 5000,
-              ssl: false  // No SSL needed for localhost PgBouncer
-            });
-            try {
-              await client.connect();
-              const res = await client.query('SELECT 1 AS ok');
-              console.log('PREFLIGHT_OK:' + JSON.stringify(res.rows[0]));
-              // Also query max_connections for diagnostics
-              try {
-                const mc = await client.query('SHOW max_connections');
-                console.log('MAX_CONN:' + mc.rows[0].max_connections || mc.rows[0].Value || 'unknown');
-              } catch {}
-              await client.end();
-            } catch(e) {
-              console.error('PREFLIGHT_ERROR:' + e.message);
-              try { await client.end(); } catch {}
-            }
-          }
-          check();
-        " 2>&1)
-
-        if echo "$PREFLIGHT_RESULT" | grep -q "PREFLIGHT_OK:"; then
-          echo "✅ PgBouncer → PostgreSQL: WORKING"
-          MAX_CONN=$(echo "$PREFLIGHT_RESULT" | grep "MAX_CONN:" | sed 's/MAX_CONN://')
-          if [ -n "$MAX_CONN" ]; then
-            echo "📊 PostgreSQL max_connections = $MAX_CONN"
-          fi
-          PGBOUNCER_QUERY_OK=1
-          PGBOUNCER_OK=1
+      # Wait for PgBouncer to accept TCP connections
+      PGBOUNCER_TCP_OK=0
+      for i in $(seq 1 10); do
+        if node -e "
+          const net = require('net');
+          const client = new net.Socket();
+          client.setTimeout(1000);
+          client.on('connect', () => { client.destroy(); process.exit(0); });
+          client.on('error', () => { client.destroy(); process.exit(1); });
+          client.on('timeout', () => { client.destroy(); process.exit(1); });
+          client.connect(6432, '127.0.0.1');
+        " 2>/dev/null; then
+          echo "✅ PgBouncer accepting TCP on 127.0.0.1:6432 (PID: ${PGBOUNCER_PID})"
+          PGBOUNCER_TCP_OK=1
           break
-        else
-          echo "⚠️ Pre-flight attempt $PREFLIGHT/5 failed: $(echo "$PREFLIGHT_RESULT" | grep -o 'PREFLIGHT_ERROR:.*' | head -1)"
-          # Check PgBouncer log for clues
-          if [ "$PREFLIGHT" -eq 1 ]; then
-            echo "   PgBouncer log (last 5 lines):"
-            tail -5 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
-          fi
-          sleep 3
         fi
+        sleep 1
       done
 
-      if [ "$PGBOUNCER_QUERY_OK" -ne 1 ]; then
-        echo "❌ PgBouncer can't reach PostgreSQL — falling back to direct connections"
-        echo "   This usually means:"
-        echo "   1. PgBouncer auth doesn't match PostgreSQL's scram-sha-256, OR"
-        echo "   2. PgBouncer TLS config is wrong, OR"
-        echo "   3. PostgreSQL max_connections is full (stale connections)"
-        echo ""
-        echo "   PgBouncer log (last 15 lines):"
-        tail -15 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
-        echo ""
-        pkill -f pgbouncer 2>/dev/null || true
-        PGBOUNCER_OK=0
+      if [ "$PGBOUNCER_TCP_OK" -ne 1 ]; then
+        echo "⚠️ PgBouncer failed to start within 10s — falling back to direct connections"
+        echo "   PgBouncer log (last 10 lines):"
+        tail -10 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+        kill "$PGBOUNCER_PID" 2>/dev/null || true
+      else
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        # CRITICAL FIX v3: Pre-flight query check
+        # PgBouncer can accept TCP connections but STILL fail to reach
+        # PostgreSQL (auth failure, TLS failure, max_connections reached).
+        # This check verifies the FULL PATH: App → PgBouncer → PostgreSQL.
+        # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        echo "🔍 PgBouncer pre-flight check: verifying App → PgBouncer → PostgreSQL path..."
+        PGBOUNCER_QUERY_OK=0
+        for PREFLIGHT in 1 2 3 4 5; do
+          PREFLIGHT_RESULT=$(PGHOST_IN="127.0.0.1" PGPORT_IN="6432" PGDB_IN="$PG_DB" PGUSER_IN="$PG_USER" PGPASS_IN="$PG_PASS" node -e "
+            const { Client } = require('pg');
+            async function check() {
+              const client = new Client({
+                host: process.env.PGHOST_IN,
+                port: parseInt(process.env.PGPORT_IN),
+                database: process.env.PGDB_IN,
+                user: process.env.PGUSER_IN,
+                password: process.env.PGPASS_IN,
+                connectionTimeoutMillis: 5000,
+                ssl: false  // No SSL needed for localhost PgBouncer
+              });
+              try {
+                await client.connect();
+                const res = await client.query('SELECT 1 AS ok');
+                console.log('PREFLIGHT_OK:' + JSON.stringify(res.rows[0]));
+                // Also query max_connections for diagnostics
+                try {
+                  const mc = await client.query('SHOW max_connections');
+                  console.log('MAX_CONN:' + mc.rows[0].max_connections || mc.rows[0].Value || 'unknown');
+                } catch {}
+                await client.end();
+              } catch(e) {
+                console.error('PREFLIGHT_ERROR:' + e.message);
+                try { await client.end(); } catch {}
+              }
+            }
+            check();
+          " 2>&1)
+
+          if echo "$PREFLIGHT_RESULT" | grep -q "PREFLIGHT_OK:"; then
+            echo "✅ PgBouncer → PostgreSQL: WORKING"
+            MAX_CONN=$(echo "$PREFLIGHT_RESULT" | grep "MAX_CONN:" | sed 's/MAX_CONN://')
+            if [ -n "$MAX_CONN" ]; then
+              echo "📊 PostgreSQL max_connections = $MAX_CONN"
+            fi
+            PGBOUNCER_QUERY_OK=1
+            PGBOUNCER_OK=1
+            break
+          else
+            echo "⚠️ Pre-flight attempt $PREFLIGHT/5 failed: $(echo "$PREFLIGHT_RESULT" | grep -o 'PREFLIGHT_ERROR:.*' | head -1)"
+            # Check PgBouncer log for clues
+            if [ "$PREFLIGHT" -eq 1 ]; then
+              echo "   PgBouncer log (last 5 lines):"
+              tail -5 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+            fi
+            sleep 3
+          fi
+        done
+
+        if [ "$PGBOUNCER_QUERY_OK" -ne 1 ]; then
+          echo "❌ PgBouncer can't reach PostgreSQL — falling back to direct connections"
+          echo "   This usually means:"
+          echo "   1. PgBouncer auth doesn't match PostgreSQL's scram-sha-256, OR"
+          echo "   2. PgBouncer TLS config is wrong, OR"
+          echo "   3. PostgreSQL max_connections is full (stale connections)"
+          echo ""
+          echo "   PgBouncer log (last 15 lines):"
+          tail -15 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+          echo ""
+          kill "$PGBOUNCER_PID" 2>/dev/null || true
+          PGBOUNCER_OK=0
+        fi
       fi
     fi
   fi
@@ -879,7 +916,7 @@ echo "   DB Migrations:    $([ "$DB_MIGRATE_OK" -eq 1 ] && echo '✅ APPLIED' ||
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Cleanup trap
-trap "kill $API_PID $MONITOR_PID 2>/dev/null; pkill -f pgbouncer 2>/dev/null; true" EXIT
+trap "kill $API_PID $MONITOR_PID 2>/dev/null; [ -n \"$PGBOUNCER_PID\" ] && kill \"$PGBOUNCER_PID\" 2>/dev/null; true" EXIT
 
 # Keep Next.js in foreground (main process)
 wait $WEB_PID

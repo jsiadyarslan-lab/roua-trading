@@ -79,6 +79,12 @@ export class AuthGuard implements CanActivate {
 
       // DB lookup
       try {
+        // SUSTAINABLE FIX: Don't attempt DB query when DB is unavailable.
+        // Without this, every API request creates a connection attempt that leaks.
+        if (!this.prisma.isAvailable()) {
+          this.logger.warn('DB unavailable during session validation — rejecting');
+          throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
+        }
         const session = await this.prisma.session.findUnique({
           where: { token: sessionToken },
           include: { user: true },

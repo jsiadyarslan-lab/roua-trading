@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v84
+ARG BUILD_CACHE=v85
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -88,7 +88,8 @@ FROM node:22-slim AS runner
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # PgBouncer: Connection pooler — multiplexes many app connections onto few real PG connections
 # This is the SUSTAINABLE fix for "too many clients already" on Railway's low max_connections.
-RUN apt-get update -y && apt-get install -y openssl curl bash pgbouncer && rm -rf /var/lib/apt/lists/*
+# procps: Provides pgrep/pkill for PgBouncer process management in start.sh
+RUN apt-get update -y && apt-get install -y openssl curl bash pgbouncer procps && rm -rf /var/lib/apt/lists/*
 
 # Security: run as non-root user
 RUN groupadd --system --gid 1001 roua \

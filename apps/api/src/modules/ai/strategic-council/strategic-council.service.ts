@@ -751,7 +751,7 @@ export class StrategicCouncilService {
     const existingBrief = await this.prisma.tradingBrief.findFirst({
       where: {
         pair,
-        timeframe,
+        timeframe: timeframe as any,
         isActive: true,
         reviewStatus: { in: ['ACTIVE', 'MODIFIED'] },
       },
@@ -821,7 +821,7 @@ export class StrategicCouncilService {
             await this.prisma.tradingBrief.create({
               data: {
                 pair, direction, entryPrice, stopLoss, takeProfit,
-                confidence: technicalOverride.consensusScore, timeframe,
+                confidence: technicalOverride.consensusScore, timeframe: timeframe as any,
                 issuedAt: new Date(),
                 expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
                 isActive: true, strictRules: JSON.stringify(strictRules),
@@ -948,7 +948,7 @@ export class StrategicCouncilService {
             stopLoss,
             takeProfit,
             confidence: effectiveConsensus.consensusScore,
-            timeframe,
+            timeframe: timeframe as any,
             issuedAt: new Date(),
             expiresAt: new Date(Date.now() + TIMEFRAME_EXPIRY_MS[timeframe]),
             isActive: true,

@@ -102,6 +102,16 @@ export const db = new Proxy({} as PrismaClient, {
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
+  // Prevent tight retry loops when Postgres is saturated ("too many clients").
+  // If DB recently failed init, bail out quickly instead of re-running
+  // connect+findFirst retries on every auth request.
+  const now = Date.now()
+  const cooldownMs = 30_000
+  const lastFail = (globalForPrisma as any).dbLastInitFailAt as number | undefined
+  if (typeof lastFail === 'number' && now - lastFail < cooldownMs) {
+    return false
+  }
+
   // INCREASED: 10 retries with exponential backoff (was 5)
   // Startup takes time on Railway — PgBouncer needs to establish its
   // pool, stale connections from old deployment need to expire, etc.

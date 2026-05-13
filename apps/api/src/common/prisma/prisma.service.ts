@@ -37,6 +37,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       try {
         const u = new URL(process.env.DATABASE_URL || '');
         u.searchParams.set('connection_limit', '2');
+        // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
+        // PgBouncer on localhost doesn't use SSL. If sslmode=require
+        // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.
+        if (u.searchParams.get('pgbouncer') === 'true') {
+          u.searchParams.delete('sslmode');
+          u.searchParams.delete('ssl');
+          u.searchParams.delete('sslrootcert');
+          u.searchParams.delete('sslcert');
+          u.searchParams.delete('sslkey');
+        }
         return u.toString();
       } catch {
         return process.env.DATABASE_URL;

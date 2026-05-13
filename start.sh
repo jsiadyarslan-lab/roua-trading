@@ -3,24 +3,36 @@
 # Roua Trading — Railway Startup Script with PgBouncer
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# SUSTAINABLE FIX v2: PgBouncer + Aggressive Connection Management
+# SUSTAINABLE FIX v3: PgBouncer + Auth/SSL Fix + Aggressive Connection Management
 #
-# ROOT CAUSE of "too many clients already":
-#   When Railway redeploys, the NEW container starts BEFORE the old one
-#   fully shuts down. Old PostgreSQL connections remain open, filling
-#   all available connection slots. The new container can't even connect
-#   to run pg_terminate_backend.
+# ROOT CAUSE of "too many clients already" (3 hidden issues found in v2):
 #
-# SUSTAINABLE SOLUTION (4-pronged):
-#   1. INITIAL DELAY: Wait 15s for old container to shut down
-#   2. PgBouncer: Multiplex many app connections onto few real PG connections
-#   3. LOW connection_limit=2 per PrismaClient (was 5)
-#   4. SKIP non-critical DB operations when DB is unavailable
+#   ISSUE 1: PgBouncer auth_type=md5 FAILS with PostgreSQL scram-sha-256
+#     Railway PostgreSQL uses scram-sha-256 by default. PgBouncer with md5
+#     auth can't perform SCRAM exchange — connection silently fails.
+#     FIX: Use auth_type=plain (stores plaintext password, works with scram)
+#
+#   ISSUE 2: SSL parameters in DATABASE_URL conflict with PgBouncer
+#     When DATABASE_URL is rewritten to point to PgBouncer on localhost,
+#     sslmode=require is sent to localhost:6432 — but PgBouncer doesn't
+#     support SSL on localhost. Connection fails with SSL error.
+#     FIX: Strip sslmode/ssl params from DATABASE_URL when using PgBouncer
+#
+#   ISSUE 3: PgBouncer doesn't use TLS when connecting to PostgreSQL
+#     Railway PostgreSQL requires TLS. Without server_tls_sslmode in
+#     PgBouncer config, it connects without TLS and gets rejected.
+#     FIX: Add server_tls_sslmode=require to PgBouncer config
+#
+#   Additional fixes:
+#     - Increased initial delay from 15s to 25s for old container shutdown
+#     - Added pre-flight query check to verify PgBouncer→PostgreSQL path
+#     - Reduced pool sizes for Railway's low max_connections
+#     - Added max_connections diagnostic
 #
 #   Architecture:
 #     App (PrismaClient x2, limit=2 each) → PgBouncer (localhost:6432) → PostgreSQL
-#     4 client connections → PgBouncer → 3 real PostgreSQL connections
-#     This leaves ~17 connection slots free on Railway's 20-25 max_connections
+#     4 client connections → PgBouncer → 2 real PostgreSQL connections
+#     TLS: App → PgBouncer (plain/local) → PostgreSQL (TLS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -uo pipefail
@@ -154,8 +166,8 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 #
 # This is the SINGLE MOST IMPORTANT FIX for the connection exhaustion problem.
 echo ""
-echo "━━━ Phase 1.5: Waiting for old deployment to shut down (15s) ━━━"
-sleep 15
+echo "━━━ Phase 1.5: Waiting for old deployment to shut down (25s) ━━━"
+sleep 25
 echo "✅ Initial delay complete — old deployment should have released connections"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -315,17 +327,30 @@ if command -v pgbouncer >/dev/null 2>&1; then
     PG_USER=$(echo "$PG_CONFIG" | cut -d'|' -f4)
     PG_PASS=$(echo "$PG_CONFIG" | cut -d'|' -f5)
 
-    PG_MD5_HASH=$(PG_PASS_IN="$PG_PASS" PG_USER_IN="$PG_USER" node -e "
-      const crypto = require('crypto');
-      const pass = process.env.PG_PASS_IN;
-      const user = process.env.PG_USER_IN;
-      const hash = 'md5' + crypto.createHash('md5').update(pass + user).digest('hex');
-      process.stdout.write(hash);
-    " 2>/dev/null)
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    # CRITICAL FIX v3: Use PLAINTEXT auth instead of md5
+    #
+    # WHY: Railway PostgreSQL uses scram-sha-256 authentication by default.
+    # PgBouncer with auth_type=md5 can't perform SCRAM exchange because it
+    # only has the md5 hash, not the plaintext password. This causes ALL
+    # queries through PgBouncer to SILENTLY FAIL.
+    #
+    # With auth_type=plain:
+    #   1. Client sends plaintext password over localhost (secure — local only)
+    #   2. PgBouncer verifies against plaintext password in auth_file
+    #   3. PgBouncer uses the plaintext password for server auth
+    #      (works with BOTH md5 AND scram-sha-256 on the PostgreSQL side)
+    #
+    # Security: auth_file is chmod 600 and only accessible locally.
+    # PgBouncer is bound to 127.0.0.1 — no external access.
+    # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    cat > /tmp/pgbouncer_users.txt <<EOF
-"${PG_USER}" "${PG_MD5_HASH}"
-EOF
+    # Escape any special characters in password for the auth file
+    PG_PASS_ESCAPED=$(printf '%s' "$PG_PASS" | sed 's/"/\\"/g')
+
+    cat > /tmp/pgbouncer_users.txt <<PGEOF
+"${PG_USER}" "${PG_PASS_ESCAPED}"
+PGEOF
     chmod 600 /tmp/pgbouncer_users.txt
 
     # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -343,10 +368,15 @@ EOF
     # This leaves plenty of room for direct connections (prisma CLI, cleanup).
     cat > /tmp/pgbouncer.ini <<EOF
 ;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-;; PgBouncer Configuration v2 — Optimized for Railway
+;; PgBouncer Configuration v3 — Auth + SSL Fix for Railway
 ;; ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-;; 4 client connections → 3 real PG connections
-;; Leaves ~17 slots free on Railway's ~20-25 max_connections
+;; KEY FIXES from v2:
+;;   1. auth_type = plain (was md5) — works with PG scram-sha-256
+;;   2. server_tls_sslmode = require — TLS for PG connection
+;;   3. Reduced pool sizes for Railway's very low max_connections
+;;
+;; 4 client connections → 2 real PG connections
+;; Leaves max_connections - 2 slots free for migrations/cleanup
 
 [databases]
 ${PG_DB} = host=${PG_HOST} port=${PG_PORT} dbname=${PG_DB}
@@ -355,17 +385,28 @@ ${PG_DB} = host=${PG_HOST} port=${PG_PORT} dbname=${PG_DB}
 listen_addr = 127.0.0.1
 listen_port = 6432
 
-auth_type = md5
+; CRITICAL FIX v3: auth_type=plain instead of md5
+; Railway PostgreSQL uses scram-sha-256. With md5 auth, PgBouncer
+; can't perform SCRAM exchange — ALL queries silently fail.
+; Plain auth stores plaintext password and can authenticate to
+; both md5 and scram-sha-256 PostgreSQL servers.
+; Safe because PgBouncer is on localhost (127.0.0.1) only.
+auth_type = plain
 auth_file = /tmp/pgbouncer_users.txt
 
 pool_mode = transaction
 
-; Connection limits — REDUCED for Railway's low max_connections
+; Connection limits — FURTHER REDUCED for Railway's low max_connections
 max_client_conn = 100
-default_pool_size = 3
-min_pool_size = 2
-reserve_pool_size = 1
+default_pool_size = 2
+min_pool_size = 1
+reserve_pool_size = 0
 reserve_pool_timeout = 5
+
+; CRITICAL FIX v3: TLS for PgBouncer → PostgreSQL connection
+; Railway PostgreSQL requires TLS. Without this, PgBouncer
+; connects without TLS and the connection is rejected.
+server_tls_sslmode = require
 
 ; Timeouts
 server_idle_timeout = 300
@@ -375,9 +416,9 @@ server_login_retry = 3
 server_check_query = SELECT 1
 server_check_delay = 30
 
-; Logging
-log_connections = 0
-log_disconnections = 0
+; Logging — enable connection logging for diagnostics
+log_connections = 1
+log_disconnections = 1
 stats_period = 60
 
 ; File locations
@@ -391,11 +432,12 @@ EOF
     chmod 600 /tmp/pgbouncer.ini
 
     # Start PgBouncer
-    echo "🔧 Starting PgBouncer on 127.0.0.1:6432..."
+    echo "🔧 Starting PgBouncer on 127.0.0.1:6432 (auth=plain, tls=require)..."
     pgbouncer -d /tmp/pgbouncer.ini 2>&1
     PGBOUNCER_PID=$(pgrep -f "pgbouncer" 2>/dev/null | head -1)
 
-    # Wait for PgBouncer to be ready
+    # Wait for PgBouncer to accept TCP connections
+    PGBOUNCER_TCP_OK=0
     for i in $(seq 1 10); do
       if node -e "
         const net = require('net');
@@ -406,16 +448,91 @@ EOF
         client.on('timeout', () => { client.destroy(); process.exit(1); });
         client.connect(6432, '127.0.0.1');
       " 2>/dev/null; then
-        echo "✅ PgBouncer is ready on 127.0.0.1:6432 (PID: ${PGBOUNCER_PID:-unknown})"
-        PGBOUNCER_OK=1
+        echo "✅ PgBouncer accepting TCP on 127.0.0.1:6432 (PID: ${PGBOUNCER_PID:-unknown})"
+        PGBOUNCER_TCP_OK=1
         break
       fi
       sleep 1
     done
 
-    if [ "$PGBOUNCER_OK" -ne 1 ]; then
+    if [ "$PGBOUNCER_TCP_OK" -ne 1 ]; then
       echo "⚠️ PgBouncer failed to start within 10s — falling back to direct connections"
+      echo "   PgBouncer log (last 10 lines):"
+      tail -10 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
       pkill -f pgbouncer 2>/dev/null || true
+    else
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      # CRITICAL FIX v3: Pre-flight query check
+      # PgBouncer can accept TCP connections but STILL fail to reach
+      # PostgreSQL (auth failure, TLS failure, max_connections reached).
+      # This check verifies the FULL PATH: App → PgBouncer → PostgreSQL.
+      # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      echo "🔍 PgBouncer pre-flight check: verifying App → PgBouncer → PostgreSQL path..."
+      PGBOUNCER_QUERY_OK=0
+      for PREFLIGHT in 1 2 3 4 5; do
+        PREFLIGHT_RESULT=$(PGHOST_IN="127.0.0.1" PGPORT_IN="6432" PGDB_IN="$PG_DB" PGUSER_IN="$PG_USER" PGPASS_IN="$PG_PASS" node -e "
+          const { Client } = require('pg');
+          async function check() {
+            const client = new Client({
+              host: process.env.PGHOST_IN,
+              port: parseInt(process.env.PGPORT_IN),
+              database: process.env.PGDB_IN,
+              user: process.env.PGUSER_IN,
+              password: process.env.PGPASS_IN,
+              connectionTimeoutMillis: 5000,
+              ssl: false  // No SSL needed for localhost PgBouncer
+            });
+            try {
+              await client.connect();
+              const res = await client.query('SELECT 1 AS ok');
+              console.log('PREFLIGHT_OK:' + JSON.stringify(res.rows[0]));
+              // Also query max_connections for diagnostics
+              try {
+                const mc = await client.query('SHOW max_connections');
+                console.log('MAX_CONN:' + mc.rows[0].max_connections || mc.rows[0].Value || 'unknown');
+              } catch {}
+              await client.end();
+            } catch(e) {
+              console.error('PREFLIGHT_ERROR:' + e.message);
+              try { await client.end(); } catch {}
+            }
+          }
+          check();
+        " 2>&1)
+
+        if echo "$PREFLIGHT_RESULT" | grep -q "PREFLIGHT_OK:"; then
+          echo "✅ PgBouncer → PostgreSQL: WORKING"
+          MAX_CONN=$(echo "$PREFLIGHT_RESULT" | grep "MAX_CONN:" | sed 's/MAX_CONN://')
+          if [ -n "$MAX_CONN" ]; then
+            echo "📊 PostgreSQL max_connections = $MAX_CONN"
+          fi
+          PGBOUNCER_QUERY_OK=1
+          PGBOUNCER_OK=1
+          break
+        else
+          echo "⚠️ Pre-flight attempt $PREFLIGHT/5 failed: $(echo "$PREFLIGHT_RESULT" | grep -o 'PREFLIGHT_ERROR:.*' | head -1)"
+          # Check PgBouncer log for clues
+          if [ "$PREFLIGHT" -eq 1 ]; then
+            echo "   PgBouncer log (last 5 lines):"
+            tail -5 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+          fi
+          sleep 3
+        fi
+      done
+
+      if [ "$PGBOUNCER_QUERY_OK" -ne 1 ]; then
+        echo "❌ PgBouncer can't reach PostgreSQL — falling back to direct connections"
+        echo "   This usually means:"
+        echo "   1. PgBouncer auth doesn't match PostgreSQL's scram-sha-256, OR"
+        echo "   2. PgBouncer TLS config is wrong, OR"
+        echo "   3. PostgreSQL max_connections is full (stale connections)"
+        echo ""
+        echo "   PgBouncer log (last 15 lines):"
+        tail -15 /tmp/pgbouncer.log 2>/dev/null || echo "   (no log available)"
+        echo ""
+        pkill -f pgbouncer 2>/dev/null || true
+        PGBOUNCER_OK=0
+      fi
     fi
   fi
 else
@@ -428,17 +545,34 @@ fi
 
 if [ "$PGBOUNCER_OK" -eq 1 ]; then
   # Application connects through PgBouncer
-  # CRITICAL: connection_limit=2 (was 5) to reduce total connections
-  # With 2 PrismaClient instances (NestJS + Next.js), that's 4 client connections
-  # PgBouncer multiplexes these onto 3 real PG connections.
+  # CRITICAL: connection_limit=2 to reduce total connections
+  #
+  # CRITICAL FIX v3: Strip SSL parameters from DATABASE_URL
+  # When DATABASE_URL is rewritten to point to PgBouncer on localhost,
+  # sslmode=require would be sent to localhost:6432. But PgBouncer
+  # doesn't support SSL on localhost — connection fails with SSL error!
+  #
+  # TLS is handled separately:
+  #   App → PgBouncer: plain (localhost, secure by default)
+  #   PgBouncer → PostgreSQL: TLS (server_tls_sslmode=require)
   POOLED_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     try {
       const u = new URL(process.env.DATABASE_URL_IN);
       u.hostname = '127.0.0.1';
       u.port = '6432';
+      // Strip connection management params (PgBouncer handles these)
       u.searchParams.delete('connection_limit');
       u.searchParams.delete('pool_timeout');
       u.searchParams.delete('connect_timeout');
+      // CRITICAL FIX v3: Strip SSL params — PgBouncer on localhost doesn't use SSL
+      // TLS is handled by PgBouncer's server_tls_sslmode for the PG connection
+      u.searchParams.delete('sslmode');
+      u.searchParams.delete('ssl');
+      u.searchParams.delete('sslrootcert');
+      u.searchParams.delete('sslcert');
+      u.searchParams.delete('sslkey');
+      u.searchParams.delete('sslcrm');
+      // Add Prisma PgBouncer compatibility flag
       u.searchParams.set('pgbouncer', 'true');
       u.searchParams.set('connection_limit', '2');
       process.stdout.write(u.toString());
@@ -450,7 +584,7 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
 
   if [ -n "$POOLED_URL" ]; then
     export DATABASE_URL="$POOLED_URL"
-    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, connection_limit=2, pool_mode=transaction)"
+    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, connection_limit=2, SSL stripped)"
   else
     echo "⚠️ Failed to construct PgBouncer URL — falling back to direct connections"
     PGBOUNCER_OK=0

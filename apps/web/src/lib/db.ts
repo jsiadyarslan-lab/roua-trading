@@ -47,6 +47,18 @@ function getOrCreatePrisma(): PrismaClient {
           try {
             const u = new URL(process.env.DATABASE_URL || '');
             u.searchParams.set('connection_limit', '2');
+            // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
+            // PgBouncer on localhost doesn't use SSL. If sslmode=require
+            // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.
+            // start.sh should have already stripped these, but strip here too
+            // as a safety net in case DATABASE_URL was set incorrectly.
+            if (u.searchParams.get('pgbouncer') === 'true') {
+              u.searchParams.delete('sslmode');
+              u.searchParams.delete('ssl');
+              u.searchParams.delete('sslrootcert');
+              u.searchParams.delete('sslcert');
+              u.searchParams.delete('sslkey');
+            }
             return u.toString();
           } catch {
             return process.env.DATABASE_URL;
@@ -94,10 +106,14 @@ export const db = new Proxy({} as PrismaClient, {
 export async function ensureDbReady(): Promise<boolean> {
   if (globalForPrisma.dbInitialized) return true
 
-  const MAX_RETRIES = 5
+  // INCREASED: 10 retries with exponential backoff (was 5)
+  // Startup takes time on Railway — PgBouncer needs to establish its
+  // pool, stale connections from old deployment need to expire, etc.
+  const MAX_RETRIES = 10
   const dbUrl = process.env.DATABASE_URL || '(not set)'
+  const isPgbouncer = dbUrl.includes('pgbouncer=true')
 
-  console.log(`[db] ensureDbReady() starting — Retries: ${MAX_RETRIES}, URL prefix: ${dbUrl.substring(0, 35)}...`)
+  console.log(`[db] ensureDbReady() starting — Retries: ${MAX_RETRIES}, PgBouncer: ${isPgbouncer}, URL prefix: ${dbUrl.substring(0, 40)}...`)
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
@@ -131,19 +147,28 @@ export async function ensureDbReady(): Promise<boolean> {
       const code = error?.code || 'NO_CODE'
       globalForPrisma.dbInitError = `[${code}] ${message}`
 
-      if (attempt < 2 || attempt === MAX_RETRIES - 1) {
+      // Log first 3, every 3rd after, and always the last
+      if (attempt < 3 || attempt % 3 === 0 || attempt === MAX_RETRIES - 1) {
         console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
       }
 
       if (attempt < MAX_RETRIES - 1) {
-        // Exponential backoff — 2s, 4s, 8s, 16s (Total ~30s)
-        const delay = 1000 * Math.pow(2, attempt + 1)
+        // Exponential backoff — 3s, 6s, 12s, 24s, 30s, 30s, 30s, 30s, 30s
+        // Capped at 30s. Total max wait: ~3+6+12+24+30*5 = 195s
+        const delay = Math.min(1000 * Math.pow(2, attempt + 1) + 1000, 30000)
+        console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
         await new Promise((resolve) => setTimeout(resolve, delay))
       }
     }
   }
 
   console.error('[db] CRITICAL: Database initialization failed after all retries.')
+  console.error(`[db] Last error: ${globalForPrisma.dbInitError}`)
+  console.error(`[db] DATABASE_URL has pgbouncer=true: ${isPgbouncer}`)
+  if (isPgbouncer) {
+    console.error('[db] TIP: If PgBouncer auth fails, check that PgBouncer config uses auth_type=plain (not md5)')
+    console.error('[db] TIP: If SSL fails, check that DATABASE_URL has sslmode stripped for localhost')
+  }
   return false
 }
 

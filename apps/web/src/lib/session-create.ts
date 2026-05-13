@@ -60,6 +60,22 @@ export async function createSessionSafely(info: SessionCreateInfo): Promise<stri
       `[session-create] Prisma create failed [${prismaCode}]: ${prismaMsg.substring(0, 300)}`
     )
 
+    // FIX: If it's a connection error, don't try more strategies — they'll all fail
+    // and each one consumes a connection attempt, making the exhaustion worse.
+    const isConnectionError =
+      prismaMsg.includes('too many clients') ||
+      prismaMsg.includes('ECONNREFUSED') ||
+      prismaMsg.includes('ECONNRESET') ||
+      prismaMsg.includes('ETIMEDOUT') ||
+      prismaMsg.includes('connection') && prismaMsg.includes('refused') ||
+      prismaMsg.includes('P1001') ||
+      prismaMsg.includes('P1002') ||
+      prismaMsg.includes('P1008')
+    if (isConnectionError) {
+      console.error(`[session-create] Connection error detected — skipping further strategies to avoid connection exhaustion`)
+      return null
+    }
+
     // If it's a duplicate token error, don't retry
     if (prismaCode === 'P2002' || prismaMsg.includes('Unique constraint')) {
       console.error('[session-create] Duplicate token — this should not happen')
@@ -85,6 +101,16 @@ export async function createSessionSafely(info: SessionCreateInfo): Promise<stri
     console.warn(
       `[session-create] Minimal Prisma create also failed [${minimalCode}]: ${minimalMsg.substring(0, 300)}`
     )
+
+    // FIX: Same connection error check — bail out early
+    const isConnectionError =
+      minimalMsg.includes('too many clients') ||
+      minimalMsg.includes('ECONNREFUSED') ||
+      minimalMsg.includes('connection')
+    if (isConnectionError) {
+      console.error(`[session-create] Connection error on minimal create — aborting`)
+      return null
+    }
   }
 
   // Strategy 3: Raw SQL INSERT — bypasses Prisma's RETURNING clause entirely
@@ -93,8 +119,6 @@ export async function createSessionSafely(info: SessionCreateInfo): Promise<stri
     const sessionId = crypto.randomBytes(16).toString('hex') + Date.now().toString(36)
     const now = new Date()
 
-    // Use parameterized raw SQL to avoid injection — values come from
-    // server-generated crypto, not user input
     await db.$executeRawUnsafe(
       `INSERT INTO "Session" ("id", "userId", "token", "refreshToken", "deviceInfo", "ipAddress", "userAgent", "isActive", "expiresAt", "createdAt", "updatedAt")
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
@@ -117,31 +141,6 @@ export async function createSessionSafely(info: SessionCreateInfo): Promise<stri
     console.error(
       `[session-create] Raw SQL INSERT also failed: ${rawMsg.substring(0, 500)}`
     )
-
-    // Strategy 4: Absolute minimal raw SQL — only the columns that MUST exist
-    try {
-      const sessionId = crypto.randomBytes(16).toString('hex') + Date.now().toString(36)
-      const now = new Date()
-
-      // Try just the bare minimum columns that have existed since the first deploy
-      await db.$executeRawUnsafe(
-        `INSERT INTO "Session" ("id", "userId", "token", "expiresAt", "createdAt", "updatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        sessionId,
-        info.userId,
-        info.token,
-        info.expiresAt,
-        now,
-        now,
-      )
-      console.log('[session-create] Bare-minimum raw SQL INSERT succeeded')
-      return info.token
-    } catch (bareErr: any) {
-      const bareMsg = bareErr?.message || String(bareErr)
-      console.error(
-        `[session-create] ALL strategies failed. Last error: ${bareMsg.substring(0, 500)}`
-      )
-      return null
-    }
+    return null
   }
 }

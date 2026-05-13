@@ -40,18 +40,14 @@ function getOrCreatePrisma(): PrismaClient {
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
     datasources: {
       db: {
-        // SUSTAINABLE FIX: Force connection_limit=2 even if DATABASE_URL has a higher value.
-        // With PgBouncer, 2 connections per PrismaClient is sufficient.
-        // Total: 2 (Next.js) + 2 (NestJS) = 4 client → PgBouncer → 3 real PG connections.
+        // FIX: Force connection_limit=1 for PgBouncer mode.
+        // With PgBouncer transaction pooling, 1 connection is sufficient
+        // because PgBouncer multiplexes multiple queries onto real PG connections.
+        // Total: 1 (Next.js) + 1 (NestJS) = 2 client → PgBouncer → 2-5 real PG connections.
         url: (() => {
           try {
             const u = new URL(process.env.DATABASE_URL || '');
-            u.searchParams.set('connection_limit', '2');
-            // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
-            // PgBouncer on localhost doesn't use SSL. If sslmode=require
-            // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.
-            // start.sh should have already stripped these, but strip here too
-            // as a safety net in case DATABASE_URL was set incorrectly.
+            u.searchParams.set('connection_limit', '1');
             if (u.searchParams.get('pgbouncer') === 'true') {
               u.searchParams.delete('sslmode');
               u.searchParams.delete('ssl');
@@ -117,25 +113,18 @@ export async function ensureDbReady(): Promise<boolean> {
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      // SUSTAINABLE FIX: Disconnect before each connect attempt.
-      //
-      // ROOT CAUSE: When $connect() fails, Prisma internally creates a
-      // connection pool but doesn't properly clean it up. On the next
-      // $connect() attempt, Prisma creates ANOTHER pool instead of
-      // reusing the failed one. Each failed pool leaks a connection slot.
-      //
-      // FIX: Call $disconnect() before each $connect() to ensure the
-      // previous (failed) pool is cleaned up before creating a new one.
+      // FIX: Try $connect() first WITHOUT $disconnect().
+      // If already connected, $connect() is a no-op. Only disconnect
+      // if connect fails, to clean up any leaked pool.
       try {
-        await db.$disconnect()
-      } catch {
-        // Ignore — pool may not exist yet
+        await db.$connect()
+      } catch (connectErr: any) {
+        // Connect failed — disconnect to clean up any leaked pool, then rethrow
+        try { await db.$disconnect() } catch { /* ignore */ }
+        throw connectErr
       }
 
-      // 1. Establish connection
-      await db.$connect()
-
-      // 2. Verify core table access
+      // Verify core table access
       await db.user.findFirst()
 
       globalForPrisma.dbInitialized = true
@@ -147,14 +136,11 @@ export async function ensureDbReady(): Promise<boolean> {
       const code = error?.code || 'NO_CODE'
       globalForPrisma.dbInitError = `[${code}] ${message}`
 
-      // Log first 3, every 3rd after, and always the last
       if (attempt < 3 || attempt % 3 === 0 || attempt === MAX_RETRIES - 1) {
         console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
       }
 
       if (attempt < MAX_RETRIES - 1) {
-        // Exponential backoff — 3s, 6s, 12s, 24s, 30s, 30s, 30s, 30s, 30s
-        // Capped at 30s. Total max wait: ~3+6+12+24+30*5 = 195s
         const delay = Math.min(1000 * Math.pow(2, attempt + 1) + 1000, 30000)
         console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
         await new Promise((resolve) => setTimeout(resolve, delay))

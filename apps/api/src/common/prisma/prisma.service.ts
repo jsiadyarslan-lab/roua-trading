@@ -30,13 +30,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     //
     // If PgBouncer is unavailable (local dev), DATABASE_URL connects directly.
     // No per-client URL modification needed — pooling is handled centrally.
-    // SUSTAINABLE FIX: Force connection_limit=2 even if DATABASE_URL has a higher value.
-    // With PgBouncer, 2 connections per PrismaClient is sufficient.
-    // Total: 2 (NestJS) + 2 (Next.js) = 4 client → PgBouncer → 3 real PG connections.
+    // SUSTAINABLE FIX: Force connection_limit=1 even if DATABASE_URL has a higher value.
+    // With PgBouncer transaction pooling, 1 connection per PrismaClient is sufficient.
+    // Total: 1 (NestJS) + 1 (Next.js) = 2 client → PgBouncer → 5-7 real PG connections.
     const dbUrl = (() => {
       try {
         const u = new URL(process.env.DATABASE_URL || '');
-        u.searchParams.set('connection_limit', '2');
+        u.searchParams.set('connection_limit', '1');
         // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
         // PgBouncer on localhost doesn't use SSL. If sslmode=require
         // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.

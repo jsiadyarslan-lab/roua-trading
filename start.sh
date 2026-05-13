@@ -30,8 +30,8 @@
 #     - Added max_connections diagnostic
 #
 #   Architecture:
-#     App (PrismaClient x2, limit=2 each) → PgBouncer (localhost:6432) → PostgreSQL
-#     4 client connections → PgBouncer → 2 real PostgreSQL connections
+#     App (PrismaClient x2, limit=1 each) → PgBouncer (localhost:6432) → PostgreSQL
+#     2 client connections → PgBouncer → 5-7 real PostgreSQL connections
 #     TLS: App → PgBouncer (plain/local) → PostgreSQL (TLS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -375,8 +375,8 @@ PGEOF
 ;;   2. server_tls_sslmode = require — TLS for PG connection
 ;;   3. Reduced pool sizes for Railway's very low max_connections
 ;;
-;; 4 client connections → 2 real PG connections
-;; Leaves max_connections - 2 slots free for migrations/cleanup
+;; 2 client connections (limit=1 each) → PgBouncer → 5-7 real PG connections
+;; Leaves max_connections - 7 slots free for migrations/cleanup
 
 [databases]
 ${PG_DB} = host=${PG_HOST} port=${PG_PORT} dbname=${PG_DB}
@@ -396,11 +396,15 @@ auth_file = /tmp/pgbouncer_users.txt
 
 pool_mode = transaction
 
-; Connection limits — FURTHER REDUCED for Railway's low max_connections
+; Connection limits — BALANCED for Railway's low max_connections
+; FIX: Increased from 2 to 5 to handle NestJS + Next.js + occasional scripts
+; With connection_limit=1 per PrismaClient, we have:
+;   1 (Next.js) + 1 (NestJS) = 2 active client connections
+;   Pool of 5 gives headroom for bursts + recovery scripts
 max_client_conn = 100
-default_pool_size = 2
-min_pool_size = 1
-reserve_pool_size = 0
+default_pool_size = 5
+min_pool_size = 2
+reserve_pool_size = 2
 reserve_pool_timeout = 5
 
 ; CRITICAL FIX v3: TLS for PgBouncer → PostgreSQL connection
@@ -545,7 +549,7 @@ fi
 
 if [ "$PGBOUNCER_OK" -eq 1 ]; then
   # Application connects through PgBouncer
-  # CRITICAL: connection_limit=2 to reduce total connections
+  # CRITICAL: connection_limit=1 to minimize total connections
   #
   # CRITICAL FIX v3: Strip SSL parameters from DATABASE_URL
   # When DATABASE_URL is rewritten to point to PgBouncer on localhost,
@@ -574,7 +578,7 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
       u.searchParams.delete('sslcrm');
       // Add Prisma PgBouncer compatibility flag
       u.searchParams.set('pgbouncer', 'true');
-      u.searchParams.set('connection_limit', '2');
+      u.searchParams.set('connection_limit', '1');
       process.stdout.write(u.toString());
     } catch(e) {
       process.stderr.write('ERROR:' + e.message);
@@ -584,7 +588,7 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
 
   if [ -n "$POOLED_URL" ]; then
     export DATABASE_URL="$POOLED_URL"
-    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, connection_limit=2, SSL stripped)"
+    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, connection_limit=1, SSL stripped)"
   else
     echo "⚠️ Failed to construct PgBouncer URL — falling back to direct connections"
     PGBOUNCER_OK=0
@@ -616,7 +620,7 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 Connection Architecture:"
 echo "   Mode: $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer (POOLED) ✅' || echo 'Direct (NO POOLING) ⚠️')"
-echo "   DATABASE_URL:       $([ "$PGBOUNCER_OK" -eq 1 ] && echo '→ PgBouncer:6432 (limit=2)' || echo '→ Direct PG (limit=1)')"
+echo "   DATABASE_URL:       $([ "$PGBOUNCER_OK" -eq 1 ] && echo '→ PgBouncer:6432 (limit=1)' || echo '→ Direct PG (limit=1)')"
 echo "   DIRECT_DATABASE_URL: → Direct PG (limit=1, for migrations)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
@@ -654,59 +658,71 @@ if [ ! -f "apps/api/dist/main.js" ]; then
 fi
 
 # ONLY attempt recovery if DB cleanup or migration succeeded
+# FIX: Use raw pg Client instead of PrismaClient to avoid creating a 3rd connection pool.
+# PrismaClient creates its own pool which competes with Next.js and NestJS pools.
+# The raw pg Client opens ONE connection, does the work, and closes immediately.
 if [ "$DB_CLEANUP_OK" -eq 1 ] || [ "$DB_MIGRATE_OK" -eq 1 ]; then
+  # Use DIRECT_DATABASE_URL (bypasses PgBouncer) to avoid pool contention
+  RECOVERY_DB_URL="${DIRECT_DATABASE_URL:-$ORIG_DB_URL}"
   timeout 15 node -e "
-const { PrismaClient } = require('@prisma/client');
-let dbUrl = process.env.DATABASE_URL;
-if (dbUrl) {
-  try { const u = new URL(dbUrl); u.searchParams.set('connection_limit', '1'); u.searchParams.set('pool_timeout', '5'); u.searchParams.set('connect_timeout', '5'); dbUrl = u.toString(); }
-  catch { const sep = dbUrl.includes('?') ? '&' : '?'; dbUrl = dbUrl + sep + 'connection_limit=1&pool_timeout=5&connect_timeout=5'; }
-}
-const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } });
+const { Client } = require('pg');
+const crypto = require('crypto');
 
 async function recover() {
+  const client = new Client({
+    connectionString: process.env.RECOVERY_DB_URL,
+    connectionTimeoutMillis: 5000,
+  });
   try {
-    const userCount = await prisma.user.count();
+    await client.connect();
+
+    // Check if any users exist
+    const countResult = await client.query('SELECT COUNT(*) as cnt FROM \"User\"');
+    const userCount = parseInt(countResult.rows[0].cnt);
+
     if (userCount > 0) {
-      // FIX: Always create recovery token for first user — not just empty DB
-      const firstUser = await prisma.user.findFirst({ orderBy: { createdAt: 'asc' } });
-      if (firstUser) {
-        const token = require('crypto').randomBytes(32).toString('hex');
-        const refreshToken = require('crypto').randomBytes(48).toString('hex');
-        await prisma.session.create({
-          data: {
-            userId: firstUser.id,
-            token, refreshToken, isActive: true,
-            expiresAt: new Date(Date.now() + 7*24*60*60*1000),
-            deviceInfo: JSON.stringify({ browser: 'Recovery', type: 'desktop' }),
-          }
-        });
-        console.log('');
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        console.log('🔑 RECOVERY LINK (صالح 7 أيام):');
-        console.log('https://roua-trading-production.up.railway.app/api/auth/recover?token=' + token);
-        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      }
+      // Create recovery token for first user
+      const userResult = await client.query('SELECT id FROM \"User\" ORDER BY \"createdAt\" ASC LIMIT 1');
+      const userId = userResult.rows[0].id;
+      const token = crypto.randomBytes(32).toString('hex');
+      const refreshToken = crypto.randomBytes(48).toString('hex');
+      const expiresAt = new Date(Date.now() + 7*24*60*60*1000).toISOString();
+      const deviceInfo = JSON.stringify({ browser: 'Recovery', type: 'desktop' });
+
+      await client.query(
+        'INSERT INTO \"Session\" (id, \"userId\", token, \"refreshToken\", \"deviceInfo\", \"isActive\", \"expiresAt\", \"createdAt\", \"updatedAt\") VALUES (gen_random_uuid(), $1, $2, $3, $4, true, $5, NOW(), NOW())',
+        [userId, token, refreshToken, deviceInfo, expiresAt]
+      );
+      console.log('');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔑 RECOVERY LINK (صالح 7 أيام):');
+      console.log('https://roua-trading-production.up.railway.app/api/auth/recover?token=' + token);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return;
     }
+
+    // No users — create admin account
     console.log('⚠️ No users found — creating admin account...');
-    const user = await prisma.user.create({
-      data: { email: 'admin@roua-trading.com', displayName: 'جابر - المدير', tier: 'INSTITUTIONAL' }
-    });
-    const crypto = require('crypto');
+    const adminResult = await client.query(
+      'INSERT INTO \"User\" (id, email, \"displayName\", tier, \"createdAt\", \"updatedAt\") VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW()) RETURNING id',
+      ['admin@roua-trading.com', 'جابر - المدير', 'INSTITUTIONAL']
+    );
+    const userId = adminResult.rows[0].id;
     const token = crypto.randomBytes(32).toString('hex');
     const refreshToken = crypto.randomBytes(48).toString('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-    await prisma.session.create({
-      data: { userId: user.id, token, refreshToken, isActive: true, expiresAt,
-        deviceInfo: JSON.stringify({ browser: 'Recovery', type: 'desktop' }) }
-    });
+    const expiresAt = new Date(Date.now() + 7*24*60*60*1000).toISOString();
+    const deviceInfo = JSON.stringify({ browser: 'Recovery', type: 'desktop' });
+
+    await client.query(
+      'INSERT INTO \"Session\" (id, \"userId\", token, \"refreshToken\", \"deviceInfo\", \"isActive\", \"expiresAt\", \"createdAt\", \"updatedAt\") VALUES (gen_random_uuid(), $1, $2, $3, $4, true, $5, NOW(), NOW())',
+      [userId, token, refreshToken, deviceInfo, expiresAt]
+    );
     console.log('');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('✅ RECOVERY ACCOUNT CREATED');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('Email: admin@roua-trading.com');
-    console.log('User ID: ' + user.id);
+    console.log('User ID: ' + userId);
     console.log('');
     console.log('RECOVERY TOKEN (صالح 7 أيام):');
     console.log(token);
@@ -717,7 +733,7 @@ async function recover() {
   } catch(e) {
     console.log('Recovery error: ' + e.message);
   } finally {
-    await prisma.\$disconnect();
+    await client.end();
     process.exit(0);
   }
 }
@@ -856,7 +872,7 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 ROUA TRADING — STARTUP COMPLETE"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "   Connection Mode:  $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer ✅ (TRANSACTION MODE, limit=2)' || echo 'Direct ⚠️ (NO POOLER, limit=1)')"
+echo "   Connection Mode:  $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer ✅ (TRANSACTION MODE, limit=1)' || echo 'Direct ⚠️ (NO POOLER, limit=1)')"
 echo "   API (NestJS):     port ${API_PORT:-3001} — $([ "$API_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
 echo "   Web (Next.js):    port $ACTUAL_WEB_PORT — $([ "$WEB_READY" -eq 1 ] && echo '✅ VERIFIED' || echo '❌ NOT RESPONDING')"
 echo "   DB Migrations:    $([ "$DB_MIGRATE_OK" -eq 1 ] && echo '✅ APPLIED' || echo '❌ FAILED (will retry on next deploy)')"

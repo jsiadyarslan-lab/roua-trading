@@ -71,6 +71,73 @@ if [ -n "${DATABASE_POOLED_URL:-}" ]; then
   echo "✅ DATABASE_POOLED_URL detected — using Railway's built-in PgBouncer"
   DATABASE_URL="$DATABASE_POOLED_URL"
   echo "🔧 DATABASE_URL → Railway PgBouncer"
+else
+  # Step 1.5: Try to AUTO-CONSTRUCT pooled URL from DATABASE_URL
+  # Railway provides DATABASE_POOLED_URL as a separate variable, but it's
+  # often not referenced in the web service. We construct it here.
+  # Railway pooled URL pattern: same URL but port 5432 → port 5432 with -pooler suffix
+  CONSTRUCTED_POOLED=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
+    try {
+      const u = new URL(process.env.DATABASE_URL_IN);
+      const origHost = u.hostname;
+      
+      // Railway internal networking pattern:
+      // Direct: postgres.railway.internal:5432
+      // Pooled: postgres-pooler.railway.internal:5432
+      //
+      // Public pattern:
+      // Direct: containers-us-west-XX.railway.app:XXXX
+      // Pooled: Same host, different port (usually 5432)
+      //
+      // Try common Railway pooler patterns:
+      const poolerHosts = [];
+      
+      // Pattern 1: Replace 'postgres.' with 'postgres-pooler.'
+      if (origHost.startsWith('postgres.')) {
+        poolerHosts.push(origHost.replace('postgres.', 'postgres-pooler.'));
+      }
+      
+      // Pattern 2: Add '-pooler' before .railway.app
+      if (origHost.includes('.railway.app') || origHost.includes('.railway.internal')) {
+        const parts = origHost.split('.');
+        parts[0] = parts[0] + '-pooler';
+        poolerHosts.push(parts.join('.'));
+      }
+      
+      // Pattern 3: Add '-pooler' before any TLD
+      const lastDot = origHost.lastIndexOf('.');
+      if (lastDot > 0) {
+        const base = origHost.substring(0, lastDot);
+        const tld = origHost.substring(lastDot);
+        poolerHosts.push(base + '-pooler' + tld);
+      }
+      
+      // Output first viable candidate
+      if (poolerHosts.length > 0) {
+        // Try the first pattern that's different from original
+        for (const h of poolerHosts) {
+          if (h !== origHost) {
+            u.hostname = h;
+            process.stdout.write(u.toString());
+            process.exit(0);
+          }
+        }
+      }
+      
+      // No pattern matched — output empty
+      process.stdout.write('');
+    } catch {
+      process.stdout.write('');
+    }
+  " 2>/dev/null)
+  
+  if [ -n "$CONSTRUCTED_POOLED" ]; then
+    echo "🔧 Auto-constructed pooled URL from DATABASE_URL"
+    DATABASE_URL="$CONSTRUCTED_POOLED"
+    echo "🔧 DATABASE_URL → Auto-constructed Pooler"
+  else
+    echo "⚠️ No DATABASE_POOLED_URL and couldn't construct one — using direct connection"
+  fi
 fi
 
 # Step 2: Set DIRECT_DATABASE_URL for Prisma CLI (migrations)

@@ -534,7 +534,25 @@ async function recover() {
   try {
     const userCount = await prisma.user.count();
     if (userCount > 0) {
-      console.log('✅ Users exist (' + userCount + ') — no recovery needed');
+      // FIX: Always create recovery token for first user — not just empty DB
+      const firstUser = await prisma.user.findFirst({ orderBy: { createdAt: 'asc' } });
+      if (firstUser) {
+        const token = require('crypto').randomBytes(32).toString('hex');
+        const refreshToken = require('crypto').randomBytes(48).toString('hex');
+        await prisma.session.create({
+          data: {
+            userId: firstUser.id,
+            token, refreshToken, isActive: true,
+            expiresAt: new Date(Date.now() + 7*24*60*60*1000),
+            deviceInfo: JSON.stringify({ browser: 'Recovery', type: 'desktop' }),
+          }
+        });
+        console.log('');
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        console.log('🔑 RECOVERY LINK (صالح 7 أيام):');
+        console.log('https://roua-trading-production.up.railway.app/api/auth/recover?token=' + token);
+        console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
       return;
     }
     console.log('⚠️ No users found — creating admin account...');

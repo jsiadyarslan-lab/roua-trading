@@ -18,9 +18,23 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX v12: Use DATABASE_URL exactly as Railway provides it.
-    // NO modifications — the news website does the same and it works.
-    const dbUrl = process.env.DATABASE_URL || '';
+    // FIX v13: Add connection_limit=1 via URL params.
+    // CRITICAL: Without connection_limit=1, Prisma opens 3-5 connections
+    // per PrismaClient (2 clients = 6-10 connections), which exhausts
+    // Railway's PostgreSQL max_connections.
+    // We do NOT add pgbouncer=true or strip SSL.
+    const dbUrl = (() => {
+      try {
+        const u = new URL(process.env.DATABASE_URL || '');
+        u.searchParams.set('connection_limit', '1');
+        u.searchParams.set('pool_timeout', '10');
+        return u.toString();
+      } catch {
+        const base = process.env.DATABASE_URL || '';
+        const sep = base.includes('?') ? '&' : '?';
+        return `${base}${sep}connection_limit=1&pool_timeout=10`;
+      }
+    })();
     PrismaService._dbUrlPrefix = dbUrl.substring(0, 30) + '...';
 
     super({

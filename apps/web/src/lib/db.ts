@@ -38,11 +38,29 @@ function getOrCreatePrisma(): PrismaClient {
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
     datasources: {
       db: {
-        // FIX v12: Use DATABASE_URL exactly as Railway provides it.
-        // NO modifications — the news website does the same and it works.
-        // Previous versions used new URL() which could change the URL format
-        // (re-encoding special chars, changing protocol, etc.) and break Prisma.
-        url: process.env.DATABASE_URL,
+        // FIX v13: Add connection_limit=1 via URL params.
+        // CRITICAL: Without connection_limit=1, Prisma opens 3-5 connections
+        // per PrismaClient (2 clients = 6-10 connections), which exhausts
+        // Railway's PostgreSQL max_connections. With connection_limit=1,
+        // total is only 2 connections (1 Next.js + 1 NestJS).
+        //
+        // We use new URL() ONLY to add connection_limit — we do NOT:
+        // - add pgbouncer=true (breaks with Railway's remote PgBouncer)
+        // - strip SSL params (Railway requires SSL)
+        // - change hostname (would connect to wrong server)
+        url: (() => {
+          try {
+            const u = new URL(process.env.DATABASE_URL || '');
+            u.searchParams.set('connection_limit', '1');
+            u.searchParams.set('pool_timeout', '10');
+            return u.toString();
+          } catch {
+            // If URL parsing fails, append params directly
+            const base = process.env.DATABASE_URL || '';
+            const sep = base.includes('?') ? '&' : '?';
+            return `${base}${sep}connection_limit=1&pool_timeout=10`;
+          }
+        })(),
       },
     },
   });

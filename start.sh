@@ -137,6 +137,18 @@ for DB_TRY in 1 2 3; do
       try {
         await client.connect();
         try {
+          // FIX v13: Try to increase max_connections first.
+          // Railway PostgreSQL default is often 20-25, which is too low
+          // when multiple services share the same database.
+          try {
+            await client.query('ALTER SYSTEM SET max_connections = 100');
+            await client.query('SELECT pg_reload_conf()');
+            console.log('INCREASED max_connections to 100');
+          } catch(alterErr) {
+            // May not have superuser access - that's OK, try to continue
+            console.log('Cannot increase max_connections: ' + alterErr.message.substring(0, 80));
+          }
+          
           const mc = await client.query('SHOW max_connections');
           const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
           const maxConn = mc.rows[0].max_connections || mc.rows[0].Value;

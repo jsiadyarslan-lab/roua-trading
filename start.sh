@@ -85,29 +85,21 @@ DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
 export DIRECT_DATABASE_URL="${DIRECT_DB_URL:-$ORIG_DB_URL}"
 
 # Step 2: Set DATABASE_URL for PrismaClient (apps)
-# ONLY add connection_limit=1 and pool_timeout=10.
-# DO NOT change hostname, DO NOT add pgbouncer=true, DO NOT strip SSL.
-APP_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
-  const url = process.env.DATABASE_URL_IN || '';
-  try {
-    const u = new URL(url);
-    u.searchParams.set('connection_limit', '1');
-    u.searchParams.set('pool_timeout', '10');
-    u.searchParams.set('connect_timeout', '30');
-    process.stdout.write(u.toString());
-  } catch {
-    process.stdout.write(url);
-  }
-" 2>/dev/null)
-export DATABASE_URL="${APP_DB_URL:-$ORIG_DB_URL}"
+# FIX v12: DO NOT modify DATABASE_URL at all!
+# The news website uses DATABASE_URL directly (no modifications) and it works.
+# Previous versions used new URL() which could change the URL format
+# (re-encoding special chars, changing protocol, etc.) and break Prisma.
+# Now we just pass DATABASE_URL through unchanged — EXACTLY like the news site.
+export DATABASE_URL="$ORIG_DB_URL"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v11)"
+echo "🚀 Roua Trading — Starting (v12)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "DATABASE_URL host:    $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.hostname+':'+u.port)}catch{process.stdout.write('PARSE_ERROR')}" 2>/dev/null)"
+echo "DATABASE_URL length:  ${#DATABASE_URL} chars"
+echo "DATABASE_URL prefix:  $(echo $DATABASE_URL | cut -c1-30)..."
 echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO (direct ✅)')"
-echo "DATABASE_URL sslmode:   $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.searchParams.get('sslmode')||'not set')}catch{process.stdout.write('unknown')}" 2>/dev/null)"
+echo "DATABASE_URL modified:  NO — using original URL exactly as Railway provides it"
 echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET — not used]} ${DATABASE_POOLED_URL:-[NOT SET]}"
 echo "DIRECT_DATABASE_URL:  [SET — for migrations only]"
 echo "ORIGIN:               ${ORIGIN:-not set}"

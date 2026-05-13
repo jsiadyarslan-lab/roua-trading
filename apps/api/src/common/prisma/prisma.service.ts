@@ -14,24 +14,9 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // FIX v11: SIMPLE AND RELIABLE. Direct connection, no PgBouncer.
-    //
-    // DO NOT add pgbouncer=true, DO NOT strip SSL.
-    // Only add connection_limit=1 and pool_timeout=10.
-    //
-    // Previous versions added pgbouncer=true and stripped SSL params,
-    // which broke connections to Railway's remote PostgreSQL.
-    // The news website works because it doesn't do any of this.
-    const dbUrl = (() => {
-      try {
-        const u = new URL(process.env.DATABASE_URL || '');
-        u.searchParams.set('connection_limit', '1');
-        u.searchParams.set('pool_timeout', '10');
-        return u.toString();
-      } catch {
-        return process.env.DATABASE_URL;
-      }
-    })();
+    // FIX v12: Use DATABASE_URL exactly as Railway provides it.
+    // NO modifications — the news website does the same and it works.
+    const dbUrl = process.env.DATABASE_URL;
 
     super({
       datasources: {
@@ -47,14 +32,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     });
 
     // Log the effective connection mode
-    let connectionMode = 'direct (no PgBouncer)';
-    try {
-      const url = new URL(dbUrl || '');
-      const limit = url.searchParams.get('connection_limit');
-      if (limit) connectionMode += ` connection_limit=${limit}`;
-      const poolTimeout = url.searchParams.get('pool_timeout');
-      if (poolTimeout) connectionMode += ` pool_timeout=${poolTimeout}`;
-    } catch {}
+    let connectionMode = 'direct (no modifications)';
     this.logger.log(`📦 Prisma connection: ${connectionMode}`);
 
     if (isDev) {

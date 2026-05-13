@@ -38,18 +38,11 @@ function getOrCreatePrisma(): PrismaClient {
     log: process.env.NODE_ENV === 'development' ? ['query'] : ['error'],
     datasources: {
       db: {
-        // FIX v11: ONLY add connection_limit=1 and pool_timeout=10.
-        // DO NOT add pgbouncer=true, DO NOT strip SSL.
-        url: (() => {
-          try {
-            const u = new URL(process.env.DATABASE_URL || '');
-            u.searchParams.set('connection_limit', '1');
-            u.searchParams.set('pool_timeout', '10');
-            return u.toString();
-          } catch {
-            return process.env.DATABASE_URL;
-          }
-        })(),
+        // FIX v12: Use DATABASE_URL exactly as Railway provides it.
+        // NO modifications — the news website does the same and it works.
+        // Previous versions used new URL() which could change the URL format
+        // (re-encoding special chars, changing protocol, etc.) and break Prisma.
+        url: process.env.DATABASE_URL,
       },
     },
   });

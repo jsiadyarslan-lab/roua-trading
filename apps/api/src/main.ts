@@ -249,10 +249,17 @@ async function bootstrap() {
         if (prisma.isAvailable()) {
           checks.database = { status: 'ok' };
         } else {
-          checks.database = { status: 'error' };
+          // DIAGNOSTIC: Include last error and URL prefix when DB is unavailable
+          const diag = prisma.getDiagnosticInfo();
+          checks.database = {
+            status: 'error',
+            lastError: diag.lastError || 'No error recorded',
+            urlPrefix: diag.urlPrefix || 'Not set',
+            failures: diag.failures,
+          } as any;
         }
-      } catch {
-        checks.database = { status: 'error' };
+      } catch (err: any) {
+        checks.database = { status: 'error', lastError: err?.message } as any;
       }
 
       try {

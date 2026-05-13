@@ -9,14 +9,19 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   private connected = false;
   private consecutiveFailures = 0;
   private static _dbAvailable = false;
+  private static _lastError: string | null = null;
+  private static _dbUrlPrefix: string | null = null;
   static get dbAvailable(): boolean { return PrismaService._dbAvailable; }
+  static get lastError(): string | null { return PrismaService._lastError; }
+  static get dbUrlPrefix(): string | null { return PrismaService._dbUrlPrefix; }
 
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
     // FIX v12: Use DATABASE_URL exactly as Railway provides it.
     // NO modifications — the news website does the same and it works.
-    const dbUrl = process.env.DATABASE_URL;
+    const dbUrl = process.env.DATABASE_URL || '';
+    PrismaService._dbUrlPrefix = dbUrl.substring(0, 30) + '...';
 
     super({
       datasources: {
@@ -99,9 +104,8 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       PrismaService._dbAvailable = false;
       this.consecutiveFailures++;
       const message = error instanceof Error ? error.message : 'Unknown error';
-      if (this.consecutiveFailures <= 3 || this.consecutiveFailures % 5 === 0) {
-        this.logger.error(`📦 Prisma connection failed (attempt ${this.consecutiveFailures}): ${message}`);
-      }
+      PrismaService._lastError = `[attempt ${this.consecutiveFailures}] ${message.substring(0, 300)}`;
+      this.logger.error(`📦 Prisma connection failed (attempt ${this.consecutiveFailures}): ${message}`);
       return false;
     } finally {
       this.connectInProgress = false;
@@ -128,5 +132,14 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   isAvailable(): boolean {
     return this.connected && PrismaService._dbAvailable;
+  }
+
+  getDiagnosticInfo(): { available: boolean; lastError: string | null; urlPrefix: string | null; failures: number } {
+    return {
+      available: this.connected && PrismaService._dbAvailable,
+      lastError: PrismaService._lastError,
+      urlPrefix: PrismaService._dbUrlPrefix,
+      failures: this.consecutiveFailures,
+    };
   }
 }

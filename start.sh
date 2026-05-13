@@ -182,16 +182,72 @@ export DATABASE_URL="${APP_DB_URL:-$DATABASE_URL}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v8)"
+echo "🚀 Roua Trading — Starting (v9)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "DATABASE_URL:         [SET] pgbouncer=$(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO')"
+echo "DATABASE_URL host:    $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.hostname+':'+u.port)}catch{process.stdout.write('PARSE_ERROR')}" 2>/dev/null)"
+echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO')"
 echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET]} ${DATABASE_POOLED_URL:-[NOT SET]}"
 echo "DIRECT_DATABASE_URL:  [SET]"
 echo "ORIGIN:               ${ORIGIN:-not set}"
 echo "NODE_ENV:             ${NODE_ENV:-development}"
-echo "PORT:                 ${PORT:-8080}"
-echo "API_PORT:             ${API_PORT:-3001}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# DATABASE CONNECTIVITY TEST — Verify DB is reachable
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+echo ""
+echo "━━━ Database Connectivity Test ━━━"
+DB_REACHABLE=0
+for DB_TRY in 1 2 3 4 5; do
+  DB_TEST_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
+    const { Client } = require('pg');
+    async function test() {
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL_IN,
+        connectionTimeoutMillis: 5000,
+      });
+      try {
+        await client.connect();
+        const res = await client.query('SELECT 1 AS ok');
+        try {
+          const mc = await client.query('SHOW max_connections');
+          const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
+          console.log('DB_OK max=' + (mc.rows[0].max_connections || mc.rows[0].Value) + ' active=' + ac.rows[0].cnt);
+        } catch {
+          console.log('DB_OK');
+        }
+        await client.end();
+      } catch(e) {
+        console.error('DB_ERROR:' + e.message.substring(0, 200));
+        try { await client.end(); } catch {}
+      }
+    }
+    test();
+  " 2>&1)
+  
+  if echo "$DB_TEST_RESULT" | grep -q "DB_OK"; then
+    INFO=$(echo "$DB_TEST_RESULT" | grep "DB_OK")
+    echo "✅ Database reachable: $INFO"
+    DB_REACHABLE=1
+    break
+  else
+    ERR=$(echo "$DB_TEST_RESULT" | grep -o 'DB_ERROR:.*' | head -1)
+    echo "⚠️ Database unreachable (attempt $DB_TRY/5): $ERR"
+    if [ "$DB_TRY" -lt 5 ]; then
+      sleep 5
+    fi
+  fi
+done
+
+if [ "$DB_REACHABLE" -ne 1 ]; then
+  echo "❌ FATAL: Database is not reachable after 5 attempts!"
+  echo "   The apps will start but database features will not work."
+  echo "   This usually means:"
+  echo "   1. Railway PostgreSQL is paused or hibernated (free tier)"
+  echo "   2. max_connections is exhausted by other deployments"
+  echo "   3. Network connectivity issue between services"
+  echo "   Check: https://railway.app/dashboard → PostgreSQL service"
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PRISMA SETUP — Uses DIRECT_DATABASE_URL only

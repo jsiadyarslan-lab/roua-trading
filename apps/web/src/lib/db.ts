@@ -111,42 +111,46 @@ export async function ensureDbReady(): Promise<boolean> {
 
   console.log(`[db] ensureDbReady() starting — Retries: ${MAX_RETRIES}, PgBouncer: ${isPgbouncer}, URL prefix: ${dbUrl.substring(0, 40)}...`)
 
-  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-    try {
-      // FIX: Try $connect() first WITHOUT $disconnect().
-      // If already connected, $connect() is a no-op. Only disconnect
-      // if connect fails, to clean up any leaked pool.
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        await db.$connect()
-      } catch (connectErr: any) {
-        // Connect failed — disconnect to clean up any leaked pool, then rethrow
-        try { await db.$disconnect() } catch { /* ignore */ }
-        throw connectErr
-      }
+        // FIX: Try $connect() first WITHOUT $disconnect().
+        // If already connected, $connect() is a no-op. Only disconnect
+        // if connect fails, to clean up any leaked pool.
+        try {
+          await db.$connect()
+        } catch (connectErr: any) {
+          // Connect failed — disconnect to clean up any leaked pool, then rethrow
+          try { await db.$disconnect() } catch { /* ignore */ }
+          throw connectErr
+        }
 
-      // Verify core table access
-      await db.user.findFirst()
+        // Verify core table access
+        await db.user.findFirst()
 
-      globalForPrisma.dbInitialized = true
-      globalForPrisma.dbInitError = undefined
-      console.log('[db] Database successfully initialized and verified.')
-      return true
-    } catch (error: any) {
-      const message = error?.message || 'Unknown database error'
-      const code = error?.code || 'NO_CODE'
-      globalForPrisma.dbInitError = `[${code}] ${message}`
+        globalForPrisma.dbInitialized = true
+        globalForPrisma.dbInitError = undefined
+        console.log('[db] Database successfully initialized and verified.')
+        return true
+      } catch (error: any) {
+        // CRITICAL: Prevent connection buildup during "too many clients already"
+        // by explicitly disconnecting on ANY failure, not only on connect failure.
+        try { await db.$disconnect() } catch { /* ignore disconnect errors */ }
 
-      if (attempt < 3 || attempt % 3 === 0 || attempt === MAX_RETRIES - 1) {
-        console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
-      }
+        const message = error?.message || 'Unknown database error'
+        const code = error?.code || 'NO_CODE'
+        globalForPrisma.dbInitError = `[${code}] ${message}`
 
-      if (attempt < MAX_RETRIES - 1) {
-        const delay = Math.min(1000 * Math.pow(2, attempt + 1) + 1000, 30000)
-        console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
-        await new Promise((resolve) => setTimeout(resolve, delay))
+        if (attempt < 3 || attempt % 3 === 0 || attempt === MAX_RETRIES - 1) {
+          console.error(`[db] Connection attempt ${attempt + 1}/${MAX_RETRIES} failed: [${code}] ${message.substring(0, 200)}`)
+        }
+
+        if (attempt < MAX_RETRIES - 1) {
+          const delay = Math.min(1000 * Math.pow(2, attempt + 1) + 1000, 30000)
+          console.log(`[db] Retrying in ${Math.round(delay / 1000)}s...`)
+          await new Promise((resolve) => setTimeout(resolve, delay))
+        }
       }
     }
-  }
 
   console.error('[db] CRITICAL: Database initialization failed after all retries.')
   console.error(`[db] Last error: ${globalForPrisma.dbInitError}`)

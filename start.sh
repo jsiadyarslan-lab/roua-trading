@@ -143,31 +143,41 @@ for DB_TRY in 1 2 3; do
           const activeConn = ac.rows[0].cnt;
           console.log('DB_OK max=' + maxConn + ' active=' + activeConn);
           
-          // FIX v13: Kill stale/idle connections from old deployments.
-          // When Railway replaces a deployment, the old container's PostgreSQL
-          // connections may not be released immediately. This causes 'too many clients'
-          // errors for the new deployment. We terminate idle connections here.
-          if (parseInt(activeConn) > parseInt(maxConn) * 0.5) {
-            console.log('Cleaning up stale connections...');
-            try {
-              // Terminate idle connections (not our current one)
-              const terminateResult = await client.query(\`
-                SELECT pg_terminate_backend(pid)
-                FROM pg_stat_activity
-                WHERE datname = current_database()
-                  AND pid <> pg_backend_pid()
-                  AND state = 'idle'
-                  AND query_start < now() - interval '30 seconds'
-              \`);
-              const terminated = terminateResult.rowCount || 0;
-              console.log('Terminated ' + terminated + ' stale idle connections');
-              
-              // Check active connections after cleanup
-              const ac2 = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
-              console.log('After cleanup: active=' + ac2.rows[0].cnt + '/' + maxConn);
-            } catch(e2) {
-              console.log('Cleanup failed (non-fatal): ' + e2.message.substring(0, 100));
-            }
+          // FIX v13: Kill ALL idle connections from old deployments.
+          // Railway PostgreSQL has limited max_connections. When the old
+          // deployment is replaced, its connections may not be released.
+          // We terminate ALL idle connections (except our own) to free up slots.
+          try {
+            // First terminate connections idle > 5 seconds
+            const r1 = await client.query(\`
+              SELECT pg_terminate_backend(pid)
+              FROM pg_stat_activity
+              WHERE datname = current_database()
+                AND pid <> pg_backend_pid()
+                AND state = 'idle'
+            \`);
+            const terminated = r1.rowCount || 0;
+            console.log('Terminated ' + terminated + ' idle connections');
+            
+            // Also terminate connections in 'idle in transaction' state
+            const r2 = await client.query(\`
+              SELECT pg_terminate_backend(pid)
+              FROM pg_stat_activity
+              WHERE datname = current_database()
+                AND pid <> pg_backend_pid()
+                AND state = 'idle in transaction'
+            \`);
+            const terminated2 = r2.rowCount || 0;
+            if (terminated2 > 0) console.log('Terminated ' + terminated2 + ' idle-in-transaction connections');
+            
+            // Wait a moment for PostgreSQL to release the slots
+            await new Promise(r => setTimeout(r, 1000));
+            
+            // Check active connections after cleanup
+            const ac2 = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
+            console.log('After cleanup: active=' + ac2.rows[0].cnt + '/' + maxConn);
+          } catch(e2) {
+            console.log('Cleanup failed (non-fatal): ' + e2.message.substring(0, 100));
           }
         } catch {
           console.log('DB_OK');

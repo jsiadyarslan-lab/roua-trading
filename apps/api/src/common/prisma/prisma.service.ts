@@ -16,7 +16,7 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   constructor() {
     const isDev = process.env.NODE_ENV !== 'production';
 
-    // SUSTAINABLE FIX: Connection pooling handled by PgBouncer.
+    // SUSTAINABLE FIX v6: Connection pooling handled by PgBouncer.
     //
     // ARCHITECTURE:
     //   App (PrismaClient) → PgBouncer (localhost:6432) → PostgreSQL
@@ -30,20 +30,16 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     //
     // If PgBouncer is unavailable (local dev), DATABASE_URL connects directly.
     // No per-client URL modification needed — pooling is handled centrally.
-    // SUSTAINABLE FIX: Force connection_limit=1 even if DATABASE_URL has a higher value.
+    // FIX v6: Force connection_limit=1 AND pool_timeout=10.
     // With PgBouncer transaction pooling, 1 connection per PrismaClient is sufficient.
-    // Total: 1 (NestJS) + 1 (Next.js) = 2 client → PgBouncer → 5-7 real PG connections.
+    // Total: 1 (NestJS) + 1 (Next.js) = 2 client → PgBouncer → 3-5 real PG connections.
+    // pool_timeout=10 (was 3): pool_timeout is wait time for pool connection, NOT idle timeout.
+    // 3s was too short and caused timeout errors → $disconnect cycles → connection exhaustion.
     const dbUrl = (() => {
       try {
         const u = new URL(process.env.DATABASE_URL || '');
         u.searchParams.set('connection_limit', '1');
-        // FIX v5: pool_timeout=3 — release idle connections FAST.
-        // With direct PG connections (no PgBouncer), each idle connection
-        // occupies a real slot. pool_timeout=3 releases them after 3s idle.
-        u.searchParams.set('pool_timeout', '3');
-        // CRITICAL FIX v3: Strip SSL params for PgBouncer on localhost
-        // PgBouncer on localhost doesn't use SSL. If sslmode=require
-        // is in the URL, Prisma will try SSL to localhost:6432 → FAIL.
+        u.searchParams.set('pool_timeout', '10');
         if (u.searchParams.get('pgbouncer') === 'true') {
           u.searchParams.delete('sslmode');
           u.searchParams.delete('ssl');
@@ -146,22 +142,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
     this.connectInProgress = true;
 
     try {
-      // SUSTAINABLE FIX: Try $connect() first. Only $disconnect() if connect fails.
+      // FIX v6: Try $connect() — do NOT call $disconnect() on failure.
       //
-      // OLD PROBLEM: Calling $disconnect() before $connect() releases the PgBouncer
-      // connection slot briefly. Between disconnect and connect, another process
-      // (Next.js, recovery script) grabs the slot. The connect fails → retry →
-      // same cycle → ALL retries fail → "too many clients".
+      // OLD PROBLEM (v5): Calling $disconnect() after $connect() fails destroys
+      // the entire connection pool. The next $connect() creates a NEW pool with
+      // a NEW connection. The old connection from the destroyed pool may not be
+      // released by PostgreSQL immediately. This creates a cycle:
+      //   fail → disconnect → connect → new connection → fail → disconnect → ...
+      // that exhausts max_connections.
       //
-      // NEW APPROACH: Try $connect() first (it's a no-op if already connected).
-      // Only disconnect if connect fails, to clean up any leaked internal pool.
-      try {
-        await this.$connect();
-      } catch (connectErr) {
-        // Connect failed — disconnect to clean up any leaked pool, then rethrow
-        try { await this.$disconnect(); } catch { /* ignore */ }
-        throw connectErr;
-      }
+      // NEW APPROACH (v6): Just try $connect(). If it fails, leave the pool
+      // as-is. Prisma will reuse the existing pool on the next attempt.
+      // The pool's internal retry mechanism handles reconnection without
+      // creating new connections.
+      await this.$connect();
       this.connected = true;
       this.consecutiveFailures = 0;
       PrismaService._dbAvailable = true;

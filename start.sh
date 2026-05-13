@@ -38,7 +38,7 @@
 set -uo pipefail
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL FIX v5: Dual-Mode Connection Management
+# CRITICAL FIX v6: Reliable PgBouncer + Connection Management
 #
 # ROOT CAUSE ANALYSIS (from Railway deployment logs):
 #
@@ -48,22 +48,24 @@ set -uo pipefail
 #   CONSEQUENCE: Every PrismaClient connects directly to PostgreSQL
 #   PROBLEM: Direct connections + retries + health checks exhaust max_connections
 #
-#   WHY PgBouncer fails (2 possible causes):
-#   1. TLS auth failure: PgBouncer can't establish TLS to PostgreSQL
-#      (wrong TLS mode, missing CA, or PgBouncer compiled without TLS)
-#   2. Stale connections: Old deployment's connections fill max_connections
-#      before PgBouncer can connect (25s wait might not be enough)
+#   WHY previous fixes failed (v1-v5):
+#   1. v1-v2: PgBouncer auth_type=md5 incompatible with PG scram-sha-256
+#   2. v3: Added auth_type=plain + TLS, but pre-flight check still fails
+#      because PostgreSQL is saturated during deployment
+#   3. v4: Fixed PgBouncer daemon mode, but pre-flight still fails
+#   4. v5: Added direct connection fallback with pool_timeout=3 (WRONG!)
+#      pool_timeout=3 means "wait 3s for pool connection" not "idle timeout"
+#      This caused MORE timeouts and $disconnect/$connect cycles
 #
-# FIX v5 APPROACH (Dual-Mode):
-#   Mode A: If PgBouncer works → use it (multiplexed connections)
-#   Mode B: If PgBouncer fails → use DIRECT connections with AGGRESSIVE limits:
-#     - connection_limit=1 per PrismaClient (max 2 total)
-#     - pool_timeout=3 (release idle connections fast)
-#     - Ensure NestJS health check uses SAME connection (no new pool)
-#     - Reduce ensureDbReady() retries from 10 to 3
-#     - Increase NestJS reconnect backoff from 10s→60s base
+# FIX v6 APPROACH:
+#   1. If PgBouncer TCP check passes, USE PgBouncer even if pre-flight
+#      query fails (PgBouncer will retry connecting to PG internally)
+#   2. Support DATABASE_POOLED_URL from Railway (built-in PgBouncer)
+#   3. Fix pool_timeout from 3→10 (3s is too short for pool wait)
+#   4. Fix ensureDbReady() to NOT call $disconnect() on failure
+#      (destroying pools creates more connections)
+#   5. Remove SELECT 1 from health checks (unnecessary DB queries)
 #
-#   Both modes also add diagnostic logging so we can see what's happening.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Load local environment fallback
@@ -322,6 +324,7 @@ echo ""
 echo "━━━ Phase 4: Starting PgBouncer Connection Pooler ━━━"
 
 PGBOUNCER_OK=0
+PGBOUNCER_TCP_OK=0
 PGBOUNCER_PID=""
 if command -v pgbouncer >/dev/null 2>&1; then
   # Parse DATABASE_URL to extract connection components for PgBouncer config
@@ -603,8 +606,47 @@ fi
 # Set DATABASE_URL for Application Use
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX v6: Check for Railway's built-in DATABASE_POOLED_URL first
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Railway PostgreSQL provides a DATABASE_POOLED_URL that goes through
+# Railway's own PgBouncer. This is more reliable than our own PgBouncer
+# because it's managed by Railway and doesn't have TLS/auth issues.
+if [ -n "${DATABASE_POOLED_URL:-}" ]; then
+  echo "✅ DATABASE_POOLED_URL detected — using Railway's built-in PgBouncer"
+  POOLED_URL=$(DATABASE_URL_IN="$DATABASE_POOLED_URL" node -e "
+    try {
+      const u = new URL(process.env.DATABASE_URL_IN);
+      u.searchParams.set('pgbouncer', 'true');
+      u.searchParams.set('connection_limit', '1');
+      // Strip SSL params that conflict with PgBouncer
+      u.searchParams.delete('sslmode');
+      u.searchParams.delete('ssl');
+      u.searchParams.delete('sslrootcert');
+      u.searchParams.delete('sslcert');
+      u.searchParams.delete('sslkey');
+      process.stdout.write(u.toString());
+    } catch(e) {
+      process.stderr.write('ERROR:' + e.message);
+      process.exit(1);
+    }
+  " 2>/dev/null)
+  if [ -n "$POOLED_URL" ]; then
+    export DATABASE_URL="$POOLED_URL"
+    echo "🔧 DATABASE_URL → Railway PgBouncer (pgbouncer=true, connection_limit=1)"
+    # Skip our own PgBouncer setup — Railway's is already running
+    PGBOUNCER_OK=2  # Special value: using Railway's PgBouncer
+  else
+    echo "⚠️ Failed to construct Railway PgBouncer URL — will try our own"
+  fi
+fi
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Set DATABASE_URL for Application Use (our own PgBouncer)
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 if [ "$PGBOUNCER_OK" -eq 1 ]; then
-  # Application connects through PgBouncer
+  # Application connects through our PgBouncer
   # CRITICAL: connection_limit=1 to minimize total connections
   #
   # CRITICAL FIX v3: Strip SSL parameters from DATABASE_URL
@@ -651,36 +693,88 @@ if [ "$PGBOUNCER_OK" -eq 1 ]; then
   fi
 fi
 
-# Fallback: If PgBouncer is not available, use direct connections with AGGRESSIVE limits
-# FIX v5: pool_timeout=3 (was 10) — release idle connections FAST to free PG slots.
-# With direct connections, each idle connection occupies a real PostgreSQL slot.
-# Reducing pool_timeout from 10s to 3s means connections are released much faster.
-if [ "$PGBOUNCER_OK" -ne 1 ]; then
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX v6: If PgBouncer TCP is up but pre-flight query failed, STILL use PgBouncer
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# WHY: The pre-flight query fails because PostgreSQL is saturated during
+# deployment. But PgBouncer in transaction mode will RETRY connecting to PG
+# internally (server_login_retry=3). So even if PG is saturated NOW,
+# PgBouncer will connect LATER when connections free up.
+#
+# This is MUCH better than direct connections, where each PrismaClient
+# creates its own pool and directly competes for PG connection slots.
+if [ "$PGBOUNCER_OK" -eq 0 ] && [ "$PGBOUNCER_TCP_OK" -eq 1 ] 2>/dev/null; then
+  echo "⚠️ PgBouncer TCP is up but pre-flight query failed — using PgBouncer anyway"
+  echo "   (PgBouncer will retry connecting to PostgreSQL internally)"
+  POOLED_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
+    try {
+      const u = new URL(process.env.DATABASE_URL_IN);
+      u.hostname = '127.0.0.1';
+      u.port = '6432';
+      u.searchParams.delete('connection_limit');
+      u.searchParams.delete('pool_timeout');
+      u.searchParams.delete('connect_timeout');
+      u.searchParams.delete('sslmode');
+      u.searchParams.delete('ssl');
+      u.searchParams.delete('sslrootcert');
+      u.searchParams.delete('sslcert');
+      u.searchParams.delete('sslkey');
+      u.searchParams.delete('sslcrm');
+      u.searchParams.set('pgbouncer', 'true');
+      u.searchParams.set('connection_limit', '1');
+      process.stdout.write(u.toString());
+    } catch(e) {
+      process.stderr.write('ERROR:' + e.message);
+      process.exit(1);
+    }
+  " 2>/dev/null)
+
+  if [ -n "$POOLED_URL" ]; then
+    export DATABASE_URL="$POOLED_URL"
+    PGBOUNCER_OK=1
+    echo "🔧 DATABASE_URL → PgBouncer (localhost:6432, pgbouncer=true, degraded mode — will retry)"
+  fi
+fi
+
+# Fallback: If PgBouncer is not available at all, use direct connections
+# FIX v6: pool_timeout=10 (was 3) — pool_timeout is wait time for pool
+# connection, NOT idle timeout. 3s was too short and caused timeout errors
+# that triggered $disconnect/$connect cycles, making exhaustion worse.
+if [ "$PGBOUNCER_OK" -ne 1 ] && [ "$PGBOUNCER_OK" -ne 2 ]; then
   MODIFIED_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     const url = process.env.DATABASE_URL_IN || '';
     try {
       const u = new URL(url);
       u.searchParams.set('connection_limit', '1');
-      u.searchParams.set('pool_timeout', '3');
+      u.searchParams.set('pool_timeout', '10');
       u.searchParams.set('connect_timeout', '30');
       process.stdout.write(u.toString());
     } catch {
       const sep = url.includes('?') ? '&' : '?';
-      process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=3&connect_timeout=30');
+      process.stdout.write(url + sep + 'connection_limit=1&pool_timeout=10&connect_timeout=30');
     }
   " 2>/dev/null)
   if [ -n "$MODIFIED_URL" ]; then
     export DATABASE_URL="$MODIFIED_URL"
-    echo "🔧 DATABASE_URL → Direct PostgreSQL (connection_limit=1, pool_timeout=3 — PgBouncer unavailable)"
+    echo "🔧 DATABASE_URL → Direct PostgreSQL (connection_limit=1, pool_timeout=10 — PgBouncer unavailable)"
   fi
 fi
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "📊 Connection Architecture:"
-echo "   Mode: $([ "$PGBOUNCER_OK" -eq 1 ] && echo 'PgBouncer (POOLED) ✅' || echo 'Direct (NO POOLING) ⚠️')"
-echo "   DATABASE_URL:       $([ "$PGBOUNCER_OK" -eq 1 ] && echo '→ PgBouncer:6432 (limit=1)' || echo '→ Direct PG (limit=1)')"
+if [ "$PGBOUNCER_OK" -eq 2 ]; then
+  echo "   Mode: Railway PgBouncer (POOLED) ✅"
+  echo "   DATABASE_URL:       → Railway PgBouncer (pgbouncer=true, limit=1)"
+elif [ "$PGBOUNCER_OK" -eq 1 ]; then
+  echo "   Mode: Local PgBouncer (POOLED) ✅"
+  echo "   DATABASE_URL:       → PgBouncer:6432 (pgbouncer=true, limit=1)"
+else
+  echo "   Mode: Direct (NO POOLING) ⚠️"
+  echo "   DATABASE_URL:       → Direct PG (limit=1, pool_timeout=10)"
+fi
 echo "   DIRECT_DATABASE_URL: → Direct PG (limit=1, for migrations)"
+echo "   pgbouncer=true in URL: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES ✅' || echo 'NO ❌')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 

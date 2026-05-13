@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v86
+ARG BUILD_CACHE=v87
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -149,4 +149,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v83 - CRITICAL FIX: Stale tsbuildinfo causing incomplete builds + image optimization
+# Build v87 - FIX v6: PgBouncer TCP fallback + pool_timeout fix + no $disconnect on failure

@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v91
+ARG BUILD_CACHE=v92
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -148,4 +148,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v89 - FIX v8: Absolute minimum — zero extra DB connections during startup
+# Build v92 - FIX v10: Remove auto-constructed pooler URLs, fix SSL stripping for Railway

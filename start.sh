@@ -1,24 +1,26 @@
 #!/bin/bash
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Railway Startup Script v8
+# Roua Trading — Railway Startup Script v10
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# FIX v8: ABSOLUTE MINIMUM. Zero extra DB connections during startup.
+# FIX v10: SIMPLE AND RELIABLE. No auto-constructed pooler URLs.
 #
-# Previous versions were creating EXTRA connections during startup:
-#   - Connection cleanup script (pg_terminate_backend)
-#   - PgBouncer setup and pre-flight checks
-#   - Pooler host discovery (TCP probes)
-#   All of these consumed DB connections BEFORE the apps even started!
+# Previous versions tried to AUTO-CONSTRUCT a PgBouncer URL by guessing
+# hostname patterns (adding "-pooler" suffix, etc.). This was UNRELIABLE
+# and often produced WRONG URLs that:
+#   1. Didn't resolve to a real service
+#   2. Caused pgbouncer=true to be added to non-PgBouncer URLs
+#   3. Triggered SSL stripping in PrismaClient code (which breaks
+#      Railway's REMOTE PgBouncer that REQUIRES SSL)
 #
-# v8 approach:
-#   1. Set DATABASE_URL with connection_limit=1
-#   2. If DATABASE_POOLED_URL exists, add pgbouncer=true
-#   3. Run prisma generate + migrate (1 connection, releases after)
-#   4. Start Next.js + NestJS (2 connections total)
-#   5. THAT'S IT. No cleanup, no PgBouncer, no probes.
+# v10 approach:
+#   1. If DATABASE_POOLED_URL exists (Railway provides this) → use it
+#   2. Otherwise → use DATABASE_URL directly (no PgBouncer, no guessing)
+#   3. connection_limit=1 per app → max 2 DB connections total
+#   4. NO auto-construction of pooler URLs — too fragile
+#   5. NO SSL stripping — Railway requires SSL for all connections
 #
-# Total DB connections: 2 (Next.js) + 2 (NestJS) = max 4 at any time
+# Total steady-state DB connections: 2 (1 Next.js + 1 NestJS)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -uo pipefail
@@ -55,7 +57,7 @@ if [ -n "${RAILWAY_PUBLIC_DOMAIN:-}" ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE_URL SETUP — Zero extra connections
+# DATABASE_URL SETUP — Simple & Reliable
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 if [ -z "${DATABASE_URL:-}" ]; then
@@ -65,83 +67,21 @@ fi
 
 ORIG_DB_URL="$DATABASE_URL"
 
-# Step 1: If DATABASE_POOLED_URL is available, use it as the app's DATABASE_URL
-# This goes through Railway's built-in PgBouncer — no local PgBouncer needed
+# Step 1: Use DATABASE_POOLED_URL if available (Railway provides this)
+# This is Railway's OFFICIAL PgBouncer URL — no guessing needed.
+# If it's not set, the user needs to add it in Railway dashboard:
+#   PostgreSQL service → Variables → Reference DATABASE_POOLED_URL
 if [ -n "${DATABASE_POOLED_URL:-}" ]; then
   echo "✅ DATABASE_POOLED_URL detected — using Railway's built-in PgBouncer"
   DATABASE_URL="$DATABASE_POOLED_URL"
-  echo "🔧 DATABASE_URL → Railway PgBouncer"
+  USING_POOLER=1
 else
-  # Step 1.5: Try to AUTO-CONSTRUCT pooled URL from DATABASE_URL
-  # Railway provides DATABASE_POOLED_URL as a separate variable, but it's
-  # often not referenced in the web service. We construct it here.
-  # Railway pooled URL pattern: same URL but port 5432 → port 5432 with -pooler suffix
-  CONSTRUCTED_POOLED=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
-    try {
-      const u = new URL(process.env.DATABASE_URL_IN);
-      const origHost = u.hostname;
-      
-      // Railway internal networking pattern:
-      // Direct: postgres.railway.internal:5432
-      // Pooled: postgres-pooler.railway.internal:5432
-      //
-      // Public pattern:
-      // Direct: containers-us-west-XX.railway.app:XXXX
-      // Pooled: Same host, different port (usually 5432)
-      //
-      // Try common Railway pooler patterns:
-      const poolerHosts = [];
-      
-      // Pattern 1: Replace 'postgres.' with 'postgres-pooler.'
-      if (origHost.startsWith('postgres.')) {
-        poolerHosts.push(origHost.replace('postgres.', 'postgres-pooler.'));
-      }
-      
-      // Pattern 2: Add '-pooler' before .railway.app
-      if (origHost.includes('.railway.app') || origHost.includes('.railway.internal')) {
-        const parts = origHost.split('.');
-        parts[0] = parts[0] + '-pooler';
-        poolerHosts.push(parts.join('.'));
-      }
-      
-      // Pattern 3: Add '-pooler' before any TLD
-      const lastDot = origHost.lastIndexOf('.');
-      if (lastDot > 0) {
-        const base = origHost.substring(0, lastDot);
-        const tld = origHost.substring(lastDot);
-        poolerHosts.push(base + '-pooler' + tld);
-      }
-      
-      // Output first viable candidate
-      if (poolerHosts.length > 0) {
-        // Try the first pattern that's different from original
-        for (const h of poolerHosts) {
-          if (h !== origHost) {
-            u.hostname = h;
-            process.stdout.write(u.toString());
-            process.exit(0);
-          }
-        }
-      }
-      
-      // No pattern matched — output empty
-      process.stdout.write('');
-    } catch {
-      process.stdout.write('');
-    }
-  " 2>/dev/null)
-  
-  if [ -n "$CONSTRUCTED_POOLED" ]; then
-    echo "🔧 Auto-constructed pooled URL from DATABASE_URL"
-    DATABASE_URL="$CONSTRUCTED_POOLED"
-    echo "🔧 DATABASE_URL → Auto-constructed Pooler"
-  else
-    echo "⚠️ No DATABASE_POOLED_URL and couldn't construct one — using direct connection"
-  fi
+  echo "⚠️ No DATABASE_POOLED_URL — using direct connection (connection_limit=1)"
+  USING_POOLER=0
 fi
 
 # Step 2: Set DIRECT_DATABASE_URL for Prisma CLI (migrations)
-# Uses the original DATABASE_URL (not pooled) with connection_limit=1
+# Always uses the ORIGINAL (non-pooled) URL with connection_limit=1
 DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
   const url = process.env.DATABASE_URL_IN || '';
   try {
@@ -155,23 +95,29 @@ DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
 " 2>/dev/null)
 export DIRECT_DATABASE_URL="${DIRECT_DB_URL:-$ORIG_DB_URL}"
 
-# Step 3: Modify DATABASE_URL for PrismaClient usage
-# Add connection_limit=1 and pgbouncer=true if using pooled URL
-APP_DB_URL=$(DATABASE_URL_IN="$DATABASE_URL" ORIG_IN="$ORIG_DB_URL" node -e "
+# Step 3: Configure DATABASE_URL for PrismaClient
+# - Always set connection_limit=1 and pool_timeout=10
+# - Add pgbouncer=true ONLY if using Railway's official pooled URL
+# - DO NOT strip SSL params — Railway requires SSL for all connections
+APP_DB_URL=$(DATABASE_URL_IN="$DATABASE_URL" POOLER="$USING_POOLER" node -e "
   const url = process.env.DATABASE_URL_IN || '';
-  const origUrl = process.env.ORIG_IN || '';
+  const pooler = process.env.POOLER === '1';
   try {
     const u = new URL(url);
     u.searchParams.set('connection_limit', '1');
     u.searchParams.set('pool_timeout', '10');
     u.searchParams.set('connect_timeout', '30');
 
-    // If DATABASE_URL differs from original, it's a pooled URL
-    if (url !== origUrl) {
+    // Only add pgbouncer=true if we're using Railway's official pooled URL
+    // This tells Prisma to use PgBouncer-compatible mode (no prepared statements)
+    if (pooler) {
       u.searchParams.set('pgbouncer', 'true');
-      // Pooled URLs through PgBouncer should not have sslmode for localhost
-      // But Railway's PgBouncer is NOT localhost, so keep sslmode
     }
+
+    // DO NOT strip SSL params — Railway's remote PgBouncer REQUIRES SSL
+    // The old code stripped sslmode/ssl when pgbouncer=true, which was
+    // correct for LOCAL PgBouncer (localhost:6432) but WRONG for Railway's
+    // REMOTE PgBouncer which needs SSL to connect.
 
     process.stdout.write(u.toString());
   } catch {
@@ -182,23 +128,23 @@ export DATABASE_URL="${APP_DB_URL:-$DATABASE_URL}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v9)"
+echo "🚀 Roua Trading — Starting (v10)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "DATABASE_URL host:    $(echo $DATABASE_URL | node -e "try{const u=new URL(require('fs').readFileSync('/dev/stdin','utf8'));process.stdout.write(u.hostname+':'+u.port)}catch{process.stdout.write('PARSE_ERROR')}" 2>/dev/null)"
-echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO')"
-echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET]} ${DATABASE_POOLED_URL:-[NOT SET]}"
-echo "DIRECT_DATABASE_URL:  [SET]"
+echo "DATABASE_URL pgbouncer: $(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES ✅ (Railway pooler)' || echo 'NO (direct connection)')"
+echo "DATABASE_POOLED_URL:  ${DATABASE_POOLED_URL:+[SET]} ${DATABASE_POOLED_URL:-[NOT SET — add in Railway dashboard!]}"
+echo "DIRECT_DATABASE_URL:  [SET — for migrations only]"
 echo "ORIGIN:               ${ORIGIN:-not set}"
 echo "NODE_ENV:             ${NODE_ENV:-development}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE CONNECTIVITY TEST — Verify DB is reachable
+# DATABASE CONNECTIVITY TEST — Quick check only
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
 echo "━━━ Database Connectivity Test ━━━"
 DB_REACHABLE=0
-for DB_TRY in 1 2 3 4 5; do
+for DB_TRY in 1 2 3; do
   DB_TEST_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
     const { Client } = require('pg');
     async function test() {
@@ -224,7 +170,7 @@ for DB_TRY in 1 2 3 4 5; do
     }
     test();
   " 2>&1)
-  
+
   if echo "$DB_TEST_RESULT" | grep -q "DB_OK"; then
     INFO=$(echo "$DB_TEST_RESULT" | grep "DB_OK")
     echo "✅ Database reachable: $INFO"
@@ -232,21 +178,15 @@ for DB_TRY in 1 2 3 4 5; do
     break
   else
     ERR=$(echo "$DB_TEST_RESULT" | grep -o 'DB_ERROR:.*' | head -1)
-    echo "⚠️ Database unreachable (attempt $DB_TRY/5): $ERR"
-    if [ "$DB_TRY" -lt 5 ]; then
+    echo "⚠️ Database unreachable (attempt $DB_TRY/3): $ERR"
+    if [ "$DB_TRY" -lt 3 ]; then
       sleep 5
     fi
   fi
 done
 
 if [ "$DB_REACHABLE" -ne 1 ]; then
-  echo "❌ FATAL: Database is not reachable after 5 attempts!"
-  echo "   The apps will start but database features will not work."
-  echo "   This usually means:"
-  echo "   1. Railway PostgreSQL is paused or hibernated (free tier)"
-  echo "   2. max_connections is exhausted by other deployments"
-  echo "   3. Network connectivity issue between services"
-  echo "   Check: https://railway.app/dashboard → PostgreSQL service"
+  echo "⚠️ Database not reachable — apps will start and retry in background"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -364,7 +304,7 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo "✅ Roua Trading is running!"
 echo "   Next.js:  port $ACTUAL_WEB_PORT (PID: $WEB_PID)"
 echo "   NestJS:   port ${API_PORT:-3001} (PID: $API_PID)"
-echo "   DB:       pgbouncer=$(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES' || echo 'NO (direct)')"
+echo "   DB:       pgbouncer=$(echo $DATABASE_URL | grep -q 'pgbouncer=true' && echo 'YES ✅ (Railway pooler)' || echo 'NO (direct, connection_limit=1)')"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 wait

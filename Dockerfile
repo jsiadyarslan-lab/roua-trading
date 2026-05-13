@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v87
+ARG BUILD_CACHE=v88
 
 # ─────────────────────────────────────────────────────────────
 # Stage 1: Install dependencies
@@ -86,10 +86,9 @@ RUN cd apps/web && next build --webpack
 FROM node:22-slim AS runner
 
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
-# PgBouncer: Connection pooler — multiplexes many app connections onto few real PG connections
-# This is the SUSTAINABLE fix for "too many clients already" on Railway's low max_connections.
-# procps: Provides pgrep/pkill for PgBouncer process management in start.sh
-RUN apt-get update -y && apt-get install -y openssl curl bash pgbouncer procps && rm -rf /var/lib/apt/lists/*
+# procps: Provides pgrep/pkill for process management in start.sh
+# NOTE: PgBouncer removed in v7 — using Railway's built-in pooler or direct connections
+RUN apt-get update -y && apt-get install -y openssl curl bash procps && rm -rf /var/lib/apt/lists/*
 
 # Security: run as non-root user
 RUN groupadd --system --gid 1001 roua \
@@ -149,4 +148,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v87 - FIX v6: PgBouncer TCP fallback + pool_timeout fix + no $disconnect on failure
+# Build v88 - FIX v7: Remove PgBouncer, use Railway pooler or direct connections

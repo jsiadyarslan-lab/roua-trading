@@ -200,28 +200,33 @@ export default function NewsPage() {
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6, flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexWrap: 'wrap' }}>
           <div style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 40, height: 40, borderRadius: 12,
+            width: 44, height: 44, borderRadius: 14,
             background: 'linear-gradient(135deg, #0A84FF, #00C8FF)',
+            boxShadow: '0 4px 16px rgba(0,212,255,0.25)',
           }}>
-            <Newspaper size={20} color="white" />
+            <Newspaper size={22} color="white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار</h1>
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 5,
-            padding: '3px 10px', borderRadius: 20,
-            background: `${T.red}14`, border: `0.5px solid ${T.red}33`,
-          }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, animation: 'live-dot 1.8s ease-in-out infinite' }} />
-            <span style={{ fontSize: 10, color: T.red, fontFamily: FONT_MONO }}>LIVE</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>غرفة الأخبار</h1>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '3px 10px', borderRadius: 20,
+                background: `${T.red}14`, border: `0.5px solid ${T.red}33`,
+              }}>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.red, animation: 'live-dot 1.8s ease-in-out infinite' }} />
+                <span style={{ fontSize: 10, color: T.red, fontFamily: FONT_MONO, fontWeight: 800 }}>LIVE</span>
+              </div>
+            </div>
+            <p style={{ margin: '2px 0 0', fontSize: 12, color: T.text3 }}>
+              أخبار مالية مترجمة من رؤى للأخبار — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
+            </p>
           </div>
         </div>
-        <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          أخبار مالية مترجمة مع تحليل AI — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
-        </p>
       </div>
 
       {/* Tab Bar */}
@@ -296,20 +301,21 @@ export default function NewsPage() {
       ) : (
       <>
 
-      {/* Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
+      {/* Stats Pills */}
+      <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
         {[
-          { icon: Globe, label: `${stats.total} خبر`, color: T.cyan },
-          { icon: TrendingUp, label: `${stats.positive} إيجابي`, color: T.green },
-          { icon: TrendingDown, label: `${stats.negative} سلبي`, color: T.red },
-          { icon: Zap, label: `${stats.high} عالي الأثر`, color: T.amber },
+          { icon: Globe, label: `${stats.total} خبر`, color: T.cyan, bg: `${T.cyan}0D` },
+          { icon: TrendingUp, label: `${stats.positive} إيجابي`, color: T.green, bg: `${T.green}0D` },
+          { icon: TrendingDown, label: `${stats.negative} سلبي`, color: T.red, bg: `${T.red}0D` },
+          { icon: Zap, label: `${stats.high} عالي الأثر`, color: T.amber, bg: `${T.amber}0D` },
         ].map((f, i) => (
           <div key={i} style={{
-            background: T.card, border: `1px solid ${T.border}`,
-            borderRadius: 14, padding: '16px', textAlign: 'center',
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: f.bg, border: `1px solid ${f.color}22`,
+            borderRadius: 12, padding: '8px 14px',
           }}>
-            <f.icon size={24} color={f.color} style={{ marginBottom: 8 }} />
-            <div style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{f.label}</div>
+            <f.icon size={16} color={f.color} />
+            <span style={{ fontSize: 12, fontWeight: 700, color: f.color, fontFamily: FONT_AR }}>{f.label}</span>
           </div>
         ))}
       </div>
@@ -469,37 +475,37 @@ export default function NewsPage() {
                   animation: `fade-in 0.25s ease-out ${index * 30}ms both`,
                 }}
               >
-                <div style={{ padding: '18px 20px' }}>
-                  {/* Top bar: badges and time */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+                <div style={{ padding: '20px 22px' }}>
+                  {/* Top: badges row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
                     {item.categoryAr && (
                       <span style={{
-                        fontSize: 10, padding: '3px 8px', borderRadius: 99,
-                        background: `${T.cyan}14`, color: T.cyan, fontWeight: 800,
+                        fontSize: 10, padding: '3px 9px', borderRadius: 8,
+                        background: `${T.cyan}12`, color: T.cyan, fontWeight: 800,
+                        border: `0.5px solid ${T.cyan}22`,
                       }}>
                         {item.categoryAr}
                       </span>
                     )}
                     <span style={{
-                      fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                      fontSize: 10, padding: '3px 9px', borderRadius: 8,
                       background: sentiment.bg, color: sentiment.color, fontWeight: 800,
-                      display: 'flex', alignItems: 'center', gap: 4,
+                      display: 'flex', alignItems: 'center', gap: 3,
                     }}>
                       <SentimentIcon size={10} />
                       {sentiment.text}
                     </span>
                     <span style={{
-                      fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                      fontSize: 10, padding: '3px 9px', borderRadius: 8,
                       background: impact.bg, color: impact.color, fontWeight: 800,
                     }}>
                       {impact.text}
                     </span>
-                    {/* FIX React Error #31: AI may return objects instead of strings */}
                     {Array.isArray(item.affectedAssets) && item.affectedAssets.length > 0 && item.affectedAssets.map((asset, i) => (
                       <span key={i} style={{
-                        fontSize: 9, padding: '2px 6px', borderRadius: 6,
-                        background: `${T.cyan}14`, color: T.cyan, fontWeight: 800,
-                        fontFamily: FONT_MONO,
+                        fontSize: 9, padding: '2px 7px', borderRadius: 6,
+                        background: `${T.amber}12`, color: T.amber, fontWeight: 800,
+                        fontFamily: FONT_MONO, border: `0.5px solid ${T.amber}22`,
                       }}>
                         {safeStr(asset)}
                       </span>
@@ -510,42 +516,52 @@ export default function NewsPage() {
                     </span>
                   </div>
 
-                  {/* Translated Title (Arabic - main) */}
-                  {item.translatedTitle && item.translatedTitle !== item.title && (
+                  {/* Arabic Title (hero) */}
+                  {item.translatedTitle && item.translatedTitle !== item.title ? (
                     <h3 style={{
-                      color: T.text, fontSize: 16, fontWeight: 800, margin: '0 0 6px',
-                      lineHeight: 1.6,
+                      color: T.text, fontSize: 17, fontWeight: 800, margin: '0 0 8px',
+                      lineHeight: 1.65,
                     }}>
                       {item.translatedTitle}
                     </h3>
+                  ) : (
+                    <h3 style={{
+                      color: T.text, fontSize: 17, fontWeight: 800, margin: '0 0 8px',
+                      lineHeight: 1.65,
+                    }}>
+                      {item.title}
+                    </h3>
                   )}
 
-                  {/* Original Title */}
-                  <p style={{
-                    color: T.text3, fontSize: 12, margin: '0 0 10px',
-                    direction: 'ltr', textAlign: 'left',
-                    fontFamily: FONT_MONO,
-                  }}>
-                    {item.title}
-                  </p>
+                  {/* Original English title (if different) */}
+                  {item.translatedTitle && item.translatedTitle !== item.title && (
+                    <p style={{
+                      color: T.text3, fontSize: 11.5, margin: '0 0 12px',
+                      direction: 'ltr', textAlign: 'left',
+                      fontFamily: FONT_MONO, opacity: 0.7,
+                    }}>
+                      {item.title}
+                    </p>
+                  )}
 
                   {/* Summary */}
                   {item.summary && (
-                    <p style={{
-                      color: T.text2, fontSize: 13, margin: '0 0 12px',
-                      lineHeight: 1.7, padding: '8px 12px',
-                      background: 'rgba(10,132,255,0.06)', borderRadius: 10,
-                      borderRight: `2px solid ${T.cyan}44`,
+                    <div style={{
+                      color: T.text2, fontSize: 13, margin: '0 0 14px',
+                      lineHeight: 1.75, padding: '10px 14px',
+                      background: `${T.cyan}06`, borderRadius: 10,
+                      borderRight: `2.5px solid ${sentiment.color}55`,
                     }}>
                       {item.summary}
-                    </p>
+                    </div>
                   )}
 
                   {/* Bottom bar */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 11, color: T.text3 }}>
-                        المصدر: {item.source || 'غير معروف'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Globe size={11} />
+                        {item.source || 'غير معروف'}
                       </span>
                       <span style={{ fontSize: 10, color: T.text3 }}>
                         {formatTime(item.publishedAt)}
@@ -557,14 +573,15 @@ export default function NewsPage() {
                           onClick={() => setExpandedId(isExpanded ? null : item.id)}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 4,
-                            padding: '4px 10px', borderRadius: 8,
-                            background: `${T.cyan}14`, border: `1px solid ${T.cyan}33`,
+                            padding: '5px 12px', borderRadius: 8,
+                            background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
                             color: T.cyan, cursor: 'pointer', fontSize: 10,
                             fontWeight: 800, fontFamily: FONT_AR,
+                            transition: 'all 0.15s',
                           }}
                         >
                           <Brain size={12} />
-                          اقرأ التحليل الكامل
+                          تحليل AI
                           {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                         </button>
                       )}
@@ -575,8 +592,11 @@ export default function NewsPage() {
                           rel="noreferrer"
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4,
-                            color: T.cyan, fontSize: 10, fontWeight: 800,
+                            color: T.text3, fontSize: 10, fontWeight: 700,
                             textDecoration: 'none', fontFamily: FONT_AR,
+                            padding: '5px 10px', borderRadius: 8,
+                            background: T.glass, border: `1px solid ${T.border}`,
+                            transition: 'color 0.15s',
                           }}
                         >
                           المصدر <ExternalLink size={10} />
@@ -589,13 +609,13 @@ export default function NewsPage() {
                 {/* Expanded AI Analysis */}
                 {isExpanded && item.aiAnalysis && (
                   <div style={{
-                    padding: '16px 20px',
+                    padding: '18px 22px',
                     borderTop: `1px solid ${T.border}`,
-                    background: 'rgba(10,132,255,0.03)',
+                    background: `${T.cyan}04`,
                   }}>
                     <div style={{
                       display: 'flex', alignItems: 'center', gap: 8,
-                      marginBottom: 10,
+                      marginBottom: 12,
                     }}>
                       <Brain size={16} color={T.cyan} />
                       <span style={{ fontSize: 13, fontWeight: 800, color: T.cyan }}>

@@ -91,3 +91,5 @@ download/
 .turbo/
 __pycache__/
 *.pyc
+skills/
+examples/

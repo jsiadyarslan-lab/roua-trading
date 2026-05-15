@@ -7,6 +7,7 @@ import { ScoreGauge } from '../shared/ScoreGauge'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
+import { safeStr } from '@/lib/utils'
 
 const T = {
   bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335', surface: '#1A1D29',
@@ -110,7 +111,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               fontSize: 8, color: T.text3, fontWeight: 600,
               fontFamily: "'Cairo', sans-serif",
             }}>
-              {item.name}
+              {safeStr(item.name)}
             </div>
           </div>
           <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />
@@ -185,7 +186,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
             fontFamily: "'Cairo', sans-serif",
             lineHeight: 1.4,
           }}>
-            {typeof item.aiOpinion === 'string' ? item.aiOpinion : typeof item.aiOpinion === 'object' && item.aiOpinion !== null ? JSON.stringify(item.aiOpinion) : String(item.aiOpinion)}
+            {safeStr(item.aiOpinion)}
           </div>
         ) : (
           <span style={{ fontSize: 9, color: T.text3 }}>—</span>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { sanitizeScannerItems } from '@/lib/utils'
 
 export interface SmartScore {
   trendScore: number
@@ -71,7 +72,9 @@ export function useScannerData(options: UseScannerDataOptions = {}) {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const j = await res.json()
       if (j.success && j.items) {
-        setScanData(j.items)
+        // FIX: Sanitize scanner data to prevent React Error #31.
+        // AI models or backend might return objects instead of strings for some fields.
+        setScanData(sanitizeScannerItems(j.items))
         setError(null)
       }
     } catch (e: any) {

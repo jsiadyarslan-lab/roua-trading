@@ -8,6 +8,7 @@ import { SmartScoreBar } from '../shared/SmartScoreBar'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import type { ScannerItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
+import { sanitizeDeepAnalysis } from '@/lib/utils'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -88,7 +89,7 @@ export function DeepAnalysisModal() {
         if (stale) return
         if (!res.ok) throw new Error('Failed')
         const j = await res.json()
-        if (!stale && j.success && j.data) setData(j.data)
+        if (!stale && j.success && j.data) setData(sanitizeDeepAnalysis(j.data))
         else if (!stale) setData(null)
       } catch { if (!stale) setData(null) }
       if (!stale) setLoading(false)

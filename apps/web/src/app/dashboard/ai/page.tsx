@@ -9,6 +9,7 @@ import {
   CircleDot, Flame, Eye, Crosshair, ArrowUpRight, ArrowDownRight, Minus
 } from 'lucide-react'
 import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
+import { sanitizeCouncilResult, safeStr } from '@/lib/utils'
 
 // ── Theme ──
 import { T } from '@/lib/unified-tokens'
@@ -339,7 +340,11 @@ export default function AIPage() {
       })
       const json = await res.json()
       if (json.success && json.data) {
-        setCouncilResult({ ...json.data, source: json.data.analyses?.length > 0 ? 'nestjs' : 'local' })
+        // FIX: Sanitize council data to prevent React Error #31.
+        // AI models sometimes return objects (e.g., {symbol, name, direction, impactDegree, reason, isTradable})
+        // instead of plain strings for fields like vote.reason, vote.role, etc.
+        const sanitized = sanitizeCouncilResult(json.data)
+        setCouncilResult({ ...sanitized, source: sanitized.analyses?.length > 0 ? 'nestjs' : 'local' })
       }
     } catch {
       // If consensus fails, show empty result
@@ -1097,7 +1102,7 @@ export default function AIPage() {
                           marginBottom: 4,
                         }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
-                            {typeof vote.role === 'string' ? vote.role : String(vote.role ?? '')}
+                            {safeStr(vote.role)}
                           </span>
                           <span style={{
                             fontSize: 9, padding: '2px 6px', borderRadius: 4,
@@ -1113,11 +1118,11 @@ export default function AIPage() {
                           overflow: 'hidden', textOverflow: 'ellipsis',
                           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                         }}>
-                          {typeof vote.reason === 'string' ? vote.reason : typeof vote.reason === 'object' && vote.reason !== null ? JSON.stringify(vote.reason) : String(vote.reason ?? '')}
+                          {safeStr(vote.reason)}
                         </div>
                         {vote.model && (
                           <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {typeof vote.model === 'string' ? vote.model : String(vote.model ?? '')}
+                            {safeStr(vote.model)}
                           </div>
                         )}
                       </div>
@@ -1132,7 +1137,7 @@ export default function AIPage() {
                       fontSize: 10, color: T.text2, lineHeight: 1.6,
                     }}>
                       <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>الاستراتيجية الرئيسية</div>
-                      {typeof councilResult.masterStrategy === 'string' ? councilResult.masterStrategy : String(councilResult.masterStrategy ?? '')}
+                      {safeStr(councilResult.masterStrategy)}
                     </div>
                   )}
                 </>

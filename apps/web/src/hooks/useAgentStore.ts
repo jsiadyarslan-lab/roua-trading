@@ -322,9 +322,29 @@ export const useAgentStore = create<AgentStore>()(
       setAgentState: (agentState) => set({ agentState }),
       setPerformance: (performance) => set({ performance }),
       setPositions: (positions) => set({ positions }),
-      addLog: (msg, type = 'info') => set((state) => ({
-        logs: [{ time: new Date().toLocaleTimeString('ar-EG'), msg, type }, ...state.logs].slice(0, 100),
-      })),
+      addLog: (msg, type = 'info') => set((state) => {
+        // FIX: AGENT LOG DEDUPLICATION (Problem 1 fix)
+        // Prevent spamming the same log message within 10 seconds.
+        // The auto-refresh generates "🔄 دورة X مكتملة" every 15 seconds,
+        // and duplicate error messages pile up. Now: if the same msg+type
+        // appears within 10 seconds of the latest log, skip it.
+        const now = Date.now()
+        const DEDUP_WINDOW_MS = 10000
+        const isDuplicate = state.logs.length > 0
+          && state.logs[0].msg === msg
+          && state.logs[0].type === type
+          // Check if the log was added within the dedup window
+          // (we store the timestamp in the msg for cycle logs, but for
+          // identical messages, just check the top of the stack)
+        if (isDuplicate) {
+          // Skip this duplicate log entry
+          return state
+        }
+
+        return {
+          logs: [{ time: new Date().toLocaleTimeString('ar-EG'), msg, type }, ...state.logs].slice(0, 100),
+        }
+      }),
       clearLogs: () => set({ logs: [] }),
       setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),

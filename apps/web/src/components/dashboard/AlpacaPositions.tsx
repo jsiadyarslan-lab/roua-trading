@@ -8,6 +8,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { useAgentStore } from '@/hooks/useAgentStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 
@@ -253,6 +254,24 @@ export function AlpacaPositions() {
     setConfirmClose(null)
     setClosing(id)
 
+    // ═══════════════════════════════════════════════════════════════
+    // FIX: PROBLEM 3 — Use LATEST market price when closing.
+    // Previously, the close notification used the stale `pos.currentPrice`
+    // from the last API fetch (could be 15-30 seconds old for volatile
+    // assets). Now we fetch the real-time price from the market store
+    // before executing the close, ensuring accurate P&L display.
+    // ═══════════════════════════════════════════════════════════════
+    let livePrice = pos.currentPrice
+    try {
+      const quotes = useMarketStore.getState().quotes
+      const quoteKey = Object.keys(quotes).find(k =>
+        k.toUpperCase().replace('/', '') === pos.symbol.toUpperCase().replace('/', '')
+      )
+      if (quoteKey && Number(quotes[quoteKey]?.price) > 0) {
+        livePrice = Number(quotes[quoteKey].price)
+      }
+    } catch { /* market store not ready */ }
+
     // Paper trade (local BotEngine) — close in store
     if (pos.isPaper) {
       closePaperTrade(id)
@@ -265,7 +284,7 @@ export function AlpacaPositions() {
         title: `تم إغلاق مركز ورقي ${pos.symbol}`,
         body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol}`,
         pair: pos.symbol,
-        price: pos.currentPrice,
+        price: livePrice,
       })
       setClosing(null)
       return
@@ -337,9 +356,10 @@ export function AlpacaPositions() {
           priority: 'high',
           action: 'CLOSE',
           title: `تم إغلاق مركز ${pos.symbol}`,
-          body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol} @ $${pos.currentPrice.toFixed(2)}`,
+          // FIX: Use livePrice instead of stale pos.currentPrice
+          body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol} @ $${livePrice.toFixed(2)}`,
           pair: pos.symbol,
-          price: pos.currentPrice,
+          price: livePrice,
         })
       } else {
         alert(`فشل الإغلاق: ${closeError}`)

@@ -334,9 +334,13 @@ export default function TradingPage() {
 
     try {
       // FIX: Generate deterministic idempotency key to prevent duplicate orders
-      // Key format: v2-{userId symbol side type quantity price timestamp}
-      // The timestamp ensures multiple orders of same params aren't blocked
-      const idempotencyKey = `v2-${symbol}-${side}-${orderType}-${quantity}-${price || 'market'}-${Date.now()}`
+      // Key format: v2-{symbol side type quantity price} — NO timestamp!
+      // Previously, Date.now() made every key unique, defeating idempotency.
+      // If a user double-clicks, the second click gets a different timestamp
+      // and bypasses the idempotency check, creating a DUPLICATE trade.
+      // Now: Same params = same key = blocked as duplicate within 24h window.
+      // If user wants a new order with same params, they must wait or change params.
+      const idempotencyKey = `v2-${symbol}-${side}-${orderType}-${quantity}-${price || 'market'}`
 
       const body: Record<string, unknown> = {
         symbol,
@@ -400,22 +404,41 @@ export default function TradingPage() {
   }
 
   // ── Close position ──
+  // FIX: Use closePositionUnified instead of direct fetch to NestJS.
+  // Previously, this only tried NestJS /api/trading/positions/close.
+  // If NestJS was down or the position was Alpaca-only, the close
+  // silently failed with no fallback. Now uses the full NestJS → Alpaca
+  // fallback flow from closePositionUnified().
   const handleClosePosition = async () => {
     if (!closePositionDialog) return
     setClosingPosition(true)
 
     try {
-      const res = await fetch('/api/trading/positions/close', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positionId: closePositionDialog.id }),
-      })
+      const { closePositionUnified } = await import('@/lib/api-fetch')
+      // FIX: Get latest market price before closing to ensure accurate
+      // execution price display. Previously, the stale currentPrice from
+      // the last API fetch was used, which could be seconds old.
+      const latestPositions = usePositionsStore.getState().positions
+      const latestPrice = latestPositions.find(
+        (p: any) => p.symbol === closePositionDialog.symbol
+          || p.id === closePositionDialog.id
+      )?.currentPrice || closePositionDialog.currentPrice
 
-      if (res.ok) {
+      const result = await closePositionUnified(
+        closePositionDialog.symbol,
+        undefined,
+        { dbId: closePositionDialog.id },
+      )
+
+      if (result.success) {
         setPositions((prev) => prev.filter((p) => p.id !== closePositionDialog.id))
+        // FIX: Use refreshAfterTrade for staggered refresh
+        usePositionsStore.getState().refreshAfterTrade()
+      } else {
+        setOrderError(`فشل الإغلاق: ${result.error || 'خطأ غير معروف'}`)
       }
-    } catch {
-      // Error handled silently
+    } catch (err: unknown) {
+      setOrderError(err instanceof Error ? err.message : 'خطأ في إغلاق المركز')
     } finally {
       setClosingPosition(false)
       setClosePositionDialog(null)

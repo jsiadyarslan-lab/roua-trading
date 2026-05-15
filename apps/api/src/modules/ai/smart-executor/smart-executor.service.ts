@@ -1163,7 +1163,17 @@ export class SmartExecutorService implements OnModuleDestroy {
     for (const brief of briefs) {
       // Skip already processed briefs (per user) — Redis-backed for crash safety
       const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
-      const alreadyProcessed = await this.redis.get(processedKey);
+      // FIX: Check DB as fallback — Redis may have been cleared on restart
+      // causing duplicate executions. DB is the source of truth.
+      let alreadyProcessed = await this.redis.get(processedKey);
+      if (!alreadyProcessed) {
+        try {
+          const dbCheck = await this.prisma.setting.findFirst({
+            where: { key: `${processedKey}:db` },
+          });
+          if (dbCheck && dbCheck.value) alreadyProcessed = dbCheck.value;
+        } catch { /* non-critical */ }
+      }
       if (alreadyProcessed) {
         this.logger.debug(`⚔️ Skipping already-processed brief ${brief.id} for user ${userId}`);
         continue;
@@ -1261,26 +1271,31 @@ export class SmartExecutorService implements OnModuleDestroy {
     // 1. Paper orders are simulated — no real exchange connection needed
     // 2. Price fetch failures (common on Railway) were blocking ALL paper trades
     // 3. The brief itself is the signal — paper trading should just execute it
-    let currentPrice: number = brief.entryPrice;
+    // FIX: ALWAYS fetch live price — for both paper and real trading.
+    // Using brief.entryPrice (from 15 minutes ago) causes trades to open
+    // far from the actual market price on the chart.
+    // Paper trading simulates at CURRENT price, not the stale brief price.
+    let currentPrice: number = 0;
+
+    try {
+      const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
+      if (marketData?.price > 0) currentPrice = marketData.price;
+    } catch {}
+
+    if (!currentPrice || currentPrice <= 0) {
+      try {
+        const quote = await this.exchangeService.getQuote(brief.pair);
+        if (quote?.price > 0) currentPrice = quote.price;
+      } catch {}
+    }
+
+    // If we still can't get price, fall back to brief entry price
+    if (!currentPrice || currentPrice <= 0) {
+      currentPrice = brief.entryPrice;
+      this.logger.debug(`⚔️ Using brief entry price as fallback for ${brief.pair}: ${currentPrice}`);
+    }
 
     if (!userState.isPaperTrading) {
-      // Real trading: Must verify live price before execution
-      // FIX: Use orchestrator's fetchQuickMarketData first (multiple parallel sources,
-      // works on Railway), then fall back to ExchangeService.
-      try {
-        const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
-        currentPrice = marketData.price;
-      } catch {}
-
-      if (!currentPrice || currentPrice <= 0) {
-        try {
-          const quote = await this.exchangeService.getQuote(brief.pair);
-          currentPrice = quote.price;
-        } catch (priceErr: any) {
-          this.logger.debug(`⚔️ Cannot get price for ${brief.pair}: ${priceErr.message} — skipping brief ${brief.id}`);
-          return; // Can't get price — skip
-        }
-      }
 
       // FIX: Validate fetched price against brief's entry price.
       // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
@@ -1330,7 +1345,16 @@ export class SmartExecutorService implements OnModuleDestroy {
       if (result.success) {
         // Mark as processed in Redis (survives restarts — 24h TTL matches brief lifecycle)
         const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
-        await this.redis.set(processedKey, JSON.stringify({ orderId: result.orderId, executedAt: new Date().toISOString() }), 86400000);
+        const processedValue = JSON.stringify({ orderId: result.orderId, executedAt: new Date().toISOString() });
+        await this.redis.set(processedKey, processedValue, 86400000);
+        // FIX: Also save to DB so dedup survives Redis restart
+        try {
+          await this.prisma.setting.upsert({
+            where: { key: `${processedKey}:db` },
+            update: { value: processedValue },
+            create: { key: `${processedKey}:db`, value: processedValue },
+          });
+        } catch { /* non-critical */ }
         this.totalExecutions++;
 
         this.logger.log(
@@ -1648,6 +1672,30 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Brief ${brief.id} has no stop-loss — execution BLOCKED for user ${userId}`);
         return result;
       }
+      // FIX: Recalculate SL/TP from current price if brief price is stale
+      // A brief from 15 minutes ago has SL/TP based on old entry price.
+      // Using stale SL/TP causes incorrect risk levels.
+      const priceShift = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
+      let execStopLoss = brief.stopLoss;
+      let execTakeProfit = brief.takeProfit;
+      if (priceShift > 0.001) { // Price moved more than 0.1% from brief
+        const rr = brief.direction === 'BUY'
+          ? { sl: 1 - (brief.entryPrice - brief.stopLoss) / brief.entryPrice,
+              tp: 1 + (brief.takeProfit - brief.entryPrice) / brief.entryPrice }
+          : { sl: 1 + (brief.stopLoss - brief.entryPrice) / brief.entryPrice,
+              tp: 1 - (brief.entryPrice - brief.takeProfit) / brief.entryPrice };
+        execStopLoss = brief.direction === 'BUY'
+          ? currentPrice * rr.sl
+          : currentPrice * rr.sl;
+        execTakeProfit = brief.direction === 'BUY'
+          ? currentPrice * rr.tp
+          : currentPrice * rr.tp;
+        this.logger.debug(
+          `⚔️ Adjusted SL/TP for ${brief.pair}: entry ${brief.entryPrice}→${currentPrice}, ` +
+          `SL ${brief.stopLoss}→${execStopLoss.toFixed(4)}, TP ${brief.takeProfit}→${execTakeProfit.toFixed(4)}`
+        );
+      }
+
       const dispatchResult = await this.orderDispatcher.submitOrder({
         source: 'smart_executor',
         userId,
@@ -1656,8 +1704,8 @@ export class SmartExecutorService implements OnModuleDestroy {
         side: brief.direction as 'BUY' | 'SELL',
         quantity,
         price: currentPrice,
-        stopLoss: brief.stopLoss,
-        takeProfit: brief.takeProfit,
+        stopLoss: execStopLoss,
+        takeProfit: execTakeProfit,
         briefId: brief.id,
         isPaperTrading: userState.isPaperTrading,
       });

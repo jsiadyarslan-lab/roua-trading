@@ -255,13 +255,25 @@ export class RiskCalculatorService {
    * Check if daily loss limit has been reached
    */
   async isDailyLimitReached(userId: string, maxDailyLossPercent: number): Promise<boolean> {
-    const dailyPnL = await this._getDailyPnL(userId);
+    // FIX: Only count REALIZED losses from closed trades (EXIT type).
+    // Previously counted unrealizedPnl from open positions — any small paper loss
+    // immediately triggered the daily limit and stopped the agent.
+    // Now: only closed trade pnl counts toward the daily limit.
+    const dailyPnL = await this._getDailyPnL(userId); // already filters EXIT trades only
     const portfolioValue = await this._getPortfolioValue(userId);
 
     if (portfolioValue <= 0) return false;
+    // No realized losses today → never blocked
+    if (dailyPnL >= 0) return false;
 
-    const lossPercent = (Math.abs(Math.min(0, dailyPnL)) / portfolioValue) * 100;
-    return lossPercent >= maxDailyLossPercent;
+    const lossPercent = (Math.abs(dailyPnL) / portfolioValue) * 100;
+    if (lossPercent >= maxDailyLossPercent) {
+      this.logger.warn(
+        `🛡️ Daily loss limit reached: ${lossPercent.toFixed(2)}% >= ${maxDailyLossPercent}%`
+      );
+      return true;
+    }
+    return false;
   }
 
   /**

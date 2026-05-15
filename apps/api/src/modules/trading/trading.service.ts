@@ -827,7 +827,8 @@ export class TradingService {
       // won't match and the update will affect 0 rows — we detect this and retry.
       if (closeQuantity >= posQuantity) {
         const updateResult = await tx.position.updateMany({
-          where: { id: position.id, version: positionVersion },
+          // FIX: For paper trading, skip version check — no real exchange race condition
+          where: { id: position.id, ...(position.exchange === 'paper-trading' ? {} : { version: positionVersion }) },
           data: {
             status: 'CLOSED',
             closedAt: new Date(),
@@ -841,7 +842,8 @@ export class TradingService {
         }
       } else {
         const updateResult = await tx.position.updateMany({
-          where: { id: position.id, version: positionVersion },
+          // FIX: For paper trading, skip version check — no real exchange race condition
+          where: { id: position.id, ...(position.exchange === 'paper-trading' ? {} : { version: positionVersion }) },
           data: {
             quantity: posQuantity - closeQuantity,
             realizedPnl: posRealizedPnl + pnl,

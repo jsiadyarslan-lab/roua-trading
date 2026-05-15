@@ -6,6 +6,7 @@ import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-r
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
 import { T as _T, getPnlColor } from '@/lib/unified-tokens'
+import { safeStr } from '@/lib/utils'
 
 const T = {
   ..._T,
@@ -86,14 +87,14 @@ export function DesktopNewsPanel() {
         {loading && <div style={{ fontSize: 11, color: T.text3 }}>جاري تحميل تدفق الأخبار...</div>}
         {!loading && items.length === 0 && <div style={{ fontSize: 11, color: T.text3 }}>لا توجد أخبار متاحة حاليًا.</div>}
         {items.map((item, index) => (
-          <div key={`${item.text}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div key={`${safeStr(item.text)}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{item.categoryAr || item.category}</span>
+              <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(item.categoryAr || item.category)}</span>
               <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                {item.publishedAt ? formatFreshness(item.publishedAt) : item.source}
+                {item.publishedAt ? formatFreshness(item.publishedAt) : safeStr(item.source)}
               </span>
             </div>
-            <div style={{ fontSize: 11, color: T.text, lineHeight: 1.8 }}>{item.text}</div>
+            <div style={{ fontSize: 11, color: T.text, lineHeight: 1.8 }}>{safeStr(item.text)}</div>
           </div>
         ))}
       </div>

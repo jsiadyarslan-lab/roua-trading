@@ -6,6 +6,7 @@ import { Brain, Shield, Zap, TrendingUp, TrendingDown, Minus, Info, RefreshCw, L
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { T } from '@/lib/unified-tokens'
+import { safeStr, safeNum } from '@/lib/utils'
 
 interface Analysis {
   role: string
@@ -532,7 +533,8 @@ export function AICouncilPanel() {
                 <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>الاستراتيجية الموحدة</span>
               </div>
               <p className="text-[10px] leading-5" style={{ color: T.text + 'cc' }}>
-                {data.masterStrategy}
+                {/* FIX React Error #31: AI may return objects instead of strings */}
+                {safeStr(data.masterStrategy)}
               </p>
             </div>
 
@@ -543,7 +545,8 @@ export function AICouncilPanel() {
                   <span className="text-[9px] font-bold" style={{ color: T.amber }}>تفسير التعارض</span>
                 </div>
                 <p className="text-[9px] leading-5" style={{ color: T.text2 }}>
-                  {data.conflictExplanation}
+                  {/* FIX React Error #31: AI may return objects instead of strings */}
+                  {safeStr(data.conflictExplanation)}
                 </p>
               </div>
             )}
@@ -552,7 +555,10 @@ export function AICouncilPanel() {
             <div className="space-y-1.5">
               <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>توزيع أصوات المجلس</div>
               {data.analyses.map((a, i) => {
-                const voteColor = a.vote === 'BUY' ? T.green : a.vote === 'SELL' ? T.red : T.amber
+                // FIX React Error #31: Sanitize AI vote data — AI may return objects instead of strings
+                const safeVote = safeStr(a.vote) as 'BUY' | 'SELL' | 'HOLD'
+                const safeConfidence = safeNum(a.confidence, 50)
+                const voteColor = safeVote === 'BUY' ? T.green : safeVote === 'SELL' ? T.red : T.amber
                 const isAIModel = isRealAI && !a.model.includes('Scanner') && !a.model.includes('Risk/') && !a.model.includes('MTF/') && !a.model.includes('Execution/') && !a.model.includes('Fallback')
                 const modelColor = getModelColor(a.model)
                 const modelShortName = getModelShortName(a.model)
@@ -569,36 +575,37 @@ export function AICouncilPanel() {
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-1.5">
                         <div className="w-4 h-4 rounded-md flex items-center justify-center" style={{ background: `${voteColor}15` }}>
-                          {a.vote === 'BUY'
+                          {safeVote === 'BUY'
                             ? <TrendingUp size={9} color={voteColor} />
-                            : a.vote === 'SELL'
+                            : safeVote === 'SELL'
                             ? <TrendingDown size={9} color={voteColor} />
                             : <Minus size={9} color={voteColor} />}
                         </div>
-                        <span className="text-[10px] font-bold text-white/90">{a.role}</span>
+                        <span className="text-[10px] font-bold text-white/90">{safeStr(a.role)}</span>
                         {isAIModel && (
                           <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: `${modelColor}20`, color: modelColor, fontFamily: 'monospace', fontWeight: 700, border: `1px solid ${modelColor}30` }}>{modelShortName}</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[8px] font-bold px-1.5 py-px rounded" style={{ background: `${voteColor}15`, color: voteColor }}>
-                          {a.vote}
+                          {safeStr(a.vote)}
                         </span>
-                        <span className="text-[8px] font-mono" style={{ color: T.text2 }}>{a.confidence}%</span>
+                        <span className="text-[8px] font-mono" style={{ color: T.text2 }}>{safeNum(a.confidence, 0)}%</span>
                       </div>
                     </div>
                     <div className="w-full h-0.5 bg-white/5 rounded-full overflow-hidden mb-1.5">
                       <div
                         className="h-full transition-all duration-1000"
-                        style={{ width: `${a.confidence}%`, background: voteColor, boxShadow: `0 0 6px ${voteColor}40` }}
+                        style={{ width: `${safeConfidence}%`, background: voteColor, boxShadow: `0 0 6px ${voteColor}40` }}
                       />
                     </div>
                     <p className="text-[8px] leading-relaxed" style={{ color: T.text2 }}>
-                      {a.reason}
+                      {/* FIX React Error #31: AI may return objects instead of strings */}
+                      {safeStr(a.reason)}
                     </p>
                     <div className="flex items-center gap-1 mt-1">
                       <Cpu size={6} color={T.text2} style={{ opacity: 0.5 }} />
-                      <span style={{ fontSize: 6, color: T.text2, opacity: 0.6, fontFamily: 'monospace' }}>{a.model}</span>
+                      <span style={{ fontSize: 6, color: T.text2, opacity: 0.6, fontFamily: 'monospace' }}>{safeStr(a.model)}</span>
                     </div>
                   </div>
                 )

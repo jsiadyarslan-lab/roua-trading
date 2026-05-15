@@ -213,6 +213,29 @@ function _safeJsonParse(value: unknown): string[] {
   return []
 }
 
+/**
+ * FIX React Error #31: Sanitize array items that AI might return as objects
+ * (e.g., {symbol, name, direction, impactDegree, reason, isTradable}) instead of strings.
+ * Converts each item to a safe string for React rendering.
+ */
+function _sanitizeStringArray(arr: unknown[]): string[] {
+  if (!Array.isArray(arr)) return []
+  return arr.map(item => {
+    if (item == null) return ''
+    if (typeof item === 'string') return item
+    if (typeof item === 'number' || typeof item === 'boolean') return String(item)
+    if (typeof item === 'object') {
+      // For objects like {symbol, name, direction, impactDegree, reason, isTradable},
+      // prefer the .symbol field (e.g., "BTC"), then .name, then stringify
+      const obj = item as Record<string, unknown>
+      if (typeof obj.symbol === 'string') return obj.symbol
+      if (typeof obj.name === 'string') return obj.name
+      try { return JSON.stringify(item) } catch { return String(item) }
+    }
+    return String(item)
+  }).filter(s => s.length > 0)
+}
+
 let _refreshInterval: ReturnType<typeof setInterval> | null = null
 
 /**
@@ -339,10 +362,11 @@ export const useContentAgentStore = create<ContentAgentStore>()(
                   ? data.data.items
                   : []
             // Parse JSON fields that come as strings from the database
+            // FIX React Error #31: Sanitize arrays to prevent objects from being rendered as React children
             const items: ContentArticle[] = raw.map((item: any) => ({
               ...item,
-              relatedSymbols: _safeJsonParse(item.relatedSymbols),
-              tags: _safeJsonParse(item.tags),
+              relatedSymbols: _sanitizeStringArray(_safeJsonParse(item.relatedSymbols)),
+              tags: _sanitizeStringArray(_safeJsonParse(item.tags)),
             }))
             set({ articles: items })
           } else {

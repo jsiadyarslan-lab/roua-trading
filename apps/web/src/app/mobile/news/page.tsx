@@ -17,6 +17,7 @@ import {
   Zap,
   Globe,
 } from 'lucide-react'
+import { safeStr } from '@/lib/utils'
 
 /* ─── Color Constants ─── */
 const C = {
@@ -325,9 +326,9 @@ function NewsCard({
           {/* Affected Assets */}
           {item.affectedAssets && item.affectedAssets.length > 0 && (
             <div style={{ display: 'flex', gap: 4, marginInlineStart: 8 }}>
-              {item.affectedAssets.slice(0, 3).map((asset) => (
+              {item.affectedAssets.slice(0, 3).map((asset, i) => (
                 <span
-                  key={asset}
+                  key={i}
                   style={{
                     fontSize: 10,
                     fontWeight: 700,
@@ -338,7 +339,8 @@ function NewsCard({
                     borderRadius: 6,
                   }}
                 >
-                  {asset}
+                  {/* FIX React Error #31: AI may return objects like {symbol, name, direction, impactDegree, reason, isTradable} instead of strings */}
+                  {safeStr(asset)}
                 </span>
               ))}
             </div>

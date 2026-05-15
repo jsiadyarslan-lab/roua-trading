@@ -541,14 +541,10 @@ const NAV_LINKS: NavLink[] = [
       { href: '/dashboard/strategies/builder',   label: 'بناء الاستراتيجية',   icon: Hammer },
     ]
   },
-  { href: '/dashboard/news',                   label: 'التقارير',           icon: Newspaper,
+  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper,
     children: [
-      { href: '/dashboard/news?tab=hourly',     label: 'تقارير ساعية',       icon: Clock },
-      { href: '/dashboard/news?tab=daily',      label: 'تقارير يومية',       icon: Newspaper },
-      { href: '/dashboard/news?tab=weekly',     label: 'تقارير أسبوعية',     icon: Calendar },
-      { href: '/dashboard/news?tab=pair',       label: 'تحليل الأزواج',      icon: TrendingUp },
-      { href: '/dashboard/news?tab=financial',  label: 'تقارير مالية',       icon: BarChart3 },
-      { href: '/dashboard/news?tab=economic',   label: 'تقارير اقتصادية',    icon: Globe2 },
+      { href: '/dashboard/news',                label: 'الأخبار الذكية',     icon: Newspaper },
+      { href: '/dashboard/news?tab=agent',      label: 'وكيل المحتوى',       icon: PenLine },
     ]
   },
   { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },

@@ -499,7 +499,7 @@ function MobileNewsTicker() {
  * ├── Neural Lab
  * ├── السكانر المتقدم
  * ├── تحليلات استراتيجية (يتضمن: اختبار الاستراتيجيات + بناء الاستراتيجية)
- * ├── الأخبار (يتضمن: وكيل المحتوى)
+ * ├── الأخبار (يتضمن: التقارير، وكيل المحتوى)
  * ├── الأسواق التنبؤية
  * └── المزيد:
  *     ├── لوحة الصدارة
@@ -543,7 +543,8 @@ const NAV_LINKS: NavLink[] = [
   },
   { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper,
     children: [
-      { href: '/dashboard/news',                label: 'الأخبار الذكية',     icon: Newspaper },
+      { href: '/dashboard/news',                label: 'الأخبار',            icon: Newspaper },
+      { href: '/dashboard/news?tab=reports',    label: 'التقارير',           icon: BarChart3 },
       { href: '/dashboard/news?tab=agent',      label: 'وكيل المحتوى',       icon: PenLine },
     ]
   },

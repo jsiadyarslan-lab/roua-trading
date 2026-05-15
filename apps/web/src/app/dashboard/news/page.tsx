@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
 import dynamic from 'next/dynamic'
+import { useSearchParams } from 'next/navigation'
 import {
   Newspaper,
   Globe,
@@ -20,6 +21,8 @@ import {
   AlertTriangle,
   PenLine,
   Sparkles,
+  BarChart2,
+  FileText,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
 
@@ -56,6 +59,8 @@ type NewsItem = {
 };
 
 export default function NewsPage() {
+  const searchParams = useSearchParams();
+  const initialTab = searchParams.get('tab') === 'reports' ? 'reports' : searchParams.get('tab') === 'agent' ? 'agent' : 'news';
   useScopedStyle(`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }
     @keyframes fade-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
@@ -71,7 +76,7 @@ export default function NewsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [displayCount, setDisplayCount] = useState(50);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'news' | 'agent'>('news');
+  const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'agent'>(initialTab);
 
   const fetchNews = useCallback(async () => {
     setFetchError(null);
@@ -245,6 +250,24 @@ export default function NewsPage() {
           الأخبار
         </button>
         <button
+          onClick={() => setActiveTab('reports')}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 7,
+            padding: '12px 22px',
+            fontFamily: FONT_AR, fontSize: 13,
+            fontWeight: activeTab === 'reports' ? 800 : 500,
+            color: activeTab === 'reports' ? T.amber : T.text2,
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'reports' ? `2.5px solid ${T.amber}` : '2.5px solid transparent',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+          }}
+        >
+          <BarChart2 size={16} />
+          التقارير
+        </button>
+        <button
           onClick={() => setActiveTab('agent')}
           style={{
             display: 'flex', alignItems: 'center', gap: 7,
@@ -268,6 +291,8 @@ export default function NewsPage() {
       {/* Tab Content */}
       {activeTab === 'agent' ? (
         <ContentAgentPage />
+      ) : activeTab === 'reports' ? (
+        <ReportsTab />
       ) : (
       <>
 
@@ -605,6 +630,109 @@ export default function NewsPage() {
       </>
       )}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Reports Tab — fetches content articles of report types from the NestJS API
+ */
+function ReportsTab() {
+  const [reports, setReports] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchReports = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const res = await fetch('/api/agent/content/feed?type=MARKET_REPORT&type=ANALYSIS&type=WEEKLY_REVIEW&type=HOURLY_UPDATE&type=PAIR_ANALYSIS&status=published&limit=20', { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setReports(Array.isArray(data) ? data : (data.items || data.data || []));
+        } else {
+          // If the API is not available, show empty state
+          setReports([]);
+        }
+      } catch {
+        setReports([]);
+        setError('تعذر تحميل التقارير. حاول مرة أخرى لاحقاً.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchReports();
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
+        <RefreshCw size={28} color={T.amber} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+        <p style={{ fontSize: 14 }}>جارٍ تحميل التقارير...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ background: `${T.red}08`, border: `1px solid ${T.red}22`, borderRadius: 10, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <AlertTriangle size={14} style={{ color: T.red, flexShrink: 0 }} />
+        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.red }}>{error}</span>
+      </div>
+    );
+  }
+
+  if (reports.length === 0) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '40px 32px', textAlign: 'center' }}>
+        <BarChart2 size={34} color={T.amber} style={{ marginBottom: 14 }} />
+        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>لا توجد تقارير حالياً</h2>
+        <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>ستظهر التقارير المحللة هنا عند توفرها. يمكنك توليدها من تاب وكيل المحتوى.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {reports.map((report: any, index: number) => (
+        <article key={report.id || index} className="news-article-card" style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRight: `3px solid ${T.amber}`, borderRadius: 16,
+          overflow: 'hidden', animation: `fade-in 0.25s ease-out ${index * 30}ms both`,
+        }}>
+          <div style={{ padding: '18px 20px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 99, background: `${T.amber}14`, color: T.amber, fontWeight: 800 }}>
+                <FileText size={10} style={{ verticalAlign: 'middle', marginInlineEnd: 4 }} />
+                تقرير
+              </span>
+              {report.type && (
+                <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 99, background: `${T.cyan}14`, color: T.cyan, fontWeight: 800 }}>
+                  {safeStr(report.type)}
+                </span>
+              )}
+              {report.category && (
+                <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 99, background: `${T.green}14`, color: T.green, fontWeight: 800 }}>
+                  {safeStr(report.category)}
+                </span>
+              )}
+              <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Clock size={10} />
+                {report.publishedAt || report.createdAt ? new Date(report.publishedAt || report.createdAt).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' }) : ''}
+              </span>
+            </div>
+            <h3 style={{ color: T.text, fontSize: 16, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6 }}>
+              {safeStr(report.titleAr || report.title || 'تقرير')}
+            </h3>
+            {(report.summaryAr || report.summary) && (
+              <p style={{ color: T.text2, fontSize: 13, margin: 0, lineHeight: 1.7, padding: '8px 12px', background: 'rgba(255,184,0,0.06)', borderRadius: 10, borderRight: `2px solid ${T.amber}44` }}>
+                {safeStr(report.summaryAr || report.summary)}
+              </p>
+            )}
+          </div>
+        </article>
+      ))}
     </div>
   );
 }

@@ -16,6 +16,9 @@ import {
   Minus,
   Zap,
   Globe,
+  BarChart2,
+  PenLine,
+  FileText,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
 
@@ -537,8 +540,11 @@ export default function MobileNewsPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [pulling, setPulling] = useState(false)
   const [error, setError] = useState('')
+  const [activeMainTab, setActiveMainTab] = useState<'news' | 'reports' | 'agent'>('news')
   const [activeCategory, setActiveCategory] = useState<Category>('الكل')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [reports, setReports] = useState<any[]>([])
+  const [reportsLoading, setReportsLoading] = useState(false)
 
   // Pull-to-refresh touch tracking
   const touchStartY = useRef(0)
@@ -618,6 +624,17 @@ export default function MobileNewsPage() {
     }
     pullDistance.current = 0
   }
+
+  /* ─── Fetch Reports ─── */
+  useEffect(() => {
+    if (activeMainTab !== 'reports') return
+    setReportsLoading(true)
+    fetch('/api/agent/content/feed?type=MARKET_REPORT&type=ANALYSIS&type=WEEKLY_REVIEW&type=HOURLY_UPDATE&type=PAIR_ANALYSIS&status=published&limit=20', { cache: 'no-store' })
+      .then(r => r.ok ? r.json() : [])
+      .then(data => setReports(Array.isArray(data) ? data : (data.items || data.data || [])))
+      .catch(() => setReports([]))
+      .finally(() => setReportsLoading(false))
+  }, [activeMainTab])
 
   /* ─── Toggle Expand ─── */
   const handleToggleExpand = (id: string) => {
@@ -702,7 +719,7 @@ export default function MobileNewsPage() {
                 margin: 0,
               }}
             >
-              الأخبار
+              {activeMainTab === 'news' ? 'الأخبار' : activeMainTab === 'reports' ? 'التقارير' : 'وكيل المحتوى'}
             </h1>
             <p
               style={{
@@ -712,7 +729,7 @@ export default function MobileNewsPage() {
                 margin: 0,
               }}
             >
-              آخر المستجدات والتحليلات
+              {activeMainTab === 'news' ? 'آخر المستجدات والتحليلات' : activeMainTab === 'reports' ? 'تقارير سوقية محللة' : 'توليد ونشر المحتوى'}
             </p>
           </div>
 
@@ -743,12 +760,57 @@ export default function MobileNewsPage() {
           </motion.button>
         </div>
 
-        {/* ── Category Tabs ── */}
+        {/* ── Main Tabs (الأخبار / التقارير / وكيل المحتوى) ── */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 0,
+            marginTop: 14,
+            borderBottom: '0.5px solid rgba(255,255,255,0.08)',
+          }}
+        >
+          {([
+            { id: 'news' as const, label: 'الأخبار', icon: Newspaper, color: C.accent },
+            { id: 'reports' as const, label: 'التقارير', icon: BarChart2, color: C.amber },
+            { id: 'agent' as const, label: 'وكيل المحتوى', icon: PenLine, color: '#B388FF' },
+          ] as const).map((tab) => {
+            const isActive = activeMainTab === tab.id
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveMainTab(tab.id)}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  padding: '10px 0',
+                  border: 'none',
+                  background: 'transparent',
+                  color: isActive ? tab.color : 'rgba(255,255,255,0.35)',
+                  fontSize: 13,
+                  fontWeight: isActive ? 800 : 500,
+                  fontFamily: FONT_AR,
+                  cursor: 'pointer',
+                  borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <tab.icon size={15} />
+                {tab.label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* ── Category Tabs (only for news tab) ── */}
+        {activeMainTab === 'news' && (
         <div
           style={{
             display: 'flex',
             gap: 8,
-            marginTop: 16,
+            marginTop: 14,
             overflowX: 'auto',
             paddingBottom: 2,
             scrollbarWidth: 'none',
@@ -783,6 +845,7 @@ export default function MobileNewsPage() {
             )
           })}
         </div>
+        )}
       </div>
 
       {/* ── Pull-to-Refresh Indicator ── */}
@@ -790,6 +853,66 @@ export default function MobileNewsPage() {
 
       {/* ── Main Content ── */}
       <div style={{ padding: '16px 0' }}>
+        {/* Reports Tab */}
+        {activeMainTab === 'reports' && (
+          reportsLoading ? (
+            <div style={{ padding: '0 16px' }}>
+              <NewsSkeleton />
+            </div>
+          ) : reports.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '60px 24px' }}>
+              <BarChart2 size={32} color="rgba(255,255,255,0.15)" style={{ marginBottom: 16 }} />
+              <p style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.3)', fontFamily: FONT_AR }}>لا توجد تقارير حالياً</p>
+              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', fontFamily: FONT_AR }}>ستظهر التقارير المحللة هنا عند توفرها</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
+              {reports.map((report: any, i: number) => (
+                <motion.div
+                  key={report.id || i}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.04, duration: 0.35 }}
+                  style={{
+                    background: 'rgba(28,28,30,0.55)',
+                    backdropFilter: 'blur(20px)',
+                    borderRadius: 28,
+                    border: '0.5px solid rgba(255,255,255,0.08)',
+                    padding: 20,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, direction: 'rtl' }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.amber, fontFamily: FONT_AR, background: 'rgba(255,184,0,0.1)', padding: '3px 10px', borderRadius: 8 }}>
+                      <FileText size={10} style={{ verticalAlign: 'middle', marginInlineEnd: 4 }} />
+                      تقرير
+                    </span>
+                    {report.type && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, fontFamily: FONT_AR, background: 'rgba(0,212,255,0.1)', padding: '3px 10px', borderRadius: 8 }}>{safeStr(report.type)}</span>}
+                    {report.category && <span style={{ fontSize: 10, fontWeight: 700, color: C.success, fontFamily: FONT_AR, background: 'rgba(50,215,75,0.1)', padding: '3px 10px', borderRadius: 8 }}>{safeStr(report.category)}</span>}
+                  </div>
+                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: FONT_AR, lineHeight: 1.65, margin: '0 0 8px' }}>{safeStr(report.titleAr || report.title || 'تقرير')}</h3>
+                  {(report.summaryAr || report.summary) && (
+                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontFamily: FONT_AR, lineHeight: 1.7, margin: 0, padding: '10px 12px', background: 'rgba(255,184,0,0.05)', borderRadius: 12 }}>{safeStr(report.summaryAr || report.summary)}</p>
+                  )}
+                </motion.div>
+              ))}
+            </div>
+          )
+        )}
+
+        {/* Agent Tab — simplified link to content agent page */}
+        {activeMainTab === 'agent' && (
+          <div style={{ padding: '0 16px' }}>
+            <iframe
+              src="/dashboard/content-agent"
+              style={{ width: '100%', height: '80vh', border: 'none', borderRadius: 20 }}
+              title="وكيل المحتوى"
+            />
+          </div>
+        )}
+
+        {/* News Tab (original content) */}
+        {activeMainTab === 'news' && (<>
+
         {/* Loading Skeleton */}
         {loading && <NewsSkeleton />}
 
@@ -924,6 +1047,7 @@ export default function MobileNewsPage() {
             </div>
           </div>
         )}
+        </> )}
       </div>
     </div>
   )

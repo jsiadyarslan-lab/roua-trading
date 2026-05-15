@@ -20,12 +20,25 @@ import {
   AlertTriangle,
   PenLine,
   Sparkles,
+  FileText,
+  BarChart3,
+  Eye,
+  ThumbsUp,
+  Share2,
+  Calendar,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
 
 // ── Design Tokens (canonical from unified-tokens) ──
 import { TExtended as T } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import {
+  useContentAgentStore,
+  ContentAgentStatus,
+  ContentStatus,
+  ContentType,
+  ContentCategory,
+} from '@/hooks/useContentAgentStore'
 
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
@@ -55,6 +68,8 @@ type NewsItem = {
   publishedAt?: string;
 };
 
+type MainTab = 'news' | 'reports' | 'agent'
+
 export default function NewsPage() {
   useScopedStyle(`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     @keyframes live-dot { 0%, 100% { transform: scale(1); opacity: 0.65; } 50% { transform: scale(1.35); opacity: 1; } }
@@ -71,7 +86,7 @@ export default function NewsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [displayCount, setDisplayCount] = useState(50);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'news' | 'agent'>('news');
+  const [activeTab, setActiveTab] = useState<MainTab>('news');
 
   const fetchNews = useCallback(async () => {
     setFetchError(null);
@@ -190,6 +205,13 @@ export default function NewsPage() {
     return `منذ ${days} يوم`;
   };
 
+  // ── Main Tab Config ──
+  const MAIN_TABS: { id: MainTab; label: string; icon: React.ReactNode; color: string }[] = [
+    { id: 'news', label: 'الأخبار', icon: <Newspaper size={15} />, color: T.cyan },
+    { id: 'reports', label: 'التقارير', icon: <BarChart3 size={15} />, color: '#d4af37' },
+    { id: 'agent', label: 'وكيل المحتوى', icon: <PenLine size={15} />, color: T.purple },
+  ]
+
   return (
     <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
@@ -204,12 +226,7 @@ export default function NewsPage() {
           }}>
             <Newspaper size={20} color="white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار الذكية</h1>
-          <span style={{
-            fontSize: 10, padding: '2px 8px', borderRadius: 20,
-            background: `${T.cyan}18`, color: T.cyan,
-            fontFamily: FONT_MONO,
-          }}>SMART NEWS</span>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>غرفة الأخبار</h1>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '3px 10px', borderRadius: 20,
@@ -220,59 +237,46 @@ export default function NewsPage() {
           </div>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          أخبار مالية مترجمة تلقائياً مع تحليل AI Council — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
+          أخبار مالية مترجمة مع تحليل AI، تقارير السوق، ووكيل محتوى ذكي
         </p>
       </div>
 
-      {/* Tab Bar */}
+      {/* Main Tab Bar */}
       <div style={{
         display: 'flex',
         gap: 0,
         borderBottom: `0.5px solid ${T.border}`,
         marginBottom: 20,
       }}>
-        <button
-          onClick={() => setActiveTab('news')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            padding: '12px 22px',
-            fontFamily: FONT_AR, fontSize: 13,
-            fontWeight: activeTab === 'news' ? 800 : 500,
-            color: activeTab === 'news' ? T.cyan : T.text2,
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'news' ? `2.5px solid ${T.cyan}` : '2.5px solid transparent',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          <Newspaper size={16} />
-          الأخبار الذكية
-        </button>
-        <button
-          onClick={() => setActiveTab('agent')}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 7,
-            padding: '12px 22px',
-            fontFamily: FONT_AR, fontSize: 13,
-            fontWeight: activeTab === 'agent' ? 800 : 500,
-            color: activeTab === 'agent' ? T.purple : T.text2,
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'agent' ? '2.5px solid #B388FF' : '2.5px solid transparent',
-            cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          <PenLine size={16} />
-          وكيل المحتوى
-          <Sparkles size={12} style={{ opacity: 0.6 }} />
-        </button>
+        {MAIN_TABS.map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 7,
+              padding: '12px 22px',
+              fontFamily: FONT_AR, fontSize: 13,
+              fontWeight: activeTab === tab.id ? 800 : 500,
+              color: activeTab === tab.id ? tab.color : T.text2,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab.id ? `2.5px solid ${tab.color}` : '2.5px solid transparent',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {tab.icon}
+            {tab.label}
+            {tab.id === 'agent' && <Sparkles size={12} style={{ opacity: 0.6 }} />}
+          </button>
+        ))}
       </div>
 
       {/* Tab Content */}
       {activeTab === 'agent' ? (
         <ContentAgentPage />
+      ) : activeTab === 'reports' ? (
+        <ReportsTab />
       ) : (
       <>
 
@@ -612,6 +616,297 @@ export default function NewsPage() {
       </div>
     </div>
   );
+}
+
+/* ═══════════════════════════════════════════════════
+   Reports Tab — Fetches ContentArticle of type MARKET_REPORT / ANALYSIS
+   ═══════════════════════════════════════════════════ */
+function ReportsTab() {
+  const { articles, fetchFeed, loading } = useContentAgentStore()
+  const [filterCategory, setFilterCategory] = useState<ContentCategory | ''>('')
+  const [reportSearch, setReportSearch] = useState('')
+
+  useEffect(() => {
+    // Fetch content feed, then filter for report types
+    fetchFeed()
+  }, [fetchFeed])
+
+  // Only show reports and analysis
+  const reports = useMemo(() => {
+    return articles
+      .filter(a =>
+        a.type === ContentType.MARKET_REPORT ||
+        a.type === ContentType.ANALYSIS ||
+        a.type === ContentType.WEEKLY_REVIEW ||
+        a.type === ContentType.HOURLY_UPDATE ||
+        a.type === ContentType.PAIR_ANALYSIS
+      )
+      .filter(a => {
+        if (filterCategory && a.category !== filterCategory) return false
+        if (reportSearch.trim()) {
+          const q = reportSearch.toLowerCase()
+          return (
+            (a.titleAr || '').toLowerCase().includes(q) ||
+            (a.titleEn || '').toLowerCase().includes(q) ||
+            (a.summaryAr || '').toLowerCase().includes(q) ||
+            (a.summaryEn || '').toLowerCase().includes(q)
+          )
+        }
+        return true
+      })
+  }, [articles, filterCategory, reportSearch])
+
+  const T = {
+    bg: '#0B0E14', card: '#1A1D29', border: 'rgba(255,255,255,0.06)',
+    text: '#F0F2F5', text2: '#8B92A8', text3: '#5A6178',
+    cyan: '#00D4FF', green: '#00FFA3', red: '#FF4757',
+    amber: '#FFB800', purple: '#B388FF', gold: '#d4af37',
+  }
+
+  function getCategoryLabel(c: ContentCategory): string {
+    const map: Record<ContentCategory, string> = {
+      [ContentCategory.CRYPTO]: 'كريبتو',
+      [ContentCategory.FOREX]: 'فوركس',
+      [ContentCategory.STOCKS]: 'أسهم',
+      [ContentCategory.COMMODITIES]: 'سلع',
+      [ContentCategory.ECONOMY]: 'اقتصاد',
+      [ContentCategory.REGULATION]: 'تشريعات',
+      [ContentCategory.TECHNOLOGY]: 'تقنية',
+      [ContentCategory.EDUCATION]: 'تعليم',
+      [ContentCategory.GEOPOLITICS]: 'جيوسياسة',
+      [ContentCategory.DEFI]: 'ديفاي',
+      [ContentCategory.NFT]: 'NFT',
+    }
+    return map[c] || c
+  }
+
+  function getCategoryColor(c: ContentCategory): string {
+    const map: Record<ContentCategory, string> = {
+      [ContentCategory.CRYPTO]: '#FFB800',
+      [ContentCategory.FOREX]: '#00D4FF',
+      [ContentCategory.STOCKS]: '#00FFA3',
+      [ContentCategory.COMMODITIES]: '#FF8C42',
+      [ContentCategory.ECONOMY]: '#B388FF',
+      [ContentCategory.REGULATION]: '#FF4757',
+      [ContentCategory.TECHNOLOGY]: '#00D4FF',
+      [ContentCategory.EDUCATION]: '#10B981',
+      [ContentCategory.GEOPOLITICS]: '#FF6B81',
+      [ContentCategory.DEFI]: '#A78BFA',
+      [ContentCategory.NFT]: '#F472B6',
+    }
+    return map[c] || T.text3
+  }
+
+  function getTypeLabel(t: ContentType): string {
+    const map: Record<ContentType, string> = {
+      [ContentType.ARTICLE]: 'مقال',
+      [ContentType.ANALYSIS]: 'تحليل',
+      [ContentType.NEWS_DIGEST]: 'ملخص أخبار',
+      [ContentType.MARKET_REPORT]: 'تقرير سوق',
+      [ContentType.EDUCATIONAL]: 'تعليمي',
+      [ContentType.OPINION]: 'رأي',
+      [ContentType.BREAKING]: 'عاجل',
+      [ContentType.HOURLY_UPDATE]: 'تحديث ساعي',
+      [ContentType.WEEKLY_REVIEW]: 'مراجعة أسبوعية',
+      [ContentType.PAIR_ANALYSIS]: 'تحليل زوج',
+    }
+    return map[t] || t
+  }
+
+  function timeAgo(dateStr: string | undefined): string {
+    if (!dateStr) return '—'
+    const diff = Date.now() - new Date(dateStr).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return 'الآن'
+    if (mins < 60) return `منذ ${mins} دقيقة`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `منذ ${hrs} ساعة`
+    const days = Math.floor(hrs / 24)
+    return `منذ ${days} يوم`
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Reports Header + Filters */}
+      <div style={{
+        background: T.card, border: `1px solid ${T.border}`,
+        borderRadius: 14, padding: '14px 18px',
+        display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          background: '#0B0E14', borderRadius: 10, padding: '6px 12px', flex: '1 1 200px',
+          border: `1px solid ${T.border}`,
+        }}>
+          <Search size={14} color={T.text3} />
+          <input
+            type="text"
+            placeholder="بحث في التقارير..."
+            value={reportSearch}
+            onChange={(e) => setReportSearch(e.target.value)}
+            style={{
+              background: 'transparent', border: 'none', outline: 'none',
+              color: T.text, fontSize: 12, width: '100%',
+              fontFamily: 'var(--font-ar)',
+            }}
+          />
+        </div>
+        <select
+          value={filterCategory}
+          onChange={(e) => setFilterCategory(e.target.value as ContentCategory | '')}
+          style={{
+            padding: '6px 12px', borderRadius: 10, border: `1px solid ${T.border}`,
+            background: '#0B0E14', color: T.text, fontSize: 12,
+            fontFamily: 'var(--font-ar)', cursor: 'pointer',
+          }}
+        >
+          <option value="">كل الفئات</option>
+          {Object.values(ContentCategory).map(c => (
+            <option key={c} value={c} style={{ background: '#1A1D29' }}>{getCategoryLabel(c)}</option>
+          ))}
+        </select>
+        <span style={{ fontSize: 11, color: T.text3 }}>{reports.length} تقرير</span>
+      </div>
+
+      {/* Reports List */}
+      {loading ? (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
+        }}>
+          <RefreshCw size={28} color={T.gold} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+          <p style={{ fontSize: 14 }}>جارٍ تحميل التقارير...</p>
+        </div>
+      ) : reports.length === 0 ? (
+        <div style={{
+          background: T.card, border: `1px solid ${T.border}`,
+          borderRadius: 20, padding: '40px 32px', textAlign: 'center',
+        }}>
+          <BarChart3 size={34} color={T.gold} style={{ marginBottom: 14 }} />
+          <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>
+            لا توجد تقارير حالياً
+          </h2>
+          <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>
+            يمكنك توليد تقارير من تاب وكيل المحتوى
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {reports.map((report, index) => {
+            const catColor = getCategoryColor(report.category)
+            return (
+              <article
+                key={report.id}
+                style={{
+                  background: T.card,
+                  border: `1px solid ${T.border}`,
+                  borderRight: `3px solid ${catColor}`,
+                  borderRadius: 16,
+                  padding: '18px 20px',
+                  animation: `fade-in 0.25s ease-out ${index * 30}ms both`,
+                }}
+              >
+                {/* Top row */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <span style={{
+                    fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                    background: `${catColor}14`, color: catColor, fontWeight: 800,
+                  }}>
+                    {getCategoryLabel(report.category)}
+                  </span>
+                  <span style={{
+                    fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                    background: `${T.gold}14`, color: T.gold, fontWeight: 800,
+                  }}>
+                    {getTypeLabel(report.type)}
+                  </span>
+                  <span style={{
+                    fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                    background: report.status === ContentStatus.PUBLISHED ? `${T.green}14` : `${T.text3}14`,
+                    color: report.status === ContentStatus.PUBLISHED ? T.green : T.text3,
+                    fontWeight: 800,
+                  }}>
+                    {report.status === ContentStatus.PUBLISHED ? 'منشور' : report.status === ContentStatus.DRAFT ? 'مسودة' : report.status === ContentStatus.SCHEDULED ? 'مجدول' : report.status}
+                  </span>
+                  {/* Quality Score */}
+                  {report.qualityScore > 0 && (
+                    <span style={{
+                      fontSize: 10, padding: '3px 8px', borderRadius: 99,
+                      background: `${T.cyan}14`, color: T.cyan, fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                    }}>
+                      جودة {report.qualityScore}%
+                    </span>
+                  )}
+                  {/* Related Symbols */}
+                  {report.relatedSymbols.length > 0 && report.relatedSymbols.slice(0, 4).map((sym, i) => (
+                    <span key={i} style={{
+                      fontSize: 9, padding: '2px 6px', borderRadius: 6,
+                      background: `${T.amber}14`, color: T.amber, fontWeight: 800,
+                      fontFamily: 'var(--font-mono)',
+                    }}>
+                      {safeStr(sym)}
+                    </span>
+                  ))}
+                  <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <Clock size={10} />
+                    {timeAgo(report.publishedAt || report.createdAt)}
+                  </span>
+                </div>
+
+                {/* Title */}
+                <h3 style={{
+                  color: T.text, fontSize: 16, fontWeight: 800, margin: '0 0 6px',
+                  lineHeight: 1.6,
+                }}>
+                  {report.titleAr || report.titleEn}
+                </h3>
+                {report.titleEn && report.titleAr && (
+                  <p style={{
+                    color: T.text3, fontSize: 12, margin: '0 0 10px',
+                    direction: 'ltr', textAlign: 'left',
+                    fontFamily: 'var(--font-mono)',
+                  }}>
+                    {report.titleEn}
+                  </p>
+                )}
+
+                {/* Summary */}
+                {report.summaryAr && (
+                  <p style={{
+                    color: T.text2, fontSize: 13, margin: '0 0 12px',
+                    lineHeight: 1.7, padding: '8px 12px',
+                    background: 'rgba(212,175,55,0.06)', borderRadius: 10,
+                    borderRight: `2px solid ${T.gold}44`,
+                  }}>
+                    {report.summaryAr}
+                  </p>
+                )}
+
+                {/* Bottom row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Eye size={12} /> {report.views}
+                    </span>
+                    <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <ThumbsUp size={12} /> {report.likes}
+                    </span>
+                    <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Share2 size={12} /> {report.shares}
+                    </span>
+                    <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Calendar size={12} /> {report.readingTimeMinutes} دق
+                    </span>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /**

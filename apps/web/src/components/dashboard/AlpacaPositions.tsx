@@ -7,6 +7,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { usePaperTradesStore, type ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
 import { useAgentStore } from '@/hooks/useAgentStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { fmtPriceLocale as fmtPrice, fmtPrice as fmtPricePlain, fmtPnl } from '@/lib/price-format'
 import { isNestJsId } from '@/lib/api-fetch'
 
@@ -238,6 +239,9 @@ export function AlpacaPositions() {
   // Poll every 30s — pauses when tab hidden
   useVisibleInterval(() => { fetchPositions(); fetchAccount() }, 30000)
 
+  const refreshAfterTrade = usePositionsStore(state => state.refreshAfterTrade)
+  const addNotification = useNotificationStore(state => state.addNotification)
+
   const closePosition = async (pos: typeof allPositions[0]) => {
     const id = pos.id
     if (confirmClose !== id) {
@@ -252,11 +256,25 @@ export function AlpacaPositions() {
     // Paper trade (local BotEngine) — close in store
     if (pos.isPaper) {
       closePaperTrade(id)
+      // FIX: Refresh account balance after closing paper trade
+      refreshAfterTrade()
+      addNotification({
+        source: 'trade',
+        priority: 'medium',
+        action: 'CLOSE',
+        title: `تم إغلاق مركز ورقي ${pos.symbol}`,
+        body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol}`,
+        pair: pos.symbol,
+        price: pos.currentPrice,
+      })
       setClosing(null)
       return
     }
 
     try {
+      let closeSuccess = false
+      let closeError = ''
+
       // CRITICAL FIX: SmartExecutor positions live in NestJS DB, not Alpaca.
       // Use POST /api/trading/positions/close with the real DB position id.
       if (pos.dbId) {
@@ -267,31 +285,64 @@ export function AlpacaPositions() {
         })
         const json = await response.json()
         if (response.ok) {
-          await fetchPositions()
-          // If position was already closed (idempotent close), notify user
-          if (json.alreadyClosed) {
-            // Silently refresh — no error, position is now synced
-          }
+          closeSuccess = true
         } else {
-          alert(`فشل الإغلاق: ${json.message || json.error || 'خطأ غير معروف'}`)
+          // FIX: If NestJS close fails, try the unified close as fallback
+          // instead of immediately showing an error. The NestJS route might
+          // be down or the position might have been closed already.
+          if (json.message?.includes('not found') || json.message?.includes('already closed')) {
+            // Position was already closed or doesn't exist — treat as success
+            closeSuccess = true
+          } else {
+            // Try unified close as fallback before giving up
+            try {
+              const { closePositionUnified } = await import('@/lib/api-fetch')
+              const result = await closePositionUnified(
+                pos.rawSymbol ?? pos.symbol,
+                undefined,
+                { dbId: pos.dbId || undefined }
+              )
+              if (result.success) {
+                closeSuccess = true
+              } else {
+                closeError = result.error || json.message || 'خطأ غير معروف'
+              }
+            } catch {
+              closeError = json.message || json.error || 'خطأ غير معروف'
+            }
+          }
         }
       } else {
         // No DB id — try closePositionUnified which handles the full
-        // NestJS → Alpaca fallback flow properly. Previously, this went
-        // directly to Alpaca, causing "Alpaca Error 404" for positions
-        // that only exist in the DB.
+        // NestJS → Alpaca fallback flow properly.
         const { closePositionUnified } = await import('@/lib/api-fetch')
         const result = await closePositionUnified(
           pos.rawSymbol ?? pos.symbol,
           undefined,
-          // Pass dbId if it's a valid UUID (checked above)
           { dbId: pos.dbId || undefined }
         )
         if (result.success) {
-          await fetchPositions()
+          closeSuccess = true
         } else {
-          alert(`فشل الإغلاق: ${result.error || 'خطأ غير معروف'}`)
+          closeError = result.error || 'خطأ غير معروف'
         }
+      }
+
+      if (closeSuccess) {
+        // FIX: Use refreshAfterTrade() for staggered refresh (immediate + 2s + 5s)
+        // instead of just fetchPositions(). This ensures account balance updates too.
+        refreshAfterTrade()
+        addNotification({
+          source: 'trade',
+          priority: 'high',
+          action: 'CLOSE',
+          title: `تم إغلاق مركز ${pos.symbol}`,
+          body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol} @ $${pos.currentPrice.toFixed(2)}`,
+          pair: pos.symbol,
+          price: pos.currentPrice,
+        })
+      } else {
+        alert(`فشل الإغلاق: ${closeError}`)
       }
     } catch {
       alert('خطأ في إغلاق المركز')
@@ -566,8 +617,8 @@ export function AlpacaPositions() {
               // Clear all local state
               clearAllPaperTrades()
               setPositions([])
-              // Refresh from API
-              setTimeout(() => { fetchPositions(); fetchAccount() }, 500)
+              // FIX: Use refreshAfterTrade() for staggered refresh instead of manual timeout
+              refreshAfterTrade()
             }}
             style={{
               width: '100%',

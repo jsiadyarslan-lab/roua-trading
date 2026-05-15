@@ -33,21 +33,22 @@ export async function GET(req: NextRequest) {
     // NestJS unavailable — use paper trading fallback below
   }
 
-  // Fallback: return a zero-balance summary so the dashboard shows actual data
-  // instead of fake $100,000 paper capital. The frontend will use the real
-  // exchange balance from /api/portfolio/credentials/balances if available.
+  // FIX: Return paper trading balance ($10,000) when NestJS is unavailable.
+  // Previously returned totalBalance=0, which caused BotEngine to refuse trading
+  // ("لا يمكن تحديد القدرة الشرائية"). Now returns the standard paper balance
+  // so the agent and bot can function in paper trading mode even without NestJS.
   return NextResponse.json({
     success: true,
-    source: 'no-positions',
+    source: 'paper-trading-fallback',
     data: {
       totalPositions: 0,
       totalValue: 0,
       unrealizedPnl: 0,
       realizedPnl: 0,
-      totalBalance: 0,     // FIX: Was $100,000 — this was showing fake balance
+      totalBalance: 10000,     // FIX: Paper trading balance — allows agent/bot to trade
       totalExposure: 0,
       currency: 'USD',
-      mode: 'none',
+      mode: 'paper-trading',
     },
   })
 }

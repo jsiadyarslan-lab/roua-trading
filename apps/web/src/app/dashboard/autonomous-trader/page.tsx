@@ -800,7 +800,16 @@ export default function AutonomousTraderPage() {
      ═══════════════════════════════════════════════ */
   function OverviewTab() {
     const [expandedLog, setExpandedLog] = useState(false)
-    const displayLogs = expandedLog ? logs : logs.slice(0, 8)
+    // FIX: Log filter — allows users to filter by type to reduce clutter
+    const [logFilter, setLogFilter] = useState<'all' | 'trade' | 'warning' | 'error' | 'info'>('all')
+    const filteredLogs = logFilter === 'all' ? logs : logs.filter(l => {
+      if (logFilter === 'trade') return l.type === 'trade' || l.type === 'success'
+      if (logFilter === 'warning') return l.type === 'warning'
+      if (logFilter === 'error') return l.type === 'error'
+      if (logFilter === 'info') return l.type === 'info'
+      return true
+    })
+    const displayLogs = expandedLog ? filteredLogs : filteredLogs.slice(0, 8)
 
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
@@ -1092,8 +1101,38 @@ export default function AutonomousTraderPage() {
                   سجل الأحداث
                 </div>
                 <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
-                  {logs.length} حدث
+                  {filteredLogs.length} حدث
                 </span>
+              </div>
+
+              {/* FIX: Log Filter Buttons */}
+              <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
+                {([
+                  { key: 'all', label: 'الكل', color: T.text3 },
+                  { key: 'trade', label: 'صفقات', color: T.purple },
+                  { key: 'warning', label: 'تحذيرات', color: T.amber },
+                  { key: 'error', label: 'أخطاء', color: T.red },
+                  { key: 'info', label: 'معلومات', color: T.accent },
+                ] as const).map(f => (
+                  <button
+                    key={f.key}
+                    onClick={() => setLogFilter(f.key)}
+                    style={{
+                      padding: '3px 8px',
+                      borderRadius: 6,
+                      border: `1px solid ${logFilter === f.key ? f.color : 'rgba(255,255,255,0.08)'}`,
+                      background: logFilter === f.key ? `${f.color}18` : 'transparent',
+                      color: logFilter === f.key ? f.color : T.text3,
+                      fontSize: 9,
+                      fontWeight: 700,
+                      fontFamily: FONT_AR,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', maxHeight: 420, direction: 'ltr' }} className="custom-scrollbar">
@@ -1127,7 +1166,7 @@ export default function AutonomousTraderPage() {
                 )}
               </div>
 
-              {logs.length > 8 && (
+              {filteredLogs.length > 8 && (
                 <button
                   onClick={() => setExpandedLog(!expandedLog)}
                   style={{
@@ -1137,7 +1176,7 @@ export default function AutonomousTraderPage() {
                   }}
                 >
                   {expandedLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  {expandedLog ? 'عرض أقل' : `عرض الكل (${logs.length})`}
+                  {expandedLog ? 'عرض أقل' : `عرض الكل (${filteredLogs.length})`}
                 </button>
               )}
             </div>

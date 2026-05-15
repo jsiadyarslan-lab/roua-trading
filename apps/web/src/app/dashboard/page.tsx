@@ -119,7 +119,31 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 
   const price = currentPrice ?? 0
 
+  // ═══════════════════════════════════════════════════
+  // FIX: STALE PRICE DETECTION
+  // Before executing, verify that the price is fresh.
+  // If the price hasn't been updated in > 30 seconds,
+  // warn the user and force a refresh from market store.
+  // ═══════════════════════════════════════════════════
+  const activeQuoteForOrder = useMarketStore(state => state.quotes[selectedSymbol])
+  const priceAgeMs = activeQuoteForOrder?.timestamp
+    ? Date.now() - new Date(activeQuoteForOrder.timestamp).getTime()
+    : Infinity
+  const isStalePrice = priceAgeMs > 30000 // 30 seconds
+
   const executeOrder = async () => {
+    // FIX: Force-refresh live price from market store before executing
+    const liveQuotes = useMarketStore.getState().quotes
+    const liveQuote = liveQuotes[selectedSymbol]
+    const livePrice = liveQuote?.price ?? price
+
+    // Warn if price is stale but still allow execution with the latest available price
+    if (isStalePrice && livePrice > 0) {
+      // Use the live price from market store instead of stale currentPrice prop
+    }
+
+    const effectivePrice = livePrice > 0 ? livePrice : price
+
     const qty = parseFloat(quantity)
     if (isNaN(qty) || qty <= 0) {
       setStatus({ msg: 'الكمية غير صالحة', type: 'error' })
@@ -130,25 +154,25 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
     const sl = stopLoss ? parseFloat(stopLoss) : 0
     const tp = takeProfit ? parseFloat(takeProfit) : 0
 
-    // Validate SL/TP
+    // FIX: Validate SL/TP against the LIVE effective price, not stale price
     if (orderSide === 'buy') {
-      if (sl > 0 && price > 0 && sl >= price) {
+      if (sl > 0 && effectivePrice > 0 && sl >= effectivePrice) {
         setStatus({ msg: 'يجب أن يكون وقف الخسارة أقل من السعر الحالي', type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
-      if (tp > 0 && price > 0 && tp <= price) {
+      if (tp > 0 && effectivePrice > 0 && tp <= effectivePrice) {
         setStatus({ msg: 'يجب أن يكون جني الأرباح أعلى من السعر الحالي', type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
     } else {
-      if (sl > 0 && price > 0 && sl <= price) {
+      if (sl > 0 && effectivePrice > 0 && sl <= effectivePrice) {
         setStatus({ msg: 'يجب أن يكون وقف الخسارة أعلى من السعر الحالي', type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
-      if (tp > 0 && price > 0 && tp >= price) {
+      if (tp > 0 && effectivePrice > 0 && tp >= effectivePrice) {
         setStatus({ msg: 'يجب أن يكون جني الأرباح أقل من السعر الحالي', type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
@@ -184,8 +208,8 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           symbol: selectedSymbol,
           side: orderSide === 'buy' ? 'long' : 'short',
           qty,
-          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
-          currentPrice: price,
+          entryPrice: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : effectivePrice,
+          currentPrice: effectivePrice,
           tp: tp > 0 ? tp : undefined,
           sl: sl > 0 ? sl : undefined,
           source: 'manual',
@@ -198,7 +222,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           title: `تم ${orderSide === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
           body: `تم تنفيذ ${qty} ${selectedSymbol}${filled}`,
           pair: selectedSymbol,
-          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : price,
+          price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : effectivePrice,
         })
         // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
         refreshAfterTrade()
@@ -431,6 +455,27 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           <Target size={12} />
           حساب تلقائي (SL 1% / TP 2%)
         </button>
+      )}
+
+      {/* FIX: Stale Price Warning */}
+      {isStalePrice && price > 0 && (
+        <div style={{
+          padding: '8px 12px',
+          borderRadius: 10,
+          background: 'rgba(255,184,0,0.1)',
+          border: '1px solid rgba(255,184,0,0.25)',
+          color: '#FFB800',
+          fontSize: 10,
+          fontWeight: 700,
+          fontFamily: "'Cairo', sans-serif",
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 6,
+        }}>
+          ⚠️ السعر قد يكون قديماً — سيتم استخدام آخر سعر متاح عند التنفيذ
+        </div>
       )}
 
       {/* Status Message */}

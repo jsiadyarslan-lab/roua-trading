@@ -364,19 +364,53 @@ export function BotEngine() {
     const effectiveConfidence = confidence - freshnessPenalty
     if (effectiveConfidence < settings.confLimit) return false
 
+    // ═══════════════════════════════════════════════════
+    // FIX: DUPLICATE TRADE PREVENTION
+    // Increased cooldown from 60s to 5 minutes per symbol+direction
+    // to prevent rapid duplicate trades on the same pair.
+    // Also check ALL position sources (paper + API), not just bot trades.
+    // ═══════════════════════════════════════════════════
     const executionKey = `${signal.pair}:${signal.dir}`
     const lastExecutedAt = lastExecutionRef.current[executionKey] || 0
-    const cooldownMs = 60 * 1000
-    if (Date.now() - lastExecutedAt < cooldownMs) return false
+    const cooldownMs = 5 * 60 * 1000 // FIX: 5 minutes instead of 1 minute
+    if (Date.now() - lastExecutedAt < cooldownMs) {
+      addLog(`[حماية] تبريد ${signal.pair} — آخر تنفيذ منذ ${Math.round((Date.now() - lastExecutedAt) / 1000)}ث`, 'warn')
+      return false
+    }
 
+    // ═══════════════════════════════════════════════════
+    // FIX: CROSS-SOURCE DUPLICATE CHECK
+    // Check ALL open positions (paper + API + agent) to prevent
+    // opening a duplicate position that already exists from
+    // another source (smart executor, agent, or manual).
+    // ═══════════════════════════════════════════════════
+    const allPositions = usePositionsStore.getState().positions
     const botTrades = tradesRef.current.filter((trade) => trade.source === 'bot')
     const maxOpenPositions = useBotStore.getState().settings.maxOpenPositions
-    if (botTrades.length >= maxOpenPositions) return false
+    const totalOpenPositions = allPositions.length + botTrades.length
+    if (totalOpenPositions >= maxOpenPositions) return false
 
-    return !botTrades.some((trade) =>
+    // Check paper trades for same symbol+direction
+    const hasPaperDuplicate = botTrades.some((trade) =>
       trade.symbol === signal.pair &&
       ((trade.side === 'long' && signal.dir === 'buy') || (trade.side === 'short' && signal.dir === 'sell'))
     )
+    if (hasPaperDuplicate) return false
+
+    // Check API positions for same symbol+direction (cross-source dedup)
+    const normalizedSignal = signal.pair.toUpperCase().replace('/', '')
+    const hasApiDuplicate = allPositions.some((p) => {
+      const normalizedPos = p.symbol.toUpperCase().replace('/', '')
+      if (normalizedPos !== normalizedSignal) return false
+      const isPosLong = p.side === 'long' || p.side === 'BUY'
+      return (isPosLong && signal.dir === 'buy') || (!isPosLong && signal.dir === 'sell')
+    })
+    if (hasApiDuplicate) {
+      addLog(`[حماية] يوجد مركز مفتوح بالفعل على ${signal.pair} — تخطي لتجنب التكرار`, 'warn')
+      return false
+    }
+
+    return true
   }
 
   const executeTrade = (signal: SmartSignalLike, strategySource: string = 'scanner') => {

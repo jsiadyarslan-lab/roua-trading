@@ -204,12 +204,7 @@ export default function NewsPage() {
           }}>
             <Newspaper size={20} color="white" />
           </div>
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار الذكية</h1>
-          <span style={{
-            fontSize: 10, padding: '2px 8px', borderRadius: 20,
-            background: `${T.cyan}18`, color: T.cyan,
-            fontFamily: FONT_MONO,
-          }}>SMART NEWS</span>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>الأخبار</h1>
           <div style={{
             display: 'flex', alignItems: 'center', gap: 5,
             padding: '3px 10px', borderRadius: 20,
@@ -220,7 +215,7 @@ export default function NewsPage() {
           </div>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          أخبار مالية مترجمة تلقائياً مع تحليل AI Council — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
+          أخبار مالية مترجمة مع تحليل AI — مشاعر السوق، التأثير المتوقع، والأصول المتأثرة
         </p>
       </div>
 
@@ -247,7 +242,7 @@ export default function NewsPage() {
           }}
         >
           <Newspaper size={16} />
-          الأخبار الذكية
+          الأخبار
         </button>
         <button
           onClick={() => setActiveTab('agent')}

@@ -185,7 +185,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
             fontFamily: "'Cairo', sans-serif",
             lineHeight: 1.4,
           }}>
-            {item.aiOpinion}
+            {typeof item.aiOpinion === 'string' ? item.aiOpinion : typeof item.aiOpinion === 'object' && item.aiOpinion !== null ? JSON.stringify(item.aiOpinion) : String(item.aiOpinion)}
           </div>
         ) : (
           <span style={{ fontSize: 9, color: T.text3 }}>—</span>

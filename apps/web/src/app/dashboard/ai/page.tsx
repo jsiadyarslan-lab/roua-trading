@@ -1097,7 +1097,7 @@ export default function AIPage() {
                           marginBottom: 4,
                         }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
-                            {vote.role}
+                            {typeof vote.role === 'string' ? vote.role : String(vote.role ?? '')}
                           </span>
                           <span style={{
                             fontSize: 9, padding: '2px 6px', borderRadius: 4,
@@ -1113,11 +1113,11 @@ export default function AIPage() {
                           overflow: 'hidden', textOverflow: 'ellipsis',
                           display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
                         }}>
-                          {vote.reason}
+                          {typeof vote.reason === 'string' ? vote.reason : typeof vote.reason === 'object' && vote.reason !== null ? JSON.stringify(vote.reason) : String(vote.reason ?? '')}
                         </div>
                         {vote.model && (
                           <div style={{ fontSize: 8, color: T.text3, marginTop: 3, fontFamily: "'JetBrains Mono', monospace" }}>
-                            {vote.model}
+                            {typeof vote.model === 'string' ? vote.model : String(vote.model ?? '')}
                           </div>
                         )}
                       </div>
@@ -1132,7 +1132,7 @@ export default function AIPage() {
                       fontSize: 10, color: T.text2, lineHeight: 1.6,
                     }}>
                       <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>الاستراتيجية الرئيسية</div>
-                      {councilResult.masterStrategy}
+                      {typeof councilResult.masterStrategy === 'string' ? councilResult.masterStrategy : String(councilResult.masterStrategy ?? '')}
                     </div>
                   )}
                 </>

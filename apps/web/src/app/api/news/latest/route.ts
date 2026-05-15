@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
               affectedAssets: typeof article.affectedAssets === 'string'
                 ? (() => { try { return JSON.parse(article.affectedAssets); } catch { return []; } })()
                 : Array.isArray(article.affectedAssets) ? article.affectedAssets : [],
-              category: article.category || 'markets',
-              categoryAr: mapRouaNewsCategoryToArabic(article.category),
+              category: article.category || 'أسواق',
+              categoryAr: article.category || 'أسواق',
               publishedAt: article.publishedAt || new Date().toISOString(),
             }));
 
@@ -295,35 +295,11 @@ async function fetchLocalNews(
 function mapCategoryToArabic(category: string): string {
   const lower = category.toLowerCase();
   if (lower.includes('bitcoin') || lower.includes('crypto')) return 'كريبتو';
-  if (lower.includes('forex') || lower.includes('currency') || lower.includes('fx')) return 'فوركس';
   if (lower.includes('market') || lower.includes('stock')) return 'أسهم';
-  if (lower.includes('commodit') || lower.includes('gold') || lower.includes('oil') || lower.includes('silver')) return 'سلع';
   if (lower.includes('regulation') || lower.includes('policy')) return 'تنظيم';
   if (lower.includes('economy') || lower.includes('macro')) return 'اقتصاد';
   if (lower.includes('etf')) return 'صناديق';
   return 'أسواق';
-}
-
-/**
- * Map Roua News Site category values to Arabic category names
- * that match the News Room category tabs (كريبتو, فوركس, اقتصاد, سلع)
- */
-function mapRouaNewsCategoryToArabic(category: string | undefined | null): string {
-  if (!category) return 'أسواق'
-  const cat = category.toLowerCase().trim()
-
-  // Direct Arabic category match (already in Arabic)
-  if (cat === 'كريبتو' || cat === 'فوركس' || cat === 'اقتصاد' || cat === 'سلع' || cat === 'أسواق' || cat === 'أسهم') return category
-
-  // English category mapping
-  if (cat.includes('crypto') || cat.includes('bitcoin') || cat.includes('btc') || cat.includes('altcoin') || cat.includes('defi') || cat.includes('nft')) return 'كريبتو'
-  if (cat.includes('forex') || cat.includes('currency') || cat.includes('fx') || cat.includes('pair')) return 'فوركس'
-  if (cat.includes('econom') || cat.includes('macro') || cat.includes('fed') || cat.includes('central bank') || cat.includes('inflation') || cat.includes('interest rate') || cat.includes('gdp')) return 'اقتصاد'
-  if (cat.includes('commodit') || cat.includes('gold') || cat.includes('oil') || cat.includes('silver') || cat.includes('natural gas') || cat.includes('copper') || cat.includes('wheat')) return 'سلع'
-  if (cat.includes('stock') || cat.includes('equity') || cat.includes('share') || cat.includes('index') || cat.includes('s&p') || cat.includes('nasdaq') || cat.includes('dow')) return 'أسهم'
-  if (cat.includes('regulat') || cat.includes('policy') || cat.includes('sec') || cat.includes('law')) return 'تنظيم'
-
-  return 'أسواق'
 }
 
 function simulateArabicTranslation(title: string, category: string): string {

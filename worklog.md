@@ -15,3 +15,26 @@ Work Log:
 
 Stage Summary:
 - Full project understanding achieved. Ready for instructions.
+---
+Task ID: 1
+Agent: Main Agent
+Task: تنفيذ 7 إصلاحات حرجة لمشروع Roua Trading
+
+Work Log:
+- قراءة وتحليل 10+ ملفات مصدرية لفهم المشاكل
+- إصلاح زر إغلاق الصفقة (AlpacaPositions.tsx) - refreshAfterTrade + fallback
+- إصلاح تكرار الصفقات (BotEngine.tsx) - cooldown 5min + cross-source dedup
+- إصلاح سعر البريف القديم (dashboard/page.tsx) - live price + stale warning
+- إصلاح فلتر سجل الوكيل (autonomous-trader/page.tsx) - filter buttons
+- إصلاح حساب الرصيد الحي (usePositionsStore.ts) - equity = cash + positions + pnl
+- إصلاح رصيد التداول الورقي (usePositionsStore.ts + API routes) - $10,000 default
+- إضافة إشعارات تغير الرصيد (GlobalLogicEngine.tsx) - >$10 threshold
+- البناء نجح بدون أخطاء
+- النشر على GitHub (Railway سيبني تلقائياً)
+
+Stage Summary:
+- 8 ملفات معدّلة، 372 سطر مضاف، 68 سطر محذوف
+- جميع الإصلاحات السبعة تم تنفيذها بنجاح
+- البناء ينجح (next build --webpack)
+- تم النشر على GitHub: commit 0d0fdc6e
+- الإنتاج: https://roua-trading-production.up.railway.app/

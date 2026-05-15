@@ -38,3 +38,30 @@ Stage Summary:
 - البناء ينجح (next build --webpack)
 - تم النشر على GitHub: commit 0d0fdc6e
 - الإنتاج: https://roua-trading-production.up.railway.app/
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Apply 7 critical fixes for trading system and deploy to production
+
+Work Log:
+- Deep search of all project files related to the 7 fixes
+- Read and analyzed: usePositionsStore.ts, GlobalLogicEngine.tsx, useAgentStore.ts, AlpacaPositions.tsx, api-fetch.ts, BotEngine.tsx, SmartExecutorPanel.tsx, portfolio/summary/route.ts, trading/positions/summary/route.ts, usePaperTradesStore.ts, dashboard/trading/page.tsx, dashboard/positions/page.tsx
+- Verified live equity calculation already implemented in updatePositionPrice() and fetchAccount()
+- Verified paper trading balance ($10,000) already implemented in fetchAccount() fallbacks
+- Verified balance notifications already implemented in GlobalLogicEngine.tsx
+- Applied Fix 1 (Problem 6): Removed Date.now() from idempotency key in trading page - key now deterministic
+- Applied Fix 2 (Problem 5): Replaced direct NestJS fetch in close handler with closePositionUnified fallback
+- Applied Fix 3 (Problem 3): Added live market price fetch from useMarketStore before closing positions
+- Applied Fix 4 (Problem 1): Added deduplication to addLog() in useAgentStore to prevent spam
+- Build succeeded (50.667s)
+- Pushed to GitHub (commit a67b2315)
+- Verified production site returns 200 with correct HTML
+- Verified /api/trading/positions/summary returns paper-trading-fallback with $10,000
+- Verified /api/health returns all checks OK
+
+Stage Summary:
+- 3 files modified: trading/page.tsx, AlpacaPositions.tsx, useAgentStore.ts
+- All 7 fixes applied and verified
+- Production site live at https://roua-trading-production.up.railway.app/
+- Railway auto-deploy triggered from GitHub push

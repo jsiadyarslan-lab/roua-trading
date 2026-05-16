@@ -32,6 +32,9 @@ import {
   Eye,
   BookOpen,
   Tag,
+  ShieldAlert,
+  Sparkles,
+  Activity,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
 import { TExtended as T } from '@/lib/unified-tokens'
@@ -1084,13 +1087,13 @@ function AnalysisContentCard({
       }}
     >
       {/* Card Header */}
-      <div style={{ padding: '20px 22px 0' }}>
+      <div style={{ padding: '22px 22px 0' }}>
         {/* Top Row: Badges */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${cat.color}18`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, border: `0.5px solid ${cat.color}25` }}>
             {cat.label}
           </span>
-          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${typ.color}10`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
+          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${typ.color}12`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
             {typ.label}
           </span>
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
@@ -1107,23 +1110,28 @@ function AnalysisContentCard({
         </div>
 
         {/* Title */}
-        <h3 style={{ color: T.text, fontSize: 17, fontWeight: 900, margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR }}>
+        <h3 style={{
+          color: T.text, fontSize: 18, fontWeight: 900, margin: '0 0 14px', lineHeight: 1.7, fontFamily: FONT_AR,
+          background: 'linear-gradient(180deg, #F0F2F5 0%, #C8CCD4 100%)',
+          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+        }}>
           {titleText}
         </h3>
 
         {/* Symbols Row */}
         {symbols.length > 0 && (
-          <div style={{ display: 'flex', gap: 5, marginBottom: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
             {symbols.slice(0, 6).map((sym, i) => (
               <span key={i} style={{
-                fontSize: 10, padding: '3px 10px', borderRadius: 6,
-                background: `${T.cyan}10`, color: T.cyan, fontWeight: 800,
-                fontFamily: FONT_MONO, border: `0.5px solid ${T.cyan}20`,
+                fontSize: 11, padding: '4px 12px', borderRadius: 8,
+                background: `linear-gradient(135deg, ${T.cyan}10, ${T.cyan}06)`,
+                color: T.cyan, fontWeight: 800,
+                fontFamily: FONT_MONO, border: `1px solid ${T.cyan}18`,
               }}>
                 {sym}
               </span>
             ))}
-            {symbols.length > 6 && <span style={{ fontSize: 9, color: T.text3, padding: '3px 6px' }}>+{symbols.length - 6}</span>}
+            {symbols.length > 6 && <span style={{ fontSize: 9, color: T.text3, padding: '4px 8px' }}>+{symbols.length - 6}</span>}
           </div>
         )}
 
@@ -1157,13 +1165,20 @@ function AnalysisContentCard({
         onClick={onToggle}
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: '10px 22px', cursor: 'pointer',
+          padding: '12px 22px', cursor: 'pointer',
           borderTop: `1px solid ${T.border}`,
-          background: expanded ? `${cat.color}04` : 'transparent',
-          transition: 'background 0.15s',
+          background: expanded ? `${cat.color}06` : 'transparent',
+          transition: 'background 0.2s',
         }}
       >
-        <span style={{ fontSize: 11, color: cat.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 5 }}>
+        <span style={{
+          fontSize: 12, color: expanded ? cat.color : T.text2, fontWeight: 700,
+          fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 6,
+          padding: '6px 18px', borderRadius: 8,
+          background: expanded ? `${cat.color}10` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${expanded ? cat.color + '25' : T.border}`,
+          transition: 'all 0.2s',
+        }}>
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           {expanded ? 'إغلاق التحليل' : 'قراءة التحليل الكامل'}
         </span>
@@ -1171,36 +1186,15 @@ function AnalysisContentCard({
 
       {/* Expanded Content */}
       {expanded && contentText && (
-        <div style={{ padding: '0 22px 22px', borderTop: `1px solid ${T.border}`, paddingTop: 18 }}>
-          {/* Content */}
-          <div style={{
-            color: T.text2, fontSize: 13, lineHeight: 2.1, fontFamily: FONT_AR,
-            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-            maxHeight: 600, overflowY: 'auto',
-          }}>
-            {contentText.split('\n').map((paragraph, i) => {
-              if (!paragraph.trim()) return null
-              // Highlight lines that look like headings (start with # or **)
-              const isHeading = paragraph.trimStart().startsWith('#') || paragraph.trimStart().startsWith('**')
-              const cleanPara = paragraph.replace(/^#+\s*/, '').replace(/^\*\*(.+?)\*\*$/, '$1')
-              return (
-                <p key={i} style={{
-                  margin: isHeading ? '16px 0 8px' : '0 0 10px',
-                  fontSize: isHeading ? 15 : 13,
-                  fontWeight: isHeading ? 900 : 500,
-                  color: isHeading ? T.text : T.text2,
-                  lineHeight: isHeading ? 1.8 : 2.1,
-                  fontFamily: FONT_AR,
-                }}>
-                  {cleanPara}
-                </p>
-              )
-            })}
+        <div style={{ borderTop: `1px solid ${T.border}` }}>
+          {/* Rich Analysis Content */}
+          <div style={{ padding: '0 22px 22px' }}>
+            <RichAnalysisContent content={contentText} catColor={cat.color} />
           </div>
 
           {/* Tags */}
           {tags.length > 0 && (
-            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', padding: '0 22px 14px' }}>
               <Tag size={11} color={T.text3} style={{ flexShrink: 0, marginTop: 2 }} />
               {tags.slice(0, 8).map((tag, i) => (
                 <span key={i} style={{
@@ -1215,7 +1209,7 @@ function AnalysisContentCard({
           )}
 
           {/* Meta Footer */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', background: `${T.bg2}40` }}>
             {article.views > 0 && (
               <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <Eye size={10} /> {article.views} مشاهدة
@@ -1223,7 +1217,7 @@ function AnalysisContentCard({
             )}
             {article.generationSource && (
               <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Brain size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
+                <Sparkles size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
               </span>
             )}
             <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
@@ -1233,6 +1227,291 @@ function AnalysisContentCard({
         </div>
       )}
     </article>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   Rich Analysis Content — Professional Markdown Renderer
+   ═══════════════════════════════════════════ */
+function RichAnalysisContent({ content, catColor }: { content: string; catColor: string }) {
+  // Parse content into structured blocks
+  const blocks = useMemo(() => {
+    const lines = content.split('\n')
+    const result: Array<{
+      type: 'h3' | 'h2' | 'section-title' | 'bullet' | 'paragraph' | 'risk-box' | 'divider'
+      text: string
+      raw: string
+    }> = []
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+
+      // H3 header: ### text
+      if (trimmed.startsWith('### ')) {
+        result.push({ type: 'h3', text: trimmed.replace(/^###\s*/, ''), raw: trimmed })
+        continue
+      }
+
+      // H2 header: ## text
+      if (trimmed.startsWith('## ')) {
+        result.push({ type: 'h2', text: trimmed.replace(/^##\s*/, ''), raw: trimmed })
+        continue
+      }
+
+      // Risk/disclaimer section detection
+      if (trimmed.includes('تنبيه المخاطر') || trimmed.includes('تحذير المخاطر') || trimmed.includes('لأغراض تعليمية')) {
+        result.push({ type: 'risk-box', text: trimmed, raw: trimmed })
+        continue
+      }
+
+      // Bullet point: - text or * text
+      if (/^[-*]\s/.test(trimmed)) {
+        result.push({ type: 'bullet', text: trimmed.replace(/^[-*]\s*/, ''), raw: trimmed })
+        continue
+      }
+
+      // Section title: standalone bold line like **text** or all-caps keyword
+      if (/^\*\*.+\*\*$/.test(trimmed)) {
+        result.push({ type: 'section-title', text: trimmed.replace(/^\*\*/, '').replace(/\*\*$/, ''), raw: trimmed })
+        continue
+      }
+
+      // Regular paragraph
+      result.push({ type: 'paragraph', text: trimmed, raw: trimmed })
+    }
+
+    return result
+  }, [content])
+
+  // Render inline markdown (bold, prices, symbols)
+  const renderInline = (text: string) => {
+    const parts: React.ReactNode[] = []
+    // Split by **bold** patterns
+    const boldRegex = /\*\*(.+?)\*\*/g
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    let keyIdx = 0
+
+    while ((match = boldRegex.exec(text)) !== null) {
+      // Text before bold
+      if (match.index > lastIndex) {
+        parts.push(...renderSpecialText(text.slice(lastIndex, match.index), keyIdx))
+        keyIdx += 10
+      }
+      // Bold text — check if it's a price or symbol
+      const boldContent = match[1]
+      const isPrice = /[\d,]+\.?\d*\s*(دولار|USD|\$|ريال)/.test(boldContent)
+      const isLevel = /مستوى|دعم|مقاومة|هدف|وقف/.test(boldContent)
+      parts.push(
+        <span key={`b-${keyIdx++}`} style={{
+          fontWeight: 800,
+          color: isPrice ? '#d4af37' : isLevel ? T.cyan : T.text,
+          fontFamily: isPrice ? FONT_MONO : FONT_AR,
+        }}>
+          {boldContent}
+        </span>
+      )
+      lastIndex = match.index + match[0].length
+    }
+
+    // Remaining text after last bold
+    if (lastIndex < text.length) {
+      parts.push(...renderSpecialText(text.slice(lastIndex), keyIdx))
+    }
+
+    return parts.length > 0 ? parts : text
+  }
+
+  // Render special inline patterns (symbols like AAPL, numbers with $)
+  const renderSpecialText = (text: string, startKey: number): React.ReactNode[] => {
+    const parts: React.ReactNode[] = []
+    // Match stock/crypto symbols like AAPL, BTC, ETH (2-5 uppercase letters)
+    const symbolRegex = /\b([A-Z]{2,5}(?:\/[A-Z]{2,5})?)\b/g
+    const priceRegex = /(\$[\d,.]+|\d[\d,.]*\s*(?:دولار|USD|\$|ريال))/g
+
+    // Simple approach: just render text with symbol highlighting
+    let idx = 0
+    let symMatch: RegExpExecArray | null
+    const allMatches: Array<{ start: number; end: number; type: 'symbol' | 'price' }> = []
+
+    while ((symMatch = symbolRegex.exec(text)) !== null) {
+      // Filter common non-symbol words
+      const skip = ['THE', 'AND', 'FOR', 'NOT', 'BUT', 'ALL', 'HAS', 'ARE', 'WAS', 'HER', 'HIS', 'ITS', 'MAY', 'CAN', 'WILL', 'FROM', 'WITH', 'THIS', 'THAT', 'THEY', 'THEM', 'THEN', 'THAN', 'EACH', 'VERY', 'JUST', 'ALSO', 'NOW', 'SOME', 'INTO', 'OVER', 'ONLY']
+      if (skip.includes(symMatch[1])) continue
+      allMatches.push({ start: symMatch.index, end: symMatch.index + symMatch[0].length, type: 'symbol' })
+    }
+    while ((symMatch = priceRegex.exec(text)) !== null) {
+      allMatches.push({ start: symMatch.index, end: symMatch.index + symMatch[0].length, type: 'price' })
+    }
+
+    if (allMatches.length === 0) {
+      parts.push(<span key={`t-${startKey}`}>{text}</span>)
+      return parts
+    }
+
+    // Sort matches by position
+    allMatches.sort((a, b) => a.start - b.start)
+    let cursor = 0
+
+    for (const m of allMatches) {
+      if (m.start > cursor) {
+        parts.push(<span key={`t-${startKey}-${idx++}`}>{text.slice(cursor, m.start)}</span>)
+      }
+      const val = text.slice(m.start, m.end)
+      parts.push(
+        <span key={`s-${startKey}-${idx++}`} style={{
+          fontWeight: 800,
+          color: m.type === 'price' ? '#d4af37' : T.cyan,
+          fontFamily: FONT_MONO,
+          fontSize: m.type === 'price' ? 12 : 11,
+          padding: m.type === 'symbol' ? '0 3px' : 0,
+        }}>
+          {val}
+        </span>
+      )
+      cursor = m.end
+    }
+
+    if (cursor < text.length) {
+      parts.push(<span key={`t-${startKey}-end`}>{text.slice(cursor)}</span>)
+    }
+
+    return parts
+  }
+
+  // Detect if a block is a "key data" section (support/resistance, targets)
+  const isKeyDataSection = (text: string) => {
+    return /مستويات? (الدعم|المقاومة)|أهداف? (سعري|محتمل)|الأسعار (الحالية|الرئيسية)|مستوى (الدعم|المقاومة)/.test(text)
+  }
+
+  // Group consecutive bullets under their heading
+  let currentSectionIsKeyData = false
+
+  return (
+    <div style={{ direction: 'rtl', fontFamily: FONT_AR }}>
+      {blocks.map((block, i) => {
+        // Track if we're in a key data section
+        if (block.type === 'section-title' || block.type === 'h3') {
+          currentSectionIsKeyData = isKeyDataSection(block.text)
+        }
+
+        // ── H3 Header ──
+        if (block.type === 'h3') {
+          return (
+            <div key={i} style={{
+              margin: '24px 0 12px', padding: '10px 14px',
+              background: `linear-gradient(135deg, ${catColor}08, ${catColor}04)`,
+              borderRight: `3px solid ${catColor}`,
+              borderRadius: '0 8px 8px 0',
+            }}>
+              <span style={{
+                fontSize: 15, fontWeight: 900, color: T.text,
+                fontFamily: FONT_AR, lineHeight: 1.6,
+              }}>
+                {renderInline(block.text)}
+              </span>
+            </div>
+          )
+        }
+
+        // ── H2 Header ──
+        if (block.type === 'h2') {
+          return (
+            <div key={i} style={{
+              margin: '28px 0 14px', padding: '12px 16px',
+              background: `linear-gradient(135deg, ${T.green}10, ${T.green}04)`,
+              borderRight: `4px solid ${T.green}`,
+              borderRadius: '0 10px 10px 0',
+            }}>
+              <span style={{
+                fontSize: 17, fontWeight: 900, color: T.text,
+                fontFamily: FONT_AR, lineHeight: 1.5,
+              }}>
+                {renderInline(block.text)}
+              </span>
+            </div>
+          )
+        }
+
+        // ── Section Title (bold standalone line) ──
+        if (block.type === 'section-title') {
+          return (
+            <div key={i} style={{
+              margin: '22px 0 10px', padding: '8px 12px',
+              borderRight: `2px solid ${catColor}60`,
+              background: `${catColor}06`,
+              borderRadius: '0 6px 6px 0',
+            }}>
+              <span style={{
+                fontSize: 14, fontWeight: 800, color: T.text,
+                fontFamily: FONT_AR, lineHeight: 1.6,
+              }}>
+                {renderInline(block.text)}
+              </span>
+            </div>
+          )
+        }
+
+        // ── Bullet Point ──
+        if (block.type === 'bullet') {
+          const isKeyData = currentSectionIsKeyData
+          return (
+            <div key={i} style={{
+              display: 'flex', gap: 8, margin: '4px 0',
+              padding: isKeyData ? '6px 10px' : '3px 0',
+              background: isKeyData ? `${T.bg2}80` : 'transparent',
+              borderRadius: isKeyData ? 6 : 0,
+              border: isKeyData ? `0.5px solid ${T.border}` : 'none',
+            }}>
+              <div style={{
+                width: 5, height: 5, borderRadius: '50%',
+                background: isKeyData ? '#d4af37' : T.text3,
+                marginTop: 9, flexShrink: 0,
+              }} />
+              <span style={{
+                color: T.text2, fontSize: 13, lineHeight: 2,
+                fontFamily: FONT_AR,
+              }}>
+                {renderInline(block.text)}
+              </span>
+            </div>
+          )
+        }
+
+        // ── Risk/Disclaimer Box ──
+        if (block.type === 'risk-box') {
+          return (
+            <div key={i} style={{
+              margin: '18px 0 8px', padding: '14px 16px',
+              background: 'rgba(255,184,0,0.06)',
+              border: `1px solid rgba(255,184,0,0.15)`,
+              borderRight: `3px solid rgba(255,184,0,0.4)`,
+              borderRadius: 8,
+              display: 'flex', gap: 10, alignItems: 'flex-start',
+            }}>
+              <ShieldAlert size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
+              <span style={{
+                color: T.amber, fontSize: 12, fontWeight: 600,
+                lineHeight: 1.9, fontFamily: FONT_AR,
+              }}>
+                {block.text}
+              </span>
+            </div>
+          )
+        }
+
+        // ── Regular Paragraph ──
+        return (
+          <p key={i} style={{
+            color: T.text2, fontSize: 13, lineHeight: 2.1,
+            margin: '0 0 12px', fontFamily: FONT_AR,
+          }}>
+            {renderInline(block.text)}
+          </p>
+        )
+      })}
+    </div>
   )
 }
 

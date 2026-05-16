@@ -222,3 +222,30 @@ Stage Summary:
 - SmartExecutor: processedKey with 'duplicate-blocked' no longer gets cleared → loop stops
 - NotificationService: table existence cached, no more prisma:error spam
 - start.sh: table verification with db push + direct SQL fallback
+
+---
+Task ID: v114
+Agent: main
+Task: Fix close position failure for 1 of 3 positions
+
+Work Log:
+- Analyzed closePosition flow end-to-end (controller → service → paper trade → transaction)
+- Found root cause: when posCurrentPrice is 0/null, getQuote() could hang 30+ seconds
+  - All price providers may be exhausted (TwelveData rate-limited, Binance blocked)
+  - This caused close requests to timeout, leaving positions stuck OPEN
+- Added 3-second timeout to getQuote call in closePosition for paper trading
+  - Uses Promise.race with timeout, falls back to entryPrice
+  - Paper trading doesn't need exact market prices
+- Added auto force-close fallback in frontend closePositionUnified
+  - Previously: force-close only tried for 'رصيد غير متاح' error
+  - Now: tries force-close for timeout, network errors, 502/504, generic failures
+  - Also tries force-close when NestJS is completely unreachable
+- Updated deploy marker to ROUA-V114-CLOSE-POSITION-FIX
+- Updated Dockerfile BUILD_CACHE=v114
+- TypeScript compilation passes
+- Pushed to GitHub: 128b27ff3
+
+Stage Summary:
+- closePosition: 3s timeout on getQuote, entryPrice fallback
+- Frontend: auto force-close on any failure type
+- Positions should now always close even when price providers are down

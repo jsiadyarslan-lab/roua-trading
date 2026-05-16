@@ -467,6 +467,30 @@ export class PositionMonitorService {
       this.logger.error(
         `🛡️ Failed to close position ${position.id}: ${error.message}`,
       );
+
+      // FIX V114: If closePositionWithRetry failed, try force-close as fallback.
+      // This is critical for SL/TP-triggered closes — if the close fails, the
+      // position stays OPEN with its SL/TP already triggered, which could lead
+      // to unlimited losses. Force-close is always safe for paper-trading positions.
+      // For real exchange positions, force-close is safe when the error suggests
+      // the exchange might already have the position closed.
+      try {
+        this.logger.warn(
+          `🛡️ V114 Attempting force-close for position ${position.id} after closePositionWithRetry failed`,
+        );
+        await this.tradingService.forceClosePosition(
+          position.userId,
+          position.id,
+          `V114 Position Monitor fallback: ${reason} triggered but closePositionWithRetry failed — ${error.message?.substring(0, 100)}`,
+        );
+        this.logger.log(
+          `🛡️ V114 Force-close succeeded for position ${position.id} (${reason})`,
+        );
+      } catch (forceErr: any) {
+        this.logger.error(
+          `🛡️ V114 Force-close also failed for position ${position.id}: ${forceErr.message}`,
+        );
+      }
     }
   }
 

@@ -798,6 +798,42 @@ export class TradingService {
         }
       }
 
+      // FIX V114: For paper-trading positions, NEVER leave them stuck OPEN.
+      // Paper trading has no real exchange state to desync — force-close is always safe.
+      // If force-close already failed above, try ONE MORE TIME with a direct DB update
+      // as the absolute last resort. This prevents the "3 out of 4 close" pattern where
+      // the last position gets stuck because of a transient error during force-close.
+      if (isPaperTrading) {
+        this.logger.warn(
+          `🔴 V114 Paper-trading safety net: force-close failed for ${position.id}, attempting direct DB update as last resort`,
+        );
+        try {
+          await this.prisma.position.update({
+            where: { id: position.id },
+            data: {
+              status: 'CLOSED',
+              closedAt: new Date(),
+              realizedPnl: posRealizedPnl, // No PnL change since execution failed
+            },
+          });
+          this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+          this.logger.log(
+            `🔴 V114 Paper-trading position ${position.id} force-closed via direct DB update`,
+          );
+          return {
+            order: null,
+            pnl: 0,
+            position: await this.prisma.position.findUnique({ where: { id: position.id } }),
+            forceClosed: true,
+            safetyNetClose: true,
+          };
+        } catch (dbErr: any) {
+          this.logger.error(
+            `❌ V114 Even direct DB update failed for ${position.id}: ${dbErr.message}`,
+          );
+        }
+      }
+
       // Only throw for real trading positions where the exchange might have
       // partially executed — force-closing would lose sync with exchange state.
       throw new BadRequestException(
@@ -1008,10 +1044,17 @@ export class TradingService {
   }
 
   /**
-   * FIX: Close position with automatic retry on optimistic lock failure.
-   * When two concurrent close requests race, the loser gets OPTIMISTIC_LOCK_FAILURE
-   * and should retry (the position may now be partially closed or fully closed).
-   * This wrapper handles that retry logic transparently.
+   * FIX V114: Close position with automatic retry on optimistic lock failure
+   * AND transient errors (timeout, network, rate limit).
+   *
+   * Previously, this only retried on OPTIMISTIC_LOCK_FAILURE. But many
+   * transient errors (CCXT timeout, network reset, rate limit) also benefit
+   * from a retry — especially for paper-trading positions where a retry
+   * is always safe (no real exchange state to desync).
+   *
+   * Retry schedule:
+   * - OPTIMISTIC_LOCK_FAILURE: 100ms delay (fast — the other tx just committed)
+   * - Transient errors: 1s, 2s, 3s exponential backoff
    */
   async closePositionWithRetry(
     userId: string,
@@ -1023,12 +1066,25 @@ export class TradingService {
     try {
       return await this.closePosition(userId, request, ipAddress, userAgent, 0);
     } catch (error: any) {
-      if (error.message?.includes('OPTIMISTIC_LOCK_FAILURE') && maxRetries > 0) {
+      const errMsg = error?.message || '';
+
+      // Check if this is an optimistic lock failure — fast retry
+      if (errMsg.includes('OPTIMISTIC_LOCK_FAILURE') && maxRetries > 0) {
         this.logger.warn(`Optimistic lock failure on closePosition for ${request.positionId} — retrying (${maxRetries} attempts left)`);
-        // Small delay before retry to let the other transaction commit
         await new Promise(resolve => setTimeout(resolve, 100));
         return this.closePositionWithRetry(userId, request, ipAddress, userAgent, maxRetries - 1);
       }
+
+      // FIX V114: Also retry on transient errors (timeout, network, rate limit)
+      // These are temporary failures that may succeed on retry.
+      const isTransientError = /timeout|ETIMEDOUT|ECONNREFUSED|ECONNRESET|rate.?limit|too many|429|network|unreachable|fetch failed|Service Unavailable|502|504/i.test(errMsg);
+      if (isTransientError && maxRetries > 0) {
+        const delayMs = (4 - maxRetries) * 1000; // 1s, 2s, 3s backoff
+        this.logger.warn(`Transient error on closePosition for ${request.positionId} — retrying in ${delayMs}ms (${maxRetries} attempts left). Error: ${errMsg.substring(0, 100)}`);
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        return this.closePositionWithRetry(userId, request, ipAddress, userAgent, maxRetries - 1);
+      }
+
       throw error;
     }
   }
@@ -1077,14 +1133,27 @@ export class TradingService {
     const posStopLoss = position.stopLoss?.toNumber() ?? null;
 
     // Get current market price for PnL calculation
+    // FIX V114: Add 3-second timeout for getQuote() — same pattern as closePosition().
+    // Previously, forceClosePosition() called getQuote() WITHOUT a timeout. When all
+    // price providers were exhausted (TwelveData rate-limited, Binance blocked, etc.),
+    // getQuote() could hang for 30+ seconds, causing the entire force-close request
+    // to timeout and the position to remain stuck OPEN.
     let currentPrice = position.currentPrice?.toNumber() ?? 0;
     if (currentPrice <= 0) {
       try {
-        const quote = await this.exchangeService.getQuote(position.symbol);
+        const quotePromise = this.exchangeService.getQuote(position.symbol);
+        const quote = await Promise.race([
+          quotePromise,
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+        ]);
         currentPrice = quote?.price ?? posEntryPrice;
       } catch {
         currentPrice = posEntryPrice;
       }
+    }
+    // Final safety: entryPrice is always available for an OPEN position
+    if (!currentPrice || currentPrice <= 0) {
+      currentPrice = posEntryPrice;
     }
 
     const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';

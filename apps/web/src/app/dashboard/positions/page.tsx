@@ -20,6 +20,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 // ── Types ──
 interface Position {
@@ -216,6 +217,12 @@ export default function PositionsPage() {
           setPositions((prev) => prev.filter((p) => p.id !== closeDialog.id))
         }
         fetchSummary()
+        // FIX V114: Also refresh the Zustand positions store after close.
+        // Previously, only the local useState was updated — the Zustand store
+        // kept the old position, causing it to reappear on other pages or
+        // after navigation. refreshAfterTrade() triggers a staggered refresh
+        // (immediate + 2s + 5s) to ensure the backend state is synced.
+        usePositionsStore.getState().refreshAfterTrade()
         setCloseDialog(null)
       } else {
         throw new Error(result.error || 'فشل في إغلاق المركز')

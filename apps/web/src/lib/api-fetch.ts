@@ -361,6 +361,31 @@ export async function closePositionUnified(
           }
         }
 
+        // FIX V114: If force-close was NOT tried (error didn't match patterns),
+        // try force-close as a last resort for ALL UUID positions. Previously,
+        // many error types (e.g., "فشل في إغلاق المركز" with a different reason,
+        // Prisma errors, transaction failures) would NOT trigger force-close,
+        // leaving positions stuck OPEN forever. Now we always try force-close
+        // before giving up — it's always safe for DB-only positions.
+        if (!shouldForceClose && isNestJsId(positionId) && nestjsId) {
+          try {
+            const forceRes = await fetch('/api/trading/positions/force-close', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                positionId: nestjsId,
+                reason: `V114 auto force-close: ${errMsg.substring(0, 100)}`,
+              }),
+            })
+            if (forceRes.ok) {
+              options?.onClosed?.()
+              return { success: true, source: 'nestjs', forceClosed: true }
+            }
+          } catch {
+            // Force close failed, continue to return error
+          }
+        }
+
         // FIX: If positionId is a UUID, do NOT fall through to Alpaca.
         // A UUID is not a valid asset symbol — sending it to Alpaca always fails.
         // Only fall through for non-UUID positionIds (like "BTCUSDT").

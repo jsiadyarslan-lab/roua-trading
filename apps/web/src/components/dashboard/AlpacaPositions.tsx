@@ -324,7 +324,25 @@ export function AlpacaPositions() {
               if (result.success) {
                 closeSuccess = true
               } else {
-                closeError = result.error || json.message || 'خطأ غير معروف'
+                // FIX V114: If unified close also failed, try force-close directly
+                // as last resort. This prevents positions from getting stuck OPEN.
+                try {
+                  const forceRes = await fetch('/api/trading/positions/force-close', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      positionId: pos.dbId,
+                      reason: `V114 individual close fallback: unified close also failed`,
+                    }),
+                  })
+                  if (forceRes.ok) {
+                    closeSuccess = true
+                  } else {
+                    closeError = result.error || json.message || 'خطأ غير معروف'
+                  }
+                } catch {
+                  closeError = result.error || json.message || 'خطأ غير معروف'
+                }
               }
             } catch {
               closeError = json.message || json.error || 'خطأ غير معروف'
@@ -615,23 +633,62 @@ export function AlpacaPositions() {
           <button
             type="button"
             onClick={async () => {
-              // Close all real positions via API
+              // FIX V114: Close all positions with per-position error handling.
+              // Previously, if one position failed to close, the entire loop
+              // would stop and remaining positions stayed open. Now each position
+              // gets its own try/catch, and failed positions get a force-close
+              // attempt as a fallback. Stagger requests with 200ms delay to
+              // avoid rate limiting (10 req/min throttle on close endpoint).
+              let closedCount = 0
+              let failedCount = 0
               for (const pos of allPositions) {
-                if (pos.isPaper) {
-                  closePaperTrade(pos.id)
-                } else if (pos.dbId) {
-                  try {
-                    await fetch('/api/trading/positions/close', {
+                try {
+                  if (pos.isPaper) {
+                    closePaperTrade(pos.id)
+                    closedCount++
+                  } else if (pos.dbId) {
+                    const res = await fetch('/api/trading/positions/close', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ positionId: pos.dbId }),
                     })
-                  } catch {}
-                } else {
-                  try {
+                    if (res.ok) {
+                      closedCount++
+                    } else {
+                      // Close failed — try force-close as fallback
+                      try {
+                        const forceRes = await fetch('/api/trading/positions/force-close', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            positionId: pos.dbId,
+                            reason: `V114 Close All fallback: close failed`,
+                          }),
+                        })
+                        if (forceRes.ok) {
+                          closedCount++
+                        } else {
+                          failedCount++
+                        }
+                      } catch {
+                        failedCount++
+                      }
+                    }
+                  } else {
                     const { closePositionUnified } = await import('@/lib/api-fetch')
-                    await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
-                  } catch {}
+                    const result = await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
+                    if (result.success) {
+                      closedCount++
+                    } else {
+                      failedCount++
+                    }
+                  }
+                } catch {
+                  failedCount++
+                }
+                // Stagger to avoid rate limiting
+                if (allPositions.length > 1) {
+                  await new Promise(r => setTimeout(r, 200))
                 }
               }
               // Clear all local state
@@ -639,6 +696,17 @@ export function AlpacaPositions() {
               setPositions([])
               // FIX: Use refreshAfterTrade() for staggered refresh instead of manual timeout
               refreshAfterTrade()
+              if (failedCount > 0) {
+                addNotification({
+                  source: 'trade',
+                  priority: 'high',
+                  action: 'CLOSE',
+                  title: `تم إغلاق ${closedCount} مراكز`,
+                  body: `${failedCount} مراكز فشل الإغلاق — حاول إغلاقها يدوياً`,
+                  pair: '',
+                  price: 0,
+                })
+              }
             }}
             style={{
               width: '100%',

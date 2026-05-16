@@ -119,6 +119,15 @@ export function useNotificationSocket() {
           data.type === 'POSITION_CLOSED' ||
           data.action === 'BUY' || data.action === 'SELL'
         if (isTradeNotification) {
+          // FIX: For POSITION_CLOSED, immediately remove the position from cache
+          // so the user sees it disappear right away — no need to click "Close All".
+          // The positionId is sent in data.data.positionId by the Smart Executor.
+          if (data.type === 'POSITION_CLOSED') {
+            const positionId = data.data?.positionId
+            if (positionId) {
+              usePositionsStore.getState().removePosition(positionId)
+            }
+          }
           usePositionsStore.getState().refreshAfterTrade()
         }
       })

@@ -49,6 +49,8 @@ interface PositionsState {
   updatePositionPrice: (symbol: string, price: number) => void
   /** SECURITY: Clear all cached data when user changes */
   clearUserData: () => void
+  /** FIX: Remove a single position from cache by id or symbol-side key — used when POSITION_CLOSED notification is received */
+  removePosition: (positionIdOrKey: string) => void
   /** SECURITY: Current userId that the store data belongs to */
   _ownerUserId: string | null
   /** Timestamp-based concurrency guard for fetchPositions */
@@ -154,23 +156,37 @@ function mergePositions(current: Position[], incoming: Position[]): Position[] {
     })
   }
 
-  // FIX: Add positions from current that are NOT in incoming.
-  // Previously, only positions from `incoming` were included in result,
-  // meaning any position in `current` that wasn't in `incoming` was silently
-  // dropped. This caused positions to DISAPPEAR on page refresh because:
-  //   1. User opens trade → position appears in current
-  //   2. Page refresh → fetchPositions returns from API
-  //   3. If API hasn't fully settled, or a different source path is used,
-  //      incoming doesn't include the new position → it gets dropped
-  //   4. Position vanishes from the UI
-  // Now: We keep positions from current that aren't in incoming, UNLESS
-  // the incoming data is a complete replacement from the SAME source.
+  // ═══════════════════════════════════════════════════════════════
+  // FIX: CLOSED POSITIONS REMOVAL
+  // When incoming is non-empty, positions that exist in current
+  // but NOT in incoming should be evaluated:
+  //   - If opened < 60 seconds ago: KEEP (API may not have settled yet)
+  //   - If opened >= 60 seconds ago: REMOVE (position was closed)
+  //
+  // Previously, ALL positions from current that weren't in incoming
+  // were kept forever. This caused closed positions to persist in
+  // the UI even after the Smart Executor or user closed them.
+  // The API only returns OPEN positions, so if a position is
+  // missing from a non-empty response, it's genuinely closed.
+  //
+  // Grace period of 60 seconds protects against the edge case
+  // where a trade just opened and the API hasn't registered it yet.
+  // ═══════════════════════════════════════════════════════════════
+  const GRACE_PERIOD_MS = 60 * 1000 // 60 seconds
+  const now = Date.now()
+
   for (const [key, pos] of currentMap) {
     if (!seenKeys.has(key)) {
-      // Position exists in current but not in incoming — keep it.
-      // It might be a recently-opened position that the API hasn't
-      // registered yet, or a position from a different source.
-      result.push(pos)
+      // Check if this position was recently opened (within grace period)
+      const openedAt = pos.openedAt ? new Date(pos.openedAt).getTime() : 0
+      const ageMs = openedAt > 0 ? now - openedAt : Infinity
+
+      if (ageMs < GRACE_PERIOD_MS) {
+        // Recently opened — API might not have it yet. Keep it.
+        result.push(pos)
+      }
+      // else: Position was closed (not in API response + older than grace period)
+      // → DON'T add it back. It's genuinely closed.
     }
   }
 
@@ -549,6 +565,25 @@ export const usePositionsStore = create<PositionsState>()(
         accountBlocked: false,
       },
     })
+  },
+  /**
+   * FIX: Remove a single position from the cache immediately.
+   * Called when a POSITION_CLOSED notification is received from the Smart Executor,
+   * so the user sees the position disappear right away — instead of waiting for
+   * the next polling cycle or having to click "Close All".
+   *
+   * Matches by: id, dbId, or symbol-side-exchange composite key.
+   */
+  removePosition: (positionIdOrKey: string) => {
+    const currentPositions = get().positions
+    const filtered = currentPositions.filter((p) => {
+      const pId = p.id || p.dbId || ''
+      const pKey = `${p.symbol}-${p.side}-${p.exchange}`
+      return pId !== positionIdOrKey && pKey !== positionIdOrKey && p.dbId !== positionIdOrKey
+    })
+    if (filtered.length !== currentPositions.length) {
+      set({ positions: filtered })
+    }
   },
   /**
    * SECURITY: Clear all cached data when user changes.

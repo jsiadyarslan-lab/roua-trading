@@ -98,8 +98,21 @@ export class SmartExecutorService implements OnModuleDestroy {
     //
     // Only run startup cleanup to purge any leftover phantom data:
     setTimeout(() => {
-      this._startupCleanup();
-    }, 15000);
+      this._startupCleanup().then(() => {
+        this._autoRestoreFromDB();
+      });
+    }, 20000); // 20s — give DB more time to be ready on Railway cold starts
+
+    // FIX: Periodic check for newly enabled users.
+    // When a new user registers and gets auto-enabled (paper mode) via AuthService,
+    // the executor might not be running yet. This heartbeat checks every 60 seconds
+    // for new enabled users in the DB and starts the tick loop if needed.
+    // This ensures new users see automated trading within 60 seconds of registration.
+    setInterval(() => {
+      if (!this.isRunning) {
+        this._autoRestoreFromDB().catch(() => {});
+      }
+    }, 60000);
   }
 
   /**
@@ -1140,6 +1153,35 @@ export class SmartExecutorService implements OnModuleDestroy {
               `⚔️ Paper trading: auto-closed stale position ${oldestPosition.symbol} ` +
               `(id: ${oldestPosition.id}, PnL: $${pnl.toFixed(2)}) via TradingService to make room for new brief`,
             );
+
+            // FIX: Send POSITION_CLOSED notification so the frontend removes the position immediately.
+            // Previously, the Smart Executor closed positions but never notified the frontend,
+            // causing closed positions to persist in the UI until the user clicked "Close All".
+            try {
+              const sideLabel = oldestPosition.side === 'BUY' ? 'شراء' : 'بيع';
+              const pnlLabel = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
+              await this.notificationService.sendNotification({
+                userId,
+                type: 'POSITION_CLOSED',
+                priority: 'HIGH',
+                title: `⚔️ إغلاق تلقائي: ${oldestPosition.symbol}`,
+                body: `تم إغلاق مركز ${sideLabel} ${oldestPosition.symbol} تلقائياً لفتح مجال لصفقة جديدة | PnL: $${pnlLabel} | سعر الإغلاق: $${closePrice.toFixed(2)}`,
+                data: {
+                  positionId: oldestPosition.id,
+                  symbol: oldestPosition.symbol,
+                  side: oldestPosition.side,
+                  closePrice,
+                  pnl,
+                  reason: 'auto_close_stale',
+                  isPaperTrading: userState.isPaperTrading,
+                },
+                source: 'executor',
+                action: 'CLOSE',
+                pair: oldestPosition.symbol,
+              });
+            } catch (notifErr: any) {
+              this.logger.warn(`⚔️ Failed to send close notification for ${oldestPosition.id}: ${notifErr.message}`);
+            }
           } catch (closeErr: any) {
             // FIX: REMOVED direct DB bypass fallback. Previously, when TradingService.closePosition()
             // failed, we'd directly update the DB with prisma.position.update(). This bypassed:
@@ -1220,6 +1262,36 @@ export class SmartExecutorService implements OnModuleDestroy {
                 `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
                 `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
               );
+
+              // FIX: Send POSITION_CLOSED notification so the frontend removes the position immediately.
+              // When the executor closes an existing position on the same symbol to open a new one,
+              // the frontend must know about the close to update the UI.
+              try {
+                const sideLabel = existingPosition.side === 'BUY' ? 'شراء' : 'بيع';
+                const pnlLabel = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
+                await this.notificationService.sendNotification({
+                  userId,
+                  type: 'POSITION_CLOSED',
+                  priority: 'HIGH',
+                  title: `⚔️ إغلاق للتبديل: ${existingPosition.symbol}`,
+                  body: `تم إغلاق مركز ${sideLabel} ${existingPosition.symbol} لتنفيذ إشارة جديدة على نفس الزوج | PnL: $${pnlLabel} | سعر الإغلاق: $${closePrice.toFixed(2)}`,
+                  data: {
+                    positionId: existingPosition.id,
+                    symbol: existingPosition.symbol,
+                    side: existingPosition.side,
+                    closePrice,
+                    pnl,
+                    reason: 'close_for_new_brief',
+                    briefId: brief.id,
+                    isPaperTrading: userState.isPaperTrading,
+                  },
+                  source: 'executor',
+                  action: 'CLOSE',
+                  pair: existingPosition.symbol,
+                });
+              } catch (notifErr: any) {
+                this.logger.warn(`⚔️ Failed to send close notification for ${existingPosition.id}: ${notifErr.message}`);
+              }
             } catch (tsCloseErr: any) {
               // FIX: REMOVED direct DB bypass. If TradingService fails, log and skip.
               // The position will be retried on the next tick.

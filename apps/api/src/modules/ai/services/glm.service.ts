@@ -83,10 +83,9 @@ export class GlmService {
               Authorization: `Bearer ${this._generateJwt()}`,
               'Content-Type': 'application/json',
             },
-            timeout: 10000,  // FIX: Reduced from 15000ms — GLM averages 17.9s which is
-                             // too slow. 10s timeout ensures we fail faster and fall
-                             // through to cheaper/faster fallback models instead of
-                             // blocking the entire analysis chain.
+            timeout: 30000,  // FIX: 30s timeout — content generation requires longer
+                             // processing time. 10s was too short and caused timeout errors
+                             // that got stored as article content.
           },
         );
 
@@ -122,10 +121,10 @@ export class GlmService {
         }
         this.logger.warn(`🧠 GLM model ${model} failed: ${error.message} (status: ${status}) ${errData}`);
         if (!this.resolvedModel) continue; // Try next model
-        return {
-          ...this._stubResponse(request),
-          content: `⚠️ GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`,
-        };
+        // FIX: Do NOT return error message as content — throw instead so the
+        // caller knows generation failed and doesn't store garbage in the database.
+        this.logger.error(`🧠 GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`);
+        throw new Error(`GLM API error (${status || 'N/A'}): ${errData || error.message?.substring(0, 150)}`);
       }
     }
 

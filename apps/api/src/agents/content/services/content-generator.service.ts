@@ -220,7 +220,11 @@ export class ContentGeneratorService {
         language: language === 'ar' ? 'ar' : 'en',
       });
 
+      // FIX: Reject error messages that GLM returns as content
       const rawContent = aiResponse.content;
+      if (!rawContent || rawContent.startsWith('⚠️') || rawContent.includes('API error') || rawContent.includes('timeout')) {
+        throw new Error(`AI generation returned an error instead of content: ${rawContent?.substring(0, 100) || 'empty response'}`);
+      }
 
       // Try to parse the AI response as JSON
       try {

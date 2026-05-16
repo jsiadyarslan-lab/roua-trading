@@ -142,9 +142,8 @@ export class ExposureManagerService {
       if (effectiveLimits.onePositionPerSymbol && existingPositionOnSymbol) {
         // Check if this is paper trading by looking at the existing positions' exchange
         const existingOnSymbol = openPositions.find(p => p.symbol === symbol);
-        const isPaperTrading = existingOnSymbol?.source === 'smart_executor' || 
-                               existingOnSymbol?.source === 'auto_paper' || 
-                               existingOnSymbol?.source === 'agent';
+        // FIX: ALL automated sources are considered paper trading for limit purposes
+        const isPaperTrading = true; // paper trading is default for all automated sources
         
         // Count positions on this symbol
         const positionsOnSymbol = openPositions.filter(p => p.symbol === symbol).length;

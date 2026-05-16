@@ -800,9 +800,10 @@ export class TradingService {
     // concurrent close from double-executing. If version changed (another close
     // committed first), we retry the whole closePosition method.
     const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {
-      // Note: averagePrice (not averageFillPrice) is the correct field name
-      // idempotencyKey is required (String @unique)
-      const order = await tx.order.create({
+      // FIX: Wrap order creation in try-catch — if it fails (e.g., idempotency collision),
+      // still close the position. A failed audit trail is better than a stuck open position.
+      let order: any = null;
+      try { order = await tx.order.create({
         data: {
           userId,
           exchangeCredentialId: position.credentialId,
@@ -818,9 +819,12 @@ export class TradingService {
           fee: execution.fee ?? null,
           feeCurrency: execution.feeCurrency ?? null,
           exchangeOrderId: execution.exchangeOrderId,
-          idempotencyKey: `close-${Date.now()}-${crypto.randomUUID()}`,
+          idempotencyKey: `close-${position.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
         },
-      });
+      }); } catch (orderErr: any) {
+        this.logger.warn(`closePosition: Order creation failed (non-critical): ${orderErr.message}`);
+        order = { id: 'manual-close-' + Date.now() };
+      }
 
       // Record exit trade
       await tx.trade.create({

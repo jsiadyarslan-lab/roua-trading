@@ -43,7 +43,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** Configuration */
   private readonly config: ExecutorConfig = {
     tickIntervalMs: 10000,          // FIX: 10 seconds (was 2s) — reduces DB load by 5x
-    maxOpenPositions: 10,
+    maxOpenPositions: 5, // FIX: 5 max positions (was 10, but paper gets stuck at 1)
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
                                     // Crypto prices can move 0.1-0.3% in seconds.

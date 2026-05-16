@@ -243,10 +243,13 @@ export async function fetchSummaryUnified(): Promise<{
  *   Cuid: clm5x2j4d0001sample12id34
  */
 export function isNestJsId(id: string): boolean {
+  if (!id || typeof id !== 'string') return false
   // UUID format: 8-4-4-4-12 hex digits with dashes
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return true
-  // Prisma cuid format: starts with 'c', 8+ alphanumeric chars (typically 25+)
+  // Prisma cuid format: starts with 'c', 8+ alphanumeric chars (cuid1: clxxx, cuid2: cmxxx)
   if (/^c[a-z0-9]{8,}$/i.test(id)) return true
+  // Any string 20+ chars that looks like a DB id (catch-all for future formats)
+  if (id.length >= 20 && /^[a-z0-9_-]+$/i.test(id)) return true
   return false
 }
 

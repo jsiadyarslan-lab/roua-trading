@@ -145,7 +145,7 @@ export function AlpacaPositions() {
           : undefined),
       id: position.rawSymbol ?? position.symbol,
       isPaper: false,
-      entryTime: manualPaper?.entryTime || null,
+      entryTime: (position as any)?.entryTime || manualPaper?.entryTime || null,
       tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
       sl: (position as any)?.stopLoss || (position as any)?.sl || manualPaper?.sl || null,
       // FIX: Pass both source and tradeSource explicitly so getTradeSourceLabel

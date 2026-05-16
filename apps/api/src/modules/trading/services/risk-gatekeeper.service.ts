@@ -497,7 +497,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    */
   async checkPositionSizeLimit(command: OrderCommand): Promise<RiskCheckResult> {
     try {
-      // ── Test/Paper Trading Bypass ──
+      // ── Paper/Test Trading Bypass ──
       // FIX: For test/paper-trading credentials (including binance_test, alpaca_paper, etc.),
       // paper trading has virtual unlimited balance. Only enforce the max open
       // positions count. Previously, checkPositionSizeLimit would fail for
@@ -505,20 +505,24 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // command.price was not set, and paper-trading credentials can't fetch
       // real exchange quotes. This caused ALL paper-trading orders to be rejected
       // at this check, resulting in 0 executions despite active briefs.
+      //
+      // CRITICAL FIX v2: Also check command.isPaperTrading flag. The Smart Executor
+      // sets this flag when submitting paper trades. The credential-based check
+      // alone was failing because:
+      // 1. Some test credentials have exchange names like "binance_testnet" that
+      //    _isTestExchange might not recognize
+      // 2. The credential lookup itself can fail (DB timeout, etc.)
+      // 3. The maxPositionSizePercent was set to 5% by admin settings, and with
+      //    a small portfolio estimation, orders were calculated as 100% of portfolio
+      // This caused the error: "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)"
+      // blocking ALL paper-trading executions.
+      const isPaperByFlag = command.isPaperTrading === true;
       const credential = await this.prisma.exchangeCredential.findUnique({
         where: { id: command.exchangeCredentialId },
       });
+      const isPaperByCredential = credential && this._isTestExchange(credential.exchange);
 
-      // FIX: Paper/test trading is SIMULATION — there is NO real money at risk.
-      // The ONLY check that matters is position COUNT (prevents UI clutter from
-      // too many simultaneous positions). Order VALUE limits are completely removed
-      // for paper trading because:
-      //   1. There's no real capital to protect — it's virtual money
-      //   2. Previous limits ($500, 5%, 20%, 80%) all blocked legitimate trades
-      //   3. Users need to test strategies with realistic position sizes (BTC, ETH, SOL)
-      //   4. The paper-trading adapter handles balance tracking independently
-      //   5. Going "negative" on paper balance is harmless — it's a learning tool
-      if (credential && this._isTestExchange(credential.exchange)) {
+      if (isPaperByFlag || isPaperByCredential) {
         // Only check position COUNT — no value limits for simulation
         const openPositions = await this.prisma.position.count({
           where: { userId: command.userId, status: 'OPEN' },

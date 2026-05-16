@@ -1,95 +1,51 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading (رؤى) — .gitignore
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-# ── Dependencies ──
+# Dependencies
 node_modules/
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-bun.lock
+**/node_modules/
 
-# ── Testing ──
-/coverage
-
-# ── Next.js ──
+# Build outputs
 .next/
-/out/
-apps/web/.next/
-
-# ── NestJS Build ──
+**/.next/
 dist/
-apps/api/dist/
+**/dist/
+.turbo/
+**/.turbo/
+*.tsbuildinfo
 
-# ── Production ──
-/build
-
-# ── Environment Files (NEVER commit secrets!) ──
+# Environment
 .env
-.env.local
-.env.*.local
-.env.production
-.env.production.local
-apps/web/.env
-apps/api/.env
-# Keep .env.example for documentation
+.env.*
 !.env.example
 
-# ── Database ──
-db/
-*.db
-*.db-journal
+# Duplicate directory
+roua-trading/
 
-# ── Misc ──
+# IDE
+.vscode/
+.idea/
+
+# OS
 .DS_Store
-*.pem
 Thumbs.db
 
-# ── Debug Logs ──
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-bun-debug.log*
+# Logs
 *.log
-dev.log
-server.log
+npm-debug.log*
 
-# ── TypeScript ──
-*.tsbuildinfo
-next-env.d.ts
+# Cache
+.cache/
+tmp/
 
-# ── Vercel ──
-.vercel
-
-# ── IDE ──
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# ── Claude / AI ──
-.claude
-.z-ai-config
-local-*
-prompt
-test
-
-# ── Skills Directory ──
-/skills/
-
-# ── Prisma ──
-apps/web/prisma/migrations/
-
-# ── Upload / Download ──
-upload/
-download/
-.turbo/
-__pycache__/
-*.pyc
+# Agent context
+agent-ctx/
+.zscripts/
+.sixth/
 skills/
-examples/
+download/
+worklog.md
+PROGRESS.md
+
+# Prisma
+**/.prisma/
+
+# Docker
+docker-compose*.yml

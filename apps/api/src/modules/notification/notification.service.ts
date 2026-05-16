@@ -45,9 +45,22 @@ export class NotificationService {
 
     try {
       // Check user preferences before sending
-      const prefs = await this.prisma.userNotificationPreferences.findUnique({
-        where: { userId },
-      });
+      // FIX: Wrap in try-catch because the UserNotificationPreferences table
+      // might not exist yet (migration not applied). If the table doesn't exist,
+      // skip the preference check and send the notification anyway.
+      let prefs: any = null;
+      try {
+        prefs = await this.prisma.userNotificationPreferences.findUnique({
+          where: { userId },
+        });
+      } catch (prefErr: any) {
+        // Table doesn't exist — skip preference check, send notification anyway
+        if (prefErr?.message?.includes('does not exist')) {
+          this.logger.debug(`NotificationPreferences table not found — sending notification without preference check`);
+        } else {
+          this.logger.warn(`Failed to check notification preferences: ${prefErr?.message}`);
+        }
+      }
 
       // If preferences exist, respect them
       if (prefs) {

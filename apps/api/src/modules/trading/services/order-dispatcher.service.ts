@@ -119,6 +119,7 @@ export class OrderDispatcherService {
         takeProfit: request.takeProfit,
         idempotencyKey,
         clientOrderId: `${request.source}-${briefRef}-${Date.now()}`,
+        isPaperTrading: request.isPaperTrading ?? false,
       };
 
       const riskCheck = await this.riskGatekeeper.validateOrder(command);

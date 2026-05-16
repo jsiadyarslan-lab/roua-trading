@@ -22,6 +22,8 @@ export class OrderCommand {
   clientOrderId?: string;
   ipAddress?: string;
   userAgent?: string;
+  /** FIX: Indicates this is a paper/simulated trade — bypasses certain risk checks */
+  isPaperTrading?: boolean;
 }
 
 /**

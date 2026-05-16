@@ -368,7 +368,17 @@ export const useContentAgentStore = create<ContentAgentStore>()(
               relatedSymbols: _sanitizeStringArray(_safeJsonParse(item.relatedSymbols)),
               tags: _sanitizeStringArray(_safeJsonParse(item.tags)),
             }))
-            set({ articles: items })
+            // FIX: Filter out error articles (e.g., "GLM API error (N/A): timeout of 10000ms exceeded")
+            // These were stored as article content when GLM API timed out. Backend also filters them,
+            // but this is a safety net in case any slip through.
+            const cleanItems = items.filter(a =>
+              !a.titleAr?.includes('GLM API error') &&
+              !a.titleAr?.includes('timeout of') &&
+              !a.titleAr?.includes('⚠️') &&
+              !a.contentAr?.includes('GLM API error') &&
+              !a.contentAr?.includes('timeout of')
+            )
+            set({ articles: cleanItems })
           } else {
             set({ articles: [] })
           }

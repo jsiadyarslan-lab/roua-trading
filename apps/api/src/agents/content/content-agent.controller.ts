@@ -185,6 +185,25 @@ export class ContentAgentController {
   }
 
   /**
+   * POST /api/agent/content/cleanup-errors
+   * Archive articles that contain error messages as content
+   * (e.g., "GLM API error (N/A): timeout of 10000ms exceeded")
+   */
+  @Post('cleanup-errors')
+  @HttpCode(HttpStatus.OK)
+  async cleanupErrors() {
+    const result = await this.contentAgent.publisher.cleanupErrorArticles();
+
+    return {
+      success: true,
+      data: result,
+      message: result.archived > 0
+        ? `تم أرشفة ${result.archived} مقالة تحتوي على أخطاء`
+        : 'لا توجد مقالات خاطئة للأرشفة',
+    };
+  }
+
+  /**
    * GET /api/agent/content/:id
    * Get single content article
    */

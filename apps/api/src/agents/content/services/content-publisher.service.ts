@@ -242,6 +242,19 @@ export class ContentPublisherService {
       where.relatedSymbols = { contains: options.symbol };
     }
 
+    // FIX: Filter out articles that contain error messages as content.
+    // Previously, GLM API timeout errors were stored as article content
+    // (e.g., "GLM API error (N/A): timeout of 10000ms exceeded").
+    // These garbage articles were marked as PUBLISHED and shown to users.
+    // Exclude them from the feed so users only see real content.
+    where.NOT = [
+      { titleAr: { contains: 'GLM API error' } },
+      { titleAr: { contains: 'timeout of' } },
+      { titleAr: { contains: '⚠️' } },
+      { contentAr: { contains: 'GLM API error' } },
+      { contentAr: { contains: 'timeout of' } },
+    ];
+
     const [articles, total] = await Promise.all([
       this.prisma.contentArticle.findMany({
         where,
@@ -258,6 +271,43 @@ export class ContentPublisherService {
       page,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Cleanup error articles from the database.
+   * Archives articles whose title or content contains error messages
+   * (e.g., "GLM API error", "timeout of", "⚠️" in title).
+   * These were created when GLM API errors were stored as article content.
+   */
+  async cleanupErrorArticles(): Promise<{ archived: number }> {
+    try {
+      // Archive articles with error content in title or content
+      const result = await this.prisma.contentArticle.updateMany({
+        where: {
+          OR: [
+            { titleAr: { contains: 'GLM API error' } },
+            { titleAr: { contains: 'timeout of' } },
+            { titleAr: { contains: '⚠️' } },
+            { contentAr: { contains: 'GLM API error' } },
+            { contentAr: { contains: 'timeout of' } },
+            { titleEn: { contains: 'GLM API error' } },
+            { titleEn: { contains: 'timeout of' } },
+            { contentEn: { contains: 'GLM API error' } },
+            { contentEn: { contains: 'timeout of' } },
+          ],
+        },
+        data: { status: ContentStatus.ARCHIVED },
+      });
+
+      if (result.count > 0) {
+        this.logger.log(`📤 Cleaned up ${result.count} error articles (archived)`);
+      }
+
+      return { archived: result.count };
+    } catch (error: any) {
+      this.logger.error(`Cleanup error articles failed: ${error.message}`);
+      return { archived: 0 };
+    }
   }
 
   /**

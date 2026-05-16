@@ -1161,10 +1161,20 @@ export default function DashboardPage() {
   // Fallback to account's unrealizedPnl if positions aren't loaded yet
   const equityValue = Number(account?.equity) || 0
   const cashValue = Number(account?.cash) || 0
-  const longMarketValue = Number(account?.longMarketValue) || 0
-  const shortMarketValue = Number(account?.shortMarketValue) || 0
+
+  // FIX V117: Calculate positionsValue and initialMargin from ACTUAL positions in the store,
+  // not from account.longMarketValue/initialMargin which come from the exchange API.
+  // Previously, when the exchange (Alpaca) had open positions that weren't in the local DB,
+  // the account showed $2,000+ in margin/position value but the positions list was empty.
+  // This created the "ghost position" contradiction: margin used with no visible positions.
+  // Now: positionsValue is ALWAYS computed from the visible positions list, ensuring consistency.
+  const livePositionsValue = positions.reduce((sum, p) => {
+    return sum + Math.abs(Number(p.marketValue || (Number(p.qty) * Number(p.currentPrice)) || 0))
+  }, 0)
+  const longMarketValue = positions.length > 0 ? livePositionsValue : (Number(account?.longMarketValue) || 0)
+  const shortMarketValue = 0
   const positionsValue = longMarketValue + shortMarketValue
-  const initialMargin = Number(account?.initialMargin) || 0
+  const initialMargin = positions.length > 0 ? positionsValue : (Number(account?.initialMargin) || 0)
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)

@@ -146,7 +146,14 @@ export function AlpacaPositions() {
       id: position.rawSymbol ?? position.symbol,
       isPaper: false,
       entryTime: (position as any)?.entryTime
-        || ((position as any)?.openedAt ? new Date((position as any).openedAt).getTime() : null)
+        || (() => {
+          const d = (position as any)?.openedAt
+          if (!d) return null
+          try {
+            const ts = new Date(d).getTime()
+            return isNaN(ts) ? null : ts
+          } catch { return null }
+        })()
         || manualPaper?.entryTime
         || null,
       tp: (position as any)?.takeProfit || (position as any)?.tp || manualPaper?.tp || null,
@@ -196,7 +203,13 @@ export function AlpacaPositions() {
       id: ap.id,
       dbId: ap.id, // Agent positions have DB IDs
       isPaper: false,
-      entryTime: ap.openedAt ? new Date(ap.openedAt).getTime() : null,
+      entryTime: (() => {
+        if (!ap.openedAt) return null
+        try {
+          const ts = new Date(ap.openedAt).getTime()
+          return isNaN(ts) ? null : ts
+        } catch { return null }
+      })(),
       tp: ap.takeProfit ?? null,
       sl: ap.stopLoss ?? null,
       source: actualSource,

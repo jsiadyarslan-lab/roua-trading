@@ -967,6 +967,40 @@ export class TradingService {
     // after the old position was closed.
     this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
+    // FIX V117: Update paperBalance after closing a paper-trading position.
+    // Previously, paperBalance in AgentSettings was NEVER updated after closing,
+    // so the balance always showed the initial $10,000/$20,000 regardless of
+    // accumulated profits/losses. This made the platform appear broken — users
+    // close profitable positions but their balance doesn't change.
+    // Now: Add the realized PnL to paperBalance so it reflects actual performance.
+    if (position.exchange === 'paper-trading' && pnl !== 0) {
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        if (settings) {
+          const oldBalance = Number(settings.paperBalance);
+          const newBalance = oldBalance + pnl;
+          await this.prisma.agentSettings.update({
+            where: { userId },
+            data: { paperBalance: newBalance },
+          });
+          this.logger.log(
+            `📝 V117 Paper balance updated: $${oldBalance.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)}`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(`V117 Failed to update paper balance: ${err.message}`);
+      }
+    }
+
+    // FIX V117: Invalidate balance cache so the next fetch returns fresh data.
+    // Without this, the cached balance (60s TTL) still shows the old equity/margin
+    // after closing a position, making it look like the close had no effect.
+    try {
+      this.credentialsService.invalidateBalanceCache(userId);
+    } catch { /* non-critical */ }
+
     return {
       order: closedOrder,
       pnl,
@@ -1238,6 +1272,34 @@ export class TradingService {
     // FIX: Clear Smart Executor processed keys for this position so new briefs
     // for the same symbol can be executed after force close.
     this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+
+    // FIX V117: Update paperBalance after force-closing a paper-trading position.
+    // Same logic as closePosition() — paperBalance must reflect realized PnL.
+    if (position.exchange === 'paper-trading' && pnl !== 0) {
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        if (settings) {
+          const oldBalance = Number(settings.paperBalance);
+          const newBalance = oldBalance + pnl;
+          await this.prisma.agentSettings.update({
+            where: { userId },
+            data: { paperBalance: newBalance },
+          });
+          this.logger.log(
+            `📝 V117 Paper balance updated (force-close): $${oldBalance.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)}`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(`V117 Failed to update paper balance (force-close): ${err.message}`);
+      }
+    }
+
+    // FIX V117: Invalidate balance cache after force close too
+    try {
+      this.credentialsService.invalidateBalanceCache(userId);
+    } catch { /* non-critical */ }
 
     return {
       order: closedOrder,

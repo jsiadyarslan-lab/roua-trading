@@ -1074,6 +1074,21 @@ export class CredentialsService {
     return authErrorPatterns.some(p => lower.includes(p.toLowerCase()));
   }
 
+  /**
+   * FIX V117: Invalidate balance cache for a user.
+   * Called when a position is closed so the next balance fetch
+   * returns fresh data instead of stale cached values.
+   * Without this, closing a position doesn't update the balance
+   * for up to 60 seconds (BALANCE_CACHE_TTL_MS).
+   */
+  invalidateBalanceCache(userId: string): void {
+    const cacheKey = `balances:${userId}`;
+    const deleted = this.balanceCache.delete(cacheKey);
+    if (deleted) {
+      this.logger.debug(`🗑️ Balance cache invalidated for user ${userId}`);
+    }
+  }
+
   /** Check if an error message indicates a connection/network issue (NOT an auth problem) */
   private _isConnectionError(message: string): boolean {
     const connectionErrorPatterns = [

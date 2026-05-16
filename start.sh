@@ -1,24 +1,28 @@
 #!/bin/bash
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Railway Startup Script v14
+# Roua Trading — Railway Startup Script v15
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
-# FIX v11: SIMPLEST POSSIBLE. Direct connection, no PgBouncer.
+# FIX v15: Start Next.js FIRST, NestJS in background.
 #
-# WHY: PgBouncer (both local and Railway's built-in) has been causing
-# connection issues for 50+ rounds. The simplest, most reliable approach
-# is to NOT use PgBouncer at all and connect directly to PostgreSQL
-# with connection_limit=1 per app.
+# WHY: v14 started NestJS first and waited up to 60s for it to be
+# ready before starting Next.js. Combined with DB cleanup (~30s) and
+# Prisma migrations (~30s), total startup was 120+s before Next.js
+# even started listening. Railway's healthcheckTimeout is 300s, and
+# the health endpoint ALWAYS returns 200 (even when NestJS is down),
+# so there's no reason to wait for NestJS before starting Next.js.
 #
-# Total DB connections at steady state: 2 (1 Next.js + 1 NestJS)
-# This is well within Railway's PostgreSQL limits (20+ max_connections).
+# The circuit breaker was removed in v108 (nestjs-proxy.ts uses
+# per-request retry), so starting Next.js first is safe.
 #
-# The news website (separate Railway service) works because it uses
-# DATABASE_URL directly — no PgBouncer, no SSL stripping, no URL
-# modification. This script now does the same thing.
+# NEW STARTUP SEQUENCE:
+#   1. Quick DB connectivity test (10s max, non-blocking)
+#   2. Prisma generate + migrate (with 60s timeout)
+#   3. Start Next.js IMMEDIATELY ← healthcheck passes here
+#   4. Start NestJS in background
+#   5. Monitor NestJS health in background
 #
-# KEY PRINCIPLE: Don't modify DATABASE_URL except to add connection_limit=1.
-# Don't add pgbouncer=true, don't strip SSL, don't change the hostname.
+# Total time to healthcheck pass: ~20-30 seconds
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 set -uo pipefail
@@ -85,12 +89,6 @@ DIRECT_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
 export DIRECT_DATABASE_URL="${DIRECT_DB_URL:-$ORIG_DB_URL}"
 
 # Step 2: Set DATABASE_URL for PrismaClient (apps)
-# FIX v13: Add connection_limit=1 and pool_timeout=10.
-# CRITICAL: Without connection_limit=1, Prisma opens 3-5 connections per
-# PrismaClient (2 clients = 6-10 connections), which EXHAUSTS Railway's
-# PostgreSQL max_connections and causes "too many clients already".
-# With connection_limit=1, total is only 2 connections (1 Next.js + 1 NestJS).
-# We do NOT add pgbouncer=true or strip SSL.
 APP_DB_URL=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
   const url = process.env.DATABASE_URL_IN || '';
   try {
@@ -108,7 +106,7 @@ export DATABASE_URL="${APP_DB_URL:-$ORIG_DB_URL}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v14)"
+echo "🚀 Roua Trading — Starting (v15)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "DATABASE_URL length:    ${#DATABASE_URL} chars"
 echo "DATABASE_URL prefix:    $(echo $DATABASE_URL | cut -c1-30)..."
@@ -121,207 +119,218 @@ echo "NODE_ENV:               ${NODE_ENV:-development}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# DATABASE CONNECTIVITY TEST + STALE CONNECTION CLEANUP
+# DATABASE CONNECTIVITY TEST (QUICK — no cleanup, just check reachability)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX v15: Removed the aggressive DB cleanup script that was:
+#   1. Taking 30-90 seconds (3 retries × 10s connect + queries + sleep)
+#   2. Running ALTER SYSTEM SET max_connections (requires superuser)
+#   3. Terminating ALL idle connections (dangerous on shared DB)
+#   4. Adding 1s wait after termination
+# Now: Just a simple connectivity test (3s timeout), non-blocking.
 echo ""
-echo "━━━ Database Connectivity Test + Cleanup ━━━"
+echo "━━━ Database Connectivity Test ━━━"
 DB_REACHABLE=0
-for DB_TRY in 1 2 3; do
-  DB_TEST_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" node -e "
-    const { Client } = require('pg');
-    async function test() {
-      const client = new Client({
-        connectionString: process.env.DATABASE_URL_IN,
-        connectionTimeoutMillis: 10000,
-      });
-      try {
-        await client.connect();
-        try {
-          // FIX v13: Try to increase max_connections first.
-          // Railway PostgreSQL default is often 20-25, which is too low
-          // when multiple services share the same database.
-          try {
-            await client.query('ALTER SYSTEM SET max_connections = 100');
-            await client.query('SELECT pg_reload_conf()');
-            console.log('INCREASED max_connections to 100');
-          } catch(alterErr) {
-            // May not have superuser access - that's OK, try to continue
-            console.log('Cannot increase max_connections: ' + alterErr.message.substring(0, 80));
-          }
-          
-          const mc = await client.query('SHOW max_connections');
-          const ac = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
-          const maxConn = mc.rows[0].max_connections || mc.rows[0].Value;
-          const activeConn = ac.rows[0].cnt;
-          console.log('DB_OK max=' + maxConn + ' active=' + activeConn);
-          
-          // FIX v13: Kill ALL idle connections from old deployments.
-          // Railway PostgreSQL has limited max_connections. When the old
-          // deployment is replaced, its connections may not be released.
-          // We terminate ALL idle connections (except our own) to free up slots.
-          try {
-            // First terminate connections idle > 5 seconds
-            const r1 = await client.query(\`
-              SELECT pg_terminate_backend(pid)
-              FROM pg_stat_activity
-              WHERE datname = current_database()
-                AND pid <> pg_backend_pid()
-                AND state = 'idle'
-            \`);
-            const terminated = r1.rowCount || 0;
-            console.log('Terminated ' + terminated + ' idle connections');
-            
-            // Also terminate connections in 'idle in transaction' state
-            const r2 = await client.query(\`
-              SELECT pg_terminate_backend(pid)
-              FROM pg_stat_activity
-              WHERE datname = current_database()
-                AND pid <> pg_backend_pid()
-                AND state = 'idle in transaction'
-            \`);
-            const terminated2 = r2.rowCount || 0;
-            if (terminated2 > 0) console.log('Terminated ' + terminated2 + ' idle-in-transaction connections');
-            
-            // Wait a moment for PostgreSQL to release the slots
-            await new Promise(r => setTimeout(r, 1000));
-            
-            // Check active connections after cleanup
-            const ac2 = await client.query('SELECT count(*) as cnt FROM pg_stat_activity WHERE datname = current_database()');
-            console.log('After cleanup: active=' + ac2.rows[0].cnt + '/' + maxConn);
-          } catch(e2) {
-            console.log('Cleanup failed (non-fatal): ' + e2.message.substring(0, 100));
-          }
-        } catch {
-          console.log('DB_OK');
-        }
-        await client.end();
-      } catch(e) {
-        console.error('DB_ERROR:' + e.message.substring(0, 200));
-        try { await client.end(); } catch {}
-      }
+DB_TEST_RESULT=$(DATABASE_URL_IN="$ORIG_DB_URL" timeout 10 node -e "
+  const { Client } = require('pg');
+  async function test() {
+    const client = new Client({
+      connectionString: process.env.DATABASE_URL_IN,
+      connectionTimeoutMillis: 3000,
+      statement_timeout: 5000,
+    });
+    try {
+      await client.connect();
+      const r = await client.query('SELECT 1 as ok');
+      console.log('DB_OK');
+      await client.end();
+    } catch(e) {
+      console.error('DB_ERROR:' + e.message.substring(0, 200));
+      try { await client.end(); } catch {}
     }
-    test();
-  " 2>&1)
+  }
+  test();
+" 2>&1)
 
-  if echo "$DB_TEST_RESULT" | grep -q "DB_OK"; then
-    INFO=$(echo "$DB_TEST_RESULT" | grep "DB_OK")
-    echo "✅ Database reachable: $INFO"
-    DB_REACHABLE=1
-    break
-  else
-    ERR=$(echo "$DB_TEST_RESULT" | grep -o 'DB_ERROR:.*' | head -1)
-    echo "⚠️ Database unreachable (attempt $DB_TRY/3): $ERR"
-    if [ "$DB_TRY" -lt 3 ]; then
-      sleep 5
-    fi
-  fi
-done
-
-if [ "$DB_REACHABLE" -ne 1 ]; then
-  echo "⚠️ Database not reachable — apps will start and retry in background"
+if echo "$DB_TEST_RESULT" | grep -q "DB_OK"; then
+  echo "✅ Database reachable"
+  DB_REACHABLE=1
+else
+  ERR=$(echo "$DB_TEST_RESULT" | grep -o 'DB_ERROR:.*' | head -1)
+  echo "⚠️ Database unreachable: $ERR — apps will start and retry in background"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA SETUP — Generate client AND apply migrations BEFORE starting apps
+# PRISMA SETUP — Generate client AND apply migrations (with timeouts)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# FIX v110: Run migrations BEFORE starting apps, not after.
-# Previously, migrations ran in background after apps started,
-# causing missing table errors (UserNotification, UserNotificationPreferences)
-# that flooded logs with error spam on every trade execution.
-# Now: run migrations synchronously first, then start apps.
 echo ""
 echo "━━━ Prisma Setup ━━━"
 
 echo "📦 Generating Prisma client..."
-run_prisma generate --schema=./prisma/schema.prisma
+timeout 30 run_prisma generate --schema=./prisma/schema.prisma 2>&1 || echo "⚠️ Prisma generate failed (non-fatal — client may already exist)"
 
-echo "📦 Applying database migrations..."
-# Try prisma migrate deploy first (preferred), fall back to prisma db push
 if [ "$DB_REACHABLE" -eq 1 ]; then
-  run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
-    echo "⚠️ migrate deploy failed — trying db push..."
-    run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ DB push applied" || echo "⚠️ DB push also failed — continuing anyway"
+  echo "📦 Applying database migrations (60s timeout)..."
+  timeout 60 run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
+    echo "⚠️ migrate deploy failed — trying db push (60s timeout)..."
+    timeout 60 run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ DB push applied" || echo "⚠️ DB push also failed — will try direct SQL fallback"
   }
+
+  # ── FIX v112: Verify critical tables exist after migration ──
+  # Prisma may mark migrations as "applied" in _prisma_migrations table
+  # even if the actual SQL failed (e.g., during a previous deploy when
+  # the DB was unreachable). This verification step ensures critical
+  # tables exist and creates them directly if missing.
+  echo "📦 Verifying critical tables exist..."
+  TABLE_CHECK=$(DATABASE_URL_IN="$ORIG_DB_URL" timeout 15 node -e "
+    const { Client } = require('pg');
+    async function check() {
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL_IN,
+        connectionTimeoutMillis: 5000,
+        statement_timeout: 10000,
+      });
+      try {
+        await client.connect();
+        const criticalTables = [
+          'UserNotification',
+          'UserNotificationPreferences',
+          'Setting',
+          'AiUsageLog',
+          'AgentSettings',
+          'AdminSession',
+        ];
+        const missing = [];
+        for (const table of criticalTables) {
+          const r = await client.query(
+            \`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '\${table}')\`
+          );
+          if (!r.rows[0].exists) missing.push(table);
+        }
+        if (missing.length > 0) {
+          console.log('MISSING:' + missing.join(','));
+        } else {
+          console.log('ALL_OK');
+        }
+        await client.end();
+      } catch(e) {
+        console.error('CHECK_ERROR:' + e.message.substring(0, 200));
+        try { await client.end(); } catch {}
+      }
+    }
+    check();
+  " 2>&1)
+
+  if echo "$TABLE_CHECK" | grep -q "MISSING:"; then
+    MISSING_TABLES=$(echo "$TABLE_CHECK" | grep "MISSING:" | sed 's/MISSING://')
+    echo "⚠️ Missing tables detected: $MISSING_TABLES"
+    echo "📦 Running db push to create missing tables..."
+    timeout 60 run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ Missing tables created via db push" || {
+      echo "⚠️ db push failed — running direct SQL fallback for missing tables..."
+      # Direct SQL fallback: create the most critical missing tables
+      DATABASE_URL_IN="$ORIG_DB_URL" timeout 30 node -e "
+        const { Client } = require('pg');
+        const fs = require('fs');
+        const path = require('path');
+        async function run() {
+          const client = new Client({
+            connectionString: process.env.DATABASE_URL_IN,
+            connectionTimeoutMillis: 5000,
+            statement_timeout: 20000,
+          });
+          try {
+            await client.connect();
+            // Read the migration SQL file
+            const sqlFile = path.join(__dirname, 'prisma/migrations/20260509000000_add_missing_tables/migration.sql');
+            if (fs.existsSync(sqlFile)) {
+              const sql = fs.readFileSync(sqlFile, 'utf8');
+              await client.query(sql);
+              console.log('OK: Direct SQL migration applied');
+            } else {
+              console.log('SKIP: Migration SQL file not found');
+            }
+            await client.end();
+          } catch(e) {
+            console.error('SQL_ERROR:' + e.message.substring(0, 300));
+            try { await client.end(); } catch {}
+          }
+        }
+        run();
+      " 2>&1
+    }
+  elif echo "$TABLE_CHECK" | grep -q "ALL_OK"; then
+    echo "✅ All critical tables verified"
+  else
+    echo "⚠️ Could not verify tables (non-fatal): $TABLE_CHECK"
+  fi
 else
   echo "⚠️ Database not reachable — skipping migrations (will retry on next deploy)"
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# START APPS — NestJS FIRST, then Next.js
+# START APPS — Next.js FIRST (for healthcheck), NestJS in background
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# CRITICAL FIX v14: Start NestJS BEFORE Next.js!
+# FIX v15: Start Next.js IMMEDIATELY. The health endpoint always
+# returns 200 (even when NestJS is down), so Railway's healthcheck
+# will pass as soon as Next.js starts listening (~3-5 seconds).
 #
-# ROOT CAUSE of "nothing changes" bug:
-# Previously, Next.js started first (3s) and began serving pages.
-# Users opened the page → frontend made API calls → NestJS wasn't
-# ready → 3 consecutive 502 errors → circuit breaker activated →
-# ALL subsequent API calls blocked for 10s → death spiral.
-# The frontend could NEVER reach NestJS.
-#
-# NOW: Start NestJS first and wait for it to be healthy.
-# Only then start Next.js. This ensures that when the frontend
-# starts making API calls, NestJS is already ready to serve them.
-#
-# Railway gives us 120 seconds (healthcheck start-period) to get
-# both services running, so this is safe.
+# The circuit breaker was removed in v108, so Next.js can safely
+# proxy to NestJS even when NestJS isn't ready yet — it will just
+# return a degraded status until NestJS comes up.
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Build API if needed
 if [ ! -f "apps/api/dist/main.js" ]; then
   echo "⚠️ API dist missing — building..."
-  (cd apps/api && run_api_build)
+  (cd apps/api && timeout 60 run_api_build)
 fi
 
 # ══════════════════════════════════════════════════════════════
-# Step 1: Start NestJS API FIRST
+# Step 1: Start Next.js FIRST — healthcheck depends on this!
+# ══════════════════════════════════════════════════════════════
+ACTUAL_WEB_PORT=${PORT:-8080}
+echo ""
+echo "━━━ Starting Next.js (port $ACTUAL_WEB_PORT) — STARTING FIRST FOR HEALTHCHECK ━━━"
+cd apps/web
+run_web_start 2>&1 &
+WEB_PID=$!
+cd "$PROJECT_ROOT"
+
+# Wait briefly for Next.js to start listening (up to 10 seconds)
+echo "⏳ Waiting for Next.js to start listening..."
+for i in $(seq 1 10); do
+  if curl -fsS --connect-timeout 2 --max-time 3 "http://127.0.0.1:${ACTUAL_WEB_PORT}/api/health" > /dev/null 2>&1; then
+    echo "✅ Next.js is listening (attempt $i) — healthcheck should pass now!"
+    break
+  fi
+  sleep 1
+done
+
+# ══════════════════════════════════════════════════════════════
+# Step 2: Start NestJS API in background
 # ══════════════════════════════════════════════════════════════
 echo ""
-echo "━━━ Starting NestJS API (port ${API_PORT:-3001}) — STARTING FIRST ━━━"
+echo "━━━ Starting NestJS API (port ${API_PORT:-3001}) — in background ━━━"
 cd apps/api
 node dist/main 2>&1 &
 API_PID=$!
 cd "$PROJECT_ROOT"
 
-# Wait for NestJS to be ready (up to 60 seconds)
-echo "⏳ Waiting for NestJS to be ready..."
-for i in $(seq 1 60); do
-  if curl -fsS "http://127.0.0.1:${API_PORT:-3001}/api/health" > /dev/null 2>&1; then
+# Wait for NestJS to be ready (up to 120 seconds, non-blocking for healthcheck)
+echo "⏳ Waiting for NestJS to be ready (background — healthcheck already passing)..."
+for i in $(seq 1 120); do
+  if curl -fsS --connect-timeout 2 --max-time 5 "http://127.0.0.1:${API_PORT:-3001}/api/health" > /dev/null 2>&1; then
     echo "✅ NestJS API ready (attempt $i)"
     break
   fi
-  if [ $((i % 10)) -eq 0 ]; then
-    echo "  ... still waiting for NestJS (attempt $i/60)"
+  if ! kill -0 $API_PID 2>/dev/null; then
+    echo "⚠️ NestJS process died — will be restarted by monitor"
+    break
+  fi
+  if [ $((i % 15)) -eq 0 ]; then
+    echo "  ... still waiting for NestJS (attempt $i/120)"
   fi
   sleep 1
 done
-
-# Check if NestJS is actually running
-if ! kill -0 $API_PID 2>/dev/null; then
-  echo "❌ NestJS crashed during startup — restarting..."
-  sleep 3
-  cd apps/api && node dist/main 2>&1 &
-  API_PID=$!
-  cd "$PROJECT_ROOT"
-  sleep 5
-fi
-
-# ══════════════════════════════════════════════════════════════
-# Step 2: Start Next.js AFTER NestJS is ready
-# ══════════════════════════════════════════════════════════════
-ACTUAL_WEB_PORT=${PORT:-8080}
-echo ""
-echo "━━━ Starting Next.js (port $ACTUAL_WEB_PORT) — NestJS is ready ✅ ━━━"
-cd apps/web
-run_web_start 2>&1 &
-WEB_PID=$!
-cd "$PROJECT_ROOT"
-sleep 3
-
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA MIGRATIONS — Already applied before apps started (see above)
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-echo ""
-echo "━━━ Prisma Migrations (already applied) ━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # NESTJS PROCESS MONITOR

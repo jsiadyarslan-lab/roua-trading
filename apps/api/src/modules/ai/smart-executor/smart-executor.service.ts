@@ -1174,10 +1174,19 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Check daily loss limit
+    // FIX v112: Skip daily loss limit for paper trading users.
+    // Paper trading is for learning/testing — loss limits should NOT
+    // prevent paper traders from continuing. The daily loss limit is
+    // a risk management feature for REAL capital protection only.
+    // Previously, paper traders hitting the 5% daily loss limit were
+    // auto-stopped, causing "Daily loss limit reached: 11.23% >= 5%"
+    // errors and no more trades for that user until the next day.
     const portfolio = await this._getPortfolioValue(userId);
-    if (portfolio > 0 && userState.dailyPnL < -(portfolio * this.config.maxDailyLossPercent / 100)) {
-      this.logger.warn(`⚔️ User ${userId} hit daily loss limit — pausing`);
-      return;
+    if (!userState.isPaperTrading) {
+      if (portfolio > 0 && userState.dailyPnL < -(portfolio * this.config.maxDailyLossPercent / 100)) {
+        this.logger.warn(`⚔️ User ${userId} hit daily loss limit (${userState.dailyPnL.toFixed(2)} < -${(portfolio * this.config.maxDailyLossPercent / 100).toFixed(2)}) — pausing`);
+        return;
+      }
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -1664,11 +1673,57 @@ export class SmartExecutorService implements OnModuleDestroy {
           this.logger.warn(`⚔️ Failed to send execution notification to user ${userId}: ${notifError.message}`);
         }
       } else {
-        // FIX: Do NOT mark as processed on failure — brief can be retried
-        // on the next tick if conditions change (e.g., price re-enters range)
-        this.logger.warn(
-          `⚔️ Brief ${brief.id} execution FAILED for user ${userId}: ${result.error} — will retry on next tick`,
-        );
+        // ── FIX v112: Handle "أمر مكرر" (duplicate order) gracefully ──
+        // When the OrderDispatcher returns "أمر مكرر", it means the order
+        // was ALREADY submitted before (idempotency key is locked in Redis).
+        // This happens when:
+        //   1. The processedKey was cleared (position closed) but the
+        //      OrderDispatcher's idempotency key is still locked (24h TTL)
+        //   2. The same brief+symbol+side combination was already executed
+        // In both cases, retrying is useless — it will ALWAYS fail.
+        // The fix: Mark the brief as processed to stop the infinite retry loop.
+        const isDuplicateOrder = result.error?.includes('أمر مكرر') ||
+          result.error?.includes('duplicate');
+
+        if (isDuplicateOrder) {
+          this.logger.warn(
+            `⚔️ Brief ${brief.id} for ${brief.pair} returned "أمر مكرر" — marking as processed to prevent infinite retry loop`,
+          );
+          // Mark as processed so we don't retry this brief+user combination
+          const TIMEFRAME_TTL_MS: Record<string, number> = {
+            M1: 1 * 60 * 1000,
+            M5: 5 * 60 * 1000,
+            M15: 15 * 60 * 1000,
+            M30: 30 * 60 * 1000,
+            H1: 1 * 60 * 60 * 1000,
+            H4: 4 * 60 * 60 * 1000,
+            D1: 24 * 60 * 60 * 1000,
+            W1: 7 * 24 * 60 * 60 * 1000,
+          };
+          const processedTtlMs = TIMEFRAME_TTL_MS[brief.timeframe] || 15 * 60 * 1000;
+          const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
+          const processedValue = JSON.stringify({
+            orderId: 'duplicate-blocked',
+            executedAt: new Date().toISOString(),
+            pair: brief.pair,
+            timeframe: brief.timeframe,
+            reason: 'duplicate-order-idempotency',
+          });
+          await this.redis.set(processedKey, processedValue, processedTtlMs);
+          try {
+            await this.prisma.setting.upsert({
+              where: { key: `${processedKey}:db` },
+              update: { value: processedValue },
+              create: { key: `${processedKey}:db`, value: processedValue },
+            });
+          } catch { /* non-critical */ }
+        } else {
+          // For other failures (risk check, SL missing, etc.) — don't mark as processed,
+          // brief can be retried on the next tick if conditions change
+          this.logger.warn(
+            `⚔️ Brief ${brief.id} execution FAILED for user ${userId}: ${result.error} — will retry on next tick`,
+          );
+        }
 
         // ── INSTANT NOTIFICATION: Alert on failed execution ──
         try {

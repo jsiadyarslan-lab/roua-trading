@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import Link from 'next/link'
 import {
   Cpu, Play, Square, AlertTriangle, ExternalLink,
   Activity, Zap, TrendingUp, Clock, Settings2,
@@ -468,10 +467,13 @@ export function AgentControlMini() {
       )}
 
       {/* ── Footer: Link to Full Dashboard ── */}
-      {/* FIX: Use <Link> instead of router.push() — router.push was not working
-          reliably in the widget context. <Link> provides native Next.js navigation
-          with prefetch, and is more reliable for client-side navigation. */}
-      <Link
+      {/* FIX: Use native <a> tag — neither router.push() nor <Link> worked
+          reliably inside the widget's scroll container. The click event was
+          being intercepted by parent elements. A native <a> tag bypasses
+          all JavaScript event handling and uses the browser's built-in
+          navigation. Right-click → "Open in new tab" confirmed the href
+          was correct, only the left-click (JS navigation) was broken. */}
+      <a
         href="/dashboard/autonomous-trader"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
@@ -484,11 +486,12 @@ export function AgentControlMini() {
           color: isRunning ? T.green : T.accent, fontSize: 12, fontWeight: 800,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
           textDecoration: 'none',
-        }}>
+        }}
+      >
           <Settings2 size={13} />
           لوحة التحكم الكاملة
           <ExternalLink size={11} />
-      </Link>
+      </a>
 
       {/* ── Error Warning ── */}
       {error && (

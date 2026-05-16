@@ -7,7 +7,8 @@ import {
   AlertTriangle, CheckCircle2, XCircle, Zap, RefreshCw,
   ChevronDown, ChevronUp, Globe, Tag, Calendar,
   Activity, Hash, Send, Archive, ExternalLink, Layers,
-  Search, Filter, Newspaper, BookOpen, MessageSquare
+  Search, Filter, Newspaper, BookOpen, MessageSquare,
+  ArrowUpRight, ArrowDownRight, Target, Award, PieChart
 } from 'lucide-react'
 import {
   useContentAgentStore, ContentAgentStatus, ContentStatus,
@@ -19,25 +20,28 @@ import {
    ═══════════════════════════════════════════════ */
 const T = {
   bg:       '#0B0E14',
-  bg2:      '#1A1D29',
+  bg2:      '#151A22',
   bg3:      '#141824',
   card:     '#1A1D29',
-  accent:   '#00D4FF',
+  accent:   '#059669',
+  accent2:  '#00D4FF',
   green:    '#00FFA3',
   red:      '#FF4757',
   amber:    '#FFB800',
   purple:   '#B388FF',
   orange:   '#FF8C42',
+  gold:     '#d4af37',
   text:     '#F0F2F5',
   text2:    '#8B92A8',
   text3:    '#5A6178',
-  border:   'rgba(255,255,255,0.06)',
+  border:   '#2A313C',
   border2:  'rgba(255,255,255,0.12)',
   glass:    'rgba(26, 29, 41, 0.65)',
-  glow:     'rgba(0,212,255,0.15)',
+  glow:     'rgba(5,150,105,0.15)',
 }
 
 const FONT_AR = "'Cairo', sans-serif"
+const FONT_EN = "'Inter', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
 
 /* ═══════════════════════════════════════════════
@@ -46,7 +50,7 @@ const FONT_MONO = "'JetBrains Mono', monospace"
 function getStatusColor(status: ContentAgentStatus | null): string {
   if (!status) return T.text3
   switch (status) {
-    case ContentAgentStatus.GENERATING: return T.accent
+    case ContentAgentStatus.GENERATING: return T.accent2
     case ContentAgentStatus.PUBLISHING: return T.green
     case ContentAgentStatus.CURATING: return T.purple
     case ContentAgentStatus.PAUSED: return T.amber
@@ -123,9 +127,9 @@ function getStatusBadgeStyle(s: ContentStatus): { bg: string; color: string; lab
     case ContentStatus.DRAFT:
       return { bg: 'rgba(255,255,255,0.06)', color: T.text2, label: 'مسودة' }
     case ContentStatus.IN_REVIEW:
-      return { bg: 'rgba(0,212,255,0.10)', color: T.accent, label: 'قيد المراجعة' }
+      return { bg: 'rgba(0,212,255,0.10)', color: T.accent2, label: 'قيد المراجعة' }
     case ContentStatus.APPROVED:
-      return { bg: 'rgba(0,212,255,0.10)', color: T.accent, label: 'معتمد' }
+      return { bg: 'rgba(0,212,255,0.10)', color: T.accent2, label: 'معتمد' }
     case ContentStatus.SCHEDULED:
       return { bg: 'rgba(255,184,0,0.10)', color: T.amber, label: 'مجدول' }
     case ContentStatus.ARCHIVED:
@@ -159,39 +163,12 @@ function GlassCard({ children, style, glow }: { children: React.ReactNode; style
       backdropFilter: 'blur(16px) saturate(1.4)',
       WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
       border: `1px solid ${T.border}`,
-      borderRadius: 14,
+      borderRadius: 16,
       boxShadow: `0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.04)${glow ? `, 0 0 30px ${glow}` : ''}`,
       overflow: 'hidden',
       ...style,
     }}>
       {children}
-    </div>
-  )
-}
-
-function StatCard({ icon, label, value, subValue, color, mono }: {
-  icon: React.ReactNode; label: string; value: string; subValue?: string; color?: string; mono?: boolean
-}) {
-  return (
-    <div style={{
-      background: 'rgba(255,255,255,0.03)',
-      borderRadius: 10,
-      padding: '14px 16px',
-      border: `1px solid ${T.border}`,
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 6,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <span style={{ color: color || T.accent, display: 'flex' }}>{icon}</span>
-        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2, fontWeight: 600 }}>{label}</span>
-      </div>
-      <div style={{ fontFamily: mono ? FONT_MONO : FONT_AR, fontSize: 18, color: color || T.text, fontWeight: 800, direction: 'ltr', textAlign: 'right' }}>
-        {value}
-      </div>
-      {subValue && (
-        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{subValue}</div>
-      )}
     </div>
   )
 }
@@ -209,15 +186,6 @@ const btnStyle: React.CSSProperties = {
   fontWeight: 700,
   transition: 'all 0.15s',
   outline: 'none',
-}
-
-function InfoRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${T.border}` }}>
-      <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3 }}>{label}</span>
-      <span style={{ fontFamily: FONT_AR, fontSize: 12, color: valueColor || T.text, fontWeight: 700 }}>{value}</span>
-    </div>
-  )
 }
 
 /* ═══════════════════════════════════════════════
@@ -255,47 +223,72 @@ export default function ContentAgentPage() {
     { id: 'settings' as const, label: 'الإعدادات', icon: <Settings2 size={14} /> },
   ]
 
+  // ── Computed stats ──
+  const totalGenerated = agentState?.totalGenerated ?? 0
+  const totalPublished = agentState?.totalPublished ?? 0
+  const dailyGenerated = agentState?.dailyGenerated ?? 0
+  const dailyQuota = agentState?.dailyQuota ?? 20
+  const publishRate = totalGenerated > 0 ? Math.round((totalPublished / totalGenerated) * 100) : 0
+  const dailyPercent = Math.min((dailyGenerated / dailyQuota) * 100, 100)
+  const qualityScore = stats?.avgQualityScore ?? 0
+
   return (
     <>
       <style>{CONTENT_AGENT_CSS}</style>
       <div dir="rtl" style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
         {/* ── Header ── */}
         <div style={{
-          padding: '24px 28px 0',
+          padding: '28px 32px 0',
           display: 'flex',
           alignItems: 'flex-start',
           justifyContent: 'space-between',
           gap: 20,
           flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             {/* Agent Avatar */}
             <div style={{
-              width: 52, height: 52, borderRadius: 14,
-              background: `linear-gradient(135deg, ${isGenerating ? '#00D4FF' : T.purple}, ${isGenerating ? '#0A84FF' : '#6C3CE0'})`,
+              width: 56, height: 56, borderRadius: 16,
+              background: `linear-gradient(135deg, ${isGenerating ? '#00D4FF' : T.accent}, ${isGenerating ? '#0A84FF' : '#047857'})`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              boxShadow: isGenerating ? `0 0 24px rgba(0,212,255,0.3)` : `0 0 24px rgba(179,136,255,0.2)`,
+              boxShadow: isGenerating ? `0 0 28px rgba(0,212,255,0.35)` : `0 0 28px rgba(5,150,105,0.25)`,
               transition: 'all 0.4s ease',
+              position: 'relative',
             }}>
-              <PenLine size={26} color="#000" strokeWidth={2.5} />
+              <PenLine size={26} color="#fff" strokeWidth={2.5} />
+              {isGenerating && (
+                <div style={{
+                  position: 'absolute', inset: -3, borderRadius: 18,
+                  border: '2px solid rgba(0,212,255,0.3)',
+                  animation: 'content-pulse 2s ease-in-out infinite',
+                }} />
+              )}
             </div>
             <div>
-              <h1 style={{ fontFamily: FONT_AR, fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
+              <h1 style={{
+                fontFamily: FONT_AR, fontSize: 24, fontWeight: 900, margin: 0, lineHeight: 1.2,
+                background: 'linear-gradient(135deg, #F0F2F5, #8B92A8)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
+              }}>
                 وكيل المحتوى
               </h1>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 6 }}>
                 <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
+                  width: 9, height: 9, borderRadius: '50%',
                   background: getStatusColor(status),
-                  boxShadow: `0 0 8px ${getStatusColor(status)}`,
+                  boxShadow: `0 0 10px ${getStatusColor(status)}`,
                   animation: isGenerating ? 'content-pulse 2s ease-in-out infinite' : 'none',
                 }} />
-                <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
+                <span style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 700, color: getStatusColor(status) }}>
                   {getStatusLabel(status)}
                 </span>
                 {agentState && (
-                  <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginRight: 8 }}>
-                    • {agentState.totalGenerated} محتوى مُوَلَّد
+                  <span style={{
+                    fontFamily: FONT_AR, fontSize: 11, color: T.text3,
+                    marginRight: 8, padding: '2px 10px', borderRadius: 6,
+                    background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.06)',
+                  }}>
+                    {agentState.totalGenerated} محتوى مُوَلَّد
                   </span>
                 )}
               </div>
@@ -303,16 +296,18 @@ export default function ContentAgentPage() {
           </div>
 
           {/* Action Buttons */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
             <button
               onClick={() => setActiveTab('generate')}
               style={{
                 ...btnStyle,
-                background: 'linear-gradient(135deg, #B388FF, #6C3CE0)',
+                background: 'linear-gradient(135deg, #059669, #047857)',
                 color: '#fff',
                 fontWeight: 800,
-                padding: '10px 24px',
+                padding: '11px 24px',
                 fontSize: 13,
+                borderRadius: 10,
+                boxShadow: '0 4px 16px rgba(5,150,105,0.3)',
               }}
             >
               <Sparkles size={15} />
@@ -324,9 +319,10 @@ export default function ContentAgentPage() {
                 ...btnStyle,
                 background: 'rgba(255,71,87,0.10)',
                 color: T.red,
-                border: `1px solid rgba(255,71,87,0.3)`,
-                padding: '10px 20px',
+                border: `1px solid rgba(255,71,87,0.25)`,
+                padding: '11px 20px',
                 fontSize: 13,
+                borderRadius: 10,
               }}
             >
               <Zap size={15} />
@@ -334,17 +330,15 @@ export default function ContentAgentPage() {
             </button>
             <button
               onClick={() => {
-                fetchState()
-                fetchStats()
-                fetchFeed()
-                fetchTrending()
-                fetchGaps()
+                fetchState(); fetchStats(); fetchFeed(); fetchTrending(); fetchGaps()
               }}
               style={{
                 ...btnStyle,
                 background: 'rgba(255,255,255,0.06)',
                 color: T.text2,
-                padding: '10px 14px',
+                padding: '11px 14px',
+                borderRadius: 10,
+                border: `1px solid ${T.border}`,
               }}
             >
               <RefreshCw size={15} />
@@ -352,75 +346,180 @@ export default function ContentAgentPage() {
           </div>
         </div>
 
-        {/* ── Stats Bar ── */}
-        <div style={{
-          padding: '20px 28px',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-          gap: 12,
-        }}>
-          <StatCard
-            icon={<FileText size={13} />}
-            label="إجمالي المحتوى"
-            value={String(agentState?.totalGenerated ?? 0)}
-            color={T.accent}
-          />
-          <StatCard
-            icon={<Send size={13} />}
-            label="المنشورات"
-            value={String(agentState?.totalPublished ?? 0)}
-            color={T.green}
-          />
-          <StatCard
-            icon={<Calendar size={13} />}
-            label="الحصة اليومية"
-            value={`${agentState?.dailyGenerated ?? 0}/${agentState?.dailyQuota ?? '—'}`}
-            color={T.amber}
-            mono
-          />
-          <StatCard
-            icon={<Eye size={13} />}
-            label="إجمالي المشاهدات"
-            value={stats?.totalViews ? Number(stats.totalViews).toLocaleString('en') : '0'}
-            color={T.purple}
-            mono
-          />
-          <StatCard
-            icon={<Activity size={13} />}
-            label="متوسط الجودة"
-            value={stats?.avgQualityScore ? `${stats.avgQualityScore.toFixed(0)}%` : '—'}
-            color={stats?.avgQualityScore && stats.avgQualityScore >= 70 ? T.green : T.amber}
-          />
-          <StatCard
-            icon={<Clock size={13} />}
-            label="مجدول للنشر"
-            value={String(agentState?.pendingSchedule ?? 0)}
-            color={T.text2}
-          />
+        {/* ── Stats Bar — Redesigned ── */}
+        <div style={{ padding: '24px 32px 0' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 14,
+          }}>
+            {/* Total Content */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'radial-gradient(circle at top right, rgba(0,212,255,0.06), transparent)', pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,212,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <FileText size={15} color={T.accent2} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>إجمالي المحتوى</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: T.accent2, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {totalGenerated}
+              </div>
+              <div style={{ marginTop: 10, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 2, background: T.accent2, width: `${Math.min(publishRate, 100)}%`, transition: 'width 0.6s ease' }} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>{publishRate}% معدل النشر</div>
+            </div>
+
+            {/* Published */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'radial-gradient(circle at top right, rgba(0,255,163,0.06), transparent)', pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,255,163,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Send size={15} color={T.green} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>المنشورات</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: T.green, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {totalPublished}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                <ArrowUpRight size={12} color={T.green} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.green, fontWeight: 700 }}>نشط</span>
+              </div>
+            </div>
+
+            {/* Daily Quota */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'radial-gradient(circle at top right, rgba(255,184,0,0.06), transparent)', pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,184,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Calendar size={15} color={T.amber} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>الحصة اليومية</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: dailyPercent >= 100 ? T.red : T.amber, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {dailyGenerated}<span style={{ fontSize: 14, color: T.text3, fontWeight: 500 }}>/{dailyQuota}</span>
+              </div>
+              <div style={{ marginTop: 10, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 2, background: dailyPercent >= 100 ? T.red : T.amber, width: `${dailyPercent}%`, transition: 'width 0.6s ease' }} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>
+                {dailyPercent >= 100 ? 'اكتملت الحصة' : `${dailyQuota - dailyGenerated} متبقي`}
+              </div>
+            </div>
+
+            {/* Quality Score */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: `radial-gradient(circle at top right, ${qualityScore >= 70 ? 'rgba(0,255,163,0.06)' : 'rgba(255,184,0,0.06)'}, transparent)`, pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: qualityScore >= 70 ? 'rgba(0,255,163,0.10)' : 'rgba(255,184,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Award size={15} color={qualityScore >= 70 ? T.green : T.amber} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>متوسط الجودة</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: qualityScore >= 70 ? T.green : T.amber, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {qualityScore ? `${qualityScore.toFixed(0)}%` : '—'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                <Target size={12} color={qualityScore >= 70 ? T.green : T.amber} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 10, color: qualityScore >= 70 ? T.green : T.amber, fontWeight: 600 }}>
+                  {qualityScore >= 80 ? 'ممتاز' : qualityScore >= 70 ? 'جيد' : qualityScore >= 50 ? 'مقبول' : 'يحتاج تحسين'}
+                </span>
+              </div>
+            </div>
+
+            {/* Total Views */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'radial-gradient(circle at top right, rgba(179,136,255,0.06), transparent)', pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(179,136,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Eye size={15} color={T.purple} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>إجمالي المشاهدات</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: T.purple, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {stats?.totalViews ? Number(stats.totalViews).toLocaleString('en') : '0'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                <TrendingUp size={12} color={T.purple} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>جميع الأوقات</span>
+              </div>
+            </div>
+
+            {/* Scheduled */}
+            <div style={{
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: 14, padding: '18px 20px',
+              border: `1px solid ${T.border}`,
+              position: 'relative', overflow: 'hidden',
+            }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 80, height: 80, background: 'radial-gradient(circle at top right, rgba(255,255,255,0.04), transparent)', pointerEvents: 'none' }} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Clock size={15} color={T.text2} />
+                </div>
+                <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, fontWeight: 600 }}>مجدول للنشر</span>
+              </div>
+              <div style={{ fontFamily: FONT_MONO, fontSize: 28, color: T.text, fontWeight: 800, direction: 'ltr', textAlign: 'right', lineHeight: 1 }}>
+                {agentState?.pendingSchedule ?? 0}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 10 }}>
+                <Calendar size={12} color={T.text3} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>في الانتظار</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* ── Error Banner ── */}
         {error && (
           <div style={{
-            margin: '0 28px 16px', padding: '12px 18px',
-            background: 'rgba(255,71,87,0.10)',
-            border: `1px solid rgba(255,71,87,0.25)`,
-            borderRadius: 10,
-            display: 'flex', alignItems: 'center', gap: 10,
-            fontFamily: FONT_AR, fontSize: 12, color: T.red,
+            margin: '20px 32px 0', padding: '14px 20px',
+            background: 'rgba(255,71,87,0.08)',
+            border: `1px solid rgba(255,71,87,0.20)`,
+            borderRadius: 12,
+            display: 'flex', alignItems: 'center', gap: 12,
+            fontFamily: FONT_AR, fontSize: 13, color: T.red,
           }}>
-            <XCircle size={16} />
-            {error}
+            <AlertTriangle size={18} />
+            <span style={{ fontWeight: 700 }}>{error}</span>
           </div>
         )}
 
         {/* ── Tab Navigation ── */}
         <div style={{
-          padding: '0 28px',
+          padding: '0 32px',
+          marginTop: 24,
           display: 'flex',
           gap: 0,
           borderBottom: `1px solid ${T.border}`,
-          marginBottom: 20,
+          marginBottom: 24,
         }}>
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id
@@ -429,9 +528,9 @@ export default function ContentAgentPage() {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '12px 20px',
-                  fontFamily: FONT_AR, fontSize: 12, fontWeight: isActive ? 800 : 500,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '14px 22px',
+                  fontFamily: FONT_AR, fontSize: 13, fontWeight: isActive ? 800 : 500,
                   color: isActive ? T.accent : T.text2,
                   background: 'transparent',
                   border: 'none',
@@ -445,7 +544,7 @@ export default function ContentAgentPage() {
                 {tab.id === 'feed' && articles.length > 0 && (
                   <span style={{
                     fontSize: 10, fontWeight: 800,
-                    padding: '1px 6px', borderRadius: 8,
+                    padding: '2px 8px', borderRadius: 10,
                     background: `${T.accent}20`, color: T.accent,
                     fontFamily: FONT_MONO,
                   }}>{articles.length}</span>
@@ -456,7 +555,7 @@ export default function ContentAgentPage() {
         </div>
 
         {/* ── Tab Content ── */}
-        <div style={{ padding: '0 28px 40px' }}>
+        <div style={{ padding: '0 32px 48px' }}>
           {activeTab === 'overview' && <OverviewTab />}
           {activeTab === 'feed' && <FeedTab />}
           {activeTab === 'generate' && <GenerateTab />}
@@ -467,93 +566,253 @@ export default function ContentAgentPage() {
   )
 
   /* ═══════════════════════════════════════════════
-     Overview Tab
+     Overview Tab — Redesigned
      ═══════════════════════════════════════════════ */
   function OverviewTab() {
     const [expandedLog, setExpandedLog] = useState(false)
-    const displayLogs = expandedLog ? logs : logs.slice(0, 8)
+    const displayLogs = expandedLog ? logs : logs.slice(0, 6)
 
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-        {/* Left Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Agent Status */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+        {/* ── Top Row: Agent Status + Performance ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
+          {/* Agent Status Card */}
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <PenLine size={15} color={T.accent} />
-                حالة الوكيل
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${getStatusColor(status)}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Activity size={17} color={getStatusColor(status)} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>حالة الوكيل</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>الحالة الحالية والتفاصيل</div>
+                </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <InfoRow label="الحالة" value={getStatusLabel(status)} valueColor={getStatusColor(status)} />
-                <InfoRow label="المحتوى المولّد" value={String(agentState?.totalGenerated ?? 0)} />
-                <InfoRow label="المنشورات" value={String(agentState?.totalPublished ?? 0)} />
-                <InfoRow label="الجدولات المعلقة" value={String(agentState?.pendingSchedule ?? 0)} />
-                <InfoRow label="آخر توليد" value={timeAgo(agentState?.lastGenerationAt)} />
-                <InfoRow label="آخر نشر" value={timeAgo(agentState?.lastPublishAt)} />
-                <InfoRow label="أخطاء" value={String(agentState?.errors ?? 0)} valueColor={(agentState?.errors ?? 0) > 0 ? T.red : T.text} />
-                <InfoRow label="القوالب النشطة" value={String(agentState?.activeTemplates ?? 0)} />
+
+              {/* Status Badge */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '12px 16px', borderRadius: 10,
+                background: `${getStatusColor(status)}08`, border: `1px solid ${getStatusColor(status)}18`,
+                marginBottom: 18,
+              }}>
+                <div style={{
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: getStatusColor(status),
+                  boxShadow: `0 0 10px ${getStatusColor(status)}`,
+                  animation: isGenerating ? 'content-pulse 2s ease-in-out infinite' : 'none',
+                }} />
+                <span style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: getStatusColor(status) }}>
+                  {getStatusLabel(status)}
+                </span>
               </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <StatusInfoRow icon={<FileText size={12} />} label="المحتوى المولّد" value={String(totalGenerated)} />
+                <StatusInfoRow icon={<Send size={12} />} label="المنشورات" value={String(totalPublished)} color={T.green} />
+                <StatusInfoRow icon={<Clock size={12} />} label="الجدولات المعلقة" value={String(agentState?.pendingSchedule ?? 0)} color={T.amber} />
+                <StatusInfoRow icon={<AlertTriangle size={12} />} label="أخطاء" value={String(agentState?.errors ?? 0)} color={(agentState?.errors ?? 0) > 0 ? T.red : T.text3} />
+              </div>
+
               <div style={{ marginTop: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <CapabilityBadge icon={<Sparkles size={10} />} label="توليد AI ثنائي اللغة" color={T.purple} />
-                <CapabilityBadge icon={<Globe size={10} />} label="SEO ذكي" color={T.accent} />
-                <CapabilityBadge icon={<Zap size={10} />} label="تنبيهات عاجلة" color={T.red} />
-                <CapabilityBadge icon={<Calendar size={10} />} label="جدولة تلقائية" color={T.amber} />
+                <CapabilityBadge icon={<Sparkles size={9} />} label="توليد AI ثنائي اللغة" color={T.accent} />
+                <CapabilityBadge icon={<Globe size={9} />} label="SEO ذكي" color={T.accent2} />
+                <CapabilityBadge icon={<Zap size={9} />} label="تنبيهات عاجلة" color={T.red} />
+                <CapabilityBadge icon={<Calendar size={9} />} label="جدولة تلقائية" color={T.amber} />
               </div>
             </div>
           </GlassCard>
 
+          {/* Performance Analytics Card */}
+          <GlassCard>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(5,150,105,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <BarChart3 size={17} color={T.accent} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>تحليلات الأداء</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>مؤشرات الإنتاجية والجودة</div>
+                </div>
+              </div>
+
+              {/* Publish Rate Circle */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginBottom: 20 }}>
+                <div style={{ position: 'relative', width: 80, height: 80, flexShrink: 0 }}>
+                  <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+                    <circle cx="40" cy="40" r="34" fill="none" stroke={T.accent} strokeWidth="6"
+                      strokeDasharray={`${publishRate * 2.14} ${214 - publishRate * 2.14}`}
+                      strokeLinecap="round" style={{ transition: 'stroke-dasharray 0.8s ease' }} />
+                  </svg>
+                  <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 16, fontWeight: 800, color: T.accent }}>{publishRate}%</span>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: T.text, marginBottom: 4 }}>معدل النشر</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
+                    {totalPublished} من أصل {totalGenerated} محتوى تم نشره بنجاح
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality Bar */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text2 }}>جودة المحتوى</span>
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color: qualityScore >= 70 ? T.green : T.amber }}>{qualityScore ? `${qualityScore.toFixed(0)}%` : '—'}</span>
+                </div>
+                <div style={{ height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', borderRadius: 4,
+                    background: `linear-gradient(90deg, ${qualityScore >= 70 ? T.green : T.amber}, ${qualityScore >= 70 ? '#10B981' : '#FCD34D'})`,
+                    width: `${qualityScore || 0}%`, transition: 'width 0.6s ease',
+                  }} />
+                </div>
+              </div>
+
+              {/* Category Breakdown Mini Bars */}
+              {stats?.articlesByCategory && Object.keys(stats.articlesByCategory).length > 0 && (
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 8 }}>توزيع الفئات</div>
+                  {Object.entries(stats.articlesByCategory).slice(0, 4).map(([cat, count]) => {
+                    const maxCount = Math.max(...Object.values(stats!.articlesByCategory) as number[])
+                    const pct = maxCount > 0 ? (Number(count) / maxCount) * 100 : 0
+                    const catColor = getCategoryColor(cat as ContentCategory)
+                    return (
+                      <div key={cat} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, width: 50, textAlign: 'left', flexShrink: 0 }}>{getCategoryLabel(cat as ContentCategory)}</span>
+                        <div style={{ flex: 1, height: 6, borderRadius: 3, background: 'rgba(255,255,255,0.04)', overflow: 'hidden' }}>
+                          <div style={{ height: '100%', borderRadius: 3, background: catColor, width: `${pct}%`, transition: 'width 0.5s ease' }} />
+                        </div>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, width: 20, textAlign: 'right' }}>{String(count)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          </GlassCard>
+
+          {/* Content Stats Card */}
+          <GlassCard>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(179,136,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <PieChart size={17} color={T.purple} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>إحصائيات المحتوى</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>التوزيع حسب الحالة</div>
+                </div>
+              </div>
+
+              {stats ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <StatBarRow label="إجمالي المقالات" value={stats.totalArticles} max={stats.totalArticles || 1} color={T.accent2} />
+                  <StatBarRow label="منشورة" value={stats.publishedArticles} max={stats.totalArticles || 1} color={T.green} />
+                  <StatBarRow label="مسودات" value={stats.draftArticles} max={stats.totalArticles || 1} color={T.text2} />
+                  <StatBarRow label="مجدولة" value={stats.scheduledArticles} max={stats.totalArticles || 1} color={T.amber} />
+                  <div style={{ height: 1, background: T.border, margin: '4px 0' }} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2 }}>إعادات المشاركة</span>
+                    <span style={{ fontFamily: FONT_MONO, fontSize: 13, fontWeight: 800, color: T.purple }}>{stats.totalShares}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 0' }}>
+                    <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2 }}>الفئة الأقوى</span>
+                    <span style={{
+                      fontFamily: FONT_AR, fontSize: 11, fontWeight: 800,
+                      color: getCategoryColor(stats.topPerformingCategory as ContentCategory),
+                      padding: '2px 10px', borderRadius: 6,
+                      background: `${getCategoryColor(stats.topPerformingCategory as ContentCategory)}12`,
+                    }}>
+                      {getCategoryLabel(stats.topPerformingCategory as ContentCategory)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ fontFamily: FONT_AR, fontSize: 13, color: T.text3, textAlign: 'center', padding: '32px 0' }}>
+                  لا توجد إحصائيات بعد
+                </div>
+              )}
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* ── Middle Row: Trending + Gaps ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {/* Trending Topics */}
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <TrendingUp size={15} color={T.amber} />
-                المواضيع الرائجة
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,184,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <TrendingUp size={17} color={T.amber} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>المواضيع الرائجة</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>أكثر المواضيع تفاعلاً الآن</div>
+                  </div>
+                </div>
               </div>
               {trendingTopics.length === 0 ? (
-                <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '16px 0' }}>
+                <div style={{
+                  fontFamily: FONT_AR, fontSize: 13, color: T.text3, textAlign: 'center', padding: '32px 0',
+                  background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px dashed ${T.border}`,
+                }}>
                   لا توجد مواضيع رائجة حالياً
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {trendingTopics.slice(0, 6).map((topic, i) => (
                     <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '8px 12px', borderRadius: 8,
-                      background: 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${T.border}`,
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '12px 14px', borderRadius: 10,
+                      background: i < 3 ? `${getCategoryColor(topic.category)}04` : 'rgba(255,255,255,0.02)',
+                      border: `1px solid ${i < 3 ? `${getCategoryColor(topic.category)}12` : T.border}`,
+                      transition: 'all 0.15s',
                     }}>
-                      <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: i < 3 ? T.amber : T.text3, width: 18 }}>
-                        #{i + 1}
+                      <span style={{
+                        fontFamily: FONT_MONO, fontSize: 11, fontWeight: 900,
+                        color: i < 3 ? T.amber : T.text3, width: 22,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {i + 1}
                       </span>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 700, color: T.text, lineHeight: 1.5 }}>
                           {topic.topicAr || topic.topic}
                         </div>
                         {topic.relatedSymbols?.length > 0 && (
-                          <div style={{ display: 'flex', gap: 4, marginTop: 3 }}>
+                          <div style={{ display: 'flex', gap: 4, marginTop: 5 }}>
                             {topic.relatedSymbols.slice(0, 3).map((sym, j) => (
                               <span key={j} style={{
-                                fontFamily: FONT_MONO, fontSize: 8, padding: '1px 5px',
-                                borderRadius: 3, background: `${T.accent}15`, color: T.accent,
+                                fontFamily: FONT_MONO, fontSize: 9, padding: '2px 7px',
+                                borderRadius: 4, background: 'rgba(0,212,255,0.08)', color: T.accent2, fontWeight: 700,
                               }}>{sym}</span>
                             ))}
                           </div>
                         )}
                       </div>
-                      <span style={{
-                        fontSize: 8, padding: '2px 6px', borderRadius: 4,
-                        background: `${getCategoryColor(topic.category)}15`,
-                        color: getCategoryColor(topic.category),
-                        fontFamily: FONT_AR, fontWeight: 700,
-                      }}>
-                        {getCategoryLabel(topic.category)}
-                      </span>
-                      <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: topic.sentiment > 0 ? T.green : topic.sentiment < 0 ? T.red : T.text3 }}>
-                          {topic.sentiment > 0 ? '+' : ''}{(topic.sentiment * 100).toFixed(0)}%
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                        <span style={{
+                          fontSize: 9, padding: '3px 8px', borderRadius: 5,
+                          background: `${getCategoryColor(topic.category)}12`,
+                          color: getCategoryColor(topic.category),
+                          fontFamily: FONT_AR, fontWeight: 800,
+                        }}>
+                          {getCategoryLabel(topic.category)}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          {topic.sentiment > 0 ? <ArrowUpRight size={10} color={T.green} /> : topic.sentiment < 0 ? <ArrowDownRight size={10} color={T.red} /> : null}
+                          <span style={{
+                            fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800,
+                            color: topic.sentiment > 0 ? T.green : topic.sentiment < 0 ? T.red : T.text3,
+                          }}>
+                            {topic.sentiment > 0 ? '+' : ''}{(topic.sentiment * 100).toFixed(0)}%
+                          </span>
                         </div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 7, color: T.text3 }}>مشاعر</div>
                       </div>
                     </div>
                   ))}
@@ -564,99 +823,100 @@ export default function ContentAgentPage() {
 
           {/* Content Gaps */}
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Layers size={15} color={T.orange} />
-                فجوات المحتوى
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,140,66,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Layers size={17} color={T.orange} />
+                </div>
+                <div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>فجوات المحتوى</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>فئات تحتاج محتوى جديد</div>
+                </div>
               </div>
               {contentGaps.length === 0 ? (
-                <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '16px 0' }}>
+                <div style={{
+                  fontFamily: FONT_AR, fontSize: 13, color: T.text3, textAlign: 'center', padding: '32px 0',
+                  background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px dashed ${T.border}`,
+                }}>
                   لا توجد فجوات محتوى حالياً — التغطية ممتازة
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {contentGaps.slice(0, 5).map((gap, i) => (
-                    <div key={i} style={{
-                      display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 12px', borderRadius: 8,
-                      background: 'rgba(255,255,255,0.02)',
-                      border: `1px solid ${gap.priority === 'HIGH' ? 'rgba(255,71,87,0.15)' : T.border}`,
-                    }}>
-                      <span style={{
-                        fontSize: 8, padding: '2px 8px', borderRadius: 4,
-                        background: gap.priority === 'HIGH' ? 'rgba(255,71,87,0.12)' : gap.priority === 'MEDIUM' ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.06)',
-                        color: gap.priority === 'HIGH' ? T.red : gap.priority === 'MEDIUM' ? T.amber : T.text3,
-                        fontFamily: FONT_AR, fontWeight: 800,
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {contentGaps.slice(0, 5).map((gap, i) => {
+                    const priorityConfig = gap.priority === 'HIGH'
+                      ? { bg: 'rgba(255,71,87,0.06)', border: 'rgba(255,71,87,0.15)', color: T.red, label: 'عاجل' }
+                      : gap.priority === 'MEDIUM'
+                        ? { bg: 'rgba(255,184,0,0.06)', border: 'rgba(255,184,0,0.15)', color: T.amber, label: 'متوسط' }
+                        : { bg: 'rgba(255,255,255,0.03)', border: T.border, color: T.text3, label: 'منخفض' }
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        padding: '12px 14px', borderRadius: 10,
+                        background: priorityConfig.bg,
+                        border: `1px solid ${priorityConfig.border}`,
                       }}>
-                        {gap.priority === 'HIGH' ? 'عاجل' : gap.priority === 'MEDIUM' ? 'متوسط' : 'منخفض'}
-                      </span>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>
-                          {gap.categoryAr || getCategoryLabel(gap.category)}
+                        <span style={{
+                          fontSize: 9, padding: '3px 10px', borderRadius: 6,
+                          background: `${priorityConfig.color}15`,
+                          color: priorityConfig.color,
+                          fontFamily: FONT_AR, fontWeight: 800,
+                        }}>
+                          {priorityConfig.label}
+                        </span>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 700, color: T.text }}>
+                            {gap.categoryAr || getCategoryLabel(gap.category)}
+                          </div>
+                          <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 3, lineHeight: 1.5 }}>
+                            آخر محتوى: {gap.lastArticleAt ? timeAgo(gap.lastArticleAt) : 'لا يوجد'} &middot; {gap.gapHours}س بدون محتوى
+                          </div>
                         </div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>
-                          آخر محتوى: {gap.lastArticleAt ? timeAgo(gap.lastArticleAt) : 'لا يوجد'} — {gap.gapHours}س بدون محتوى
-                        </div>
+                        <button
+                          onClick={() => setActiveTab('generate')}
+                          style={{ ...btnStyle, background: `${T.accent}12`, color: T.accent, fontSize: 10, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.accent}25` }}
+                        >
+                          <Plus size={12} />
+                          توليد
+                        </button>
                       </div>
-                      <button
-                        onClick={() => setActiveTab('generate')}
-                        style={{ ...btnStyle, background: 'rgba(179,136,255,0.10)', color: T.purple, fontSize: 10, padding: '5px 12px' }}
-                      >
-                        <Plus size={11} />
-                        توليد
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
           </GlassCard>
         </div>
 
-        {/* Right Column */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          {/* Content Stats */}
-          <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <BarChart3 size={15} color={T.green} />
-                إحصائيات المحتوى
-              </div>
-              {stats ? (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                  <MiniStat label="إجمالي المقالات" value={String(stats.totalArticles)} color={T.accent} />
-                  <MiniStat label="منشورة" value={String(stats.publishedArticles)} color={T.green} />
-                  <MiniStat label="مسودات" value={String(stats.draftArticles)} color={T.text2} />
-                  <MiniStat label="مجدولة" value={String(stats.scheduledArticles)} color={T.amber} />
-                  <MiniStat label="إعادات المشاركة" value={String(stats.totalShares)} color={T.purple} />
-                  <MiniStat label="الفئة الأقوى" value={getCategoryLabel(stats.topPerformingCategory as ContentCategory)} color={T.orange} />
-                </div>
-              ) : (
-                <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '20px 0' }}>
-                  لا توجد إحصائيات بعد
-                </div>
-              )}
-            </div>
-          </GlassCard>
-
+        {/* ── Bottom Row: Recent Articles + Event Log ── */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {/* Recent Articles */}
-          <GlassCard style={{ flex: 1 }}>
-            <div style={{ padding: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Newspaper size={15} color={T.accent} />
-                  آخر المحتوى
+          <GlassCard>
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,212,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Newspaper size={17} color={T.accent2} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>آخر المحتوى</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>أحدث المقالات المولّدة</div>
+                  </div>
                 </div>
-                <button onClick={() => setActiveTab('feed')} style={{ ...btnStyle, background: 'rgba(0,212,255,0.08)', color: T.accent, fontSize: 10, padding: '5px 12px' }}>
+                <button onClick={() => setActiveTab('feed')} style={{ ...btnStyle, background: `${T.accent}10`, color: T.accent, fontSize: 11, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.accent}20` }}>
                   عرض الكل
                 </button>
               </div>
               {articles.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '30px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3 }}>
-                  لا يوجد محتوى بعد — ابدأ بتوليد أول مقال
+                <div style={{
+                  textAlign: 'center', padding: '40px 20px', fontFamily: FONT_AR, color: T.text3,
+                  background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px dashed ${T.border}`,
+                }}>
+                  <FileText size={36} style={{ marginBottom: 10, opacity: 0.2 }} />
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>لا يوجد محتوى بعد</div>
+                  <div style={{ fontSize: 11, marginTop: 4 }}>ابدأ بتوليد أول مقال من تبويب التوليد</div>
                 </div>
               ) : (
-                <div style={{ maxHeight: 420, overflowY: 'auto' }} className="custom-scrollbar">
+                <div style={{ maxHeight: 380, overflowY: 'auto' }} className="custom-scrollbar">
                   {articles.slice(0, 5).map((article) => (
                     <ArticleRow key={article.id} article={article} compact />
                   ))}
@@ -667,50 +927,67 @@ export default function ContentAgentPage() {
 
           {/* Event Log */}
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Clock size={15} color={T.accent} />
-                  سجل الأحداث
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,212,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Clock size={17} color={T.accent2} />
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>سجل الأحداث</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginTop: 1 }}>آخر نشاطات الوكيل</div>
+                  </div>
                 </div>
-                <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{logs.length} حدث</span>
+                <span style={{
+                  fontFamily: FONT_MONO, fontSize: 11, color: T.text3,
+                  padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>{logs.length} حدث</span>
               </div>
-              <div style={{ maxHeight: 200, overflowY: 'auto', direction: 'ltr' }} className="custom-scrollbar">
+              <div style={{ maxHeight: 340, overflowY: 'auto', direction: 'ltr' }} className="custom-scrollbar">
                 {displayLogs.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '20px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3, direction: 'rtl' }}>
+                  <div style={{
+                    textAlign: 'center', padding: '32px 20px', fontFamily: FONT_AR, fontSize: 13, color: T.text3, direction: 'rtl',
+                    background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px dashed ${T.border}`,
+                  }}>
                     لا توجد أحداث بعد
                   </div>
                 ) : (
-                  displayLogs.map((log, i) => (
-                    <div key={i} style={{
-                      display: 'flex', gap: 8, padding: '6px 10px',
-                      borderBottom: i < displayLogs.length - 1 ? `1px solid ${T.border}` : 'none',
-                      fontFamily: FONT_AR, fontSize: 11,
-                      animation: i === 0 ? 'fadeInSlideUp 0.3s ease-out' : 'none',
-                    }}>
-                      <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, whiteSpace: 'nowrap', paddingTop: 1 }}>
-                        {log.time}
-                      </span>
-                      <span style={{
-                        color: log.type === 'success' ? T.green
-                          : log.type === 'error' ? T.red
-                          : log.type === 'warning' ? T.amber
-                          : log.type === 'content' ? T.purple
-                          : T.text2,
-                        direction: 'rtl',
+                  displayLogs.map((log, i) => {
+                    const logColor = log.type === 'success' ? T.green
+                      : log.type === 'error' ? T.red
+                      : log.type === 'warning' ? T.amber
+                      : log.type === 'content' ? T.purple
+                      : T.text2
+                    const logIcon = log.type === 'success' ? <CheckCircle2 size={11} />
+                      : log.type === 'error' ? <XCircle size={11} />
+                      : log.type === 'warning' ? <AlertTriangle size={11} />
+                      : log.type === 'content' ? <Sparkles size={11} />
+                      : <Activity size={11} />
+                    return (
+                      <div key={i} style={{
+                        display: 'flex', gap: 10, padding: '8px 12px',
+                        borderBottom: i < displayLogs.length - 1 ? `1px solid ${T.border}` : 'none',
+                        fontFamily: FONT_AR, fontSize: 12,
+                        animation: i === 0 ? 'fadeInSlideUp 0.3s ease-out' : 'none',
+                        alignItems: 'flex-start',
                       }}>
-                        {log.msg}
-                      </span>
-                    </div>
-                  ))
+                        <span style={{ color: logColor, display: 'flex', marginTop: 1, flexShrink: 0 }}>{logIcon}</span>
+                        <span style={{ color: logColor, direction: 'rtl', flex: 1, lineHeight: 1.6 }}>{log.msg}</span>
+                        <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, whiteSpace: 'nowrap', paddingTop: 2 }}>
+                          {log.time}
+                        </span>
+                      </div>
+                    )
+                  })
                 )}
               </div>
-              {logs.length > 8 && (
+              {logs.length > 6 && (
                 <button
                   onClick={() => setExpandedLog(!expandedLog)}
-                  style={{ ...btnStyle, width: '100%', marginTop: 10, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 11, padding: '8px 0', justifyContent: 'center' }}
+                  style={{ ...btnStyle, width: '100%', marginTop: 12, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 11, padding: '10px 0', justifyContent: 'center', borderRadius: 8, border: `1px solid ${T.border}` }}
                 >
-                  {expandedLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                  {expandedLog ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                   {expandedLog ? 'عرض أقل' : `عرض الكل (${logs.length})`}
                 </button>
               )}
@@ -745,16 +1022,16 @@ export default function ContentAgentPage() {
               onClick={() => setShowFilters(!showFilters)}
               style={{
                 ...btnStyle,
-                background: showFilters ? 'rgba(0,212,255,0.10)' : 'rgba(255,255,255,0.06)',
+                background: showFilters ? `${T.accent}10` : 'rgba(255,255,255,0.06)',
                 color: showFilters ? T.accent : T.text2,
-                fontSize: 11,
+                fontSize: 11, borderRadius: 8, border: `1px solid ${showFilters ? T.accent + '25' : T.border}`,
               }}
             >
               <Filter size={13} />
               فلاتر
               {(filterCategory || filterType || filterStatus) && (
                 <span style={{
-                  fontSize: 9, padding: '1px 5px', borderRadius: 6,
+                  fontSize: 9, padding: '2px 7px', borderRadius: 8,
                   background: `${T.accent}20`, color: T.accent, fontFamily: FONT_MONO,
                 }}>
                   {[filterCategory, filterType, filterStatus].filter(Boolean).length}
@@ -766,7 +1043,7 @@ export default function ContentAgentPage() {
             {(filterCategory || filterType || filterStatus) && (
               <button
                 onClick={() => { setFilterCategory(''); setFilterType(''); setFilterStatus('') }}
-                style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: T.red, fontSize: 10, padding: '5px 12px' }}
+                style={{ ...btnStyle, background: 'rgba(255,71,87,0.08)', color: T.red, fontSize: 10, padding: '5px 12px', borderRadius: 8 }}
               >
                 <XCircle size={11} />
                 مسح الفلاتر
@@ -814,16 +1091,31 @@ export default function ContentAgentPage() {
     const [breakingSymbols, setBreakingSymbols] = useState('')
     const [breakingContext, setBreakingContext] = useState('')
 
+    const inputStyle: React.CSSProperties = {
+      width: '100%', padding: '12px 16px', borderRadius: 10,
+      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
+      color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'rtl',
+      transition: 'border-color 0.15s',
+    }
+    const selectStyle: React.CSSProperties = {
+      width: '100%', padding: '12px 14px', borderRadius: 10,
+      background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
+      color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl',
+    }
+    const labelStyle: React.CSSProperties = {
+      fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: 'block',
+    }
+
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={() => setFormMode('content')} style={{
               ...btnStyle, flex: 1, justifyContent: 'center',
-              background: formMode === 'content' ? 'rgba(179,136,255,0.12)' : 'rgba(255,255,255,0.04)',
-              color: formMode === 'content' ? T.purple : T.text2,
-              border: `1px solid ${formMode === 'content' ? 'rgba(179,136,255,0.3)' : T.border}`,
-              padding: '12px',
+              background: formMode === 'content' ? `${T.accent}12` : 'rgba(255,255,255,0.04)',
+              color: formMode === 'content' ? T.accent : T.text2,
+              border: `1px solid ${formMode === 'content' ? T.accent + '30' : T.border}`,
+              padding: '13px', borderRadius: 10,
             }}>
               <Sparkles size={15} /> توليد محتوى
             </button>
@@ -832,7 +1124,7 @@ export default function ContentAgentPage() {
               background: formMode === 'breaking' ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.04)',
               color: formMode === 'breaking' ? T.red : T.text2,
               border: `1px solid ${formMode === 'breaking' ? 'rgba(255,71,87,0.3)' : T.border}`,
-              padding: '12px',
+              padding: '13px', borderRadius: 10,
             }}>
               <Zap size={15} /> تنبيه عاجل
             </button>
@@ -841,48 +1133,44 @@ export default function ContentAgentPage() {
           {formMode === 'content' ? (
             <GlassCard>
               <div style={{ padding: 24 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 15, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <Sparkles size={18} color={T.purple} />
+                <div style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Sparkles size={18} color={T.accent} />
                   توليد محتوى جديد
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
-                    <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الموضوع *</label>
+                    <label style={labelStyle}>الموضوع *</label>
                     <input type="text" value={genTopic} onChange={(e) => setGenTopic(e.target.value)}
                       placeholder="مثال: تحليل سوق البيتكوين بعد قرار الفيدرالي"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'rtl' }}
+                      style={inputStyle}
                     />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>النوع</label>
-                      <select value={genType} onChange={(e) => setGenType(e.target.value as ContentType)}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl' }}>
+                      <label style={labelStyle}>النوع</label>
+                      <select value={genType} onChange={(e) => setGenType(e.target.value as ContentType)} style={selectStyle}>
                         {Object.values(ContentType).map(t => <option key={t} value={t} style={{ background: T.bg2 }}>{getTypeLabel(t)}</option>)}
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الفئة</label>
-                      <select value={genCategory} onChange={(e) => setGenCategory(e.target.value as ContentCategory)}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl' }}>
+                      <label style={labelStyle}>الفئة</label>
+                      <select value={genCategory} onChange={(e) => setGenCategory(e.target.value as ContentCategory)} style={selectStyle}>
                         {Object.values(ContentCategory).map(c => <option key={c} value={c} style={{ background: T.bg2 }}>{getCategoryLabel(c as ContentCategory)}</option>)}
                       </select>
                     </div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>اللغة</label>
-                      <select value={genLanguage} onChange={(e) => setGenLanguage(e.target.value as ContentLanguage)}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl' }}>
+                      <label style={labelStyle}>اللغة</label>
+                      <select value={genLanguage} onChange={(e) => setGenLanguage(e.target.value as ContentLanguage)} style={selectStyle}>
                         <option value={ContentLanguage.AR} style={{ background: T.bg2 }}>عربي</option>
                         <option value={ContentLanguage.EN} style={{ background: T.bg2 }}>English</option>
                         <option value={ContentLanguage.BILINGUAL} style={{ background: T.bg2 }}>ثنائي اللغة</option>
                       </select>
                     </div>
                     <div>
-                      <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الأولوية</label>
-                      <select value={genPriority} onChange={(e) => setGenPriority(e.target.value as ContentPriority)}
-                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl' }}>
+                      <label style={labelStyle}>الأولوية</label>
+                      <select value={genPriority} onChange={(e) => setGenPriority(e.target.value as ContentPriority)} style={selectStyle}>
                         {Object.values(ContentPriority).map(p => (
                           <option key={p} value={p} style={{ background: T.bg2 }}>
                             {p === ContentPriority.URGENT ? 'عاجل' : p === ContentPriority.HIGH ? 'عالي' : p === ContentPriority.NORMAL ? 'عادي' : 'منخفض'}
@@ -892,10 +1180,10 @@ export default function ContentAgentPage() {
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الرموز ذات الصلة (اختياري)</label>
+                    <label style={labelStyle}>الرموز ذات الصلة (اختياري)</label>
                     <input type="text" value={genSymbols} onChange={(e) => setGenSymbols(e.target.value)}
                       placeholder="BTC, ETH, SOL — مفصولة بفواصل"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_MONO, fontSize: 12, outline: 'none', direction: 'ltr' }}
+                      style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 12, direction: 'ltr' }}
                     />
                   </div>
                   <button
@@ -906,9 +1194,11 @@ export default function ContentAgentPage() {
                     disabled={loading || !genTopic.trim()}
                     style={{
                       ...btnStyle, width: '100%', justifyContent: 'center',
-                      background: loading || !genTopic.trim() ? 'rgba(179,136,255,0.2)' : 'linear-gradient(135deg, #B388FF, #6C3CE0)',
+                      background: loading || !genTopic.trim() ? `${T.accent}20` : `linear-gradient(135deg, ${T.accent}, #047857)`,
                       color: loading || !genTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 14,
+                      borderRadius: 10,
                       cursor: loading || !genTopic.trim() ? 'not-allowed' : 'pointer',
+                      boxShadow: loading || !genTopic.trim() ? 'none' : '0 4px 16px rgba(5,150,105,0.3)',
                     }}
                   >
                     {loading ? <><RefreshCw size={16} style={{ animation: 'content-spin 1s linear infinite' }} /> جارٍ التوليد...</> : <><Sparkles size={16} /> توليد المحتوى</>}
@@ -919,30 +1209,30 @@ export default function ContentAgentPage() {
           ) : (
             <GlassCard glow="rgba(255,71,87,0.10)">
               <div style={{ padding: 24 }}>
-                <div style={{ fontFamily: FONT_AR, fontSize: 15, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 800, marginBottom: 22, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <Zap size={18} color={T.red} /> تنبيه عاجل
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
                   <div>
-                    <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الموضوع العاجل *</label>
+                    <label style={labelStyle}>الموضوع العاجل *</label>
                     <input type="text" value={breakingTopic} onChange={(e) => setBreakingTopic(e.target.value)}
                       placeholder="مثال: انهيار مفاجئ في سوق الكريبتو"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,71,87,0.3)', color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'rtl' }}
+                      style={{ ...inputStyle, border: '1px solid rgba(255,71,87,0.25)' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>الرموز المتأثرة</label>
+                    <label style={labelStyle}>الرموز المتأثرة</label>
                     <input type="text" value={breakingSymbols} onChange={(e) => setBreakingSymbols(e.target.value)}
                       placeholder="BTC, ETH — مفصولة بفواصل"
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_MONO, fontSize: 12, outline: 'none', direction: 'ltr' }}
+                      style={{ ...inputStyle, fontFamily: FONT_MONO, fontSize: 12, direction: 'ltr' }}
                     />
                   </div>
                   <div>
-                    <label style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 6, display: 'block' }}>سياق إضافي</label>
+                    <label style={labelStyle}>سياق إضافي</label>
                     <textarea value={breakingContext} onChange={(e) => setBreakingContext(e.target.value)}
                       placeholder="تفاصيل إضافية تساعد AI في توليد محتوى دقيق..."
                       rows={4}
-                      style={{ width: '100%', padding: '10px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'rtl', resize: 'vertical' }}
+                      style={{ ...inputStyle, resize: 'vertical' }}
                     />
                   </div>
                   <button
@@ -955,6 +1245,7 @@ export default function ContentAgentPage() {
                       ...btnStyle, width: '100%', justifyContent: 'center',
                       background: loading || !breakingTopic.trim() ? 'rgba(255,71,87,0.2)' : 'linear-gradient(135deg, #FF4757, #C0392B)',
                       color: loading || !breakingTopic.trim() ? T.text3 : '#fff', fontWeight: 800, padding: '14px', fontSize: 14,
+                      borderRadius: 10,
                       cursor: loading || !breakingTopic.trim() ? 'not-allowed' : 'pointer',
                     }}
                   >
@@ -969,11 +1260,11 @@ export default function ContentAgentPage() {
         {/* Right: Quick Presets */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ padding: 24 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Zap size={15} color={T.amber} /> توليد سريع
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                 <QuickPreset label="ملخص الكريبتو اليومي" icon={<TrendingUp size={13} />} color="#FFB800"
                   onClick={() => generateContent({ type: ContentType.NEWS_DIGEST, category: ContentCategory.CRYPTO, topic: 'ملخص سوق الكريبتو اليومي', language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })} />
                 <QuickPreset label="تقرير الفوركس الأسبوعي" icon={<BarChart3 size={13} />} color="#00D4FF"
@@ -991,24 +1282,26 @@ export default function ContentAgentPage() {
           </GlassCard>
 
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ padding: 24 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
                 <Layers size={15} color={T.orange} /> ملء الفجوات تلقائياً
               </div>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2, lineHeight: 1.8, marginBottom: 12 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, lineHeight: 1.9, marginBottom: 14 }}>
                 يقوم الوكيل تلقائياً بتحديد الفئات التي تحتاج محتوى جديد وملئها. يمكنك أيضاً التوليد يدوياً لفئة محددة.
               </div>
               {contentGaps.filter(g => g.priority === 'HIGH').length > 0 && (
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.red, marginBottom: 6 }}>فجوات عاجلة:</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.red, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={12} /> فجوات عاجلة:
+                  </div>
                   {contentGaps.filter(g => g.priority === 'HIGH').map((gap, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', marginBottom: 4, borderRadius: 6, background: 'rgba(255,71,87,0.05)' }}>
-                      <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text, fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', marginBottom: 6, borderRadius: 8, background: 'rgba(255,71,87,0.05)', border: '1px solid rgba(255,71,87,0.1)' }}>
+                      <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text, fontWeight: 600 }}>{gap.categoryAr || getCategoryLabel(gap.category)}</span>
                       <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>({gap.gapHours}س بدون محتوى)</span>
                       <button
                         onClick={() => generateContent({ type: ContentType.ARTICLE, category: gap.category, topic: gap.suggestedTopics?.[0] || `محتوى جديد: ${gap.categoryAr || gap.category}`, language: ContentLanguage.BILINGUAL, priority: ContentPriority.HIGH })}
                         disabled={loading}
-                        style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: T.red, fontSize: 9, padding: '4px 10px' }}
+                        style={{ ...btnStyle, marginLeft: 'auto', background: 'rgba(255,71,87,0.10)', color: T.red, fontSize: 9, padding: '5px 12px', borderRadius: 7 }}
                       >
                         <Plus size={10} /> توليد
                       </button>
@@ -1020,12 +1313,12 @@ export default function ContentAgentPage() {
           </GlassCard>
 
           <GlassCard>
-            <div style={{ padding: 20 }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-                <MessageSquare size={15} color={T.accent} /> نصائح التوليد
+            <div style={{ padding: 24 }}>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <MessageSquare size={15} color={T.accent2} /> نصائح التوليد
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <TipItem text="كلما كان الموضوع أكثر تحديداً، كان المحتوى أدق وأكثر فائدة" />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <TipItem text="كلما كان الموضوع أكثر تحديداً، كان المحتوى أدق وأكثر فائدة للقارئ" />
                 <TipItem text="أضف الرموز المتعلقة بالموضوع للحصول على بيانات سوق محدثة في المحتوى" />
                 <TipItem text="استخدم نوع 'ملخص أخبار' للحصول على تجميع شامل لأحداث اليوم" />
                 <TipItem text="التنبيهات العاجلة تُنشر فوراً بدون مراجعة — استخدمها بحكمة" />
@@ -1044,33 +1337,38 @@ export default function ContentAgentPage() {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Calendar size={15} color={T.amber} /> الحصة اليومية
+          <div style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,184,0,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Calendar size={17} color={T.amber} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>الحصة اليومية</div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-              <div style={{ flex: 1, height: 8, borderRadius: 4, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+              <div style={{ flex: 1, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
                 <div style={{
-                  height: '100%', borderRadius: 4,
-                  background: (agentState?.dailyGenerated ?? 0) >= (agentState?.dailyQuota ?? 20) ? T.red : T.green,
-                  width: `${Math.min(((agentState?.dailyGenerated ?? 0) / (agentState?.dailyQuota || 20)) * 100, 100)}%`,
-                  transition: 'width 0.5s ease',
+                  height: '100%', borderRadius: 5,
+                  background: dailyPercent >= 100 ? T.red : `linear-gradient(90deg, ${T.accent}, #10B981)`,
+                  width: `${dailyPercent}%`, transition: 'width 0.5s ease',
                 }} />
               </div>
-              <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color: T.text }}>
-                {agentState?.dailyGenerated ?? 0}/{agentState?.dailyQuota ?? '—'}
+              <span style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color: T.text }}>
+                {dailyGenerated}/{dailyQuota}
               </span>
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.8 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, lineHeight: 1.9 }}>
               يتم إعادة تعيين الحصة اليومية كل يوم في الساعة 00:00 UTC. الحصة الافتراضية هي 20 محتوى يومياً. يمكن تعديلها من إعدادات الوكيل.
             </div>
           </div>
         </GlassCard>
 
         <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Clock size={15} color={T.accent} /> الجدولة التلقائية
+          <div style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,212,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Clock size={17} color={T.accent2} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>الجدولة التلقائية</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <ScheduleRow label="ملخص السوق الصباحي" time="08:00 UTC" active />
@@ -1082,9 +1380,12 @@ export default function ContentAgentPage() {
         </GlassCard>
 
         <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Sparkles size={15} color={T.purple} /> إعدادات AI
+          <div style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(5,150,105,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sparkles size={17} color={T.accent} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>إعدادات AI</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <SettingRow label="نموذج AI" value="GLM-5" />
@@ -1098,16 +1399,19 @@ export default function ContentAgentPage() {
         </GlassCard>
 
         <GlassCard>
-          <div style={{ padding: 20 }}>
-            <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <CheckCircle2 size={15} color={T.green} /> عتبات الجودة
+          <div style={{ padding: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,255,163,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CheckCircle2 size={17} color={T.green} />
+              </div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: T.text }}>عتبات الجودة</div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <ThresholdRow label="الحد الأدنى للجودة للنشر التلقائي" value="70%" color={T.green} />
               <ThresholdRow label="عتبة التنبيهات العاجلة" value="90%" color={T.red} />
               <ThresholdRow label="الحد الأدنى لدرجة المشاعر" value="+-0.3" color={T.amber} />
             </div>
-            <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.8, marginTop: 16 }}>
+            <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, lineHeight: 1.9, marginTop: 18 }}>
               المحتوى الذي لا يحقق الحد الأدنى لجودة يبقى كمسودة للمراجعة اليدوية. التنبيهات العاجلة تتطلب درجة جودة أعلى لضمان الدقة.
             </div>
           </div>
@@ -1129,14 +1433,20 @@ function ArticleRow({ article, compact = false }: { article: any; compact?: bool
 
   if (compact) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderBottom: `1px solid ${T.border}` }}>
-        <div style={{ width: 6, height: 6, borderRadius: '50%', background: catColor, flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: `1px solid ${T.border}` }}>
+        <div style={{ width: 4, height: 28, borderRadius: 2, background: catColor, flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 700, color: T.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.5 }}>
             {article.titleAr || article.titleEn}
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
+            <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${catColor}12`, color: catColor, fontFamily: FONT_AR, fontWeight: 700 }}>
+              {getCategoryLabel(article.category as ContentCategory)}
+            </span>
+            <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>{timeAgo(article.createdAt)}</span>
+          </div>
         </div>
-        <span style={{ fontSize: 8, padding: '2px 6px', borderRadius: 4, background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700, flexShrink: 0 }}>
+        <span style={{ fontSize: 9, padding: '3px 8px', borderRadius: 5, background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700, flexShrink: 0 }}>
           {badge.label}
         </span>
       </div>
@@ -1145,76 +1455,81 @@ function ArticleRow({ article, compact = false }: { article: any; compact?: bool
 
   return (
     <GlassCard>
-      <div style={{ padding: '18px 20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-          <span style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, background: `${catColor}15`, color: catColor, fontFamily: FONT_AR, fontWeight: 800 }}>
+      <div style={{ padding: '20px 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: `${catColor}12`, color: catColor, fontFamily: FONT_AR, fontWeight: 800 }}>
             {getCategoryLabel(article.category as ContentCategory)}
           </span>
-          <span style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', color: T.text2, fontFamily: FONT_AR, fontWeight: 700 }}>
+          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: T.text2, fontFamily: FONT_AR, fontWeight: 700 }}>
             {getTypeLabel(article.type as ContentType)}
           </span>
-          <span style={{ fontSize: 8, padding: '2px 8px', borderRadius: 4, background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700 }}>
+          <span style={{ fontSize: 9, padding: '3px 10px', borderRadius: 6, background: badge.bg, color: badge.color, fontFamily: FONT_AR, fontWeight: 700 }}>
             {badge.label}
           </span>
           <div style={{ flex: 1 }} />
-          <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>{timeAgo(article.createdAt)}</span>
+          <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{timeAgo(article.createdAt)}</span>
         </div>
-        <div style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 800, color: T.text, lineHeight: 1.6, marginBottom: 6 }}>
+        <div style={{ fontFamily: FONT_AR, fontSize: 17, fontWeight: 800, color: T.text, lineHeight: 1.7, marginBottom: 8 }}>
           {article.titleAr || article.titleEn}
         </div>
         {(article.summaryAr || article.summaryEn) && (
-          <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2, lineHeight: 1.7, marginBottom: 8 }}>
-            {expanded ? (article.summaryAr || article.summaryEn) : (article.summaryAr || article.summaryEn).substring(0, 120) + '...'}
+          <div style={{ fontFamily: FONT_AR, fontSize: 13, color: T.text2, lineHeight: 1.8, marginBottom: 10 }}>
+            {expanded ? (article.summaryAr || article.summaryEn) : (article.summaryAr || article.summaryEn).substring(0, 150) + '...'}
           </div>
         )}
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
           {article.relatedSymbols?.slice(0, 5).map((sym: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 8, padding: '2px 6px', borderRadius: 3, background: `${T.accent}12`, color: T.accent, fontWeight: 700 }}>{sym}</span>
+            <span key={i} style={{ fontFamily: FONT_MONO, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,212,255,0.08)', color: T.accent2, fontWeight: 700 }}>{sym}</span>
           ))}
           {article.tags?.slice(0, 4).map((tag: string, i: number) => (
-            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 8, padding: '2px 6px', borderRadius: 3, background: 'rgba(255,255,255,0.04)', color: T.text3 }}>
+            <span key={i} style={{ fontFamily: FONT_AR, fontSize: 9, padding: '3px 8px', borderRadius: 4, background: 'rgba(255,255,255,0.04)', color: T.text3 }}>
               #{tag}
             </span>
           ))}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, paddingTop: 10, borderTop: `1px solid ${T.border}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Activity size={11} color={article.qualityScore >= 70 ? T.green : T.amber} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: article.qualityScore >= 70 ? T.green : T.amber }}>{article.qualityScore}%</span>
-            <span style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>جودة</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingTop: 12, borderTop: `1px solid ${T.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Award size={12} color={article.qualityScore >= 70 ? T.green : T.amber} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, fontWeight: 800, color: article.qualityScore >= 70 ? T.green : T.amber }}>{article.qualityScore}%</span>
+            <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>جودة</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Eye size={11} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{Number(article.views || 0).toLocaleString('en')}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Eye size={12} color={T.text3} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{Number(article.views || 0).toLocaleString('en')}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <ThumbsUp size={11} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{article.likes || 0}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <ThumbsUp size={12} color={T.text3} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{article.likes || 0}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Share2 size={11} color={T.text3} />
-            <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{article.shares || 0}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Share2 size={12} color={T.text3} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 11, color: T.text3 }}>{article.shares || 0}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Clock size={11} color={T.text3} />
-            <span style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3 }}>{article.readingTimeMinutes || 0} د</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Clock size={12} color={T.text3} />
+            <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{article.readingTimeMinutes || 0} د</span>
           </div>
           <div style={{ flex: 1 }} />
           {article.status === ContentStatus.DRAFT && (
-            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: 'rgba(0,255,163,0.10)', color: T.green, fontSize: 10, padding: '5px 12px', border: '1px solid rgba(0,255,163,0.2)' }}>
+            <button onClick={() => publishContent(article.id)} style={{ ...btnStyle, background: `${T.accent}12`, color: T.accent, fontSize: 10, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.accent}25` }}>
               <Send size={11} /> نشر
             </button>
           )}
-          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text2, fontSize: 10, padding: '5px 12px' }}>
-            {expanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          <button onClick={() => setExpanded(!expanded)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text2, fontSize: 10, padding: '6px 14px', borderRadius: 8, border: `1px solid ${T.border}` }}>
+            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             {expanded ? 'أقل' : 'تفاصيل'}
           </button>
-          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 10, padding: '5px 10px' }}>
-            <Archive size={11} />
+          <button onClick={() => archiveContent(article.id)} style={{ ...btnStyle, background: 'rgba(255,255,255,0.04)', color: T.text3, fontSize: 10, padding: '6px 10px', borderRadius: 8, border: `1px solid ${T.border}` }}>
+            <Archive size={12} />
           </button>
         </div>
         {expanded && (article.contentAr || article.contentEn) && (
-          <div style={{ marginTop: 14, padding: '14px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`, fontFamily: FONT_AR, fontSize: 13, color: T.text2, lineHeight: 1.9, direction: 'rtl', maxHeight: 400, overflowY: 'auto' }} className="custom-scrollbar">
+          <div style={{
+            marginTop: 16, padding: '16px 18px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
+            fontFamily: FONT_AR, fontSize: 14, color: T.text2, lineHeight: 2,
+            direction: 'rtl', maxHeight: 400, overflowY: 'auto',
+          }} className="custom-scrollbar">
             {(article.contentAr || article.contentEn).substring(0, 2000)}{(article.contentAr || article.contentEn).length > 2000 ? '...' : ''}
           </div>
         )}
@@ -1223,20 +1538,38 @@ function ArticleRow({ article, compact = false }: { article: any; compact?: bool
   )
 }
 
-function CapabilityBadge({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
+function StatusInfoRow({ icon, label, value, color }: { icon: React.ReactNode; label: string; value: string; color?: string }) {
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9, padding: '3px 8px', borderRadius: 5, background: `${color}12`, color, fontWeight: 700, fontFamily: FONT_AR }}>
-      {icon} {label}
-    </span>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ color: color || T.text3, display: 'flex' }}>{icon}</span>
+        <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3 }}>{label}</span>
+      </div>
+      <span style={{ fontFamily: FONT_AR, fontSize: 13, color: color || T.text, fontWeight: 800 }}>{value}</span>
+    </div>
   )
 }
 
-function MiniStat({ label, value, color }: { label: string; value: string; color: string }) {
+function StatBarRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = max > 0 ? (value / max) * 100 : 0
   return (
-    <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-      <div style={{ fontFamily: FONT_AR, fontSize: 9, color: T.text3, marginBottom: 4 }}>{label}</div>
-      <div style={{ fontFamily: FONT_MONO, fontSize: 14, fontWeight: 800, color }}>{value}</div>
+    <div style={{ marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+        <span style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text2 }}>{label}</span>
+        <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color }}>{value}</span>
+      </div>
+      <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.05)', overflow: 'hidden' }}>
+        <div style={{ height: '100%', borderRadius: 3, background: color, width: `${pct}%`, transition: 'width 0.5s ease' }} />
+      </div>
     </div>
+  )
+}
+
+function CapabilityBadge({ icon, label, color }: { icon: React.ReactNode; label: string; color: string }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 9, padding: '4px 9px', borderRadius: 6, background: `${color}12`, color, fontWeight: 700, fontFamily: FONT_AR }}>
+      {icon} {label}
+    </span>
   )
 }
 
@@ -1245,9 +1578,9 @@ function FilterSelect({ label, value, onChange, options }: {
 }) {
   return (
     <div>
-      <label style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block' }}>{label}</label>
+      <label style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 5, display: 'block' }}>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value || '')}
-        style={{ padding: '6px 10px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border2}`, color: T.text, fontFamily: FONT_AR, fontSize: 11, outline: 'none', direction: 'rtl', minWidth: 120 }}>
+        style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 11, outline: 'none', direction: 'rtl', minWidth: 120 }}>
         <option value="" style={{ background: T.bg2 }}>الكل</option>
         {options.map(o => <option key={o.value} value={o.value} style={{ background: T.bg2 }}>{o.label}</option>)}
       </select>
@@ -1258,12 +1591,12 @@ function FilterSelect({ label, value, onChange, options }: {
 function QuickPreset({ label, icon, color, onClick }: { label: string; icon: React.ReactNode; color: string; onClick: () => void }) {
   return (
     <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', borderRadius: 10,
-      background: `${color}08`, border: `1px solid ${color}22`, cursor: 'pointer', textAlign: 'right',
+      display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 12,
+      background: `${color}06`, border: `1px solid ${color}18`, cursor: 'pointer', textAlign: 'right',
       transition: 'all 0.15s', direction: 'rtl',
     }}
-      onMouseEnter={e => { e.currentTarget.style.background = `${color}15`; e.currentTarget.style.borderColor = `${color}44` }}
-      onMouseLeave={e => { e.currentTarget.style.background = `${color}08`; e.currentTarget.style.borderColor = `${color}22` }}
+      onMouseEnter={e => { e.currentTarget.style.background = `${color}12`; e.currentTarget.style.borderColor = `${color}30` }}
+      onMouseLeave={e => { e.currentTarget.style.background = `${color}06`; e.currentTarget.style.borderColor = `${color}18` }}
     >
       <span style={{ color, display: 'flex' }}>{icon}</span>
       <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: 700, color: T.text }}>{label}</span>
@@ -1273,8 +1606,8 @@ function QuickPreset({ label, icon, color, onClick }: { label: string; icon: Rea
 
 function TipItem({ text }: { text: string }) {
   return (
-    <div style={{ display: 'flex', gap: 8, padding: '6px 0', fontFamily: FONT_AR, fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-      <span style={{ color: T.accent, flexShrink: 0, marginTop: 2 }}>&#9679;</span>
+    <div style={{ display: 'flex', gap: 10, padding: '8px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text2, lineHeight: 1.7 }}>
+      <span style={{ color: T.accent, flexShrink: 0, marginTop: 3, fontSize: 8 }}>&#9679;</span>
       {text}
     </div>
   )
@@ -1282,8 +1615,8 @@ function TipItem({ text }: { text: string }) {
 
 function ScheduleRow({ label, time, active }: { label: string; time: string; active: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 8, background: active ? 'rgba(0,255,163,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(0,255,163,0.12)' : T.border}` }}>
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? T.green : T.text3, boxShadow: active ? `0 0 6px ${T.green}` : 'none' }} />
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 10, background: active ? 'rgba(5,150,105,0.04)' : 'rgba(255,255,255,0.02)', border: `1px solid ${active ? 'rgba(5,150,105,0.15)' : T.border}` }}>
+      <div style={{ width: 8, height: 8, borderRadius: '50%', background: active ? T.accent : T.text3, boxShadow: active ? `0 0 8px ${T.accent}` : 'none' }} />
       <div style={{ flex: 1 }}><div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{label}</div></div>
       <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>{time}</span>
     </div>
@@ -1303,7 +1636,7 @@ function ThresholdRow({ label, value, color }: { label: string; value: string; c
   return (
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${T.border}` }}>
       <span style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text2 }}>{label}</span>
-      <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color, padding: '2px 8px', borderRadius: 4, background: `${color}10` }}>{value}</span>
+      <span style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color, padding: '3px 10px', borderRadius: 6, background: `${color}10` }}>{value}</span>
     </div>
   )
 }
@@ -1314,7 +1647,7 @@ function ThresholdRow({ label, value, color }: { label: string; value: string; c
 const CONTENT_AGENT_CSS = `
 @keyframes content-pulse {
   0%, 100% { opacity: 0.65; transform: scale(1); }
-  50%      { opacity: 1;    transform: scale(1.1); }
+  50%      { opacity: 1;    transform: scale(1.15); }
 }
 @keyframes content-spin {
   from { transform: rotate(0deg); }

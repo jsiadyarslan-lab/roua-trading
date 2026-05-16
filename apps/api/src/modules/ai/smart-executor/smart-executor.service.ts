@@ -86,19 +86,26 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly orderDispatcher: OrderDispatcherService,
     private readonly exposureManager: ExposureManagerService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
+    this.logger.log('⚔️ Smart Executor initialized — auto-restore from DB on startup.');
 
-    // FIX: REMOVED auto-start completely. Previously, the executor would
-    // auto-start after 10 seconds, restore user states from DB/Redis,
-    // and sync with AgentSession — all without user consent. This caused
-    // phantom trades to be created for every user on every server restart.
+    // FIX: Auto-restore enabled users from DB after startup cleanup.
+    // The previous "DISABLED auto-start" approach was too aggressive — it meant
+    // that after EVERY server restart (deploy, Railway auto-sleep, etc.),
+    // the executor would be dead until the user manually clicked "تشغيل" again.
+    // This is the #1 reason no trades execute: the tick loop never starts.
     //
-    // Now: The executor does NOTHING until a user explicitly clicks "تشغيل"
-    // from their dashboard. No auto-start, no auto-restore, no cross-system sync.
-    //
-    // Only run startup cleanup to purge any leftover phantom data:
+    // New approach:
+    // 1. Run startup cleanup (purge phantoms, clear stale Redis)
+    // 2. Recover enabled user states from DB (source of truth for explicit user consent)
+    // 3. If any users were enabled, auto-start the tick loop
+    // 4. This is SAFE because:
+    //    - Phantom positions are already cleaned up
+    //    - Only users who EXPLICITLY clicked "تشغيل" have DB records
+    //    - Dedup prevents duplicate trades (Redis + DB processed keys)
     setTimeout(() => {
-      this._startupCleanup();
+      this._startupCleanup().then(() => {
+        this._autoRestoreFromDB();
+      });
     }, 15000);
   }
 
@@ -215,23 +222,72 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge stale PaperOrder records: ${paperErr.message}`);
       }
 
-      // ── REMOVED: Auto-enable for paper-trading users ──
-      // ROOT FIX: Auto-enabling the Smart Executor for ALL users with paper-trading
-      // credentials violates explicit user consent. It causes:
-      //   1. Trades executing without the user's knowledge
-      //   2. Both Agent AND Executor running simultaneously (duplicate trades)
-      //   3. Users confused about why trades appear they didn't authorize
-      // The executor MUST ONLY be enabled by explicit user action ("تشغيل" button).
-      //
-      // Cross-system coordination is handled by ExposureManagerService:
-      //   - Tracks total open positions across BOTH systems (executor + agent)
-      //   - Prevents exceeding global limits regardless of source
-      //   - One position per symbol enforced at the exposure level
-      //   - No mutual exclusion lock needed — exposure-based coordination
-
       this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
     } catch (error: any) {
       this.logger.warn(`⚔️ Startup cleanup failed (non-critical): ${error.message}`);
+    }
+  }
+
+  /**
+   * Auto-restore enabled users from DB and start tick loop if needed.
+   *
+   * This is the CRITICAL FIX for "no trades execute":
+   * After server restart, the tick loop is dead (isRunning=false) and Redis
+   * is empty. But DB has the user states from when they clicked "تشغيل".
+   * Without this restore, those users are effectively disabled despite
+   * having explicitly enabled the executor.
+   *
+   * This is NOT the same as the old auto-enable (which enabled ALL users).
+   * This ONLY restores users who had ALREADY explicitly enabled the executor.
+   */
+  private async _autoRestoreFromDB(): Promise<void> {
+    try {
+      if (!this.prisma?.isAvailable?.()) {
+        this.logger.warn('⚔️ Skipping auto-restore — DB not yet available. Will retry on next user enable.');
+        return;
+      }
+
+      // Read all DB-persisted user states
+      const dbStates = await this.prisma.setting.findMany({
+        where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+      });
+
+      if (dbStates.length === 0) {
+        this.logger.log('⚔️ No enabled users found in DB — executor stays idle until a user enables it.');
+        return;
+      }
+
+      let restoredCount = 0;
+      for (const s of dbStates) {
+        try {
+          const state = JSON.parse(s.value);
+          if (state.enabled) {
+            const userId = s.key.replace(this.DB_USER_STATE_KEY + ':', '');
+
+            // Re-populate Redis from DB
+            await this.redis.set(
+              `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+              JSON.stringify(state),
+              86400000 * 7,
+            );
+
+            restoredCount++;
+            this.logger.log(`⚔️ Restored enabled user ${userId} from DB (paper: ${state.isPaperTrading})`);
+          }
+        } catch {
+          // Malformed state — skip
+        }
+      }
+
+      // Auto-start the tick loop if any users were restored
+      if (restoredCount > 0 && !this.isRunning) {
+        this.logger.log(`⚔️ Auto-starting tick loop — ${restoredCount} user(s) restored from DB`);
+        await this.start('auto-restore');
+      } else if (restoredCount === 0) {
+        this.logger.log('⚔️ No enabled users with state.enabled=true in DB — executor stays idle.');
+      }
+    } catch (error: any) {
+      this.logger.warn(`⚔️ Auto-restore failed (non-critical): ${error.message}. Executor will start when a user enables it.`);
     }
   }
 

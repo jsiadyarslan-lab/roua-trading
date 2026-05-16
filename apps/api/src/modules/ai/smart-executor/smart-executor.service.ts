@@ -106,7 +106,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       this._startupCleanup().then(() => {
         this._autoRestoreFromDB();
       });
-    }, 15000);
+    }, 20000); // 20s — give DB more time to be ready on Railway cold starts
   }
 
   /**
@@ -243,7 +243,8 @@ export class SmartExecutorService implements OnModuleDestroy {
   private async _autoRestoreFromDB(): Promise<void> {
     try {
       if (!this.prisma?.isAvailable?.()) {
-        this.logger.warn('⚔️ Skipping auto-restore — DB not yet available. Will retry on next user enable.');
+        this.logger.warn('⚔️ DB not yet available for auto-restore — retrying in 10s...');
+        setTimeout(() => this._autoRestoreFromDB(), 10000);
         return;
       }
 

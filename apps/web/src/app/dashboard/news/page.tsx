@@ -47,6 +47,9 @@ type NewsItem = {
   content: string;
   translatedContent?: string;
   summary?: string;
+  fullContent?: string;
+  keyTakeaways?: string[];
+  imageUrl?: string | null;
   url?: string | null;
   sentiment?: number;
   sentimentLabel?: string;
@@ -56,6 +59,7 @@ type NewsItem = {
   categoryAr?: string;
   aiAnalysis?: string;
   publishedAt?: string;
+  newsType?: string;
 };
 
 export default function NewsPage() {
@@ -438,7 +442,7 @@ export default function NewsPage() {
           borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
         }}>
           <RefreshCw size={28} color={T.cyan} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-          <p style={{ fontSize: 14 }}>جارٍ تحميل الأخبار مع تحليل AI...</p>
+          <p style={{ fontSize: 14, fontFamily: FONT_AR }}>جارٍ تحميل الأخبار من رؤى...</p>
         </div>
       ) : filteredItems.length === 0 ? (
         <div style={{
@@ -446,21 +450,23 @@ export default function NewsPage() {
           borderRadius: 20, padding: '40px 32px', textAlign: 'center',
         }}>
           <Newspaper size={34} color={T.cyan} style={{ marginBottom: 14 }} />
-          <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>
+          <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px', fontFamily: FONT_AR }}>
             لا توجد أخبار مطابقة
           </h2>
-          <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>
+          <p style={{ color: T.text2, fontSize: 13, margin: 0, fontFamily: FONT_AR }}>
             غيّر الفلتر أو انتظر التحديث القادم
           </p>
         </div>
       ) : (
         <>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {filteredItems.slice(0, displayCount).map((item, index) => {
             const sentiment = getSentimentBadge(item.sentimentLabel);
             const impact = getImpactBadge(item.impactLevel);
             const SentimentIcon = sentiment.icon;
             const isExpanded = expandedId === item.id;
+            const displayTitle = item.translatedTitle || item.title;
+            const hasFullContent = item.fullContent && item.fullContent.length > 10;
 
             return (
               <article
@@ -475,6 +481,21 @@ export default function NewsPage() {
                   animation: `fade-in 0.25s ease-out ${index * 30}ms both`,
                 }}
               >
+                {/* Hero Image */}
+                {item.imageUrl && (
+                  <div style={{
+                    width: '100%', maxHeight: 220, overflow: 'hidden',
+                    borderBottom: `1px solid ${T.border}`,
+                  }}>
+                    <img
+                      src={item.imageUrl}
+                      alt={safeStr(displayTitle)}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      loading="lazy"
+                    />
+                  </div>
+                )}
+
                 <div style={{ padding: '20px 22px' }}>
                   {/* Top: badges row */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -482,7 +503,7 @@ export default function NewsPage() {
                       <span style={{
                         fontSize: 10, padding: '3px 9px', borderRadius: 8,
                         background: `${T.cyan}12`, color: T.cyan, fontWeight: 800,
-                        border: `0.5px solid ${T.cyan}22`,
+                        border: `0.5px solid ${T.cyan}22`, fontFamily: FONT_AR,
                       }}>
                         {item.categoryAr}
                       </span>
@@ -490,7 +511,7 @@ export default function NewsPage() {
                     <span style={{
                       fontSize: 10, padding: '3px 9px', borderRadius: 8,
                       background: sentiment.bg, color: sentiment.color, fontWeight: 800,
-                      display: 'flex', alignItems: 'center', gap: 3,
+                      display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR,
                     }}>
                       <SentimentIcon size={10} />
                       {sentiment.text}
@@ -498,6 +519,7 @@ export default function NewsPage() {
                     <span style={{
                       fontSize: 10, padding: '3px 9px', borderRadius: 8,
                       background: impact.bg, color: impact.color, fontWeight: 800,
+                      fontFamily: FONT_AR,
                     }}>
                       {impact.text}
                     </span>
@@ -510,30 +532,21 @@ export default function NewsPage() {
                         {safeStr(asset)}
                       </span>
                     ))}
-                    <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
                       <Clock size={10} />
                       {timeAgo(item.publishedAt)}
                     </span>
                   </div>
 
                   {/* Arabic Title (hero) */}
-                  {item.translatedTitle && item.translatedTitle !== item.title ? (
-                    <h3 style={{
-                      color: T.text, fontSize: 17, fontWeight: 800, margin: '0 0 8px',
-                      lineHeight: 1.65,
-                    }}>
-                      {item.translatedTitle}
-                    </h3>
-                  ) : (
-                    <h3 style={{
-                      color: T.text, fontSize: 17, fontWeight: 800, margin: '0 0 8px',
-                      lineHeight: 1.65,
-                    }}>
-                      {item.title}
-                    </h3>
-                  )}
+                  <h3 style={{
+                    color: T.text, fontSize: 17, fontWeight: 800, margin: '0 0 8px',
+                    lineHeight: 1.65, fontFamily: FONT_AR,
+                  }}>
+                    {displayTitle}
+                  </h3>
 
-                  {/* Original English title (if different) */}
+                  {/* Original English title (subtle, if different) */}
                   {item.translatedTitle && item.translatedTitle !== item.title && (
                     <p style={{
                       color: T.text3, fontSize: 11.5, margin: '0 0 12px',
@@ -544,47 +557,72 @@ export default function NewsPage() {
                     </p>
                   )}
 
-                  {/* Summary */}
+                  {/* Arabic Summary */}
                   {item.summary && (
                     <div style={{
                       color: T.text2, fontSize: 13, margin: '0 0 14px',
                       lineHeight: 1.75, padding: '10px 14px',
                       background: `${T.cyan}06`, borderRadius: 10,
                       borderRight: `2.5px solid ${sentiment.color}55`,
+                      fontFamily: FONT_AR,
                     }}>
                       {item.summary}
+                    </div>
+                  )}
+
+                  {/* Key Takeaways */}
+                  {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
+                    <div style={{
+                      margin: '0 0 14px', padding: '10px 14px',
+                      background: `${T.green}06`, borderRadius: 10,
+                      border: `0.5px solid ${T.green}15`,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                        <Zap size={12} color={T.green} />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>النقاط الرئيسية</span>
+                      </div>
+                      {item.keyTakeaways.map((point, i) => (
+                        <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 4, alignItems: 'flex-start' }}>
+                          <span style={{ fontSize: 10, color: T.green, marginTop: 3, flexShrink: 0 }}>●</span>
+                          <span style={{ fontSize: 12, color: T.text2, lineHeight: 1.65, fontFamily: FONT_AR }}>{point}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Expandable Full Content */}
+                  {hasFullContent && (
+                    <div style={{ marginBottom: 14 }}>
+                      <button
+                        onClick={() => setExpandedId(isExpanded ? null : item.id)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 5,
+                          padding: '6px 14px', borderRadius: 10,
+                          background: `${T.cyan}10`, border: `1px solid ${T.cyan}22`,
+                          color: T.cyan, cursor: 'pointer', fontSize: 11,
+                          fontWeight: 800, fontFamily: FONT_AR,
+                          transition: 'all 0.15s',
+                        }}
+                      >
+                        <FileText size={13} />
+                        التحليل الكامل
+                        {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      </button>
                     </div>
                   )}
 
                   {/* Bottom bar */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
                         <Globe size={11} />
                         {item.source || 'غير معروف'}
                       </span>
-                      <span style={{ fontSize: 10, color: T.text3 }}>
+                      <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>
                         {formatTime(item.publishedAt)}
                       </span>
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      {item.aiAnalysis && (
-                        <button
-                          onClick={() => setExpandedId(isExpanded ? null : item.id)}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 4,
-                            padding: '5px 12px', borderRadius: 8,
-                            background: `${T.cyan}12`, border: `1px solid ${T.cyan}28`,
-                            color: T.cyan, cursor: 'pointer', fontSize: 10,
-                            fontWeight: 800, fontFamily: FONT_AR,
-                            transition: 'all 0.15s',
-                          }}
-                        >
-                          <Brain size={12} />
-                          تحليل AI
-                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                        </button>
-                      )}
                       {item.url && (
                         <a
                           href={item.url}
@@ -606,8 +644,8 @@ export default function NewsPage() {
                   </div>
                 </div>
 
-                {/* Expanded AI Analysis */}
-                {isExpanded && item.aiAnalysis && (
+                {/* Expanded Full Arabic Content */}
+                {isExpanded && hasFullContent && (
                   <div style={{
                     padding: '18px 22px',
                     borderTop: `1px solid ${T.border}`,
@@ -617,12 +655,12 @@ export default function NewsPage() {
                       display: 'flex', alignItems: 'center', gap: 8,
                       marginBottom: 12,
                     }}>
-                      <Brain size={16} color={T.cyan} />
-                      <span style={{ fontSize: 13, fontWeight: 800, color: T.cyan }}>
-                        تحليل AI Council
+                      <FileText size={16} color={T.cyan} />
+                      <span style={{ fontSize: 13, fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>
+                        التحليل التفصيلي
                       </span>
                     </div>
-                    <AIAnalysisRenderer analysis={item.aiAnalysis} />
+                    <FullContentRenderer content={item.fullContent!} />
                   </div>
                 )}
               </article>
@@ -753,6 +791,89 @@ function ReportsTab() {
           </div>
         </article>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Full Content Renderer
+ * Renders the rich Arabic analysis content from rouatradingnews
+ * Content format uses [N] Section Title markers
+ */
+function FullContentRenderer({ content }: { content: string }) {
+  // Split content by section markers like [1] ..., [2] ..., etc.
+  const sectionRegex = /\[(\d+)\]\s*([^\[]+)/g;
+  const sections: { num: string; title: string; body: string }[] = [];
+  let match;
+  let lastEnd = 0;
+
+  while ((match = sectionRegex.exec(content)) !== null) {
+    // If there's text before the first section, capture it as intro
+    if (sections.length === 0 && match.index > 0) {
+      const intro = content.slice(0, match.index).trim();
+      if (intro) {
+        sections.push({ num: '0', title: '', body: intro });
+      }
+    }
+    // Text between this section title and the next section
+    const sectionEnd = content.indexOf('[', match.index + match[0].length);
+    const bodyText = sectionEnd > -1
+      ? content.slice(match.index + match[0].length, sectionEnd).trim()
+      : content.slice(match.index + match[0].length).trim();
+
+    sections.push({
+      num: match[1],
+      title: match[2].trim(),
+      body: bodyText,
+    });
+    lastEnd = sectionEnd > -1 ? sectionEnd : content.length;
+  }
+
+  // If no sections found, render as plain text
+  if (sections.length === 0) {
+    return (
+      <div style={{ color: T.text2, fontSize: 13, lineHeight: 1.85, fontFamily: FONT_AR, whiteSpace: 'pre-wrap' }}>
+        {content}
+      </div>
+    );
+  }
+
+  const sectionColors: Record<string, string> = {
+    '1': T.cyan,    // ماذا جرى
+    '2': T.amber,   // لماذا يهم
+    '3': T.green,   // الأصول المتأثرة
+    '4': T.purple,  // ما يجب مراقبته
+    '5': T.red,     // للمتداول
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {sections.filter(s => s.num !== '0').map((section) => {
+        const color = sectionColors[section.num] || T.cyan;
+        return (
+          <div key={section.num} style={{
+            padding: '12px 14px', borderRadius: 10,
+            background: `${color}06`,
+            borderRight: `2.5px solid ${color}55`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+              <span style={{
+                fontSize: 10, padding: '2px 8px', borderRadius: 6,
+                background: `${color}14`, color, fontWeight: 800,
+                fontFamily: FONT_AR,
+              }}>
+                {section.num}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 800, color, fontFamily: FONT_AR }}>
+                {section.title}
+              </span>
+            </div>
+            <p style={{ color: T.text2, fontSize: 12.5, lineHeight: 1.8, margin: 0, fontFamily: FONT_AR, whiteSpace: 'pre-wrap' }}>
+              {section.body}
+            </p>
+          </div>
+        );
+      })}
     </div>
   );
 }

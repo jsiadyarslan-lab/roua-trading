@@ -50,6 +50,9 @@ interface NewsItem {
   content?: string
   translatedContent?: string
   summary?: string
+  fullContent?: string
+  keyTakeaways?: string[]
+  imageUrl?: string | null
   url?: string | null
   sentiment: number
   sentimentLabel: 'positive' | 'negative' | 'neutral'
@@ -58,6 +61,7 @@ interface NewsItem {
   category?: string
   categoryAr?: string
   publishedAt: string
+  newsType?: string
 }
 
 /* ─── Helpers ─── */
@@ -200,6 +204,7 @@ function NewsCard({
   const impact = getImpactConfig(item.impactLevel)
   const SentimentIcon = sentiment.icon
   const displayTitle = item.translatedTitle || item.title
+  const hasFullContent = item.fullContent && item.fullContent.length > 10
 
   return (
     <motion.div
@@ -216,6 +221,18 @@ function NewsCard({
         overflow: 'hidden',
       }}
     >
+      {/* Hero Image */}
+      {item.imageUrl && (
+        <div style={{ width: '100%', maxHeight: 200, overflow: 'hidden' }}>
+          <img
+            src={item.imageUrl}
+            alt={safeStr(displayTitle)}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            loading="lazy"
+          />
+        </div>
+      )}
+
       {/* Main Card Body */}
       <motion.button
         whileTap={{ scale: 0.985 }}
@@ -295,7 +312,7 @@ function NewsCard({
           </div>
         </div>
 
-        {/* Row 2: Title */}
+        {/* Row 2: Arabic Title */}
         <h3
           style={{
             fontSize: 15,
@@ -303,9 +320,9 @@ function NewsCard({
             color: C.text,
             fontFamily: FONT_AR,
             lineHeight: 1.65,
-            marginBottom: 8,
+            marginBottom: 6,
             display: '-webkit-box',
-            WebkitLineClamp: expanded ? undefined : 2,
+            WebkitLineClamp: expanded ? undefined : 3,
             WebkitBoxOrient: 'vertical',
             overflow: expanded ? 'visible' : 'hidden',
           }}
@@ -313,7 +330,26 @@ function NewsCard({
           {displayTitle}
         </h3>
 
-        {/* Row 3: Source + Expand indicator */}
+        {/* Arabic Summary (brief, if not expanded) */}
+        {!expanded && item.summary && (
+          <p
+            style={{
+              fontSize: 12,
+              color: 'rgba(255,255,255,0.4)',
+              fontFamily: FONT_AR,
+              lineHeight: 1.6,
+              marginBottom: 8,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {item.summary}
+          </p>
+        )}
+
+        {/* Row 3: Source + Key Takeaways count + Expand indicator */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, direction: 'rtl' }}>
           <Globe size={12} color="rgba(255,255,255,0.2)" />
           <span
@@ -342,11 +378,25 @@ function NewsCard({
                     borderRadius: 6,
                   }}
                 >
-                  {/* FIX React Error #31: AI may return objects like {symbol, name, direction, impactDegree, reason, isTradable} instead of strings */}
                   {safeStr(asset)}
                 </span>
               ))}
             </div>
+          )}
+
+          {/* Full content indicator */}
+          {hasFullContent && (
+            <span style={{
+              fontSize: 9,
+              fontWeight: 700,
+              color: C.accent,
+              fontFamily: FONT_AR,
+              background: 'rgba(0,212,255,0.08)',
+              padding: '2px 8px',
+              borderRadius: 6,
+            }}>
+              تحليل كامل
+            </span>
           )}
 
           <div style={{ flex: 1 }} />
@@ -379,7 +429,7 @@ function NewsCard({
                 paddingTop: 16,
               }}
             >
-              {/* Sentiment Summary */}
+              {/* Arabic Summary */}
               {item.summary && (
                 <div
                   style={{
@@ -408,8 +458,34 @@ function NewsCard({
                 </div>
               )}
 
-              {/* Content */}
-              {(item.translatedContent || item.content) && (
+              {/* Key Takeaways */}
+              {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
+                <div style={{
+                  marginBottom: 14, padding: 12,
+                  background: 'rgba(50,215,75,0.06)',
+                  borderRadius: 16,
+                  border: '0.5px solid rgba(50,215,75,0.12)',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, direction: 'rtl' }}>
+                    <Zap size={12} color={C.success} />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: C.success, fontFamily: FONT_AR }}>النقاط الرئيسية</span>
+                  </div>
+                  {item.keyTakeaways.map((point, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start', direction: 'rtl' }}>
+                      <span style={{ fontSize: 10, color: C.success, marginTop: 3, flexShrink: 0 }}>●</span>
+                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, fontFamily: FONT_AR }}>{point}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Full Content (Arabic analysis sections) */}
+              {hasFullContent && (
+                <MobileFullContentRenderer content={item.fullContent!} />
+              )}
+
+              {/* Arabic Content fallback */}
+              {!hasFullContent && (item.translatedContent || item.content) && (
                 <p
                   style={{
                     fontSize: 13,
@@ -430,7 +506,7 @@ function NewsCard({
                     تحليل المشاعر
                   </span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: sentiment.color, fontFamily: FONT_MONO }}>
-                    {(item.sentiment * 100).toFixed(0)}%
+                    {item.sentimentLabel === 'positive' ? 'إيجابي' : item.sentimentLabel === 'negative' ? 'سلبي' : 'محايد'}
                   </span>
                 </div>
                 <div
@@ -444,7 +520,7 @@ function NewsCard({
                 >
                   <motion.div
                     initial={{ width: 0 }}
-                    animate={{ width: `${Math.abs(item.sentiment) * 100}%` }}
+                    animate={{ width: `${Math.min(Math.abs(item.sentiment) * 100, 100)}%` }}
                     transition={{ duration: 0.6, delay: 0.2 }}
                     style={{
                       height: '100%',
@@ -485,6 +561,76 @@ function NewsCard({
         )}
       </AnimatePresence>
     </motion.div>
+  )
+}
+
+/* ─── Mobile Full Content Renderer ─── */
+function MobileFullContentRenderer({ content }: { content: string }) {
+  // Parse sections like [1] ماذا جرى, [2] لماذا يهم, etc.
+  const sectionRegex = /\[(\d+)\]\s*([^\[]+)/g
+  const sections: { num: string; title: string; body: string }[] = []
+  let match
+
+  while ((match = sectionRegex.exec(content)) !== null) {
+    const sectionEnd = content.indexOf('[', match.index + match[0].length)
+    const bodyText = sectionEnd > -1
+      ? content.slice(match.index + match[0].length, sectionEnd).trim()
+      : content.slice(match.index + match[0].length).trim()
+
+    sections.push({
+      num: match[1],
+      title: match[2].trim(),
+      body: bodyText,
+    })
+  }
+
+  if (sections.length === 0) {
+    return (
+      <div style={{ marginBottom: 14 }}>
+        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontFamily: FONT_AR, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
+          {content}
+        </p>
+      </div>
+    )
+  }
+
+  const sectionColors: Record<string, string> = {
+    '1': C.accent,
+    '2': C.amber,
+    '3': C.success,
+    '4': '#B388FF',
+    '5': C.danger,
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
+      {sections.map((section) => {
+        const color = sectionColors[section.num] || C.accent
+        return (
+          <div key={section.num} style={{
+            padding: 12, borderRadius: 14,
+            background: `${color}08`,
+            borderRight: `2.5px solid ${color}55`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, direction: 'rtl' }}>
+              <span style={{
+                fontSize: 10, padding: '2px 8px', borderRadius: 6,
+                background: `${color}14`, color, fontWeight: 700,
+                fontFamily: FONT_AR,
+              }}>
+                {section.num}
+              </span>
+              <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: FONT_AR }}>
+                {section.title}
+              </span>
+            </div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.75, margin: 0, fontFamily: FONT_AR, whiteSpace: 'pre-wrap' }}>
+              {section.body}
+            </p>
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

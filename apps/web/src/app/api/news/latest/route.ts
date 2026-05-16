@@ -31,25 +31,55 @@ export async function GET(request: NextRequest) {
           const newsData = await newsRes.json();
           if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
             // Transform news site data to the format expected by the trading platform
-            const articles = newsData.articles.map((article: any) => ({
-              id: article.id,
-              source: article.source || 'رؤى للأخبار',
-              title: article.title || '',
-              translatedTitle: /[\u0600-\u06FF]/.test(article.title) ? article.title : '',
-              content: article.summary || '',
-              translatedContent: '',
-              summary: article.summary || '',
-              url: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
-              sentiment: typeof article.sentimentScore === 'number' ? article.sentimentScore : 0,
-              sentimentLabel: article.sentiment || 'neutral',
-              impactLevel: article.impactLevel || 'medium',
-              affectedAssets: typeof article.affectedAssets === 'string'
-                ? (() => { try { return JSON.parse(article.affectedAssets); } catch { return []; } })()
-                : Array.isArray(article.affectedAssets) ? article.affectedAssets : [],
-              category: article.category || 'أسواق',
-              categoryAr: article.category || 'أسواق',
-              publishedAt: article.publishedAt || new Date().toISOString(),
-            }));
+            // Priority: Arabic fields (titleAr, summaryAr, contentAr) over English
+            const articles = newsData.articles.map((article: any) => {
+              // Parse affectedAssets from string if needed
+              let affectedAssets: any[] = [];
+              if (typeof article.affectedAssets === 'string') {
+                try { affectedAssets = JSON.parse(article.affectedAssets); } catch { affectedAssets = []; }
+              } else if (Array.isArray(article.affectedAssets)) {
+                affectedAssets = article.affectedAssets;
+              }
+
+              // Convert sentimentScore from 0-100 scale to -1..1 scale
+              let sentimentNormalized = 0;
+              if (typeof article.sentimentScore === 'number') {
+                // API returns 0-100 where 50=neutral, >50=positive, <50=negative
+                sentimentNormalized = (article.sentimentScore - 50) / 50;
+              }
+
+              return {
+                id: article.id,
+                source: article.source || 'رؤى للأخبار',
+                // English original title
+                title: article.title || '',
+                // Arabic title (primary display)
+                translatedTitle: article.titleAr || article.title || '',
+                // English original content/summary
+                content: article.content || article.summary || '',
+                // Arabic content (primary display)
+                translatedContent: article.contentAr || article.summaryAr || '',
+                // Arabic summary (prefer Arabic)
+                summary: article.summaryAr || article.summary || '',
+                // Full Arabic analysis content
+                fullContent: article.fullContent || '',
+                // Key takeaways array
+                keyTakeaways: Array.isArray(article.keyTakeaways) ? article.keyTakeaways : [],
+                // Image URL
+                imageUrl: article.imageUrl || null,
+                // URL to original article
+                url: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
+                // Sentiment normalized to -1..1
+                sentiment: sentimentNormalized,
+                sentimentLabel: article.sentiment || 'neutral',
+                impactLevel: article.impactLevel || 'medium',
+                affectedAssets,
+                category: article.category || 'أسواق',
+                categoryAr: article.category || 'أسواق',
+                publishedAt: article.publishedAt || new Date().toISOString(),
+                newsType: article.newsType || 'live',
+              };
+            });
 
             return NextResponse.json({
               success: true,

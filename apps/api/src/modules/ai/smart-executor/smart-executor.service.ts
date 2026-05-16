@@ -202,6 +202,35 @@ export class SmartExecutorService implements OnModuleDestroy {
         await this.redis.del(this.REDIS_GLOBAL_STATE);
       } catch {}
 
+      // ── STEP 5.5: Clear stale price cache from Redis ──
+      // FIX: If the old Promise.any() bug cached wrong prices (e.g., $34.98 for BTC),
+      // those stale entries can persist for up to 5 minutes in the fallback cache.
+      // On startup, purge ALL price-related Redis keys so fresh data is fetched.
+      try {
+        const priceCachePatterns = [
+          'fallback:quote:*',   // FreeFallbackAdapter cache (5min TTL)
+          'binance:quote:*',    // BinanceAdapter cache (3s TTL)
+          'twelvedata:quote:*', // TwelveDataAdapter cache (10min TTL)
+          'exchange:quote:*',   // ExchangeService cache (30s TTL)
+          'aggregator:quote:*', // AggregatorService cache
+        ];
+        let purgedPriceKeys = 0;
+        for (const pattern of priceCachePatterns) {
+          try {
+            const keys = await this.redis.scanKeys(pattern);
+            for (const key of keys) {
+              await this.redis.del(key);
+              purgedPriceKeys++;
+            }
+          } catch { /* pattern scan failed — skip */ }
+        }
+        if (purgedPriceKeys > 0) {
+          this.logger.log(`⚔️ STARTUP: Purged ${purgedPriceKeys} stale price cache key(s) from Redis`);
+        }
+      } catch (priceErr: any) {
+        this.logger.warn(`⚔️ Failed to purge price cache: ${priceErr.message}`);
+      }
+
       // ── STEP 6: Delete stale AutonomousTrade records (>7 days old) ──
       try {
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -1181,9 +1210,13 @@ export class SmartExecutorService implements OnModuleDestroy {
     // IMPORTANT: Only close positions older than 4 hours to avoid killing active trades.
     if (openPositionsCount >= maxPositions && userState.isPaperTrading) {
       try {
-        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+        // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
+        // rotate faster to demonstrate the platform's capabilities. A 4-hour
+        // stale threshold meant the executor was stuck with one trade for hours,
+        // making the platform look broken to new users testing paper trading.
+        const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
         const oldestPosition = await this.prisma.position.findFirst({
-          where: { userId, status: 'OPEN', openedAt: { lt: fourHoursAgo } },
+          where: { userId, status: 'OPEN', openedAt: { lt: oneHourAgo } },
           orderBy: { openedAt: 'asc' },
         });
 
@@ -1368,14 +1401,17 @@ export class SmartExecutorService implements OnModuleDestroy {
         }
       }
 
-      // FIX: Check max positions PER PAIR, not globally
-      // Previously, if user had ANY open position, ALL briefs were blocked
-      // Now: Only skip if this specific pair already has an open position
-      const currentOpenPositions = await this.prisma.position.count({
+      // FIX: Check max positions PER PAIR (not globally).
+      // The OLD code compared per-symbol count against the GLOBAL max (10),
+      // which meant the check almost never triggered (you'd need 10+ positions
+      // on the SAME symbol). Now: For paper trading, allow 2 per symbol (hedge).
+      // For real trading, strict 1 per symbol.
+      const currentOpenPositionsOnPair = await this.prisma.position.count({
         where: { userId, symbol: brief.pair, status: 'OPEN' },
       });
-      if (currentOpenPositions >= maxPositions) {
-        this.logger.debug(`⚔️ User ${userId} at max positions for ${brief.pair} (${currentOpenPositions}/${maxPositions}) — skipping brief ${brief.id}`);
+      const maxPerSymbol = userState.isPaperTrading ? 2 : 1;
+      if (currentOpenPositionsOnPair >= maxPerSymbol) {
+        this.logger.debug(`⚔️ User ${userId} at max positions for ${brief.pair} (${currentOpenPositionsOnPair}/${maxPerSymbol}) — skipping brief ${brief.id}`);
         continue;
       }
 

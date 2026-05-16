@@ -133,16 +133,37 @@ export class ExposureManagerService {
       }
 
       // ── فحص 2: مركز واحد لكل زوج ──
+      // FIX: For paper trading, allow 2 positions per symbol (BUY+SELL hedge).
+      // This was a major contributor to the "one trade only" bug — the Strategic
+      // Council generates briefs for the same high-conviction pairs (BTC/USDT,
+      // ETH/USDT), and with onePositionPerSymbol=true, only ONE trade could
+      // exist at a time. For paper trading, this is too restrictive.
+      // Paper trading is for learning and demonstration, not capital preservation.
       if (effectiveLimits.onePositionPerSymbol && existingPositionOnSymbol) {
-        const existingSource = openPositions.find(p => p.symbol === symbol)?.source || 'unknown';
-        return {
-          allowed: false,
-          reason: `يوجد مركز مفتوح بالفعل على ${symbol} (من ${existingSource}) — القاعدة: مركز واحد لكل زوج`,
-          totalOpenPositions,
-          totalExposure,
-          positionsBySource,
-          existingPositionOnSymbol,
-        };
+        // Check if this is paper trading by looking at the existing positions' exchange
+        const existingOnSymbol = openPositions.find(p => p.symbol === symbol);
+        const isPaperTrading = existingOnSymbol?.source === 'smart_executor' || 
+                               existingOnSymbol?.source === 'auto_paper' || 
+                               existingOnSymbol?.source === 'agent';
+        
+        // Count positions on this symbol
+        const positionsOnSymbol = openPositions.filter(p => p.symbol === symbol).length;
+        
+        // Paper trading: Allow up to 2 positions per symbol (hedge: BUY+SELL)
+        if (isPaperTrading && positionsOnSymbol < 2) {
+          // Allow — there's room for one more position on this symbol (hedge)
+          this.logger.debug(`🛡️ Paper trading hedge allowed: ${symbol} has ${positionsOnSymbol} position(s), allowing 1 more`);
+        } else {
+          const existingSource = existingOnSymbol?.source || 'unknown';
+          return {
+            allowed: false,
+            reason: `يوجد مركز مفتوح بالفعل على ${symbol} (من ${existingSource}) — القاعدة: مركز واحد لكل زوج`,
+            totalOpenPositions,
+            totalExposure,
+            positionsBySource,
+            existingPositionOnSymbol,
+          };
+        }
       }
 
       // ── فحص 3: الحد الأقصى للتعرض ──

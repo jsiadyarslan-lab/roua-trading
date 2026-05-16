@@ -60,12 +60,51 @@ export class OrderDispatcherService {
         return { success: false, error: `وقف الخسارة إجباري` };
       }
 
+      // ═══════════════════════════════════════════════════════════
+      // FIX: Position duplicate check — relaxed for paper trading.
+      // Previous code blocked ANY second position on the same symbol,
+      // even if the direction was different (BUY + SELL hedge).
+      // This caused the "one trade only" bug — the Strategic Council
+      // generates briefs for the same high-conviction pairs (BTC/USDT,
+      // ETH/USDT), and if a position was already open, ALL subsequent
+      // briefs for that pair were rejected, even in paper mode.
+      //
+      // NEW LOGIC:
+      // - Paper trading: Allow up to 2 positions per symbol (BUY+SELL hedge)
+      //   This enables the executor to open a new position when the old one
+      //   is stale or when the market direction changes.
+      // - Real trading: Strict 1 position per symbol (same as before)
+      // ═══════════════════════════════════════════════════════════
       const existing = await this.prisma.position.findFirst({
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
       });
       if (existing) {
-        await this.idempotency.releaseLock(idempotencyKey);
-        return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
+        if (request.isPaperTrading) {
+          // Paper trading: Check if same direction — if different direction, allow (hedge)
+          if (existing.side !== request.side) {
+            this.logger.log(`[Dispatcher] Paper hedge allowed: ${request.symbol} has ${existing.side}, opening ${request.side}`);
+          } else {
+            // Same direction — close the existing paper position and replace it
+            this.logger.log(`[Dispatcher] Paper replace: closing existing ${request.symbol} ${existing.side} to open new ${request.side}`);
+            try {
+              const { TradingService } = await import('../trading.service');
+              // We need to close via TradingService for proper audit/order creation
+              // But since we're inside OrderDispatcher which injects TradingService,
+              // use it directly
+              await this.tradingService.closePositionWithRetry(request.userId, {
+                positionId: existing.id,
+              });
+            } catch (closeErr: any) {
+              this.logger.warn(`[Dispatcher] Failed to close existing paper position ${existing.id}: ${closeErr.message}`);
+              await this.idempotency.releaseLock(idempotencyKey);
+              return { success: false, message: `فشل إغلاق المركز القديم لـ ${request.symbol}: ${closeErr.message}` };
+            }
+          }
+        } else {
+          // Real trading: Strict — no duplicate positions on same symbol
+          await this.idempotency.releaseLock(idempotencyKey);
+          return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
+        }
       }
 
       const command: OrderCommand = {

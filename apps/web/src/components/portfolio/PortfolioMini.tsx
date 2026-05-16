@@ -45,6 +45,7 @@ function fmt(n: number, decimals = 2) {
 
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { closePositionUnified, isNestJsId } from '@/lib/api-fetch'
 
 export function usePortfolioSummary() {
   const positions = usePositionsStore(s => s.positions)
@@ -380,7 +381,23 @@ export function PortfolioMini({
               currentPrice={Number(p.currentPrice) || 0}
               unrealizedPnl={p.unrealizedPnl || 0}
               marketValue={Number(p.marketValue) || 0}
-              onClose={() => {}}
+              onClose={async (symbol: string) => {
+                const pos = positions.find(pp => pp.symbol === symbol)
+                if (!pos) return
+                try {
+                  const dbId = pos.dbId || (pos.id && isNestJsId(pos.id) ? pos.id : undefined)
+                  const result = await closePositionUnified(
+                    pos.id || symbol,
+                    undefined,
+                    { dbId },
+                  )
+                  if (result.success) {
+                    usePositionsStore.getState().refreshAfterTrade()
+                  }
+                } catch (err) {
+                  console.warn('[PortfolioMini] Close failed:', err)
+                }
+              }}
             />
           ))}
           {positions.length > 5 && (

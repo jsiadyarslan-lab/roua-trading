@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Cpu, Play, Square, AlertTriangle, ExternalLink,
@@ -143,7 +142,6 @@ export function AgentControlMini() {
     fetchPositions, fetchPerformance
   } = useAgentStore()
   
-  const router = useRouter()
 
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -469,9 +467,12 @@ export function AgentControlMini() {
         </div>
       )}
 
-      {/* ── Footer: Button to Full Dashboard ── */}
-      <button
-        onClick={() => router.push('/dashboard/autonomous-trader')}
+      {/* ── Footer: Link to Full Dashboard ── */}
+      {/* FIX: Use <Link> instead of router.push() — router.push was not working
+          reliably in the widget context. <Link> provides native Next.js navigation
+          with prefetch, and is more reliable for client-side navigation. */}
+      <Link
+        href="/dashboard/autonomous-trader"
         style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
           padding: '12px 10px', borderRadius: '0 0 16px 16px',
@@ -482,11 +483,12 @@ export function AgentControlMini() {
           borderTop: `1px solid ${isRunning ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.15)'}`,
           color: isRunning ? T.green : T.accent, fontSize: 12, fontWeight: 800,
           fontFamily: FONT_AR, cursor: 'pointer', transition: 'all 0.15s',
+          textDecoration: 'none',
         }}>
           <Settings2 size={13} />
           لوحة التحكم الكاملة
           <ExternalLink size={11} />
-      </button>
+      </Link>
 
       {/* ── Error Warning ── */}
       {error && (

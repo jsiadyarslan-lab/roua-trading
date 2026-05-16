@@ -146,3 +146,28 @@ Stage Summary:
 - Build ID tracking: health endpoint reports buildId + deployCommit
 - Verified: buildId changed from -0VYCcjvFOGIHo_C-QX4d to tYwNiVLX0EyfjcXlhHSKP
 - All previous code fixes (timeframes, close button, processedKey, prices) are now actually deployed
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix position size 100% > 5% rejection bug in RiskManagerService + missing DB tables
+
+Work Log:
+- Identified ROOT CAUSE: RiskManagerService.checkOrderRisk() had NO paper-trading bypass, unlike RiskGatekeeperService which was already fixed
+- Order flow: SmartExecutor → OrderDispatcher → RiskGatekeeper (PASSED) → TradingService.placeOrder() → RiskManager.checkOrderRisk() (REJECTED!)
+- _estimatePortfolioValue() returned 0 for paper users (Portfolio table empty), causing 100% position size calculation
+- Added paper-trading detection to RiskManagerService via new exchangeName parameter + user credential fallback check
+- Paper-trading users now skip position size % and daily loss checks, only position COUNT enforced
+- Updated TradingService.placeOrder() to pass credential.exchange to riskManager.checkOrderRisk()
+- Added _isTestExchange() helper matching RiskGatekeeperService logic
+- Updated _estimatePortfolioValue() to support paper balance from AgentSettings
+- Prisma migration for UserNotification/UserNotificationPreferences already exists (20260509000000_add_missing_tables)
+- start.sh runs 'prisma migrate deploy' in background after apps start
+- Bumped build cache to v110, deploy marker to ROUA-V110-RISK-MANAGER-PAPER-BYPASS
+- TypeScript compilation passed with no errors
+- Pushed to GitHub as commit a12470bcc
+
+Stage Summary:
+- v110 deployed to Railway via GitHub push
+- Two critical bugs fixed: (1) Position size 100% rejection, (2) Missing DB tables (via existing migration)
+- Deploy verification: /api/deploy-version should return deployMarker: "ROUA-V110-RISK-MANAGER-PAPER-BYPASS"

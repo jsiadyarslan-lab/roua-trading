@@ -39,19 +39,34 @@ function generateUniqueGuestEmail(): string {
   return `guest-${uuid}@roua.auto`
 }
 
-/** Track NestJS availability — if consecutive 502s exceed threshold, temporarily bypass NestJS */
-let nestjsConsecutiveFailures = 0;
-const NESTJS_BYPASS_THRESHOLD = 3; // After 3 consecutive 502s, bypass NestJS
-const NESTJS_RETRY_AFTER_MS = 10_000; // FIX: Reduced from 60s to 10s — 60s was too long and made components appear dead
-let nestjsBypassUntil = 0; // Timestamp when we'll try NestJS again
-
 /**
- * FIX #8: Cache for NestJS offline responses — prevents flooding the client
- * with 502 errors when NestJS is down. Returns the last known error
- * immediately without waiting for the NestJS timeout.
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * CRITICAL FIX: Replaced Circuit Breaker with Smart Retry + Warmup
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ *
+ * ROOT CAUSE of "nothing changes":
+ * The old circuit breaker blocked ALL API calls for 10 seconds after 3
+ * consecutive failures. During Railway startup, Next.js starts before
+ * NestJS, so the first 3 API calls always fail → circuit breaker
+ * activates → ALL subsequent requests blocked for 10s → by the time
+ * it expires, another request might fail → death spiral. The frontend
+ * could NEVER reach NestJS.
+ *
+ * NEW APPROACH: Progressive retry with per-request backoff.
+ * - No shared "bypass" state that blocks everything
+ * - Each request gets its own retry attempts
+ * - During warmup (first 60s), we retry more aggressively
+ * - After warmup, we still retry but with longer delays
  */
-let lastOfflineResponse = 0;
-const OFFLINE_CACHE_MS = 10_000; // Cache offline status for 10 seconds
+
+// Track NestJS readiness — but NEVER block all requests
+let nestjsReady = false;
+let nestjsFirstSuccessAt = 0; // When NestJS first responded successfully
+const WARMUP_PERIOD_MS = 60_000; // 60 seconds after first success = warmup period
+
+// Track recent failures for adaptive retry timing (NOT for blocking)
+let lastFailureAt = 0;
+const FAILURE_COOLDOWN_MS = 2_000; // After a failure, wait 2s before trying again (per-request)
 
 /**
  * Create a guest session via NestJS's /api/auth/guest endpoint.
@@ -198,21 +213,12 @@ async function ensureSession(request: NextRequest): Promise<{
 
 /**
  * Proxy a request to NestJS with auth headers injected.
+ *
+ * CRITICAL FIX: Removed circuit breaker — it caused death spirals where
+ * ALL API calls were blocked after 3 failures during NestJS startup.
+ * Now uses per-request retry with adaptive backoff instead.
  */
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
-  // Check if NestJS should be bypassed due to recent failures
-  if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD && Date.now() < nestjsBypassUntil) {
-    // FIX #8: Return cached offline response immediately instead of waiting for timeout
-    return NextResponse.json(
-      { success: false, offline: true, error: 'NestJS غير متاح مؤقتاً', bypass: true },
-      { status: 502 },
-    );
-  }
-  // If bypass period expired, reset and try NestJS again
-  if (Date.now() >= nestjsBypassUntil && nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
-    nestjsConsecutiveFailures = 0;
-  }
-
   const session = await ensureSession(request)
 
   // If no session could be created, return 502 immediately
@@ -227,12 +233,19 @@ export async function proxyToNestJS(request: NextRequest, method: string): Promi
     )
   }
 
-  return proxyWithToken(request, method, session.token, !session.cookieAlreadySet)
+  // Calculate retry parameters based on NestJS readiness state
+  const isWarmup = !nestjsReady || (nestjsFirstSuccessAt > 0 && Date.now() - nestjsFirstSuccessAt < WARMUP_PERIOD_MS)
+  const maxRetries = isWarmup ? 3 : 1  // More retries during warmup
+  const baseDelay = isWarmup ? 1000 : 2000  // Shorter delays during warmup
+
+  return proxyWithToken(request, method, session.token, !session.cookieAlreadySet, 0, maxRetries, baseDelay)
 }
 
 /**
  * Internal function that does the actual proxying.
  * @param retryCount - Number of 401 retries attempted so far (max 2)
+ * @param connectRetryCount - Number of connection retries (NestJS unreachable)
+ * @param connectRetryDelay - Base delay between connection retries (ms)
  */
 async function proxyWithToken(
   request: NextRequest,
@@ -240,6 +253,8 @@ async function proxyWithToken(
   token: string,
   setCookie: boolean,
   retryCount = 0,
+  connectRetryCount = 0,
+  connectRetryDelay = 1000,
 ): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl
   const targetUrl = `${API_TARGET}${pathname}${search}`
@@ -288,17 +303,19 @@ async function proxyWithToken(
 
     const response = await fetch(targetUrl, fetchOptions)
 
-    // Reset NestJS failure counter on ANY response (even 4xx) — server is alive
-    nestjsConsecutiveFailures = 0;
+    // Mark NestJS as ready on ANY response (even 4xx) — server is alive!
+    if (!nestjsReady) {
+      nestjsReady = true;
+      nestjsFirstSuccessAt = Date.now();
+      console.log('[nestjs-proxy] NestJS is READY — first successful response received');
+    }
 
     // 404 = route not found in NestJS — often means NestJS module is still loading during cold start.
-    // FIX: Retry with delay (up to 2 times) to give NestJS time to register routes.
-    // REDUCED from 2000ms to 500ms — for non-existent routes (like /api/trading/account),
-    // the old 2s retry delay caused 4+ seconds of wasted time per request.
+    // FIX: Retry with delay to give NestJS time to register routes.
     if (response.status === 404 && retryCount < 2) {
       console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found (attempt ${retryCount + 1}/3). NestJS module may still be loading, retrying in 500ms...`);
       await new Promise(r => setTimeout(r, 500));
-      return proxyWithToken(request, method, token, false, retryCount + 1);
+      return proxyWithToken(request, method, token, false, retryCount + 1, connectRetryCount, connectRetryDelay);
     }
     if (response.status === 404) {
       console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route still not found after 3 attempts. Check NestJS startup logs.`);
@@ -319,7 +336,7 @@ async function proxyWithToken(
       const newSession = await forceCreateSession()
       if (newSession) {
         // setCookie=false to avoid overwriting real user's cookie with guest token
-        return proxyWithToken(request, method, newSession.token, false, retryCount + 1)
+        return proxyWithToken(request, method, newSession.token, false, retryCount + 1, connectRetryCount, connectRetryDelay)
       }
       // FIX: Removed createSessionViaNestJS() fallback — NestJS has no /api/auth/guest endpoint.
     }
@@ -330,15 +347,12 @@ async function proxyWithToken(
       console.warn(`[nestjs-proxy] 403 Forbidden on ${method} ${pathname} — insufficient permissions`);
     }
 
-    // FIX #9: Handle 5xx server errors from NestJS — don't retry, just forward.
+    // FIX: Handle 5xx server errors from NestJS — don't retry, just forward.
     // If NestJS returns 500/502/503, retrying won't help (server-side error).
-    // Track these as NestJS failures for bypass logic.
+    // Track failure time for adaptive retry (NOT for circuit breaker).
     if (response.status >= 500 && response.status !== 503) {
-      nestjsConsecutiveFailures++;
-      if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
-        nestjsBypassUntil = Date.now() + NESTJS_RETRY_AFTER_MS;
-        console.warn(`[nestjs-proxy] NestJS failed ${nestjsConsecutiveFailures}x — bypassing for 60s`);
-      }
+      lastFailureAt = Date.now();
+      console.warn(`[nestjs-proxy] NestJS returned ${response.status} on ${method} ${pathname}`);
     }
 
     // Forward the response
@@ -378,19 +392,27 @@ async function proxyWithToken(
 
     return nextResponse
   } catch (error: any) {
-    // Track NestJS failures for bypass logic
-    nestjsConsecutiveFailures++;
-    if (nestjsConsecutiveFailures >= NESTJS_BYPASS_THRESHOLD) {
-      nestjsBypassUntil = Date.now() + NESTJS_RETRY_AFTER_MS;
-      console.warn(`[nestjs-proxy] NestJS failed ${nestjsConsecutiveFailures}x — bypassing for 60s`);
-    }
-    // FIX: Return 502 (Bad Gateway) instead of 200 when NestJS is offline.
-    // Previously returned HTTP 200 with `offline: true`, which:
-    // 1. Masks real errors from monitoring/alerting systems
-    // 2. Makes debugging impossible (looks like success)
-    // 3. Prevents frontend error boundaries from triggering
-    console.warn(`[nestjs-proxy] ${method} ${pathname} offline — returning 502`)
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CRITICAL FIX: Smart retry instead of circuit breaker!
+    //
+    // OLD BEHAVIOR: After 3 failures, block ALL requests for 10 seconds.
+    // This caused death spirals where the frontend could NEVER reach NestJS.
+    //
+    // NEW BEHAVIOR: Retry this specific request with backoff.
+    // Other requests are NOT affected — no shared blocking state.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    lastFailureAt = Date.now();
 
+    // If we have retries left, wait and try again
+    if (connectRetryCount > 0) {
+      const delay = connectRetryDelay * (connectRetryCount); // Progressive backoff
+      console.warn(`[nestjs-proxy] ${method} ${pathname} offline — retrying in ${delay}ms (attempt ${connectRetryCount} left)`);
+      await new Promise(r => setTimeout(r, Math.min(delay, 5000))); // Cap at 5s
+      return proxyWithToken(request, method, token, false, retryCount, connectRetryCount - 1, connectRetryDelay);
+    }
+
+    // No retries left — return 502
+    console.warn(`[nestjs-proxy] ${method} ${pathname} offline — no retries left, returning 502`)
     return NextResponse.json(
       {
         success: false,

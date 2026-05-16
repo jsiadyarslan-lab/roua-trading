@@ -1,6 +1,6 @@
 #!/bin/bash
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# Roua Trading — Railway Startup Script v11
+# Roua Trading — Railway Startup Script v14
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 #
 # FIX v11: SIMPLEST POSSIBLE. Direct connection, no PgBouncer.
@@ -108,7 +108,7 @@ export DATABASE_URL="${APP_DB_URL:-$ORIG_DB_URL}"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🚀 Roua Trading — Starting (v13)"
+echo "🚀 Roua Trading — Starting (v14)"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "DATABASE_URL length:    ${#DATABASE_URL} chars"
 echo "DATABASE_URL prefix:    $(echo $DATABASE_URL | cut -c1-30)..."
@@ -231,21 +231,24 @@ echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# START APPS IMMEDIATELY — grab freed connection slots before others
+# START APPS — NestJS FIRST, then Next.js
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# FIX v13: Start apps RIGHT AFTER cleanup, BEFORE migrations.
-# The cleanup freed connection slots — we need to grab them immediately
-# before other services take them. Migrations can run in the background.
-
-# Start Next.js
-ACTUAL_WEB_PORT=${PORT:-8080}
-echo ""
-echo "━━━ Starting Next.js (port $ACTUAL_WEB_PORT) ━━━"
-cd apps/web
-run_web_start 2>&1 &
-WEB_PID=$!
-cd "$PROJECT_ROOT"
-sleep 3
+# CRITICAL FIX v14: Start NestJS BEFORE Next.js!
+#
+# ROOT CAUSE of "nothing changes" bug:
+# Previously, Next.js started first (3s) and began serving pages.
+# Users opened the page → frontend made API calls → NestJS wasn't
+# ready → 3 consecutive 502 errors → circuit breaker activated →
+# ALL subsequent API calls blocked for 10s → death spiral.
+# The frontend could NEVER reach NestJS.
+#
+# NOW: Start NestJS first and wait for it to be healthy.
+# Only then start Next.js. This ensures that when the frontend
+# starts making API calls, NestJS is already ready to serve them.
+#
+# Railway gives us 120 seconds (healthcheck start-period) to get
+# both services running, so this is safe.
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Build API if needed
 if [ ! -f "apps/api/dist/main.js" ]; then
@@ -253,18 +256,32 @@ if [ ! -f "apps/api/dist/main.js" ]; then
   (cd apps/api && run_api_build)
 fi
 
-# Start NestJS API
+# ══════════════════════════════════════════════════════════════
+# Step 1: Start NestJS API FIRST
+# ══════════════════════════════════════════════════════════════
 echo ""
-echo "━━━ Starting NestJS API (port ${API_PORT:-3001}) ━━━"
+echo "━━━ Starting NestJS API (port ${API_PORT:-3001}) — STARTING FIRST ━━━"
 cd apps/api
 node dist/main 2>&1 &
 API_PID=$!
 cd "$PROJECT_ROOT"
-sleep 5
 
-# Restart NestJS if it crashed
+# Wait for NestJS to be ready (up to 60 seconds)
+echo "⏳ Waiting for NestJS to be ready..."
+for i in $(seq 1 60); do
+  if curl -fsS "http://127.0.0.1:${API_PORT:-3001}/api/health" > /dev/null 2>&1; then
+    echo "✅ NestJS API ready (attempt $i)"
+    break
+  fi
+  if [ $((i % 10)) -eq 0 ]; then
+    echo "  ... still waiting for NestJS (attempt $i/60)"
+  fi
+  sleep 1
+done
+
+# Check if NestJS is actually running
 if ! kill -0 $API_PID 2>/dev/null; then
-  echo "❌ NestJS crashed — restarting..."
+  echo "❌ NestJS crashed during startup — restarting..."
   sleep 3
   cd apps/api && node dist/main 2>&1 &
   API_PID=$!
@@ -272,14 +289,17 @@ if ! kill -0 $API_PID 2>/dev/null; then
   sleep 5
 fi
 
-# Wait for API to be ready
-for i in $(seq 1 30); do
-  if curl -fsS "http://127.0.0.1:${API_PORT:-3001}/api/health" > /dev/null 2>&1; then
-    echo "✅ API ready (attempt $i)"
-    break
-  fi
-  sleep 1
-done
+# ══════════════════════════════════════════════════════════════
+# Step 2: Start Next.js AFTER NestJS is ready
+# ══════════════════════════════════════════════════════════════
+ACTUAL_WEB_PORT=${PORT:-8080}
+echo ""
+echo "━━━ Starting Next.js (port $ACTUAL_WEB_PORT) — NestJS is ready ✅ ━━━"
+cd apps/web
+run_web_start 2>&1 &
+WEB_PID=$!
+cd "$PROJECT_ROOT"
+sleep 3
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # PRISMA MIGRATIONS — Run in background after apps start

@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v107
+ARG BUILD_CACHE=v108
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -108,6 +108,8 @@ ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 # CRITICAL FIX: Pass git commit SHA so /api/health can report what version is running
 ENV DEPLOY_COMMIT=${GIT_COMMIT}
+# Pass build cache version so /api/deploy-version can report it
+ENV BUILD_CACHE=${BUILD_CACHE}
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
 # The previous "COPY --from=builder /app ." copied EVERYTHING including

@@ -59,6 +59,9 @@ npm-debug.log*
 .cache
 tmp/
 
+# Duplicate project directory (old copy — slows down build, not needed)
+roua-trading/
+
 # Agent context (not needed in production)
 agent-ctx/
 worklog.md

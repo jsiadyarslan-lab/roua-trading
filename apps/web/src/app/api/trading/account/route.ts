@@ -5,16 +5,12 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/trading/account
  *
- * SUSTAINABLE FIX: This was going through the catch-all proxy ([...path]/route.ts)
- * which uses createNestJSProxyHandlers() — that creates a guest session, retries
- * on 404/401, and adds 6+ seconds of overhead per request.
+ * CRITICAL FIX: This route previously returned FAKE DATA (empty positions,
+ * zero balance) when NestJS was unreachable. This masked the real problem —
+ * the user thought "nothing changed" when the backend was completely down.
  *
- * The performance agent monitors this endpoint and was reporting 6-10 second
- * response times because of the proxy session creation overhead.
- *
- * Now: Requests NestJS directly with the existing session cookie (if any),
- * falling back to a zero-balance response. No session creation, no retries.
- * Expected: 500ms instead of 6000ms.
+ * Now: When NestJS is unreachable, returns HTTP 502 with an error message.
+ * The frontend (usePositionsStore) has its own fallback logic.
  */
 export async function GET(req: NextRequest) {
   const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
@@ -31,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const res = await fetch(`${baseUrl}/api/trading/account`, {
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(8000),
       headers,
     })
 
@@ -39,16 +35,28 @@ export async function GET(req: NextRequest) {
       const data = await res.json()
       return NextResponse.json(data)
     }
-  } catch {
-    // NestJS unavailable — use zero-balance fallback
-  }
 
-  // Fallback: return zero-balance account summary (no session creation needed)
-  return NextResponse.json({
-    totalPositions: 0,
-    totalValue: 0,
-    totalUnrealizedPnl: 0,
-    totalRealizedPnl: 0,
-    positions: [],
-  })
+    // NestJS returned an error — forward it
+    if (res.status >= 400 && res.status < 500) {
+      const data = await res.json().catch(() => ({}))
+      return NextResponse.json({
+        success: false,
+        error: data.error || `NestJS returned ${res.status}`,
+      }, { status: res.status })
+    }
+
+    // NestJS 5xx error
+    return NextResponse.json({
+      success: false,
+      error: `NestJS server error: ${res.status}`,
+    }, { status: res.status })
+  } catch {
+    // NestJS unreachable — return 502 instead of fake zero-balance data!
+    // The frontend (usePositionsStore) will use its own paper trading fallback.
+    return NextResponse.json({
+      success: false,
+      offline: true,
+      error: 'خدمة الحساب غير متاحة حالياً',
+    }, { status: 502 })
+  }
 }

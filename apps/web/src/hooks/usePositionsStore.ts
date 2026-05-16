@@ -103,15 +103,43 @@ let _lastHydratedUserId: string | null = null
  * - If a position doesn't exist, add it
  * - If an existing position is no longer in the new data, remove it
  * - Preserve real-time price updates (currentPrice, unrealizedPnl) from market data
+ *
+ * FIX V115: When incoming is empty, we now distinguish between:
+ *   1. Authoritative empty (API returned 200 with []) → remove positions from that source
+ *   2. Non-authoritative empty (no API data available) → preserve current positions
+ * Previously, ALL empty responses preserved current positions, causing closed
+ * positions to persist in the UI forever when the backend said "0 open positions".
  */
-function mergePositions(current: Position[], incoming: Position[]): Position[] {
-  // FIX: When API returns empty array, PRESERVE current positions instead of wiping them.
-  // Previously, returning [] when incoming is empty caused all positions to disappear
-  // when navigating between pages (e.g., chart → wallet → chart), because the NestJS
-  // API might return empty for a user whose positions are on Alpaca, wiping everything.
-  // Now: empty incoming = no NEW data to merge, so keep what we have.
-  // Positions will be properly removed when a non-empty API response doesn't include them.
-  if (incoming.length === 0) return current
+function mergePositions(
+  current: Position[],
+  incoming: Position[],
+  options?: { source?: 'nestjs' | 'alpaca'; authoritativeEmpty?: boolean },
+): Position[] {
+  // ═══════════════════════════════════════════════════════════════
+  // FIX V115: Handle authoritative empty responses.
+  // When the API successfully returns 0 positions for a source,
+  // it means ALL positions from that source are genuinely CLOSED.
+  // We should remove them from the store instead of preserving them.
+  //
+  // Previously, this code was:
+  //   if (incoming.length === 0) return current
+  // Which kept closed positions visible forever when the backend
+  // said "0 open positions". This is the root cause of the bug
+  // where 3 out of 4 positions close but 1 stays visible — the
+  // backend says 0, but the frontend keeps the old data.
+  // ═══════════════════════════════════════════════════════════════
+  if (incoming.length === 0) {
+    if (options?.authoritativeEmpty && options?.source) {
+      // API confirmed: 0 positions from this source → remove all from that source
+      // But keep positions from OTHER sources (e.g., Alpaca positions while NestJS says 0)
+      const filtered = current.filter(p => p.source !== options.source)
+      return filtered
+    }
+    // Non-authoritative empty (e.g., network error, no data available)
+    // Preserve current positions — we don't know if they're closed or just unavailable
+    return current
+  }
+
   if (current.length === 0) return incoming
 
   const currentMap = new Map<string, Position>()
@@ -172,7 +200,12 @@ function mergePositions(current: Position[], incoming: Position[]): Position[] {
   // Grace period of 60 seconds protects against the edge case
   // where a trade just opened and the API hasn't registered it yet.
   // ═══════════════════════════════════════════════════════════════
-  const GRACE_PERIOD_MS = 60 * 1000 // 60 seconds
+  // FIX V115: Reduced grace period from 60s to 15s. The 60s grace period
+  // was too long — positions that were just closed by the user would remain
+  // visible for a full minute before disappearing. 15s is enough for the
+  // edge case where a trade just opened and the API hasn't registered it yet,
+  // but short enough that closed positions don't linger.
+  const GRACE_PERIOD_MS = 15 * 1000 // 15 seconds
   const now = Date.now()
 
   for (const [key, pos] of currentMap) {
@@ -708,9 +741,15 @@ export const usePositionsStore = create<PositionsState>()(
             tradeSource: p.source || undefined,
           }))
 
-          // FIX: Use merge instead of replace to prevent "dancing"
+          // FIX V115: Use merge with source info so that empty responses
+          // from NestJS properly remove closed positions instead of preserving them.
+          // When NestJS returns 0 positions, it's authoritative — all NestJS
+          // positions are genuinely closed.
           const currentPositions = get().positions
-          const merged = mergePositions(currentPositions, positions)
+          const merged = mergePositions(currentPositions, positions, {
+            source: 'nestjs',
+            authoritativeEmpty: true,
+          })
 
           set({
             positions: merged,
@@ -772,13 +811,13 @@ export const usePositionsStore = create<PositionsState>()(
           source: 'alpaca' as const,
         }))
 
-        // FIX: Use mergePositions instead of direct set to prevent:
-        // 1. Wiping NestJS-sourced positions with Alpaca data
-        // 2. Introducing improperly formatted objects that cause "Cannot read properties of undefined (reading 'id')"
-        // The Alpaca path previously did a direct `set({ positions })` which REPLACED the entire
-        // array, losing paper trades and any positions from the NestJS path.
+        // FIX V115: Use mergePositions with source info so that empty responses
+        // from Alpaca properly remove closed positions instead of preserving them.
         const currentPositions = get().positions
-        const merged = mergePositions(currentPositions, positions)
+        const merged = mergePositions(currentPositions, positions, {
+          source: 'alpaca',
+          authoritativeEmpty: true,
+        })
 
         set({
           positions: merged,

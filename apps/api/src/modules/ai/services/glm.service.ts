@@ -83,9 +83,10 @@ export class GlmService {
               Authorization: `Bearer ${this._generateJwt()}`,
               'Content-Type': 'application/json',
             },
-            timeout: 30000,  // FIX: 30s timeout — content generation requires longer
-                             // processing time. 10s was too short and caused timeout errors
-                             // that got stored as article content.
+            timeout: 60000,  // FIX: 60s timeout — content generation calls GLM twice
+                             // (Arabic + English), each requiring up to 30s. The previous
+                             // 10s timeout caused "GLM API error (N/A): timeout of 10000ms exceeded"
+                             // which broke the Content Agent entirely.
           },
         );
 

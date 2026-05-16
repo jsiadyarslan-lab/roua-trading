@@ -266,7 +266,10 @@ async function proxyWithToken(
     // on any other slow endpoints.
     const isLongRunningEndpoint = pathname.includes('/strategic-council/trigger') ||
       pathname.includes('/strategic-council/session') ||
-      pathname.includes('/smart-executor/');
+      pathname.includes('/smart-executor/') ||
+      pathname.includes('/agent/content/generate') ||
+      pathname.includes('/agent/content/bulk-generate') ||
+      pathname.includes('/agent/content/breaking');
     const timeoutMs = isLongRunningEndpoint ? 120000 : 30000; // 2 min for long-running, 30s for normal
 
     const fetchOptions: RequestInit = {

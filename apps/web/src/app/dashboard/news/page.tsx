@@ -81,6 +81,21 @@ type ReportItem = {
   countries?: string[]
   marketImpact?: string
   imageUrl?: string | null
+  siteUrl?: string | null
+  keyIndicators?: {
+    topic?: string
+    region?: string
+    sectors?: string[]
+    scenarios?: string[]
+  }
+  priceTarget?: {
+    current?: number
+    target?: number | null
+    stopLoss?: number | null
+    symbol?: string | null
+    analysisDate?: string
+  }
+  indicators?: string[]
 }
 
 /* ─── Category Config ─── */
@@ -608,6 +623,8 @@ function NewsCard({ item, index, onClick }: { item: NewsItem; index: number; onC
    Reports Tab Component
    ═══════════════════════════════════════════ */
 function ReportsTab({ reports, loading }: { reports: ReportItem[]; loading: boolean }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+
   if (loading) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
@@ -645,7 +662,7 @@ function ReportsTab({ reports, loading }: { reports: ReportItem[]; loading: bool
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {economicReports.map((report, i) => (
-              <ReportCard key={report.id || i} report={report} index={i} />
+              <ReportCard key={report.id || i} report={report} index={i} expanded={expandedId === report.id} onToggle={() => setExpandedId(prev => prev === report.id ? null : report.id)} />
             ))}
           </div>
         </div>
@@ -663,7 +680,7 @@ function ReportsTab({ reports, loading }: { reports: ReportItem[]; loading: bool
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
             {analysisReports.map((report, i) => (
-              <ReportCard key={report.id || i} report={report} index={i} />
+              <ReportCard key={report.id || i} report={report} index={i} expanded={expandedId === report.id} onToggle={() => setExpandedId(prev => prev === report.id ? null : report.id)} />
             ))}
           </div>
         </div>
@@ -672,7 +689,8 @@ function ReportsTab({ reports, loading }: { reports: ReportItem[]; loading: bool
   )
 }
 
-function ReportCard({ report, index }: { report: ReportItem; index: number }) {
+function ReportCard({ report, index, expanded, onToggle }: { report: ReportItem; index: number; expanded: boolean; onToggle: () => void }) {
+  const [imgError, setImgError] = useState(false)
   const categoryMap: Record<string, { label: string; color: string; icon: string }> = {
     'strategic': { label: 'استراتيجي', color: T.amber, icon: '🎯' },
     'daily': { label: 'يومي', color: T.cyan, icon: '📅' },
@@ -692,50 +710,183 @@ function ReportCard({ report, index }: { report: ReportItem; index: number }) {
     'low': { label: 'منخفض المخاطر', color: T.green },
   }
   const risk = riskMap[report.riskLevel || ''] || riskMap['medium']
+  const sentimentMap: Record<string, { label: string; color: string }> = {
+    'bullish': { label: 'صعودي', color: T.green },
+    'bearish': { label: 'هبوطي', color: T.red },
+    'neutral': { label: 'محايد', color: T.text3 },
+  }
+  const sentimentConf = sentimentMap[report.sentiment || ''] || sentimentMap['neutral']
 
   return (
     <article
+      className="news-card"
+      onClick={onToggle}
       style={{
         background: T.card,
-        border: `1px solid ${T.border}`,
+        border: `1px solid ${expanded ? cat.color + '40' : T.border}`,
         borderRight: `3px solid ${cat.color}`,
         borderRadius: 14,
-        padding: '16px 18px',
+        overflow: 'hidden',
         animation: `fade-in 0.25s ease-out ${index * 20}ms both`,
       }}
     >
-      {/* Badges */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
-          {cat.icon} {cat.label}
-        </span>
-        {report.confidenceScore && (
-          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
-            ثقة {report.confidenceScore}%
+      {/* Image */}
+      {report.imageUrl && !imgError && (
+        <div style={{ width: '100%', height: 140, overflow: 'hidden' }}>
+          <img src={report.imageUrl} alt="" onError={() => setImgError(true)} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} loading="lazy" />
+        </div>
+      )}
+
+      <div style={{ padding: '16px 18px' }}>
+        {/* Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 6, background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+            {cat.icon} {cat.label}
           </span>
+          {report.confidenceScore != null && (
+            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+              ثقة {report.confidenceScore}%
+            </span>
+          )}
+          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
+            {risk.label}
+          </span>
+          <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+            {sentimentConf.label}
+          </span>
+          <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+            <Clock size={9} /> {timeAgo(report.publishedAt)}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h3 style={{ color: T.text, fontSize: 14, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
+          {report.titleAr || 'تقرير'}
+        </h3>
+
+        {/* Sectors */}
+        {Array.isArray(report.sectors) && report.sectors.length > 0 && !expanded && (
+          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+            {report.sectors.slice(0, 4).map((s, i) => (
+              <span key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>
+                {safeStr(s)}
+              </span>
+            ))}
+            {report.sectors.length > 4 && <span style={{ fontSize: 9, color: T.text3 }}>+{report.sectors.length - 4}</span>}
+          </div>
         )}
-        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
-          {risk.label}
-        </span>
-        <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
-          <Clock size={9} /> {timeAgo(report.publishedAt)}
-        </span>
+
+        {/* Expand indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
+          <span style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
+            {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {expanded ? 'إغلاق' : 'عرض التفاصيل'}
+          </span>
+        </div>
       </div>
 
-      {/* Title */}
-      <h3 style={{ color: T.text, fontSize: 14, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
-        {report.titleAr || 'تقرير'}
-      </h3>
+      {/* Expanded Detail */}
+      {expanded && (
+        <div style={{ padding: '0 18px 18px', borderTop: `1px solid ${T.border}`, paddingTop: 14 }}>
+          {/* Key Indicators */}
+          {report.keyIndicators && (
+            <div style={{ padding: 14, background: `${T.cyan}06`, borderRadius: 12, border: `0.5px solid ${T.cyan}15`, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <Brain size={12} color={T.cyan} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>المؤشرات الرئيسية</span>
+              </div>
+              {report.keyIndicators.topic && (
+                <p style={{ fontSize: 12, color: T.text2, lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
+              )}
+              {report.keyIndicators.region && (
+                <p style={{ fontSize: 11, color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>المنطقة: {report.keyIndicators.region}</p>
+              )}
+              {Array.isArray(report.keyIndicators.scenarios) && report.keyIndicators.scenarios.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
+                  {report.keyIndicators.scenarios.map((s, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.amber}10`, color: T.amber, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-      {/* Sectors */}
-      {Array.isArray(report.sectors) && report.sectors.length > 0 && (
-        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {report.sectors.slice(0, 4).map((s, i) => (
-            <span key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>
-              {safeStr(s)}
-            </span>
-          ))}
-          {report.sectors.length > 4 && <span style={{ fontSize: 9, color: T.text3 }}>+{report.sectors.length - 4}</span>}
+          {/* Price Target */}
+          {report.priceTarget && report.priceTarget.symbol && (
+            <div style={{ padding: 14, background: `${T.green}06`, borderRadius: 12, border: `0.5px solid ${T.green}15`, marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                <TrendingUp size={12} color={T.green} />
+                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>السعر المستهدف</span>
+              </div>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                {report.priceTarget.symbol && (
+                  <span style={{ fontSize: 14, fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
+                )}
+                {report.priceTarget.current > 0 && (
+                  <span style={{ fontSize: 12, color: T.text2 }}>الحالي: <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
+                )}
+                {report.priceTarget.target != null && (
+                  <span style={{ fontSize: 12, color: T.green }}>المستهدف: <strong>{report.priceTarget.target}</strong></span>
+                )}
+                {report.priceTarget.stopLoss != null && (
+                  <span style={{ fontSize: 12, color: T.red }}>وقف الخسارة: <strong>{report.priceTarget.stopLoss}</strong></span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Scope & Countries */}
+          {(report.scope || (Array.isArray(report.countries) && report.countries.length > 0)) && (
+            <div style={{ padding: 14, background: `${T.amber}06`, borderRadius: 12, border: `0.5px solid ${T.amber}15`, marginBottom: 12 }}>
+              {report.scope && (
+                <p style={{ fontSize: 12, color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>النطاق: <strong style={{ color: T.text }}>{report.scope === 'arabic' ? 'العالم العربي' : report.scope === 'regional' ? 'إقليمي' : report.scope === 'global' ? 'عالمي' : report.scope}</strong></p>
+              )}
+              {Array.isArray(report.countries) && report.countries.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {report.countries.map((c, i) => (
+                    <span key={i} style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: T.bg2, color: T.text3, fontWeight: 600, fontFamily: FONT_AR }}>{safeStr(c)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sectors (full in expanded) */}
+          {Array.isArray(report.sectors) && report.sectors.length > 0 && (
+            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 12 }}>
+              {report.sectors.map((s, i) => (
+                <span key={i} style={{ fontSize: 10, padding: '3px 10px', borderRadius: 6, background: `${cat.color}10`, color: cat.color, fontWeight: 700, fontFamily: FONT_AR }}>{safeStr(s)}</span>
+              ))}
+            </div>
+          )}
+
+          {/* Confidence Score Bar */}
+          {report.confidenceScore != null && (
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>مستوى الثقة</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
+              </div>
+              <div style={{ height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${report.confidenceScore}%`, borderRadius: 2, background: `linear-gradient(90deg, ${T.green}60, ${T.green})`, transition: 'width 0.5s' }} />
+              </div>
+            </div>
+          )}
+
+          {/* Market Impact */}
+          {report.marketImpact && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>تأثير السوق:</span>
+              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? 'محايد' : report.marketImpact === 'bullish' ? 'صعودي' : report.marketImpact === 'bearish' ? 'هبوطي' : report.marketImpact}</span>
+            </div>
+          )}
+
+          {/* Link to news site */}
+          {report.siteUrl && (
+            <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 10, background: `${T.cyan}08`, border: `0.5px solid ${T.cyan}18` }}>
+              قراءة التقرير الكامل <ExternalLink size={12} />
+            </a>
+          )}
         </div>
       )}
     </article>

@@ -39,7 +39,32 @@ export async function GET(request: NextRequest) {
     }
 
     const data = await res.json();
-    const reports = data.reports || [];
+    const rawReports = data.reports || [];
+
+    // Resolve image URLs and add site links
+    const reports = rawReports.map((report: any) => {
+      // Resolve image URL
+      let resolvedImageUrl: string | null = null;
+      if (report.imageUrl) {
+        if (report.imageUrl.startsWith('http')) {
+          resolvedImageUrl = report.imageUrl;
+        } else if (report.imageUrl.startsWith('/')) {
+          resolvedImageUrl = `${newsSiteUrl}${report.imageUrl}`;
+        } else {
+          resolvedImageUrl = report.imageUrl;
+        }
+      } else if (report.id) {
+        // Fallback: use the article image endpoint
+        resolvedImageUrl = `${newsSiteUrl}/api/article-image/${report.id}`;
+      }
+
+      return {
+        ...report,
+        imageUrl: resolvedImageUrl,
+        // Link to the report on the news site
+        siteUrl: report.slug ? `${newsSiteUrl}/reports/${report.slug}` : null,
+      };
+    });
 
     return NextResponse.json({
       success: true,

@@ -48,6 +48,21 @@ export async function GET(request: NextRequest) {
                 sentimentNormalized = (article.sentimentScore - 50) / 50;
               }
 
+              // Resolve image URL: handle relative /api/article-image/{id} paths
+              let resolvedImageUrl: string | null = null;
+              if (article.imageUrl) {
+                if (article.imageUrl.startsWith('http')) {
+                  resolvedImageUrl = article.imageUrl;
+                } else if (article.imageUrl.startsWith('/')) {
+                  resolvedImageUrl = `${newsSiteUrl}${article.imageUrl}`;
+                } else {
+                  resolvedImageUrl = article.imageUrl;
+                }
+              } else if (article.id) {
+                // Fallback: use the article image endpoint
+                resolvedImageUrl = `${newsSiteUrl}/api/article-image/${article.id}`;
+              }
+
               return {
                 id: article.id,
                 source: article.source || 'رؤى للأخبار',
@@ -65,8 +80,8 @@ export async function GET(request: NextRequest) {
                 fullContent: article.fullContent || '',
                 // Key takeaways array
                 keyTakeaways: Array.isArray(article.keyTakeaways) ? article.keyTakeaways : [],
-                // Image URL
-                imageUrl: article.imageUrl || null,
+                // Image URL (resolved to full URL)
+                imageUrl: resolvedImageUrl,
                 // URL to original article
                 url: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
                 // Sentiment normalized to -1..1

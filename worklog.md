@@ -73,3 +73,23 @@ Stage Summary:
 - Close button fixed with retry logic ✅
 - Executor executing trades ✅
 - Known: tight SL/TP causes quick position closes (strategy tuning needed)
+---
+Task ID: 1
+Agent: Main
+Task: Fix close button + single-position blocking + processedKey
+
+Work Log:
+- Investigated full close flow: PositionCard → PortfolioMini → closePositionUnified → NestJS proxy → TradingController → TradingService.closePositionWithRetry
+- Found ROOT CAUSE #1: PortfolioMini.tsx onClose was empty function (() => {}) — fixed by previous commit but error was silent
+- Found ROOT CAUSE #2: OrderDispatcher had HARD BLOCK on same-symbol positions (no paper trading exception) — fixed by previous commit
+- Found ROOT CAUSE #3: processedKey in SmartExecutor stays set for 24h even after position closes — THIS WAS THE MISSING FIX
+- Found that previous commit a19822be had some fixes but missed the processedKey clearing
+- Applied processedKey fix: when processedKey is found, check if the referenced position is still OPEN; if closed, clear the key
+- Added alert() for close button errors instead of console.warn (silent failure)
+- Built successfully, pushed to GitHub
+
+Stage Summary:
+- Key fix: processedKey clearing when position is no longer OPEN
+- Close button now shows error messages to user
+- Previous fixes (OrderDispatcher hedge mode, ExposureManager paper trading) already deployed
+- All changes pushed to main, Railway will auto-deploy

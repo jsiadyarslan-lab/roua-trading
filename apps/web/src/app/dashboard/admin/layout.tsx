@@ -19,11 +19,13 @@ import {
   Bell,
   LogOut,
   Loader2,
+  LineChart,
 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'نظرة عامة', icon: LayoutDashboard, path: '/dashboard/admin' },
+  { id: 'technical-analysis', label: 'تحليلات فنية', icon: LineChart, path: '/dashboard/admin/technical-analysis' },
   { id: 'users', label: 'المستخدمون', icon: Users, path: '/dashboard/admin/users' },
   { id: 'subscriptions', label: 'الاشتراكات', icon: CreditCard, path: '/dashboard/admin/subscriptions' },
   { id: 'health', label: 'صحة النظام', icon: Activity, path: '/dashboard/admin/health' },

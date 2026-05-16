@@ -865,7 +865,7 @@ export default function MobileNewsPage() {
                 margin: 0,
               }}
             >
-              {activeMainTab === 'news' ? 'الأخبار' : activeMainTab === 'reports' ? 'التقارير' : 'وكيل المحتوى'}
+              {activeMainTab === 'news' ? 'الأخبار' : 'التقارير'}
             </h1>
             <p
               style={{
@@ -875,7 +875,7 @@ export default function MobileNewsPage() {
                 margin: 0,
               }}
             >
-              {activeMainTab === 'news' ? 'آخر المستجدات والتحليلات' : activeMainTab === 'reports' ? 'تقارير سوقية محللة' : 'توليد ونشر المحتوى'}
+              {activeMainTab === 'news' ? 'آخر المستجدات والتحليلات' : 'تقارير سوقية محللة'}
             </p>
           </div>
 
@@ -906,7 +906,7 @@ export default function MobileNewsPage() {
           </motion.button>
         </div>
 
-        {/* ── Main Tabs (الأخبار / التقارير / وكيل المحتوى) ── */}
+        {/* ── Main Tabs (الأخبار / التقارير) ── */}
         <div
           style={{
             display: 'flex',
@@ -918,7 +918,6 @@ export default function MobileNewsPage() {
           {([
             { id: 'news' as const, label: 'الأخبار', icon: Newspaper, color: C.accent },
             { id: 'reports' as const, label: 'التقارير', icon: BarChart2, color: C.amber },
-            { id: 'agent' as const, label: 'وكيل المحتوى', icon: PenLine, color: '#B388FF' },
           ] as const).map((tab) => {
             const isActive = activeMainTab === tab.id
             return (
@@ -1051,7 +1050,7 @@ export default function MobileNewsPage() {
             <iframe
               src="/dashboard/content-agent"
               style={{ width: '100%', height: '80vh', border: 'none', borderRadius: 20 }}
-              title="وكيل المحتوى"
+              title="تحليلات فنية"
             />
           </div>
         )}

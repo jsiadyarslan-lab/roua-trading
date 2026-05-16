@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
-import dynamic from 'next/dynamic'
 import { useSearchParams, useRouter } from 'next/navigation'
 import {
   Newspaper,
@@ -18,8 +17,7 @@ import {
   Zap,
   Clock,
   AlertTriangle,
-  PenLine,
-  Sparkles,
+
   BarChart2,
   FileText,
   ChevronLeft,
@@ -35,10 +33,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
-const ContentAgentPage = dynamic(
-  () => import('@/app/dashboard/content-agent/page'),
-  { ssr: false, loading: () => <div style={{ padding: 40, textAlign: 'center', color: T.text2, fontFamily: FONT_AR }}>جارٍ تحميل وكيل المحتوى...</div> }
-)
+
 
 type NewsItem = {
   id: string
@@ -116,7 +111,7 @@ const CATEGORIES = [
 export default function NewsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
-  const initialTab = searchParams.get('tab') === 'reports' ? 'reports' : searchParams.get('tab') === 'agent' ? 'agent' : 'news'
+  const initialTab = searchParams.get('tab') === 'reports' ? 'reports' : 'news'
 
   useScopedStyle(`
     @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -140,7 +135,7 @@ export default function NewsPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'agent'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'news' | 'reports'>(initialTab)
 
   // Slider state
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -284,7 +279,6 @@ export default function NewsPage() {
           {[
             { id: 'news' as const, label: 'الأخبار', icon: Newspaper, color: T.cyan },
             { id: 'reports' as const, label: 'التقارير', icon: BarChart2, color: T.amber },
-            { id: 'agent' as const, label: 'وكيل المحتوى', icon: PenLine, color: '#B388FF' },
           ].map(tab => (
             <button
               key={tab.id}
@@ -302,15 +296,12 @@ export default function NewsPage() {
             >
               <tab.icon size={16} />
               {tab.label}
-              {tab.id === 'agent' && <Sparkles size={12} style={{ opacity: 0.6 }} />}
             </button>
           ))}
         </div>
 
         {/* Tab Content */}
-        {activeTab === 'agent' ? (
-          <ContentAgentPage />
-        ) : activeTab === 'reports' ? (
+        {activeTab === 'reports' ? (
           <ReportsTab reports={reports} loading={loading} />
         ) : (
           <>

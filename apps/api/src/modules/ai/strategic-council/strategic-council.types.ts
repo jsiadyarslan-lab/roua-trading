@@ -60,7 +60,7 @@ export const ALL_COUNCIL_PAIRS: string[] = [
 ];
 
 /** Timeframes the Council covers (Focused on rapid scalping/intraday + swing/position) */
-export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M5', 'M15'];
+export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15'];
 
 /** Expiry durations per timeframe (in milliseconds) */
 export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {

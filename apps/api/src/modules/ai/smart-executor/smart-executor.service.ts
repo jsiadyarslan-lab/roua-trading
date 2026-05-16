@@ -255,6 +255,65 @@ export class SmartExecutorService implements OnModuleDestroy {
    * now ONLY enables users who explicitly click "تشغيل" from their dashboard.
    */
 
+  /**
+   * FIX: Auto-restore enabled users from DB after startup or when new users register.
+   * Reads DB-persisted user states (source of truth for explicit user consent)
+   * and repopulates Redis + starts the tick loop if any enabled users are found.
+   *
+   * This is SAFE because:
+   *   - Only users with DB records are restored (explicit consent)
+   *   - Phantom positions are already cleaned up by _startupCleanup()
+   *   - Dedup prevents duplicate trades (Redis + DB processed keys)
+   */
+  private async _autoRestoreFromDB(): Promise<void> {
+    try {
+      if (!this.prisma?.isAvailable?.()) {
+        this.logger.warn('⚔️ DB not yet available for auto-restore — will retry');
+        return;
+      }
+
+      // Read all DB-persisted user states
+      const dbStates = await this.prisma.setting.findMany({
+        where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+      });
+
+      if (dbStates.length === 0) {
+        this.logger.debug('⚔️ No enabled users found in DB — executor stays idle until a user enables it.');
+        return;
+      }
+
+      let restoredCount = 0;
+      for (const s of dbStates) {
+        try {
+          const state = JSON.parse(s.value);
+          if (state.enabled) {
+            const userId = s.key.replace(this.DB_USER_STATE_KEY + ':', '');
+
+            // Re-populate Redis from DB
+            await this.redis.set(
+              `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+              JSON.stringify(state),
+              86400000 * 7,
+            );
+
+            restoredCount++;
+            this.logger.debug(`⚔️ Restored enabled user ${userId} from DB (paper: ${state.isPaperTrading})`);
+          }
+        } catch {
+          // Malformed state — skip
+        }
+      }
+
+      // Auto-start the tick loop if any users were restored
+      if (restoredCount > 0 && !this.isRunning) {
+        this.logger.log(`⚔️ Auto-starting tick loop — ${restoredCount} user(s) restored from DB`);
+        await this.start('auto-restore');
+      }
+    } catch (error: any) {
+      this.logger.warn(`⚔️ Auto-restore failed (non-critical): ${error.message}. Executor will start when a user enables it.`);
+    }
+  }
+
   // ── Lifecycle ──
 
   onModuleDestroy() {

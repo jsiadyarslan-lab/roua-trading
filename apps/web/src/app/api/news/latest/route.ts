@@ -78,6 +78,7 @@ export async function GET(request: NextRequest) {
                 categoryAr: article.category || 'أسواق',
                 publishedAt: article.publishedAt || new Date().toISOString(),
                 newsType: article.newsType || 'live',
+                slug: article.slug || '',
               };
             });
 

@@ -93,3 +93,34 @@ Stage Summary:
 - Close button now shows error messages to user
 - Previous fixes (OrderDispatcher hedge mode, ExposureManager paper trading) already deployed
 - All changes pushed to main, Railway will auto-deploy
+
+---
+Task ID: 1
+Agent: main
+Task: Fix all platform issues - timeframes, close button, processedKey, price data
+
+Work Log:
+- Investigated full architecture: Strategic Council → Smart Executor / Agent → OrderDispatcher
+- Found Strategic Council only generated M5/M15 for executor and M30/H1 for agent (missing M1, H4, D1, W1)
+- Fixed Strategic Council to generate ALL timeframes:
+  - COUNCIL_TIMEFRAMES: ['M5','M15'] → ['M1','M5','M15']
+  - runAgentSession: now uses AGENT_TIMEFRAMES (M30/H1/H4/D1/W1) with top 3 pairs for slow TFs
+  - runHourlySession: now uses EXECUTOR_TIMEFRAMES
+  - Smart Executor tick filter: uses isExecutorTimeframe() instead of hardcoded ['M5','M15']
+- Fixed close button: added toast notifications for success/error, loading state, disabled during close
+- Fixed processedKey 24h blocking: TTL now matches timeframe (M1:1min, M5:5min, M15:15min)
+- Added TradingService._clearProcessedKeysForPosition() to clear keys when position closes
+- Fixed price data $34.98 bug (5 root causes):
+  1. ExchangeService.getQuote(): added PRICE_SANITY validation
+  2. Yahoo Finance: BTC → BTC-USD (was returning stock price)
+  3. CoinCap: removed dangerous fallback to base.toLowerCase()
+  4. _isCryptoSymbol: recognizes crypto without slash (BTC vs BTC/USDT)
+  5. Startup cleanup: clears fallback:lastprice:* cache
+- Bumped Docker build cache v105 → v106 to force full Railway rebuild
+- Pushed to GitHub (triggers Railway auto-deploy)
+
+Stage Summary:
+- 8 files changed, 232 insertions, 50 deletions
+- All TypeScript compiles cleanly
+- Next.js build succeeds
+- Pushed to GitHub as commit 58bcf529

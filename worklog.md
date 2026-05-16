@@ -124,3 +124,25 @@ Stage Summary:
 - All TypeScript compiles cleanly
 - Next.js build succeeds
 - Pushed to GitHub as commit 58bcf529
+
+---
+Task ID: 2
+Agent: main
+Task: Fix CDN caching — the REAL reason changes never appeared
+
+Work Log:
+- Investigated why code changes never appeared in production (4 failed attempts)
+- Discovered Railway CDN was caching ALL pages for 1 YEAR (s-maxage=31536000)
+- First attempt: Added headers in next.config.ts → didn't work (Next.js overrides for static pages)
+- Created middleware.ts → build failed (Next.js 16 uses proxy.ts, not middleware.ts)
+- Added Cache-Control override in proxy.ts addSecurityHeaders() function → WORKED
+- Added buildId + deployCommit to health endpoint for version tracking
+- Added GIT_COMMIT ARG + DEPLOY_COMMIT ENV to Dockerfile
+- Bumped build cache v106 → v107
+
+Stage Summary:
+- CDN cache headers now: s-maxage=0 (was 31536000)
+- API cache headers: no-store (never cache)
+- Build ID tracking: health endpoint reports buildId + deployCommit
+- Verified: buildId changed from -0VYCcjvFOGIHo_C-QX4d to tYwNiVLX0EyfjcXlhHSKP
+- All previous code fixes (timeframes, close button, processedKey, prices) are now actually deployed

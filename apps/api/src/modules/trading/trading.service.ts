@@ -703,14 +703,32 @@ export class TradingService {
       // Paper-trading close: simulate the close using current market price.
       // If credential was deleted by startup cleanup, we can still close the position
       // because paper trading is simulated — no real exchange connection needed.
-      let closePrice = posCurrentPrice || posEntryPrice;
-      if (closePrice <= 0) {
+      //
+      // FIX v114: Use entryPrice as the DEFAULT close price for paper trading.
+      // Previously, if posCurrentPrice was 0/null, it tried getQuote() which could
+      // hang for 30+ seconds when all price providers are exhausted (TwelveData
+      // rate-limited, Binance blocked, etc.). This caused close requests to timeout
+      // and positions to remain stuck OPEN.
+      //
+      // Now: Only try getQuote with a 3-second timeout. If it fails or times out,
+      // fall back to entryPrice (which is always available for an OPEN position).
+      // Paper trading doesn't need exact market prices — entryPrice is fine.
+      let closePrice = posCurrentPrice;
+      if (!closePrice || closePrice <= 0) {
         try {
-          const quote = await this.exchangeService.getQuote(position.symbol);
-          closePrice = quote.price || posEntryPrice;
+          const quotePromise = this.exchangeService.getQuote(position.symbol);
+          const quote = await Promise.race([
+            quotePromise,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+          ]);
+          closePrice = quote?.price || posEntryPrice;
         } catch {
           closePrice = posEntryPrice;
         }
+      }
+      // Final safety: entryPrice is always available for an OPEN position
+      if (!closePrice || closePrice <= 0) {
+        closePrice = posEntryPrice;
       }
 
       execution = this._executePaperTrade(

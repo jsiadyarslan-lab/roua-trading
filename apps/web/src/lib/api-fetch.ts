@@ -324,14 +324,32 @@ export async function closePositionUnified(
 
         // FIX: If balance is 0 on all wallets, try force-close (DB only)
         // This handles positions already closed on exchange or stuck positions
-        if (errMsg.includes('رصيد') && errMsg.includes('غير متاح')) {
+        // FIX v114: Also try force-close for ANY close failure on paper-trading
+        // positions and for timeout/network errors. Previously, force-close was
+        // only tried for the specific Arabic text "رصيد غير متاح", but many
+        // other errors (timeout, network, rate limit) also leave positions stuck.
+        const shouldForceClose = (
+          (errMsg.includes('رصيد') && errMsg.includes('غير متاح')) ||
+          errMsg.includes('timeout') ||
+          errMsg.includes('ETIMEDOUT') ||
+          errMsg.includes('ECONNREFUSED') ||
+          errMsg.includes('ECONNRESET') ||
+          errMsg.includes('network') ||
+          errMsg.includes('fetch failed') ||
+          errMsg.includes('Service Unavailable') ||
+          errMsg.includes('502') ||
+          errMsg.includes('504') ||
+          errMsg.includes('فشل في إغلاق المركز')
+        );
+
+        if (shouldForceClose) {
           try {
             const forceRes = await fetch('/api/trading/positions/force-close', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 positionId: nestjsId,
-                reason: 'Auto force-close after balance check failure',
+                reason: `Auto force-close: ${errMsg.substring(0, 100)}`,
               }),
             })
             if (forceRes.ok) {
@@ -362,8 +380,28 @@ export async function closePositionUnified(
         }
         // Soft error + non-UUID → fall through to Alpaca
       }
-    } catch {
-      // NestJS unavailable — only fall through if positionId is NOT a UUID
+    } catch (catchErr: any) {
+      // NestJS unavailable — try force-close as last resort for UUID positions
+      // FIX v114: If NestJS is completely unreachable, the position is stuck.
+      // For paper-trading positions, force-close is always safe (no real exchange).
+      if (isNestJsId(positionId) && nestjsId) {
+        try {
+          const forceRes = await fetch('/api/trading/positions/force-close', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              positionId: nestjsId,
+              reason: `Auto force-close: NestJS unreachable — ${catchErr?.message || 'network error'}`,
+            }),
+          })
+          if (forceRes.ok) {
+            options?.onClosed?.()
+            return { success: true, source: 'nestjs', forceClosed: true }
+          }
+        } catch {
+          // Force close also failed
+        }
+      }
       if (isNestJsId(positionId)) {
         return { success: false, error: 'خادم NestJS غير متاح', source: 'nestjs' }
       }

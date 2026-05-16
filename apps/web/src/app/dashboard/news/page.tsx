@@ -25,6 +25,13 @@ import {
   ArrowLeft,
   Bookmark,
   Share2,
+  LineChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  Target,
+  Eye,
+  BookOpen,
+  Tag,
 } from 'lucide-react'
 import { safeStr } from '@/lib/utils'
 import { TExtended as T } from '@/lib/unified-tokens'
@@ -135,7 +142,13 @@ export default function NewsPage() {
   const [activeCategory, setActiveCategory] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [fetchError, setFetchError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'news' | 'reports'>(initialTab)
+  const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'analysis'>(
+    searchParams.get('tab') === 'analysis' ? 'analysis' : initialTab
+  )
+
+  // Analysis tab state
+  const [analyses, setAnalyses] = useState<any[]>([])
+  const [analysesLoading, setAnalysesLoading] = useState(false)
 
   // Slider state
   const [currentSlide, setCurrentSlide] = useState(0)
@@ -173,12 +186,36 @@ export default function NewsPage() {
     }
   }, [])
 
+  const fetchAnalyses = useCallback(async () => {
+    setAnalysesLoading(true)
+    try {
+      const res = await fetch('/api/agent/content/feed?status=PUBLISHED&limit=20', { cache: 'no-store' })
+      const data = await res.json()
+      if (data.success && data.data) {
+        const raw = Array.isArray(data.data) ? data.data : Array.isArray(data.data.articles) ? data.data.articles : []
+        const clean = raw.filter((a: any) =>
+          !a.titleAr?.includes('GLM API error') &&
+          !a.titleAr?.includes('timeout of') &&
+          !a.contentAr?.includes('GLM API error')
+        )
+        setAnalyses(clean)
+      } else {
+        setAnalyses([])
+      }
+    } catch {
+      setAnalyses([])
+    } finally {
+      setAnalysesLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     fetchNews()
     fetchReports()
+    fetchAnalyses()
     const interval = setInterval(fetchNews, 5 * 60 * 1000)
     return () => clearInterval(interval)
-  }, [fetchNews, fetchReports])
+  }, [fetchNews, fetchReports, fetchAnalyses])
 
   // Auto-advance slider
   useEffect(() => {
@@ -193,6 +230,7 @@ export default function NewsPage() {
     setRefreshing(true)
     fetchNews()
     fetchReports()
+    fetchAnalyses()
   }
 
   // Hero items for slider (first 5 with images or top items)
@@ -279,6 +317,7 @@ export default function NewsPage() {
           {[
             { id: 'news' as const, label: 'الأخبار', icon: Newspaper, color: T.cyan },
             { id: 'reports' as const, label: 'التقارير', icon: BarChart2, color: T.amber },
+            { id: 'analysis' as const, label: 'تحليلات فنية', icon: LineChart, color: T.green },
           ].map(tab => (
             <button
               key={tab.id}
@@ -303,6 +342,8 @@ export default function NewsPage() {
         {/* Tab Content */}
         {activeTab === 'reports' ? (
           <ReportsTab reports={reports} loading={loading} />
+        ) : activeTab === 'analysis' ? (
+          <TechnicalAnalysisTab analyses={analyses} loading={analysesLoading} />
         ) : (
           <>
             {/* Hero Slider */}
@@ -878,6 +919,317 @@ function ReportCard({ report, index, expanded, onToggle }: { report: ReportItem;
               قراءة التقرير الكامل <ExternalLink size={12} />
             </a>
           )}
+        </div>
+      )}
+    </article>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   Technical Analysis Tab Component
+   ═══════════════════════════════════════════ */
+function TechnicalAnalysisTab({ analyses, loading }: { analyses: any[]; loading: boolean }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [filterCat, setFilterCat] = useState('')
+
+  const categoryMap: Record<string, { label: string; color: string }> = {
+    CRYPTO: { label: 'كريبتو', color: '#FFB800' },
+    FOREX: { label: 'فوركس', color: '#00D4FF' },
+    STOCKS: { label: 'أسهم', color: '#00FFA3' },
+    COMMODITIES: { label: 'سلع', color: '#FF8C42' },
+    ECONOMY: { label: 'اقتصاد', color: '#B388FF' },
+    TECHNOLOGY: { label: 'تقنية', color: '#00D4FF' },
+    DEFI: { label: 'ديفاي', color: '#A78BFA' },
+    REGULATION: { label: 'تشريعات', color: '#FF4757' },
+  }
+  const typeMap: Record<string, { label: string; color: string }> = {
+    ANALYSIS: { label: 'تحليل فني', color: '#059669' },
+    MARKET_REPORT: { label: 'تقرير سوق', color: '#00D4FF' },
+    ARTICLE: { label: 'مقال تحليلي', color: '#B388FF' },
+    NEWS_DIGEST: { label: 'ملخص سوقي', color: '#FF8C42' },
+    BREAKING: { label: 'عاجل', color: '#FF4757' },
+  }
+
+  const filtered = filterCat ? analyses.filter(a => a.category === filterCat) : analyses
+
+  if (loading) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
+        <RefreshCw size={28} color={T.green} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
+        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>جارٍ تحميل التحليلات الفنية...</p>
+      </div>
+    )
+  }
+
+  if (analyses.length === 0) {
+    return (
+      <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '48px 32px', textAlign: 'center' }}>
+        <LineChart size={40} color={T.green} style={{ marginBottom: 16, opacity: 0.5 }} />
+        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>لا توجد تحليلات فنية حالياً</h2>
+        <p style={{ color: T.text2, fontSize: 13, margin: 0, lineHeight: 1.8 }}>ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى</p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {/* Category Filter Chips */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <button onClick={() => setFilterCat('')} style={{
+          padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: filterCat ? 600 : 800,
+          fontFamily: FONT_AR, border: `1px solid ${filterCat ? T.border : T.green}`,
+          background: filterCat ? T.card : `${T.green}14`, color: filterCat ? T.text2 : T.green, cursor: 'pointer',
+        }}>
+          الكل ({analyses.length})
+        </button>
+        {Object.entries(categoryMap).map(([key, val]) => {
+          const count = analyses.filter(a => a.category === key).length
+          if (count === 0) return null
+          return (
+            <button key={key} onClick={() => setFilterCat(filterCat === key ? '' : key)} style={{
+              padding: '6px 14px', borderRadius: 10, fontSize: 11, fontWeight: filterCat === key ? 800 : 600,
+              fontFamily: FONT_AR, border: `1px solid ${filterCat === key ? val.color : T.border}`,
+              background: filterCat === key ? `${val.color}14` : T.card, color: filterCat === key ? val.color : T.text2, cursor: 'pointer',
+            }}>
+              {val.label} ({count})
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Analysis Cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {filtered.map((article, index) => (
+          <AnalysisContentCard
+            key={article.id || index}
+            article={article}
+            index={index}
+            expanded={expandedId === article.id}
+            onToggle={() => setExpandedId(prev => prev === article.id ? null : article.id)}
+            categoryMap={categoryMap}
+            typeMap={typeMap}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════
+   Analysis Content Card — Professional Design
+   ═══════════════════════════════════════════ */
+function AnalysisContentCard({
+  article,
+  index,
+  expanded,
+  onToggle,
+  categoryMap,
+  typeMap,
+}: {
+  article: any
+  index: number
+  expanded: boolean
+  onToggle: () => void
+  categoryMap: Record<string, { label: string; color: string }>
+  typeMap: Record<string, { label: string; color: string }>
+}) {
+  const cat = categoryMap[article.category] || { label: article.category || 'أخرى', color: T.text3 }
+  const typ = typeMap[article.type] || { label: article.type || 'تحليل', color: T.green }
+  const sentimentScore = article.sentimentScore || 0
+  const sentimentConf = sentimentScore > 0.3
+    ? { label: 'صعودي', color: T.green, icon: <ArrowUpRight size={12} /> }
+    : sentimentScore < -0.3
+      ? { label: 'هبوطي', color: T.red, icon: <ArrowDownRight size={12} /> }
+      : { label: 'محايد', color: T.amber, icon: <Minus size={12} /> }
+  const impactConf = article.impactLevel === 'HIGH'
+    ? { label: 'تأثير عالي', color: T.red }
+    : article.impactLevel === 'LOW'
+      ? { label: 'تأثير منخفض', color: T.green }
+      : { label: 'تأثير متوسط', color: T.amber }
+  const qualityScore = article.qualityScore || 0
+
+  // Safely parse JSON arrays
+  const symbols: string[] = (() => {
+    try {
+      const raw = article.relatedSymbols
+      if (Array.isArray(raw)) return raw.filter((s: any) => typeof s === 'string')
+      if (typeof raw === 'string') { const p = JSON.parse(raw); return Array.isArray(p) ? p.filter((s: any) => typeof s === 'string') : [] }
+      return []
+    } catch { return [] }
+  })()
+
+  const tags: string[] = (() => {
+    try {
+      const raw = article.tags
+      if (Array.isArray(raw)) return raw.filter((s: any) => typeof s === 'string')
+      if (typeof raw === 'string') { const p = JSON.parse(raw); return Array.isArray(p) ? p.filter((s: any) => typeof s === 'string') : [] }
+      return []
+    } catch { return [] }
+  })()
+
+  const contentText = article.contentAr || article.contentEn || ''
+  const summaryText = article.summaryAr || article.summaryEn || ''
+  const titleText = article.titleAr || article.titleEn || 'تحليل فني'
+
+  return (
+    <article
+      className="news-card"
+      style={{
+        background: T.card,
+        border: `1px solid ${expanded ? cat.color + '30' : T.border}`,
+        borderRight: `3px solid ${cat.color}`,
+        borderRadius: 16,
+        overflow: 'hidden',
+        animation: `fade-in 0.3s ease-out ${index * 30}ms both`,
+      }}
+    >
+      {/* Card Header */}
+      <div style={{ padding: '20px 22px 0' }}>
+        {/* Top Row: Badges */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${cat.color}14`, color: cat.color, fontWeight: 800, fontFamily: FONT_AR }}>
+            {cat.label}
+          </span>
+          <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 7, background: `${typ.color}10`, color: typ.color, fontWeight: 700, fontFamily: FONT_AR }}>
+            {typ.label}
+          </span>
+          <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+            {sentimentConf.icon} {sentimentConf.label}
+          </span>
+          {article.impactLevel && (
+            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${impactConf.color}10`, color: impactConf.color, fontWeight: 700, fontFamily: FONT_AR }}>
+              {impactConf.label}
+            </span>
+          )}
+          <span style={{ fontSize: 9, color: T.text3, marginInlineStart: 'auto', display: 'flex', alignItems: 'center', gap: 3, fontFamily: FONT_AR }}>
+            <Clock size={9} /> {timeAgo(article.publishedAt || article.createdAt)}
+          </span>
+        </div>
+
+        {/* Title */}
+        <h3 style={{ color: T.text, fontSize: 17, fontWeight: 900, margin: '0 0 10px', lineHeight: 1.7, fontFamily: FONT_AR }}>
+          {titleText}
+        </h3>
+
+        {/* Symbols Row */}
+        {symbols.length > 0 && (
+          <div style={{ display: 'flex', gap: 5, marginBottom: 12, flexWrap: 'wrap' }}>
+            {symbols.slice(0, 6).map((sym, i) => (
+              <span key={i} style={{
+                fontSize: 10, padding: '3px 10px', borderRadius: 6,
+                background: `${T.cyan}10`, color: T.cyan, fontWeight: 800,
+                fontFamily: FONT_MONO, border: `0.5px solid ${T.cyan}20`,
+              }}>
+                {sym}
+              </span>
+            ))}
+            {symbols.length > 6 && <span style={{ fontSize: 9, color: T.text3, padding: '3px 6px' }}>+{symbols.length - 6}</span>}
+          </div>
+        )}
+
+        {/* Summary */}
+        {summaryText && !expanded && (
+          <p style={{ color: T.text2, fontSize: 13, margin: '0 0 14px', lineHeight: 1.9, fontFamily: FONT_AR, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+            {summaryText}
+          </p>
+        )}
+
+        {/* Quality Score Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Target size={12} color={qualityScore >= 70 ? T.green : T.amber} />
+            <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>جودة التحليل</span>
+            <div style={{ flex: 1, height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden', maxWidth: 120 }}>
+              <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 2, background: qualityScore >= 70 ? `linear-gradient(90deg, ${T.green}60, ${T.green})` : `linear-gradient(90deg, ${T.amber}60, ${T.amber})`, transition: 'width 0.5s' }} />
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 800, color: qualityScore >= 70 ? T.green : T.amber, fontFamily: FONT_MONO }}>{qualityScore}%</span>
+          </div>
+          {article.readingTimeMinutes > 0 && (
+            <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
+              <BookOpen size={9} /> {article.readingTimeMinutes} دقائق قراءة
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Expand Toggle */}
+      <div
+        onClick={onToggle}
+        style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '10px 22px', cursor: 'pointer',
+          borderTop: `1px solid ${T.border}`,
+          background: expanded ? `${cat.color}04` : 'transparent',
+          transition: 'background 0.15s',
+        }}
+      >
+        <span style={{ fontSize: 11, color: cat.color, fontWeight: 700, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 5 }}>
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+          {expanded ? 'إغلاق التحليل' : 'قراءة التحليل الكامل'}
+        </span>
+      </div>
+
+      {/* Expanded Content */}
+      {expanded && contentText && (
+        <div style={{ padding: '0 22px 22px', borderTop: `1px solid ${T.border}`, paddingTop: 18 }}>
+          {/* Content */}
+          <div style={{
+            color: T.text2, fontSize: 13, lineHeight: 2.1, fontFamily: FONT_AR,
+            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+            maxHeight: 600, overflowY: 'auto',
+          }}>
+            {contentText.split('\n').map((paragraph, i) => {
+              if (!paragraph.trim()) return null
+              // Highlight lines that look like headings (start with # or **)
+              const isHeading = paragraph.trimStart().startsWith('#') || paragraph.trimStart().startsWith('**')
+              const cleanPara = paragraph.replace(/^#+\s*/, '').replace(/^\*\*(.+?)\*\*$/, '$1')
+              return (
+                <p key={i} style={{
+                  margin: isHeading ? '16px 0 8px' : '0 0 10px',
+                  fontSize: isHeading ? 15 : 13,
+                  fontWeight: isHeading ? 900 : 500,
+                  color: isHeading ? T.text : T.text2,
+                  lineHeight: isHeading ? 1.8 : 2.1,
+                  fontFamily: FONT_AR,
+                }}>
+                  {cleanPara}
+                </p>
+              )
+            })}
+          </div>
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 16, paddingTop: 14, borderTop: `1px solid ${T.border}` }}>
+              <Tag size={11} color={T.text3} style={{ flexShrink: 0, marginTop: 2 }} />
+              {tags.slice(0, 8).map((tag, i) => (
+                <span key={i} style={{
+                  fontSize: 9, padding: '3px 9px', borderRadius: 6,
+                  background: 'rgba(255,255,255,0.04)', color: T.text3, fontWeight: 600, fontFamily: FONT_AR,
+                  border: '1px solid rgba(255,255,255,0.06)',
+                }}>
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Meta Footer */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 14, paddingTop: 12, borderTop: `1px solid ${T.border}`, flexWrap: 'wrap' }}>
+            {article.views > 0 && (
+              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Eye size={10} /> {article.views} مشاهدة
+              </span>
+            )}
+            {article.generationSource && (
+              <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Brain size={9} /> {article.generationSource === 'GLM' ? 'GLM AI' : article.generationSource}
+              </span>
+            )}
+            <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
+              منشور
+            </span>
+          </div>
         </div>
       )}
     </article>

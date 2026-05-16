@@ -1309,8 +1309,39 @@ export class SmartExecutorService implements OnModuleDestroy {
         } catch { /* non-critical */ }
       }
       if (alreadyProcessed) {
-        this.logger.debug(`⚔️ Skipping already-processed brief ${brief.id} for user ${userId}`);
-        continue;
+        // FIX: Check if the position from this brief is still OPEN.
+        // If the user manually closed the position, the processedKey should be cleared
+        // so the executor can execute new briefs for the same pair.
+        // This is the ROOT CAUSE of "only one trade at a time" — when the user closes
+        // a position manually, the processedKey stays set for 24 hours, blocking ALL
+        // new briefs for that pair even though the position no longer exists.
+        try {
+          const processedData = typeof alreadyProcessed === 'string' ? JSON.parse(alreadyProcessed) : alreadyProcessed;
+          const positionId = processedData?.orderId || processedData?.positionId;
+          if (positionId) {
+            const existingPos = await this.prisma.position.findFirst({
+              where: { id: positionId, userId, status: 'OPEN' },
+            });
+            if (!existingPos) {
+              // Position is no longer open — clear processedKey and allow re-execution
+              this.logger.log(`⚔️ Clearing processedKey for brief ${brief.id} — position ${positionId} is no longer OPEN`);
+              await this.redis.del(processedKey);
+              try {
+                await this.prisma.setting.deleteMany({
+                  where: { key: `${processedKey}:db` },
+                });
+              } catch { /* non-critical */ }
+              alreadyProcessed = null; // Allow re-execution
+            }
+          }
+        } catch (parseErr: any) {
+          this.logger.debug(`⚔️ Could not check processedKey position status: ${parseErr.message}`);
+        }
+
+        if (alreadyProcessed) {
+          this.logger.debug(`⚔️ Skipping already-processed brief ${brief.id} for user ${userId}`);
+          continue;
+        }
       }
 
       // Check confidence threshold FIRST (cheap check, skip early)

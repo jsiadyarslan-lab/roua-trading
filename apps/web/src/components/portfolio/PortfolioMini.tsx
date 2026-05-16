@@ -393,9 +393,14 @@ export function PortfolioMini({
                   )
                   if (result.success) {
                     usePositionsStore.getState().refreshAfterTrade()
+                  } else {
+                    // FIX: Show error to user instead of silent failure
+                    console.error('[PortfolioMini] Close failed:', result.error)
+                    alert(`فشل إغلاق المركز: ${result.error || 'خطأ غير معروف'}`)
                   }
-                } catch (err) {
-                  console.warn('[PortfolioMini] Close failed:', err)
+                } catch (err: any) {
+                  console.error('[PortfolioMini] Close error:', err)
+                  alert(`خطأ في إغلاق المركز: ${err.message || 'خطأ غير معروف'}`)
                 }
               }}
             />

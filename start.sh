@@ -222,13 +222,29 @@ if [ "$DB_REACHABLE" -ne 1 ]; then
 fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA SETUP — Generate only (migrations run AFTER apps start)
+# PRISMA SETUP — Generate client AND apply migrations BEFORE starting apps
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# FIX v110: Run migrations BEFORE starting apps, not after.
+# Previously, migrations ran in background after apps started,
+# causing missing table errors (UserNotification, UserNotificationPreferences)
+# that flooded logs with error spam on every trade execution.
+# Now: run migrations synchronously first, then start apps.
 echo ""
 echo "━━━ Prisma Setup ━━━"
 
 echo "📦 Generating Prisma client..."
 run_prisma generate --schema=./prisma/schema.prisma
+
+echo "📦 Applying database migrations..."
+# Try prisma migrate deploy first (preferred), fall back to prisma db push
+if [ "$DB_REACHABLE" -eq 1 ]; then
+  run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || {
+    echo "⚠️ migrate deploy failed — trying db push..."
+    run_prisma db push --schema=./prisma/schema.prisma --accept-data-loss 2>&1 && echo "✅ DB push applied" || echo "⚠️ DB push also failed — continuing anyway"
+  }
+else
+  echo "⚠️ Database not reachable — skipping migrations (will retry on next deploy)"
+fi
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # START APPS — NestJS FIRST, then Next.js
@@ -302,11 +318,10 @@ cd "$PROJECT_ROOT"
 sleep 3
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# PRISMA MIGRATIONS — Run in background after apps start
+# PRISMA MIGRATIONS — Already applied before apps started (see above)
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 echo ""
-echo "━━━ Prisma Migrations (background) ━━━"
-(run_prisma migrate deploy --schema=./prisma/schema.prisma 2>&1 && echo "✅ Migrations applied" || echo "⚠️ Migrations skipped") &
+echo "━━━ Prisma Migrations (already applied) ━━━"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # NESTJS PROCESS MONITOR

@@ -91,24 +91,38 @@ export class NotificationService {
       }
 
       // Persist notification to database
-      const notification = await this.prisma.userNotification.create({
-        data: {
-          userId,
-          type: type as any,
-          priority: priority as any,
-          title,
-          body,
-          data: JSON.stringify(data),
-          source,
-          action,
-          pair,
-        },
-      });
+      // FIX: If the UserNotification table doesn't exist yet (migration
+      // not applied), skip DB persistence but still push via Socket.IO.
+      // This prevents massive log spam that drowns out real errors.
+      let notification: any = null;
+      try {
+        notification = await this.prisma.userNotification.create({
+          data: {
+            userId,
+            type: type as any,
+            priority: priority as any,
+            title,
+            body,
+            data: JSON.stringify(data),
+            source,
+            action,
+            pair,
+          },
+        });
+      } catch (createErr: any) {
+        if (createErr?.message?.includes('does not exist')) {
+          // Table doesn't exist yet — skip DB persistence, still push real-time
+          this.logger.debug(`UserNotification table not found — pushing real-time notification only`);
+        } else {
+          this.logger.warn(`Failed to persist notification: ${createErr?.message}`);
+        }
+      }
 
-      // Push via Socket.IO (real-time) — regardless of pushEnabled,
-      // we always try to push since it's the primary UX improvement
+      // Push via Socket.IO (real-time) — always try, even if DB persistence failed
+      const notifId = notification?.id || `temp-${Date.now()}`;
+      const notifTimestamp = notification?.createdAt?.toISOString() || new Date().toISOString();
       const pushed = this.gateway.sendToUser(userId, 'notification', {
-        id: notification.id,
+        id: notifId,
         type,
         priority,
         title,
@@ -117,7 +131,7 @@ export class NotificationService {
         source,
         action,
         pair,
-        timestamp: notification.createdAt.toISOString(),
+        timestamp: notifTimestamp,
         isRead: false,
       });
 

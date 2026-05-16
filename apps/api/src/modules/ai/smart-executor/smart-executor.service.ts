@@ -1351,24 +1351,25 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.debug(`⚔️ Using brief entry price as fallback for ${brief.pair}: ${currentPrice}`);
     }
 
-    if (!userState.isPaperTrading) {
-
-      // FIX: Validate fetched price against brief's entry price.
-      // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
-      // instead of ~157). This happens because some data sources return inverse rates
-      // or use different quote conventions. If the fetched price is more than 20%
-      // away from the brief's entry price, it's likely wrong — use the entry price.
-      if (currentPrice > 0 && brief.entryPrice > 0) {
-        const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
-        if (priceDeviation > 0.2) {
-          this.logger.warn(
-            `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
-          );
-          currentPrice = brief.entryPrice;
-        }
+    // FIX: Validate fetched price against brief's entry price for BOTH paper and real trading.
+    // Previously, this sanity check was only for real trading. But wrong prices cause:
+    //   1. Wrong position sizing (quantity calculated from wrong price)
+    //   2. Wrong PnL calculations
+    //   3. Wrong SL/TP relative to actual market price
+    // Example: BTC/USDT fetching $34.98 instead of $79,137 produces completely
+    // broken trades. We MUST detect and fix absurd price deviations.
+    if (currentPrice > 0 && brief.entryPrice > 0) {
+      const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
+      if (priceDeviation > 0.2) {
+        this.logger.warn(
+          `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
+        );
+        currentPrice = brief.entryPrice;
       }
-    } else {
-      this.logger.debug(`⚔️ Paper trading: using brief entry price ${brief.entryPrice} for ${brief.pair} (no live price check)`);
+    }
+
+    if (userState.isPaperTrading) {
+      this.logger.debug(`⚔️ Paper trading: executing at price ${currentPrice} for ${brief.pair}`);
     }
 
     // 2. Check strict rules

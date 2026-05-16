@@ -196,3 +196,29 @@ Stage Summary:
 - SmartExecutor: daily loss limit bypassed for paper trading
 - start.sh: critical table verification with db push + direct SQL fallback
 - Dockerfile BUILD_CACHE=v112
+
+---
+Task ID: v113
+Agent: main
+Task: Fix duplicate-blocked infinite loop, NotificationService prisma:error spam, and Prisma table verification
+
+Work Log:
+- Found critical bug: processedKey clearing logic was creating an infinite loop
+  - When orderId='duplicate-blocked' (set by v112 أمر مكرر fix), code tried to find position with that ID
+  - Position not found → key cleared → brief retried → أمر مكرر again → key set → cleared → LOOP
+  - Fix: Skip clearing for entries with reason='duplicate-order-idempotency'
+- Fixed NotificationService prisma:error log spam
+  - Prisma logs errors at its own level BEFORE catch blocks catch them
+  - Added static cache for table existence check (checked once per process lifetime)
+  - If tables don't exist, skip all DB operations silently, Socket.IO push still works
+  - Eliminates hundreds of 'prisma:error The table does not exist' log lines per minute
+- start.sh: Already had table verification from v112 (was in the pushed code)
+- Updated deploy marker to ROUA-V113-DUPLICATE-LOOP-NOTIFICATION-FIX
+- Updated Dockerfile BUILD_CACHE=v113
+- TypeScript compilation passes with no errors
+- Pushed to GitHub: 1b807bb99
+
+Stage Summary:
+- SmartExecutor: processedKey with 'duplicate-blocked' no longer gets cleared → loop stops
+- NotificationService: table existence cached, no more prisma:error spam
+- start.sh: table verification with db push + direct SQL fallback

@@ -171,3 +171,28 @@ Stage Summary:
 - v110 deployed to Railway via GitHub push
 - Two critical bugs fixed: (1) Position size 100% rejection, (2) Missing DB tables (via existing migration)
 - Deploy verification: /api/deploy-version should return deployMarker: "ROUA-V110-RISK-MANAGER-PAPER-BYPASS"
+
+---
+Task ID: v112
+Agent: main
+Task: Fix Railway healthcheck failure, BTC idempotency loop, daily loss limit for paper trading, and Prisma migration verification
+
+Work Log:
+- Diagnosed healthcheck failure: start.sh was sequential (DB cleanup 90s + Prisma 60s + NestJS wait 60s = 210+s) before Next.js started
+- Rewrote start.sh v15: Next.js starts FIRST (healthcheck passes in ~10s), NestJS starts in background
+- Added timeouts to all curl calls (--connect-timeout 2 --max-time 5) and Prisma commands (30s/60s)
+- Simplified DB connectivity test from aggressive 90s cleanup to 10s simple check
+- Fixed SmartExecutor infinite retry loop: when OrderDispatcher returns "أمر مكرr", mark brief as processed
+- Fixed SmartExecutor daily loss limit: skip for paper trading users (was auto-stopping at 5%)
+- Added critical table verification after Prisma migration (checks UserNotification etc., falls back to direct SQL)
+- Updated deploy marker to ROUA-V112-HEALTHCHECK-IDEMPOTENCY-FIX
+- Updated Dockerfile cache bust to v112
+- TypeScript compilation passes with no errors
+- Pushed to GitHub: 8c3013549
+
+Stage Summary:
+- start.sh v15: Next.js first, NestJS background, all timeouts added
+- SmartExecutor: "أمر مكرر" → processedKey set, preventing infinite retry
+- SmartExecutor: daily loss limit bypassed for paper trading
+- start.sh: critical table verification with db push + direct SQL fallback
+- Dockerfile BUILD_CACHE=v112

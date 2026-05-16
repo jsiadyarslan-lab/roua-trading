@@ -21,10 +21,38 @@ import type { NextRequest } from 'next/server'
 /**
  * Add security headers to a response.
  * These headers protect against XSS, clickjacking, MIME sniffing, etc.
+ *
+ * CRITICAL FIX: Also adds Cache-Control headers to prevent Railway CDN
+ * from caching pages for 1 YEAR. Next.js static pages default to
+ * s-maxage=31536000, which means code changes NEVER reach users.
  */
 function addSecurityHeaders(response: NextResponse, request: NextRequest): NextResponse {
   // ── Remove X-Powered-By header (information disclosure) ──
   response.headers.delete('x-powered-by')
+
+  // ── CRITICAL: Override CDN cache headers ──
+  // Without this, Railway CDN serves stale pages for 1 year
+  // because Next.js sets s-maxage=31536000 by default.
+  const { pathname } = request.nextUrl
+  const isStaticAsset =
+    pathname.startsWith('/_next/static/') ||
+    pathname.startsWith('/_next/image') ||
+    pathname.match(/\.(ico|png|jpg|jpeg|svg|woff2?|ttf|eot|css|js|map)$/i)
+
+  if (isStaticAsset) {
+    // Static assets have content hashes → safe to cache for 1 day
+    response.headers.set('Cache-Control', 'public, max-age=86400, immutable')
+  } else if (pathname.startsWith('/api/')) {
+    // API routes: NEVER cache — live trading data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
+    response.headers.set('Pragma', 'no-cache')
+    response.headers.set('Expires', '0')
+  } else {
+    // HTML pages: re-validate every request with origin
+    // s-maxage=0 tells CDN to always check; must-revalidate ensures
+    // no stale content is served even during revalidation
+    response.headers.set('Cache-Control', 'public, s-maxage=0, must-revalidate')
+  }
 
   // ── HSTS — Force HTTPS (1 year, include subdomains, preload) ──
   if (request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https') {

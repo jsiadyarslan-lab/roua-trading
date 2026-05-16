@@ -1238,7 +1238,7 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
   const blocks = useMemo(() => {
     const lines = content.split('\n')
     const result: Array<{
-      type: 'h3' | 'h2' | 'section-title' | 'bullet' | 'paragraph' | 'risk-box' | 'divider'
+      type: 'h4' | 'h3' | 'h2' | 'section-title' | 'bullet' | 'paragraph' | 'risk-box' | 'divider'
       text: string
       raw: string
     }> = []
@@ -1247,9 +1247,25 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
       const trimmed = line.trim()
       if (!trimmed) continue
 
-      // H3 header: ### text
+      // H4 header: #### text (must be checked before H3)
+      if (trimmed.startsWith('#### ')) {
+        const h4Text = trimmed.replace(/^####\s*/, '')
+        if (/تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية/.test(h4Text)) {
+          result.push({ type: 'risk-box', text: h4Text, raw: trimmed })
+        } else {
+          result.push({ type: 'h4', text: h4Text, raw: trimmed })
+        }
+        continue
+      }
+
+      // H3 header: ### text (also catches #### since we check above first)
       if (trimmed.startsWith('### ')) {
-        result.push({ type: 'h3', text: trimmed.replace(/^###\s*/, ''), raw: trimmed })
+        const h3Text = trimmed.replace(/^###\s*/, '')
+        if (/تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية/.test(h3Text)) {
+          result.push({ type: 'risk-box', text: h3Text, raw: trimmed })
+        } else {
+          result.push({ type: 'h3', text: h3Text, raw: trimmed })
+        }
         continue
       }
 
@@ -1259,9 +1275,10 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
         continue
       }
 
-      // Risk/disclaimer section detection
-      if (trimmed.includes('تنبيه المخاطر') || trimmed.includes('تحذير المخاطر') || trimmed.includes('لأغراض تعليمية')) {
-        result.push({ type: 'risk-box', text: trimmed, raw: trimmed })
+      // Risk/disclaimer section detection (for plain text lines)
+      if (trimmed.includes('تنبيه المخاطر') || trimmed.includes('تحذير المخاطر') || trimmed.includes('لأغراض تعليمية') || trimmed.includes('إخلاء مسؤولية')) {
+        const cleanText = trimmed.replace(/^#{1,6}\s*/, '').replace(/^\**|\**$/g, '')
+        result.push({ type: 'risk-box', text: cleanText, raw: trimmed })
         continue
       }
 
@@ -1392,8 +1409,27 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
     <div style={{ direction: 'rtl', fontFamily: FONT_AR }}>
       {blocks.map((block, i) => {
         // Track if we're in a key data section
-        if (block.type === 'section-title' || block.type === 'h3') {
+        if (block.type === 'section-title' || block.type === 'h3' || block.type === 'h4') {
           currentSectionIsKeyData = isKeyDataSection(block.text)
+        }
+
+        // ── H4 Header ──
+        if (block.type === 'h4') {
+          return (
+            <div key={i} style={{
+              margin: '20px 0 10px', padding: '8px 12px',
+              background: `linear-gradient(135deg, ${catColor}06, ${catColor}02)`,
+              borderRight: `2.5px solid ${catColor}80`,
+              borderRadius: '0 7px 7px 0',
+            }}>
+              <span style={{
+                fontSize: 14, fontWeight: 800, color: T.text2,
+                fontFamily: FONT_AR, lineHeight: 1.6,
+              }}>
+                {renderInline(block.text)}
+              </span>
+            </div>
+          )
         }
 
         // ── H3 Header ──
@@ -1483,31 +1519,48 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
         if (block.type === 'risk-box') {
           return (
             <div key={i} style={{
-              margin: '18px 0 8px', padding: '14px 16px',
-              background: 'rgba(255,184,0,0.06)',
-              border: `1px solid rgba(255,184,0,0.15)`,
-              borderRight: `3px solid rgba(255,184,0,0.4)`,
-              borderRadius: 8,
-              display: 'flex', gap: 10, alignItems: 'flex-start',
+              margin: '22px 0 10px', padding: '16px 18px',
+              background: 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,107,53,0.04))',
+              border: `1px solid rgba(255,184,0,0.2)`,
+              borderRight: `3.5px solid rgba(255,184,0,0.6)`,
+              borderRadius: 10,
+              display: 'flex', gap: 12, alignItems: 'flex-start',
             }}>
-              <ShieldAlert size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-              <span style={{
-                color: T.amber, fontSize: 12, fontWeight: 600,
-                lineHeight: 1.9, fontFamily: FONT_AR,
+              <div style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: 'rgba(255,184,0,0.12)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
               }}>
-                {block.text}
-              </span>
+                <ShieldAlert size={15} color={T.amber} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <span style={{
+                  color: T.amber, fontSize: 13, fontWeight: 800,
+                  fontFamily: FONT_AR, display: 'block', marginBottom: 4,
+                }}>
+                  {block.text.replace(/^#{1,6}\s*/, '')}
+                </span>
+                <span style={{
+                  color: 'rgba(255,184,0,0.7)', fontSize: 11, fontWeight: 500,
+                  fontFamily: FONT_AR, lineHeight: 1.7,
+                }}>
+                  المحتوى لأغراض تعليمية وتحليلية فقط وليس نصيحة مالية
+                </span>
+              </div>
             </div>
           )
         }
 
         // ── Regular Paragraph ──
+        // Strip any leftover markdown markers that weren't caught
+        const cleanParagraph = block.text.replace(/^#{1,6}\s*/, '')
         return (
           <p key={i} style={{
             color: T.text2, fontSize: 13, lineHeight: 2.1,
             margin: '0 0 12px', fontFamily: FONT_AR,
           }}>
-            {renderInline(block.text)}
+            {renderInline(cleanParagraph)}
           </p>
         )
       })}

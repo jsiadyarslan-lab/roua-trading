@@ -116,6 +116,20 @@ export class RiskManagerService {
 
   /**
    * Check if an order is allowed based on risk rules
+   *
+   * FIX: Added optional `exchangeName` parameter for paper-trading detection.
+   * Previously, this method had NO paper-trading bypass — unlike RiskGatekeeperService
+   * which was already fixed. This caused ALL paper-trading orders to be rejected with
+   * "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)" because:
+   * 1. _estimatePortfolioValue() returned 0 or only open position value for paper users
+   * 2. Portfolio table is empty for paper-trading users → manualValue = 0
+   * 3. With only 1 open position worth $5000, and a new order for $5000,
+   *    positionPercent = 5000/5000 * 100 = 100.0%
+   * 4. maxPositionSizePercent = 5% (from riskConfig.riskPerTrade * 5)
+   *
+   * The order flow was: SmartExecutor → OrderDispatcher → RiskGatekeeper (PASSED) →
+   * TradingService.placeOrder() → RiskManager.checkOrderRisk() (REJECTED!)
+   * RiskGatekeeper bypassed paper-trading, but RiskManager didn't.
    */
   async checkOrderRisk(
     userId: string,
@@ -123,9 +137,58 @@ export class RiskManagerService {
     side: string,
     quantity: number,
     price: number,
+    exchangeName?: string,
   ): Promise<{ allowed: boolean; reason?: string; riskScore?: number }> {
     // Sync settings from DB before each check (rate-limited internally)
     await this.syncSettingsFromDB();
+
+    // ── Paper/Test Trading Detection ──
+    // FIX: Determine if this is a paper-trading order. If so, skip the
+    // position size percentage check and daily loss limit check — only
+    // enforce position count. Paper trading is simulation with virtual funds;
+    // blocking it for "position too large" or "daily drawdown" defeats the
+    // purpose and was the root cause of ALL trades being rejected.
+    const isPaperTrading = this._isTestExchange(exchangeName || '');
+
+    // If exchange name wasn't provided, check user's credentials
+    if (!isPaperTrading) {
+      const realCredential = await this.prisma.exchangeCredential.findFirst({
+        where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
+      });
+      const hasOnlyPaperCredentials = !realCredential;
+      if (hasOnlyPaperCredentials) {
+        // User only has paper-trading credentials — treat as paper trading
+        this.logger.debug(`🛡️ RiskManager: User ${userId} has only paper credentials — bypassing value limits`);
+      }
+      if (hasOnlyPaperCredentials) {
+        // Paper trading: only check position count, skip value-based checks
+        const openPositions = await this.prisma.position.count({
+          where: { userId, status: 'OPEN' },
+        });
+        if (openPositions >= this.maxOpenPositions) {
+          return {
+            allowed: false,
+            reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
+          };
+        }
+        return { allowed: true, riskScore: 10 };
+      }
+    }
+
+    if (isPaperTrading) {
+      // Paper trading: only check position count — no value limits for simulation
+      const openPositions = await this.prisma.position.count({
+        where: { userId, status: 'OPEN' },
+      });
+      if (openPositions >= this.maxOpenPositions) {
+        return {
+          allowed: false,
+          reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
+        };
+      }
+      this.logger.debug(`🛡️ Paper trading order ALLOWED by RiskManager (position count: ${openPositions}/${this.maxOpenPositions}, no value limit for simulation)`);
+      return { allowed: true, riskScore: 10 };
+    }
 
     // Check 1: Minimum order size
     const orderValue = quantity * price;
@@ -148,7 +211,10 @@ export class RiskManagerService {
     }
 
     // Check 3: Maximum position size as % of portfolio
-    const portfolioValue = await this._estimatePortfolioValue(userId);
+    // FIX: Use _estimatePortfolioValue with paper-trading awareness.
+    // For paper users, use AgentSettings.paperBalance (default $10,000) instead
+    // of summing Portfolio table (which is empty for paper users).
+    const portfolioValue = await this._estimatePortfolioValue(userId, false);
     if (portfolioValue > 0) {
       const positionPercent = (orderValue / portfolioValue) * 100;
       if (positionPercent > this.maxPositionSizePercent) {
@@ -240,7 +306,36 @@ export class RiskManagerService {
 
   // ── Private Methods ──
 
-  private async _estimatePortfolioValue(userId: string): Promise<number> {
+  /**
+   * Estimate portfolio value for a user.
+   *
+   * FIX: For paper-trading users, the Portfolio table is typically empty
+   * (no real funds to track), so manualValue = 0. If the user has 1 open
+   * position worth $5000, portfolioValue = $5000, and a new order for $5000
+   * gives positionPercent = 100%. This was the root cause of ALL orders being
+   * rejected with "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)".
+   *
+   * Now: for paper users (isPaperTrading=true), use AgentSettings.paperBalance
+   * (default $10,000) as the portfolio base, giving realistic position sizing.
+   * For real users, use the existing Portfolio + positions calculation.
+   */
+  private async _estimatePortfolioValue(userId: string, isPaperTrading = false): Promise<number> {
+    // ── Paper Trading: Use AgentSettings.paperBalance ──
+    if (isPaperTrading) {
+      try {
+        const agentSettings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        const paperBalance = agentSettings?.paperBalance?.toNumber() ?? 10000;
+        this.logger.debug(`🛡️ Paper trading portfolio value: $${paperBalance} (from AgentSettings)`);
+        return paperBalance;
+      } catch {
+        this.logger.debug(`🛡️ Paper trading portfolio value: $10000 (default)`);
+        return 10000;
+      }
+    }
+
+    // ── Real Trading: Portfolio table + open positions ──
     // Sum up all portfolio values for the user
     const portfolios = await this.prisma.portfolio.aggregate({
       where: { userId },
@@ -259,6 +354,21 @@ export class RiskManagerService {
     }, 0);
 
     return manualValue + positionsValue;
+  }
+
+  /**
+   * Determine if an exchange name represents a test/demo/paper environment.
+   * Matches the same logic as RiskGatekeeperService._isTestExchange().
+   */
+  private _isTestExchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+    if (exactMatches.includes(lower)) return true;
+    const suffixPatterns = ['_test', '_paper', '_demo', '_sandbox', '_simulation', '-test', '-paper'];
+    if (suffixPatterns.some(s => lower.endsWith(s))) return true;
+    if (lower.includes('testnet')) return true;
+    return false;
   }
 
   private async _calculateDailyLoss(userId: string): Promise<number> {

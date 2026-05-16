@@ -165,12 +165,18 @@ export class TradingService {
     }
 
     // Step 4: Run risk checks
+    // FIX: Pass exchange name to RiskManager so it can detect paper-trading
+    // and bypass position size limits. Previously, RiskManager.checkOrderRisk()
+    // had NO paper-trading bypass, causing ALL paper orders to be rejected with
+    // "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)". RiskGatekeeper already
+    // had this bypass, but RiskManager was never updated.
     const riskCheck = await this.riskManager.checkOrderRisk(
       userId,
       request.symbol,
       request.side,
       request.quantity,
       currentPrice,
+      credential.exchange, // FIX: Pass exchange name for paper-trading detection
     );
 
     if (!riskCheck.allowed) {

@@ -426,6 +426,22 @@ export default function AutonomousTraderPage() {
                 إعادة التفعيل
               </button>
             )}
+            {/* FIX: Allow restart when daily limit reached — user can override and continue trading */}
+            {status === AgentStatus.DAILY_LIMIT_REACHED && !isRunning && agentState && (
+              <button
+                onClick={() => startAgent(config?.strategy ?? StrategyType.AUTO)}
+                disabled={loading}
+                style={{
+                  ...btnStyle,
+                  background: 'linear-gradient(135deg, #FFB800, #FF9F43)',
+                  color: '#000',
+                  fontWeight: 800,
+                }}
+              >
+                <RotateCcw size={14} />
+                تجاوز الحد وإعادة التفعيل
+              </button>
+            )}
           </div>
         </div>
 
@@ -739,7 +755,7 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, fontSize: 13, color: T.amber, fontWeight: 700,
           }}>
             <AlertTriangle size={18} />
-            تم بلوغ حد الخسارة اليومية — سيتوقف الوكيل تلقائياً حتى بداية يوم جديد.
+            تم بلوغ حد الخسارة اليومية ({config?.maxDailyLossPercent ?? 5}%) — اضغط "تجاوز الحد" للاستمرار، أو انتظر حتى بداية يوم جديد.
           </div>
         )}
 

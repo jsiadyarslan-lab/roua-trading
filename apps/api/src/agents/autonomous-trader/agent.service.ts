@@ -384,6 +384,53 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       throw new BadRequestException('الوكيل يعمل بالفعل — أوقفه أولاً ثم أعد تشغيله');
     }
 
+    // FIX: If agent was stopped due to DAILY_LIMIT_REACHED, allow restart
+    // by resetting daily stats. The user explicitly chose to override the limit.
+    if (existingState && existingState.status === AgentStatus.DAILY_LIMIT_REACHED) {
+      this.logger.log(`🧠 User ${userId} restarting agent after daily limit — resetting daily stats`);
+      existingState.dailyPnL = 0;
+      existingState.dailyTradesCount = 0;
+      existingState.dailyResetAt = new Date();
+      existingState.consecutiveLosses = 0;
+      existingState.status = AgentStatus.RUNNING;
+      await this._saveAgentState(userId, existingState);
+
+      // Update DB session too
+      try {
+        const session = await this.prisma.agentSession.findFirst({
+          where: { userId, status: 'DAILY_LIMIT_REACHED' },
+          orderBy: { startedAt: 'desc' },
+        });
+        if (session) {
+          await this.prisma.agentSession.update({
+            where: { id: session.id },
+            data: {
+              status: AgentStatus.RUNNING,
+              dailyPnL: 0,
+              dailyTradesCount: 0,
+              dailyResetAt: new Date(),
+            },
+          });
+        }
+      } catch (dbErr: any) {
+        this.logger.warn(`Failed to update DB session on daily limit reset: ${dbErr.message}`);
+      }
+
+      // Audit the override
+      try {
+        if (this.audit) {
+          await this.audit.log({
+            userId,
+            action: 'AGENT_DAILY_LIMIT_OVERRIDE',
+            resource: 'autonomous-trader',
+            details: JSON.stringify({ message: 'User overrode daily loss limit and restarted agent' }),
+          });
+        }
+      } catch {}
+
+      return existingState;
+    }
+
     // CRITICAL CHECK: Fail-fast if AUTO_TRADING_ENABLED is false
     // Step 1: Check global system-level toggle (DB first, then env var)
     let globalAutoTradingEnabled: boolean;

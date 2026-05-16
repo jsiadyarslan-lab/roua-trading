@@ -1396,55 +1396,82 @@ export class SmartExecutorService implements OnModuleDestroy {
     userState: UserExecutorState,
     portfolioValue: number,
   ): Promise<void> {
-    // ── Paper Trading: Skip live price verification ──
-    // FIX: For paper trading, the brief's entry price IS the execution price.
-    // Paper trading doesn't need live price verification because:
-    // 1. Paper orders are simulated — no real exchange connection needed
-    // 2. Price fetch failures (common on Railway) were blocking ALL paper trades
-    // 3. The brief itself is the signal — paper trading should just execute it
-    // FIX: ALWAYS fetch live price — for both paper and real trading.
-    // Using brief.entryPrice (from 15 minutes ago) causes trades to open
-    // far from the actual market price on the chart.
-    // Paper trading simulates at CURRENT price, not the stale brief price.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CRITICAL FIX: Price fetching with sanity validation
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // The OLD code used orchestrator first → exchangeService fallback.
+    // Problem: orchestrator's Promise.any() could return wrong prices
+    // (e.g., $34.98 for BTC), and the 20% deviation check against
+    // brief.entryPrice was unreliable because the brief itself could
+    // have been generated with a wrong price.
+    //
+    // NEW APPROACH: 
+    // 1. Use ExchangeService as PRIMARY (it has proper adapters + fallbacks)
+    // 2. Use orchestrator as SECONDARY
+    // 3. Apply sanity ranges INDEPENDENT of brief.entryPrice
+    // 4. Both paper and real trading use live prices
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     let currentPrice: number = 0;
+    let priceSource = 'none';
 
+    // Source 1 (PRIMARY): ExchangeService — proper adapter chain with fallbacks
     try {
-      const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
-      if (marketData?.price > 0) currentPrice = marketData.price;
+      const quote = await this.exchangeService.getQuote(brief.pair);
+      if (quote?.price > 0) {
+        currentPrice = quote.price;
+        priceSource = 'exchange';
+      }
     } catch {}
 
+    // Source 2 (SECONDARY): AI Orchestrator — multiple parallel sources
     if (!currentPrice || currentPrice <= 0) {
       try {
-        const quote = await this.exchangeService.getQuote(brief.pair);
-        if (quote?.price > 0) currentPrice = quote.price;
+        const marketData = await this.orchestrator.fetchQuickMarketData(brief.pair);
+        if (marketData?.price > 0) {
+          currentPrice = marketData.price;
+          priceSource = 'orchestrator';
+        }
       } catch {}
     }
 
-    // If we still can't get price, fall back to brief entry price
+    // Source 3 (LAST RESORT): Brief entry price (up to 15 minutes stale)
     if (!currentPrice || currentPrice <= 0) {
       currentPrice = brief.entryPrice;
-      this.logger.debug(`⚔️ Using brief entry price as fallback for ${brief.pair}: ${currentPrice}`);
+      priceSource = 'brief-entry';
+      this.logger.warn(`⚔️ Using stale brief entry price for ${brief.pair}: ${currentPrice}`);
     }
 
-    if (!userState.isPaperTrading) {
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // SANITY CHECK: Validate price against known ranges
+    // This catches the $34.98-for-BTC bug regardless of which source it came from.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    const PRICE_SANITY: Record<string, { min: number; max: number }> = {
+      'BTC/USDT': { min: 20000, max: 250000 }, 'BTC/USD': { min: 20000, max: 250000 },
+      'ETH/USDT': { min: 500, max: 15000 }, 'ETH/USD': { min: 500, max: 15000 },
+      'SOL/USDT': { min: 5, max: 1000 }, 'SOL/USD': { min: 5, max: 1000 },
+      'BNB/USDT': { min: 100, max: 3000 }, 'BNB/USD': { min: 100, max: 3000 },
+      'XRP/USDT': { min: 0.1, max: 10 }, 'XRP/USD': { min: 0.1, max: 10 },
+      'ADA/USDT': { min: 0.05, max: 5 }, 'ADA/USD': { min: 0.05, max: 5 },
+      'DOGE/USDT': { min: 0.01, max: 2 }, 'DOGE/USD': { min: 0.01, max: 2 },
+      'DOT/USDT': { min: 1, max: 50 }, 'DOT/USD': { min: 1, max: 50 },
+      'AVAX/USDT': { min: 5, max: 200 }, 'AVAX/USD': { min: 5, max: 200 },
+      'LINK/USDT': { min: 2, max: 50 }, 'LINK/USD': { min: 2, max: 50 },
+      'MATIC/USDT': { min: 0.1, max: 5 }, 'MATIC/USD': { min: 0.1, max: 5 },
+      'EUR/USD': { min: 0.8, max: 1.5 }, 'GBP/USD': { min: 1.0, max: 1.8 },
+      'USD/JPY': { min: 100, max: 200 }, 'XAU/USD': { min: 1000, max: 5000 },
+    };
 
-      // FIX: Validate fetched price against brief's entry price.
-      // Sometimes fetchQuickMarketData returns wrong prices (e.g., 0.99 for USD/JPY
-      // instead of ~157). This happens because some data sources return inverse rates
-      // or use different quote conventions. If the fetched price is more than 20%
-      // away from the brief's entry price, it's likely wrong — use the entry price.
-      if (currentPrice > 0 && brief.entryPrice > 0) {
-        const priceDeviation = Math.abs(currentPrice - brief.entryPrice) / brief.entryPrice;
-        if (priceDeviation > 0.2) {
-          this.logger.warn(
-            `⚔️ Fetched price ${currentPrice} for ${brief.pair} deviates ${(priceDeviation * 100).toFixed(1)}% from brief entry ${brief.entryPrice} — using entry price instead`,
-          );
-          currentPrice = brief.entryPrice;
-        }
-      }
-    } else {
-      this.logger.debug(`⚔️ Paper trading: using brief entry price ${brief.entryPrice} for ${brief.pair} (no live price check)`);
+    const sanity = PRICE_SANITY[brief.pair];
+    if (sanity && (currentPrice < sanity.min || currentPrice > sanity.max)) {
+      this.logger.error(
+        `⚔️ PRICE SANITY FAILED for ${brief.pair}: $${currentPrice} from ${priceSource} is outside [${sanity.min}, ${sanity.max}] — ` +
+        `using brief entry price $${brief.entryPrice} instead`
+      );
+      currentPrice = brief.entryPrice;
+      priceSource = 'brief-entry (sanity-fallback)';
     }
+
+    this.logger.debug(`⚔️ ${brief.pair}: price=$${currentPrice} from ${priceSource}`);
 
     // 2. Check strict rules
     const strictRules: StrictRules = brief.strictRules || { maxSlippage: this.config.defaultSlippage };

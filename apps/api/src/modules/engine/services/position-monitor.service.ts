@@ -436,17 +436,18 @@ export class PositionMonitorService {
     reason: 'STOP_LOSS' | 'TAKE_PROFIT',
   ): Promise<void> {
     try {
-      // FIX: Use closePositionWithRetry instead of closePosition to prevent
-      // optimistic lock failures when user and monitor try to close the same
-      // position simultaneously (e.g. user clicks close while SL triggers).
+      // FIX: Use closePositionWithRetry + convert Decimal to number
       await this.tradingService.closePositionWithRetry(
         position.userId,
         {
           positionId: position.id,
-          quantity: position.quantity,
+          quantity: typeof position.quantity?.toNumber === 'function' 
+            ? position.quantity.toNumber() 
+            : Number(position.quantity),
         },
         undefined,
         undefined,
+        3, // max retries for OPTIMISTIC_LOCK_FAILURE
       );
 
       await this.audit.log({

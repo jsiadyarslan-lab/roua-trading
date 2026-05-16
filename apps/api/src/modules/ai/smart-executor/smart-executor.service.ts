@@ -1328,7 +1328,15 @@ export class SmartExecutorService implements OnModuleDestroy {
         try {
           const processedData = typeof alreadyProcessed === 'string' ? JSON.parse(alreadyProcessed) : alreadyProcessed;
           const positionId = processedData?.orderId || processedData?.positionId;
-          if (positionId) {
+
+          // FIX v113: Skip clearing for "duplicate-blocked" entries.
+          // These are set when an order was blocked by idempotency (أمر مكرر).
+          // If we clear them, the same brief gets retried → hits أمر مكرر again →
+          // sets processedKey again → gets cleared → infinite loop!
+          const isDuplicateBlocked = positionId === 'duplicate-blocked' ||
+            processedData?.reason === 'duplicate-order-idempotency';
+
+          if (positionId && !isDuplicateBlocked) {
             const existingPos = await this.prisma.position.findFirst({
               where: { id: positionId, userId, status: 'OPEN' },
             });

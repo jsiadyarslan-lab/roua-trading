@@ -11,6 +11,12 @@ import { NotificationGateway } from './notification.gateway';
  * 3. Track read/unread state
  * 4. Respect per-user notification preferences
  *
+ * FIX v113: Added table existence cache to prevent Prisma error log spam
+ * when UserNotification/UserNotificationPreferences tables don't exist yet.
+ * Prisma logs errors at its own level BEFORE our catch block catches them,
+ * causing massive "prisma:error" spam in Railway logs. The fix: check once
+ * if the tables exist, and if not, skip all DB operations silently.
+ *
  * Integration Points:
  * - OrderConsumer: emits ORDER_FILLED / ORDER_REJECTED
  * - SignalService: emits SIGNAL_GENERATED
@@ -21,10 +27,54 @@ import { NotificationGateway } from './notification.gateway';
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
 
+  /** Cached table existence checks — checked once, then cached for the lifetime of the process */
+  private static _tablesExist: boolean | null = null;
+  private static _tableCheckPromise: Promise<boolean> | null = null;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gateway: NotificationGateway,
   ) {}
+
+  /**
+   * Check if the notification tables exist in the database.
+   * Result is cached for the process lifetime to avoid repeated queries.
+   */
+  private async _tablesExistCheck(): Promise<boolean> {
+    // Return cached result if available
+    if (NotificationService._tablesExist !== null) {
+      return NotificationService._tablesExist;
+    }
+
+    // If a check is already in progress, wait for it
+    if (NotificationService._tableCheckPromise) {
+      return NotificationService._tableCheckPromise;
+    }
+
+    // Start the check
+    NotificationService._tableCheckPromise = (async () => {
+      try {
+        // Try a lightweight query on UserNotification
+        await this.prisma.userNotification.count({ take: 0 });
+        NotificationService._tablesExist = true;
+        this.logger.log('📦 Notification tables verified — DB persistence enabled');
+        return true;
+      } catch (err: any) {
+        if (err?.message?.includes('does not exist')) {
+          NotificationService._tablesExist = false;
+          this.logger.warn('📦 UserNotification table does not exist — notifications will be real-time only (no DB persistence). Tables will be created on next deploy.');
+          return false;
+        }
+        // Other error — assume tables exist (don't disable persistence on network errors)
+        NotificationService._tablesExist = true;
+        return true;
+      } finally {
+        NotificationService._tableCheckPromise = null;
+      }
+    })();
+
+    return NotificationService._tableCheckPromise;
+  }
 
   /**
    * Send a notification to a specific user
@@ -44,21 +94,20 @@ export class NotificationService {
     const { userId, type, priority = 'MEDIUM', title, body, data = {}, source = 'system', action = 'INFO', pair } = params;
 
     try {
-      // Check user preferences before sending
-      // FIX: Wrap in try-catch because the UserNotificationPreferences table
-      // might not exist yet (migration not applied). If the table doesn't exist,
-      // skip the preference check and send the notification anyway.
+      const tablesExist = await this._tablesExistCheck();
+
+      // Check user preferences before sending (only if tables exist)
       let prefs: any = null;
-      try {
-        prefs = await this.prisma.userNotificationPreferences.findUnique({
-          where: { userId },
-        });
-      } catch (prefErr: any) {
-        // Table doesn't exist — skip preference check, send notification anyway
-        if (prefErr?.message?.includes('does not exist')) {
-          this.logger.debug(`NotificationPreferences table not found — sending notification without preference check`);
-        } else {
-          this.logger.warn(`Failed to check notification preferences: ${prefErr?.message}`);
+      if (tablesExist) {
+        try {
+          prefs = await this.prisma.userNotificationPreferences.findUnique({
+            where: { userId },
+          });
+        } catch (prefErr: any) {
+          // Table might have been dropped — update cache
+          if (prefErr?.message?.includes('does not exist')) {
+            NotificationService._tablesExist = false;
+          }
         }
       }
 
@@ -90,31 +139,30 @@ export class NotificationService {
         }
       }
 
-      // Persist notification to database
-      // FIX: If the UserNotification table doesn't exist yet (migration
-      // not applied), skip DB persistence but still push via Socket.IO.
-      // This prevents massive log spam that drowns out real errors.
+      // Persist notification to database (only if tables exist)
       let notification: any = null;
-      try {
-        notification = await this.prisma.userNotification.create({
-          data: {
-            userId,
-            type: type as any,
-            priority: priority as any,
-            title,
-            body,
-            data: JSON.stringify(data),
-            source,
-            action,
-            pair,
-          },
-        });
-      } catch (createErr: any) {
-        if (createErr?.message?.includes('does not exist')) {
-          // Table doesn't exist yet — skip DB persistence, still push real-time
-          this.logger.debug(`UserNotification table not found — pushing real-time notification only`);
-        } else {
-          this.logger.warn(`Failed to persist notification: ${createErr?.message}`);
+      if (tablesExist) {
+        try {
+          notification = await this.prisma.userNotification.create({
+            data: {
+              userId,
+              type: type as any,
+              priority: priority as any,
+              title,
+              body,
+              data: JSON.stringify(data),
+              source,
+              action,
+              pair,
+            },
+          });
+        } catch (createErr: any) {
+          if (createErr?.message?.includes('does not exist')) {
+            // Table was dropped — update cache
+            NotificationService._tablesExist = false;
+          } else {
+            this.logger.warn(`Failed to persist notification: ${createErr?.message}`);
+          }
         }
       }
 
@@ -143,7 +191,7 @@ export class NotificationService {
 
       // Auto-execute logic: if this is a signal and user has auto-execute enabled
       if (type === 'SIGNAL_GENERATED' && data.signalId && data.action && data.action !== 'WAIT') {
-        await this._checkAutoExecute(userId, notification.id, data, prefs);
+        await this._checkAutoExecute(userId, notification?.id, data, prefs);
       }
 
       return notification;
@@ -195,85 +243,173 @@ export class NotificationService {
   }) {
     const { limit = 50, offset = 0, unreadOnly = false, type } = options || {};
 
+    const tablesExist = await this._tablesExistCheck();
+    if (!tablesExist) {
+      return { notifications: [], total: 0, unreadCount: 0 };
+    }
+
     const where: any = { userId };
     if (unreadOnly) where.isRead = false;
     if (type) where.type = type;
 
-    const [notifications, total, unreadCount] = await Promise.all([
-      this.prisma.userNotification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: limit,
-        skip: offset,
-      }),
-      this.prisma.userNotification.count({ where }),
-      this.prisma.userNotification.count({
-        where: { userId, isRead: false },
-      }),
-    ]);
+    try {
+      const [notifications, total, unreadCount] = await Promise.all([
+        this.prisma.userNotification.findMany({
+          where,
+          orderBy: { createdAt: 'desc' },
+          take: limit,
+          skip: offset,
+        }),
+        this.prisma.userNotification.count({ where }),
+        this.prisma.userNotification.count({
+          where: { userId, isRead: false },
+        }),
+      ]);
 
-    return { notifications, total, unreadCount };
+      return { notifications, total, unreadCount };
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return { notifications: [], total: 0, unreadCount: 0 };
+    }
   }
 
   /**
    * Mark notification(s) as read
    */
   async markAsRead(userId: string, notificationIds?: string[]) {
-    if (notificationIds && notificationIds.length > 0) {
+    const tablesExist = await this._tablesExistCheck();
+    if (!tablesExist) return { count: 0 };
+
+    try {
+      if (notificationIds && notificationIds.length > 0) {
+        return this.prisma.userNotification.updateMany({
+          where: { id: { in: notificationIds }, userId },
+          data: { isRead: true, readAt: new Date() },
+        });
+      }
+
+      // Mark all as read
       return this.prisma.userNotification.updateMany({
-        where: { id: { in: notificationIds }, userId },
+        where: { userId, isRead: false },
         data: { isRead: true, readAt: new Date() },
       });
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return { count: 0 };
     }
-
-    // Mark all as read
-    return this.prisma.userNotification.updateMany({
-      where: { userId, isRead: false },
-      data: { isRead: true, readAt: new Date() },
-    });
   }
 
   /**
    * Get or create user notification preferences
    */
   async getPreferences(userId: string) {
-    let prefs = await this.prisma.userNotificationPreferences.findUnique({
-      where: { userId },
-    });
-
-    if (!prefs) {
-      prefs = await this.prisma.userNotificationPreferences.create({
-        data: { userId },
-      });
+    const tablesExist = await this._tablesExistCheck();
+    if (!tablesExist) {
+      return {
+        id: 'no-table',
+        userId,
+        enabled: true,
+        pushEnabled: true,
+        soundEnabled: true,
+        browserEnabled: true,
+        telegramEnabled: false,
+        signalAlerts: true,
+        tradeAlerts: true,
+        aiAlerts: true,
+        scannerAlerts: true,
+        riskAlerts: true,
+        systemAlerts: true,
+        autoExecuteEnabled: false,
+        autoExecuteMinConfidence: 75,
+        autoExecuteMaxPositionSize: 0.02,
+      };
     }
 
-    return prefs;
+    try {
+      let prefs = await this.prisma.userNotificationPreferences.findUnique({
+        where: { userId },
+      });
+
+      if (!prefs) {
+        prefs = await this.prisma.userNotificationPreferences.create({
+          data: { userId },
+        });
+      }
+
+      return prefs;
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return {
+        id: 'no-table',
+        userId,
+        enabled: true,
+        pushEnabled: true,
+        soundEnabled: true,
+        browserEnabled: true,
+        telegramEnabled: false,
+        signalAlerts: true,
+        tradeAlerts: true,
+        aiAlerts: true,
+        scannerAlerts: true,
+        riskAlerts: true,
+        systemAlerts: true,
+        autoExecuteEnabled: false,
+        autoExecuteMinConfidence: 75,
+        autoExecuteMaxPositionSize: 0.02,
+      };
+    }
   }
 
   /**
    * Update user notification preferences
    */
   async updatePreferences(userId: string, updates: Record<string, any>) {
-    return this.prisma.userNotificationPreferences.upsert({
-      where: { userId },
-      create: { userId, ...updates },
-      update: updates,
-    });
+    const tablesExist = await this._tablesExistCheck();
+    if (!tablesExist) return null;
+
+    try {
+      return this.prisma.userNotificationPreferences.upsert({
+        where: { userId },
+        create: { userId, ...updates },
+        update: updates,
+      });
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return null;
+    }
   }
 
   /**
    * Delete old read notifications (cleanup)
    */
   async cleanupOldNotifications(olderThanDays: number = 30) {
-    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
-    const result = await this.prisma.userNotification.deleteMany({
-      where: {
-        isRead: true,
-        createdAt: { lt: cutoff },
-      },
-    });
-    this.logger.log(`Cleaned up ${result.count} old notifications`);
-    return result;
+    const tablesExist = await this._tablesExistCheck();
+    if (!tablesExist) return { count: 0 };
+
+    try {
+      const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
+      const result = await this.prisma.userNotification.deleteMany({
+        where: {
+          isRead: true,
+          createdAt: { lt: cutoff },
+        },
+      });
+      this.logger.log(`Cleaned up ${result.count} old notifications`);
+      return result;
+    } catch (err: any) {
+      if (err?.message?.includes('does not exist')) {
+        NotificationService._tablesExist = false;
+      }
+      return { count: 0 };
+    }
   }
 
   // ── Private: Auto-Execute Logic ──
@@ -284,7 +420,7 @@ export class NotificationService {
    */
   private async _checkAutoExecute(
     userId: string,
-    notificationId: string,
+    notificationId: string | undefined,
     signalData: Record<string, any>,
     prefs: any,
   ) {

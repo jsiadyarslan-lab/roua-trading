@@ -1247,35 +1247,30 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
       const trimmed = line.trim()
       if (!trimmed) continue
 
-      // H4 header: #### text (must be checked before H3)
-      if (trimmed.startsWith('#### ')) {
-        const h4Text = trimmed.replace(/^####\s*/, '')
-        if (/تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية/.test(h4Text)) {
-          result.push({ type: 'risk-box', text: h4Text, raw: trimmed })
+      // Strip markdown header markers: #### (H4), ### (H3), ## (H2)
+      // Match ## or more at line start (with or without trailing space)
+      const headerMatch = trimmed.match(/^(#{2,6})\s*(.*)/)
+      if (headerMatch) {
+        const level = headerMatch[1].length
+        const headerText = headerMatch[2].trim()
+        if (!headerText) {
+          // Empty header line, skip
+          continue
+        }
+        // Check if it's a risk/disclaimer header
+        if (/تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية/.test(headerText)) {
+          result.push({ type: 'risk-box', text: headerText, raw: trimmed })
+        } else if (level >= 4) {
+          result.push({ type: 'h4', text: headerText, raw: trimmed })
+        } else if (level === 3) {
+          result.push({ type: 'h3', text: headerText, raw: trimmed })
         } else {
-          result.push({ type: 'h4', text: h4Text, raw: trimmed })
+          result.push({ type: 'h2', text: headerText, raw: trimmed })
         }
         continue
       }
 
-      // H3 header: ### text (also catches #### since we check above first)
-      if (trimmed.startsWith('### ')) {
-        const h3Text = trimmed.replace(/^###\s*/, '')
-        if (/تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية/.test(h3Text)) {
-          result.push({ type: 'risk-box', text: h3Text, raw: trimmed })
-        } else {
-          result.push({ type: 'h3', text: h3Text, raw: trimmed })
-        }
-        continue
-      }
-
-      // H2 header: ## text
-      if (trimmed.startsWith('## ')) {
-        result.push({ type: 'h2', text: trimmed.replace(/^##\s*/, ''), raw: trimmed })
-        continue
-      }
-
-      // Risk/disclaimer section detection (for plain text lines)
+      // Risk/disclaimer section detection (for plain text lines without # prefix)
       if (trimmed.includes('تنبيه المخاطر') || trimmed.includes('تحذير المخاطر') || trimmed.includes('لأغراض تعليمية') || trimmed.includes('إخلاء مسؤولية')) {
         const cleanText = trimmed.replace(/^#{1,6}\s*/, '').replace(/^\**|\**$/g, '')
         result.push({ type: 'risk-box', text: cleanText, raw: trimmed })
@@ -1294,8 +1289,9 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
         continue
       }
 
-      // Regular paragraph
-      result.push({ type: 'paragraph', text: trimmed, raw: trimmed })
+      // Regular paragraph — strip any stray inline # markers
+      const cleaned = trimmed.replace(/^#{1,6}\s*/, '')
+      result.push({ type: 'paragraph', text: cleaned, raw: trimmed })
     }
 
     return result
@@ -1303,6 +1299,9 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
 
   // Render inline markdown (bold, prices, symbols)
   const renderInline = (text: string) => {
+    // First, strip any stray leftover markdown markers that shouldn't render
+    const cleanText = text.replace(/^#{1,6}\s*/, '')
+
     const parts: React.ReactNode[] = []
     // Split by **bold** patterns
     const boldRegex = /\*\*(.+?)\*\*/g
@@ -1310,10 +1309,10 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
     let match: RegExpExecArray | null
     let keyIdx = 0
 
-    while ((match = boldRegex.exec(text)) !== null) {
+    while ((match = boldRegex.exec(cleanText)) !== null) {
       // Text before bold
       if (match.index > lastIndex) {
-        parts.push(...renderSpecialText(text.slice(lastIndex, match.index), keyIdx))
+        parts.push(...renderSpecialText(cleanText.slice(lastIndex, match.index), keyIdx))
         keyIdx += 10
       }
       // Bold text — check if it's a price or symbol
@@ -1333,11 +1332,11 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
     }
 
     // Remaining text after last bold
-    if (lastIndex < text.length) {
-      parts.push(...renderSpecialText(text.slice(lastIndex), keyIdx))
+    if (lastIndex < cleanText.length) {
+      parts.push(...renderSpecialText(cleanText.slice(lastIndex), keyIdx))
     }
 
-    return parts.length > 0 ? parts : text
+    return parts.length > 0 ? parts : cleanText
   }
 
   // Render special inline patterns (symbols like AAPL, numbers with $)

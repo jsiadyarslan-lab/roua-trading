@@ -43,19 +43,18 @@ export async function GET(request: NextRequest) {
 
     // Resolve image URLs and add site links
     const reports = rawReports.map((report: any) => {
-      // Resolve image URL
+      // Resolve image URL: prioritize generated article images from R2 storage
       let resolvedImageUrl: string | null = null;
-      if (report.imageUrl) {
-        if (report.imageUrl.startsWith('http')) {
-          resolvedImageUrl = report.imageUrl;
-        } else if (report.imageUrl.startsWith('/')) {
+      if (report.id) {
+        // Primary: use the generated article image endpoint (redirects to R2 storage)
+        resolvedImageUrl = `${newsSiteUrl}/api/article-image/${report.id}`;
+      } else if (report.imageUrl) {
+        // Fallback: only use imageUrl if no report ID available
+        if (report.imageUrl.startsWith('/')) {
           resolvedImageUrl = `${newsSiteUrl}${report.imageUrl}`;
         } else {
           resolvedImageUrl = report.imageUrl;
         }
-      } else if (report.id) {
-        // Fallback: use the article image endpoint
-        resolvedImageUrl = `${newsSiteUrl}/api/article-image/${report.id}`;
       }
 
       return {

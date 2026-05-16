@@ -48,19 +48,21 @@ export async function GET(request: NextRequest) {
                 sentimentNormalized = (article.sentimentScore - 50) / 50;
               }
 
-              // Resolve image URL: handle relative /api/article-image/{id} paths
+              // Resolve image URL: prioritize generated article images from R2 storage
+              // The /api/article-image/{id} endpoint returns AI-generated images specific to each article,
+              // while article.imageUrl often contains generic source logos (e.g. Seeking Alpha).
+              // Always prefer the generated image endpoint.
               let resolvedImageUrl: string | null = null;
-              if (article.imageUrl) {
-                if (article.imageUrl.startsWith('http')) {
-                  resolvedImageUrl = article.imageUrl;
-                } else if (article.imageUrl.startsWith('/')) {
+              if (article.id) {
+                // Primary: use the generated article image endpoint (redirects to R2 storage)
+                resolvedImageUrl = `${newsSiteUrl}/api/article-image/${article.id}`;
+              } else if (article.imageUrl) {
+                // Fallback: only use imageUrl if no article ID available
+                if (article.imageUrl.startsWith('/')) {
                   resolvedImageUrl = `${newsSiteUrl}${article.imageUrl}`;
                 } else {
                   resolvedImageUrl = article.imageUrl;
                 }
-              } else if (article.id) {
-                // Fallback: use the article image endpoint
-                resolvedImageUrl = `${newsSiteUrl}/api/article-image/${article.id}`;
               }
 
               return {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { X as XIcon, TrendingUp, TrendingDown } from 'lucide-react'
+import { X as XIcon, TrendingUp, TrendingDown, Loader2 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { getPnlColor, isPnlPositive } from '@/lib/unified-tokens'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
@@ -19,7 +19,8 @@ interface PositionCardProps {
   tp?: number
   stopLoss?: number
   takeProfit?: number
-  onClose?: (symbol: string) => void
+  onClose?: (symbol: string) => Promise<void>
+  loading?: boolean
   onSetSl?: (symbol: string, value: number) => void
   onSetTp?: (symbol: string, value: number) => void
 }
@@ -55,8 +56,10 @@ export function PositionCard({
   onClose,
   onSetSl,
   onSetTp,
+  loading,
 }: PositionCardProps) {
   const [confirmClose, setConfirmClose] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [editingSl, setEditingSl] = useState(false)
   const [editingTp, setEditingTp] = useState(false)
   const [slValue, setSlValue] = useState('')
@@ -379,9 +382,17 @@ export function PositionCard({
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <button
                 type="button"
-                onClick={() => {
-                  onClose(symbol)
-                  setConfirmClose(false)
+                disabled={closing || loading}
+                onClick={async () => {
+                  setClosing(true)
+                  try {
+                    await onClose(symbol)
+                  } catch {
+                    // Error handling is done in the parent via toast
+                  } finally {
+                    setClosing(false)
+                    setConfirmClose(false)
+                  }
                 }}
                 style={{
                   padding: '2px 6px',
@@ -391,14 +402,20 @@ export function PositionCard({
                   color: T.red,
                   fontSize: 7,
                   fontWeight: 800,
-                  cursor: 'pointer',
+                  cursor: closing || loading ? 'not-allowed' : 'pointer',
                   fontFamily: "'Cairo', sans-serif",
+                  opacity: closing || loading ? 0.6 : 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
                 }}
               >
+                {closing || loading ? <Loader2 size={9} className="animate-spin" /> : null}
                 تأكيد
               </button>
               <button
                 type="button"
+                disabled={closing || loading}
                 onClick={() => setConfirmClose(false)}
                 style={{
                   padding: '2px 4px',
@@ -407,7 +424,8 @@ export function PositionCard({
                   background: 'transparent',
                   color: T.textMuted,
                   fontSize: 7,
-                  cursor: 'pointer',
+                  cursor: closing || loading ? 'not-allowed' : 'pointer',
+                  opacity: closing || loading ? 0.5 : 1,
                 }}
               >
                 ✕

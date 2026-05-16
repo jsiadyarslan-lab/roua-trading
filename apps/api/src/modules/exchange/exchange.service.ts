@@ -18,6 +18,31 @@ export class ExchangeService {
   private readonly adapters: Record<string, IExchangeAdapter>;
   private readonly disableTwelveData: boolean;
 
+  /** Price sanity ranges — reject obviously wrong prices (e.g., $34.98 for BTC) */
+  private static readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
+    'BTC/USDT':  { min: 20000, max: 200000 },
+    'BTC/USD':   { min: 20000, max: 200000 },
+    'ETH/USDT':  { min: 1000, max: 20000 },
+    'ETH/USD':   { min: 1000, max: 20000 },
+    'BNB/USDT':  { min: 100, max: 5000 },
+    'BNB/USD':   { min: 100, max: 5000 },
+    'SOL/USDT':  { min: 10, max: 1000 },
+    'SOL/USD':   { min: 10, max: 1000 },
+    'XRP/USDT':  { min: 0.1, max: 100 },
+    'XRP/USD':   { min: 0.1, max: 100 },
+    'ADA/USDT':  { min: 0.05, max: 50 },
+    'ADA/USD':   { min: 0.05, max: 50 },
+    'DOGE/USDT': { min: 0.01, max: 10 },
+    'DOGE/USD':  { min: 0.01, max: 10 },
+    'XAU/USD':   { min: 1000, max: 5000 },
+  };
+
+  /** Known crypto base currencies — for _isCryptoSymbol without slash */
+  private static readonly CRYPTO_BASES = new Set([
+    'BTC', 'ETH', 'BNB', 'SOL', 'XRP', 'ADA', 'DOGE', 'LTC', 'DOT', 'AVAX',
+    'MATIC', 'SHIB', 'LINK', 'UNI', 'ATOM',
+  ]);
+
   // FIX: Quote cache — prevents hitting external APIs on every request.
   // Before this cache, getOpenPositions() fetched quotes for ALL positions on EVERY
   // page load, causing /api/trading/positions/summary to take 10+ seconds.
@@ -58,28 +83,39 @@ export class ExchangeService {
       return cached.data;
     }
 
-    const adapter = this._selectAdapter(symbol, source);
-    try {
-      const quote = await adapter.fetchQuote(symbol);
-      
-      // Store in cache
-      this._setQuoteCache(cacheKey, quote);
-      
-      return quote;
-    } catch (error: any) {
-      // If primary adapter fails (rate limit, 503, etc.), try fallback
-      if (adapter.name !== 'FreeFallback' && this.adapters['FreeFallback']) {
-        this.logger.warn(`⚠️ ${adapter.name} failed for ${symbol}: ${error.message}. Trying FreeFallback...`);
-        try {
-          const quote = await this.adapters['FreeFallback'].fetchQuote(symbol);
-          this._setQuoteCache(cacheKey, quote);
-          return quote;
-        } catch (fallbackError: any) {
-          this.logger.error(`FreeFallback also failed for ${symbol}: ${fallbackError.message}`);
-        }
-      }
-      throw error;
+    // Collect adapters to try: primary first, then fallbacks
+    const adapterOrder: IExchangeAdapter[] = [];
+    const primaryAdapter = this._selectAdapter(symbol, source);
+    adapterOrder.push(primaryAdapter);
+    // Add FreeFallback as a fallback option if it's not already the primary
+    if (primaryAdapter.name !== 'FreeFallback' && this.adapters['FreeFallback']) {
+      adapterOrder.push(this.adapters['FreeFallback']);
     }
+
+    let lastError: any;
+    for (const adapter of adapterOrder) {
+      try {
+        const quote = await adapter.fetchQuote(symbol);
+
+        // Price sanity check — reject obviously wrong prices (e.g., $34.98 for BTC)
+        const sanity = ExchangeService.PRICE_SANITY[symbol] || ExchangeService.PRICE_SANITY[symbol.replace('USD', 'USDT')];
+        if (sanity && (quote.price < sanity.min || quote.price > sanity.max)) {
+          this.logger.warn(`⚠️ Price sanity check FAILED for ${symbol}: ${quote.price} outside [${sanity.min}, ${sanity.max}] — rejecting and trying next adapter`);
+          // Try next adapter instead of returning wrong price
+          continue;
+        }
+
+        // Store in cache
+        this._setQuoteCache(cacheKey, quote);
+        return quote;
+      } catch (error: any) {
+        lastError = error;
+        this.logger.warn(`⚠️ ${adapter.name} failed for ${symbol}: ${error.message}. Trying next...`);
+      }
+    }
+
+    // All adapters failed or sanity checks failed
+    throw lastError || new Error(`All adapters failed sanity checks for ${symbol}`);
   }
 
   /**
@@ -203,7 +239,9 @@ export class ExchangeService {
    */
   private _isCryptoSymbol(symbol: string): boolean {
     if (!symbol.includes('/')) {
-      return false; // Stocks like AAPL, TSLA — not crypto
+      // Check if it's a crypto symbol without slash (e.g., "BTC", "ETHUSDT")
+      const base = symbol.replace(/USDT?$/i, '');
+      return ExchangeService.CRYPTO_BASES.has(base.toUpperCase());
     }
 
     const [base, quote] = symbol.split('/');

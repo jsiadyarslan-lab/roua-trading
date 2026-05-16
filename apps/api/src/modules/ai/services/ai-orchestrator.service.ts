@@ -1735,7 +1735,12 @@ export class AIOrchestratorService implements OnModuleDestroy {
       // FIX: Use COINCAP_IDS mapping → "bitcoin" → correct price
       (async () => {
         const base = symbol.split('/')[0].toUpperCase();
-        const coincapId = AIOrchestratorService.COINCAP_IDS[base] || base.toLowerCase();
+        const coincapId = AIOrchestratorService.COINCAP_IDS[base];
+        if (!coincapId) {
+          // Unknown symbol — skip CoinCap to avoid returning wrong asset data
+          // (e.g., "BTC" → Bitcoin Group SE stock at $34.98 instead of Bitcoin at $79K)
+          throw new Error(`No CoinCap ID mapping for ${base} — skipping to prevent wrong price`);
+        }
         const res = await axios.get(`https://api.coincap.io/v2/assets/${coincapId}`, { timeout: 5000 });
         const price = parseFloat(res.data?.data?.priceUsd || '0');
         if (price <= 0) throw new Error('CoinCap price=0');
@@ -1773,7 +1778,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
         } else if (base === 'XAU' || base === 'XAG' || base === 'XPT') {
           yahooSymbol = `${base}${quote}=X`;
         } else if (!quote || quote === 'USD' || quote === 'USDT') {
-          yahooSymbol = base;
+          yahooSymbol = `${base}-USD`;  // FIX: "BTC" → stock price ($34.98), "BTC-USD" → crypto price (~$79K)
         } else {
           yahooSymbol = `${base}-${quote}`;
         }

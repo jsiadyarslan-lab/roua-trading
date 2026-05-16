@@ -6,6 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { RedisService } from '../../common/redis/redis.service';
 import { CredentialsService } from '../portfolio/credentials/credentials.service';
 import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
@@ -44,6 +45,7 @@ export class TradingService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
     private readonly riskManager: RiskManagerService,
@@ -894,6 +896,13 @@ export class TradingService {
       `📈 Position closed: ${position.symbol} — PnL: ${pnl.toFixed(2)} USD`,
     );
 
+    // FIX: Clear Smart Executor processed keys for this position so new briefs
+    // for the same symbol can be executed. Without this, the processedKey
+    // `smart-executor:processed:{briefId}:{userId}` persists for 24 hours,
+    // blocking the executor from opening new positions for this user+symbol
+    // after the old position was closed.
+    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
+
     return {
       order: closedOrder,
       pnl,
@@ -901,6 +910,73 @@ export class TradingService {
         where: { id: position.id },
       }),
     };
+  }
+
+  /**
+   * FIX: Clear Smart Executor processed Redis keys that match a closed position's
+   * symbol. When a position is closed, the old `smart-executor:processed:{briefId}:{userId}`
+   * key must be removed so that new briefs for the same symbol can be executed.
+   *
+   * The processed key stores JSON like: {"orderId":"...","executedAt":"..."}
+   * The key format is: smart-executor:processed:{briefId}:{userId}
+   * Since briefId is opaque, we scan all keys for this userId, get each key's value,
+   * and check if the associated position's symbol matches the closed position.
+   *
+   * We also clear the corresponding DB-persisted keys (smart-executor:processed:*:userId:db).
+   */
+  private async _clearProcessedKeysForPosition(userId: string, symbol: string): Promise<void> {
+    try {
+      const pattern = `smart-executor:processed:*:${userId}`;
+      const keys = await this.redis.scanKeys(pattern);
+      let cleared = 0;
+
+      for (const key of keys) {
+        try {
+          // The key format is: smart-executor:processed:{briefId}:{userId}
+          // Extract the briefId from the key
+          const parts = key.split(':');
+          // Expected: ['smart-executor', 'processed', briefId, userId]
+          const briefId = parts.length >= 4 ? parts[2] : null;
+
+          if (!briefId) continue;
+
+          // Look up the brief in the DB to check its pair/symbol
+          const brief = await this.prisma.tradingBrief.findUnique({
+            where: { id: briefId },
+            select: { pair: true },
+          });
+
+          if (brief && brief.pair === symbol) {
+            // Delete the Redis processed key
+            await this.redis.del(key);
+            // Also delete the DB-persisted fallback key
+            try {
+              await this.prisma.setting.deleteMany({
+                where: { key: `${key}:db` },
+              });
+            } catch { /* non-critical */ }
+            cleared++;
+            this.logger.debug(
+              `🗑️ Cleared processedKey ${key} for closed position ${symbol} (user: ${userId})`,
+            );
+          }
+        } catch (keyErr: any) {
+          this.logger.warn(
+            `Failed to check/clear processed key ${key}: ${keyErr.message}`,
+          );
+        }
+      }
+
+      if (cleared > 0) {
+        this.logger.log(
+          `🗑️ Cleared ${cleared} processed key(s) for ${symbol} (user: ${userId}) — new positions can now be opened`,
+        );
+      }
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to clear processed keys for ${symbol} (user: ${userId}): ${error.message}`,
+      );
+    }
   }
 
   /**
@@ -1061,6 +1137,10 @@ export class TradingService {
       `🔴 FORCE CLOSED position ${position.id} (${position.symbol}) — reason: ${reason}. ` +
       `NO exchange order was executed. DB updated only.`,
     );
+
+    // FIX: Clear Smart Executor processed keys for this position so new briefs
+    // for the same symbol can be executed after force close.
+    this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
     return {
       order: closedOrder,

@@ -209,6 +209,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       try {
         const priceCachePatterns = [
           'fallback:quote:*',   // FreeFallbackAdapter cache (5min TTL)
+          'fallback:lastprice:*', // FreeFallbackAdapter poisoned cache (24h TTL)
           'binance:quote:*',    // BinanceAdapter cache (3s TTL)
           'twelvedata:quote:*', // TwelveDataAdapter cache (10min TTL)
           'exchange:quote:*',   // ExchangeService cache (30s TTL)
@@ -1104,10 +1105,10 @@ export class SmartExecutorService implements OnModuleDestroy {
     // Get active briefs from the Strategic Council
     let activeBriefs: any[] = [];
     try {
-      // FIX: SmartExecutor handles ONLY fast timeframes (M5, M15) from StrategicCouncil
+      // FIX: SmartExecutor handles ONLY executor timeframes (M1, M5, M15) from StrategicCouncil
       // Slower timeframes (M30, H1, H4, D1, W1) belong to the Agent via AIOrchestratorService
       activeBriefs = (await this.councilService.getActiveBriefs()).filter(
-        b => ['M1', 'M5', 'M15'].includes(b.timeframe)
+        b => isExecutorTimeframe(b.timeframe)
       );
     } catch (e: any) {
       this.logger.error(`⚔️ Failed to get active briefs: ${e.message}`);
@@ -1568,10 +1569,26 @@ export class SmartExecutorService implements OnModuleDestroy {
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
       if (result.success) {
-        // Mark as processed in Redis (survives restarts — 24h TTL matches brief lifecycle)
+        // FIX: Mark as processed in Redis with TTL based on the brief's timeframe.
+        // Previously used 24h TTL which blocked new positions for the same pair
+        // long after the brief expired. Now the TTL matches the timeframe's natural
+        // duration so processed keys expire when the brief would naturally be stale:
+        //   M1: 1 minute, M5: 5 minutes, M15: 15 minutes
+        // For other timeframes, fall back to 15 minutes.
+        const TIMEFRAME_TTL_MS: Record<string, number> = {
+          M1: 1 * 60 * 1000,      // 1 minute
+          M5: 5 * 60 * 1000,      // 5 minutes
+          M15: 15 * 60 * 1000,    // 15 minutes
+          M30: 30 * 60 * 1000,    // 30 minutes
+          H1: 1 * 60 * 60 * 1000, // 1 hour
+          H4: 4 * 60 * 60 * 1000, // 4 hours
+          D1: 24 * 60 * 60 * 1000, // 24 hours
+          W1: 7 * 24 * 60 * 60 * 1000, // 7 days
+        };
+        const processedTtlMs = TIMEFRAME_TTL_MS[brief.timeframe] || 15 * 60 * 1000;
         const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
-        const processedValue = JSON.stringify({ orderId: result.orderId, executedAt: new Date().toISOString() });
-        await this.redis.set(processedKey, processedValue, 86400000);
+        const processedValue = JSON.stringify({ orderId: result.orderId, executedAt: new Date().toISOString(), pair: brief.pair, timeframe: brief.timeframe });
+        await this.redis.set(processedKey, processedValue, processedTtlMs);
         // FIX: Also save to DB so dedup survives Redis restart
         try {
           await this.prisma.setting.upsert({
@@ -1594,7 +1611,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         // there were no more active briefs to process, even though dozens existed.
         //
         // Now: Keep the brief ACTIVE. The deduplication is handled by:
-        //   1. Redis processedKey (smart-executor:processed:{briefId}:{userId}) — 24h TTL
+        //   1. Redis processedKey (smart-executor:processed:{briefId}:{userId}) — timeframe-based TTL
         //      prevents the SAME brief from being executed twice for the SAME user
         //   2. Position.findFirst in OrderDispatcher — prevents duplicate positions
         //      for the same user+symbol from ANY source

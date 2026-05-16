@@ -20,8 +20,9 @@ import { AuditService } from '../../../audit/audit.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import {
   ALL_COUNCIL_PAIRS,
-  COUNCIL_TIMEFRAMES,
-  AGENT_FAST_TIMEFRAMES,
+  EXECUTOR_TIMEFRAMES,
+  AGENT_TIMEFRAMES,
+  AGENT_SLOW_TIMEFRAMES,
   TIMEFRAME_EXPIRY_MS,
   TIMEFRAME_RR,
   MIN_BRIEF_CONFIDENCE,
@@ -186,15 +187,17 @@ export class StrategicCouncilService {
     if (this.isInSession) return; // don't run if main session is active
 
     try {
-      this.logger.debug('🏛️ Agent Council: generating M30/H1 briefs...');
-      // Reuse _analyzePair but for agent timeframes only
-      const pairs = ALL_COUNCIL_PAIRS.slice(0, 5); // top 5 pairs for agent
-      for (const pair of pairs) {
+      this.logger.debug('🏛️ Agent Council: generating M30/H1/H4/D1/W1 briefs...');
+      // Fast timeframes (M30, H1): top 5 pairs
+      const fastPairs = ALL_COUNCIL_PAIRS.slice(0, 5);
+      for (const pair of fastPairs) {
         try {
           const marketData = await this.orchestrator.fetchQuickMarketData(pair);
           if (!marketData?.price) continue;
 
-          for (const tf of AGENT_FAST_TIMEFRAMES as any[]) {
+          for (const tf of AGENT_TIMEFRAMES as any[]) {
+            // Slow timeframes (H4, D1, W1): only top 3 pairs to reduce AI costs
+            if (AGENT_SLOW_TIMEFRAMES.includes(tf as any) && fastPairs.indexOf(pair) >= 3) continue;
             await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
           }
         } catch (e: any) {
@@ -729,7 +732,7 @@ export class StrategicCouncilService {
     }
 
     // Analyze each timeframe
-    for (const timeframe of COUNCIL_TIMEFRAMES) {
+    for (const timeframe of EXECUTOR_TIMEFRAMES) {
       try {
         await this._analyzePairTimeframe(pair, timeframe, currentPrice, result);
       } catch (error: any) {

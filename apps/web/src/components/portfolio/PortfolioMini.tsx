@@ -46,6 +46,7 @@ function fmt(n: number, decimals = 2) {
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { closePositionUnified, isNestJsId } from '@/lib/api-fetch'
+import { toast } from '@/hooks/use-toast'
 
 export function usePortfolioSummary() {
   const positions = usePositionsStore(s => s.positions)
@@ -185,6 +186,7 @@ export function PortfolioMini({
 }) {
   const { data } = usePortfolioSummary()
   const positions = usePositionsStore(s => s.positions)
+  const [closingSymbol, setClosingSymbol] = useState<string | null>(null)
   const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
   const pad = compact ? '10px 12px' : '8px 10px'
@@ -381,26 +383,45 @@ export function PortfolioMini({
               currentPrice={Number(p.currentPrice) || 0}
               unrealizedPnl={p.unrealizedPnl || 0}
               marketValue={Number(p.marketValue) || 0}
+              loading={closingSymbol === (p.symbol || '—')}
               onClose={async (symbol: string) => {
                 const pos = positions.find(pp => pp.symbol === symbol)
                 if (!pos) return
+                setClosingSymbol(symbol)
                 try {
                   const dbId = pos.dbId || (pos.id && isNestJsId(pos.id) ? pos.id : undefined)
                   const result = await closePositionUnified(
                     pos.id || symbol,
                     undefined,
-                    { dbId },
+                    {
+                      dbId,
+                      onClosed: () => {
+                        usePositionsStore.getState().refreshAfterTrade()
+                      },
+                    },
                   )
                   if (result.success) {
                     usePositionsStore.getState().refreshAfterTrade()
+                    toast({
+                      title: 'تم إغلاق المركز',
+                      description: `تم إغلاق مركز ${symbol} بنجاح`,
+                    })
                   } else {
-                    // FIX: Show error to user instead of silent failure
-                    console.error('[PortfolioMini] Close failed:', result.error)
-                    alert(`فشل إغلاق المركز: ${result.error || 'خطأ غير معروف'}`)
+                    toast({
+                      title: 'فشل إغلاق المركز',
+                      description: result.error || 'حدث خطأ غير معروف',
+                      variant: 'destructive',
+                    })
                   }
-                } catch (err: any) {
-                  console.error('[PortfolioMini] Close error:', err)
-                  alert(`خطأ في إغلاق المركز: ${err.message || 'خطأ غير معروف'}`)
+                } catch (err) {
+                  console.warn('[PortfolioMini] Close failed:', err)
+                  toast({
+                    title: 'فشل إغلاق المركز',
+                    description: err instanceof Error ? err.message : 'حدث خطأ أثناء إغلاق المركز',
+                    variant: 'destructive',
+                  })
+                } finally {
+                  setClosingSymbol(null)
                 }
               }}
             />

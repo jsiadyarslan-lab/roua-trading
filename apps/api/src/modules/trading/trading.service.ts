@@ -735,18 +735,33 @@ export class TradingService {
     if (!execution.success) {
       const errorMsg = execution.error || '';
 
-      // FIX: If balance is 0 on all wallets, try force-close (DB only).
-      // This handles positions already closed on exchange, API key issues,
-      // or any situation where the exchange refuses to close.
-      if (errorMsg.includes('رصيد') && errorMsg.includes('غير متاح')) {
+      // FIX: Force-close on ANY exchange error when position is paper-trading
+      // or exchange is unreachable — not just for the specific Arabic text
+      // "رصيد غير متاح". Paper-trading positions have no real exchange state,
+      // so force-closing in DB is always safe. For real exchange positions,
+      // only force-close when the exchange is unreachable (the close might
+      // have partially executed, so we can't safely force-close).
+      // User-cancel errors (e.g. "order not found") should also be force-closed
+      // because the position is likely already closed on the exchange.
+      const isPaperTrading = position.exchange === 'paper-trading';
+      const isExchangeUnreachable = /timeout|ECONNREFUSED|ECONNRESET|ETIMEDOUT|network|unreachable/i.test(errorMsg);
+      const isUserCancel = /cancel|not found|already closed|unknown order/i.test(errorMsg);
+      const isInsufficientBalance = (errorMsg.includes('رصيد') && errorMsg.includes('غير متاح'))
+        || /insufficient.*balance|not enough/i.test(errorMsg);
+
+      const shouldForceClose = isPaperTrading || isExchangeUnreachable || isInsufficientBalance || isUserCancel;
+
+      if (shouldForceClose) {
         this.logger.warn(
-          `⚡ Exchange close failed for ${position.symbol} due to zero balance — attempting force close (DB only)`,
+          `⚡ Exchange close failed for ${position.symbol} — attempting force close (DB only). ` +
+          `Reason: ${isPaperTrading ? 'paper-trading' : isExchangeUnreachable ? 'exchange-unreachable' : isInsufficientBalance ? 'insufficient-balance' : 'user-cancel'}. ` +
+          `Error: ${errorMsg}`,
         );
         try {
           return await this.forceClosePosition(
             userId,
             position.id,
-            `Auto force-close after insufficient balance: ${errorMsg}`,
+            `Auto force-close: ${isPaperTrading ? 'paper-trading position' : isExchangeUnreachable ? 'exchange unreachable' : isInsufficientBalance ? 'insufficient balance' : 'position likely already closed'} — ${errorMsg}`,
             ipAddress,
             userAgent,
           );
@@ -757,6 +772,8 @@ export class TradingService {
         }
       }
 
+      // Only throw for real trading positions where the exchange might have
+      // partially executed — force-closing would lose sync with exchange state.
       throw new BadRequestException(
         `فشل في إغلاق المركز: ${execution.error}`,
       );

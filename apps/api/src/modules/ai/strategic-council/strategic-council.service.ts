@@ -198,11 +198,15 @@ export class StrategicCouncilService {
             await this._analyzePairTimeframe(pair, tf, marketData.price, { pairs: 0, briefs: 0, errors: 0, sessionId: 'agent-session', durationMs: 0 } as any);
           }
         } catch (e: any) {
-          this.logger.debug(`Agent session: ${pair} failed — ${e.message}`);
+          // FIX: Log at WARN instead of DEBUG — these errors were invisible
+          // at debug level, making it impossible to diagnose why agent briefs
+          // weren't being generated.
+          this.logger.warn(`Agent session: ${pair} failed — ${e.message}`);
         }
       }
     } catch (e: any) {
-      this.logger.debug(`Agent session error: ${e.message}`);
+      // FIX: Log at WARN instead of DEBUG for visibility
+      this.logger.warn(`Agent session error: ${e.message}`);
     }
   }
 

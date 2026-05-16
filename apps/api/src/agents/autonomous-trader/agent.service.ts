@@ -227,25 +227,38 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
       this.logger.log('🧠 Running startup phantom cleanup (preserving user data)...');
 
-      // ── STOP: Set stale RUNNING agent sessions to STOPPED in DB ──
-      // These were active before the restart and should not auto-resume.
+      // ── STOP: Only reset sessions in transitional states to STOPPED ──
+      // FIX: Previously, ALL sessions (RUNNING, PAUSED, DAILY_LIMIT_REACHED)
+      // were set to STOPPED on restart. This killed legitimately RUNNING
+      // sessions that should auto-resume. Now only sessions in transitional
+      // states (STARTING, STOPPING) are reset — RUNNING sessions are preserved
+      // so they can auto-resume after a server restart.
       try {
         const stopped = await this.prisma.agentSession.updateMany({
-          where: { status: { in: ['RUNNING', 'PAUSED', 'DAILY_LIMIT_REACHED'] } },
+          where: { status: { in: ['STARTING', 'STOPPING'] } },
           data: { status: 'STOPPED', updatedAt: new Date() },
         });
         if (stopped.count > 0) {
-          this.logger.log(`🧠 STARTUP: Stopped ${stopped.count} stale agent session(s)`);
+          this.logger.log(`🧠 STARTUP: Stopped ${stopped.count} transitional agent session(s) (STARTING/STOPPING)`);
+        }
+
+        // Log count of preserved RUNNING sessions for visibility
+        const running = await this.prisma.agentSession.count({
+          where: { status: 'RUNNING' },
+        });
+        if (running > 0) {
+          this.logger.log(`🧠 STARTUP: Preserved ${running} RUNNING agent session(s) — will auto-resume`);
         }
       } catch (err: any) {
-        this.logger.warn(`🧠 Failed to stop agent sessions: ${err.message}`);
+        this.logger.warn(`🧠 Failed to update agent sessions: ${err.message}`);
       }
 
       // ── PURGE: Clear volatile agent states from Redis ──
-      // Clear stale Redis agent states. Since the DB sessions are already
-      // marked as STOPPED above, these Redis states are stale and should be
-      // removed. The _getActiveAgents() DB recovery will re-populate from
-      // DB for any legitimately running agents.
+      // Clear stale Redis agent states. Transitional sessions (STARTING/STOPPING)
+      // are already marked as STOPPED above. Redis states for these are stale.
+      // RUNNING sessions' Redis states are preserved since those sessions auto-resume.
+      // The _getActiveAgents() DB recovery will re-populate from DB for any
+      // legitimately running agents whose Redis state was lost.
       try {
         const agentKeys = await this.redis.scanKeys('agent:state:*');
         let cleared = 0;

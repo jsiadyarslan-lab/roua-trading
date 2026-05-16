@@ -315,7 +315,11 @@ export class TradingController {
       throw new BadRequestException('معرف المركز مطلوب');
     }
 
-    return this.tradingService.closePosition(
+    // FIX: Use closePositionWithRetry instead of closePosition to prevent
+    // optimistic lock failures when PositionMonitor and user try to close
+    // the same position simultaneously. closePositionWithRetry retries on
+    // OPTIMISTIC_LOCK_FAILURE instead of throwing immediately.
+    return this.tradingService.closePositionWithRetry(
       req.user.id,
       request,
       req.ip,

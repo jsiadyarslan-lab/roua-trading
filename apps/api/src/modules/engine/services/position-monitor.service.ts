@@ -436,7 +436,10 @@ export class PositionMonitorService {
     reason: 'STOP_LOSS' | 'TAKE_PROFIT',
   ): Promise<void> {
     try {
-      await this.tradingService.closePosition(
+      // FIX: Use closePositionWithRetry instead of closePosition to prevent
+      // optimistic lock failures when user and monitor try to close the same
+      // position simultaneously (e.g. user clicks close while SL triggers).
+      await this.tradingService.closePositionWithRetry(
         position.userId,
         {
           positionId: position.id,

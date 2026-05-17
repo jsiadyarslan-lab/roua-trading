@@ -1836,7 +1836,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         // ── INSTANT NOTIFICATION: Push real-time alert to user ──
         try {
           const directionAr = brief.direction === 'BUY' ? 'شراء' : 'بيع';
-          const modeLabel = isSimulatedExecution ? 'ورقي' : 'حقيقي';
+          const modeLabel = isSimulated ? 'ورقي' : 'حقيقي';
           await this.notificationService.sendNotification({
             userId,
             type: 'POSITION_OPENED',
@@ -1852,7 +1852,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               stopLoss: brief.stopLoss,
               takeProfit: brief.takeProfit,
               confidence: brief.confidence,
-              isSimulated: isSimulatedExecution,
+              isSimulated: isSimulated,
             },
             source: 'executor',
             action: brief.direction === 'BUY' ? 'BUY' : 'SELL',

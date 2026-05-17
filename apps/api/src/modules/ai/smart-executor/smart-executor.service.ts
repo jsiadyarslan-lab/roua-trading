@@ -1293,10 +1293,33 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.debug(`⚔️ Could not refresh activeCredentialId for user ${userId}: ${err.message}`);
     }
 
-    // If no active credential, skip execution — user hasn't selected an account yet
+    // V126 FIX: If no active credential selected, auto-pick the first available one.
+    // Before this fix: if the user never visited settings to pick an account,
+    // the executor silently skipped ALL briefs forever — no trades ever executed.
     if (!userState.activeCredentialId) {
-      this.logger.debug(`⚔️ User ${userId} has no active account selected — skipping briefs`);
-      return;
+      try {
+        const firstCred = await this.prisma.exchangeCredential.findFirst({
+          where: { userId, isActive: true },
+          orderBy: { createdAt: 'asc' },
+          select: { id: true, exchange: true },
+        });
+        if (firstCred) {
+          userState.activeCredentialId = firstCred.id;
+          // Persist so next tick doesn't repeat this lookup
+          await this.prisma.setting.upsert({
+            where: { key: `user:${userId}:activeCredentialId` },
+            update: { value: firstCred.id },
+            create: { key: `user:${userId}:activeCredentialId`, value: firstCred.id },
+          }).catch(() => {});
+          this.logger.log(`⚔️ Auto-selected credential ${firstCred.id} (${firstCred.exchange}) for user ${userId}`);
+        } else {
+          this.logger.debug(`⚔️ User ${userId} has no credentials at all — skipping`);
+          return;
+        }
+      } catch (err: any) {
+        this.logger.warn(`⚔️ Could not auto-select credential for ${userId}: ${err.message}`);
+        return;
+      }
     }
 
     // V126: Determine if the active credential is simulated (paper/testnet)

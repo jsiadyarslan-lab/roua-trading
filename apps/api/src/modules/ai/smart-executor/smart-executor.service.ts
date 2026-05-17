@@ -1299,7 +1299,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     if (!userState.activeCredentialId) {
       try {
         const firstCred = await this.prisma.exchangeCredential.findFirst({
-          where: { userId, isActive: true },
+          where: { userId, isValid: true },
           orderBy: { createdAt: 'asc' },
           select: { id: true, exchange: true },
         });

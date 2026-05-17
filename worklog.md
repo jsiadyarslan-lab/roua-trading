@@ -277,3 +277,38 @@ Stage Summary:
   5. exposure-manager.service.ts — No changes (canOpenPosition kept for advisory/dashboard use, but removed from execution path)
 - Root cause addressed: Position lock deadlock eliminated, agent session isolation fixed, retry windows reduced from 24h to 60s
 - Expected production result: Executor and Agent resume trading immediately after deployment
+
+---
+Task ID: V135-deploy-v134-fixes
+Agent: Main Agent
+Task: Deploy V132-V134 fixes to production, verify build and deployment
+
+Work Log:
+- Read full codebase: SmartExecutor, Agent, OrderExecutor, PositionMonitor, StrategicCouncil, OrderDispatcher
+- Identified that V133 (stop open→close loop) and V134 (consolidated briefs + wider SL/TP) fixes were committed but NOT deployed
+- ROOT CAUSE: Docker BUILD_CACHE was still v122 — Railway's Docker layer caching reused old build, never rebuilding with new code
+- Bumped BUILD_CACHE from v122-testnet-detect to v134-consolidated-briefs-wider-sl
+- Updated deploy marker from ROUA-V122-TESTNET-DETECT to ROUA-V134-CONSOLIDATED-BRIEFS-WIDER-SL
+- Verified TypeScript compilation passes (both NestJS API and Next.js web)
+- Pushed to GitHub (V135 commit), triggered Railway auto-deploy
+- Waited for deployment (~2 minutes)
+- Confirmed V134 is now running on production:
+  - deployMarker: ROUA-V134-CONSOLIDATED-BRIEFS-WIDER-SL
+  - buildId changed from noxGbvQISR1aAcVeuGu7_ to tz4Nysjqp09ROf2ND2_57
+  - uptime reset to 35s (fresh deployment)
+- Verified V134 SL/TP values in production briefs:
+  - M1: 0.50% SL ✅ (was 0.1%)
+  - M5: 0.80% SL ✅ (was 0.2%)
+  - M15: 1.00% SL ✅ (was 0.3%)
+- Verified NO conflicting briefs (BUY+SELL on same pair): ALL pairs have consistent direction ✅
+- Verified SmartExecutor is running (isRunning=true, activeBriefs=33)
+- Note: 0 executions because no users have executor enabled (needs user action from dashboard)
+
+Stage Summary:
+- V132-V134 fixes now LIVE on production
+- The "opened and closed after 1 second" bug has TWO root causes, both fixed:
+  1. V133: Executor no longer closes existing positions to execute new briefs
+  2. V134: Consolidated briefs prevent BUY+SELL conflicts on same pair
+  3. V134: Wider SL/TP prevents Position Monitor from closing positions immediately
+- Production deployment verified at https://roua-trading-production.up.railway.app
+- Executor needs user to enable it from dashboard to start trading

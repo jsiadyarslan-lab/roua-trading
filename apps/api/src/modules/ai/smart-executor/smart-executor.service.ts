@@ -465,31 +465,28 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     }
 
-    // ── V119 FIX: If user didn't explicitly choose paper trading,
-    // check if they have real exchange credentials. If they do,
-    // use auto-routing (isPaperTrading=false, no credentialId)
-    // so _selectBestCredential can route based on symbol type.
-    // Only default to paper if user has NO real credentials. ──
+    // ── SUSTAINABLE FIX: Respect user's explicit trading mode choice. ──
+    //
+    // V119 auto-routing was OVERRIDING the user's choice — when they clicked
+    // "ورقي" (paper), it would silently switch to real trading if they had
+    // real exchange credentials. This is DANGEROUS for a trading platform:
+    //   1. User expects paper trading → gets real trading with real money
+    //   2. Warning message says "حقيقي" even though user chose "ورقي"
+    //   3. No way to use paper trading once you connect a real exchange
+    //
+    // NEW RULE: The user's click is ABSOLUTE.
+    //   - "ورقي" button → isPaperTrading=true, period.
+    //   - "Binance" button → isPaperTrading=false, credentialId=that credential
+    //   - Auto-routing only happens at EXECUTION time (_selectBestCredential)
+    //     when isPaperTrading=false and no credentialId is specified.
     let effectiveIsPaper = config?.isPaperTrading ?? true;
     let effectiveCredentialId = config?.credentialId;
 
-    if (effectiveIsPaper && !config?.credentialId) {
-      // User hasn't explicitly chosen — check for real credentials
-      const realCredentials = await this.prisma.exchangeCredential.findMany({
-        where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
-        orderBy: [{ testnet: 'asc' }, { lastValidatedAt: 'desc' }],
-        take: 1,
-      });
-      if (realCredentials.length > 0) {
-        // User has real credentials — use auto-routing instead of paper
-        effectiveIsPaper = false;
-        effectiveCredentialId = undefined; // Let _selectBestCredential handle routing
-        this.logger.log(
-          `⚔️ V119 Auto-detected real credentials for user ${userId} — ` +
-          `switching from paper to real trading (auto-routing)`,
-        );
-      }
-    }
+    // ── SUSTAINABLE FIX: Read risk settings from user's saved preferences. ──
+    // Previously, enableUser() used hardcoded values (1%, 5 positions) that
+    // ignored the user's Settings page. Now we read from the Setting table
+    // which the Settings page writes to — single source of truth.
+    const userRiskSettings = await this._loadUserRiskSettings(userId);
 
     const state: UserExecutorState = {
       enabled: true,
@@ -498,8 +495,8 @@ export class SmartExecutorService implements OnModuleDestroy {
       dailyResetAt: new Date().toISOString(),
       lastTradeAt: null,
       consecutiveLosses: 0,
-      maxOpenPositions: config?.maxOpenPositions || this.config.maxOpenPositions,
-      riskPerTradePercent: config?.riskPerTradePercent || this.config.riskPerTradePercent,
+      maxOpenPositions: config?.maxOpenPositions || userRiskSettings.maxOpenPositions,
+      riskPerTradePercent: config?.riskPerTradePercent || userRiskSettings.riskPerTradePercent,
       credentialId: effectiveCredentialId,
       isPaperTrading: effectiveIsPaper,
     };
@@ -1103,6 +1100,81 @@ export class SmartExecutorService implements OnModuleDestroy {
     return Array.from(userIds);
   }
 
+  // ── User Risk Settings (Single Source of Truth) ──
+
+  /**
+   * SUSTAINABLE FIX: Load user's risk settings from the Setting table.
+   *
+   * PROBLEM: User risk settings (userRiskPerTrade, userMaxDailyLoss, etc.)
+   * were stored in the Setting table via the Settings page UI, but the
+   * Smart Executor NEVER read them. It used hardcoded values (1%, 5 positions)
+   * instead, making the Settings page risk controls write-only — users would
+   * change percentages and nothing would happen.
+   *
+   * SOLUTION: This method is the SINGLE SOURCE OF TRUTH for reading risk
+   * settings. It reads from the same Setting table that the Settings page
+   * writes to (key format: "user:{userId}:userRiskPerTrade"), and falls
+   * back to the executor's default config if no user override exists.
+   *
+   * This is called:
+   *   1. In enableUser() — when a user activates the executor
+   *   2. In _processUserBriefs() — every tick, so changes take effect within 10s
+   *
+   * Key format in Setting table: "user:{userId}:{settingName}"
+   * Values are stored as strings (e.g., "1", "5")
+   */
+  private async _loadUserRiskSettings(userId: string): Promise<{
+    riskPerTradePercent: number;
+    maxOpenPositions: number;
+    maxDailyLossPercent: number;
+    stopLossPercent: number;
+    takeProfitPercent: number;
+    riskWarningAcknowledged: boolean;
+  }> {
+    const defaults = {
+      riskPerTradePercent: this.config.riskPerTradePercent,    // 1%
+      maxOpenPositions: this.config.maxOpenPositions,          // 5
+      maxDailyLossPercent: this.config.maxDailyLossPercent,    // 5%
+      stopLossPercent: 2,                                       // 2%
+      takeProfitPercent: 4,                                     // 4%
+      riskWarningAcknowledged: false,
+    };
+
+    try {
+      const settings = await this.prisma.setting.findMany({
+        where: { key: { startsWith: `user:${userId}:` } },
+      });
+
+      const map: Record<string, string> = {};
+      for (const s of settings) {
+        const cleanKey = s.key.replace(`user:${userId}:`, '');
+        map[cleanKey] = s.value;
+      }
+
+      return {
+        riskPerTradePercent: map.userRiskPerTrade
+          ? Math.max(0.1, Math.min(10, parseFloat(map.userRiskPerTrade)))
+          : defaults.riskPerTradePercent,
+        maxOpenPositions: map.userMaxOpenPositions
+          ? Math.max(1, Math.min(50, parseInt(map.userMaxOpenPositions, 10)))
+          : defaults.maxOpenPositions,
+        maxDailyLossPercent: map.userMaxDailyLoss
+          ? Math.max(1, Math.min(50, parseFloat(map.userMaxDailyLoss)))
+          : defaults.maxDailyLossPercent,
+        stopLossPercent: map.userStopLoss
+          ? Math.max(0.1, Math.min(50, parseFloat(map.userStopLoss)))
+          : defaults.stopLossPercent,
+        takeProfitPercent: map.userTakeProfit
+          ? Math.max(0.1, Math.min(100, parseFloat(map.userTakeProfit)))
+          : defaults.takeProfitPercent,
+        riskWarningAcknowledged: map.riskWarningAcknowledged === 'true',
+      };
+    } catch (err: any) {
+      this.logger.debug(`⚔️ Failed to load user risk settings for ${userId}: ${err.message} — using defaults`);
+      return defaults;
+    }
+  }
+
   // ── Core: Tick Loop ──
 
   /**
@@ -1189,6 +1261,38 @@ export class SmartExecutorService implements OnModuleDestroy {
     const userState = await this.getUserState(userId);
     if (!userState || !userState.enabled) return;
 
+    // ── SUSTAINABLE FIX: Refresh risk settings from user preferences every tick. ──
+    // This ensures that changes made in the Settings page take effect within 10s.
+    // Without this, the executor uses stale values from when the user first enabled it.
+    // This is the BRIDGE between the Settings page (write) and the executor (read).
+    try {
+      const freshRiskSettings = await this._loadUserRiskSettings(userId);
+      let needsUpdate = false;
+
+      if (userState.riskPerTradePercent !== freshRiskSettings.riskPerTradePercent) {
+        this.logger.log(`⚔️ User ${userId} riskPerTradePercent updated: ${userState.riskPerTradePercent}% → ${freshRiskSettings.riskPerTradePercent}%`);
+        userState.riskPerTradePercent = freshRiskSettings.riskPerTradePercent;
+        needsUpdate = true;
+      }
+      if (userState.maxOpenPositions !== freshRiskSettings.maxOpenPositions) {
+        this.logger.log(`⚔️ User ${userId} maxOpenPositions updated: ${userState.maxOpenPositions} → ${freshRiskSettings.maxOpenPositions}`);
+        userState.maxOpenPositions = freshRiskSettings.maxOpenPositions;
+        needsUpdate = true;
+      }
+
+      if (needsUpdate) {
+        // Persist updated values to Redis + DB so they're visible immediately
+        await this.redis.set(
+          `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+          JSON.stringify(userState),
+          86400000 * 7,
+        );
+        this._persistUserStateToDB(userId, userState).catch(() => {});
+      }
+    } catch (err: any) {
+      this.logger.debug(`⚔️ Failed to refresh risk settings for ${userId}: ${err.message} — using cached values`);
+    }
+
     // Reset daily stats if new day
     const dailyResetAt = new Date(userState.dailyResetAt);
     const now = new Date();
@@ -1200,17 +1304,21 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Check daily loss limit
+    // SUSTAINABLE FIX: Use user's own maxDailyLossPercent from Settings page
+    // instead of the hardcoded config value (5%). Each user can set their own
+    // risk tolerance — this is essential for a platform handling real money.
     // FIX v112: Skip daily loss limit for paper trading users.
-    // Paper trading is for learning/testing — loss limits should NOT
-    // prevent paper traders from continuing. The daily loss limit is
-    // a risk management feature for REAL capital protection only.
-    // Previously, paper traders hitting the 5% daily loss limit were
-    // auto-stopped, causing "Daily loss limit reached: 11.23% >= 5%"
-    // errors and no more trades for that user until the next day.
     const portfolio = await this._getPortfolioValue(userId);
     if (!userState.isPaperTrading) {
-      if (portfolio > 0 && userState.dailyPnL < -(portfolio * this.config.maxDailyLossPercent / 100)) {
-        this.logger.warn(`⚔️ User ${userId} hit daily loss limit (${userState.dailyPnL.toFixed(2)} < -${(portfolio * this.config.maxDailyLossPercent / 100).toFixed(2)}) — pausing`);
+      // Read the user's own daily loss limit from their settings
+      let userMaxDailyLossPercent = this.config.maxDailyLossPercent; // default 5%
+      try {
+        const riskSettings = await this._loadUserRiskSettings(userId);
+        userMaxDailyLossPercent = riskSettings.maxDailyLossPercent;
+      } catch { /* use default */ }
+
+      if (portfolio > 0 && userState.dailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
+        this.logger.warn(`⚔️ User ${userId} hit daily loss limit (${userState.dailyPnL.toFixed(2)} < -${(portfolio * userMaxDailyLossPercent / 100).toFixed(2)} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) — pausing`);
         return;
       }
     }

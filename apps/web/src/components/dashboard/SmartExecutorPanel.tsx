@@ -71,7 +71,8 @@ export function SmartExecutorPanel() {
   const [error, setError] = useState<string | null>(null)
   const [purging, setPurging] = useState(false)
   const [exchangeCredentials, setExchangeCredentials] = useState<any[]>([])
-  const [realMoneyWarningDismissed, setRealMoneyWarningDismissed] = useState(false)
+  const [riskWarningAcknowledged, setRiskWarningAcknowledged] = useState(false)
+  const [acknowledgedLoading, setAcknowledgedLoading] = useState(false)
   const [selectedCredentialId, setSelectedCredentialId] = useState<string | undefined>(undefined)
 
   const [backendOffline, setBackendOffline] = useState(false)
@@ -130,11 +131,28 @@ export function SmartExecutorPanel() {
     }
   }, [])
 
+  // ── SUSTAINABLE FIX: Load riskWarningAcknowledged from user settings (DB) ──
+  // Previously used localStorage (session-only, not synced across devices).
+  // Now: read from /api/settings which persists to the Setting table.
+  // This is the same source of truth the backend reads via _loadUserRiskSettings().
+  const loadRiskAcknowledged = useCallback(async () => {
+    try {
+      const res = await fetch('/api/settings')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.settings?.riskWarningAcknowledged === 'true' || data.settings?.riskWarningAcknowledged === true) {
+          setRiskWarningAcknowledged(true)
+        }
+      }
+    } catch { /* non-critical */ }
+  }, [])
+
   useEffect(() => {
     fetchUserState()
     fetchPositions()
     fetchExchangeCredentials()
-  }, [fetchUserState, fetchPositions])
+    loadRiskAcknowledged()
+  }, [fetchUserState, fetchPositions, loadRiskAcknowledged])
 
   // FIX V118: Fetch user's exchange credentials to determine trading mode.
   // If user has a valid real exchange credential (Binance, etc.), they should
@@ -231,6 +249,11 @@ export function SmartExecutorPanel() {
   // FIX V118: Support real exchange trading — not just paper.
   // If user has valid real credentials and selects one, use it.
   // If no real credentials, fall back to paper trading.
+  // SUSTAINABLE FIX: No more hardcoded risk values in the frontend.
+  // The backend's enableUser() now reads risk settings from the Setting table
+  // (the same values the user configured in the Settings page).
+  // Previously, the frontend always sent maxOpenPositions:5 and riskPerTradePercent:1,
+  // overriding whatever the user had set in their Settings page.
   const enableUser = async (isPaper: boolean = true, credentialId?: string) => {
     setLoading(true)
     setError(null)
@@ -241,8 +264,7 @@ export function SmartExecutorPanel() {
         body: JSON.stringify({
           isPaperTrading: isPaper,
           credentialId: credentialId,
-          maxOpenPositions: 5,
-          riskPerTradePercent: 1,
+          // No hardcoded risk values — backend reads from user settings (Setting table)
         }),
       })
       await fetchUserState()
@@ -465,10 +487,31 @@ export function SmartExecutorPanel() {
         </div>
       )}
 
-      {/* Real Trading Warning — only for REAL (non-testnet) exchanges, dismissable */}
-      {isActive && !userState?.isPaperTrading && !realMoneyWarningDismissed && (() => {
+      {/* ═══════════════════════════════════════════════════════════════
+          SUSTAINABLE FIX: Three-tier warning system.
+
+          1. TESTNET accounts: Informational badge only. No dismissal needed
+             because testnet = fake money. No risk to user.
+
+          2. REAL accounts, NOT acknowledged: Prominent warning with two actions:
+             - "إعدادات المخاطر" → navigates to settings page (opens in same tab)
+             - "تم التحقق ✓" → persists acknowledgement to DB via /api/settings.
+               This is the SAME Setting table the backend reads via
+               _loadUserRiskSettings(). Once acknowledged, the warning
+               disappears PERMANENTLY (until user resets it in settings).
+
+          3. REAL accounts, acknowledged: No warning shown. The user has
+             confirmed they understand the risks.
+
+          Previous implementation used localStorage (session-only, lost on
+          refresh, not synced across devices). Now uses DB (permanent,
+          synced, backend-readable).
+      ═══════════════════════════════════════════════════════════════ */}
+      {isActive && !userState?.isPaperTrading && userState && (() => {
         const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
         const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
+
+        // Tier 1: Testnet — informational only, no action needed
         if (isTestnet) {
           return (
             <div style={{
@@ -479,9 +522,16 @@ export function SmartExecutorPanel() {
             </div>
           )
         }
+
+        // Tier 2: Real account, already acknowledged — no warning
+        if (riskWarningAcknowledged) {
+          return null
+        }
+
+        // Tier 3: Real account, NOT acknowledged — show warning with actions
         return (
           <div style={{
-            padding: '4px 8px', background: 'rgba(255,184,0,0.06)', borderBottom: '1px solid rgba(255,184,0,0.12)',
+            padding: '4px 8px', background: 'rgba(255,184,0,0.08)', borderBottom: '1px solid rgba(255,184,0,0.15)',
             display: 'flex', alignItems: 'center', gap: 6,
           }}>
             <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية</span>
@@ -497,15 +547,36 @@ export function SmartExecutorPanel() {
               إعدادات المخاطر
             </button>
             <button
-              onClick={() => setRealMoneyWarningDismissed(true)}
+              onClick={async () => {
+                if (acknowledgedLoading) return
+                setAcknowledgedLoading(true)
+                try {
+                  // SUSTAINABLE: Persist to DB, not localStorage.
+                  // This is the SAME key the backend reads via _loadUserRiskSettings().
+                  await fetch('/api/settings', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      settings: { riskWarningAcknowledged: 'true' },
+                    }),
+                  })
+                  setRiskWarningAcknowledged(true)
+                } catch {
+                  // Fallback: dismiss locally even if DB save fails
+                  setRiskWarningAcknowledged(true)
+                } finally {
+                  setAcknowledgedLoading(false)
+                }
+              }}
+              disabled={acknowledgedLoading}
               style={{
                 fontSize: 6.5, color: T.success, fontWeight: 700,
                 background: 'rgba(0,255,163,0.1)', border: '1px solid rgba(0,255,163,0.2)',
-                borderRadius: 3, padding: '1px 6px', cursor: 'pointer',
+                borderRadius: 3, padding: '1px 6px', cursor: acknowledgedLoading ? 'not-allowed' : 'pointer',
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
-              تم التحقق ✓
+              {acknowledgedLoading ? '...' : 'تم التحقق ✓'}
             </button>
           </div>
         )

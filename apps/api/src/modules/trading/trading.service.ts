@@ -176,7 +176,8 @@ export class TradingService {
       request.side,
       request.quantity,
       currentPrice,
-      credential.exchange, // FIX: Pass exchange name for paper-trading detection
+      credential.exchange,
+      credential.id, // V124: Pass credential ID for testnet detection
     );
 
     if (!riskCheck.allowed) {

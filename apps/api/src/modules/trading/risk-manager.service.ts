@@ -133,30 +133,50 @@ export class RiskManagerService {
     quantity: number,
     price: number,
     exchangeName?: string,
+    exchangeCredentialId?: string,  // V124: Added for testnet detection
   ): Promise<{ allowed: boolean; reason?: string; riskScore?: number }> {
     // Sync settings from DB before each check (rate-limited internally)
     await this.syncSettingsFromDB();
 
-    // ── Paper/Test Trading Detection ──
-    // FIX: Determine if this is a paper-trading order. If so, skip the
-    // position size percentage check and daily loss limit check — only
-    // enforce position count. Paper trading is simulation with virtual funds;
-    // blocking it for "position too large" or "daily drawdown" defeats the
+    // ── V124: Simulated Trading Detection (Paper + Testnet) ──
+    // FIX: Determine if this is a simulated order (paper OR testnet).
+    // If so, skip position size percentage and daily loss limit checks —
+    // only enforce position count. Both paper and testnet use virtual funds;
+    // blocking them for "position too large" or "daily drawdown" defeats the
     // purpose and was the root cause of ALL trades being rejected.
-    const isPaperTrading = this._isTestExchange(exchangeName || '');
+    //
+    // V124 FIX: Previously only checked _isTestExchange(exchangeName), which
+    // MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
+    // Now also checks the credential's testnet flag.
+    let isSimulated = this._isTestExchange(exchangeName || '');
+
+    // V124: Also check if the credential has testnet=true flag
+    if (!isSimulated && exchangeCredentialId) {
+      try {
+        const cred = await this.prisma.exchangeCredential.findUnique({
+          where: { id: exchangeCredentialId },
+          select: { testnet: true, exchange: true },
+        });
+        if (cred && cred.testnet === true) {
+          isSimulated = true;
+          this.logger.debug(`🛡️ RiskManager: Testnet credential detected (${cred.exchange}, testnet=true) — treating as simulated`);
+        }
+      } catch { /* non-critical */ }
+    }
 
     // If exchange name wasn't provided, check user's credentials
-    if (!isPaperTrading) {
+    if (!isSimulated) {
+      // V124: Also exclude testnet credentials from "real" check
       const realCredential = await this.prisma.exchangeCredential.findFirst({
-        where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
+        where: { userId, isValid: true, exchange: { not: 'paper-trading' }, testnet: { not: true } },
       });
-      const hasOnlyPaperCredentials = !realCredential;
-      if (hasOnlyPaperCredentials) {
-        // User only has paper-trading credentials — treat as paper trading
-        this.logger.debug(`🛡️ RiskManager: User ${userId} has only paper credentials — bypassing value limits`);
+      const hasOnlySimulatedCredentials = !realCredential;
+      if (hasOnlySimulatedCredentials) {
+        // User only has simulated credentials (paper/testnet) — treat as simulated
+        this.logger.debug(`🛡️ RiskManager: User ${userId} has only simulated credentials — bypassing value limits`);
       }
-      if (hasOnlyPaperCredentials) {
-        // Paper trading: only check position count, skip value-based checks
+      if (hasOnlySimulatedCredentials) {
+        // Simulated trading: only check position count, skip value-based checks
         const openPositions = await this.prisma.position.count({
           where: { userId, status: 'OPEN' },
         });
@@ -170,7 +190,7 @@ export class RiskManagerService {
       }
     }
 
-    if (isPaperTrading) {
+    if (isSimulated) {
       // Paper trading: only check position count — no value limits for simulation
       const openPositions = await this.prisma.position.count({
         where: { userId, status: 'OPEN' },

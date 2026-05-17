@@ -327,15 +327,14 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
-      // ── Paper/Test Trading Bypass (MOVED BEFORE PERMISSIONS CHECK) ──
-      // FIX: Previously, _isTestExchange() was checked AFTER JSON.parse(permissions).
-      // If permissions was a plain string like "read" (the Prisma default), JSON.parse
-      // would throw SyntaxError, and the catch block would reject the order before
-      // ever reaching the _isTestExchange check. This caused ALL paper-trading orders
-      // to be silently rejected with "فشل في التحقق من الرصيد".
-      // Now: Check test exchange FIRST — if it's paper/demo, bypass entirely.
-      if (this._isTestExchange(credential.exchange)) {
-        this.logger.debug(`🛡️ Test exchange "${credential.exchange}" balance check: BYPASSED (virtual balance) — allowing order`);
+      // ── V124: Simulated Trading Bypass (Paper + Testnet) ──
+      // FIX: Previously, only _isTestExchange(credential.exchange) was checked,
+      // which MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
+      // Now: Use _isSimulatedCredential() which checks BOTH the exchange name AND the testnet flag.
+      // This ensures testnet accounts get the same risk check bypasses as paper trading —
+      // both use virtual funds and don't need real balance verification.
+      if (this._isSimulatedCredential(credential)) {
+        this.logger.debug(`🛡️ Simulated credential "${credential.exchange}" (testnet=${(credential as any).testnet}) balance check: BYPASSED (virtual balance) — allowing order`);
         return { allowed: true };
       }
 
@@ -510,13 +509,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       //    a small portfolio estimation, orders were calculated as 100% of portfolio
       // This caused the error: "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)"
       // blocking ALL paper-trading executions.
+      // ── V124: Simulated Trading Bypass (Paper + Testnet) ──
+      // FIX: Previously, only checked command.isPaperTrading flag and _isTestExchange().
+      // This MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
+      // Now: Also check credential.testnet flag via _isSimulatedCredential().
       const isPaperByFlag = command.isPaperTrading === true;
       const credential = await this.prisma.exchangeCredential.findUnique({
         where: { id: command.exchangeCredentialId },
       });
-      const isPaperByCredential = credential && this._isTestExchange(credential.exchange);
+      const isSimulatedByCredential = this._isSimulatedCredential(credential);
 
-      if (isPaperByFlag || isPaperByCredential) {
+      if (isPaperByFlag || isSimulatedByCredential) {
         // Only check position COUNT — no value limits for simulation
         const openPositions = await this.prisma.position.count({
           where: { userId: command.userId, status: 'OPEN' },
@@ -594,29 +597,32 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   async checkDailyDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
     try {
       // ═══════════════════════════════════════════════════════════════
-      // FIX: Skip daily drawdown check for paper-trading users.
-      // Paper trading is a simulation — blocking it for "daily drawdown"
-      // defeats the learning purpose. The user should be able to keep
-      // practicing even after a bad day. Real-money accounts still
-      // enforce this check to protect capital.
+      // V124 FIX: Skip daily drawdown check for SIMULATED trading users.
+      // "Simulated" = paper-trading OR testnet. Both use virtual funds —
+      // blocking simulated trading for "daily drawdown" defeats the purpose.
+      // The user should be able to keep practicing even after a bad day.
+      // Real-money accounts still enforce this check to protect capital.
+      //
+      // FIX: Previously only checked _isTestExchange(credential.exchange),
+      // which MISSED Binance Testnet credentials with exchange='binance' + testnet=true.
+      // Now uses _isSimulatedCredential() which checks the testnet flag too.
       // ═══════════════════════════════════════════════════════════════
       if (exchangeCredentialId) {
         const credential = await this.prisma.exchangeCredential.findUnique({
           where: { id: exchangeCredentialId },
-          select: { exchange: true },
         });
-        if (credential && this._isTestExchange(credential.exchange)) {
-          this.logger.debug(`🛡️ Test exchange "${credential.exchange}" daily drawdown check: BYPASSED (simulation)`);
+        if (this._isSimulatedCredential(credential)) {
+          this.logger.debug(`🛡️ Simulated credential "${credential?.exchange}" (testnet=${(credential as any)?.testnet}) daily drawdown check: BYPASSED (simulation)`);
           return { allowed: true };
         }
       } else {
-        // No credential specified — check if user only has paper credentials
+        // No credential specified — check if user only has paper/testnet credentials
         const realCredential = await this.prisma.exchangeCredential.findFirst({
-          where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
+          where: { userId, isValid: true, exchange: { not: 'paper-trading' }, testnet: { not: true } },
         });
         if (!realCredential) {
-          // User only has paper-trading credentials — bypass
-          this.logger.debug(`🛡️ Paper-trading user daily drawdown check: BYPASSED`);
+          // User only has simulated credentials — bypass
+          this.logger.debug(`🛡️ Simulated-only user daily drawdown check: BYPASSED`);
           return { allowed: true };
         }
       }
@@ -930,6 +936,12 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    *
    * NOTE: 'test' is intentionally EXCLUDED from exactMatches to prevent any
    * exchange literally named "test" from bypassing ALL balance checks.
+   *
+   * IMPORTANT: This method ONLY checks the exchange name string. For credentials
+   * that have `testnet: true` but a regular exchange name (e.g., Binance Testnet
+   * credentials stored as exchange='binance' with testnet=true), use
+   * `_isSimulatedCredential()` instead — it checks BOTH the exchange name
+   * AND the testnet flag on the credential object.
    */
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
@@ -939,6 +951,40 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
     if (suffixes.some(s => lower.endsWith(s))) return true;
     if (lower.includes('testnet')) return true;
+    return false;
+  }
+
+  /**
+   * V124 SUSTAINABLE FIX: Determine if a credential represents a SIMULATED
+   * trading environment (paper OR testnet). This is the CORRECT method to use
+   * when deciding whether to bypass risk checks — it checks BOTH:
+   *
+   * 1. The exchange name string (via _isTestExchange)
+   * 2. The `testnet` boolean flag on the credential
+   *
+   * WHY THIS EXISTS: Binance Testnet credentials are stored as:
+   *   exchange: 'binance', testnet: true
+   *
+   * The old `_isTestExchange('binance')` returns FALSE, causing the system to
+   * treat Testnet as REAL trading. This means:
+   *   - CCXT balance verification with testnet API keys → fails
+   *   - Daily drawdown limits enforced → blocks simulated trading
+   *   - Strict entry conditions applied → rejects valid simulated trades
+   *   - Position size limits enforced → rejects simulated orders
+   *
+   * ALL of these are wrong for testnet — testnet uses VIRTUAL funds, just like
+   * paper trading. The only difference is the execution path: testnet executes
+   * via CCXT on the testnet exchange, while paper uses simulated fills.
+   * Risk checks should be IDENTICAL for both.
+   *
+   * This method unifies the concept: "simulated" = paper OR testnet = bypass risk.
+   */
+  private _isSimulatedCredential(credential: { exchange: string; testnet?: boolean } | null): boolean {
+    if (!credential) return false;
+    // Check 1: Exchange name indicates test/demo/paper
+    if (this._isTestExchange(credential.exchange)) return true;
+    // Check 2: The testnet FLAG is set on the credential (e.g., Binance Testnet)
+    if ((credential as any).testnet === true) return true;
     return false;
   }
 

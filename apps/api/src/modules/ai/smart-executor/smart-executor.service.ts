@@ -1261,6 +1261,44 @@ export class SmartExecutorService implements OnModuleDestroy {
     const userState = await this.getUserState(userId);
     if (!userState || !userState.enabled) return;
 
+    // ═══════════════════════════════════════════════════════════════════
+    // V124 SUSTAINABLE FIX: Determine if user is on a SIMULATED account.
+    //
+    // "Simulated" means BOTH paper-trading AND testnet credentials.
+    // Both use VIRTUAL funds and should bypass the same risk checks:
+    //   - Daily loss limit bypassed (virtual money, no real risk)
+    //   - Entry conditions relaxed (brief IS the signal)
+    //   - Position size limits relaxed (count only, no % of portfolio)
+    //   - Auto-close stale positions allowed (no real capital at risk)
+    //   - Per-symbol limit = 2 (hedge allowed)
+    //
+    // The ONLY difference is the EXECUTION PATH:
+    //   - Paper: simulated fill (no real exchange connection)
+    //   - Testnet: CCXT on testnet exchange (real exchange API, virtual funds)
+    //   - Real: CCXT on real exchange (real exchange, real money)
+    //
+    // Previously, the code only checked `userState.isPaperTrading`, which
+    // MISSED testnet credentials. When a user selected Binance Testnet,
+    // `isPaperTrading` was false, so ALL risk checks applied as if real.
+    // The CCXT balance check with testnet API keys would FAIL, blocking
+    // ALL executions. The executor would silently skip every brief.
+    // ═══════════════════════════════════════════════════════════════════
+    let isSimulated = userState.isPaperTrading;
+    if (!isSimulated && userState.credentialId) {
+      try {
+        const cred = await this.prisma.exchangeCredential.findFirst({
+          where: { id: userState.credentialId, userId },
+          select: { testnet: true, exchange: true },
+        });
+        if (cred && (cred.testnet === true || this._isSimulatedExchange(cred.exchange))) {
+          isSimulated = true;
+          this.logger.debug(`⚔️ User ${userId} has simulated credential: ${cred.exchange} (testnet=${cred.testnet}) — treating as simulated for risk checks`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`⚔️ Could not check credential testnet flag for user ${userId}: ${err.message}`);
+      }
+    }
+
     // ── SUSTAINABLE FIX: Refresh risk settings from user preferences every tick. ──
     // This ensures that changes made in the Settings page take effect within 10s.
     // Without this, the executor uses stale values from when the user first enabled it.
@@ -1303,13 +1341,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       userState.consecutiveLosses = 0;
     }
 
-    // Check daily loss limit
-    // SUSTAINABLE FIX: Use user's own maxDailyLossPercent from Settings page
-    // instead of the hardcoded config value (5%). Each user can set their own
-    // risk tolerance — this is essential for a platform handling real money.
-    // FIX v112: Skip daily loss limit for paper trading users.
+    // V124 FIX: Skip daily loss limit for SIMULATED accounts (paper + testnet).
+    // Both use virtual funds — blocking for "daily drawdown" defeats the purpose.
+    // Only REAL accounts (non-testnet) need this protection for real capital.
     const portfolio = await this._getPortfolioValue(userId);
-    if (!userState.isPaperTrading) {
+    if (!isSimulated) {
       // Read the user's own daily loss limit from their settings
       let userMaxDailyLossPercent = this.config.maxDailyLossPercent; // default 5%
       try {
@@ -1338,7 +1374,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     const exposureSummary = await this.exposureManager.getExposureSummary(userId);
     let openPositionsCount = exposureSummary.totalOpenPositions;
 
-    if (openPositionsCount >= maxPositions && !userState.isPaperTrading) {
+    if (openPositionsCount >= maxPositions && !isSimulated) {
       this.logger.debug(
         `⚔️ User ${userId} at global max positions (${openPositionsCount}/${maxPositions}) ` +
         `across sources: ${JSON.stringify(exposureSummary.positionsBySource)} — skipping all briefs`,
@@ -1346,13 +1382,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       return;
     }
 
-    // ── FIX: Auto-close stale positions for paper trading ──
-    // When the user is at max open positions AND is paper trading, automatically
-    // close the oldest position to make room for new briefs. This prevents the
-    // executor from being permanently stuck at max positions with stale trades.
-    // Paper trading is simulated, so closing stale positions doesn't risk real capital.
-    // IMPORTANT: Only close positions older than 4 hours to avoid killing active trades.
-    if (openPositionsCount >= maxPositions && userState.isPaperTrading) {
+    // V124 FIX: Auto-close stale positions for SIMULATED accounts (paper + testnet).
+    // Simulated accounts use virtual funds, so closing stale positions is safe.
+    if (openPositionsCount >= maxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour
@@ -1517,9 +1549,9 @@ export class SmartExecutorService implements OnModuleDestroy {
         const existingPosition = await this.prisma.position.findFirst({
           where: { userId, symbol: brief.pair, status: 'OPEN' },
         });
-        // FIX: For paper trading, close the stale position and execute the new brief.
-        // For real trading, skip — don't risk real capital by auto-closing.
-        if (existingPosition && userState.isPaperTrading) {
+        // V124 FIX: For simulated accounts (paper + testnet), close existing position
+        // and execute the new brief. For real accounts, skip — don't risk real capital.
+        if (existingPosition && isSimulated) {
           try {
             // FIX: Use TradingService.closePositionWithRetry() — NO direct DB bypass.
             // The direct prisma.position.update() fallback has been REMOVED because it
@@ -1592,14 +1624,16 @@ export class SmartExecutorService implements OnModuleDestroy {
       const currentOpenPositionsOnPair = await this.prisma.position.count({
         where: { userId, symbol: brief.pair, status: 'OPEN' },
       });
-      const maxPerSymbol = userState.isPaperTrading ? 2 : 1;
+      // V124 FIX: Per-symbol position limit — simulated accounts allow 2 (hedge),
+      // real accounts strict 1 per symbol.
+      const maxPerSymbol = isSimulated ? 2 : 1;
       if (currentOpenPositionsOnPair >= maxPerSymbol) {
         this.logger.debug(`⚔️ User ${userId} at max positions for ${brief.pair} (${currentOpenPositionsOnPair}/${maxPerSymbol}) — skipping brief ${brief.id}`);
         continue;
       }
 
       try {
-        await this._checkBriefForUser(userId, brief, userState, portfolio);
+        await this._checkBriefForUser(userId, brief, userState, portfolio, isSimulated);
       } catch (error: any) {
         this.logger.error(`⚔️ Error checking brief ${brief.id} for user ${userId}: ${error.message}`);
       }
@@ -1614,6 +1648,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     brief: TradingBriefDTO,
     userState: UserExecutorState,
     portfolioValue: number,
+    isSimulated: boolean = false,
   ): Promise<void> {
     // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     // CRITICAL FIX: Price fetching with sanity validation
@@ -1695,8 +1730,10 @@ export class SmartExecutorService implements OnModuleDestroy {
     // 2. Check strict rules
     const strictRules: StrictRules = brief.strictRules || { maxSlippage: this.config.defaultSlippage };
 
-    // Paper trading: Skip strict entry price rules (brief IS the signal)
-    if (!userState.isPaperTrading) {
+    // V124 FIX: Simulated accounts (paper + testnet) skip strict entry price rules.
+    // The brief IS the signal — no need to verify price proximity.
+    // Only REAL accounts need strict entry conditions to protect capital.
+    if (!isSimulated) {
       // Check max entry price (for BUY — don't buy above this)
       if (strictRules.maxEntryPrice && currentPrice > strictRules.maxEntryPrice) {
         // Price too high — brief violated for now, but don't cancel (may come back in range)
@@ -1712,8 +1749,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // 3. Check if entry conditions are met
-    // FIX: Paper trading always meets entry conditions — the brief itself is the signal
-    const conditionsMet = userState.isPaperTrading || this._areEntryConditionsMet(brief, currentPrice, strictRules);
+    // V124 FIX: Simulated accounts (paper + testnet) always meet entry conditions.
+    // Only REAL accounts need to verify price proximity to brief entry.
+    const conditionsMet = isSimulated || this._areEntryConditionsMet(brief, currentPrice, strictRules);
 
     if (conditionsMet) {
       // EXECUTE THE TRADE!
@@ -1958,32 +1996,37 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // FIX V118: Smart credential selection with exchange routing.
+      // V124 SUSTAINABLE FIX: Smart credential selection with testnet detection.
       //
-      // Previously, isPaperTrading defaulted to true and there was NO
-      // exchange routing — even if the user connected Binance, the executor
-      // used paper-trading. Now:
+      // The KEY insight: "isPaperTrading" is used for TWO purposes:
+      // 1. RISK CHECKS: Paper/testnet bypass risk checks (virtual funds)
+      // 2. EXECUTION PATH: Paper = simulated fill, Real = CCXT execution
       //
-      // 1. If user specified credentialId (chose a real exchange), use it.
-      // 2. If isPaperTrading=false but no credentialId, find best match:
-      //    - Crypto symbols (BTC/USDT, ETH/USD) → Binance/KuCoin/Bybit/OKX
-      //    - Stock symbols (AAPL, TSLA) → Alpaca (if connected)
-      // 3. If isPaperTrading=true, use paper-trading credential.
-      // 4. If no real credential matches, fall back to paper-trading
-      //    (with a warning log) rather than skipping the brief entirely.
+      // For TESTNET credentials, we need:
+      // - Risk checks: BYPASSED (virtual funds) → effectiveIsPaper = true
+      // - Execution path: CCXT on testnet exchange → NOT paper-trading
+      //
+      // The solution: Set effectiveIsPaper = true for risk bypass purposes,
+      // but the ACTUAL execution path is determined by TradingService which
+      // checks `credential.exchange === 'paper-trading'`. Testnet credentials
+      // have exchange='binance' etc., so they go through CCXT.
+      //
+      // RiskGatekeeper V124 also checks credential.testnet flag directly
+      // via _isSimulatedCredential() — double protection.
       // ═══════════════════════════════════════════════════════════════
       let credential: any = null;
       let effectiveIsPaper = userState.isPaperTrading;
+      let isSimulatedExecution = userState.isPaperTrading; // V124: Separate from isPaper for risk bypass
 
       if (!userState.isPaperTrading) {
-        // ── Real trading mode ──
+        // ── Real/testnet trading mode ──
         if (userState.credentialId) {
           // User explicitly selected a credential — use it
           credential = await this.prisma.exchangeCredential.findFirst({
             where: { id: userState.credentialId, userId, isValid: true },
           });
           if (!credential) {
-            this.logger.warn(`⚔️ V118 Credential ${userState.credentialId} not found or invalid for user ${userId} — falling back to paper`);
+            this.logger.warn(`⚔️ Credential ${userState.credentialId} not found or invalid for user ${userId} — falling back to paper`);
           }
         }
 
@@ -1992,10 +2035,22 @@ export class SmartExecutorService implements OnModuleDestroy {
           credential = await this._selectBestCredential(userId, brief.pair);
         }
 
+        // V124: Detect testnet credentials — treat as simulated for risk checks
+        // BUT keep the credential for CCXT execution (don't fall back to paper-trading)
+        if (credential && (credential.testnet === true || this._isSimulatedExchange(credential.exchange))) {
+          this.logger.log(
+            `⚔️ V124 Detected simulated credential: ${credential.exchange} (testnet=${credential.testnet}) — ` +
+            `bypassing risk checks (virtual funds), executing via CCXT testnet`
+          );
+          isSimulatedExecution = true; // Bypass risk checks
+          // Do NOT set effectiveIsPaper=true — we already have a credential
+          // and don't want the paper-trading credential search to override it
+        }
+
         if (!credential) {
           // No real credential available for this symbol — fall back to paper
           this.logger.warn(
-            `⚔️ V118 No real exchange credential for ${brief.pair} (user ${userId}) — ` +
+            `⚔️ No real exchange credential for ${brief.pair} (user ${userId}) — ` +
             `falling back to paper trading for this brief`,
           );
           effectiveIsPaper = true;
@@ -2045,8 +2100,8 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       this.logger.log(
-        `⚔️ V118 Executing brief ${brief.pair} for user ${userId} ` +
-        `on ${credential.exchange} (${effectiveIsPaper ? 'paper' : 'real'})`,
+        `⚔️ V124 Executing brief ${brief.pair} for user ${userId} ` +
+        `on ${credential.exchange} (${isSimulatedExecution ? 'simulated' : 'real'}, testnet=${credential.testnet || false})`,
       );
 
       // Calculate position size based on risk
@@ -2084,9 +2139,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       // the risk-based value to dominate.
       //
       // Now: We ALWAYS enforce the maxOrderValue cap FIRST, then apply risk constraints.
-      const maxOrderValue = effectiveIsPaper
-        ? Math.min(5000, portfolioValue * 0.05)   // Paper: max $5K or 5% of portfolio
-        : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2% of portfolio
+      // V124: Use isSimulatedExecution for position sizing — both paper and testnet
+      // use virtual funds with relaxed limits.
+      const maxOrderValue = isSimulatedExecution
+        ? Math.min(5000, portfolioValue * 0.05)   // Simulated (paper/testnet): max $5K or 5%
+        : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2%
       const valueCappedQty = maxOrderValue / currentPrice;
       
       // Ensure the final quantity NEVER exceeds the max order value
@@ -2162,6 +2219,11 @@ export class SmartExecutorService implements OnModuleDestroy {
         );
       }
 
+      // V124: Pass isSimulatedExecution to OrderDispatcher.
+      // For testnet credentials, this is true (bypass risk checks)
+      // even though the execution goes through CCXT (not simulated fill).
+      // TradingService determines execution path by checking credential.exchange === 'paper-trading',
+      // NOT by this flag — so testnet credentials still get CCXT execution.
       const dispatchResult = await this.orderDispatcher.submitOrder({
         source: 'smart_executor',
         userId,
@@ -2173,7 +2235,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         stopLoss: execStopLoss,
         takeProfit: execTakeProfit,
         briefId: brief.id,
-        isPaperTrading: effectiveIsPaper,
+        isPaperTrading: isSimulatedExecution,
       });
 
       if (!dispatchResult.success) {
@@ -2200,7 +2262,7 @@ export class SmartExecutorService implements OnModuleDestroy {
           quantity,
           confidence: brief.confidence,
           timeframe: brief.timeframe,
-          isPaperTrading: effectiveIsPaper,
+          isPaperTrading: isSimulatedExecution,
         }),
       });
     } catch (error: any) {
@@ -2292,6 +2354,22 @@ export class SmartExecutorService implements OnModuleDestroy {
    * $10,000 as their paper balance. This caused wrong position sizing
    * and absurd daily drawdown percentages (832%).
    */
+  /**
+   * V124: Determine if an exchange name represents a simulated environment.
+   * Same logic as RiskGatekeeper._isTestExchange() — checks for test/demo/paper
+   * patterns in the exchange name string.
+   */
+  private _isSimulatedExchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+    if (exactMatches.includes(lower)) return true;
+    const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
+    if (suffixes.some(s => lower.endsWith(s))) return true;
+    if (lower.includes('testnet')) return true;
+    return false;
+  }
+
   /**
    * FIX V118: Select the best exchange credential for a given symbol.
    * Routes based on symbol type:

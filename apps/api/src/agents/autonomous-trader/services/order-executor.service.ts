@@ -107,31 +107,31 @@ export class OrderExecutorService implements OnModuleDestroy {
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // FIX: Check for existing open positions from ANY source (Agent,
-      // Smart Executor, or manual). Previously, the Agent only checked
-      // its in-memory recentOrders map (30-second window), which meant
-      // it could open duplicate positions on the same pair that the
-      // Smart Executor already had open. This caused both systems to
-      // trade the same pair simultaneously.
+      // SUSTAINABLE FIX (V130): Replaced ExposureManager.canOpenPosition()
+      // with simple DB check. canOpenPosition() acquired a Redis lock that
+      // was never released, causing position lock deadlocks that blocked
+      // ALL trade execution across both Agent and Smart Executor.
       //
-      // Now uses ExposureManager for unified cross-system checks.
+      // OrderDispatcher (the single gateway) already prevents duplicates via:
+      //   1. IdempotencyService (cross-source userId:symbol:side lock)
+      //   2. Position.findFirst() in submitOrder() — prevents same-symbol duplicates
+      //   3. RiskGatekeeper — validates order before execution
+      //
+      // This pre-flight check provides a fail-fast error message before
+      // reaching OrderDispatcher, but is not the sole line of defense.
       // ═══════════════════════════════════════════════════════════════
-      const exposureCheck = await this.exposureManager.canOpenPosition(
-        userId,
-        signal.symbol,
-        signal.action,
-        risk.positionSize * signal.entryPrice,
-        { maxTotalPositions: 10, onePositionPerSymbol: true },
-      );
+      const existingPosition = await this.prisma.position.findFirst({
+        where: { userId, symbol: signal.symbol, status: 'OPEN' },
+      });
 
-      if (!exposureCheck.allowed) {
+      if (existingPosition) {
         this.logger.warn(
-          `⚡ ORDER REJECTED by Exposure Manager: ${exposureCheck.reason} ` +
-          `(total open: ${exposureCheck.totalOpenPositions}, sources: ${JSON.stringify(exposureCheck.positionsBySource)})`,
+          `⚡ ORDER REJECTED: existing open position for ${signal.symbol} ` +
+          `(source: ${existingPosition.source || 'unknown'}, side: ${existingPosition.side})`,
         );
         return {
           success: false,
-          error: exposureCheck.reason || `لا يمكن فتح مركز على ${signal.symbol} — ${exposureCheck.reason}`,
+          error: `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} — لا يمكن فتح مركز آخر`,
           executionTimeMs: Date.now() - startTime,
         };
       }

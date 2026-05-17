@@ -38,8 +38,23 @@ import {
 export class StrategicCouncilService {
   private readonly logger = new Logger(StrategicCouncilService.name);
 
-  /** Is council currently in session */
-  private isInSession = false;
+  /**
+   * V130 SUSTAINABLE FIX: Separate session guards for Executor and Agent sessions.
+   *
+   * WHY: Previously, both runHourlySession() and runAgentSession() shared a single
+   * isInSession guard. Since both crons fired at the same 15-minute mark and
+   * runHourlySession() took 20-30 minutes (15 pairs × 3 timeframes with AI calls),
+   * runAgentSession() ALWAYS found isInSession=true and skipped entirely.
+   * Result: ZERO M30/H1/H4/D1/W1 briefs were ever generated — the Agent was
+   * completely starved of signals.
+   *
+   * Now: Each session type has its own guard, and crons fire at different times:
+   *   - Executor session (M1/M5/M15): every 15 min at :00, :15, :30, :45
+   *   - Agent session (M30/H1/H4/D1/W1): every 30 min at :07, :37
+   * This ensures both sessions can run independently without blocking each other.
+   */
+  private isExecutorInSession = false;
+  private isAgentInSession = false;
 
   /** Daily cost cap for council sessions — increased from $20 to $50
    *  FIX: $20 was too low — with 15 pairs × 4 timeframes × 8 models,
@@ -171,7 +186,12 @@ export class StrategicCouncilService {
    * Runs every 15 minutes alongside the main session
    * Generates medium-term briefs the Agent reads
    */
-  @Cron('*/15 * * * *')
+  /**
+   * V130: Agent session runs at :07 and :37 (offset from executor session).
+   * This prevents the concurrency bug where runHourlySession() held isInSession=true
+   * for 20-30 minutes, causing runAgentSession() to always skip.
+   */
+  @Cron('7,37 * * * *')
   async runAgentSession(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
@@ -184,10 +204,11 @@ export class StrategicCouncilService {
       if (s?.[0] && String(s[0].value) !== 'true') return;
     } catch {}
 
-    if (this.isInSession) return; // don't run if main session is active
+    if (this.isAgentInSession) return; // V130: Use own guard
 
+    this.isAgentInSession = true;
     try {
-      this.logger.debug('🏛️ Agent Council: generating M30/H1/H4/D1/W1 briefs...');
+      this.logger.log('🏛️ Agent Council: generating M30/H1/H4/D1/W1 briefs...');
       // Fast timeframes (M30, H1): top 5 pairs
       const fastPairs = ALL_COUNCIL_PAIRS.slice(0, 5);
       for (const pair of fastPairs) {
@@ -208,8 +229,9 @@ export class StrategicCouncilService {
         }
       }
     } catch (e: any) {
-      // FIX: Log at WARN instead of DEBUG for visibility
       this.logger.warn(`Agent session error: ${e.message}`);
+    } finally {
+      this.isAgentInSession = false;
     }
   }
 
@@ -272,8 +294,8 @@ export class StrategicCouncilService {
       // This is the opposite of the old behavior which would skip on error
     }
 
-    if (this.isInSession) {
-      this.logger.warn('🏛️ Previous council session still running — skipping');
+    if (this.isExecutorInSession) {
+      this.logger.warn('🏛️ Previous executor council session still running — skipping');
       return {
         timestamp: new Date().toISOString(),
         pairsAnalyzed: 0,
@@ -285,7 +307,7 @@ export class StrategicCouncilService {
       };
     }
 
-    this.isInSession = true;
+    this.isExecutorInSession = true;
     const startTime = Date.now();
 
     const result: CouncilSessionResult = {
@@ -379,7 +401,7 @@ export class StrategicCouncilService {
     } catch (error: any) {
       this.logger.error(`🏛️ Strategic Council session failed: ${error.message}`);
     } finally {
-      this.isInSession = false;
+      this.isExecutorInSession = false;
     }
 
     return result;
@@ -387,9 +409,10 @@ export class StrategicCouncilService {
 
   /**
    * Check if council is currently in session (for controller to query)
+   * V130: Returns true if EITHER executor or agent session is running
    */
   isInSessionNow(): boolean {
-    return this.isInSession;
+    return this.isExecutorInSession || this.isAgentInSession;
   }
 
   /**
@@ -400,8 +423,8 @@ export class StrategicCouncilService {
    */
   async forceSessionAsync(sessionId: string, pairs: string[], userId: string): Promise<CouncilSessionResult> {
     // Guard against concurrent sessions
-    if (this.isInSession) {
-      this.logger.warn('🏛️ Cannot start manual session — previous session still running');
+    if (this.isExecutorInSession) {
+      this.logger.warn('🏛️ Cannot start manual session — previous executor session still running');
       return {
         timestamp: new Date().toISOString(),
         pairsAnalyzed: 0,
@@ -413,7 +436,7 @@ export class StrategicCouncilService {
       };
     }
 
-    this.isInSession = true;
+    this.isExecutorInSession = true;
     this.logger.log(`🏛️ Manual strategic council session [${sessionId}] started by ${userId} for: ${pairs.join(', ')}`);
 
     const result: CouncilSessionResult = {
@@ -482,7 +505,7 @@ export class StrategicCouncilService {
     } catch (error: any) {
       this.logger.error(`🏛️ Manual session [${sessionId}] failed: ${error.message}`);
     } finally {
-      this.isInSession = false;
+      this.isExecutorInSession = false;
     }
 
     return result;

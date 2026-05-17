@@ -249,3 +249,31 @@ Stage Summary:
 - closePosition: 3s timeout on getQuote, entryPrice fallback
 - Frontend: auto force-close on any failure type
 - Positions should now always close even when price providers are down
+
+---
+Task ID: V130-sustainable-fixes
+Agent: Main Agent
+Task: Apply V130 sustainable fixes for position lock deadlock, idempotency TTL, and council session isolation
+
+Work Log:
+- Analyzed ExposureManagerService.canOpenPosition() — found position locks are NEVER released by any caller, causing permanent deadlock
+- Analyzed StrategicCouncilService — found shared isInSession guard blocks runAgentSession() permanently (0 M30+ briefs ever generated)
+- Analyzed IdempotencyService — found 24h TTL blocks retries for a full day on any failure
+- Applied Fix 1-A: Replaced canOpenPosition() in SmartExecutor with Position.findFirst() — no locks, no deadlocks
+- Applied Fix 1-B: Replaced canOpenPosition() in OrderExecutor with Position.findFirst() — same fix
+- Applied Fix 1-C: Reduced IdempotencyService TTL from 86400s (24h) to 60s — allows retries within minutes instead of days
+- Applied Fix 1-D: Split isInSession into isExecutorInSession + isAgentInSession in StrategicCouncil, changed runAgentSession cron from */15 to 7,37 (offset timing)
+- Applied Fix 1-E: Added position-lock:* cleanup in SmartExecutor startup to clear stale locks from before the fix
+- Fixed stale comments and log messages referencing old TTL values
+- TypeScript compilation: 0 errors
+- NestJS build: successful
+
+Stage Summary:
+- 5 files modified:
+  1. smart-executor.service.ts — Removed canOpenPosition(), added Position.findFirst() + position-lock cleanup
+  2. order-executor.service.ts — Removed canOpenPosition(), added Position.findFirst()
+  3. idempotency.service.ts — TTL 86400→60, updated comments and log messages
+  4. strategic-council.service.ts — Split isInSession, offset cron timing, added finally{} blocks
+  5. exposure-manager.service.ts — No changes (canOpenPosition kept for advisory/dashboard use, but removed from execution path)
+- Root cause addressed: Position lock deadlock eliminated, agent session isolation fixed, retry windows reduced from 24h to 60s
+- Expected production result: Executor and Agent resume trading immediately after deployment

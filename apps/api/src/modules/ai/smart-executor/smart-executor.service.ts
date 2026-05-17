@@ -202,6 +202,24 @@ export class SmartExecutorService implements OnModuleDestroy {
         await this.redis.del(this.REDIS_GLOBAL_STATE);
       } catch {}
 
+      // ── STEP 5.1: Clear stale position-lock keys from Redis (V130) ──
+      // Before V130, ExposureManager.canOpenPosition() created Redis locks
+      // (position-lock:userId:symbol) that were never released. These stale
+      // locks can persist after deployment and block ALL trade execution.
+      // Even though we no longer use canOpenPosition() in the execution path,
+      // clearing these on startup ensures a clean state.
+      try {
+        const lockKeys = await this.redis.scanKeys('position-lock:*');
+        for (const key of lockKeys) {
+          await this.redis.del(key);
+        }
+        if (lockKeys.length > 0) {
+          this.logger.log(`⚔️ STARTUP: Cleared ${lockKeys.length} stale position-lock key(s) from Redis (V130 fix)`);
+        }
+      } catch (lockErr: any) {
+        this.logger.warn(`⚔️ Failed to clear position-lock keys: ${lockErr.message}`);
+      }
+
       // ── STEP 5.5: Clear stale price cache from Redis ──
       // FIX: If the old Promise.any() bug cached wrong prices (e.g., $34.98 for BTC),
       // those stale entries can persist for up to 5 minutes in the fallback cache.
@@ -1566,80 +1584,73 @@ export class SmartExecutorService implements OnModuleDestroy {
         continue;
       }
 
-      // ── EXPOSURE MANAGER: Check if user already has position for this pair (ANY source) ──
-      // Previous code only checked executor's own positions, missing Agent positions.
-      // Now: ExposureManager checks across ALL sources before allowing a new trade.
-      const exposureCheck = await this.exposureManager.canOpenPosition(
-        userId,
-        brief.pair,
-        brief.direction,
-        0, // estimated value not needed for per-symbol check
-        { maxTotalPositions: maxPositions, onePositionPerSymbol: true },
-      );
-      // If exposure check blocked due to existing position on this symbol
-      if (!exposureCheck.allowed && exposureCheck.existingPositionOnSymbol) {
-        const existingPosition = await this.prisma.position.findFirst({
-          where: { userId, symbol: brief.pair, status: 'OPEN' },
-        });
+      // ── POSITION DUPLICATE CHECK: Check if user already has position for this pair (ANY source) ──
+      // SUSTAINABLE FIX (V130): Replaced ExposureManager.canOpenPosition() with simple DB check.
+      //
+      // WHY: canOpenPosition() acquired a Redis lock (position-lock:userId:symbol) that was
+      // NEVER released by any caller. This caused permanent deadlocks where:
+      //   - Lock acquired → brief conditions not met → lock stays for 30s (TTL)
+      //   - Next tick → lock still held → "Position lock contention" → ALL trades blocked
+      //   - With 3 users × 4 pairs = 12 locks cycling, 90% of ticks were blocked
+      //
+      // The lock was REDUNDANT because OrderDispatcher already prevents duplicates via:
+      //   1. IdempotencyService (cross-source userId:symbol:side lock, 60s TTL)
+      //   2. Position.findFirst() in submitOrder() — prevents same-symbol duplicates
+      //   3. RiskGatekeeper — validates order before execution
+      //
+      // Now: Simple Position.findFirst() check — no locks, no deadlocks, same safety.
+      const existingPosition = await this.prisma.position.findFirst({
+        where: { userId, symbol: brief.pair, status: 'OPEN' },
+      });
+
+      if (existingPosition) {
         // V124 FIX: For simulated accounts (paper + testnet), close existing position
         // and execute the new brief. For real accounts, skip — don't risk real capital.
-        if (existingPosition && isSimulated) {
+        if (isSimulated) {
           try {
-            // FIX: Use TradingService.closePositionWithRetry() — NO direct DB bypass.
-            // The direct prisma.position.update() fallback has been REMOVED because it
-            // bypassed optimistic locking, Order creation, and exchange state sync.
+            await this.tradingService.closePositionWithRetry(userId, {
+              positionId: existingPosition.id,
+            });
+
+            const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
+            const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
+            userState.dailyPnL += pnl;
+
+            this.logger.log(
+              `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
+              `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
+            );
+
             try {
-              await this.tradingService.closePositionWithRetry(userId, {
-                positionId: existingPosition.id,
+              const sideLabel = existingPosition.side === 'BUY' ? 'شراء' : 'بيع';
+              const pnlLabel = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
+              await this.notificationService.sendNotification({
+                userId,
+                type: 'POSITION_CLOSED',
+                priority: 'HIGH',
+                title: `⚔️ إغلاق للتبديل: ${existingPosition.symbol}`,
+                body: `تم إغلاق مركز ${sideLabel} ${existingPosition.symbol} لتنفيذ إشارة جديدة على نفس الزوج | PnL: $${pnlLabel} | سعر الإغلاق: $${closePrice.toFixed(2)}`,
+                data: {
+                  positionId: existingPosition.id,
+                  symbol: existingPosition.symbol,
+                  side: existingPosition.side,
+                  closePrice,
+                  pnl,
+                  reason: 'close_for_new_brief',
+                  briefId: brief.id,
+                  isSimulated: isSimulated,
+                },
+                source: 'executor',
+                action: 'CLOSE',
+                pair: existingPosition.symbol,
               });
-
-              const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
-              const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
-              userState.dailyPnL += pnl;
-
-              this.logger.log(
-                `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
-                `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
-              );
-
-              // FIX: Send POSITION_CLOSED notification so the frontend removes the position immediately.
-              // When the executor closes an existing position on the same symbol to open a new one,
-              // the frontend must know about the close to update the UI.
-              try {
-                const sideLabel = existingPosition.side === 'BUY' ? 'شراء' : 'بيع';
-                const pnlLabel = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
-                await this.notificationService.sendNotification({
-                  userId,
-                  type: 'POSITION_CLOSED',
-                  priority: 'HIGH',
-                  title: `⚔️ إغلاق للتبديل: ${existingPosition.symbol}`,
-                  body: `تم إغلاق مركز ${sideLabel} ${existingPosition.symbol} لتنفيذ إشارة جديدة على نفس الزوج | PnL: $${pnlLabel} | سعر الإغلاق: $${closePrice.toFixed(2)}`,
-                  data: {
-                    positionId: existingPosition.id,
-                    symbol: existingPosition.symbol,
-                    side: existingPosition.side,
-                    closePrice,
-                    pnl,
-                    reason: 'close_for_new_brief',
-                    briefId: brief.id,
-                    isSimulated: isSimulated,
-                  },
-                  source: 'executor',
-                  action: 'CLOSE',
-                  pair: existingPosition.symbol,
-                });
-              } catch (notifErr: any) {
-                this.logger.warn(`⚔️ Failed to send close notification for ${existingPosition.id}: ${notifErr.message}`);
-              }
-            } catch (tsCloseErr: any) {
-              // FIX: REMOVED direct DB bypass. If TradingService fails, log and skip.
-              // The position will be retried on the next tick.
-              this.logger.warn(
-                `⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — skipping (no direct DB bypass)`,
-              );
+            } catch (notifErr: any) {
+              this.logger.warn(`⚔️ Failed to send close notification for ${existingPosition.id}: ${notifErr.message}`);
             }
-          } catch (closeErr: any) {
-            this.logger.warn(`⚔️ Failed to close stale position for ${brief.pair}: ${closeErr.message} — skipping brief`);
+          } catch (tsCloseErr: any) {
+            this.logger.warn(
+              `⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — skipping brief`,
+            );
             continue;
           }
         } else {

@@ -19,7 +19,7 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { AuditService } from '../../../audit/audit.service';
 import { TradingService } from '../../trading/trading.service';
 import { StrategicCouncilService } from '../strategic-council/strategic-council.service';
-import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe } from '../strategic-council/strategic-council.types';
+import { TradingBriefDTO, StrictRules, EXECUTOR_TIMEFRAMES, isExecutorTimeframe, isSymbolSupportedByExchange } from '../strategic-council/strategic-council.types';
 import { ExecutorStatus, ExecutionResult, ExecutorConfig, UserExecutorState } from './smart-executor.types';
 import { PlaceOrderRequest, OrderSide, OrderType } from '../../trading/trading.types';
 import { RiskGatekeeperService } from '../../trading/services/risk-gatekeeper.service';
@@ -2067,6 +2067,29 @@ export class SmartExecutorService implements OnModuleDestroy {
       // Used only for: risk check bypass, position sizing, and notifications
       const isSimulatedExecution = credential.testnet === true ||
         this._isSimulatedExchange(credential.exchange);
+
+      // ═══════════════════════════════════════════════════════════════════
+      // V131 FIX: Check if the symbol is supported by the user's exchange.
+      //
+      // PROBLEM: All 3 users trade on Binance (binance_test), which ONLY
+      // supports crypto pairs. The old code attempted to execute briefs for
+      // AAPL, GBP/USD, etc., which always failed with:
+      //   "binance does not have market symbol AAPL"
+      // This wasted AI API calls, Redis idempotency locks, and executor
+      // ticks — 2 out of 3 briefs per cycle were guaranteed to fail.
+      //
+      // FIX: Skip execution if the symbol isn't supported by the exchange.
+      // The brief remains in the DB (may become executable if the user
+      // switches to a different exchange that supports it), but no order
+      // is dispatched and no idempotency lock is acquired.
+      // ═══════════════════════════════════════════════════════════════════
+      if (!isSymbolSupportedByExchange(brief.pair, credential.exchange)) {
+        result.error = `الرمز ${brief.pair} غير مدعوم على ${credential.exchange} — تخطي التنفيذ`;
+        this.logger.warn(
+          `⚔️ V131 Symbol ${brief.pair} NOT supported on ${credential.exchange} — skipping execution for user ${userId}`,
+        );
+        return result;
+      }
 
       this.logger.log(
         `⚔️ V126 Executing brief ${brief.pair} for user ${userId} ` +

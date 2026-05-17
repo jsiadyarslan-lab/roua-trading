@@ -43,7 +43,23 @@ export interface CouncilSessionResult {
   diagnostics?: string[];
 }
 
-/** Pairs that the Strategic Council MUST review in every session */
+/** Pairs that the Strategic Council MUST review in every session
+ *
+ *  V131 FIX: Split pairs into EXCHANGE-SUPPORTED and ANALYSIS-ONLY categories.
+ *
+ *  PROBLEM: All 3 users trade on Binance (binance_test), which ONLY supports
+ *  crypto pairs. The old code generated briefs for AAPL, GBP/USD, etc. —
+ *  these would pass the council, pass the executor, and then FAIL at the
+ *  exchange with "binance does not have market symbol AAPL". This wasted
+ *  AI API calls, Redis idempotency locks, and executor ticks.
+ *
+ *  FIX: Only EXCHANGE_SUPPORTED pairs get briefs that are eligible for
+ *  execution. ANALYSIS_ONLY pairs are used for market context but their
+ *  briefs are marked as non-executable.
+ *
+ *  For Binance: Only crypto pairs (BTC/USDT, ETH/USDT, etc.)
+ *  For future multi-exchange: Filter per-user based on their exchange
+ */
 export const COUNCIL_PAIRS = {
   CRYPTO: ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'DOGE/USDT'],
   FOREX: ['EUR/USD', 'GBP/USD', 'USD/JPY'],
@@ -51,13 +67,42 @@ export const COUNCIL_PAIRS = {
   COMMODITIES: ['XAU/USD'],
 } as const;
 
-/** All pairs flattened */
+/** Pairs supported by Binance (the exchange used by all current users).
+ *  Only these pairs will generate EXECUTABLE briefs.
+ *  Other pairs generate advisory-only briefs (market context). */
+export const BINANCE_SUPPORTED_PAIRS: string[] = [
+  ...COUNCIL_PAIRS.CRYPTO,
+];
+
+/** Pairs NOT supported by Binance — analysis only, no execution.
+ *  These can be used for market sentiment but orders will always fail. */
+export const NON_BINANCE_PAIRS: string[] = [
+  ...COUNCIL_PAIRS.FOREX,
+  ...COUNCIL_PAIRS.STOCKS,
+  ...COUNCIL_PAIRS.COMMODITIES,
+];
+
+/** All pairs flattened (for backward compat and market scanning) */
 export const ALL_COUNCIL_PAIRS: string[] = [
   ...COUNCIL_PAIRS.CRYPTO,
   ...COUNCIL_PAIRS.FOREX,
   ...COUNCIL_PAIRS.STOCKS,
   ...COUNCIL_PAIRS.COMMODITIES,
 ];
+
+/** Check if a symbol is supported by the given exchange.
+ *  Currently all users use Binance, so we check against BINANCE_SUPPORTED_PAIRS.
+ *  Returns true if the symbol can be executed on the exchange. */
+export function isSymbolSupportedByExchange(symbol: string, exchange: string): boolean {
+  const exchangeId = exchange.toLowerCase().replace('_test', '').replace('-test', '');
+  switch (exchangeId) {
+    case 'binance':
+      return BINANCE_SUPPORTED_PAIRS.includes(symbol);
+    default:
+      // For unknown exchanges, only allow crypto pairs (safe default)
+      return BINANCE_SUPPORTED_PAIRS.includes(symbol);
+  }
+}
 
 /** Timeframes the Council covers (Focused on rapid scalping/intraday + swing/position) */
 export const COUNCIL_TIMEFRAMES: BriefTimeframe[] = ['M1', 'M5', 'M15'];

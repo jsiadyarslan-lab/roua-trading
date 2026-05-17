@@ -119,20 +119,26 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
   W1: 7 * 24 * 60 * 60 * 1000,      // 1 week
 };
 
-/** Risk/reward ratios per timeframe — FIX: Increased maxSlippage for crypto
- *  The old 0.1% slippage was too tight for crypto. BTC can move 0.1-0.3% in
- *  seconds, so briefs were constantly being skipped by the executor because
- *  the price had already moved past the entry price + 0.1% tolerance.
+/** Risk/reward ratios per timeframe — V134: Increased SL/TP for crypto.
+ *
+ *  V134 FIX: The old M1 SL of 0.1% was IMMEDIATELY triggered by normal
+ *  crypto volatility. BTC regularly moves 0.3-0.5% in a single minute.
+ *  A 0.1% SL means the Position Monitor closes the position within
+ *  the FIRST 30-second check cycle after opening — "closed after 1 second".
+ *
+ *  New minimums: M1=0.5%, M5=0.8%, M15=1.0% — these levels survive
+ *  normal crypto noise while still protecting capital.
+ *  TP is always 2x SL for a minimum 1:2 risk/reward ratio.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  M1: { sl: 0.001, tp: 0.002, maxSlippage: 0.0005 },    // 0.1% SL, 0.2% TP, 0.05% slippage
-  M5: { sl: 0.002, tp: 0.004, maxSlippage: 0.001 },     // 0.2% SL, 0.4% TP, 0.1% slippage
-  M15: { sl: 0.003, tp: 0.006, maxSlippage: 0.002 },     // 0.3% SL, 0.6% TP, 0.2% slippage
-  M30: { sl: 0.004, tp: 0.008, maxSlippage: 0.003 },     // 0.4% SL, 0.8% TP, 0.3% slippage
-  H1: { sl: 0.005, tp: 0.01, maxSlippage: 0.005 },     // 0.5% SL, 1% TP, 0.5% slippage
-  H4: { sl: 0.01, tp: 0.02, maxSlippage: 0.005 },       // 1% SL, 2% TP, 0.5% slippage
-  D1: { sl: 0.02, tp: 0.04, maxSlippage: 0.008 },       // 2% SL, 4% TP, 0.8% slippage
-  W1: { sl: 0.04, tp: 0.08, maxSlippage: 0.010 },       // 4% SL, 8% TP, 1.0% slippage
+  M1: { sl: 0.005, tp: 0.010, maxSlippage: 0.002 },    // V134: 0.5% SL, 1% TP, 0.2% slippage (was 0.1%/0.2%)
+  M5: { sl: 0.008, tp: 0.016, maxSlippage: 0.003 },     // V134: 0.8% SL, 1.6% TP, 0.3% slippage (was 0.2%/0.4%)
+  M15: { sl: 0.010, tp: 0.020, maxSlippage: 0.004 },    // V134: 1% SL, 2% TP, 0.4% slippage (was 0.3%/0.6%)
+  M30: { sl: 0.012, tp: 0.024, maxSlippage: 0.005 },    // V134: 1.2% SL, 2.4% TP, 0.5% slippage
+  H1: { sl: 0.015, tp: 0.030, maxSlippage: 0.005 },     // V134: 1.5% SL, 3% TP, 0.5% slippage
+  H4: { sl: 0.02, tp: 0.04, maxSlippage: 0.005 },       // 2% SL, 4% TP, 0.5% slippage
+  D1: { sl: 0.03, tp: 0.06, maxSlippage: 0.008 },       // V134: 3% SL, 6% TP (was 2%/4%)
+  W1: { sl: 0.05, tp: 0.10, maxSlippage: 0.010 },       // V134: 5% SL, 10% TP (was 4%/8%)
 };
 
 /** Timeframe classification: Smart Executor vs Agent

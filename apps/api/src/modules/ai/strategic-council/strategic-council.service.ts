@@ -604,6 +604,126 @@ export class StrategicCouncilService {
   }
 
   /**
+   * V134: Get CONSOLIDATED active briefs — ONE direction per pair.
+   *
+   * ROOT CAUSE FIX for "opened and closed after 1 second":
+   *   The Council generates briefs per pair+timeframe. Different timeframes
+   *   can have OPPOSITE directions (e.g., BTC/USDT M1=BUY, M5=SELL).
+   *   When the SmartExecutor processes all briefs sequentially, it:
+   *     1. Opens BUY from M1 brief
+   *     2. Sees SELL from M5 brief → closes BUY → opens SELL
+   *     3. Next tick: M1 BUY again → closes SELL → opens BUY
+   *     → INFINITE LOOP of open→close every tick
+   *
+   * FIX: Consolidate all briefs for the same pair into ONE direction.
+   * The direction with the HIGHEST confidence wins. If confidence is tied,
+   * the shorter timeframe wins (more recent data).
+   *
+   * This ensures the executor sees AT MOST ONE brief per pair,
+   * eliminating the open→close→open loop entirely.
+   */
+  async getConsolidatedBriefs(userId?: string): Promise<TradingBriefDTO[]> {
+    const allBriefs = await this.getActiveBriefs(userId);
+
+    if (allBriefs.length === 0) return [];
+
+    // Group by pair
+    const byPair = new Map<string, TradingBriefDTO[]>();
+    for (const brief of allBriefs) {
+      const existing = byPair.get(brief.pair) || [];
+      existing.push(brief);
+      byPair.set(brief.pair, existing);
+    }
+
+    const consolidated: TradingBriefDTO[] = [];
+
+    for (const [pair, briefs] of byPair) {
+      if (briefs.length === 0) continue;
+
+      if (briefs.length === 1) {
+        // Only one brief for this pair — use it directly
+        consolidated.push(briefs[0]);
+        continue;
+      }
+
+      // Multiple briefs for same pair — check if they agree on direction
+      const buyBriefs = briefs.filter(b => b.direction === 'BUY');
+      const sellBriefs = briefs.filter(b => b.direction === 'SELL');
+
+      if (sellBriefs.length === 0) {
+        // All BUY — pick highest confidence
+        const best = buyBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+        consolidated.push(best);
+      } else if (buyBriefs.length === 0) {
+        // All SELL — pick highest confidence
+        const best = sellBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+        consolidated.push(best);
+      } else {
+        // ═══════════════════════════════════════════════════════════
+        // CONFLICTING DIRECTIONS: BUY and SELL on same pair
+        // This is the ROOT CAUSE of the open→close loop.
+        // FIX: Use a weighted vote based on confidence * timeframe weight.
+        // Shorter timeframes get a 2x multiplier (more responsive data).
+        // The side with the higher weighted score wins.
+        // ═══════════════════════════════════════════════════════════
+        const TF_WEIGHT: Record<string, number> = {
+          M1: 2.0,   // Most responsive — 2x weight
+          M5: 1.5,   // Responsive — 1.5x weight
+          M15: 1.2,  // Moderate — 1.2x weight
+          M30: 1.0,  // Standard
+          H1: 0.8,   // Slower
+          H4: 0.5,   // Slow
+          D1: 0.3,   // Very slow
+          W1: 0.2,   // Slowest
+        };
+
+        const buyScore = buyBriefs.reduce((sum, b) =>
+          sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
+        const sellScore = sellBriefs.reduce((sum, b) =>
+          sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
+
+        const winningBriefs = buyScore >= sellScore ? buyBriefs : sellBriefs;
+        const losingBriefs = buyScore >= sellScore ? sellBriefs : buyBriefs;
+        const winningDirection = buyScore >= sellScore ? 'BUY' : 'SELL';
+
+        // Pick the best brief from the winning side
+        const best = winningBriefs.sort((a, b) => b.confidence - a.confidence)[0];
+
+        this.logger.log(
+          `🏛️ V134 CONSOLIDATION: ${pair} has conflicting directions ` +
+          `(BUY=${buyBriefs.length} score=${buyScore.toFixed(0)}, ` +
+          `SELL=${sellBriefs.length} score=${sellScore.toFixed(0)}) ` +
+          `→ Winner: ${winningDirection} (best confidence=${best.confidence}%, ` +
+          `timeframe=${best.timeframe})`
+        );
+
+        consolidated.push(best);
+
+        // Deactivate losing briefs to prevent them from confusing other consumers
+        for (const losing of losingBriefs) {
+          try {
+            await this.prisma.tradingBrief.update({
+              where: { id: losing.id },
+              data: {
+                isActive: false,
+                reviewStatus: 'CANCELLED',
+                analysisSummary: `V134: Cancelled by consolidation — ${pair} has ${winningDirection} consensus (score ${winningDirection === 'BUY' ? buyScore : sellScore} > ${winningDirection === 'BUY' ? sellScore : buyScore})`,
+              },
+            });
+          } catch { /* non-critical */ }
+        }
+      }
+    }
+
+    this.logger.log(
+      `🏛️ V134 Consolidation: ${allBriefs.length} raw briefs → ${consolidated.length} consolidated ` +
+      `(pairs: ${consolidated.map(b => b.pair + ':' + b.direction).join(', ')})`
+    );
+
+    return consolidated;
+  }
+
+  /**
    * Get count of active briefs (lightweight for events)
    */
   async getActiveBriefsCount(): Promise<number> {

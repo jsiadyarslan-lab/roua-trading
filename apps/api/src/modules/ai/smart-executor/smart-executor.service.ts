@@ -1247,49 +1247,56 @@ export class SmartExecutorService implements OnModuleDestroy {
    * Single tick: Get active briefs, find enabled users, check conditions per user
    */
   private async _tick(): Promise<void> {
-    // Get active briefs from the Strategic Council
-    let activeBriefs: any[] = [];
+    // ═══════════════════════════════════════════════════════════════════
+    // V134: Use CONSOLIDATED briefs — ONE direction per pair.
+    //
+    // ROOT CAUSE FIX for "opened and closed after 1 second":
+    //   getActiveBriefs() returns ALL briefs including conflicting
+    //   directions for the same pair (M1=BUY, M5=SELL). Processing
+    //   these sequentially caused: open BUY → close BUY → open SELL → loop.
+    //
+    //   getConsolidatedBriefs() merges conflicting briefs into ONE
+    //   direction per pair (weighted vote by confidence * timeframe).
+    //   This guarantees the executor sees at most ONE brief per pair.
+    // ═══════════════════════════════════════════════════════════════════
+    let consolidatedBriefs: TradingBriefDTO[] = [];
     try {
-      // FIX: SmartExecutor handles ONLY executor timeframes (M1, M5, M15) from StrategicCouncil
-      // Slower timeframes (M30, H1, H4, D1, W1) belong to the Agent via AIOrchestratorService
-      activeBriefs = (await this.councilService.getActiveBriefs()).filter(
-        b => isExecutorTimeframe(b.timeframe)
-      );
+      consolidatedBriefs = await this.councilService.getConsolidatedBriefs();
     } catch (e: any) {
-      this.logger.error(`⚔️ Failed to get active briefs: ${e.message}`);
+      this.logger.error(`⚔️ Failed to get consolidated briefs: ${e.message}`);
       return;
     }
 
-    if (activeBriefs.length === 0) {
-      this.logger.debug('⚔️ No active briefs to execute — waiting for Strategic Council');
+    if (consolidatedBriefs.length === 0) {
+      this.logger.debug('⚔️ No consolidated briefs to execute — waiting for Strategic Council');
       return;
     }
 
     // ── TIMEFRAME FILTER: Only process briefs for executor timeframes (M1/M5/M15) ──
     // The Smart Executor handles quick/scalping trades only.
     // Briefs for M30+ are handled by the Autonomous Agent.
-    const executorBriefs = activeBriefs.filter(
+    const executorBriefs = consolidatedBriefs.filter(
       (brief: TradingBriefDTO) => isExecutorTimeframe(brief.timeframe)
     );
 
     if (executorBriefs.length === 0) {
       this.logger.debug(
-        `⚔️ ${activeBriefs.length} briefs available but none match executor timeframes [${EXECUTOR_TIMEFRAMES.join(',')}] — waiting`,
+        `⚔️ ${consolidatedBriefs.length} consolidated briefs but none match executor timeframes [${EXECUTOR_TIMEFRAMES.join(',')}] — waiting`,
       );
       return;
     }
 
-    this.logger.debug(`⚔️ Timeframe filter: ${activeBriefs.length} total → ${executorBriefs.length} executor briefs (M1/M5/M15)`);
+    this.logger.debug(`⚔️ V134 Tick: ${executorBriefs.length} consolidated executor briefs (one per pair, no conflicts)`);
 
     // Get users with executor enabled
     const enabledUsers = await this._getEnabledUsers();
 
     if (enabledUsers.length === 0) {
-      this.logger.debug(`⚔️ ${activeBriefs.length} briefs available but no enabled users — skipping`);
+      this.logger.debug(`⚔️ ${executorBriefs.length} consolidated briefs available but no enabled users — skipping`);
       return;
     }
 
-    this.logger.debug(`⚔️ Tick: ${executorBriefs.length} executor briefs (filtered from ${activeBriefs.length}), ${enabledUsers.length} users`);
+    this.logger.debug(`⚔️ V134 Tick: ${executorBriefs.length} consolidated executor briefs, ${enabledUsers.length} users`);
 
     // Process each enabled user
     for (const userId of enabledUsers) {
@@ -1449,24 +1456,28 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // ═══════════════════════════════════════════════════════════
-    // EXPOSURE MANAGER: Unified cross-system position check.
-    // Counts ALL open positions regardless of source (smart_executor,
-    // agent, auto_paper, user_manual) to prevent the user from
-    // exceeding global limits when both systems are active.
+    // V134: SIMPLIFIED position count — direct DB query instead
+    // of ExposureManager (which acquired Redis locks that never
+    // released, causing deadlocks).
     //
-    // Previous code only counted positions from the executor's own
-    // source, missing positions opened by the Agent. If the executor
-    // had 5 positions and the agent had 5, each system saw only 5
-    // (under the limit of 10) but the user actually had 10 total.
+    // The ExposureManager.getExposureSummary() was reading from DB
+    // anyway — there's no need for a separate service with Redis
+    // locks just to count open positions. A simple Prisma count()
+    // is faster, simpler, and has no deadlock risk.
     // ═══════════════════════════════════════════════════════════
     const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
-    const exposureSummary = await this.exposureManager.getExposureSummary(userId);
-    let openPositionsCount = exposureSummary.totalOpenPositions;
+    let openPositionsCount = 0;
+    try {
+      openPositionsCount = await this.prisma.position.count({
+        where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
+      });
+    } catch (dbErr: any) {
+      this.logger.warn(`⚔️ V134 Failed to count open positions for ${userId}: ${dbErr.message}`);
+    }
 
     if (openPositionsCount >= maxPositions && !isSimulated) {
       this.logger.debug(
-        `⚔️ User ${userId} at global max positions (${openPositionsCount}/${maxPositions}) ` +
-        `across sources: ${JSON.stringify(exposureSummary.positionsBySource)} — skipping all briefs`,
+        `⚔️ User ${userId} at max positions (${openPositionsCount}/${maxPositions}) — skipping all briefs`,
       );
       return;
     }

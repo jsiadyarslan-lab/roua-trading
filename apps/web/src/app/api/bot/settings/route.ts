@@ -27,12 +27,11 @@ const DEFAULT_BOT_CONFIG = {
 }
 
 const DEFAULT_RISK_CONFIG = {
-  maxDrawdown: '15',
+  maxDrawdown: '5',
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
   maxOpenPositions: '5',
-  leverageLimit: '3',
 }
 
 export async function GET(req: NextRequest) {
@@ -93,7 +92,6 @@ function mapToBotSettings(
     maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '5', 10),
     stopLossDefault: parseFloat(riskConfig.stopLossDefault || '2'),
     takeProfitDefault: parseFloat(riskConfig.takeProfitDefault || '4'),
-    leverageLimit: parseFloat(riskConfig.leverageLimit || '3'),
 
     // ── Bot execution settings ──
     riskPerTrade: parseFloat(riskConfig.riskPerTrade || '1'),

@@ -183,9 +183,15 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('account')
 
   // Trading preferences
-  const [defaultLeverage, setDefaultLeverage] = useState('10')
   const [orderSize, setOrderSize] = useState('5')
   const [riskLevel, setRiskLevel] = useState('medium')
+
+  // Risk management settings (user-controlled)
+  const [userStopLoss, setUserStopLoss] = useState('2')
+  const [userTakeProfit, setUserTakeProfit] = useState('4')
+  const [userRiskPerTrade, setUserRiskPerTrade] = useState('1')
+  const [userMaxDailyLoss, setUserMaxDailyLoss] = useState('5')
+  const [userMaxOpenPositions, setUserMaxOpenPositions] = useState('5')
   const [chartType, setChartType] = useState('candlestick')
   const [timeframe, setTimeframe] = useState('15m')
   const [confirmTrades, setConfirmTrades] = useState(true)
@@ -215,9 +221,13 @@ export default function SettingsPage() {
       .then(data => {
         if (data?.settings && typeof data.settings === 'object') {
           const s = data.settings
-          if (s.defaultLeverage) setDefaultLeverage(s.defaultLeverage)
           if (s.orderSize) setOrderSize(s.orderSize)
           if (s.riskLevel) setRiskLevel(s.riskLevel)
+          if (s.userStopLoss) setUserStopLoss(s.userStopLoss)
+          if (s.userTakeProfit) setUserTakeProfit(s.userTakeProfit)
+          if (s.userRiskPerTrade) setUserRiskPerTrade(s.userRiskPerTrade)
+          if (s.userMaxDailyLoss) setUserMaxDailyLoss(s.userMaxDailyLoss)
+          if (s.userMaxOpenPositions) setUserMaxOpenPositions(s.userMaxOpenPositions)
           if (s.chartType) setChartType(s.chartType)
           if (s.timeframe) setTimeframe(s.timeframe)
           if (s.confirmTrades !== undefined) setConfirmTrades(s.confirmTrades)
@@ -246,15 +256,16 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           settings: {
-            defaultLeverage, orderSize, riskLevel, chartType, timeframe,
+            orderSize, riskLevel, chartType, timeframe,
             confirmTrades, showPositions, autoStopLoss, trailingStop,
             aiConfidence, aiAutoTrade, aiModel,
             analyticsEnabled, crashReports,
+            userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
           },
         }),
       }).catch(() => {})
     }, 2000) // Debounce: save 2s after last change
-  }, [settingsLoaded, defaultLeverage, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports])
+  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions])
 
   // Auto-save on any settings change
   useEffect(() => {
@@ -331,7 +342,6 @@ export default function SettingsPage() {
       { perm: 'trade:view' as Permission, label: 'عرض التداول' },
       { perm: 'trade:execute' as Permission, label: 'تنفيذ الصفقات' },
       { perm: 'trade:paper' as Permission, label: 'عرض تجريبي' },
-      { perm: 'trade:leverage:high' as Permission, label: 'رافعة عالية' },
     ]},
     { name: 'الذكاء الاصطناعي', perms: [
       { perm: 'ai:insights' as Permission, label: 'رؤى AI' },
@@ -768,23 +778,6 @@ export default function SettingsPage() {
               subtitle="إعدادات الأوامر والتنفيذ"
             >
               <SettingRow
-                icon={<Target size={13} color={T.text3} />}
-                label="الرافعة الافتراضية"
-                description="الرافعة المطبقة على حسابك المربوط عند فتح صفقة"
-              >
-                <SelectBox
-                  value={defaultLeverage}
-                  onChange={setDefaultLeverage}
-                  options={[
-                    { value: '1', label: '1x' }, { value: '2', label: '2x' },
-                    { value: '5', label: '5x' }, { value: '10', label: '10x' },
-                    { value: '25', label: '25x' }, { value: '50', label: '50x' },
-                    { value: '100', label: '100x' },
-                  ]}
-                  small
-                />
-              </SettingRow>
-              <SettingRow
                 icon={<LineChart size={13} color={T.text3} />}
                 label="حجم الأمر الافتراضي"
                 description="نسبة رأس المال المستخدمة في كل صفقة"
@@ -833,14 +826,118 @@ export default function SettingsPage() {
               </SettingRow>
             </SectionCard>
 
-            {/* Stop Loss & Risk Management */}
+            {/* Risk Management — User-controlled limits */}
             <SectionCard
               icon={<Shield size={18} color={T.green} />}
               iconColor={T.green}
               iconBg={`${T.green}14`}
               title="إدارة المخاطر"
-              subtitle="أدوات الحماية التلقائية"
+              subtitle="تحكم بنسب الحماية — أنت صاحب القرار النهائي"
             >
+              <SettingRow
+                icon={<Target size={13} color={T.danger} />}
+                label="وقف خسارة افتراضي"
+                description="النسبة المئوية لوقف الخسارة عند فتح صفقة جديدة"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={0.1} max={50} step={0.1}
+                    value={userStopLoss}
+                    onChange={e => setUserStopLoss(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<TrendingUp size={13} color={T.success} />}
+                label="جني أرباح افتراضي"
+                description="النسبة المئوية لجني الأرباح عند فتح صفقة جديدة"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={0.1} max={100} step={0.1}
+                    value={userTakeProfit}
+                    onChange={e => setUserTakeProfit(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<Activity size={13} color={T.amber} />}
+                label="مخاطرة لكل صفقة"
+                description="نسبة رأس المال المخاطرة في الصفقة الواحدة"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={0.1} max={10} step={0.1}
+                    value={userRiskPerTrade}
+                    onChange={e => setUserRiskPerTrade(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<AlertTriangle size={13} color={T.danger} />}
+                label="أقصى خسارة يومية"
+                description="إذا خسرت هذه النسبة في يوم واحد، يتوقف التداول تلقائياً"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={1} max={50} step={0.5}
+                    value={userMaxDailyLoss}
+                    onChange={e => setUserMaxDailyLoss(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                  <span style={{ fontSize: 11, color: T.text3, fontWeight: 600 }}>%</span>
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<BarChart3 size={13} color={T.cyan} />}
+                label="أقصى صفقات مفتوحة"
+                description="الحد الأقصى للصفقات المفتوحة في نفس الوقت"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={1} max={20} step={1}
+                    value={userMaxOpenPositions}
+                    onChange={e => setUserMaxOpenPositions(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                </div>
+              </SettingRow>
               <SettingRow
                 icon={<Lock size={13} color={T.text3} />}
                 label="وقف خسارة تلقائي"

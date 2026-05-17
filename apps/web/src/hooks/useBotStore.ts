@@ -41,7 +41,6 @@ interface BotState {
     maxOpenPositions: number  // Maximum concurrent open positions (e.g. 5)
     stopLossDefault: number   // Default stop loss percentage (e.g. 2)
     takeProfitDefault: number // Default take profit percentage (e.g. 4)
-    leverageLimit: number     // Maximum leverage multiplier (e.g. 3)
   }
   settingsSynced: boolean     // Whether settings have been synced from DB
   setIsOn: (on: boolean) => void
@@ -86,7 +85,6 @@ const DEFAULT_SETTINGS: BotState['settings'] = {
   maxOpenPositions: 5,
   stopLossDefault: 2,
   takeProfitDefault: 4,
-  leverageLimit: 3,
 }
 
 export const useBotStore = create<BotState>()(
@@ -132,7 +130,6 @@ export const useBotStore = create<BotState>()(
                   maxOpenPositions: data.settings.maxOpenPositions ?? current.maxOpenPositions,
                   stopLossDefault: data.settings.stopLossDefault ?? current.stopLossDefault,
                   takeProfitDefault: data.settings.takeProfitDefault ?? current.takeProfitDefault,
-                  leverageLimit: data.settings.leverageLimit ?? current.leverageLimit,
                   // Bot config from admin DB
                   riskPct: data.settings.riskPerTrade ?? current.riskPct,
                   confLimit: data.settings.confLimit ?? current.confLimit,
@@ -191,7 +188,6 @@ export const useBotStore = create<BotState>()(
           maxOpenPositions: persistedState?.settings?.maxOpenPositions ?? DEFAULT_SETTINGS.maxOpenPositions,
           stopLossDefault: persistedState?.settings?.stopLossDefault ?? DEFAULT_SETTINGS.stopLossDefault,
           takeProfitDefault: persistedState?.settings?.takeProfitDefault ?? DEFAULT_SETTINGS.takeProfitDefault,
-          leverageLimit: persistedState?.settings?.leverageLimit ?? DEFAULT_SETTINGS.leverageLimit,
         },
         settingsSynced: persistedState?.settingsSynced ?? false,
         logs: Array.isArray(persistedState?.logs) ? persistedState.logs.slice(0, 50) : [],

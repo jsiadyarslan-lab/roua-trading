@@ -183,7 +183,6 @@ interface BotSettings {
   maxOpenPositions: number
   stopLossDefault: number
   takeProfitDefault: number
-  leverageLimit: number
   riskPerTrade: number
   strategy: string
   autoTrading: boolean
@@ -366,7 +365,6 @@ export default function MobileSettingsPage() {
     maxOpenPositions: botSettings.maxOpenPositions,
     stopLossDefault: botSettings.stopLossDefault,
     takeProfitDefault: botSettings.takeProfitDefault,
-    leverageLimit: botSettings.leverageLimit,
     riskPerTrade: botSettings.riskPct,
     strategy: botSettings.strategy,
     autoTrading: false,
@@ -585,7 +583,6 @@ export default function MobileSettingsPage() {
                         { label: 'وقف خسارة', value: `${effectiveBotSettings.stopLossDefault}%`, color: T.danger },
                         { label: 'جني أرباح', value: `${effectiveBotSettings.takeProfitDefault}%`, color: T.success },
                         { label: 'مخاطرة/صفقة', value: `${effectiveBotSettings.riskPerTrade}%`, color: T.amber },
-                        { label: 'أقصى رافعة', value: `${effectiveBotSettings.leverageLimit}x`, color: T.accent },
                       ].map((item, i) => (
                         <div key={i} style={{
                           padding: '10px 12px', borderRadius: 12,

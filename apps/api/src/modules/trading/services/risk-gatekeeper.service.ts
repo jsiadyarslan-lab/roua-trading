@@ -38,8 +38,6 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   private maxOrderSizeUSD: number;
   private stopLossDefault: number;
   private circuitBreakerThresholdPercent: number;
-  private maxLeverage: number;
-
   // ── Circuit Breaker State (in-memory, per user+symbol) ──
   // FIX: Changed key from symbol-only to userId:symbol to scope circuit breakers
   // per-user. Previously, if user A triggered a circuit breaker on BTC/USDT,
@@ -93,10 +91,6 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     this.circuitBreakerThresholdPercent = parseFloat(
       this.configService.get('RISK_CIRCUIT_BREAKER_THRESHOLD', '10'),
     );
-    this.maxLeverage = parseFloat(
-      this.configService.get('RISK_MAX_LEVERAGE', '10'),
-    );
-
     // Load settings from DB on startup
     // FIX: Added .catch() to prevent unhandled promise rejection from constructor
     this.syncSettingsFromDB().catch((err) => this.logger.warn(`syncSettingsFromDB failed at startup: ${err?.message || err}`));
@@ -160,7 +154,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
         if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
         if (riskConfig.stopLossDefault) this.stopLossDefault = parseFloat(riskConfig.stopLossDefault);
-        if (riskConfig.leverageLimit) this.maxLeverage = parseFloat(riskConfig.leverageLimit);
+
         if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
       }
 
@@ -913,7 +907,6 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       maxOrderSizeUSD: this.maxOrderSizeUSD,
       stopLossDefault: this.stopLossDefault,
       circuitBreakerThresholdPercent: this.circuitBreakerThresholdPercent,
-      maxLeverage: this.maxLeverage,
     };
   }
 

@@ -47,7 +47,6 @@ interface RiskConfig {
   takeProfitDefault: string
   riskPerTrade: string
   maxOpenPositions: string
-  leverageLimit: string
 }
 
 interface PlatformConfig {
@@ -69,12 +68,11 @@ const DEFAULT_BOT_CONFIG: BotConfig = {
 }
 
 const DEFAULT_RISK_CONFIG: RiskConfig = {
-  maxDrawdown: '15',
+  maxDrawdown: '5',
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
   maxOpenPositions: '5',
-  leverageLimit: '3',
 }
 
 const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
@@ -511,7 +509,6 @@ export default function AdminSettingsPage() {
                 { key: 'takeProfitDefault', label: 'جني الأرباح الافتراضي (%)' },
                 { key: 'riskPerTrade', label: 'المخاطرة لكل صفقة (%)' },
                 { key: 'maxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة' },
-                { key: 'leverageLimit', label: 'حد الرافعة المالية على الحسابات المربوطة (x)' },
               ].map(field => (
                 <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>

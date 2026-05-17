@@ -16,7 +16,6 @@ export type Permission =
   | 'trade:view'
   | 'trade:execute'
   | 'trade:paper'
-  | 'trade:leverage:high'
   // AI
   | 'ai:insights'
   | 'ai:auto_trade'
@@ -53,7 +52,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'trade:view',
     'trade:execute',
     'trade:paper',
-    'trade:leverage:high',
     'ai:insights',
     'ai:auto_trade',
     'ai:scanner',
@@ -69,7 +67,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'trade:view',
     'trade:execute',
     'trade:paper',
-    'trade:leverage:high',
     'ai:insights',
     'ai:auto_trade',
     'ai:scanner',
@@ -90,7 +87,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'trade:view',
     'trade:execute',
     'trade:paper',
-    'trade:leverage:high',
+
     'ai:insights',
     'ai:auto_trade',
     'ai:scanner',
@@ -113,7 +110,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'trade:view',
     'trade:execute',
     'trade:paper',
-    'trade:leverage:high',
+
     'ai:insights',
     'ai:auto_trade',
     'ai:scanner',

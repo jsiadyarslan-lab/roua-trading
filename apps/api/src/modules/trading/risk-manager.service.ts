@@ -9,7 +9,6 @@ import { ConfigService } from '@nestjs/config';
  * - Maximum position size limits (percentage of portfolio)
  * - Maximum number of open positions per user
  * - Maximum daily loss limits
- * - Maximum leverage limits
  * - Position size calculation based on risk percentage
  * - Stop-loss enforcement
  *
@@ -27,7 +26,6 @@ export class RiskManagerService {
   private maxDailyLossPercent: number;      // Max daily loss as % of portfolio
   private defaultStopLossPercent: number;   // Default SL distance
   private defaultTakeProfitPercent: number; // Default TP distance
-  private maxLeverage: number;              // Maximum allowed leverage
   private minOrderSize: number;             // Minimum order size in USD
 
   // ── Last DB sync timestamp ──
@@ -54,9 +52,6 @@ export class RiskManagerService {
     );
     this.defaultTakeProfitPercent = parseFloat(
       this.configService.get('RISK_DEFAULT_TAKE_PROFIT', '6'),
-    );
-    this.maxLeverage = parseFloat(
-      this.configService.get('RISK_MAX_LEVERAGE', '3'),
     );
     this.minOrderSize = parseFloat(
       this.configService.get('RISK_MIN_ORDER_SIZE', '10'),
@@ -105,7 +100,7 @@ export class RiskManagerService {
         if (riskConfig.stopLossDefault) this.defaultStopLossPercent = parseFloat(riskConfig.stopLossDefault);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
         if (riskConfig.riskPerTrade) this.maxPositionSizePercent = parseFloat(riskConfig.riskPerTrade) * 5; // Scale risk per trade to position size
-        if (riskConfig.leverageLimit) this.maxLeverage = parseFloat(riskConfig.leverageLimit);
+
       }
 
       this.logger.debug('🛡️ Risk parameters synced from DB');
@@ -299,7 +294,6 @@ export class RiskManagerService {
       maxDailyLossPercent: this.maxDailyLossPercent,
       defaultStopLossPercent: this.defaultStopLossPercent,
       defaultTakeProfitPercent: this.defaultTakeProfitPercent,
-      maxLeverage: this.maxLeverage,
       minOrderSize: this.minOrderSize,
     };
   }

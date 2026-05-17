@@ -26,12 +26,11 @@ const DEFAULT_BOT_CONFIG = {
 }
 
 const DEFAULT_RISK_CONFIG = {
-  maxDrawdown: '15',
+  maxDrawdown: '5',
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
   maxOpenPositions: '5',
-  leverageLimit: '3',
 }
 
 const DEFAULT_PLATFORM_CONFIG = {

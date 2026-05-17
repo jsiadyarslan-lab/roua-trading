@@ -302,7 +302,6 @@ const ENDPOINT_CATEGORIES: EndpointCategory[] = [
                 quantity: 0.05,
                 pnl: 127.13,
                 pnlPercent: 2.68,
-                leverage: 5,
                 stopLoss: 92000.00,
                 takeProfit: 105000.00,
                 openedAt: "2026-03-02T08:00:00Z",

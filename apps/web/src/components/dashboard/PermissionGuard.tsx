@@ -18,8 +18,8 @@ import { hasPermission, type Permission } from '@/lib/permissions'
  *   <AutoTradeToggle />
  * </PermissionGuard>
  *
- * <PermissionGuard permissions={['trade:execute', 'trade:leverage:high']} requireAll>
- *   <LeveragedTrading />
+ * <PermissionGuard permissions={['trade:execute', 'ai:auto_trade']} requireAll>
+ *   <AutoTrading />
  * </PermissionGuard>
  */
 export function PermissionGuard({

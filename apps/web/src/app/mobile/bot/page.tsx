@@ -193,9 +193,13 @@ export default function MobileBotPage() {
 
   // ── Local State ──
   const [showStrategyPicker, setShowStrategyPicker] = useState(false)
+  const [showExchangePicker, setShowExchangePicker] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
   const [hydrated, setHydrated] = useState(false)
+  const [exchangeCredentials, setExchangeCredentials] = useState<any[]>([])
+  const [selectedTradingMode, setSelectedTradingMode] = useState<{isPaper: boolean, credentialId?: string}>({isPaper: true})
+  const [executorUserState, setExecutorUserState] = useState<any>(null)
 
   // ── Log auto-scroll ──
   const logEndRef = useRef<HTMLDivElement>(null)
@@ -204,6 +208,48 @@ export default function MobileBotPage() {
 
   useEffect(() => {
     setHydrated(true)
+  }, [])
+
+  // V119: Fetch user's exchange credentials for real trading mode
+  useEffect(() => {
+    const fetchCreds = async () => {
+      try {
+        const res = await fetch('/api/portfolio/credentials')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && Array.isArray(data.data)) {
+            const realCreds = data.data.filter((c: any) => c.exchange !== 'paper-trading' && c.isValid)
+            setExchangeCredentials(realCreds)
+          }
+        }
+      } catch { /* non-critical */ }
+    }
+    fetchCreds()
+  }, [])
+
+  // V119: Fetch executor user state to show current mode
+  useEffect(() => {
+    const fetchUserState = async () => {
+      try {
+        const res = await fetch('/api/smart-executor/user/status')
+        if (res.ok) {
+          const data = await res.json()
+          if (data.success && data.data?.user) {
+            setExecutorUserState(data.data.user)
+            // Sync local state with server
+            if (data.data.user.enabled) {
+              setSelectedTradingMode({
+                isPaper: data.data.user.isPaperTrading,
+                credentialId: data.data.user.credentialId,
+              })
+            }
+          }
+        }
+      } catch { /* non-critical */ }
+    }
+    fetchUserState()
+    const interval = setInterval(fetchUserState, 15000)
+    return () => clearInterval(interval)
   }, [])
 
   // Fetch real engine status from server periodically
@@ -243,32 +289,36 @@ export default function MobileBotPage() {
     setIsOn(newState)
 
     if (newState) {
-      // FIX: Require explicit confirmation before enabling paper trading
+      // V119: Use selected trading mode (paper or real exchange)
+      const modeLabel = selectedTradingMode.isPaper
+        ? 'ورقي (تجريبي)'
+        : `حقيقي (${exchangeCredentials.find((c: any) => c.id === selectedTradingMode.credentialId)?.exchange || 'بورصة'})`
+
       const confirmed = window.confirm(
-        '⚠️ تداول ورقي تجريبي\n\n' +
-        'هذا سيُفعّل التداول الورقي (محاكاة بأموال وهمية).\n' +
-        'الصفقات المنفّذة ستكون ورقية فقط وليست حقيقية.\n' +
-        'هل تريد المتابعة؟'
+        selectedTradingMode.isPaper
+          ? '⚠️ تداول ورقي تجريبي\n\nهذا سيُفعّل التداول الورقي (محاكاة بأموال وهمية).\nالصفقات المنفّذة ستكون ورقية فقط وليست حقيقية.\nهل تريد المتابعة؟'
+          : `⚠️ تداول حقيقي بأموال فعلية\n\nسيتم التداول على بورصتك الحقيقية.\nالصفقات ستكون بأموال حقيقية.\nهل تريد المتابعة؟`
       );
       if (!confirmed) {
         setIsOn(false);
         return;
       }
-      // ── Enable bot via backend API ──
-      addLog('🟢 جارٍ تشغيل البوت الآلي — إرسال طلب للخادم...', 'info')
+      // ── Enable bot via backend API with selected mode ──
+      addLog(`🟢 جارٍ تشغيل البوت الآلي (${modeLabel}) — إرسال طلب للخادم...`, 'info')
       try {
         const res = await fetch('/api/smart-executor/user/enable', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            isPaperTrading: true,
+            isPaperTrading: selectedTradingMode.isPaper,
+            credentialId: selectedTradingMode.credentialId,
             riskPerTradePercent: settings.riskPct || 1,
             maxOpenPositions: 5,
           }),
         })
         const data = await res.json()
         if (res.ok) {
-          addLog('✅ تم تشغيل البوت بنجاح — المحرك نشط ويبحث عن فرص', 'info')
+          addLog(`✅ تم تشغيل البوت بنجاح — المحرك نشط (${modeLabel})`, 'info')
           // Update engine state from server response
           if (data.state) {
             useBotStore.getState().setEngineState(data.state as BotEngineState)
@@ -280,11 +330,10 @@ export default function MobileBotPage() {
             priority: 'high',
             action: 'INFO',
             title: '🤖 البوت الآلي: تم التشغيل',
-            body: `البوت يعمل الآن باستراتيجية ${settings.strategy || 'AUTO'}`,
+            body: `البوت يعمل الآن باستراتيجية ${settings.strategy || 'AUTO'} — وضع: ${modeLabel}`,
           })
         } else {
           addLog(`⚠️ استجابة الخادم: ${data.message || 'خطأ غير معروف'}`, 'warn')
-          // Still keep local state on — the bot is "armed" locally even if server didn't fully respond
         }
       } catch (err) {
         addLog('⚠️ فشل الاتصال بالخادم — البوت يعمل محلياً فقط', 'warn')
@@ -308,7 +357,7 @@ export default function MobileBotPage() {
         addLog('⚠️ فشل الاتصال بالخادم — تم الإيقاف محلياً فقط', 'warn')
       }
     }
-  }, [isOn, setIsOn, addLog, settings])
+  }, [isOn, setIsOn, addLog, settings, selectedTradingMode, exchangeCredentials])
 
   const handleResetStats = useCallback(async () => {
     setIsResetting(true)
@@ -486,6 +535,175 @@ export default function MobileBotPage() {
               )}
             </motion.div>
           </AnimatePresence>
+        </motion.div>
+
+        {/* ══════════════ V119: Exchange Mode Picker ══════════════ */}
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.05 }}
+          style={{
+            marginTop: 12, borderRadius: 28,
+            background: 'rgba(28,28,30,0.6)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: `0.5px solid ${selectedTradingMode.isPaper ? `${C.accent}30` : `${C.amber}30`}`,
+            overflow: 'hidden',
+          }}
+        >
+          {/* Exchange Mode Header */}
+          <div
+            className="flex items-center justify-between"
+            style={{
+              padding: '14px 18px 10px',
+              borderBottom: `0.5px solid ${C.border}`,
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <Zap size={14} color={selectedTradingMode.isPaper ? C.accent : C.amber} />
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.text, fontFamily: FONT_AR }}>
+                وضع التداول
+              </span>
+            </div>
+            <span style={{
+              fontSize: 11, fontWeight: 800, padding: '2px 10px', borderRadius: 10,
+              background: selectedTradingMode.isPaper ? `${C.accent}15` : `${C.amber}15`,
+              color: selectedTradingMode.isPaper ? C.accent : C.amber,
+              fontFamily: FONT_AR,
+            }}>
+              {selectedTradingMode.isPaper ? 'ورقي' : 'حقيقي'}
+            </span>
+          </div>
+
+          {/* Exchange Mode Options */}
+          <div style={{ padding: '12px 16px 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {/* Paper Trading Option */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setSelectedTradingMode({ isPaper: true })
+                setShowExchangePicker(false)
+              }}
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: 16,
+                background: selectedTradingMode.isPaper ? `${C.accent}15` : 'rgba(255,255,255,0.02)',
+                border: `0.5px solid ${selectedTradingMode.isPaper ? `${C.accent}40` : C.border}`,
+                display: 'flex', alignItems: 'center', gap: 12,
+                cursor: 'pointer', textAlign: 'right',
+              }}
+            >
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: selectedTradingMode.isPaper ? `${C.accent}20` : 'rgba(255,255,255,0.05)',
+                border: `0.5px solid ${selectedTradingMode.isPaper ? `${C.accent}30` : 'rgba(255,255,255,0.06)'}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 18,
+              }}>
+                📝
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: 14, fontWeight: 700, color: selectedTradingMode.isPaper ? C.accent : C.text, fontFamily: FONT_AR }}>
+                  تداول ورقي
+                </p>
+                <p style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginTop: 1 }}>
+                  محاكاة بأموال وهمية — بدون مخاطر
+                </p>
+              </div>
+              {selectedTradingMode.isPaper && (
+                <div style={{ width: 8, height: 8, borderRadius: 4, background: C.accent, boxShadow: `0 0 8px ${C.accent}60` }} />
+              )}
+            </motion.button>
+
+            {/* Real Exchange Options */}
+            {exchangeCredentials.length > 0 ? (
+              exchangeCredentials.map((cred: any) => {
+                const isSelected = !selectedTradingMode.isPaper && selectedTradingMode.credentialId === cred.id
+                return (
+                  <motion.button
+                    key={cred.id}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setSelectedTradingMode({ isPaper: false, credentialId: cred.id })
+                      setShowExchangePicker(false)
+                    }}
+                    style={{
+                      width: '100%', padding: '12px 16px', borderRadius: 16,
+                      background: isSelected ? `${C.amber}15` : 'rgba(255,255,255,0.02)',
+                      border: `0.5px solid ${isSelected ? `${C.amber}40` : C.border}`,
+                      display: 'flex', alignItems: 'center', gap: 12,
+                      cursor: 'pointer', textAlign: 'right',
+                    }}
+                  >
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: isSelected ? `${C.amber}20` : 'rgba(255,255,255,0.05)',
+                      border: `0.5px solid ${isSelected ? `${C.amber}30` : 'rgba(255,255,255,0.06)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18,
+                    }}>
+                      💰
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: 14, fontWeight: 700, color: isSelected ? C.amber : C.text, fontFamily: FONT_AR }}>
+                        {cred.exchange} {cred.label ? `(${cred.label})` : ''}
+                      </p>
+                      <p style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginTop: 1 }}>
+                        تداول حقيقي بأموال فعلية {cred.testnet ? '(تجريبي)' : '(إنتاج)'}
+                      </p>
+                    </div>
+                    {isSelected && (
+                      <div style={{ width: 8, height: 8, borderRadius: 4, background: C.amber, boxShadow: `0 0 8px ${C.amber}60` }} />
+                    )}
+                  </motion.button>
+                )
+              })
+            ) : (
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push('/mobile/settings/exchange')}
+                style={{
+                  width: '100%', padding: '12px 16px', borderRadius: 16,
+                  background: 'rgba(255,255,255,0.02)',
+                  border: `0.5px solid ${C.border}`,
+                  display: 'flex', alignItems: 'center', gap: 12,
+                  cursor: 'pointer', textAlign: 'right',
+                }}
+              >
+                <div style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  background: 'rgba(255,255,255,0.05)',
+                  border: `0.5px solid rgba(255,255,255,0.06)'`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 18,
+                }}>
+                  🔗
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: C.text2, fontFamily: FONT_AR }}>
+                    ربط بورصة حقيقية
+                  </p>
+                  <p style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginTop: 1, opacity: 0.6 }}>
+                    أضف مفاتيح API للتبديل إلى التداول الحقيقي
+                  </p>
+                </div>
+              </motion.button>
+            )}
+          </div>
+
+          {/* Current Mode Warning */}
+          {executorUserState?.enabled && (
+            <div style={{
+              padding: '8px 16px 12px',
+              background: executorUserState.isPaperTrading ? 'rgba(0,212,255,0.06)' : 'rgba(255,184,0,0.06)',
+              borderTop: `0.5px solid ${executorUserState.isPaperTrading ? 'rgba(0,212,255,0.15)' : 'rgba(255,184,0,0.15)'}`,
+            }}>
+              <span style={{ fontSize: 10, color: executorUserState.isPaperTrading ? C.accent : C.amber, fontFamily: FONT_AR, fontWeight: 600 }}>
+                {executorUserState.isPaperTrading
+                  ? '⚠ البوت يعمل حالياً في وضع ورقي — الصفقات بأموال وهمية'
+                  : `⚠ البوت يعمل حالياً في وضع حقيقي على ${exchangeCredentials.find((c: any) => c.id === executorUserState.credentialId)?.exchange || 'البورصة'}`}
+              </span>
+            </div>
+          )}
         </motion.div>
 
         {/* ══════════════ Stats Grid (2x3) ══════════════ */}

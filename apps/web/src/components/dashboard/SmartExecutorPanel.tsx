@@ -361,13 +361,23 @@ export function SmartExecutorPanel() {
               )}
             </div>
           ) : (
-            <button onClick={disableUser} disabled={loading} style={{
-              fontSize: 8, minHeight: 22, padding: '3px 10px',
-              borderRadius: 5, border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 800,
-            }}>
-              {loading ? '...' : 'تعطيل'}
-            </button>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+              {/* V119: Show active mode + switch option even when running */}
+              <button
+                onClick={async () => {
+                  // Switch mode: disable then re-enable with different mode
+                  await disableUser()
+                }}
+                disabled={loading}
+                style={{
+                  fontSize: 7, minHeight: 20, padding: '2px 8px',
+                  borderRadius: 5, border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                  background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 700,
+                }}
+              >
+                {loading ? '...' : 'إيقاف وتغيير'}
+              </button>
+            </div>
           )}
         </div>
       </div>
@@ -385,39 +395,65 @@ export function SmartExecutorPanel() {
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
 
-      {/* User Config */}
-      {isActive && userState && (
-        <div style={{
-          padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
-          display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
-        }}>
-          <span style={{ color: T.text3 }}>الوضع:</span>
-          <span style={{
-            padding: '1px 5px', borderRadius: 3,
-            background: userState.isPaperTrading ? 'rgba(0,212,255,0.12)' : 'rgba(255,184,0,0.12)',
-            color: userState.isPaperTrading ? T.cyan : T.amber, fontWeight: 700,
-          }}>
-            {userState.isPaperTrading ? 'ورقي' : 'حقيقي'}
-          </span>
-          {!userState.isPaperTrading && userState.credentialId && (
+      {/* V119: Exchange Mode Banner — always visible, not just when active */}
+      <div style={{
+        padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
+        display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
+        background: isActive
+          ? (userState?.isPaperTrading ? 'rgba(0,212,255,0.04)' : 'rgba(255,184,0,0.04)')
+          : 'transparent',
+      }}>
+        <span style={{ color: T.text3 }}>الوضع:</span>
+        {isActive && userState ? (
+          <>
             <span style={{
-              padding: '1px 5px', borderRadius: 3,
-              background: 'rgba(255,184,0,0.08)', color: T.amber,
+              padding: '1px 6px', borderRadius: 3,
+              background: userState.isPaperTrading ? 'rgba(0,212,255,0.15)' : 'rgba(255,184,0,0.15)',
+              color: userState.isPaperTrading ? T.cyan : T.amber, fontWeight: 700,
+              border: `1px solid ${userState.isPaperTrading ? 'rgba(0,212,255,0.3)' : 'rgba(255,184,0,0.3)'}`,
             }}>
-              {exchangeCredentials.find((c: any) => c.id === userState.credentialId)?.exchange || 'بورصة'}
+              {userState.isPaperTrading ? '📝 ورقي (تجريبي)' : '💰 حقيقي'}
             </span>
-          )}
-          <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
-          <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
-        </div>
-      )}
+            {!userState.isPaperTrading && userState.credentialId && (
+              <span style={{
+                padding: '1px 6px', borderRadius: 3,
+                background: 'rgba(255,184,0,0.1)', color: T.amber, fontWeight: 700,
+                border: '1px solid rgba(255,184,0,0.2)',
+              }}>
+                {exchangeCredentials.find((c: any) => c.id === userState.credentialId)?.exchange || 'بورصة'}
+              </span>
+            )}
+            <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
+            <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
+          </>
+        ) : (
+          <span style={{ color: T.text3, fontSize: 6.5 }}>
+            اختر وضع التداول: ورقي (تجريبي) أو حقيقي (على بورصتك)
+          </span>
+        )}
+      </div>
 
-      {/* Paper Trading Warning */}
+      {/* Paper Trading Warning — more prominent */}
       {isActive && userState?.isPaperTrading && (
         <div style={{
           padding: '4px 8px', background: 'rgba(0,212,255,0.06)', borderBottom: '1px solid rgba(0,212,255,0.12)',
+          display: 'flex', alignItems: 'center', gap: 4,
         }}>
-          <span style={{ fontSize: 7, color: T.cyan, fontWeight: 600 }}>⚠ تداول ورقي تجريبي — هذه ليست صفقات حقيقية بأموال حقيقية</span>
+          <span style={{ fontSize: 7, color: T.cyan, fontWeight: 600 }}>⚠ تداول ورقي تجريبي — أموال وهمية وليست حقيقية</span>
+          {exchangeCredentials.length > 0 && (
+            <span style={{ fontSize: 6, color: T.amber, fontWeight: 600, opacity: 0.8 }}>
+              (لديك بورصة حقيقية متصلة — اضغط "إيقاف وتغيير" للتبديل)
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Real Trading Warning */}
+      {isActive && !userState?.isPaperTrading && (
+        <div style={{
+          padding: '4px 8px', background: 'rgba(255,184,0,0.06)', borderBottom: '1px solid rgba(255,184,0,0.12)',
+        }}>
+          <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية — تأكد من إعدادات إدارة المخاطر</span>
         </div>
       )}
 

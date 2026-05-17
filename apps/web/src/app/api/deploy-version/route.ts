@@ -34,6 +34,6 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     // Include a unique marker that changes with each deployment
     // so we can verify the code is actually updated
-    deployMarker: 'ROUA-V118-EXCHANGE-ROUTING',
+    deployMarker: 'ROUA-V119-SMART-BUTTONS',
   });
 }

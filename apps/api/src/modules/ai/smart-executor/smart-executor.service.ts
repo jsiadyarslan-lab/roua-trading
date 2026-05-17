@@ -465,6 +465,32 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     }
 
+    // ── V119 FIX: If user didn't explicitly choose paper trading,
+    // check if they have real exchange credentials. If they do,
+    // use auto-routing (isPaperTrading=false, no credentialId)
+    // so _selectBestCredential can route based on symbol type.
+    // Only default to paper if user has NO real credentials. ──
+    let effectiveIsPaper = config?.isPaperTrading ?? true;
+    let effectiveCredentialId = config?.credentialId;
+
+    if (effectiveIsPaper && !config?.credentialId) {
+      // User hasn't explicitly chosen — check for real credentials
+      const realCredentials = await this.prisma.exchangeCredential.findMany({
+        where: { userId, isValid: true, exchange: { not: 'paper-trading' } },
+        orderBy: [{ testnet: 'asc' }, { lastValidatedAt: 'desc' }],
+        take: 1,
+      });
+      if (realCredentials.length > 0) {
+        // User has real credentials — use auto-routing instead of paper
+        effectiveIsPaper = false;
+        effectiveCredentialId = undefined; // Let _selectBestCredential handle routing
+        this.logger.log(
+          `⚔️ V119 Auto-detected real credentials for user ${userId} — ` +
+          `switching from paper to real trading (auto-routing)`,
+        );
+      }
+    }
+
     const state: UserExecutorState = {
       enabled: true,
       dailyPnL: 0,
@@ -474,8 +500,8 @@ export class SmartExecutorService implements OnModuleDestroy {
       consecutiveLosses: 0,
       maxOpenPositions: config?.maxOpenPositions || this.config.maxOpenPositions,
       riskPerTradePercent: config?.riskPerTradePercent || this.config.riskPerTradePercent,
-      credentialId: config?.credentialId,
-      isPaperTrading: config?.isPaperTrading ?? true,
+      credentialId: effectiveCredentialId,
+      isPaperTrading: effectiveIsPaper,
     };
 
     // ── CRITICAL FIX: Persist to BOTH Redis AND Database ──

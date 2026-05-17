@@ -49,7 +49,15 @@ const COST_PER_1K: Record<string, { input: number; output: number }> = {
   'glm':         { input: 0.00140,  output: 0.00140   },
   'huggingface': { input: 0,        output: 0         },
   'ollama':      { input: 0,        output: 0         },
-  'bedrock':     { input: 0.000035, output: 0.00014   },  // Nova Micro (was Claude Sonnet $0.003/$0.015)
+  // FIX: Per-model Bedrock pricing — each model has its own rate.
+  // Previously ALL bedrock entries were costed at Nova Micro rates,
+  // causing massive under-reporting when Claude was used.
+  'bedrock-nova-micro':  { input: 0.000035, output: 0.00014   },  // Nova Micro — cheapest
+  'bedrock-nova-lite':   { input: 0.00006,  output: 0.00024   },  // Nova Lite
+  'bedrock-claude-haiku': { input: 0.0008,  output: 0.004    },  // Claude 4.5 Haiku
+  'bedrock-titan':       { input: 0.0005,   output: 0.0015   },  // Titan Premier/Express
+  'bedrock-llama':       { input: 0.0003,   output: 0.0006   },  // Llama3 8B on Bedrock
+  'bedrock':             { input: 0.0008,   output: 0.004    },  // Default: Claude Haiku (safest default)
   'openrouter':  { input: 0,        output: 0         },  // Free models — $0 cost
   'openrouter-paid': { input: 0.00015, output: 0.00015 },  // Paid models (e.g., Claude Haiku via OR)
   'deepseek':    { input: 0.00014, output: 0.00028   },  // DeepSeek Chat via OpenRouter
@@ -68,7 +76,22 @@ function extractProvider(model: string): string {
   if (lower.includes('glm')) return 'glm';
   if (lower.includes('huggingface') || lower.includes('hf')) return 'huggingface';
   if (lower.includes('ollama')) return 'ollama';
-  if (lower.includes('bedrock') || lower.includes('claude')) return 'bedrock';
+  // FIX: Per-model Bedrock cost tier — map model name to correct pricing tier
+  // instead of lumping all bedrock/claude into a single 'bedrock' bucket.
+  // This prevents under-reporting costs when Claude is used at Nova Micro rates.
+  if (lower.includes('bedrock')) {
+    if (lower.includes('nova-micro') || lower.includes('nova_micro')) return 'bedrock-nova-micro';
+    if (lower.includes('nova-lite') || lower.includes('nova_lite')) return 'bedrock-nova-lite';
+    if (lower.includes('claude-haiku') || lower.includes('haiku')) return 'bedrock-claude-haiku';
+    if (lower.includes('titan')) return 'bedrock-titan';
+    if (lower.includes('llama')) return 'bedrock-llama';
+    return 'bedrock'; // Default: Claude Haiku rate (safest — avoids under-reporting)
+  }
+  if (lower.includes('claude')) {
+    // Claude via non-Bedrock path (e.g., OpenRouter) — don't pollute bedrock budget
+    if (lower.includes('haiku')) return 'bedrock-claude-haiku';
+    return 'openrouter-paid'; // Claude via OpenRouter = paid model
+  }
   if (lower.includes('deepseek')) return 'deepseek';
   if (lower.includes('cerebras')) return 'cerebras';
   if (lower.includes('nvidia')) return 'nvidia';
@@ -78,7 +101,7 @@ function extractProvider(model: string): string {
     return 'openrouter-paid';
   }
   if (lower.includes('cache/') || lower.includes('cache:')) return 'cache';
-  if (lower.includes('predictionmarket') || lower.includes('prediction')) return 'prediction';  // FIX: PredictionMarket/8th was falling through to 'unknown'
+  if (lower.includes('predictionmarket') || lower.includes('prediction')) return 'prediction';
   if (lower.includes('orchestrator') || lower.includes('fallback')) return 'system';
   return 'unknown';
 }
@@ -206,7 +229,12 @@ export class AiUsageLoggerService {
     userId?: string;
   }): void {
     const provider = extractProvider(params.model);
-    const inputTokens = Math.ceil(params.inputPrompt.length / 3); // Approximate for failure logs
+    // FIX: Failed calls should NOT contribute to budget tracking.
+    // Previously, failed calls estimated input tokens and calculated costUsd,
+    // which inflated the Bedrock budget counter even when no API call was made
+    // (e.g., budget guard blocking → error → cost logged → budget grows).
+    // Now: inputTokens=0 ensures costUsd=0 for failed calls.
+    const inputTokens = 0;
 
     this.log({
       userId: params.userId,

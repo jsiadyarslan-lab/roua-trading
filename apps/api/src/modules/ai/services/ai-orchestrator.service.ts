@@ -29,7 +29,7 @@ import axios from 'axios';
  * │ Groq/Llama 3.3 70B   │ GROQ_API_KEY       │ ⚡ سرعة — مشاعر/ترجمة │
  * │ Gemini 2.0 Flash     │ GOOGLE_AI_STUDIO   │ 💎 إبداعي — تنبؤ/استراتيجية│
  * │ Cerebras              │ CEREBRAS_API_KEY   │ ⚡ مجاني — سرعة فائقة │
- * │ Bedrock/Nova Micro    │ AWS_ACCESS_KEY_ID  │ ☁️ أرخص — مخاطر/أمان  │
+ * │ Bedrock/Claude 4.5   │ AWS_ACCESS_KEY_ID  │ ☁️ جودة/سعر — مخاطر/أمان│
  * │ GLM-4 (Zhipu AI)     │ GLM_API_KEY        │ 🧠 عربي — سياق طويل   │
  * │ Ollama/Qwen2.5       │ OLLAMA_API_KEY     │ 🏠 محلي — بدون تكلفة  │
  * │ Mistral               │ MISTRAL_API_KEY    │ 🔮 مجاني — سيناريوهات │
@@ -235,7 +235,9 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * FIX: Bedrock now uses Nova Micro (cheapest) instead of Claude 3.5 Sonnet
    * (most expensive). This reduces Bedrock costs by ~85x while maintaining quality.
    *
-   * FIX: Bedrock budget guard — Bedrock budget was at 97.9% ($97.87/$100).
+   * FIX: Bedrock budget guard — previous budget tracking was inaccurate:
+   * it used Nova Micro rates for all Bedrock models including Claude (85x cheaper),
+   * and failed calls contributed to the budget counter. Both issues are now fixed.
    * Moved Bedrock from primary for risk_analysis → last fallback in ALL routes.
    * This ensures Bedrock is only used when all free/cheaper models fail.
    * Gemini (with budget $50) takes over as primary for risk_analysis.
@@ -253,14 +255,16 @@ export class AIOrchestratorService implements OnModuleDestroy {
   };
 
   /** Bedrock monthly budget guard — blocks Bedrock calls when budget exceeded
-   *  Tracked via AiUsageLogger. Reset manually each month or automatically on 1st.
+   *  FIX: Budget is now configurable via BEDROCK_MONTHLY_BUDGET_USD env var.
+   *  FIX: Budget query aggregates ALL bedrock-* providers (nova-micro, claude-haiku, etc.)
+   *  instead of just 'bedrock' — previous code only counted entries with provider='bedrock',
+   *  missing bedrock-nova-micro and bedrock-claude-haiku entries.
+   *  FIX: Failed calls no longer contribute to budget (costUsd=0 for success=false).
    */
-  private readonly BEDROCK_MONTHLY_BUDGET_USD = 100;
+  private readonly BEDROCK_MONTHLY_BUDGET_USD: number;
   private bedrockMonthlySpend = 0;
   private bedrockBudgetLastChecked = 0; // timestamp of last budget check
   // FIX: Budget threshold at 95% instead of 100%.
-  // At 97.9% the budget was already critical. Setting the guard at 95%
-  // provides a safety buffer before AWS charges exceed the monthly limit.
   private readonly BEDROCK_BUDGET_THRESHOLD_PERCENT = 0.95;
 
   constructor(
@@ -281,6 +285,11 @@ export class AIOrchestratorService implements OnModuleDestroy {
     @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
     @Optional() private readonly redis?: RedisService,
   ) {
+    // FIX: Make Bedrock budget configurable via env var (default $100)
+    this.BEDROCK_MONTHLY_BUDGET_USD = parseInt(
+      this.configService.get<string>('BEDROCK_MONTHLY_BUDGET_USD', '100'), 10
+    ) || 100;
+
     this.logger.log('🎼 AI Orchestrator initialized — 8 models + Prediction Market (Groq, Gemini, GLM-4, Cerebras, Ollama, Bedrock, NVIDIA NIM, Mistral)');
     if (this.ragService) {
       this.logger.log('📚 RAG integration enabled — context retrieval active');
@@ -1092,7 +1101,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       { id: 'glm', name: 'GLM-4 (Zhipu AI)', keyEnv: 'GLM_API_KEY' },
       { id: 'cerebras', name: 'Cerebras/Llama 3.1 8B', keyEnv: 'CEREBRAS_API_KEY', altKeyEnv: 'CEREBRAS_KEY' },  // 14,400 req/day FREE
       { id: 'ollama', name: 'Ollama/Qwen2.5', keyEnv: 'OLLAMA_API_KEY' },
-      { id: 'bedrock', name: 'Bedrock/Claude 3.5', keyEnv: 'AWS_ACCESS_KEY_ID' },
+      { id: 'bedrock', name: 'Bedrock/Claude 4.5 Haiku', keyEnv: 'AWS_ACCESS_KEY_ID' },
       { id: 'nvidia', name: 'NVIDIA NIM/Llama 3.3 70B', keyEnv: 'NVIDIA_API_KEY', altKeyEnv: 'NVIDIA_NIM_API_KEY' },  // 40 req/min FREE
       { id: 'mistral', name: 'Mistral/Small', keyEnv: 'MISTRAL_API_KEY', altKeyEnv: 'MISTRAL_KEY' },  // 1B tokens/month FREE
       // Legacy models (still available as fallback)
@@ -1251,7 +1260,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       { model: 'GLM-4 (Zhipu AI)',           available: this._isModelKeyAvailable('glm'),         specialty: '🧠 تحليل عربي — سياق طويل 200k' },
       { model: 'Cerebras/Llama 3.1 8B',     available: this._isModelKeyAvailable('cerebras'),    specialty: '🧠 سرعة خارقة — أنماط وتحليل فني (14,400 طلب/يوم مجاناً)' },
       { model: 'Ollama/Qwen2.5',             available: this._isModelKeyAvailable('ollama'),      specialty: '🏠 محلي بدون تكلفة — دعم عربي ممتاز' },
-      { model: 'Bedrock/Nova Micro',           available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ أرخص — مخاطر وأمان ($0.000035/1K)' },
+      { model: 'Bedrock/Claude 4.5 Haiku',   available: this._isModelKeyAvailable('bedrock'),     specialty: '☁️ أفضل جودة/سعر — مخاطر وأمان (Haiku 4.5 + Nova)' },
       { model: 'NVIDIA NIM/Llama 3.3 70B',   available: this._isModelKeyAvailable('nvidia'),      specialty: '🟢 تباين ومعاكسة — نماذج متنوعة (40 طلب/دقيقة مجاناً)' },
       { model: 'Mistral/Small',              available: this._isModelKeyAvailable('mistral'),     specialty: '🔮 سيناريوهات — تحليل عميق (1 مليار token/شهر مجاناً)' },
     ];
@@ -1551,8 +1560,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // Budget is refreshed by querying AiUsageLog (every 5 minutes or on each Bedrock call).
     if (model === 'bedrock') {
       await this._refreshBedrockBudget();
-      // FIX: Block Bedrock at 95% of budget, not 100%.
-      // At 97.9% the budget was already exceeded — the 100% guard was too late.
+      // FIX: Block Bedrock at 95% of budget, not 100% — provides safety buffer.
       const budgetLimit = this.BEDROCK_MONTHLY_BUDGET_USD * this.BEDROCK_BUDGET_THRESHOLD_PERCENT;
       if (this.bedrockMonthlySpend >= budgetLimit) {
         this.logger.warn(`☁️ Bedrock budget guard: $${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD} (>= ${this.BEDROCK_BUDGET_THRESHOLD_PERCENT * 100}%) — skipping Bedrock call`);
@@ -1640,13 +1648,17 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
     try {
       this.bedrockBudgetLastChecked = now;
-      // Query usage logger for monthly Bedrock spend
-      const stats = await this.usageLogger?.getMonthlySpendForProvider('bedrock');
-      if (stats !== undefined && stats !== null) {
-        this.bedrockMonthlySpend = stats;
-        if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD * 0.85) {
-          this.logger.warn(`☁️ Bedrock budget at ${((this.bedrockMonthlySpend / this.BEDROCK_MONTHLY_BUDGET_USD) * 100).toFixed(1)}% ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
-        }
+      // FIX: Aggregate ALL bedrock-* providers (nova-micro, claude-haiku, etc.)
+      // Previously only queried provider='bedrock', missing per-model entries.
+      const bedrockProviders = ['bedrock', 'bedrock-nova-micro', 'bedrock-nova-lite', 'bedrock-claude-haiku', 'bedrock-titan', 'bedrock-llama'];
+      let totalSpend = 0;
+      for (const provider of bedrockProviders) {
+        const spend = await this.usageLogger?.getMonthlySpendForProvider(provider);
+        if (spend) totalSpend += spend;
+      }
+      this.bedrockMonthlySpend = totalSpend;
+      if (this.bedrockMonthlySpend >= this.BEDROCK_MONTHLY_BUDGET_USD * 0.85) {
+        this.logger.warn(`☁️ Bedrock budget at ${((this.bedrockMonthlySpend / this.BEDROCK_MONTHLY_BUDGET_USD) * 100).toFixed(1)}% ($${this.bedrockMonthlySpend.toFixed(2)}/$${this.BEDROCK_MONTHLY_BUDGET_USD})`);
       }
     } catch {
       // If we can't check budget, allow the call — fail open rather than block

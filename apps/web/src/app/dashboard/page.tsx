@@ -1249,55 +1249,59 @@ export default function DashboardPage() {
 
             {/* Balance + Open Positions Panel — flexShrink:0, takes only the space it needs */}
             <div className="panel hover-glow" style={{ flexShrink: 0, flexBasis: 'auto', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              {/* Balance Summary — always visible */}
-              <div className="panel-header">
-                <div className="summary-row">
-                  {/* 1 — الرصيد (cash بعد إغلاق كل الصفقات) */}
-                  <div className="summary-item" style={{ gap: 8 }}>
-                    <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
-                    <span className="summary-label">الرصيد:</span>
-                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(cashValue)}</span>
-                    <span style={{ fontSize: 9, color: getStatusTone(accountDataStatus), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
-                      {getStatusLabel(accountDataStatus)}
-                    </span>
-                  </div>
-                  {/* 2 — الرصيد الحالي (equity شامل أرباح/خسائر الصفقات المفتوحة) */}
-                  <div className="summary-item" style={{ gap: 8 }}>
-                    <span className="summary-label">الرصيد الحالي:</span>
-                    <span className="summary-value count-up summary-value--accent" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(equityValue)}</span>
-                  </div>
-                  {/* 3 — الهامش المتاح (freeMargin = equity - usedMargin) */}
-                  <div className="summary-item">
-                    <span className="summary-label">الهامش المتاح:</span>
-                    <span className="summary-value summary-value--success">{formatMoney(freeMargin)}</span>
-                  </div>
-                  {/* 4 — الهامش المستخدم (initialMargin) */}
-                  <div className="summary-item">
-                    <span className="summary-label">الهامش المستخدم:</span>
-                    <span className="summary-value">{formatMoney(initialMargin)}</span>
-                  </div>
-                  {/* 5 — نسبة الهامش (usedMargin / equity × 100%) */}
-                  <div className="summary-item">
-                    <span className="summary-label">نسبة الهامش:</span>
-                    <span className="summary-value" style={{
-                      color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger
-                        : equityValue > 0 && (initialMargin / equityValue) > 0.5 ? '#f59e0b'
-                        : T.cyan,
-                      fontWeight: 700,
-                    }}>
-                      {equityValue > 0 ? ((initialMargin / equityValue) * 100).toFixed(1) : '0.0'}%
-                    </span>
-                  </div>
-                  {/* 6 — P&L (أرباح/خسائر غير محققة — دائماً ظاهر) */}
-                  <div className="summary-item">
-                    <span className="summary-label">P&L:</span>
-                    <span className="summary-value" style={{
-                      color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text3,
-                      fontWeight: unrealizedPnl !== 0 ? 800 : 600,
-                    }}>
-                      {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
-                    </span>
-                  </div>
+              {/* Balance Summary — single compact row with vertical dividers */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 0,
+                minHeight: PANEL_H,
+                padding: '0 8px',
+                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                background: 'linear-gradient(90deg, rgba(0,212,255,0.05), transparent 60%)',
+                overflow: 'hidden',
+              }}>
+                {/* LED + الرصيد */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الرصيد</span>
+                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(cashValue)}</span>
+                </div>
+                {/* الرصيد الحالي */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الحالي</span>
+                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.cyan }}>{formatMoney(equityValue)}</span>
+                </div>
+                {/* الهامش المتاح */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>هامش متاح</span>
+                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.success }}>{formatMoney(freeMargin)}</span>
+                </div>
+                {/* الهامش المستخدم */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>مستخدم</span>
+                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(initialMargin)}</span>
+                </div>
+                {/* نسبة الهامش */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>نسبة</span>
+                  <span dir="ltr" style={{
+                    fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                    color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger
+                      : equityValue > 0 && (initialMargin / equityValue) > 0.5 ? '#f59e0b'
+                      : T.cyan,
+                  }}>
+                    {equityValue > 0 ? ((initialMargin / equityValue) * 100).toFixed(1) : '0.0'}%
+                  </span>
+                </div>
+                {/* P&L */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', flexShrink: 0 }}>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>P&L</span>
+                  <span dir="ltr" style={{
+                    fontSize: 12, fontWeight: unrealizedPnl !== 0 ? 800 : 600, fontFamily: "'JetBrains Mono', monospace",
+                    color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text3,
+                  }}>
+                    {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
+                  </span>
                 </div>
 
                 <button

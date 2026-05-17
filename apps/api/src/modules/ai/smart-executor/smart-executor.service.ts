@@ -1823,14 +1823,53 @@ export class SmartExecutorService implements OnModuleDestroy {
     };
 
     try {
-      // Find user's exchange credential
+      // ═══════════════════════════════════════════════════════════════
+      // FIX V118: Smart credential selection with exchange routing.
+      //
+      // Previously, isPaperTrading defaulted to true and there was NO
+      // exchange routing — even if the user connected Binance, the executor
+      // used paper-trading. Now:
+      //
+      // 1. If user specified credentialId (chose a real exchange), use it.
+      // 2. If isPaperTrading=false but no credentialId, find best match:
+      //    - Crypto symbols (BTC/USDT, ETH/USD) → Binance/KuCoin/Bybit/OKX
+      //    - Stock symbols (AAPL, TSLA) → Alpaca (if connected)
+      // 3. If isPaperTrading=true, use paper-trading credential.
+      // 4. If no real credential matches, fall back to paper-trading
+      //    (with a warning log) rather than skipping the brief entirely.
+      // ═══════════════════════════════════════════════════════════════
       let credential: any = null;
+      let effectiveIsPaper = userState.isPaperTrading;
 
-      if (userState.isPaperTrading) {
-        // Paper trading — find existing paper credential ONLY
-        // FIX: Auto-create paper-trading credential if missing.
-        // Previously disabled to prevent phantom trades, but this meant
-        // the executor could NEVER trade for new users. Now auto-creates.
+      if (!userState.isPaperTrading) {
+        // ── Real trading mode ──
+        if (userState.credentialId) {
+          // User explicitly selected a credential — use it
+          credential = await this.prisma.exchangeCredential.findFirst({
+            where: { id: userState.credentialId, userId, isValid: true },
+          });
+          if (!credential) {
+            this.logger.warn(`⚔️ V118 Credential ${userState.credentialId} not found or invalid for user ${userId} — falling back to paper`);
+          }
+        }
+
+        if (!credential) {
+          // No explicit credential — auto-route based on symbol type
+          credential = await this._selectBestCredential(userId, brief.pair);
+        }
+
+        if (!credential) {
+          // No real credential available for this symbol — fall back to paper
+          this.logger.warn(
+            `⚔️ V118 No real exchange credential for ${brief.pair} (user ${userId}) — ` +
+            `falling back to paper trading for this brief`,
+          );
+          effectiveIsPaper = true;
+        }
+      }
+
+      if (effectiveIsPaper) {
+        // ── Paper trading mode ──
         credential = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
         });
@@ -1861,32 +1900,20 @@ export class SmartExecutorService implements OnModuleDestroy {
             return result;
           }
         }
-      } else {
-        // Real trading — use user's credential
-        const where: any = { userId, isValid: true };
-        if (userState.credentialId) {
-          where.id = userState.credentialId;
-        } else {
-          where.permissions = { contains: 'trade' };
-        }
-
-        credential = await this.prisma.exchangeCredential.findFirst({ where });
       }
 
       if (!credential) {
-        // FIX: No credential found — do NOT auto-create paper-trading credentials.
-        // Previously, this code would automatically fall back to paper trading,
-        // creating a fake credential and executing phantom trades without user consent.
-        // This was a major source of phantom trades. Now: if there's no credential,
-        // the brief is simply SKIPPED for this user. The user must explicitly
-        // add an exchange API key or explicitly enable paper trading from the dashboard.
-        this.logger.warn(
-          `⚔️ No credential found for user ${userId} — skipping brief execution. ` +
-          `User must add an exchange API key or explicitly enable paper trading.`,
-        );
+        // This should NEVER happen (paper-trading fallback above always creates one),
+        // but as a safety net, skip the brief if somehow no credential exists.
+        this.logger.warn(`⚔️ V118 No credential available for user ${userId} — skipping brief`);
         result.error = 'No exchange credential — skipped';
         return result;
       }
+
+      this.logger.log(
+        `⚔️ V118 Executing brief ${brief.pair} for user ${userId} ` +
+        `on ${credential.exchange} (${effectiveIsPaper ? 'paper' : 'real'})`,
+      );
 
       // Calculate position size based on risk
       // FIX: The old formula `riskAmount / priceRisk` produces astronomical quantities
@@ -1923,7 +1950,7 @@ export class SmartExecutorService implements OnModuleDestroy {
       // the risk-based value to dominate.
       //
       // Now: We ALWAYS enforce the maxOrderValue cap FIRST, then apply risk constraints.
-      const maxOrderValue = userState.isPaperTrading
+      const maxOrderValue = effectiveIsPaper
         ? Math.min(5000, portfolioValue * 0.05)   // Paper: max $5K or 5% of portfolio
         : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2% of portfolio
       const valueCappedQty = maxOrderValue / currentPrice;
@@ -2012,7 +2039,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         stopLoss: execStopLoss,
         takeProfit: execTakeProfit,
         briefId: brief.id,
-        isPaperTrading: userState.isPaperTrading,
+        isPaperTrading: effectiveIsPaper,
       });
 
       if (!dispatchResult.success) {
@@ -2039,7 +2066,7 @@ export class SmartExecutorService implements OnModuleDestroy {
           quantity,
           confidence: brief.confidence,
           timeframe: brief.timeframe,
-          isPaperTrading: userState.isPaperTrading,
+          isPaperTrading: effectiveIsPaper,
         }),
       });
     } catch (error: any) {
@@ -2131,6 +2158,87 @@ export class SmartExecutorService implements OnModuleDestroy {
    * $10,000 as their paper balance. This caused wrong position sizing
    * and absurd daily drawdown percentages (832%).
    */
+  /**
+   * FIX V118: Select the best exchange credential for a given symbol.
+   * Routes based on symbol type:
+   *   - Crypto pairs (BTC/USDT, ETH/USD, etc.) → crypto exchanges (Binance, KuCoin, Bybit, OKX, Gate.io)
+   *   - Stock symbols (AAPL, TSLA, etc.) → stock exchanges (Alpaca)
+   *   - Forex/XAU → any available real credential (best effort)
+   *
+   * Priority: non-testnet credentials first, then testnet.
+   * Among same-priority credentials, the most recently validated one wins.
+   */
+  private async _selectBestCredential(userId: string, symbol: string): Promise<any | null> {
+    // Get all valid real (non-paper) credentials for this user
+    const credentials = await this.prisma.exchangeCredential.findMany({
+      where: {
+        userId,
+        isValid: true,
+        exchange: { not: 'paper-trading' },
+      },
+      orderBy: [
+        { testnet: 'asc' },        // Prefer non-testnet (production) credentials
+        { lastValidatedAt: 'desc' }, // Most recently validated first
+      ],
+    });
+
+    if (credentials.length === 0) return null;
+
+    // ── Symbol-to-exchange routing ──
+    const symbolUpper = symbol.toUpperCase();
+
+    // Crypto pairs: contain / or end with USDT/USD/BTC/ETH
+    const isCryptoPair = symbolUpper.includes('/') ||
+      /USDT$|BUSD$|BTC$|ETH$/.test(symbolUpper);
+    const isCryptoBase = /^(BTC|ETH|SOL|BNB|XRP|ADA|DOGE|DOT|MATIC|AVAX|LINK|UNI|ATOM|LTC|FIL|NEAR|ALGO|FTM|AAVE|MKR|SAND|MANA|AXS|GRT|ENJ|CHZ|COMP|SNX|YFI|CRV|BAL|SUSHI|1INCH|ZRX|REN|KNC|OMG|BAND|RNDR|INJ|SUI|SEI|APT|ARB|OP|MANTA|STRK|JUP|WIF|PEPE|BONK|FLOKI|SHIB|PEPE|FET|RENDER|TON|KAS|TIA|IMX|STX|RUNE|THETA|FTM|NEAR|ALGO|VET|ICP|HBAR|EGLD|XTZ|SAND|MANA|AXS|GRT)/.test(symbolUpper.split('/')[0]);
+
+    // Stock symbols: typically 1-5 uppercase letters, no /
+    const isStockSymbol = !symbolUpper.includes('/') &&
+      /^[A-Z]{1,5}$/.test(symbolUpper) &&
+      !isCryptoBase;
+
+    // Forex / XAU
+    const isForexOrMetal = /^(EUR|GBP|JPY|AUD|NZD|CAD|CHF|XAU|XAG)/.test(symbolUpper) ||
+      /USD$|EUR$|GBP$|JPY$/.test(symbolUpper);
+
+    // Crypto exchanges
+    const cryptoExchanges = ['binance', 'kucoin', 'bybit', 'okx', 'gateio', 'binance_test', 'binance_future_test'];
+
+    // Stock exchanges
+    const stockExchanges = ['alpaca'];
+
+    if (isCryptoPair || isCryptoBase) {
+      // Route to crypto exchange
+      const match = credentials.find(c => cryptoExchanges.includes(c.exchange.toLowerCase()));
+      if (match) {
+        this.logger.debug(`⚔️ V118 Routed ${symbol} → ${match.exchange} (crypto)`);
+        return match;
+      }
+    }
+
+    if (isStockSymbol) {
+      // Route to stock exchange
+      const match = credentials.find(c => stockExchanges.includes(c.exchange.toLowerCase()));
+      if (match) {
+        this.logger.debug(`⚔️ V118 Routed ${symbol} → ${match.exchange} (stock)`);
+        return match;
+      }
+    }
+
+    // For forex/metals/unknown, try any real credential (best effort)
+    // Prefer non-testnet
+    const nonTestnet = credentials.find(c => !c.testnet);
+    if (nonTestnet) {
+      this.logger.debug(`⚔️ V118 Routed ${symbol} → ${nonTestnet.exchange} (best-effort, non-testnet)`);
+      return nonTestnet;
+    }
+
+    // Use first available (might be testnet)
+    const first = credentials[0];
+    this.logger.debug(`⚔️ V118 Routed ${symbol} → ${first.exchange} (best-effort, testnet)`);
+    return first;
+  }
+
   private async _getPaperPortfolioValue(userId: string): Promise<number> {
     try {
       const settings = await this.prisma.agentSettings.findUnique({

@@ -70,6 +70,8 @@ export function SmartExecutorPanel() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [purging, setPurging] = useState(false)
+  const [exchangeCredentials, setExchangeCredentials] = useState<any[]>([])
+  const [selectedCredentialId, setSelectedCredentialId] = useState<string | undefined>(undefined)
 
   const [backendOffline, setBackendOffline] = useState(false)
   const [currentMonitoredSymbol, setCurrentMonitoredSymbol] = useState('BTC/USDT')
@@ -130,7 +132,25 @@ export function SmartExecutorPanel() {
   useEffect(() => {
     fetchUserState()
     fetchPositions()
+    fetchExchangeCredentials()
   }, [fetchUserState, fetchPositions])
+
+  // FIX V118: Fetch user's exchange credentials to determine trading mode.
+  // If user has a valid real exchange credential (Binance, etc.), they should
+  // be able to trade on it — not forced into paper trading.
+  const fetchExchangeCredentials = useCallback(async () => {
+    try {
+      const res = await fetch('/api/portfolio/credentials')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data)) {
+          // Filter to real exchanges only (not paper-trading)
+          const realCredentials = data.data.filter((c: any) => c.exchange !== 'paper-trading' && c.isValid)
+          setExchangeCredentials(realCredentials)
+        }
+      }
+    } catch { /* non-critical */ }
+  }, [])
   // Poll every 10s — pauses when tab hidden
   useVisibleInterval(() => { fetchUserState(); fetchPositions() }, 10000)
 
@@ -207,14 +227,22 @@ export function SmartExecutorPanel() {
   // operations — any user clicking "stop" would kill the executor
   // for ALL users. Now only per-user enable/disable is available.
 
-  const enableUser = async (isPaper: boolean = true) => {
+  // FIX V118: Support real exchange trading — not just paper.
+  // If user has valid real credentials and selects one, use it.
+  // If no real credentials, fall back to paper trading.
+  const enableUser = async (isPaper: boolean = true, credentialId?: string) => {
     setLoading(true)
     setError(null)
     try {
       await fetch('/api/smart-executor/user/enable', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isPaperTrading: isPaper, maxOpenPositions: 5, riskPerTradePercent: 1 }),
+        body: JSON.stringify({
+          isPaperTrading: isPaper,
+          credentialId: credentialId,
+          maxOpenPositions: 5,
+          riskPerTradePercent: 1,
+        }),
       })
       await fetchUserState()
     } catch (e: any) {
@@ -294,18 +322,44 @@ export function SmartExecutorPanel() {
           </span>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          {/* FIX: Single per-user toggle — no more global start/stop.
-              Previously, start/stop was GLOBAL — any user clicking "stop"
-              would kill the executor for ALL users. Now, each user
-              only controls their OWN executor via enable/disable. */}
+          {/* FIX V118: Exchange-aware activation buttons.
+              If user has real exchange credentials, show option to trade on real exchange.
+              If no real credentials, show paper trading only. */}
           {!isActive ? (
-            <button onClick={() => enableUser(true)} disabled={loading} style={{
-              fontSize: 8, minHeight: 22, padding: '3px 10px',
-              borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-              background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
-            }}>
-              {loading ? '...' : 'تفعيل'}
-            </button>
+            <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+              {exchangeCredentials.length > 0 ? (
+                <>
+                  {/* Paper Trading Button */}
+                  <button onClick={() => enableUser(true)} disabled={loading} style={{
+                    fontSize: 7, minHeight: 20, padding: '2px 8px',
+                    borderRadius: 5, border: '1px solid rgba(0,212,255,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                    background: 'rgba(0,212,255,0.12)', color: T.cyan, fontWeight: 700,
+                  }}>
+                    {loading ? '...' : 'ورقي'}
+                  </button>
+                  {/* Real Exchange Buttons — one per credential */}
+                  {exchangeCredentials.map((cred: any) => (
+                    <button key={cred.id} onClick={() => enableUser(false, cred.id)} disabled={loading} style={{
+                      fontSize: 7, minHeight: 20, padding: '2px 8px',
+                      borderRadius: 5, border: '1px solid rgba(255,184,0,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                      background: 'rgba(255,184,0,0.12)', color: T.amber, fontWeight: 700,
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {loading ? '...' : `${cred.exchange}${cred.label ? ` (${cred.label})` : ''}`}
+                    </button>
+                  ))}
+                </>
+              ) : (
+                /* No real credentials — paper trading only */
+                <button onClick={() => enableUser(true)} disabled={loading} style={{
+                  fontSize: 8, minHeight: 22, padding: '3px 10px',
+                  borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                  background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
+                }}>
+                  {loading ? '...' : 'تفعيل'}
+                </button>
+              )}
+            </div>
           ) : (
             <button onClick={disableUser} disabled={loading} style={{
               fontSize: 8, minHeight: 22, padding: '3px 10px',
@@ -345,6 +399,14 @@ export function SmartExecutorPanel() {
           }}>
             {userState.isPaperTrading ? 'ورقي' : 'حقيقي'}
           </span>
+          {!userState.isPaperTrading && userState.credentialId && (
+            <span style={{
+              padding: '1px 5px', borderRadius: 3,
+              background: 'rgba(255,184,0,0.08)', color: T.amber,
+            }}>
+              {exchangeCredentials.find((c: any) => c.id === userState.credentialId)?.exchange || 'بورصة'}
+            </span>
+          )}
           <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
           <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
         </div>

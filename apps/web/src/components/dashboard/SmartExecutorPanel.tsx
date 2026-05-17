@@ -71,6 +71,7 @@ export function SmartExecutorPanel() {
   const [error, setError] = useState<string | null>(null)
   const [purging, setPurging] = useState(false)
   const [exchangeCredentials, setExchangeCredentials] = useState<any[]>([])
+  const [realMoneyWarningDismissed, setRealMoneyWarningDismissed] = useState(false)
   const [selectedCredentialId, setSelectedCredentialId] = useState<string | undefined>(undefined)
 
   const [backendOffline, setBackendOffline] = useState(false)
@@ -464,8 +465,8 @@ export function SmartExecutorPanel() {
         </div>
       )}
 
-      {/* Real Trading Warning — only for REAL (non-testnet) exchanges */}
-      {isActive && !userState?.isPaperTrading && (() => {
+      {/* Real Trading Warning — only for REAL (non-testnet) exchanges, dismissable */}
+      {isActive && !userState?.isPaperTrading && !realMoneyWarningDismissed && (() => {
         const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
         const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
         if (isTestnet) {
@@ -493,7 +494,18 @@ export function SmartExecutorPanel() {
                 fontFamily: "'Cairo', sans-serif", textDecoration: 'none',
               }}
             >
-              تحقق من إعدادات المخاطر ←
+              إعدادات المخاطر
+            </button>
+            <button
+              onClick={() => setRealMoneyWarningDismissed(true)}
+              style={{
+                fontSize: 6.5, color: T.success, fontWeight: 700,
+                background: 'rgba(0,255,163,0.1)', border: '1px solid rgba(0,255,163,0.2)',
+                borderRadius: 3, padding: '1px 6px', cursor: 'pointer',
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              تم التحقق ✓
             </button>
           </div>
         )

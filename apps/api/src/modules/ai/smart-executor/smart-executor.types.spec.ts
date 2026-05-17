@@ -205,6 +205,7 @@ describe('UserExecutorState', () => {
       maxOpenPositions: 5,
       riskPerTradePercent: 1,
       isPaperTrading: true,
+      routingMode: 'paper-only',
     };
 
     expect(state.enabled).toBe(true);
@@ -226,6 +227,7 @@ describe('UserExecutorState', () => {
       riskPerTradePercent: 1,
       credentialId: 'cred-abc-123',
       isPaperTrading: false,
+      routingMode: 'auto',
     };
 
     expect(state.credentialId).toBe('cred-abc-123');

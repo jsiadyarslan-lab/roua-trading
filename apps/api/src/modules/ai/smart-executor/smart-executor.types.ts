@@ -36,7 +36,27 @@ export interface ExecutorConfig {
   minConfidence: number;           // default 70
 }
 
-/** Per-user executor state stored in Redis */
+/**
+ * Per-user executor state stored in Redis
+ *
+ * V125 ARCHITECTURE: Multi-account execution
+ *
+ * Instead of choosing "paper" or "real" at enable time, the executor
+ * now supports AUTOMATIC PER-TRADE routing across ALL connected accounts.
+ *
+ * routingMode:
+ *   'auto'       — Route each trade to the best credential based on
+ *                   symbol type (crypto→Binance, stocks→Alpaca, etc.)
+ *                   Fallback: real → testnet → paper. DEFAULT MODE.
+ *   'paper-only' — Force all trades to paper trading (for testing).
+ *
+ * isPaperTrading is kept for backward compatibility but its meaning changes:
+ *   - In 'auto' mode: isPaperTrading=false (unless no real credentials exist)
+ *   - In 'paper-only' mode: isPaperTrading=true
+ *   - The actual execution path is determined PER TRADE in _executeBriefForUser()
+ */
+export type RoutingMode = 'auto' | 'paper-only';
+
 export interface UserExecutorState {
   enabled: boolean;
   dailyPnL: number;
@@ -48,4 +68,5 @@ export interface UserExecutorState {
   riskPerTradePercent: number;
   credentialId?: string;
   isPaperTrading: boolean;
+  routingMode: RoutingMode;  // V125: auto = route per trade, paper-only = force paper
 }

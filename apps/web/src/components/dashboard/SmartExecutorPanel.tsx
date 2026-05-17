@@ -47,6 +47,7 @@ interface UserExecutorState {
   riskPerTradePercent: number
   credentialId?: string
   isPaperTrading: boolean
+  routingMode?: 'auto' | 'paper-only'  // V125: auto = route per trade to best credential
 }
 
 /**
@@ -246,15 +247,19 @@ export function SmartExecutorPanel() {
   // operations — any user clicking "stop" would kill the executor
   // for ALL users. Now only per-user enable/disable is available.
 
-  // FIX V118: Support real exchange trading — not just paper.
-  // If user has valid real credentials and selects one, use it.
-  // If no real credentials, fall back to paper trading.
-  // SUSTAINABLE FIX: No more hardcoded risk values in the frontend.
-  // The backend's enableUser() now reads risk settings from the Setting table
-  // (the same values the user configured in the Settings page).
-  // Previously, the frontend always sent maxOpenPositions:5 and riskPerTradePercent:1,
-  // overriding whatever the user had set in their Settings page.
-  const enableUser = async (isPaper: boolean = true, credentialId?: string) => {
+  // ═══════════════════════════════════════════════════════════════
+  // V125 SUSTAINABLE ARCHITECTURE: Multi-account auto-routing.
+  //
+  // No more "paper vs real" binary choice. ONE click to enable
+  // the executor, and it automatically routes each trade to the
+  // best available credential:
+  //   - BTC/USDT → Binance (real or testnet)
+  //   - AAPL → Alpaca
+  //   - EUR/USD → paper (no forex exchange connected)
+  //
+  // The user can still force paper-only mode if they want.
+  // ═══════════════════════════════════════════════════════════════
+  const enableUser = async (routingMode: 'auto' | 'paper-only' = 'auto', credentialId?: string) => {
     setLoading(true)
     setError(null)
     try {
@@ -262,9 +267,9 @@ export function SmartExecutorPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          isPaperTrading: isPaper,
-          credentialId: credentialId,
-          // No hardcoded risk values — backend reads from user settings (Setting table)
+          routingMode,
+          credentialId,
+          // Backend reads risk settings from Setting table — no hardcoded values
         }),
       })
       await fetchUserState()
@@ -350,38 +355,26 @@ export function SmartExecutorPanel() {
               If no real credentials, show paper trading only. */}
           {!isActive ? (
             <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
-              {exchangeCredentials.length > 0 ? (
-                <>
-                  {/* Paper Trading Button */}
-                  <button onClick={() => enableUser(true)} disabled={loading} style={{
-                    fontSize: 7, minHeight: 20, padding: '2px 8px',
-                    borderRadius: 5, border: '1px solid rgba(0,212,255,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-                    background: 'rgba(0,212,255,0.12)', color: T.cyan, fontWeight: 700,
-                  }}>
-                    {loading ? '...' : 'ورقي'}
-                  </button>
-                  {/* Real Exchange Buttons — one per credential */}
-                  {exchangeCredentials.map((cred: any) => (
-                    <button key={cred.id} onClick={() => enableUser(false, cred.id)} disabled={loading} style={{
-                      fontSize: 7, minHeight: 20, padding: '2px 8px',
-                      borderRadius: 5, border: '1px solid rgba(255,184,0,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-                      background: 'rgba(255,184,0,0.12)', color: T.amber, fontWeight: 700,
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {loading ? '...' : `${cred.exchange}${cred.label ? ` (${cred.label})` : ''}`}
-                    </button>
-                  ))}
-                </>
-              ) : (
-                /* No real credentials — paper trading only */
-                <button onClick={() => enableUser(true)} disabled={loading} style={{
-                  fontSize: 8, minHeight: 22, padding: '3px 10px',
-                  borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
-                  background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
-                }}>
-                  {loading ? '...' : 'تفعيل'}
-                </button>
-              )}
+              {/* ═══════════════════════════════════════════════════
+                  V125: ONE primary button — "تفعيل تلقائي"
+                  Routes each trade to the best credential automatically.
+                  No more "ورقي/حقيقي" binary choice.
+              ═══════════════════════════════════════════════════ */}
+              <button onClick={() => enableUser('auto')} disabled={loading} style={{
+                fontSize: 7, minHeight: 20, padding: '2px 8px',
+                borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
+              }}>
+                {loading ? '...' : 'تفعيل تلقائي'}
+              </button>
+              {/* Paper-only option for testing */}
+              <button onClick={() => enableUser('paper-only')} disabled={loading} style={{
+                fontSize: 7, minHeight: 20, padding: '2px 8px',
+                borderRadius: 5, border: '1px solid rgba(0,212,255,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
+                background: 'rgba(0,212,255,0.08)', color: T.cyan, fontWeight: 700,
+              }}>
+                {loading ? '...' : 'ورقي فقط'}
+              </button>
             </div>
           ) : (
             <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -418,12 +411,12 @@ export function SmartExecutorPanel() {
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
 
-      {/* V119: Exchange Mode Banner — always visible, not just when active */}
+      {/* V125: Exchange Mode Banner — shows auto-routing status */}
       <div style={{
         padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
         background: isActive
-          ? (userState?.isPaperTrading ? 'rgba(0,212,255,0.04)' : 'rgba(255,184,0,0.04)')
+          ? ((userState?.routingMode === 'paper-only') ? 'rgba(0,212,255,0.04)' : 'rgba(0,255,163,0.04)')
           : 'transparent',
       }}>
         <span style={{ color: T.text3 }}>الوضع:</span>
@@ -431,43 +424,30 @@ export function SmartExecutorPanel() {
           <>
             <span style={{
               padding: '1px 6px', borderRadius: 3,
-              background: userState.isPaperTrading ? 'rgba(0,212,255,0.15)' : 'rgba(255,184,0,0.15)',
-              color: userState.isPaperTrading ? T.cyan : T.amber, fontWeight: 700,
-              border: `1px solid ${userState.isPaperTrading ? 'rgba(0,212,255,0.3)' : 'rgba(255,184,0,0.3)'}`,
+              background: (userState.routingMode === 'paper-only') ? 'rgba(0,212,255,0.15)' : 'rgba(0,255,163,0.15)',
+              color: (userState.routingMode === 'paper-only') ? T.cyan : T.success, fontWeight: 700,
+              border: `1px solid ${(userState.routingMode === 'paper-only') ? 'rgba(0,212,255,0.3)' : 'rgba(0,255,163,0.3)'}`,
             }}>
-              {userState.isPaperTrading ? '📝 ورقي (تجريبي)' : (() => {
-                const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
-                const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
-                return isTestnet ? '🧪 تجريبي (Testnet)' : '💰 حقيقي'
-              })()}
+              {(userState.routingMode === 'paper-only') ? '📝 ورقي فقط' : '⚡ تلقائي — كل الحسابات'}
             </span>
-            {!userState.isPaperTrading && userState.credentialId && (() => {
-              const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
-              const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
-              return isTestnet ? (
-                <span style={{
-                  padding: '1px 6px', borderRadius: 3,
-                  background: 'rgba(0,212,255,0.1)', color: T.cyan, fontWeight: 700,
-                  border: '1px solid rgba(0,212,255,0.2)',
-                }}>
-                  🧪 {activeCred?.exchange || 'Testnet'}
-                </span>
-              ) : (
-                <span style={{
-                  padding: '1px 6px', borderRadius: 3,
-                  background: 'rgba(255,184,0,0.1)', color: T.amber, fontWeight: 700,
-                  border: '1px solid rgba(255,184,0,0.2)',
-                }}>
-                  {activeCred?.exchange || 'بورصة'}
-                </span>
-              )
-            })()}
+            {userState.routingMode !== 'paper-only' && exchangeCredentials.length > 0 && (
+              <span style={{
+                padding: '1px 6px', borderRadius: 3,
+                background: 'rgba(255,184,0,0.1)', color: T.amber, fontWeight: 700,
+                border: '1px solid rgba(255,184,0,0.2)',
+              }}>
+                {exchangeCredentials.length} بورصة: {exchangeCredentials.map((c: any) => {
+                  const isTestnet = c.testnet || c.exchange?.includes('test')
+                  return isTestnet ? `🧪${c.exchange}` : `💰${c.exchange}`
+                }).join(' ')}
+              </span>
+            )}
             <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
             <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
           </>
         ) : (
           <span style={{ color: T.text3, fontSize: 6.5 }}>
-            اختر وضع التداول: ورقي (تجريبي) أو حقيقي (على بورصتك)
+            تفعيل تلقائي يوجه كل صفقة للحساب المناسب تلقائياً
           </span>
         )}
       </div>

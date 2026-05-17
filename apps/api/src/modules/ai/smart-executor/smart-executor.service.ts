@@ -450,12 +450,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     isPaperTrading?: boolean;
     maxOpenPositions?: number;
     riskPerTradePercent?: number;
+    routingMode?: 'auto' | 'paper-only';
   }): Promise<UserExecutorState> {
     // ── FIX: Auto-start the executor if it's not running ──
-    // Previously, the user had to click TWO buttons: "تشغيل" (start executor)
-    // AND "تفعيل" (enable user). This was confusing — the user would enable
-    // their account but nothing would happen because the tick loop wasn't running.
-    // Now: clicking "تفعيل" also starts the executor automatically if needed.
     if (!this.isRunning) {
       this.logger.log(`⚔️ Executor not running — auto-starting on behalf of user ${userId}`);
       try {
@@ -465,27 +462,71 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
     }
 
-    // ── SUSTAINABLE FIX: Respect user's explicit trading mode choice. ──
+    // ═══════════════════════════════════════════════════════════════════
+    // V125 SUSTAINABLE ARCHITECTURE: Multi-account auto-routing.
     //
-    // V119 auto-routing was OVERRIDING the user's choice — when they clicked
-    // "ورقي" (paper), it would silently switch to real trading if they had
-    // real exchange credentials. This is DANGEROUS for a trading platform:
-    //   1. User expects paper trading → gets real trading with real money
-    //   2. Warning message says "حقيقي" even though user chose "ورقي"
-    //   3. No way to use paper trading once you connect a real exchange
+    // Previous design: User had to CHOOSE between paper and real at
+    // enable time. This was fundamentally broken because:
+    //   1. User has MULTIPLE accounts (Binance, Alpaca, paper, etc.)
+    //   2. Different symbols need different exchanges (crypto≠stocks)
+    //   3. Forcing one mode disabled other accounts entirely
+    //   4. Each "fix" toggled the default, breaking different users
     //
-    // NEW RULE: The user's click is ABSOLUTE.
-    //   - "ورقي" button → isPaperTrading=true, period.
-    //   - "Binance" button → isPaperTrading=false, credentialId=that credential
-    //   - Auto-routing only happens at EXECUTION time (_selectBestCredential)
-    //     when isPaperTrading=false and no credentialId is specified.
-    let effectiveIsPaper = config?.isPaperTrading ?? true;
+    // V125 design: The executor works on ALL accounts simultaneously.
+    //   - Default mode: 'auto' — route each trade to the best credential
+    //   - Per-trade routing: crypto→Binance, stocks→Alpaca, forex→paper
+    //   - Fallback chain: real → testnet → paper (always executable)
+    //   - Risk checks: PER TRADE based on selected credential type
+    //   - User can still force paper-only mode if they want
+    //
+    // This means: ONE click to enable → ALL accounts active.
+    // No more "ورقي أو حقيقي" binary choice.
+    // ═══════════════════════════════════════════════════════════════════
+    const effectiveRoutingMode = config?.routingMode ?? 'auto';
+
+    // Determine isPaperTrading based on routing mode:
+    // - 'auto': false (let per-trade routing decide, may use real or paper)
+    // - 'paper-only': true (force all trades to paper)
+    let effectiveIsPaper = effectiveRoutingMode === 'paper-only';
     let effectiveCredentialId = config?.credentialId;
 
-    // ── SUSTAINABLE FIX: Read risk settings from user's saved preferences. ──
-    // Previously, enableUser() used hardcoded values (1%, 5 positions) that
-    // ignored the user's Settings page. Now we read from the Setting table
-    // which the Settings page writes to — single source of truth.
+    // V125: In auto mode, scan user's credentials to determine if they
+    // have any real ones. If not, isPaperTrading is effectively true.
+    if (effectiveRoutingMode === 'auto' && !effectiveCredentialId) {
+      try {
+        const realCredentials = await this.prisma.exchangeCredential.count({
+          where: {
+            userId,
+            isValid: true,
+            exchange: { not: 'paper-trading' },
+            testnet: false,
+          },
+        });
+        if (realCredentials === 0) {
+          // User has NO real credentials — check if they have testnet ones
+          const testnetCredentials = await this.prisma.exchangeCredential.count({
+            where: {
+              userId,
+              isValid: true,
+              exchange: { not: 'paper-trading' },
+              testnet: true,
+            },
+          });
+          // If only testnet/paper, we still route through them (simulated)
+          this.logger.log(
+            `⚔️ V125 Auto mode for user ${userId}: ` +
+            `${realCredentials} real, ${testnetCredentials} testnet credentials — ` +
+            `routing will use best available per trade`
+          );
+        } else {
+          this.logger.log(`⚔️ V125 Auto mode for user ${userId}: ${realCredentials} real credential(s) available — will route per trade`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`⚔️ V125 Could not scan credentials for user ${userId}: ${err.message}`);
+      }
+    }
+
+    // ── Read risk settings from user's saved preferences. ──
     const userRiskSettings = await this._loadUserRiskSettings(userId);
 
     const state: UserExecutorState = {
@@ -499,27 +540,23 @@ export class SmartExecutorService implements OnModuleDestroy {
       riskPerTradePercent: config?.riskPerTradePercent || userRiskSettings.riskPerTradePercent,
       credentialId: effectiveCredentialId,
       isPaperTrading: effectiveIsPaper,
+      routingMode: effectiveRoutingMode,
     };
 
-    // ── CRITICAL FIX: Persist to BOTH Redis AND Database ──
-    // Previously, user state was ONLY in Redis with 24h TTL.
-    // If Redis restarted (common on Railway), the user's "تفعيل" was lost,
-    // and the executor showed 0 enabled users even though the user
-    // had explicitly enabled it.
-    //
-    // Now: Redis (fast access) + DB (survives restarts) dual persistence.
-
-    // 1. Save to Redis (fast access for tick loop)
+    // ── Persist to BOTH Redis AND Database ──
+    // Redis (fast access) + DB (survives restarts) dual persistence.
     await this.redis.set(
       `${this.REDIS_USER_STATE_PREFIX}${userId}`,
       JSON.stringify(state),
-      86400000 * 7, // 7 days (was 1 day — too short, users lose activation daily)
+      86400000 * 7,
     );
 
-    // 2. Save to DB (survives Redis restart)
     await this._persistUserStateToDB(userId, state);
 
-    this.logger.log(`⚔️ Executor enabled for user ${userId} (paper: ${state.isPaperTrading}) — saved to Redis + DB`);
+    this.logger.log(
+      `⚔️ V125 Executor enabled for user ${userId} ` +
+      `(mode: ${effectiveRoutingMode}, paper: ${state.isPaperTrading}) — saved to Redis + DB`
+    );
 
     await this.audit.log({
       userId,
@@ -1262,29 +1299,49 @@ export class SmartExecutorService implements OnModuleDestroy {
     if (!userState || !userState.enabled) return;
 
     // ═══════════════════════════════════════════════════════════════════
-    // V124 SUSTAINABLE FIX: Determine if user is on a SIMULATED account.
-    //
-    // "Simulated" means BOTH paper-trading AND testnet credentials.
-    // Both use VIRTUAL funds and should bypass the same risk checks:
-    //   - Daily loss limit bypassed (virtual money, no real risk)
-    //   - Entry conditions relaxed (brief IS the signal)
-    //   - Position size limits relaxed (count only, no % of portfolio)
-    //   - Auto-close stale positions allowed (no real capital at risk)
-    //   - Per-symbol limit = 2 (hedge allowed)
-    //
-    // The ONLY difference is the EXECUTION PATH:
-    //   - Paper: simulated fill (no real exchange connection)
-    //   - Testnet: CCXT on testnet exchange (real exchange API, virtual funds)
-    //   - Real: CCXT on real exchange (real exchange, real money)
-    //
-    // Previously, the code only checked `userState.isPaperTrading`, which
-    // MISSED testnet credentials. When a user selected Binance Testnet,
-    // `isPaperTrading` was false, so ALL risk checks applied as if real.
-    // The CCXT balance check with testnet API keys would FAIL, blocking
-    // ALL executions. The executor would silently skip every brief.
+    // V125 MIGRATION: Upgrade old user states that don't have routingMode.
+    // Old states had isPaperTrading=true/false. New states use routingMode.
+    // If routingMode is missing, infer it from the old isPaperTrading field:
+    //   - isPaperTrading=true → routingMode='paper-only'
+    //   - isPaperTrading=false → routingMode='auto'
     // ═══════════════════════════════════════════════════════════════════
-    let isSimulated = userState.isPaperTrading;
-    if (!isSimulated && userState.credentialId) {
+    if (!(userState as any).routingMode) {
+      (userState as any).routingMode = userState.isPaperTrading ? 'paper-only' : 'auto';
+      // Persist the upgraded state
+      await this.redis.set(
+        `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+        JSON.stringify(userState),
+        86400000 * 7,
+      );
+      this._persistUserStateToDB(userId, userState).catch(() => {});
+      this.logger.log(`⚔️ V125 Migrated user ${userId} state: isPaperTrading=${userState.isPaperTrading} → routingMode=${(userState as any).routingMode}`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V125 SUSTAINABLE ARCHITECTURE: Per-trade credential routing.
+    //
+    // In V125, isSimulated is NO LONGER determined at the user level.
+    // Instead, it's determined PER TRADE in _executeBriefForUser() based
+    // on which credential the trade is routed to.
+    //
+    // However, we still need a USER-LEVEL check for:
+    //   1. Daily loss limit — skip for users with ONLY simulated credentials
+    //   2. Auto-close stale positions — only for simulated positions
+    //   3. Max positions — relaxed for simulated-only users
+    //
+    // Logic:
+    //   - routingMode='paper-only' → always simulated
+    //   - routingMode='auto' with specific credentialId → check that credential
+    //   - routingMode='auto' without credentialId → check if user has ANY real
+    //     credential; if not, treat as simulated-only
+    // ═══════════════════════════════════════════════════════════════════
+    const routingMode = (userState as any).routingMode || 'auto';
+    let isSimulated = false;
+
+    if (routingMode === 'paper-only') {
+      isSimulated = true;
+    } else if (userState.credentialId) {
+      // Specific credential selected — check if it's simulated
       try {
         const cred = await this.prisma.exchangeCredential.findFirst({
           where: { id: userState.credentialId, userId },
@@ -1292,34 +1349,46 @@ export class SmartExecutorService implements OnModuleDestroy {
         });
         if (cred && (cred.testnet === true || this._isSimulatedExchange(cred.exchange))) {
           isSimulated = true;
-          this.logger.debug(`⚔️ User ${userId} has simulated credential: ${cred.exchange} (testnet=${cred.testnet}) — treating as simulated for risk checks`);
         }
       } catch (err: any) {
-        this.logger.debug(`⚔️ Could not check credential testnet flag for user ${userId}: ${err.message}`);
+        this.logger.debug(`⚔️ Could not check credential for user ${userId}: ${err.message}`);
+      }
+    } else {
+      // V125 Auto mode — check if user has ANY real (non-testnet) credentials
+      try {
+        const realCredentialCount = await this.prisma.exchangeCredential.count({
+          where: {
+            userId,
+            isValid: true,
+            exchange: { not: 'paper-trading' },
+            testnet: false,
+          },
+        });
+        if (realCredentialCount === 0) {
+          isSimulated = true; // User only has testnet/paper credentials
+        }
+      } catch (err: any) {
+        this.logger.debug(`⚔️ Could not scan credentials for user ${userId}: ${err.message}`);
+        // Default to simulated if we can't check — safer
+        isSimulated = true;
       }
     }
 
-    // ── SUSTAINABLE FIX: Refresh risk settings from user preferences every tick. ──
-    // This ensures that changes made in the Settings page take effect within 10s.
-    // Without this, the executor uses stale values from when the user first enabled it.
-    // This is the BRIDGE between the Settings page (write) and the executor (read).
+    // ── Refresh risk settings from user preferences every tick. ──
     try {
       const freshRiskSettings = await this._loadUserRiskSettings(userId);
       let needsUpdate = false;
 
       if (userState.riskPerTradePercent !== freshRiskSettings.riskPerTradePercent) {
-        this.logger.log(`⚔️ User ${userId} riskPerTradePercent updated: ${userState.riskPerTradePercent}% → ${freshRiskSettings.riskPerTradePercent}%`);
         userState.riskPerTradePercent = freshRiskSettings.riskPerTradePercent;
         needsUpdate = true;
       }
       if (userState.maxOpenPositions !== freshRiskSettings.maxOpenPositions) {
-        this.logger.log(`⚔️ User ${userId} maxOpenPositions updated: ${userState.maxOpenPositions} → ${freshRiskSettings.maxOpenPositions}`);
         userState.maxOpenPositions = freshRiskSettings.maxOpenPositions;
         needsUpdate = true;
       }
 
       if (needsUpdate) {
-        // Persist updated values to Redis + DB so they're visible immediately
         await this.redis.set(
           `${this.REDIS_USER_STATE_PREFIX}${userId}`,
           JSON.stringify(userState),
@@ -1328,7 +1397,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         this._persistUserStateToDB(userId, userState).catch(() => {});
       }
     } catch (err: any) {
-      this.logger.debug(`⚔️ Failed to refresh risk settings for ${userId}: ${err.message} — using cached values`);
+      this.logger.debug(`⚔️ Failed to refresh risk settings for ${userId}: ${err.message}`);
     }
 
     // Reset daily stats if new day
@@ -1996,55 +2065,63 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // V124 SUSTAINABLE FIX: Smart credential selection with testnet detection.
+      // V125 SUSTAINABLE ARCHITECTURE: Per-trade multi-account routing.
       //
-      // The KEY insight: "isPaperTrading" is used for TWO purposes:
-      // 1. RISK CHECKS: Paper/testnet bypass risk checks (virtual funds)
-      // 2. EXECUTION PATH: Paper = simulated fill, Real = CCXT execution
+      // Instead of choosing "paper" or "real" once at enable time, each
+      // trade is routed to the best credential based on:
+      //   1. Symbol type (crypto→Binance, stocks→Alpaca, forex→best-effort)
+      //   2. Credential availability and validity
+      //   3. Fallback chain: real → testnet → paper (always executable)
       //
-      // For TESTNET credentials, we need:
-      // - Risk checks: BYPASSED (virtual funds) → effectiveIsPaper = true
-      // - Execution path: CCXT on testnet exchange → NOT paper-trading
+      // routingMode controls the HIGH-LEVEL behavior:
+      //   'auto': Route each trade to best credential (DEFAULT)
+      //   'paper-only': Force all trades to paper
       //
-      // The solution: Set effectiveIsPaper = true for risk bypass purposes,
-      // but the ACTUAL execution path is determined by TradingService which
-      // checks `credential.exchange === 'paper-trading'`. Testnet credentials
-      // have exchange='binance' etc., so they go through CCXT.
-      //
-      // RiskGatekeeper V124 also checks credential.testnet flag directly
-      // via _isSimulatedCredential() — double protection.
+      // Within 'auto' mode:
+      //   - If user specified a credentialId → use that credential
+      //   - Otherwise → _selectBestCredential() routes per symbol
+      //   - Testnet credentials → bypass risk checks (virtual funds)
+      //   - No matching credential → fall back to paper trading
       // ═══════════════════════════════════════════════════════════════
+      const routingMode = (userState as any).routingMode || 'auto';
       let credential: any = null;
-      let effectiveIsPaper = userState.isPaperTrading;
-      let isSimulatedExecution = userState.isPaperTrading; // V124: Separate from isPaper for risk bypass
+      let effectiveIsPaper = routingMode === 'paper-only';
+      let isSimulatedExecution = routingMode === 'paper-only';
 
-      if (!userState.isPaperTrading) {
-        // ── Real/testnet trading mode ──
+      if (routingMode !== 'paper-only') {
+        // ── Auto routing mode ──
         if (userState.credentialId) {
-          // User explicitly selected a credential — use it
+          // User explicitly selected a specific credential — use it for all trades
           credential = await this.prisma.exchangeCredential.findFirst({
             where: { id: userState.credentialId, userId, isValid: true },
           });
           if (!credential) {
-            this.logger.warn(`⚔️ Credential ${userState.credentialId} not found or invalid for user ${userId} — falling back to paper`);
+            this.logger.warn(`⚔️ Credential ${userState.credentialId} not found or invalid — auto-routing instead`);
           }
         }
 
         if (!credential) {
-          // No explicit credential — auto-route based on symbol type
+          // V125: Auto-route based on symbol type — THIS IS THE KEY CHANGE.
+          // Each trade gets routed to the best available credential:
+          //   BTC/USDT → Binance (real or testnet)
+          //   AAPL → Alpaca
+          //   EUR/USD → best available (forex has limited exchange support)
           credential = await this._selectBestCredential(userId, brief.pair);
         }
 
-        // V124: Detect testnet credentials — treat as simulated for risk checks
-        // BUT keep the credential for CCXT execution (don't fall back to paper-trading)
+        // Detect testnet credentials — treat as simulated for risk checks
+        // BUT keep the credential for CCXT execution (don't fall back to paper)
         if (credential && (credential.testnet === true || this._isSimulatedExchange(credential.exchange))) {
           this.logger.log(
-            `⚔️ V124 Detected simulated credential: ${credential.exchange} (testnet=${credential.testnet}) — ` +
-            `bypassing risk checks (virtual funds), executing via CCXT testnet`
+            `⚔️ V125 Routed to simulated credential: ${credential.exchange} (testnet=${credential.testnet}) ` +
+            `for ${brief.pair} — bypassing risk checks, executing via CCXT`
           );
-          isSimulatedExecution = true; // Bypass risk checks
-          // Do NOT set effectiveIsPaper=true — we already have a credential
-          // and don't want the paper-trading credential search to override it
+          isSimulatedExecution = true;
+        } else if (credential) {
+          this.logger.log(
+            `⚔️ V125 Routed to REAL credential: ${credential.exchange} (testnet=${credential.testnet || false}) ` +
+            `for ${brief.pair} — full risk checks apply`
+          );
         }
 
         if (!credential) {

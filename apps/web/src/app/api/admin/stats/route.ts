@@ -39,13 +39,51 @@ export async function GET(req: NextRequest) {
     }
 
     // Fetch user stats from DB
-    const [totalUsers, freeUsers, proUsers, plusUsers, premiumUsers, institutionalUsers] = await Promise.all([
+    // ANTI-PHANTOM-USER FIX: Separate real (verified) users from phantom/guest users.
+    // Verified = has passkeyId OR has OAuth account linked OR has active session.
+    // Phantom = email starts with 'guest-' or 'user-' (chart-pref) or no verification method.
+    const [
+      totalUsers,
+      freeUsers,
+      proUsers,
+      plusUsers,
+      premiumUsers,
+      institutionalUsers,
+      guestCount,
+      verifiedCount,
+    ] = await Promise.all([
       db.user.count(),
       db.user.count({ where: { tier: 'FREE' } }),
       db.user.count({ where: { tier: 'PRO' } }),
       db.user.count({ where: { tier: 'PLUS' } }),
       db.user.count({ where: { tier: 'PREMIUM' } }),
       db.user.count({ where: { tier: 'INSTITUTIONAL' } }),
+      // Phantom/guest users: email starts with 'guest-' or 'user-'
+      db.user.count({
+        where: {
+          OR: [
+            { email: { startsWith: 'guest-' } },
+            { email: { startsWith: 'user-' } },
+            { email: { equals: 'guest@roua.auto' } },
+          ],
+        },
+      }),
+      // Verified users: has passkeyId (completed WebAuthn) OR has OAuth account
+      db.user.count({
+        where: {
+          AND: [
+            { email: { not: { startsWith: 'guest-' } } },
+            { email: { not: { startsWith: 'user-' } } },
+            { email: { not: { equals: 'guest@roua.auto' } } },
+            {
+              OR: [
+                { passkeyId: { not: null } },
+                { accounts: { some: {} } },
+              ],
+            },
+          ],
+        },
+      }),
     ])
 
     // Fetch trading stats
@@ -121,6 +159,9 @@ export async function GET(req: NextRequest) {
         plus: plusUsers,
         premium: premiumUsers,
         institutional: institutionalUsers,
+        verified: verifiedCount,
+        guests: guestCount,
+        phantom: totalUsers - verifiedCount - guestCount > 0 ? totalUsers - verifiedCount - guestCount : 0,
       },
       trading: {
         dailyTrades,

@@ -84,73 +84,35 @@ export async function GET(request: NextRequest) {
       // Rate limit check failed — continue (don't block guest access)
     }
 
-    // Create unique guest user
-    const guestId = `guest-${crypto.randomBytes(8).toString('hex')}`
-    const guestEmail = `${guestId}@roua.auto`
-    const guestDisplayName = 'زائر تجريبي' // "Demo Guest" in Arabic
-
-    // Create guest user (with fallback for missing columns)
+    // ANTI-PHANTOM-USER FIX: Use the SHARED guest user instead of creating
+    // a new one per session. This prevents DB bloat from thousands of
+    // guest-{uuid}@roua.auto phantom accounts.
+    // Each guest still gets their own unique SESSION token, but all guests
+    // share the same user account. This is safe because GuestGuard blocks
+    // data-modifying actions for guest users.
     let userId: string
-    try {
-      const user = await db.user.create({
-        data: {
-          id: guestId,
-          email: guestEmail,
-          displayName: guestDisplayName,
-          tier: 'FREE',
-        },
-      })
-      userId = user.id
-    } catch (createErr: any) {
-      const msg = createErr?.message || String(createErr)
-      // If user already exists (very rare collision), try with different ID
-      if (msg.includes('Unique constraint') || msg.includes('already exists')) {
-        const altId = `guest-${crypto.randomBytes(12).toString('hex')}`
-        const altEmail = `${altId}@roua.auto`
-        try {
-          const user = await db.user.create({
-            data: {
-              id: altId,
-              email: altEmail,
-              displayName: guestDisplayName,
-              tier: 'FREE',
-            },
-          })
-          userId = user.id
-        } catch {
-          // Fallback: raw SQL create
-          userId = altId
-          try {
-            await db.$executeRawUnsafe(
-              `INSERT INTO "User" ("id", "email", "displayName", "tier", "createdAt", "updatedAt")
-               VALUES ($1, $2, $3, 'FREE', NOW(), NOW())`,
-              altId, altEmail, guestDisplayName
-            )
-          } catch (rawErr: any) {
-            console.error('[auth/guest] Failed to create guest user:', rawErr?.message || rawErr)
-            const loginUrl = new URL('/login', request.url)
-            loginUrl.searchParams.set('error', 'guest_creation_failed')
-            return NextResponse.redirect(loginUrl)
-          }
-        }
-      } else {
-        // Other error — try raw SQL
-        userId = guestId
-        try {
-          await db.$executeRawUnsafe(
-            `INSERT INTO "User" ("id", "email", "displayName", "tier", "createdAt", "updatedAt")
-             VALUES ($1, $2, $3, 'FREE', NOW(), NOW())
-             ON CONFLICT ("id") DO NOTHING`,
-            guestId, guestEmail, guestDisplayName
-          )
-        } catch (rawErr: any) {
-          console.error('[auth/guest] Failed to create guest user (raw SQL):', rawErr?.message || rawErr)
-          const loginUrl = new URL('/login', request.url)
-          loginUrl.searchParams.set('error', 'guest_creation_failed')
-          return NextResponse.redirect(loginUrl)
-        }
+    const guestDisplayName = 'زائر تجريبي'
+    let guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+    if (!guestUser) {
+      try {
+        guestUser = await db.user.create({
+          data: {
+            email: 'guest@roua.auto',
+            displayName: guestDisplayName,
+            tier: 'FREE',
+          },
+        })
+      } catch {
+        // Race condition: another request created it first
+        guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
       }
     }
+    if (!guestUser) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('error', 'guest_creation_failed')
+      return NextResponse.redirect(loginUrl)
+    }
+    userId = guestUser.id
 
     // Create session for guest
     const sessionToken = crypto.randomBytes(32).toString('hex')

@@ -27,17 +27,19 @@ const rawTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 const API_TARGET = rawTarget.includes('http://api:') ? 'http://127.0.0.1:3001' : rawTarget;
 
 /**
- * DATA ISOLATION FIX: Generate a unique guest email per session instead of
- * sharing a single guest@roua.auto account. This prevents data leakage
- * between different users' positions, trades, and settings.
+ * SHARED GUEST USER FIX: Instead of creating a NEW guest user per
+ * unauthenticated request (which caused 27,000+ phantom users),
+ * we now use a SINGLE shared guest account (guest@roua.auto).
  *
- * The legacy guest@roua.auto account is kept for backward compatibility
- * (existing sessions may still reference it).
+ * This is safe because:
+ * 1. GuestGuard blocks all data-modifying actions for guest users
+ * 2. Guests only browse — they cannot trade, create positions, or modify data
+ * 3. Each guest still gets their own unique SESSION (token), just not a user
+ * 4. The shared guest user is always FREE tier with no real data
+ *
+ * The cached ID avoids DB lookups on every request.
  */
-function generateUniqueGuestEmail(): string {
-  const uuid = crypto.randomUUID().slice(0, 8)
-  return `guest-${uuid}@roua.auto`
-}
+let cachedGuestUserId: string | null = null
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -85,50 +87,41 @@ async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeade
 }
 
 /**
- * Force-create a new guest session via Next.js DB.
+ * Get or create the SINGLE shared guest user (guest@roua.auto).
  *
- * DATA ISOLATION FIX: Creates a unique guest user per session instead of
- * reusing the shared guest@roua.auto account. Each browser/device gets
- * its own isolated guest account with UUID-based email.
+ * ANTI-PHANTOM-USER FIX: Instead of creating a new user per request,
+ * we reuse one shared guest account. This prevents DB bloat from
+ * bots, crawlers, and unauthenticated API calls.
+ *
+ * Each call still creates a unique SESSION with its own token,
+ * but all guest sessions belong to the same user.
  */
-async function forceCreateSession(): Promise<{ token: string } | null> {
+async function getSharedGuestUserId(): Promise<string | null> {
+  // Use cached ID if available
+  if (cachedGuestUserId) return cachedGuestUserId
+
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) return null
 
-    // Create a UNIQUE guest user per session for data isolation
-    const guestEmail = generateUniqueGuestEmail()
-    let guestUser;
+    // Find the existing shared guest user
+    let guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
 
-    try {
-      guestUser = await db.user.create({
-        data: { email: guestEmail, displayName: 'ضيف', tier: 'FREE' },
-      })
-    } catch {
-      // UUID collision is extremely unlikely, but retry with a new UUID
-      const retryEmail = generateUniqueGuestEmail()
+    if (!guestUser) {
+      // Create the shared guest user ONCE
       try {
         guestUser = await db.user.create({
-          data: { email: retryEmail, displayName: 'ضيف', tier: 'FREE' },
+          data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
         })
       } catch {
-        // Last resort: fall back to legacy shared guest account
+        // Race condition: another request created it first
         guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
-        if (!guestUser) {
-          try {
-            guestUser = await db.user.create({
-              data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
-            })
-          } catch {
-            guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
-          }
-        }
       }
     }
 
     if (!guestUser) return null
 
-    // Enforce FREE tier (safety check for legacy guest account)
+    // Enforce FREE tier (safety check)
     if (guestUser.tier !== 'FREE') {
       try {
         guestUser = await db.user.update({
@@ -138,12 +131,31 @@ async function forceCreateSession(): Promise<{ token: string } | null> {
       } catch { /* Non-critical */ }
     }
 
-    // Create session
+    // Cache for future requests
+    cachedGuestUserId = guestUser.id
+    return guestUser.id
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Create a guest session using the SHARED guest user.
+ *
+ * ANTI-PHANTOM-USER FIX: No new users are created.
+ * Each session gets a unique token but reuses guest@roua.auto.
+ */
+async function forceCreateSession(): Promise<{ token: string } | null> {
+  try {
+    const guestUserId = await getSharedGuestUserId()
+    if (!guestUserId) return null
+
+    // Create a unique session for this request (but reuse the same user)
     const newToken = crypto.randomBytes(32).toString('hex')
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days (matching auth controller)
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
     await db.session.create({
-      data: { userId: guestUser.id, token: newToken, expiresAt },
+      data: { userId: guestUserId, token: newToken, expiresAt },
     })
 
     return { token: newToken }

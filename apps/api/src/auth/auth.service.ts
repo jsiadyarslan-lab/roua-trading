@@ -118,11 +118,10 @@ export class AuthService {
         this.challengeTtlMs,
       );
 
-      if (!existingUser) {
-        await this.prisma.user.create({
-          data: { email, displayName: displayName || email.split('@')[0] },
-        });
-      }
+      // ANTI-PHANTOM-USER FIX: Do NOT create user during registration challenge.
+      // Previously, every registration attempt created a user record even if the
+      // user never completed WebAuthn verification — causing 27,000+ phantom users.
+      // Now the user is only created upon successful verification in verifyRegistration().
 
       this.logger.log(`Registration challenge generated for ${email} (rpId: ${this.rpId})`);
       return options;
@@ -171,7 +170,20 @@ export class AuthService {
   // ── WebAuthn Verify ──
 
   async verifyRegistration(email: string, regResponse: RegistrationResponseJSON, userAgent?: string, ipAddress?: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    // ANTI-PHANTOM-USER FIX: Create user here ONLY upon successful verification.
+    // Previously users were created during the challenge step (generateRegistrationChallenge),
+    // which created phantom users who never completed WebAuthn.
+    let user = await this.prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      try {
+        user = await this.prisma.user.create({
+          data: { email, displayName: email.split('@')[0] },
+        });
+      } catch {
+        // Race condition: another request created it first
+        user = await this.prisma.user.findUnique({ where: { email } });
+      }
+    }
     if (!user) { throw new NotFoundException('المستخدم غير موجود'); }
 
     const challengeKey = `auth:challenge:reg:${email}`;

@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const tier = searchParams.get('tier') || ''
+    const hideGuests = searchParams.get('hideGuests') === 'true'
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '20')))
     const skip = (page - 1) * limit
@@ -30,6 +31,35 @@ export async function GET(req: NextRequest) {
     }
     if (tier && tier !== 'all') {
       where.tier = tier
+    }
+    // ANTI-PHANTOM-USER FIX: Filter out guest/phantom users by default
+    if (hideGuests) {
+      const guestFilter = {
+        email: {
+          not: { startsWith: 'guest-' },
+        },
+      }
+      const userPrefixFilter = {
+        email: {
+          not: { startsWith: 'user-' },
+        },
+      }
+      // Combine with existing filters
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR },
+          { email: { not: { startsWith: 'guest-' } } },
+          { email: { not: { startsWith: 'user-' } } },
+          { email: { not: 'guest@roua.auto' } },
+        ]
+        delete where.OR
+      } else {
+        where.AND = [
+          { email: { not: { startsWith: 'guest-' } } },
+          { email: { not: { startsWith: 'user-' } } },
+          { email: { not: 'guest@roua.auto' } },
+        ]
+      }
     }
 
     const [users, total] = await Promise.all([

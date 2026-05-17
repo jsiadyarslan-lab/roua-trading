@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Activity,
   AlertCircle,
+  Trash2,
 } from 'lucide-react'
 
 interface AdminUser {
@@ -76,6 +77,9 @@ export default function AdminUsersPage() {
   const [showFilter, setShowFilter] = useState(false)
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null)
   const [page, setPage] = useState(1)
+  const [cleanupLoading, setCleanupLoading] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState<{deletedCount: number; errorCount: number} | null>(null)
+  const [hideGuests, setHideGuests] = useState(true)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -86,6 +90,7 @@ export default function AdminUsersPage() {
       })
       if (search) params.set('search', search)
       if (tierFilter !== 'all') params.set('tier', tierFilter)
+      if (hideGuests) params.set('hideGuests', 'true')
 
       const res = await fetch(`/api/admin/users?${params}`)
       if (res.ok) {
@@ -102,7 +107,7 @@ export default function AdminUsersPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, search, tierFilter])
+  }, [page, search, tierFilter, hideGuests])
 
   useEffect(() => { fetchUsers() }, [fetchUsers])
 
@@ -115,6 +120,50 @@ export default function AdminUsersPage() {
     }, 400)
     return () => clearTimeout(timer)
   }, [searchInput])
+
+  const handleCleanupPhantoms = async () => {
+    if (!confirm('سيتم حذف جميع الحسابات الوهمية (guest-*, user-*) والمستخدمين غير المحققين نهائياً. هل أنت متأكد؟')) return
+    setCleanupLoading(true)
+    setCleanupResult(null)
+    try {
+      const adminToken = localStorage.getItem('admin_token') || ''
+      const res = await fetch(`/api/admin/stats`, {
+        headers: { 'Authorization': `Bearer ${adminToken}` },
+      })
+      if (!res.ok) throw new Error('فشل في جلب الإحصائيات')
+      const stats = await res.json()
+      const guestCount = stats.users?.guests || 0
+      if (guestCount === 0) {
+        setCleanupResult({ deletedCount: 0, errorCount: 0 })
+        setCleanupLoading(false)
+        return
+      }
+      // Call cleanup in batches of 500
+      let totalDeleted = 0
+      let totalErrors = 0
+      const batches = Math.ceil(guestCount / 500)
+      for (let i = 0; i < batches; i++) {
+        const cleanRes = await fetch(`/api/maintenance/cleanup-guests?batchSize=500&dryRun=false&includeUnverified=true`, {
+          method: 'POST',
+          headers: { 'X-Admin-Token': adminToken },
+        })
+        if (cleanRes.ok) {
+          const data = await cleanRes.json()
+          totalDeleted += data.deletedCount || 0
+          totalErrors += data.errorCount || 0
+          if (data.deletedCount === 0) break
+        } else {
+          break
+        }
+      }
+      setCleanupResult({ deletedCount: totalDeleted, errorCount: totalErrors })
+      fetchUsers()
+    } catch {
+      setError('فشل في تنظيف الحسابات الوهمية')
+    } finally {
+      setCleanupLoading(false)
+    }
+  }
 
   const formatDate = (iso: string) => {
     const d = new Date(iso)
@@ -135,20 +184,72 @@ export default function AdminUsersPage() {
           <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>إدارة المستخدمين</h1>
           <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", margin: '4px 0 0' }}>{total} مستخدم مسجل</p>
         </div>
-        <button
-          onClick={fetchUsers}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 8,
-            border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
-            color: COLORS.accent, fontSize: 12, fontWeight: 600,
-            fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
-            transition: 'all 0.2s',
-          }}
-        >
-          <RefreshCw size={14} /> تحديث
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setHideGuests(!hideGuests)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 8,
+              border: `1px solid ${hideGuests ? COLORS.success + '40' : COLORS.border}`,
+              background: hideGuests ? 'rgba(0,230,118,0.08)' : 'rgba(255,255,255,0.03)',
+              color: hideGuests ? COLORS.success : COLORS.muted,
+              fontSize: 11, fontWeight: 600, fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            {hideGuests ? 'إخفاء الوهميين' : 'عرض الكل'}
+          </button>
+          <button
+            onClick={handleCleanupPhantoms}
+            disabled={cleanupLoading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 14px', borderRadius: 8,
+              border: `1px solid ${COLORS.danger}40`, background: 'rgba(255,82,82,0.08)',
+              color: COLORS.danger, fontSize: 11, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: cleanupLoading ? 'not-allowed' : 'pointer',
+              opacity: cleanupLoading ? 0.6 : 1,
+            }}
+          >
+            <Trash2 size={13} /> {cleanupLoading ? 'جارٍ التنظيف...' : 'تنظيف الوهميين'}
+          </button>
+          <button
+            onClick={fetchUsers}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '8px 16px', borderRadius: 8,
+              border: `1px solid ${COLORS.border}`, background: 'rgba(0,229,255,0.06)',
+              color: COLORS.accent, fontSize: 12, fontWeight: 600,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            <RefreshCw size={14} /> تحديث
+          </button>
+        </div>
       </div>
+
+      {/* Cleanup Result */}
+      {cleanupResult && (
+        <div style={{
+          padding: '12px 16px', borderRadius: 8,
+          background: cleanupResult.deletedCount > 0 ? `${COLORS.success}10` : `${COLORS.amber}10`,
+          border: `1px solid ${cleanupResult.deletedCount > 0 ? COLORS.success + '25' : COLORS.amber + '25'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Trash2 size={16} color={cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber} />
+            <span style={{ fontSize: 12, color: cleanupResult.deletedCount > 0 ? COLORS.success : COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+              {cleanupResult.deletedCount > 0
+                ? `تم حذف ${cleanupResult.deletedCount} حساب وهمي`
+                : 'لا توجد حسابات وهمية للحذف'}
+              {cleanupResult.errorCount > 0 && ` (${cleanupResult.errorCount} أخطاء)`}
+            </span>
+          </div>
+          <button onClick={() => setCleanupResult(null)} style={{ background: 'transparent', border: 'none', color: COLORS.muted, cursor: 'pointer' }}>
+            <XIcon size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Error Banner */}
       {error && (

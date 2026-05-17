@@ -66,12 +66,13 @@ export async function POST(req: Request) {
     const body = await req.json()
     const { settings, drawings } = body
 
-    // Ensure the user exists for development/demo purposes
-    await db.user.upsert({
-      where: { id: userId },
-      update: {},
-      create: { id: userId, email: `user-${userId}@rouatrading.com`, displayName: `User ${userId.slice(0, 8)}` }
-    })
+    // ANTI-PHANTOM-USER FIX: Removed user.upsert that created phantom users
+    // (user-{@rouatrading.com) for every chart preference save.
+    // The user MUST already exist (created via auth flow) — if not, return 401.
+    const userExists = await db.user.findUnique({ where: { id: userId }, select: { id: true } })
+    if (!userExists) {
+      return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
+    }
 
     const pref = await db.chartPreference.upsert({
       where: { userId_symbol: { userId, symbol } },

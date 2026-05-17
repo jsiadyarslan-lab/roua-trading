@@ -1288,18 +1288,16 @@ export default function DashboardPage() {
                       {equityValue > 0 ? ((initialMargin / equityValue) * 100).toFixed(1) : '0.0'}%
                     </span>
                   </div>
-                  {/* 6 — P&L (أرباح/خسائر غير محققة) */}
-                  {unrealizedPnl !== 0 && (
-                    <div className="summary-item">
-                      <span className="summary-label">P&L:</span>
-                      <span className="summary-value" style={{
-                        color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text2,
-                        fontWeight: 800,
-                      }}>
-                        {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
-                      </span>
-                    </div>
-                  )}
+                  {/* 6 — P&L (أرباح/خسائر غير محققة — دائماً ظاهر) */}
+                  <div className="summary-item">
+                    <span className="summary-label">P&L:</span>
+                    <span className="summary-value" style={{
+                      color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text3,
+                      fontWeight: unrealizedPnl !== 0 ? 800 : 600,
+                    }}>
+                      {isProfitable ? '+' : unrealizedPnl < 0 ? '-' : ''}{formatMoney(Math.abs(unrealizedPnl))}
+                    </span>
+                  </div>
                 </div>
 
                 <button

@@ -45,18 +45,39 @@ export class OrderDispatcherService {
   ) {}
 
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
+    // V129 FIX: Source-agnostic idempotency key.
+    // Previously, the key included `source` which meant smart_executor and agent
+    // got different keys for the same userId+symbol+side, allowing BOTH to open
+    // positions on the same symbol concurrently. Now the key is:
+    //   userId:symbol:side (no source prefix) — if EITHER system already has
+    //   an active order for this user+symbol+side, the other is blocked.
     const briefRef = request.briefId || request.signalId || 'manual';
-    const contentKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
-    const idempotencyKey = crypto.createHash('sha256').update(contentKey).digest('hex').slice(0, 32);
+    // Cross-source key (prevents both systems trading same symbol+side)
+    const crossSourceKey = `${request.userId}:${request.symbol}:${request.side}`;
+    const crossSourceIdempotencyKey = crypto.createHash('sha256').update(crossSourceKey).digest('hex').slice(0, 32);
 
-    const isUnique = await this.idempotency.checkAndLock(idempotencyKey);
+    // Source-specific key (prevents same system double-submit)
+    const sourceKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
+    const sourceIdempotencyKey = crypto.createHash('sha256').update(sourceKey).digest('hex').slice(0, 32);
+
+    // Check cross-source lock first (atomically locks for 60s)
+    const isCrossSourceUnique = await this.idempotency.checkAndLock(crossSourceIdempotencyKey);
+    if (!isCrossSourceUnique) {
+      return { success: false, message: `مركز نشط من نظام آخر على ${request.symbol} ${request.side}` };
+    }
+
+    // Then check source-specific lock
+    const isUnique = await this.idempotency.checkAndLock(sourceIdempotencyKey);
     if (!isUnique) {
+      // Release cross-source lock since we're not proceeding
+      try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
       return { success: false, message: `أمر مكرر — ${request.symbol} ${request.side}` };
     }
 
     try {
       if (!request.stopLoss || request.stopLoss <= 0) {
-        await this.idempotency.releaseLock(idempotencyKey);
+        await this.idempotency.releaseLock(sourceIdempotencyKey);
+        try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
         return { success: false, error: `وقف الخسارة إجباري` };
       }
 
@@ -87,22 +108,20 @@ export class OrderDispatcherService {
             // Same direction — close the existing paper position and replace it
             this.logger.log(`[Dispatcher] Paper replace: closing existing ${request.symbol} ${existing.side} to open new ${request.side}`);
             try {
-              const { TradingService } = await import('../trading.service');
-              // We need to close via TradingService for proper audit/order creation
-              // But since we're inside OrderDispatcher which injects TradingService,
-              // use it directly
               await this.tradingService.closePositionWithRetry(request.userId, {
                 positionId: existing.id,
               });
             } catch (closeErr: any) {
               this.logger.warn(`[Dispatcher] Failed to close existing paper position ${existing.id}: ${closeErr.message}`);
-              await this.idempotency.releaseLock(idempotencyKey);
+              await this.idempotency.releaseLock(sourceIdempotencyKey);
+              try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
               return { success: false, message: `فشل إغلاق المركز القديم لـ ${request.symbol}: ${closeErr.message}` };
             }
           }
         } else {
           // Real trading: Strict — no duplicate positions on same symbol
-          await this.idempotency.releaseLock(idempotencyKey);
+          await this.idempotency.releaseLock(sourceIdempotencyKey);
+          try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
           return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
         }
       }
@@ -117,14 +136,15 @@ export class OrderDispatcherService {
         price: request.price,
         stopLoss: request.stopLoss ?? 0,
         takeProfit: request.takeProfit,
-        idempotencyKey,
+        idempotencyKey: sourceIdempotencyKey,
         clientOrderId: `${request.source}-${briefRef}-${Date.now()}`,
         isPaperTrading: request.isPaperTrading ?? false,
       };
 
       const riskCheck = await this.riskGatekeeper.validateOrder(command);
       if (!riskCheck.allowed) {
-        await this.idempotency.releaseLock(idempotencyKey);
+        await this.idempotency.releaseLock(sourceIdempotencyKey);
+        try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
         return { success: false, error: `مرفوض: ${riskCheck.reason}` };
       }
 
@@ -141,11 +161,13 @@ export class OrderDispatcherService {
       });
 
       this.logger.log(`✅ [${request.source}] ${request.symbol} ${request.side} | orderId: ${result?.id}`);
+      // Cross-source lock auto-expires in 60s, source lock auto-expires per idempotency config
       return { success: true, orderId: result?.id || 'unknown' };
 
     } catch (err: any) {
       this.logger.error(`[Dispatcher] ${err.message}`);
-      try { await this.idempotency.releaseLock(idempotencyKey); } catch {}
+      try { await this.idempotency.releaseLock(sourceIdempotencyKey); } catch {}
+      try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
       return { success: false, error: err.message };
     }
   }

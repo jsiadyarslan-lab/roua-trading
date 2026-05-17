@@ -19,6 +19,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 
 /** نتيجة فحص التعرض */
 export interface ExposureCheckResult {
@@ -57,8 +58,14 @@ const DEFAULT_LIMITS: ExposureLimits = {
 export class ExposureManagerService {
   private readonly logger = new Logger(ExposureManagerService.name);
 
-  constructor(private readonly prisma: PrismaService) {
-    this.logger.log('🛡️ Exposure Manager initialized — unified cross-system exposure tracking');
+  /** Redis lock prefix for atomic position-open check across both systems */
+  private readonly POSITION_LOCK_PREFIX = 'position-lock:';
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+  ) {
+    this.logger.log('🛡️ Exposure Manager initialized — unified cross-system exposure tracking with Redis locks');
   }
 
   /**
@@ -82,7 +89,29 @@ export class ExposureManagerService {
   ): Promise<ExposureCheckResult> {
     const effectiveLimits = { ...DEFAULT_LIMITS, ...limits };
 
+    // ── V129: Atomic Redis lock per user+symbol to prevent TOCTOU race ──
+    // Both SmartExecutor (10s tick) and Agent (1min cron) can concurrently
+    // pass the DB check and open duplicate positions. This lock serializes
+    // concurrent attempts for the same user+symbol.
+    const lockKey = `${this.POSITION_LOCK_PREFIX}${userId}:${symbol}`;
+    const lockTtlMs = 30000; // 30 seconds — must outlast the full check+create cycle
+    let lockAcquired = false;
+
     try {
+      // Try to acquire lock — SET NX is atomic in Redis
+      lockAcquired = await this.redis.setIfNotExists(lockKey, `${side}:${Date.now()}`, Math.ceil(lockTtlMs / 1000));
+      if (!lockAcquired) {
+        this.logger.warn(`🛡️ Position lock contention: ${userId}:${symbol} — another system is already opening a position`);
+        return {
+          allowed: false,
+          reason: `نظام آخر يفتح مركزاً على ${symbol} حالياً — يُعاد المحاولة لاحقاً`,
+          totalOpenPositions: -1,
+          totalExposure: 0,
+          positionsBySource: {},
+          existingPositionOnSymbol: true, // assume yes since locked
+        };
+      }
+
       // ── جلب جميع المراكز المفتوحة بغض النظر عن المصدر ──
       const openPositions = await this.prisma.position.findMany({
         where: {
@@ -133,25 +162,13 @@ export class ExposureManagerService {
       }
 
       // ── فحص 2: مركز واحد لكل زوج ──
-      // FIX: For paper trading, allow 2 positions per symbol (BUY+SELL hedge).
-      // This was a major contributor to the "one trade only" bug — the Strategic
-      // Council generates briefs for the same high-conviction pairs (BTC/USDT,
-      // ETH/USDT), and with onePositionPerSymbol=true, only ONE trade could
-      // exist at a time. For paper trading, this is too restrictive.
-      // Paper trading is for learning and demonstration, not capital preservation.
       if (effectiveLimits.onePositionPerSymbol && existingPositionOnSymbol) {
-        // Check if this is paper trading by looking at the existing positions' exchange
         const existingOnSymbol = openPositions.find(p => p.symbol === symbol);
-        // FIX: ALL automated sources are considered paper trading for limit purposes
-        const isPaperTrading = true; // paper trading is default for all automated sources
-        
-        // Count positions on this symbol
         const positionsOnSymbol = openPositions.filter(p => p.symbol === symbol).length;
-        
-        // Paper trading: Allow up to 2 positions per symbol (hedge: BUY+SELL)
-        if (isPaperTrading && positionsOnSymbol < 2) {
-          // Allow — there's room for one more position on this symbol (hedge)
-          this.logger.debug(`🛡️ Paper trading hedge allowed: ${symbol} has ${positionsOnSymbol} position(s), allowing 1 more`);
+
+        // Paper trading: Allow up to 2 positions per symbol (BUY+SELL hedge)
+        if (positionsOnSymbol < 2) {
+          this.logger.debug(`🛡️ Hedge allowed: ${symbol} has ${positionsOnSymbol} position(s), allowing 1 more`);
         } else {
           const existingSource = existingOnSymbol?.source || 'unknown';
           return {
@@ -166,8 +183,6 @@ export class ExposureManagerService {
       }
 
       // ── فحص 3: الحد الأقصى للتعرض ──
-      // نحتاج قيمة المحفظة لهذا الفحص
-      // نحاول قراءتها من AgentSettings أو نستخدم قيمة افتراضية
       const portfolioValue = await this._getPortfolioValue(userId);
       if (portfolioValue > 0) {
         const maxExposure = portfolioValue * (effectiveLimits.maxExposurePercent / 100);
@@ -185,6 +200,8 @@ export class ExposureManagerService {
       }
 
       // ── جميع الفحوصات اجتازت ──
+      // NOTE: Lock remains held for 30s — caller must call releasePositionLock() after
+      // position creation succeeds or fails. If they don't, it auto-expires.
       return {
         allowed: true,
         totalOpenPositions,
@@ -193,18 +210,30 @@ export class ExposureManagerService {
         existingPositionOnSymbol,
       };
     } catch (error: any) {
-      // في حالة خطأ DB، نسمح بالصفقة (fail-open)
-      // لأن OrderDispatcher و RiskGatekeeper سيفحصان لاحقاً
-      this.logger.warn(`🛡️ Exposure check failed (fail-open): ${error.message}`);
+      // V129 FIX: Fail-CLOSED — if DB/Redis fails, block the trade.
+      // Previous code was fail-open, allowing both systems to pass simultaneously
+      // during outages, causing duplicate positions on the same symbol.
+      this.logger.error(`🛡️ Exposure check FAILED (fail-closed): ${error.message}`);
       return {
-        allowed: true,
-        reason: `فشل فحص التعرض (تم السماح احتياطياً): ${error.message}`,
-        totalOpenPositions: 0,
+        allowed: false,
+        reason: `فشل فحص التعرض (مرفوض احتياطياً): ${error.message}`,
+        totalOpenPositions: -1,
         totalExposure: 0,
         positionsBySource: {},
-        existingPositionOnSymbol: false,
+        existingPositionOnSymbol: true, // assume yes for safety
       };
     }
+  }
+
+  /**
+   * تحرير قفل المركز بعد إنشاء المركز (أو فشل الإنشاء)
+   * يجب استدعاؤها بعد محاولة إنشاء المركز بغض النظر عن النتيجة
+   */
+  async releasePositionLock(userId: string, symbol: string): Promise<void> {
+    try {
+      const lockKey = `${this.POSITION_LOCK_PREFIX}${userId}:${symbol}`;
+      await this.redis.del(lockKey);
+    } catch { /* non-critical */ }
   }
 
   /**

@@ -28,35 +28,33 @@ export interface ExecutionResult {
 }
 
 export interface ExecutorConfig {
-  tickIntervalMs: number;          // default 2000 (2 seconds — more reasonable than 1s)
-  maxOpenPositions: number;        // default 5
-  maxDailyLossPercent: number;     // default 5% of portfolio
-  defaultSlippage: number;         // default 0.001 (0.1%)
-  riskPerTradePercent: number;     // default 1% of portfolio
-  minConfidence: number;           // default 70
+  tickIntervalMs: number;
+  maxOpenPositions: number;
+  maxDailyLossPercent: number;
+  defaultSlippage: number;
+  riskPerTradePercent: number;
+  minConfidence: number;
 }
 
 /**
  * Per-user executor state stored in Redis
  *
- * V125 ARCHITECTURE: Multi-account execution
+ * V126 SUSTAINABLE ARCHITECTURE: User-driven account selection.
  *
- * Instead of choosing "paper" or "real" at enable time, the executor
- * now supports AUTOMATIC PER-TRADE routing across ALL connected accounts.
+ * The user selects which account to trade on from their settings page.
+ * The executor simply executes on that account. No questions, no warnings,
+ * no auto-routing, no paper/real mode logic.
  *
- * routingMode:
- *   'auto'       — Route each trade to the best credential based on
- *                   symbol type (crypto→Binance, stocks→Alpaca, etc.)
- *                   Fallback: real → testnet → paper. DEFAULT MODE.
- *   'paper-only' — Force all trades to paper trading (for testing).
+ * This is how all trading platforms work: the user activates an account,
+ * and the system executes on it. Period.
  *
- * isPaperTrading is kept for backward compatibility but its meaning changes:
- *   - In 'auto' mode: isPaperTrading=false (unless no real credentials exist)
- *   - In 'paper-only' mode: isPaperTrading=true
- *   - The actual execution path is determined PER TRADE in _executeBriefForUser()
+ * activeCredentialId:
+ *   - Read from user settings (key: 'activeCredentialId')
+ *   - The user chooses from their connected exchange accounts
+ *   - The executor uses this credential for all trades
+ *   - If no credential is set, the executor is still enabled but
+ *     skips execution until the user selects one
  */
-export type RoutingMode = 'auto' | 'paper-only';
-
 export interface UserExecutorState {
   enabled: boolean;
   dailyPnL: number;
@@ -66,7 +64,5 @@ export interface UserExecutorState {
   consecutiveLosses: number;
   maxOpenPositions: number;
   riskPerTradePercent: number;
-  credentialId?: string;
-  isPaperTrading: boolean;
-  routingMode: RoutingMode;  // V125: auto = route per trade, paper-only = force paper
+  activeCredentialId?: string;  // User's chosen account from settings
 }

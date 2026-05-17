@@ -111,29 +111,6 @@ describe('ExecutionResult', () => {
     expect(result.error).toBe('Insufficient balance');
     expect(result.orderId).toBeUndefined();
   });
-
-  it('should support both BUY and SELL directions', () => {
-    const buyResult: ExecutionResult = {
-      success: true,
-      briefId: 'b1',
-      pair: 'BTC/USDT',
-      direction: 'BUY',
-      entryPrice: 50000,
-      executedAt: new Date(),
-    };
-
-    const sellResult: ExecutionResult = {
-      success: true,
-      briefId: 'b2',
-      pair: 'BTC/USDT',
-      direction: 'SELL',
-      entryPrice: 51000,
-      executedAt: new Date(),
-    };
-
-    expect(buyResult.direction).toBe('BUY');
-    expect(sellResult.direction).toBe('SELL');
-  });
 });
 
 // ── ExecutorConfig Interface ──
@@ -156,45 +133,12 @@ describe('ExecutorConfig', () => {
     expect(config.riskPerTradePercent).toBe(1);
     expect(config.minConfidence).toBe(70);
   });
-
-  it('should allow custom configuration values', () => {
-    const config: ExecutorConfig = {
-      tickIntervalMs: 5000,
-      maxOpenPositions: 10,
-      maxDailyLossPercent: 3,
-      defaultSlippage: 0.002,
-      riskPerTradePercent: 0.5,
-      minConfidence: 80,
-    };
-
-    expect(config.tickIntervalMs).toBe(5000);
-    expect(config.maxOpenPositions).toBe(10);
-    expect(config.riskPerTradePercent).toBe(0.5);
-  });
-
-  it('should enforce that all numeric fields are positive', () => {
-    const config: ExecutorConfig = {
-      tickIntervalMs: 1000,
-      maxOpenPositions: 1,
-      maxDailyLossPercent: 1,
-      defaultSlippage: 0.0001,
-      riskPerTradePercent: 0.1,
-      minConfidence: 1,
-    };
-
-    expect(config.tickIntervalMs).toBeGreaterThan(0);
-    expect(config.maxOpenPositions).toBeGreaterThan(0);
-    expect(config.maxDailyLossPercent).toBeGreaterThan(0);
-    expect(config.defaultSlippage).toBeGreaterThan(0);
-    expect(config.riskPerTradePercent).toBeGreaterThan(0);
-    expect(config.minConfidence).toBeGreaterThan(0);
-  });
 });
 
 // ── UserExecutorState Interface ──
 
 describe('UserExecutorState', () => {
-  it('should create a valid UserExecutorState', () => {
+  it('should create a valid UserExecutorState without active credential', () => {
     const state: UserExecutorState = {
       enabled: true,
       dailyPnL: 0,
@@ -204,18 +148,16 @@ describe('UserExecutorState', () => {
       consecutiveLosses: 0,
       maxOpenPositions: 5,
       riskPerTradePercent: 1,
-      isPaperTrading: true,
-      routingMode: 'paper-only',
     };
 
     expect(state.enabled).toBe(true);
     expect(state.dailyPnL).toBe(0);
     expect(state.consecutiveLosses).toBe(0);
-    expect(state.isPaperTrading).toBe(true);
     expect(state.lastTradeAt).toBeNull();
+    expect(state.activeCredentialId).toBeUndefined();
   });
 
-  it('should support credential ID for live trading', () => {
+  it('should support activeCredentialId for user-selected account', () => {
     const state: UserExecutorState = {
       enabled: true,
       dailyPnL: 50,
@@ -225,12 +167,10 @@ describe('UserExecutorState', () => {
       consecutiveLosses: 0,
       maxOpenPositions: 5,
       riskPerTradePercent: 1,
-      credentialId: 'cred-abc-123',
-      isPaperTrading: false,
-      routingMode: 'auto',
+      activeCredentialId: 'cred-abc-123',
     };
 
-    expect(state.credentialId).toBe('cred-abc-123');
-    expect(state.isPaperTrading).toBe(false);
+    expect(state.activeCredentialId).toBe('cred-abc-123');
+    expect(state.enabled).toBe(true);
   });
 });

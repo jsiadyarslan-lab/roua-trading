@@ -162,6 +162,163 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
 }
 
 /* ══════════════════════════════════════════════════════
+   V126: Active Trading Account Selector
+   The user chooses which account the executor and agent trade on.
+   This is saved to user settings (key: activeCredentialId).
+══════════════════════════════════════════════════════ */
+function ActiveAccountSelector() {
+  const [credentials, setCredentials] = useState<any[]>([])
+  const [activeCredentialId, setActiveCredentialId] = useState<string>('')
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  // Load credentials and active selection
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/portfolio/credentials').then(r => r.json()).catch(() => ({ success: false })),
+      fetch('/api/settings').then(r => r.json()).catch(() => ({ settings: {} })),
+    ]).then(([credData, settingsData]) => {
+      if (credData?.success && Array.isArray(credData.data)) {
+        // Show ALL valid credentials (real, testnet, paper)
+        setCredentials(credData.data.filter((c: any) => c.isValid))
+      }
+      if (settingsData?.settings?.activeCredentialId) {
+        setActiveCredentialId(settingsData.settings.activeCredentialId)
+      }
+      setLoading(false)
+    })
+  }, [])
+
+  const saveActiveAccount = async (credentialId: string) => {
+    setSaving(true)
+    setActiveCredentialId(credentialId)
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
+      })
+    } catch { /* non-critical */ }
+    setSaving(false)
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+        جاري تحميل الحسابات...
+      </div>
+    )
+  }
+
+  if (credentials.length === 0) {
+    return (
+      <div style={{ padding: '12px 0', textAlign: 'center' }}>
+        <div style={{ fontSize: 12, color: T.text3, marginBottom: 8 }}>
+          لا توجد حسابات مربوطة — اربط بورصة أولاً
+        </div>
+        <button
+          onClick={() => window.location.href = '/dashboard/settings/exchange'}
+          style={{
+            padding: '6px 14px', borderRadius: 8,
+            background: 'rgba(0,212,255,0.08)', border: `1px solid rgba(0,212,255,0.2)`,
+            color: T.cyan, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+            fontFamily: "'Cairo', sans-serif",
+          }}
+        >
+          ربط بورصة
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ padding: '8px 0' }}>
+      {/* Info banner */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 14px', borderRadius: 10,
+        background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
+        marginBottom: 12,
+      }}>
+        <Shield size={16} color={T.cyan} />
+        <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+          المنفذ والوكيل سينفذان على الحساب الذي تختاره فقط. أنت من يقرر.
+        </div>
+      </div>
+
+      {/* Account cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {credentials.map((cred: any) => {
+          const isActive = activeCredentialId === cred.id
+          const isTestnet = cred.testnet || cred.exchange?.includes('test') || cred.exchange?.includes('Testnet')
+          const isPaper = cred.exchange === 'paper-trading'
+
+          let typeLabel = 'حقيقي'
+          let typeColor = T.green
+          let typeIcon = '💰'
+          if (isPaper) {
+            typeLabel = 'ورقي'
+            typeColor = T.cyan
+            typeIcon = '📝'
+          } else if (isTestnet) {
+            typeLabel = 'تجريبي (Testnet)'
+            typeColor = T.amber
+            typeIcon = '🧪'
+          }
+
+          return (
+            <button
+              key={cred.id}
+              onClick={() => saveActiveAccount(cred.id)}
+              style={{
+                width: '100%', padding: '10px 14px', borderRadius: 10,
+                border: isActive ? `1px solid ${typeColor}40` : `1px solid ${T.border}`,
+                background: isActive ? `${typeColor}08` : T.surface,
+                cursor: saving ? 'wait' : 'pointer',
+                transition: 'all 0.2s',
+                display: 'flex', alignItems: 'center', gap: 10,
+                boxShadow: isActive ? `0 0 12px ${typeColor}10` : 'none',
+                fontFamily: "'Cairo', sans-serif",
+              }}
+            >
+              {/* Account type indicator */}
+              <span style={{ fontSize: 16 }}>{typeIcon}</span>
+
+              {/* Account info */}
+              <div style={{ flex: 1, textAlign: 'right' }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: isActive ? typeColor : T.text, display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                  {cred.label || cred.exchange}
+                  <span style={{
+                    fontSize: 9, padding: '1px 6px', borderRadius: 4,
+                    background: `${typeColor}15`, color: typeColor,
+                    fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                  }}>
+                    {typeLabel}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10, color: T.text4, marginTop: 2 }}>
+                  {cred.exchange} {cred.lastValidatedAt ? `• آخر تحقق: ${new Date(cred.lastValidatedAt).toLocaleDateString('ar')}` : ''}
+                </div>
+              </div>
+
+              {/* Active indicator */}
+              {isActive && (
+                <div style={{
+                  width: 10, height: 10, borderRadius: '50%',
+                  background: typeColor,
+                  boxShadow: `0 0 8px ${typeColor}60`,
+                  animation: 'agentCtrlPulse 2s ease-in-out infinite',
+                }} />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/* ══════════════════════════════════════════════════════
    Main Settings Page
 ══════════════════════════════════════════════════════ */
 export default function SettingsPage() {
@@ -732,6 +889,17 @@ export default function SettingsPage() {
         {/* ═══ Trading Tab ═══ */}
         {activeTab === 'trading' && (
           <>
+            {/* V126: Active Trading Account Selector */}
+            <SectionCard
+              icon={<Key size={18} color={T.cyan} />}
+              iconColor={T.cyan}
+              iconBg={`${T.cyan}14`}
+              title="الحساب المفعّل للتداول"
+              subtitle="اختر الحساب الذي سينفذ عليه المنفذ والوكيل — أنت من يقرر"
+            >
+              <ActiveAccountSelector />
+            </SectionCard>
+
             {/* Mode Selection */}
             <SectionCard
               icon={<Zap size={18} color={T.cyan} />}

@@ -83,18 +83,16 @@ export class SmartExecutorController {
 
   /**
    * POST /api/smart-executor/user/enable — Enable executor for current user
-   * V125: routingMode='auto' (default) routes each trade to the best credential.
-   * Body: { credentialId?, isPaperTrading?, maxOpenPositions?, riskPerTradePercent?, routingMode? }
+   * V126: No more routingMode or isPaperTrading. The user selects their
+   * active account in settings. This endpoint just enables the executor.
+   * Body: { maxOpenPositions?, riskPerTradePercent? }
    */
   @Post('user/enable')
   async enableUser(
     @Request() req: any,
     @Body() body: {
-      credentialId?: string;
-      isPaperTrading?: boolean;
       maxOpenPositions?: number;
       riskPerTradePercent?: number;
-      routingMode?: 'auto' | 'paper-only';
     },
   ) {
     const state = await this.executorService.enableUser(req.user.id, body);

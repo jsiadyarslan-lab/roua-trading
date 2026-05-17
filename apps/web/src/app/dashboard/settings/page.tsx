@@ -253,9 +253,9 @@ function ActiveAccountSelector() {
           const isTestnet = cred.testnet || cred.exchange?.includes('test') || cred.exchange?.includes('Testnet')
           const isPaper = cred.exchange === 'paper-trading'
 
-          let typeLabel = 'حقيقي'
-          let typeColor = T.green
-          let typeIcon = '💰'
+          let typeLabel: string = 'حقيقي'
+          let typeColor: string = T.green
+          let typeIcon: string = '💰'
           if (isPaper) {
             typeLabel = 'ورقي'
             typeColor = T.cyan

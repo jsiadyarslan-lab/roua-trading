@@ -857,7 +857,7 @@ function ReportCard({ report, index, expanded, onToggle }: { report: ReportItem;
                 {report.priceTarget.symbol && (
                   <span style={{ fontSize: 14, fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
                 )}
-                {report.priceTarget.current > 0 && (
+                {(report.priceTarget.current ?? 0) > 0 && (
                   <span style={{ fontSize: 12, color: T.text2 }}>الحالي: <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
                 )}
                 {report.priceTarget.target != null && (

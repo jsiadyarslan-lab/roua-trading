@@ -82,6 +82,9 @@ function getTypeLabel(t: ContentType): string {
     [ContentType.EDUCATIONAL]: 'تعليمي',
     [ContentType.OPINION]: 'رأي',
     [ContentType.BREAKING]: 'عاجل',
+    [ContentType.HOURLY_UPDATE]: 'تحديث ساعي',
+    [ContentType.WEEKLY_REVIEW]: 'مراجعة أسبوعية',
+    [ContentType.PAIR_ANALYSIS]: 'تحليل زوج',
   }
   return map[t] || t
 }

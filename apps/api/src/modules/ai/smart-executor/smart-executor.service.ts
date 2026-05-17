@@ -43,14 +43,13 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** Configuration */
   private readonly config: ExecutorConfig = {
     tickIntervalMs: 10000,          // FIX: 10 seconds (was 2s) — reduces DB load by 5x
-    maxOpenPositions: 5, // FIX: 5 max positions (was 10, but paper gets stuck at 1)
+    maxOpenPositions: 15,           // V132: Increased from 5 to 15 — with 7 crypto pairs and
+                                    // 2 directions (BUY/SELL), 5 was far too restrictive.
+                                    // Paper trading auto-closes stale positions (1h),
+                                    // so 15 open positions is safe. Real trading is
+                                    // capped by RiskGatekeeper per-portfolio limits.
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
-                                    // Crypto prices can move 0.1-0.3% in seconds.
-                                    // The old 0.1% slippage was too tight — briefs would
-                                    // be skipped because the price moved slightly between
-                                    // when the council set the entry price and when the
-                                    // executor checked it (often just seconds later).
     riskPerTradePercent: 1,
     minConfidence: 40,              // FIX: Lowered from 50 → 40. Technical fallback
                                     // produces confidence=45-48, which was being rejected
@@ -218,6 +217,21 @@ export class SmartExecutorService implements OnModuleDestroy {
         }
       } catch (lockErr: any) {
         this.logger.warn(`⚔️ Failed to clear position-lock keys: ${lockErr.message}`);
+      }
+
+      // ── STEP 5.2: Clear stale idempotency keys from Redis (V132) ──
+      // V132 changed the idempotency key structure. Old cross-source keys
+      // (sha256(userId:symbol:side)) can block valid re-execution. Clear them.
+      try {
+        const idempotencyKeys = await this.redis.scanKeys('idempotency:*');
+        for (const key of idempotencyKeys) {
+          await this.redis.del(key);
+        }
+        if (idempotencyKeys.length > 0) {
+          this.logger.log(`⚔️ STARTUP: Cleared ${idempotencyKeys.length} stale idempotency key(s) from Redis (V132 fix)`);
+        }
+      } catch (idempErr: any) {
+        this.logger.warn(`⚔️ Failed to clear idempotency keys: ${idempErr.message}`);
       }
 
       // ── STEP 5.5: Clear stale price cache from Redis ──
@@ -1202,6 +1216,31 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.isTicking = false;
       }
     }, this.config.tickIntervalMs);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V132: Subscribe to council completion events for immediate execution.
+    // Previously, the executor waited for the next tick (up to 10s) after
+    // a council session completed. Now it's notified immediately via Redis
+    // pub/sub, reducing latency from "up to 10s" to "near-instant".
+    // ═══════════════════════════════════════════════════════════════════
+    try {
+      const subscriber = this.redis.duplicateSubscriber();
+      if (subscriber) {
+        subscriber.subscribe('council:session_complete');
+        subscriber.on('message', (channel: string, message: string) => {
+          if (channel === 'council:session_complete' && this.isRunning && !this.isTicking) {
+            this.logger.log('⚔️ Council session complete event received — triggering immediate tick');
+            this.isTicking = true;
+            this._tick()
+              .catch((err: any) => this.logger.error(`⚔️ Event-triggered tick failed: ${err.message}`))
+              .finally(() => { this.isTicking = false; });
+          }
+        });
+        this.logger.log('⚔️ Subscribed to council:session_complete events');
+      }
+    } catch (subErr: any) {
+      this.logger.warn(`⚔️ Could not subscribe to council events: ${subErr.message} — falling back to polling`);
+    }
   }
 
   /**
@@ -2228,6 +2267,7 @@ export class SmartExecutorService implements OnModuleDestroy {
         takeProfit: execTakeProfit,
         briefId: brief.id,
         isPaperTrading: isSimulatedExecution,
+        timeframe: brief.timeframe, // V132: Pass timeframe for smart idempotency TTL
       });
 
       if (!dispatchResult.success) {

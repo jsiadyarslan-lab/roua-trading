@@ -22,6 +22,8 @@ export interface AutoOrderRequest {
   briefId?: string;
   signalId?: string;
   isPaperTrading?: boolean;
+  /** V132: Timeframe of the brief/signal — used for smart idempotency TTL */
+  timeframe?: string;
 }
 
 export interface OrderResult {
@@ -45,39 +47,59 @@ export class OrderDispatcherService {
   ) {}
 
   async submitOrder(request: AutoOrderRequest): Promise<OrderResult> {
-    // V129 FIX: Source-agnostic idempotency key.
-    // Previously, the key included `source` which meant smart_executor and agent
-    // got different keys for the same userId+symbol+side, allowing BOTH to open
-    // positions on the same symbol concurrently. Now the key is:
-    //   userId:symbol:side (no source prefix) — if EITHER system already has
-    //   an active order for this user+symbol+side, the other is blocked.
+    // ═══════════════════════════════════════════════════════════════════
+    // V132 FIX: Source-specific idempotency — allow executor AND agent
+    // to trade the same symbol+side independently.
+    //
+    // PROBLEM (V129): The cross-source key (userId:symbol:side) prevented
+    // BOTH systems from trading the same pair. If the executor opened
+    // BTC/USDT BUY, the agent was BLOCKED from BTC/USDT BUY for 60s.
+    // With 7 crypto pairs × 2 sides = 14 possible directions, and the
+    // executor trying every 10s, the agent was almost always blocked.
+    //
+    // V132 FIX: Each source has its own idempotency key. Duplicate
+    // prevention within the same source is handled by the source-specific
+    // key (source:userId:briefRef:symbol:side). Cross-source coordination
+    // is handled by:
+    //   1. Position.findFirst() — can't open if position already exists
+    //   2. Paper trading hedge logic — allows BUY+SELL on same symbol
+    //   3. RiskGatekeeper — validates total exposure
+    //
+    // This is SAFE because:
+    //   - Paper trading: Allows hedge (BUY+SELL), auto-closes stale positions
+    //   - Real trading: Strict 1 position per symbol (Position.findFirst check)
+    //   - Both: SL mandatory, RiskGatekeeper validates
+    // ═══════════════════════════════════════════════════════════════════
     const briefRef = request.briefId || request.signalId || 'manual';
-    // Cross-source key (prevents both systems trading same symbol+side)
-    const crossSourceKey = `${request.userId}:${request.symbol}:${request.side}`;
-    const crossSourceIdempotencyKey = crypto.createHash('sha256').update(crossSourceKey).digest('hex').slice(0, 32);
 
-    // Source-specific key (prevents same system double-submit)
+    // Source-specific key — prevents same system from double-submitting
+    // V132: Includes timeframe for smart TTL
     const sourceKey = `${request.source}:${request.userId}:${briefRef}:${request.symbol}:${request.side}`;
     const sourceIdempotencyKey = crypto.createHash('sha256').update(sourceKey).digest('hex').slice(0, 32);
 
-    // Check cross-source lock first (atomically locks for 60s)
-    const isCrossSourceUnique = await this.idempotency.checkAndLock(crossSourceIdempotencyKey);
-    if (!isCrossSourceUnique) {
-      return { success: false, message: `مركز نشط من نظام آخر على ${request.symbol} ${request.side}` };
+    // Per-symbol-per-source lock — prevents the SAME source from opening
+    // multiple positions on the same symbol within the TTL window
+    const symbolSourceKey = `${request.source}:${request.userId}:${request.symbol}:${request.side}`;
+    const symbolSourceIdempotencyKey = crypto.createHash('sha256').update(symbolSourceKey).digest('hex').slice(0, 32);
+
+    // Check source-specific lock first (with smart TTL based on timeframe)
+    const isUnique = await this.idempotency.checkAndLock(sourceIdempotencyKey, request.timeframe);
+    if (!isUnique) {
+      return { success: false, message: `أمر مكرر — ${request.symbol} ${request.side} (${request.source})` };
     }
 
-    // Then check source-specific lock
-    const isUnique = await this.idempotency.checkAndLock(sourceIdempotencyKey);
-    if (!isUnique) {
-      // Release cross-source lock since we're not proceeding
-      try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
-      return { success: false, message: `أمر مكرر — ${request.symbol} ${request.side}` };
+    // Check per-symbol lock (shorter TTL — just prevents rapid-fire duplicates)
+    const isSymbolUnique = await this.idempotency.checkAndLock(symbolSourceIdempotencyKey, request.timeframe);
+    if (!isSymbolUnique) {
+      // Release the source lock since we're not proceeding
+      try { await this.idempotency.releaseLock(sourceIdempotencyKey); } catch {}
+      return { success: false, message: `مركز نشط على ${request.symbol} ${request.side} من ${request.source}` };
     }
 
     try {
       if (!request.stopLoss || request.stopLoss <= 0) {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
-        try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
+        try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
         return { success: false, error: `وقف الخسارة إجباري` };
       }
 
@@ -114,14 +136,14 @@ export class OrderDispatcherService {
             } catch (closeErr: any) {
               this.logger.warn(`[Dispatcher] Failed to close existing paper position ${existing.id}: ${closeErr.message}`);
               await this.idempotency.releaseLock(sourceIdempotencyKey);
-              try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
+              try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
               return { success: false, message: `فشل إغلاق المركز القديم لـ ${request.symbol}: ${closeErr.message}` };
             }
           }
         } else {
           // Real trading: Strict — no duplicate positions on same symbol
           await this.idempotency.releaseLock(sourceIdempotencyKey);
-          try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
+          try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
           return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
         }
       }
@@ -144,7 +166,7 @@ export class OrderDispatcherService {
       const riskCheck = await this.riskGatekeeper.validateOrder(command);
       if (!riskCheck.allowed) {
         await this.idempotency.releaseLock(sourceIdempotencyKey);
-        try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
+        try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
         return { success: false, error: `مرفوض: ${riskCheck.reason}` };
       }
 
@@ -167,7 +189,7 @@ export class OrderDispatcherService {
     } catch (err: any) {
       this.logger.error(`[Dispatcher] ${err.message}`);
       try { await this.idempotency.releaseLock(sourceIdempotencyKey); } catch {}
-      try { await this.idempotency.releaseLock(crossSourceIdempotencyKey); } catch {}
+      try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
       return { success: false, error: err.message };
     }
   }

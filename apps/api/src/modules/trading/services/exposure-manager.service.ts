@@ -47,9 +47,9 @@ export interface ExposureLimits {
   onePositionPerSymbol: boolean;
 }
 
-/** القيم الافتراضية */
+/** القيم الافتراضية — V132: Increased maxTotalPositions from 10 to 20 */
 const DEFAULT_LIMITS: ExposureLimits = {
-  maxTotalPositions: 10,
+  maxTotalPositions: 20,
   maxExposurePercent: 80,
   onePositionPerSymbol: true,
 };

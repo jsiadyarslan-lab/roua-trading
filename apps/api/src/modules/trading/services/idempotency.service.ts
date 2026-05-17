@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { RedisService } from '../../../common/redis/redis.service';
+import { TIMEFRAME_EXPIRY_MS, BriefTimeframe } from '../../ai/strategic-council/strategic-council.types';
 
 /**
  * Idempotency Service — Prevents Duplicate Order Execution
@@ -37,23 +38,36 @@ export class IdempotencyService {
   private readonly KEY_PREFIX = 'idempotency:';
 
   /**
-   * TTL: 60 seconds (V130 SUSTAINABLE FIX)
+   * V132: Dynamic TTL based on timeframe.
    *
-   * WHY changed from 24 hours: The 24-hour TTL meant that any failed order
-   * (risk rejection, missing SL, timeout) would block ALL retries for a full
-   * day on that userId:symbol:side combination. This was catastrophic because:
-   *   - A single SL=0 brief → SOL:BUY blocked for 24 hours
-   *   - AI model timeout → entire symbol+direction frozen for a day
-   *   - With 3 users × 4 pairs × 2 sides = 24 keys, one failure could
-   *     freeze a significant portion of trading capacity
+   * V130 used a fixed 60s TTL. Problem: M1 briefs expire in 60s anyway,
+   * but W1 briefs are valid for 7 days. Using 60s for all timeframes
+   * meant that a brief for H4 could be locked, fail, and then the same
+   * userId:symbol:side couldn't be retried for the same longer-term signal.
    *
-   * 60 seconds is sufficient because:
-   *   - The critical race window is < 3 seconds (check → placeOrder)
-   *   - 60s = 20x safety margin over the race window
-   *   - Failed orders release the lock immediately via releaseLock()
-   *   - The TTL is only a safety net for crashes/timeouts
+   * V132: Smart TTL based on the timeframe of the brief:
+   *   - M1/M5 (executor scalping): 30s — these expire in 1-5 minutes
+   *   - M15/M30 (short-term): 60s — expire in 15-30 minutes
+   *   - H1/H4 (medium-term): 120s — expire in 1-4 hours
+   *   - D1/W1 (long-term): 300s — expire in 1-7 days
+   *   - Default (unknown timeframe): 60s
+   *
+   * This ensures the lock duration matches the signal's validity window,
+   * preventing both false positives (blocking valid re-execution) and
+   * false negatives (lock expires too quickly for long-term signals).
    */
-  private readonly LOCK_TTL_SECONDS = 60;
+  private getTimeframeTTL(timeframe?: string): number {
+    if (!timeframe) return 60; // default 60s
+    const tf = timeframe.toUpperCase() as BriefTimeframe;
+    const expiryMs = TIMEFRAME_EXPIRY_MS[tf];
+    if (!expiryMs) return 60; // unknown timeframe → default 60s
+
+    // TTL = 2% of the timeframe expiry, minimum 30s, maximum 300s
+    // Rationale: The race window is < 3s, so even 30s is 10x safety margin.
+    // For longer timeframes, we allow more time for retries.
+    const ttl = Math.max(30, Math.min(300, Math.round(expiryMs / 1000 * 0.02)));
+    return ttl;
+  }
 
   constructor(private readonly redisService: RedisService) {
     this.logger.log('🔑 Idempotency Service initialized — duplicate protection active');
@@ -69,22 +83,33 @@ export class IdempotencyService {
    * Implementation: Uses RedisService.setIfNotExists(key, value, ttlSeconds)
    * which executes: SET key value EX ttl NX — atomic, no race condition
    */
-  async checkAndLock(key: string): Promise<boolean> {
+  /**
+   * Check if an idempotency key is already used, and lock it if not.
+   * Uses atomic Redis SET NX EX pattern.
+   *
+   * V132: Accepts optional timeframe parameter for smart TTL.
+   *
+   * @param key The unique idempotency key from the client
+   * @param timeframe Optional timeframe for smart TTL calculation
+   * @returns true if lock was acquired (key was NOT used before), false if already exists
+   */
+  async checkAndLock(key: string, timeframe?: string): Promise<boolean> {
     const redisKey = `${this.KEY_PREFIX}${key}`;
+    const ttl = this.getTimeframeTTL(timeframe);
 
     try {
       const acquired = await this.redisService.setIfNotExists(
         redisKey,
-        JSON.stringify({ locked: true, lockedAt: new Date().toISOString() }),
-        this.LOCK_TTL_SECONDS,
+        JSON.stringify({ locked: true, lockedAt: new Date().toISOString(), timeframe: timeframe || 'unknown' }),
+        ttl,
       );
 
       if (!acquired) {
-        this.logger.warn(`🔑 Duplicate idempotency key detected: ${key}`);
+        this.logger.warn(`🔑 Duplicate idempotency key detected: ${key} (TTL: ${ttl}s)`);
         return false;
       }
 
-      this.logger.debug(`🔑 Idempotency key locked: ${key} (TTL: 60s)`);
+      this.logger.debug(`🔑 Idempotency key locked: ${key} (TTL: ${ttl}s, timeframe: ${timeframe || 'default'})`);
       return true;
     } catch (error: any) {
       // On Redis failure, block the request to prevent duplicate orders

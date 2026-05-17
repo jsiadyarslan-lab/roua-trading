@@ -237,6 +237,7 @@ export class OrderExecutorService implements OnModuleDestroy {
             takeProfit: orderRequest.takeProfit,
             signalId: signal?.id,
             isPaperTrading: true,
+            timeframe: signal?.timeframe, // V132: Pass timeframe for smart idempotency TTL
           });
           if (!dispatchResult.success) {
             throw new Error(dispatchResult.error || dispatchResult.message || 'فشل الموزع');
@@ -395,6 +396,7 @@ export class OrderExecutorService implements OnModuleDestroy {
         takeProfit: orderRequest.takeProfit,
         signalId: signal?.id,
         isPaperTrading: false,
+        timeframe: signal?.timeframe, // V132: Pass timeframe for smart idempotency TTL
       });
       if (!dispatchResult.success) {
         throw new Error(dispatchResult.error || dispatchResult.message || 'فشل الموزع');

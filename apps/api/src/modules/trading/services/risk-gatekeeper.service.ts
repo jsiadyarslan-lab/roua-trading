@@ -73,7 +73,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       this.configService.get('RISK_MAX_POSITION_PERCENT', '20'),
     );
     this.maxOpenPositions = parseInt(
-      this.configService.get('RISK_MAX_OPEN_POSITIONS', '10'),
+      this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), // V132: Increased from 10 to 20
       10,
     );
     this.maxDailyLossPercent = parseFloat(

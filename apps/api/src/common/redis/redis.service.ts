@@ -297,4 +297,34 @@ export class RedisService implements OnModuleDestroy {
   getIsAvailable(): boolean {
     return this.isAvailable;
   }
+
+  /**
+   * V132: Create a duplicate Redis client for pub/sub subscriptions.
+   * ioredis requires a separate client for subscribing because a
+   * subscribed client enters "subscriber mode" and can only perform
+   * subscribe/unsubscribe commands.
+   *
+   * @returns A new Redis client instance, or null if Redis is unavailable
+   */
+  duplicateSubscriber(): Redis | null {
+    if (!this.isAvailable) return null;
+    try {
+      const redisUrl = this.configService.get<string>('REDIS_URL', '');
+      if (!redisUrl || redisUrl === 'CHANGE_ME_IN_PRODUCTION') return null;
+      const dup = new Redis(redisUrl, {
+        maxRetriesPerRequest: null, // Subscriber mode — don't timeout
+        retryStrategy: (times) => {
+          if (times > 10) return null;
+          return Math.min(times * 200, 5000);
+        },
+      });
+      dup.on('error', (err) => {
+        this.logger.warn(`Redis subscriber error: ${err.message}`);
+      });
+      return dup;
+    } catch (err: any) {
+      this.logger.warn(`Failed to create Redis subscriber: ${err.message}`);
+      return null;
+    }
+  }
 }

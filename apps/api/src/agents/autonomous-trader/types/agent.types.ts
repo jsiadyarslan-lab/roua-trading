@@ -216,6 +216,8 @@ export interface EvaluatedSignal {
   riskScore: number; // 0-100
   timestamp: Date;
   metadata: Record<string, any>;
+  /** V132: Timeframe of the signal — used for smart idempotency TTL */
+  timeframe?: string;
 }
 
 // ── Risk Calculation ──

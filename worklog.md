@@ -277,3 +277,30 @@ Stage Summary:
 - Frontend writes to Setting table via /api/settings
 - Changes propagate within 10s (one tick cycle)
 - Warning acknowledgement survives refresh/restart (DB-persisted)
+---
+Task ID: V124
+Agent: Main Agent
+Task: V124 Sustainable Fix - Testnet credentials treated as simulated (paper+testnet bypass risk checks)
+
+Work Log:
+- Analyzed the complete execution pipeline: SmartExecutor → _processUserBriefs → _checkBriefForUser → _executeBriefForUser → OrderDispatcher → RiskGatekeeper → TradingService → RiskManager
+- Found ROOT CAUSE: Binance Testnet credentials stored as exchange='binance' with testnet=true. _isTestExchange('binance') returns FALSE, so ALL risk checks apply as if real trading. CCXT balance verification with testnet API keys fails → order REJECTED
+- Added _isSimulatedCredential() to RiskGatekeeper that checks BOTH exchange name AND testnet flag
+- Updated checkSufficientBalance(), checkPositionSizeLimit(), checkDailyDrawdownLimit() to use _isSimulatedCredential()
+- Added isSimulated flag to SmartExecutor._processUserBriefs() that checks credential.testnet at each tick
+- Replaced all userState.isPaperTrading usages in _processUserBriefs() with isSimulated
+- Updated _checkBriefForUser() to accept isSimulated parameter
+- Updated _executeBriefForUser() to detect testnet credentials and set isSimulatedExecution
+- Pass isSimulatedExecution to OrderDispatcher for risk bypass (but TradingService still routes testnet via CCXT)
+- Added _isSimulatedExchange() helper to SmartExecutor
+- Updated RiskManager.checkOrderRisk() to accept exchangeCredentialId parameter and check testnet flag
+- Updated TradingService to pass credential.id to checkOrderRisk()
+- Fixed Prisma query: testnet: { not: true } instead of testnet: false (handles null case)
+- TypeScript compilation: CLEAN (0 errors)
+- Deployed to Railway via GitHub auto-deploy
+
+Stage Summary:
+- V124 deployed with sustainable fix for testnet credential detection
+- Execution paths now: Paper= simulated fill + bypassed risk, Testnet= CCXT testnet + bypassed risk, Real= CCXT real + full risk
+- All 3 risk check layers (RiskGatekeeper, RiskManager, SmartExecutor) now detect testnet credentials
+- Files modified: smart-executor.service.ts, risk-gatekeeper.service.ts, risk-manager.service.ts, trading.service.ts

@@ -412,17 +412,33 @@ export function SmartExecutorPanel() {
               color: userState.isPaperTrading ? T.cyan : T.amber, fontWeight: 700,
               border: `1px solid ${userState.isPaperTrading ? 'rgba(0,212,255,0.3)' : 'rgba(255,184,0,0.3)'}`,
             }}>
-              {userState.isPaperTrading ? '📝 ورقي (تجريبي)' : '💰 حقيقي'}
+              {userState.isPaperTrading ? '📝 ورقي (تجريبي)' : (() => {
+                const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
+                const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
+                return isTestnet ? '🧪 تجريبي (Testnet)' : '💰 حقيقي'
+              })()}
             </span>
-            {!userState.isPaperTrading && userState.credentialId && (
-              <span style={{
-                padding: '1px 6px', borderRadius: 3,
-                background: 'rgba(255,184,0,0.1)', color: T.amber, fontWeight: 700,
-                border: '1px solid rgba(255,184,0,0.2)',
-              }}>
-                {exchangeCredentials.find((c: any) => c.id === userState.credentialId)?.exchange || 'بورصة'}
-              </span>
-            )}
+            {!userState.isPaperTrading && userState.credentialId && (() => {
+              const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
+              const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
+              return isTestnet ? (
+                <span style={{
+                  padding: '1px 6px', borderRadius: 3,
+                  background: 'rgba(0,212,255,0.1)', color: T.cyan, fontWeight: 700,
+                  border: '1px solid rgba(0,212,255,0.2)',
+                }}>
+                  🧪 {activeCred?.exchange || 'Testnet'}
+                </span>
+              ) : (
+                <span style={{
+                  padding: '1px 6px', borderRadius: 3,
+                  background: 'rgba(255,184,0,0.1)', color: T.amber, fontWeight: 700,
+                  border: '1px solid rgba(255,184,0,0.2)',
+                }}>
+                  {activeCred?.exchange || 'بورصة'}
+                </span>
+              )
+            })()}
             <span style={{ color: T.text3 }}>• خطر: {userState.riskPerTradePercent}%</span>
             <span style={{ color: T.text3 }}>• حد المراكز: {userState.maxOpenPositions}</span>
           </>
@@ -448,14 +464,28 @@ export function SmartExecutorPanel() {
         </div>
       )}
 
-      {/* Real Trading Warning */}
-      {isActive && !userState?.isPaperTrading && (
-        <div style={{
-          padding: '4px 8px', background: 'rgba(255,184,0,0.06)', borderBottom: '1px solid rgba(255,184,0,0.12)',
-        }}>
-          <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية — تأكد من إعدادات إدارة المخاطر</span>
-        </div>
-      )}
+      {/* Real Trading Warning — only for REAL (non-testnet) exchanges */}
+      {isActive && !userState?.isPaperTrading && (() => {
+        const activeCred = exchangeCredentials.find((c: any) => c.id === userState.credentialId)
+        const isTestnet = activeCred?.testnet || activeCred?.exchange?.includes('test') || activeCred?.exchange?.includes('Testnet')
+        if (isTestnet) {
+          return (
+            <div style={{
+              padding: '4px 8px', background: 'rgba(0,212,255,0.06)', borderBottom: '1px solid rgba(0,212,255,0.12)',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <span style={{ fontSize: 7, color: T.cyan, fontWeight: 600 }}>🧪 بيئة تجريبية (Testnet) — أموال وهمية للاختبار</span>
+            </div>
+          )
+        }
+        return (
+          <div style={{
+            padding: '4px 8px', background: 'rgba(255,184,0,0.06)', borderBottom: '1px solid rgba(255,184,0,0.12)',
+          }}>
+            <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية — تأكد من إعدادات إدارة المخاطر</span>
+          </div>
+        )
+      })()}
 
       {/* Backend Offline Banner */}
       {backendOffline && (

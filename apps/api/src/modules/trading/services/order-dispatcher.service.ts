@@ -122,29 +122,34 @@ export class OrderDispatcherService {
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
       });
       if (existing) {
-        if (request.isPaperTrading) {
-          // Paper trading: Check if same direction — if different direction, allow (hedge)
-          if (existing.side !== request.side) {
-            this.logger.log(`[Dispatcher] Paper hedge allowed: ${request.symbol} has ${existing.side}, opening ${request.side}`);
-          } else {
-            // Same direction — close the existing paper position and replace it
-            this.logger.log(`[Dispatcher] Paper replace: closing existing ${request.symbol} ${existing.side} to open new ${request.side}`);
-            try {
-              await this.tradingService.closePositionWithRetry(request.userId, {
-                positionId: existing.id,
-              });
-            } catch (closeErr: any) {
-              this.logger.warn(`[Dispatcher] Failed to close existing paper position ${existing.id}: ${closeErr.message}`);
-              await this.idempotency.releaseLock(sourceIdempotencyKey);
-              try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-              return { success: false, message: `فشل إغلاق المركز القديم لـ ${request.symbol}: ${closeErr.message}` };
-            }
-          }
-        } else {
-          // Real trading: Strict — no duplicate positions on same symbol
+        // ═══════════════════════════════════════════════════════════════════
+        // V133 FIX: STOP closing existing positions to replace them.
+        //
+        // The old logic closed existing paper positions when a new brief
+        // had the same direction, causing the "open and close after 1 second"
+        // infinite loop (see SmartExecutor V133 fix for details).
+        //
+        // NEW BEHAVIOR:
+        //   - Same direction as existing → REJECT (duplicate)
+        //   - Opposite direction + paper → Allow hedge
+        //   - Opposite direction + real → REJECT
+        //   - NEVER close an existing position to make room for a new one
+        // ═══════════════════════════════════════════════════════════════════
+        if (existing.side === request.side) {
+          // Same direction — reject as duplicate
           await this.idempotency.releaseLock(sourceIdempotencyKey);
           try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-          return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol}` };
+          return { success: false, message: `مركز ${existing.side} مفتوح بالفعل لـ ${request.symbol}` };
+        }
+
+        if (request.isPaperTrading) {
+          // Paper trading: Opposite direction → allow hedge
+          this.logger.log(`[Dispatcher] V133 Paper hedge allowed: ${request.symbol} has ${existing.side}, opening ${request.side}`);
+        } else {
+          // Real trading: No hedge — reject
+          await this.idempotency.releaseLock(sourceIdempotencyKey);
+          try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
+          return { success: false, message: `مركز مفتوح بالفعل لـ ${request.symbol} (لا تحوط في التداول الحقيقي)` };
         }
       }
 

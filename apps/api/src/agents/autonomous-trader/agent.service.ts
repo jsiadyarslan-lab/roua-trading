@@ -1977,8 +1977,26 @@ export class AutonomousTraderAgentService implements OnModuleInit {
    */
   private async _monitorOpenPositions(userId: string, state: AgentState): Promise<void> {
     try {
+      // ═══════════════════════════════════════════════════════════════════
+      // V133 FIX: Only monitor positions created by the Agent (source='agent').
+      //
+      // Previously, the Agent monitored ALL positions regardless of source,
+      // which meant it could close positions opened by the Smart Executor.
+      // This caused the "opened and closed after 1 second" bug because:
+      //   1. SmartExecutor opens a position
+      //   2. Agent's _monitorOpenPositions finds it on next cycle (60s)
+      //   3. Agent's simulated price walk moves toward SL (biased random walk)
+      //   4. Agent closes the position because SL is "hit" (simulated!)
+      //
+      // Each system should ONLY manage its own positions:
+      //   - SmartExecutor positions → monitored by PositionMonitorService (30s)
+      //   - Agent positions → monitored by _monitorOpenPositions (60s)
+      //
+      // The PositionMonitorService (separate from both) monitors ALL positions
+      // for SL/TP using REAL prices, so no positions are left unmonitored.
+      // ═══════════════════════════════════════════════════════════════════
       const positions = await this.prisma.position.findMany({
-        where: { userId, status: 'OPEN' },
+        where: { userId, status: 'OPEN', source: 'agent' },
       });
 
       if (positions.length === 0) return;

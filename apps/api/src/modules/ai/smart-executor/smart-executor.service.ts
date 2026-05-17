@@ -1643,59 +1643,66 @@ export class SmartExecutorService implements OnModuleDestroy {
       });
 
       if (existingPosition) {
-        // V124 FIX: For simulated accounts (paper + testnet), close existing position
-        // and execute the new brief. For real accounts, skip — don't risk real capital.
-        if (isSimulated) {
-          try {
-            await this.tradingService.closePositionWithRetry(userId, {
-              positionId: existingPosition.id,
-            });
+        // ═══════════════════════════════════════════════════════════════════
+        // V133 FIX: STOP closing existing positions to execute new briefs.
+        //
+        // ROOT CAUSE of "opened and closed after 1 second":
+        //   The Strategic Council generates MULTIPLE briefs for the same
+        //   high-conviction pair (e.g., BTC/USDT BUY and BTC/USDT SELL).
+        //   The old logic (V124) would:
+        //     1. Brief A: BTC/USDT BUY → Open BUY position
+        //     2. Brief B: BTC/USDT SELL → Find BUY position → CLOSE it → Open SELL
+        //     3. Next tick: Brief A still active → Find SELL position → CLOSE it → Open BUY
+        //     4. INFINITE LOOP: open→close→open→close every 10 seconds
+        //
+        //   The user sees: "opened 2 trades and closed them after 1 second"
+        //
+        // NEW BEHAVIOR:
+        //   - If same-direction position exists → SKIP (already have this trade)
+        //   - If opposite-direction position exists AND paper trading → Allow hedge
+        //   - If opposite-direction position exists AND real trading → SKIP
+        //   - NEVER close an existing position just to execute a new brief
+        //
+        // Positions should ONLY be closed by:
+        //   1. Position Monitor (SL/TP hit)
+        //   2. Auto-close stale positions (>1h for paper)
+        //   3. User manual close
+        //   4. Emergency stop
+        // ═══════════════════════════════════════════════════════════════════
+        const isSameDirection = existingPosition.side === brief.direction;
 
-            const closePrice = Number(existingPosition.currentPrice) || Number(existingPosition.entryPrice);
-            const pnl = (closePrice - Number(existingPosition.entryPrice)) * Number(existingPosition.quantity) * (existingPosition.side === 'SELL' ? -1 : 1);
-            userState.dailyPnL += pnl;
-
-            this.logger.log(
-              `⚔️ Closed stale paper position ${existingPosition.symbol} ` +
-              `(PnL: $${pnl.toFixed(2)}) via TradingService to execute new brief ${brief.id}`,
-            );
-
-            try {
-              const sideLabel = existingPosition.side === 'BUY' ? 'شراء' : 'بيع';
-              const pnlLabel = pnl >= 0 ? `+${pnl.toFixed(2)}` : pnl.toFixed(2);
-              await this.notificationService.sendNotification({
-                userId,
-                type: 'POSITION_CLOSED',
-                priority: 'HIGH',
-                title: `⚔️ إغلاق للتبديل: ${existingPosition.symbol}`,
-                body: `تم إغلاق مركز ${sideLabel} ${existingPosition.symbol} لتنفيذ إشارة جديدة على نفس الزوج | PnL: $${pnlLabel} | سعر الإغلاق: $${closePrice.toFixed(2)}`,
-                data: {
-                  positionId: existingPosition.id,
-                  symbol: existingPosition.symbol,
-                  side: existingPosition.side,
-                  closePrice,
-                  pnl,
-                  reason: 'close_for_new_brief',
-                  briefId: brief.id,
-                  isSimulated: isSimulated,
-                },
-                source: 'executor',
-                action: 'CLOSE',
-                pair: existingPosition.symbol,
-              });
-            } catch (notifErr: any) {
-              this.logger.warn(`⚔️ Failed to send close notification for ${existingPosition.id}: ${notifErr.message}`);
-            }
-          } catch (tsCloseErr: any) {
-            this.logger.warn(
-              `⚔️ TradingService close failed for ${existingPosition.id}: ${tsCloseErr.message} — skipping brief`,
-            );
-            continue;
-          }
-        } else {
-          this.logger.debug(`⚔️ Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
+        if (isSameDirection) {
+          // Already have a position in the same direction — skip
+          this.logger.debug(
+            `⚔️ V133 Skipping brief ${brief.id} — existing ${existingPosition.side} position on ${brief.pair}`,
+          );
           continue;
         }
+
+        // Opposite direction — only allow for paper trading (hedge)
+        if (!isSimulated) {
+          this.logger.debug(
+            `⚔️ Skipping brief ${brief.id} — existing ${existingPosition.side} position on ${brief.pair} (no hedge for real accounts)`,
+          );
+          continue;
+        }
+
+        // Paper trading: Allow opposite-direction brief as a hedge
+        // BUT check if we already have 2 positions on this symbol (BUY + SELL)
+        const positionsOnSymbol = await this.prisma.position.count({
+          where: { userId, symbol: brief.pair, status: 'OPEN' },
+        });
+        if (positionsOnSymbol >= 2) {
+          this.logger.debug(
+            `⚔️ V133 Skipping brief ${brief.id} — already ${positionsOnSymbol} positions on ${brief.pair} (hedge limit reached)`,
+          );
+          continue;
+        }
+
+        // Opposite direction, paper trading, under hedge limit — ALLOW
+        this.logger.log(
+          `⚔️ V133 Hedge allowed: executing ${brief.direction} ${brief.pair} alongside existing ${existingPosition.side}`,
+        );
       }
 
       // FIX: Check max positions PER PAIR (not globally).

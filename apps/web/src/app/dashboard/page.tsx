@@ -1252,26 +1252,43 @@ export default function DashboardPage() {
               {/* Balance Summary — always visible */}
               <div className="panel-header">
                 <div className="summary-row">
+                  {/* 1 — الرصيد (cash بعد إغلاق كل الصفقات) */}
                   <div className="summary-item" style={{ gap: 8 }}>
                     <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
                     <span className="summary-label">الرصيد:</span>
-                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(account?.equity)}</span>
+                    <span className="summary-value count-up" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(cashValue)}</span>
                     <span style={{ fontSize: 9, color: getStatusTone(accountDataStatus), fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", letterSpacing: 0.5 }}>
                       {getStatusLabel(accountDataStatus)}
                     </span>
                   </div>
+                  {/* 2 — الرصيد الحالي (equity شامل أرباح/خسائر الصفقات المفتوحة) */}
+                  <div className="summary-item" style={{ gap: 8 }}>
+                    <span className="summary-label">الرصيد الحالي:</span>
+                    <span className="summary-value count-up summary-value--accent" style={{ fontSize: 13, fontWeight: 800 }}>{formatMoney(equityValue)}</span>
+                  </div>
+                  {/* 3 — الهامش المتاح (freeMargin = equity - usedMargin) */}
                   <div className="summary-item">
-                    <span className="summary-label">الهامش الحر:</span>
+                    <span className="summary-label">الهامش المتاح:</span>
                     <span className="summary-value summary-value--success">{formatMoney(freeMargin)}</span>
                   </div>
+                  {/* 4 — الهامش المستخدم (initialMargin) */}
                   <div className="summary-item">
-                    <span className="summary-label">قيمة المراكز:</span>
-                    <span className="summary-value summary-value--accent">{formatMoney(positionsValue)}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">كمية الهامش:</span>
+                    <span className="summary-label">الهامش المستخدم:</span>
                     <span className="summary-value">{formatMoney(initialMargin)}</span>
                   </div>
+                  {/* 5 — نسبة الهامش (usedMargin / equity × 100%) */}
+                  <div className="summary-item">
+                    <span className="summary-label">نسبة الهامش:</span>
+                    <span className="summary-value" style={{
+                      color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger
+                        : equityValue > 0 && (initialMargin / equityValue) > 0.5 ? '#f59e0b'
+                        : T.cyan,
+                      fontWeight: 700,
+                    }}>
+                      {equityValue > 0 ? ((initialMargin / equityValue) * 100).toFixed(1) : '0.0'}%
+                    </span>
+                  </div>
+                  {/* 6 — P&L (أرباح/خسائر غير محققة) */}
                   {unrealizedPnl !== 0 && (
                     <div className="summary-item">
                       <span className="summary-label">P&L:</span>

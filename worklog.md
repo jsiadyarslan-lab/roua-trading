@@ -304,3 +304,28 @@ Stage Summary:
 - Execution paths now: Paper= simulated fill + bypassed risk, Testnet= CCXT testnet + bypassed risk, Real= CCXT real + full risk
 - All 3 risk check layers (RiskGatekeeper, RiskManager, SmartExecutor) now detect testnet credentials
 - Files modified: smart-executor.service.ts, risk-gatekeeper.service.ts, risk-manager.service.ts, trading.service.ts
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: V125 Multi-account auto-routing — sustainable architecture for executor and agent
+
+Work Log:
+- Analyzed full codebase: smart-executor.service.ts, _processUserBriefs, _executeBriefForUser, _selectBestCredential, SmartExecutorPanel.tsx, agent.service.ts, order-executor.service.ts, Prisma schema
+- Identified root cause: Binary paper/real choice at enable time was fundamentally wrong for a multi-exchange platform
+- Designed V125 architecture: routingMode='auto' (default) routes each trade to best credential per symbol type
+- Updated smart-executor.types.ts: Added RoutingMode type and routingMode field to UserExecutorState
+- Updated smart-executor.service.ts: Rewrote enableUser() with auto-mode default, _processUserBriefs() with per-trade simulated detection, _executeBriefForUser() with routingMode support
+- Added backward-compatible migration: old states without routingMode auto-upgrade to 'auto'
+- Updated smart-executor.controller.ts: Added routingMode to enable endpoint body
+- Updated SmartExecutorPanel.tsx: New UI with 'تفعيل تلقائي' as primary button, removed paper/real binary choice, shows connected exchanges
+- Updated smart-executor.types.spec.ts: Added routingMode to test fixtures
+- TypeScript compilation passed with no new errors
+- Committed and pushed to GitHub (Railway auto-deploys)
+
+Stage Summary:
+- V125 deployed with multi-account auto-routing architecture
+- Key change: ONE click enables ALL accounts simultaneously
+- Per-trade routing: crypto→Binance, stocks→Alpaca, forex→paper
+- Fallback chain: real → testnet → paper (always executable)
+- Backward compatible with existing user states

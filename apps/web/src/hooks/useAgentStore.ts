@@ -401,16 +401,28 @@ export const useAgentStore = create<AgentStore>()(
         const validStrategies = [StrategyType.AUTO, StrategyType.SCALPING, StrategyType.SWING, StrategyType.GRID, StrategyType.MEAN_REVERSION, StrategyType.MOMENTUM_BREAKOUT, StrategyType.DCA, StrategyType.VWAP_RSI]
         const safeStrategy = validStrategies.includes(strategy) ? strategy : StrategyType.AUTO
 
-        // Auto-fetch credentials if not set
-        if (!selectedCredentialId || selectedCredentialId.trim() === '') {
-          await get().fetchCredentials()
+        // ═══════════════════════════════════════════════════════
+        // V126: Read activeCredentialId from user settings first.
+        // The user chose their account in settings — we use it.
+        // Fallback: selectedCredentialId from credential picker.
+        // ═══════════════════════════════════════════════════════
+        let effectiveCredentialId = selectedCredentialId
+
+        // Try reading from user settings (activeCredentialId)
+        if (!effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')) {
+          try {
+            const settingsRes = await fetch('/api/settings')
+            const settingsData = await settingsRes.json()
+            if (settingsData?.settings?.activeCredentialId) {
+              effectiveCredentialId = settingsData.settings.activeCredentialId
+              get().addLog(`📋 استخدام الحساب المفعّل من الإعدادات`, 'info')
+            }
+          } catch { /* non-critical */ }
         }
 
-        // Re-read after potential fetch
-        const currentCredentialId = get().selectedCredentialId
-
-        // Build payload — if no credential, start in paper trading mode
-        const isPaperMode = !currentCredentialId || currentCredentialId.trim() === ''
+        // Build payload — V126: always send credentialId if we have one
+        // Backend reads activeCredentialId from settings as well
+        const isPaperMode = !effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')
 
         set({ loading: true, error: null })
         const strategyNameMap: Record<string, string> = {
@@ -448,10 +460,9 @@ export const useAgentStore = create<AgentStore>()(
             strategy: safeStrategy,
             symbols: selectedSymbols,
           }
-          // Only include credentialId if we have a real one
-          // Empty/missing credentialId triggers paper trading mode on the backend
+          // V126: Send the effective credentialId if we have a real one
           if (!isPaperMode) {
-            payload.credentialId = currentCredentialId
+            payload.credentialId = effectiveCredentialId
           }
 
           const res = await fetch('/api/agent/trader/start', {

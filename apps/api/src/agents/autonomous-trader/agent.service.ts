@@ -532,34 +532,48 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       );
     }
 
-    // Validate credential OR allow paper trading mode
+    // ═══════════════════════════════════════════════════════════════
+    // V126: User-driven account selection — same as Smart Executor.
+    //
+    // The user selects which account to trade on from their settings page.
+    // The agent reads activeCredentialId from user settings and executes
+    // on that account. No paper/real mode logic, no auto-routing.
+    // The user is in control — they chose their account in settings.
+    // ═══════════════════════════════════════════════════════════════
     let credential: any = null;
     let isPaperTrading = false;
 
-    // Determine if this is a paper trading session
-    // Paper trading mode: no real credentialId, or credentialId starts with 'paper-'
-    const isPaperCredentialId = !dto.credentialId || dto.credentialId.trim() === '' || dto.credentialId.startsWith('paper-');
+    // Priority: dto.credentialId > activeCredentialId from user settings
+    let effectiveCredentialId = dto.credentialId;
 
-    if (isPaperCredentialId) {
-      // Paper trading mode — no real exchange connection needed
+    // If no credentialId in DTO, read from user settings (the user chose it)
+    if (!effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')) {
+      try {
+        const activeSetting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:activeCredentialId` },
+        });
+        if (activeSetting?.value) {
+          effectiveCredentialId = activeSetting.value;
+          this.logger.log(`🧠 V126 Agent using active account from settings: ${effectiveCredentialId}`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`🧠 V126 Could not read activeCredentialId for user ${userId}: ${err.message}`);
+      }
+    }
+
+    // If still no credential, auto-create paper-trading credential as fallback
+    if (!effectiveCredentialId || effectiveCredentialId.trim() === '' || effectiveCredentialId.startsWith('paper-')) {
       isPaperTrading = true;
-      this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId}`);
+      this.logger.log(`🧠 Agent starting in PAPER TRADING mode for user ${userId} (no active account selected)`);
 
-      // FIX: Auto-create paper-trading credential if it doesn't exist.
-      // Previously, this was disabled to prevent phantom trades, but that
-      // broke the entire agent — users couldn't start it at all without
-      // first manually creating a paper credential. Now we auto-create it
-      // safely. Paper credentials use dummy encrypted values since there's
-      // no real API key to protect — the ExecutionGateway routes them to
-      // PaperTradingAdapter which doesn't need real keys.
       try {
         const existingPaper = await this.prisma.exchangeCredential.findFirst({
           where: { userId, exchange: 'paper-trading', isValid: true },
         });
         if (existingPaper) {
           credential = existingPaper;
+          effectiveCredentialId = existingPaper.id;
         } else {
-          // Auto-create paper-trading credential for this user
           this.logger.log(`🧪 Auto-creating paper-trading credential for user ${userId}`);
           credential = await this.prisma.exchangeCredential.create({
             data: {
@@ -578,17 +592,17 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               testnet: true,
             },
           });
+          effectiveCredentialId = credential.id;
           this.logger.log(`🧪 Paper-trading credential created for user ${userId}`);
         }
       } catch (error: any) {
         this.logger.warn(`Could not setup paper credential: ${error.message}`);
-        // Don't block agent start — try to proceed anyway
       }
     } else {
-      // Real credential — validate it
+      // User has selected an account — validate it
       try {
         credential = await this.prisma.exchangeCredential.findFirst({
-          where: { id: dto.credentialId, userId, isValid: true },
+          where: { id: effectiveCredentialId, userId, isValid: true },
         });
       } catch (error: any) {
         this.logger.error(`Database error looking up credential: ${error.message}`);
@@ -596,18 +610,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       }
 
       if (!credential) {
-        throw new NotFoundException('بيانات الاعتماد غير صالحة أو غير موجودة');
+        throw new NotFoundException('الحساب المفعّل غير صالح أو غير موجود — اختر حساباً آخر من الإعدادات');
       }
 
-      let permissions: string[] = ['read'];
-      try {
-        permissions = JSON.parse(credential.permissions || '["read"]');
-      } catch {
-        permissions = ['read'];
-      }
-      if (!permissions.includes('trade')) {
-        throw new BadRequestException('مفتاح API لا يملك صلاحية التداول');
-      }
+      // Determine if this is a simulated credential (paper/testnet)
+      isPaperTrading = credential.testnet === true || credential.exchange === 'paper-trading';
+      this.logger.log(
+        `🧠 V126 Agent starting for user ${userId} on ${credential.exchange} ` +
+        `(testnet=${credential.testnet || false}, simulated=${isPaperTrading})`,
+      );
     }
 
     // Load user's persistent settings (DB first, env vars as fallback)
@@ -643,7 +654,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       symbols: dto.symbols ??
         (userSettings && userSettings.defaultSymbols ? userSettings.defaultSymbols.split(',').filter(Boolean) : undefined) ??
         this.DEFAULT_SYMBOLS,
-      credentialId: isPaperTrading ? (credential?.id || `paper-${userId}`) : dto.credentialId,
+      credentialId: effectiveCredentialId || credential?.id || `paper-${userId}`,
       isPaperTrading,
       createdAt: new Date(),
       updatedAt: new Date(),

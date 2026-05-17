@@ -278,14 +278,21 @@ export function AgentControlMini() {
             {getStatusLabel(status)}
           </span>
 
-          {/* Paper Trading Badge */}
+          {/* Paper Trading Badge — V133: Show reason why paper mode */}
           {isPaperTrading && isRunning && (
-            <span style={{
-              fontSize: 10, padding: '2px 7px', borderRadius: 6,
-              background: 'rgba(0,212,255,0.10)', color: T.accent,
-              fontWeight: 700, fontFamily: FONT_AR, flexShrink: 0,
-            }}>
-              ورقي
+            <span
+              title={!selectedCredentialId && !config?.isPaperTrading
+                ? 'لم يتم اختيار حساب تداول من الإعدادات — التداول ورقي تلقائياً. اختر حسابك من الإعدادات للتبديل للحقيقي.'
+                : 'التداول في وضع ورقي (تجريبي) — بدون أموال حقيقية'
+              }
+              style={{
+                fontSize: 10, padding: '2px 7px', borderRadius: 6,
+                background: 'rgba(0,212,255,0.10)', color: T.accent,
+                fontWeight: 700, fontFamily: FONT_AR, flexShrink: 0,
+                cursor: 'help',
+              }}
+            >
+              ورقي{!selectedCredentialId && !config?.isPaperTrading ? ' ⚙' : ''}
             </span>
           )}
         </div>

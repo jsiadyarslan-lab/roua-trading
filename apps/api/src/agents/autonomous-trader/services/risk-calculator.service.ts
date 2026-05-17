@@ -253,13 +253,51 @@ export class RiskCalculatorService {
 
   /**
    * Check if daily loss limit has been reached
+   *
+   * FIX (V133): Two critical bugs fixed:
+   *
+   * 1. CROSS-SOURCE CONTAMINATION: Previously, _getDailyPnL() counted losses
+   *    from ALL sources (smart_executor, auto_paper, user_manual, etc.), not just
+   *    the agent's own trades. This meant the Smart Executor's losses could trigger
+   *    the Agent's daily limit, even though the Agent itself had zero trades.
+   *    Now: only count trades where source='agent'.
+   *
+   * 2. PAPER-TRADING BYPASS: RiskGatekeeperService.checkDailyDrawdownLimit()
+   *    bypasses the daily limit for paper-trading-only users (no real credentials).
+   *    But this function had NO such bypass, causing paper-trading agents to be
+   *    stopped by a daily loss limit on virtual money — defeating the purpose of
+   *    paper trading (learning/testing). Now: if user has no real credentials,
+   *    the daily limit check is bypassed for the agent too, matching RiskGatekeeper.
    */
   async isDailyLimitReached(userId: string, maxDailyLossPercent: number): Promise<boolean> {
-    // FIX: Only count REALIZED losses from closed trades (EXIT type).
-    // Previously counted unrealizedPnl from open positions — any small paper loss
-    // immediately triggered the daily limit and stopped the agent.
-    // Now: only closed trade pnl counts toward the daily limit.
-    const dailyPnL = await this._getDailyPnL(userId); // already filters EXIT trades only
+    // ── FIX #2 (V133): Bypass daily limit for paper-trading-only users ──
+    // RiskGatekeeperService already bypasses this check for simulated-only users.
+    // The Agent should follow the same logic — paper trading is for learning,
+    // and stopping the agent on virtual losses defeats the purpose.
+    try {
+      const realCredential = await this.prisma.exchangeCredential.findFirst({
+        where: {
+          userId,
+          isValid: true,
+          exchange: { not: 'paper-trading' },
+          testnet: { not: true },
+        },
+      });
+      if (!realCredential) {
+        this.logger.debug(
+          `🛡️ Agent daily limit check BYPASSED for user ${userId} — paper-trading only (no real credentials)`,
+        );
+        return false;
+      }
+    } catch (credErr: any) {
+      this.logger.warn(
+        `🛡️ Could not check credentials for daily limit bypass: ${credErr.message} — proceeding with check`,
+      );
+    }
+
+    // FIX #1: Only count the AGENT's own realized losses, not Smart Executor's.
+    // Previously, this called _getDailyPnL(userId) which counted ALL sources.
+    const dailyPnL = await this._getAgentDailyPnL(userId);
     const portfolioValue = await this._getPortfolioValue(userId);
 
     if (portfolioValue <= 0) return false;
@@ -269,7 +307,7 @@ export class RiskCalculatorService {
     const lossPercent = (Math.abs(dailyPnL) / portfolioValue) * 100;
     if (lossPercent >= maxDailyLossPercent) {
       this.logger.warn(
-        `🛡️ Daily loss limit reached: ${lossPercent.toFixed(2)}% >= ${maxDailyLossPercent}%`
+        `🛡️ Agent daily loss limit reached: ${lossPercent.toFixed(2)}% >= ${maxDailyLossPercent}% (agent-only losses: $${dailyPnL.toFixed(2)})`,
       );
       return true;
     }
@@ -447,6 +485,10 @@ export class RiskCalculatorService {
     }
   }
 
+  /**
+   * Get daily P&L from ALL sources (used by assessRisk for display purposes).
+   * NOTE: This includes Smart Executor, Agent, and manual trades.
+   */
   private async _getDailyPnL(userId: string): Promise<number> {
     try {
       const todayStart = new Date();
@@ -457,6 +499,38 @@ export class RiskCalculatorService {
           userId,
           executedAt: { gte: todayStart },
           type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+        },
+      });
+
+      return trades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * V133 FIX: Get daily P&L from the AGENT's own trades ONLY.
+   *
+   * Previously, isDailyLimitReached() used _getDailyPnL() which counted
+   * ALL trade sources. This caused CROSS-SOURCE CONTAMINATION:
+   *   - Smart Executor loses $500 → Agent sees daily loss = $500
+   *   - Agent immediately hits DAILY_LIMIT_REACHED
+   *   - User sees "تجاوز الحد اليومي" even though Agent had zero trades
+   *
+   * Now: Only count trades where source='agent' for the agent's daily limit.
+   * This matches how SmartExecutor tracks its own daily PnL separately.
+   */
+  private async _getAgentDailyPnL(userId: string): Promise<number> {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const trades = await this.prisma.trade.findMany({
+        where: {
+          userId,
+          executedAt: { gte: todayStart },
+          type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+          source: 'agent',  // V133: Only count the agent's own losses
         },
       });
 

@@ -312,3 +312,21 @@ Stage Summary:
   3. V134: Wider SL/TP prevents Position Monitor from closing positions immediately
 - Production deployment verified at https://roua-trading-production.up.railway.app
 - Executor needs user to enable it from dashboard to start trading
+---
+Task ID: V133-agent-daily-limit-fix
+Agent: Main Agent
+Task: Fix two bugs: (1) "ورقي" showing on Agent widget, (2) "تجاوز الحد اليومي" despite no agent trades
+
+Work Log:
+- Deep investigation of AgentControlMini.tsx, useAgentStore.ts, agent.service.ts, risk-calculator.service.ts, risk-gatekeeper.service.ts
+- Bug 1 ("ورقي"): AgentControlMini shows "ورقي" when config.isPaperTrading=true OR no selectedCredentialId. Root cause: user has Binance credentials but hasn't set activeCredentialId in settings. The agent falls back to paper trading. Added tooltip to badge explaining the reason.
+- Bug 2 ("تجاوز الحد اليومي"): TWO root causes found:
+  1. CROSS-SOURCE CONTAMINATION: _getDailyPnL() counted ALL trade sources (smart_executor, auto_paper, agent). If Smart Executor had losses, Agent's daily limit was triggered. Fix: Created _getAgentDailyPnL() that filters source='agent' only.
+  2. MISSING PAPER-TRADING BYPASS: RiskGatekeeperService bypasses daily limit for paper-only users, but RiskCalculatorService.isDailyLimitReached() did NOT. Paper-trading agents were stopped by daily loss limits on virtual money. Fix: Added credential check to bypass daily limit for paper-trading-only users.
+- Applied fixes to risk-calculator.service.ts (isDailyLimitReached + _getAgentDailyPnL)
+- Applied tooltip fix to AgentControlMini.tsx (paper trading badge)
+
+Stage Summary:
+- isDailyLimitReached() now: (1) only counts agent's own losses, (2) bypasses for paper-trading users
+- AgentControlMini "ورقي" badge now has tooltip explaining why (no active account selected)
+- Both fixes align Agent behavior with SmartExecutor and RiskGatekeeper

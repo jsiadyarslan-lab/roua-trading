@@ -481,8 +481,20 @@ export function SmartExecutorPanel() {
         return (
           <div style={{
             padding: '4px 8px', background: 'rgba(255,184,0,0.06)', borderBottom: '1px solid rgba(255,184,0,0.12)',
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية — تأكد من إعدادات إدارة المخاطر</span>
+            <span style={{ fontSize: 7, color: T.amber, fontWeight: 600 }}>⚠ تداول حقيقي بأموال فعلية</span>
+            <button
+              onClick={() => window.location.href = '/dashboard/settings'}
+              style={{
+                fontSize: 6.5, color: T.amber, fontWeight: 700,
+                background: 'rgba(255,184,0,0.12)', border: '1px solid rgba(255,184,0,0.25)',
+                borderRadius: 3, padding: '1px 6px', cursor: 'pointer',
+                fontFamily: "'Cairo', sans-serif", textDecoration: 'none',
+              }}
+            >
+              تحقق من إعدادات المخاطر ←
+            </button>
           </div>
         )
       })()}

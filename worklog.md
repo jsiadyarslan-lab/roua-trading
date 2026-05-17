@@ -249,3 +249,31 @@ Stage Summary:
 - closePosition: 3s timeout on getQuote, entryPrice fallback
 - Frontend: auto force-close on any failure type
 - Positions should now always close even when price providers are down
+---
+Task ID: V123
+Agent: Main
+Task: Sustainable fix for risk settings - Single Source of Truth
+
+Work Log:
+- Investigated the full SmartExecutor pipeline (frontend → controller → service → tick → execute)
+- Discovered that user risk settings (userRiskPerTrade, etc.) were write-only — saved to Setting table but never read by executor
+- Found V119 auto-routing was silently overriding user's paper trading choice when they had real credentials
+- Found warning dismissal used localStorage (lost on refresh, not synced)
+- Added _loadUserRiskSettings() method that reads from Setting table (same source as Settings page)
+- Modified enableUser() to read risk values from user settings instead of hardcoded defaults
+- Removed V119 auto-routing — user's click is now ABSOLUTE
+- Updated _processUserBriefs() to refresh risk settings every tick (changes take effect within 10s)
+- Updated daily loss limit check to use user's own maxDailyLossPercent
+- Implemented three-tier warning system in frontend (Testnet=info, Real+not acknowledged=warning+DB save, Real+acknowledged=no warning)
+- Warning acknowledgement persisted to DB via /api/settings (not localStorage)
+- Removed hardcoded risk values from frontend enableUser() call
+- Fixed TypeScript error with userState null check
+- Pushed V123 to GitHub
+
+Stage Summary:
+- V123 deployed with sustainable risk settings architecture
+- Single Source of Truth: Setting table is the ONLY place for risk settings
+- Backend reads from Setting table via _loadUserRiskSettings()
+- Frontend writes to Setting table via /api/settings
+- Changes propagate within 10s (one tick cycle)
+- Warning acknowledgement survives refresh/restart (DB-persisted)

@@ -31,6 +31,17 @@ interface Position {
 interface PositionsState {
   positions: Position[]
   account: any
+  /** V119: Per-exchange balance breakdown from credentials/balances API */
+  exchangeBalances: Array<{
+    exchange: string
+    label: string
+    credentialId: string
+    isTestnet: boolean
+    equity: number
+    available: number
+    currency: string
+    error?: string
+  }>
   loading: boolean
   error: string | null
   lastUpdate: string | null
@@ -231,6 +242,7 @@ export const usePositionsStore = create<PositionsState>()(
     (set, get) => ({
   positions: [],
   account: null,
+  exchangeBalances: [],
   loading: false,
   error: null,
   lastUpdate: null,
@@ -471,7 +483,7 @@ export const usePositionsStore = create<PositionsState>()(
             tradingBlocked: false,
             accountBlocked: false,
           }
-          set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+          set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
           // ═══════════════════════════════════════════════════════════════
           // FIX: REMOVED wallet asset "positions" creation.
@@ -525,7 +537,7 @@ export const usePositionsStore = create<PositionsState>()(
             tradingBlocked: false,
             accountBlocked: false,
           }
-          set({ account, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+          set({ account, exchangeBalances: [], dataSource: 'nestjs', _cacheTimestamp: Date.now() })
           return
         }
       }
@@ -626,6 +638,7 @@ export const usePositionsStore = create<PositionsState>()(
     set({
       positions: [],
       account: null,
+      exchangeBalances: [],
       lastUpdate: null,
       _cacheTimestamp: null,
       dataSource: null,

@@ -186,6 +186,7 @@ export function PortfolioMini({
 }) {
   const { data } = usePortfolioSummary()
   const positions = usePositionsStore(s => s.positions)
+  const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null)
   const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
@@ -280,6 +281,65 @@ export function PortfolioMini({
           />
         </div>
       </div>
+
+      {/* V119: Per-Exchange Balance Breakdown */}
+      {exchangeBalances.length > 0 && (
+        <div style={{
+          display: 'flex', flexDirection: 'column', gap: 3,
+          padding: '5px 6px', borderRadius: 6,
+          background: 'rgba(255,255,255,0.02)',
+          border: '0.5px solid rgba(255,255,255,0.04)',
+        }}>
+          <div style={{ fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 1 }}>
+            أرصدة البورصات
+          </div>
+          {exchangeBalances.map((ex) => {
+            const isPaper = ex.exchange === 'paper-trading'
+            const exColor = isPaper ? T.cyan : ex.isTestnet ? T.amber : T.green
+            const exLabel = isPaper ? 'ورقي' : ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)
+            return (
+              <div key={ex.credentialId || ex.exchange} style={{
+                display: 'flex', alignItems: 'center', gap: 5, fontSize: 8,
+              }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: '50%',
+                  background: exColor,
+                  boxShadow: `0 0 4px ${exColor}60`,
+                }} />
+                <span style={{ color: exColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif", minWidth: 48 }}>
+                  {exLabel}
+                </span>
+                <span style={{ color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
+                  ${fmt(ex.equity, 2)}
+                </span>
+                {ex.error && (
+                  <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }}>
+                    ⚠ خطأ
+                  </span>
+                )}
+                {!isPaper && !ex.isTestnet && (
+                  <span style={{
+                    fontSize: 5.5, padding: '0px 3px', borderRadius: 2,
+                    background: 'rgba(0,255,163,0.1)', color: T.green,
+                    fontWeight: 700,
+                  }}>
+                    حقيقي
+                  </span>
+                )}
+                {ex.isTestnet && !isPaper && (
+                  <span style={{
+                    fontSize: 5.5, padding: '0px 3px', borderRadius: 2,
+                    background: 'rgba(255,184,0,0.1)', color: T.amber,
+                    fontWeight: 700,
+                  }}>
+                    تجريبي
+                  </span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* P&L Badge */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

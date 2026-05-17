@@ -343,40 +343,96 @@ export default function PositionsPage() {
         </div>
       }
     >
-      {/* Summary Cards */}
-      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '16px' }}>
-        <StatCard
-          icon={<BarChart3 size={12} stroke="#fff" strokeWidth={2} />}
-          label="إجمالي المراكز"
-          value={String(summary?.totalPositions ?? positions.length)}
-          gradientFrom="#00FFC6"
-          gradientTo="#00B894"
-          color="var(--text-main)"
-        />
-        <StatCard
-          icon={<Briefcase size={12} stroke="#fff" strokeWidth={2} />}
-          label="القيمة الإجمالية"
-          value={formatCurrency(summary?.totalValue ?? 0)}
-          gradientFrom="#FFB800"
-          gradientTo="#FF8C00"
-          color="var(--text-main)"
-        />
-        <StatCard
-          icon={<Activity size={12} stroke="#fff" strokeWidth={2} />}
-          label="أ.خ غير محققة"
-          value={`${(summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? '+' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? '-' : ''}${formatCurrency(Math.abs(summary?.unrealizedPnl ?? totalUnrealizedPnl))}`}
-          gradientFrom="#00FFC6"
-          gradientTo="#0A84FF"
-          color={(summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? 'var(--profit)' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? 'var(--loss)' : 'var(--text-secondary)'}
-        />
-        <StatCard
-          icon={<Target size={12} stroke="#fff" strokeWidth={2} />}
-          label="الأرباح المحققة"
-          value={`${(summary?.realizedPnl ?? 0) > 0 ? '+' : (summary?.realizedPnl ?? 0) < 0 ? '-' : ''}${formatCurrency(Math.abs(summary?.realizedPnl ?? 0))}`}
-          gradientFrom="#A259FF"
-          gradientTo="#7C3AED"
-          color={(summary?.realizedPnl ?? 0) > 0 ? 'var(--profit)' : (summary?.realizedPnl ?? 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)'}
-        />
+      {/* Summary Bar — Single Row */}
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{
+        display: 'flex',
+        alignItems: 'stretch',
+        gap: 0,
+        marginBottom: '16px',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border)',
+        borderRadius: '12px',
+        overflow: 'hidden',
+      }}>
+        {/* المراكز */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #00FFC6, #00B894)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <BarChart3 size={13} stroke="#fff" strokeWidth={2} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>المراكز</div>
+            <div style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{summary?.totalPositions ?? positions.length}</div>
+          </div>
+        </div>
+
+        {/* القيمة الإجمالية */}
+        <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: 'linear-gradient(135deg, #FFB800, #FF8C00)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Briefcase size={13} stroke="#fff" strokeWidth={2} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>القيمة الإجمالية</div>
+            <div dir="ltr" style={{ fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)', letterSpacing: '-0.02em' }}>{formatCurrency(summary?.totalValue ?? 0)}</div>
+          </div>
+        </div>
+
+        {/* أ.خ غير محققة */}
+        <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderInlineEnd: '1px solid var(--border)' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: (summary?.unrealizedPnl ?? totalUnrealizedPnl) >= 0
+              ? 'linear-gradient(135deg, #00FFC6, #0A84FF)'
+              : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Activity size={13} stroke="#fff" strokeWidth={2} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>أ.خ غير محققة</div>
+            <div dir="ltr" style={{
+              fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
+              color: (summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? 'var(--profit)' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? 'var(--loss)' : 'var(--text-secondary)',
+              letterSpacing: '-0.02em',
+            }}>
+              {(summary?.unrealizedPnl ?? totalUnrealizedPnl) > 0 ? '+' : (summary?.unrealizedPnl ?? totalUnrealizedPnl) < 0 ? '-' : ''}{formatCurrency(Math.abs(summary?.unrealizedPnl ?? totalUnrealizedPnl))}
+            </div>
+          </div>
+        </div>
+
+        {/* الأرباح المحققة */}
+        <div style={{ flex: 1.5, display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px' }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: 8,
+            background: (summary?.realizedPnl ?? 0) >= 0
+              ? 'linear-gradient(135deg, #A259FF, #7C3AED)'
+              : 'linear-gradient(135deg, #FF4D4D, #FF6B6B)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
+          }}>
+            <Target size={13} stroke="#fff" strokeWidth={2} />
+          </div>
+          <div>
+            <div style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-ar)', marginBottom: 1 }}>الأرباح المحققة</div>
+            <div dir="ltr" style={{
+              fontSize: 16, fontWeight: 800, fontFamily: 'var(--font-mono)',
+              color: (summary?.realizedPnl ?? 0) > 0 ? 'var(--profit)' : (summary?.realizedPnl ?? 0) < 0 ? 'var(--loss)' : 'var(--text-secondary)',
+              letterSpacing: '-0.02em',
+            }}>
+              {(summary?.realizedPnl ?? 0) > 0 ? '+' : (summary?.realizedPnl ?? 0) < 0 ? '-' : ''}{formatCurrency(Math.abs(summary?.realizedPnl ?? 0))}
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Filters */}

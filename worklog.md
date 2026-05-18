@@ -643,3 +643,30 @@ Stage Summary:
 - Paper positions no longer artificially gravitate toward SL or TP
 - Win/loss ratio now reflects actual entry quality, not simulation bias
 - All 6 Agent/Executor interference fixes are now complete
+
+---
+Task ID: V143-V146
+Agent: Main Agent
+Task: Integrate analyzed news into the trading decision pipeline + bridge rouatradingnews data
+
+Work Log:
+- Explored the entire news flow: RSS sources → NewsService → NewsArticle DB, Python agents → rouatradingnews
+- Discovered critical gap: news was analyzed but NEVER reached trading decisions (council, executor, agent)
+- V143: Added NewsService + NewsIntegrationService + RagService to Strategic Council
+- V143: _analyzePairTimeframe() now fetches RAG context + structured news + rouatradingnews sentiment
+- V143: News context injected into ALL 8 AI model prompts in orchestrator
+- V143: News risk score adjusts confidence: opposing → -8 to -15%, supporting → +5%
+- V144: Added NewsService to Smart Executor with _checkNewsRisk() pre-execution gate
+- V144: Blocks REAL trades when high-impact opposing news detected, paper accounts bypass
+- V145: Created NewsIntegrationService bridging rouatradingnews API → NestJS/Redis
+- V145: Fear & Greed, Arab sentiment, geopolitical risk fetched every 15min, cached in Redis
+- V146: Added /api/news/feed endpoint (fixes 404 from NewsTicker/NewsMarkers components)
+- V146: Added /api/news/sentiment and /api/news/pipeline endpoints
+- Build successful, pushed to GitHub for auto-deployment
+
+Stage Summary:
+- News is now fully integrated into the trading pipeline for the first time
+- Flow: NewsArticle DB + RAG + rouatradingnews → Strategic Council AI prompts → adjusted confidence
+- Flow: NewsArticle DB → Smart Executor risk gate → block/warn before real trade execution
+- 9 files changed, 813 insertions(+), 20 deletions(-)
+- New file: news-integration.service.ts (NestJS bridge to rouatradingnews)

@@ -10,6 +10,22 @@
 //   - ينفذ عبر TradingService (لا يضع أوامر مباشرة عبر Prisma)
 //   - يدعم المستخدمين بشكل فردي (لكل مستخدم إعداداته)
 //   - يراقب حد الخسارة اليومي لكل مستخدم
+//
+// V137: PER-USER ISOLATION ARCHITECTURE
+// ══════════════════════════════════════════════
+// كل مستخدم له سياق تداول مستقل تماماً:
+//   - حالة المنفذ:   Redis `smart-executor:user:{userId}` (معزول)
+//   - بيانات الاعتماد: DB `ExchangeCredential` (لكل مستخدم، مع فحص userId)
+//   - المراكز:       DB `Position` (مفلترة بـ userId)
+//   - حدود المخاطر:  لكل مستخدم حد يومي وعدد مراكز خاص به
+//   - Circuit breaker: Redis `circuit-breaker:v2:{userId}:{symbol}` (إصلاح V137)
+//
+// مكونات مشتركة (تعمل لكل المستخدمين):
+//   - المجلس الاستراتيجي → يُنشئ إشارات/توصيات عالمية
+//   - مجلس AI → يُنشئ تحليلات AI عالمية
+//   - الإشارات → إشارات سوق مشتركة
+//   - السكانر → يفحص السوق لكل المستخدمين
+// ══════════════════════════════════════════════
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
@@ -249,6 +265,26 @@ export class SmartExecutorService implements OnModuleDestroy {
         }
       } catch (idempErr: any) {
         this.logger.warn(`⚔️ Failed to clear idempotency keys: ${idempErr.message}`);
+      }
+
+      // ── STEP 5.3: Clear OLD format circuit breaker keys from Redis (V137) ──
+      // V137 changed the circuit breaker key format from `circuit-breaker:{symbol}`
+      // (cross-user contamination) to `circuit-breaker:v2:{userId}:{symbol}` (per-user).
+      // Old keys could apply User A's circuit breaker to ALL users on restart.
+      try {
+        const oldCbKeys = await this.redis.scanKeys('circuit-breaker:*');
+        let oldCbCleaned = 0;
+        for (const key of oldCbKeys) {
+          // Only delete old-format keys (no 'v2:' prefix)
+          if (key.startsWith('circuit-breaker:v2:')) continue;
+          await this.redis.del(key);
+          oldCbCleaned++;
+        }
+        if (oldCbCleaned > 0) {
+          this.logger.log(`⚔️ STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) from Redis (V137 — cross-user contamination fix)`);
+        }
+      } catch (cbCleanErr: any) {
+        this.logger.warn(`⚔️ Failed to clear old circuit breaker keys: ${cbCleanErr.message}`);
       }
 
       // ── STEP 5.5: Clear stale price cache from Redis ──

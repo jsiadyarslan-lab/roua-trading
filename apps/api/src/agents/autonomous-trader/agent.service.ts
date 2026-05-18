@@ -40,6 +40,27 @@ import { PerformanceTracker } from './models/performance';
 /**
  * AutonomousTraderAgentService — The Brain of Autonomous Trading
  *
+ * V137: PER-USER ISOLATION ARCHITECTURE
+ * ═══════════════════════════════════════════════════════════════
+ * Every user has their own INDEPENDENT trading context:
+ *   - Agent state:    Redis `agent:state:{userId}` (isolated)
+ *   - Agent settings: DB `AgentSettings` (per-user row)
+ *   - Credentials:    DB `ExchangeCredential` (per-user, verified by userId)
+ *   - Positions:      DB `Position` (filtered by userId)
+ *   - Risk limits:    Per-user daily loss limit, position count, etc.
+ *   - Circuit breaker: Redis `circuit-breaker:v2:{userId}:{symbol}` (V137 fix)
+ *
+ * SHARED components (work across ALL users):
+ *   - Strategic Council → generates global signals/briefs
+ *   - AI Council → generates global AI analysis
+ *   - Signals → shared market signals
+ *   - Scanner → scans market for all users
+ *
+ * The cron loop processes ALL active users, but each user's cycle
+ * (_processAgentCycle) reads ONLY that user's data. Cross-user
+ * contamination is impossible by design.
+ * ═══════════════════════════════════════════════════════════════
+ *
  * This service orchestrates the entire autonomous trading cycle:
  *
  * ┌─────────────────────────────────────────────────────────────┐
@@ -285,6 +306,25 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         }
       } catch (err: any) {
         this.logger.warn(`🧠 Failed to clear agent Redis states: ${err.message}`);
+      }
+
+      // ── PURGE: Clear OLD format circuit breaker keys from Redis (V137) ──
+      // V137 changed circuit breaker keys from `circuit-breaker:{symbol}` (cross-user)
+      // to `circuit-breaker:v2:{userId}:{symbol}` (per-user isolated).
+      // Old keys could apply User A's circuit breaker to ALL users on restart.
+      try {
+        const oldCbKeys = await this.redis.scanKeys('circuit-breaker:*');
+        let oldCbCleaned = 0;
+        for (const key of oldCbKeys) {
+          if (key.startsWith('circuit-breaker:v2:')) continue; // Skip new format
+          await this.redis.del(key);
+          oldCbCleaned++;
+        }
+        if (oldCbCleaned > 0) {
+          this.logger.log(`🧠 STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) (V137 — cross-user contamination fix)`);
+        }
+      } catch (cbErr: any) {
+        this.logger.warn(`🧠 Failed to clear old circuit breaker keys: ${cbErr.message}`);
       }
 
       // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──

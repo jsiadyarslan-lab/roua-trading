@@ -10,6 +10,10 @@ import * as ccxt from 'ccxt';
 /**
  * Risk Gatekeeper Service — Pre-Trade Risk Validation
  *
+ * V137: PER-USER ISOLATION — Circuit breaker Redis keys now include userId.
+ * Previously: `circuit-breaker:{symbol}` (cross-user contamination on restart)
+ * Now:        `circuit-breaker:v2:{userId}:{symbol}` (per-user isolated)
+ *
  * Enforces ALL risk rules BEFORE an order reaches the exchange.
  * If ANY check fails, the order is immediately rejected with a clear reason.
  *
@@ -55,7 +59,11 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   }> = new Map();
 
   // ── Redis key prefix for circuit breaker persistence ──
-  private readonly CB_REDIS_PREFIX = 'circuit-breaker:';
+  // V137 FIX: Changed from 'circuit-breaker:' to 'circuit-breaker:v2:' to avoid
+  // conflicts with old-format keys (which used symbol-only, missing userId).
+  // Old format: circuit-breaker:BTC/USDT (cross-user contamination)
+  // New format: circuit-breaker:v2:userId:BTC/USDT (per-user isolated)
+  private readonly CB_REDIS_PREFIX = 'circuit-breaker:v2:';
 
   // ── Last DB sync timestamp ──
   private lastSettingsSync = 0;
@@ -813,15 +821,22 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   /**
    * Persist circuit breaker state to Redis.
    * Called on module destroy and after each circuit breaker update.
+   *
+   * V137 FIX: Redis key now includes userId to prevent cross-user contamination.
+   * Previously, the key was `circuit-breaker:{symbol}` which meant User A's
+   * circuit breaker on BTC/USDT would be loaded for ALL users on restart.
+   * Now the key is `circuit-breaker:v2:{userId}:{symbol}` matching the in-memory
+   * Map key format `userId:symbol`.
    */
   private async _saveCircuitBreakerStateToRedis(): Promise<void> {
     if (!this.redis) return;
     try {
-      for (const [symbol, state] of this.circuitBreakerState.entries()) {
+      for (const [cbKey, state] of this.circuitBreakerState.entries()) {
         // Only persist active circuit breakers (not expired ones)
         if (state.triggered && state.until > new Date()) {
           const remainingMs = state.until.getTime() - Date.now();
-          const key = `${this.CB_REDIS_PREFIX}${symbol}`;
+          // V137: cbKey format is "userId:symbol" — use it directly as Redis key suffix
+          const key = `${this.CB_REDIS_PREFIX}${cbKey}`;
           const value = JSON.stringify({
             triggered: state.triggered,
             until: state.until.toISOString(),
@@ -842,28 +857,55 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   /**
    * Load circuit breaker state from Redis on startup.
    * Restores any active circuit breakers that survived a restart.
+   *
+   * V137 FIX: Now correctly parses userId from Redis key to prevent
+   * cross-user contamination. Old format keys (circuit-breaker:{symbol})
+   * are cleaned up since they lack userId isolation.
    */
   private async _loadCircuitBreakerStateFromRedis(): Promise<void> {
     if (!this.redis) return;
     try {
+      // ── V137: Clean up OLD format keys (circuit-breaker:{symbol}) ──
+      // These lack userId and cause cross-user contamination.
+      // Delete all old-format keys on startup.
+      try {
+        const oldKeys = await this.redis.scanKeys('circuit-breaker:*');
+        let oldCleaned = 0;
+        for (const oldKey of oldKeys) {
+          // Skip new-format keys (circuit-breaker:v2:...)
+          if (oldKey.startsWith('circuit-breaker:v2:')) continue;
+          await this.redis.del(oldKey).catch(() => {});
+          oldCleaned++;
+        }
+        if (oldCleaned > 0) {
+          this.logger.log(`🛡️ V137: Cleaned up ${oldCleaned} old-format circuit breaker key(s) (missing userId)`);
+        }
+      } catch (cleanErr: any) {
+        this.logger.warn(`🛡️ V137: Failed to clean up old circuit breaker keys: ${cleanErr.message}`);
+      }
+
+      // ── Load NEW format keys (circuit-breaker:v2:{userId}:{symbol}) ──
       const keys = await this.redis.scanKeys(`${this.CB_REDIS_PREFIX}*`);
       for (const key of keys) {
         const data = await this.redis.get(key);
         if (!data) continue;
         try {
           const state = JSON.parse(data);
-          const symbol = key.replace(this.CB_REDIS_PREFIX, '');
+          // V137: Extract cbKey (userId:symbol) from Redis key
+          // Key format: circuit-breaker:v2:{userId}:{symbol}
+          // cbKey = userId:symbol (matches in-memory Map key)
+          const cbKey = key.replace(this.CB_REDIS_PREFIX, '');
           const until = new Date(state.until);
           // Only restore if the circuit breaker hasn't expired yet
           if (until > new Date()) {
-            this.circuitBreakerState.set(symbol, {
+            this.circuitBreakerState.set(cbKey, {
               triggered: state.triggered,
               until,
               level: state.level,
               triggeredAt: new Date(state.triggeredAt),
               consecutiveTriggers: state.consecutiveTriggers,
             });
-            this.logger.log(`🛡️ Restored circuit breaker for ${symbol} from Redis (level ${state.level}, expires ${until.toISOString()})`);
+            this.logger.log(`🛡️ Restored circuit breaker for ${cbKey} from Redis (level ${state.level}, expires ${until.toISOString()})`);
           } else {
             // Expired — clean up from Redis
             await this.redis.del(key).catch(() => {});
@@ -880,14 +922,20 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Persist a single circuit breaker state update to Redis.
+   *
+   * V137 FIX: The `cbKey` parameter is the in-memory Map key in format
+   * "userId:symbol" (e.g., "user123:BTC/USDT"). The Redis key is now
+   * `circuit-breaker:v2:{userId}:{symbol}` to include userId and prevent
+   * cross-user contamination on server restart.
    */
-  private async _persistCircuitBreakerToRedis(symbol: string): Promise<void> {
+  private async _persistCircuitBreakerToRedis(cbKey: string): Promise<void> {
     if (!this.redis) return;
     try {
-      const state = this.circuitBreakerState.get(symbol);
+      const state = this.circuitBreakerState.get(cbKey);
       if (!state) return;
 
-      const key = `${this.CB_REDIS_PREFIX}${symbol}`;
+      // V137: cbKey format is "userId:symbol" — use directly as Redis key suffix
+      const key = `${this.CB_REDIS_PREFIX}${cbKey}`;
 
       if (state.triggered && state.until > new Date()) {
         const remainingMs = state.until.getTime() - Date.now();
@@ -905,7 +953,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         await this.redis.del(key).catch(() => {});
       }
     } catch (error: any) {
-      this.logger.warn(`🛡️ Failed to persist circuit breaker state for ${symbol}: ${error.message}`);
+      this.logger.warn(`🛡️ Failed to persist circuit breaker state for ${cbKey}: ${error.message}`);
     }
   }
 

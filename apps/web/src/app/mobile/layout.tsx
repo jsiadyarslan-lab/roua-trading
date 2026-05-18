@@ -51,21 +51,25 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <MobileToastOverlay />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        {/* ═══════════════════════════════════════════════════════════
-            RADICAL REDESIGN: CSS Grid instead of position:absolute
+        {/*
+          ═══════════════════════════════════════════════════════════
+          RADICAL REDESIGN v3: Flexbox column layout
 
-            Previous architecture: everything was position:absolute with
-            z-index stacking → chart canvas captured touch events in navbar
-            area via lightweight-charts setPointerCapture().
+          Previous attempts:
+          - v1: position:absolute + z-index → chart stole touch events
+          - v2: CSS Grid → never reached production (Docker cache)
 
-            New architecture: CSS Grid with 2 rows:
-              Row 1 (1fr): <main> content — chart, scrollable pages
-              Row 2 (auto): <MobileNavBar> — always at bottom
+          v3 approach: Simple Flexbox column.
+          - Container: 100dvh flex column
+          - <main>: flex:1 (takes remaining space)
+          - <nav>: flex-shrink:0 (fixed at bottom)
 
-            Grid rows are HARD BOUNDARIES. The chart canvas in Row 1
-            CANNOT capture touch events in Row 2. No z-index tricks,
-            no protection shields, no pointer-event hacks needed.
-            ═══════════════════════════════════════════════════════════ */}
+          The flex boundary between main and nav is a HARD WALL.
+          Chart canvas inside <main> CANNOT capture touch events
+          in the <nav> area because they're in separate flex items.
+          No z-index, no position:absolute, no hacks.
+          ═══════════════════════════════════════════════════════════
+        */}
         <div
           style={{
             position: 'fixed',
@@ -79,18 +83,22 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             width: '100%',
             margin: '0 auto',
             overflow: 'hidden',
-            display: 'grid',
-            gridTemplateRows: '1fr auto',
+            display: 'flex',
+            flexDirection: 'column',
           } as React.CSSProperties}
         >
-          {/* Row 1: Content area — fills remaining space above navbar.
-              Chart pages use position:absolute;inset:0 to fill this cell.
-              Scrollable pages use overflow-y:auto for scrolling.
-              No paddingBottom needed — grid row is a hard boundary. */}
+          {/*
+            <main>: flex:1 takes all remaining space above the navbar.
+            minHeight:0 prevents flex from expanding beyond the container.
+            Chart pages fill this with position:absolute;inset:0.
+            Scrollable pages use overflow-y:auto.
+            NO paddingBottom needed — flex boundary is a hard wall.
+          */}
           <main
             style={{
-              position: 'relative',
+              flex: 1,
               minHeight: 0,
+              position: 'relative',
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
@@ -99,9 +107,12 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
           >
             {children}
           </main>
-          {/* Row 2: Navbar — in its own grid row.
-              The grid boundary is a HARD WALL that no chart canvas
-              can cross. Touch events here ALWAYS go to the navbar. */}
+          {/*
+            <MobileNavBar>: flex-shrink:0 means it NEVER shrinks.
+            It's always at the bottom, exactly its natural height.
+            The flex boundary is a HARD WALL — chart canvas in <main>
+            CANNOT capture touch events here. Every tap → navbar.
+          */}
           <MobileNavBar />
         </div>
       </AuthGuard>

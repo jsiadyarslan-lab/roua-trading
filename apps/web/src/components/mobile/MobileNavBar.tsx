@@ -109,15 +109,21 @@ export default function MobileNavBar() {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════════
-          Navbar — CSS Grid item (2nd row in layout.tsx)
-          NO position:absolute, NO z-index, NO pointer-events hacks.
-          The grid row boundary is a HARD WALL — chart canvas in
-          Row 1 can NEVER capture touch events here. Every tap on
-          this nav goes directly to its buttons.
-          ═══════════════════════════════════════════════════════════ */}
+      {/*
+        ═══════════════════════════════════════════════════════════
+        Navbar — Flexbox item in mobile layout (2nd flex child)
+
+        NO position:absolute. NO z-index. NO pointer-events hacks.
+        Just a normal flex child that takes its natural height.
+
+        The flex boundary between <main> (flex:1) and this <nav>
+        (flex-shrink:0) is a HARD WALL. The chart canvas inside
+        <main> CANNOT capture touch events in this <nav> area.
+        ═══════════════════════════════════════════════════════════
+      */}
       <nav
         style={{
+          flexShrink: 0,
           boxSizing: 'border-box',
           height: 'calc(48px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -143,7 +149,7 @@ export default function MobileNavBar() {
             if ((item as any).isCenter) {
               const active = isActive(item.href)
               return (
-                <div key={item.href} style={{ position: 'relative', zIndex: 10 }}>
+                <div key={item.href} style={{ position: 'relative', zIndex: 1 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
@@ -200,7 +206,7 @@ export default function MobileNavBar() {
                   border: 'none',
                   cursor: 'pointer',
                   padding: 0,
-                  zIndex: 10,
+                  zIndex: 1,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

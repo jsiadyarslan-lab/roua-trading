@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v141-mobile-css-grid-redesign
+ARG BUILD_CACHE=v142-flexbox-mobile-layout
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -45,6 +45,12 @@ RUN npm ci --install-strategy=hoisted
 # Stage 2: Build BOTH applications
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
+
+# CRITICAL: Re-declare BUILD_CACHE so this stage sees the ARG value.
+# This ALSO forces Docker to invalidate all subsequent layers when
+# BUILD_CACHE changes — preventing stale cached builds on Railway.
+ARG BUILD_CACHE
+RUN echo "BUILD_CACHE=$BUILD_CACHE — forcing fresh build"
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 

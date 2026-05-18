@@ -615,3 +615,31 @@ Stage Summary:
 - Key fixes: source isolation between Agent/Executor, closeReason tracking, DB-backed closed trades UI
 - All close paths now record WHY a position was closed
 - Closed trades no longer vanish from UI (fetched from database)
+
+---
+Task ID: V142
+Agent: Main Agent
+Task: V142 — Fix biased random walk for paper trade price simulation in Agent
+
+Work Log:
+- Verified that V141 fixes (#1-#5) are already applied and working:
+  1. ✅ Smart Executor position count: source filter `{ in: ['smart_executor', 'auto_paper'] }`
+  2. ✅ Smart Executor stale eviction: source filter `{ in: ['smart_executor', 'auto_paper'] }`
+  3. ✅ Agent duplicate check: allows hedge (opposite direction), blocks only same-direction duplicates
+  4. ✅ Position Monitor: excludes `source: 'agent'` positions
+  5. ✅ closeReason field: schema, auto-migration, all 7 close paths, UI badges
+- Found remaining Problem #6: Biased random walk in agent.service.ts lines 2167-2178
+  - Bias pushed price toward whichever limit (SL/TP) was closer
+  - For BUY near SL: bias=-0.2 (pushed DOWN toward SL → artificial stop-loss hits)
+  - Created fake win/loss patterns that don't reflect real market behavior
+- Applied V142 fix: Removed directional bias from paper position price simulation
+  - Changed from biased walk `(Math.random() - 0.5 + bias) * 2 * maxDelta` to unbiased `(Math.random() - 0.5) * 2 * maxDelta`
+  - Removed slDistance/tpDistance calculation (no longer needed)
+  - Updated log message from "±0.5% walk with bias" to "±0.5% unbiased walk"
+- TypeScript compilation: 0 errors
+
+Stage Summary:
+- V142: Unbiased random walk for paper trade price simulation
+- Paper positions no longer artificially gravitate toward SL or TP
+- Win/loss ratio now reflects actual entry quality, not simulation bias
+- All 6 Agent/Executor interference fixes are now complete

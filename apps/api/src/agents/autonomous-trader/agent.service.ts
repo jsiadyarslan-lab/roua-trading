@@ -2163,18 +2163,20 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             const entryPrice = Number(position.entryPrice);
             const lastPrice = Number(position.currentPrice || entryPrice);
 
-            // IMPROVED: Larger random walk using ATR-based SL/TP distance
+            // V142 FIX: Use UNBIASED random walk for paper position price simulation.
+            //
+            // Previously, the walk was BIASED toward whichever limit (SL/TP) was
+            // closer. For a BUY position near SL, the bias pushed price DOWN,
+            // artificially causing more stop-loss hits. This created fake win/loss
+            // patterns that don't reflect real market behavior.
+            //
+            // Now: Pure symmetric random walk with ±0.5% step size, NO directional
+            // bias. This produces more realistic paper trading outcomes:
+            //   - Positions near SL don't artificially gravitate toward SL
+            //   - Positions near TP don't artificially gravitate toward TP
+            //   - Win/loss ratio reflects actual entry quality, not simulation bias
             const maxDelta = entryPrice * 0.005; // ±0.5%
-            const slDistance = Math.abs(lastPrice - stopLoss) / lastPrice;
-            const tpDistance = Math.abs(lastPrice - takeProfit) / lastPrice;
-            
-            let bias = 0;
-            if (position.side === 'BUY') {
-              bias = slDistance < tpDistance ? -0.2 : 0.2;
-            } else {
-              bias = slDistance < tpDistance ? 0.2 : -0.2;
-            }
-            const delta = (Math.random() - 0.5 + bias) * 2 * maxDelta;
+            const delta = (Math.random() - 0.5) * 2 * maxDelta; // UNBIASED
             currentPrice = Math.max(lastPrice + delta, entryPrice * 0.5);
 
             try {
@@ -2188,7 +2190,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 },
               });
               this.logger.log(
-                `🧠 Simulated price for paper position ${position.symbol}: ${currentPrice.toFixed(2)} (last: ${lastPrice.toFixed(2)}, ±0.5% walk with bias)`,
+                `🧠 Simulated price for paper position ${position.symbol}: ${currentPrice.toFixed(2)} (last: ${lastPrice.toFixed(2)}, ±0.5% unbiased walk)`,
               );
             } catch (simErr: any) {
               this.logger.warn(`Failed to save simulated price for ${position.symbol}: ${simErr.message}`);

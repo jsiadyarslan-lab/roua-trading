@@ -89,7 +89,7 @@ function mapToBotSettings(
     // ── Protection limits (the most critical settings) ──
     maxDailyLoss: -Math.abs(parseFloat(botConfig.maxDailyLoss || '2000')),
     maxDrawdown: parseFloat(riskConfig.maxDrawdown || '15'),
-    maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '5', 10),
+    maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '15', 10), // V143: '5'→'15'
     stopLossDefault: parseFloat(riskConfig.stopLossDefault || '2'),
     takeProfitDefault: parseFloat(riskConfig.takeProfitDefault || '4'),
 

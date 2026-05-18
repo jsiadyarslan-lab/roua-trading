@@ -1780,7 +1780,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             enabled: true,
             maxPositionSizePercent: 2,
             maxDailyLossPercent: 5,
-            maxOpenPositions: 5,
+            maxOpenPositions: 15, // V143: 5→15
             riskPerTradePercent: 1.5,
             strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
             symbols: this.DEFAULT_SYMBOLS,
@@ -1944,7 +1944,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 enabled: true,
                 maxPositionSizePercent: 2,
                 maxDailyLossPercent: 5,
-                maxOpenPositions: 5,
+                maxOpenPositions: 15, // V143: 5→15
                 riskPerTradePercent: 1.5,
                 strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
                 symbols: this.DEFAULT_SYMBOLS,

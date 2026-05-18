@@ -1336,7 +1336,24 @@ export class SmartExecutorService implements OnModuleDestroy {
           ? Math.max(0.1, Math.min(10, parseFloat(map.userRiskPerTrade)))
           : defaults.riskPerTradePercent,
         maxOpenPositions: map.userMaxOpenPositions
-          ? Math.max(1, Math.min(50, parseInt(map.userMaxOpenPositions, 10)))
+          ? (() => {
+              let val = Math.max(1, Math.min(50, parseInt(map.userMaxOpenPositions, 10)));
+              // V143: If the stored value is the OLD default (5), auto-upgrade to new default (15).
+              // The value 5 was NEVER a deliberate user choice — it was the hardcoded default
+              // in auth.service.ts, SmartExecutorPanel.tsx, and mobile/bot/page.tsx.
+              // Upgrading it here prevents the "refresh risk settings" code from
+              // downgrading the auto-migrated 15 back to 5 on every tick.
+              if (val <= 5) {
+                val = this.config.maxOpenPositions; // 15
+                // Also update the DB setting so next read returns 15
+                this.prisma.setting.upsert({
+                  where: { key: `user:${userId}:userMaxOpenPositions` },
+                  update: { value: String(val) },
+                  create: { key: `user:${userId}:userMaxOpenPositions`, value: String(val) },
+                }).catch(() => {});
+              }
+              return val;
+            })()
           : defaults.maxOpenPositions,
         maxDailyLossPercent: map.userMaxDailyLoss
           ? Math.max(1, Math.min(50, parseFloat(map.userMaxDailyLoss)))

@@ -303,11 +303,31 @@ export class ExchangeGateway
   }
 
   /**
-   * Broadcast an event to ALL connected clients
-   * Used by MarketBroadcasterService for system-wide updates
+   * Broadcast a PUBLIC event to ALL connected clients.
+   *
+   * V156 SECURITY: Only use this for inherently PUBLIC data (price tickers,
+   * market status). NEVER use this for user-specific data (notifications,
+   * trade results, account updates) — use targeted emits instead.
+   *
+   * @param event - Event name (must be a public event type)
+   * @param data - Event data (must NOT contain user-specific information)
    */
   broadcast(event: string, data: any): void {
     if (!this.server) return;
+
+    // V156: Whitelist of public events that are safe to broadcast to ALL users.
+    const PUBLIC_EVENTS = new Set([
+      'ticker',          // Price ticker updates
+      'ticker:error',    // Price fetch errors
+      'market_status',   // Market open/close status
+      'system',          // System-wide announcements
+    ]);
+
+    if (!PUBLIC_EVENTS.has(event)) {
+      this.logger.warn(`🔌 SECURITY: broadcast() called with non-public event '${event}'. Use targeted emits for user-specific data.`);
+      return; // Block non-public broadcasts
+    }
+
     this.server.emit(event, data);
   }
 }

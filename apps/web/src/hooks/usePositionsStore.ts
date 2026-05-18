@@ -72,22 +72,25 @@ interface PositionsState {
 /**
  * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
  *
- * CRITICAL FIX: Previous implementation used a DYNAMIC key that depended on
- * useAuthStore.getState().user, which is NOT available during Zustand
- * rehydration (page refresh). This caused:
- *   1. User opens trade → positions stored under `roua-positions-store:${userId}`
- *   2. Page refresh → rehydration tries getStorageKey() → auth not ready → returns guest key
- *   3. Guest key has NO data → positions rehydrated as []
- *   4. API fetch fires but may fail/timeout → positions stay empty → DISAPPEARED
+ * V156 FIX: Previous implementation used a STATIC key ('roua-positions-store')
+ * for ALL users, with owner validation via _ownerUserId field. This worked
+ * but had a brief window where User B could see User A's data from
+ * localStorage rehydration before the owner check cleared it.
  *
- * NEW APPROACH: Use a STATIC key ('roua-positions-store') for ALL users.
- * Owner validation is done during rehydration via _ownerUserId field.
- * If the rehydrated data belongs to a different user, it's cleared.
- * This ensures positions are ALWAYS rehydrated from localStorage on page refresh,
- * giving instant display while the API fetch runs in the background.
+ * NEW APPROACH: Use a SEMI-DYNAMIC key that includes the userId when available.
+ * During Zustand rehydration (page refresh), if auth store hasn't loaded yet,
+ * we fall back to the static key and validate ownership via _ownerUserId.
+ * This gives us instant rehydration AND proper isolation.
+ *
+ * The key format is: `roua-positions-store:${userId}` for authenticated users,
+ * or `roua-positions-store` for unauthenticated/guest users (during rehydration).
  */
 function getStorageKey(): string {
-  return 'roua-positions-store'
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id && !user.isGuest) return `roua-positions-store:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  return 'roua-positions-store' // Fallback for rehydration before auth loads
 }
 
 /**
@@ -878,6 +881,9 @@ export const usePositionsStore = create<PositionsState>()(
    * This prevents user B from seeing user A's positions.
    */
   clearUserData: () => {
+    // V156 FIX: Immediately clear all state AND localStorage to prevent
+    // any brief window where User B sees User A's data after logout/login.
+    const ownerUserId = get()._ownerUserId
     set({
       positions: [],
       account: null,
@@ -889,9 +895,22 @@ export const usePositionsStore = create<PositionsState>()(
       _ownerUserId: null,
       _lastFetchStart: null,
     })
-    // Remove the static localStorage key
+    // Remove ALL position store keys from localStorage (both static and user-scoped)
     try {
       localStorage.removeItem('roua-positions-store')
+      // Also remove user-scoped keys: roua-positions-store:${userId}
+      if (ownerUserId) {
+        localStorage.removeItem(`roua-positions-store:${ownerUserId}`)
+      }
+      // Clean up any other user-scoped keys that might exist
+      const keysToRemove: string[] = []
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (key && key.startsWith('roua-positions-store')) {
+          keysToRemove.push(key)
+        }
+      }
+      keysToRemove.forEach(key => localStorage.removeItem(key))
     } catch { /* localStorage unavailable */ }
   },
 
@@ -1094,14 +1113,17 @@ export const usePositionsStore = create<PositionsState>()(
 }),
     {
       /**
-       * STORAGE CONFIG: Static key for reliable rehydration.
+       * STORAGE CONFIG: User-scoped key with owner validation.
        *
-       * CRITICAL FIX: Previously used a dynamic storage key based on auth state.
-       * This broke rehydration on page refresh because auth wasn't ready when
-       * localStorage was read. Now using a STATIC key with _ownerUserId validation
-       * in onRehydrateStorage to prevent data leakage between users.
+       * V156 FIX: Previously used a STATIC key for ALL users, with _ownerUserId
+       * validation. This had a brief window where User B could see User A's data
+       * from localStorage rehydration before the owner check cleared it.
+       *
+       * Now using a SEMI-DYNAMIC key that includes userId when available.
+       * During Zustand rehydration (page refresh), if auth store hasn't loaded,
+       * we fall back to the static key and validate ownership via _ownerUserId.
        */
-      name: 'roua-positions-store',
+      name: getStorageKey(),
       storage: createJSONStorage(() => localStorage),
       // Only persist account data and positions (not loading/error states)
       partialize: (state) => ({

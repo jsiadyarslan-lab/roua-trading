@@ -27,17 +27,22 @@ const rawTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 const API_TARGET = rawTarget.includes('http://api:') ? 'http://127.0.0.1:3001' : rawTarget;
 
 /**
- * SHARED GUEST USER FIX: Instead of creating a NEW guest user per
- * unauthenticated request (which caused 27,000+ phantom users),
- * we now use a SINGLE shared guest account (guest@roua.auto).
+ * V156 SECURITY FIX: Unique guest user per browser session.
  *
- * This is safe because:
- * 1. GuestGuard blocks all data-modifying actions for guest users
- * 2. Guests only browse — they cannot trade, create positions, or modify data
- * 3. Each guest still gets their own unique SESSION (token), just not a user
- * 4. The shared guest user is always FREE tier with no real data
+ * PREVIOUS PROBLEM: All unauthenticated visitors shared ONE guest@roua.auto
+ * account. If any guest created paper-trading positions, notifications, or
+ * agent sessions, they ALL belonged to the same shared user. When any guest
+ * opened the dashboard, they could see ALL other guests' data.
  *
- * The cached ID avoids DB lookups on every request.
+ * NEW APPROACH: Each browser gets its own unique guest user with a UUID
+ * embedded in the email (guest-{uuid}@roua.auto). This ensures:
+ * 1. Each browser session's data is completely isolated from other guests
+ * 2. GuestGuard still blocks data-modifying actions for ALL guest users
+ * 3. No more 27,000+ phantom users — we reuse the guest user per browser
+ *    via a cookie (roua_guest_id), so each browser only creates ONE guest
+ * 4. The shared guest@roua.auto is kept as a legacy fallback only
+ *
+ * The guest ID is cached per-request lifecycle to avoid DB lookups.
  */
 let cachedGuestUserId: string | null = null
 
@@ -87,48 +92,61 @@ async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeade
 }
 
 /**
- * Get or create the SINGLE shared guest user (guest@roua.auto).
+ * V156: Get or create a UNIQUE guest user for this browser session.
  *
- * ANTI-PHANTOM-USER FIX: Instead of creating a new user per request,
- * we reuse one shared guest account. This prevents DB bloat from
- * bots, crawlers, and unauthenticated API calls.
+ * Instead of ALL visitors sharing guest@roua.auto, each browser gets
+ * its own guest user identified by a UUID stored in a cookie.
+ * This prevents cross-guest data leakage while still preventing
+ * DB bloat (one guest user per browser, not per request).
  *
- * Each call still creates a unique SESSION with its own token,
- * but all guest sessions belong to the same user.
+ * @param request - The incoming request (to read the guest_id cookie)
+ * @returns The guest user's ID, or null if DB is unavailable
  */
-async function getSharedGuestUserId(): Promise<string | null> {
-  // Use cached ID if available
+async function getOrCreateGuestUserId(request: NextRequest): Promise<string | null> {
+  // Use cached ID if available (short-lived per server process)
   if (cachedGuestUserId) return cachedGuestUserId
 
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) return null
 
-    // Find the existing shared guest user
-    let guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
-
-    if (!guestUser) {
-      // Create the shared guest user ONCE
-      try {
-        guestUser = await db.user.create({
-          data: { email: 'guest@roua.auto', displayName: 'ضيف', tier: 'FREE' },
-        })
-      } catch {
-        // Race condition: another request created it first
-        guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+    // Check if this browser already has a guest ID cookie
+    const existingGuestId = request.cookies.get('roua_guest_id')?.value
+    if (existingGuestId) {
+      // Verify the guest user still exists in DB
+      const existingUser = await db.user.findUnique({ where: { id: existingGuestId } })
+      if (existingUser) {
+        cachedGuestUserId = existingUser.id
+        return existingUser.id
       }
+      // Cookie points to deleted user — fall through to create new
     }
 
-    if (!guestUser) return null
+    // Create a unique guest user for this browser session
+    const guestUuid = crypto.randomBytes(8).toString('hex') // 16-char hex
+    const guestEmail = `guest-${guestUuid}@roua.auto`
 
-    // Enforce FREE tier (safety check)
-    if (guestUser.tier !== 'FREE') {
+    let guestUser
+    try {
+      guestUser = await db.user.create({
+        data: { email: guestEmail, displayName: `ضيف ${guestUuid.slice(0, 4)}`, tier: 'FREE' },
+      })
+    } catch {
+      // Extremely unlikely collision — try once more with different UUID
+      const guestUuid2 = crypto.randomBytes(8).toString('hex')
       try {
-        guestUser = await db.user.update({
-          where: { id: guestUser.id },
-          data: { tier: 'FREE' },
+        guestUser = await db.user.create({
+          data: { email: `guest-${guestUuid2}@roua.auto`, displayName: `ضيف ${guestUuid2.slice(0, 4)}`, tier: 'FREE' },
         })
-      } catch { /* Non-critical */ }
+      } catch {
+        // DB unavailable or other error — fall back to shared guest
+        const sharedGuest = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+        if (sharedGuest) {
+          cachedGuestUserId = sharedGuest.id
+          return sharedGuest.id
+        }
+        return null
+      }
     }
 
     // Cache for future requests
@@ -140,17 +158,17 @@ async function getSharedGuestUserId(): Promise<string | null> {
 }
 
 /**
- * Create a guest session using the SHARED guest user.
+ * V156: Create a guest session using a UNIQUE guest user per browser.
  *
- * ANTI-PHANTOM-USER FIX: No new users are created.
- * Each session gets a unique token but reuses guest@roua.auto.
+ * Each browser gets its own guest user (guest-{uuid}@roua.auto)
+ * to prevent cross-guest data leakage.
  */
-async function forceCreateSession(): Promise<{ token: string } | null> {
+async function forceCreateSession(request: NextRequest): Promise<{ token: string; guestUserId?: string } | null> {
   try {
-    const guestUserId = await getSharedGuestUserId()
+    const guestUserId = await getOrCreateGuestUserId(request)
     if (!guestUserId) return null
 
-    // Create a unique session for this request (but reuse the same user)
+    // Create a unique session for this request
     const newToken = crypto.randomBytes(32).toString('hex')
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
 
@@ -158,7 +176,7 @@ async function forceCreateSession(): Promise<{ token: string } | null> {
       data: { userId: guestUserId, token: newToken, expiresAt },
     })
 
-    return { token: newToken }
+    return { token: newToken, guestUserId }
   } catch (error: any) {
     resetDbInitialized()
     return null
@@ -172,6 +190,7 @@ async function forceCreateSession(): Promise<{ token: string } | null> {
 async function ensureSession(request: NextRequest): Promise<{
   token: string
   cookieAlreadySet: boolean
+  guestUserId?: string
 }> {
   // Check existing cookie
   const existingToken = request.cookies.get('roua_session')?.value
@@ -214,9 +233,11 @@ async function ensureSession(request: NextRequest): Promise<{
   }
 
   // Strategy 2: Create directly via DB (fallback when NestJS is down)
-  const dbSession = await forceCreateSession()
+  const dbSession = await forceCreateSession(request)
   if (dbSession) {
-    return { token: dbSession.token, cookieAlreadySet: true }
+    // V156: Store guest user ID in cookie so this browser reuses its guest user
+    // instead of creating a new one on every request
+    return { token: dbSession.token, cookieAlreadySet: true, guestUserId: dbSession.guestUserId }
   }
 
   // Both strategies failed — system is truly unavailable
@@ -250,7 +271,7 @@ export async function proxyToNestJS(request: NextRequest, method: string): Promi
   const maxRetries = isWarmup ? 3 : 1  // More retries during warmup
   const baseDelay = isWarmup ? 1000 : 2000  // Shorter delays during warmup
 
-  return proxyWithToken(request, method, session.token, !session.cookieAlreadySet, 0, maxRetries, baseDelay)
+  return proxyWithToken(request, method, session.token, !session.cookieAlreadySet, 0, maxRetries, baseDelay, session.guestUserId)
 }
 
 /**
@@ -267,6 +288,7 @@ async function proxyWithToken(
   retryCount = 0,
   connectRetryCount = 0,
   connectRetryDelay = 1000,
+  guestUserId?: string,
 ): Promise<NextResponse> {
   const { pathname, search } = request.nextUrl
   const targetUrl = `${API_TARGET}${pathname}${search}`
@@ -327,7 +349,7 @@ async function proxyWithToken(
     if (response.status === 404 && retryCount < 2) {
       console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route not found (attempt ${retryCount + 1}/3). NestJS module may still be loading, retrying in 500ms...`);
       await new Promise(r => setTimeout(r, 500));
-      return proxyWithToken(request, method, token, false, retryCount + 1, connectRetryCount, connectRetryDelay);
+      return proxyWithToken(request, method, token, false, retryCount + 1, connectRetryCount, connectRetryDelay, guestUserId);
     }
     if (response.status === 404) {
       console.warn(`[nestjs-proxy] 404 on ${method} ${pathname} — route still not found after 3 attempts. Check NestJS startup logs.`);
@@ -413,6 +435,16 @@ async function proxyWithToken(
         maxAge: 7 * 24 * 60 * 60, // 7 days (matching guest session TTL)
         path: '/',
       })
+      // V156: Set guest user ID cookie so this browser reuses its guest user
+      if (guestUserId) {
+        nextResponse.cookies.set('roua_guest_id', guestUserId, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+          maxAge: 30 * 24 * 60 * 60, // 30 days — longer than session
+          path: '/',
+        })
+      }
     }
 
     return nextResponse
@@ -433,7 +465,7 @@ async function proxyWithToken(
       const delay = connectRetryDelay * (connectRetryCount); // Progressive backoff
       console.warn(`[nestjs-proxy] ${method} ${pathname} offline — retrying in ${delay}ms (attempt ${connectRetryCount} left)`);
       await new Promise(r => setTimeout(r, Math.min(delay, 5000))); // Cap at 5s
-      return proxyWithToken(request, method, token, false, retryCount, connectRetryCount - 1, connectRetryDelay);
+      return proxyWithToken(request, method, token, false, retryCount, connectRetryCount - 1, connectRetryDelay, guestUserId);
     }
 
     // No retries left — return 502

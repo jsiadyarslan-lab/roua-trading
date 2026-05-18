@@ -202,7 +202,23 @@ export default function AICoachPanel() {
     setLoading(true)
     setError(null)
     try {
-      // Send closed trades from localStorage to the coach API
+      // FIX: Read closed trades from API (DB) first, fallback to localStorage
+      // Previously read only from localStorage — lost on browser clear
+      let closedTrades: any[] = [];
+      try {
+        const tradesRes = await fetch('/api/trading/history?limit=50');
+        if (tradesRes.ok) {
+          const tradesData = await tradesRes.json();
+          closedTrades = Array.isArray(tradesData?.trades) ? tradesData.trades : [];
+        }
+      } catch {
+        // Fallback to localStorage if API fails
+        try {
+          const local = localStorage.getItem('roua_closed_trades');
+          if (local) closedTrades = JSON.parse(local);
+        } catch { /* no trades */ }
+      }
+
       const res = await fetch('/api/coach/performance', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

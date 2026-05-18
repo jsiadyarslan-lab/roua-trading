@@ -47,6 +47,10 @@ export function AlNarratorMini({
   const [data, setData] = useState<NarrativeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState(false)
+  const [activeBriefs, setActiveBriefs] = useState<Array<{
+    pair: string; direction: string; confidence: number;
+    entryPrice: number; takeProfit: number; stopLoss: number; timeframe: string;
+  }>>([])
   const [showRecommendation, setShowRecommendation] = useState(false)
   const [recommendation, setRecommendation] = useState<SmartRecommendation | null>(null)
   const [recLoading, setRecLoading] = useState(false)
@@ -65,19 +69,36 @@ export function AlNarratorMini({
           risk: json.data.risk ?? 'Medium'
         })
       }
-    } catch {
-      // FIX: Show connection error instead of silent swallowing
-      // User should know if data refresh failed
+    } catch (err: any) {
+      console.error('[AlNarratorMini] Fetch failed:', err?.message || err)
+      // Show stale data indicator — don't clear existing data
+      setData(prev => prev ? { ...prev, _stale: true } as any : null)
     } finally {
       setLoading(false)
     }
   }, [selectedSymbol])
 
+  // Fetch active council briefs for the current symbol
+  const fetchBriefs = useCallback(async () => {
+    if (!selectedSymbol) return;
+    try {
+      const res = await fetch(`/api/strategic-council/briefs/active?symbol=${encodeURIComponent(selectedSymbol)}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const briefs = Array.isArray(json?.briefs) ? json.briefs
+        : Array.isArray(json?.data) ? json.data
+        : Array.isArray(json) ? json : [];
+      setActiveBriefs(briefs.filter((b: any) => b.isActive).slice(0, 3));
+    } catch { /* silent — briefs are supplementary */ }
+  }, [selectedSymbol]);
+
   useEffect(() => {
-    fetchNarrative()
-  }, [fetchNarrative])
+    fetchNarrative();
+    fetchBriefs();
+  }, [fetchNarrative, fetchBriefs]);
   // Poll every 30s — pauses when tab hidden
-  useVisibleInterval(fetchNarrative, 30000)
+  useVisibleInterval(fetchNarrative, 30000);
+  useVisibleInterval(fetchBriefs, 60000); // refresh briefs every minute
 
   // ── Smart Recommendation (functional) ──
   const handleSmartRecommendation = async () => {
@@ -226,6 +247,21 @@ export function AlNarratorMini({
 
       {data ? (
         <>
+          {/* Council Briefs Row — إشارات المجلس النشطة */}
+          {activeBriefs.length > 0 && (
+            <div style={{ padding: '8px 10px', background: 'rgba(0,212,255,0.05)', borderRadius: 10, border: '1px solid rgba(0,212,255,0.15)', marginBottom: 4 }}>
+              <div style={{ fontSize: 8, color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ إشارات المجلس الاستراتيجي</div>
+              {activeBriefs.map((b: any, i: number) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', fontSize: 9, borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <span style={{ color: b.direction === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 800 }}>{b.direction === 'BUY' ? '▲' : '▼'} {b.pair}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 8 }}>{b.timeframe}</span>
+                  <span style={{ color: 'rgba(255,255,255,0.7)' }}>@ {Number(b.entryPrice).toLocaleString()}</span>
+                  <span style={{ color: '#FFD700', fontWeight: 700 }}>{b.confidence}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Signal & Risk Row */}
           <div style={{ display: 'flex', gap: compact ? 8 : 10 }}>
             <div style={{

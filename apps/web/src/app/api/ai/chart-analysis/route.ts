@@ -7,18 +7,64 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
+// ── ZAI Singleton — reuse connection across requests ──
+// FIX: Previously created a new ZAI instance per request → slow + wasteful
+let _zaiInstance: any = null;
+let _zaiCreating = false;
+async function getZAI(): Promise<any> {
+  if (_zaiInstance) return _zaiInstance;
+  if (_zaiCreating) {
+    // Wait for ongoing creation
+    await new Promise(r => setTimeout(r, 1000));
+    return _zaiInstance;
+  }
+  _zaiCreating = true;
+  try {
+    const ZAI = (await import('z-ai-web-dev-sdk')).default;
+    _zaiInstance = await ZAI.create();
+    return _zaiInstance;
+  } catch {
+    _zaiInstance = null;
+    return null;
+  } finally {
+    _zaiCreating = false;
+  }
+}
+
+// ── Request timeout helper ──
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 // ── Rate Limiting ──
-// In-memory rate limiter: max 10 requests per IP per 60-second window
-const RATE_LIMIT_MAX = 10;
+// In-memory rate limiter: max 20 requests per IP per 60-second window
+// FIX: Increased from 10 to 20 — users need more AI analysis requests
+// FIX: Added automatic cleanup every 5 minutes to prevent memory growth
+const RATE_LIMIT_MAX = 20;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+// Auto-cleanup expired entries every 5 minutes
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, val] of rateLimitMap) {
+      if (now > val.resetAt) rateLimitMap.delete(key);
+    }
+  }, 5 * 60 * 1000);
+}
 
 function checkRateLimit(ip: string): { allowed: boolean; retryAfterSec: number } {
   const now = Date.now();
   const entry = rateLimitMap.get(ip);
 
-  // Clean up expired entries periodically
-  if (rateLimitMap.size > 1000) {
+  // Emergency cleanup if map grows too large
+  if (rateLimitMap.size > 500) {
     for (const [key, val] of rateLimitMap) {
       if (now > val.resetAt) rateLimitMap.delete(key);
     }
@@ -36,6 +82,24 @@ function checkRateLimit(ip: string): { allowed: boolean; retryAfterSec: number }
 
   entry.count++;
   return { allowed: true, retryAfterSec: 0 };
+}
+
+// ── Convert candles text to compact JSON for AI ──
+// FIX: AI reads JSON much more reliably than text format
+function candlesToJson(candlesText: string): string {
+  const lines = candlesText.trim().split('\n').filter(Boolean);
+  const candles: any[] = [];
+  for (const line of lines) {
+    const t = line.match(/t=([\S]+)/)?.[1];
+    const o = parseFloat(line.match(/O=([\d.]+)/)?.[1] || '0');
+    const h = parseFloat(line.match(/H=([\d.]+)/)?.[1] || '0');
+    const l = parseFloat(line.match(/L=([\d.]+)/)?.[1] || '0');
+    const c = parseFloat(line.match(/C=([\d.]+)/)?.[1] || '0');
+    const v = parseFloat(line.match(/V=([\d.]+)/)?.[1] || '0');
+    if (o && h && l && c) candles.push({ t, o, h, l, c, v });
+  }
+  // Send last 50 candles max to avoid token limit
+  return JSON.stringify(candles.slice(-50));
 }
 
 // ── Local Pattern Detection (server-side fallback) ──
@@ -67,6 +131,62 @@ function detectLocalPatternsServer(candlesData: string): Array<{
   }
 
   if (candles.length < 3) return patterns;
+
+  // ── Detect swing highs and lows for advanced patterns ──
+  const swingHighs: number[] = [];
+  const swingLows: number[] = [];
+  for (let i = 2; i < candles.length - 2; i++) {
+    if (candles[i].h > candles[i-1].h && candles[i].h > candles[i-2].h &&
+        candles[i].h > candles[i+1].h && candles[i].h > candles[i+2].h) {
+      swingHighs.push(i);
+    }
+    if (candles[i].l < candles[i-1].l && candles[i].l < candles[i-2].l &&
+        candles[i].l < candles[i+1].l && candles[i].l < candles[i+2].l) {
+      swingLows.push(i);
+    }
+  }
+
+  // Double Top — two swing highs at similar price level
+  for (let i = 1; i < swingHighs.length; i++) {
+    const h1 = candles[swingHighs[i-1]].h;
+    const h2 = candles[swingHighs[i]].h;
+    if (Math.abs(h1 - h2) / h1 < 0.005) { // within 0.5%
+      patterns.push({ type: 'Double Top', timeIndex: swingHighs[i], confidence: 0.78, direction: 'bearish' });
+    }
+  }
+
+  // Double Bottom — two swing lows at similar price level
+  for (let i = 1; i < swingLows.length; i++) {
+    const l1 = candles[swingLows[i-1]].l;
+    const l2 = candles[swingLows[i]].l;
+    if (Math.abs(l1 - l2) / l1 < 0.005) { // within 0.5%
+      patterns.push({ type: 'Double Bottom', timeIndex: swingLows[i], confidence: 0.78, direction: 'bullish' });
+    }
+  }
+
+  // Head & Shoulders — L-H-H(highest)-H-L pattern in swing highs
+  if (swingHighs.length >= 3) {
+    for (let i = 2; i < swingHighs.length; i++) {
+      const ls = candles[swingHighs[i-2]].h;
+      const head = candles[swingHighs[i-1]].h;
+      const rs = candles[swingHighs[i]].h;
+      if (head > ls && head > rs && Math.abs(ls - rs) / ls < 0.02) {
+        patterns.push({ type: 'Head & Shoulders', timeIndex: swingHighs[i], confidence: 0.82, direction: 'bearish' });
+      }
+    }
+  }
+
+  // Inverse Head & Shoulders — in swing lows
+  if (swingLows.length >= 3) {
+    for (let i = 2; i < swingLows.length; i++) {
+      const ls = candles[swingLows[i-2]].l;
+      const head = candles[swingLows[i-1]].l;
+      const rs = candles[swingLows[i]].l;
+      if (head < ls && head < rs && Math.abs(ls - rs) / ls < 0.02) {
+        patterns.push({ type: 'Inverse Head & Shoulders', timeIndex: swingLows[i], confidence: 0.82, direction: 'bullish' });
+      }
+    }
+  }
 
   for (let i = 1; i < candles.length; i++) {
     const c = candles[i];
@@ -127,6 +247,64 @@ function detectLocalPatternsServer(candlesData: string): Array<{
       if (c.o > prev.c && c.c < prev.o && body < prevBody * 0.6) {
         patterns.push({ type: 'Harami Bullish', timeIndex: i, confidence: 0.65, direction: 'bullish' });
       }
+    }
+
+    // ── NEW PATTERNS (V144) ──
+
+    // Tweezer Bottom — two candles with same low (bullish reversal)
+    if (i > 0 && Math.abs(c.l - prev.l) / c.l < 0.001 && prev.c < prev.o && c.c > c.o) {
+      patterns.push({ type: 'Tweezer Bottom', timeIndex: i, confidence: 0.72, direction: 'bullish' });
+    }
+
+    // Tweezer Top — two candles with same high (bearish reversal)
+    if (i > 0 && Math.abs(c.h - prev.h) / c.h < 0.001 && prev.c > prev.o && c.c < c.o) {
+      patterns.push({ type: 'Tweezer Top', timeIndex: i, confidence: 0.72, direction: 'bearish' });
+    }
+
+    // Morning Star (3-candle) — bearish, doji/small, bullish
+    if (i >= 2) {
+      const c0 = candles[i - 2]; const c1 = candles[i - 1];
+      const body0 = Math.abs(c0.c - c0.o); const body1 = Math.abs(c1.c - c1.o);
+      const range0 = c0.h - c0.l;
+      if (c0.c < c0.o && body1 / (c1.h - c1.l || 1) < 0.3 && c.c > c.o && body0 > 0 && body0 / range0 > 0.5) {
+        patterns.push({ type: 'Morning Star', timeIndex: i, confidence: 0.82, direction: 'bullish' });
+      }
+    }
+
+    // Evening Star (3-candle) — bullish, doji/small, bearish
+    if (i >= 2) {
+      const c0 = candles[i - 2]; const c1 = candles[i - 1];
+      const body0 = Math.abs(c0.c - c0.o); const body1 = Math.abs(c1.c - c1.o);
+      const range0 = c0.h - c0.l;
+      if (c0.c > c0.o && body1 / (c1.h - c1.l || 1) < 0.3 && c.c < c.o && body0 > 0 && body0 / range0 > 0.5) {
+        patterns.push({ type: 'Evening Star', timeIndex: i, confidence: 0.82, direction: 'bearish' });
+      }
+    }
+
+    // Three White Soldiers — 3 consecutive bullish candles
+    if (i >= 2) {
+      const c0 = candles[i - 2]; const c1 = candles[i - 1];
+      if (c0.c > c0.o && c1.c > c1.o && c.c > c.o && c1.c > c0.c && c.c > c1.c) {
+        patterns.push({ type: 'Three White Soldiers', timeIndex: i, confidence: 0.78, direction: 'bullish' });
+      }
+    }
+
+    // Three Black Crows — 3 consecutive bearish candles
+    if (i >= 2) {
+      const c0 = candles[i - 2]; const c1 = candles[i - 1];
+      if (c0.c < c0.o && c1.c < c1.o && c.c < c.o && c1.c < c0.c && c.c < c1.c) {
+        patterns.push({ type: 'Three Black Crows', timeIndex: i, confidence: 0.78, direction: 'bearish' });
+      }
+    }
+
+    // Dragonfly Doji — very small body, long lower wick, tiny upper wick
+    if (body / range < 0.05 && lowerWick > range * 0.65 && upperWick < range * 0.1) {
+      patterns.push({ type: 'Dragonfly Doji', timeIndex: i, confidence: 0.75, direction: 'bullish' });
+    }
+
+    // Gravestone Doji — very small body, long upper wick, tiny lower wick
+    if (body / range < 0.05 && upperWick > range * 0.65 && lowerWick < range * 0.1) {
+      patterns.push({ type: 'Gravestone Doji', timeIndex: i, confidence: 0.75, direction: 'bearish' });
     }
 
     // Harami Bearish — prev big green, current small red inside prev range
@@ -258,10 +436,10 @@ export async function POST(request: NextRequest) {
       instruction.includes('نقاط الدخول') || instruction.includes('entry and exit')
     );
 
-    // Try to use z-ai-web-dev-sdk
+    // Try to use z-ai-web-dev-sdk (singleton — reuse connection)
     try {
-      const ZAI = (await import('z-ai-web-dev-sdk')).default;
-      const zai = await ZAI.create();
+      const zai = await withTimeout(getZAI(), 3000);
+      if (!zai) throw new Error('ZAI unavailable');
 
       // Build system prompt based on request type
       const systemPrompt = isEntryExitRequest
@@ -269,20 +447,22 @@ export async function POST(request: NextRequest) {
         : `أنت محلل فني خبير في أنماط الشموع اليابانية. حلل بيانات الشارت المقدمة واكتشف أي أنماط شموع. أعد النتائج كمصفوفة JSON فقط. كل عنصر يجب أن يحتوي على: "type" (اسم النمط بالإنجليزية)، "timeIndex" (فهرس base-0 في البيانات)، "confidence" (0-1)، "direction" ("bullish"|"bearish"|"neutral"). الأنماط المطلوبة: Doji, Hammer, Inverted Hammer, Engulfing Bullish, Engulfing Bearish, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami Bullish, Harami Bearish, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji, Belt Hold, Abandoned Baby, Tweezer Top, Tweezer Bottom.`;
 
       // Use the client's instruction as the user message if provided
+      // FIX: Use compact JSON format for candles — AI parses it more reliably
+      const candlesJson = candlesToJson(candles);
       const userMessage = instruction
         ? instruction
-        : `حلل بيانات الشارت التالية لـ ${symbol}:\n\n${candles}${indicators ? `\n\nمؤشرات فنية: ${indicators}` : ''}`;
+        : `حلل بيانات الشارت التالية لـ ${symbol} (JSON OHLCV):\n${candlesJson}${indicators ? `\n\nمؤشرات: ${indicators}` : ''}`;
 
-      const completion = await zai.chat.completions.create({
+      const completion = await withTimeout(zai.chat.completions.create({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
         ],
         temperature: 0.3,
         max_tokens: 2000,
-      });
+      }), 15000); // 15 second timeout
 
-      const responseText = completion.choices?.[0]?.message?.content || '';
+      const responseText = (completion as any).choices?.[0]?.message?.content || '';
 
       // Handle entry/exit response differently from pattern response
       if (isEntryExitRequest) {

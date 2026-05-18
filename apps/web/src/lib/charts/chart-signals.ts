@@ -49,7 +49,8 @@ export async function fetchSignalsForChart(symbol: string): Promise<ChartSignal[
     const data = await res.json();
     const signals = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
     return signals;
-  } catch {
+  } catch (err: any) {
+    console.warn('[chart-signals] fetchSignalsForChart failed:', err?.message);
     return [];
   }
 }
@@ -64,7 +65,8 @@ export async function fetchStrategicBriefs(symbol: string): Promise<StrategicBri
     const data = await res.json();
     const briefs = Array.isArray(data.data) ? data.data : Array.isArray(data) ? data : [];
     return briefs;
-  } catch {
+  } catch (err: any) {
+    console.warn('[chart-signals] fetchStrategicBriefs failed:', err?.message);
     return [];
   }
 }

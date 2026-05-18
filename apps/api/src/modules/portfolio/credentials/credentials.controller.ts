@@ -28,6 +28,11 @@ class AddCredentialDto {
   @IsBoolean()
   @IsOptional()
   testnet?: boolean;
+
+  /** V165: Key type — 'hmac' (default) or 'ed25519' or 'rsa' */
+  @IsString()
+  @IsOptional()
+  keyType?: string;
 }
 
 @Controller('portfolio/credentials')
@@ -149,6 +154,33 @@ export class CredentialsController {
     );
 
     return { success: true };
+  }
+
+  /**
+   * GET /api/portfolio/credentials/server-ip — Get the server's outbound IP address.
+   * V165: Users need this IP to add to their Binance API key IP whitelist.
+   * Without whitelisting this IP, Binance rejects authenticated requests from Railway.
+   */
+  @Get('server-ip')
+  async getServerIp() {
+    try {
+      const ip = await this.credentialsService.getServerOutboundIp();
+      return {
+        success: true,
+        data: {
+          serverIp: ip,
+          instructions: {
+            en: `Add ${ip} to your Binance API key IP whitelist: Binance → API Management → Edit Key → IP Access Restrictions → Add IP`,
+            ar: `أضف ${ip} إلى القائمة البيضاء لعنوان IP في مفتاح Binance API: Binance → إدارة API → تعديل المفتاح → قيود وصول IP → إضافة IP`,
+          },
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        data: { serverIp: 'unknown', error: error.message },
+      };
+    }
   }
 
   /**

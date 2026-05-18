@@ -12,6 +12,9 @@ import {
   CheckCircle2,
   Loader2,
   Link2,
+  Globe,
+  Copy,
+  Info,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
@@ -52,6 +55,11 @@ export default function ExchangeSettingsPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
+  // V165: Server IP for Binance IP whitelist
+  const [serverIp, setServerIp] = useState<string | null>(null)
+  const [ipLoading, setIpLoading] = useState(false)
+  const [ipCopied, setIpCopied] = useState(false)
+
   // Form state
   const [exchange, setExchange] = useState('binance')
   const [label, setLabel] = useState('')
@@ -59,8 +67,28 @@ export default function ExchangeSettingsPage() {
   const [apiSecret, setApiSecret] = useState('')
   const [passphrase, setPassphrase] = useState('')
   const [testnet, setTestnet] = useState(false)
+  // V165: Key type selection (HMAC vs Ed25519/RSA)
+  const [keyType, setKeyType] = useState<'hmac' | 'ed25519' | 'rsa'>('hmac')
 
-  // Auth handled by useAuth hook
+  const isBinance = exchange.toLowerCase().startsWith('binance') && !exchange.includes('test')
+
+  // Fetch server IP for Binance IP whitelist
+  const fetchServerIp = useCallback(async () => {
+    setIpLoading(true)
+    try {
+      const res = await fetch('/api/portfolio/credentials/server-ip')
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && data.data?.serverIp) {
+          setServerIp(data.data.serverIp)
+        }
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setIpLoading(false)
+    }
+  }, [])
 
   // Fetch credentials
   const fetchCredentials = useCallback(async () => {
@@ -81,7 +109,17 @@ export default function ExchangeSettingsPage() {
 
   useEffect(() => {
     fetchCredentials()
-  }, [fetchCredentials])
+    fetchServerIp()
+  }, [fetchCredentials, fetchServerIp])
+
+  // Copy server IP to clipboard
+  const copyServerIp = () => {
+    if (serverIp) {
+      navigator.clipboard.writeText(serverIp)
+      setIpCopied(true)
+      setTimeout(() => setIpCopied(false), 2000)
+    }
+  }
 
   // Submit new credential
   const handleSubmit = async (e: React.FormEvent) => {
@@ -94,7 +132,7 @@ export default function ExchangeSettingsPage() {
       const res = await fetch('/api/portfolio/credentials', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined, testnet }),
+        body: JSON.stringify({ exchange, label: label || `${exchange}-key`, apiKey, apiSecret, passphrase: passphrase || undefined, testnet, keyType }),
       })
 
       if (!res.ok) {
@@ -109,6 +147,7 @@ export default function ExchangeSettingsPage() {
       setApiSecret('')
       setPassphrase('')
       setTestnet(false)
+      setKeyType('hmac')
       setShowForm(false)
       fetchCredentials()
     } catch (err: unknown) {
@@ -173,6 +212,55 @@ export default function ExchangeSettingsPage() {
       }
     >
 
+        {/* ═══════════════════════════════════════════════════════════════
+            V165: Binance IP Whitelist Banner — the KEY fix for the shared
+            balance bug. Without adding the server IP to Binance IP whitelist,
+            all authenticated Binance API calls fail from Railway, causing
+            fallback to paper trading balance (which is the same for all users).
+            ═══════════════════════════════════════════════════════════════ */}
+        {isBinance && serverIp && (
+          <div className="p-4 rounded-lg bg-amber-500/8 border border-amber-500/20">
+            <div className="flex items-start gap-3">
+              <Globe className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <p className="font-medium text-amber-300 text-sm mb-2">
+                  خطوة مطلوبة: إضافة عنوان IP للخادم إلى القائمة البيضاء في Binance
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                  بدون هذه الخطوة، سيرفض Binance طلبات API من خادمنا، وسيتم عرض رصيد التداول الورقي بدلاً من رصيدك الحقيقي.
+                  هذا هو <span className="text-amber-300 font-medium">سبب ظهور نفس الرصيد لجميع المستخدمين</span>.
+                </p>
+                <div className="flex items-center gap-2 p-2.5 rounded-md bg-black/30 border border-amber-500/10">
+                  <span className="text-xs text-muted-foreground">عنوان IP للخادم:</span>
+                  <code className="text-sm font-mono text-amber-300 font-bold">{serverIp}</code>
+                  <button
+                    onClick={copyServerIp}
+                    className="p-1 rounded hover:bg-amber-500/10 transition-colors"
+                    title="نسخ"
+                  >
+                    {ipCopied ? (
+                      <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="w-3.5 h-3.5 text-amber-400" />
+                    )}
+                  </button>
+                </div>
+                <ol className="mt-3 text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                  <li>اذهب إلى <span className="text-foreground font-medium" dir="ltr">Binance → API Management</span></li>
+                  <li>اضغط <span className="text-foreground font-medium">Edit</span> بجانب مفتاح API الخاص بك</li>
+                  <li>في قسم <span className="text-foreground font-medium" dir="ltr">IP Access Restrictions</span></li>
+                  <li>اختر <span className="text-foreground font-medium">Restrict access to trusted IPs only</span></li>
+                  <li>أضف عنوان IP: <code className="text-amber-300 font-mono font-bold">{serverIp}</code></li>
+                  <li>احفظ التغييرات ✅</li>
+                </ol>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  💡 <span className="text-foreground">ملاحظة:</span> يمكنك أيضاً اختيار "Unrestricted" لكن Binance ستنهي صلاحية المفتاح كل 90 يوم.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Security Notice */}
         <div className="flex items-start gap-3 p-4 rounded-lg bg-teal-500/5 border border-teal-500/10">
           <Shield className="w-5 h-5 text-teal-400 mt-0.5 flex-shrink-0" />
@@ -224,6 +312,74 @@ export default function ExchangeSettingsPage() {
                       </div>
                     </div>
 
+                    {/* V165: Key Type Selection for Binance */}
+                    {isBinance && (
+                      <div className="space-y-2">
+                        <Label>نوع المفتاح</Label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setKeyType('hmac')}
+                            className={`p-3 rounded-xl text-center text-xs transition-all ${
+                              keyType === 'hmac'
+                                ? 'bg-teal-500/10 border-teal-500/30 text-teal-400 font-medium border'
+                                : 'bg-background border border-border hover:border-teal-500/20'
+                            }`}
+                          >
+                            <span className="block text-lg mb-1">🔑</span>
+                            HMAC-SHA256
+                            <span className="block text-[10px] text-muted-foreground mt-0.5">المفتاح السري</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setKeyType('ed25519')}
+                            className={`p-3 rounded-xl text-center text-xs transition-all ${
+                              keyType === 'ed25519'
+                                ? 'bg-teal-500/10 border-teal-500/30 text-teal-400 font-medium border'
+                                : 'bg-background border border-border hover:border-teal-500/20'
+                            }`}
+                          >
+                            <span className="block text-lg mb-1">🔐</span>
+                            Ed25519
+                            <span className="block text-[10px] text-muted-foreground mt-0.5">مُوصى به</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setKeyType('rsa')}
+                            className={`p-3 rounded-xl text-center text-xs transition-all ${
+                              keyType === 'rsa'
+                                ? 'bg-teal-500/10 border-teal-500/30 text-teal-400 font-medium border'
+                                : 'bg-background border border-border hover:border-teal-500/20'
+                            }`}
+                          >
+                            <span className="block text-lg mb-1">🛡️</span>
+                            RSA
+                            <span className="block text-[10px] text-muted-foreground mt-0.5">2048/4096 بت</span>
+                          </button>
+                        </div>
+                        {keyType !== 'hmac' && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-md bg-blue-500/5 border border-blue-500/10">
+                            <Info className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              مفاتيح {keyType === 'ed25519' ? 'Ed25519' : 'RSA'} هي <span className="text-blue-300 font-medium">تشفير غير متماثل</span>: 
+                              أنت ترفع المفتاح العام (Public Key) إلى Binance، وتستخدم المفتاح الخاص (Private Key) هنا.
+                              {keyType === 'ed25519' && ' Binance توصي بـ Ed25519 لأنه الأسرع والأكثر أماناً.'}
+                              ضع محتوى المفتاح الخاص في حقل "API Secret" أدناه.
+                            </p>
+                          </div>
+                        )}
+                        {keyType === 'hmac' && (
+                          <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/10">
+                            <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-muted-foreground leading-relaxed">
+                              مفاتيح HMAC-SHA256 هي النوع التقليدي. Binance تعتبرها <span className="text-amber-300 font-medium">مهملة (Deprecated)</span> وتنصح بالانتقال لـ Ed25519.
+                              لكنها لا تزال تعمل بشكل كامل.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Label */}
                     <div className="space-y-2">
                       <Label htmlFor="label">تسمية المفتاح (اختياري)</Label>
@@ -243,7 +399,7 @@ export default function ExchangeSettingsPage() {
                       <Input
                         id="apiKey"
                         type="password"
-                        placeholder="أدخل مفتاح API"
+                        placeholder={keyType !== 'hmac' && isBinance ? 'أدخل مفتاح API من Binance' : 'أدخل مفتاح API'}
                         value={apiKey}
                         onChange={(e) => setApiKey(e.target.value)}
                         dir="ltr"
@@ -252,19 +408,30 @@ export default function ExchangeSettingsPage() {
                       />
                     </div>
 
-                    {/* API Secret */}
+                    {/* API Secret / Private Key */}
                     <div className="space-y-2">
-                      <Label htmlFor="apiSecret">API Secret</Label>
+                      <Label htmlFor="apiSecret">
+                        {keyType !== 'hmac' && isBinance ? 'المفتاح الخاص (Private Key)' : 'API Secret'}
+                      </Label>
                       <Input
                         id="apiSecret"
                         type="password"
-                        placeholder="أدخل المفتاح السري"
+                        placeholder={
+                          keyType !== 'hmac' && isBinance
+                            ? 'الصق محتوى المفتاح الخاص هنا (-----BEGIN PRIVATE KEY-----...)'
+                            : 'أدخل المفتاح السري'
+                        }
                         value={apiSecret}
                         onChange={(e) => setApiSecret(e.target.value)}
                         dir="ltr"
                         className="bg-background"
                         required
                       />
+                      {keyType !== 'hmac' && isBinance && (
+                        <p className="text-xs text-muted-foreground">
+                          الصق محتوى ملف المفتاح الخاص بالكامل، بما في ذلك أسطر BEGIN/END
+                        </p>
+                      )}
                     </div>
 
                     {/* Testnet Mode (for Binance and other exchanges that support it) */}

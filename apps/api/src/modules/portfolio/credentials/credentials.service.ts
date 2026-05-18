@@ -1361,6 +1361,35 @@ export class CredentialsService {
   }
 
   /**
+   * V165: Get the server's outbound IP address.
+   * Users need this IP to add it to their Binance API key IP whitelist.
+   * Without whitelisting this IP, Binance rejects authenticated API requests
+   * from Railway (the hosting platform), which is the ROOT CAUSE of the
+   * "all users see same balance" bug — real Binance fetches fail → fallback
+   * to paper trading balance → paper trading bot opens identical trades for
+   * all users → all users see same balance.
+   */
+  async getServerOutboundIp(): Promise<string> {
+    try {
+      const https = await import('https');
+      const ip = await new Promise<string>((resolve, reject) => {
+        const req = https.get('https://api.ipify.org', (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data.trim()));
+        });
+        req.on('error', reject);
+        req.setTimeout(5000, () => { req.destroy(); reject(new Error('IP detection timeout')); });
+      });
+      this.logger.log(`🌐 V165 Server outbound IP: ${ip}`);
+      return ip;
+    } catch (error: any) {
+      this.logger.warn(`Failed to detect server IP: ${error.message}`);
+      return 'unknown';
+    }
+  }
+
+  /**
    * FIX V117: Invalidate balance cache for a user.
    * Called when a position is closed so the next balance fetch
    * returns fresh data instead of stale cached values.

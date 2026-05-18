@@ -282,21 +282,24 @@ export function PortfolioMini({
         </div>
       </div>
 
-      {/* V164: Exchange unavailable warning banner */}
+      {/* V165: Exchange unavailable warning banner with IP whitelist fix */}
       {exchangeUnavailable && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 5,
+          display: 'flex', alignItems: 'flex-start', gap: 5,
           padding: '5px 8px', borderRadius: 8,
           background: 'rgba(255,184,0,0.12)',
           border: '1px solid rgba(255,184,0,0.3)',
-        }}>
+          cursor: 'pointer',
+        }}
+        onClick={() => window.location.href = '/dashboard/settings/exchange'}
+        >
           <span style={{ fontSize: 11 }}>⚠️</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 8.5, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
-              البورصة غير متاحة
+              البورصة غير متاحة — اضغط للحل
             </div>
             <div style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              الرصيد المعروض من التداول الورقي — حسابك الحقيقي غير متصل مؤقتاً
+              الرصيد المعروض ورقي. أضف عنوان IP للخادم إلى القائمة البيضاء في Binance ← صفحة المفاتيح
             </div>
           </div>
         </div>

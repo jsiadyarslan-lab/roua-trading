@@ -358,10 +358,21 @@ export const usePositionsStore = create<PositionsState>()(
     if (!changed) return
 
     // ═══════════════════════════════════════════════════════════════
-    // FIX: LIVE EQUITY UPDATE
-    // When a position price changes, recalculate account equity:
-    //   equity = cash + sum(positions.marketValue) + sum(positions.unrealizedPnl)
-    // This ensures the dashboard balance reflects live P&L changes.
+    // FIX V140E: LIVE EQUITY UPDATE — CORRECT FORMULA
+    // When a position price changes, recalculate account equity.
+    //
+    // CRITICAL: cash = totalEquityUsd (total wallet balance = free + used).
+    // The "used" portion IS the position margin. So positionsMarketValue
+    // is ALREADY included in cash. Adding it again would double-count.
+    //
+    // WRONG (old): equity = cash + marketValue + PnL
+    //   $18,834 + $2,457 + $13 = $21,304 ← DOUBLE-COUNTED!
+    //
+    // CORRECT: equity = cash + PnL
+    //   $18,834 + $13 = $18,847 ← matches fetchAccount!
+    //
+    // We still track longMarketValue = positionsMarketValue for display,
+    // but we do NOT add it to equity.
     // ═══════════════════════════════════════════════════════════════
     const currentAccount = get().account
     if (currentAccount) {
@@ -374,7 +385,7 @@ export const usePositionsStore = create<PositionsState>()(
         0,
       )
       const cash = Number(currentAccount.cash) || 0
-      const newEquity = cash + positionsMarketValue + positionsUnrealizedPnl
+      const newEquity = cash + positionsUnrealizedPnl
       const initialMargin = Number(currentAccount.initialMargin) || positionsMarketValue
       const freeMargin = Math.max(0, newEquity - initialMargin)
 
@@ -385,7 +396,7 @@ export const usePositionsStore = create<PositionsState>()(
           equity: newEquity,
           longMarketValue: positionsMarketValue,
           unrealizedPnl: positionsUnrealizedPnl,
-          unrealizedPnlPct: newEquity > 0 ? (positionsUnrealizedPnl / newEquity) * 100 : 0,
+          unrealizedPnlPct: cash > 0 ? (positionsUnrealizedPnl / cash) * 100 : 0,
           initialMargin,
           maintenanceMargin: 0,
           buyingPower: Math.max(0, freeMargin),

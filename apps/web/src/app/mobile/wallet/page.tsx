@@ -176,14 +176,29 @@ export default function MobileWalletPage() {
         // is 0. Previously, the `hasAnyBalance` check was used to decide whether
         // to fall through to Alpaca, but this caused stale localStorage data
         // (e.g. $5000) to persist when the real balance was 0.
+        // FIX V140E: Same formula as usePositionsStore.fetchAccount:
+        //   cash = totalEquityUsd (total = free + used margin)
+        //   equity = totalEquityUsd + unrealized PnL from positions
+        // Previously:
+        //   cash = totalAvailableUsd (free only, missing used margin)
+        //   equity = totalEquityUsd (missing unrealized PnL)
+        // This caused the same "alternating values" bug on the mobile wallet.
+        const positionsStoreState = usePositionsStore.getState()
+        const mobilePositions = positionsStoreState.positions
+        const mobilePnl = mobilePositions.reduce((sum: number, p: any) => sum + (p.unrealizedPnl || 0), 0)
+        const mobileMarketValue = mobilePositions.reduce(
+          (sum: number, p: any) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)), 0,
+        )
+        const usedMargin = totalEquityUsd - totalAvailableUsd || mobileMarketValue
+
         setAccount({
-          equity: totalEquityUsd,
-          buyingPower: totalAvailableUsd,
-          cash: totalAvailableUsd,
-          portfolioValue: totalEquityUsd,
-          unrealizedPnl: 0,
-          unrealizedPnlPct: 0,
-          longMarketValue: totalEquityUsd,
+          equity: totalEquityUsd + mobilePnl,
+          buyingPower: Math.max(0, (totalEquityUsd + mobilePnl) - usedMargin),
+          cash: totalEquityUsd,
+          portfolioValue: totalEquityUsd + mobilePnl,
+          unrealizedPnl: mobilePnl,
+          unrealizedPnlPct: totalEquityUsd > 0 ? (mobilePnl / totalEquityUsd) * 100 : 0,
+          longMarketValue: mobileMarketValue > 0 ? mobileMarketValue : usedMargin,
           shortMarketValue: 0,
           isPaperTrading: isTestnet,
         })

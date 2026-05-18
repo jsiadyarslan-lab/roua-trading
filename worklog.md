@@ -1,26 +1,25 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: V157 CRITICAL FIX - Balance shared across all users
+Task: Deep investigation and fix for shared balance bug ($12,342.85 across all accounts)
 
 Work Log:
-- Deep investigation of why all users see the same balance
-- Found ROOT CAUSE #1: `cachedGuestUserId` module-level singleton in nestjs-proxy.ts shared across ALL requests
-- Found ROOT CAUSE #2: `addCredential()` and `deleteCredential()` don't call `invalidateBalanceCache()`
-- Found ROOT CAUSE #3: $10,000 fallback applied to authenticated users when APIs fail
-- Fixed ROOT CAUSE #1: Removed `cachedGuestUserId` module-level variable. Now reads from per-browser `roua_guest_id` cookie only
-- Fixed ROOT CAUSE #2: Added `this.invalidateBalanceCache(userId)` in both `addCredential()` and `deleteCredential()`
-- Fixed ROOT CAUSE #3: Authenticated users with userId no longer get $10,000 fallback
-- Fixed build error: Duplicate `currentUserId` variable in usePositionsStore.ts
-- Built both frontend (Next.js) and backend (NestJS) successfully
-- Pushed to GitHub (2 commits: V157 fix + BUILD_CACHE bump)
-- Verified Railway rebuilt with new code: buildCache changed from v161 to v157-critical-balance-fix
-- Verified health endpoint: all checks OK, 30s uptime
+- Traced complete balance retrieval chain: Frontend → nestjs-proxy → NestJS AuthGuard → CredentialsController → CredentialsService → CCXT/Binance API
+- Identified ROOT CAUSE #1: ensureSession() in nestjs-proxy.ts silently creates guest sessions when real user sessions expire, causing ALL expired users to share the same guest identity and balance
+- Identified ROOT CAUSE #2: Binance balance fetch timeout was only 5 seconds, causing real exchange balance to fail, falling back to paper-trading balance (which can be same across users)
+- Identified ROOT CAUSE #3: Frontend silently mixes failed Binance balance (0) with paper-trading balance, making all users appear to have the same total
+- Fixed ensureSession() to return 401 instead of creating guest sessions for expired real users
+- Added detection of stale guest sessions when browser has roua_refresh cookie
+- Increased Binance timeout from 5s to 15s with retry logic
+- Added frontend logic to properly separate real vs paper-trading balance when exchange fails
+- Added diagnostic logging in CredentialsService to trace balance fetch path
+- Updated BUILD_CACHE to v158-critical-balance-fix
+- Pushed to git and verified Railway deployment started
 
 Stage Summary:
-- 3 files modified:
-  1. apps/web/src/lib/nestjs-proxy.ts - Removed cachedGuestUserId singleton (ROOT CAUSE #1)
-  2. apps/api/src/modules/portfolio/credentials/credentials.service.ts - Added invalidateBalanceCache calls (ROOT CAUSE #2)
-  3. apps/web/src/hooks/usePositionsStore.ts - Better $10,000 fallback protection (ROOT CAUSE #3)
-- Production deployed and verified: buildCache=v157-critical-balance-fix, health=ok
-- Key insight: Module-level variables in Next.js Route Handlers are shared across ALL concurrent requests
+- V158 critical fix deployed to production
+- Three root causes identified and fixed:
+  1. Session identity confusion (expired real users → guest identity → shared balance)
+  2. Binance timeout too short (5s → 15s with retry)
+  3. Frontend silently mixing failed + paper-trading balance
+- Key files changed: nestjs-proxy.ts, credentials.service.ts, usePositionsStore.ts, Dockerfile

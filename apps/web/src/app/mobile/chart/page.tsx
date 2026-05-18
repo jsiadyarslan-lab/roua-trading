@@ -410,35 +410,35 @@ function ChartPageContent() {
           ═══════════════════════════════════════════════════ */}
       <div style={{
         flexShrink: 0,
-        height: 32,
-        paddingLeft: 4,
-        paddingRight: 4,
-        paddingTop: 'calc(env(safe-area-inset-top) + 2px)',
+        height: 36,
+        paddingLeft: 6,
+        paddingRight: 6,
         display: 'flex',
         alignItems: 'center',
         gap: 0,
         background: '#0B0E14',
         direction: 'ltr',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
       }}>
         {/* ── Trading Group ── */}
         <ToolBtn onClick={() => openExecution('buy')} title="تنفيذ أمر سوقي">
-          <Zap size={16} />
+          <Zap size={15} />
         </ToolBtn>
         <ToolBtn onClick={openPendingOrder} title="أوامر معلقة">
-          <Timer size={16} />
+          <Timer size={15} />
         </ToolBtn>
 
         <Separator />
 
         {/* ── Analysis Group ── */}
         <ToolBtn onClick={() => chartActionsRef.current?.toggleIndicators()} title="المؤشرات">
-          <BarChart3 size={16} />
+          <BarChart3 size={15} />
         </ToolBtn>
         <ToolBtn onClick={() => chartActionsRef.current?.toggleDrawings()} title="أدوات الرسم">
-          <Pencil size={16} />
+          <Pencil size={15} />
         </ToolBtn>
         <ToolBtn onClick={() => chartActionsRef.current?.setTool('cursor')} title="المؤشر" active={chartActionsRef.current?.activeTool === 'cursor'}>
-          <MousePointer2 size={16} />
+          <MousePointer2 size={15} />
         </ToolBtn>
 
         <Separator />
@@ -450,7 +450,7 @@ function ChartPageContent() {
             title="الإطار الزمني"
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Clock size={14} />
+              <Clock size={13} />
               <span style={{ fontSize: 10, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>{tfLabel}</span>
               <ChevronDown size={10} color="#00D4FF" />
             </div>
@@ -502,6 +502,7 @@ function ChartPageContent() {
         position: 'relative',
         direction: 'ltr',
         minHeight: 0,
+        overflow: 'hidden',
       }}>
         <RouaChart
           currentPrice={livePrice}
@@ -512,14 +513,12 @@ function ChartPageContent() {
           chartActions={chartActionsRef}
         />
 
-        {/* ── Pair Name + Price overlay (top-left corner of chart) ── */}
+        {/* ── Pair Name + Price overlay (top corner of chart) ── */}
         <div style={{
           position: 'absolute',
-          top: 6,
-          left: 0,
-          right: 0,
-          paddingLeft: 8,
-          paddingRight: 8,
+          top: 4,
+          left: 8,
+          right: 8,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -533,11 +532,11 @@ function ChartPageContent() {
               onClick={() => { setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 3,
-                padding: '2px 6px', borderRadius: 4,
-                background: 'rgba(0,0,0,0.4)',
-                border: 'none',
+                padding: '3px 8px', borderRadius: 6,
+                background: 'rgba(0,0,0,0.5)',
+                border: '1px solid rgba(0,212,255,0.15)',
                 cursor: 'pointer',
-                backdropFilter: 'blur(8px)',
+                backdropFilter: 'blur(12px)',
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.5 }}>
@@ -584,15 +583,16 @@ function ChartPageContent() {
             )}
           </div>
 
-          {/* Price + Change % */}
+          {/* Price + Change % — single line */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 6,
-            padding: '2px 8px', borderRadius: 4,
-            background: 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(8px)',
+            padding: '3px 10px', borderRadius: 6,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255,255,255,0.08)',
           }}>
             <span style={{
-              fontSize: 13, fontWeight: 900, color: priceColor,
+              fontSize: 14, fontWeight: 900, color: priceColor,
               fontFamily: "'JetBrains Mono', monospace",
             }}>
               {fmtPrice(livePrice)}
@@ -601,8 +601,8 @@ function ChartPageContent() {
               fontSize: 9, fontWeight: 700,
               color: isPositive ? C.success : C.danger,
               fontFamily: "'JetBrains Mono', monospace",
-              padding: '1px 4px', borderRadius: 3,
-              background: isPositive ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
+              padding: '2px 5px', borderRadius: 4,
+              background: isPositive ? 'rgba(50,215,75,0.12)' : 'rgba(255,69,58,0.12)',
             }}>
               {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
             </span>

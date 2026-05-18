@@ -87,6 +87,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               /* Isolate stacking context so high z-index elements inside the chart
                  don't render above the NavBar (z-index: 50) */
               zIndex: 1,
+              isolation: 'isolate',
             }}
           >
             {children}

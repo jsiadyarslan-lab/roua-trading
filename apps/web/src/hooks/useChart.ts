@@ -248,6 +248,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       borderDownColor: CHART_COLORS.downColor,
       wickUpColor: CHART_COLORS.upWick,
       wickDownColor: CHART_COLORS.downWick,
+      // Hide built-in last price label on mobile — our overlay shows the price
+      lastValueVisible: !isMobile,
+      priceLineVisible: !isMobile,
     });
     candleSeriesRef.current = candleSeries;
     mainSeriesRef.current = candleSeries;
@@ -256,6 +259,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const volumeSeries = chart.addSeries(HistogramSeries, {
       priceFormat: { type: 'volume' },
       priceScaleId: 'volume',
+      lastValueVisible: false,
     });
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.85, bottom: 0 },
@@ -1467,10 +1471,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
 
     // Apply price line visibility
+    // On mobile, always hide the built-in price line & last value label
+    // to avoid duplicates with our custom overlay
     if (candleSeriesRef.current) {
       candleSeriesRef.current.applyOptions({
-        priceLineVisible: settings.showPriceLine,
-        lastValueVisible: settings.showPriceLine,
+        priceLineVisible: isMobile ? false : settings.showPriceLine,
+        lastValueVisible: isMobile ? false : settings.showPriceLine,
       });
     }
 
@@ -1708,8 +1714,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
       if (updates.showPriceLine !== undefined) {
         candleSeriesRef.current?.applyOptions({
-          lastValueVisible: updates.showPriceLine,
-          priceLineVisible: updates.showPriceLine,
+          lastValueVisible: isMobile ? false : updates.showPriceLine,
+          priceLineVisible: isMobile ? false : updates.showPriceLine,
         });
       }
     }

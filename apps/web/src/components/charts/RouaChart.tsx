@@ -642,8 +642,10 @@ export default function RouaChart({
 
     const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
 
+    // On mobile, hide axis labels on position lines to reduce clutter
+    // Our overlay already shows the price — axis labels create duplicates
     const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
-      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
+      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, mobile ? false : axisLabelVisible);
       positionLineIdsRef.current.push(id);
     };
 
@@ -654,7 +656,6 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        // Only show price on the right axis, no floating title on the left
         addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);

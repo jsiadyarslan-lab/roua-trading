@@ -72,8 +72,9 @@ export function CrosshairOverlay({
   const overlayPriceSize = mobile ? 14 : 16;
   const overlayPairSize = mobile ? 10 : 11;
 
-  // Mobile: simplified overlay with countdown timer
+  // Mobile: minimal overlay — only feed status (chart page shows pair/price/%)
   if (mobile) {
+    if (feedState !== 'fallback') return null;
     return (
       <div style={{
         position: 'absolute',
@@ -82,58 +83,12 @@ export function CrosshairOverlay({
         left: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-end',
         padding: '2px 6px',
         pointerEvents: 'none',
         zIndex: 3,
-        background: 'linear-gradient(180deg, rgba(11,14,20,0.85) 0%, rgba(11,14,20,0.3) 80%, transparent 100%)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {/* Symbol */}
-          <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 8,
-            fontWeight: 700,
-            color: COLORS.cyan,
-            letterSpacing: 0.3,
-          }}>
-            {symbol}
-          </span>
-          {/* Price */}
-          <span style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: '12px',
-            fontWeight: 700,
-            lineHeight: 1,
-            color: pricePulse ? (isBull ? COLORS.success : COLORS.danger) : COLORS.text,
-            transition: 'color 0.22s ease, text-shadow 0.22s ease',
-            textShadow: pricePulse ? `0 0 12px ${isBull ? COLORS.success : COLORS.danger}` : 'none',
-          }}>
-            {price != null ? price.toFixed(decimals) : '—'}
-          </span>
-
-          {/* Change % */}
-          {displayData && (
-            <span style={{
-              fontSize: 8,
-              fontFamily: "'JetBrains Mono', monospace",
-              color: changeColor,
-              fontWeight: 700,
-              padding: '0px 4px',
-              borderRadius: 3,
-              background: `${changeColor}15`,
-            }}>
-              {displayData.changePercent >= 0 ? '+' : ''}{displayData.changePercent.toFixed(2)}%
-            </span>
-          )}
-        </div>
-
-        {/* Right: Feed status (candle timer is shown under price scale via PriceSyncedTimer) */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {feedState === 'fallback' && (
-            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
-          )}
-        </div>
+        <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
       </div>
     );
   }

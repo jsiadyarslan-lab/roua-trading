@@ -348,7 +348,7 @@ export default function SettingsPage() {
   const [userTakeProfit, setUserTakeProfit] = useState('4')
   const [userRiskPerTrade, setUserRiskPerTrade] = useState('1')
   const [userMaxDailyLoss, setUserMaxDailyLoss] = useState('5')
-  const [userMaxOpenPositions, setUserMaxOpenPositions] = useState('5')
+  const [userMaxOpenPositions, setUserMaxOpenPositions] = useState('15')  // V143: Changed from '5' to '15'
   const [chartType, setChartType] = useState('candlestick')
   const [timeframe, setTimeframe] = useState('15m')
   const [confirmTrades, setConfirmTrades] = useState(true)

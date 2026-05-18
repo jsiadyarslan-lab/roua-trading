@@ -1313,7 +1313,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   }> {
     const defaults = {
       riskPerTradePercent: this.config.riskPerTradePercent,    // 1%
-      maxOpenPositions: this.config.maxOpenPositions,          // 5
+      maxOpenPositions: this.config.maxOpenPositions,          // 15 (V132: Increased from 5 to 15)
       maxDailyLossPercent: this.config.maxDailyLossPercent,    // 5%
       stopLossPercent: 2,                                       // 2%
       takeProfitPercent: 4,                                     // 4%
@@ -1476,6 +1476,33 @@ export class SmartExecutorService implements OnModuleDestroy {
   private async _processUserBriefs(userId: string, briefs: TradingBriefDTO[]): Promise<void> {
     const userState = await this.getUserState(userId);
     if (!userState || !userState.enabled) return;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V143: Auto-migrate maxOpenPositions from old default (5) to new (15).
+    // The old frontend hardcoded maxOpenPositions=5 when enabling the executor.
+    // This caused the executor to stop after 5 trades and never recover.
+    // Now: If the user has 5 and no explicit per-user setting in DB, upgrade to 15.
+    // ═══════════════════════════════════════════════════════════════════
+    if (userState.maxOpenPositions === 5) {
+      try {
+        const dbSetting = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:userMaxOpenPositions` },
+        });
+        if (!dbSetting) {
+          // User never explicitly set maxOpenPositions — upgrade from old default 5 to new default 15
+          userState.maxOpenPositions = this.config.maxOpenPositions; // 15
+          await this.redis.set(
+            `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+            JSON.stringify(userState),
+            86400000 * 7,
+          );
+          this._persistUserStateToDB(userId, userState).catch(() => {});
+          this.logger.log(`⚔️ V143: Auto-upgraded user ${userId} maxOpenPositions from 5 to ${this.config.maxOpenPositions} (no explicit user setting)`);
+        }
+      } catch (err: any) {
+        this.logger.debug(`⚔️ V143: Could not check userMaxOpenPositions for ${userId}: ${err.message}`);
+      }
+    }
 
     // V126: Migrate old state format if needed
     if ((userState as any).routingMode !== undefined) {

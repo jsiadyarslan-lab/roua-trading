@@ -31,7 +31,7 @@ const DEFAULT_RISK_CONFIG = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '5',
+  maxOpenPositions: '15',  // V143: Increased from 5 to 15 to match backend default
 }
 
 export async function GET(req: NextRequest) {

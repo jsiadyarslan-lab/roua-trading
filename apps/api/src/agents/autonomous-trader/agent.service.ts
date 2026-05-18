@@ -1180,7 +1180,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
         maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
         maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
-        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5,
+        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '15'), 10) || 15,  // V143: Increased from 5 to 15
         riskPerTradePercent: 1.5,
         defaultStrategy: StrategyType.AUTO,
         scalpingTimeframe: '5m',

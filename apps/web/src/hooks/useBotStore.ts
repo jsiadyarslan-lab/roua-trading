@@ -82,7 +82,7 @@ const DEFAULT_SETTINGS: BotState['settings'] = {
   // Default protection values — will be overwritten by admin DB settings
   maxDailyLoss: -2000,
   maxDrawdown: 15,
-  maxOpenPositions: 5,
+  maxOpenPositions: 15,  // V143: Increased from 5 to 15 to match backend default
   stopLossDefault: 2,
   takeProfitDefault: 4,
 }

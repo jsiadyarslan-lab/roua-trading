@@ -1353,18 +1353,26 @@ export class CredentialsService {
   }
 
   /**
-   * V164 DIAGNOSTIC: Test Binance API connectivity from the server.
-   * This helps diagnose why balance fetches fail from Railway.
-   * Returns detailed error info (NOT credentials) for debugging.
+   * V164 DIAGNOSTIC: Test exchange connectivity from the server.
+   * Also tests with the user's actual credentials if they have any.
+   * This helps diagnose why balance fetches fail.
    */
-  async testExchangeConnectivity(exchange: string): Promise<{
+  async testExchangeConnectivity(exchange: string, userId?: string): Promise<{
     exchange: string;
     reachable: boolean;
     latencyMs: number;
     error?: string;
     errorType?: string;
     serverTime?: number;
-    serverIp?: string;
+    /** V164b: Did the authenticated balance fetch succeed? */
+    authTest?: {
+      success: boolean;
+      latencyMs: number;
+      error?: string;
+      errorType?: string;
+      balanceEquity?: number;
+      hasCredentials: boolean;
+    };
   }> {
     const start = Date.now();
     try {
@@ -1380,36 +1388,68 @@ export class CredentialsService {
         options: { adjustForTimeDifference: true },
       });
 
-      // Test 1: Public endpoint (no auth needed) — api/v3/ping or equivalent
+      // Test 1: Public endpoint (no auth needed)
       try {
         const pingStart = Date.now();
         await instance.publicGetPing?.() || await instance.fetchTime();
         const pingMs = Date.now() - pingStart;
         this.logger.log(`✅ V164 Connectivity test: ${exchange} ping OK (${pingMs}ms)`);
-        return { exchange, reachable: true, latencyMs: pingMs, serverTime: Date.now() };
+
+        // Test 2: Authenticated balance fetch (if user has credentials)
+        let authTest: any = { hasCredentials: false };
+        if (userId) {
+          const credentials = await this.prisma.exchangeCredential.findMany({
+            where: { userId, isValid: true, exchange: { startsWith: normalizedExchange } },
+            take: 1,
+          });
+          if (credentials.length > 0) {
+            const cred = credentials[0];
+            authTest.hasCredentials = true;
+            let authStart = Date.now();
+            try {
+              const decrypted = await this.decryptCredential(cred.id, userId);
+              const authInstance = new ExchangeClass({
+                apiKey: decrypted.apiKey,
+                secret: decrypted.apiSecret,
+                password: decrypted.passphrase,
+                enableRateLimit: true,
+                timeout: 15000,
+                options: { adjustForTimeDifference: true, defaultType: 'spot' },
+              });
+              if (cred.exchange === 'binance_test' || cred.exchange === 'binance_future_test') {
+                authInstance.setSandboxMode(true);
+              }
+              authStart = Date.now();
+              const balance = await authInstance.fetchBalance();
+              const authMs = Date.now() - authStart;
+              const usdtTotal = balance.total?.USDT || balance.total?.USD || 0;
+              authTest = {
+                ...authTest,
+                success: true,
+                latencyMs: authMs,
+                balanceEquity: usdtTotal,
+              };
+              this.logger.log(`✅ V164 Auth test: ${exchange} balance fetch OK (${authMs}ms, equity=$${usdtTotal})`);
+            } catch (authError: any) {
+              const authMs = Date.now() - authStart;
+              authTest = {
+                ...authTest,
+                success: false,
+                latencyMs: authMs,
+                error: `[${authError.constructor?.name || 'Unknown'}] ${authError.message || String(authError)}`,
+                errorType: authError.constructor?.name || 'Unknown',
+              };
+              this.logger.warn(`❌ V164 Auth test: ${exchange} balance fetch FAILED (${authMs}ms): ${authError.message}`);
+            }
+          }
+        }
+
+        return { exchange, reachable: true, latencyMs: pingMs, serverTime: Date.now(), authTest };
       } catch (pingError: any) {
         const pingMs = Date.now() - start;
         const errMsg = pingError.message || String(pingError);
         const errType = pingError.constructor?.name || 'Unknown';
         this.logger.warn(`❌ V164 Connectivity test: ${exchange} ping FAILED (${pingMs}ms): [${errType}] ${errMsg}`);
-
-        // Try a simple HTTP request to see if it's DNS or network issue
-        let diagnosticInfo = '';
-        try {
-          const https = await import('https');
-          const dnsResult = await new Promise<string>((resolve, reject) => {
-            const req = https.get(`https://api.binance.com/api/v3/ping`, (res) => {
-              let data = '';
-              res.on('data', chunk => data += chunk);
-              res.on('end', () => resolve(`HTTP ${res.statusCode}: ${data}`));
-            });
-            req.on('error', (e) => reject(e));
-            req.setTimeout(10000, () => { req.destroy(); reject(new Error('HTTP timeout')); });
-          });
-          diagnosticInfo = `Direct HTTP test: ${dnsResult}`;
-        } catch (httpErr: any) {
-          diagnosticInfo = `Direct HTTP test failed: ${httpErr.message}`;
-        }
 
         return {
           exchange,

@@ -154,13 +154,14 @@ export class CredentialsController {
   /**
    * GET /api/portfolio/credentials/test-connectivity — Diagnostic endpoint
    * Tests Binance API connectivity from the server (Railway).
-   * V164: Helps diagnose why balance fetches fail.
-   * Public endpoint (no auth) — only tests public API, no credentials involved.
+   * V164b: Also tests with user's actual credentials if they have any.
+   * Auth required — tests use the logged-in user's stored credentials.
    */
   @Get('test-connectivity')
-  async testConnectivity() {
+  async testConnectivity(@Request() req: any) {
+    const userId = req.user?.id;
     const results = await Promise.allSettled([
-      this.credentialsService.testExchangeConnectivity('binance'),
+      this.credentialsService.testExchangeConnectivity('binance', userId),
     ]);
     const connectivity = results.map(r =>
       r.status === 'fulfilled' ? r.value : { error: r.reason?.message || 'Unknown error' }

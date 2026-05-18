@@ -903,7 +903,7 @@ export class TradingService {
           fee: execution.fee ?? 0,
           feeCurrency: execution.feeCurrency,
           pnl,
-          
+          source: position.source || 'user_manual', // V140B: Inherit source from position (smart_executor/agent/etc)
         },
       });
 
@@ -1235,6 +1235,7 @@ export class TradingService {
           fee: 0,
           feeCurrency: position.symbol.split('/').pop() || 'USDT',
           pnl,
+          source: position.source || 'user_manual', // V140B: Inherit source from position (smart_executor/agent/etc)
         },
       });
 
@@ -1357,7 +1358,7 @@ export class TradingService {
    */
   async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string) {
     try {
-      const where: any = { userId, status: 'CLOSED' };
+      const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
 
       // V140: Add date range filtering for daily/weekly/monthly/yearly classification
       if (from || to) {

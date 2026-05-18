@@ -64,6 +64,7 @@ interface Position {
   status?: string
   openedAt: string
   closedAt?: string
+  source?: string // V140B: smart_executor / agent / auto_paper / user_manual
 }
 
 interface Trade {
@@ -544,9 +545,9 @@ export default function PortfolioPage() {
             : undefined
       return {
         id: p.id, symbol: p.symbol, side: p.side,
-        type: (p as any).source === 'smart_executor' ? 'SMART' :
-              (p as any).source === 'agent' ? 'AGENT' :
-              (p as any).source === 'auto_paper' ? 'PAPER' : 'MANUAL',
+        type: p.source === 'smart_executor' ? 'SMART' :
+              p.source === 'agent' ? 'AGENT' :
+              p.source === 'auto_paper' ? 'PAPER' : 'MANUAL',
         quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
         exitPrice: derivedExitPrice,
         fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
@@ -1031,13 +1032,14 @@ export default function PortfolioPage() {
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 12, fontWeight: 700, color: T.text }}>{pt.symbol}</span>
-                              {pt.type === 'PAPER' && (
-                                <span style={{
-                                  padding: '0px 3px', borderRadius: 3,
-                                  fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
-                                  background: `${T.cyan}14`, color: T.cyan, border: `0.5px solid ${T.cyan}33`,
-                                }}>ورقي</span>
-                              )}
+                              {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
+                              <span style={{
+                                padding: '0px 3px', borderRadius: 3,
+                                fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                                background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
+                                color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
+                                border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
+                              }}>{pt.type === 'SMART' ? 'منفذ' : pt.type === 'AGENT' ? 'وكيل' : pt.type === 'PAPER' ? 'ورقي' : 'يدوي'}</span>
                               <span style={{
                                 padding: '1px 6px', borderRadius: 4,
                                 fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
@@ -1098,13 +1100,14 @@ export default function PortfolioPage() {
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                         <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, color: T.text }}>{pt.symbol}</span>
-                        {pt.type === 'PAPER' && (
-                          <span style={{
-                            padding: '0px 3px', borderRadius: 3,
-                            fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
-                            background: `${T.cyan}14`, color: T.cyan, border: `0.5px solid ${T.cyan}33`,
-                          }}>ورقي</span>
-                        )}
+                        {/* V140B: Source badge — shows منفذ/وكيل/ورقي/يدوي */}
+                        <span style={{
+                          padding: '0px 3px', borderRadius: 3,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 7, fontWeight: 700,
+                          background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
+                          color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
+                          border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
+                        }}>{pt.type === 'SMART' ? 'منفذ' : pt.type === 'AGENT' ? 'وكيل' : pt.type === 'PAPER' ? 'ورقي' : 'يدوي'}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{

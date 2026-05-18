@@ -2259,6 +2259,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               this.logger.log(`🧠 Position closed: ${position.symbol} PnL: ${pnl.toFixed(2)} (${reason})`);
             } else {
               // Fallback: TradingService unavailable — direct DB update as last resort
+              // V140B FIX: This path was missing exitPrice, realizedPnl, and Trade record creation
               this.logger.warn(`🧠 TradingService unavailable for position close — using direct DB update as fallback`);
               const pnl = position.side === 'BUY'
                 ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
@@ -2270,9 +2271,33 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                   status: 'CLOSED',
                   currentPrice,
                   unrealizedPnl: pnl,
+                  realizedPnl: (Number(position.realizedPnl) || 0) + pnl, // V140B: Set realizedPnl
+                  exitPrice: currentPrice, // V140B: Set exitPrice
                   closedAt: new Date(),
                 },
               });
+
+              // V140B: Create Trade record for audit trail (previously missing)
+              try {
+                await this.prisma.trade.create({
+                  data: {
+                    userId,
+                    positionId: position.id,
+                    exchange: position.exchange,
+                    symbol: position.symbol,
+                    side: position.side === 'BUY' ? 'SELL' : 'BUY',
+                    type: 'EXIT',
+                    quantity: Number(position.quantity),
+                    price: currentPrice,
+                    fee: 0,
+                    feeCurrency: position.symbol.split('/').pop() || 'USDT',
+                    pnl,
+                    source: position.source || 'agent',
+                  },
+                });
+              } catch (tradeErr: any) {
+                this.logger.warn(`Failed to create EXIT trade for fallback close: ${tradeErr.message}`);
+              }
 
               // Update daily PnL tracking
               state.dailyPnL += pnl;

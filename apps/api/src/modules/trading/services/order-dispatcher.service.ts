@@ -166,6 +166,7 @@ export class OrderDispatcherService {
         idempotencyKey: sourceIdempotencyKey,
         clientOrderId: `${request.source}-${briefRef}-${Date.now()}`,
         isPaperTrading: request.isPaperTrading ?? false,
+        source: request.source,  // V145: Pass source to RiskGatekeeper for source-aware position counting
       };
 
       const riskCheck = await this.riskGatekeeper.validateOrder(command);

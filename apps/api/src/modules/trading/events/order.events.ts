@@ -24,6 +24,9 @@ export class OrderCommand {
   userAgent?: string;
   /** FIX: Indicates this is a paper/simulated trade — bypasses certain risk checks */
   isPaperTrading?: boolean;
+  /** V145: Source of the trade — 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual'.
+   * Used by RiskGatekeeper to count positions per-source against per-source limits. */
+  source?: string;
 }
 
 /**

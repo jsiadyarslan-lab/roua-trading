@@ -505,7 +505,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
               autoTradingEnabled: true,
               maxPositionSizePercent: 2,
               maxDailyLossPercent: 5,
-              maxOpenPositions: 3,
+              maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V145: Was hardcoded 3 — now reads from env/admin settings
               riskPerTradePercent: 1,
             },
           });
@@ -669,6 +669,23 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       this.logger.warn(`Could not load user settings: ${e.message}`);
     }
 
+    // V145: Read global agentExecutorConfig from admin settings
+    let globalAgentMaxPositions: number | undefined;
+    try {
+      const agentExecSetting = await this.prisma.setting.findFirst({
+        where: { key: 'agentExecutorConfig' },
+      });
+      if (agentExecSetting) {
+        const parsed = JSON.parse(agentExecSetting.value);
+        if (parsed.agentMaxOpenPositions) {
+          globalAgentMaxPositions = parseInt(parsed.agentMaxOpenPositions, 10);
+          this.logger.log(`🧠 V145: Read agentMaxOpenPositions=${globalAgentMaxPositions} from admin settings`);
+        }
+      }
+    } catch (globalErr: any) {
+      this.logger.debug(`🧠 V145: Could not read global agentExecutorConfig: ${globalErr.message}`);
+    }
+
     // Build agent config: DTO > DB Settings > Env Vars > Hardcoded defaults
     const config: AgentConfig = {
       userId,
@@ -682,7 +699,8 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         (parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5),
       maxOpenPositions: dto.maxOpenPositions ??
         (userSettings ? Number(userSettings.maxOpenPositions) : undefined) ??
-        (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '5'), 10) || 5),
+        globalAgentMaxPositions ??  // V145: Admin settings override env vars
+        (parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20),  // V145: Changed fallback from '5' to '20'
       riskPerTradePercent: dto.riskPerTradePercent ??
         (userSettings ? Number(userSettings.riskPerTradePercent) : undefined) ??
         1.5,

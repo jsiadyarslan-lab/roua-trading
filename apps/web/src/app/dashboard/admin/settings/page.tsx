@@ -204,10 +204,23 @@ export default function AdminSettingsPage() {
     setSaving(true)
     setSaveError(null)
     try {
+      // V145: Auto-sync global maxOpenPositions with executor+agent limits.
+      // The global RiskGatekeeper limit must be >= executor + agent combined.
+      // If it's lower, auto-upgrade it so trades aren't blocked by the global check.
+      const execMax = parseInt(agentExecutorConfig.executorMaxOpenPositions, 10) || 15
+      const agentMax = parseInt(agentExecutorConfig.agentMaxOpenPositions, 10) || 15
+      const totalNeeded = execMax + agentMax
+      const currentGlobal = parseInt(riskConfig.maxOpenPositions, 10) || 20
+      const finalRiskConfig = { ...riskConfig }
+      if (currentGlobal < totalNeeded) {
+        finalRiskConfig.maxOpenPositions = String(totalNeeded)
+        setRiskConfig(finalRiskConfig)
+      }
+
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botConfig, riskConfig, agentExecutorConfig, platformConfig }),
+        body: JSON.stringify({ botConfig, riskConfig: finalRiskConfig, agentExecutorConfig, platformConfig }),
       })
 
       // Check for auth errors first
@@ -553,7 +566,7 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          {/* Agent & Executor Settings — V144 */}
+          {/* Agent & Executor Settings — V144/V145 */}
           <div style={{ ...CARD_STYLE, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <Bot size={14} color={COLORS.accent} />
@@ -562,8 +575,29 @@ export default function AdminSettingsPage() {
             <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginBottom: 14, lineHeight: 1.6 }}>
               تحكم بعدد الصفقات المفتوحة وإعدادات المخاطر لكل من الوكيل (التحليل التلقائي) والمنفذ (التنفيذ الذكي).
               <br />
-              <span style={{ color: COLORS.amber }}>تنبيه:</span> الحد الأقصى للمراكز المفتوحة في إدارة المخاطر أعلاه هو الحد العام الذي يتحكم فيه حارس المخاطر. يجب أن يكون أكبر من أو يساوي مجموع حد الوكيل وحد المنفذ.
+              <span style={{ color: COLORS.amber }}>تنبيه:</span> الحد الأقصى العام للمراكز المفتوحة (في إدارة المخاطر أعلاه) سيتم تحديثه تلقائياً ليكون أكبر من أو يساوي مجموع حد الوكيل وحد المنفذ.
             </div>
+
+            {/* V145: Auto-sync warning banner */}
+            {(() => {
+              const execMax = parseInt(agentExecutorConfig.executorMaxOpenPositions, 10) || 15
+              const agentMax = parseInt(agentExecutorConfig.agentMaxOpenPositions, 10) || 15
+              const globalMax = parseInt(riskConfig.maxOpenPositions, 10) || 20
+              const totalNeeded = execMax + agentMax
+              const isWarning = globalMax < totalNeeded
+              return isWarning ? (
+                <div style={{
+                  padding: '8px 12px', borderRadius: 8, marginBottom: 12,
+                  background: `${COLORS.amber}10`, border: `1px solid ${COLORS.amber}30`,
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}>
+                  <AlertTriangle size={14} color={COLORS.amber} />
+                  <span style={{ fontSize: 10, color: COLORS.amber, fontFamily: "'Cairo', sans-serif" }}>
+                    الحد العام ({globalMax}) أقل من مجموع المنفذ+الوكيل ({totalNeeded}). سيتم تحديثه تلقائياً إلى {totalNeeded} عند الحفظ.
+                  </span>
+                </div>
+              ) : null
+            })()}
 
             {/* Executor Section */}
             <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 8, background: 'rgba(0,229,255,0.04)', border: `1px solid ${COLORS.accent}15` }}>

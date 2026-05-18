@@ -37,6 +37,9 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   // ── Configurable Risk Parameters (loaded from DB with env fallback) ──
   private maxPositionSizePercent: number;
   private maxOpenPositions: number;
+  // V145: Per-source limits from agentExecutorConfig admin settings
+  private executorMaxOpenPositions: number;
+  private agentMaxOpenPositions: number;
   private maxDailyLossPercent: number;
   private minOrderSizeUSD: number;
   private maxOrderSizeUSD: number;
@@ -83,6 +86,12 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     this.maxOpenPositions = parseInt(
       this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), // V132: Increased from 10 to 20
       10,
+    );
+    this.executorMaxOpenPositions = parseInt(
+      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '15'), 10,
+    );
+    this.agentMaxOpenPositions = parseInt(
+      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '15'), 10,
     );
     this.maxDailyLossPercent = parseFloat(
       this.configService.get('RISK_MAX_DAILY_LOSS_PERCENT', '5'),
@@ -217,12 +226,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // use the executor-specific limit as a hint for the global limit.
       // The global limit should be >= executor limit + agent limit.
       const agentExecConfig = settingsMap.agentExecutorConfig;
-      if (agentExecConfig && !settingsMap.riskConfig?.maxOpenPositions) {
+      if (agentExecConfig) {
         const execMax = parseInt(agentExecConfig.executorMaxOpenPositions || '15', 10);
         const agentMax = parseInt(agentExecConfig.agentMaxOpenPositions || '15', 10);
-        const impliedGlobal = execMax + agentMax;
-        if (this.maxOpenPositions < impliedGlobal) {
-          this.logger.warn(`🛡️ V144: Global maxOpenPositions (${this.maxOpenPositions}) is less than executor+agent total (${impliedGlobal}). Consider increasing riskConfig.maxOpenPositions to at least ${impliedGlobal}.`);
+        // V145: Store per-source limits for source-aware position counting
+        this.executorMaxOpenPositions = execMax;
+        this.agentMaxOpenPositions = agentMax;
+        this.logger.debug(`🛡️ V145: Per-source limits — executor=${execMax}, agent=${agentMax}`);
+
+        if (!settingsMap.riskConfig?.maxOpenPositions) {
+          const impliedGlobal = execMax + agentMax;
+          if (this.maxOpenPositions < impliedGlobal) {
+            this.logger.warn(`🛡️ V144: Global maxOpenPositions (${this.maxOpenPositions}) is less than executor+agent total (${impliedGlobal}). Consider increasing riskConfig.maxOpenPositions to at least ${impliedGlobal}.`);
+          }
         }
       }
 
@@ -582,24 +598,76 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       const isSimulatedByCredential = this._isSimulatedCredential(credential);
 
       if (isPaperByFlag || isSimulatedByCredential) {
-        // Only check position COUNT — no value limits for simulation
-        const openPositions = await this.prisma.position.count({
-          where: { userId: command.userId, status: 'OPEN' },
+        // ═══════════════════════════════════════════════════════════════════
+        // V145: SOURCE-AWARE position counting for paper/simulated trading.
+        // Instead of counting ALL positions against the global limit,
+        // count positions per-source against per-source limits.
+        // This prevents the Agent's positions from blocking the Executor
+        // and vice versa.
+        // ═══════════════════════════════════════════════════════════════════
+        const orderSource = command.source || 'auto_paper';
+        const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
+        const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+
+        // Count positions for THIS source only
+        const sourcePositions = await this.prisma.position.count({
+          where: {
+            userId: command.userId,
+            status: 'OPEN',
+            source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+          },
         });
 
-        if (openPositions >= this.maxOpenPositions) {
+        if (sourcePositions >= perSourceLimit) {
           return {
             allowed: false,
-            reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+            reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
             failedCheck: 'POSITION_SIZE_LIMIT',
           };
         }
 
-        this.logger.debug(`🛡️ Paper trading order ALLOWED (position count: ${openPositions}/${this.maxOpenPositions}, no value limit for simulation)`);
+        // Also check the GLOBAL limit (safety net — total across all sources)
+        const totalOpenPositions = await this.prisma.position.count({
+          where: { userId: command.userId, status: 'OPEN' },
+        });
+        if (totalOpenPositions >= this.maxOpenPositions) {
+          return {
+            allowed: false,
+            reason: `لديك ${totalOpenPositions} مركز مفتوح إجمالاً (الحد الأقصى العام: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+            failedCheck: 'POSITION_SIZE_LIMIT',
+          };
+        }
+
+        this.logger.debug(`🛡️ Paper trading order ALLOWED (source=${orderSource}: ${sourcePositions}/${perSourceLimit}, total: ${totalOpenPositions}/${this.maxOpenPositions})`);
         return { allowed: true };
       }
 
-      // Count open positions
+      // ═══════════════════════════════════════════════════════════════════
+      // V145: SOURCE-AWARE position counting for REAL trading too.
+      // Same logic as paper trading — count per-source first, then global.
+      // ═══════════════════════════════════════════════════════════════════
+      const orderSource = command.source || 'user_manual';
+      const isExecutor = ['smart_executor', 'auto_paper'].includes(orderSource);
+      const perSourceLimit = isExecutor ? this.executorMaxOpenPositions : this.agentMaxOpenPositions;
+
+      // Count positions for THIS source only
+      const sourcePositions = await this.prisma.position.count({
+        where: {
+          userId: command.userId,
+          status: 'OPEN',
+          source: isExecutor ? { in: ['smart_executor', 'auto_paper'] } : orderSource,
+        },
+      });
+
+      if (sourcePositions >= perSourceLimit) {
+        return {
+          allowed: false,
+          reason: `لديك ${sourcePositions} مركز مفتوح من ${isExecutor ? 'المنفذ' : 'الوكيل'} بالفعل (الحد الأقصى: ${perSourceLimit}). أغلق بعض المراكز أولاً.`,
+          failedCheck: 'POSITION_SIZE_LIMIT',
+        };
+      }
+
+      // Also check the GLOBAL limit (safety net — total across all sources)
       const openPositions = await this.prisma.position.count({
         where: { userId: command.userId, status: 'OPEN' },
       });
@@ -607,7 +675,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       if (openPositions >= this.maxOpenPositions) {
         return {
           allowed: false,
-          reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
+          reason: `لديك ${openPositions} مركز مفتوح إجمالاً (الحد الأقصى العام: ${this.maxOpenPositions}). أغلق بعض المراكز أولاً.`,
           failedCheck: 'POSITION_SIZE_LIMIT',
         };
       }
@@ -1010,6 +1078,8 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     return {
       maxPositionSizePercent: this.maxPositionSizePercent,
       maxOpenPositions: this.maxOpenPositions,
+      executorMaxOpenPositions: this.executorMaxOpenPositions,  // V145: Per-source limit
+      agentMaxOpenPositions: this.agentMaxOpenPositions,        // V145: Per-source limit
       maxDailyLossPercent: this.maxDailyLossPercent,
       minOrderSizeUSD: this.minOrderSizeUSD,
       maxOrderSizeUSD: this.maxOrderSizeUSD,

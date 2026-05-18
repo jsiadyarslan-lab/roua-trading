@@ -466,6 +466,9 @@ export class CredentialsService {
       error?: string;
     }>;
   }> {
+    // V158: Diagnostic logging to trace balance fetching for debugging shared balance bug.
+    this.logger.log(`🔍 V158 Balance fetch START for userId=${userId}`);
+
     // FIX: Check balance cache first — prevents 10+ second delays on every page load.
     // Before this cache, every call created fresh CCXT instances and hit exchange APIs,
     // causing /api/trading/account to take 10091ms when Binance Testnet was unreachable.
@@ -479,6 +482,9 @@ export class CredentialsService {
     const allCredentials = await this.prisma.exchangeCredential.findMany({
       where: { userId, isValid: true },
     });
+
+    // V158: Log what credentials this user has — critical for debugging shared balance
+    this.logger.log(`🔍 V158 User ${userId} has ${allCredentials.length} credentials: [${allCredentials.map(c => `${c.exchange}/${c.label}`).join(', ')}]`);
 
     // FIX: Even if user has NO credentials, check if they have a paper trading
     // balance in AgentSettings. This prevents the $0 balance problem for users
@@ -731,7 +737,9 @@ export class CredentialsService {
       apiKey,
       secret: apiSecret,
       enableRateLimit: true,
-      timeout: 5000, // FIX: Reduced from 15000ms — Binance Testnet often unreachable, burning 15s per request
+      timeout: 15000, // V158: Increased from 5000ms — 5s was too short for real Binance accounts from Railway.
+      // The 5s timeout caused ALL real Binance balance fetches to fail, making users
+      // see paper-trading balance ($12,342.85) instead of their real balance.
       options: {
         defaultType: exchange === 'binance_future_test' ? 'future' : 'spot',
         adjustForTimeDifference: true,
@@ -766,19 +774,44 @@ export class CredentialsService {
       }
     }
 
-    // Fetch balance with explicit timeout wrapper for extra safety
-    const BALANCE_TIMEOUT_MS = 5_000; // FIX: Reduced from 15_000 — fail fast, cache result
+    // V158: Fetch balance with retry logic.
+    // Previously, a single 5s timeout caused ALL real Binance balance fetches to fail,
+    // making users see paper-trading balance instead of their real Binance balance.
+    // Now: First attempt with 15s timeout, one retry with 15s timeout if it fails.
+    const BALANCE_TIMEOUT_MS = 15_000; // V158: Increased from 5_000 — real Binance needs more time
+    const MAX_RETRIES = 1; // One retry on connection failure
     let balance: any;
-    try {
-      balance = await Promise.race([
-        instance.fetchBalance(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`انتهت مهلة جلب الرصيد من ${exchange} (${BALANCE_TIMEOUT_MS / 1000}s)`)), BALANCE_TIMEOUT_MS)
-        ),
-      ]);
-    } catch (fetchError: any) {
-      const errMsg = fetchError.message || 'Unknown error';
-      this.logger.warn(`⚠️ Balance fetch failed for ${exchange}/${label}: ${errMsg}`);
+    let lastError: string | null = null;
+
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        balance = await Promise.race([
+          instance.fetchBalance(),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`انتهت مهلة جلب الرصيد من ${exchange} (${BALANCE_TIMEOUT_MS / 1000}s)`)), BALANCE_TIMEOUT_MS)
+          ),
+        ]);
+        lastError = null;
+        break; // Success — exit retry loop
+      } catch (fetchError: any) {
+        lastError = fetchError.message || 'Unknown error';
+        if (attempt < MAX_RETRIES && (
+          (lastError || '').includes('timeout') || (lastError || '').includes('ETIMEDOUT') ||
+          (lastError || '').includes('ECONNREFUSED') || (lastError || '').includes('ECONNRESET') ||
+          (lastError || '').includes('network') || (lastError || '').includes('socket')
+        )) {
+          this.logger.warn(`⚠️ Balance fetch attempt ${attempt + 1} failed for ${exchange}/${label}: ${lastError} — retrying...`);
+          await new Promise(r => setTimeout(r, 1000)); // Wait 1s before retry
+          continue;
+        }
+        // Non-retryable error or max retries reached — break to error handling
+        break;
+      }
+    }
+
+    if (lastError && !balance) {
+      const errMsg = lastError;
+      this.logger.warn(`⚠️ Balance fetch failed for ${exchange}/${label} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
 
       // If the error is a timeout or connection issue, return with error but don't crash
       if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED') ||

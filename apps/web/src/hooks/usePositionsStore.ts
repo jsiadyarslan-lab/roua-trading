@@ -525,6 +525,58 @@ export const usePositionsStore = create<PositionsState>()(
           )
 
           // ═══════════════════════════════════════════════════════════════
+          // V158 FIX: Detect when real exchange balance is UNAVAILABLE.
+          //
+          // BUG: When Binance API times out (5s was too short), the backend
+          // returns equity: 0 with error. The frontend then computes
+          // totalEquityUsd = 0 (Binance) + paperEquity = paperEquity.
+          // This means ALL users whose Binance times out see their paper
+          // trading balance, which can be the same across users → shared
+          // balance bug ($12,342.85 for everyone).
+          //
+          // FIX: If a real exchange has an error (balance unavailable),
+          // compute the total ONLY from exchanges that successfully
+          // returned data. Don't mix failed real exchange (0) with
+          // paper trading. If ALL real exchanges failed, only show
+          // paper trading balance but mark it clearly.
+          // ═══════════════════════════════════════════════════════════════
+          const realExchangesSuccess = exchanges.filter(
+            (e: any) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
+          )
+          const realExchangesFailed = exchanges.filter(
+            (e: any) => e.exchange !== 'paper-trading' && (e.error || e.equity <= 0)
+          )
+          const paperExchange = exchanges.find(
+            (e: any) => e.exchange === 'paper-trading'
+          )
+
+          // V158: If user has real exchange credentials but they ALL failed,
+          // we should NOT silently show only paper trading balance as the total.
+          // Instead, we compute the total from successful exchanges only.
+          let adjustedTotalEquityUsd = totalEquityUsd
+          let adjustedTotalAvailableUsd = totalAvailableUsd
+          let adjustedTotalUsedMargin = totalUsedMargin
+
+          if (hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0) {
+            // ALL real exchanges failed — only paper trading is available.
+            // Show ONLY the paper trading balance, not mixed.
+            console.warn(
+              `[PositionsStore] V158: ALL ${realExchangesFailed.length} real exchange balance(s) failed. ` +
+              `Showing paper-trading balance only. Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
+            )
+            // Use paper trading balance as the total
+            adjustedTotalEquityUsd = paperExchange?.equity || 0
+            adjustedTotalAvailableUsd = paperExchange?.available || 0
+            adjustedTotalUsedMargin = paperExchange?.usedMargin || 0
+          } else if (realExchangesSuccess.length > 0) {
+            // At least one real exchange succeeded — use total from ALL exchanges
+            // (successful real + paper trading)
+            adjustedTotalEquityUsd = totalEquityUsd
+            adjustedTotalAvailableUsd = totalAvailableUsd
+            adjustedTotalUsedMargin = totalUsedMargin
+          }
+
+          // ═══════════════════════════════════════════════════════════════
           // FIX: Compute longMarketValue and initialMargin from positions,
           // not from totalEquityUsd. Previously:
           //   longMarketValue = totalEquityUsd  ← WRONG (shows balance, not position value)
@@ -577,12 +629,12 @@ export const usePositionsStore = create<PositionsState>()(
             // Uses user-configured leverage (forex, gold, crypto) from AgentSettings
             const clientCalc = calculatePortfolioMargin(currentPositions)
             usedMargin = clientCalc.usedMargin
-          } else if (totalUsedMargin > 0) {
+          } else if (adjustedTotalUsedMargin > 0) {
             // TIER 3: Backend margin — use when no positions loaded locally
-            usedMargin = totalUsedMargin
-          } else if (totalEquityUsd - totalAvailableUsd > 0) {
+            usedMargin = adjustedTotalUsedMargin
+          } else if (adjustedTotalEquityUsd - adjustedTotalAvailableUsd > 0) {
             // TIER 4: Rough difference — only for real exchanges
-            usedMargin = totalEquityUsd - totalAvailableUsd
+            usedMargin = adjustedTotalEquityUsd - adjustedTotalAvailableUsd
           } else {
             usedMargin = 0
           }
@@ -609,10 +661,11 @@ export const usePositionsStore = create<PositionsState>()(
           //   User sees: Balance $18,844, Equity $18,856, P&L $12 ✓
           // ═══════════════════════════════════════════════════════════════
           const hasPaperOnly = exchanges.some((e: any) => e.exchange === 'paper-trading')
-          let effectiveEquity = totalEquityUsd
-          let effectiveCash = totalEquityUsd  // V140B: Use total balance, not just available
+          // V158: Use adjustedTotalEquityUsd which properly handles failed exchange balances
+          let effectiveEquity = adjustedTotalEquityUsd
+          let effectiveCash = adjustedTotalEquityUsd  // V140B: Use total balance, not just available
 
-          if (hasPaperOnly && totalEquityUsd <= 0) {
+          if (hasPaperOnly && adjustedTotalEquityUsd <= 0) {
             // FIX: Paper trading — use default paper balance from agent settings
             // or $10,000 as the standard paper trading balance.
             // This prevents the agent/bot from seeing $0 and refusing to trade.
@@ -635,13 +688,13 @@ export const usePositionsStore = create<PositionsState>()(
             // Do NOT add positionsUnrealizedPnl again — it would double-count the P&L!
             // For paper: effectiveEquity = totalEquityUsd (already includes PnL from backend)
             // effectiveCash = raw balance (equity - PnL)
-            effectiveEquity = totalEquityUsd  // Already = balance + PnL
-            effectiveCash = totalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
+            effectiveEquity = adjustedTotalEquityUsd  // Already = balance + PnL
+            effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
           } else {
             // V140B: For real accounts, equity = totalBalance + unrealizedPnl
             // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)
-            effectiveEquity = totalEquityUsd + positionsUnrealizedPnl
-            effectiveCash = totalEquityUsd  // Total wallet balance (free + used)
+            effectiveEquity = adjustedTotalEquityUsd + positionsUnrealizedPnl
+            effectiveCash = adjustedTotalEquityUsd  // Total wallet balance (free + used)
           }
 
           const account = {
@@ -649,12 +702,12 @@ export const usePositionsStore = create<PositionsState>()(
             cash: effectiveCash,
             buyingPower: Math.max(0, effectiveEquity - usedMargin),
             portfolioValue: effectiveEquity,
-            longMarketValue: positionsMarketValue > 0 ? positionsMarketValue : (totalEquityUsd - totalAvailableUsd),
+            longMarketValue: positionsMarketValue > 0 ? positionsMarketValue : (adjustedTotalEquityUsd - adjustedTotalAvailableUsd),
             shortMarketValue: 0,
             initialMargin: usedMargin,
             maintenanceMargin: 0,
             unrealizedPnl: positionsUnrealizedPnl,
-            unrealizedPnlPct: totalEquityUsd > 0 ? (positionsUnrealizedPnl / totalEquityUsd) * 100 : 0,
+            unrealizedPnlPct: adjustedTotalEquityUsd > 0 ? (positionsUnrealizedPnl / adjustedTotalEquityUsd) * 100 : 0,
             isPaperTrading: isTestnet,
             tradingBlocked: false,
             accountBlocked: false,

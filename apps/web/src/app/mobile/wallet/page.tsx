@@ -636,8 +636,12 @@ export default function MobileWalletPage() {
     URL.revokeObjectURL(url)
   }
 
+  // V157 FIX: minHeight changed from '100dvh' to '100%' to match all other mobile pages.
+  // The '100dvh' conflicted with layout's <main> (flex:1 + overflowY:auto inside
+  // position:fixed). Also removed paddingBottom for navbar since the layout already
+  // handles navbar spacing via the flex boundary between <main> and <MobileNavBar>.
   return (
-    <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%', paddingBottom: 'calc(70px + env(safe-area-inset-bottom))' }}>
+    <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%' }}>
       {/* ── Header ── */}
       <div style={{
         padding: 'calc(env(safe-area-inset-top, 20px) + 12px) 16px 16px',

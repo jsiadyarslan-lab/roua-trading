@@ -397,9 +397,11 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Fill the entire main area including paddingBottom zone (MetaTrader style).
-         The navbar uses position:absolute;bottom:0 and overlays the bottom of the screen.
-         Chart extends behind the semi-transparent navbar for full-screen effect. */
+      /* Fill the entire main area. Chart extends visually behind the
+         semi-transparent navbar (MetaTrader style) for full-screen effect,
+         BUT the bottom 48px+safe-area is a touch-dead zone so the
+         lightweight-charts canvas cannot steal pointer events from the
+         MobileNavBar overlay above it. */
       position: 'absolute',
       top: 0,
       left: 0,
@@ -410,15 +412,21 @@ function ChartPageContent() {
     }}>
 
       {/* ═══════════════════════════════════════════════════
-          CHART — fills ENTIRE page (MetaTrader style)
-          Toolbar & pair info float on top as overlays
+          CHART — fills ENTIRE page visually (MetaTrader style)
+          BUT clip the bottom to prevent canvas touch capture
+          in the navbar zone. Visual bleed-through is preserved
+          via the semi-transparent navbar background.
           ═══════════════════════════════════════════════════ */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
+        /* FIX: Stop the chart canvas at navbar boundary so it cannot
+           capture touch/pointer events in the navbar area. The navbar
+           (z-index:50) sits visually on top with semi-transparent bg,
+           so the chart still *looks* full-screen behind it. */
+        bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
         direction: 'ltr',
       }}>
         <RouaChart
@@ -638,7 +646,7 @@ function ChartPageContent() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 45,
+                position: 'fixed', bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 45,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',

@@ -84,14 +84,31 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorY: 'contain',
               /* Padding for scrollable pages so content doesn't hide behind navbar.
-                 Chart page uses position:absolute which extends into padding area (MetaTrader style). */
-              paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+                 Chart page uses position:absolute which clips at navbar boundary. */
+              paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
             }}
           >
             {children}
           </main>
+          {/* Touch-interception shield — sits between <main> and navbar.
+              Prevents chart canvas (lightweight-charts pointer capture) from
+              stealing touch events in the navbar area. This invisible layer
+              at z-index:45 absorbs stray touches before they reach the chart,
+              while the navbar at z-index:50 still receives intended taps. */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              height: 'calc(48px + env(safe-area-inset-bottom, 0px))',
+              zIndex: 45,
+              pointerEvents: 'none',
+              touchAction: 'manipulation',
+            }}
+          />
           {/* Navbar — position:absolute bottom:0 guarantees it's at the screen bottom.
-              No flex layout dependency = no gap possible. */}
+              z-index:50 sits above the touch shield (z:45) and chart (z:auto). */}
           <MobileNavBar />
         </div>
       </AuthGuard>

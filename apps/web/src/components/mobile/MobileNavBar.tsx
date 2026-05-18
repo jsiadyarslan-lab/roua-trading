@@ -123,17 +123,21 @@ export default function MobileNavBar() {
           right: 0,
           zIndex: 50,
           pointerEvents: 'auto',
-          /* Icon row is exactly 56px. Safe-area padding is ADDED below it
-             so the gradient background covers the home-indicator zone on iPhones.
-             On Android (safe-area = 0) the total is just 56px — no extra space. */
-          boxSizing: 'content-box',
-          height: 56,
+          /* FIX: border-box so safe-area padding is INCLUDED in height,
+             not added on top. Total visible height = 48px on Android,
+             48+safe-area on iPhone — no extra space above the bar.
+             Was: content-box + height:56 + paddingBelow = ~90px on iPhone.
+             Now: border-box + height:48 + paddingBelow inside = ~82px on iPhone. */
+          boxSizing: 'border-box',
+          height: 'calc(48px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.92) 100%)',
-          backdropFilter: 'blur(60px) saturate(250%)',
-          WebkitBackdropFilter: 'blur(60px) saturate(250%)',
+          background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.95) 100%)',
+          backdropFilter: 'blur(40px) saturate(200%)',
+          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           borderTop: '0.5px solid rgba(0,212,255,0.15)',
-          boxShadow: '0 -4px 24px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.1)',
+          boxShadow: '0 -2px 16px rgba(0,0,0,0.3), 0 -1px 0 rgba(0,212,255,0.08)',
+          isolation: 'isolate',
+          touchAction: 'manipulation',
         }}
       >
         <div
@@ -141,7 +145,7 @@ export default function MobileNavBar() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-around',
-            height: 56,
+            height: 48,
             direction: 'rtl',
             pointerEvents: 'auto',
           }}
@@ -150,13 +154,15 @@ export default function MobileNavBar() {
             /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {
               const active = isActive(item.href)
+              /* FIX: Removed marginTop:-12 that pushed button above nav bar,
+                   making the total visible nav area ~102px. Now flat/in-line. */
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: -12, zIndex: 10, pointerEvents: 'auto' }}>
+                <div key={item.href} style={{ position: 'relative', marginTop: 0, zIndex: 10, pointerEvents: 'auto' }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
                     style={{
-                      width: 56, height: 56, borderRadius: '50%',
+                      width: 44, height: 44, borderRadius: '50%',
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF 0%, #00A8CC 50%, #0066AA 100%)'
                         : 'linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(0,168,204,0.1) 100%)',
@@ -164,8 +170,8 @@ export default function MobileNavBar() {
                         ? '2px solid rgba(0,212,255,0.8)'
                         : '1.5px solid rgba(0,212,255,0.4)',
                       boxShadow: active
-                        ? '0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.3)'
-                        : '0 4px 15px rgba(0,0,0,0.3), 0 0 10px rgba(0,212,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1)',
+                        ? '0 0 12px rgba(0,212,255,0.5), inset 0 1px 0 rgba(255,255,255,0.3)'
+                        : '0 2px 8px rgba(0,0,0,0.3), 0 0 6px rgba(0,212,255,0.15), inset 0 1px 0 rgba(255,255,255,0.1)',
                       display: 'flex', flexDirection: 'column',
                       alignItems: 'center', justifyContent: 'center',
                       gap: 0, cursor: 'pointer',
@@ -174,17 +180,17 @@ export default function MobileNavBar() {
                       pointerEvents: 'auto',
                     }}
                   >
-                    <Wallet size={28} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
+                    <Wallet size={22} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
                   </motion.button>
-                  {/* Neon glow ring */}
+                  {/* Neon glow ring — reduced blur */}
                   <div style={{
                     position: 'absolute',
-                    inset: -4,
+                    inset: -3,
                     borderRadius: '50%',
-                    background: 'radial-gradient(circle, rgba(0,212,255,0.3) 0%, transparent 70%)',
-                    filter: 'blur(8px)',
+                    background: 'radial-gradient(circle, rgba(0,212,255,0.25) 0%, transparent 70%)',
+                    filter: 'blur(5px)',
                     zIndex: -1,
-                    opacity: active ? 1 : 0.5,
+                    opacity: active ? 1 : 0.4,
                     transition: 'opacity 0.3s ease',
                   }} />
                 </div>
@@ -201,8 +207,8 @@ export default function MobileNavBar() {
                 whileTap={{ scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
                 style={{
-                  width: 64,
-                  height: 56,
+                  width: 56,
+                  height: 48,
                   flexShrink: 0,
                   position: 'relative',
                   background: 'transparent',
@@ -214,6 +220,7 @@ export default function MobileNavBar() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  touchAction: 'manipulation',
                 }}
               >
                 <div
@@ -231,7 +238,7 @@ export default function MobileNavBar() {
                   }}
                 >
                   <Icon
-                    size={28}
+                    size={22}
                     color={active ? '#00D4FF' : 'rgba(255,255,255,0.5)'}
                     strokeWidth={active ? 2.5 : 2}
                   />
@@ -315,7 +322,7 @@ export default function MobileNavBar() {
                 WebkitBackdropFilter: 'blur(50px) saturate(220%)',
                 borderRadius: '32px 32px 0 0',
                 borderTop: '1px solid rgba(0,212,255,0.25)',
-                paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+                paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
                 boxShadow: '0 -8px 40px rgba(0,0,0,0.6), 0 -2px 0 rgba(0,212,255,0.15)',
                 maxHeight: '85vh',
                 display: 'flex',

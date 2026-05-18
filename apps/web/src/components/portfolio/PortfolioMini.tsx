@@ -81,8 +81,13 @@ export function usePortfolioSummary() {
       return true
     })
 
-    // Exposure = total open positions market value / equity
-    // Use positions market value sum for a realistic exposure calculation
+    // V149 FIX: Use the backend's leverage-aware margin (account.initialMargin) instead of
+    // computing from positionsMarketValue (full notional = qty × price). For forex at 50:1
+    // leverage, positionsMarketValue could be $20K while the actual margin is only ~$400.
+    // Using positionsMarketValue as margin caused "الهامش المستخدم" to show the full notional
+    // value instead of the real margin, making free margin appear as $0.
+    const margin = Number(account?.initialMargin) > 0 ? Number(account.initialMargin) : 0
+    // positionsMarketValue is still computed for the Exposure display only (not margin)
     let positionsMarketValue = 0
     positions.forEach(p => {
       positionsMarketValue += Math.abs(Number(p.marketValue || 0))
@@ -90,7 +95,6 @@ export function usePortfolioSummary() {
     relevantPaperTrades.forEach(pt => {
       positionsMarketValue += Math.abs(pt.qty * (pt.currentPrice || pt.entryPrice || 0))
     })
-    const margin = balance > 0 ? positionsMarketValue : (balance - cash)
 
     let totalPnl = 0, totalPositions = 0, pnlPercent = 0
     let totalProfit = 0, totalLoss = 0

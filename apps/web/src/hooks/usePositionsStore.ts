@@ -408,10 +408,11 @@ export const usePositionsStore = create<PositionsState>()(
       // Fall back to current initialMargin ONLY if it looks like a backend value
       // (less than equity — the full notional is always > equity for leveraged positions).
       // If initialMargin > equity, it's definitely the WRONG old value (full notional).
+      // V149: Strengthened — also reject margin > 80% of equity as likely full-notional.
       const backendMargin = Number((currentAccount as any)._backendMargin) || 0
       const currentMargin = Number(currentAccount.initialMargin) || 0
-      // Heuristic: if margin > 50% of equity, it's the wrong (full notional) value
-      const isMarginReasonable = currentMargin > 0 && currentMargin <= newEquity * 0.5
+      // Heuristic: if margin > 80% of equity, it's the wrong (full notional) value
+      const isMarginReasonable = currentMargin > 0 && currentMargin <= newEquity * 0.8
       const initialMargin = backendMargin > 0
         ? backendMargin
         : isMarginReasonable
@@ -990,9 +991,24 @@ export const usePositionsStore = create<PositionsState>()(
           if (state.account) {
             const accEquity = Number(state.account.equity) || 0
             const accMargin = Number(state.account.initialMargin) || 0
+            // V149 FIX: Extended guard — clear margin if it's unreasonable.
+            // Previously only checked margin > equity (e.g., $20K margin on $10K equity).
+            // But even margin > 80% of equity is suspicious for leveraged accounts
+            // (forex at 50:1 means margin should be ~4% of notional, not 80% of equity).
+            // If margin seems wrong, clear it so fetchAccount() will set the correct value.
             if (accMargin > accEquity && accEquity > 0) {
               console.warn(
-                `[PositionsStore] V148B: Clearing stale margin $${accMargin} > equity $${accEquity} — was full notional, not real margin`
+                `[PositionsStore] V149: Clearing stale margin $${accMargin} > equity $${accEquity} — was full notional, not real margin`
+              )
+              state.account.initialMargin = 0
+              ;(state.account as any)._backendMargin = 0
+            } else if (accMargin > 0 && accEquity > 0 && accMargin > accEquity * 0.8) {
+              // V149: If margin > 80% of equity, it's likely the wrong value.
+              // Real margin for forex (50:1) should be ~2% of equity, and for
+              // crypto (1:1) it could be up to ~50% if all equity is in one position.
+              // 80%+ is almost certainly a full-notional value, not real margin.
+              console.warn(
+                `[PositionsStore] V149: Clearing suspicious margin $${accMargin} > 80% of equity $${accEquity} — likely full notional, not real margin`
               )
               state.account.initialMargin = 0
               ;(state.account as any)._backendMargin = 0

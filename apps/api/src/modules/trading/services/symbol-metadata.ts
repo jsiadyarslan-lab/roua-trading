@@ -44,7 +44,7 @@ export interface SymbolMetadata {
 // ═══════════════════════════════════════════════════════════
 
 const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
-  // ── Forex Majors ──
+  // ── Forex Majors (USD pairs) ──
   'EUR/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
   'GBP/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
   'USD/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
@@ -57,6 +57,9 @@ const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
   'GBP/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
   'EUR/CHF': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
   'AUD/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
+  // V149: USDT-suffix forex pairs are now handled automatically by
+  // getSymbolMetadata() which normalizes /USDT → /USD for lookup.
+  // No need to duplicate entries here — EUR/USDT will match EUR/USD.
 
   // ── Commodities ──
   'XAU/USD': { assetClass: AssetClass.COMMODITY, contractSize: 100, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 20 },
@@ -114,14 +117,48 @@ export function getSymbolMetadata(symbol: string): SymbolMetadata {
     return { ...DEFAULT_METADATA, ...partial };
   }
 
+  // ── V149 FIX: Normalize USDT → USD for lookup ──
+  // Binance-style exchanges use EUR/USDT, XAU/USDT etc.
+  // These should be treated the same as EUR/USD, XAU/USD.
+  // Without this, EUR/USDT fell through to CRYPTO default (1:1 leverage)
+  // causing calculateMargin() to return the FULL NOTIONAL instead of
+  // notional/50 — the root cause of "مستخدم" showing $20K instead of ~$400.
+  if (upper.endsWith('/USDT')) {
+    const usdEquivalent = upper.replace('/USDT', '/USD');
+    if (SYMBOL_REGISTRY[usdEquivalent]) {
+      const partial = SYMBOL_REGISTRY[usdEquivalent];
+      return { ...DEFAULT_METADATA, ...partial };
+    }
+  }
+
   // 2. Heuristic: JPY pairs → forex
   if (upper.includes('JPY')) {
     return { ...FOREX_DEFAULT, pipSize: 0.01, priceDecimals: 3 };
   }
 
-  // 3. Heuristic: 7-char XXX/YYY format → forex
-  if (upper.length === 7 && upper[3] === '/') {
-    return { ...FOREX_DEFAULT };
+  // 3. Heuristic: XXX/YYY or XXX/YYYY format → forex
+  // V149: Extended from 7-char only to also match 8+ char pairs (e.g., EUR/USDT)
+  // A pair has format BASE/QUOTE where BASE is 3 chars and QUOTE is 3+ chars
+  // Known fiat base currencies → always forex regardless of quote
+  const pairMatch = upper.match(/^([A-Z]{3})\/([A-Z]{3,})$/);
+  if (pairMatch) {
+    const base = pairMatch[1];
+    const quote = pairMatch[2];
+    // Known fiat currencies that appear as base in forex pairs
+    const FIAT_CURRENCIES = ['EUR', 'GBP', 'USD', 'AUD', 'NZD', 'CAD', 'CHF', 'JPY',
+      'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'PLN', 'CZK', 'HUF', 'TRY', 'ZAR',
+      'MXN', 'BRL', 'RUB', 'CNY', 'INR', 'KRW', 'THB'];
+    // If base is fiat → forex pair (e.g., USD/SGD, EUR/USDT)
+    if (FIAT_CURRENCIES.includes(base)) {
+      return { ...FOREX_DEFAULT, pipSize: quote === 'JPY' ? 0.01 : 0.0001, priceDecimals: quote === 'JPY' ? 3 : 5 };
+    }
+    // If quote is fiat or stablecoin and base isn't known crypto → forex
+    const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT',
+      'AVAX', 'LINK', 'MATIC', 'UNI', 'ATOM', 'LTC', 'SHIB', 'APE', 'ARB', 'OP',
+      'FIL', 'NEAR', 'FTM', 'ALGO', 'VET', 'SAND', 'MANA', 'AXS', 'CRV'];
+    if (!CRYPTO_BASES.includes(base) && ['USD', 'USDT', 'BUSD', 'USDC', 'CHF', 'CAD'].includes(quote)) {
+      return { ...FOREX_DEFAULT };
+    }
   }
 
   // 4. Heuristic: Gold/Silver → commodity

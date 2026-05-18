@@ -189,7 +189,15 @@ export default function MobileWalletPage() {
         const mobileMarketValue = mobilePositions.reduce(
           (sum: number, p: any) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)), 0,
         )
-        const usedMargin = totalEquityUsd - totalAvailableUsd || mobileMarketValue
+        // V149 FIX: Use totalUsedMargin from backend (leverage-aware) instead of
+        // falling back to mobileMarketValue (full notional = qty × price). For forex
+        // at 50:1, mobileMarketValue would be $20K instead of the real margin ~$400.
+        // The || fallback previously used mobileMarketValue when totalEquityUsd - totalAvailableUsd = 0,
+        // which happened for paper trading where available ≈ equity.
+        const totalUsedMargin = balanceData.data.totalUsedMargin || 0
+        const usedMargin = totalUsedMargin > 0
+          ? totalUsedMargin
+          : (totalEquityUsd - totalAvailableUsd > 0 ? totalEquityUsd - totalAvailableUsd : 0)
 
         setAccount({
           equity: totalEquityUsd + mobilePnl,

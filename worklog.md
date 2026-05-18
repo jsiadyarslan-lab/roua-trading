@@ -740,3 +740,29 @@ Stage Summary:
 - V145 Fix: Source-aware position counting in RiskGatekeeper + fixed agent defaults
 - Admin dashboard now auto-syncs global limit with executor+agent limits
 - All changes pushed to GitHub (commit b5b99ba1d)
+---
+Task ID: V145-b
+Agent: Main Agent
+Task: Fix Agent not executing any trades despite M30+ council briefs
+
+Work Log:
+- Investigated agent execution flow from cycle start to order dispatch
+- Found ROOT CAUSE #1: StrategicCouncilModule was NOT imported in AutonomousTraderAgentModule
+  - councilService was injected as @Optional() → always null
+  - Agent could never see M30+ council briefs → always fell to "no briefs" branch
+  - SmartExecutor worked because it explicitly imports StrategicCouncilModule
+- Found ROOT CAUSE #2: OrderExecutorService.execute() pre-flight check was too strict
+  - Blocked ALL positions on same symbol regardless of direction
+  - If SmartExecutor had BUY on BTC/USDT, Agent couldn't open SELL (hedge) either
+- Fix #1: Added forwardRef(() => StrategicCouncilModule) to agent.module.ts imports
+  - Removed @Optional from councilService injection
+- Fix #2: Made OrderExecutor check direction-aware (same as agent.service.ts logic)
+  - Same direction = duplicate = BLOCKED
+  - Different direction = hedge = ALLOWED
+  - Own position (any direction) = BLOCKED
+- Build succeeded, pushed to GitHub (commit 7ca746bb9)
+
+Stage Summary:
+- Agent was completely blind to council briefs because the module wasn't imported
+- OrderExecutor was blocking hedges unnecessarily
+- Both fixes deployed — Agent should now execute M30+ trades on next deployment

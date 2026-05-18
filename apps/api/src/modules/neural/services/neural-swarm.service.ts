@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Neural Swarm Agent Coordination
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { ForbiddenException, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -176,6 +176,14 @@ export class NeuralSwarmService {
   async stopSwarm(userId: string, swarmId: string): Promise<SwarmResult | null> {
     const swarm = this.activeSwarms.get(swarmId);
     if (!swarm) return null;
+
+    // V155 SECURITY FIX: Verify swarm ownership before stopping.
+    // Previously, any user could stop any other user's swarm by providing the swarmId.
+    // The swarmOwners Map exists for this purpose but wasn't used here.
+    const owner = this.swarmOwners.get(swarmId);
+    if (owner && owner !== userId) {
+      throw new ForbiddenException('غير مصرح بإيقاف هذا السرب');
+    }
 
     swarm.status = 'STOPPED';
     swarm.agents.forEach((a) => {

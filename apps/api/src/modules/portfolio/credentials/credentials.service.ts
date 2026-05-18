@@ -335,6 +335,14 @@ export class CredentialsService {
       throw new NotFoundException('بيانات الاعتماد غير موجودة');
     }
 
+    // V155 SECURITY FIX: IDOR — verify credential ownership before deleting.
+    // Previously, any authenticated user could delete ANY other user's credential
+    // by guessing/scanning the UUID. This is the same check that updateCredential
+    // already had, but was missing here.
+    if (credential.userId !== userId) {
+      throw new ForbiddenException('غير مصرح بحذف بيانات الاعتماد هذه');
+    }
+
     await this.prisma.exchangeCredential.delete({
       where: { id: credentialId },
     });

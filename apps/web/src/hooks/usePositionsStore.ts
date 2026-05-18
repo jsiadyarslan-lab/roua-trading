@@ -437,14 +437,29 @@ export const usePositionsStore = create<PositionsState>()(
           const usedMargin = totalEquityUsd - totalAvailableUsd || positionsMarketValue
 
           // ═══════════════════════════════════════════════════════════════
-          // FIX: LIVE EQUITY CALCULATION
-          // equity = cash + positions_value + unrealizedPnl
-          // For paper-trading: totalEquityUsd may be 0, so we use
-          // paperBalance from agent settings + positions P&L instead.
+          // FIX V140B: CORRECT BALANCE/EQUITY CALCULATION
+          //
+          // In trading:
+          //   Balance = total wallet balance (free + used/margin) from exchange
+          //   Equity  = Balance + unrealized P&L
+          //   P&L     = Equity - Balance
+          //
+          // Previously:
+          //   cash = totalAvailableUsd (free only, NOT including used margin)
+          //   equity = totalAvailableUsd + positionsMarketValue + unrealizedPnl
+          //   This made equity - cash = positionMarketValue + PnL (NOT just PnL!)
+          //   User saw: Balance $16,383, Equity $18,856, P&L $11.93
+          //   Gap = $2,472 but P&L = $11.93 → CONFUSING
+          //
+          // Now:
+          //   cash = totalEquityUsd (total wallet balance = free + used)
+          //   equity = totalEquityUsd + positionsUnrealizedPnl
+          //   This way: equity - cash = P&L (consistent!)
+          //   User sees: Balance $18,844, Equity $18,856, P&L $12 ✓
           // ═══════════════════════════════════════════════════════════════
           const hasPaperOnly = exchanges.some((e: any) => e.exchange === 'paper-trading')
           let effectiveEquity = totalEquityUsd
-          let effectiveCash = totalAvailableUsd
+          let effectiveCash = totalEquityUsd  // V140B: Use total balance, not just available
 
           if (hasPaperOnly && totalEquityUsd <= 0) {
             // FIX: Paper trading — use default paper balance from agent settings
@@ -466,9 +481,11 @@ export const usePositionsStore = create<PositionsState>()(
             }
             // Add positions P&L to the paper balance
             effectiveEquity += positionsUnrealizedPnl
-          } else if (positionsMarketValue > 0 || positionsUnrealizedPnl !== 0) {
-            // FIX: For real accounts, add position unrealized P&L to equity
-            effectiveEquity = totalAvailableUsd + positionsMarketValue + positionsUnrealizedPnl
+          } else {
+            // V140B: For real accounts, equity = totalBalance + unrealizedPnl
+            // (totalEquityUsd already includes used margin from exchange)
+            effectiveEquity = totalEquityUsd + positionsUnrealizedPnl
+            effectiveCash = totalEquityUsd  // Total wallet balance (free + used)
           }
 
           const account = {

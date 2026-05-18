@@ -109,6 +109,51 @@ export function AlpacaPositions() {
   const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
+  // V141: Closed positions from the database API (not just localStorage paper trades)
+  const [dbClosedPositions, setDbClosedPositions] = useState<any[]>([])
+  const [closedLoading, setClosedLoading] = useState(false)
+
+  // V141: Fetch closed positions from the database API when the user opens the section
+  const fetchClosedPositions = async () => {
+    if (closedLoading) return
+    setClosedLoading(true)
+    try {
+      const res = await fetch('/api/trading/positions/history?limit=50')
+      if (res.ok) {
+        const data = await res.json()
+        const positions = Array.isArray(data) ? data : (data.data || data.positions || [])
+        setDbClosedPositions(positions)
+      }
+    } catch { /* silent */ }
+    setClosedLoading(false)
+  }
+
+  // V141: Translate closeReason to Arabic for display
+  function getCloseReasonLabel(reason: string | null | undefined): { label: string; color: string } | null {
+    if (!reason) return null
+    const r = reason.toUpperCase()
+    if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: 'وقف خسارة', color: T.danger }
+    if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: 'أخذ ربح', color: T.success }
+    if (r === 'MANUAL') return { label: 'يدوي', color: T.text2 }
+    if (r.includes('STALE') || r.includes('AUTO')) return { label: 'تلقائي', color: T.amber }
+    if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: 'استراتيجي', color: T.purple }
+    if (r.includes('EXCHANGE_SYNC')) return { label: 'مزامنة', color: T.cyan }
+    if (r === 'FORCE_CLOSE') return { label: 'إجباري', color: T.danger }
+    return { label: reason, color: T.text3 }
+  }
+
+  // V141: Format duration between two dates
+  function formatDuration(openedAt: string | Date, closedAt: string | Date): string {
+    const start = new Date(openedAt).getTime()
+    const end = new Date(closedAt).getTime()
+    if (isNaN(start) || isNaN(end)) return '—'
+    const diffMs = end - start
+    const hours = Math.floor(diffMs / 3600000)
+    const minutes = Math.floor((diffMs % 3600000) / 60000)
+    if (hours > 24) return `${Math.floor(hours / 24)}ي ${hours % 24}س`
+    if (hours > 0) return `${hours}س ${minutes}د`
+    return `${minutes}د`
+  }
 
   // Collect symbols from all sources to avoid duplicates
   const seenSymbols = new Set<string>()
@@ -747,11 +792,16 @@ export function AlpacaPositions() {
         </div>
       )}
 
-      {/* Closed Trades Section */}
-      {closedTrades.length > 0 && (
+      {/* V141: Closed Trades Section — now fetches from DATABASE, not just localStorage */}
+      {(dbClosedPositions.length > 0 || closedTrades.length > 0) && (
         <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
           <button
-            onClick={() => setShowClosed(!showClosed)}
+            onClick={() => {
+              const newShow = !showClosed
+              setShowClosed(newShow)
+              // V141: Fetch from database when opening the section
+              if (newShow && dbClosedPositions.length === 0) fetchClosedPositions()
+            }}
             style={{
               width: '100%', padding: '8px 10px', background: 'transparent', border: 'none',
               color: T.text2, cursor: 'pointer', display: 'flex', alignItems: 'center',
@@ -760,54 +810,135 @@ export function AlpacaPositions() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <History size={12} />
-              الصفقات المغلقة ({closedTrades.length})
+              الصفقات المغلقة ({dbClosedPositions.length + closedTrades.length})
             </div>
             <span style={{ fontSize: 8, transform: showClosed ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }}>▼</span>
           </button>
 
           {showClosed && (
-            <div className="custom-scrollbar" style={{ maxHeight: 200, overflowY: 'auto', padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {closedTrades.map((ct: ClosedPaperTrade) => {
-                const isLong = ct.side === 'long'
-                const pnlUp = ct.realizedPnl >= 0
-                // FIX: Show source badge for closed trades too
-                const closedSourceBadge = getTradeSourceLabel(true, ct.source)
+            <div className="custom-scrollbar" style={{ maxHeight: 300, overflowY: 'auto', padding: '0 8px 8px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {/* V141: Database closed positions — the PRIMARY source */}
+              {dbClosedPositions.map((cp: any) => {
+                const isLong = cp.side === 'BUY'
+                const entryPrice = Number(cp.entryPrice) || 0
+                const exitPrice = Number(cp.exitPrice) || 0
+                const realizedPnl = Number(cp.realizedPnl) || 0
+                const stopLoss = Number(cp.stopLoss) || 0
+                const takeProfit = Number(cp.takeProfit) || 0
+                const quantity = Number(cp.quantity) || 0
+                const pnlUp = realizedPnl >= 0
+                const sourceBadge = getTradeSourceLabel(cp.exchange === 'paper-trading', cp.source, undefined, cp.exchange)
+                const closeReasonBadge = getCloseReasonLabel(cp.closeReason)
+                const duration = cp.openedAt && cp.closedAt ? formatDuration(cp.openedAt, cp.closedAt) : '—'
+                const closedDate = cp.closedAt
+                  ? new Date(cp.closedAt).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : ''
+
                 return (
-                  <div key={ct.id} style={{
+                  <div key={cp.id} style={{
                     borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
-                    background: T.cardAlt, padding: '6px 8px', display: 'flex', alignItems: 'center',
-                    justifyContent: 'space-between', gap: 8,
+                    background: T.cardAlt, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {isLong ? '⬆' : '⬇'}
-                      </span>
-                      <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
-                      {closedSourceBadge && (
-                        <span style={{ padding: '1px 4px', borderRadius: 999, background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closedSourceBadge.label}</span>
-                      )}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <span style={{ fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {fmtPricePlain(ct.entryPrice, ct.symbol)} → {fmtPricePlain(ct.exitPrice, ct.symbol)}
-                      </span>
+                    {/* Row 1: Symbol, Direction, Source, Close Reason, PnL */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                          {isLong ? '⬆' : '⬇'}
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{cp.symbol}</span>
+                        {sourceBadge && (
+                          <span style={{ padding: '1px 4px', borderRadius: 999, background: sourceBadge.bg, border: `1px solid ${sourceBadge.border}`, color: sourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{sourceBadge.label}</span>
+                        )}
+                        {/* V141: Close Reason Badge */}
+                        {closeReasonBadge && (
+                          <span style={{ padding: '1px 4px', borderRadius: 999, background: `${closeReasonBadge.color}18`, border: `1px solid ${closeReasonBadge.color}30`, color: closeReasonBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closeReasonBadge.label}</span>
+                        )}
+                      </div>
                       <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
-                        {fmtPnl(ct.realizedPnl)}
+                        {fmtPnl(realizedPnl)}
                       </span>
+                    </div>
+                    {/* Row 2: Entry → Exit, SL, TP, Qty, Duration */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span>
+                        دخول {fmtPricePlain(entryPrice, cp.symbol)} → خروج {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
+                      </span>
+                      {stopLoss > 0 && <span style={{ color: T.danger }}>SL {fmtPricePlain(stopLoss, cp.symbol)}</span>}
+                      {takeProfit > 0 && <span style={{ color: T.success }}>TP {fmtPricePlain(takeProfit, cp.symbol)}</span>}
+                      <span>{quantity}</span>
+                      <span>{duration}</span>
+                      <span>{closedDate}</span>
                     </div>
                   </div>
                 )
               })}
-              <button
-                onClick={clearClosedTrades}
-                style={{
-                  padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
-                  color: T.text3, borderRadius: 6, cursor: 'pointer', fontSize: 7,
-                  fontFamily: "'Cairo', sans-serif", fontWeight: 700, alignSelf: 'center',
-                }}
-              >
-                مسح السجل
-              </button>
+
+              {/* V141: Also show localStorage paper trades (for backwards compatibility) */}
+              {closedTrades.map((ct: ClosedPaperTrade) => {
+                // Skip if this trade is already shown from the DB
+                const alreadyInDb = dbClosedPositions.some((cp: any) =>
+                  cp.symbol?.replace('/', '') === ct.symbol.replace('/', '') &&
+                  Math.abs(Number(cp.entryPrice) - ct.entryPrice) < 0.01
+                )
+                if (alreadyInDb) return null
+
+                const isLong = ct.side === 'long'
+                const pnlUp = ct.realizedPnl >= 0
+                const closedSourceBadge = getTradeSourceLabel(true, ct.source)
+                return (
+                  <div key={ct.id} style={{
+                    borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
+                    background: T.cardAlt, padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: 4,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <span style={{ fontSize: 9, fontWeight: 900, color: isLong ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                          {isLong ? '⬆' : '⬇'}
+                        </span>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{ct.symbol}</span>
+                        {closedSourceBadge && (
+                          <span style={{ padding: '1px 4px', borderRadius: 999, background: closedSourceBadge.bg, border: `1px solid ${closedSourceBadge.border}`, color: closedSourceBadge.color, fontSize: 5.5, fontWeight: 800 }}>{closedSourceBadge.label}</span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 900, color: pnlUp ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {fmtPnl(ct.realizedPnl)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
+                      <span>
+                        دخول {fmtPricePlain(ct.entryPrice, ct.symbol)} → خروج {fmtPricePlain(ct.exitPrice, ct.symbol)}
+                      </span>
+                      {ct.sl ? <span style={{ color: T.danger }}>SL {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
+                      {ct.tp ? <span style={{ color: T.success }}>TP {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
+                      <span>{ct.qty}</span>
+                    </div>
+                  </div>
+                )
+              })}
+
+              <div style={{ display: 'flex', gap: 6, justifyContent: 'center' }}>
+                <button
+                  onClick={fetchClosedPositions}
+                  disabled={closedLoading}
+                  style={{
+                    padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
+                    color: T.text3, borderRadius: 6, cursor: closedLoading ? 'wait' : 'pointer', fontSize: 7,
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                  }}
+                >
+                  {closedLoading ? 'جارٍ التحديث...' : 'تحديث'}
+                </button>
+                <button
+                  onClick={clearClosedTrades}
+                  style={{
+                    padding: '4px 8px', background: 'transparent', border: `1px solid ${T.border}`,
+                    color: T.text3, borderRadius: 6, cursor: 'pointer', fontSize: 7,
+                    fontFamily: "'Cairo', sans-serif", fontWeight: 700,
+                  }}
+                >
+                  مسح المحلية
+                </button>
+              </div>
             </div>
           )}
         </div>

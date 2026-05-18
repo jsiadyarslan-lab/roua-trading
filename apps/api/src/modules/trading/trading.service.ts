@@ -816,6 +816,7 @@ export class TradingService {
               closedAt: new Date(),
               realizedPnl: posRealizedPnl, // No PnL change since execution failed
               exitPrice: posEntryPrice, // V140: Fallback to entry price when execution failed
+              closeReason: request.closeReason || 'FORCE_CLOSE', // V141
             },
           });
           this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
@@ -919,6 +920,7 @@ export class TradingService {
             closedAt: new Date(),
             realizedPnl: posRealizedPnl + pnl,
             exitPrice, // V140: Store the actual close price
+            closeReason: request.closeReason || 'MANUAL', // V141: Default to MANUAL if not specified
             version: positionVersion + 1,
           },
         });
@@ -1246,6 +1248,7 @@ export class TradingService {
           closedAt: new Date(),
           realizedPnl: posRealizedPnl + pnl,
           exitPrice: currentPrice, // V140: Store the actual close price
+          closeReason: reason ? reason.split(' ').slice(0, 3).join('_').toUpperCase() : 'FORCE_CLOSE', // V141: Extract reason type from force-close reason string
         },
       });
 

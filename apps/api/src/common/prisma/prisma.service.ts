@@ -100,6 +100,11 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         column: 'exitPrice',
         sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "exitPrice" Decimal(18,8)`,
       },
+      {
+        table: 'Position',
+        column: 'closeReason',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "closeReason" TEXT`,
+      },
     ];
 
     for (const migration of migrations) {

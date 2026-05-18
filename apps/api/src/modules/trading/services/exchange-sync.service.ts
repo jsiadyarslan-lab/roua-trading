@@ -328,6 +328,8 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
             currentPrice,
             unrealizedPnl: 0,
             realizedPnl: (Number(position.realizedPnl) || 0) + pnl,
+            exitPrice: currentPrice, // V141: Set exitPrice for exchange sync closes
+            closeReason: 'EXCHANGE_SYNC', // V141: Position was closed via exchange reconciliation
             source: 'exchange_sync',
           },
         });

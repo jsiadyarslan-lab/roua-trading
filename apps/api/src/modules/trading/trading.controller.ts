@@ -313,6 +313,7 @@ export class TradingController {
     const request: ClosePositionRequest = {
       positionId: body.positionId,
       quantity: body.quantity != null ? Number(body.quantity) : undefined,
+      closeReason: 'MANUAL', // V141: User manually closed the position
     };
 
     if (!request.positionId) {

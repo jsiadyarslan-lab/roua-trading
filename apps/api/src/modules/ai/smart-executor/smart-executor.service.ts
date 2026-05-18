@@ -1623,8 +1623,14 @@ export class SmartExecutorService implements OnModuleDestroy {
     const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
     let openPositionsCount = 0;
     try {
+      // V141 FIX: Only count THIS system's own positions (smart_executor + auto_paper).
+      // Previously counted ALL positions including Agent positions, which meant:
+      //   1. Agent's 5 positions blocked the Executor from opening any trades
+      //   2. If Agent had 15+ positions, the Executor was completely locked out
+      //   3. The Executor thought it was "full" when it had zero of its own positions
+      // Now: Each system counts only its own positions for its own limit.
       openPositionsCount = await this.prisma.position.count({
-        where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
+        where: { userId, status: 'OPEN', entryPrice: { gt: 0 }, source: { in: ['smart_executor', 'auto_paper'] } },
       });
     } catch (dbErr: any) {
       this.logger.warn(`⚔️ V134 Failed to count open positions for ${userId}: ${dbErr.message}`);
@@ -1646,8 +1652,12 @@ export class SmartExecutorService implements OnModuleDestroy {
         // stale threshold meant the executor was stuck with one trade for hours,
         // making the platform look broken to new users testing paper trading.
         const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+        // V141 FIX: Only evict THIS system's own stale positions.
+        // Previously, the Executor would close the Agent's positions to make room
+        // for its own trades — the Agent never knew why its positions disappeared.
+        // Now: Each system only evicts its own stale positions.
         const oldestPosition = await this.prisma.position.findFirst({
-          where: { userId, status: 'OPEN', openedAt: { lt: oneHourAgo } },
+          where: { userId, status: 'OPEN', openedAt: { lt: oneHourAgo }, source: { in: ['smart_executor', 'auto_paper'] } },
           orderBy: { openedAt: 'asc' },
         });
 
@@ -1662,8 +1672,10 @@ export class SmartExecutorService implements OnModuleDestroy {
           try {
             // FIX: Use closePositionWithRetry for optimistic locking support.
             // No more direct DB bypass — TradingService is the SINGLE source of truth.
+            // V141: Pass closeReason so it's stored on the Position record
             await this.tradingService.closePositionWithRetry(userId, {
               positionId: oldestPosition.id,
+              closeReason: 'AUTO_STALE', // V141: Position auto-closed because it was stale (>1h old)
             });
 
             // Calculate PnL for user daily tracking

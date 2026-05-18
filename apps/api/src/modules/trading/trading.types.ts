@@ -101,6 +101,7 @@ export interface PlaceOrderRequest {
 export interface ClosePositionRequest {
   positionId: string;
   quantity?: number; // partial close if less than position quantity
+  closeReason?: string; // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, etc.)
 }
 
 export interface RiskCheckResult {

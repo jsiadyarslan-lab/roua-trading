@@ -374,6 +374,7 @@ model Position {
   entryPrice     Decimal            @default(0) @db.Decimal(18, 8)
   currentPrice   Decimal?           @db.Decimal(18, 8)
   exitPrice      Decimal?           @db.Decimal(18, 8) // V140: Actual close price when position is closed
+  closeReason    String?             // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, EXCHANGE_SYNC, LIQUIDATED)
   unrealizedPnl  Decimal            @default(0) @db.Decimal(18, 4)
   realizedPnl    Decimal            @default(0) @db.Decimal(18, 4)
   stopLoss       Decimal?           @db.Decimal(18, 8)

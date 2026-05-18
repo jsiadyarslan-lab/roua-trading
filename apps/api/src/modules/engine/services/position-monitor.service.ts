@@ -89,18 +89,22 @@ export class PositionMonitorService {
       //   3. Smart Executor "only 1 trade" bug — first position stays open forever,
       //      blocking all new trades when user hits maxOpenPositions
       //
-      // Now: ALL positions are monitored. Paper-trading positions get simulated
-      // closes via TradingService (which routes to PaperTradingAdapter), and
-      // real-exchange positions get proper exchange closes.
+      // Now: ALL positions are monitored for SL/TP using real prices.
       //
-      // Phantom positions (zero-value/dust) are still filtered out via the
-      // entryPrice > 0 check below.
+      // V141 FIX: Skip positions with source='agent' — the Agent monitors its
+      // own positions via _monitorOpenPositions (every 60s). Having both systems
+      // monitor the same positions causes:
+      //   1. Race conditions (double-close attempts, OPTIMISTIC_LOCK_FAILURE errors)
+      //   2. Trailing stop overrides (Position Monitor modifies Agent position SL)
+      //   3. Attribution confusion (which system triggered the close?)
+      // Each system manages its own positions independently.
       let positions: any[];
       try {
         positions = await this.prisma.position.findMany({
           where: {
             status: 'OPEN',
             entryPrice: { gt: 0 }, // Filter out phantom positions (zero-price dust)
+            source: { not: 'agent' }, // V141: Agent manages its own positions
           },
         });
       } catch (dbError: any) {
@@ -437,6 +441,7 @@ export class PositionMonitorService {
   ): Promise<void> {
     try {
       // FIX: Use closePositionWithRetry + convert Decimal to number
+      // V141: Pass closeReason so it's stored on the Position record
       await this.tradingService.closePositionWithRetry(
         position.userId,
         {
@@ -444,6 +449,7 @@ export class PositionMonitorService {
           quantity: typeof position.quantity?.toNumber === 'function' 
             ? position.quantity.toNumber() 
             : Number(position.quantity),
+          closeReason: reason, // V141: STOP_LOSS or TAKE_PROFIT
         },
         undefined,
         undefined,

@@ -1542,13 +1542,40 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       // ── COUNCIL-BASED EXECUTION: Execute agent briefs from the Council ──
       for (const brief of agentBriefs) {
         try {
-          // Check if user already has position for this pair
+          // V141 FIX: Check for same-direction position only (not just any position).
+          // Previously, if the Smart Executor had a BUY on BTC/USDT, the Agent
+          // was blocked from opening its own BTC/USDT BUY on M30/H1 timeframes.
+          // The Agent effectively became subordinate to the Executor.
+          //
+          // Now: The Agent skips only if there's an EXISTING same-direction position
+          // on the same symbol — because two BUY positions on BTC/USDT would be
+          // a true duplicate. But if the Executor has BUY and the Agent wants SELL
+          // (or vice versa), that's a hedge and is allowed.
+          //
+          // If the existing position is from the Agent itself, skip regardless of direction
+          // (the Agent shouldn't open two positions on the same pair).
           const existingPosition = await this.prisma.position.findFirst({
             where: { userId, symbol: brief.pair, status: 'OPEN' },
           });
           if (existingPosition) {
-            this.logger.debug(`🧠 Skipping brief ${brief.id} — existing open position for ${brief.pair}`);
-            continue;
+            const existingSide = existingPosition.side; // 'BUY' or 'SELL'
+            const briefSide = brief.direction; // 'BUY' or 'SELL'
+            const isOwnPosition = existingPosition.source === 'agent';
+
+            // Skip if: same direction (duplicate) OR our own position (any direction)
+            if (isOwnPosition || existingSide === briefSide) {
+              this.logger.debug(
+                `🧠 Skipping brief ${brief.id} — ${isOwnPosition ? 'own' : 'same-direction'} position for ${brief.pair} ` +
+                `(existing: ${existingSide}/${existingPosition.source}, brief: ${briefSide})`
+              );
+              continue;
+            }
+
+            // Different direction from another system — this is a hedge, allow it
+            this.logger.debug(
+              `🧠 Hedge allowed: ${brief.pair} has ${existingSide}/${existingPosition.source} position, ` +
+              `opening ${briefSide} (different direction)`
+            );
           }
 
           // Check confidence threshold (use agent-specific minimum)
@@ -2215,8 +2242,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             // lock check, no exchange reconciliation, no audit log.
             // closePositionWithRetry() handles all of this properly.
             if (this.tradingService) {
+              // V141: Pass closeReason so it's stored on the Position record
               const result = await this.tradingService.closePositionWithRetry(userId, {
                 positionId: position.id,
+                closeReason: reason, // STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
               });
 
               // Calculate PnL for daily tracking
@@ -2273,6 +2302,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                   unrealizedPnl: pnl,
                   realizedPnl: (Number(position.realizedPnl) || 0) + pnl, // V140B: Set realizedPnl
                   exitPrice: currentPrice, // V140B: Set exitPrice
+                  closeReason: reason, // V141: STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
                   closedAt: new Date(),
                 },
               });

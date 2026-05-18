@@ -677,12 +677,19 @@ export const usePositionsStore = create<PositionsState>()(
           //   This way: equity - cash = P&L (consistent!)
           //   User sees: Balance $18,844, Equity $18,856, P&L $12 ✓
           // ═══════════════════════════════════════════════════════════════
-          const hasPaperOnly = exchanges.some((e: any) => e.exchange === 'paper-trading')
+          // V163 CRITICAL FIX: Use .every() NOT .some()!
+          // .some() was TRUE for users with BOTH real+paper exchanges,
+          // causing the $10,000 paper balance fallback to override
+          // the exchangeUnavailable flag. This meant users with a
+          // FAILED Binance account still saw the paper balance ($12,342.85)
+          // instead of the "Exchange unavailable" error.
+          // .every() = TRUE only when user has ONLY paper trading.
+          const hasOnlyPaperExchanges = exchanges.every((e: any) => e.exchange === 'paper-trading')
           // V158: Use adjustedTotalEquityUsd which properly handles failed exchange balances
           let effectiveEquity = adjustedTotalEquityUsd
           let effectiveCash = adjustedTotalEquityUsd  // V140B: Use total balance, not just available
 
-          if (hasPaperOnly && adjustedTotalEquityUsd <= 0) {
+          if (hasOnlyPaperExchanges && adjustedTotalEquityUsd <= 0) {
             // FIX: Paper trading — use default paper balance from agent settings
             // or $10,000 as the standard paper trading balance.
             // This prevents the agent/bot from seeing $0 and refusing to trade.
@@ -700,7 +707,7 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveEquity = 10000 + positionsUnrealizedPnl
               effectiveCash = 10000
             }
-          } else if (hasPaperOnly) {
+          } else if (hasOnlyPaperExchanges) {
             // V147 FIX: Backend now returns equity = balance + unrealizedPnL for paper-trading.
             // Do NOT add positionsUnrealizedPnl again — it would double-count the P&L!
             // For paper: effectiveEquity = totalEquityUsd (already includes PnL from backend)
@@ -762,7 +769,7 @@ export const usePositionsStore = create<PositionsState>()(
           // For real accounts: Accept even if equity is 0 temporarily.
           // ═══════════════════════════════════════════════════════════════
           const hasDecryptionError2 = exchanges.some((e: any) => e.error)
-          const hasValidData = effectiveEquity > 0 || hasPaperOnly || !hasDecryptionError2
+          const hasValidData = effectiveEquity > 0 || hasOnlyPaperExchanges || !hasDecryptionError2
           if (hasValidData) {
             return
           }

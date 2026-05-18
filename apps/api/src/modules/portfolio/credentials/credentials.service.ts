@@ -452,6 +452,8 @@ export class CredentialsService {
   async fetchAllExchangeBalances(userId: string): Promise<{
     totalEquityUsd: number;
     totalAvailableUsd: number;
+    /** V150 FIX: Total used margin across all exchanges (leverage-aware) */
+    totalUsedMargin: number;
     exchanges: Array<{
       exchange: string;
       label: string;

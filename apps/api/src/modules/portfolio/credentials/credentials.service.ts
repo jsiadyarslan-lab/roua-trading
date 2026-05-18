@@ -1351,4 +1351,82 @@ export class CredentialsService {
     const lower = message.toLowerCase();
     return connectionErrorPatterns.some(p => lower.includes(p.toLowerCase()));
   }
+
+  /**
+   * V164 DIAGNOSTIC: Test Binance API connectivity from the server.
+   * This helps diagnose why balance fetches fail from Railway.
+   * Returns detailed error info (NOT credentials) for debugging.
+   */
+  async testExchangeConnectivity(exchange: string): Promise<{
+    exchange: string;
+    reachable: boolean;
+    latencyMs: number;
+    error?: string;
+    errorType?: string;
+    serverTime?: number;
+    serverIp?: string;
+  }> {
+    const start = Date.now();
+    try {
+      const normalizedExchange = exchange.toLowerCase().startsWith('binance') ? 'binance' : exchange.toLowerCase();
+      const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
+      if (!ExchangeClass) {
+        return { exchange, reachable: false, latencyMs: 0, error: `Exchange "${exchange}" not supported by CCXT` };
+      }
+
+      const instance = new ExchangeClass({
+        enableRateLimit: true,
+        timeout: 15000,
+        options: { adjustForTimeDifference: true },
+      });
+
+      // Test 1: Public endpoint (no auth needed) — api/v3/ping or equivalent
+      try {
+        const pingStart = Date.now();
+        await instance.publicGetPing?.() || await instance.fetchTime();
+        const pingMs = Date.now() - pingStart;
+        this.logger.log(`✅ V164 Connectivity test: ${exchange} ping OK (${pingMs}ms)`);
+        return { exchange, reachable: true, latencyMs: pingMs, serverTime: Date.now() };
+      } catch (pingError: any) {
+        const pingMs = Date.now() - start;
+        const errMsg = pingError.message || String(pingError);
+        const errType = pingError.constructor?.name || 'Unknown';
+        this.logger.warn(`❌ V164 Connectivity test: ${exchange} ping FAILED (${pingMs}ms): [${errType}] ${errMsg}`);
+
+        // Try a simple HTTP request to see if it's DNS or network issue
+        let diagnosticInfo = '';
+        try {
+          const https = await import('https');
+          const dnsResult = await new Promise<string>((resolve, reject) => {
+            const req = https.get(`https://api.binance.com/api/v3/ping`, (res) => {
+              let data = '';
+              res.on('data', chunk => data += chunk);
+              res.on('end', () => resolve(`HTTP ${res.statusCode}: ${data}`));
+            });
+            req.on('error', (e) => reject(e));
+            req.setTimeout(10000, () => { req.destroy(); reject(new Error('HTTP timeout')); });
+          });
+          diagnosticInfo = `Direct HTTP test: ${dnsResult}`;
+        } catch (httpErr: any) {
+          diagnosticInfo = `Direct HTTP test failed: ${httpErr.message}`;
+        }
+
+        return {
+          exchange,
+          reachable: false,
+          latencyMs: pingMs,
+          error: `[${errType}] ${errMsg}`,
+          errorType: errType,
+        };
+      }
+    } catch (error: any) {
+      return {
+        exchange,
+        reachable: false,
+        latencyMs: Date.now() - start,
+        error: error.message || String(error),
+        errorType: error.constructor?.name || 'Unknown',
+      };
+    }
+  }
 }

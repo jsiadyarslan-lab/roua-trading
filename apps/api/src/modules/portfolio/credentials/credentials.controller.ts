@@ -150,4 +150,28 @@ export class CredentialsController {
 
     return { success: true };
   }
+
+  /**
+   * GET /api/portfolio/credentials/test-connectivity — Diagnostic endpoint
+   * Tests Binance API connectivity from the server (Railway).
+   * V164: Helps diagnose why balance fetches fail.
+   * Public endpoint (no auth) — only tests public API, no credentials involved.
+   */
+  @Get('test-connectivity')
+  async testConnectivity() {
+    const results = await Promise.allSettled([
+      this.credentialsService.testExchangeConnectivity('binance'),
+    ]);
+    const connectivity = results.map(r =>
+      r.status === 'fulfilled' ? r.value : { error: r.reason?.message || 'Unknown error' }
+    );
+    return {
+      success: true,
+      data: {
+        serverTime: new Date().toISOString(),
+        serverUptime: Math.round(process.uptime()),
+        connectivity,
+      },
+    };
+  }
 }

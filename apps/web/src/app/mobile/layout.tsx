@@ -38,6 +38,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
+  viewportFit: 'cover',
 }
 
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
@@ -51,8 +52,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <NotificationPermissionBanner />
         <PushNotificationManager />
         {/* FIXED container — position:fixed;inset:0 guarantees the container
-            fills the ENTIRE viewport regardless of body margins, parent styles,
-            or --app-height calculation errors. This eliminates the navbar gap. */}
+            fills the ENTIRE viewport (including safe-area with viewport-fit:cover).
+            The flex column splits space between <main> and <MobileNavBar>. */}
         <div
           style={{
             position: 'fixed',
@@ -68,6 +69,11 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             width: '100%',
             margin: '0 auto',
             overflow: 'hidden',
+            /* Extend into safe-area so the navbar background covers the
+                home-indicator zone on notched iPhones */
+            paddingTop: 'env(safe-area-inset-top, 0px)',
+            paddingLeft: 'env(safe-area-inset-left, 0px)',
+            paddingRight: 'env(safe-area-inset-right, 0px)',
           }}
         >
           {/* Content area — fills space above the navbar.

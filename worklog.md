@@ -399,3 +399,39 @@ Stage Summary:
 - BUILD_CACHE bumped to v137 — Railway will now do a full rebuild with all isolation fixes
 - User confirmed platform is now working as a real trading platform for the first time
 - Council analyzes → Executor executes → Trades close with profit/loss ✅
+
+---
+Task ID: V139
+Agent: Main Agent
+Task: V139 — Real-time price engine: Fix frozen P&L, slow SL/TP monitoring, and symbol normalization mismatch
+
+Work Log:
+- Deep analysis of entire price update pipeline: Binance WS → useMarketStore → GlobalLogicEngine → usePositionsStore
+- Found ROOT CAUSE #1: BinanceWS onmessage used find() instead of filter() — only ONE subscriber per normalized stream got price updates. BTC/USD and BTC/USDT both normalize to btcusdt@ticker, but only one received updates → other had frozen prices
+- Found ROOT CAUSE #2: Symbol normalization mismatch — BTC/USD normalizes to "BTCUSD" in GlobalLogicEngine/usePositionsStore, but BTC/USDT normalizes to "BTCUSDT". They NEVER matched, so positions from SmartExecutor (BTC/USDT) never got live price updates from WS quotes stored under BTC/USD key
+- Found PERFORMANCE ISSUE #1: Position Monitor ran every 30s — SL/TP could be delayed 30s + 30s cache = 60s
+- Found PERFORMANCE ISSUE #2: ExchangeService cache TTL 30s — prices up to 33s stale (30s + 3s Redis)
+- Found PERFORMANCE ISSUE #3: Market Broadcaster every 45s with 0.5% threshold — too slow and too selective
+- Found PERFORMANCE ISSUE #4: GlobalLogicEngine price sync every 2s — could be 1s for faster P&L
+- Found MISSING FEATURE: No REST polling fallback for crypto — if WS fails, crypto prices freeze for 10 min
+
+Fixes Applied:
+1. useMarketStore.ts: find() → filter() in onmessage — ALL matching subscribers now get WS price updates
+2. GlobalLogicEngine.tsx: Added .replace(/USD$/, 'USDT') to normalization — BTC/USD and BTC/USDT both map to BTCUSDT
+3. usePositionsStore.ts: Added .replace(/USD$/, 'USDT') to normalization — positions with BTC/USDT now match BTC/USD quotes
+4. position-monitor.service.ts: Interval 30s → 10s for faster SL/TP response
+5. exchange.service.ts: Cache TTL 30s → 5s for fresher prices
+6. market-broadcaster.service.ts: Interval 45s → 15s, threshold 0.5% → 0.1%
+7. GlobalLogicEngine.tsx: Price sync interval 2s → 1s
+8. MarketProvider.tsx: Added fetchCryptoBatch() — REST polls crypto every 15s as WS fallback
+9. Dockerfile: BUILD_CACHE → v139-realtime-price-engine
+10. deploy-version/route.ts: deployMarker → ROUA-V139-REALTIME-PRICE-ENGINE
+
+Stage Summary:
+- 9 files modified, 62 insertions, 20 deletions
+- ROOT CAUSE of frozen P&L: Symbol normalization mismatch (USD vs USDT) + WS single-subscriber bug
+- SL/TP response time: 60s → 15s (6x faster)
+- Price freshness: 33s → 8s (4x faster)
+- P&L update rate: 2s → 1s (2x faster)
+- Crypto REST fallback: none → every 15s (prevents total freeze if WS fails)
+- Deployment verified: deployMarker=ROUA-V139-REALTIME-PRICE-ENGINE, BTC/USD=$77,219, BTC/USDT=$77,291

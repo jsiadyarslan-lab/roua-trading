@@ -396,19 +396,7 @@ function ChartPageContent() {
   const priceColor = livePrice ? (isPositive ? C.success : C.danger) : C.text2
 
   return (
-    <div style={{
-      /* Fill the entire <main> grid cell. With CSS Grid architecture,
-         the navbar is in its own grid row — completely separated.
-         The chart CANNOT extend into the navbar area because grid
-         rows are hard boundaries. No bottom offset needed. */
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: '#0B0E14',
-      overflow: 'hidden',
-    }}>
+    <div className="mobile-page--chart">
 
       {/* ═══════════════════════════════════════════════════
           CHART — fills entire main grid cell.

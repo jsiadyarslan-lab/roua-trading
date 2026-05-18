@@ -1,0 +1,305 @@
+/**
+ * ROUA MOBILE — COMPLETE STYLESHEET (v5 Rebuild)
+ *
+ * ALL mobile layout styles live HERE. No inline styles for layout.
+ * This guarantees CSS specificity and prevents override issues.
+ *
+ * Architecture:
+ * - .mobile-shell: fixed container, flex column
+ * - .mobile-content: flex:1, holds all pages
+ * - .mobile-navbar: position:fixed, bottom:0, isolation:isolate
+ * - .mobile-touch-barrier: transparent touch shield above navbar
+ */
+
+/* ═══════════════════════════════════════════════════════════
+   CSS CUSTOM PROPERTIES — Safe Area + Layout Constants
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --roua-nav-height: 48px;
+  --roua-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --roua-nav-total: calc(var(--roua-nav-height) + var(--roua-nav-safe-bottom));
+  --roua-safe-top: env(safe-area-inset-top, 0px);
+  --roua-bg: #0B0E14;
+  --roua-accent: #00D4FF;
+  --roua-text: #F0F2F5;
+  --roua-text2: #8B92A8;
+  --roua-card: #1A1D29;
+  --roua-border: rgba(255, 255, 255, 0.06);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE SHELL — Root container
+   ═══════════════════════════════════════════════════════════ */
+.mobile-shell {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--roua-bg);
+  color: var(--roua-text);
+  max-width: 480px;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CONTENT AREA — Where pages live
+   flex:1 takes all space above navbar.
+   overflow:hidden prevents chart canvas bleed.
+   padding-bottom: var(--roua-nav-total) reserves space for
+   the fixed navbar so pages don't hide behind it.
+   ═══════════════════════════════════════════════════════════ */
+.mobile-content {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  padding-bottom: var(--roua-nav-total);
+}
+
+/* Scrollable pages inside content */
+.mobile-content--scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Chart pages fill content with position:absolute */
+.mobile-content--chart {
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TOUCH BARRIER — Transparent shield that intercepts ALL
+   touch events in the navbar zone. This prevents
+   lightweight-charts' setPointerCapture() from stealing
+   touches meant for navbar buttons.
+
+   HOW IT WORKS:
+   1. Fixed at the bottom, same dimensions as navbar
+   2. z-index ABOVE the chart canvas (9998)
+   3. pointer-events: auto — catches ALL touches
+   4. touch-action: manipulation — no 300ms delay
+   5. Does NOT block navbar because navbar is z-index:9999
+   ═══════════════════════════════════════════════════════════ */
+.mobile-touch-barrier {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  height: var(--roua-nav-total);
+  z-index: 9998;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Transparent — invisible but catches touches */
+  background: transparent;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAVBAR — Fixed at bottom with isolation
+   ═══════════════════════════════════════════════════════════ */
+.mobile-navbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  height: var(--roua-nav-total);
+  z-index: 9999;
+  isolation: isolate;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  /* Visual */
+  background: linear-gradient(180deg, rgba(0, 212, 255, 0.05) 0%, rgba(11, 14, 20, 0.98) 100%);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-top: 0.5px solid rgba(0, 212, 255, 0.15);
+  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(0, 212, 255, 0.08);
+  box-sizing: border-box;
+}
+
+/* Inner row */
+.mobile-navbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  height: var(--roua-nav-height);
+  direction: rtl;
+  padding: 0 4px;
+}
+
+/* Regular nav button */
+.mobile-navbar__btn {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.2s ease;
+}
+
+.mobile-navbar__btn:active {
+  transform: scale(0.92);
+}
+
+.mobile-navbar__btn--active {
+  color: var(--roua-accent);
+}
+
+/* Icon + indicator wrapper */
+.mobile-navbar__btn-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.mobile-navbar__btn--active .mobile-navbar__btn-inner {
+  background: rgba(0, 212, 255, 0.08);
+  border-color: rgba(0, 212, 255, 0.2);
+}
+
+/* Active indicator dot */
+.mobile-navbar__indicator {
+  width: 4px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--roua-accent);
+  box-shadow: 0 0 6px rgba(0, 212, 255, 0.8);
+}
+
+/* Center wallet button */
+.mobile-navbar__wallet {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 168, 204, 0.1) 100%);
+  border: 1.5px solid rgba(0, 212, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 6px rgba(0, 212, 255, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.mobile-navbar__wallet:active {
+  transform: scale(0.92);
+}
+
+.mobile-navbar__wallet--active {
+  background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 50%, #0066aa 100%);
+  border-color: rgba(0, 212, 255, 0.8);
+  box-shadow: 0 0 12px rgba(0, 212, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+/* Notification badge */
+.mobile-navbar__badge {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #ff453a, #ff6b6b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 0 4px;
+  box-shadow: 0 2px 8px rgba(255, 69, 58, 0.5);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PAGE WRAPPER — Base for all mobile pages
+   ═══════════════════════════════════════════════════════════ */
+.mobile-page {
+  height: 100%;
+  background: var(--roua-bg);
+  direction: rtl;
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  width: 100%;
+}
+
+/* Chart page variant — no scroll, chart fills it */
+.mobile-page--chart {
+  overflow: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SERVICE WORKER UPDATE BANNER
+   ═══════════════════════════════════════════════════════════ */
+.mobile-sw-update-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  background: var(--roua-accent);
+  color: #000;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 12px 16px;
+  text-align: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.5);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITY — Hide scrollbar
+   ═══════════════════════════════════════════════════════════ */
+.mobile-no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.mobile-no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

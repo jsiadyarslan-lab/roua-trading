@@ -1034,16 +1034,7 @@ export default function MobileHomePage() {
   }, [syncFromDB])
 
   return (
-    <div style={{
-      background: '#0B0E14',
-      direction: 'rtl',
-      position: 'relative',
-      overflowX: 'hidden',
-      overflowY: 'auto',
-      width: '100%',
-      height: '100%',
-      WebkitOverflowScrolling: 'touch',
-    }}>
+    <div className="mobile-page">
       {/* ── Ambient Sentiment Glow ── */}
       <motion.div 
         animate={{ 

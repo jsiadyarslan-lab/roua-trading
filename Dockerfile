@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v160-mobile-rebuild-from-scratch
+ARG BUILD_CACHE=v161-mobile-v5-css-classes-touch-barrier
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -173,4 +173,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v160 - Complete mobile layout rebuild from scratch
+# Build v161 - Mobile v5: CSS classes, touch barrier, isolation:isolate, SW cache bust

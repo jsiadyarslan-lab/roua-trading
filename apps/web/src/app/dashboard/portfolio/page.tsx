@@ -373,14 +373,94 @@ export default function PortfolioPage() {
     setClosingAll(false)
   }
 
-  // ── Computed values ──
+  // ── V140: Time period filter for closed trades ──
+  const [periodFilter, setPeriodFilter] = useState<'ALL' | 'DAY' | 'WEEK' | 'MONTH' | 'YEAR' | 'CUSTOM'>('ALL')
+  const [customFrom, setCustomFrom] = useState('')
+  const [customTo, setCustomTo] = useState('')
+
+  // ── Computed date range based on period filter ──
+  const getDateRange = useCallback(() => {
+    const now = new Date()
+    let from: Date | undefined
+    let to: Date | undefined = now
+    switch (periodFilter) {
+      case 'DAY':
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        break
+      case 'WEEK':
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
+        break
+      case 'MONTH':
+        from = new Date(now.getFullYear(), now.getMonth(), 1)
+        break
+      case 'YEAR':
+        from = new Date(now.getFullYear(), 0, 1)
+        break
+      case 'CUSTOM':
+        from = customFrom ? new Date(customFrom) : undefined
+        to = customTo ? new Date(customTo + 'T23:59:59') : now
+        break
+      default: // ALL
+        from = undefined
+        to = undefined
+    }
+    return { from, to }
+  }, [periodFilter, customFrom, customTo])
+
+  // ── V140: Filtered closed positions by date range ──
+  const dateFilteredClosedPositions = useMemo(() => {
+    const { from, to } = getDateRange()
+    if (!from && !to) return closedPositions
+    return closedPositions.filter(p => {
+      const closedAt = p.closedAt ? new Date(p.closedAt).getTime() : 0
+      if (from && closedAt < from.getTime()) return false
+      if (to && closedAt > to.getTime()) return false
+      return true
+    })
+  }, [closedPositions, getDateRange])
+
+  const dateFilteredTrades = useMemo(() => {
+    const { from, to } = getDateRange()
+    if (!from && !to) return trades
+    return trades.filter(t => {
+      const execAt = new Date(t.executedAt).getTime()
+      if (from && execAt < from.getTime()) return false
+      if (to && execAt > to.getTime()) return false
+      return true
+    })
+  }, [trades, getDateRange])
+
+  const dateFilteredPaperTrades = useMemo(() => {
+    const { from, to } = getDateRange()
+    if (!from && !to) return closedPaperTrades
+    return closedPaperTrades.filter(p => {
+      const closeTime = new Date(p.closeTime).getTime()
+      if (from && closeTime < from.getTime()) return false
+      if (to && closeTime > to.getTime()) return false
+      return true
+    })
+  }, [closedPaperTrades, getDateRange])
+
+  // ── Computed values (V140: uses date-filtered data) ──
   const totalUnrealizedPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
-  const totalRealizedPnl = closedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + closedPaperTrades.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-  const totalTradePnl = trades.reduce((sum, t) => sum + (t.pnl || 0), 0) + closedPaperTrades.reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-  const winningTrades = [...trades.filter(t => (t.pnl || 0) > 0), ...closedPaperTrades.filter(p => (p.realizedPnl || 0) > 0)]
-  const losingTrades = [...trades.filter(t => (t.pnl || 0) < 0), ...closedPaperTrades.filter(p => (p.realizedPnl || 0) < 0)]
-  const totalTradeCount = trades.length + closedPaperTrades.length
-  const winRate = totalTradeCount > 0 ? (winningTrades.length / totalTradeCount) * 100 : 0
+  // FIX V140: Single source of truth for realized P&L — use closedPositions ONLY.
+  // Previously summed from closedPositions + closedPaperTrades + trades, causing triple-counting.
+  // Paper trades from localStorage are only added if NOT already in closedPositions (deduped).
+  const dedupedPaperPnl = dateFilteredPaperTrades
+    .filter(t => !dateFilteredClosedPositions.some(p =>
+      p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01
+    ))
+    .reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
+  const totalRealizedPnl = dateFilteredClosedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + dedupedPaperPnl
+  // FIX V140: totalTradePnl now uses the same deduped logic
+  const totalTradePnl = dateFilteredClosedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + dedupedPaperPnl
+  // FIX V140: Win rate uses combined history (deduped), not separate arrays
+  const winningCount = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) > 0).length
+    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) > 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).length
+  const losingCount = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) < 0).length
+    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) < 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).length
+  const totalTradeCount = dateFilteredClosedPositions.length + dateFilteredPaperTrades.filter(t => !dateFilteredClosedPositions.some(p => p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01)).length
+  const winRate = totalTradeCount > 0 ? (winningCount / totalTradeCount) * 100 : 0
 
   // ── Performance chart data (daily P&L from trades + closed paper trades) ──
   const performanceData = (() => {
@@ -422,11 +502,8 @@ export default function PortfolioPage() {
 
   // ── Risk metrics ──
   const allPnlValues = [...trades.map(t => t.pnl || 0), ...closedPaperTrades.map(p => p.realizedPnl || 0)]
-  const avgWin = winningTrades.length > 0 ? winningTrades.reduce((s, t) => s + ('pnl' in t ? (t.pnl || 0) : (t as ClosedPaperTrade).realizedPnl || 0), 0) / winningTrades.length : 0
-  const avgLoss = losingTrades.length > 0 ? losingTrades.reduce((s, t) => {
-      const loss = 'pnl' in t ? (t.pnl || 0) : (t as ClosedPaperTrade).realizedPnl || 0
-      return s + Math.abs(loss)
-    }, 0) / losingTrades.length : 0
+  const avgWin = winningCount > 0 ? totalRealizedPnl > 0 ? totalRealizedPnl / winningCount : 0 : 0
+  const avgLoss = losingCount > 0 ? totalRealizedPnl < 0 ? Math.abs(totalRealizedPnl) / losingCount : 0 : 0
   const profitFactor = avgLoss > 0 ? Math.min(avgWin / avgLoss, 999) : avgWin > 0 ? 999 : 0
   const maxDrawdown = (() => {
     let peak = 0, maxDD = 0, cumPnl = 0
@@ -454,20 +531,32 @@ export default function PortfolioPage() {
   // duplicate entries. Now we only use closedPositions from the API (Position table)
   // and filter out paper trades that are already recorded in the Position table.
   const combinedHistory = [
-    ...closedPositions.map(p => ({
-              id: p.id, symbol: p.symbol, side: p.side,
-              type: (p as any).source === 'smart_executor' ? 'SMART' :
-                    (p as any).source === 'agent' ? 'AGENT' :
-                    (p as any).source === 'auto_paper' ? 'PAPER' : 'MANUAL',
-              quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
-              exitPrice: p.exitPrice,
-              fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
-      openedAt: p.openedAt
-    })),
+    ...dateFilteredClosedPositions.map(p => {
+      // V140: Derive exitPrice from trades relation or currentPrice or entryPrice
+      const tradesData = (p as any).trades as Trade[] | undefined
+      const exitTrade = tradesData?.find((t: Trade) => t.type === 'EXIT' || t.side !== p.side)
+      const derivedExitPrice = (p as any).exitPrice
+        ? Number((p as any).exitPrice)
+        : exitTrade?.price
+          ? Number(exitTrade.price)
+          : p.currentPrice
+            ? Number(p.currentPrice)
+            : undefined
+      return {
+        id: p.id, symbol: p.symbol, side: p.side,
+        type: (p as any).source === 'smart_executor' ? 'SMART' :
+              (p as any).source === 'agent' ? 'AGENT' :
+              (p as any).source === 'auto_paper' ? 'PAPER' : 'MANUAL',
+        quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
+        exitPrice: derivedExitPrice,
+        fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
+        openedAt: p.openedAt
+      }
+    }),
     // FIX: Only include paper trades that are NOT already in closedPositions
     // (paper trades from the Smart Executor are recorded in DB, not localStorage)
-    ...closedPaperTrades
-      .filter(t => !closedPositions.some(p =>
+    ...dateFilteredPaperTrades
+      .filter(t => !dateFilteredClosedPositions.some(p =>
         p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01
       ))
       .map(t => ({
@@ -543,7 +632,7 @@ export default function PortfolioPage() {
         />
         <StatCard
           label="نسبة الفوز" value={`${winRate.toFixed(1)}%`}
-          sub={`من ${trades.length} صفقة`}
+          sub={`من ${totalTradeCount} صفقة`}
           color={T.amber} icon={Target}
           note={winRate >= 60 ? 'ممتاز' : winRate >= 40 ? 'جيد' : undefined}
         />
@@ -864,6 +953,35 @@ export default function PortfolioPage() {
                     borderBottom: `0.5px solid ${T.border}`, background: 'rgba(0,0,0,0.2)',
                     flexWrap: isMobile ? 'wrap' : 'nowrap',
                   }}>
+                    {/* V140: Period filter — يومي/أسبوعي/شهري/سنوي/محدد */}
+                    <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                      {(['ALL','DAY','WEEK','MONTH','YEAR','CUSTOM'] as const).map(period => (
+                        <button key={period} onClick={() => setPeriodFilter(period)} style={{
+                          padding: '3px 8px', borderRadius: 5,
+                          border: `0.5px solid ${periodFilter === period ? T.blue : T.border}`,
+                          background: periodFilter === period ? `${T.blue}22` : T.bg,
+                          color: periodFilter === period ? T.blue : T.text2,
+                          fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 600,
+                          cursor: 'pointer', transition: 'all 0.15s',
+                        }}>
+                          {{ ALL: 'الكل', DAY: 'يومي', WEEK: 'أسبوعي', MONTH: 'شهري', YEAR: 'سنوي', CUSTOM: 'محدد' }[period]}
+                        </button>
+                      ))}
+                    </div>
+                    {/* V140: Custom date range inputs */}
+                    {periodFilter === 'CUSTOM' && (
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{
+                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5,
+                          padding: '2px 6px', color: T.text, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                        }} />
+                        <span style={{ color: T.text3, fontSize: 10 }}>→</span>
+                        <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{
+                          background: T.bg, border: `1px solid ${T.border}`, borderRadius: 5,
+                          padding: '2px 6px', color: T.text, fontSize: 10, fontFamily: "'JetBrains Mono', monospace",
+                        }} />
+                      </div>
+                    )}
                     <input
                       type="text"
                       placeholder="بحث بالرمز..."
@@ -1178,8 +1296,8 @@ export default function PortfolioPage() {
           {/* Performance Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
             <StatCard label="إجمالي الصفقات" value={String(trades.length)} color={T.blue} icon={Activity} />
-            <StatCard label="صفقات فائزة" value={String(winningTrades.length)} color={T.green} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
-            <StatCard label="صفقات خاسرة" value={String(losingTrades.length)} color={T.red} icon={TrendingDown} />
+            <StatCard label="صفقات فائزة" value={String(winningCount)} color={T.green} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
+            <StatCard label="صفقات خاسرة" value={String(losingCount)} color={T.red} icon={TrendingDown} />
             <StatCard label="متوسط الربح" value={`$${fmt(avgWin, 2)}`} color={T.green} icon={TrendingUp} />
             <StatCard label="متوسط الخسارة" value={`$${fmt(avgLoss, 2)}`} color={T.red} icon={TrendingDown} />
           </div>
@@ -1292,8 +1410,8 @@ export default function PortfolioPage() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.green }}>{winningTrades.length} فوز</span>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red }}>{losingTrades.length} خسارة</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.green }}>{winningCount} فوز</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red }}>{losingCount} خسارة</span>
                 </div>
               </div>
 

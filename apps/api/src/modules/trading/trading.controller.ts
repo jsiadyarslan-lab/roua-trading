@@ -239,13 +239,17 @@ export class TradingController {
   async getClosedPositions(
     @Req() req: any,
     @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     try {
       const userId = req.user.id;
-      this.logger.log(`📋 Fetching closed positions for user: ${userId}`);
+      this.logger.log(`📋 Fetching closed positions for user: ${userId}, from: ${from || 'all'}, to: ${to || 'all'}`);
       return await this.tradingService.getClosedPositions(
         userId,
         limit ? (parseInt(limit, 10) || 100) : 100,
+        from,
+        to,
       );
     } catch (error: any) {
       this.logger.error(
@@ -378,12 +382,16 @@ export class TradingController {
   async getTradeHistory(
     @Req() req: any,
     @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
   ) {
     try {
       const userId = req.user.id;
       return await this.tradingService.getTradeHistory(
         userId,
         limit ? (parseInt(limit, 10) || 50) : 50,
+        from,
+        to,
       );
     } catch (error: any) {
       this.logger.error(

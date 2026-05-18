@@ -373,6 +373,7 @@ model Position {
   quantity       Decimal            @default(0) @db.Decimal(18, 8)
   entryPrice     Decimal            @default(0) @db.Decimal(18, 8)
   currentPrice   Decimal?           @db.Decimal(18, 8)
+  exitPrice      Decimal?           @db.Decimal(18, 8) // V140: Actual close price when position is closed
   unrealizedPnl  Decimal            @default(0) @db.Decimal(18, 4)
   realizedPnl    Decimal            @default(0) @db.Decimal(18, 4)
   stopLoss       Decimal?           @db.Decimal(18, 8)

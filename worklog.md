@@ -435,3 +435,35 @@ Stage Summary:
 - P&L update rate: 2s → 1s (2x faster)
 - Crypto REST fallback: none → every 15s (prevents total freeze if WS fails)
 - Deployment verified: deployMarker=ROUA-V139-REALTIME-PRICE-ENGINE, BTC/USD=$77,219, BTC/USDT=$77,291
+
+---
+Task ID: V140-backend
+Agent: Backend Agent
+Task: Fix 4 backend bugs in the trading service
+
+Work Log:
+- Read worklog.md and all target files before editing
+- Bug 1: Added `exitPrice Decimal? @db.Decimal(18, 8)` field to Position model in Prisma schema (after currentPrice, line 376)
+- Bug 2: Populated exitPrice in 3 places where position status is updated to CLOSED:
+  1. closePosition() — main close path: `exitPrice` set to calculated exitPrice variable (from execution.averagePrice or currentPrice or entryPrice)
+  2. closePosition() — V114 paper-trading safety net: `exitPrice: posEntryPrice` (fallback when execution failed)
+  3. forceClosePosition() — force close path: `exitPrice: currentPrice`
+- Bug 3: Updated getClosedPositions() service method:
+  - Added `from` and `to` optional parameters
+  - Added date range filtering on `closedAt` field
+  - Added `include: { trades: true }` to Prisma query for related trades
+- Bug 4: Updated TradingController:
+  - getClosedPositions endpoint: Added `@Query('from')` and `@Query('to')` params, passed to service
+  - getTradeHistory endpoint: Added `@Query('from')` and `@Query('to')` params, passed to service
+- Updated getTradeHistory() service method:
+  - Added `from` and `to` optional parameters
+  - Added date range filtering on `executedAt` field
+- Regenerated Prisma client with `npx prisma generate`
+- TypeScript compilation: 0 errors
+
+Stage Summary:
+- 3 files modified: prisma/schema.prisma, trading.service.ts, trading.controller.ts
+- exitPrice now stored on every position close (3 code paths covered)
+- getClosedPositions returns trades relation and supports date range filtering
+- getTradeHistory supports date range filtering
+- Both controller endpoints pass from/to query params through to service

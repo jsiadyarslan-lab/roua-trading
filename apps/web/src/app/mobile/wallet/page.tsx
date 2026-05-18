@@ -397,96 +397,30 @@ export default function MobileWalletPage() {
   }
 
   // ── Deposit handler ──
+  // FIX V140: Deposit/withdraw are NOT available — show clear message instead of fake success.
+  // Previously, these handlers always showed "success" even when the API doesn't exist,
+  // misleading users into thinking a real transaction occurred.
   const handleDeposit = async () => {
     const amount = parseFloat(depositAmount)
     if (!amount || amount <= 0) return
-    setTxStatus('submitting')
-    try {
-      // Try Alpaca deposit API first
-      const res = await fetch('/api/alpaca/deposit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
-      })
-      const j = await res.json()
-      if (j.success) {
-        setTxStatus('success')
-      } else {
-        // API not available or paper trading — show paper trading notice
-        await new Promise(r => setTimeout(r, 1500))
-        setTxStatus('success')
-      }
-      setTimeout(() => {
-        setShowDepositSheet(false)
-        setTxStatus('idle')
-        setDepositAmount('')
-        fetchAccount()
-      }, 2000)
-    } catch {
-      // Fallback for paper trading
-      try {
-        await new Promise(r => setTimeout(r, 1500))
-        setTxStatus('success')
-        setTimeout(() => {
-          setShowDepositSheet(false)
-          setTxStatus('idle')
-          setDepositAmount('')
-          fetchAccount()
-        }, 2000)
-      } catch {
-        setTxStatus('error')
-        setTimeout(() => setTxStatus('idle'), 3000)
-      }
-    }
+    setTxStatus('error')
+    setTimeout(() => {
+      setShowDepositSheet(false)
+      setTxStatus('idle')
+      setDepositAmount('')
+    }, 3000)
   }
 
   // ── Withdraw handler ──
   const handleWithdraw = async () => {
     const amount = parseFloat(withdrawAmount)
     if (!amount || amount <= 0) return
-    if (account && amount > account.cash) {
-      setTxStatus('error')
-      setTimeout(() => setTxStatus('idle'), 3000)
-      return
-    }
-    setTxStatus('submitting')
-    try {
-      // Try Alpaca withdraw API first
-      const res = await fetch('/api/alpaca/withdraw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount }),
-      })
-      const j = await res.json()
-      if (j.success) {
-        setTxStatus('success')
-      } else {
-        // API not available or paper trading — show paper trading notice
-        await new Promise(r => setTimeout(r, 1500))
-        setTxStatus('success')
-      }
-      setTimeout(() => {
-        setShowWithdrawSheet(false)
-        setTxStatus('idle')
-        setWithdrawAmount('')
-        fetchAccount()
-      }, 2000)
-    } catch {
-      // Fallback for paper trading
-      try {
-        await new Promise(r => setTimeout(r, 1500))
-        setTxStatus('success')
-        setTimeout(() => {
-          setShowWithdrawSheet(false)
-          setTxStatus('idle')
-          setWithdrawAmount('')
-          fetchAccount()
-        }, 2000)
-      } catch {
-        setTxStatus('error')
-        setTimeout(() => setTxStatus('idle'), 3000)
-      }
-    }
+    setTxStatus('error')
+    setTimeout(() => {
+      setShowWithdrawSheet(false)
+      setTxStatus('idle')
+      setWithdrawAmount('')
+    }, 3000)
   }
 
   // ── Combined positions ──

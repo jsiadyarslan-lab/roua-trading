@@ -815,6 +815,7 @@ export class TradingService {
               status: 'CLOSED',
               closedAt: new Date(),
               realizedPnl: posRealizedPnl, // No PnL change since execution failed
+              exitPrice: posEntryPrice, // V140: Fallback to entry price when execution failed
             },
           });
           this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
@@ -917,6 +918,7 @@ export class TradingService {
             status: 'CLOSED',
             closedAt: new Date(),
             realizedPnl: posRealizedPnl + pnl,
+            exitPrice, // V140: Store the actual close price
             version: positionVersion + 1,
           },
         });
@@ -1242,6 +1244,7 @@ export class TradingService {
           status: 'CLOSED',
           closedAt: new Date(),
           realizedPnl: posRealizedPnl + pnl,
+          exitPrice: currentPrice, // V140: Store the actual close price
         },
       });
 
@@ -1352,12 +1355,22 @@ export class TradingService {
   /**
    * Get closed positions for a user
    */
-  async getClosedPositions(userId: string, limit: number = 100) {
+  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string) {
     try {
+      const where: any = { userId, status: 'CLOSED' };
+
+      // V140: Add date range filtering for daily/weekly/monthly/yearly classification
+      if (from || to) {
+        where.closedAt = {};
+        if (from) where.closedAt.gte = new Date(from);
+        if (to) where.closedAt.lte = new Date(to);
+      }
+
       return await this.prisma.position.findMany({
-        where: { userId, status: 'CLOSED' },
+        where,
         orderBy: { closedAt: 'desc' },
         take: limit,
+        include: { trades: true }, // V140: Include related trades for exit price
       });
     } catch (error: any) {
       this.logger.error(
@@ -1463,10 +1476,19 @@ export class TradingService {
   /**
    * Get trade history
    */
-  async getTradeHistory(userId: string, limit: number = 50) {
+  async getTradeHistory(userId: string, limit: number = 50, from?: string, to?: string) {
     try {
+      const where: any = { userId };
+
+      // V140: Add date range filtering
+      if (from || to) {
+        where.executedAt = {};
+        if (from) where.executedAt.gte = new Date(from);
+        if (to) where.executedAt.lte = new Date(to);
+      }
+
       return await this.prisma.trade.findMany({
-        where: { userId },
+        where,
         orderBy: { executedAt: 'desc' },
         take: limit,
       });

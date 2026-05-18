@@ -36,7 +36,7 @@ export class CredentialsService {
    * Now: first request fetches from exchange, subsequent requests within TTL use cache.
    */
   private readonly balanceCache = new Map<string, { data: any; timestamp: number }>();
-  private readonly BALANCE_CACHE_TTL_MS = 60_000;  // 1 minute — balances don't change every second
+  private readonly BALANCE_CACHE_TTL_MS = 5_000;  // V140: reduced from 60s to 5s — faster balance updates after trades
   private readonly BALANCE_CACHE_MAX_SIZE = 50;    // Max users to cache
   private balanceCleanupInterval: NodeJS.Timeout | null = null;
 
@@ -752,11 +752,41 @@ export class CredentialsService {
     }
 
     // Calculate equity in USD/USDT
+    // FIX V140: Convert non-USDT assets to USD using approximate prices.
+    // Previously, assets.reduce summed raw token counts (0.5 BTC + 10 ETH = 10.5)
+    // instead of their USD values. Now we use known prices for major crypto assets.
     const usdtFree = balance.free?.USDT || balance.free?.USD || 0;
     const usdtUsed = balance.used?.USDT || balance.used?.USD || 0;
     const usdtTotal = balance.total?.USDT || balance.total?.USD || 0;
-    const equity = usdtTotal || assets.reduce((sum, a) => sum + a.total, 0);
-    const available = usdtFree || assets.reduce((sum, a) => sum + a.free, 0);
+
+    let equity: number;
+    let available: number;
+
+    if (usdtTotal > 0) {
+      // USDT/USD balance exists — use it directly
+      equity = usdtTotal;
+      available = usdtFree;
+    } else {
+      // No USDT — convert all assets to USD using known prices
+      const USD_PRICES: Record<string, number> = {
+        BTC: 77000, ETH: 2200, BNB: 650, SOL: 170, XRP: 2.4,
+        ADA: 0.75, DOGE: 0.22, DOT: 4.5, AVAX: 35, LINK: 15,
+        MATIC: 0.5, UNI: 7, ATOM: 8, LTC: 95, SHIB: 0.000012,
+        USDC: 1, BUSD: 1, DAI: 1, TUSD: 1, FDUSD: 1,
+      };
+      let totalUsd = 0;
+      let freeUsd = 0;
+      for (const asset of assets) {
+        const assetTotal = asset.total;
+        const assetFree = asset.free;
+        if (assetTotal <= 0) continue;
+        const price = USD_PRICES[asset.currency.toUpperCase()] || 0;
+        totalUsd += assetTotal * price;
+        freeUsd += assetFree * price;
+      }
+      equity = totalUsd || assets.reduce((sum, a) => sum + a.total, 0);
+      available = freeUsd || assets.reduce((sum, a) => sum + a.free, 0);
+    }
 
     this.logger.log(`💰 Balance fetched from ${exchange}/${label}: equity=$${equity}, available=$${available}, ${assets.length} assets`);
 

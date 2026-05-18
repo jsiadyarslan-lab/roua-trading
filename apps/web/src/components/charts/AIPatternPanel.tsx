@@ -102,6 +102,7 @@ const C = {
   downBg: 'rgba(255,71,87,0.06)',
 };
 
+// V164: engine tab active
 type TabKey = 'patterns' | 'sr' | 'trend' | 'entry' | 'engine';
 
 export function AIPatternPanel({

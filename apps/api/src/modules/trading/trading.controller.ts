@@ -232,6 +232,55 @@ export class TradingController {
   }
 
   /**
+   * Get trading history (closed trades) — lightweight alias for AICoachPanel
+   * GET /api/trading/history?limit=50
+   * Returns { trades: [...] } with camelCase fields matching frontend expectations.
+   * The /positions/history endpoint returns raw Prisma models with snake_case;
+   * this endpoint maps them to the format AICoachPanel expects.
+   */
+  @Get('history')
+  async getTradingHistory(
+    @Req() req: any,
+    @Query('limit') limit?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    try {
+      const userId = req.user.id;
+      this.logger.log(`📋 Fetching trading history for user: ${userId}`);
+      const positions = await this.tradingService.getClosedPositions(
+        userId,
+        limit ? (parseInt(limit, 10) || 50) : 50,
+        from,
+        to,
+      );
+      // Map Prisma Position model to frontend-friendly trade format
+      const trades = (Array.isArray(positions) ? positions : []).map((p: any) => {
+        const lastTrade = p.trades?.length > 0 ? p.trades[p.trades.length - 1] : null;
+        return {
+          id: p.id,
+          symbol: p.symbol,
+          side: p.side?.toLowerCase() === 'buy' ? 'long' : 'short',
+          entryPrice: Number(p.entryPrice) || 0,
+          exitPrice: lastTrade ? Number(lastTrade.price) : (Number(p.exitPrice) || 0),
+          qty: Number(p.quantity) || 0,
+          realizedPnl: Number(p.realizedPnl) || 0,
+          realizedPct: p.entryPrice > 0 ? ((Number(p.realizedPnl) || 0) / (Number(p.entryPrice) * Number(p.quantity))) * 100 : 0,
+          closeTime: p.closedAt ? new Date(p.closedAt).getTime() : Date.now(),
+          status: p.status,
+        };
+      });
+      return { success: true, trades };
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch trading history: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
    * Get closed position history
    * GET /api/trading/positions/history
    */

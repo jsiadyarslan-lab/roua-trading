@@ -73,6 +73,8 @@ interface RouaChartProps {
     setChartType: (type: ChartType) => void;
     isPaused: boolean;
     activeTool: DrawingTool;
+    addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
+    removePriceLine: (id: string) => void;
   } | null>;
 }
 
@@ -201,6 +203,7 @@ export default function RouaChart({
     symbol: selectedSymbol,
     timeframe,
     onCrosshairMove: setCrosshairData,
+    mobile,
   });
 
   // ── Expose chart actions to parent via chartActions ref ──

@@ -77,7 +77,10 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               minHeight: 0,
               /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
                  Must match MobileNavBar height (56px + safe-area-inset-bottom) to
-                 prevent the chart canvas from overlapping the NavBar touch zone. */
+                 prevent content from being hidden behind the navbar.
+                 NOTE: The chart page (/mobile/chart) bypasses this by setting its own
+                 explicit height using calc(var(--app-height) - 56px - safe-area),
+                 so it doesn't rely on this padding. */
               paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
               overflowY: 'auto',
               overflowX: 'hidden',

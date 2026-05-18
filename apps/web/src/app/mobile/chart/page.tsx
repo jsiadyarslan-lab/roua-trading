@@ -399,110 +399,21 @@ function ChartPageContent() {
     <div style={{
       height: '100%',
       background: '#0B0E14',
-      display: 'flex',
-      flexDirection: 'column',
+      position: 'relative',
       overflow: 'hidden',
     }}>
 
       {/* ═══════════════════════════════════════════════════
-          COMPACT TOOLBAR — Grouped icon buttons
-          [⚡ 🕐] │ [📊 ✏️ ✥] │ [🕐 M15 ▼]
+          CHART — fills ENTIRE page (MetaTrader style)
+          Toolbar & pair info float on top as overlays
           ═══════════════════════════════════════════════════ */}
       <div style={{
-        flexShrink: 0,
-        height: 36,
-        paddingLeft: 6,
-        paddingRight: 6,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 0,
-        background: '#0B0E14',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
         direction: 'ltr',
-        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
-      }}>
-        {/* ── Trading Group ── */}
-        <ToolBtn onClick={() => openExecution('buy')} title="تنفيذ أمر سوقي">
-          <Zap size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={openPendingOrder} title="أوامر معلقة">
-          <Timer size={15} />
-        </ToolBtn>
-
-        <Separator />
-
-        {/* ── Analysis Group ── */}
-        <ToolBtn onClick={() => chartActionsRef.current?.toggleIndicators()} title="المؤشرات">
-          <BarChart3 size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => chartActionsRef.current?.toggleDrawings()} title="أدوات الرسم">
-          <Pencil size={15} />
-        </ToolBtn>
-        <ToolBtn onClick={() => chartActionsRef.current?.setTool('cursor')} title="المؤشر" active={chartActionsRef.current?.activeTool === 'cursor'}>
-          <MousePointer2 size={15} />
-        </ToolBtn>
-
-        <Separator />
-
-        {/* ── Timeframe Dropdown ── */}
-        <div ref={tfPanelRef} style={{ position: 'relative' }}>
-          <ToolBtn
-            onClick={() => { setShowTimeframePanel(!showTimeframePanel); setShowPairDropdown(false) }}
-            title="الإطار الزمني"
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Clock size={13} />
-              <span style={{ fontSize: 10, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>{tfLabel}</span>
-              <ChevronDown size={10} color="#00D4FF" />
-            </div>
-          </ToolBtn>
-          {showTimeframePanel && (
-            <div style={{
-              position: 'absolute', top: '100%', left: 0, zIndex: 60,
-              minWidth: 240,
-              background: 'rgba(15,17,23,0.98)',
-              backdropFilter: 'blur(20px)',
-              border: '1px solid rgba(0,212,255,0.15)',
-              borderRadius: 8,
-              padding: 8,
-              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
-            }}>
-              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 6, direction: 'rtl' }}>الإطار الزمني</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
-                {TIMEFRAMES.map(tf => {
-                  const isActive = timeframe === tf.value
-                  return (
-                    <button
-                      key={tf.value}
-                      onClick={() => { setTimeframe(tf.value); setShowTimeframePanel(false) }}
-                      style={{
-                        background: isActive ? '#00D4FF' : '#1a1f2e',
-                        border: `1px solid ${isActive ? '#00D4FF' : 'rgba(255,255,255,0.06)'}`,
-                        color: isActive ? '#000' : 'rgba(255,255,255,0.5)',
-                        borderRadius: 4, padding: '5px 0',
-                        fontSize: 9, fontWeight: isActive ? 800 : 600,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        cursor: 'pointer', textAlign: 'center',
-                      }}
-                    >
-                      {tf.label}
-                    </button>
-                  )
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════
-          CHART AREA — with overlay pair name + price
-          ═══════════════════════════════════════════════════ */}
-      <div style={{
-        flex: 1,
-        position: 'relative',
-        direction: 'ltr',
-        minHeight: 0,
-        overflow: 'hidden',
       }}>
         <RouaChart
           currentPrice={livePrice}
@@ -513,10 +424,10 @@ function ChartPageContent() {
           chartActions={chartActionsRef}
         />
 
-        {/* ── Pair Name + Price overlay (top corner of chart) ── */}
+        {/* ── Pair Name + Price overlay (below toolbar) ── */}
         <div style={{
           position: 'absolute',
-          top: 4,
+          top: 40,
           left: 8,
           right: 8,
           display: 'flex',
@@ -607,6 +518,102 @@ function ChartPageContent() {
               {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════
+          COMPACT TOOLBAR — Floats ON TOP of chart
+          [⚡ 🕐] │ [📊 ✏️ ✥] │ [🕐 M15 ▼]
+          ═══════════════════════════════════════════════════ */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 36,
+        zIndex: 10,
+        paddingLeft: 6,
+        paddingRight: 6,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 0,
+        background: 'rgba(11, 14, 20, 0.88)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        direction: 'ltr',
+        borderBottom: '0.5px solid rgba(255,255,255,0.06)',
+      }}>
+        {/* ── Trading Group ── */}
+        <ToolBtn onClick={() => openExecution('buy')} title="تنفيذ أمر سوقي">
+          <Zap size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={openPendingOrder} title="أوامر معلقة">
+          <Timer size={15} />
+        </ToolBtn>
+
+        <Separator />
+
+        {/* ── Analysis Group ── */}
+        <ToolBtn onClick={() => chartActionsRef.current?.toggleIndicators()} title="المؤشرات">
+          <BarChart3 size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => chartActionsRef.current?.toggleDrawings()} title="أدوات الرسم">
+          <Pencil size={15} />
+        </ToolBtn>
+        <ToolBtn onClick={() => chartActionsRef.current?.setTool('cursor')} title="المؤشر" active={chartActionsRef.current?.activeTool === 'cursor'}>
+          <MousePointer2 size={15} />
+        </ToolBtn>
+
+        <Separator />
+
+        {/* ── Timeframe Dropdown ── */}
+        <div ref={tfPanelRef} style={{ position: 'relative' }}>
+          <ToolBtn
+            onClick={() => { setShowTimeframePanel(!showTimeframePanel); setShowPairDropdown(false) }}
+            title="الإطار الزمني"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Clock size={13} />
+              <span style={{ fontSize: 10, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>{tfLabel}</span>
+              <ChevronDown size={10} color="#00D4FF" />
+            </div>
+          </ToolBtn>
+          {showTimeframePanel && (
+            <div style={{
+              position: 'absolute', top: '100%', left: 0, zIndex: 60,
+              minWidth: 240,
+              background: 'rgba(15,17,23,0.98)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(0,212,255,0.15)',
+              borderRadius: 8,
+              padding: 8,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+            }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 6, direction: 'rtl' }}>الإطار الزمني</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
+                {TIMEFRAMES.map(tf => {
+                  const isActive = timeframe === tf.value
+                  return (
+                    <button
+                      key={tf.value}
+                      onClick={() => { setTimeframe(tf.value); setShowTimeframePanel(false) }}
+                      style={{
+                        background: isActive ? '#00D4FF' : '#1a1f2e',
+                        border: `1px solid ${isActive ? '#00D4FF' : 'rgba(255,255,255,0.06)'}`,
+                        color: isActive ? '#000' : 'rgba(255,255,255,0.5)',
+                        borderRadius: 4, padding: '5px 0',
+                        fontSize: 9, fontWeight: isActive ? 800 : 600,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        cursor: 'pointer', textAlign: 'center',
+                      }}
+                    >
+                      {tf.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

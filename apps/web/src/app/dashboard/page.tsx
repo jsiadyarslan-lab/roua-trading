@@ -1180,10 +1180,10 @@ export default function DashboardPage() {
   // only needs $10 margin, but the old code showed $500 as "مستخدم" (used margin).
   // This made the "هامش متاح" (free margin) appear to drop by thousands.
   // Now: Use account.initialMargin from the backend (which is leverage-aware),
-  // only fall back to positionsValue if the backend value is not available.
+  // ONLY fall back to 0 if not available — NEVER fall back to positionsValue (full notional).
   const initialMargin = Number(account?.initialMargin) > 0
     ? Number(account.initialMargin)
-    : (positions.length > 0 ? positionsValue : 0)
+    : 0
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)

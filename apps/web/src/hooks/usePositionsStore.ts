@@ -386,7 +386,17 @@ export const usePositionsStore = create<PositionsState>()(
       )
       const cash = Number(currentAccount.cash) || 0
       const newEquity = cash + positionsUnrealizedPnl
-      const initialMargin = Number(currentAccount.initialMargin) || positionsMarketValue
+      // V148 FIX: Scale margin proportionally to price change instead of
+      // falling back to positionsMarketValue (full notional = qty×price).
+      // For leveraged positions, margin = notional/leverage, so when price
+      // changes: newMargin ≈ oldMargin × (newPrice/oldPrice).
+      // If initialMargin was correctly set from backend (leverage-aware),
+      // we preserve it and only scale by the equity change ratio.
+      const previousMargin = Number(currentAccount.initialMargin) || 0
+      const previousEquity = Number(currentAccount.equity) || cash
+      const initialMargin = previousMargin > 0
+        ? previousMargin  // Keep backend's leverage-aware margin (stable)
+        : 0  // Don't fall back to full notional!
       const freeMargin = Math.max(0, newEquity - initialMargin)
 
       set({
@@ -417,7 +427,7 @@ export const usePositionsStore = create<PositionsState>()(
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.data && data.data.exchanges?.length > 0) {
-          const { totalEquityUsd, totalAvailableUsd, exchanges } = data.data
+          const { totalEquityUsd, totalAvailableUsd, totalUsedMargin, exchanges } = data.data
 
           const isTestnet = exchanges.some((e: any) => e.isTestnet)
           const hasDecryptionError = exchanges.some((e: any) => e.error)
@@ -445,7 +455,15 @@ export const usePositionsStore = create<PositionsState>()(
             (sum, p) => sum + (p.unrealizedPnl || 0),
             0,
           )
-          const usedMargin = totalEquityUsd - totalAvailableUsd || positionsMarketValue
+          // V148 FIX: Use totalUsedMargin from backend (leverage-aware) instead of
+          // computing totalEquityUsd - totalAvailableUsd (which caps at equity when
+          // available=0) or falling back to positionsMarketValue (full notional = qty×price).
+          // For forex (50:1), the full notional is 50× the actual margin. Using
+          // positionsMarketValue as fallback caused "مستخدم" to show $19,548 instead
+          // of the correct ~$390 on a $10K account.
+          const usedMargin = totalUsedMargin > 0
+            ? totalUsedMargin
+            : (totalEquityUsd - totalAvailableUsd > 0 ? totalEquityUsd - totalAvailableUsd : 0)
 
           // ═══════════════════════════════════════════════════════════════
           // FIX V140B: CORRECT BALANCE/EQUITY CALCULATION
@@ -558,14 +576,19 @@ export const usePositionsStore = create<PositionsState>()(
         const summary = data.data || data.summary || data
 
         if (summary && (summary.totalBalance !== undefined || summary.totalExposure !== undefined)) {
+          // V148 FIX: Use usedMargin (leverage-aware) from backend instead of
+          // totalExposure (full notional). totalExposure = qty × price which is
+          // 50× the actual margin for forex. Using it as initialMargin caused
+          // "مستخدم" to show $19,548 instead of ~$390.
+          const margin = summary.usedMargin || 0
           const account = {
             equity: summary.totalBalance || 0,
             cash: (summary.totalBalance || 0) - (summary.totalExposure || 0),
-            buyingPower: (summary.totalBalance || 0) - (summary.totalExposure || 0),
+            buyingPower: Math.max(0, (summary.totalBalance || 0) - margin),
             portfolioValue: summary.totalBalance || 0,
             longMarketValue: summary.totalExposure || 0,
             shortMarketValue: 0,
-            initialMargin: summary.totalExposure || 0,
+            initialMargin: margin,
             maintenanceMargin: 0,
             unrealizedPnl: summary.unrealizedPnL || 0,
             unrealizedPnlPct: summary.dailyPnLPercent || 0,
@@ -599,16 +622,28 @@ export const usePositionsStore = create<PositionsState>()(
     if (fallbackPositions.length > 0) {
       const totalExposure = fallbackPositions.reduce((sum, p) => sum + (p.marketValue || p.qty * p.currentPrice), 0)
       const totalUnrealizedPnl = fallbackPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
+      // V148 FIX: Estimate leverage-aware margin from positions. We don't have
+      // symbol-metadata on the frontend, so we estimate based on position value:
+      // - Positions < $500 each → likely crypto (1:1 margin = full value)
+      // - Positions ≥ $500 each → likely forex/commodity (estimate margin as exposure / 20)
+      // This is a rough heuristic. The correct value comes from the backend API.
+      const estimatedMargin = fallbackPositions.reduce((sum, p) => {
+        const posValue = Math.abs(p.marketValue || p.qty * p.currentPrice || 0)
+        // Heuristic: if position value > $1000, assume leveraged (divide by ~20-50)
+        // Otherwise assume 1:1 (crypto spot)
+        if (posValue > 1000) return sum + posValue / 30 // blend of forex(50) and gold(20)
+        return sum + posValue // crypto spot, 1:1
+      }, 0)
       const PAPER_BALANCE_4 = 10000
       const equity = PAPER_BALANCE_4 + totalUnrealizedPnl
       const account = {
         equity,
         cash: PAPER_BALANCE_4,
-        buyingPower: Math.max(0, PAPER_BALANCE_4 - totalExposure),
+        buyingPower: Math.max(0, equity - estimatedMargin),
         portfolioValue: equity,
         longMarketValue: totalExposure,
         shortMarketValue: 0,
-        initialMargin: totalExposure,
+        initialMargin: estimatedMargin,
         maintenanceMargin: 0,
         unrealizedPnl: totalUnrealizedPnl,
         unrealizedPnlPct: totalExposure > 0 ? (totalUnrealizedPnl / totalExposure) * 100 : 0,

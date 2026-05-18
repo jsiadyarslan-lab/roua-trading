@@ -47,6 +47,10 @@ export class PortfolioSummary {
   dailyPnL: number;
   dailyPnLPercent: number;
   totalExposure: number;
+  /** V148: Leverage-aware used margin (notional / leverage). NOT the same as totalExposure.
+   * For forex (50:1), usedMargin = totalExposure / 50.
+   * For crypto spot (1:1), usedMargin = totalExposure. */
+  usedMargin: number;
   openPositionsCount: number;
   maxDrawdownPercent: number;
   unrealizedPnL: number;

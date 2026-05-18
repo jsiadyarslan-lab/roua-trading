@@ -608,8 +608,17 @@ export class CredentialsService {
 
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
+    // V148 FIX: Include totalUsedMargin in response so frontend doesn't have to
+    // compute it incorrectly as totalEquityUsd - totalAvailableUsd (which caps at
+    // equity when available=0) or fall back to positionsMarketValue (full notional).
+    // The correct usedMargin is already calculated per-exchange using calculateMargin()
+    // which is leverage-aware (forex /50, gold /20, crypto /1).
+    const totalUsedMargin = exchanges.reduce((sum, e) => {
+      const usedAsset = e.assets?.find((a: any) => a.currency === 'USD');
+      return sum + (usedAsset?.used || 0);
+    }, 0);
 
-    const result = { totalEquityUsd, totalAvailableUsd, exchanges };
+    const result = { totalEquityUsd, totalAvailableUsd, totalUsedMargin, exchanges };
 
     // FIX: Store in balance cache — subsequent requests within 60s will be instant
     if (this.balanceCache.size >= this.BALANCE_CACHE_MAX_SIZE) {

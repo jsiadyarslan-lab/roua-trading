@@ -3,6 +3,7 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { PositionInfo, PortfolioSummary } from '../events/order.events';
 import { RedisService } from '../../../common/redis/redis.service';
+import { calculateMargin } from './symbol-metadata';
 
 /**
  * Position Manager Service — Portfolio & Position Tracking
@@ -207,6 +208,16 @@ export class PositionManagerService {
       0,
     );
 
+    // V148 FIX: Calculate leverage-aware used margin.
+    // totalExposure is the FULL NOTIONAL (qty × price) which is WRONG for margin.
+    // For forex at 50:1, $108K exposure only needs $2,160 margin.
+    // Using totalExposure as "usedMargin" caused the dashboard to show
+    // "مستخدم: $19,548" instead of the correct "~$390" for a $10K account.
+    const usedMargin = positions.reduce(
+      (sum, p) => sum + calculateMargin(p.quantity, p.currentPrice, p.symbol),
+      0,
+    );
+
     // Calculate total unrealized P&L
     const unrealizedPnL = positions.reduce(
       (sum, p) => sum + p.unrealizedPnL,
@@ -248,6 +259,7 @@ export class PositionManagerService {
       dailyPnL,
       dailyPnLPercent,
       totalExposure,
+      usedMargin,
       openPositionsCount: positions.length,
       maxDrawdownPercent,
       unrealizedPnL,

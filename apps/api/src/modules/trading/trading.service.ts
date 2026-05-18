@@ -11,7 +11,7 @@ import { CredentialsService } from '../portfolio/credentials/credentials.service
 import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
 import { AuditService } from '../../audit/audit.service';
-import { getSymbolMetadata, AssetClass } from './services/symbol-metadata';
+import { getSymbolMetadata, AssetClass, calculateMargin } from './services/symbol-metadata';
 import * as ccxt from 'ccxt';
 import * as crypto from 'crypto';
 import {
@@ -564,12 +564,26 @@ export class TradingService {
         (sum, p) => sum + (Number(p.realizedPnl) || 0),
         0,
       );
+      // V148 FIX: Calculate leverage-aware used margin instead of returning
+      // totalValue (full notional) as margin. Previously, the frontend used
+      // totalValue as "initialMargin" which is WRONG for leveraged positions.
+      // For forex (50:1 leverage), a $108K notional position only needs $2,160 margin.
+      // Using totalValue as margin caused the "مستخدم" to show $108K instead of $2.16K.
+      const usedMargin = positions.reduce(
+        (sum, p) => sum + calculateMargin(
+          typeof p.quantity === 'number' ? p.quantity : Number(p.quantity),
+          Number(p.currentPrice) || Number(p.entryPrice),
+          p.symbol,
+        ),
+        0,
+      );
 
       return {
         totalPositions: positions.length,
         totalValue,
         totalUnrealizedPnl,
         totalRealizedPnl,
+        usedMargin,
         positions,
       };
     } catch (error: any) {

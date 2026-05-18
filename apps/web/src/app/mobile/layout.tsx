@@ -61,7 +61,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             left: 0,
             right: 0,
             bottom: 0,
-            background: '#000000',
+            background: '#0B0E14',
             color: '#F0F2F5',
             maxWidth: 480,
             width: '100%',

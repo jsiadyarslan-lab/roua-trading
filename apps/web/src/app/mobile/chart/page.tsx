@@ -30,13 +30,13 @@ const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), {
 /* ─── Design Tokens ─── */
 const C = {
   accent: '#00D4FF',
-  success: '#32D74B',
-  danger: '#FF453A',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
-  bg: 'rgba(28, 28, 30, 0.98)',
-  border: 'rgba(255,255,255,0.08)',
+  text2: '#8B92A8',
+  bg: '#1A1D29',
+  border: 'rgba(255,255,255,0.06)',
 }
 
 const PAIRS = ['BTC/USD', 'ETH/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD', 'SOL/USD']

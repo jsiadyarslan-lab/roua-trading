@@ -19,15 +19,15 @@ import { ScopedStyle } from '@/components/ScopedStyle'
 /* ─── Design Tokens ─── */
 const C = {
   accent:  '#00D4FF',
-  success: '#32D74B',
-  danger:  '#FF453A',
+  success: '#00FFA3',
+  danger:  '#FF4757',
   amber:   '#FFB800',
   purple:  '#B388FF',
   text:    '#F0F2F5',
-  text2:   'rgba(235,235,245,0.5)',
-  text3:   'rgba(235,235,245,0.25)',
-  bg:      '#1C1C1E',
-  border:  'rgba(255,255,255,0.08)',
+  text2:   '#8B92A8',
+  text3:   '#8B92A8',
+  bg:      '#1A1D29',
+  border:  'rgba(255,255,255,0.06)',
 }
 const FONT_AR   = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
@@ -208,14 +208,14 @@ export default function MobileAgentPage() {
 
   if (!hydrated) {
     return (
-      <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Loader2 size={28} className="animate-spin" color={C.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ═══ Sticky Header ═══ */}
       <div style={{

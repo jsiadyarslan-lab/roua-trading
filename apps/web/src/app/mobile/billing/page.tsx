@@ -11,13 +11,13 @@ import {
 /* ─── Design Tokens ─── */
 const c = {
   accent: '#00D4FF',
-  success: '#32D74B',
-  danger: '#FF453A',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
-  bg: '#1C1C1E',
-  border: 'rgba(255,255,255,0.08)',
+  text2: '#8B92A8',
+  bg: '#1A1D29',
+  border: 'rgba(255,255,255,0.06)',
 }
 
 /* ─── Plans Data ─── */
@@ -181,14 +181,14 @@ export default function BillingPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+      <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', display: 'flex', alignItems: 'center', justifyContent: 'center', overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
         <Loader2 size={32} className="animate-spin" color={c.accent} />
       </div>
     )
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
 
       {/* ── Header ── */}
       <div style={{

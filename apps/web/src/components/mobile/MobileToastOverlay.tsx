@@ -185,7 +185,7 @@ export default function MobileToastOverlay() {
               <button
                 onClick={(e) => { e.stopPropagation(); dismissToast(toast.id) }}
                 style={{
-                  width: 24, height: 24, borderRadius: 8, flexShrink: 0,
+                  width: 28, height: 28, borderRadius: 10, flexShrink: 0,
                   background: 'rgba(255,255,255,0.06)',
                   border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center',
                   cursor: 'pointer',

@@ -23,7 +23,7 @@ export default function MobileError({
     <div
       style={{
         minHeight: '100dvh',
-        background: '#000000',
+        background: '#0B0E14',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',

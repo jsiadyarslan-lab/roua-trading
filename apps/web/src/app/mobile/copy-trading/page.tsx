@@ -8,9 +8,9 @@ import { toast } from '@/hooks/use-toast'
 
 /* ─── Design Tokens ─── */
 const C = {
-  accent: '#00D4FF', success: '#32D74B', danger: '#FF453A', amber: '#FFB800',
-  purple: '#A78BFA', text: '#F0F2F5', text2: 'rgba(235,235,245,0.5)',
-  text3: 'rgba(235,235,245,0.25)', border: 'rgba(255,255,255,0.08)',
+  accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800',
+  purple: '#A78BFA', text: '#F0F2F5', text2: '#8B92A8',
+  text3: '#8B92A8', border: 'rgba(255,255,255,0.06)',
 }
 const FONT_AR = "'Cairo', sans-serif"
 const FONT_MONO = "'JetBrains Mono', monospace"
@@ -56,7 +56,7 @@ export default function MobileCopyTradingPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#000', direction: 'rtl', paddingBottom: 20 }}>
+    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20 }}>
       {/* ─── Sticky Header ─── */}
       <div style={{
         padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 12px',

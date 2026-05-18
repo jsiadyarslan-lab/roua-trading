@@ -15,13 +15,13 @@ import { useNotificationStore, type Notification, type NotifSource, type NotifPr
    ═══════════════════════════════════════════════════════════ */
 const C = {
   accent: '#00D4FF',
-  success: '#32D74B',
-  danger: '#FF453A',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
-  bg: '#1C1C1E',
-  border: 'rgba(255,255,255,0.08)',
+  text2: '#8B92A8',
+  bg: '#1A1D29',
+  border: 'rgba(255,255,255,0.06)',
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -374,7 +374,7 @@ function NotificationCard({
           whileTap={{ scale: 0.85 }}
           onClick={(e) => { e.stopPropagation(); onDismiss(item.id) }}
           style={{
-            width: 32, height: 32, borderRadius: 10,
+            width: 36, height: 36, borderRadius: 12,
             background: 'rgba(255,69,58,0.08)',
             border: '0.5px solid rgba(255,69,58,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -928,7 +928,7 @@ export default function MobileNotificationsPage() {
   return (
     <div style={{
       minHeight: '100%',
-      background: '#000000',
+      background: '#0B0E14',
       direction: 'rtl',
       paddingBottom: 20,
       position: 'relative',
@@ -1057,7 +1057,7 @@ export default function MobileNotificationsPage() {
                 onClick={() => setActiveFilter(tab.id)}
                 style={{
                   flex: 1, padding: '8px 0', borderRadius: 12,
-                  border: 'none', cursor: 'pointer',
+                  minHeight: 44, border: 'none', cursor: 'pointer',
                   fontSize: 12, fontWeight: isActive ? 800 : 600,
                   fontFamily: "'Cairo', sans-serif",
                   background: isActive ? C.accent : 'transparent',

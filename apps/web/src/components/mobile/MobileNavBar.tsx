@@ -8,7 +8,7 @@ import {
   Grid3X3, Brain, FlaskConical, ScanSearch, Radio,
   Newspaper, HelpCircle, X, Activity, Zap, Target,
   BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users,
-  Globe2, GitMerge, Trophy, Eye, Cpu, Code, CalendarDays, Shield,
+  Globe2, GitMerge, Trophy, Eye, Cpu, Code, CalendarDays, Shield, Store,
 } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
@@ -52,6 +52,7 @@ const MORE_CATEGORIES: MoreCategory[] = [
       { label: 'متابعة الحسابات', href: '/mobile/copy-trading', icon: Eye, color: '#10B981', isNew: true, sub: 'تابع أداء الحسابات المربوطة' },
       { label: 'لوحة الصدارة', href: '/mobile/leaderboard', icon: Trophy, color: '#FFB800', isNew: true, sub: 'أفضل الحسابات المربوطة' },
       { label: 'وكيل التداول', href: '/mobile/agent', icon: Cpu, color: '#FF9F43', sub: 'تداول ذاتي بالذكاء الاصطناعي' },
+      { label: 'المتجر', href: '/mobile/marketplace', icon: Store, color: '#00D4FF', isNew: true, sub: 'استراتيجيات وبوتات ومؤشرات' },
     ],
   },
   {

@@ -120,7 +120,7 @@ export default function MobileSignalsPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#000000', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
       
       {/* ── Header ── */}
       <div style={{

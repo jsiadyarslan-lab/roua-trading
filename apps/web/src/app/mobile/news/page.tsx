@@ -25,13 +25,13 @@ import { safeStr } from '@/lib/utils'
 /* ─── Color Constants ─── */
 const C = {
   accent: '#00D4FF',
-  success: '#32D74B',
-  danger: '#FF453A',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
-  bg: '#1C1C1E',
-  border: 'rgba(255,255,255,0.08)',
+  text2: '#8B92A8',
+  bg: '#1A1D29',
+  border: 'rgba(255,255,255,0.06)',
 } as const
 
 const FONT_AR = "'Cairo', sans-serif"
@@ -809,7 +809,7 @@ export default function MobileNewsPage() {
       onTouchEnd={handleTouchEnd}
       style={{
         minHeight: '100%',
-        background: '#000000',
+        background: '#0B0E14',
         direction: 'rtl',
         fontFamily: FONT_AR,
         overflowY: 'auto',

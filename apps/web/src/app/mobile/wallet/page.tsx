@@ -19,15 +19,15 @@ import { useBotStore } from '@/hooks/useBotStore'
 // ── Design Tokens ──
 const T = {
   accent: '#00D4FF',
-  success: '#32D74B',
-  danger: '#FF453A',
+  success: '#00FFA3',
+  danger: '#FF4757',
   amber: '#FFB800',
   text: '#F0F2F5',
-  text2: 'rgba(235,235,245,0.5)',
+  text2: '#8B92A8',
   text3: 'rgba(235,235,245,0.3)',
-  bg: '#1C1C1E',
-  bgApp: '#000000',
-  border: 'rgba(255,255,255,0.08)',
+  bg: '#1A1D29',
+  bgApp: '#0B0E14',
+  border: 'rgba(255,255,255,0.06)',
   font: "'Cairo', sans-serif",
   mono: "'JetBrains Mono', monospace",
 }

@@ -50,9 +50,16 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <MobileToastOverlay />
         <NotificationPermissionBanner />
         <PushNotificationManager />
+        {/* FIXED container — position:fixed;inset:0 guarantees the container
+            fills the ENTIRE viewport regardless of body margins, parent styles,
+            or --app-height calculation errors. This eliminates the navbar gap. */}
         <div
           style={{
-            position: 'relative',
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
             display: 'flex',
             flexDirection: 'column',
             background: '#000000',
@@ -60,13 +67,10 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             maxWidth: 480,
             width: '100%',
             margin: '0 auto',
-            /* Use --app-height (set via JS window.innerHeight) as primary,
-               fall back to 100dvh for SSR/before hydration */
-            height: 'var(--app-height, 100dvh)',
             overflow: 'hidden',
           }}
         >
-          {/* Scrollable content area — fills space above the navbar.
+          {/* Content area — fills space above the navbar.
               minHeight:0 allows flex child to shrink so overflow scrolling works. */}
           <main
             style={{
@@ -79,7 +83,6 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               overscrollBehaviorY: 'contain',
               width: '100%',
               zIndex: 1,
-              isolation: 'isolate',
             }}
           >
             {children}

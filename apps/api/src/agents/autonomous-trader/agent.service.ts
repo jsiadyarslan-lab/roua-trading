@@ -1557,32 +1557,21 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           // Now: The Agent skips only if there's an EXISTING same-direction position
           // on the same symbol — because two BUY positions on BTC/USDT would be
           // a true duplicate. But if the Executor has BUY and the Agent wants SELL
-          // (or vice versa), that's a hedge and is allowed.
+          // V146b FIX: Allow Agent to open same-direction positions alongside Smart Executor.
+          // The Agent trades on different timeframes (M30/H1/H4/D1/W1) than the
+          // Smart Executor (M1/M5/M15). Same direction from a DIFFERENT source on a
+          // DIFFERENT timeframe is NOT a duplicate — it's an independent trade.
           //
-          // If the existing position is from the Agent itself, skip regardless of direction
-          // (the Agent shouldn't open two positions on the same pair).
+          // Only block if the Agent already has its OWN position on this pair.
           const existingPosition = await this.prisma.position.findFirst({
-            where: { userId, symbol: brief.pair, status: 'OPEN' },
+            where: { userId, symbol: brief.pair, status: 'OPEN', source: 'agent' },
           });
           if (existingPosition) {
-            const existingSide = existingPosition.side; // 'BUY' or 'SELL'
-            const briefSide = brief.direction; // 'BUY' or 'SELL'
-            const isOwnPosition = existingPosition.source === 'agent';
-
-            // Skip if: same direction (duplicate) OR our own position (any direction)
-            if (isOwnPosition || existingSide === briefSide) {
-              this.logger.debug(
-                `🧠 Skipping brief ${brief.id} — ${isOwnPosition ? 'own' : 'same-direction'} position for ${brief.pair} ` +
-                `(existing: ${existingSide}/${existingPosition.source}, brief: ${briefSide})`
-              );
-              continue;
-            }
-
-            // Different direction from another system — this is a hedge, allow it
             this.logger.debug(
-              `🧠 Hedge allowed: ${brief.pair} has ${existingSide}/${existingPosition.source} position, ` +
-              `opening ${briefSide} (different direction)`
+              `🧠 Skipping brief ${brief.id} — Agent already has position for ${brief.pair} ` +
+              `(existing: ${existingPosition.side})`
             );
+            continue;
           }
 
           // Check confidence threshold (use agent-specific minimum)
@@ -1617,6 +1606,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             riskRewardRatio: Math.abs(brief.takeProfit - brief.entryPrice) / Math.abs(brief.entryPrice - brief.stopLoss),
             riskScore: 100 - brief.confidence,
             timestamp: new Date(),
+            timeframe: brief.timeframe, // V146b: Pass timeframe for proper idempotency TTL
             metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
           };
 

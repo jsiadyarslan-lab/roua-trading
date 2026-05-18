@@ -565,10 +565,11 @@ export class RiskCalculatorService {
     }
   }
 
+  // V146b: Only count Agent's own positions, not Smart Executor's
   private async _getOpenPositionsCount(userId: string): Promise<number> {
     try {
       return await this.prisma.position.count({
-        where: { userId, status: 'OPEN' },
+        where: { userId, status: 'OPEN', source: 'agent' },
       });
     } catch {
       return 0;

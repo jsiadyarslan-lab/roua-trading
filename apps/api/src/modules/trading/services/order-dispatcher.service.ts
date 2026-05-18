@@ -122,24 +122,20 @@ export class OrderDispatcherService {
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
       });
       if (existing) {
+        // V146b FIX: Allow Agent to open same-direction positions alongside
+        // Smart Executor. The Agent trades on different timeframes (M30+).
+        // Only reject if the SAME source already has a same-direction position.
         // ═══════════════════════════════════════════════════════════════════
-        // V133 FIX: STOP closing existing positions to replace them.
-        //
-        // The old logic closed existing paper positions when a new brief
-        // had the same direction, causing the "open and close after 1 second"
-        // infinite loop (see SmartExecutor V133 fix for details).
-        //
-        // NEW BEHAVIOR:
-        //   - Same direction as existing → REJECT (duplicate)
-        //   - Opposite direction + paper → Allow hedge
-        //   - Opposite direction + real → REJECT
-        //   - NEVER close an existing position to make room for a new one
-        // ═══════════════════════════════════════════════════════════════════
-        if (existing.side === request.side) {
-          // Same direction — reject as duplicate
+        if (existing.side === request.side && existing.source === request.source) {
+          // Same source, same direction — reject as duplicate
           await this.idempotency.releaseLock(sourceIdempotencyKey);
           try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
-          return { success: false, message: `مركز ${existing.side} مفتوح بالفعل لـ ${request.symbol}` };
+          return { success: false, message: `مركز ${existing.side} مفتوح بالفعل لـ ${request.symbol} (مصدر: ${existing.source})` };
+        }
+
+        if (existing.side === request.side && existing.source !== request.source) {
+          // Different source, same direction — ALLOW (different timeframe/trade)
+          this.logger.log(`[Dispatcher] V146b Cross-source same-direction allowed: ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
         }
 
         if (request.isPaperTrading) {

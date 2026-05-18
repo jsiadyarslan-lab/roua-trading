@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v163-hasPaperOnly-fix
+ARG BUILD_CACHE=v164-exchange-unavailable-ui
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.

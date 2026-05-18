@@ -213,6 +213,8 @@ export function PortfolioMini({
   const { data } = usePortfolioSummary()
   const positions = usePositionsStore(s => s.positions)
   const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
+  // V164: Read the exchangeUnavailable flag to show warning when real exchange fails
+  const exchangeUnavailable = usePositionsStore(s => s.account?.exchangeUnavailable === true)
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null)
   const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
@@ -280,6 +282,26 @@ export function PortfolioMini({
         </div>
       </div>
 
+      {/* V164: Exchange unavailable warning banner */}
+      {exchangeUnavailable && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '5px 8px', borderRadius: 8,
+          background: 'rgba(255,184,0,0.12)',
+          border: '1px solid rgba(255,184,0,0.3)',
+        }}>
+          <span style={{ fontSize: 11 }}>⚠️</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 8.5, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
+              البورصة غير متاحة
+            </div>
+            <div style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
+              الرصيد المعروض من التداول الورقي — حسابك الحقيقي غير متصل مؤقتاً
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Balance + Sparkline row */}
       <div style={{
         display: 'flex',
@@ -288,13 +310,27 @@ export function PortfolioMini({
         gap: 8,
       }}>
         <div style={{ flex: 1 }}>
-          <div style={{
-            fontFamily: "'Cairo', sans-serif",
-            fontSize: 9, color: T.text2,
-          }}>الرصيد الكلي</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <div style={{
+              fontFamily: "'Cairo', sans-serif",
+              fontSize: 9, color: T.text2,
+            }}>الرصيد الكلي</div>
+            {/* V164: Show "ورقي" badge when displaying paper balance as fallback */}
+            {exchangeUnavailable && (
+              <span style={{
+                fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
+                background: 'rgba(0,212,255,0.15)', color: T.cyan,
+                fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                border: '0.5px solid rgba(0,212,255,0.3)',
+              }}>
+                ورقي
+              </span>
+            )}
+          </div>
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
-            fontSize: balanceSize, fontWeight: 800, color: T.text,
+            fontSize: balanceSize, fontWeight: 800,
+            color: exchangeUnavailable ? T.cyan : T.text,
             letterSpacing: '-0.02em',
           }}>${fmt(data.balance, 0)}</div>
         </div>

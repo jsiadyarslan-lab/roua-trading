@@ -519,3 +519,29 @@ Stage Summary:
 - Removed ~130 lines of redundant trade log UI code
 - Alpaca 503 error will no longer appear when credentials are not configured
 - Commit: 3d3a044ac pushed to main
+
+---
+Task ID: V140B-2
+Agent: Main Agent
+Task: Fix closed trades showing only paper trades — add source badges for smart_executor/agent
+
+Work Log:
+- Found root cause: EXIT Trade records in closePosition() and forceClosePosition() did NOT set the `source` field
+  - Prisma default is "user_manual", so ALL trades appeared as manual regardless of actual source
+- Fixed trading.service.ts: Added `source: position.source || 'user_manual'` to both Trade.create calls
+- Fixed agent.service.ts fallback close: Added exitPrice, realizedPnl, and Trade record creation
+  - Previously the Agent fallback path was missing all 3 (no audit trail for these closes)
+- Fixed getClosedPositions query: Changed `status: 'CLOSED'` to `status: { in: ['CLOSED', 'LIQUIDATED'] }`
+  - Liquidated positions were previously invisible in history
+- Updated UI: Source badges now show for ALL trade types with distinct colors:
+  - منفذ (amber) = smart_executor
+  - وكيل (purple) = agent  
+  - ورقي (cyan) = auto_paper
+  - يدوي (gray) = user_manual
+- Added `source` field to Position TypeScript interface (was using `(p as any).source`)
+- Build succeeded, committed and pushed to main
+
+Stage Summary:
+- Commit: 5aba1b6f3 pushed to main
+- 4 bugs fixed that caused smart_executor/agent trades to be invisible or misclassified
+- New source badges will appear on all closed trades after deployment

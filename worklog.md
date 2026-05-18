@@ -568,3 +568,25 @@ Stage Summary:
 - Commit: 337250198 pushed to main
 - Wallet numbers will now be logically consistent after deployment
 - Expected: الرصيد ~$18,844, الحالي ~$18,856, P&L ~$12
+
+---
+Task ID: V140B-4
+Agent: Main Agent
+Task: Fix Smart Executor stopping after a few minutes of activation
+
+Work Log:
+- Diagnosed root cause: _startupCleanup() was deleting ALL user executor states
+  from both Redis AND DB on every NestJS restart
+- Railway restarts NestJS frequently (crashes, deployments, cycling)
+- Each restart wiped user states → executor appeared to "stop after a few minutes"
+- Fixed _startupCleanup() to only clear Redis volatile cache, preserve DB states
+- Added auto-restore: after cleanup, re-populate Redis from DB for enabled:true users
+  and auto-start the global executor
+- Added TTL refresh in _getEnabledUsers() to prevent 7-day silent expiry
+- Safe because V136 already removed AuthService auto-creation — all remaining
+  enabled:true states are from users who explicitly clicked "تفعيل"
+
+Stage Summary:
+- Commit: 571c88368 pushed to main
+- Executor will now survive NestJS restarts and auto-restore enabled users
+- 7-day silent expiry bug also fixed with TTL refresh

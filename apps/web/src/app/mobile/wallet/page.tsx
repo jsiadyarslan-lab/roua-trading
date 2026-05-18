@@ -195,9 +195,35 @@ export default function MobileWalletPage() {
         // The || fallback previously used mobileMarketValue when totalEquityUsd - totalAvailableUsd = 0,
         // which happened for paper trading where available ≈ equity.
         const totalUsedMargin = balanceData.data.totalUsedMargin || 0
-        const usedMargin = totalUsedMargin > 0
-          ? totalUsedMargin
-          : (totalEquityUsd - totalAvailableUsd > 0 ? totalEquityUsd - totalAvailableUsd : 0)
+        // V151: THREE-TIER margin resolution (same as dashboard)
+        let usedMargin: number
+        if (totalUsedMargin > 0) {
+          usedMargin = totalUsedMargin
+        } else if (mobilePositions.length > 0) {
+          // Client-side calculation from positions using leverage
+          let clientMargin = 0
+          for (const p of mobilePositions) {
+            const qty = Number(p.qty) || 0
+            const price = Number(p.currentPrice) || 0
+            if (qty <= 0 || price <= 0) continue
+            const notional = Math.abs(qty * price)
+            const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
+            const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
+            const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']
+            const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','DOT','AVAX','LINK','MATIC','UNI','ATOM','LTC','SHIB']
+            let leverage = 1
+            if (symbol.includes('XAU') || symbol.includes('GOLD')) leverage = 20
+            else if (symbol.includes('XAG') || symbol.includes('SILVER')) leverage = 20
+            else if (CRYPTO_BASES.includes(base)) leverage = 1
+            else if (FOREX_BASES.includes(base) || symbol.includes('JPY')) leverage = 50
+            clientMargin += notional / leverage
+          }
+          usedMargin = clientMargin
+        } else if (totalEquityUsd - totalAvailableUsd > 0) {
+          usedMargin = totalEquityUsd - totalAvailableUsd
+        } else {
+          usedMargin = 0
+        }
 
         setAccount({
           equity: totalEquityUsd + mobilePnl,

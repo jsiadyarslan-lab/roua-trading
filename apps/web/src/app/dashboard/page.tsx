@@ -1174,16 +1174,40 @@ export default function DashboardPage() {
   const longMarketValue = positions.length > 0 ? livePositionsValue : (Number(account?.longMarketValue) || 0)
   const shortMarketValue = 0
   const positionsValue = longMarketValue + shortMarketValue
-  // V147 FIX: Use the backend's leverage-aware margin (account.initialMargin) when available.
-  // Previously, this used positionsValue (full notional = qty × price) as the margin,
-  // which is WRONG for leveraged positions. For forex with 50:1 leverage, a $500 position
-  // only needs $10 margin, but the old code showed $500 as "مستخدم" (used margin).
-  // This made the "هامش متاح" (free margin) appear to drop by thousands.
-  // Now: Use account.initialMargin from the backend (which is leverage-aware),
-  // ONLY fall back to 0 if not available — NEVER fall back to positionsValue (full notional).
-  const initialMargin = Number(account?.initialMargin) > 0
-    ? Number(account.initialMargin)
+  // V147→V151 FIX: Leverage-aware margin with client-side fallback.
+  // Previously used positionsValue (full notional = qty × price) as margin → WRONG.
+  // Then V147 used account.initialMargin only → showed $0 when backend returned 0.
+  // V151: THREE-TIER resolution — same logic as usePositionsStore:
+  //   1. account.initialMargin (set by fetchAccount or updatePositionPrice)
+  //   2. Client-side calculation from positions (leverage-aware)
+  //   3. 0 only if truly no positions exist
+  const accountMargin = Number(account?.initialMargin) || 0
+  const clientSideMargin = positions.length > 0
+    ? (() => {
+        // Import-free inline margin calc (matches margin-calculator.ts logic)
+        let margin = 0
+        for (const p of positions) {
+          const qty = Number(p.qty) || 0
+          const price = Number(p.currentPrice) || 0
+          if (qty <= 0 || price <= 0) continue
+          const notional = Math.abs(qty * price)
+          const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
+          const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
+          const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']
+          const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','DOT','AVAX','LINK','MATIC','UNI','ATOM','LTC','SHIB']
+          let leverage = 1
+          if (symbol.includes('XAU') || symbol.includes('GOLD')) leverage = 20
+          else if (symbol.includes('XAG') || symbol.includes('SILVER')) leverage = 20
+          else if (CRYPTO_BASES.includes(base)) leverage = 1
+          else if (FOREX_BASES.includes(base) || symbol.includes('JPY')) leverage = 50
+          margin += notional / leverage
+        }
+        return margin
+      })()
     : 0
+  const initialMargin = accountMargin > 0
+    ? accountMargin
+    : clientSideMargin
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)

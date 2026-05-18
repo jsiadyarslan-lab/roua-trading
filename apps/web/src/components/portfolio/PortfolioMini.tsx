@@ -81,12 +81,36 @@ export function usePortfolioSummary() {
       return true
     })
 
-    // V149 FIX: Use the backend's leverage-aware margin (account.initialMargin) instead of
-    // computing from positionsMarketValue (full notional = qty × price). For forex at 50:1
-    // leverage, positionsMarketValue could be $20K while the actual margin is only ~$400.
-    // Using positionsMarketValue as margin caused "الهامش المستخدم" to show the full notional
-    // value instead of the real margin, making free margin appear as $0.
-    const margin = Number(account?.initialMargin) > 0 ? Number(account.initialMargin) : 0
+    // V149→V151 FIX: Leverage-aware margin with client-side fallback.
+    // V149 used account.initialMargin only → showed $0 when backend returned 0.
+    // V151: THREE-TIER resolution (same as dashboard page.tsx):
+    //   1. account.initialMargin (from fetchAccount or updatePositionPrice)
+    //   2. Client-side calculation from positions (leverage-aware)
+    //   3. 0 only if truly no positions exist
+    const accountMargin = Number(account?.initialMargin) || 0
+    const clientSideMargin = positions.length > 0
+      ? (() => {
+          let margin = 0
+          for (const p of positions) {
+            const qty = Number(p.qty) || 0
+            const price = Number(p.currentPrice) || 0
+            if (qty <= 0 || price <= 0) continue
+            const notional = Math.abs(qty * price)
+            const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
+            const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
+            const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']
+            const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','DOT','AVAX','LINK','MATIC','UNI','ATOM','LTC','SHIB']
+            let leverage = 1
+            if (symbol.includes('XAU') || symbol.includes('GOLD')) leverage = 20
+            else if (symbol.includes('XAG') || symbol.includes('SILVER')) leverage = 20
+            else if (CRYPTO_BASES.includes(base)) leverage = 1
+            else if (FOREX_BASES.includes(base) || symbol.includes('JPY')) leverage = 50
+            margin += notional / leverage
+          }
+          return margin
+        })()
+      : 0
+    const margin = accountMargin > 0 ? accountMargin : clientSideMargin
     // positionsMarketValue is still computed for the Exposure display only (not margin)
     let positionsMarketValue = 0
     positions.forEach(p => {

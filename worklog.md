@@ -79,3 +79,45 @@ Stage Summary:
   - apps/web/src/hooks/usePositionsStore.ts (frontend margin handling)
   - apps/api/src/agents/autonomous-trader/services/order-executor.service.ts (pre-trade check)
   - apps/api/src/agents/autonomous-trader/agent.module.ts (dependency injection)
+
+---
+Task ID: V151-margin-flickering-fix
+Agent: Super Z (main)
+Task: Fix margin flickering (appearing/disappearing between $0 and correct value)
+
+Work Log:
+- Analyzed user's dashboard: Balance $10,266.92, Used Margin $0.00, P&L -$31.74
+- Found ROOT CAUSE: updatePositionPrice() (1s tick) and fetchAccount() (5-15s tick) competing to set margin
+- V150's heuristic (reject margin > 80% equity) caused margin to flip between $0 and correct value
+- When heuristic rejected backend margin → initialMargin = 0 → _backendMargin overwritten with 0 → loop
+- Created /apps/web/src/lib/margin-calculator.ts — client-side leverage-aware margin calculation
+  - getSymbolLeverage(): FOREX=50, GOLD=20, CRYPTO=1
+  - calculateClientMargin(): notional / leverage per position
+  - calculatePortfolioMargin(): sum across all positions
+- Fixed usePositionsStore.ts updatePositionPrice():
+  - Removed V150 heuristic (margin > 80% equity → reject)
+  - Added THREE-TIER margin resolution:
+    TIER 1: Fresh _backendMargin from fetchAccount() (authoritative)
+    TIER 2: Client-side calculatePortfolioMargin() from positions (leverage-aware)
+    TIER 3: Preserve current initialMargin (never reset to 0 when positions exist)
+  - CRITICAL: _backendMargin and _marginVersion are NEVER overwritten by updatePositionPrice()
+- Fixed usePositionsStore.ts fetchAccount():
+  - Stage 1: Added THREE-TIER margin resolution (backend → client-side → equity-available)
+  - Stage 2 (NestJS summary): Added client-side fallback when backend returns 0 margin
+  - Stage 4 (positions fallback): Replaced old heuristic (/30) with calculatePortfolioMargin()
+- Fixed dashboard page.tsx: Added inline client-side margin calc as fallback for initialMargin
+- Fixed PortfolioMini.tsx: Same THREE-TIER margin resolution
+- Fixed mobile/wallet/page.tsx: Same THREE-TIER margin resolution
+- All files build successfully (Next.js build passes)
+
+Stage Summary:
+- V151 eliminates margin flickering by:
+  1. Never overwriting _backendMargin in updatePositionPrice() (was the flickering loop cause)
+  2. Client-side margin calculation as fallback (no more $0 when backend fails)
+  3. Never resetting margin to $0 when positions exist (preserves last known value)
+- Key files modified:
+  - apps/web/src/lib/margin-calculator.ts (NEW - client-side margin calc)
+  - apps/web/src/hooks/usePositionsStore.ts (V151 margin resolution)
+  - apps/web/src/app/dashboard/page.tsx (V151 margin display)
+  - apps/web/src/components/portfolio/PortfolioMini.tsx (V151 margin display)
+  - apps/web/src/app/mobile/wallet/page.tsx (V151 margin display)

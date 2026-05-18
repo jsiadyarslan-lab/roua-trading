@@ -118,7 +118,11 @@ export default function MobileNavBar() {
           pointerEvents: 'auto',
           flexShrink: 0,
           width: '100%',
-          height: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+          /* content-box: height=56px is the icon area; paddingBottom ADDS to it
+             so on notched iPhones the gradient background covers the home-indicator zone.
+             On Android (no safe-area) the total is just 56px — no extra space. */
+          boxSizing: 'content-box',
+          height: 56,
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.85) 100%)',
           backdropFilter: 'blur(60px) saturate(250%)',
@@ -127,7 +131,7 @@ export default function MobileNavBar() {
           boxShadow: '0 -4px 24px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.1)',
         }}
       >
-        <div className="flex items-center justify-around h-full px-0.5" dir="rtl" style={{ pointerEvents: 'auto' }}>
+        <div className="flex items-center justify-around px-0.5" dir="rtl" style={{ pointerEvents: 'auto', height: 56 }}>
           {NAV_ITEMS.map((item, idx) => {
             /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {

@@ -69,15 +69,11 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             width: '100%',
             margin: '0 auto',
             overflow: 'hidden',
-            /* Extend into safe-area so the navbar background covers the
-                home-indicator zone on notched iPhones */
-            paddingTop: 'env(safe-area-inset-top, 0px)',
-            paddingLeft: 'env(safe-area-inset-left, 0px)',
-            paddingRight: 'env(safe-area-inset-right, 0px)',
           }}
         >
           {/* Content area — fills space above the navbar.
-              minHeight:0 allows flex child to shrink so overflow scrolling works. */}
+              minHeight:0 allows flex child to shrink so overflow scrolling works.
+              paddingTop keeps content below the notch on iPhones. */}
           <main
             style={{
               position: 'relative',
@@ -89,6 +85,9 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
               overscrollBehaviorY: 'contain',
               width: '100%',
               zIndex: 1,
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingLeft: 'env(safe-area-inset-left, 0px)',
+              paddingRight: 'env(safe-area-inset-right, 0px)',
             }}
           >
             {children}

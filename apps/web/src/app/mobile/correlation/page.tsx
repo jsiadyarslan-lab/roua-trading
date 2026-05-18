@@ -1,249 +1,197 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowRight, GitMerge, RefreshCw, TrendingUp, TrendingDown, AlertTriangle } from 'lucide-react'
-import { ScopedStyle } from '@/components/ScopedStyle'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import { Grid3X3, Loader2, RefreshCw, TrendingUp, TrendingDown, ArrowUpDown } from 'lucide-react'
 
-/* ─── Design Tokens ─── */
-const C = {
-  accent:  '#00D4FF',
-  success: '#00FFA3',
-  danger:  '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#A78BFA',
-  text:    '#F0F2F5',
-  text2:   '#8B92A8',
-  text3:   '#8B92A8',
-  bg:      '#1A1D29',
-  border:  'rgba(255,255,255,0.06)',
+const C = { accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8', bg: '#1A1D29', border: 'rgba(255,255,255,0.06)' }
+
+function corrColor(val: number): string {
+  if (val >= 0.7) return C.success
+  if (val >= 0.4) return '#4ADE80'
+  if (val >= 0.1) return '#86EFAC40'
+  if (val >= -0.1) return C.text2
+  if (val >= -0.4) return '#FCA5A540'
+  if (val >= -0.7) return '#F87171'
+  return C.danger
 }
-const FONT_AR   = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
 
-function corrColor(v: number): string {
-  if (isNaN(v)) return '#1A1D29'
-  if (v >= 0.7)  return '#00FFC6'
-  if (v >= 0.4)  return '#4ade80'
-  if (v >= 0.1)  return '#86efac'
-  if (v >= -0.1) return '#8090A8'
-  if (v >= -0.4) return '#fca5a5'
-  if (v >= -0.7) return '#f87171'
-  return '#FF4D4D'
+function corrBg(val: number): string {
+  if (val >= 0.7) return `${C.success}18`
+  if (val >= 0.4) return `${C.success}10`
+  if (val >= 0.1) return `${C.success}06`
+  if (val >= -0.1) return 'rgba(255,255,255,0.02)'
+  if (val >= -0.4) return `${C.danger}06`
+  if (val >= -0.7) return `${C.danger}10`
+  return `${C.danger}18`
 }
 
 export default function MobileCorrelationPage() {
   const router = useRouter()
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<{ symbols: string[]; matrix: Record<string, Record<string, number>>; topCorrelated: { s1: string; s2: string; corr: number }[]; topAntiCorrelated: { s1: string; s2: string; corr: number }[] } | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [view, setView] = useState<'matrix' | 'list'>('matrix')
 
-  const fetchCorr = async () => {
+  const fetchCorrelation = useCallback(async () => {
     setLoading(true)
-    setError('')
     try {
       const res = await fetch('/api/correlation')
-      const d = await res.json()
-      if (d.success) setData(d)
-      else setError(d.error || 'فشل في حساب بيانات الارتباط')
-    } catch {
-      setError('تعذر الاتصال بخادم الارتباط. تأكد من تشغيل الخادم وحاول مجدداً.')
-    } finally { setLoading(false) }
-  }
+      if (res.ok) {
+        const d = await res.json()
+        if (d.success) {
+          setData({ symbols: d.symbols, matrix: d.matrix, topCorrelated: d.topCorrelated || [], topAntiCorrelated: d.topAntiCorrelated || [] })
+        }
+      }
+    } catch { /* */ } finally { setLoading(false) }
+  }, [])
 
-  useEffect(() => { fetchCorr() }, [])
+  useEffect(() => { fetchCorrelation() }, [fetchCorrelation])
 
   return (
-    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20 }}>
-      {/* ─── Sticky Header ─── */}
-      <div style={{
-        padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 16px',
-        background: 'rgba(0,0,0,0.8)',
-        backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-        position: 'sticky', top: 0, zIndex: 50,
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => router.back()}
-          style={{
-            width: 40, height: 40, borderRadius: 12,
-            background: 'rgba(255,255,255,0.07)',
-            border: '0.5px solid rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <ArrowRight size={18} color="#FFFFFF" />
-        </motion.button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <div style={{ color: C.accent, display: 'flex' }}><GitMerge size={20} /></div>
-          <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>مصفوفة الارتباط</h1>
+    <div className="m-page">
+      <MobilePageHeader
+        title="مصفوفة الارتباط"
+        subtitle="ارتباط بيرسون بين الأصول"
+        onBack={() => router.back()}
+        right={
+          <button onClick={fetchCorrelation} disabled={loading} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <RefreshCw size={14} color={C.text2} className={loading ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
+
+      {/* View Toggle */}
+      <div style={{ padding: '0 16px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2 }}>
+          {([['matrix', 'مصفوفة'], ['list', 'قائمة']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setView(key)} style={{ flex: 1, padding: '6px 0', borderRadius: 8, background: view === key ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', color: view === key ? C.accent : C.text2, fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer' }}>
+              {label}
+            </button>
+          ))}
         </div>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={fetchCorr}
-          disabled={loading}
-          style={{
-            width: 40, height: 40, borderRadius: 12,
-            background: `${C.accent}15`, border: `0.5px solid ${C.accent}25`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <RefreshCw size={16} color={C.accent} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-        </motion.button>
       </div>
 
-      <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
-
-      <div style={{ padding: '16px 20px' }}>
-        {/* Description */}
-        <p style={{ fontSize: 12, color: C.text2, fontFamily: FONT_AR, marginBottom: 16, lineHeight: 1.6 }}>
-          ارتباط بيرسون بين عوائد الأصول اليومية — يساعد على تنويع المحفظة وتجنب الارتباط الزائد
-        </p>
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 200 }}>
-            <div style={{ textAlign: 'center', color: C.text2 }}>
-              <div style={{ width: 32, height: 32, border: `3px solid ${C.accent}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-              <div style={{ fontSize: 12, fontFamily: FONT_AR }}>جارٍ حساب الارتباطات...</div>
-            </div>
-          </div>
-        )}
-
-        {/* Error */}
-        {!loading && error && !data && (
-          <div style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            padding: '40px 20px', borderRadius: 20, background: 'rgba(28,28,30,0.6)',
-            backdropFilter: 'blur(20px)', border: `0.5px solid ${C.border}`, textAlign: 'center',
-          }}>
-            <AlertTriangle size={32} color={C.amber} style={{ marginBottom: 12, opacity: 0.5 }} />
-            <p style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: FONT_AR, margin: '0 0 8px' }}>تعذر تحميل بيانات الارتباط</p>
-            <p style={{ fontSize: 12, color: C.text2, fontFamily: FONT_AR, margin: '0 0 16px' }}>{error}</p>
-            <motion.button whileTap={{ scale: 0.95 }} onClick={fetchCorr} style={{
-              padding: '10px 20px', borderRadius: 12, background: `${C.accent}18`,
-              border: `1px solid ${C.accent}40`, color: C.accent, fontSize: 12,
-              fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer',
-            }}>إعادة المحاولة</motion.button>
-          </div>
-        )}
-
-        {/* Data */}
-        {data && !loading && (
-          <>
-            {/* Legend */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              style={{
-                padding: '14px 16px', borderRadius: 16, marginBottom: 16,
-                background: 'rgba(28,28,30,0.6)', backdropFilter: 'blur(20px)',
-                border: `0.5px solid ${C.border}`,
-              }}
-            >
-              <div style={{ fontSize: 10, fontWeight: 700, color: C.text2, fontFamily: FONT_AR, marginBottom: 8 }}>دليل القراءة</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {[
-                  { label: 'ارتباط قوي', color: C.success },
-                  { label: 'ارتباط متوسط', color: '#4ade80' },
-                  { label: 'محايد', color: C.text2 },
-                  { label: 'ارتباط عكسي', color: '#f87171' },
-                  { label: 'ارتباط عكسي قوي', color: C.danger },
-                ].map(l => (
-                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: 3, background: l.color }} />
-                    <span style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>{l.label}</span>
-                  </div>
-                ))}
+      {loading && !data ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+          <Loader2 size={24} className="animate-spin" color={C.accent} />
+          <span style={{ fontSize: 12, color: C.text2, fontFamily: "'Cairo', sans-serif", marginRight: 8 }}>جارٍ حساب الارتباط...</span>
+        </div>
+      ) : data ? (
+        <>
+          {view === 'matrix' ? (
+            <IOSCard>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+                <Grid3X3 size={14} color={C.accent} />
+                <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif" }}>مصفوفة الارتباط</span>
               </div>
-              {data.dataPoints && (
-                <div style={{ fontSize: 9, color: C.text3, fontFamily: FONT_AR, marginTop: 6 }}>البيانات: {data.dataPoints} يوم</div>
-              )}
-            </motion.div>
-
-            {/* Matrix - Scrollable */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              style={{
-                borderRadius: 20, overflow: 'auto', marginBottom: 16,
-                background: 'rgba(28,28,30,0.6)', backdropFilter: 'blur(20px)',
-                border: `0.5px solid ${C.border}`, WebkitOverflowScrolling: 'touch',
-              }}
-            >
-              <table style={{ borderCollapse: 'collapse', fontSize: 10, minWidth: '100%' }}>
-                <thead>
-                  <tr>
-                    <th style={{ padding: '8px 10px', borderBottom: `0.5px solid ${C.border}`, color: C.text2, fontWeight: 700, fontSize: 8, position: 'sticky', top: 0, background: 'rgba(28,28,30,0.95)', zIndex: 1 }}>الأصل</th>
-                    {data.symbols.map((s: string) => (
-                      <th key={s} style={{ padding: '8px 8px', borderBottom: `0.5px solid ${C.border}`, color: C.text2, fontFamily: FONT_MONO, fontSize: 8, fontWeight: 800, whiteSpace: 'nowrap', position: 'sticky', top: 0, background: 'rgba(28,28,30,0.95)', zIndex: 1 }}>{s}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.symbols.map((s1: string) => (
-                    <tr key={s1} style={{ borderTop: `0.5px solid ${C.border}` }}>
-                      <td style={{ padding: '6px 10px', fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: C.text, whiteSpace: 'nowrap', background: '#000', position: 'sticky', right: 0, zIndex: 1 }}>{s1}</td>
-                      {data.symbols.map((s2: string) => {
-                        const v = data.matrix[s1]?.[s2] ?? 0
-                        const isSelf = s1 === s2
-                        const c = corrColor(v)
-                        return (
-                          <td key={s2} style={{ padding: '6px 8px', textAlign: 'center', background: isSelf ? `${C.accent}15` : `${c}${Math.abs(v) > 0.3 ? '18' : '08'}` }}>
-                            <span style={{ fontFamily: FONT_MONO, fontWeight: isSelf ? 900 : 700, fontSize: 10, color: isSelf ? C.accent : c }}>
-                              {isSelf ? '▪' : v.toFixed(2)}
-                            </span>
-                          </td>
-                        )
-                      })}
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} className="m-no-scroll">
+                <table style={{ width: '100%', borderCollapse: 'collapse', direction: 'ltr' }}>
+                  <thead>
+                    <tr>
+                      <th style={{ padding: '4px 2px', fontSize: 7, fontWeight: 800, color: C.text2, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center' }}></th>
+                      {data.symbols.map(s => (
+                        <th key={s} style={{ padding: '4px 2px', fontSize: 7, fontWeight: 800, color: C.text2, fontFamily: "'JetBrains Mono', monospace", textAlign: 'center' }}>{s.split('/')[0]}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </motion.div>
-
-            {/* Top Pairs */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {[
-                { title: 'أعلى ارتباط موجب', pairs: data.topCorrelated, icon: <TrendingUp size={14} color={C.success} />, color: C.success },
-                { title: 'أعلى ارتباط عكسي', pairs: data.topAntiCorrelated, icon: <TrendingDown size={14} color={C.danger} />, color: C.danger },
-              ].map((section, idx) => (
-                <motion.div
-                  key={section.title}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + idx * 0.05 }}
-                  style={{
-                    borderRadius: 20, padding: '16px',
-                    background: 'rgba(28,28,30,0.6)', backdropFilter: 'blur(20px)',
-                    border: `0.5px solid ${C.border}`,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                    {section.icon}
-                    <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: FONT_AR }}>{section.title}</span>
+                  </thead>
+                  <tbody>
+                    {data.symbols.map(s1 => (
+                      <tr key={s1}>
+                        <td style={{ padding: '3px 2px', fontSize: 7, fontWeight: 800, color: C.accent, fontFamily: "'JetBrains Mono', monospace" }}>{s1.split('/')[0]}</td>
+                        {data.symbols.map(s2 => {
+                          const val = data.matrix[s1]?.[s2] ?? 0
+                          return (
+                            <td key={s2} style={{ padding: '1px', textAlign: 'center' }}>
+                              <div style={{ padding: '3px 1px', borderRadius: 3, background: corrBg(val), fontSize: 7, fontWeight: 800, color: corrColor(val), fontFamily: "'JetBrains Mono', monospace" }}>
+                                {val.toFixed(2)}
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {/* Legend */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: C.success }} />
+                  <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>ارتباط إيجابي</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: C.text2 }} />
+                  <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>محايد</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ width: 8, height: 8, borderRadius: 2, background: C.danger }} />
+                  <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>ارتباط سلبي</span>
+                </div>
+              </div>
+            </IOSCard>
+          ) : (
+            <>
+              {/* Top Correlated */}
+              {data.topCorrelated.length > 0 && (
+                <div className="m-section">
+                  <div className="m-section__title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <TrendingUp size={14} color={C.success} />
+                    أقوى ارتباط إيجابي
                   </div>
-                  {section.pairs?.length === 0 && <span style={{ fontSize: 11, color: C.text2, fontFamily: FONT_AR }}>لا توجد بيانات كافية</span>}
-                  {section.pairs?.map((p: any, i: number) => (
-                    <div key={i} style={{
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      padding: '10px 0', borderTop: i > 0 ? `0.5px solid ${C.border}` : 'none',
-                    }}>
-                      <span style={{ fontSize: 12, color: C.text, fontFamily: FONT_MONO }}>{p.s1} ↔ {p.s2}</span>
-                      <span style={{ fontSize: 14, fontWeight: 900, color: section.color, fontFamily: FONT_MONO }}>{p.corr.toFixed(3)}</span>
+                </div>
+              )}
+              {data.topCorrelated.map((p, i) => (
+                <IOSCard key={`pos-${i}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.success}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>#{i + 1}</div>
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{p.s1}</span>
+                        <ArrowUpDown size={10} color={C.text2} style={{ margin: '0 4px', verticalAlign: 'middle' }} />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{p.s2}</span>
+                      </div>
                     </div>
-                  ))}
-                </motion.div>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>{p.corr.toFixed(3)}</span>
+                  </div>
+                </IOSCard>
               ))}
-            </div>
-          </>
-        )}
-      </div>
+
+              {/* Top Anti-Correlated */}
+              {data.topAntiCorrelated.length > 0 && (
+                <div className="m-section">
+                  <div className="m-section__title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <TrendingDown size={14} color={C.danger} />
+                    أقوى ارتباط سلبي
+                  </div>
+                </div>
+              )}
+              {data.topAntiCorrelated.map((p, i) => (
+                <IOSCard key={`neg-${i}`}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: 8, background: `${C.danger}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>#{i + 1}</div>
+                      <div>
+                        <span style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{p.s1}</span>
+                        <ArrowUpDown size={10} color={C.text2} style={{ margin: '0 4px', verticalAlign: 'middle' }} />
+                        <span style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{p.s2}</span>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 900, color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>{p.corr.toFixed(3)}</span>
+                  </div>
+                </IOSCard>
+              ))}
+            </>
+          )}
+        </>
+      ) : (
+        <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>
+          <span style={{ fontSize: 12, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>لا توجد بيانات ارتباط متاحة</span>
+        </div>
+      )}
+
+      <div style={{ height: 20 }} />
     </div>
   )
 }

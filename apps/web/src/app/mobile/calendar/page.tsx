@@ -1,244 +1,166 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { ArrowRight, CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
-import { ScopedStyle } from '@/components/ScopedStyle'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import { Calendar, Loader2, RefreshCw, AlertTriangle, TrendingUp, TrendingDown, Minus, Clock } from 'lucide-react'
 
-/* ─── Design Tokens ─── */
-const C = {
-  accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800',
-  purple: '#A78BFA', text: '#F0F2F5', text2: '#8B92A8',
-  text3: '#8B92A8', border: 'rgba(255,255,255,0.06)',
-}
-const FONT_AR = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
+const C = { accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8', bg: '#1A1D29', border: 'rgba(255,255,255,0.06)' }
 
-const IMPACT_STYLE: Record<string, { color: string; label: string; bullets: number }> = {
-  high: { color: C.danger, label: 'عالي', bullets: 3 },
-  medium: { color: C.amber, label: 'متوسط', bullets: 2 },
-  low: { color: C.text2, label: 'منخفض', bullets: 1 },
-}
-
-const CURRENCIES = ['All', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD']
-
-function ImpactBullets({ level }: { level: string }) {
-  const style = IMPACT_STYLE[level] ?? IMPACT_STYLE.low
-  return (
-    <div style={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-      {[1, 2, 3].map(i => (
-        <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: i <= style.bullets ? style.color : `${style.color}20`, boxShadow: i <= style.bullets ? `0 0 3px ${style.color}` : 'none' }} />
-      ))}
-    </div>
-  )
-}
-
-function BiasIcon({ bias }: { bias: string }) {
-  if (bias === 'bullish') return <TrendingUp size={13} color={C.success} />
-  if (bias === 'bearish') return <TrendingDown size={13} color={C.danger} />
-  return <Minus size={13} color={C.amber} />
+interface CalendarEvent {
+  date: string
+  dateLabel: string
+  time: string
+  event: string
+  currency: string
+  impact: 'high' | 'medium' | 'low'
+  forecast: string
+  previous: string
+  affectedPairs: string[]
+  ai: { summary: string; bias: 'bullish' | 'bearish' | 'neutral'; strength: number }
 }
 
 export default function MobileCalendarPage() {
   const router = useRouter()
-  const [events, setEvents] = useState<any[]>([])
-  const [grouped, setGrouped] = useState<Record<string, any[]>>({})
+  const [grouped, setGrouped] = useState<Record<string, CalendarEvent[]>>({})
   const [loading, setLoading] = useState(true)
-  const [currency, setCurrency] = useState('All')
-  const [impact, setImpact] = useState('All')
-  const [expanded, setExpanded] = useState<string | null>(null)
-  const [lastFetch, setLastFetch] = useState<Date | null>(null)
-  const refreshRef = useRef<NodeJS.Timeout | null>(null)
+  const [filter, setFilter] = useState<'All' | 'high' | 'medium' | 'low'>('All')
 
-  const fetchCalendar = async () => {
+  const fetchCalendar = useCallback(async () => {
     setLoading(true)
     try {
-      const params = new URLSearchParams()
-      if (currency !== 'All') params.set('currency', currency)
-      if (impact !== 'All') params.set('impact', impact)
-      const res = await fetch(`/api/calendar?${params}`)
-      const data = await res.json()
-      if (data.success) { setEvents(data.events); setGrouped(data.grouped); setLastFetch(new Date()) }
-    } catch {} finally { setLoading(false) }
-  }
+      const res = await fetch(`/api/calendar?impact=${filter}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success) {
+          setGrouped(data.grouped || {})
+        }
+      }
+    } catch { /* */ } finally { setLoading(false) }
+  }, [filter])
 
-  useEffect(() => {
-    fetchCalendar()
-    refreshRef.current = setInterval(fetchCalendar, 60000)
-    return () => { if (refreshRef.current) clearInterval(refreshRef.current) }
-  }, [currency, impact])
+  useEffect(() => { fetchCalendar() }, [fetchCalendar])
 
-  const highImpact = events.filter(e => e.impact === 'high').length
-  const todayEvents = grouped['اليوم']?.length ?? 0
+  const impactColor = (impact: string) => impact === 'high' ? C.danger : impact === 'medium' ? C.amber : C.text2
+  const impactLabel = (impact: string) => impact === 'high' ? 'عالي' : impact === 'medium' ? 'متوسط' : 'منخفض'
+  const biasColor = (bias: string) => bias === 'bullish' ? C.success : bias === 'bearish' ? C.danger : C.amber
+  const biasLabel = (bias: string) => bias === 'bullish' ? 'صعودي' : bias === 'bearish' ? 'هبوطي' : 'محايد'
+  const biasIcon = (bias: string) => bias === 'bullish' ? <TrendingUp size={10} /> : bias === 'bearish' ? <TrendingDown size={10} /> : <Minus size={10} />
 
   return (
-    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20 }}>
-      {/* ─── Sticky Header ─── */}
-      <div style={{
-        padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 12px',
-        background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-        position: 'sticky', top: 0, zIndex: 50,
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={() => router.back()} style={{
-            width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.07)',
-            border: '0.5px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <ArrowRight size={18} color="#FFFFFF" />
-          </motion.button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-            <div style={{ color: C.amber, display: 'flex' }}><CalendarDays size={20} /></div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>الأجندة الاقتصادية</h1>
-          </div>
-          <motion.button whileTap={{ scale: 0.9 }} onClick={fetchCalendar} disabled={loading} style={{
-            width: 40, height: 40, borderRadius: 12, background: `${C.accent}15`, border: `0.5px solid ${C.accent}25`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <RefreshCw size={16} color={C.accent} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-          </motion.button>
-        </div>
-        <ScopedStyle>{`@keyframes spin { to { transform: rotate(360deg); } }`}</ScopedStyle>
+    <div className="m-page">
+      <MobilePageHeader
+        title="التقويم الاقتصادي"
+        subtitle="أحداث مؤثرة مع تحليل AI"
+        onBack={() => router.back()}
+        right={
+          <button onClick={fetchCalendar} disabled={loading} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <RefreshCw size={14} color={C.text2} className={loading ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
 
-        {/* Stats */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-          {[
-            { label: 'هذا الأسبوع', value: events.length, color: C.accent },
-            { label: 'اليوم', value: todayEvents, color: C.amber },
-            { label: 'عالي التأثير', value: highImpact, color: C.danger },
-          ].map(s => (
-            <div key={s.label} style={{ flex: 1, padding: '8px 10px', borderRadius: 10, background: 'rgba(28,28,30,0.6)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 16, fontWeight: 900, color: s.color, fontFamily: FONT_MONO }}>{s.value}</span>
-              <span style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>{s.label}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Currency Filter - scrollable */}
-        <div style={{ display: 'flex', gap: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', paddingBottom: 4 }}>
-          {CURRENCIES.map(c => (
-            <button key={c} onClick={() => setCurrency(c)} style={{
-              padding: '4px 8px', borderRadius: 14, border: `0.5px solid ${currency === c ? C.accent : C.border}`,
-              background: currency === c ? `${C.accent}18` : 'transparent', color: currency === c ? C.accent : C.text2,
-              fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: FONT_MONO, whiteSpace: 'nowrap',
-            }}>{c}</button>
+      {/* Impact Filter */}
+      <div style={{ padding: '0 16px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2 }}>
+          {([['All', 'الكل'], ['high', 'عالي'], ['medium', 'متوسط'], ['low', 'منخفض']] as const).map(([key, label]) => (
+            <button key={key} onClick={() => setFilter(key)} style={{ flex: 1, padding: '5px 0', borderRadius: 8, background: filter === key ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', color: filter === key ? C.accent : C.text2, fontSize: 10, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer' }}>
+              {label}
+            </button>
           ))}
         </div>
       </div>
 
-      <div style={{ padding: '12px 20px' }}>
-        {/* Impact Filter */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
-          {['All', 'high', 'medium', 'low'].map(i => {
-            const style = IMPACT_STYLE[i]
-            const isActive = impact === i
-            return (
-              <button key={i} onClick={() => setImpact(i)} style={{
-                padding: '5px 12px', borderRadius: 14,
-                border: `0.5px solid ${isActive ? (style?.color ?? C.accent) : C.border}`,
-                background: isActive ? `${style?.color ?? C.accent}18` : 'transparent',
-                color: isActive ? (style?.color ?? C.accent) : C.text2,
-                fontSize: 9, fontWeight: 800, cursor: 'pointer', fontFamily: FONT_AR,
-              }}>
-                {i === 'All' ? 'الكل' : style?.label}
-              </button>
-            )
-          })}
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+          <Loader2 size={24} className="animate-spin" color={C.accent} />
+          <span style={{ fontSize: 12, color: C.text2, fontFamily: "'Cairo', sans-serif", marginRight: 8 }}>جارٍ تحميل التقويم...</span>
         </div>
-
-        {lastFetch && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 10 }}>
-            <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.success, boxShadow: `0 0 4px ${C.success}` }} />
-            <span style={{ fontSize: 9, color: C.text3, fontFamily: FONT_AR }}>آخر تحديث: {lastFetch.toLocaleTimeString('ar-SA')}</span>
-          </div>
-        )}
-
-        {/* Loading */}
-        {loading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} style={{ height: 64, background: 'rgba(28,28,30,0.4)', borderRadius: 12, border: `0.5px solid ${C.border}`, opacity: 0.5 }} />
-            ))}
-          </div>
-        )}
-
-        {/* Events */}
-        {!loading && Object.entries(grouped).map(([dateLabel, dayEvents]) => (
-          <div key={dateLabel} style={{ marginBottom: 16 }}>
-            {/* Date header */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, paddingBottom: 6, borderBottom: `0.5px solid ${C.border}` }}>
-              <div style={{ width: 7, height: 7, borderRadius: '50%', background: dateLabel === 'اليوم' ? C.success : C.amber }} />
-              <span style={{ fontSize: 14, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>{dateLabel}</span>
-              <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 14, background: dateLabel === 'اليوم' ? `${C.success}15` : `${C.amber}15`, color: dateLabel === 'اليوم' ? C.success : C.amber, fontWeight: 800, fontFamily: FONT_AR }}>
-                {dayEvents.length} حدث
-              </span>
+      ) : Object.keys(grouped).length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>
+          <Calendar size={32} color={C.text2} style={{ margin: '0 auto 8px' }} />
+          <div style={{ fontSize: 13, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>لا توجد أحداث اقتصادية</div>
+        </div>
+      ) : (
+        Object.entries(grouped).map(([dateLabel, events]) => (
+          <div key={dateLabel}>
+            {/* Date Header */}
+            <div style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Calendar size={12} color={C.accent} />
+              <span style={{ fontSize: 12, fontWeight: 800, color: C.accent, fontFamily: "'Cairo', sans-serif" }}>{dateLabel}</span>
+              <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>({events.length} حدث)</span>
             </div>
 
-            {/* Event cards */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {dayEvents.map((event: any, idx: number) => {
-                const key = `${dateLabel}-${idx}`
-                const isOpen = expanded === key
-                const style = IMPACT_STYLE[event.impact] ?? IMPACT_STYLE.low
-                return (
-                  <motion.div key={key} whileTap={{ scale: 0.99 }} onClick={() => setExpanded(isOpen ? null : key)}
-                    style={{
-                      background: 'rgba(28,28,30,0.6)', border: `0.5px solid ${isOpen ? style.color + '40' : C.border}`,
-                      borderRadius: 14, overflow: 'hidden', cursor: 'pointer', boxShadow: isOpen ? `0 0 14px ${style.color}08` : 'none',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px' }}>
-                      <div style={{ minWidth: 40, textAlign: 'center' }}>
-                        <div style={{ fontSize: 12, fontWeight: 900, color: C.text, fontFamily: FONT_MONO }}>{event.time}</div>
+            {events.map((event, i) => {
+              const ic = impactColor(event.impact)
+              const bc = biasColor(event.ai?.bias ?? 'neutral')
+              return (
+                <IOSCard key={i}>
+                  {/* Impact + Currency + Time */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <div style={{ display: 'flex', gap: 1 }}>
+                        {[1, 2, 3].map(dot => (
+                          <div key={dot} style={{ width: 4, height: 4, borderRadius: 2, background: dot <= (event.impact === 'high' ? 3 : event.impact === 'medium' ? 2 : 1) ? ic : 'rgba(255,255,255,0.08)' }} />
+                        ))}
                       </div>
-                      <ImpactBullets level={event.impact} />
-                      <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 14, fontFamily: FONT_MONO, fontWeight: 900, background: `${style.color}15`, color: style.color, border: `0.5px solid ${style.color}25`, minWidth: 32, textAlign: 'center' }}>{event.currency}</span>
-                      <span style={{ flex: 1, fontSize: 12, fontWeight: 700, color: C.text, fontFamily: FONT_AR, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{event.event}</span>
-                      <BiasIcon bias={event.ai?.bias ?? 'neutral'} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: ic, fontFamily: "'Cairo', sans-serif" }}>{impactLabel(event.impact)}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: C.text, background: 'rgba(255,255,255,0.05)', padding: '1px 5px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace" }}>{event.currency}</span>
                     </div>
-                    {/* Expanded AI analysis */}
-                    {isOpen && (
-                      <div style={{ borderTop: `0.5px solid ${C.border}`, padding: '12px 14px', background: 'rgba(10,132,255,0.03)' }}>
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                          <Brain size={12} color={C.purple} style={{ flexShrink: 0, marginTop: 1 }} />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, marginBottom: 3, fontFamily: FONT_AR }}>تحليل AI</div>
-                            <div style={{ fontSize: 11, color: C.text, fontFamily: FONT_AR, lineHeight: 1.6 }}>{event.ai?.summary}</div>
-                          </div>
-                          <div style={{ textAlign: 'center', minWidth: 50, flexShrink: 0 }}>
-                            <div style={{ fontSize: 14, fontWeight: 900, color: style.color, fontFamily: FONT_MONO }}>{event.ai?.strength}%</div>
-                            <div style={{ fontSize: 7, color: C.text3, fontFamily: FONT_AR }}>قوة التأثير</div>
-                            <div style={{ marginTop: 3, height: 3, background: `${style.color}20`, borderRadius: 2, overflow: 'hidden' }}>
-                              <div style={{ height: '100%', width: `${event.ai?.strength ?? 0}%`, background: style.color, borderRadius: 2 }} />
-                            </div>
-                          </div>
-                        </div>
-                        {event.affectedPairs?.length > 0 && (
-                          <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 8, alignItems: 'center' }}>
-                            <span style={{ fontSize: 8, color: C.text2, fontWeight: 700, fontFamily: FONT_AR }}>الأزواج المتأثرة:</span>
-                            {event.affectedPairs.map((pair: string) => (
-                              <span key={pair} style={{ fontSize: 8, padding: '1px 6px', borderRadius: 14, background: `${C.accent}10`, color: C.accent, fontFamily: FONT_MONO, fontWeight: 800, border: `0.5px solid ${C.accent}20` }}>{pair}</span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </motion.div>
-                )
-              })}
-            </div>
-          </div>
-        ))}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Clock size={9} color={C.text2} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: C.text2, fontFamily: "'JetBrains Mono', monospace" }}>{event.time}</span>
+                    </div>
+                  </div>
 
-        {!loading && events.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: C.text2 }}>
-            <CalendarDays size={36} style={{ marginBottom: 10, opacity: 0.3 }} />
-            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: FONT_AR }}>لا توجد أحداث مطابقة</div>
+                  {/* Event Name */}
+                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5, marginBottom: 8 }}>
+                    {event.event}
+                  </div>
+
+                  {/* Forecast / Previous */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 8 }}>
+                    <div style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: `0.5px solid ${C.border}` }}>
+                      <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>التوقعات</span>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{event.forecast || '—'}</div>
+                    </div>
+                    <div style={{ padding: '4px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.02)', border: `0.5px solid ${C.border}` }}>
+                      <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>السابق</span>
+                      <div style={{ fontSize: 11, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{event.previous || '—'}</div>
+                    </div>
+                  </div>
+
+                  {/* AI Impact Analysis */}
+                  {event.ai && (
+                    <div style={{ padding: '8px 10px', borderRadius: 10, background: `${bc}06`, border: `0.5px solid ${bc}15` }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <div style={{ color: bc }}>{biasIcon(event.ai.bias)}</div>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: bc, fontFamily: "'Cairo', sans-serif" }}>تحليل AI: {biasLabel(event.ai.bias)}</span>
+                        </div>
+                        <span style={{ fontSize: 9, fontWeight: 800, color: bc, fontFamily: "'JetBrains Mono', monospace" }}>{event.ai.strength}%</span>
+                      </div>
+                      <p style={{ fontSize: 10, color: C.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5, margin: 0 }}>{event.ai.summary}</p>
+                    </div>
+                  )}
+
+                  {/* Affected Pairs */}
+                  {event.affectedPairs && event.affectedPairs.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+                      {event.affectedPairs.map((pair, pi) => (
+                        <span key={pi} style={{ fontSize: 8, fontWeight: 700, color: C.accent, background: `${C.accent}08`, padding: '1px 5px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace" }}>{pair}</span>
+                      ))}
+                    </div>
+                  )}
+                </IOSCard>
+              )
+            })}
           </div>
-        )}
-      </div>
+        ))
+      )}
+
+      <div style={{ height: 20 }} />
     </div>
   )
 }

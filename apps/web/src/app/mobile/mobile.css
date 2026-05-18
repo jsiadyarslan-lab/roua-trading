@@ -1,206 +1,145 @@
 /**
- * ROUA MOBILE — COMPLETE STYLESHEET (v5 Rebuild)
+ * ROUA MOBILE — V2 CLEAN ARCHITECTURE
  *
- * ALL mobile layout styles live HERE. No inline styles for layout.
- * This guarantees CSS specificity and prevents override issues.
- *
- * Architecture:
- * - .mobile-shell: fixed container, flex column
- * - .mobile-content: flex:1, holds all pages
- * - .mobile-navbar: position:fixed, bottom:0, isolation:isolate
- * - .mobile-touch-barrier: transparent touch shield above navbar
+ * KEY DESIGN PRINCIPLE:
+ * NO fixed shell container. NO overflow:hidden on body.
+ * Pages scroll naturally. Only the navbar is position:fixed.
+ * This eliminates ALL scrolling, height, and touch capture bugs.
  */
 
 /* ═══════════════════════════════════════════════════════════
-   CSS CUSTOM PROPERTIES — Safe Area + Layout Constants
+   CSS CUSTOM PROPERTIES
    ═══════════════════════════════════════════════════════════ */
 :root {
-  --roua-nav-height: 44px;
-  --roua-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
-  --roua-nav-total: calc(var(--roua-nav-height) + var(--roua-nav-safe-bottom));
-  --roua-safe-top: env(safe-area-inset-top, 0px);
-  --roua-bg: #0B0E14;
-  --roua-accent: #00D4FF;
-  --roua-text: #F0F2F5;
-  --roua-text2: #8B92A8;
-  --roua-card: #1A1D29;
-  --roua-border: rgba(255, 255, 255, 0.06);
+  --m-nav-h: 56px;
+  --m-safe-b: env(safe-area-inset-bottom, 0px);
+  --m-nav-total: calc(var(--m-nav-h) + var(--m-safe-b));
+  --m-safe-t: env(safe-area-inset-top, 0px);
+  --m-bg: #0B0E14;
+  --m-card: #1A1D29;
+  --m-border: rgba(255,255,255,0.06);
+  --m-accent: #00D4FF;
+  --m-text: #F0F2F5;
+  --m-text2: #8B92A8;
+  --m-profit: #10B981;
+  --m-loss: #EF4444;
+  --m-gold: #d4af37;
+  --m-primary: #059669;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   MOBILE SHELL — Root container
+   MOBILE PAGE — Base class for ALL mobile pages
+   Normal document flow. Scrolls naturally.
+   padding-bottom reserves space for the fixed navbar.
    ═══════════════════════════════════════════════════════════ */
-.mobile-shell {
+.m-page {
+  min-height: 100dvh;
+  background: var(--m-bg);
+  color: var(--m-text);
+  direction: rtl;
+  padding-top: var(--m-safe-t);
+  padding-bottom: calc(var(--m-nav-total) + 8px);
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  width: 100%;
+  max-width: 100vw;
+}
+
+/* Chart page: NO scroll, chart fills viewport ABOVE navbar */
+.m-page--chart {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
-  background: var(--roua-bg);
-  color: var(--roua-text);
-  max-width: 480px;
-  width: 100%;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   CONTENT AREA — Where pages live
-   flex:1 takes all space above navbar.
-   overflow-y:auto enables scrolling for ALL pages.
-   padding-bottom: var(--roua-nav-total) reserves space for
-   the fixed navbar so pages don't hide behind it.
-   ═══════════════════════════════════════════════════════════ */
-.mobile-content {
-  flex: 1;
-  min-height: 0;
-  position: relative;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  padding-bottom: var(--roua-nav-total);
-}
-
-/* Chart pages override: no scroll, chart fills content */
-.mobile-content--chart {
-  overflow: hidden;
-  overflow-y: hidden;
+  bottom: var(--m-nav-total);
+  min-height: auto;
   padding-bottom: 0;
+  overflow: hidden;
+  z-index: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   TOUCH BARRIER — Transparent shield that intercepts ALL
-   touch events in the navbar zone. This prevents
-   lightweight-charts' setPointerCapture() from stealing
-   touches meant for navbar buttons.
-
-   HOW IT WORKS:
-   1. Fixed at the bottom, same dimensions as navbar
-   2. z-index ABOVE the chart canvas (9998)
-   3. pointer-events: auto — catches ALL touches
-   4. touch-action: manipulation — no 300ms delay
-   5. Does NOT block navbar because navbar is z-index:9999
+   NAVBAR — Fixed at bottom. The ONLY fixed element.
+   z-index: 9999 ensures it's above everything.
    ═══════════════════════════════════════════════════════════ */
-.mobile-touch-barrier {
+.m-nav {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  max-width: 480px;
-  margin: 0 auto;
-  height: var(--roua-nav-total);
-  z-index: 9998;
-  pointer-events: auto;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  /* Transparent — invisible but catches touches */
-  background: transparent;
-}
-
-/* ═══════════════════════════════════════════════════════════
-   NAVBAR — Fixed at bottom with isolation
-   ═══════════════════════════════════════════════════════════ */
-.mobile-navbar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  max-width: 480px;
-  margin: 0 auto;
-  height: var(--roua-nav-total);
+  height: var(--m-nav-total);
   z-index: 9999;
   isolation: isolate;
-  pointer-events: auto;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-  /* Visual */
-  background: linear-gradient(180deg, rgba(0, 212, 255, 0.05) 0%, rgba(11, 14, 20, 0.98) 100%);
-  backdrop-filter: blur(40px) saturate(200%);
-  -webkit-backdrop-filter: blur(40px) saturate(200%);
-  border-top: 0.5px solid rgba(0, 212, 255, 0.15);
-  box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.4), 0 -1px 0 rgba(0, 212, 255, 0.08);
-  box-sizing: border-box;
-}
-
-/* Inner row */
-.mobile-navbar__row {
   display: flex;
   align-items: center;
   justify-content: space-around;
-  height: var(--roua-nav-height);
   direction: rtl;
   padding: 0 4px;
+  padding-bottom: var(--m-safe-b);
+  background: linear-gradient(180deg, rgba(0,212,255,0.04) 0%, rgba(11,14,20,0.97) 100%);
+  backdrop-filter: blur(40px) saturate(200%);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  border-top: 0.5px solid rgba(0,212,255,0.12);
+  box-shadow: 0 -2px 16px rgba(0,0,0,0.4);
+  box-sizing: border-box;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
-/* Regular nav button */
-.mobile-navbar__btn {
-  width: 44px;
-  height: 44px;
+/* Nav button */
+.m-nav-btn {
+  width: 52px;
+  height: var(--m-nav-h);
   flex-shrink: 0;
-  position: relative;
   background: transparent;
   border: none;
   cursor: pointer;
   padding: 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 2px;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   pointer-events: auto;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255,255,255,0.4);
   transition: color 0.2s ease;
+  position: relative;
 }
 
-.mobile-navbar__btn:active {
-  transform: scale(0.92);
+.m-nav-btn:active {
+  transform: scale(0.9);
 }
 
-.mobile-navbar__btn--active {
-  color: var(--roua-accent);
+.m-nav-btn--active {
+  color: var(--m-accent);
 }
 
-/* Icon + indicator wrapper */
-.mobile-navbar__btn-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 4px 8px;
-  border-radius: 10px;
-  background: transparent;
-  border: 1px solid transparent;
-  transition: all 0.2s ease;
-  pointer-events: none;
+.m-nav-btn__label {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'Cairo', sans-serif;
+  line-height: 1;
 }
 
-.mobile-navbar__btn--active .mobile-navbar__btn-inner {
-  background: rgba(0, 212, 255, 0.08);
-  border-color: rgba(0, 212, 255, 0.2);
-}
-
-/* Active indicator dot */
-.mobile-navbar__indicator {
+.m-nav-btn__dot {
   width: 4px;
   height: 4px;
   border-radius: 2px;
-  background: var(--roua-accent);
-  box-shadow: 0 0 6px rgba(0, 212, 255, 0.8);
+  background: var(--m-accent);
+  box-shadow: 0 0 6px rgba(0,212,255,0.6);
 }
 
 /* Center wallet button */
-.mobile-navbar__wallet {
+.m-nav-wallet {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(0, 212, 255, 0.15) 0%, rgba(0, 168, 204, 0.1) 100%);
-  border: 1.5px solid rgba(0, 212, 255, 0.4);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 6px rgba(0, 212, 255, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  background: linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(0,168,204,0.1) 100%);
+  border: 1.5px solid rgba(0,212,255,0.35);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 6px rgba(0,212,255,0.12);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -209,24 +148,25 @@
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   pointer-events: auto;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.25s ease;
+  flex-shrink: 0;
 }
 
-.mobile-navbar__wallet:active {
-  transform: scale(0.92);
+.m-nav-wallet:active {
+  transform: scale(0.9);
 }
 
-.mobile-navbar__wallet--active {
+.m-nav-wallet--active {
   background: linear-gradient(135deg, #00d4ff 0%, #00a8cc 50%, #0066aa 100%);
-  border-color: rgba(0, 212, 255, 0.8);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  border-color: rgba(0,212,255,0.8);
+  box-shadow: 0 0 12px rgba(0,212,255,0.4);
 }
 
-/* Notification badge */
-.mobile-navbar__badge {
+/* Badge */
+.m-nav-badge {
   position: absolute;
-  top: 4px;
-  right: 6px;
+  top: 6px;
+  right: 8px;
   min-width: 16px;
   height: 16px;
   border-radius: 8px;
@@ -239,46 +179,141 @@
   color: #fff;
   font-family: 'JetBrains Mono', monospace;
   padding: 0 4px;
-  box-shadow: 0 2px 8px rgba(255, 69, 58, 0.5);
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 2px 6px rgba(255,69,58,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
   pointer-events: none;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   PAGE WRAPPER — Base for all mobile pages
+   PAGE HEADER — Shared component styles
    ═══════════════════════════════════════════════════════════ */
-.mobile-page {
-  height: 100%;
-  background: var(--roua-bg);
+.m-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
   direction: rtl;
-  position: relative;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: rgba(11,14,20,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 0.5px solid var(--m-border);
 }
 
-/* Chart page variant — no scroll, chart fills it but leaves space for navbar */
-.mobile-page--chart {
+.m-header__back {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--m-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.m-header__title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--m-text);
+  font-family: 'Cairo', sans-serif;
+}
+
+.m-header__sub {
+  font-size: 11px;
+  color: var(--m-text2);
+  font-family: 'Cairo', sans-serif;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLASS CARD — Shared card component
+   ═══════════════════════════════════════════════════════════ */
+.m-card {
+  background: rgba(28,28,30,0.65);
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border-radius: 20px;
+  padding: 14px;
+  margin: 0 16px 12px;
+  border: 0.5px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+  position: relative;
   overflow: hidden;
+}
+
+.m-card--hl {
+  background: linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%);
+  border-color: rgba(0,212,255,0.12);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.06);
+}
+
+.m-card--hl::before {
+  content: '';
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: var(--roua-nav-total);
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, rgba(0,212,255,0.4), transparent);
+  z-index: 1;
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SERVICE WORKER UPDATE BANNER
+   SECTION — Spaced section wrapper
    ═══════════════════════════════════════════════════════════ */
-.mobile-sw-update-banner {
+.m-section {
+  padding: 0 16px;
+  margin-bottom: 16px;
+}
+
+.m-section__title {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--m-text);
+  font-family: 'Cairo', sans-serif;
+  margin-bottom: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   IOS SWITCH — RTL-safe toggle
+   ═══════════════════════════════════════════════════════════ */
+.m-switch {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+.m-switch__thumb {
+  position: absolute;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFF;
+  transition: inset-inline-start 0.2s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SW UPDATE BANNER
+   ═══════════════════════════════════════════════════════════ */
+.m-sw-banner {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 10000;
-  background: var(--roua-accent);
+  background: var(--m-accent);
   color: #000;
   font-family: 'Cairo', sans-serif;
   font-weight: 800;
@@ -287,16 +322,11 @@
   text-align: center;
   cursor: pointer;
   touch-action: manipulation;
-  box-shadow: 0 4px 20px rgba(0, 212, 255, 0.5);
+  box-shadow: 0 4px 20px rgba(0,212,255,0.5);
 }
 
 /* ═══════════════════════════════════════════════════════════
-   UTILITY — Hide scrollbar
+   UTILITY
    ═══════════════════════════════════════════════════════════ */
-.mobile-no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.mobile-no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+.m-no-scroll::-webkit-scrollbar { display: none; }
+.m-no-scroll { -ms-overflow-style: none; scrollbar-width: none; }

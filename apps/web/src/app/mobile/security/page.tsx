@@ -1,430 +1,557 @@
 'use client'
 
-import { motion } from 'framer-motion'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
 import {
-  ChevronLeft, Shield, Smartphone, Monitor, Lock, Clock,
-  AlertTriangle, CheckCircle, Eye, EyeOff, Fingerprint,
-  KeyRound, Globe, Activity, Loader2, X
+  Shield, Lock, Smartphone, Key, Eye, EyeOff, CheckCircle2,
+  AlertTriangle, Fingerprint, Monitor, Trash2, Loader2,
+  RefreshCw, ChevronLeft, Globe,
 } from 'lucide-react'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import IOSSwitch from '@/components/mobile/IOSSwitch'
 
 /* ─── Design Tokens ─── */
-const c = {
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  bg: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
+const C = {
+  accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757',
+  amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8',
+  bg: '#1A1D29', border: 'rgba(255,255,255,0.06)',
 }
+const FONT_AR = "'Cairo', sans-serif"
+const FONT_MONO = "'JetBrains Mono', monospace"
 
-/* ─── iOS Card ─── */
-function IOSCard({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      style={{
-        background: highlight
-          ? 'linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%)'
-          : 'rgba(28,28,30,0.65)',
-        backdropFilter: 'blur(40px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-        borderRadius: 28,
-        padding: 20,
-        margin: '0 20px 16px',
-        border: '0.5px solid rgba(255,255,255,0.1)',
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: highlight
-          ? '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)'
-          : '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05)',
-      }}
-    >
-      {highlight && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 1.5,
-          background: `linear-gradient(90deg, transparent, ${c.accent}66, transparent)`,
-          zIndex: 10,
-        }} />
-      )}
-      {children}
-    </motion.div>
-  )
-}
+/* ─── Mock Sessions ─── */
+const MOCK_SESSIONS = [
+  { id: '1', device: 'iPhone 15 Pro', location: 'الرياض، السعودية', ip: '192.168.1.***', lastActive: 'الآن', current: true, icon: Smartphone },
+  { id: '2', device: 'MacBook Pro', location: 'جدة، السعودية', ip: '10.0.0.***', lastActive: 'منذ ساعتين', current: false, icon: Monitor },
+  { id: '3', device: 'Chrome — Windows', location: 'دبي، الإمارات', ip: '172.16.0.***', lastActive: 'منذ يومين', current: false, icon: Globe },
+]
 
-/* ─── Risk Score Indicator ─── */
-function RiskScoreIndicator({ score }: { score: number }) {
-  const getColor = (s: number) => {
-    if (s >= 80) return c.success
-    if (s >= 50) return c.amber
-    return c.danger
-  }
-  const getLabel = (s: number) => {
-    if (s >= 80) return 'آمن'
-    if (s >= 50) return 'متوسط'
-    return 'ضعيف'
-  }
-  const color = getColor(score)
+/* ─── Security Score ─── */
+function SecurityScore({ score }: { score: number }) {
+  const radius = 42
+  const circumference = 2 * Math.PI * radius
+  const offset = circumference - (score / 100) * circumference
+  const color = score >= 80 ? C.success : score >= 50 ? C.amber : C.danger
+  const label = score >= 80 ? 'ممتاز' : score >= 50 ? 'جيد' : 'يحتاج تحسين'
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
       <div style={{ position: 'relative', width: 100, height: 100 }}>
         <svg width="100" height="100" style={{ transform: 'rotate(-90deg)' }}>
-          <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6" />
+          <circle
+            cx="50" cy="50" r={radius}
+            fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="6"
+          />
           <motion.circle
-            cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="6"
+            cx="50" cy="50" r={radius}
+            fill="none" stroke={color} strokeWidth="6"
             strokeLinecap="round"
-            strokeDasharray={`${2 * Math.PI * 42}`}
-            initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-            animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - score / 100) }}
-            transition={{ duration: 1.2, ease: 'easeOut' }}
+            strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
+            animate={{ strokeDashoffset: offset }}
+            transition={{ duration: 1, ease: 'easeOut' }}
+            style={{ filter: `drop-shadow(0 0 6px ${color}40)` }}
           />
         </svg>
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 24, fontWeight: 900, color, fontFamily: "'JetBrains Mono', monospace" }}>{score}</span>
-          <span style={{ fontSize: 9, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>درجة الأمان</span>
-        </div>
-      </div>
-      <div style={{
-        padding: '4px 12px', borderRadius: 10,
-        background: `${color}15`, border: `0.5px solid ${color}30`,
-        fontSize: 11, fontWeight: 800, color, fontFamily: "'Cairo', sans-serif",
-      }}>
-        {getLabel(score)}
-      </div>
-    </div>
-  )
-}
-
-/* ─── Session Item ─── */
-function SessionItem({ device, location, time, current }: { device: string; location: string; time: string; current?: boolean }) {
-  const isMobile = device.includes('iPhone') || device.includes('Android')
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 12,
-      padding: '14px 0', borderBottom: `0.5px solid ${c.border}`,
-    }}>
-      <div style={{
-        width: 40, height: 40, borderRadius: 12,
-        background: current ? `${c.accent}15` : 'rgba(255,255,255,0.04)',
-        border: current ? `0.5px solid ${c.accent}30` : 'none',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {isMobile ? <Smartphone size={18} color={current ? c.accent : c.text2} /> : <Monitor size={18} color={current ? c.accent : c.text2} />}
-      </div>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{device}</p>
-          {current && (
-            <span style={{ padding: '2px 6px', borderRadius: 6, background: `${c.accent}15`, fontSize: 9, color: c.accent, fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>حالي</span>
-          )}
-        </div>
-        <p style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-          <Globe size={10} style={{ display: 'inline', verticalAlign: 'middle', marginInlineEnd: 3 }} />
-          {location} · {time}
-        </p>
-      </div>
-      {!current && (
-        <motion.button whileTap={{ scale: 0.9 }} style={{
-          padding: '6px 10px', borderRadius: 10,
-          background: `${c.danger}10`, border: `0.5px solid ${c.danger}25`,
-          color: c.danger, fontSize: 10, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
-          cursor: 'pointer',
+        <div style={{
+          position: 'absolute', inset: 0,
+          display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center',
         }}>
-          إنهاء
-        </motion.button>
-      )}
+          <span style={{ fontSize: 22, fontWeight: 900, color, fontFamily: FONT_MONO }}>{score}</span>
+          <span style={{ fontSize: 7, fontWeight: 700, color: C.text2, fontFamily: FONT_AR }}>من 100</span>
+        </div>
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 800, color, fontFamily: FONT_AR }}>{label}</span>
     </div>
   )
 }
 
-/* ─── Login History Item ─── */
-function LoginHistoryItem({ action, time, ip, success }: { action: string; time: string; ip: string; success: boolean }) {
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10,
-      padding: '10px 0', borderBottom: `0.5px solid ${c.border}`,
-    }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 8,
-        background: success ? `${c.success}15` : `${c.danger}15`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        {success ? <CheckCircle size={14} color={c.success} /> : <AlertTriangle size={14} color={c.danger} />}
-      </div>
-      <div style={{ flex: 1 }}>
-        <p style={{ fontSize: 12, fontWeight: 600, color: c.text, fontFamily: "'Cairo', sans-serif" }}>{action}</p>
-        <p style={{ fontSize: 10, color: c.text2, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>{ip}</p>
-      </div>
-      <span style={{ fontSize: 10, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{time}</span>
-    </div>
-  )
-}
-
-/* ─── Main Page ─── */
-export default function SecurityPage() {
+/* ─── Security Page ─── */
+export default function MobileSecurityPage() {
   const router = useRouter()
-  const [twoFA, setTwoFA] = useState(false)
-  const [showSetup, setShowSetup] = useState(false)
+
+  // 2FA
+  const [tfaEnabled, setTfaEnabled] = useState(false)
+  const [showTfaSetup, setShowTfaSetup] = useState(false)
+  const [tfaCode, setTfaCode] = useState('')
+
+  // Biometric
+  const [biometric, setBiometric] = useState(false)
+
+  // Password change
+  const [showPasswordChange, setShowPasswordChange] = useState(false)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [showCurrentPass, setShowCurrentPass] = useState(false)
-  const [showNewPass, setShowNewPass] = useState(false)
+  const [showCurrentPw, setShowCurrentPw] = useState(false)
+  const [showNewPw, setShowNewPw] = useState(false)
   const [changingPassword, setChangingPassword] = useState(false)
-  const [passwordChanged, setPasswordChanged] = useState(false)
+  const [pwError, setPwError] = useState('')
+  const [pwSuccess, setPwSuccess] = useState(false)
 
-  const sessions = [
-    { device: 'iPhone 15 Pro', location: 'الرياض، السعودية', time: 'الآن', current: true },
-    { device: 'Chrome — macOS', location: 'جدة، السعودية', time: 'منذ ساعتين', current: false },
-    { device: 'Android — Samsung', location: 'الدمام، السعودية', time: 'أمس', current: false },
-  ]
+  // Sessions
+  const [sessions] = useState(MOCK_SESSIONS)
+  const [revokingSession, setRevokingSession] = useState<string | null>(null)
 
-  const loginHistory = [
-    { action: 'تسجيل دخول ناجح', time: 'منذ 5 دقائق', ip: '192.168.1.1', success: true },
-    { action: 'تسجيل دخول ناجح', time: 'منذ 3 ساعات', ip: '10.0.0.45', success: true },
-    { action: 'محاولة فاشلة', time: 'أمس', ip: '85.203.44.12', success: false },
-    { action: 'تسجيل دخول ناجح', time: 'قبل يومين', ip: '192.168.1.1', success: true },
-    { action: 'تغيير كلمة المرور', time: 'قبل 3 أيام', ip: '192.168.1.1', success: true },
-  ]
+  // Compute security score
+  const securityScore = (() => {
+    let score = 30 // base
+    if (tfaEnabled) score += 30
+    if (biometric) score += 15
+    if (newPassword || true) score += 10 // has password
+    if (sessions.length <= 2) score += 15 // few sessions
+    return Math.min(score, 100)
+  })()
 
-  const handleChangePassword = () => {
-    if (!currentPassword || !newPassword || !confirmPassword) return
-    if (newPassword !== confirmPassword) return
+  /* Handle 2FA toggle */
+  const handleTfaToggle = (val: boolean) => {
+    if (val) {
+      setShowTfaSetup(true)
+    } else {
+      setTfaEnabled(false)
+    }
+  }
+
+  /* Handle 2FA verify */
+  const handleTfaVerify = () => {
+    if (tfaCode.length >= 6) {
+      setTfaEnabled(true)
+      setShowTfaSetup(false)
+      setTfaCode('')
+    }
+  }
+
+  /* Handle password change */
+  const handlePasswordChange = async () => {
+    setPwError('')
+    setPwSuccess(false)
+
+    if (newPassword !== confirmPassword) {
+      setPwError('كلمتا المرور غير متطابقتين')
+      return
+    }
+    if (newPassword.length < 8) {
+      setPwError('كلمة المرور يجب أن تكون 8 أحرف على الأقل')
+      return
+    }
+
     setChangingPassword(true)
-    setTimeout(() => {
+    try {
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      })
+      if (res.ok) {
+        setPwSuccess(true)
+        setCurrentPassword('')
+        setNewPassword('')
+        setConfirmPassword('')
+        setTimeout(() => {
+          setShowPasswordChange(false)
+          setPwSuccess(false)
+        }, 2000)
+      } else {
+        const data = await res.json().catch(() => ({}))
+        setPwError(data.error || data.message || 'فشل في تغيير كلمة المرور')
+      }
+    } catch {
+      setPwError('خطأ في الاتصال')
+    } finally {
       setChangingPassword(false)
-      setPasswordChanged(true)
-      setCurrentPassword('')
-      setNewPassword('')
-      setConfirmPassword('')
-      setTimeout(() => setPasswordChanged(false), 2000)
-    }, 1500)
+    }
+  }
+
+  /* Revoke session */
+  const handleRevokeSession = (id: string) => {
+    setRevokingSession(id)
+    setTimeout(() => setRevokingSession(null), 1000)
+  }
+
+  /* Password input */
+  function PasswordInput({
+    value, onChange, placeholder, show, onToggle,
+  }: {
+    value: string; onChange: (v: string) => void
+    placeholder: string; show: boolean; onToggle: () => void
+  }) {
+    return (
+      <div style={{ position: 'relative' }}>
+        <input
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          type={show ? 'text' : 'password'}
+          placeholder={placeholder}
+          dir="ltr"
+          style={{
+            width: '100%', padding: '10px 40px 10px 12px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`,
+            color: C.text, fontSize: 12, fontFamily: FONT_MONO,
+            outline: 'none', direction: 'ltr', boxSizing: 'border-box',
+          }}
+        />
+        <button
+          onClick={onToggle}
+          style={{
+            position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+            background: 'none', border: 'none', cursor: 'pointer', padding: 4,
+          }}
+        >
+          {show ? <EyeOff size={14} color={C.text2} /> : <Eye size={14} color={C.text2} />}
+        </button>
+      </div>
+    )
   }
 
   return (
-    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+    <div className="m-page">
+      <MobilePageHeader title="الأمان" subtitle="حماية حسابك" />
 
-      {/* ── Header ── */}
-      <div style={{
-        padding: 'calc(env(safe-area-inset-top) + 16px) 20px 16px',
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: 'linear-gradient(180deg, rgba(50,215,75,0.06), transparent)',
-      }}>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => router.back()}
-          style={{
-            width: 40, height: 40, borderRadius: 14,
-            background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `0.5px solid ${c.border}`,
-          }}
-        >
-          <ChevronLeft size={20} color={c.text} />
-        </motion.button>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>الأمان والخصوصية</h1>
-      </div>
-
-      {/* ── Risk Score ── */}
+      {/* Security Score */}
       <IOSCard highlight>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-          <RiskScoreIndicator score={twoFA ? 85 : 55} />
-          <p style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", textAlign: 'center', marginTop: 4 }}>
-            {twoFA ? 'حسابك محمي بشكل ممتاز' : 'فعّل المصادقة الثنائية لتحسين الأمان'}
-          </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <SecurityScore score={securityScore} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: FONT_AR, marginBottom: 6 }}>
+              مستوى الأمان
+            </div>
+            <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, lineHeight: 1.6 }}>
+              {tfaEnabled
+                ? 'حسابك محمي بشكل جيد. فعّل المصادقة البيومترية لزيادة الحماية.'
+                : 'فعّل المصادقة الثنائية لتحسين أمان حسابك بشكل كبير.'
+              }
+            </div>
+            {!tfaEnabled && (
+              <button
+                onClick={() => setShowTfaSetup(true)}
+                style={{
+                  marginTop: 8, padding: '6px 14px', borderRadius: 8,
+                  background: `linear-gradient(135deg, ${C.success}, #00CC8E)`,
+                  border: 'none', color: '#000', fontSize: 9, fontWeight: 800,
+                  fontFamily: FONT_AR, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: 4,
+                }}
+              >
+                <Shield size={10} />
+                تفعيل المصادقة الثنائية
+              </button>
+            )}
+          </div>
         </div>
       </IOSCard>
 
-      {/* ── 2FA Toggle ── */}
+      {/* 2FA Section */}
+      <div className="m-section">
+        <div className="m-section__title">المصادقة الثنائية (2FA)</div>
+      </div>
+
       <IOSCard>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 14,
-            background: twoFA ? `${c.success}15` : `${c.amber}15`,
-            border: `0.5px solid ${twoFA ? `${c.success}30` : `${c.amber}30`}`,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Fingerprint size={20} color={twoFA ? c.success : c.amber} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: `${C.success}12`, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Lock size={14} color={C.success} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+                المصادقة الثنائية
+              </div>
+              <div style={{ fontSize: 9, color: tfaEnabled ? C.success : C.text2, fontFamily: FONT_AR }}>
+                {tfaEnabled ? 'مُفعّلة' : 'غير مُفعّلة'}
+              </div>
+            </div>
           </div>
-          <div style={{ flex: 1 }}>
-            <p style={{ fontSize: 15, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>المصادقة الثنائية</p>
-            <p style={{ fontSize: 11, color: twoFA ? c.success : c.amber, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-              {twoFA ? 'مفعّلة ✓' : 'غير مفعّلة — يُنصح بتفعيلها'}
-            </p>
+          <IOSSwitch value={tfaEnabled} onChange={handleTfaToggle} color={C.success} />
+        </div>
+      </IOSCard>
+
+      {/* 2FA Setup Modal */}
+      {showTfaSetup && (
+        <IOSCard highlight>
+          <div style={{ textAlign: 'center', marginBottom: 12 }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: 14, margin: '0 auto 10px',
+              background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.border}`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Key size={28} color={C.accent} />
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: FONT_AR }}>
+              امسح رمز QR بتطبيق المصادقة
+            </div>
+            <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR, marginTop: 2 }}>
+              مثل Google Authenticator أو Authy
+            </div>
           </div>
-          <div
-            onClick={() => { setTwoFA(!twoFA); if (!twoFA) setShowSetup(true) }}
-            style={{
-              width: 50, height: 28, borderRadius: 14,
-              background: twoFA ? c.success : 'rgba(255,255,255,0.1)',
-              position: 'relative', cursor: 'pointer', transition: '0.3s',
-            }}
-          >
-            <motion.div
-              animate={{ x: twoFA ? 24 : 2 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+
+          <div style={{ marginBottom: 10 }}>
+            <label style={{ fontSize: 9, fontWeight: 700, color: C.text2, fontFamily: FONT_AR, display: 'block', marginBottom: 4 }}>
+              أدخل رمز التحقق
+            </label>
+            <input
+              value={tfaCode}
+              onChange={e => setTfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              dir="ltr"
               style={{
-                position: 'absolute', top: 3, width: 22, height: 22, borderRadius: '50%',
-                background: '#FFF', boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+                width: '100%', padding: '10px 12px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`,
+                color: C.text, fontSize: 16, fontFamily: FONT_MONO,
+                outline: 'none', textAlign: 'center', letterSpacing: 4,
+                boxSizing: 'border-box',
               }}
             />
           </div>
-        </div>
 
-        {/* 2FA Setup Instructions */}
-        {showSetup && twoFA && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            style={{
-              marginTop: 16, padding: '14px 16px', borderRadius: 16,
-              background: 'rgba(0,212,255,0.05)', border: `0.5px solid rgba(0,212,255,0.15)`,
-            }}
-          >
-            <p style={{ fontSize: 13, fontWeight: 800, color: c.accent, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>خطوات الإعداد:</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {['حمّل تطبيق Google Authenticator', 'امسح رمز QR أدناه', 'أدخل رمز التحقق', 'تم التفعيل!'].map((step, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{
-                    width: 20, height: 20, borderRadius: 6,
-                    background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 10, fontWeight: 800, color: c.accent, fontFamily: "'JetBrains Mono', monospace",
-                  }}>{i + 1}</div>
-                  <span style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>{step}</span>
-                </div>
-              ))}
-            </div>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => setShowSetup(false)}
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              onClick={() => { setShowTfaSetup(false); setTfaCode('') }}
               style={{
-                width: '100%', marginTop: 12, padding: '10px 0', borderRadius: 14,
-                background: c.accent, color: '#000', fontSize: 13, fontWeight: 800,
-                fontFamily: "'Cairo', sans-serif", border: 'none', cursor: 'pointer',
+                flex: 1, padding: 8, borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: `0.5px solid ${C.border}`,
+                color: C.text2, fontSize: 10, fontWeight: 700, fontFamily: FONT_AR,
+                cursor: 'pointer',
               }}
             >
-              فهمت، تم التفعيل
-            </motion.button>
-          </motion.div>
-        )}
+              إلغاء
+            </button>
+            <button
+              onClick={handleTfaVerify}
+              disabled={tfaCode.length < 6}
+              style={{
+                flex: 1, padding: 8, borderRadius: 8,
+                background: tfaCode.length >= 6
+                  ? `linear-gradient(135deg, ${C.success}, #00CC8E)`
+                  : 'rgba(255,255,255,0.05)',
+                border: 'none',
+                color: tfaCode.length >= 6 ? '#000' : C.text2,
+                fontSize: 10, fontWeight: 800, fontFamily: FONT_AR,
+                cursor: tfaCode.length >= 6 ? 'pointer' : 'not-allowed',
+              }}
+            >
+              تحقق
+            </button>
+          </div>
+        </IOSCard>
+      )}
+
+      {/* Biometric */}
+      <IOSCard>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: `${C.accent}12`, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Fingerprint size={14} color={C.accent} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+                المصادقة البيومترية
+              </div>
+              <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>
+                بصمة الإصبع / Face ID
+              </div>
+            </div>
+          </div>
+          <IOSSwitch value={biometric} onChange={setBiometric} color={C.accent} />
+        </div>
       </IOSCard>
 
-      {/* ── Change Password ── */}
-      <IOSCard>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <KeyRound size={16} color={c.accent} />
-          </div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>تغيير كلمة المرور</span>
-        </div>
+      {/* Change Password */}
+      <div className="m-section">
+        <div className="m-section__title">كلمة المرور</div>
+      </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ position: 'relative' }}>
-            <input
-              value={currentPassword}
-              onChange={e => setCurrentPassword(e.target.value)}
-              type={showCurrentPass ? 'text' : 'password'}
-              placeholder="كلمة المرور الحالية"
-              style={{
-                width: '100%', padding: '12px 14px', paddingInlineEnd: 14, paddingInlineStart: 40,
-                borderRadius: 14, background: 'rgba(255,255,255,0.05)',
-                border: `0.5px solid ${c.border}`, color: c.text,
-                fontSize: 13, fontFamily: "'Cairo', sans-serif", outline: 'none',
-              }}
-            />
-            <button onClick={() => setShowCurrentPass(!showCurrentPass)} style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              {showCurrentPass ? <EyeOff size={16} color={c.text2} /> : <Eye size={16} color={c.text2} />}
-            </button>
-          </div>
-          <div style={{ position: 'relative' }}>
-            <input
-              value={newPassword}
-              onChange={e => setNewPassword(e.target.value)}
-              type={showNewPass ? 'text' : 'password'}
-              placeholder="كلمة المرور الجديدة"
-              style={{
-                width: '100%', padding: '12px 14px', paddingInlineEnd: 14, paddingInlineStart: 40,
-                borderRadius: 14, background: 'rgba(255,255,255,0.05)',
-                border: `0.5px solid ${c.border}`, color: c.text,
-                fontSize: 13, fontFamily: "'Cairo', sans-serif", outline: 'none',
-              }}
-            />
-            <button onClick={() => setShowNewPass(!showNewPass)} style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer' }}>
-              {showNewPass ? <EyeOff size={16} color={c.text2} /> : <Eye size={16} color={c.text2} />}
-            </button>
-          </div>
-          <input
-            value={confirmPassword}
-            onChange={e => setConfirmPassword(e.target.value)}
-            type="password"
-            placeholder="تأكيد كلمة المرور الجديدة"
-            style={{
-              width: '100%', padding: '12px 14px',
-              borderRadius: 14, background: 'rgba(255,255,255,0.05)',
-              border: `0.5px solid ${newPassword && confirmPassword && newPassword !== confirmPassword ? c.danger : c.border}`,
-              color: c.text, fontSize: 13, fontFamily: "'Cairo', sans-serif", outline: 'none',
-            }}
+      {showPasswordChange ? (
+        <IOSCard>
+          <PasswordInput
+            value={currentPassword}
+            onChange={setCurrentPassword}
+            placeholder="كلمة المرور الحالية"
+            show={showCurrentPw}
+            onToggle={() => setShowCurrentPw(!showCurrentPw)}
           />
-          {newPassword && confirmPassword && newPassword !== confirmPassword && (
-            <p style={{ fontSize: 11, color: c.danger, fontFamily: "'Cairo', sans-serif" }}>كلمات المرور غير متطابقة</p>
+          <div style={{ height: 8 }} />
+          <PasswordInput
+            value={newPassword}
+            onChange={setNewPassword}
+            placeholder="كلمة المرور الجديدة"
+            show={showNewPw}
+            onToggle={() => setShowNewPw(!showNewPw)}
+          />
+          <div style={{ height: 8 }} />
+          <PasswordInput
+            value={confirmPassword}
+            onChange={setConfirmPassword}
+            placeholder="تأكيد كلمة المرور"
+            show={showNewPw}
+            onToggle={() => setShowNewPw(!showNewPw)}
+          />
+
+          {pwError && (
+            <div style={{
+              marginTop: 8, padding: '6px 10px', borderRadius: 8,
+              background: `${C.danger}08`, border: `0.5px solid ${C.danger}18`,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <AlertTriangle size={10} color={C.danger} />
+              <span style={{ fontSize: 9, color: C.danger, fontFamily: FONT_AR }}>{pwError}</span>
+            </div>
           )}
 
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleChangePassword}
-            disabled={!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword || changingPassword}
-            style={{
-              width: '100%', padding: '12px 0', borderRadius: 16,
-              background: (!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword)
-                ? 'rgba(255,255,255,0.05)' : c.accent,
-              color: (!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword)
-                ? c.text2 : '#000',
-              fontSize: 14, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-              border: 'none', cursor: 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            {changingPassword ? <><Loader2 size={16} className="animate-spin" /> جاري التغيير...</> : passwordChanged ? <><CheckCircle size={16} /> تم التغيير!</> : <><Lock size={16} /> تغيير كلمة المرور</>}
-          </motion.button>
-        </div>
-      </IOSCard>
+          {pwSuccess && (
+            <div style={{
+              marginTop: 8, padding: '6px 10px', borderRadius: 8,
+              background: `${C.success}08`, border: `0.5px solid ${C.success}18`,
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <CheckCircle2 size={10} color={C.success} />
+              <span style={{ fontSize: 9, color: C.success, fontFamily: FONT_AR }}>تم تغيير كلمة المرور بنجاح</span>
+            </div>
+          )}
 
-      {/* ── Active Sessions ── */}
-      <IOSCard>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: `${c.amber}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <Activity size={16} color={c.amber} />
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            <button
+              onClick={() => {
+                setShowPasswordChange(false)
+                setPwError('')
+                setPwSuccess(false)
+                setCurrentPassword('')
+                setNewPassword('')
+                setConfirmPassword('')
+              }}
+              style={{
+                flex: 1, padding: 8, borderRadius: 8,
+                background: 'rgba(255,255,255,0.03)', border: `0.5px solid ${C.border}`,
+                color: C.text2, fontSize: 10, fontWeight: 700, fontFamily: FONT_AR,
+                cursor: 'pointer',
+              }}
+            >
+              إلغاء
+            </button>
+            <button
+              onClick={handlePasswordChange}
+              disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+              style={{
+                flex: 1, padding: 8, borderRadius: 8,
+                background: (currentPassword && newPassword && confirmPassword && !changingPassword)
+                  ? `linear-gradient(135deg, ${C.accent}, #00A8CC)`
+                  : 'rgba(255,255,255,0.05)',
+                border: 'none',
+                color: (currentPassword && newPassword && confirmPassword && !changingPassword) ? '#000' : C.text2,
+                fontSize: 10, fontWeight: 800, fontFamily: FONT_AR,
+                cursor: changingPassword ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+              }}
+            >
+              {changingPassword ? (
+                <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <RefreshCw size={10} />
+              )}
+              تغيير
+            </button>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>الجلسات النشطة</span>
-        </div>
+        </IOSCard>
+      ) : (
+        <IOSCard onClick={() => setShowPasswordChange(true)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: `${C.amber}12`, display: 'flex',
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Key size={14} color={C.amber} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+                تغيير كلمة المرور
+              </div>
+              <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>
+                آخر تغيير: منذ 30 يوماً
+              </div>
+            </div>
+            <ChevronLeft size={14} color="rgba(255,255,255,0.15)" />
+          </div>
+        </IOSCard>
+      )}
 
-        {sessions.map((session, i) => (
-          <SessionItem key={i} {...session} />
-        ))}
-      </IOSCard>
-
-      {/* ── Login History ── */}
-      <div style={{ padding: '8px 20px 0', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>سجل تسجيل الدخول</h2>
+      {/* Active Sessions */}
+      <div className="m-section" style={{ marginTop: 8 }}>
+        <div className="m-section__title">الجلسات النشطة</div>
       </div>
 
       <IOSCard>
-        {loginHistory.map((item, i) => (
-          <LoginHistoryItem key={i} {...item} />
-        ))}
+        {sessions.map((session, i) => {
+          const Icon = session.icon
+          const isRevoking = revokingSession === session.id
+          return (
+            <div key={session.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 0',
+              borderBottom: i < sessions.length - 1 ? `0.5px solid ${C.border}` : 'none',
+            }}>
+              <div style={{
+                width: 30, height: 30, borderRadius: 8,
+                background: session.current ? `${C.success}10` : 'rgba(255,255,255,0.04)',
+                border: `0.5px solid ${session.current ? `${C.success}20` : C.border}`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={13} color={session.current ? C.success : C.text2} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+                    {session.device}
+                  </span>
+                  {session.current && (
+                    <span style={{
+                      fontSize: 7, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
+                      background: `${C.success}10`, color: C.success,
+                      border: `0.5px solid ${C.success}20`, fontFamily: FONT_AR,
+                    }}>
+                      الحالي
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>
+                  {session.location} · {session.lastActive}
+                </div>
+              </div>
+              {!session.current && (
+                <button
+                  onClick={() => handleRevokeSession(session.id)}
+                  disabled={isRevoking}
+                  style={{
+                    padding: '4px 8px', borderRadius: 6,
+                    background: `${C.danger}08`, border: `0.5px solid ${C.danger}15`,
+                    color: C.danger, fontSize: 8, fontWeight: 700,
+                    fontFamily: FONT_AR, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 2,
+                  }}
+                >
+                  {isRevoking ? (
+                    <Loader2 size={8} style={{ animation: 'spin 1s linear infinite' }} />
+                  ) : (
+                    <Trash2 size={8} />
+                  )}
+                  إنهاء
+                </button>
+              )}
+            </div>
+          )
+        })}
       </IOSCard>
 
+      <div style={{ height: 16 }} />
     </div>
   )
 }

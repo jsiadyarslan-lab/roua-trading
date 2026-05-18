@@ -1,297 +1,311 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Play, Plus, GitBranch, Save, Trash2, X, ArrowDown, Settings2 } from 'lucide-react'
-import { toast } from '@/hooks/use-toast'
+import { useState, useCallback, useRef } from 'react'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import { GitMerge, Plus, Trash2, Play, Save, Settings, Zap, TrendingUp, BarChart3, ShieldAlert, Target, ArrowDown } from 'lucide-react'
 
-/* ─── Design Tokens ─── */
-const C = {
-  accent:  '#00D4FF',
-  success: '#00FFA3',
-  danger:  '#FF4757',
-  amber:   '#FFB800',
-  purple:  '#A78BFA',
-  text:    '#F0F2F5',
-  text2:   '#8B92A8',
-  text3:   '#8B92A8',
-  bg:      '#1A1D29',
-  border:  'rgba(255,255,255,0.06)',
-}
-const FONT_AR   = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
+const C = { accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8', bg: '#1A1D29', border: 'rgba(255,255,255,0.06)' }
+
+type NodeType = 'trigger' | 'condition' | 'action' | 'risk'
 
 interface StrategyNode {
   id: string
-  type: 'condition' | 'action' | 'risk' | 'indicator'
+  type: NodeType
   label: string
-  sublabel: string
-  color: string
-  icon: string
+  config: Record<string, string | number>
 }
 
-const AVAILABLE_COMPONENTS: { category: string; items: Omit<StrategyNode, 'id'>[] }[] = [
-  {
-    category: 'مؤشرات',
-    items: [
-      { type: 'indicator', label: 'RSI', sublabel: 'مؤشر القوة النسبية', color: C.accent, icon: '📊' },
-      { type: 'indicator', label: 'MACD', sublabel: 'تقارب/تباعد المتوسطات', color: C.accent, icon: '📈' },
-      { type: 'indicator', label: 'Bollinger Bands', sublabel: 'نطاقات بولينجر', color: C.accent, icon: '📏' },
-      { type: 'indicator', label: 'EMA', sublabel: 'المتوسط الأسي', color: C.accent, icon: '📉' },
-    ],
-  },
-  {
-    category: 'شروط',
-    items: [
-      { type: 'condition', label: 'تقاطع مؤشرات', sublabel: 'Crossover', color: '#0A84FF', icon: '🔀' },
-      { type: 'condition', label: 'مستوى سعري', sublabel: 'Price Level', color: '#0A84FF', icon: '🎯' },
-      { type: 'condition', label: 'حجم تداول', sublabel: 'Volume Spike', color: '#0A84FF', icon: '📦' },
-      { type: 'condition', label: 'زمني', sublabel: 'Time-based', color: '#0A84FF', icon: '⏰' },
-    ],
-  },
-  {
-    category: 'إجراءات',
-    items: [
-      { type: 'action', label: 'شراء (Buy Market)', sublabel: 'أمر سوق شراء', color: C.success, icon: '🟢' },
-      { type: 'action', label: 'بيع (Sell Market)', sublabel: 'أمر سوق بيع', color: C.amber, icon: '🟡' },
-      { type: 'action', label: 'شراء محدد', sublabel: 'Limit Buy', color: C.success, icon: '📋' },
-      { type: 'action', label: 'بيع محدد', sublabel: 'Limit Sell', color: C.amber, icon: '📋' },
-    ],
-  },
-  {
-    category: 'إدارة مخاطر',
-    items: [
-      { type: 'risk', label: 'إيقاف خسارة', sublabel: 'Stop Loss', color: C.purple, icon: '🛑' },
-      { type: 'risk', label: 'جني أرباح', sublabel: 'Take Profit', color: C.purple, icon: '💰' },
-      { type: 'risk', label: 'حجم المركز', sublabel: 'Position Size %', color: C.purple, icon: '📐' },
-      { type: 'risk', label: 'الحد الأقصى للسحب', sublabel: 'Max Drawdown', color: C.purple, icon: '🧮' },
-    ],
-  },
+const NODE_TYPES: { type: NodeType; label: string; icon: any; color: string }[] = [
+  { type: 'trigger', label: 'مشغّل', icon: Zap, color: C.accent },
+  { type: 'condition', label: 'شرط', icon: BarChart3, color: C.amber },
+  { type: 'action', label: 'إجراء', icon: TrendingUp, color: C.success },
+  { type: 'risk', label: 'حماية', icon: ShieldAlert, color: C.danger },
 ]
 
+const TRIGGER_OPTIONS = [
+  { value: 'price_above', label: 'السعر فوق مستوى' },
+  { value: 'price_below', label: 'السعر تحت مستوى' },
+  { value: 'rsi_oversold', label: 'RSI تشبع بيعي' },
+  { value: 'rsi_overbought', label: 'RSI تشبع شرائي' },
+  { value: 'volume_spike', label: 'ارتفاع الحجم' },
+  { value: 'ema_cross', label: 'تقاطع EMA' },
+]
+
+const CONDITION_OPTIONS = [
+  { value: 'trend_up', label: 'اتجاه صعودي' },
+  { value: 'trend_down', label: 'اتجاه هبوطي' },
+  { value: 'ranging', label: 'سوق عرضي' },
+  { value: 'volatile', label: 'سوق متقلب' },
+]
+
+const ACTION_OPTIONS = [
+  { value: 'buy', label: 'شراء' },
+  { value: 'sell', label: 'بيع' },
+  { value: 'close_long', label: 'إغلاق شراء' },
+  { value: 'close_short', label: 'إغلاق بيع' },
+  { value: 'set_tp', label: 'تعيين جني أرباح' },
+  { value: 'set_sl', label: 'تعيين وقف خسارة' },
+]
+
+const RISK_OPTIONS = [
+  { value: 'max_position', label: 'حد حجم المركز' },
+  { value: 'daily_loss', label: 'حد الخسارة اليومية' },
+  { value: 'max_open', label: 'حد المراكز المفتوحة' },
+  { value: 'trailing_stop', label: 'وقف متحرك' },
+]
+
+const NODE_COLORS: Record<NodeType, string> = {
+  trigger: C.accent,
+  condition: C.amber,
+  action: C.success,
+  risk: C.danger,
+}
+
 export default function MobileStrategyBuilderPage() {
-  const router = useRouter()
-  const [nodes, setNodes] = useState<StrategyNode[]>([])
-  const [strategyName, setStrategyName] = useState('استراتيجية جديدة')
-  const [showComponents, setShowComponents] = useState(false)
+  const [nodes, setNodes] = useState<StrategyNode[]>([
+    { id: '1', type: 'trigger', label: 'السعر فوق مستوى', config: { value: 50000 } },
+    { id: '2', type: 'condition', label: 'اتجاه صعودي', config: {} },
+    { id: '3', type: 'action', label: 'شراء', config: { qty: 0.01 } },
+    { id: '4', type: 'risk', label: 'حد وقف الخسارة', config: { pct: 2 } },
+  ])
+  const [showAddPanel, setShowAddPanel] = useState(false)
+  const [selectedNode, setSelectedNode] = useState<string | null>(null)
+  const nextId = useRef(5)
 
-  const addNode = (item: Omit<StrategyNode, 'id'>) => {
-    const newNode: StrategyNode = { ...item, id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}` }
-    setNodes(prev => [...prev, newNode])
-    toast({ title: `تمت إضافة: ${item.label}`, description: item.sublabel })
-  }
+  const addNode = useCallback((type: NodeType) => {
+    const options = type === 'trigger' ? TRIGGER_OPTIONS : type === 'condition' ? CONDITION_OPTIONS : type === 'action' ? ACTION_OPTIONS : RISK_OPTIONS
+    const defaultOption = options[0]
+    setNodes(prev => [...prev, {
+      id: String(nextId.current++),
+      type,
+      label: defaultOption.label,
+      config: type === 'trigger' ? { value: 0 } : type === 'action' ? { qty: 0.01 } : type === 'risk' ? { pct: 2 } : {},
+    }])
+    setShowAddPanel(false)
+  }, [])
 
-  const removeNode = (id: string) => { setNodes(prev => prev.filter(n => n.id !== id)) }
+  const removeNode = useCallback((id: string) => {
+    setNodes(prev => prev.filter(n => n.id !== id))
+    if (selectedNode === id) setSelectedNode(null)
+  }, [selectedNode])
 
-  const moveNode = (index: number, direction: 'up' | 'down') => {
-    const newIndex = direction === 'up' ? index - 1 : index + 1
-    if (newIndex < 0 || newIndex >= nodes.length) return
-    const newNodes = [...nodes]
-    const temp = newNodes[index]
-    newNodes[index] = newNodes[newIndex]
-    newNodes[newIndex] = temp
-    setNodes(newNodes)
-  }
+  const moveNode = useCallback((id: string, direction: 'up' | 'down') => {
+    setNodes(prev => {
+      const idx = prev.findIndex(n => n.id === id)
+      if (idx < 0) return prev
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1
+      if (newIdx < 0 || newIdx >= prev.length) return prev
+      const copy = [...prev]
+      ;[copy[idx], copy[newIdx]] = [copy[newIdx], copy[idx]]
+      return copy
+    })
+  }, [])
 
-  const handleSaveDraft = () => {
-    if (nodes.length === 0) { toast({ title: 'لا يمكن الحفظ', description: 'أضف مكونات واحدة على الأقل', variant: 'destructive' }); return }
-    toast({ title: 'تم حفظ المسودة ✅', description: `تم حفظ "${strategyName}" مع ${nodes.length} مكون` })
-  }
+  const updateNodeLabel = useCallback((id: string, label: string) => {
+    setNodes(prev => prev.map(n => n.id === id ? { ...n, label } : n))
+  }, [])
 
-  const handleBacktest = () => {
-    if (nodes.length === 0) { toast({ title: 'لا يمكن الاختبار', description: 'أضف مكونات واحدة على الأقل', variant: 'destructive' }); return }
-    toast({ title: 'جارٍ تشغيل Backtest...', description: 'سيتم إشعارك عند انتهاء الاختبار' })
-  }
+  const selected = nodes.find(n => n.id === selectedNode)
 
   return (
-    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20 }}>
-      {/* ─── Sticky Header ─── */}
-      <div style={{
-        padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 16px',
-        background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(24px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-        borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-        position: 'sticky', top: 0, zIndex: 50,
-        display: 'flex', alignItems: 'center', gap: 12,
-      }}>
-        <motion.button whileTap={{ scale: 0.9 }} onClick={() => router.back()} style={{
-          width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.07)',
-          border: '0.5px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <ArrowRight size={18} color="#FFFFFF" />
-        </motion.button>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1 }}>
-          <div style={{ color: C.accent, display: 'flex' }}><GitBranch size={20} /></div>
-          <h1 style={{ fontSize: 20, fontWeight: 900, color: C.text, fontFamily: FONT_AR }}>محرر الاستراتيجيات</h1>
+    <div className="m-page">
+      <MobilePageHeader title="محرر الاستراتيجيات" subtitle="بناء بصري بدون كود" right={
+        <div style={{ display: 'flex', gap: 4 }}>
+          <button onClick={() => setShowAddPanel(!showAddPanel)} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(0,212,255,0.1)', border: '0.5px solid rgba(0,212,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <Plus size={16} color={C.accent} />
+          </button>
+        </div>
+      } />
+
+      {/* Flow Description */}
+      <div style={{ padding: '0 16px', marginBottom: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'rgba(0,212,255,0.04)', border: '0.5px solid rgba(0,212,255,0.1)' }}>
+          <GitMerge size={14} color={C.accent} />
+          <span style={{ fontSize: 10, fontWeight: 700, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>
+            {nodes.length} عقدة — اضغط على العقدة لتعديلها، أو اضغط + لإضافة
+          </span>
         </div>
       </div>
 
-      <div style={{ padding: '16px 20px' }}>
-        {/* Strategy Name */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} style={{
-          padding: '14px 16px', borderRadius: 16, marginBottom: 16,
-          background: 'rgba(28,28,30,0.6)', backdropFilter: 'blur(20px)',
-          border: `0.5px solid ${C.border}`,
-          display: 'flex', alignItems: 'center', gap: 10,
-        }}>
-          <GitBranch size={16} color={C.accent} />
-          <input type="text" value={strategyName} onChange={e => setStrategyName(e.target.value)} style={{
-            flex: 1, background: 'transparent', border: 'none', outline: 'none',
-            color: C.text, fontSize: 15, fontWeight: 700, fontFamily: FONT_AR, direction: 'rtl',
-          }} placeholder="اسم الاستراتيجية..." />
-          <span style={{ fontSize: 10, color: C.text3, fontFamily: FONT_MONO }}>{nodes.length} مكون</span>
-          {nodes.length > 0 && (
-            <button onClick={() => setNodes([])} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, display: 'flex', alignItems: 'center' }}>
-              <Trash2 size={14} />
-            </button>
-          )}
-        </motion.div>
-
-        {/* Flow Canvas */}
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} style={{
-          borderRadius: 20, marginBottom: 16, minHeight: 200,
-          background: 'rgba(4,4,8,0.8)', border: `0.5px solid ${C.border}`,
-          padding: 20, position: 'relative', overflow: 'auto',
-        }}>
-          {/* Grid background */}
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundImage: `radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)`,
-            backgroundSize: '20px 20px', opacity: 0.5, pointerEvents: 'none',
-          }} />
-
-          {nodes.length === 0 ? (
-            <div style={{ position: 'relative', textAlign: 'center', padding: '40px 16px' }}>
-              <Settings2 size={40} color="rgba(255,255,255,0.08)" style={{ margin: '0 auto 12px' }} />
-              <div style={{ color: C.text2, fontSize: 13, fontWeight: 700, fontFamily: FONT_AR, marginBottom: 6 }}>
-                اضغط على + لإضافة مكونات
-              </div>
-              <div style={{ color: C.text3, fontSize: 11, fontFamily: FONT_AR }}>
-                سيتم ربط المكونات تلقائياً بتسلسل منطقي
-              </div>
-            </div>
-          ) : (
-            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0 }}>
-              {/* Start */}
-              <div style={{ padding: '6px 20px', borderRadius: 16, background: `${C.accent}15`, border: `0.5px solid ${C.accent}40`, color: C.accent, fontSize: 11, fontWeight: 800, fontFamily: FONT_MONO }}>▶ بداية</div>
-              <ArrowDown size={16} color={C.text3} style={{ margin: '3px 0' }} />
-
-              {nodes.map((node, idx) => (
-                <div key={node.id} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%' }}>
-                  <div style={{
-                    width: '100%', padding: '12px 14px', borderRadius: 12,
-                    background: `${node.color}10`, border: `0.5px solid ${node.color}35`,
-                    display: 'flex', alignItems: 'center', gap: 10,
+      {/* Add Node Panel */}
+      {showAddPanel && (
+        <div style={{ padding: '0 16px', marginBottom: 12 }}>
+          <IOSCard>
+            <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>إضافة عقدة</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {NODE_TYPES.map(nt => {
+                const Icon = nt.icon
+                return (
+                  <button key={nt.type} onClick={() => addNode(nt.type)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+                    borderRadius: 10, background: `${nt.color}08`,
+                    border: `0.5px solid ${nt.color}18`,
+                    cursor: 'pointer',
                   }}>
-                    <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 8, background: `${node.color}20`, color: node.color, fontWeight: 700, fontFamily: FONT_MONO, whiteSpace: 'nowrap' }}>
-                      {node.type === 'indicator' ? 'IND' : node.type === 'condition' ? 'COND' : node.type === 'action' ? 'ACT' : 'RISK'}
-                    </span>
-                    <span style={{ fontSize: 14 }}>{node.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: FONT_AR, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{node.label}</div>
-                      <div style={{ fontSize: 9, color: C.text3, fontFamily: FONT_AR }}>{node.sublabel}</div>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: `${nt.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${nt.color}30` }}>
+                      <Icon size={14} color={nt.color} />
                     </div>
-                    <span style={{ fontSize: 9, color: C.text3, fontFamily: FONT_MONO }}>خطوة {idx + 1}</span>
-                    <div style={{ display: 'flex', gap: 2 }}>
-                      <button onClick={() => moveNode(idx, 'up')} disabled={idx === 0} style={{ background: 'none', border: 'none', cursor: idx === 0 ? 'not-allowed' : 'pointer', color: C.text3, padding: 2, opacity: idx === 0 ? 0.3 : 1 }}>
-                        <ArrowDown size={11} style={{ transform: 'rotate(180deg)' }} />
-                      </button>
-                      <button onClick={() => moveNode(idx, 'down')} disabled={idx === nodes.length - 1} style={{ background: 'none', border: 'none', cursor: idx === nodes.length - 1 ? 'not-allowed' : 'pointer', color: C.text3, padding: 2, opacity: idx === nodes.length - 1 ? 0.3 : 1 }}>
-                        <ArrowDown size={11} />
-                      </button>
-                      <button onClick={() => removeNode(node.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.danger, padding: 2 }}>
-                        <X size={11} />
-                      </button>
-                    </div>
-                  </div>
-                  <ArrowDown size={16} color={C.text3} style={{ margin: '3px 0' }} />
-                </div>
-              ))}
-
-              {/* End */}
-              <div style={{ padding: '6px 20px', borderRadius: 16, background: `${C.purple}15`, border: `0.5px solid ${C.purple}40`, color: C.purple, fontSize: 11, fontWeight: 800, fontFamily: FONT_MONO }}>◼ نهاية</div>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: nt.color, fontFamily: "'Cairo', sans-serif" }}>{nt.label}</span>
+                  </button>
+                )
+              })}
             </div>
-          )}
-        </motion.div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={handleSaveDraft} style={{
-            flex: 1, padding: '12px', borderRadius: 14, background: 'rgba(28,28,30,0.6)',
-            border: `0.5px solid ${C.border}`, color: C.text, fontSize: 13, fontWeight: 800,
-            fontFamily: FONT_AR, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}>
-            <Save size={16} /> حفظ المسودة
-          </motion.button>
-          <motion.button whileTap={{ scale: 0.95 }} onClick={handleBacktest} style={{
-            flex: 1, padding: '12px', borderRadius: 14, background: `linear-gradient(135deg, ${C.accent}, #0A84FF)`,
-            border: 'none', color: '#000', fontSize: 13, fontWeight: 800,
-            fontFamily: FONT_AR, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}>
-            <Play size={16} /> اختبار
-          </motion.button>
+          </IOSCard>
         </div>
+      )}
 
-        {/* Add Components Button */}
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setShowComponents(!showComponents)}
-          style={{
-            width: '100%', padding: '14px', borderRadius: 16,
-            background: showComponents ? `${C.accent}15` : 'rgba(28,28,30,0.6)',
-            border: `0.5px solid ${showComponents ? `${C.accent}30` : C.border}`,
-            color: showComponents ? C.accent : C.text2, fontSize: 14, fontWeight: 800,
-            fontFamily: FONT_AR, cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-          }}
-        >
-          <Plus size={18} /> إضافة مكونات
-        </motion.button>
+      {/* Node Flow */}
+      <div style={{ padding: '0 16px', marginBottom: 12 }}>
+        <IOSCard>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {nodes.map((node, i) => {
+              const color = NODE_COLORS[node.type]
+              const nodeType = NODE_TYPES.find(nt => nt.type === node.type)
+              const Icon = nodeType?.icon || Zap
+              const isSelected = selectedNode === node.id
 
-        {/* Components Panel */}
-        <AnimatePresence>
-          {showComponents && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.25 }}
-              style={{ overflow: 'hidden', marginTop: 12 }}
-            >
-              {AVAILABLE_COMPONENTS.map((cat, catIdx) => (
-                <div key={catIdx} style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, fontWeight: 800, color: C.text2, fontFamily: FONT_AR, marginBottom: 8, paddingBottom: 4, borderBottom: `0.5px solid ${C.border}` }}>
-                    {cat.category}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {cat.items.map((item, itemIdx) => (
-                      <motion.button
-                        key={itemIdx}
-                        whileTap={{ scale: 0.97 }}
-                        onClick={() => addNode(item)}
-                        style={{
-                          padding: '12px 14px', background: `${item.color}08`,
-                          border: `0.5px solid ${item.color}25`, borderRadius: 14,
-                          color: C.text, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center', gap: 10, textAlign: 'right', fontFamily: FONT_AR,
-                        }}
-                      >
-                        <span style={{ fontSize: 16 }}>{item.icon}</span>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: item.color, fontFamily: FONT_AR }}>{item.label}</div>
-                          <div style={{ fontSize: 9, color: C.text3, fontFamily: FONT_AR }}>{item.sublabel}</div>
-                        </div>
-                        <Plus size={12} color={item.color} style={{ opacity: 0.5 }} />
-                      </motion.button>
-                    ))}
+              return (
+                <div key={node.id}>
+                  {/* Connector Arrow */}
+                  {i > 0 && (
+                    <div style={{ display: 'flex', justifyContent: 'center', padding: '2px 0' }}>
+                      <ArrowDown size={14} color="rgba(255,255,255,0.15)" />
+                    </div>
+                  )}
+
+                  {/* Node */}
+                  <div onClick={() => setSelectedNode(isSelected ? null : node.id)} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px',
+                    borderRadius: 12,
+                    background: isSelected ? `${color}10` : 'rgba(255,255,255,0.02)',
+                    border: isSelected ? `1px solid ${color}30` : `0.5px solid ${C.border}`,
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}>
+                    <div style={{ width: 32, height: 32, borderRadius: 8, background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${color}30`, flexShrink: 0 }}>
+                      <Icon size={16} color={color} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif" }}>{node.label}</div>
+                      <div style={{ fontSize: 8, fontWeight: 700, color, fontFamily: "'Cairo', sans-serif" }}>
+                        {node.type === 'trigger' ? 'مشغّل' : node.type === 'condition' ? 'شرط' : node.type === 'action' ? 'إجراء' : 'حماية'}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 2 }}>
+                      {i > 0 && <button onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'up') }} style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: C.text2 }}>↑</button>}
+                      {i < nodes.length - 1 && <button onClick={(e) => { e.stopPropagation(); moveNode(node.id, 'down') }} style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 10, color: C.text2 }}>↓</button>}
+                      <button onClick={(e) => { e.stopPropagation(); removeNode(node.id) }} style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(255,71,87,0.08)', border: '0.5px solid rgba(255,71,87,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                        <Trash2 size={10} color={C.danger} />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              )
+            })}
+          </div>
+        </IOSCard>
       </div>
+
+      {/* Node Editor */}
+      {selected && (
+        <div style={{ padding: '0 16px', marginBottom: 12 }}>
+          <IOSCard>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <Settings size={14} color={NODE_COLORS[selected.type]} />
+              <span style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif" }}>تعديل العقدة</span>
+            </div>
+
+            <div style={{ marginBottom: 10 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: C.text2, fontFamily: "'Cairo', sans-serif", display: 'block', marginBottom: 4 }}>الوصف</label>
+              <input value={selected.label} onChange={e => updateNodeLabel(selected.id, e.target.value)} style={{ width: '100%', height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, padding: '0 10px', color: C.text, fontSize: 12, fontFamily: "'Cairo', sans-serif", outline: 'none', direction: 'rtl' }} />
+            </div>
+
+            {/* Type-specific config */}
+            {selected.type === 'trigger' && (
+              <div>
+                <label style={{ fontSize: 10, fontWeight: 700, color: C.text2, fontFamily: "'Cairo', sans-serif", display: 'block', marginBottom: 4 }}>القيمة</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                  {TRIGGER_OPTIONS.map(opt => (
+                    <button key={opt.value} onClick={() => updateNodeLabel(selected.id, opt.label)} style={{
+                      padding: '6px 4px', borderRadius: 6,
+                      background: selected.label === opt.label ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.02)',
+                      border: selected.label === opt.label ? '0.5px solid rgba(0,212,255,0.3)' : `0.5px solid ${C.border}`,
+                      color: selected.label === opt.label ? C.accent : C.text2,
+                      fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                      cursor: 'pointer', textAlign: 'center',
+                    }}>
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selected.type === 'condition' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {CONDITION_OPTIONS.map(opt => (
+                  <button key={opt.value} onClick={() => updateNodeLabel(selected.id, opt.label)} style={{
+                    padding: '6px 4px', borderRadius: 6,
+                    background: selected.label === opt.label ? 'rgba(255,184,0,0.12)' : 'rgba(255,255,255,0.02)',
+                    border: selected.label === opt.label ? '0.5px solid rgba(255,184,0,0.3)' : `0.5px solid ${C.border}`,
+                    color: selected.label === opt.label ? C.amber : C.text2,
+                    fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                    cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selected.type === 'action' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {ACTION_OPTIONS.map(opt => (
+                  <button key={opt.value} onClick={() => updateNodeLabel(selected.id, opt.label)} style={{
+                    padding: '6px 4px', borderRadius: 6,
+                    background: selected.label === opt.label ? 'rgba(0,255,163,0.12)' : 'rgba(255,255,255,0.02)',
+                    border: selected.label === opt.label ? '0.5px solid rgba(0,255,163,0.3)' : `0.5px solid ${C.border}`,
+                    color: selected.label === opt.label ? C.success : C.text2,
+                    fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                    cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {selected.type === 'risk' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                {RISK_OPTIONS.map(opt => (
+                  <button key={opt.value} onClick={() => updateNodeLabel(selected.id, opt.label)} style={{
+                    padding: '6px 4px', borderRadius: 6,
+                    background: selected.label === opt.label ? 'rgba(255,71,87,0.12)' : 'rgba(255,255,255,0.02)',
+                    border: selected.label === opt.label ? '0.5px solid rgba(255,71,87,0.3)' : `0.5px solid ${C.border}`,
+                    color: selected.label === opt.label ? C.danger : C.text2,
+                    fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
+                    cursor: 'pointer', textAlign: 'center',
+                  }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </IOSCard>
+        </div>
+      )}
+
+      {/* Save/Run */}
+      <div style={{ padding: '0 16px', display: 'flex', gap: 8 }}>
+        <button style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: 'rgba(0,212,255,0.1)', border: '0.5px solid rgba(0,212,255,0.2)', color: C.accent, fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <Save size={14} /> حفظ
+        </button>
+        <button style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: C.accent, border: 'none', color: '#000', fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+          <Play size={14} /> تشغيل
+        </button>
+      </div>
+
+      <div style={{ height: 16 }} />
     </div>
   )
 }

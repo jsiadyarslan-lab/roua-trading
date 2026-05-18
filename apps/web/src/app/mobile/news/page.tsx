@@ -1,1199 +1,191 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ArrowRight,
-  RefreshCw,
-  Newspaper,
-  Clock,
-  ChevronDown,
-  ExternalLink,
-  AlertTriangle,
-  TrendingUp,
-  TrendingDown,
-  Minus,
-  Zap,
-  Globe,
-  BarChart2,
-  PenLine,
-  FileText,
-} from 'lucide-react'
-import { safeStr } from '@/lib/utils'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import { Newspaper, Loader2, RefreshCw, TrendingUp, TrendingDown, Minus, ExternalLink, Clock, Tag, ChevronDown, ChevronUp } from 'lucide-react'
 
-/* ─── Color Constants ─── */
-const C = {
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  bg: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
-} as const
+const C = { accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8', bg: '#1A1D29', border: 'rgba(255,255,255,0.06)' }
 
-const FONT_AR = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
-
-/* ─── Category Tabs ─── */
-const CATEGORIES = ['الكل', 'كريبتو', 'فوركس', 'اقتصاد', 'سلع'] as const
-type Category = (typeof CATEGORIES)[number]
-
-/* ─── News Item Type ─── */
-interface NewsItem {
+interface NewsArticle {
   id: string
   source: string
   title: string
-  translatedTitle?: string
-  content?: string
-  translatedContent?: string
-  summary?: string
+  translatedTitle: string
+  content: string
+  translatedContent: string
+  summary: string
   fullContent?: string
   keyTakeaways?: string[]
-  imageUrl?: string | null
-  url?: string | null
+  imageUrl?: string
+  url?: string
   sentiment: number
-  sentimentLabel: 'positive' | 'negative' | 'neutral'
-  impactLevel: 'high' | 'medium' | 'low'
-  affectedAssets?: string[]
-  category?: string
+  sentimentLabel: string
+  impactLevel: string
+  affectedAssets: string[]
+  category: string
   categoryAr?: string
   publishedAt: string
   newsType?: string
 }
 
-/* ─── Helpers ─── */
-function timeAgoAr(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'الآن'
-  if (mins < 60) return `منذ ${mins} دقيقة`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `منذ ${hrs} ساعة`
-  const days = Math.floor(hrs / 24)
-  if (days < 7) return `منذ ${days} يوم`
-  const weeks = Math.floor(days / 7)
-  return `منذ ${weeks} أسبوع`
-}
+const CATEGORIES = [
+  { key: '', label: 'الكل' },
+  { key: 'كريبتو', label: 'كريبتو' },
+  { key: 'اقتصاد', label: 'اقتصاد' },
+  { key: 'تنظيم', label: 'تنظيم' },
+  { key: 'أسواق', label: 'أسواق' },
+]
 
-function getSentimentConfig(label: string) {
-  if (label === 'positive') return { color: C.success, dot: C.success, label: 'إيجابي', icon: TrendingUp }
-  if (label === 'negative') return { color: C.danger, dot: C.danger, label: 'سلبي', icon: TrendingDown }
-  return { color: C.accent, dot: C.accent, label: 'محايد', icon: Minus }
-}
+export default function MobileNewsPage() {
+  const router = useRouter()
+  const [articles, setArticles] = useState<NewsArticle[]>([])
+  const [loading, setLoading] = useState(true)
+  const [category, setCategory] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
-function getImpactConfig(level: string) {
-  if (level === 'high') return { color: C.danger, bg: 'rgba(255,69,58,0.12)', label: 'مرتفع' }
-  if (level === 'medium') return { color: C.amber, bg: 'rgba(255,184,0,0.12)', label: 'متوسط' }
-  return { color: C.accent, bg: 'rgba(0,212,255,0.12)', label: 'منخفض' }
-}
+  const fetchNews = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (category) params.set('category', category)
+      params.set('limit', '20')
+      const res = await fetch(`/api/news/latest?${params.toString()}`)
+      if (res.ok) {
+        const data = await res.json()
+        if (data.success && Array.isArray(data.data)) {
+          setArticles(data.data)
+        }
+      }
+    } catch { /* */ } finally { setLoading(false) }
+  }, [category])
 
-function getCategoryFilterValue(cat: Category): string {
-  if (cat === 'الكل') return ''
-  if (cat === 'كريبتو') return 'crypto'
-  if (cat === 'فوركس') return 'forex'
-  if (cat === 'اقتصاد') return 'economy'
-  if (cat === 'سلع') return 'commodities'
-  return ''
-}
+  useEffect(() => { fetchNews() }, [fetchNews])
 
-/* ─── Skeleton Component ─── */
-function NewsSkeleton() {
+  const sentimentColor = (s: number) => s > 0.2 ? C.success : s < -0.2 ? C.danger : C.amber
+  const sentimentLabelAr = (s: string) => s === 'positive' ? 'إيجابي' : s === 'negative' ? 'سلبي' : 'محايد'
+  const sentimentIcon = (s: number) => s > 0.2 ? <TrendingUp size={10} /> : s < -0.2 ? <TrendingDown size={10} /> : <Minus size={10} />
+
+  const formatDate = (dateStr: string) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    } catch { return dateStr }
+  }
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div
-          key={i}
-          style={{
-            background: 'rgba(28,28,30,0.5)',
-            borderRadius: 28,
-            padding: 20,
-            border: '0.5px solid rgba(255,255,255,0.05)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(255,255,255,0.06)' }} />
-            <div style={{ width: 60, height: 10, borderRadius: 5, background: 'rgba(255,255,255,0.06)' }} />
-            <div style={{ marginInlineStart: 'auto', height: 18, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }} />
-          </div>
-          <div style={{ width: '90%', height: 14, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 8 }} />
-          <div style={{ width: '70%', height: 14, borderRadius: 6, background: 'rgba(255,255,255,0.06)', marginBottom: 12 }} />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ width: 50, height: 20, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }} />
-            <div style={{ width: 60, height: 20, borderRadius: 8, background: 'rgba(255,255,255,0.06)' }} />
-          </div>
+    <div className="m-page">
+      <MobilePageHeader
+        title="الأخبار"
+        subtitle="أخبار مالية بتحليل AI"
+        onBack={() => router.back()}
+        right={
+          <button onClick={fetchNews} disabled={loading} style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${C.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+            <RefreshCw size={14} color={C.text2} className={loading ? 'animate-spin' : ''} />
+          </button>
+        }
+      />
+
+      {/* Category Filter */}
+      <div style={{ padding: '0 16px', marginBottom: 12, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }} className="m-no-scroll">
+        <div style={{ display: 'flex', gap: 4, minWidth: 'max-content' }}>
+          {CATEGORIES.map(cat => (
+            <button key={cat.key} onClick={() => setCategory(cat.key)} style={{ padding: '5px 14px', borderRadius: 8, background: category === cat.key ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.03)', border: `0.5px solid ${category === cat.key ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.04)'}`, color: category === cat.key ? C.accent : C.text2, fontSize: 10, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {cat.label}
+            </button>
+          ))}
         </div>
-      ))}
-    </div>
-  )
-}
-
-/* ─── Empty State ─── */
-function EmptyState({ category }: { category: Category }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px 24px',
-        textAlign: 'center',
-      }}
-    >
-      <div
-        style={{
-          width: 80,
-          height: 80,
-          borderRadius: 28,
-          background: 'rgba(255,255,255,0.03)',
-          border: '1px dashed rgba(255,255,255,0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 20,
-        }}
-      >
-        <Newspaper size={32} color="rgba(255,255,255,0.15)" />
       </div>
-      <p
-        style={{
-          fontSize: 16,
-          fontWeight: 700,
-          color: 'rgba(255,255,255,0.3)',
-          fontFamily: FONT_AR,
-          marginBottom: 8,
-        }}
-      >
-        لا توجد أخبار
-      </p>
-      <p
-        style={{
-          fontSize: 13,
-          color: 'rgba(255,255,255,0.2)',
-          fontFamily: FONT_AR,
-          lineHeight: 1.6,
-          maxWidth: 260,
-        }}
-      >
-        {category === 'الكل'
-          ? 'لم يتم العثور على أخبار حالياً. اسحب للأسفل للتحديث.'
-          : `لا توجد أخبار في قسم "${category}" حالياً.`}
-      </p>
-    </motion.div>
-  )
-}
 
-/* ─── News Card ─── */
-function NewsCard({
-  item,
-  index,
-  expanded,
-  onToggle,
-}: {
-  item: NewsItem
-  index: number
-  expanded: boolean
-  onToggle: () => void
-}) {
-  const sentiment = getSentimentConfig(item.sentimentLabel)
-  const impact = getImpactConfig(item.impactLevel)
-  const SentimentIcon = sentiment.icon
-  const displayTitle = item.translatedTitle || item.title
-  const hasFullContent = item.fullContent && item.fullContent.length > 10
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.04, duration: 0.35 }}
-      style={{
-        background: 'rgba(28,28,30,0.55)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderRadius: 28,
-        border: '0.5px solid rgba(255,255,255,0.08)',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Hero Image */}
-      {item.imageUrl && (
-        <div style={{ width: '100%', maxHeight: 200, overflow: 'hidden' }}>
-          <img
-            src={item.imageUrl}
-            alt={safeStr(displayTitle)}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-            loading="lazy"
-          />
+      {loading ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 40 }}>
+          <Loader2 size={24} className="animate-spin" color={C.accent} />
+          <span style={{ fontSize: 12, color: C.text2, fontFamily: "'Cairo', sans-serif", marginRight: 8 }}>جارٍ تحميل الأخبار...</span>
         </div>
-      )}
-
-      {/* Main Card Body */}
-      <motion.button
-        whileTap={{ scale: 0.985 }}
-        onClick={onToggle}
-        style={{
-          width: '100%',
-          background: 'transparent',
-          border: 'none',
-          padding: 20,
-          textAlign: 'right',
-          cursor: 'pointer',
-          outline: 'none',
-        }}
-      >
-        {/* Row 1: Sentiment dot + Category + Time */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, direction: 'rtl' }}>
-          {/* Sentiment Dot */}
-          <div
-            style={{
-              width: 10,
-              height: 10,
-              borderRadius: '50%',
-              background: sentiment.dot,
-              boxShadow: `0 0 8px ${sentiment.dot}60`,
-              flexShrink: 0,
-            }}
-          />
-
-          {/* Category Badge */}
-          {item.categoryAr && (
-            <span
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: C.accent,
-                fontFamily: FONT_AR,
-                background: 'rgba(0,212,255,0.1)',
-                padding: '3px 10px',
-                borderRadius: 8,
-                border: '0.5px solid rgba(0,212,255,0.15)',
-              }}
-            >
-              {item.categoryAr}
-            </span>
-          )}
-
-          {/* Impact Badge */}
-          <span
-            style={{
-              fontSize: 10,
-              fontWeight: 700,
-              color: impact.color,
-              fontFamily: FONT_AR,
-              background: impact.bg,
-              padding: '3px 10px',
-              borderRadius: 8,
-            }}
-          >
-            {impact.label}
-          </span>
-
-          {/* Spacer */}
-          <div style={{ flex: 1 }} />
-
-          {/* Time Ago */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Clock size={11} color="rgba(255,255,255,0.25)" />
-            <span
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.3)',
-                fontFamily: FONT_AR,
-              }}
-            >
-              {timeAgoAr(item.publishedAt)}
-            </span>
-          </div>
+      ) : articles.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, opacity: 0.5 }}>
+          <Newspaper size={32} color={C.text2} style={{ margin: '0 auto 8px' }} />
+          <div style={{ fontSize: 13, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>لا توجد أخبار حالياً</div>
         </div>
+      ) : (
+        articles.map((article) => {
+          const sc = sentimentColor(article.sentiment)
+          const isExpanded = expandedId === article.id
+          const displayTitle = article.translatedTitle || article.title
+          const displayContent = article.translatedContent || article.content || article.summary
+          const displayCategory = article.categoryAr || article.category
 
-        {/* Row 2: Arabic Title */}
-        <h3
-          style={{
-            fontSize: 15,
-            fontWeight: 700,
-            color: C.text,
-            fontFamily: FONT_AR,
-            lineHeight: 1.65,
-            marginBottom: 6,
-            display: '-webkit-box',
-            WebkitLineClamp: expanded ? undefined : 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: expanded ? 'visible' : 'hidden',
-          }}
-        >
-          {displayTitle}
-        </h3>
-
-        {/* Arabic Summary (brief, if not expanded) */}
-        {!expanded && item.summary && (
-          <p
-            style={{
-              fontSize: 12,
-              color: 'rgba(255,255,255,0.4)',
-              fontFamily: FONT_AR,
-              lineHeight: 1.6,
-              marginBottom: 8,
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
-            }}
-          >
-            {item.summary}
-          </p>
-        )}
-
-        {/* Row 3: Source + Key Takeaways count + Expand indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, direction: 'rtl' }}>
-          <Globe size={12} color="rgba(255,255,255,0.2)" />
-          <span
-            style={{
-              fontSize: 11,
-              color: 'rgba(255,255,255,0.35)',
-              fontFamily: FONT_AR,
-            }}
-          >
-            {item.source}
-          </span>
-
-          {/* Affected Assets */}
-          {item.affectedAssets && item.affectedAssets.length > 0 && (
-            <div style={{ display: 'flex', gap: 4, marginInlineStart: 8 }}>
-              {item.affectedAssets.slice(0, 3).map((asset, i) => (
-                <span
-                  key={i}
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: C.amber,
-                    fontFamily: FONT_MONO,
-                    background: 'rgba(255,184,0,0.08)',
-                    padding: '2px 6px',
-                    borderRadius: 6,
-                  }}
-                >
-                  {safeStr(asset)}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Full content indicator */}
-          {hasFullContent && (
-            <span style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: C.accent,
-              fontFamily: FONT_AR,
-              background: 'rgba(0,212,255,0.08)',
-              padding: '2px 8px',
-              borderRadius: 6,
-            }}>
-              تحليل كامل
-            </span>
-          )}
-
-          <div style={{ flex: 1 }} />
-
-          {/* Expand/Collapse */}
-          <motion.div
-            animate={{ rotate: expanded ? 180 : 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <ChevronDown size={16} color="rgba(255,255,255,0.2)" />
-          </motion.div>
-        </div>
-      </motion.button>
-
-      {/* Expanded Content */}
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-            style={{ overflow: 'hidden' }}
-          >
-            <div
-              style={{
-                padding: '0 20px 20px',
-                borderTop: '0.5px solid rgba(255,255,255,0.06)',
-                marginTop: 0,
-                paddingTop: 16,
-              }}
-            >
-              {/* Arabic Summary */}
-              {item.summary && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
-                    background: `${sentiment.color}08`,
-                    borderRadius: 16,
-                    padding: 14,
-                    border: `0.5px solid ${sentiment.color}15`,
-                    marginBottom: 14,
-                  }}
-                >
-                  <SentimentIcon size={16} color={sentiment.color} style={{ flexShrink: 0, marginTop: 2 }} />
-                  <p
-                    style={{
-                      fontSize: 13,
-                      color: 'rgba(255,255,255,0.6)',
-                      fontFamily: FONT_AR,
-                      lineHeight: 1.7,
-                      margin: 0,
-                    }}
-                  >
-                    {item.summary}
-                  </p>
+          return (
+            <IOSCard key={article.id} onClick={() => setExpandedId(isExpanded ? null : article.id)}>
+              {/* Category + Sentiment */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Tag size={9} color={C.text2} />
+                  <span style={{ fontSize: 8, fontWeight: 700, color: C.text2, background: 'rgba(255,255,255,0.04)', padding: '1px 6px', borderRadius: 3, fontFamily: "'Cairo', sans-serif" }}>{displayCategory}</span>
+                  {article.impactLevel === 'high' && (
+                    <span style={{ fontSize: 7, fontWeight: 700, color: C.danger, background: `${C.danger}08`, padding: '1px 4px', borderRadius: 3, fontFamily: "'Cairo', sans-serif" }}>تأثير عالي</span>
+                  )}
                 </div>
-              )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 3, color: sc }}>
+                  {sentimentIcon(article.sentiment)}
+                  <span style={{ fontSize: 8, fontWeight: 800, fontFamily: "'Cairo', sans-serif" }}>{sentimentLabelAr(article.sentimentLabel)}</span>
+                </div>
+              </div>
 
-              {/* Key Takeaways */}
-              {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
-                <div style={{
-                  marginBottom: 14, padding: 12,
-                  background: 'rgba(50,215,75,0.06)',
-                  borderRadius: 16,
-                  border: '0.5px solid rgba(50,215,75,0.12)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, direction: 'rtl' }}>
-                    <Zap size={12} color={C.success} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: C.success, fontFamily: FONT_AR }}>النقاط الرئيسية</span>
-                  </div>
-                  {item.keyTakeaways.map((point, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start', direction: 'rtl' }}>
-                      <span style={{ fontSize: 10, color: C.success, marginTop: 3, flexShrink: 0 }}>●</span>
-                      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.65, fontFamily: FONT_AR }}>{point}</span>
+              {/* Title */}
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6, marginBottom: 4 }}>
+                {displayTitle}
+              </div>
+
+              {/* Summary / Content */}
+              <p style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6, margin: 0, display: '-webkit-box', WebkitLineClamp: isExpanded ? undefined : 2, WebkitBoxOrient: 'vertical', overflow: isExpanded ? undefined : 'hidden' }}>
+                {isExpanded ? (article.fullContent || displayContent) : (article.summary || displayContent)}
+              </p>
+
+              {/* Key Takeaways (when expanded) */}
+              {isExpanded && article.keyTakeaways && article.keyTakeaways.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, color: C.accent, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>النقاط الرئيسية:</div>
+                  {article.keyTakeaways.map((kt, ki) => (
+                    <div key={ki} style={{ display: 'flex', gap: 6, marginBottom: 3 }}>
+                      <div style={{ width: 4, height: 4, borderRadius: 2, background: C.accent, marginTop: 6, flexShrink: 0 }} />
+                      <span style={{ fontSize: 10, color: C.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>{kt}</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Full Content (Arabic analysis sections) */}
-              {hasFullContent && (
-                <MobileFullContentRenderer content={item.fullContent!} />
-              )}
-
-              {/* Arabic Content fallback */}
-              {!hasFullContent && (item.translatedContent || item.content) && (
-                <p
-                  style={{
-                    fontSize: 13,
-                    color: 'rgba(255,255,255,0.5)',
-                    fontFamily: FONT_AR,
-                    lineHeight: 1.8,
-                    marginBottom: 14,
-                  }}
-                >
-                  {item.translatedContent || item.content}
-                </p>
-              )}
-
-              {/* Sentiment Score Bar */}
-              <div style={{ marginBottom: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: FONT_AR }}>
-                    تحليل المشاعر
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: sentiment.color, fontFamily: FONT_MONO }}>
-                    {item.sentimentLabel === 'positive' ? 'إيجابي' : item.sentimentLabel === 'negative' ? 'سلبي' : 'محايد'}
-                  </span>
+              {/* Affected Assets */}
+              {article.affectedAssets && article.affectedAssets.length > 0 && (
+                <div style={{ display: 'flex', gap: 4, marginTop: 8, flexWrap: 'wrap' }}>
+                  {article.affectedAssets.map((asset, ai) => (
+                    <span key={ai} style={{ fontSize: 8, fontWeight: 700, color: C.accent, background: `${C.accent}08`, padding: '1px 5px', borderRadius: 3, fontFamily: "'JetBrains Mono', monospace" }}>{asset}</span>
+                  ))}
                 </div>
-                <div
-                  style={{
-                    height: 4,
-                    borderRadius: 2,
-                    background: 'rgba(255,255,255,0.06)',
-                    overflow: 'hidden',
-                    direction: 'ltr',
-                  }}
-                >
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${Math.min(Math.abs(item.sentiment) * 100, 100)}%` }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    style={{
-                      height: '100%',
-                      borderRadius: 2,
-                      background: `linear-gradient(90deg, ${sentiment.color}80, ${sentiment.color})`,
-                    }}
-                  />
+              )}
+
+              {/* Footer */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Clock size={8} color={C.text2} />
+                  <span style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>{formatDate(article.publishedAt)}</span>
+                  <span style={{ fontSize: 8, color: C.text2 }}>· {article.source}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  {article.url && (
+                    <a href={article.url} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'flex', alignItems: 'center' }}>
+                      <ExternalLink size={10} color={C.text2} />
+                    </a>
+                  )}
+                  {isExpanded ? <ChevronUp size={12} color={C.text2} /> : <ChevronDown size={12} color={C.text2} />}
                 </div>
               </div>
-
-              {/* External Link */}
-              {item.url && (
-                <a
-                  href={item.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: C.accent,
-                    fontFamily: FONT_AR,
-                    textDecoration: 'none',
-                    padding: '8px 16px',
-                    borderRadius: 12,
-                    background: 'rgba(0,212,255,0.08)',
-                    border: '0.5px solid rgba(0,212,255,0.15)',
-                  }}
-                >
-                  قراءة المقال الأصلي
-                  <ExternalLink size={12} />
-                </a>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
-  )
-}
-
-/* ─── Mobile Full Content Renderer ─── */
-function MobileFullContentRenderer({ content }: { content: string }) {
-  // Parse sections like [1] ماذا جرى, [2] لماذا يهم, etc.
-  const sectionRegex = /\[(\d+)\]\s*([^\[]+)/g
-  const sections: { num: string; title: string; body: string }[] = []
-  let match
-
-  while ((match = sectionRegex.exec(content)) !== null) {
-    const sectionEnd = content.indexOf('[', match.index + match[0].length)
-    const bodyText = sectionEnd > -1
-      ? content.slice(match.index + match[0].length, sectionEnd).trim()
-      : content.slice(match.index + match[0].length).trim()
-
-    sections.push({
-      num: match[1],
-      title: match[2].trim(),
-      body: bodyText,
-    })
-  }
-
-  if (sections.length === 0) {
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontFamily: FONT_AR, lineHeight: 1.8, whiteSpace: 'pre-wrap' }}>
-          {content}
-        </p>
-      </div>
-    )
-  }
-
-  const sectionColors: Record<string, string> = {
-    '1': C.accent,
-    '2': C.amber,
-    '3': C.success,
-    '4': '#B388FF',
-    '5': C.danger,
-  }
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
-      {sections.map((section) => {
-        const color = sectionColors[section.num] || C.accent
-        return (
-          <div key={section.num} style={{
-            padding: 12, borderRadius: 14,
-            background: `${color}08`,
-            borderRight: `2.5px solid ${color}55`,
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, direction: 'rtl' }}>
-              <span style={{
-                fontSize: 10, padding: '2px 8px', borderRadius: 6,
-                background: `${color}14`, color, fontWeight: 700,
-                fontFamily: FONT_AR,
-              }}>
-                {section.num}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: FONT_AR }}>
-                {section.title}
-              </span>
-            </div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.75, margin: 0, fontFamily: FONT_AR, whiteSpace: 'pre-wrap' }}>
-              {section.body}
-            </p>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-/* ─── Pull-Down Refresh Indicator ─── */
-function PullRefreshIndicator({ pulling, refreshing }: { pulling: boolean; refreshing: boolean }) {
-  return (
-    <AnimatePresence>
-      {(pulling || refreshing) && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: refreshing ? 56 : 40, opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-          }}
-        >
-          <motion.div
-            animate={refreshing || pulling ? { rotate: 360 } : { rotate: 0 }}
-            transition={refreshing ? { duration: 1, repeat: Infinity, ease: 'linear' } : { duration: 0.3 }}
-          >
-            <RefreshCw size={20} color={C.accent} />
-          </motion.div>
-          <span
-            style={{
-              fontSize: 12,
-              color: C.accent,
-              fontFamily: FONT_AR,
-              fontWeight: 600,
-              marginInlineStart: 8,
-            }}
-          >
-            {refreshing ? 'جاري التحديث...' : 'اسحب للتحديث'}
-          </span>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  )
-}
-
-/* ═══════════════════════════════════════════
-   ─── Main Page Component ───
-   ═══════════════════════════════════════════ */
-export default function MobileNewsPage() {
-  const router = useRouter()
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const [news, setNews] = useState<NewsItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [pulling, setPulling] = useState(false)
-  const [error, setError] = useState('')
-  const [activeMainTab, setActiveMainTab] = useState<'news' | 'reports' | 'agent'>('news')
-  const [activeCategory, setActiveCategory] = useState<Category>('الكل')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [reports, setReports] = useState<any[]>([])
-  const [reportsLoading, setReportsLoading] = useState(false)
-
-  // Pull-to-refresh touch tracking
-  const touchStartY = useRef(0)
-  const pullDistance = useRef(0)
-
-  /* ─── Fetch News ─── */
-  const fetchNews = useCallback(
-    async (category: Category = activeCategory, showLoading = false) => {
-      if (showLoading) setLoading(true)
-      setError('')
-
-      try {
-        const catFilter = getCategoryFilterValue(category)
-        const params = new URLSearchParams({ limit: '20' })
-        if (catFilter) params.set('category', catFilter)
-
-        const res = await fetch(`/api/news/latest?${params.toString()}`)
-        if (!res.ok) throw new Error('فشل الاتصال بالخادم')
-
-        const data = await res.json()
-        if (data.success && Array.isArray(data.data)) {
-          setNews(data.data)
-        } else {
-          setNews([])
-        }
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : 'حدث خطأ أثناء تحميل الأخبار')
-        setNews([])
-      } finally {
-        setLoading(false)
-        setRefreshing(false)
-        setPulling(false)
-      }
-    },
-    [activeCategory],
-  )
-
-  /* ─── Initial Load ─── */
-  useEffect(() => {
-    fetchNews('الكل', true)
-  }, [])
-
-  /* ─── Category Change ─── */
-  useEffect(() => {
-    if (!loading) {
-      fetchNews(activeCategory, true)
-    }
-  }, [activeCategory])
-
-  /* ─── Pull-to-Refresh Handlers ─── */
-  const handleTouchStart = (e: React.TouchEvent) => {
-    const el = scrollRef.current
-    if (!el) return
-    if (el.scrollTop <= 0) {
-      touchStartY.current = e.touches[0].clientY
-    }
-  }
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    const el = scrollRef.current
-    if (!el || el.scrollTop > 0) return
-
-    const diff = e.touches[0].clientY - touchStartY.current
-    if (diff > 0 && diff < 120) {
-      pullDistance.current = diff
-      if (diff > 60) setPulling(true)
-    }
-  }
-
-  const handleTouchEnd = () => {
-    if (pullDistance.current > 60 && !refreshing) {
-      setRefreshing(true)
-      setPulling(false)
-      fetchNews(activeCategory).finally(() => setRefreshing(false))
-    } else {
-      setPulling(false)
-    }
-    pullDistance.current = 0
-  }
-
-  /* ─── Fetch Reports ─── */
-  useEffect(() => {
-    if (activeMainTab !== 'reports') return
-    setReportsLoading(true)
-    fetch('/api/agent/content/feed?type=MARKET_REPORT&type=ANALYSIS&type=WEEKLY_REVIEW&type=HOURLY_UPDATE&type=PAIR_ANALYSIS&status=published&limit=20', { cache: 'no-store' })
-      .then(r => r.ok ? r.json() : [])
-      .then(data => setReports(Array.isArray(data) ? data : (data.items || data.data || [])))
-      .catch(() => setReports([]))
-      .finally(() => setReportsLoading(false))
-  }, [activeMainTab])
-
-  /* ─── Toggle Expand ─── */
-  const handleToggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id))
-  }
-
-  /* ─── Filter news by active category (client-side) ─── */
-  const filteredNews =
-    activeCategory === 'الكل'
-      ? news
-      : news.filter((n) => {
-          const catAr = n.categoryAr || ''
-          const catEn = (n.category || '').toLowerCase()
-          if (activeCategory === 'كريبتو') return catAr === 'كريبتو' || catEn.includes('crypto')
-          if (activeCategory === 'فوركس') return catAr === 'فوركس' || catEn.includes('forex')
-          if (activeCategory === 'اقتصاد') return catAr === 'اقتصاد' || catEn.includes('economy') || catEn.includes('macro')
-          if (activeCategory === 'سلع') return catAr === 'سلع' || catEn.includes('commodit')
-          return true
-        })
-
-  return (
-    <div
-      ref={scrollRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      style={{
-        minHeight: '100%',
-        background: '#0B0E14',
-        direction: 'rtl',
-        fontFamily: FONT_AR,
-        overflowY: 'auto',
-        overflowX: 'hidden',
-        width: '100%',
-        maxWidth: '100vw',
-        WebkitOverflowScrolling: 'touch',
-        paddingBottom: 20,
-      }}
-    >
-      {/* ── Sticky Header ── */}
-      <div
-        style={{
-          padding: '20px 16px 14px',
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          paddingTop: 'calc(env(safe-area-inset-top, 20px) + 12px)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Back Button */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={() => router.back()}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              background: 'rgba(255,255,255,0.07)',
-              border: '0.5px solid rgba(255,255,255,0.1)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <ArrowRight size={18} color="#FFFFFF" />
-          </motion.button>
-
-          {/* Title */}
-          <div style={{ flex: 1 }}>
-            <h1
-              style={{
-                fontSize: 20,
-                fontWeight: 800,
-                color: '#FFFFFF',
-                fontFamily: FONT_AR,
-                margin: 0,
-              }}
-            >
-              {activeMainTab === 'news' ? 'الأخبار' : 'التقارير'}
-            </h1>
-            <p
-              style={{
-                fontSize: 11,
-                color: 'rgba(255,255,255,0.35)',
-                fontFamily: FONT_AR,
-                margin: 0,
-              }}
-            >
-              {activeMainTab === 'news' ? 'آخر المستجدات والتحليلات' : 'تقارير سوقية محللة'}
-            </p>
-          </div>
-
-          {/* Refresh Button */}
-          <motion.button
-            whileTap={{ scale: 0.9, rotate: 180 }}
-            onClick={() => {
-              setRefreshing(true)
-              fetchNews(activeCategory).finally(() => setRefreshing(false))
-            }}
-            style={{
-              width: 38,
-              height: 38,
-              borderRadius: 12,
-              background: 'rgba(0,212,255,0.08)',
-              border: '0.5px solid rgba(0,212,255,0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-          >
-            <RefreshCw
-              size={16}
-              color={C.accent}
-              className={refreshing ? 'animate-spin' : ''}
-            />
-          </motion.button>
-        </div>
-
-        {/* ── Main Tabs (الأخبار / التقارير) ── */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 0,
-            marginTop: 14,
-            borderBottom: '0.5px solid rgba(255,255,255,0.08)',
-          }}
-        >
-          {([
-            { id: 'news' as const, label: 'الأخبار', icon: Newspaper, color: C.accent },
-            { id: 'reports' as const, label: 'التقارير', icon: BarChart2, color: C.amber },
-          ] as const).map((tab) => {
-            const isActive = activeMainTab === tab.id
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveMainTab(tab.id)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  padding: '10px 0',
-                  border: 'none',
-                  background: 'transparent',
-                  color: isActive ? tab.color : 'rgba(255,255,255,0.35)',
-                  fontSize: 13,
-                  fontWeight: isActive ? 800 : 500,
-                  fontFamily: FONT_AR,
-                  cursor: 'pointer',
-                  borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
-                  transition: 'all 0.2s',
-                }}
-              >
-                <tab.icon size={15} />
-                {tab.label}
-              </button>
-            )
-          })}
-        </div>
-
-        {/* ── Category Tabs (only for news tab) ── */}
-        {activeMainTab === 'news' && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 8,
-            marginTop: 14,
-            overflowX: 'auto',
-            paddingBottom: 2,
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-            WebkitOverflowScrolling: 'touch',
-          }}
-        >
-          {CATEGORIES.map((cat) => {
-            const isActive = activeCategory === cat
-            return (
-              <motion.button
-                key={cat}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveCategory(cat)}
-                style={{
-                  padding: '8px 20px',
-                  borderRadius: 14,
-                  border: 'none',
-                  background: isActive ? C.accent : 'rgba(255,255,255,0.04)',
-                  color: isActive ? '#000000' : 'rgba(255,255,255,0.4)',
-                  fontSize: 13,
-                  fontWeight: isActive ? 800 : 600,
-                  fontFamily: FONT_AR,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                  transition: 'background 0.2s, color 0.2s',
-                  boxShadow: isActive ? `0 0 12px ${C.accent}30` : 'none',
-                }}
-              >
-                {cat}
-              </motion.button>
-            )
-          })}
-        </div>
-        )}
-      </div>
-
-      {/* ── Pull-to-Refresh Indicator ── */}
-      <PullRefreshIndicator pulling={pulling} refreshing={refreshing} />
-
-      {/* ── Main Content ── */}
-      <div style={{ padding: '16px 0' }}>
-        {/* Reports Tab */}
-        {activeMainTab === 'reports' && (
-          reportsLoading ? (
-            <div style={{ padding: '0 16px' }}>
-              <NewsSkeleton />
-            </div>
-          ) : reports.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 24px' }}>
-              <BarChart2 size={32} color="rgba(255,255,255,0.15)" style={{ marginBottom: 16 }} />
-              <p style={{ fontSize: 15, fontWeight: 700, color: 'rgba(255,255,255,0.3)', fontFamily: FONT_AR }}>لا توجد تقارير حالياً</p>
-              <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.2)', fontFamily: FONT_AR }}>ستظهر التقارير المحللة هنا عند توفرها</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-              {reports.map((report: any, i: number) => (
-                <motion.div
-                  key={report.id || i}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.04, duration: 0.35 }}
-                  style={{
-                    background: 'rgba(28,28,30,0.55)',
-                    backdropFilter: 'blur(20px)',
-                    borderRadius: 28,
-                    border: '0.5px solid rgba(255,255,255,0.08)',
-                    padding: 20,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10, direction: 'rtl' }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: C.amber, fontFamily: FONT_AR, background: 'rgba(255,184,0,0.1)', padding: '3px 10px', borderRadius: 8 }}>
-                      <FileText size={10} style={{ verticalAlign: 'middle', marginInlineEnd: 4 }} />
-                      تقرير
-                    </span>
-                    {report.type && <span style={{ fontSize: 10, fontWeight: 700, color: C.accent, fontFamily: FONT_AR, background: 'rgba(0,212,255,0.1)', padding: '3px 10px', borderRadius: 8 }}>{safeStr(report.type)}</span>}
-                    {report.category && <span style={{ fontSize: 10, fontWeight: 700, color: C.success, fontFamily: FONT_AR, background: 'rgba(50,215,75,0.1)', padding: '3px 10px', borderRadius: 8 }}>{safeStr(report.category)}</span>}
-                  </div>
-                  <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, fontFamily: FONT_AR, lineHeight: 1.65, margin: '0 0 8px' }}>{safeStr(report.titleAr || report.title || 'تقرير')}</h3>
-                  {(report.summaryAr || report.summary) && (
-                    <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)', fontFamily: FONT_AR, lineHeight: 1.7, margin: 0, padding: '10px 12px', background: 'rgba(255,184,0,0.05)', borderRadius: 12 }}>{safeStr(report.summaryAr || report.summary)}</p>
-                  )}
-                </motion.div>
-              ))}
-            </div>
+            </IOSCard>
           )
-        )}
+        })
+      )}
 
-        {/* Agent Tab — simplified link to content agent page */}
-        {activeMainTab === 'agent' && (
-          <div style={{ padding: '0 16px' }}>
-            <iframe
-              src="/dashboard/content-agent"
-              style={{ width: '100%', height: '80vh', border: 'none', borderRadius: 20 }}
-              title="تحليلات فنية"
-            />
-          </div>
-        )}
-
-        {/* News Tab (original content) */}
-        {activeMainTab === 'news' && (<>
-
-        {/* Loading Skeleton */}
-        {loading && <NewsSkeleton />}
-
-        {/* Error State */}
-        {!loading && error && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            style={{
-              margin: '0 16px',
-              padding: 20,
-              borderRadius: 24,
-              background: 'rgba(255,69,58,0.06)',
-              border: '0.5px solid rgba(255,69,58,0.15)',
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: 12,
-            }}
-          >
-            <AlertTriangle size={20} color={C.danger} style={{ flexShrink: 0, marginTop: 2 }} />
-            <div>
-              <p
-                style={{
-                  fontSize: 14,
-                  fontWeight: 700,
-                  color: C.danger,
-                  fontFamily: FONT_AR,
-                  marginBottom: 4,
-                }}
-              >
-                حدث خطأ
-              </p>
-              <p
-                style={{
-                  fontSize: 12,
-                  color: 'rgba(255,255,255,0.4)',
-                  fontFamily: FONT_AR,
-                  lineHeight: 1.6,
-                }}
-              >
-                {error}
-              </p>
-              <button
-                onClick={() => fetchNews(activeCategory, true)}
-                style={{
-                  marginTop: 10,
-                  padding: '6px 16px',
-                  borderRadius: 10,
-                  background: C.danger,
-                  color: '#FFFFFF',
-                  border: 'none',
-                  fontSize: 12,
-                  fontWeight: 700,
-                  fontFamily: FONT_AR,
-                  cursor: 'pointer',
-                }}
-              >
-                إعادة المحاولة
-              </button>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Empty State */}
-        {!loading && !error && filteredNews.length === 0 && (
-          <EmptyState category={activeCategory} />
-        )}
-
-        {/* News Cards List */}
-        {!loading && !error && filteredNews.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '0 16px' }}>
-            {/* News count indicator */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                marginBottom: 4,
-                padding: '0 4px',
-              }}
-            >
-              <Zap size={12} color={C.accent} />
-              <span
-                style={{
-                  fontSize: 11,
-                  color: 'rgba(255,255,255,0.3)',
-                  fontFamily: FONT_AR,
-                }}
-              >
-                {filteredNews.length} خبر
-                {activeCategory !== 'الكل' ? ` في ${activeCategory}` : ''}
-              </span>
-            </div>
-
-            <AnimatePresence mode="popLayout">
-              {filteredNews.map((item, i) => (
-                <NewsCard
-                  key={item.id}
-                  item={item}
-                  index={i}
-                  expanded={expandedId === item.id}
-                  onToggle={() => handleToggleExpand(item.id)}
-                />
-              ))}
-            </AnimatePresence>
-
-            {/* Disclaimer */}
-            <div
-              style={{
-                padding: 16,
-                borderRadius: 20,
-                background: 'rgba(255,184,0,0.04)',
-                border: '0.5px solid rgba(255,184,0,0.08)',
-                display: 'flex',
-                gap: 10,
-                alignItems: 'flex-start',
-                marginTop: 4,
-              }}
-            >
-              <AlertTriangle size={14} color={C.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-              <p
-                style={{
-                  fontSize: 10,
-                  color: 'rgba(255,184,0,0.5)',
-                  fontFamily: FONT_AR,
-                  lineHeight: 1.6,
-                  margin: 0,
-                }}
-              >
-                الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.
-              </p>
-            </div>
-          </div>
-        )}
-        </> )}
-      </div>
+      <div style={{ height: 20 }} />
     </div>
   )
 }

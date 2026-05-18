@@ -1,128 +1,138 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  ChevronLeft, HelpCircle, MessageSquare, Send, BookOpen,
-  ExternalLink, ChevronDown, ChevronUp, Mail, Phone,
-  Info, Shield, FileText, Loader2, CheckCircle
+  HelpCircle, MessageSquare, Mail, ChevronLeft, ChevronDown,
+  Send, ExternalLink, Book, Shield, CreditCard, Cpu,
+  AlertCircle, Loader2, CheckCircle2,
 } from 'lucide-react'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
 
 /* ─── Design Tokens ─── */
-const c = {
-  accent: '#00D4FF',
-  success: '#00FFA3',
-  danger: '#FF4757',
-  amber: '#FFB800',
-  text: '#F0F2F5',
-  text2: '#8B92A8',
-  bg: '#1A1D29',
-  border: 'rgba(255,255,255,0.06)',
+const C = {
+  accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757',
+  amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8',
+  bg: '#1A1D29', border: 'rgba(255,255,255,0.06)',
 }
+const FONT_AR = "'Cairo', sans-serif"
 
 /* ─── FAQ Data ─── */
-const FAQS = [
+const FAQ_DATA = [
   {
-    q: 'كيف أربط حساب التداول الخاص بي؟',
-    a: 'انتقل إلى صفحة "ربط الحسابات" من القائمة، اختر المنصة المطلوبة (مثل Binance أو Alpaca)، أدخل مفتاح API والمفتاح السري الخاص بك. مفاتيحك مشفرة بالكامل ولا نحتفظ بالمفاتيح السرية على خوادمنا.',
+    category: 'الأسئلة العامة',
+    icon: HelpCircle,
+    color: C.accent,
+    items: [
+      {
+        q: 'ما هي منصة رؤى؟',
+        a: 'رؤى هي منصة ربط حسابات تداول تتيح لك ربط حساباتك في بورصات متعددة ومتابعة محفظتك وتداولاتك من مكان واحد، مع دعم الذكاء الاصطناعي المتقدم.',
+      },
+      {
+        q: 'هل رؤى آمنة؟',
+        a: 'نعم! رؤى لا تلمس أموالك أبداً. مفاتيح API مشفرة بـ AES-256-GCM ونستخدم فقط صلاحيات القراءة. المفاتيح ذات صلاحيات السحب تُرفض فوراً.',
+      },
+      {
+        q: 'هل يمكنني التداول مباشرة من رؤى؟',
+        a: 'نعم، من خلال المنفذ الذكي والوكيل المستقل يمكنك تنفيذ صفقات على البورصات المرتبطة. يمكنك أيضاً التداول الورقي بأموال وهمية للتجربة.',
+      },
+    ],
   },
   {
-    q: 'هل منصتكم آمنة؟',
-    a: 'نعم، نستخدم تشفير AES-256 لحماية البيانات، ومصادقة ثنائية (2FA)، ولا نحتفظ بأموالك أبداً. نحن نقرأ فقط بيانات السوق وننفذ الصفقات عبر API الخاص بك.',
+    category: 'ربط الحسابات',
+    icon: Shield,
+    color: C.success,
+    items: [
+      {
+        q: 'كيف أربط حساب البورصة؟',
+        a: 'اذهب إلى صفحة ربط الحسابات، اختر البورصة، أدخل مفتاح API والمفتاح السري، ثم اضغط تحقق. سيتم تشفير المفاتيح فوراً والتحقق من صلاحيتها.',
+      },
+      {
+        q: 'لماذا يتم رفض مفتاح API؟',
+        a: 'عادةً لأن المفتاح يحتوي على صلاحيات سحب (Withdraw) أو تحويل (Transfer). رؤى تقبل فقط المفاتيح ذات صلاحيات القراءة والتداول.',
+      },
+      {
+        q: 'هل يمكنني ربط أكثر من بورصة؟',
+        a: 'نعم! يمكنك ربط عدد غير محدود من البورصات حسب خطتك. الخطة المجانية تسمح بـ 3 بورصات، والمبتدئة بـ 10، والاحترافية غير محدودة.',
+      },
+    ],
   },
   {
-    q: 'ما هي خطط الاشتراك المتاحة؟',
-    a: 'نوفر 4 خطط: مجاني (3 إشارات يومياً)، محترف ($29/شهر - إشارات غير محدودة + بوت آلي)، بلس ($79/شهر - تداول اجتماعي)، وبريميوم ($149/شهر - مجلس AI حصري + مدير حساب).',
+    category: 'الاشتراك والفوترة',
+    icon: CreditCard,
+    color: C.amber,
+    items: [
+      {
+        q: 'كيف أغير خطتي؟',
+        a: 'اذهب إلى صفحة الاشتراك والفوترة من الإعدادات. يمكنك الترقية أو التنزيل في أي وقت. التغييرات تسري فوراً مع احتساب الفرق.',
+      },
+      {
+        q: 'هل يمكنني إلغاء الاشتراك؟',
+        a: 'نعم، يمكنك إلغاء الاشتراك في أي وقت. ستستمر في استخدام الميزات حتى نهاية فترة الاشتراك الحالية.',
+      },
+    ],
   },
   {
-    q: 'كيف تعمل الاستراتيجيات الآلية؟',
-    a: 'استراتيجياتنا مدعومة بالذكاء الاصطناعي وتحلل السوق على مدار الساعة. عند تفعيل استراتيجية، يقوم البوت بتنفيذ الصفقات تلقائياً حسب المعايير المحددة. يمكنك إيقافها في أي وقت.',
-  },
-  {
-    q: 'هل يمكنني سحب أموالي من المنصة؟',
-    a: 'رؤى لا تحتفظ بأموالك أبداً. أموالك تبقى في حسابك على المنصة المربوطة (مثل Binance). نحن نوفر فقط أدوات التحليل والتنفيذ عبر API.',
+    category: 'الوكيل الذكي',
+    icon: Cpu,
+    color: '#A259FF',
+    items: [
+      {
+        q: 'ما هو الوكيل المستقل؟',
+        a: 'الوكيل المستقل هو نظام تداول آلي يعمل بالذكاء الاصطناعي. يحلل السوق وينفذ صفقات بناءً على استراتيجية محددة مع حدود مخاطرة صارمة.',
+      },
+      {
+        q: 'كيف أتحكم في مخاطر البوت؟',
+        a: 'يمكنك ضبط حد الخسارة اليومية، الحد الأقصى للصفقات، وعدد الخسائر المتتالية المسموح. عند تجاوز أي حد، يتوقف البوت تلقائياً.',
+      },
+    ],
   },
 ]
 
-/* ─── iOS Card ─── */
-function IOSCard({ children, highlight = false }: { children: React.ReactNode; highlight?: boolean }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-      style={{
-        background: highlight
-          ? 'linear-gradient(165deg, rgba(35,35,45,0.9) 0%, rgba(20,20,25,0.9) 100%)'
-          : 'rgba(28,28,30,0.65)',
-        backdropFilter: 'blur(40px) saturate(190%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(190%)',
-        borderRadius: 28,
-        padding: 20,
-        margin: '0 20px 16px',
-        border: '0.5px solid rgba(255,255,255,0.1)',
-        position: 'relative',
-        overflow: 'hidden',
-        boxShadow: highlight
-          ? '0 12px 32px rgba(0,0,0,0.5), inset 0 1px 1px rgba(255,255,255,0.08)'
-          : '0 4px 16px rgba(0,0,0,0.3), inset 0 1px 1px rgba(255,255,255,0.05)',
-      }}
-    >
-      {highlight && (
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, height: 1.5,
-          background: `linear-gradient(90deg, transparent, ${c.accent}66, transparent)`,
-          zIndex: 10,
-        }} />
-      )}
-      {children}
-    </motion.div>
-  )
-}
-
-/* ─── FAQ Item ─── */
-function FAQItem({ q, a }: { q: string; a: string }) {
+/* ─── FAQ Accordion Item ─── */
+function FAQItem({ question, answer }: { question: string; answer: string }) {
   const [open, setOpen] = useState(false)
 
   return (
     <div style={{
-      borderBottom: `0.5px solid ${c.border}`,
-      padding: '14px 0',
+      borderBottom: `0.5px solid ${C.border}`,
     }}>
-      <motion.button
-        whileTap={{ scale: 0.99 }}
+      <button
         onClick={() => setOpen(!open)}
         style={{
-          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          width: '100%', padding: '10px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           background: 'none', border: 'none', cursor: 'pointer', textAlign: 'right',
         }}
       >
-        <div style={{
-          width: 28, height: 28, borderRadius: 8,
-          background: `${c.accent}15`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexShrink: 0,
-        }}>
-          <HelpCircle size={14} color={c.accent} />
-        </div>
-        <p style={{ flex: 1, fontSize: 13, fontWeight: 700, color: c.text, fontFamily: "'Cairo', sans-serif", textAlign: 'start' }}>{q}</p>
-        {open ? <ChevronUp size={16} color={c.text2} /> : <ChevronDown size={16} color={c.text2} />}
-      </motion.button>
+        <span style={{ fontSize: 11, fontWeight: 700, color: C.text, fontFamily: FONT_AR, flex: 1 }}>
+          {question}
+        </span>
+        <motion.div
+          animate={{ rotate: open ? 180 : 0 }}
+          transition={{ duration: 0.2 }}
+          style={{ flexShrink: 0, marginInlineStart: 8 }}
+        >
+          <ChevronDown size={12} color={C.text2} />
+        </motion.div>
+      </button>
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
             style={{ overflow: 'hidden' }}
           >
-            <p style={{
-              fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif",
-              lineHeight: 1.8, marginTop: 10, paddingInlineEnd: 38,
+            <div style={{
+              paddingBottom: 10, fontSize: 10, color: C.text2,
+              fontFamily: FONT_AR, lineHeight: 1.7,
             }}>
-              {a}
-            </p>
+              {answer}
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -130,169 +140,266 @@ function FAQItem({ q, a }: { q: string; a: string }) {
   )
 }
 
-/* ─── Main Page ─── */
-export default function HelpPage() {
+/* ─── Help Page ─── */
+export default function MobileHelpPage() {
   const router = useRouter()
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
+
+  // Contact form
+  const [contactName, setContactName] = useState('')
+  const [contactEmail, setContactEmail] = useState('')
+  const [contactMessage, setContactMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [contactError, setContactError] = useState('')
 
-  const handleSend = () => {
-    if (!subject || !message) return
+  const [showContactForm, setShowContactForm] = useState(false)
+
+  /* Handle contact submit */
+  const handleContactSubmit = async () => {
+    if (!contactMessage.trim()) {
+      setContactError('الرجاء كتابة رسالتك')
+      return
+    }
+
     setSending(true)
-    setTimeout(() => {
-      setSending(false)
+    setContactError('')
+
+    try {
+      // Simulate API call — replace with real endpoint
+      await new Promise(resolve => setTimeout(resolve, 1500))
       setSent(true)
-      setSubject('')
-      setMessage('')
-      setTimeout(() => setSent(false), 3000)
-    }, 1500)
+      setContactName('')
+      setContactEmail('')
+      setContactMessage('')
+      setTimeout(() => {
+        setSent(false)
+        setShowContactForm(false)
+      }, 3000)
+    } catch {
+      setContactError('فشل إرسال الرسالة. حاول مرة أخرى.')
+    } finally {
+      setSending(false)
+    }
   }
 
-  const quickLinks = [
-    { label: 'دليل البدء السريع', icon: BookOpen, color: c.accent },
-    { label: 'توثيق API', icon: FileText, color: c.success },
-    { label: 'سياسة الخصوصية', icon: Shield, color: c.amber },
-    { label: 'شروط الاستخدام', icon: FileText, color: c.text2 },
-  ]
-
   return (
-    <div style={{ minHeight: '100%', background: '#0B0E14', direction: 'rtl', paddingBottom: 20, overflowX: 'hidden', width: '100%', maxWidth: '100vw' }}>
+    <div className="m-page">
+      <MobilePageHeader title="المساعدة والدعم" />
 
-      {/* ── Header ── */}
-      <div style={{
-        padding: 'calc(env(safe-area-inset-top) + 16px) 20px 16px',
-        display: 'flex', alignItems: 'center', gap: 12,
-        background: 'linear-gradient(180deg, rgba(255,184,0,0.06), transparent)',
-      }}>
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => router.back()}
-          style={{
-            width: 40, height: 40, borderRadius: 14,
-            background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: `0.5px solid ${c.border}`,
-          }}
-        >
-          <ChevronLeft size={20} color={c.text} />
-        </motion.button>
-        <h1 style={{ fontSize: 20, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>المساعدة والدعم</h1>
-      </div>
-
-      {/* ── Quick Links ── */}
-      <div style={{ display: 'flex', gap: 10, margin: '0 20px 16px', overflowX: 'auto', direction: 'rtl' }}>
-        {quickLinks.map((link, i) => {
-          const LinkIcon = link.icon
+      {/* Quick Links */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 16px', marginBottom: 16 }}>
+        {[
+          { label: 'تواصل معنا', icon: MessageSquare, color: C.accent, action: () => setShowContactForm(!showContactForm) },
+          { label: 'البريد الإلكتروني', icon: Mail, color: C.success, action: () => window.open('mailto:support@roua.trade', '_blank') },
+          { label: 'مركز المساعدة', icon: Book, color: C.amber, action: () => {} },
+          { label: 'تقرير مشكلة', icon: AlertCircle, color: C.danger, action: () => {} },
+        ].map((item) => {
+          const Icon = item.icon
           return (
             <motion.button
-              key={i}
-              whileTap={{ scale: 0.95 }}
+              key={item.label}
+              whileTap={{ scale: 0.97 }}
+              onClick={item.action}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '10px 14px', borderRadius: 16,
-                background: `${link.color}08`, border: `0.5px solid ${link.color}20`,
-                whiteSpace: 'nowrap', cursor: 'pointer',
+                padding: '12px 8px', borderRadius: 14,
+                background: `${item.color}06`, border: `0.5px solid ${item.color}12`,
+                cursor: 'pointer', textAlign: 'center',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
               }}
             >
-              <LinkIcon size={14} color={link.color} />
-              <span style={{ fontSize: 11, fontWeight: 700, color: link.color, fontFamily: "'Cairo', sans-serif" }}>{link.label}</span>
-              <ExternalLink size={10} color={link.color} style={{ opacity: 0.5 }} />
+              <div style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: `${item.color}12`, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+              }}>
+                <Icon size={13} color={item.color} />
+              </div>
+              <span style={{ fontSize: 9, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+                {item.label}
+              </span>
             </motion.button>
           )
         })}
       </div>
 
-      {/* ── FAQ ── */}
-      <div style={{ padding: '0 20px', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>الأسئلة الشائعة</h2>
+      {/* Contact Form */}
+      <AnimatePresence>
+        {showContactForm && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            style={{ overflow: 'hidden', padding: '0 16px', marginBottom: 12 }}
+          >
+            <IOSCard noMargin>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.text, fontFamily: FONT_AR, marginBottom: 10 }}>
+                أرسل لنا رسالة
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <input
+                  value={contactName}
+                  onChange={e => setContactName(e.target.value)}
+                  placeholder="الاسم (اختياري)"
+                  style={{
+                    width: '100%', padding: '8px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`,
+                    color: C.text, fontSize: 11, fontFamily: FONT_AR,
+                    outline: 'none', boxSizing: 'border-box',
+                  }}
+                />
+                <input
+                  value={contactEmail}
+                  onChange={e => setContactEmail(e.target.value)}
+                  placeholder="البريد الإلكتروني (اختياري)"
+                  dir="ltr"
+                  style={{
+                    width: '100%', padding: '8px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`,
+                    color: C.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    outline: 'none', direction: 'ltr', boxSizing: 'border-box',
+                  }}
+                />
+                <textarea
+                  value={contactMessage}
+                  onChange={e => setContactMessage(e.target.value)}
+                  placeholder="اكتب رسالتك هنا..."
+                  rows={4}
+                  style={{
+                    width: '100%', padding: '8px 10px', borderRadius: 8,
+                    background: 'rgba(255,255,255,0.04)', border: `0.5px solid ${C.border}`,
+                    color: C.text, fontSize: 11, fontFamily: FONT_AR,
+                    outline: 'none', resize: 'none', boxSizing: 'border-box',
+                  }}
+                />
+
+                {contactError && (
+                  <div style={{
+                    padding: '6px 10px', borderRadius: 8,
+                    background: `${C.danger}08`, border: `0.5px solid ${C.danger}18`,
+                    fontSize: 9, color: C.danger, fontFamily: FONT_AR,
+                  }}>
+                    {contactError}
+                  </div>
+                )}
+
+                {sent && (
+                  <div style={{
+                    padding: '6px 10px', borderRadius: 8,
+                    background: `${C.success}08`, border: `0.5px solid ${C.success}18`,
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    fontSize: 9, color: C.success, fontFamily: FONT_AR,
+                  }}>
+                    <CheckCircle2 size={10} />
+                    تم إرسال رسالتك بنجاح!
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => { setShowContactForm(false); setContactError('') }}
+                    style={{
+                      flex: 1, padding: 8, borderRadius: 8,
+                      background: 'rgba(255,255,255,0.03)', border: `0.5px solid ${C.border}`,
+                      color: C.text2, fontSize: 10, fontWeight: 700, fontFamily: FONT_AR,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    إلغاء
+                  </button>
+                  <button
+                    onClick={handleContactSubmit}
+                    disabled={sending}
+                    style={{
+                      flex: 1, padding: 8, borderRadius: 8,
+                      background: `linear-gradient(135deg, ${C.accent}, #00A8CC)`,
+                      border: 'none', color: '#000', fontSize: 10, fontWeight: 800,
+                      fontFamily: FONT_AR, cursor: sending ? 'not-allowed' : 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                    }}
+                  >
+                    {sending ? (
+                      <Loader2 size={10} style={{ animation: 'spin 1s linear infinite' }} />
+                    ) : (
+                      <Send size={10} />
+                    )}
+                    إرسال
+                  </button>
+                </div>
+              </div>
+            </IOSCard>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* FAQ Sections */}
+      {FAQ_DATA.map((section) => {
+        const SectionIcon = section.icon
+        return (
+          <div key={section.category}>
+            <div className="m-section">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{
+                  width: 22, height: 22, borderRadius: 6,
+                  background: `${section.color}12`, display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <SectionIcon size={11} color={section.color} />
+                </div>
+                <span className="m-section__title" style={{ marginBottom: 0 }}>
+                  {section.category}
+                </span>
+              </div>
+            </div>
+
+            <IOSCard>
+              {section.items.map((item) => (
+                <FAQItem key={item.q} question={item.q} answer={item.a} />
+              ))}
+            </IOSCard>
+          </div>
+        )
+      })}
+
+      {/* Helpful Links */}
+      <div className="m-section" style={{ marginTop: 8 }}>
+        <div className="m-section__title">روابط مفيدة</div>
       </div>
 
       <IOSCard>
-        {FAQS.map((faq, i) => (
-          <FAQItem key={i} q={faq.q} a={faq.a} />
+        {[
+          { label: 'شروط الاستخدام', href: '#' },
+          { label: 'سياسة الخصوصية', href: '#' },
+          { label: 'مستندات API', href: '#' },
+          { label: 'حالة الخوادم', href: '#' },
+        ].map((link, i) => (
+          <div
+            key={link.label}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '8px 0',
+              borderBottom: i < 3 ? `0.5px solid ${C.border}` : 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <span style={{ fontSize: 11, fontWeight: 700, color: C.text, fontFamily: FONT_AR }}>
+              {link.label}
+            </span>
+            <ExternalLink size={12} color={C.text2} />
+          </div>
         ))}
       </IOSCard>
 
-      {/* ── Contact Support Form ── */}
-      <div style={{ padding: '0 20px', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: c.text, fontFamily: "'Cairo', sans-serif" }}>تواصل مع الدعم</h2>
+      {/* App Info */}
+      <div style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.15)', fontFamily: FONT_AR, lineHeight: 1.8 }}>
+          رؤى — منصة ربط حسابات<br />
+          الإصدار 2.0.0
+        </div>
       </div>
 
-      <IOSCard>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div>
-            <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>الموضوع</label>
-            <input
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              placeholder="مثال: مشكلة في ربط حساب Binance"
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 14,
-                background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                color: c.text, fontSize: 13, fontFamily: "'Cairo', sans-serif",
-                outline: 'none', direction: 'rtl',
-              }}
-            />
-          </div>
-
-          <div>
-            <label style={{ fontSize: 12, color: c.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 6 }}>الرسالة</label>
-            <textarea
-              value={message}
-              onChange={e => setMessage(e.target.value)}
-              placeholder="اكتب رسالتك هنا..."
-              rows={4}
-              style={{
-                width: '100%', padding: '12px 14px', borderRadius: 14,
-                background: 'rgba(255,255,255,0.05)', border: `0.5px solid ${c.border}`,
-                color: c.text, fontSize: 13, fontFamily: "'Cairo', sans-serif",
-                outline: 'none', direction: 'rtl', resize: 'none',
-              }}
-            />
-          </div>
-
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={handleSend}
-            disabled={!subject || !message || sending}
-            style={{
-              width: '100%', padding: '14px 0', borderRadius: 16,
-              background: (!subject || !message) ? 'rgba(255,255,255,0.05)' : c.accent,
-              color: (!subject || !message) ? c.text2 : '#000',
-              fontSize: 14, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-              border: 'none', cursor: (!subject || !message) ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            }}
-          >
-            {sending ? (
-              <><Loader2 size={16} className="animate-spin" /> جاري الإرسال...</>
-            ) : sent ? (
-              <><CheckCircle size={16} /> تم الإرسال بنجاح!</>
-            ) : (
-              <><Send size={16} /> إرسال الرسالة</>
-            )}
-          </motion.button>
-        </div>
-      </IOSCard>
-
-      {/* ── App Version ── */}
-      <div style={{ textAlign: 'center', padding: '20px 0 0', margin: '0 20px' }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8,
-          padding: '10px 20px', borderRadius: 14,
-          background: 'rgba(255,255,255,0.03)', border: `0.5px solid ${c.border}`,
-        }}>
-          <Info size={14} color={c.text2} />
-          <span style={{ fontSize: 11, color: c.text2, fontFamily: "'Cairo', sans-serif" }}>
-            رؤى للتداول — الإصدار 2.1.0
-          </span>
-        </div>
-        <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', fontFamily: "'Cairo', sans-serif", marginTop: 8 }}>
-          © 2026 Roua Trading. جميع الحقوق محفوظة.
-        </p>
-      </div>
-
+      <div style={{ height: 16 }} />
     </div>
   )
 }

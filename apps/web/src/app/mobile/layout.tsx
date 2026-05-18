@@ -5,14 +5,13 @@ import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistra
 import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
 import MobileNavBar from '@/components/mobile/MobileNavBar'
-import MobileShell from '@/components/mobile/MobileShell'
 import './mobile.css'
 
 export const metadata: Metadata = {
-  title: 'رؤى للتداول — تطبيق الجوال',
+  title: 'رؤى — تطبيق الجوال',
   description: 'منصة رؤى لربط الحسابات',
   manifest: '/manifest.json',
-  applicationName: 'رؤى للتداول',
+  applicationName: 'رؤى',
   icons: {
     icon: [
       { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
@@ -27,7 +26,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'رؤى للتداول',
+    title: 'رؤى',
   },
 }
 
@@ -47,9 +46,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <ServiceWorkerRegistrar />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        <MobileShell>
-          {children}
-        </MobileShell>
+        {children}
+        <MobileNavBar />
       </AuthGuard>
     </MarketProvider>
   )

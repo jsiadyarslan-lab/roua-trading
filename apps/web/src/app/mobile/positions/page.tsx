@@ -1,721 +1,190 @@
 'use client'
 
-import { useState, useEffect, useMemo, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ArrowRight, X, TrendingUp, TrendingDown, Loader2,
-  Activity, Target, ShieldAlert, ChevronDown
-} from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
-import { useMarketStore } from '@/hooks/useMarketStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import { TrendingUp, TrendingDown, X, AlertTriangle, Loader2, Activity } from 'lucide-react'
 
-/* ─── Design Tokens ─── */
-const C = {
-  accent:  '#00D4FF',
-  success: '#00FFA3',
-  danger:  '#FF4757',
-  amber:   '#FFB800',
-  text:    '#F0F2F5',
-  text2:   '#8B92A8',
-  bg:      '#1A1D29',
-  border:  'rgba(255,255,255,0.06)',
-}
-const FONT_AR   = "'Cairo', sans-serif"
-const FONT_MONO = "'JetBrains Mono', monospace"
+const C = { accent: '#00D4FF', success: '#00FFA3', danger: '#FF4757', amber: '#FFB800', text: '#F0F2F5', text2: '#8B92A8', bg: '#1A1D29', border: 'rgba(255,255,255,0.06)' }
 
-/* ─── Source Label Mapping ─── */
-function getSourceBadge(source?: string | null, tradeSource?: string | null) {
-  // FIX: Use tradeSource (from DB) first, then fallback to source (data source)
-  const effectiveSource = tradeSource || source
-  if (!effectiveSource || effectiveSource === 'manual' || effectiveSource === 'user_manual' || effectiveSource === 'nestjs' || effectiveSource === 'alpaca') return null
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    bot:       { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
-    smart_executor: { label: 'المنفذ', bg: 'rgba(0,212,255,0.15)', color: '#00D4FF' },
-    agent:     { label: 'الوكيل', bg: 'rgba(162,89,255,0.15)', color: '#A259FF' },
-    auto_paper: { label: 'ورقي', bg: 'rgba(255,184,0,0.15)', color: '#FFB800' },
-    reconciliation: { label: 'تسوية', bg: 'rgba(48,209,88,0.15)', color: '#30D158' },
-  }
-  return map[effectiveSource] || null
-}
-
-/* ─── Helpers ─── */
-const fmt  = (n: number, d = 2) => Math.abs(n).toFixed(d)
-const sign = (n: number) => (n > 0 ? '+' : n < 0 ? '-' : '')
-const pnlColor = (n: number) => (n > 0 ? C.success : n < 0 ? C.danger : C.text2)
-
-function calcTpSlProgress(trade: PaperTrade): number {
-  // Returns 0..1 representing where current price is between SL and TP
-  if (!trade.tp && !trade.sl) return 0.5
-  const tp = trade.tp ?? (trade.side === 'long' ? trade.entryPrice * 1.05 : trade.entryPrice * 0.95)
-  const sl = trade.sl ?? (trade.side === 'long' ? trade.entryPrice * 0.95 : trade.entryPrice * 1.05)
-  const current = trade.currentPrice || trade.entryPrice
-
-  if (trade.side === 'long') {
-    const range = tp - sl
-    if (range <= 0) return 0.5
-    return Math.max(0, Math.min(1, (current - sl) / range))
-  } else {
-    const range = sl - tp
-    if (range <= 0) return 0.5
-    return Math.max(0, Math.min(1, (sl - current) / range))
-  }
-}
-
-/* ─── Filter Tabs ─── */
-type FilterTab = 'ALL' | 'PROFIT' | 'LOSS'
-const TABS: { key: FilterTab; label: string }[] = [
-  { key: 'ALL', label: 'الكل' },
-  { key: 'PROFIT', label: 'أرباح' },
-  { key: 'LOSS', label: 'خسائر' },
-]
-
-/* ─── Close Confirmation Bottom Sheet ─── */
-function CloseSheet({
-  trade,
-  onConfirm,
-  onClose,
-}: {
-  trade: PaperTrade
-  onConfirm: () => void
-  onClose: () => void
-}) {
-  const isProfit = trade.unrealizedPnl >= 0
-
-  return (
-    <>
-      {/* Backdrop */}
-      <motion.div
-        key="close-backdrop"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        onClick={onClose}
-        className="fixed inset-0 z-[60]"
-        style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
-      />
-
-      {/* Sheet */}
-      <motion.div
-        key="close-sheet"
-        initial={{ y: '100%' }}
-        animate={{ y: 0 }}
-        exit={{ y: '100%' }}
-        transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-        className="fixed bottom-0 left-0 right-0 z-[61]"
-        style={{
-          background: 'rgba(28, 28, 30, 0.92)',
-          backdropFilter: 'blur(40px) saturate(200%)',
-          WebkitBackdropFilter: 'blur(40px) saturate(200%)',
-          borderRadius: '28px 28px 0 0',
-          borderTop: '0.5px solid rgba(255,255,255,0.15)',
-          paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
-          boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
-        }}
-      >
-        {/* Handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.2)' }} />
-        </div>
-
-        <div style={{ padding: '8px 24px 24px' }} dir="rtl">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-5">
-            <span style={{ fontSize: 18, fontWeight: 800, color: C.text, fontFamily: FONT_AR }}>
-              تأكيد إغلاق المركز
-            </span>
-            <button onClick={onClose} style={{ background: 'none', border: 'none' }}>
-              <X size={22} color="rgba(255,255,255,0.4)" />
-            </button>
-          </div>
-
-          {/* Trade Summary */}
-          <div
-            style={{
-              padding: 16, borderRadius: 20,
-              background: 'rgba(255,255,255,0.04)',
-              border: `1px solid ${isProfit ? 'rgba(50,215,75,0.15)' : 'rgba(255,69,58,0.15)'}`,
-              marginBottom: 20,
-            }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <span style={{ fontSize: 16, fontWeight: 800, color: C.text, fontFamily: FONT_MONO }}>
-                  {trade.symbol}
-                </span>
-                <span
-                  style={{
-                    fontSize: 10, padding: '2px 8px', borderRadius: 6, fontWeight: 700,
-                    background: trade.side === 'long' ? 'rgba(50,215,75,0.15)' : 'rgba(255,69,58,0.15)',
-                    color: trade.side === 'long' ? C.success : C.danger,
-                    fontFamily: FONT_AR,
-                  }}
-                >
-                  {trade.side === 'long' ? 'شراء' : 'بيع'}
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div>
-                <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 2 }}>الربح / الخسارة</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: pnlColor(trade.unrealizedPnl), fontFamily: FONT_MONO }}>
-                  {sign(trade.unrealizedPnl)}${fmt(trade.unrealizedPnl)}
-                </div>
-                <div style={{ fontSize: 11, color: pnlColor(trade.unrealizedPnl), fontFamily: FONT_MONO, opacity: 0.7 }}>
-                  {sign(trade.unrealizedPct)}{fmt(trade.unrealizedPct)}%
-                </div>
-              </div>
-              <div style={{ textAlign: 'start' }}>
-                <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 2 }}>سعر الإغلاق</div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: C.text, fontFamily: FONT_MONO }}>
-                  {trade.currentPrice?.toFixed(2) || trade.entryPrice.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              style={{
-                flex: 1, padding: '14px 0', borderRadius: 16,
-                background: 'rgba(255,255,255,0.06)', border: 'none',
-                color: C.text2, fontSize: 15, fontWeight: 700, fontFamily: FONT_AR,
-              }}
-            >
-              إلغاء
-            </button>
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={onConfirm}
-              style={{
-                flex: 1.5, padding: '14px 0', borderRadius: 16,
-                background: C.danger, border: 'none',
-                color: '#FFFFFF', fontSize: 15, fontWeight: 800, fontFamily: FONT_AR,
-                boxShadow: `0 4px 20px ${C.danger}40`,
-              }}
-            >
-              إغلاق المركز
-            </motion.button>
-          </div>
-        </div>
-      </motion.div>
-    </>
-  )
-}
-
-/* ─── Position Card ─── */
-function PositionCard({
-  trade,
-  onCloseClick,
-}: {
-  trade: PaperTrade
-  onCloseClick: () => void
-}) {
-  const progress = calcTpSlProgress(trade)
-  const isProfit = trade.unrealizedPnl >= 0
-  const progressColor = isProfit ? C.success : C.danger
-
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -16, scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 300, damping: 28 }}
-      style={{
-        background: 'rgba(28,28,30,0.6)',
-        backdropFilter: 'blur(20px)',
-        WebkitBackdropFilter: 'blur(20px)',
-        borderRadius: 28,
-        border: `0.5px solid ${isProfit ? 'rgba(50,215,75,0.12)' : 'rgba(255,69,58,0.12)'}`,
-        padding: '18px 20px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}
-    >
-      {/* Subtle glow accent */}
-      <div
-        style={{
-          position: 'absolute', top: -20, left: -20,
-          width: 80, height: 80, borderRadius: '50%',
-          background: isProfit ? `${C.success}08` : `${C.danger}08`,
-          filter: 'blur(20px)', pointerEvents: 'none',
-        }}
-      />
-
-      {/* Row 1: Symbol + Side Badge + Close Button */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 18, fontWeight: 800, color: C.text, fontFamily: FONT_MONO }}>
-            {trade.symbol}
-          </span>
-          <span
-            style={{
-              fontSize: 10, padding: '3px 8px', borderRadius: 8, fontWeight: 700,
-              background: trade.side === 'long' ? 'rgba(50,215,75,0.15)' : 'rgba(255,69,58,0.15)',
-              color: trade.side === 'long' ? C.success : C.danger,
-              fontFamily: FONT_AR,
-            }}
-          >
-            {trade.side === 'long' ? 'شراء' : 'بيع'}
-          </span>
-          {(() => { const badge = getSourceBadge(trade.source); return badge ? <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 6, fontWeight: 700, background: badge.bg, color: badge.color, fontFamily: FONT_AR }}>{badge.label}</span> : null })()}
-        </div>
-        <motion.button
-          whileTap={{ scale: 0.85 }}
-          onClick={onCloseClick}
-          style={{
-            width: 32, height: 32, borderRadius: 10,
-            background: 'rgba(255,69,58,0.1)', border: '0.5px solid rgba(255,69,58,0.15)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-        >
-          <X size={14} color={C.danger} />
-        </motion.button>
-      </div>
-
-      {/* Row 2: Entry Price & Current Price */}
-      <div className="flex items-center gap-4 mb-3">
-        <div>
-          <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR, marginBottom: 1 }}>سعر الدخول</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.text, fontFamily: FONT_MONO }}>
-            {trade.entryPrice.toFixed(2)}
-          </div>
-        </div>
-        <div style={{ width: 1, height: 24, background: C.border }} />
-        <div>
-          <div style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR, marginBottom: 1 }}>السعر الحالي</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: C.accent, fontFamily: FONT_MONO }}>
-            {trade.currentPrice?.toFixed(2) || '—'}
-          </div>
-        </div>
-      </div>
-
-      {/* Row 3: P&L */}
-      <div
-        className="flex items-center justify-between mb-3"
-        style={{
-          padding: '10px 14px', borderRadius: 14,
-          background: isProfit ? 'rgba(50,215,75,0.06)' : 'rgba(255,69,58,0.06)',
-          border: `0.5px solid ${isProfit ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)'}`,
-        }}
-      >
-        <div className="flex items-center gap-2">
-          {isProfit ? <TrendingUp size={14} color={C.success} /> : <TrendingDown size={14} color={C.danger} />}
-          <span style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR }}>الربح / الخسارة</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <span style={{ fontSize: 16, fontWeight: 800, color: pnlColor(trade.unrealizedPnl), fontFamily: FONT_MONO }}>
-            {sign(trade.unrealizedPnl)}${fmt(trade.unrealizedPnl)}
-          </span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: pnlColor(trade.unrealizedPct), fontFamily: FONT_MONO, opacity: 0.7 }}>
-            {sign(trade.unrealizedPct)}{fmt(trade.unrealizedPct)}%
-          </span>
-        </div>
-      </div>
-
-      {/* Row 4: TP & SL Levels */}
-      {(trade.tp || trade.sl) && (
-        <div className="flex gap-3 mb-3">
-          {trade.tp && (
-            <div
-              className="flex items-center gap-2"
-              style={{
-                flex: 1, padding: '8px 10px', borderRadius: 10,
-                background: 'rgba(50,215,75,0.05)', border: '0.5px solid rgba(50,215,75,0.08)',
-              }}
-            >
-              <Target size={12} color={C.success} />
-              <div>
-                <div style={{ fontSize: 8, color: 'rgba(50,215,75,0.6)', fontFamily: FONT_AR }}>الهدف</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.success, fontFamily: FONT_MONO }}>
-                  {trade.tp.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          )}
-          {trade.sl && (
-            <div
-              className="flex items-center gap-2"
-              style={{
-                flex: 1, padding: '8px 10px', borderRadius: 10,
-                background: 'rgba(255,69,58,0.05)', border: '0.5px solid rgba(255,69,58,0.08)',
-              }}
-            >
-              <ShieldAlert size={12} color={C.danger} />
-              <div>
-                <div style={{ fontSize: 8, color: 'rgba(255,69,58,0.6)', fontFamily: FONT_AR }}>الوقف</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: C.danger, fontFamily: FONT_MONO }}>
-                  {trade.sl.toFixed(2)}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Row 5: Progress Bar (distance to TP vs SL) */}
-      {(trade.tp || trade.sl) && (
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>وقف</span>
-            <span style={{ fontSize: 9, color: C.text2, fontFamily: FONT_AR }}>هدف</span>
-          </div>
-          <div
-            style={{
-              height: 4, borderRadius: 2,
-              background: 'rgba(255,255,255,0.06)',
-              position: 'relative', overflow: 'hidden',
-            }}
-          >
-            <motion.div
-              initial={{ width: 0 }}
-              animate={{ width: `${progress * 100}%` }}
-              transition={{ duration: 0.8, ease: 'easeOut' }}
-              style={{
-                height: '100%', borderRadius: 2,
-                background: `linear-gradient(90deg, ${C.danger}, ${C.amber}, ${C.success})`,
-              }}
-            />
-          </div>
-        </div>
-      )}
-    </motion.div>
-  )
-}
-
-/* ─── Main Page ─── */
 export default function MobilePositionsPage() {
-  const router = useRouter()
-  // FIX: Use real positions from PositionsStore instead of phantom paper trades.
-  // Previously this page used usePaperTradesStore which was the SOLE source of
-  // phantom trades on this page. Now it uses the real positions store.
-  const positions = usePositionsStore(s => s.positions)
-  const fetchPositions = usePositionsStore(s => s.fetchPositions)
-  const { quotes } = useMarketStore()
-
-  const [activeTab, setActiveTab] = useState<FilterTab>('ALL')
+  const { positions, fetchPositions, fetchAccount, refreshAfterTrade } = usePositionsStore()
+  const paperTrades = usePaperTradesStore(s => s.trades)
   const closePaperTrade = usePaperTradesStore(s => s.closeTrade)
-  const [closingTrade, setClosingTrade] = useState<any | null>(null)
-  const [isClosing, setIsClosing] = useState(false)
 
-  // Fetch real positions on mount
+  const [confirmClose, setConfirmClose] = useState<string | null>(null)
+  const [closing, setClosing] = useState<string | null>(null)
+
   useEffect(() => {
     fetchPositions()
-  }, [fetchPositions])
+    fetchAccount()
+  }, [fetchPositions, fetchAccount])
 
-  // Convert real positions to display format
-  const displayTrades = useMemo(() => {
-    return positions
-      .filter(p => p.qty > 0 && (p.avgEntryPrice > 0 || p.currentPrice > 0))
-      .map(p => ({
-        id: p.id || `${p.symbol}-${p.side}`,
-        symbol: p.symbol,
-        side: (p.side === 'long' ? 'long' : 'short') as 'long' | 'short',
-        qty: p.qty,
-        entryPrice: p.avgEntryPrice || p.entryPrice || 0,
-        currentPrice: p.currentPrice || 0,
-        tp: p.takeProfit ?? undefined,
-        sl: p.stopLoss ?? undefined,
-        unrealizedPnl: p.unrealizedPnl || 0,
-        unrealizedPct: p.unrealizedPnlPct || 0,
-        entryTime: p.openedAt ? new Date(p.openedAt).getTime() : Date.now(),
-        strategy: 'real',
-        // FIX: Use the actual tradeSource from the position data instead of
-        // hardcoding 'manual'. Previously, ALL mobile positions showed no source
-        // badge because getSourceBadge('manual') returned null.
-        source: ((p as any)?.tradeSource || (p as any)?.source || 'manual'),
-      }))
-  }, [positions])
+  const handleClose = useCallback(async (pos: any) => {
+    const posId = pos.dbId || pos.id || `${pos.symbol}-${pos.side}`
+    setClosing(posId)
+    setConfirmClose(null)
 
-  // Filtered positions
-  const filteredTrades = useMemo(() => {
-    if (activeTab === 'PROFIT') return displayTrades.filter(t => t.unrealizedPnl >= 0)
-    if (activeTab === 'LOSS') return displayTrades.filter(t => t.unrealizedPnl < 0)
-    return displayTrades
-  }, [displayTrades, activeTab])
-
-  // Summary stats
-  const totalPnl = useMemo(() => displayTrades.reduce((s, t) => s + t.unrealizedPnl, 0), [displayTrades])
-  const totalValue = useMemo(
-    () => displayTrades.reduce((s, t) => s + t.qty * (t.currentPrice || t.entryPrice), 0),
-    [displayTrades]
-  )
-  const positionCount = displayTrades.length
-
-  // Close handler — works for both real positions and paper trades
-  const handleClose = useCallback(async () => {
-    if (!closingTrade) return
-    setIsClosing(true)
     try {
-      if (closingTrade.source === 'paper' || (closingTrade.id && closingTrade.id.startsWith('paper-'))) {
-        // Paper trade — close in store
-        closePaperTrade(closingTrade.id)
-      } else if (closingTrade.id && !closingTrade.id.startsWith('paper-')) {
-        // Real NestJS/Alpaca position — close via API
+      if (pos.source === 'nestjs' && pos.dbId) {
+        const res = await fetch(`/api/trading/positions/${pos.dbId}`, { method: 'DELETE' })
+        if (res.ok) {
+          refreshAfterTrade()
+        } else {
+          const data = await res.json()
+          console.error('Close failed:', data.message)
+        }
+      } else {
+        // Try Alpaca or paper trade close
         try {
-          // FIX: Use closePositionUnified which properly routes through NestJS
-          // for DB positions and only falls back to Alpaca for genuine Alpaca positions.
-          // Previously, when dbId was missing, this fell through to Alpaca directly,
-          // causing "Alpaca Error 404" for DB-only positions.
-          // CRITICAL: Use isNestJsId() instead of UUID regex — Prisma uses cuid(),
-          // so IDs like "clm5x2j4d0001..." must be recognized as NestJS IDs.
-          const { closePositionUnified, isNestJsId } = await import('@/lib/api-fetch')
-          const result = await closePositionUnified(
-            closingTrade.id,
-            undefined,
-            { dbId: closingTrade.dbId || (closingTrade.id && isNestJsId(closingTrade.id) ? closingTrade.id : undefined) }
-          )
-          if (!result.success) {
-            console.warn('Close position failed:', result.error)
-          }
+          const res = await fetch('/api/alpaca/positions', { method: 'DELETE' })
+          refreshAfterTrade()
         } catch {
-          // API close failed — still remove from local state
+          // Fallback: close as paper trade if it's a paper position
+          const paperTrade = paperTrades.find(t => t.symbol === pos.symbol && t.side === (pos.side === 'long' ? 'long' : 'short'))
+          if (paperTrade) {
+            closePaperTrade(paperTrade.id)
+          }
         }
       }
-      // Refresh positions from API
-      await fetchPositions()
+    } catch (err) {
+      console.error('Error closing position:', err)
     } finally {
-      setIsClosing(false)
-      setClosingTrade(null)
+      setClosing(null)
     }
-  }, [closingTrade, closePaperTrade, fetchPositions])
+  }, [refreshAfterTrade, paperTrades, closePaperTrade])
 
-  const isLoading = false // store is sync, no loading state needed for initial load
+  const fmtPrice = (p: number) => {
+    if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    if (p > 10) return p.toFixed(3)
+    return p.toFixed(4)
+  }
+
+  const fmtPnl = (pnl: number) => {
+    const sign = pnl >= 0 ? '+' : ''
+    return `${sign}$${Math.abs(pnl).toFixed(2)}`
+  }
+
+  const allPositions = positions.length > 0 ? positions : paperTrades.map(t => ({
+    id: t.id,
+    symbol: t.symbol,
+    side: t.side,
+    qty: t.qty,
+    avgEntryPrice: t.entryPrice,
+    currentPrice: t.currentPrice,
+    marketValue: t.currentPrice * t.qty,
+    unrealizedPnl: t.unrealizedPnl,
+    unrealizedPnlPct: t.unrealizedPct,
+    source: 'paper' as const,
+  }))
 
   return (
-    <div
-      style={{
-        minHeight: '100%',
-        background: '#0B0E14',
-        direction: 'rtl',
-        overflowX: 'hidden',
-        width: '100%',
-        maxWidth: '100vw',
-        paddingBottom: 24,
-      }}
-    >
-      {/* ── Sticky Header ── */}
-      <div
-        style={{
-          padding: 'calc(env(safe-area-inset-top, 20px) + 8px) 20px 16px',
-          background: 'rgba(28, 28, 30, 0.8)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderBottom: '0.5px solid rgba(255,255,255,0.1)',
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-        }}
-      >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => router.back()}
-            style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: 'rgba(255,255,255,0.07)', border: 'none',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}
-          >
-            <ArrowRight size={18} color="#FFFFFF" />
-          </button>
-          <div>
-            <h1 style={{ fontSize: 20, fontWeight: 800, color: C.text, fontFamily: FONT_AR }}>
-              المراكز المفتوحة
-            </h1>
-            <p style={{ fontSize: 11, color: C.text2, fontFamily: FONT_AR }}>
-              تتبع المراكز الحالية والأرباح
-            </p>
-          </div>
+    <div className="m-page">
+      <MobilePageHeader title="المراكز المفتوحة" subtitle={`${allPositions.length} مركز`} />
+
+      {allPositions.length === 0 ? (
+        <div style={{ padding: '0 16px' }}>
+          <IOSCard>
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <Activity size={40} color={C.text2} style={{ margin: '0 auto 12px' }} />
+              <div style={{ fontSize: 15, fontWeight: 800, color: C.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>لا توجد مراكز مفتوحة</div>
+              <div style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>ستظهر المراكز هنا عند فتح صفقات</div>
+            </div>
+          </IOSCard>
         </div>
-      </div>
+      ) : (
+        <div style={{ padding: '0 16px' }}>
+          {allPositions.map((pos, i) => {
+            const isLong = pos.side === 'long' || pos.side === 'LONG' || pos.side === 'BUY'
+            const pnl = pos.unrealizedPnl || 0
+            const pnlPct = pos.unrealizedPnlPct || 0
+            const pnlColor = pnl >= 0 ? C.success : C.danger
+            const posId = (pos as any).dbId || pos.id || `${pos.symbol}-${pos.side}`
+            const isConfirming = confirmClose === posId
+            const isClosing = closing === posId
+            const entryPrice = pos.avgEntryPrice || pos.entryPrice || 0
+            const currentPrice = pos.currentPrice || 0
 
-      {/* ── Summary Stats ── */}
-      <div style={{ padding: '20px 20px 0' }}>
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr 1fr',
-            gap: 10,
-          }}
-        >
-          {/* Total P&L */}
-          <div
-            style={{
-              padding: '14px 12px', borderRadius: 20,
-              background: 'rgba(28,28,30,0.6)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: `0.5px solid ${totalPnl >= 0 ? 'rgba(50,215,75,0.12)' : 'rgba(255,69,58,0.12)'}`,
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 4 }}>إجمالي الربح</div>
-            <div
-              style={{
-                fontSize: 17, fontWeight: 800,
-                color: pnlColor(totalPnl), fontFamily: FONT_MONO,
-              }}
-            >
-              {sign(totalPnl)}${fmt(totalPnl)}
-            </div>
-          </div>
-
-          {/* Position Count */}
-          <div
-            style={{
-              padding: '14px 12px', borderRadius: 20,
-              background: 'rgba(28,28,30,0.6)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '0.5px solid rgba(0,212,255,0.12)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 4 }}>عدد المراكز</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: C.accent, fontFamily: FONT_MONO }}>
-              {positionCount}
-            </div>
-          </div>
-
-          {/* Total Value */}
-          <div
-            style={{
-              padding: '14px 12px', borderRadius: 20,
-              background: 'rgba(28,28,30,0.6)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '0.5px solid rgba(255,184,0,0.12)',
-              textAlign: 'center',
-            }}
-          >
-            <div style={{ fontSize: 10, color: C.text2, fontFamily: FONT_AR, marginBottom: 4 }}>القيمة الإجمالية</div>
-            <div style={{ fontSize: 17, fontWeight: 800, color: C.amber, fontFamily: FONT_MONO }}>
-              ${fmt(totalValue, 0)}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Filter Tabs ── */}
-      <div style={{ padding: '18px 20px 0' }}>
-        <div
-          className="flex gap-2"
-          style={{
-            padding: 4, borderRadius: 14,
-            background: 'rgba(255,255,255,0.04)',
-            border: `0.5px solid ${C.border}`,
-          }}
-        >
-          {TABS.map(tab => {
-            const isActive = activeTab === tab.key
             return (
-              <motion.button
-                key={tab.key}
-                whileTap={{ scale: 0.96 }}
-                onClick={() => setActiveTab(tab.key)}
-                style={{
-                  flex: 1, padding: '8px 0', borderRadius: 10, border: 'none',
-                  background: isActive
-                    ? tab.key === 'PROFIT'
-                      ? 'rgba(50,215,75,0.2)'
-                      : tab.key === 'LOSS'
-                        ? 'rgba(255,69,58,0.2)'
-                        : 'rgba(0,212,255,0.2)'
-                    : 'transparent',
-                  color: isActive
-                    ? tab.key === 'PROFIT'
-                      ? C.success
-                      : tab.key === 'LOSS'
-                        ? C.danger
-                        : C.accent
-                    : C.text2,
-                  fontSize: 12, fontWeight: isActive ? 800 : 500,
-                  fontFamily: FONT_AR,
-                  transition: 'all 0.2s',
-                }}
-              >
-                {tab.label}
-              </motion.button>
+              <div key={posId} style={{ marginBottom: 8 }}>
+                <IOSCard>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 10,
+                        background: isLong ? 'rgba(0,255,163,0.08)' : 'rgba(255,71,87,0.08)',
+                        border: `0.5px solid ${isLong ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isLong ? <TrendingUp size={18} color={C.success} /> : <TrendingDown size={18} color={C.danger} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 900, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{pos.symbol}</div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: isLong ? C.success : C.danger, fontFamily: "'Cairo', sans-serif" }}>
+                          {isLong ? 'شراء (Long)' : 'بيع (Short)'}
+                          {(pos as any).tradeSource && <span style={{ color: C.text2, marginRight: 4 }}>· {(pos as any).tradeSource}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Close Button */}
+                    {!isConfirming && !isClosing && (
+                      <button onClick={() => setConfirmClose(posId)} style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: 'rgba(255,71,87,0.08)', border: '0.5px solid rgba(255,71,87,0.15)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}>
+                        <X size={14} color={C.danger} />
+                      </button>
+                    )}
+                    {isClosing && <Loader2 size={16} className="animate-spin" color={C.accent} />}
+                  </div>
+
+                  {/* Price Info */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>الكمية</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace" }}>{pos.qty}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>سعر الدخول</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr' }}>{fmtPrice(entryPrice)}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 8, color: C.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>السعر الحالي</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: C.text, fontFamily: "'JetBrains Mono', monospace", direction: 'ltr' }}>{fmtPrice(currentPrice)}</div>
+                    </div>
+                  </div>
+
+                  {/* P&L */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', borderRadius: 10, background: `${pnlColor}08`, border: `0.5px solid ${pnlColor}18` }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>ربح/خسارة</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 14, fontWeight: 900, color: pnlColor, fontFamily: "'JetBrains Mono', monospace" }}>{fmtPnl(pnl)}</span>
+                      <span style={{ fontSize: 10, fontWeight: 800, color: pnlColor, fontFamily: "'JetBrains Mono', monospace" }}>({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</span>
+                    </div>
+                  </div>
+
+                  {/* Close Confirmation */}
+                  {isConfirming && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'rgba(255,71,87,0.06)', border: '0.5px solid rgba(255,71,87,0.15)' }}>
+                      <AlertTriangle size={14} color={C.amber} />
+                      <span style={{ fontSize: 10, fontWeight: 700, color: C.text, fontFamily: "'Cairo', sans-serif", flex: 1 }}>تأكيد إغلاق المركز؟</span>
+                      <button onClick={() => handleClose(pos)} style={{ padding: '4px 12px', borderRadius: 6, background: C.danger, color: '#FFF', fontSize: 9, fontWeight: 800, fontFamily: "'Cairo', sans-serif", border: 'none', cursor: 'pointer' }}>إغلاق</button>
+                      <button onClick={() => setConfirmClose(null)} style={{ padding: '4px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.05)', color: C.text2, fontSize: 9, fontWeight: 800, fontFamily: "'Cairo', sans-serif", border: `0.5px solid ${C.border}`, cursor: 'pointer' }}>إلغاء</button>
+                    </div>
+                  )}
+                </IOSCard>
+              </div>
             )
           })}
         </div>
-      </div>
+      )}
 
-      {/* ── Positions List ── */}
-      <div style={{ padding: '16px 20px' }}>
-        {isLoading ? (
-          /* Loading State */
-          <div style={{ padding: '60px 0', textAlign: 'center' }}>
-            <Loader2 size={32} className="animate-spin" color={C.accent} style={{ margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 13, color: C.text2, fontFamily: FONT_AR }}>جاري تحميل المراكز...</p>
-          </div>
-        ) : filteredTrades.length === 0 ? (
-          /* Empty State */
-          <div
-            style={{
-              padding: '60px 20px', textAlign: 'center',
-              background: 'rgba(255,255,255,0.02)', borderRadius: 28,
-              border: '1px dashed rgba(255,255,255,0.1)',
-            }}
-          >
-            <Activity size={40} color="rgba(255,255,255,0.08)" style={{ margin: '0 auto 16px' }} />
-            <p style={{ fontSize: 15, fontWeight: 700, color: C.text2, fontFamily: FONT_AR, marginBottom: 6 }}>
-              لا توجد مراكز مفتوحة
-            </p>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.25)', fontFamily: FONT_AR, lineHeight: 1.6 }}>
-              {activeTab === 'ALL'
-                ? 'ابدأ بتداول ورقي من الشارت أو الإشارات لرؤية مراكزك هنا'
-                : activeTab === 'PROFIT'
-                  ? 'لا توجد مراكز رابحة حالياً'
-                  : 'لا توجد مراكز خاسرة حالياً — ممتاز!'}
-            </p>
-          </div>
-        ) : (
-          /* Positions List */
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <AnimatePresence mode="popLayout">
-              {filteredTrades.map(trade => (
-                <PositionCard
-                  key={trade.id}
-                  trade={trade}
-                  onCloseClick={() => setClosingTrade(trade)}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        )}
-      </div>
-
-      {/* ── Close Confirmation Bottom Sheet ── */}
-      <AnimatePresence>
-        {closingTrade && (
-          <CloseSheet
-            trade={closingTrade}
-            onConfirm={handleClose}
-            onClose={() => setClosingTrade(null)}
-          />
-        )}
-      </AnimatePresence>
-
-      {/* ── Closing Overlay Spinner ── */}
-      <AnimatePresence>
-        {isClosing && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[70] flex items-center justify-center"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
-          >
-            <Loader2 size={32} className="animate-spin" color={C.accent} />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div style={{ height: 16 }} />
     </div>
   )
 }

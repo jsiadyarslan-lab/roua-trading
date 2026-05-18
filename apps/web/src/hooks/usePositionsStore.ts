@@ -517,28 +517,31 @@ export const usePositionsStore = create<PositionsState>()(
         const data = await res.json()
         if (data.success && data.data && data.data.exchanges?.length > 0) {
           const { totalEquityUsd, totalAvailableUsd, totalUsedMargin, exchanges } = data.data
+          // V162: Backend now provides these flags to prevent the shared balance bug
+          const allRealExchangesFailed = data.data.allRealExchangesFailed === true
+          const backendHasRealCredentials = data.data.hasRealCredentials === true
 
           const isTestnet = exchanges.some((e: any) => e.isTestnet)
           const hasDecryptionError = exchanges.some((e: any) => e.error)
-          const hasRealCredentials = exchanges.some(
+          const hasRealCredentials = backendHasRealCredentials || exchanges.some(
             (e: any) => e.exchange !== 'paper-trading'
           )
 
           // ═══════════════════════════════════════════════════════════════
-          // V158 FIX: Detect when real exchange balance is UNAVAILABLE.
+          // V162 CRITICAL FIX: Don't silently show paper balance as total.
           //
-          // BUG: When Binance API times out (5s was too short), the backend
-          // returns equity: 0 with error. The frontend then computes
-          // totalEquityUsd = 0 (Binance) + paperEquity = paperEquity.
-          // This means ALL users whose Binance times out see their paper
-          // trading balance, which can be the same across users → shared
-          // balance bug ($12,342.85 for everyone).
+          // ROOT CAUSE of $12,342.85 shared balance bug:
+          //   1. Binance balance ALWAYS fails from Railway (IP blocked / timeout)
+          //   2. Backend returns: Binance=0(error) + paperEquity → total includes paper
+          //   3. Frontend used to show total (which = paper only) → ALL users
+          //      with failed Binance see the same paper trading balance
+          //   4. Smart Executor creates identical positions for all users
+          //      → same $10,000 base + same PnL = same $12,342.85 for everyone
           //
-          // FIX: If a real exchange has an error (balance unavailable),
-          // compute the total ONLY from exchanges that successfully
-          // returned data. Don't mix failed real exchange (0) with
-          // paper trading. If ALL real exchanges failed, only show
-          // paper trading balance but mark it clearly.
+          // FIX: When ALL real exchanges fail for a user who HAS real credentials,
+          // DON'T use paper trading balance as the displayed total.
+          // Instead, show 0 with a clear error indicator.
+          // Paper-only users (no real exchange) continue to see their paper balance.
           // ═══════════════════════════════════════════════════════════════
           const realExchangesSuccess = exchanges.filter(
             (e: any) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
@@ -550,30 +553,44 @@ export const usePositionsStore = create<PositionsState>()(
             (e: any) => e.exchange === 'paper-trading'
           )
 
-          // V158: If user has real exchange credentials but they ALL failed,
-          // we should NOT silently show only paper trading balance as the total.
-          // Instead, we compute the total from successful exchanges only.
           let adjustedTotalEquityUsd = totalEquityUsd
           let adjustedTotalAvailableUsd = totalAvailableUsd
           let adjustedTotalUsedMargin = totalUsedMargin
+          // V162: Track whether we're showing an error state instead of real balance
+          let exchangeUnavailable = false
 
-          if (hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0) {
-            // ALL real exchanges failed — only paper trading is available.
-            // Show ONLY the paper trading balance, not mixed.
+          // V162: Use the backend's allRealExchangesFailed flag when available,
+          // otherwise compute it from the exchange results
+          const allRealFailed = allRealExchangesFailed || 
+            (hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0)
+
+          if (allRealFailed) {
+            // ALL real exchanges failed — user has Binance/Alpaca but they're unreachable.
+            // V162: DON'T silently show paper trading balance as the total!
+            // This was the root cause of all users seeing $12,342.85.
+            // Instead, set total to 0 and mark exchange as unavailable.
             console.warn(
-              `[PositionsStore] V158: ALL ${realExchangesFailed.length} real exchange balance(s) failed. ` +
-              `Showing paper-trading balance only. Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
+              `[PositionsStore] V162: ALL ${realExchangesFailed.length} real exchange balance(s) FAILED. ` +
+              `NOT showing paper trading balance ($${paperExchange?.equity || 0}) as total. ` +
+              `Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
             )
-            // Use paper trading balance as the total
-            adjustedTotalEquityUsd = paperExchange?.equity || 0
-            adjustedTotalAvailableUsd = paperExchange?.available || 0
-            adjustedTotalUsedMargin = paperExchange?.usedMargin || 0
+            exchangeUnavailable = true
+            // Set total to 0 — the UI will show the exchange unavailable indicator
+            adjustedTotalEquityUsd = 0
+            adjustedTotalAvailableUsd = 0
+            adjustedTotalUsedMargin = 0
           } else if (realExchangesSuccess.length > 0) {
             // At least one real exchange succeeded — use total from ALL exchanges
             // (successful real + paper trading)
             adjustedTotalEquityUsd = totalEquityUsd
             adjustedTotalAvailableUsd = totalAvailableUsd
             adjustedTotalUsedMargin = totalUsedMargin
+          } else {
+            // No real exchange credentials — paper trading only.
+            // This is the user's actual balance, so show it.
+            adjustedTotalEquityUsd = paperExchange?.equity || totalEquityUsd
+            adjustedTotalAvailableUsd = paperExchange?.available || totalAvailableUsd
+            adjustedTotalUsedMargin = paperExchange?.usedMargin || totalUsedMargin
           }
 
           // ═══════════════════════════════════════════════════════════════
@@ -723,6 +740,9 @@ export const usePositionsStore = create<PositionsState>()(
             // V153: Mark whether margin came from real exchange API
             // If true, updatePositionPrice() should trust it over client-side calc
             isRealExchangeMargin: hasRealExchanges && realExchangeMargin > 0,
+            // V162: Flag for UI to show "Exchange unavailable" indicator
+            // instead of silently showing wrong/paper balance
+            exchangeUnavailable,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 

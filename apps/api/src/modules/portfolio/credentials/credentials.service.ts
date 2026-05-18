@@ -465,9 +465,38 @@ export class CredentialsService {
       assets: Array<{ currency: string; free: number; used: number; total: number }>;
       error?: string;
     }>;
+    /** V162: Indicates that ALL real exchanges failed — frontend should show error, not silently use paper balance */
+    allRealExchangesFailed?: boolean;
+    /** V162: Indicates that user has real exchange credentials (not just paper trading) */
+    hasRealCredentials?: boolean;
   }> {
-    // V158: Diagnostic logging to trace balance fetching for debugging shared balance bug.
-    this.logger.log(`🔍 V158 Balance fetch START for userId=${userId}`);
+    // ═══════════════════════════════════════════════════════════════
+    // V162 CRITICAL FIX: Guard against undefined userId.
+    //
+    // If userId is undefined/falsy, Prisma queries like:
+    //   findMany({ where: { userId: undefined, isValid: true } })
+    // would STRIP the undefined field and return ALL records from ALL users!
+    // This would cause:
+    //   - All users' exchange credentials being fetched
+    //   - All users' positions being summed together
+    //   - All users' AgentSettings being looked up (findUnique would fail)
+    //   - Balance cache key = "balances:undefined" → shared across all bad requests
+    // This is the #1 cause of cross-user data leakage.
+    // ═══════════════════════════════════════════════════════════════
+    if (!userId || typeof userId !== 'string' || userId.trim() === '') {
+      this.logger.error(`🚨 V162 CRITICAL: fetchAllExchangeBalances called with invalid userId="${userId}" — possible auth bypass!`);
+      return {
+        totalEquityUsd: 0,
+        totalAvailableUsd: 0,
+        totalUsedMargin: 0,
+        exchanges: [],
+        allRealExchangesFailed: false,
+        hasRealCredentials: false,
+      };
+    }
+
+    // V162: Diagnostic logging to trace balance fetching for debugging shared balance bug.
+    this.logger.log(`🔍 V162 Balance fetch START for userId=${userId}`);
 
     // FIX: Check balance cache first — prevents 10+ second delays on every page load.
     // Before this cache, every call created fresh CCXT instances and hit exchange APIs,
@@ -483,8 +512,8 @@ export class CredentialsService {
       where: { userId, isValid: true },
     });
 
-    // V158: Log what credentials this user has — critical for debugging shared balance
-    this.logger.log(`🔍 V158 User ${userId} has ${allCredentials.length} credentials: [${allCredentials.map(c => `${c.exchange}/${c.label}`).join(', ')}]`);
+    // V162: Log what credentials this user has — critical for debugging shared balance
+    this.logger.log(`🔍 V162 User ${userId} has ${allCredentials.length} credentials: [${allCredentials.map(c => `${c.exchange}/${c.label}`).join(', ')}]`);
 
     // FIX: Even if user has NO credentials, check if they have a paper trading
     // balance in AgentSettings. This prevents the $0 balance problem for users
@@ -654,6 +683,44 @@ export class CredentialsService {
       this.logger.warn(`Failed to fetch paper balance: ${err.message}`);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // V162 CRITICAL FIX: Separate real exchange equity from paper equity.
+    //
+    // ROOT CAUSE of $12,342.85 shared balance bug:
+    //   1. Binance balance fetch ALWAYS fails from Railway (IP blocked / timeout)
+    //   2. Real exchange returns equity=0 with error
+    //   3. Paper trading balance ($10,000 + PnL from auto-traded positions) is ALWAYS added
+    //   4. totalEquityUsd = 0 (failed Binance) + paperEquity
+    //   5. Smart Executor opens identical positions for ALL users → same PnL
+    //   6. ALL users see the same number: $10,000 + identical PnL = $12,342.85
+    //
+    // FIX: When user has real exchange credentials but ALL of them failed,
+    // we flag this in the response. The frontend can then:
+    //   - Show a clear "Exchange unavailable" error
+    //   - NOT silently display paper trading balance as if it were the real balance
+    //   - Still show paper trading balance separately (for reference)
+    //
+    // For users with NO real exchange credentials (paper-trading only),
+    // paper trading balance IS their real balance, so no warning needed.
+    // ═══════════════════════════════════════════════════════════════
+    const hasRealCredentials = realCredentials.length > 0;
+    const realExchangesSuccess = exchanges.filter(
+      (e) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
+    );
+    const realExchangesFailed = exchanges.filter(
+      (e) => e.exchange !== 'paper-trading' && (e.error || e.equity <= 0)
+    );
+    const allRealExchangesFailed = hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0;
+
+    if (allRealExchangesFailed) {
+      this.logger.warn(
+        `🚨 V162: ALL ${realExchangesFailed.length} real exchange balance(s) FAILED for user ${userId}. ` +
+        `Failed: [${realExchangesFailed.map(e => `${e.exchange}: ${e.error}`).join(', ')}]. ` +
+        `Paper equity: $${exchanges.find(e => e.exchange === 'paper-trading')?.equity || 0}. ` +
+        `Frontend must show error, NOT silently use paper balance as total.`
+      );
+    }
+
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
     // ═══════════════════════════════════════════════════════════════
@@ -682,14 +749,31 @@ export class CredentialsService {
       return sum + (usedAsset?.used || 0);
     }, 0);
 
-    const result = { totalEquityUsd, totalAvailableUsd, totalUsedMargin, exchanges };
+    const result = {
+      totalEquityUsd,
+      totalAvailableUsd,
+      totalUsedMargin,
+      exchanges,
+      // V162: Flags for frontend to handle the shared balance bug correctly
+      allRealExchangesFailed,
+      hasRealCredentials,
+    };
 
-    // FIX: Store in balance cache — subsequent requests within 60s will be instant
+    // FIX: Store in balance cache — subsequent requests within 5s will be instant
     if (this.balanceCache.size >= this.BALANCE_CACHE_MAX_SIZE) {
       const oldestKey = this.balanceCache.keys().next().value;
       if (oldestKey) this.balanceCache.delete(oldestKey);
     }
     this.balanceCache.set(cacheKey, { data: result, timestamp: Date.now() });
+
+    // V162: Log the final balance composition for debugging
+    const paperEquity = exchanges.find(e => e.exchange === 'paper-trading')?.equity || 0;
+    const realEquity = totalEquityUsd - paperEquity;
+    this.logger.log(
+      `💰 V162 Balance for user ${userId}: total=$${totalEquityUsd.toFixed(2)} ` +
+      `(real=$${realEquity.toFixed(2)}, paper=$${paperEquity.toFixed(2)}) ` +
+      `allRealFailed=${allRealExchangesFailed} hasRealCreds=${hasRealCredentials}`
+    );
 
     return result;
   }

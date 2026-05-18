@@ -14,8 +14,15 @@ export interface AlpacaCredentials {
 }
 
 export function alpacaClient(creds?: AlpacaCredentials) {
-  const key = creds?.apiKey || process.env.ALPACA_API_KEY
-  const secret = creds?.apiSecret || process.env.ALPACA_API_SECRET
+  // V162 FIX: Only use provided credentials, NEVER fall back to shared env vars.
+  // Previously, when no per-user creds were provided, this fell back to
+  // ALPACA_API_KEY / ALPACA_API_SECRET env vars. This caused ALL users
+  // without personal Alpaca credentials to share the SAME Alpaca account,
+  // resulting in the same balance ($12,342.85) being shown to everyone.
+  // Now: Only use explicitly provided credentials. The alpacaFetch()
+  // function handles the per-user credential lookup and fallback logic.
+  const key = creds?.apiKey
+  const secret = creds?.apiSecret
 
   if (!key || !secret) {
     throw new Error('ALPACA_API_KEY أو ALPACA_API_SECRET غير موجودَين')
@@ -138,17 +145,30 @@ export async function alpacaFetch(
     }
   }
 
-  // If userId is provided, we MUST use its credentials. Do NOT fall back to global keys
-  // as that would cause data leakage between users (sharing the same wallet).
+  // ═══════════════════════════════════════════════════════════════
+  // V162 CRITICAL FIX: NEVER fall back to shared global Alpaca keys.
+  //
+  // Previously, when a userId was provided but no per-user Alpaca
+  // credentials were found, this code would fall back to global
+  // ALPACA_API_KEY / ALPACA_API_SECRET env vars. This caused ALL
+  // users without personal Alpaca credentials to query the SAME
+  // shared Alpaca account, seeing the same balance ($12,342.85).
+  //
+  // Now: If any metadata with userId is provided, we REQUIRE
+  // per-user credentials. No global fallback. Period.
+  // ═══════════════════════════════════════════════════════════════
   if (metadataOrCreds && 'userId' in metadataOrCreds && (metadataOrCreds as any).userId) {
     if (!creds) {
-      console.warn(`[alpacaFetch] No credentials found for user ${(metadataOrCreds as any).userId} — blocking global fallback for safety`)
+      console.warn(`[alpacaFetch] V162: No Alpaca credentials for user ${(metadataOrCreds as any).userId} — returning offline (NO shared fallback)`)
       return createFallbackResponse(path)
     }
   }
 
-  // If no explicit creds and no global keys, fallback
-  if (!creds && !HAS_ALPACA_KEYS) {
+  // No userId provided — this is a system-level call (not per-user).
+  // V162: Even for system calls, require explicit credentials.
+  // If no creds at all, return offline response.
+  if (!creds) {
+    console.warn(`[alpacaFetch] V162: No credentials provided — returning offline (NO shared fallback)`)
     return createFallbackResponse(path)
   }
 

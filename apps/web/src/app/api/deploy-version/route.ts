@@ -34,6 +34,6 @@ export async function GET() {
     timestamp: new Date().toISOString(),
     // Include a unique marker that changes with each deployment
     // so we can verify the code is actually updated
-    deployMarker: 'ROUA-V156-WALLET-SCROLL-FIX-TRADING-HISTORY-ENDPOINT',
+    deployMarker: 'ROUA-V157-ARG-FIX-MOBILE-V3-FLEXBOX',
   });
 }

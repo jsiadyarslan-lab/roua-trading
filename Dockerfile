@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v156-wallet-scroll-fix-trading-history
+ARG BUILD_CACHE=v157-arg-fix-mobile-v3-flexbox
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -96,6 +96,14 @@ RUN cd apps/web && next build --webpack
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
 
+# CRITICAL FIX: Re-declare ARGs so they're available in this stage.
+# In Docker multi-stage builds, global ARGs (declared before the first FROM)
+# are NOT automatically available in later stages. They MUST be re-declared
+# without a default value in each stage that needs them.
+# Without this, DEPLOY_COMMIT and BUILD_CACHE were always empty ("unknown").
+ARG BUILD_CACHE
+ARG GIT_COMMIT
+
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # procps: Provides pgrep/pkill for process management in start.sh
 # NOTE: PgBouncer removed in v7 — using Railway's built-in pooler or direct connections
@@ -112,9 +120,11 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
-# CRITICAL FIX: Pass git commit SHA so /api/health can report what version is running
+# Pass git commit SHA so /api/deploy-version can report what version is running
+# Previously showed "unknown" because GIT_COMMIT ARG wasn't in scope
 ENV DEPLOY_COMMIT=${GIT_COMMIT}
 # Pass build cache version so /api/deploy-version can report it
+# Previously showed "unknown" because BUILD_CACHE ARG wasn't in scope
 ENV BUILD_CACHE=${BUILD_CACHE}
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
@@ -163,4 +173,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v94 - CSS Grid mobile architecture redesign
+# Build v157 - Fix Docker ARG pass-through + mobile v3 flexbox layout

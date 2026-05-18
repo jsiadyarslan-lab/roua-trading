@@ -710,3 +710,33 @@ Stage Summary:
 - Admin can now control executor and agent limits from the dashboard
 - Executor logs clearly when RiskGatekeeper blocks trades (was silent before)
 - Agent analyzes all 7 pairs instead of only 5
+---
+Task ID: V145
+Agent: Main Agent
+Task: Fix executor stopping at 5 trades — find and fix REAL root cause + add admin dashboard settings
+
+Work Log:
+- Verified GitHub push — previous V143/V144 code WAS pushed but didn't fix the issue
+- Deep-dived into smart-executor.service.ts, risk-gatekeeper.service.ts, agent.service.ts
+- Found 3 critical bugs causing the 5-trade limit:
+  1. agent.service.ts line 508: Auto-creates agentSettings with maxOpenPositions=3 (even less than 5!)
+  2. agent.service.ts line 685: MAX_OPEN_POSITIONS env var fallback was '5' instead of '20'
+  3. RiskGatekeeper checkPositionSizeLimit counts ALL positions from ALL sources against global limit
+- Fixed agent.service.ts: Changed maxOpenPositions from 3/5 to reads from env/admin (default 20)
+- Added agentExecutorConfig reading to agent.service.ts startAgent method
+- Added source field to OrderCommand class for source-aware position counting
+- Passed source through OrderDispatcher to RiskGatekeeper
+- Rewrote RiskGatekeeper checkPositionSizeLimit to be source-aware:
+  - Counts executor positions against executorMaxOpenPositions limit
+  - Counts agent positions against agentMaxOpenPositions limit
+  - Still checks global maxOpenPositions as safety net
+- Added executorMaxOpenPositions/agentMaxOpenPositions to RiskGatekeeper config and syncSettingsFromDB
+- Enhanced admin settings page with auto-sync warning banner
+- Added auto-sync of global limit when executor+agent total exceeds it on save
+- Build succeeded, code pushed to GitHub
+
+Stage Summary:
+- ROOT CAUSE: Agent creates maxOpenPositions=3, and RiskGatekeeper counts ALL positions against global limit
+- V145 Fix: Source-aware position counting in RiskGatekeeper + fixed agent defaults
+- Admin dashboard now auto-syncs global limit with executor+agent limits
+- All changes pushed to GitHub (commit b5b99ba1d)

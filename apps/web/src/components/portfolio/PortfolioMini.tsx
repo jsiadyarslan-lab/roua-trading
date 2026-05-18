@@ -81,12 +81,9 @@ export function usePortfolioSummary() {
       return true
     })
 
-    // V149→V151 FIX: Leverage-aware margin with client-side fallback.
-    // V149 used account.initialMargin only → showed $0 when backend returned 0.
-    // V151: THREE-TIER resolution (same as dashboard page.tsx):
-    //   1. account.initialMargin (from fetchAccount or updatePositionPrice)
-    //   2. Client-side calculation from positions (leverage-aware)
-    //   3. 0 only if truly no positions exist
+    // V152 FIX: Client-side margin is PRIMARY (always correct for all symbol formats).
+    // Previously (V149-V151), account.initialMargin was primary but came from
+    // the backend which returned WRONG leverage for no-slash symbols.
     const accountMargin = Number(account?.initialMargin) || 0
     const clientSideMargin = positions.length > 0
       ? (() => {
@@ -110,7 +107,8 @@ export function usePortfolioSummary() {
           return margin
         })()
       : 0
-    const margin = accountMargin > 0 ? accountMargin : clientSideMargin
+    // V152: Client-side margin takes PRIORITY (handles all symbol formats correctly)
+    const margin = clientSideMargin > 0 ? clientSideMargin : accountMargin
     // positionsMarketValue is still computed for the Exposure display only (not margin)
     let positionsMarketValue = 0
     positions.forEach(p => {

@@ -1174,13 +1174,16 @@ export default function DashboardPage() {
   const longMarketValue = positions.length > 0 ? livePositionsValue : (Number(account?.longMarketValue) || 0)
   const shortMarketValue = 0
   const positionsValue = longMarketValue + shortMarketValue
-  // V147→V151 FIX: Leverage-aware margin with client-side fallback.
-  // Previously used positionsValue (full notional = qty × price) as margin → WRONG.
-  // Then V147 used account.initialMargin only → showed $0 when backend returned 0.
-  // V151: THREE-TIER resolution — same logic as usePositionsStore:
-  //   1. account.initialMargin (set by fetchAccount or updatePositionPrice)
-  //   2. Client-side calculation from positions (leverage-aware)
-  //   3. 0 only if truly no positions exist
+  // V152 FIX: Client-side margin is PRIMARY, account.initialMargin is SECONDARY.
+  //
+  // HISTORY: V147-V151 all used account.initialMargin as primary, but this
+  // came from the backend which had WRONG leverage for no-slash symbols
+  // (EURUSDT → leverage=1 instead of 50). This caused "مستخدم" to show
+  // $12,302 instead of the correct ~$246.
+  //
+  // V152: The client-side inline calculator correctly handles ALL symbol
+  // formats (with/without slash, USDT/USD suffix). Use it as PRIMARY.
+  // Only fall back to account.initialMargin when no positions are loaded.
   const accountMargin = Number(account?.initialMargin) || 0
   const clientSideMargin = positions.length > 0
     ? (() => {
@@ -1205,9 +1208,10 @@ export default function DashboardPage() {
         return margin
       })()
     : 0
-  const initialMargin = accountMargin > 0
-    ? accountMargin
-    : clientSideMargin
+  // V152: Client-side margin takes PRIORITY (always correct)
+  const initialMargin = clientSideMargin > 0
+    ? clientSideMargin
+    : accountMargin
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)

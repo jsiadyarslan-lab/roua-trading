@@ -406,55 +406,44 @@ export const usePositionsStore = create<PositionsState>()(
       const cash = Number(currentAccount.cash) || 0
       const newEquity = cash + positionsUnrealizedPnl
       // ═══════════════════════════════════════════════════════════════
-      // V151 FIX: STABLE MARGIN IN REAL-TIME UPDATES
+      // V152 FIX: STABLE MARGIN IN REAL-TIME UPDATES — CLIENT-SIDE PRIMARY
       //
-      // ROOT CAUSE of flickering (margin appearing/disappearing):
-      //   V150 used heuristics (margin > 80% equity → reject) which caused
-      //   the margin to flip between $0 and the correct value:
-      //     1. fetchAccount() sets _backendMargin = $400 (correct)
-      //     2. updatePositionPrice() reads _backendMargin = $400 ✓
-      //     3. BUT if _backendMargin was 0 (localStorage rehydration) or
-      //        the heuristic rejected it → initialMargin = $0
-      //     4. Then _backendMargin is OVERWRITTEN with $0 (the line below)
-      //     5. Next tick: _backendMargin = $0 → initialMargin = $0
-      //     6. fetchAccount() runs again → sets _backendMargin = $400
-      //     7. Next tick: $400 → but then fetchAccount cache expires → $0
-      //     This causes the FLICKERING: $400 → $0 → $400 → $0
+      // HISTORY (same as fetchAccount):
+      //   V151 used THREE-TIER with _backendMargin as TIER 1, but backend
+      //   margin was WRONG for no-slash symbols (EURUSDT → leverage=1).
+      //   This caused: correct client value ($400) → overwritten by backend ($12K)
       //
-      // V151 SOLUTION: THREE-TIER MARGIN RESOLUTION (no more flickering):
-      //   TIER 1 (BEST): Fresh _backendMargin from fetchAccount()
-      //   TIER 2 (GOOD): Client-side calculation from positions using leverage
-      //   TIER 3 (OK):   Preserve current initialMargin (don't reset to 0!)
+      // V152: Client-side calculation is PRIMARY (always correct).
+      // Backend margin is only used when client can't calculate (no positions).
       //
-      // KEY CHANGE: _backendMargin is NEVER overwritten by updatePositionPrice().
-      // Only fetchAccount() can set it. This prevents the flickering loop.
+      // TIER 1: Client-side from positions (leverage-aware, handles all formats)
+      // TIER 2: Fresh _backendMargin from fetchAccount()
+      // TIER 3: Preserve current initialMargin
       // ═══════════════════════════════════════════════════════════════
       const backendMargin = Number((currentAccount as any)._backendMargin) || 0
       const marginVersion = Number((currentAccount as any)._marginVersion) || 0
-      const MARGIN_STALE_MS = 120_000 // 2 minutes — generous window
+      const MARGIN_STALE_MS = 120_000 // 2 minutes
       const isBackendMarginFresh = marginVersion > 0 && (Date.now() - marginVersion) < MARGIN_STALE_MS
-      // V151: Use client-side margin calculation as fallback (TIER 2)
+      // V152: Client-side margin is TIER 1 (always correct)
       const clientMargin = positions.length > 0
         ? calculatePortfolioMargin(positions).usedMargin
         : 0
       const currentMargin = Number(currentAccount.initialMargin) || 0
 
       let initialMargin: number
-      if (isBackendMarginFresh && backendMargin > 0) {
-        // TIER 1: Fresh backend margin — authoritative, always use it
-        initialMargin = backendMargin
-      } else if (clientMargin > 0) {
-        // TIER 2: Client-side calculation from positions using leverage
-        // This is calculated every tick from actual positions, so it's always current
+      if (clientMargin > 0) {
+        // TIER 1: Client-side calculation from positions using leverage
+        // This is calculated every tick from actual positions, always current & correct
         initialMargin = clientMargin
+      } else if (isBackendMarginFresh && backendMargin > 0) {
+        // TIER 2: Fresh backend margin — use when no positions available for client calc
+        // but backend recently reported margin (positions may not be loaded yet)
+        initialMargin = backendMargin
       } else if (currentMargin > 0) {
         // TIER 3: Preserve existing margin — don't reset to 0!
-        // Even if we can't calculate, keeping the last known value is better
-        // than showing $0 (which misleads the user into thinking no margin is used)
         initialMargin = currentMargin
       } else {
-        // No margin information available at all — this only happens on first load
-        // before any fetchAccount() has completed and no positions exist
+        // No margin information available at all
         initialMargin = 0
       }
       const freeMargin = Math.max(0, newEquity - initialMargin)
@@ -522,30 +511,38 @@ export const usePositionsStore = create<PositionsState>()(
             (sum, p) => sum + (p.unrealizedPnl || 0),
             0,
           )
-          // V148 FIX: Use totalUsedMargin from backend (leverage-aware) instead of
-          // computing totalEquityUsd - totalAvailableUsd (which caps at equity when
-          // available=0) or falling back to positionsMarketValue (full notional = qty×price).
-          // For forex (50:1), the full notional is 50× the actual margin. Using
-          // positionsMarketValue as fallback caused "مستخدم" to show $19,548 instead
-          // of the correct ~$390 on a $10K account.
+          // V152 FIX: CLIENT-SIDE margin calculation is now PRIMARY (TIER 1).
           //
-          // V151: Use THREE-TIER margin resolution (same as updatePositionPrice):
-          //   1. Backend totalUsedMargin (authoritative)
-          //   2. Client-side calculation from positions (leverage-aware)
-          //   3. totalEquityUsd - totalAvailableUsd (rough fallback)
+          // HISTORY OF THIS BUG:
+          //   V148: Used backend totalUsedMargin as authoritative → backend had wrong
+          //         leverage (1:1 instead of 50:1 for no-slash symbols like EURUSDT)
+          //         → showed $20K instead of ~$400
+          //   V151: Added client-side fallback but backend still took priority →
+          //         wrong backend value ($12K) overrode correct client calc ($400)
+          //         → still showed $12,302 instead of ~$246
+          //
+          // ROOT CAUSE: Backend's getSymbolMetadata() failed for no-slash symbols
+          // (EURUSDT, XAUUSDT etc.) returning leverage=1 instead of 50 or 20.
+          // The client-side calculator correctly handles all symbol formats.
+          //
+          // V152 SOLUTION: Client-side is PRIMARY. Backend is only used as sanity
+          // check (if client returns 0 but backend says >0, something may be off).
+          //
+          // TIER 1 (BEST): Client-side calculation from positions (leverage-aware)
+          //   - Always correct: uses getSymbolLeverage() which handles all formats
+          // TIER 2 (GOOD): Backend totalUsedMargin (may be wrong for no-slash symbols)
+          // TIER 3 (OK): totalEquityUsd - totalAvailableUsd (rough fallback)
           let usedMargin: number
-          if (totalUsedMargin > 0) {
-            // TIER 1: Backend says there's margin — trust it
-            usedMargin = totalUsedMargin
-          } else if (currentPositions.length > 0) {
-            // TIER 2: Client-side calculation from actual positions
-            // This handles the case where the backend returns 0 for totalUsedMargin
-            // but we clearly have open positions that require margin
+          if (currentPositions.length > 0) {
+            // TIER 1: Client-side calculation — ALWAYS CORRECT for loaded positions
             const clientCalc = calculatePortfolioMargin(currentPositions)
             usedMargin = clientCalc.usedMargin
+          } else if (totalUsedMargin > 0) {
+            // TIER 2: Backend margin — use when no positions loaded locally
+            // but backend reports margin (positions may not have synced yet)
+            usedMargin = totalUsedMargin
           } else if (totalEquityUsd - totalAvailableUsd > 0) {
             // TIER 3: Rough difference — only for real exchanges
-            // For paper-trading this is usually 0 (no locked USDT)
             usedMargin = totalEquityUsd - totalAvailableUsd
           } else {
             usedMargin = 0
@@ -671,21 +668,26 @@ export const usePositionsStore = create<PositionsState>()(
         const summary = data.data || data.summary || data
 
         if (summary && (summary.totalBalance !== undefined || summary.totalExposure !== undefined)) {
-          // V148 FIX: Use usedMargin (leverage-aware) from backend instead of
-          // totalExposure (full notional). totalExposure = qty × price which is
-          // 50× the actual margin for forex. Using it as initialMargin caused
-          // "مستخدم" to show $19,548 instead of ~$390.
-          let margin = summary.usedMargin || 0
-          // V151: If backend returns 0 margin but we have positions, use client-side calc
-          if (margin <= 0) {
-            const fallbackPos = get().positions
-            if (fallbackPos.length > 0) {
-              margin = calculatePortfolioMargin(fallbackPos).usedMargin
-            }
+          // V152 FIX: Client-side margin is PRIMARY, backend is SECONDARY.
+          // Same reason as the credentials/balances path above: backend's
+          // getSymbolMetadata() may return wrong leverage for no-slash symbols.
+          let margin = 0
+          const fallbackPos = get().positions
+          if (fallbackPos.length > 0) {
+            // TIER 1: Client-side calculation — always correct
+            margin = calculatePortfolioMargin(fallbackPos).usedMargin
+          } else if (summary.usedMargin > 0) {
+            // TIER 2: Backend margin — use only when no positions loaded
+            margin = summary.usedMargin
           }
+          // V152 FIX: cash should NOT subtract totalExposure (full notional).
+          // totalExposure = qty × price which is the full position value, NOT margin.
+          // Subtracting it made cash negative, which broke equity calculations.
+          // For paper trading: cash = the raw balance (equity - PnL)
+          const rawBalance = (summary.totalBalance || 0) - (summary.unrealizedPnL || 0)
           const account = {
             equity: summary.totalBalance || 0,
-            cash: (summary.totalBalance || 0) - (summary.totalExposure || 0),
+            cash: rawBalance > 0 ? rawBalance : (summary.totalBalance || 0),
             buyingPower: Math.max(0, (summary.totalBalance || 0) - margin),
             portfolioValue: summary.totalBalance || 0,
             longMarketValue: summary.totalExposure || 0,
@@ -697,7 +699,7 @@ export const usePositionsStore = create<PositionsState>()(
             isPaperTrading: true,
             tradingBlocked: false,
             accountBlocked: false,
-            _backendMargin: margin,
+            _backendMargin: summary.usedMargin || 0,
             _marginVersion: Date.now(),
           }
           set({ account, exchangeBalances: [], dataSource: 'nestjs', _cacheTimestamp: Date.now() })

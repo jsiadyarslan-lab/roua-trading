@@ -189,18 +189,12 @@ export default function MobileWalletPage() {
         const mobileMarketValue = mobilePositions.reduce(
           (sum: number, p: any) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)), 0,
         )
-        // V149 FIX: Use totalUsedMargin from backend (leverage-aware) instead of
-        // falling back to mobileMarketValue (full notional = qty × price). For forex
-        // at 50:1, mobileMarketValue would be $20K instead of the real margin ~$400.
-        // The || fallback previously used mobileMarketValue when totalEquityUsd - totalAvailableUsd = 0,
-        // which happened for paper trading where available ≈ equity.
+        // V152 FIX: Client-side margin is PRIMARY (same as dashboard).
+        // Backend totalUsedMargin may be wrong for no-slash symbols.
         const totalUsedMargin = balanceData.data.totalUsedMargin || 0
-        // V151: THREE-TIER margin resolution (same as dashboard)
         let usedMargin: number
-        if (totalUsedMargin > 0) {
-          usedMargin = totalUsedMargin
-        } else if (mobilePositions.length > 0) {
-          // Client-side calculation from positions using leverage
+        if (mobilePositions.length > 0) {
+          // TIER 1: Client-side calculation — always correct
           let clientMargin = 0
           for (const p of mobilePositions) {
             const qty = Number(p.qty) || 0
@@ -219,7 +213,11 @@ export default function MobileWalletPage() {
             clientMargin += notional / leverage
           }
           usedMargin = clientMargin
+        } else if (totalUsedMargin > 0) {
+          // TIER 2: Backend margin
+          usedMargin = totalUsedMargin
         } else if (totalEquityUsd - totalAvailableUsd > 0) {
+          // TIER 3: Rough fallback
           usedMargin = totalEquityUsd - totalAvailableUsd
         } else {
           usedMargin = 0

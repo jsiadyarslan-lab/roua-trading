@@ -131,6 +131,38 @@ export function getSymbolMetadata(symbol: string): SymbolMetadata {
     }
   }
 
+  // ── V152 FIX: Handle NO-SLASH symbols (e.g., EURUSDT, GBPUSD, XAUUSDT) ──
+  // Binance API and some exchanges store symbols WITHOUT slashes.
+  // Previously, these fell through to CRYPTO default (1:1 leverage),
+  // causing calculateMargin() to return FULL NOTIONAL instead of
+  // notional/50 for forex pairs. This is the root cause of "مستخدم"
+  // showing $12,302 instead of ~$246 for forex positions.
+  //
+  // Strategy: Try to reconstruct the slash format and look up in registry.
+  // Known quote currencies: USD, USDT, BUSD, USDC, JPY, EUR, GBP, etc.
+  const NO_SLASH_QUOTES = ['USDT', 'BUSD', 'USDC', 'USD', 'JPY', 'EUR', 'GBP', 'CHF', 'AUD', 'NZD', 'CAD', 'SGD', 'HKD'];
+  for (const quote of NO_SLASH_QUOTES) {
+    if (upper.endsWith(quote) && upper.length > quote.length) {
+      const base = upper.slice(0, upper.length - quote.length);
+      if (base.length >= 3) {
+        const withSlash = `${base}/${quote}`;
+        // Try with slash in registry
+        if (SYMBOL_REGISTRY[withSlash]) {
+          const partial = SYMBOL_REGISTRY[withSlash];
+          return { ...DEFAULT_METADATA, ...partial };
+        }
+        // Try normalizing USDT→USD (e.g., EURUSDT → EUR/USD)
+        if (quote === 'USDT' || quote === 'BUSD' || quote === 'USDC') {
+          const usdSlash = `${base}/USD`;
+          if (SYMBOL_REGISTRY[usdSlash]) {
+            const partial = SYMBOL_REGISTRY[usdSlash];
+            return { ...DEFAULT_METADATA, ...partial };
+          }
+        }
+      }
+    }
+  }
+
   // 2. Heuristic: JPY pairs → forex
   if (upper.includes('JPY')) {
     return { ...FOREX_DEFAULT, pipSize: 0.01, priceDecimals: 3 };

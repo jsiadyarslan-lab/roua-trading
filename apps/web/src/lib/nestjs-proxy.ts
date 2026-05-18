@@ -27,24 +27,29 @@ const rawTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 const API_TARGET = rawTarget.includes('http://api:') ? 'http://127.0.0.1:3001' : rawTarget;
 
 /**
- * V156 SECURITY FIX: Unique guest user per browser session.
+ * V157 CRITICAL FIX: Unique guest user per browser session — NO module-level cache.
  *
- * PREVIOUS PROBLEM: All unauthenticated visitors shared ONE guest@roua.auto
- * account. If any guest created paper-trading positions, notifications, or
- * agent sessions, they ALL belonged to the same shared user. When any guest
- * opened the dashboard, they could see ALL other guests' data.
+ * PREVIOUS PROBLEM (V156): The variable `cachedGuestUserId` was a module-level
+ * singleton shared across ALL requests in the same Node.js process. On Railway
+ * (single-container), this meant:
+ *   1. First guest user's ID was cached in `cachedGuestUserId`
+ *   2. ALL subsequent guest users received THE SAME ID (line 107 check)
+ *   3. ALL users without a valid session → same identity → same balance!
+ *   4. Even deleting/relinking a Binance account didn't help because the
+ *      balance was fetched for the SHARED guest identity, not the real user.
  *
- * NEW APPROACH: Each browser gets its own unique guest user with a UUID
- * embedded in the email (guest-{uuid}@roua.auto). This ensures:
- * 1. Each browser session's data is completely isolated from other guests
- * 2. GuestGuard still blocks data-modifying actions for ALL guest users
- * 3. No more 27,000+ phantom users — we reuse the guest user per browser
- *    via a cookie (roua_guest_id), so each browser only creates ONE guest
- * 4. The shared guest@roua.auto is kept as a legacy fallback only
+ * ROOT CAUSE: Module-level variables in Next.js Route Handlers are shared
+ * across ALL concurrent requests. `let cachedGuestUserId` was essentially
+ * a global variable that made every guest share one identity.
  *
- * The guest ID is cached per-request lifecycle to avoid DB lookups.
+ * FIX: Remove the module-level cache entirely. Each call to
+ * getOrCreateGuestUserId() now reads the `roua_guest_id` cookie from the
+ * request object, which is per-browser. This is correct because:
+ *   - The cookie is already set on the response (line 440-448)
+ *   - Each browser has its own unique `roua_guest_id` cookie
+ *   - No cross-request state pollution
+ *   - No module-level singleton causing data leakage
  */
-let cachedGuestUserId: string | null = null
 
 /**
  * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -103,20 +108,21 @@ async function createSessionViaNestJS(): Promise<{ token: string; setCookieHeade
  * @returns The guest user's ID, or null if DB is unavailable
  */
 async function getOrCreateGuestUserId(request: NextRequest): Promise<string | null> {
-  // Use cached ID if available (short-lived per server process)
-  if (cachedGuestUserId) return cachedGuestUserId
-
+  // V157 FIX: NO module-level cache! Read from per-browser cookie instead.
+  // The `roua_guest_id` cookie is set on the response (line 440-448) and is
+  // unique per browser. This prevents the critical bug where all users shared
+  // the same cachedGuestUserId singleton.
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) return null
 
-    // Check if this browser already has a guest ID cookie
+    // Check if this browser already has a guest ID cookie — THIS IS PER-BROWSER
     const existingGuestId = request.cookies.get('roua_guest_id')?.value
     if (existingGuestId) {
       // Verify the guest user still exists in DB
       const existingUser = await db.user.findUnique({ where: { id: existingGuestId } })
       if (existingUser) {
-        cachedGuestUserId = existingUser.id
+        // V157: DO NOT cache in module-level variable! Return directly.
         return existingUser.id
       }
       // Cookie points to deleted user — fall through to create new
@@ -140,17 +146,17 @@ async function getOrCreateGuestUserId(request: NextRequest): Promise<string | nu
         })
       } catch {
         // DB unavailable or other error — fall back to shared guest
+        // V157: Do NOT cache this either! Return directly.
         const sharedGuest = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
         if (sharedGuest) {
-          cachedGuestUserId = sharedGuest.id
           return sharedGuest.id
         }
         return null
       }
     }
 
-    // Cache for future requests
-    cachedGuestUserId = guestUser.id
+    // V157: DO NOT cache in module-level variable! The roua_guest_id cookie
+    // on the response is the per-browser cache. No server-side singleton!
     return guestUser.id
   } catch {
     return null

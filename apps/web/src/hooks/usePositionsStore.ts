@@ -820,21 +820,36 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── لا بيانات متاحة — لا نترك account = null ──
-    // V154 FIX: This final fallback should ONLY apply when the user has
-    // no exchange credentials AND no positions AND no settings — basically
-    // a brand new user. For authenticated users with API failures, we
-    // should NOT overwrite their real data with $10,000.
+    // V157 FIX: STRONGER protection against the $10,000 fallback.
     //
-    // If we already have account data (from a previous successful fetch),
-    // keep it instead of overwriting with the default.
+    // PROBLEM: When ALL API sources fail (NestJS down, session expired, etc.),
+    // the old code set $10,000 as the balance for EVERY user. Since all users
+    // got the same fallback, it LOOKED like they all had the same balance.
+    //
+    // NEW RULES:
+    // 1. If we have existing account data (from a previous successful fetch),
+    //    KEEP IT — don't overwrite with $10,000
+    // 2. If the user is authenticated (has a userId), they are NOT a new user.
+    //    Don't show $10,000 — just keep whatever data we have (even null)
+    // 3. Only show $10,000 for truly new users (no userId, no prior data)
     const existingAccount = get().account
-    if (existingAccount && existingAccount.equity > 0) {
+    // currentUserId is already defined at the top of fetchAccount() (line 487)
+    if (existingAccount && (existingAccount.equity > 0 || existingAccount.cash > 0)) {
       // We have existing data — don't overwrite with $10,000 default
       console.warn('[PositionsStore] fetchAccount: All API sources failed but existing account data exists — keeping it')
       return
     }
 
-    // Truly no data — brand new user with no credentials
+    // V157: If user is authenticated, they should NOT see $10,000 fallback.
+    // Their real balance fetch failed — showing $10,000 would make it look
+    // like all users have the same balance. Better to show nothing (null)
+    // and let the next polling cycle try again.
+    if (currentUserId) {
+      console.warn('[PositionsStore] fetchAccount: All API sources failed for authenticated user — NOT showing $10,000 fallback. Will retry on next poll.')
+      return
+    }
+
+    // Only for truly anonymous users with no prior data — show default paper balance
     const finalPositions = get().positions
     const finalPnl = finalPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
     const DEFAULT_NEW_USER_BALANCE = 10000

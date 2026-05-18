@@ -247,6 +247,12 @@ export class CredentialsService {
       userAgent,
     });
 
+    // V157 FIX: Invalidate balance cache so the new credential's balance
+    // is fetched immediately, instead of serving stale cached balance for
+    // up to 5 seconds. Without this, deleting a Binance account and linking
+    // a new one still shows the OLD balance until the cache expires.
+    this.invalidateBalanceCache(userId);
+
     this.logger.log(`✅ Credential added: ${exchange}/${label} for user ${userId}`);
 
     return {
@@ -355,6 +361,12 @@ export class CredentialsService {
       ipAddress,
       userAgent,
     });
+
+    // V157 FIX: Invalidate balance cache so the deleted credential's balance
+    // is removed immediately, instead of serving stale cached balance for
+    // up to 5 seconds. Without this, deleting a Binance account still shows
+    // the old balance until the cache expires.
+    this.invalidateBalanceCache(userId);
 
     this.logger.log(`🗑️ Credential deleted: ${credential.exchange}/${credential.label}`);
 

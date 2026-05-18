@@ -122,6 +122,7 @@ export default function MobileNavBar() {
         ═══════════════════════════════════════════════════════════
       */}
       <nav
+        data-nav-v="v3-flex-item"
         style={{
           flexShrink: 0,
           boxSizing: 'border-box',

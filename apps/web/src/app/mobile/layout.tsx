@@ -86,6 +86,7 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             display: 'flex',
             flexDirection: 'column',
           } as React.CSSProperties}
+          data-layout-v="v3-flexbox"
         >
           {/*
             <main>: flex:1 takes all remaining space above the navbar.

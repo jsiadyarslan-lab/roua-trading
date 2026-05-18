@@ -498,3 +498,24 @@ Stage Summary:
 - 8 bugs fixed (C1, C2, C3, C5, C7, W1/W6, W3, W4)
 - 1 new feature: date range filter for closed trades (يومي/أسبوعي/شهري/سنوي/محدد)
 - Backend now supports from/to params on /api/trading/positions/history and /api/trading/trades
+
+---
+Task ID: V140B
+Agent: Main Agent
+Task: Remove redundant trade log section + Fix Alpaca 503 error
+
+Work Log:
+- Removed "سجل الصفقات المنفذة" (Executed Trade Log) UI section from portfolio page
+  - The section was redundant with "الصفقات المغلقة" which has better filters
+  - Kept `trades` data fetch for performance charts and risk metrics computation
+- Fixed Alpaca Error 503: ALPACA_CREDENTIALS_NOT_CONFIGURED
+  - api-fetch.ts: Added graceful handling for offline/credentials-missing responses
+  - /api/alpaca/positions/route.ts: Return empty array instead of 503 when no credentials
+  - /api/alpaca/account/route.ts: Return offline indicator instead of 503 error
+- Updated deploy marker to ROUA-V140B-TRADE-LOG-REMOVE-ALPACA-503-FIX
+- Build succeeded, committed and pushed to GitHub main
+
+Stage Summary:
+- Removed ~130 lines of redundant trade log UI code
+- Alpaca 503 error will no longer appear when credentials are not configured
+- Commit: 3d3a044ac pushed to main

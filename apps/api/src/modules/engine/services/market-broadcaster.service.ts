@@ -39,8 +39,8 @@ export class MarketBroadcasterService {
     'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD',
   ]);
 
-  /** Minimum price change % to broadcast */
-  private readonly BROADCAST_THRESHOLD = 0.5;
+  /** Minimum price change % to broadcast — V139: reduced from 0.5% to 0.1% for more frequent updates */
+  private readonly BROADCAST_THRESHOLD = 0.1;
 
   /** Last known prices for change detection */
   private lastPrices: Map<string, number> = new Map();
@@ -61,7 +61,7 @@ export class MarketBroadcasterService {
    *
    * Fetches quotes and broadcasts updates to all channels.
    */
-  @Interval(45000)
+  @Interval(15000) // V139: reduced from 45000 to 15000 for faster market data
   async broadcastMarketData(): Promise<void> {
     if (this.isBroadcasting) {
       return;

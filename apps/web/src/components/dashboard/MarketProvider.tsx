@@ -59,6 +59,26 @@ async function fetchAndStore(symbol: string) {
 }
 
 /**
+ * FIX V139: Fetch crypto symbols via REST as a fallback/supplement to Binance WS.
+ * The WS provides sub-second updates, but can disconnect or have the symbol
+ * mismatch bug (now fixed). This REST poll ensures that even if WS fails,
+ * crypto prices update every 15 seconds — much better than the previous
+ * 10-minute gap when WS failed.
+ */
+async function fetchCryptoBatch(symbols: string[]) {
+  const BATCH_SIZE = 3
+  const BATCH_DELAY = 2000 // 2s between batches
+
+  for (let i = 0; i < symbols.length; i += BATCH_SIZE) {
+    const batch = symbols.slice(i, i + BATCH_SIZE)
+    await Promise.allSettled(batch.map(fetchAndStore))
+    if (i + BATCH_SIZE < symbols.length) {
+      await new Promise(r => setTimeout(r, BATCH_DELAY))
+    }
+  }
+}
+
+/**
  * Fetch non-crypto symbols in staggered batches to respect API rate limits.
  * FIX: Increased polling interval from 120s to 600s (10 min) and batch delay from 3s to 5s.
  * With free sources only (TwelveData disabled): 12 symbols × 144/day = 1,728 fetches/day — sustainable.
@@ -135,6 +155,13 @@ export function MarketProvider({ children }: { children: React.ReactNode }) {
 
   // Poll non-crypto every 10 min — pauses when tab hidden
   useVisibleInterval(() => fetchNonCryptoBatch(NON_CRYPTO_SYMBOLS), 600_000)
+
+  // FIX V139: Poll crypto via REST every 15 seconds as fallback for Binance WS.
+  // WS provides sub-second updates, but this REST poll ensures:
+  // 1. Prices update even if WS disconnects or fails to reconnect
+  // 2. All symbol formats get price updates (BTC/USD and BTC/USDT)
+  // 3. P&L stays fresh for all open positions
+  useVisibleInterval(() => fetchCryptoBatch(WS_CRYPTO_SYMBOLS), 15_000)
 
   return (
     <>

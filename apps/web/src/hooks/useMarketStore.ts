@@ -310,13 +310,17 @@ class BinanceWSManager {
           const d = msg.data
           const rawSymbol = d.s.toUpperCase()
           
-          // Find original symbol (e.g. BTC/USD) from subscribers
-          const originalSymbol = Array.from(this.subscribers).find(s => 
+          // FIX V139: Find ALL original symbols (e.g. BTC/USD AND BTC/USDT) from subscribers
+          // that normalize to the same Binance stream. Previously, find() returned only ONE
+          // subscriber, leaving the other with stale prices. This was the root cause of
+          // "frozen" P&L — positions with BTC/USDT symbol never got live price updates
+          // when BTC/USD won the find() race.
+          const matchingSymbols = Array.from(this.subscribers).filter(s => 
             this.normalizeSymbol(s).toUpperCase() === rawSymbol
           )
           
-          if (originalSymbol) {
-            const price = parseFloat(d.c)
+          const price = parseFloat(d.c)
+          for (const originalSymbol of matchingSymbols) {
             useMarketStore.getState().setQuote(originalSymbol, {
               symbol: originalSymbol,
               name: originalSymbol,

@@ -36,8 +36,8 @@ import { AuditService } from '../../../audit/audit.service';
 export class PositionMonitorService {
   private readonly logger = new Logger(PositionMonitorService.name);
 
-  /** Interval in milliseconds */
-  private readonly MONITOR_INTERVAL_MS = 30000; // 30 seconds
+  /** Interval in milliseconds — V139: reduced from 30s to 10s for faster SL/TP response */
+  private readonly MONITOR_INTERVAL_MS = 10000; // 10 seconds
 
   /** Trailing stop activation threshold (% profit) */
   private readonly TRAILING_ACTIVATION_PCT = 0.02; // 2%
@@ -66,7 +66,7 @@ export class PositionMonitorService {
    *
    * Checks all open positions for SL/TP hits and updates prices.
    */
-  @Interval(30000)
+  @Interval(10000) // V139: reduced from 30000 to 10000 for faster SL/TP response
   async runPositionMonitor(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {

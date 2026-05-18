@@ -32,8 +32,13 @@ export function GlobalLogicEngine() {
   const prevEquityRef = useRef<number>(0)
   const lastNotificationRef = useRef<number>(0)
 
-  // ── Price sync: every 2 seconds ──
+  // ── Price sync: every 1 second (V139: reduced from 2s for faster P&L updates) ──
   // Only updates currentPrice in existing positions — does NOT replace the array.
+  //
+  // FIX V139: Normalize USD→USDT when matching symbols. Positions from SmartExecutor
+  // use BTC/USDT format, but market quotes may use BTC/USD. Without this normalization,
+  // positions with BTC/USDT never matched quotes stored under BTC/USD key, causing
+  // P&L to appear "frozen" for those positions.
   useVisibleInterval(() => {
     const now = Date.now()
     const quotes = useMarketStore.getState().quotes
@@ -43,16 +48,19 @@ export function GlobalLogicEngine() {
       const price = q?.price
       if (typeof price !== 'number' || Number.isNaN(price)) return
 
-      const normalizedSymbol = symbol.toUpperCase().replace('/', '')
+      // FIX V139: Normalize USD→USDT for matching purposes.
+      // BTC/USD → BTCUSDT (same as BTC/USDT → BTCUSDT)
+      // This ensures positions stored as BTC/USDT match quotes stored under BTC/USD
+      const normalizedSymbol = symbol.toUpperCase().replace('/', '').replace(/USD$/, 'USDT')
 
       const hasMatchingRealPosition = realPositions.some(
-        position => position.symbol.toUpperCase().replace('/', '') === normalizedSymbol
+        position => position.symbol.toUpperCase().replace('/', '').replace(/USD$/, 'USDT') === normalizedSymbol
       )
 
       if (!hasMatchingRealPosition) return
 
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 2000) return
+      if (now - lastSyncAt < 1000) return // V139: reduced from 2000ms to 1000ms
 
       lastPriceSyncRef.current[normalizedSymbol] = now
       updatePositionPrice(symbol, price)
@@ -98,7 +106,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 2000)
+  }, 1000) // V139: reduced from 2000ms to 1000ms for faster P&L
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.

@@ -321,12 +321,15 @@ export const usePositionsStore = create<PositionsState>()(
    * This ensures the balance shown on the dashboard changes as positions gain/lose value.
    */
   updatePositionPrice: (symbol, price) => {
-    const normalizedInput = symbol.toUpperCase().replace(/\//g, '')
+    // FIX V139: Normalize USD→USDT for matching. Positions from SmartExecutor
+    // use BTC/USDT format, but quotes may arrive as BTC/USD from Binance WS.
+    // Without this, positions with BTC/USDT never match BTC/USD quotes → frozen P&L.
+    const normalizedInput = symbol.toUpperCase().replace(/\//g, '').replace(/USD$/, 'USDT')
     const currentPositions = get().positions
     let changed = false
 
     const positions = currentPositions.map((p) => {
-      const normalizedPos = p.symbol.toUpperCase().replace(/\//g, '')
+      const normalizedPos = p.symbol.toUpperCase().replace(/\//g, '').replace(/USD$/, 'USDT')
       if (normalizedPos !== normalizedInput) return p
 
       // لا نحدث إذا كان السعر هو نفسه (تجنب إعادة تصيير غير ضرورية)

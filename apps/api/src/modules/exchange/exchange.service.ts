@@ -48,7 +48,7 @@ export class ExchangeService {
   // page load, causing /api/trading/positions/summary to take 10+ seconds.
   // Now: first request fetches from exchange, subsequent requests within TTL use cache.
   private readonly quoteCache = new Map<string, { data: UnifiedQuoteDto; timestamp: number }>();
-  private readonly QUOTE_CACHE_TTL_MS = 30_000; // 30 seconds — prices update fast but not every ms
+  private readonly QUOTE_CACHE_TTL_MS = 5_000; // V139: reduced from 30s to 5s — faster price updates for SL/TP and P&L
   private readonly QUOTE_CACHE_MAX_SIZE = 200;   // Max symbols to cache
 
   constructor(

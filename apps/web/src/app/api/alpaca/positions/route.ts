@@ -17,6 +17,19 @@ export async function GET(request: NextRequest) {
     // 1. Fetch from Alpaca with user credentials handled automatically by alpacaFetch
     const res = await alpacaFetch('/v2/positions', {}, { userId: auth.session.userId })
 
+    // V140: Gracefully handle missing Alpaca credentials — return empty array instead of 503 error
+    // This prevents "Alpaca Error 503: ALPACA_CREDENTIALS_NOT_CONFIGURED" from showing in UI
+    if (res.status === 503) {
+      try {
+        const body = await res.json()
+        if (body.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED' || body.offline) {
+          return NextResponse.json({ success: true, data: [], offline: true })
+        }
+      } catch {
+        // Not JSON, fall through to generic error handling
+      }
+    }
+
     if (!res.ok) {
       const errBody = await res.text()
       let userError = `Alpaca Error ${res.status}: ${errBody}`

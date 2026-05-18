@@ -17,6 +17,18 @@ export async function GET(request: NextRequest) {
     // 1. Fetch from Alpaca with user credentials handled automatically by alpacaFetch
     const res = await alpacaFetch('/v2/account', {}, { userId: auth.session.userId })
 
+    // V140: Gracefully handle missing Alpaca credentials — return offline indicator instead of 503 error
+    if (res.status === 503) {
+      try {
+        const body = await res.json()
+        if (body.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED' || body.offline) {
+          return NextResponse.json({ success: true, data: null, offline: true })
+        }
+      } catch {
+        // Not JSON, fall through to generic error handling
+      }
+    }
+
     if (!res.ok) {
       const errBody = await res.text()
       let userError = `Alpaca API Error ${res.status}: ${errBody}`

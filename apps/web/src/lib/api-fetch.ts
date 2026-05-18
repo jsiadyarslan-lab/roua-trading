@@ -135,9 +135,17 @@ export async function fetchPositionsUnified(): Promise<{
   }
 
   // المحاولة الثانية: Alpaca API مباشرة
+  // V140: Skip Alpaca fallback entirely when credentials are not configured.
+  // Previously, this always tried /api/alpaca/positions which returned 503
+  // ALPACA_CREDENTIALS_NOT_CONFIGURED — causing error banners and console noise.
   try {
     const res = await fetch('/api/alpaca/positions')
     const data = await res.json()
+
+    // V140: Gracefully handle missing Alpaca credentials — return empty instead of error
+    if (data.error === 'ALPACA_CREDENTIALS_NOT_CONFIGURED' || data.offline) {
+      return { positions: [], source: 'alpaca' }
+    }
 
     if (data.success && Array.isArray(data.data)) {
       const positions: UnifiedPosition[] = data.data.map((p: any) => ({
@@ -154,7 +162,7 @@ export async function fetchPositionsUnified(): Promise<{
       return { positions, source: 'alpaca' }
     }
 
-    // Alpaca API أيضًا فشل
+    // Alpaca API أيضًا فشل (but NOT credentials issue)
     return {
       positions: [],
       source: 'alpaca',

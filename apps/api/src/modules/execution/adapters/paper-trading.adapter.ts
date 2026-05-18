@@ -14,7 +14,7 @@ import { AuditService } from '../../../audit/audit.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
-import { calculateMargin } from '../../trading/services/symbol-metadata';
+import { calculateMargin, getSymbolMetadata, AssetClass } from '../../trading/services/symbol-metadata';
 
 /**
  * PaperTradingAdapter — Simulated Exchange for Risk-Free Trading
@@ -514,12 +514,21 @@ export class PaperTradingAdapter implements IExchangeAdapter {
   }
 
   /**
-   * V146: Determine the correct number of decimal places for a price
-   * (matches trading.service.ts and frontend price-format.ts logic)
+   * V147: Determine the correct number of decimal places for a price
+   * using symbol-metadata registry (consistent with SYMBOL_METADATA).
+   * Falls back to price-magnitude heuristics for unknown symbols.
    */
   private _priceDecimals(price: number, symbol?: string): number {
     if (!Number.isFinite(price) || price <= 0) return 2;
     if (symbol) {
+      try {
+        const meta = getSymbolMetadata(symbol);
+        if (meta.priceDecimals > 2 || meta.assetClass === AssetClass.FOREX) {
+          return meta.priceDecimals;
+        }
+      } catch {
+        // Fall through to heuristic
+      }
       const s = symbol.toUpperCase();
       if (s.includes('JPY')) return 3;
       if (s.includes('BTC')) return 2;

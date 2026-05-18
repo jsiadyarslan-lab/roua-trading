@@ -434,7 +434,47 @@ export class RiskCalculatorService {
 
   private async _getPortfolioValue(userId: string): Promise<number> {
     try {
-      // Aggregate portfolio value
+      // V147 FIX: For paper-trading users, ALWAYS use paperBalance as the base,
+      // then ADD unrealized P&L (not position notional value). Previously,
+      // the code added positionsValue (qty × price = full notional) to manualValue,
+      // which gave wrong results:
+      //   - Paper user with 0 portfolio + 5 positions worth $500 each = $2,500 portfolio
+      //   - But the actual balance is $10,000 (paperBalance)
+      // This caused the position sizing to be based on $2,500 instead of $10,000,
+      // producing tiny positions and incorrect risk calculations.
+      // Now: paperPortfolioValue = paperBalance + unrealizedPnL
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+
+      const isPaperTrading = settings ? settings.autoTradingEnabled !== false : true;
+      const paperBalance = settings ? Number(settings.paperBalance) || 10000 : 10000;
+
+      if (isPaperTrading) {
+        // Add unrealized P&L from open positions to paper balance
+        try {
+          const openPositions = await this.prisma.position.findMany({
+            where: { userId, status: 'OPEN' },
+            select: { quantity: true, currentPrice: true, entryPrice: true, side: true },
+          });
+          let unrealizedPnl = 0;
+          for (const p of openPositions) {
+            const qty = Number(p.quantity) || 0;
+            const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+            const entryPrice = Number(p.entryPrice) || 0;
+            if (p.side === 'BUY') {
+              unrealizedPnl += (currentPrice - entryPrice) * qty;
+            } else {
+              unrealizedPnl += (entryPrice - currentPrice) * qty;
+            }
+          }
+          return paperBalance + unrealizedPnl;
+        } catch {
+          return paperBalance;
+        }
+      }
+
+      // For real-trading users: aggregate portfolio value from DB
       const portfolios = await this.prisma.portfolio.aggregate({
         where: { userId },
         _sum: { totalValue: true },
@@ -453,53 +493,16 @@ export class RiskCalculatorService {
 
       const totalValue = manualValue + positionsValue;
 
-      // FIX: Align default with Smart Executor's $100,000 paper balance.
-      // The old default of $10,000 was too small — with maxPositionSizePercent=2%,
-      // each trade would only be ~$200, producing tiny quantities on crypto pairs.
-      // Also: Check if user is paper-trading (AgentSettings.autoTradingEnabled)
-      // before using default balance. For real-trading users with $0 portfolio,
-      // we don't execute — it's unsafe.
       if (totalValue <= 0) {
-        // Check if user is paper trading
-        let isPaperTrading = true; // Default to paper for safety
-        let paperBalance = 10000; // Default paper balance
-        try {
-          // ROOT FIX: Read paperBalance from AgentSettings (user-configured)
-          // instead of hardcoded $100K. The AgentSettings.paperBalance is the
-          // single source of truth for paper trading balance, set by the user
-          // or auto-seeded from DEFAULT_PAPER_BALANCE env var (default $10K).
-          // Previously, this used $100K which was inconsistent with AgentSettings ($10K)
-          // and SmartExecutor ($10K), causing oversized position calculations.
-          const agentSettings = await this.prisma.agentSettings.findUnique({
-            where: { userId },
-          });
-          if (agentSettings) {
-            isPaperTrading = agentSettings.autoTradingEnabled !== false;
-            paperBalance = Number(agentSettings.paperBalance) || 10000;
-          } else {
-            paperBalance = parseFloat(
-              this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
-            ) || 10000;
-          }
-        } catch {}
-
-        if (isPaperTrading) {
-          this.logger.warn(
-            `🛡️ Portfolio value is 0 for paper-trading user ${userId} — using paperBalance: $${paperBalance} (from AgentSettings)`,
-          );
-          return paperBalance;
-        } else {
-          this.logger.warn(
-            `🛡️ Portfolio value is 0 for real-trading user ${userId} — NOT executing for safety`,
-          );
-          return 0;
-        }
+        this.logger.warn(
+          `🛡️ Portfolio value is 0 for real-trading user ${userId} — NOT executing for safety`,
+        );
+        return 0;
       }
 
       return totalValue;
     } catch (error: any) {
       // Even on DB error, return default for paper trading so agent doesn't get stuck
-      // ROOT FIX: Use same default as AgentSettings ($10K), not $100K
       const defaultBalance = parseFloat(
         this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
       ) || 10000;

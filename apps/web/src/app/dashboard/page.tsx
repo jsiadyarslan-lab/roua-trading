@@ -1174,7 +1174,16 @@ export default function DashboardPage() {
   const longMarketValue = positions.length > 0 ? livePositionsValue : (Number(account?.longMarketValue) || 0)
   const shortMarketValue = 0
   const positionsValue = longMarketValue + shortMarketValue
-  const initialMargin = positions.length > 0 ? positionsValue : (Number(account?.initialMargin) || 0)
+  // V147 FIX: Use the backend's leverage-aware margin (account.initialMargin) when available.
+  // Previously, this used positionsValue (full notional = qty × price) as the margin,
+  // which is WRONG for leveraged positions. For forex with 50:1 leverage, a $500 position
+  // only needs $10 margin, but the old code showed $500 as "مستخدم" (used margin).
+  // This made the "هامش متاح" (free margin) appear to drop by thousands.
+  // Now: Use account.initialMargin from the backend (which is leverage-aware),
+  // only fall back to positionsValue if the backend value is not available.
+  const initialMargin = Number(account?.initialMargin) > 0
+    ? Number(account.initialMargin)
+    : (positions.length > 0 ? positionsValue : 0)
   const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)

@@ -480,21 +480,26 @@ export const usePositionsStore = create<PositionsState>()(
               const settingsRes = await fetch('/api/agent/trader/settings')
               const settingsData = await settingsRes.json()
               if (settingsData.success && settingsData.data?.paperBalance > 0) {
-                effectiveEquity = settingsData.data.paperBalance
+                effectiveEquity = settingsData.data.paperBalance + positionsUnrealizedPnl
                 effectiveCash = settingsData.data.paperBalance
               } else {
-                effectiveEquity = 10000
+                effectiveEquity = 10000 + positionsUnrealizedPnl
                 effectiveCash = 10000
               }
             } catch {
-              effectiveEquity = 10000
+              effectiveEquity = 10000 + positionsUnrealizedPnl
               effectiveCash = 10000
             }
-            // Add positions P&L to the paper balance
-            effectiveEquity += positionsUnrealizedPnl
+          } else if (hasPaperOnly) {
+            // V147 FIX: Backend now returns equity = balance + unrealizedPnL for paper-trading.
+            // Do NOT add positionsUnrealizedPnl again — it would double-count the P&L!
+            // For paper: effectiveEquity = totalEquityUsd (already includes PnL from backend)
+            // effectiveCash = raw balance (equity - PnL)
+            effectiveEquity = totalEquityUsd  // Already = balance + PnL
+            effectiveCash = totalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
           } else {
             // V140B: For real accounts, equity = totalBalance + unrealizedPnl
-            // (totalEquityUsd already includes used margin from exchange)
+            // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)
             effectiveEquity = totalEquityUsd + positionsUnrealizedPnl
             effectiveCash = totalEquityUsd  // Total wallet balance (free + used)
           }

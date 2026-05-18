@@ -11,6 +11,7 @@ import { CredentialsService } from '../portfolio/credentials/credentials.service
 import { ExchangeService } from '../exchange/exchange.service';
 import { RiskManagerService } from './risk-manager.service';
 import { AuditService } from '../../audit/audit.service';
+import { getSymbolMetadata, AssetClass } from './services/symbol-metadata';
 import * as ccxt from 'ccxt';
 import * as crypto from 'crypto';
 import {
@@ -1508,17 +1509,29 @@ export class TradingService {
   // ── Private Methods ──
 
   /**
-   * V146: Determine the correct number of decimal places for a price
-   * based on symbol and price magnitude (matches frontend price-format.ts logic).
-   * - JPY pairs: 3 decimals
-   * - BTC: 2 decimals
-   * - Price > 1000 (gold, indices): 2 decimals
-   * - Price > 1 (forex): 5 decimals (pipette precision)
-   * - Price <= 1 (micro-cap crypto): 6 decimals
+   * V147: Determine the correct number of decimal places for a price
+   * using symbol-metadata registry (consistent with SYMBOL_METADATA).
+   * Falls back to price-magnitude heuristics for unknown symbols.
    */
   private _priceDecimals(price: number, symbol?: string): number {
     if (!Number.isFinite(price) || price <= 0) return 2;
+    // V147: Use symbol-metadata priceDecimals when available — this ensures
+    // consistency with the lot/margin system. For example, EUR/USD has
+    // priceDecimals=5 in SYMBOL_METADATA, which matches the old heuristic.
+    // But for symbols like XRP/USDT (priceDecimals=4) or ADA/USDT (4),
+    // the metadata is more accurate than the heuristic.
     if (symbol) {
+      try {
+        const meta = getSymbolMetadata(symbol);
+        // Only use metadata if it returned a specific (non-default) value
+        // The default metadata has priceDecimals=2 which is too coarse for forex
+        if (meta.priceDecimals > 2 || meta.assetClass === AssetClass.FOREX) {
+          return meta.priceDecimals;
+        }
+      } catch {
+        // Fall through to heuristic
+      }
+      // Fallback heuristics for symbols not in registry
       const s = symbol.toUpperCase();
       if (s.includes('JPY')) return 3;
       if (s.includes('BTC')) return 2;

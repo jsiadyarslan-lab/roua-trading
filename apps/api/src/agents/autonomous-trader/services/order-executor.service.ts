@@ -361,6 +361,24 @@ export class OrderExecutorService implements OnModuleDestroy {
         };
       }
 
+      // V147 FIX: Block SELL on spot exchanges — you can't short-sell on spot.
+      // Spot exchanges only allow SELL of assets you already own.
+      // The Agent opens NEW positions, so SELL = "go short" which is impossible on spot.
+      // This requires a margin/futures account to execute.
+      const isSpotExchange = credential.exchange !== 'paper-trading' &&
+        !credential.testnet &&
+        credential.exchange !== 'alpaca'; // Alpaca supports short selling
+      if (isSpotExchange && signal.action === 'SELL') {
+        this.logger.warn(
+          `⚡ V147 ORDER REJECTED: SELL ${signal.symbol} on spot exchange ${credential.exchange} — short selling requires margin/futures`,
+        );
+        return {
+          success: false,
+          error: `بيع ${signal.symbol} غير ممكن على حساب سبوت (${credential.exchange}) — يحتاج حساب مارجن/فيوتشر للبيع على المكشوف`,
+          executionTimeMs: Date.now() - startTime,
+        };
+      }
+
       // Construct the order request
       const orderRequest: PlaceOrderRequest = {
         credentialId,

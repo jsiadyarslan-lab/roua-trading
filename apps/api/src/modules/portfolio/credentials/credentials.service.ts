@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
+import { calculateMargin } from '../../trading/services/symbol-metadata';
 import * as crypto from 'crypto';
 import * as ccxt from 'ccxt';
 import { hostname } from 'os';
@@ -550,35 +551,55 @@ export class CredentialsService {
         where: { userId },
       });
       paperBalanceUsd = settings ? Number(settings.paperBalance) : 10000;
-      // Subtract open position exposure from available balance
+      // V147 FIX: Calculate leverage-aware used margin and unrealized P&L separately.
+      // Previously, `totalExposure = qty × price` (full notional) was subtracted from
+      // paperBalance as if it were margin. This caused the available balance to drop
+      // by THOUSANDS for forex positions where the actual margin is only 2% of notional.
+      // For example: 5 EUR/USD positions with $500 notional each = $2,500 "exposure"
+      // but actual margin = $2,500 / 50 = $50. The old code made available = $7,500
+      // instead of the correct $9,950.
+      // Now: margin = notional / leverage (forex: /50, gold: /20, crypto: /1)
+      //       equity = balance + unrealized P&L
+      //       available = equity - usedMargin
+      let usedMargin = 0;
+      let unrealizedPnl = 0;
       try {
         const openPositions = await this.prisma.position.findMany({
           where: { userId, status: 'OPEN' },
-          select: { quantity: true, currentPrice: true, entryPrice: true },
+          select: { quantity: true, currentPrice: true, entryPrice: true, symbol: true, side: true },
         });
-        const totalExposure = openPositions.reduce((sum, p) => {
+        for (const p of openPositions) {
           const qty = Number(p.quantity) || 0;
-          const price = Number(p.currentPrice) || Number(p.entryPrice) || 0;
-          return sum + (qty * price);
-        }, 0);
-        paperAvailableUsd = Math.max(0, paperBalanceUsd - totalExposure);
+          const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+          const entryPrice = Number(p.entryPrice) || 0;
+          // Leverage-aware margin (forex /50, gold /20, crypto /1)
+          usedMargin += calculateMargin(qty, currentPrice, p.symbol);
+          // Unrealized P&L
+          if (p.side === 'BUY') {
+            unrealizedPnl += (currentPrice - entryPrice) * qty;
+          } else {
+            unrealizedPnl += (entryPrice - currentPrice) * qty;
+          }
+        }
       } catch {
-        paperAvailableUsd = paperBalanceUsd;
+        // If position lookup fails, assume no margin used
       }
+      const paperEquity = paperBalanceUsd + unrealizedPnl;
+      paperAvailableUsd = Math.max(0, paperEquity - usedMargin);
       // Add paper-trading as an exchange entry in the response
       exchanges.push({
         exchange: 'paper-trading',
         label: hasPaperCredential ? (paperCredentials[0].label || 'Paper Trading') : 'Paper Trading',
         credentialId: hasPaperCredential ? paperCredentials[0].id : 'paper-virtual',
         isTestnet: true,
-        equity: paperBalanceUsd,
+        equity: paperEquity,
         available: paperAvailableUsd,
         currency: 'USD',
         assets: [{
           currency: 'USD',
           free: paperAvailableUsd,
-          used: paperBalanceUsd - paperAvailableUsd,
-          total: paperBalanceUsd,
+          used: usedMargin,
+          total: paperEquity,
         }],
       });
     } catch (err: any) {

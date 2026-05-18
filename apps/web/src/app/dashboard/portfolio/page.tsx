@@ -543,6 +543,27 @@ export default function PortfolioPage() {
           : p.currentPrice
             ? Number(p.currentPrice)
             : undefined
+      // V140F: Determine exit reason — was it SL hit, TP hit, or manual close?
+      const exitReason = (() => {
+        if (p.stopLoss && derivedExitPrice) {
+          const slPrice = Number(p.stopLoss)
+          const exit = Number(derivedExitPrice)
+          const isLong = p.side === 'BUY'
+              // For long: exit <= SL means stop loss was hit
+          if (isLong && exit <= slPrice * 1.001) return 'SL'
+          if (!isLong && exit >= slPrice * 0.999) return 'SL'
+        }
+        if (p.takeProfit && derivedExitPrice) {
+          const tpPrice = Number(p.takeProfit)
+          const exit = Number(derivedExitPrice)
+          const isLong = p.side === 'BUY'
+              // For long: exit >= TP means take profit was hit
+          if (isLong && exit >= tpPrice * 0.999) return 'TP'
+          if (!isLong && exit <= tpPrice * 1.001) return 'TP'
+        }
+        return 'MANUAL'
+      })()
+
       return {
         id: p.id, symbol: p.symbol, side: p.side,
         type: p.source === 'smart_executor' ? 'SMART' :
@@ -550,6 +571,9 @@ export default function PortfolioPage() {
               p.source === 'auto_paper' ? 'PAPER' : 'MANUAL',
         quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
         exitPrice: derivedExitPrice,
+        stopLoss: p.stopLoss ? Number(p.stopLoss) : undefined,
+        takeProfit: p.takeProfit ? Number(p.takeProfit) : undefined,
+        exitReason,
         fee: null, feeCurrency: null, executedAt: p.closedAt || p.openedAt,
         openedAt: p.openedAt
       }
@@ -1059,7 +1083,12 @@ export default function PortfolioPage() {
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
                             <div><span style={{ color: T.text3 }}>حجم: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
                             <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
-                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{pt.exitPrice ? formatPrice(pt.exitPrice, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>وقف خسارة: </span><span style={{ color: T.red }}>{(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>جني ربح: </span><span style={{ color: T.green }}>{(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>السبب: </span><span style={{
+                              color: (pt as any).exitReason === 'SL' ? T.red : (pt as any).exitReason === 'TP' ? T.green : T.text3,
+                            }}>{(pt as any).exitReason === 'SL' ? 'وقف خسارة' : (pt as any).exitReason === 'TP' ? 'جني ربح' : 'يدوي'}</span></div>
                             <div><span style={{ color: T.text3 }}>مدة: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
                             <div><span style={{ color: T.text3 }}>وقت: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
                           </div>
@@ -1070,11 +1099,11 @@ export default function PortfolioPage() {
                   <>
                   <div role="table" aria-label="الصفقات المغلقة" style={{
                     display: 'grid',
-                    gridTemplateColumns: '100px 70px 70px 80px 80px 80px 80px 70px 110px',
+                    gridTemplateColumns: '100px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                     padding: '5px 14px', gap: 0,
                     borderBottom: `0.5px solid ${T.border}`,
                   }}>
-                    {['الزوج','اتجاه','حجم','دخول','إغلاق','ر.خ محققة','الحالة','المدة','وقت الإغلاق'].map((h) => (
+                    {['الزوج','اتجاه','حجم','دخول','إغلاق','وقف خسارة','جني ربح','ر.خ محققة','السبب','المدة','الحالة','وقت الإغلاق'].map((h) => (
                       <div key={h} style={{
                         fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                         color: T.text3, textAlign: 'center',
@@ -1087,7 +1116,7 @@ export default function PortfolioPage() {
                       key={pt.id}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: '100px 70px 70px 80px 80px 80px 80px 70px 110px',
+                        gridTemplateColumns: '100px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                         padding: '6px 14px', gap: 0,
                         borderBottom: i < filteredHistory.length - 1 ? `0.5px solid ${T.border}` : 'none',
                         alignItems: 'center',
@@ -1120,7 +1149,15 @@ export default function PortfolioPage() {
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.quantity}</div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>
-                        {pt.exitPrice ? formatPrice(pt.exitPrice, pt.symbol) : '—'}
+                        {(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}
+                      </div>
+                      {/* V140F: Stop Loss column */}
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.red }}>
+                        {(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}
+                      </div>
+                      {/* V140F: Take Profit column */}
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.green }}>
+                        {(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}
                       </div>
                       <div style={{
                         textAlign: 'center', fontFamily: "'JetBrains Mono', monospace",
@@ -1129,15 +1166,31 @@ export default function PortfolioPage() {
                       }}>
                         {(pt.pnl || 0) > 0 ? '+' : (pt.pnl || 0) < 0 ? '-' : ''}${fmt(Math.abs(pt.pnl || 0))}
                       </div>
+                      {/* V140F: Exit reason — SL / TP / Manual */}
+                      <div style={{ display: 'flex', justifyContent: 'center' }}>
+                        <span style={{
+                          padding: '1px 5px', borderRadius: 3,
+                          fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 700,
+                          background: (pt as any).exitReason === 'SL' ? `${T.red}18` :
+                                      (pt as any).exitReason === 'TP' ? `${T.green}18` : `${T.blue}12`,
+                          color: (pt as any).exitReason === 'SL' ? T.red :
+                                  (pt as any).exitReason === 'TP' ? T.green : T.text3,
+                          border: `0.5px solid ${(pt as any).exitReason === 'SL' ? T.red :
+                                                  (pt as any).exitReason === 'TP' ? T.green : T.border}44`,
+                        }}>
+                          {(pt as any).exitReason === 'SL' ? 'وقف' :
+                            (pt as any).exitReason === 'TP' ? 'جني' : 'يدوي'}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
+                        {formatDuration(pt.openedAt, pt.executedAt)}
+                      </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
                           padding: '1px 6px', borderRadius: 3,
                           fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
                           background: `${T.blue}18`, color: T.blue,
                         }}>مغلقة</span>
-                      </div>
-                      <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
-                        {formatDuration(pt.openedAt, pt.executedAt)}
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
                         {pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}

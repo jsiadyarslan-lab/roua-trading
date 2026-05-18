@@ -166,12 +166,35 @@ export class CredentialsController {
     const connectivity = results.map(r =>
       r.status === 'fulfilled' ? r.value : { error: r.reason?.message || 'Unknown error' }
     );
+
+    // V164d: Also check user's credentials status (without exposing secrets)
+    let credentialsStatus: any = { count: 0, details: [] };
+    if (userId) {
+      try {
+        const creds = await (this.credentialsService as any).prisma.exchangeCredential.findMany({
+          where: { userId },
+          select: { id: true, exchange: true, label: true, isValid: true, testnet: true, createdAt: true },
+        });
+        credentialsStatus = {
+          count: creds.length,
+          details: creds.map(c => ({
+            exchange: c.exchange,
+            label: c.label,
+            isValid: c.isValid,
+            testnet: c.testnet,
+            createdAt: c.createdAt,
+          })),
+        };
+      } catch {}
+    }
+
     return {
       success: true,
       data: {
         serverTime: new Date().toISOString(),
         serverUptime: Math.round(process.uptime()),
         connectivity,
+        credentialsStatus,
       },
     };
   }

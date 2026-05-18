@@ -556,6 +556,16 @@ export class CredentialsService {
           }
 
           const decrypted = await this.decryptCredential(cred.id, userId);
+
+          // V164d: Diagnostic logging — check if decrypted keys look valid
+          const apiKeyPreview = decrypted.apiKey ? `${decrypted.apiKey.substring(0, 4)}...${decrypted.apiKey.substring(decrypted.apiKey.length - 4)}` : 'EMPTY';
+          const secretPreview = decrypted.apiSecret ? `${decrypted.apiSecret.substring(0, 2)}...(${decrypted.apiSecret.length}chars)` : 'EMPTY';
+          this.logger.log(
+            `🔑 V164d Decrypted credential for ${cred.exchange}/${cred.label}: ` +
+            `apiKey=${apiKeyPreview}, secret=${secretPreview}, ` +
+            `testnet=${cred.testnet}, exchange=${cred.exchange}`
+          );
+
           return await this._fetchSingleExchangeBalance(
             cred.exchange,
             cred.label,
@@ -565,7 +575,18 @@ export class CredentialsService {
             decrypted.passphrase,
           );
         } catch (error: any) {
-          this.logger.warn(`Failed to fetch balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+          // V164d: Log the FULL error details for debugging
+          this.logger.warn(
+            `❌ V164d Failed to fetch balance for ${cred.exchange}/${cred.label}: ` +
+            `[${error.constructor?.name || 'Unknown'}] ${error.message}`
+          );
+          // If it's a decryption error, log extra details
+          if (error.message?.includes('decrypt') || error.message?.includes('Unsupported state') || error.message?.includes('auth tag')) {
+            this.logger.error(
+              `🚨 V164d DECRYPTION FAILURE for credential ${cred.id}: ${error.message}. ` +
+              `This likely means ENCRYPTION_KEY changed — user must delete and re-add their API key.`
+            );
+          }
           return {
             exchange: cred.exchange,
             label: cred.label,
@@ -881,6 +902,11 @@ export class CredentialsService {
         break; // Success — exit retry loop
       } catch (fetchError: any) {
         lastError = fetchError.message || 'Unknown error';
+        // V164d: Log detailed error info for each attempt
+        this.logger.warn(
+          `⚠️ V164d Balance fetch attempt ${attempt + 1} failed for ${exchange}/${label}: ` +
+          `[${fetchError.constructor?.name || 'Unknown'}] ${lastError}`
+        );
         if (attempt < MAX_RETRIES && (
           (lastError || '').includes('timeout') || (lastError || '').includes('ETIMEDOUT') ||
           (lastError || '').includes('ECONNREFUSED') || (lastError || '').includes('ECONNRESET') ||
@@ -1355,7 +1381,7 @@ export class CredentialsService {
   /**
    * V164 DIAGNOSTIC: Test exchange connectivity from the server.
    * Also tests with the user's actual credentials if they have any.
-   * This helps diagnose why balance fetches fail.
+   * Returns the server's outbound IP for Binance API key whitelist.
    */
   async testExchangeConnectivity(exchange: string, userId?: string): Promise<{
     exchange: string;
@@ -1364,6 +1390,7 @@ export class CredentialsService {
     error?: string;
     errorType?: string;
     serverTime?: number;
+    serverIp?: string;
     /** V164b: Did the authenticated balance fetch succeed? */
     authTest?: {
       success: boolean;
@@ -1375,6 +1402,23 @@ export class CredentialsService {
     };
   }> {
     const start = Date.now();
+
+    // V164d: Get server's outbound IP for Binance API key whitelist
+    let serverIp = 'unknown';
+    try {
+      const https = await import('https');
+      serverIp = await new Promise<string>((resolve) => {
+        const req = https.get('https://api.ipify.org', (res) => {
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data.trim() || 'unknown'));
+        });
+        req.on('error', () => resolve('unknown'));
+        req.setTimeout(5000, () => { req.destroy(); resolve('unknown'); });
+      });
+    } catch {}
+    this.logger.log(`🌐 V164d Server outbound IP: ${serverIp}`);
+
     try {
       const normalizedExchange = exchange.toLowerCase().startsWith('binance') ? 'binance' : exchange.toLowerCase();
       const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
@@ -1444,7 +1488,7 @@ export class CredentialsService {
           }
         }
 
-        return { exchange, reachable: true, latencyMs: pingMs, serverTime: Date.now(), authTest };
+        return { exchange, reachable: true, latencyMs: pingMs, serverTime: Date.now(), serverIp, authTest };
       } catch (pingError: any) {
         const pingMs = Date.now() - start;
         const errMsg = pingError.message || String(pingError);
@@ -1457,6 +1501,7 @@ export class CredentialsService {
           latencyMs: pingMs,
           error: `[${errType}] ${errMsg}`,
           errorType: errType,
+          serverIp,
         };
       }
     } catch (error: any) {

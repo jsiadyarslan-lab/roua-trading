@@ -14,6 +14,7 @@ import { AuditService } from '../../../audit/audit.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { calculateMargin } from '../../trading/services/symbol-metadata';
 
 /**
  * PaperTradingAdapter — Simulated Exchange for Risk-Free Trading
@@ -213,13 +214,19 @@ export class PaperTradingAdapter implements IExchangeAdapter {
 
     try {
       // Calculate used margin from open positions
-      // FIX: For paper trading without explicit leverage, margin = notional value
+      // V146 FIX: Use leverage-aware margin calculation instead of raw notional value.
+      // For forex (50:1 leverage), margin = notional / 50
+      // For crypto spot (1:1), margin = notional (full collateral)
       const openPositions = await this.prisma.position.findMany({
         where: { userId: this.userId, status: 'OPEN' },
       });
 
       const usedMargin = openPositions.reduce(
-        (sum, p) => sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice)),
+        (sum, p) => sum + calculateMargin(
+          Number(p.quantity),
+          Number(p.currentPrice) || Number(p.entryPrice),
+          p.symbol,
+        ),
         0,
       );
 
@@ -291,7 +298,10 @@ export class PaperTradingAdapter implements IExchangeAdapter {
   ): Promise<ExecutionResult> {
     // Apply slippage (0.1% default)
     const slippageMultiplier = 1 + (this.slippagePercent / 100) * (order.side === 'BUY' ? 1 : -1);
-    const fillPrice = currentPrice * slippageMultiplier;
+    const rawFillPrice = currentPrice * slippageMultiplier;
+    // V146 FIX: Round to eliminate floating-point artifacts before storing
+    const decimals = this._priceDecimals(rawFillPrice, order.symbol);
+    const fillPrice = parseFloat(rawFillPrice.toFixed(decimals));
 
     // Calculate commission (0.1% default)
     const commission = (order.quantity * fillPrice) * (this.commissionPercent / 100);
@@ -331,7 +341,7 @@ export class PaperTradingAdapter implements IExchangeAdapter {
     });
 
     this.logger.log(
-      `✅ Paper market order filled: ${paperOrder.id} — ${order.side} ${order.quantity} ${order.symbol} @ ${fillPrice.toFixed(2)} (market: ${currentPrice.toFixed(2)}, slippage: ${this.slippagePercent}%)`,
+      `✅ Paper market order filled: ${paperOrder.id} — ${order.side} ${order.quantity} ${order.symbol} @ ${fillPrice.toFixed(decimals)} (market: ${currentPrice.toFixed(decimals)}, slippage: ${this.slippagePercent}%)`,
     );
 
     return {
@@ -501,5 +511,22 @@ export class PaperTradingAdapter implements IExchangeAdapter {
     } catch {
       // Never fail execution flow due to audit logging issues
     }
+  }
+
+  /**
+   * V146: Determine the correct number of decimal places for a price
+   * (matches trading.service.ts and frontend price-format.ts logic)
+   */
+  private _priceDecimals(price: number, symbol?: string): number {
+    if (!Number.isFinite(price) || price <= 0) return 2;
+    if (symbol) {
+      const s = symbol.toUpperCase();
+      if (s.includes('JPY')) return 3;
+      if (s.includes('BTC')) return 2;
+      if (s.includes('XAU') || s.includes('XAG')) return 2;
+    }
+    if (price > 1000) return 2;
+    if (price > 1) return 5;   // forex pipette precision
+    return 6;
   }
 }

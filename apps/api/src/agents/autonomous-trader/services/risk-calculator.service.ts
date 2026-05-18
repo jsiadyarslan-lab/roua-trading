@@ -8,6 +8,15 @@ import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { RiskAssessment, AgentConfig, StrategyType } from '../types/agent.types';
 import { EvaluatedSignal } from '../types/agent.types';
+import {
+  getSymbolMetadata,
+  calculatePositionSizeFromRisk,
+  lotsToUnits,
+  unitsToLots,
+  roundLotSize,
+  calculateMargin,
+  calculateNotionalValue,
+} from '../../../modules/trading/services/symbol-metadata';
 
 /**
  * RiskCalculatorService — Smart risk management engine
@@ -103,12 +112,14 @@ export class RiskCalculatorService {
     const riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
 
     // Step 5: Calculate position size (with maxPositionSizePercent cap)
+    // V146: Pass symbol for lot-aware sizing
     const positionSize = this._calculatePositionSize(
       portfolioValue,
       riskPerTradePercent,
       signal.entryPrice,
       signal.stopLoss,
       maxPositionSizePercent,
+      signal.symbol,
     );
 
     // Step 6: Calculate risk-reward ratio
@@ -334,6 +345,7 @@ export class RiskCalculatorService {
     entryPrice: number,
     stopLoss: number,
     maxPositionSizePercent?: number,
+    symbol?: string,
   ): number {
     if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return 0;
 
@@ -348,19 +360,32 @@ export class RiskCalculatorService {
 
     if (priceRisk === 0) return 0;
 
-    // Position size = risk amount / price risk (how many units we can buy given our risk budget)
+    // V146: Use symbol-aware calculation when symbol is provided
+    if (symbol) {
+      const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
+
+      // Cap to maxPositionSizePercent of portfolio
+      const maxPositionValue = portfolioValue * (maxSizePercent / 100);
+      let quantityUnits = result.quantityUnits;
+      let quantityLots = result.quantityLots;
+
+      if (result.notional > maxPositionValue) {
+        // Reduce to fit within max position size limit
+        quantityUnits = maxPositionValue / entryPrice;
+        quantityLots = roundLotSize(unitsToLots(quantityUnits, symbol), symbol);
+        quantityUnits = lotsToUnits(quantityLots, symbol);
+      }
+
+      return parseFloat(quantityUnits.toFixed(8));
+    }
+
+    // Legacy path: no symbol — raw unit calculation
     let quantity = riskAmount / priceRisk;
 
-    // CRITICAL FIX: Cap position size to maxPositionSizePercent of portfolio.
-    // Previously, when priceRisk was very small relative to entryPrice
-    // (e.g., BTC=$94,500 with SL=$94,200 → priceRisk=$300), the calculated
-    // quantity could be huge (0.5 BTC = $47,250 = 472% of $10,000 portfolio).
-    // Now we enforce: positionValue <= portfolio * maxSizePercent / 100
     const maxPositionValue = portfolioValue * (maxSizePercent / 100);
     const currentPositionValue = quantity * entryPrice;
 
     if (currentPositionValue > maxPositionValue) {
-      // Reduce quantity to fit within max position size limit
       quantity = maxPositionValue / entryPrice;
       this.logger.debug(
         `🛡️ Position size capped: ${currentPositionValue.toFixed(2)} > ${maxPositionValue.toFixed(2)} ` +

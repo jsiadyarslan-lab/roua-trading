@@ -1508,6 +1508,28 @@ export class TradingService {
   // ── Private Methods ──
 
   /**
+   * V146: Determine the correct number of decimal places for a price
+   * based on symbol and price magnitude (matches frontend price-format.ts logic).
+   * - JPY pairs: 3 decimals
+   * - BTC: 2 decimals
+   * - Price > 1000 (gold, indices): 2 decimals
+   * - Price > 1 (forex): 5 decimals (pipette precision)
+   * - Price <= 1 (micro-cap crypto): 6 decimals
+   */
+  private _priceDecimals(price: number, symbol?: string): number {
+    if (!Number.isFinite(price) || price <= 0) return 2;
+    if (symbol) {
+      const s = symbol.toUpperCase();
+      if (s.includes('JPY')) return 3;
+      if (s.includes('BTC')) return 2;
+      if (s.includes('XAU') || s.includes('XAG')) return 2;
+    }
+    if (price > 1000) return 2;
+    if (price > 1) return 5;   // forex pipette precision
+    return 6;
+  }
+
+  /**
    * Get or create a cached CCXT exchange instance
    * Caches per credential+exchange combo to avoid recreating for every order
    */
@@ -1712,16 +1734,23 @@ export class TradingService {
   } {
     // Simulate slippage: 0.1% in the direction of the trade
     const slippagePercent = 0.001;
-    const fillPrice = request.side === 'BUY'
+    const rawFillPrice = request.side === 'BUY'
       ? currentPrice * (1 + slippagePercent)  // Buy slightly higher
       : currentPrice * (1 - slippagePercent); // Sell slightly lower
+
+    // V146 FIX: Round price to eliminate floating-point artifacts.
+    // Without rounding, `1.08543 * 1.001` produces `1.0865154300000001`
+    // which gets stored in DB and causes display/calculation errors.
+    // Use 5 decimals for forex (pipette precision), 2 for everything else.
+    const priceDecimals = this._priceDecimals(rawFillPrice, request.symbol);
+    const fillPrice = parseFloat(rawFillPrice.toFixed(priceDecimals));
 
     // Simulate fee: 0.1%
     const fee = request.quantity * fillPrice * 0.001;
     const feeCurrency = request.symbol.split('/').pop() || 'USDT';
 
     this.logger.log(
-      `📜 Paper trade executed: ${request.side} ${request.quantity} ${request.symbol} @ ${fillPrice.toFixed(2)} ` +
+      `📜 Paper trade executed: ${request.side} ${request.quantity} ${request.symbol} @ ${fillPrice.toFixed(priceDecimals)} ` +
       `(fee: ${fee.toFixed(4)} ${feeCurrency})`,
     );
 

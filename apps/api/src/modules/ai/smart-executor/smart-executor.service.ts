@@ -45,6 +45,16 @@ import { NotificationService } from '../../notification/notification.service';
 import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
 import { NewsService } from '../../news/news.service';
+import {
+  getSymbolMetadata,
+  calculatePositionSizeFromRisk,
+  lotsToUnits,
+  unitsToLots,
+  roundLotSize,
+  calculateMargin,
+  calculateNotionalValue,
+  AssetClass,
+} from '../../trading/services/symbol-metadata';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -2605,15 +2615,10 @@ export class SmartExecutorService implements OnModuleDestroy {
       );
 
       // Calculate position size based on risk
-      // FIX: The old formula `riskAmount / priceRisk` produces astronomical quantities
-      // for Forex pairs where priceRisk is tiny (e.g., EUR/USD: |1.1754 - 1.1695| = 0.006).
-      // Example: $1000 risk / $0.006 priceRisk = 170,154 units × $1.1754 = $200,000 order.
-      // This ALWAYS gets rejected by RiskGatekeeper (max order size $10K-$50K).
-      //
-      // NEW APPROACH: Calculate the maximum quantity that keeps the order value
-      // within a safe range, THEN apply the risk-based constraint.
-      // This ensures Forex pairs trade with reasonable lot sizes while still
-      // respecting the risk percentage.
+      // V146: Now uses symbol-metadata for proper lot sizing.
+      // Forex pairs: quantity in units (1 lot = 100,000 units)
+      // Crypto: quantity in base currency (e.g., 0.5 BTC)
+      // Margin = notional / leverage (forex: /50, crypto: /1 = full value)
       const riskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
       const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
       const priceRisk = Math.abs(currentPrice - brief.stopLoss);
@@ -2621,70 +2626,49 @@ export class SmartExecutorService implements OnModuleDestroy {
       if (priceRisk === 0) {
         result.error = 'Invalid stop loss — price risk is 0';
         this.logger.warn(`⚔️ Brief ${brief.id} has stopLoss=${brief.stopLoss} same as currentPrice=${currentPrice} — skipping`);
-        // Don't mark as processed — a future council session may fix the SL
         return result;
       }
 
-      // Step 1: Risk-based quantity (how many units can we hold given our risk budget)
-      const riskBasedQty = riskAmount / priceRisk;
+      // V146: Use symbol-aware position sizing with lot normalization
+      const meta = getSymbolMetadata(brief.pair);
+      const posResult = calculatePositionSizeFromRisk(riskAmount, currentPrice, brief.stopLoss, brief.pair);
 
-      // Step 2: Cap by max order value. For paper trading, use $5,000 max per trade
-      // (5% of $100K paper balance). For real trading, use 2% of portfolio.
-      // This prevents the $200K order problem while still allowing meaningful trades.
-      // CRITICAL FIX: The old cap of $5K was being EXCEEDED because the risk-based
-      // quantity (riskAmount/priceRisk) for Forex pairs produces huge values
-      // (e.g., $1000 / $0.006 = 166K units × $1.17 = $200K). The Math.min
-      // was supposed to cap this, but the valueCappedQty was being calculated
-      // AFTER the riskBasedQty, and sometimes the order of operations allowed
-      // the risk-based value to dominate.
-      //
-      // Now: We ALWAYS enforce the maxOrderValue cap FIRST, then apply risk constraints.
-      // V124: Use isSimulatedExecution for position sizing — both paper and testnet
-      // use virtual funds with relaxed limits.
+      let quantity = posResult.quantityUnits;
+      let lots = posResult.quantityLots;
+
+      // Cap by max order value (paper: $5K or 5%, real: $10K or 2%)
       const maxOrderValue = isSimulatedExecution
-        ? Math.min(5000, portfolioValue * 0.05)   // Simulated (paper/testnet): max $5K or 5%
-        : Math.min(10000, portfolioValue * 0.02);  // Real: max $10K or 2%
-      const valueCappedQty = maxOrderValue / currentPrice;
-      
-      // Ensure the final quantity NEVER exceeds the max order value
-      // This is the CRITICAL fix: for Forex pairs where riskBasedQty is huge,
-      // we MUST use valueCappedQty as the hard ceiling.
+        ? Math.min(5000, portfolioValue * 0.05)
+        : Math.min(10000, portfolioValue * 0.02);
 
-      // Step 3: Use the SMALLER of risk-based and value-capped quantity
-      // This ensures we never exceed either the risk budget OR the order value limit
-      // CRITICAL FIX: For Forex pairs, riskBasedQty is always MUCH larger than
-      // valueCappedQty. The valueCappedQty should ALWAYS win for paper trading.
-      // We also add a HARD ceiling: orderValue must NEVER exceed maxOrderValue.
-      let quantity = Math.min(riskBasedQty, valueCappedQty);
-      
-      // HARD CEILING: Double-check the order value doesn't exceed the cap
-      // This is a safety net in case of floating point issues
-      const hardCappedQty = maxOrderValue / currentPrice;
-      if (quantity > hardCappedQty) {
-        this.logger.warn(`⚔️ HARD CAP: quantity ${quantity} > hard cap ${hardCappedQty} for ${brief.pair} — enforcing max order value $${maxOrderValue}`);
-        quantity = hardCappedQty;
+      if (posResult.notional > maxOrderValue) {
+        // Reduce quantity to fit within max order value
+        const cappedQty = maxOrderValue / currentPrice;
+        lots = roundLotSize(unitsToLots(cappedQty, brief.pair), brief.pair);
+        quantity = lotsToUnits(lots, brief.pair);
+
+        this.logger.debug(
+          `⚔️ Position capped by maxOrderValue: notional $${posResult.notional.toFixed(2)} > $${maxOrderValue} → reduced to ${lots} lots (${quantity.toFixed(2)} units)`
+        );
       }
 
-      // Step 4: Ensure minimum order value ($10) — skip if too small
-      const orderValue = quantity * currentPrice;
+      // Ensure minimum order value ($10) — skip if too small
+      const orderValue = calculateNotionalValue(quantity, currentPrice);
       if (orderValue < 10) {
         result.error = `Order value too small: $${orderValue.toFixed(2)} < $10 minimum`;
         this.logger.debug(`⚔️ Brief ${brief.id} order value $${orderValue.toFixed(2)} too small — skipping`);
         return result;
       }
 
-      quantity = parseFloat(quantity.toFixed(6));
-
       if (quantity <= 0) {
         result.error = 'Invalid quantity calculated';
-        // Don't mark as processed — transient calculation issue
         return result;
       }
 
+      const margin = calculateMargin(quantity, currentPrice, brief.pair);
       this.logger.debug(
-        `⚔️ Position sizing for ${brief.pair}: riskQty=${riskBasedQty.toFixed(2)}, ` +
-        `valueCapQty=${valueCappedQty.toFixed(2)} (maxVal=$${maxOrderValue}), ` +
-        `finalQty=${quantity}, orderValue=$${(quantity * currentPrice).toFixed(2)}, ` +
+        `⚔️ Position sizing for ${brief.pair}: lots=${lots}, units=${quantity.toFixed(2)}, ` +
+        `notional=$${orderValue.toFixed(2)}, margin=$${margin.toFixed(2)} (leverage ${meta.defaultLeverage}:1), ` +
         `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
       );
 

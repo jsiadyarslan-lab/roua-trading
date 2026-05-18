@@ -1,6 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import {
+  getSymbolMetadata,
+  calculatePositionSizeFromRisk,
+  lotsToUnits,
+  unitsToLots,
+  roundLotSize,
+  calculateMargin,
+  calculateNotionalValue,
+  AssetClass,
+} from './services/symbol-metadata';
 
 /**
  * Risk Manager Service — Position Sizing and Risk Controls
@@ -279,13 +289,18 @@ export class RiskManagerService {
   /**
    * Calculate recommended position size based on risk percentage
    * Uses the 1% risk rule: never risk more than 1% of portfolio per trade
+   *
+   * V146: Now uses symbol-metadata for proper lot sizing.
+   * Returns quantity in RAW UNITS (not lots) for backward compatibility,
+   * plus additional lot and margin info.
    */
   calculatePositionSize(
     portfolioValue: number,
     entryPrice: number,
     stopLossPrice: number,
     riskPercent: number = 1,
-  ): { quantity: number; riskAmount: number } {
+    symbol?: string,
+  ): { quantity: number; riskAmount: number; lots?: number; margin?: number; notional?: number } {
     const riskAmount = portfolioValue * (riskPercent / 100);
     const riskPerUnit = Math.abs(entryPrice - stopLossPrice);
 
@@ -293,6 +308,41 @@ export class RiskManagerService {
       return { quantity: 0, riskAmount: 0 };
     }
 
+    // V146: Use symbol-aware calculation when symbol is provided
+    if (symbol) {
+      const meta = getSymbolMetadata(symbol);
+      const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLossPrice, symbol);
+
+      // Cap to maxPositionSizePercent of portfolio
+      const maxPositionValue = portfolioValue * (this.maxPositionSizePercent / 100);
+      let quantityUnits = result.quantityUnits;
+      let quantityLots = result.quantityLots;
+
+      if (result.notional > maxPositionValue) {
+        // Reduce to fit within max position size limit
+        quantityUnits = maxPositionValue / entryPrice;
+        // Re-convert to lots
+        quantityLots = roundLotSize(unitsToLots(quantityUnits, symbol), symbol);
+        quantityUnits = lotsToUnits(quantityLots, symbol);
+      }
+
+      this.logger.debug(
+        `📊 Position sizing for ${symbol}: lots=${quantityLots}, units=${quantityUnits.toFixed(2)}, ` +
+        `margin=$${calculateMargin(quantityUnits, entryPrice, symbol).toFixed(2)}, ` +
+        `notional=$${calculateNotionalValue(quantityUnits, entryPrice).toFixed(2)}, ` +
+        `risk=$${(Math.abs(entryPrice - stopLossPrice) * quantityUnits).toFixed(2)}`
+      );
+
+      return {
+        quantity: Math.floor(quantityUnits * 1000000) / 1000000,
+        riskAmount,
+        lots: quantityLots,
+        margin: calculateMargin(quantityUnits, entryPrice, symbol),
+        notional: calculateNotionalValue(quantityUnits, entryPrice),
+      };
+    }
+
+    // Legacy path: no symbol provided — use raw unit calculation
     const quantity = riskAmount / riskPerUnit;
     return { quantity: Math.floor(quantity * 1000000) / 1000000, riskAmount };
   }

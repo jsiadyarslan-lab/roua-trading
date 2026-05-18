@@ -1,0 +1,294 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Roua Trading (رؤى) — Symbol Metadata & Lot/Margin Calculator
+// V146: Adds contract size, leverage, lot conventions, and margin calculation
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Asset class determines how quantity, margin, and lots are calculated.
+ *
+ * - FOREX: Quantity in units, 1 lot = 100,000 units. Margin = notional / leverage.
+ * - CRYPTO: Quantity in base currency units (e.g., 0.5 BTC). Margin = notional (spot) or notional / leverage (futures).
+ * - COMMODITY: Quantity in troy ounces (XAU/XAG) or barrels. Margin = notional / leverage.
+ * - STOCK: Quantity in shares. Margin = notional / leverage.
+ * - INDEX: Quantity in contracts. Contract size varies by index.
+ */
+export enum AssetClass {
+  FOREX = 'FOREX',
+  CRYPTO = 'CRYPTO',
+  COMMODITY = 'COMMODITY',
+  STOCK = 'STOCK',
+  INDEX = 'INDEX',
+}
+
+export interface SymbolMetadata {
+  /** Asset class for this symbol */
+  assetClass: AssetClass;
+  /** Number of base-currency units per 1 standard lot */
+  contractSize: number;
+  /** Minimum lot step (e.g., 0.01 for micro lots, 0.001 for crypto) */
+  lotStep: number;
+  /** Minimum lot size (e.g., 0.01) */
+  minLot: number;
+  /** Maximum lot size */
+  maxLot: number;
+  /** Default leverage for margin calculation (1 = no leverage / spot) */
+  defaultLeverage: number;
+  /** Pip size for this symbol (0.0001 for 4-digit forex, 0.01 for JPY pairs, etc.) */
+  pipSize: number;
+  /** Number of decimal places for price display */
+  priceDecimals: number;
+}
+
+// ═══════════════════════════════════════════════════════════
+// Symbol Metadata Registry
+// ═══════════════════════════════════════════════════════════
+
+const SYMBOL_REGISTRY: Record<string, Partial<SymbolMetadata>> = {
+  // ── Forex Majors ──
+  'EUR/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'GBP/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'USD/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
+  'USD/CHF': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'AUD/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'NZD/USD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'USD/CAD': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'EUR/GBP': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'EUR/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
+  'GBP/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
+  'EUR/CHF': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.0001, priceDecimals: 5, defaultLeverage: 50 },
+  'AUD/JPY': { assetClass: AssetClass.FOREX, contractSize: 100000, pipSize: 0.01, priceDecimals: 3, defaultLeverage: 50 },
+
+  // ── Commodities ──
+  'XAU/USD': { assetClass: AssetClass.COMMODITY, contractSize: 100, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 20 },
+  'XAG/USD': { assetClass: AssetClass.COMMODITY, contractSize: 5000, pipSize: 0.001, priceDecimals: 3, defaultLeverage: 20 },
+
+  // ── Crypto ──
+  'BTC/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
+  'BTC/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.00001, minLot: 0.00001, maxLot: 1000, pipSize: 1, priceDecimals: 2, defaultLeverage: 1 },
+  'ETH/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.0001, minLot: 0.0001, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'ETH/USD':  { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.0001, minLot: 0.0001, maxLot: 10000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'SOL/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.01, minLot: 0.01, maxLot: 50000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'BNB/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 0.001, minLot: 0.001, maxLot: 5000, pipSize: 0.01, priceDecimals: 2, defaultLeverage: 1 },
+  'XRP/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },
+  'ADA/USDT': { assetClass: AssetClass.CRYPTO, contractSize: 1, lotStep: 1, minLot: 1, maxLot: 500000, pipSize: 0.0001, priceDecimals: 4, defaultLeverage: 1 },
+};
+
+// Default metadata for unregistered symbols
+const DEFAULT_METADATA: SymbolMetadata = {
+  assetClass: AssetClass.CRYPTO,
+  contractSize: 1,
+  lotStep: 0.00001,
+  minLot: 0.00001,
+  maxLot: 1000000,
+  defaultLeverage: 1,
+  pipSize: 0.01,
+  priceDecimals: 2,
+};
+
+// Default metadata for forex-like symbols (detected by pattern)
+const FOREX_DEFAULT: SymbolMetadata = {
+  assetClass: AssetClass.FOREX,
+  contractSize: 100000,
+  lotStep: 0.01,
+  minLot: 0.01,
+  maxLot: 100,
+  defaultLeverage: 50,
+  pipSize: 0.0001,
+  priceDecimals: 5,
+};
+
+// ═══════════════════════════════════════════════════════════
+// Public API
+// ═══════════════════════════════════════════════════════════
+
+/**
+ * Get metadata for a symbol. Falls back to heuristic detection
+ * for unregistered symbols based on naming patterns.
+ */
+export function getSymbolMetadata(symbol: string): SymbolMetadata {
+  const upper = symbol.toUpperCase();
+
+  // 1. Exact match in registry
+  if (SYMBOL_REGISTRY[upper]) {
+    const partial = SYMBOL_REGISTRY[upper];
+    return { ...DEFAULT_METADATA, ...partial };
+  }
+
+  // 2. Heuristic: JPY pairs → forex
+  if (upper.includes('JPY')) {
+    return { ...FOREX_DEFAULT, pipSize: 0.01, priceDecimals: 3 };
+  }
+
+  // 3. Heuristic: 7-char XXX/YYY format → forex
+  if (upper.length === 7 && upper[3] === '/') {
+    return { ...FOREX_DEFAULT };
+  }
+
+  // 4. Heuristic: Gold/Silver → commodity
+  if (upper.includes('XAU') || upper.includes('XAG')) {
+    return {
+      ...DEFAULT_METADATA,
+      assetClass: AssetClass.COMMODITY,
+      contractSize: 100,
+      pipSize: 0.01,
+      priceDecimals: 2,
+      defaultLeverage: 20,
+    };
+  }
+
+  // 5. Default: crypto-like
+  return { ...DEFAULT_METADATA };
+}
+
+/**
+ * Convert a lot size to raw units.
+ *
+ * Examples:
+ *   EUR/USD: 0.01 lots → 1,000 units
+ *   BTC/USDT: 0.001 lots → 0.001 BTC
+ *   XAU/USD: 0.1 lots → 10 ounces
+ */
+export function lotsToUnits(lots: number, symbol: string): number {
+  const meta = getSymbolMetadata(symbol);
+  return lots * meta.contractSize;
+}
+
+/**
+ * Convert raw units to lot size.
+ *
+ * Examples:
+ *   EUR/USD: 1,000 units → 0.01 lots
+ *   BTC/USDT: 0.001 BTC → 0.001 lots (crypto contractSize = 1)
+ */
+export function unitsToLots(units: number, symbol: string): number {
+  const meta = getSymbolMetadata(symbol);
+  if (meta.contractSize <= 0) return 0;
+  return units / meta.contractSize;
+}
+
+/**
+ * Round a lot size to the nearest valid step.
+ * e.g., for forex (step=0.01): 0.037 → 0.03
+ */
+export function roundLotSize(lots: number, symbol: string): number {
+  const meta = getSymbolMetadata(symbol);
+  const step = meta.lotStep;
+  const rounded = Math.floor(lots / step) * step;
+  return parseFloat(rounded.toFixed(8));
+}
+
+/**
+ * Calculate the notional value (quantity × price).
+ *
+ * @param quantity - Quantity in RAW UNITS (not lots)
+ * @param price - Current price
+ */
+export function calculateNotionalValue(quantity: number, price: number): number {
+  return Math.abs(quantity * price);
+}
+
+/**
+ * Calculate the required margin for a position.
+ *
+ * Margin = Notional Value / Leverage
+ *
+ * For spot crypto (leverage=1), margin = notional value (full collateral).
+ * For forex (leverage=50), margin = notional / 50.
+ *
+ * @param quantity - Quantity in RAW UNITS
+ * @param price - Current price
+ * @param symbol - Trading symbol (to look up leverage)
+ * @param customLeverage - Override leverage (e.g., user-specified)
+ */
+export function calculateMargin(
+  quantity: number,
+  price: number,
+  symbol: string,
+  customLeverage?: number,
+): number {
+  const meta = getSymbolMetadata(symbol);
+  const leverage = customLeverage || meta.defaultLeverage;
+  const notional = calculateNotionalValue(quantity, price);
+  if (leverage <= 0) return notional; // safety: no division by zero
+  return notional / leverage;
+}
+
+/**
+ * Calculate pip value for a given position size.
+ *
+ * Pip Value = Pip Size × Quantity (in units)
+ *
+ * For forex: 0.0001 × 100,000 = $10 per pip per standard lot
+ *
+ * @param quantity - Quantity in RAW UNITS
+ * @param symbol - Trading symbol
+ */
+export function calculatePipValue(quantity: number, symbol: string): number {
+  const meta = getSymbolMetadata(symbol);
+  return meta.pipSize * quantity;
+}
+
+/**
+ * Calculate the risk in dollars given entry, stop-loss, and quantity.
+ *
+ * Risk = |Entry - StopLoss| × Quantity (in units)
+ */
+export function calculateRisk(
+  entryPrice: number,
+  stopLoss: number,
+  quantity: number,
+): number {
+  return Math.abs(entryPrice - stopLoss) * quantity;
+}
+
+/**
+ * Calculate position size in UNITS based on risk budget.
+ *
+ * This is the core risk-based position sizing formula.
+ * The result is in RAW UNITS — use unitsToLots() to convert to lot size.
+ *
+ * @param riskBudget - Maximum dollars willing to risk (e.g., 1% of $10,000 = $100)
+ * @param entryPrice - Entry price
+ * @param stopLoss - Stop-loss price
+ * @param symbol - Trading symbol (for lot normalization)
+ * @returns Position size in RAW UNITS, normalized to lot steps
+ */
+export function calculatePositionSizeFromRisk(
+  riskBudget: number,
+  entryPrice: number,
+  stopLoss: number,
+  symbol: string,
+): { quantityUnits: number; quantityLots: number; margin: number; risk: number; notional: number } {
+  const meta = getSymbolMetadata(symbol);
+  const priceRisk = Math.abs(entryPrice - stopLoss);
+
+  if (priceRisk <= 0 || entryPrice <= 0) {
+    return { quantityUnits: 0, quantityLots: 0, margin: 0, risk: 0, notional: 0 };
+  }
+
+  // How many units can we hold given our risk budget?
+  let quantityUnits = riskBudget / priceRisk;
+
+  // Convert to lots and round down to nearest valid step
+  let quantityLots = unitsToLots(quantityUnits, symbol);
+  quantityLots = roundLotSize(quantityLots, symbol);
+
+  // Ensure minimum lot size
+  if (quantityLots < meta.minLot) {
+    quantityLots = 0; // Too small to trade
+  }
+
+  // Ensure maximum lot size
+  if (quantityLots > meta.maxLot) {
+    quantityLots = meta.maxLot;
+  }
+
+  // Convert back to units for final calculations
+  quantityUnits = lotsToUnits(quantityLots, symbol);
+
+  const notional = calculateNotionalValue(quantityUnits, entryPrice);
+  const margin = calculateMargin(quantityUnits, entryPrice, symbol);
+  const risk = calculateRisk(entryPrice, stopLoss, quantityUnits);
+
+  return { quantityUnits, quantityLots, margin, risk, notional };
+}

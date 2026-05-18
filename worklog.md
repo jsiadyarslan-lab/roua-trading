@@ -51,3 +51,31 @@ Stage Summary:
 - For forex with 50:1 leverage, $2,500 notional should use $50 margin, not $2,500
 - Double P&L counting in frontend also made equity appear lower than actual
 - Risk Calculator was using positionsValue instead of paperBalance for paper users
+
+---
+Task ID: V150-margin-fix
+Agent: Super Z (main)
+Task: Fix margin display bug showing $20K instead of ~$390 + fix XRP/USDT BUY failures on Binance
+
+Work Log:
+- Deep investigation of all margin-related code paths (6 backend files, 5 frontend files)
+- Found ROOT CAUSE #1: totalUsedMargin in credentials.service.ts only searched for currency==='USD' in assets, missing 'USDT' from Binance
+- Found ROOT CAUSE #2: _backendMargin from localStorage preserved stale wrong values across sessions
+- Found ROOT CAUSE #3: No pre-trade balance check for real exchanges in autonomous trader
+- Fixed backend: Added usedMargin field directly to each exchange entry
+- Fixed backend: totalUsedMargin now uses direct usedMargin field with USD+USDT fallback
+- Fixed frontend: Added _marginVersion timestamp to detect stale _backendMargin
+- Fixed frontend: Reject _backendMargin > 80% of equity as unreasonable
+- Fixed agent: Added pre-trade balance check using CredentialsService
+- Added PortfolioModule import to agent.module.ts for CredentialsService injection
+- All TypeScript compilation checks pass
+- Both API and web projects build successfully
+- Changes committed and pushed to main branch
+
+Stage Summary:
+- V150 margin display fix deployed
+- Key files modified:
+  - apps/api/src/modules/portfolio/credentials/credentials.service.ts (backend margin calc)
+  - apps/web/src/hooks/usePositionsStore.ts (frontend margin handling)
+  - apps/api/src/agents/autonomous-trader/services/order-executor.service.ts (pre-trade check)
+  - apps/api/src/agents/autonomous-trader/agent.module.ts (dependency injection)

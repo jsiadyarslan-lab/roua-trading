@@ -110,7 +110,7 @@ function CloseSheet({
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           borderRadius: '28px 28px 0 0',
           borderTop: '0.5px solid rgba(255,255,255,0.15)',
-          paddingBottom: 'calc(48px + env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
           boxShadow: '0 -10px 40px rgba(0,0,0,0.5)',
         }}
       >

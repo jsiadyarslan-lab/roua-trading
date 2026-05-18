@@ -1034,15 +1034,15 @@ export default function MobileHomePage() {
   }, [syncFromDB])
 
   return (
-    <div style={{ 
-      background: '#0B0E14', 
-      direction: 'rtl', 
-      /* CSS Grid layout: navbar is in its own grid row — no padding
-         needed for navbar clearance. Content fills the grid cell. */
+    <div style={{
+      background: '#0B0E14',
+      direction: 'rtl',
       position: 'relative',
       overflowX: 'hidden',
+      overflowY: 'auto',
       width: '100%',
-      minHeight: '100%',
+      height: '100%',
+      WebkitOverflowScrolling: 'touch',
     }}>
       {/* ── Ambient Sentiment Glow ── */}
       <motion.div 

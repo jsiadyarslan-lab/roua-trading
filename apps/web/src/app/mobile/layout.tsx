@@ -41,6 +41,31 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 }
 
+/**
+ * MOBILE LAYOUT — REBUILT FROM SCRATCH (v4)
+ *
+ * Architecture:
+ * ┌─────────────────────────┐
+ * │    <main> flex:1        │  ← All page content lives here
+ * │    overflow: hidden     │     Chart fills with position:absolute;inset:0
+ * │    position: relative   │     Scrollable pages use overflow-y:auto
+ * │                         │
+ * │                         │
+ * ├─────────────────────────┤
+ * │  <nav> height: 48px    │  ← Fixed 48px. NOTHING else.
+ * │  flex-shrink: 0        │     No padding, no margin, no safe-area.
+ * ├─────────────────────────┤
+ * │  safe-area spacer       │  ← env(safe-area-inset-bottom) only
+ * │  background: #0B0E14   │     Separated so it can't affect nav height
+ * └─────────────────────────┘
+ *
+ * KEY PRINCIPLES:
+ * 1. Navbar is EXACTLY 48px — no content-box surprise, no padding overflow
+ * 2. Chart canvas in <main> CANNOT overlap navbar — flex boundary is hard
+ * 3. Safe-area is a SEPARATE element — cannot inflate navbar height
+ * 4. No z-index between main and nav — flex order handles stacking
+ * 5. Navbar has touch-action:manipulation for instant touch response
+ */
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
   return (
     <MarketProvider>
@@ -51,25 +76,8 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <MobileToastOverlay />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        {/*
-          ═══════════════════════════════════════════════════════════
-          RADICAL REDESIGN v3: Flexbox column layout
 
-          Previous attempts:
-          - v1: position:absolute + z-index → chart stole touch events
-          - v2: CSS Grid → never reached production (Docker cache)
-
-          v3 approach: Simple Flexbox column.
-          - Container: 100dvh flex column
-          - <main>: flex:1 (takes remaining space)
-          - <nav>: flex-shrink:0 (fixed at bottom)
-
-          The flex boundary between main and nav is a HARD WALL.
-          Chart canvas inside <main> CANNOT capture touch events
-          in the <nav> area because they're in separate flex items.
-          No z-index, no position:absolute, no hacks.
-          ═══════════════════════════════════════════════════════════
-        */}
+        {/* ═══ ROOT CONTAINER ═══ */}
         <div
           style={{
             position: 'fixed',
@@ -82,39 +90,47 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             maxWidth: 480,
             width: '100%',
             margin: '0 auto',
-            overflow: 'hidden',
             display: 'flex',
             flexDirection: 'column',
-          } as React.CSSProperties}
-          data-layout-v="v3-flexbox"
+            overflow: 'hidden',
+          }}
         >
-          {/*
-            <main>: flex:1 takes all remaining space above the navbar.
-            minHeight:0 prevents flex from expanding beyond the container.
-            Chart pages fill this with position:absolute;inset:0.
-            Scrollable pages use overflow-y:auto.
-            NO paddingBottom needed — flex boundary is a hard wall.
+          {/* ═══ CONTENT AREA ═══
+              flex:1 takes ALL remaining space.
+              minHeight:0 prevents flex from pushing navbar off screen.
+              overflow:hidden prevents chart from bleeding into navbar area.
+              position:relative for absolute children (chart pages).
           */}
           <main
             style={{
               flex: 1,
               minHeight: 0,
               position: 'relative',
-              overflowY: 'auto',
-              overflowX: 'hidden',
-              WebkitOverflowScrolling: 'touch',
-              overscrollBehaviorY: 'contain',
+              overflow: 'hidden',
             }}
           >
             {children}
           </main>
-          {/*
-            <MobileNavBar>: flex-shrink:0 means it NEVER shrinks.
-            It's always at the bottom, exactly its natural height.
-            The flex boundary is a HARD WALL — chart canvas in <main>
-            CANNOT capture touch events here. Every tap → navbar.
+
+          {/* ═══ NAVBAR ═══
+              Fixed 48px height. flex-shrink:0 ensures it never shrinks.
+              The flex boundary between <main> and <nav> is a HARD WALL.
+              Chart canvas inside <main> CANNOT capture events in this area.
           */}
           <MobileNavBar />
+
+          {/* ═══ SAFE AREA SPACER ═══
+              SEPARATE element so it can NEVER inflate the navbar height.
+              On iPhones with home indicator, this adds ~34px at the bottom.
+              On devices without, env() returns 0 and this collapses.
+          */}
+          <div
+            style={{
+              flexShrink: 0,
+              height: 'env(safe-area-inset-bottom, 0px)',
+              background: '#0B0E14',
+            }}
+          />
         </div>
       </AuthGuard>
     </MarketProvider>

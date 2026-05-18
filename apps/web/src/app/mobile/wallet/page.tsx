@@ -641,7 +641,7 @@ export default function MobileWalletPage() {
   // position:fixed). Also removed paddingBottom for navbar since the layout already
   // handles navbar spacing via the flex boundary between <main> and <MobileNavBar>.
   return (
-    <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%' }}>
+    <div style={{ height: '100%', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', overflowY: 'auto', width: '100%', WebkitOverflowScrolling: 'touch' }}>
       {/* ── Header ── */}
       <div style={{
         padding: 'calc(env(safe-area-inset-top, 20px) + 12px) 16px 16px',

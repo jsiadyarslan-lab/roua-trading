@@ -375,7 +375,7 @@ export function PortfolioMini({
                   ${fmt(ex.equity, 2)}
                 </span>
                 {ex.error && (
-                  <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }}>
+                  <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>
                     ⚠ خطأ
                   </span>
                 )}

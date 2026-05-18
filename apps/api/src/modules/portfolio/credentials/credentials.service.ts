@@ -466,6 +466,8 @@ export class CredentialsService {
       usedMargin: number;
       assets: Array<{ currency: string; free: number; used: number; total: number }>;
       error?: string;
+      /** V164d: Raw error message from exchange (for diagnostics) */
+      errorDetail?: string;
     }>;
     /** V162: Indicates that ALL real exchanges failed — frontend should show error, not silently use paper balance */
     allRealExchangesFailed?: boolean;
@@ -825,6 +827,8 @@ export class CredentialsService {
     usedMargin: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
+    /** V164d: Raw error detail for diagnostics */
+    errorDetail?: string;
   }> {
     const isBinance = exchange.toLowerCase().startsWith('binance');
     const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test';
@@ -923,7 +927,7 @@ export class CredentialsService {
 
     if (lastError && !balance) {
       const errMsg = lastError;
-      this.logger.warn(`⚠️ Balance fetch failed for ${exchange}/${label} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
+      this.logger.warn(`⚠️ V164d Balance fetch failed for ${exchange}/${label} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
 
       // If the error is a timeout or connection issue, return with error but don't crash
       if (errMsg.includes('timeout') || errMsg.includes('ETIMEDOUT') || errMsg.includes('ECONNREFUSED') ||
@@ -932,6 +936,8 @@ export class CredentialsService {
           exchange, label, credentialId, isTestnet,
           equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
           error: `تعذر الاتصال بالبورصة — يرجى المحاولة لاحقاً`,
+          // V164d: Include the raw error for frontend diagnostic display
+          errorDetail: errMsg.substring(0, 200),
         };
       }
 
@@ -941,6 +947,8 @@ export class CredentialsService {
           exchange, label, credentialId, isTestnet,
           equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
           error: `مفتاح API غير صالح أو منتهي الصلاحية — يرجى حذفه وإضافته مرة أخرى`,
+          // V164d: Include raw error — this will reveal if it's IP whitelist, bad key, etc.
+          errorDetail: errMsg.substring(0, 200),
         };
       }
 
@@ -949,6 +957,7 @@ export class CredentialsService {
         exchange, label, credentialId, isTestnet,
         equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
         error: `خطأ في جلب الرصيد: ${errMsg.substring(0, 100)}`,
+        errorDetail: errMsg.substring(0, 200),
       };
     }
 

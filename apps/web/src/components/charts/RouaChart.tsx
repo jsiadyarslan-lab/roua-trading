@@ -1105,23 +1105,27 @@ export default function RouaChart({
         const markers = convertToChartMarkers(signals, briefs, selectedSymbol);
         setSignalMarkers(markers);
 
-        // Add SL/TP price lines for signals
-        signals.forEach((signal: any) => {
-          const normalizeSymbolLocal = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
-          const chartSymbol = normalizeSymbolLocal(selectedSymbol);
-          const sigSymbol = normalizeSymbolLocal(signal.pair || signal.symbol || '');
-          if (!sigSymbol.includes(chartSymbol) && !chartSymbol.includes(sigSymbol)) return;
+        // Add SL/TP price lines for signals (desktop only — mobile skips
+        // auto-drawn lines to keep the chart clean; only the red current-price
+        // line and user-initiated position lines should appear on mobile)
+        if (!mobile) {
+          signals.forEach((signal: any) => {
+            const normalizeSymbolLocal = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
+            const chartSymbol = normalizeSymbolLocal(selectedSymbol);
+            const sigSymbol = normalizeSymbolLocal(signal.pair || signal.symbol || '');
+            if (!sigSymbol.includes(chartSymbol) && !chartSymbol.includes(sigSymbol)) return;
 
-          const sl = Number(signal.stopLoss || 0);
-          const tp = Number(signal.takeProfit || 0);
-          const signalId = signal.id || `${signal.createdAt}-${signal.action}`;
-          if (sl > 0) {
-            chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', '', 1, 2, false);
-          }
-          if (tp > 0) {
-            chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', '', 1, 2, false);
-          }
-        });
+            const sl = Number(signal.stopLoss || 0);
+            const tp = Number(signal.takeProfit || 0);
+            const signalId = signal.id || `${signal.createdAt}-${signal.action}`;
+            if (sl > 0) {
+              chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', '', 1, 2, false);
+            }
+            if (tp > 0) {
+              chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', '', 1, 2, false);
+            }
+          });
+        }
       } catch {
         // Signals not available
       }

@@ -999,7 +999,8 @@ export class StrategicCouncilService {
         this.logger.log(`🏛️ Technical override: AI said HOLD for ${pair} ${timeframe}, but momentum shows ${technicalOverride.recommendation}`);
         // Create brief using technical analysis
         const direction: BriefDirection = technicalOverride.recommendation === 'BUY' ? 'BUY' : 'SELL';
-        const { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(currentPrice, direction, timeframe);
+        let { entryPrice, stopLoss, takeProfit, strictRules } = this._calculateLevels(currentPrice, direction, timeframe);
+        ({ stopLoss, takeProfit } = this._validateAndFixLevels(direction, entryPrice, stopLoss, takeProfit, timeframe));
 
         if (existingBrief) {
           const sameDirection = existingBrief.direction === direction;
@@ -1456,6 +1457,26 @@ export class StrategicCouncilService {
     };
 
     return { entryPrice, stopLoss, takeProfit, strictRules };
+  }
+
+  private _validateAndFixLevels(
+    direction: BriefDirection,
+    entryPrice: number,
+    stopLoss: number,
+    takeProfit: number,
+    timeframe: BriefTimeframe,
+  ): { stopLoss: number; takeProfit: number } {
+    const { sl, tp } = TIMEFRAME_RR[timeframe];
+    const valid = direction === 'BUY'
+      ? stopLoss < entryPrice && takeProfit > entryPrice
+      : stopLoss > entryPrice && takeProfit < entryPrice;
+    if (!valid) {
+      this.logger.warn(`🏛️ SL/TP invalid for ${direction} @ ${entryPrice}: SL=${stopLoss} TP=${takeProfit} — recalculating`);
+      return direction === 'BUY'
+        ? { stopLoss: entryPrice * (1 - sl), takeProfit: entryPrice * (1 + tp) }
+        : { stopLoss: entryPrice * (1 + sl), takeProfit: entryPrice * (1 - tp) };
+    }
+    return { stopLoss, takeProfit };
   }
 
   /**

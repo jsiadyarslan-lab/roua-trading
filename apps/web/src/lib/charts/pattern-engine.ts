@@ -707,8 +707,174 @@ export function detectHeadAndShoulders(
   return patterns;
 }
 
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MAIN ENGINE — runs all Phase 1+2 detectors
+// PHASE 3: Harmonic XABCD Patterns
+// Gartley / Bat / Butterfly / Crab (Scott Carney ratios)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+interface HarmonicRatios {
+  XAB:  [number, number]; // AB/XA range
+  ABC:  [number, number]; // BC/AB range
+  BCD:  [number, number]; // CD/BC range
+  XAD:  [number, number]; // AD/XA range (D point Fibonacci level)
+  precision: number;      // tolerance ±
+}
+
+const HARMONIC_PATTERNS: Record<string, HarmonicRatios> = {
+  'Gartley': {
+    XAB:  [0.618, 0.618], // exact 0.618
+    ABC:  [0.382, 0.886],
+    BCD:  [1.27, 1.618],
+    XAD:  [0.786, 0.786], // D = 0.786 of XA
+    precision: 0.05,
+  },
+  'Bat': {
+    XAB:  [0.382, 0.500],
+    ABC:  [0.382, 0.886],
+    BCD:  [1.618, 2.618],
+    XAD:  [0.886, 0.886], // D = 0.886 of XA
+    precision: 0.05,
+  },
+  'Butterfly': {
+    XAB:  [0.786, 0.786], // exact 0.786
+    ABC:  [0.382, 0.886],
+    BCD:  [1.618, 2.618],
+    XAD:  [1.27, 1.41],   // D extends beyond XA
+    precision: 0.05,
+  },
+  'Crab': {
+    XAB:  [0.382, 0.618],
+    ABC:  [0.382, 0.886],
+    BCD:  [2.618, 3.618],
+    XAD:  [1.618, 1.618], // exact 1.618 extension
+    precision: 0.05,
+  },
+};
+
+function inRange(value: number, min: number, max: number, precision: number): boolean {
+  const lo = Math.min(min, max) - precision;
+  const hi = Math.max(min, max) + precision;
+  return value >= lo && value <= hi;
+}
+
+export function detectHarmonics(
+  candles: CandleData[],
+  pivots?: SwingPoint[]
+): DetectedPattern[] {
+  const swings = pivots || detectZigZag(candles);
+  const patterns: DetectedPattern[] = [];
+  if (swings.length < 5) return patterns;
+
+  const barDuration = candles.length > 1
+    ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+
+  // Try all consecutive 5-point windows in swing points
+  for (let i = 0; i <= swings.length - 5; i++) {
+    const [X, A, B, C, D] = swings.slice(i, i + 5);
+
+    // Must alternate high/low: X-A different, A-B different, etc.
+    if (X.type === A.type || A.type === B.type || B.type === C.type || C.type === D.type) continue;
+
+    const XA = Math.abs(A.price - X.price);
+    const AB = Math.abs(B.price - A.price);
+    const BC = Math.abs(C.price - B.price);
+    const CD = Math.abs(D.price - C.price);
+    const XD = Math.abs(D.price - X.price);
+
+    if (XA < 0.0001 || AB < 0.0001 || BC < 0.0001 || CD < 0.0001) continue;
+
+    const ratioXAB = AB / XA;
+    const ratioABC = BC / AB;
+    const ratioBCD = CD / BC;
+    const ratioXAD = XD / XA;
+
+    // Determine direction: bullish if X is lower than A
+    const isBullish = X.price < A.price;
+
+    for (const [patternName, ratios] of Object.entries(HARMONIC_PATTERNS)) {
+      const p = ratios.precision;
+      if (!inRange(ratioXAB, ratios.XAB[0], ratios.XAB[1], p)) continue;
+      if (!inRange(ratioABC, ratios.ABC[0], ratios.ABC[1], p)) continue;
+      if (!inRange(ratioBCD, ratios.BCD[0], ratios.BCD[1], p)) continue;
+      if (!inRange(ratioXAD, ratios.XAD[0], ratios.XAD[1], p + 0.03)) continue;
+
+      // Calculate PRZ (Potential Reversal Zone)
+      const przPrice = D.price;
+      const przRange = przPrice * 0.015; // ±1.5% around D
+
+      const direction: PatternDirection = isBullish ? 'bullish' : 'bearish';
+
+      const forecast: ForecastZone = {
+        priceMin: isBullish ? przPrice + XA * 0.382 : przPrice - XA * 0.382,
+        priceMax: isBullish ? przPrice + XA * 0.618 : przPrice - XA * 0.618,
+        timeFrom: D.time + barDuration * 3,
+        timeTo:   D.time + barDuration * Math.round((D.index - X.index) * 0.5),
+        probability: Math.round(65 + (1 - Math.abs(ratioXAB - ratios.XAB[0])) * 10),
+      };
+
+      // Quality: how precisely the ratios match
+      const xabDeviation = Math.abs(ratioXAB - (ratios.XAB[0] + ratios.XAB[1]) / 2) / ratios.XAB[0];
+      const xadDeviation = Math.abs(ratioXAD - ratios.XAD[0]) / ratios.XAD[0];
+      const overallDev = (xabDeviation + xadDeviation) / 2;
+
+      const quality: QualityScore = {
+        clarity: Math.max(1, Math.min(10, Math.round((1 - xabDeviation * 5) * 10))),
+        uniformity: Math.max(1, Math.min(10, Math.round((1 - xadDeviation * 3) * 10))),
+        initialTrend: 7,
+        overall: Math.max(1, Math.min(10, Math.round((1 - overallDev * 2) * 10))),
+      };
+
+      if (quality.overall < 5) continue;
+
+      patterns.push({
+        id: `harmonic-${patternName.toLowerCase()}-${X.time}`,
+        type: `${patternName} ${isBullish ? '(Bullish)' : '(Bearish)'}`,
+        direction,
+        status: 'completed',
+        points: [
+          { time: X.time, price: X.price, label: 'X' },
+          { time: A.time, price: A.price, label: 'A' },
+          { time: B.time, price: B.price, label: 'B' },
+          { time: C.time, price: C.price, label: 'C' },
+          { time: D.time, price: D.price, label: 'D (PRZ)' },
+        ],
+        resistanceLine: isBullish ? undefined : {
+          p1: { time: X.time, price: X.price, label: 'X' },
+          p2: { time: A.time, price: A.price, label: 'A' },
+        },
+        supportLine: isBullish ? {
+          p1: { time: X.time, price: X.price, label: 'X' },
+          p2: { time: A.time, price: A.price, label: 'A' },
+        } : undefined,
+        forecast,
+        quality,
+        patternHeight: XA,
+        breakoutPrice: przPrice,
+        timeStart: X.time,
+        timeEnd: D.time,
+      });
+
+      // Only match one pattern per window
+      break;
+    }
+  }
+
+  // Deduplicate: keep highest quality per time window
+  const unique = new Map<string, DetectedPattern>();
+  for (const p of patterns) {
+    const key = `${p.timeStart}-${p.timeEnd}`;
+    const existing = unique.get(key);
+    if (!existing || p.quality.overall > existing.quality.overall) {
+      unique.set(key, p);
+    }
+  }
+
+  return Array.from(unique.values());
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIN ENGINE — runs all Phase 1+2+3 detectors
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export function runPatternEngine(
   candles: CandleData[],
@@ -726,6 +892,7 @@ export function runPatternEngine(
     ...detectChannels(candles, pivots),
     ...detectWedges(candles, pivots),
     ...detectHeadAndShoulders(candles, pivots),
+    ...detectHarmonics(candles, pivots),
   ].filter(p => p.quality.overall >= minQ)
    .sort((a, b) => b.quality.overall - a.quality.overall)
    .slice(0, 10); // max 10 patterns at once

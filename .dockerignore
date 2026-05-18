@@ -9,6 +9,7 @@ dist
 **/dist
 .turbo
 **/.turbo
+**/tsconfig.tsbuildinfo
 
 # Git
 .git

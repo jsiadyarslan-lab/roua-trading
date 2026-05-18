@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ChevronRight, Wallet, TrendingUp, TrendingDown, Plus, Minus,
@@ -9,6 +9,7 @@ import {
   ArrowDownRight, Clock, CheckCircle, XCircle, Loader2,
   AlertTriangle, Zap, BarChart3, Send, Download, ArrowRightLeft,
   Banknote, PiggyBank, Receipt, Lock, Unlock, Globe2,
+  Calendar, ChevronDown, ChevronUp, FileDown, Filter,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
@@ -159,6 +160,7 @@ export default function MobileWalletPage() {
   const [depositAmount, setDepositAmount] = useState('')
   const [withdrawAmount, setWithdrawAmount] = useState('')
   const [txStatus, setTxStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
+  const [expandedPeriod, setExpandedPeriod] = useState<'daily' | 'weekly' | 'monthly' | 'all' | null>(null)
 
   // Positions data
   const [alpacaPositions, setAlpacaPositions] = useState<any[]>([])
@@ -553,6 +555,45 @@ export default function MobileWalletPage() {
     return prev > 0 ? ((curr - prev) / prev) * 100 : 0
   }, [chartData, account?.unrealizedPnlPct])
 
+  // ── P&L by time period (computed from closedTrades) ──
+  const pnlByPeriod = useMemo(() => {
+    const now = Date.now()
+    const startOfDay = new Date().setHours(0, 0, 0, 0)
+    const startOfWeek = new Date(now - (new Date().getDay() * 86400000)).setHours(0, 0, 0, 0)
+    const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime()
+
+    const periods = {
+      daily: { label: 'يومي', start: startOfDay, trades: [] as any[], pnl: 0, count: 0 },
+      weekly: { label: 'أسبوعي', start: startOfWeek, trades: [] as any[], pnl: 0, count: 0 },
+      monthly: { label: 'شهري', start: startOfMonth, trades: [] as any[], pnl: 0, count: 0 },
+      all: { label: 'كلي', start: 0, trades: [] as any[], pnl: 0, count: 0 },
+    }
+
+    closedTrades.forEach(t => {
+      const pnl = t.realizedPnl || 0
+      if (t.closeTime >= startOfDay) {
+        periods.daily.trades.push(t)
+        periods.daily.pnl += pnl
+        periods.daily.count++
+      }
+      if (t.closeTime >= startOfWeek) {
+        periods.weekly.trades.push(t)
+        periods.weekly.pnl += pnl
+        periods.weekly.count++
+      }
+      if (t.closeTime >= startOfMonth) {
+        periods.monthly.trades.push(t)
+        periods.monthly.pnl += pnl
+        periods.monthly.count++
+      }
+      periods.all.trades.push(t)
+      periods.all.pnl += pnl
+      periods.all.count++
+    })
+
+    return periods
+  }, [closedTrades])
+
   // ── Time formatter ──
   const formatTime = (ts: number) => {
     const d = new Date(ts)
@@ -567,7 +608,7 @@ export default function MobileWalletPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%' }}>
+    <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%', paddingBottom: 'calc(70px + env(safe-area-inset-bottom))' }}>
       {/* ── Header ── */}
       <div style={{
         padding: 'calc(env(safe-area-inset-top, 20px) + 12px) 16px 16px',
@@ -750,6 +791,158 @@ export default function MobileWalletPage() {
           <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>تداول</span>
         </motion.button>
       </div>
+
+      {/* ── P&L by Period with Extract Buttons ── */}
+      <div style={{ margin: '0 16px 12px' }}>
+        <GlassCard>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+            <Calendar size={14} color={T.accent} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>أرباح وخسائر محققة</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {(['daily', 'weekly', 'monthly', 'all'] as const).map(period => {
+              const data = pnlByPeriod[period]
+              const isProfit = data.pnl >= 0
+              const isExpanded = expandedPeriod === period
+              return (
+                <div key={period}>
+                  <motion.div
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setExpandedPeriod(isExpanded ? null : period)}
+                    style={{
+                      padding: '12px 14px', borderRadius: 14,
+                      background: isExpanded ? `${isProfit ? T.success : T.danger}08` : 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${isExpanded ? (isProfit ? `${T.success}30` : `${T.danger}30`) : T.border}`,
+                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: 10,
+                        background: isProfit ? `${T.success}12` : `${T.danger}12`,
+                        border: `1px solid ${isProfit ? `${T.success}25` : `${T.danger}25`}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {isProfit ? <TrendingUp size={14} color={T.success} /> : <TrendingDown size={14} color={T.danger} />}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>{data.label}</span>
+                          <span style={{ fontSize: 9, padding: '1px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.06)', color: T.text2, fontFamily: T.font }}>{data.count} صفقة</span>
+                        </div>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: isProfit ? T.success : T.danger, fontFamily: T.mono }}>
+                          {showBalance ? (isProfit ? '+' : '-') + '$' + fmt(data.pnl) : '•••'}
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={(e) => { e.stopPropagation() }}
+                        style={{
+                          padding: '6px 10px', borderRadius: 10,
+                          background: `${T.accent}15`, border: `1px solid ${T.accent}30`,
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <FileDown size={11} color={T.accent} />
+                        <span style={{ fontSize: 9, fontWeight: 700, color: T.accent, fontFamily: T.font }}>استخراج</span>
+                      </motion.button>
+                      {isExpanded ? <ChevronUp size={14} color={T.text2} /> : <ChevronDown size={14} color={T.text2} />}
+                    </div>
+                  </motion.div>
+
+                  {/* Expanded trades list */}
+                  <AnimatePresence>
+                    {isExpanded && data.trades.length > 0 && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        <div style={{ padding: '8px 8px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {data.trades.slice(0, 10).map((t: any) => {
+                            const tProfit = (t.realizedPnl || 0) >= 0
+                            return (
+                              <div key={t.id} style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '8px 10px', borderRadius: 10,
+                                background: 'rgba(255,255,255,0.02)',
+                                border: `1px solid ${T.border}`,
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <div style={{ width: 6, height: 6, borderRadius: '50%', background: tProfit ? T.success : T.danger }} />
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: T.text, fontFamily: T.mono }}>{t.symbol}</span>
+                                  <span style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>{t.side === 'long' ? 'شراء' : 'بيع'}</span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 11, fontWeight: 700, color: tProfit ? T.success : T.danger, fontFamily: T.mono }}>
+                                    {tProfit ? '+' : '-'}${fmt(t.realizedPnl || 0)}
+                                  </span>
+                                  <span style={{ fontSize: 9, color: T.text3, fontFamily: T.font }}>
+                                    {new Date(t.closeTime).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                </div>
+                              </div>
+                            )
+                          })}
+                          {data.trades.length > 10 && (
+                            <div style={{ textAlign: 'center', padding: '6px 0' }}>
+                              <span style={{ fontSize: 10, color: T.text2, fontFamily: T.font }}>+{data.trades.length - 10} صفقات أخرى</span>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )
+            })}
+          </div>
+        </GlassCard>
+      </div>
+
+      {/* ── Closed Trades Summary ── (moved up higher) */}
+      {closedTrades.length > 0 && (
+        <div style={{ margin: '0 16px 12px' }}>
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <Receipt size={14} color={T.amber} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>آخر الصفقات المغلقة</span>
+              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${T.amber}15`, color: T.amber, fontFamily: T.font, fontWeight: 700 }}>{closedTrades.length}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {closedTrades.slice(0, 5).map(t => {
+                const isProfit = (t.realizedPnl || 0) >= 0
+                return (
+                  <div key={t.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: 10,
+                    background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isProfit ? <TrendingUp size={12} color={T.success} /> : <TrendingDown size={12} color={T.danger} />}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: T.mono }}>{t.symbol}</span>
+                      <span style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>{t.side === 'long' ? 'شراء' : 'بيع'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isProfit ? T.success : T.danger, fontFamily: T.mono }}>
+                        {isProfit ? '+' : '-'}${fmt(t.realizedPnl || 0)}
+                      </span>
+                      <span style={{ fontSize: 9, color: T.text3, fontFamily: T.font }}>
+                        {new Date(t.closeTime).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </GlassCard>
+        </div>
+      )}
 
       {/* ── Tab Switcher ── */}
       <div style={{ margin: '0 16px 12px', display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 14 }}>

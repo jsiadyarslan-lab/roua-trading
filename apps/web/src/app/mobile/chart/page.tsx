@@ -397,14 +397,18 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Use 100dvh to fill the full viewport, then subtract navbar height.
-         This ensures the chart takes maximum space regardless of parent
-         flex/padding issues. The navbar (56px + safe-area) is at the bottom
+      /* Fixed position fills the entire viewport, then subtract navbar height.
+         Using fixed ensures the chart always fills the screen regardless of
+         parent flex/padding. The navbar (56px + safe-area) is at the bottom
          of the viewport via MobileNavBar, so we must leave space for it. */
-      height: 'calc(var(--app-height, 100dvh) - 56px - env(safe-area-inset-bottom, 0px))',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
       background: '#0B0E14',
-      position: 'relative',
       overflow: 'hidden',
+      zIndex: 2,
     }}>
 
       {/* ═══════════════════════════════════════════════════

@@ -75,13 +75,6 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
                  height, enabling proper overflow scrolling. Without this, the main
                  area expands to fit all content and never scrolls. */
               minHeight: 0,
-              /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
-                 Must match MobileNavBar height (56px + safe-area-inset-bottom) to
-                 prevent content from being hidden behind the navbar.
-                 NOTE: The chart page (/mobile/chart) bypasses this by setting its own
-                 explicit height using calc(var(--app-height) - 56px - safe-area),
-                 so it doesn't rely on this padding. */
-              paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
@@ -92,6 +85,9 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             }}
           >
             {children}
+            {/* Spacer so the fixed MobileNavBar doesn't cover scrollable content.
+                NOT used by the chart page which manages its own full-viewport height. */}
+            <div style={{ height: 'calc(56px + env(safe-area-inset-bottom, 0px))', flexShrink: 0 }} />
           </main>
           <MobileNavBar />
         </div>

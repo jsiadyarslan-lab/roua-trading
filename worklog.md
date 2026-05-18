@@ -330,3 +330,28 @@ Stage Summary:
 - isDailyLimitReached() now: (1) only counts agent's own losses, (2) bypasses for paper-trading users
 - AgentControlMini "ورقي" badge now has tooltip explaining why (no active account selected)
 - Both fixes align Agent behavior with SmartExecutor and RiskGatekeeper
+---
+Task ID: 1
+Agent: Main Agent
+Task: V136 — Fix user isolation bugs: remove auto-enable, fix "ورقي" display, fix daily limit false positive
+
+Work Log:
+- Read and analyzed 4 critical source files: agent.service.ts, smart-executor.service.ts, auth.service.ts, risk-gatekeeper.service.ts
+- Discovered 7 isolation bugs where agent/executor iterated over ALL users instead of being scoped per-user
+- Identified ROOT CAUSE: AuthService auto-enabled Smart Executor for ALL users on login with isPaperTrading=true
+- Fixed AuthService: Removed auto-enable block (lines 385-426) that created phantom Redis/DB entries
+- Fixed SmartExecutor: Removed _autoRestoreFromDB() method and 60-second heartbeat
+- Fixed SmartExecutor: _getEnabledUsers() now only reads Redis (no DB fallback that restores all users)
+- Fixed SmartExecutor: Startup cleanup now clears stale DB executor user states
+- Fixed Agent: Added credential refresh on each cycle so isPaperTrading updates when user changes settings
+- Fixed RiskGatekeeper: syncSettingsFromDB() scoped to only global settings (riskConfig, botConfig)
+- Fixed purgePhantomPositions(): Added optional userId parameter
+- Verified NestJS build succeeds
+- Committed as V136 and pushed to main
+
+Stage Summary:
+- V136 committed and pushed: 5 files changed, 162 insertions, 178 deletions
+- Root cause of "ورقي" despite Binance: AuthService auto-enabled with isPaperTrading=true, stale state persisted
+- Root cause of "daily limit exceeded" with 0 trades: auto-enabled state had no activeCredentialId
+- Root cause of cross-user data leakage: _autoRestoreFromDB() + 60s heartbeat restored ALL users
+- All 3 issues fixed by: removing auto-enable, removing auto-restore, adding per-cycle credential refresh

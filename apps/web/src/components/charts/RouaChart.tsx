@@ -372,7 +372,6 @@ export default function RouaChart({
           unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
           // Run pattern engine after candles are updated
-          setTimeout(runPatternDetection, 300);
           // FIX: Use ref to avoid stale closure over chart.setCandles
           setCandlesRef.current(unique);
           // FIX: Auto-fit chart to show new timeframe data range.
@@ -429,7 +428,6 @@ export default function RouaChart({
       // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
       // Re-run pattern engine on realtime update (throttled)
-      if (candles.length % 10 === 0) setTimeout(runPatternDetection, 200);
       // FIX: Use ref to avoid stale closure
       setCandlesRef.current(candles);
       // FIX: Auto-fit after simulated data too

@@ -15,6 +15,16 @@
   --m-primary: #059669;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   CRITICAL: Override globals.css overflow:hidden on html/body
+   The dashboard needs overflow:hidden but mobile pages MUST scroll.
+   This is the #1 fix for scroll not working on mobile.
+   ═══════════════════════════════════════════════════════════ */
+html, body {
+  overflow: auto !important;
+  overscroll-behavior: none;
+}
+
 /* Page base — scrolls naturally, padding-bottom for navbar */
 .m-page {
   min-height: 100dvh;

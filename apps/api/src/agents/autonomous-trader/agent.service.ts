@@ -1180,7 +1180,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         paperBalance: parseFloat(this.configService.get('DEFAULT_PAPER_BALANCE', '10000')) || 10000,
         maxPositionSizePercent: parseFloat(this.configService.get('MAX_POSITION_SIZE_PERCENT', '2')) || 2,
         maxDailyLossPercent: parseFloat(this.configService.get('MAX_DAILY_LOSS_PERCENT', '5')) || 5,
-        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '15'), 10) || 15,  // V143: Increased from 5 to 15
+        maxOpenPositions: parseInt(this.configService.get('MAX_OPEN_POSITIONS', '20'), 10) || 20,  // V144: Increased from 15 to 20
         riskPerTradePercent: 1.5,
         defaultStrategy: StrategyType.AUTO,
         scalpingTimeframe: '5m',
@@ -1780,7 +1780,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             enabled: true,
             maxPositionSizePercent: 2,
             maxDailyLossPercent: 5,
-            maxOpenPositions: 15, // V143: 5→15
+            maxOpenPositions: 20, // V144: 15→20
             riskPerTradePercent: 1.5,
             strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
             symbols: this.DEFAULT_SYMBOLS,
@@ -1944,7 +1944,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 enabled: true,
                 maxPositionSizePercent: 2,
                 maxDailyLossPercent: 5,
-                maxOpenPositions: 15, // V143: 5→15
+                maxOpenPositions: 20, // V144: 15→20
                 riskPerTradePercent: 1.5,
                 strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
                 symbols: this.DEFAULT_SYMBOLS,

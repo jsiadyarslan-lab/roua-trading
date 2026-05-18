@@ -31,7 +31,7 @@ const DEFAULT_RISK_CONFIG = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '15',  // V143: Increased from 5 to 15 to match backend default
+  maxOpenPositions: '20',  // V144: Increased from 15 to 20 — global RiskGatekeeper limit
 }
 
 export async function GET(req: NextRequest) {
@@ -89,7 +89,7 @@ function mapToBotSettings(
     // ── Protection limits (the most critical settings) ──
     maxDailyLoss: -Math.abs(parseFloat(botConfig.maxDailyLoss || '2000')),
     maxDrawdown: parseFloat(riskConfig.maxDrawdown || '15'),
-    maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '15', 10), // V143: '5'→'15'
+    maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '20', 10), // V144: '5'→'15'→'20'
     stopLossDefault: parseFloat(riskConfig.stopLossDefault || '2'),
     takeProfitDefault: parseFloat(riskConfig.takeProfitDefault || '4'),
 

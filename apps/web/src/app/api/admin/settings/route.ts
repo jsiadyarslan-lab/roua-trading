@@ -30,7 +30,16 @@ const DEFAULT_RISK_CONFIG = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '15',  // V143: Increased from 5 to 15 to match backend default
+  maxOpenPositions: '20',  // V144: Increased from 15 to 20 — global RiskGatekeeper limit
+}
+
+const DEFAULT_AGENT_EXECUTOR_CONFIG = {
+  executorMaxOpenPositions: '15',
+  agentMaxOpenPositions: '15',
+  executorMinConfidence: '40',
+  executorRiskPerTrade: '1',
+  executorTickIntervalSec: '10',
+  agentAnalysisIntervalMin: '30',
 }
 
 const DEFAULT_PLATFORM_CONFIG = {
@@ -49,6 +58,7 @@ export async function GET(req: NextRequest) {
   const emptyResponse = () => ({
     botConfig: DEFAULT_BOT_CONFIG,
     riskConfig: DEFAULT_RISK_CONFIG,
+    agentExecutorConfig: DEFAULT_AGENT_EXECUTOR_CONFIG,
     platformConfig: DEFAULT_PLATFORM_CONFIG,
     apiKeys: [],
     error: 'قاعدة البيانات غير متاحة',
@@ -140,6 +150,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({
       botConfig: settingsMap.botConfig || DEFAULT_BOT_CONFIG,
       riskConfig: settingsMap.riskConfig || DEFAULT_RISK_CONFIG,
+      agentExecutorConfig: settingsMap.agentExecutorConfig || DEFAULT_AGENT_EXECUTOR_CONFIG,
       platformConfig: settingsMap.platformConfig || DEFAULT_PLATFORM_CONFIG,
       apiKeys,
     })
@@ -160,7 +171,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { botConfig, riskConfig, platformConfig } = body
+    const { botConfig, riskConfig, agentExecutorConfig, platformConfig } = body
 
     // Verify Setting table exists before attempting upsert
     // FIX: DDL (CREATE TABLE, ALTER TABLE) has been REMOVED from application code.
@@ -214,6 +225,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (agentExecutorConfig) {
+      upserts.push(
+        db.setting.upsert({
+          where: { key: 'agentExecutorConfig' },
+          update: { value: JSON.stringify(agentExecutorConfig) },
+          create: { key: 'agentExecutorConfig', value: JSON.stringify(agentExecutorConfig) },
+        })
+      )
+    }
+
     if (upserts.length === 0) {
       return NextResponse.json({ error: 'لم يتم توفير أي إعدادات للحفظ' }, { status: 400 })
     }
@@ -223,6 +244,7 @@ export async function POST(req: NextRequest) {
     console.log('[admin/settings] Settings saved successfully:', {
       botConfig: !!botConfig,
       riskConfig: !!riskConfig,
+      agentExecutorConfig: !!agentExecutorConfig,
       platformConfig: !!platformConfig,
     })
 

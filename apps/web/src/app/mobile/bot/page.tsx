@@ -313,7 +313,7 @@ export default function MobileBotPage() {
             isPaperTrading: selectedTradingMode.isPaper,
             credentialId: selectedTradingMode.credentialId,
             riskPerTradePercent: settings.riskPct || 1,
-            maxOpenPositions: 15,  // V143: Increased from 5 to 15 to match backend default
+            maxOpenPositions: 20,  // V144: Increased from 15 to 20 — global RiskGatekeeper limit
           }),
         })
         const data = await res.json()

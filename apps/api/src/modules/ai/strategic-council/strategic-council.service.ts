@@ -230,7 +230,7 @@ export class StrategicCouncilService {
       // All current users trade on Binance (binance_test). Future multi-
       // exchange support can filter per-user based on their exchange.
       // ═══════════════════════════════════════════════════════════════════
-      const agentPairs = BINANCE_SUPPORTED_PAIRS.slice(0, 5);
+      const agentPairs = BINANCE_SUPPORTED_PAIRS; // V144: Use ALL pairs (was slice(0, 5))
       this.logger.log(`🏛️ Agent Council: analyzing ${agentPairs.length} crypto pairs: ${agentPairs.join(', ')}`);
 
       // V132: Parallel processing — process all pairs concurrently instead of sequentially.

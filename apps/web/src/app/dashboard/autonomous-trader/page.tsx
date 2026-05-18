@@ -607,7 +607,7 @@ export default function AutonomousTraderPage() {
             icon={<Shield size={13} />}
             label="المراكز المفتوحة"
             value={String(positions.length)}
-            subValue={`الحد: ${config?.maxOpenPositions ?? 15}`}  // V143: Changed from 5 to 15
+            subValue={`الحد: ${config?.maxOpenPositions ?? 20}`}  // V144: Changed from 15 to 20
             color={T.purple}
           />
           <StatCard
@@ -1442,7 +1442,7 @@ export default function AutonomousTraderPage() {
       paperBalance: settings?.paperBalance ?? 10000,
       maxPositionSizePercent: settings?.maxPositionSizePercent ?? config?.maxPositionSizePercent ?? 2,
       maxDailyLossPercent: settings?.maxDailyLossPercent ?? config?.maxDailyLossPercent ?? 5,
-      maxOpenPositions: settings?.maxOpenPositions ?? config?.maxOpenPositions ?? 15,  // V143: Changed from 5 to 15
+      maxOpenPositions: settings?.maxOpenPositions ?? config?.maxOpenPositions ?? 20,  // V144: Changed from 15 to 20
       riskPerTradePercent: settings?.riskPerTradePercent ?? config?.riskPerTradePercent ?? 1.5,
       defaultStrategy: settings?.defaultStrategy ?? 'AUTO',
       scalpingTimeframe: settings?.scalpingTimeframe ?? '5m',

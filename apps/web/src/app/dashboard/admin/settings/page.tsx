@@ -49,6 +49,15 @@ interface RiskConfig {
   maxOpenPositions: string
 }
 
+interface AgentExecutorConfig {
+  executorMaxOpenPositions: string
+  agentMaxOpenPositions: string
+  executorMinConfidence: string
+  executorRiskPerTrade: string
+  executorTickIntervalSec: string
+  agentAnalysisIntervalMin: string
+}
+
 interface PlatformConfig {
   maintenanceMode: boolean
   registrationOpen: boolean
@@ -72,7 +81,16 @@ const DEFAULT_RISK_CONFIG: RiskConfig = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '15',  // V143: Increased from 5 to 15 to match backend default
+  maxOpenPositions: '20',  // V144: Increased from 15 to 20 — this is the GLOBAL limit that RiskGatekeeper uses
+}
+
+const DEFAULT_AGENT_EXECUTOR_CONFIG: AgentExecutorConfig = {
+  executorMaxOpenPositions: '15',   // Max concurrent positions for Smart Executor
+  agentMaxOpenPositions: '15',      // Max concurrent positions for Agent
+  executorMinConfidence: '40',      // Minimum confidence % for executor to execute a brief
+  executorRiskPerTrade: '1',        // Risk % per trade for executor
+  executorTickIntervalSec: '10',    // How often executor checks for new briefs (seconds)
+  agentAnalysisIntervalMin: '30',   // How often agent runs analysis (minutes)
 }
 
 const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
@@ -111,6 +129,9 @@ export default function AdminSettingsPage() {
   // Risk Management
   const [riskConfig, setRiskConfig] = useState<RiskConfig>(DEFAULT_RISK_CONFIG)
 
+  // Agent & Executor Settings
+  const [agentExecutorConfig, setAgentExecutorConfig] = useState<AgentExecutorConfig>(DEFAULT_AGENT_EXECUTOR_CONFIG)
+
   // Platform Settings
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(DEFAULT_PLATFORM_CONFIG)
 
@@ -135,6 +156,7 @@ export default function AdminSettingsPage() {
         const data = await res.json()
         if (data.botConfig) setBotConfig(data.botConfig)
         if (data.riskConfig) setRiskConfig(data.riskConfig)
+        if (data.agentExecutorConfig) setAgentExecutorConfig(data.agentExecutorConfig)
         if (data.platformConfig) setPlatformConfig(data.platformConfig)
         if (data.apiKeys && data.apiKeys.length > 0) {
           setApiKeys(data.apiKeys.map((k: any) => ({
@@ -185,7 +207,7 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botConfig, riskConfig, platformConfig }),
+        body: JSON.stringify({ botConfig, riskConfig, agentExecutorConfig, platformConfig }),
       })
 
       // Check for auth errors first
@@ -528,6 +550,110 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Agent & Executor Settings — V144 */}
+          <div style={{ ...CARD_STYLE, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Bot size={14} color={COLORS.accent} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>إعدادات الوكيل والمنفذ</span>
+            </div>
+            <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginBottom: 14, lineHeight: 1.6 }}>
+              تحكم بعدد الصفقات المفتوحة وإعدادات المخاطر لكل من الوكيل (التحليل التلقائي) والمنفذ (التنفيذ الذكي).
+              <br />
+              <span style={{ color: COLORS.amber }}>تنبيه:</span> الحد الأقصى للمراكز المفتوحة في إدارة المخاطر أعلاه هو الحد العام الذي يتحكم فيه حارس المخاطر. يجب أن يكون أكبر من أو يساوي مجموع حد الوكيل وحد المنفذ.
+            </div>
+
+            {/* Executor Section */}
+            <div style={{ marginBottom: 16, padding: '10px 12px', borderRadius: 8, background: 'rgba(0,229,255,0.04)', border: `1px solid ${COLORS.accent}15` }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.accent, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>
+                ⚔️ المنفذ الذكي (Smart Executor)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { key: 'executorMaxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة', min: 1, max: 50 },
+                  { key: 'executorMinConfidence', label: 'الحد الأدنى للثقة (%)', min: 10, max: 90 },
+                  { key: 'executorRiskPerTrade', label: 'المخاطرة لكل صفقة (%)', min: 0.1, max: 10 },
+                  { key: 'executorTickIntervalSec', label: 'فاصل الفحص (ثانية)', min: 5, max: 120 },
+                ].map(field => (
+                  <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="range"
+                        min={field.min}
+                        max={field.max}
+                        step={field.key === 'executorRiskPerTrade' ? 0.1 : 1}
+                        value={agentExecutorConfig[field.key as keyof typeof agentExecutorConfig]}
+                        onChange={e => setAgentExecutorConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        style={{ flex: 1, accentColor: COLORS.accent }}
+                      />
+                      <input
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        step={field.key === 'executorRiskPerTrade' ? 0.1 : 1}
+                        value={agentExecutorConfig[field.key as keyof typeof agentExecutorConfig]}
+                        onChange={e => setAgentExecutorConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        style={{
+                          width: 60, padding: '6px 8px', borderRadius: 6,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text, fontSize: 11,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          outline: 'none', textAlign: 'center',
+                        }}
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Agent Section */}
+            <div style={{ padding: '10px 12px', borderRadius: 8, background: 'rgba(168,85,247,0.04)', border: '1px solid rgba(168,85,247,0.1)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#a855f7', fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>
+                🤖 الوكيل (Agent)
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {[
+                  { key: 'agentMaxOpenPositions', label: 'الحد الأقصى للمراكز المفتوحة', min: 1, max: 50 },
+                  { key: 'agentAnalysisIntervalMin', label: 'فاصل التحليل (دقيقة)', min: 5, max: 240 },
+                ].map(field => (
+                  <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="range"
+                        min={field.min}
+                        max={field.max}
+                        step={1}
+                        value={agentExecutorConfig[field.key as keyof typeof agentExecutorConfig]}
+                        onChange={e => setAgentExecutorConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        style={{ flex: 1, accentColor: '#a855f7' }}
+                      />
+                      <input
+                        type="number"
+                        min={field.min}
+                        max={field.max}
+                        value={agentExecutorConfig[field.key as keyof typeof agentExecutorConfig]}
+                        onChange={e => setAgentExecutorConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                        style={{
+                          width: 60, padding: '6px 8px', borderRadius: 6,
+                          background: 'rgba(255,255,255,0.03)',
+                          border: `1px solid ${COLORS.border}`,
+                          color: COLORS.text, fontSize: 11,
+                          fontFamily: "'JetBrains Mono', monospace",
+                          outline: 'none', textAlign: 'center',
+                        }}
+                        dir="ltr"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 

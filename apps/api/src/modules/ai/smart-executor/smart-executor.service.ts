@@ -1321,6 +1321,24 @@ export class SmartExecutorService implements OnModuleDestroy {
     };
 
     try {
+      // V144: Also read global agentExecutorConfig from admin settings
+      let globalExecutorMaxPositions: number | undefined;
+      let globalExecutorMinConfidence: number | undefined;
+      let globalExecutorRiskPerTrade: number | undefined;
+      try {
+        const agentExecSetting = await this.prisma.setting.findFirst({
+          where: { key: 'agentExecutorConfig' },
+        });
+        if (agentExecSetting) {
+          const parsed = JSON.parse(agentExecSetting.value);
+          if (parsed.executorMaxOpenPositions) globalExecutorMaxPositions = parseInt(parsed.executorMaxOpenPositions, 10);
+          if (parsed.executorMinConfidence) globalExecutorMinConfidence = parseInt(parsed.executorMinConfidence, 10);
+          if (parsed.executorRiskPerTrade) globalExecutorRiskPerTrade = parseFloat(parsed.executorRiskPerTrade);
+        }
+      } catch (globalErr: any) {
+        this.logger.debug(`⚔️ V144: Could not read global agentExecutorConfig: ${globalErr.message}`);
+      }
+
       const settings = await this.prisma.setting.findMany({
         where: { key: { startsWith: `user:${userId}:` } },
       });
@@ -1344,8 +1362,8 @@ export class SmartExecutorService implements OnModuleDestroy {
               // Upgrading it here prevents the "refresh risk settings" code from
               // downgrading the auto-migrated 15 back to 5 on every tick.
               if (val <= 5) {
-                val = this.config.maxOpenPositions; // 15
-                // Also update the DB setting so next read returns 15
+                val = globalExecutorMaxPositions || this.config.maxOpenPositions; // 15
+                // Also update the DB setting so next read returns the new value
                 this.prisma.setting.upsert({
                   where: { key: `user:${userId}:userMaxOpenPositions` },
                   update: { value: String(val) },
@@ -1354,7 +1372,7 @@ export class SmartExecutorService implements OnModuleDestroy {
               }
               return val;
             })()
-          : defaults.maxOpenPositions,
+          : (globalExecutorMaxPositions || defaults.maxOpenPositions),
         maxDailyLossPercent: map.userMaxDailyLoss
           ? Math.max(1, Math.min(50, parseFloat(map.userMaxDailyLoss)))
           : defaults.maxDailyLossPercent,
@@ -1685,8 +1703,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     // locks just to count open positions. A simple Prisma count()
     // is faster, simpler, and has no deadlock risk.
     // ═══════════════════════════════════════════════════════════
-    const maxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
+    const executorMaxPositions = userState.maxOpenPositions || this.config.maxOpenPositions;
     let openPositionsCount = 0;
+    let totalOpenPositionsCount = 0; // V144: Also count ALL positions for RiskGatekeeper awareness
     try {
       // V141 FIX: Only count THIS system's own positions (smart_executor + auto_paper).
       // Previously counted ALL positions including Agent positions, which meant:
@@ -1697,20 +1716,48 @@ export class SmartExecutorService implements OnModuleDestroy {
       openPositionsCount = await this.prisma.position.count({
         where: { userId, status: 'OPEN', entryPrice: { gt: 0 }, source: { in: ['smart_executor', 'auto_paper'] } },
       });
+      // V144: Also count ALL positions (all sources) — this is what the RiskGatekeeper
+      // will check. If total positions >= RG's maxOpenPositions, the order will be
+      // rejected by the RiskGatekeeper even though our executor count says we have room.
+      // By checking both limits here, we can skip briefs early and log the real reason.
+      totalOpenPositionsCount = await this.prisma.position.count({
+        where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
+      });
     } catch (dbErr: any) {
       this.logger.warn(`⚔️ V134 Failed to count open positions for ${userId}: ${dbErr.message}`);
     }
 
-    if (openPositionsCount >= maxPositions && !isSimulated) {
+    // ═══════════════════════════════════════════════════════════════════
+    // V144: Use the EFFECTIVE max positions = MIN(executor limit, RiskGatekeeper limit)
+    // The RiskGatekeeper will REJECT any order that would exceed its limit,
+    // regardless of what the executor thinks. By pre-checking here, we:
+    //   1. Avoid wasting AI API calls on briefs that can't be executed
+    //   2. Log the REAL reason trades are being blocked
+    //   3. Give the user clear feedback about which limit is binding
+    // ═══════════════════════════════════════════════════════════════════
+    const rgParams = this.riskGatekeeper.getRiskParameters();
+    const rgMaxPositions = rgParams.maxOpenPositions;
+    const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
+
+    if (openPositionsCount >= executorMaxPositions && !isSimulated) {
       this.logger.debug(
-        `⚔️ User ${userId} at max positions (${openPositionsCount}/${maxPositions}) — skipping all briefs`,
+        `⚔️ User ${userId} at EXECUTOR max positions (${openPositionsCount}/${executorMaxPositions}) — skipping all briefs`,
       );
       return;
     }
 
+    if (totalOpenPositionsCount >= rgMaxPositions && !isSimulated) {
+      this.logger.warn(
+        `⚔️ V144: User ${userId} at RISK GATEKEEPER max positions (total=${totalOpenPositionsCount}/${rgMaxPositions}, executor=${openPositionsCount}/${executorMaxPositions}) — RiskGatekeeper would REJECT new trades. ` +
+        `Consider increasing riskConfig.maxOpenPositions in admin settings.`
+      );
+      // Don't return — the executor might still try (some briefs might close positions first)
+      // But log clearly so the admin knows the real bottleneck.
+    }
+
     // V124 FIX: Auto-close stale positions for SIMULATED accounts (paper + testnet).
     // Simulated accounts use virtual funds, so closing stale positions is safe.
-    if (openPositionsCount >= maxPositions && isSimulated) {
+    if (openPositionsCount >= executorMaxPositions && isSimulated) {
       try {
         // FIX: Reduced from 4 hours to 1 hour — paper trading positions should
         // rotate faster to demonstrate the platform's capabilities. A 4-hour
@@ -2265,9 +2312,29 @@ export class SmartExecutorService implements OnModuleDestroy {
         } else {
           // For other failures (risk check, SL missing, etc.) — don't mark as processed,
           // brief can be retried on the next tick if conditions change
-          this.logger.warn(
-            `⚔️ Brief ${brief.id} execution FAILED for user ${userId}: ${result.error} — will retry on next tick`,
-          );
+          // V144: Enhanced logging for RiskGatekeeper POSITION_SIZE_LIMIT rejections
+          const isPositionLimitRejection = result.error?.includes('مركز مفتوح') ||
+            result.error?.includes('POSITION_SIZE_LIMIT') ||
+            result.error?.includes('الحد الأقصى');
+          if (isPositionLimitRejection) {
+            const rgParams = this.riskGatekeeper.getRiskParameters();
+            const totalPos = await this.prisma.position.count({
+              where: { userId, status: 'OPEN', entryPrice: { gt: 0 } },
+            }).catch(() => -1);
+            const executorPos = await this.prisma.position.count({
+              where: { userId, status: 'OPEN', entryPrice: { gt: 0 }, source: { in: ['smart_executor', 'auto_paper'] } },
+            }).catch(() => -1);
+            this.logger.error(
+              `⚔️ V144 BLOCKED: Brief ${brief.id} (${brief.pair}) REJECTED by RiskGatekeeper for user ${userId}. ` +
+              `Executor positions: ${executorPos}/${userState.maxOpenPositions || this.config.maxOpenPositions}, ` +
+              `Total positions: ${totalPos}/${rgParams.maxOpenPositions}, ` +
+              `Error: ${result.error}`
+            );
+          } else {
+            this.logger.warn(
+              `⚔️ Brief ${brief.id} execution FAILED for user ${userId}: ${result.error} — will retry on next tick`,
+            );
+          }
         }
 
         // ── INSTANT NOTIFICATION: Alert on failed execution ──

@@ -152,7 +152,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       // issue. User-specific settings are read per-request via _loadUserRiskSettings().
       const settings = await this.prisma.setting.findMany({
         where: {
-          key: { in: ['riskConfig', 'botConfig', 'AUTO_TRADING_ENABLED'] },
+          key: { in: ['riskConfig', 'botConfig', 'AUTO_TRADING_ENABLED', 'agentExecutorConfig'] },
         },
       });
       const settingsMap: Record<string, any> = {};
@@ -168,7 +168,39 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       const riskConfig = settingsMap.riskConfig;
       if (riskConfig) {
         if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
-        if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
+        if (riskConfig.maxOpenPositions) {
+          let val = parseInt(riskConfig.maxOpenPositions, 10);
+          // ═══════════════════════════════════════════════════════════════════
+          // V144: Auto-migrate stale riskConfig.maxOpenPositions from old default (5).
+          // The old admin settings page saved maxOpenPositions=5 as the default.
+          // This value persists in the DB even after V143 changed the frontend
+          // default to 15. The RiskGatekeeper reads this stale value every 30s
+          // and uses it to BLOCK all new trades when total positions >= 5.
+          //
+          // This was THE root cause of "executor stops at 5 trades":
+          //   1. SmartExecutor's own check: counts only smart_executor positions
+          //      (5 < 15 → PASSES)
+          //   2. RiskGatekeeper's check: counts ALL positions from ALL sources
+          //      (5 >= 5 from stale DB → BLOCKS!)
+          //
+          // Fix: If the DB value is <= 5, auto-upgrade to 20 (env default)
+          // and UPDATE the DB so the admin sees the new value.
+          // ═══════════════════════════════════════════════════════════════════
+          if (val <= 5) {
+            const newVal = parseInt(this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), 10);
+            this.logger.warn(`🛡️ V144: Auto-upgrading riskConfig.maxOpenPositions from ${val} to ${newVal} (stale old default detected)`);
+            val = newVal;
+            // Update the DB so admin sees the new value and it doesn't get re-read as 5
+            this.prisma.setting.upsert({
+              where: { key: 'riskConfig' },
+              update: { value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(newVal) }) },
+              create: { key: 'riskConfig', value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(newVal) }) },
+            }).catch((dbErr: any) => {
+              this.logger.warn(`🛡️ V144: Failed to update riskConfig in DB: ${dbErr?.message}`);
+            });
+          }
+          this.maxOpenPositions = val;
+        }
         if (riskConfig.stopLossDefault) this.stopLossDefault = parseFloat(riskConfig.stopLossDefault);
 
         if (riskConfig.circuitBreakerThreshold) this.circuitBreakerThresholdPercent = parseFloat(riskConfig.circuitBreakerThreshold);
@@ -180,7 +212,21 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         if (botConfig.maxPositionSize) this.maxOrderSizeUSD = parseFloat(botConfig.maxPositionSize);
       }
 
-      this.logger.debug('🛡️ Risk parameters synced from DB');
+      // V144: Also apply agentExecutorConfig if available.
+      // If riskConfig.maxOpenPositions is NOT set but agentExecutorConfig is,
+      // use the executor-specific limit as a hint for the global limit.
+      // The global limit should be >= executor limit + agent limit.
+      const agentExecConfig = settingsMap.agentExecutorConfig;
+      if (agentExecConfig && !settingsMap.riskConfig?.maxOpenPositions) {
+        const execMax = parseInt(agentExecConfig.executorMaxOpenPositions || '15', 10);
+        const agentMax = parseInt(agentExecConfig.agentMaxOpenPositions || '15', 10);
+        const impliedGlobal = execMax + agentMax;
+        if (this.maxOpenPositions < impliedGlobal) {
+          this.logger.warn(`🛡️ V144: Global maxOpenPositions (${this.maxOpenPositions}) is less than executor+agent total (${impliedGlobal}). Consider increasing riskConfig.maxOpenPositions to at least ${impliedGlobal}.`);
+        }
+      }
+
+      this.logger.debug(`🛡️ Risk parameters synced from DB — maxOpenPositions=${this.maxOpenPositions}`);
     } catch (error: any) {
       this.logger.warn(`🛡️ Failed to sync settings from DB: ${error.message} — using env defaults`);
     }

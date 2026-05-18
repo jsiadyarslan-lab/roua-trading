@@ -96,7 +96,20 @@ export class RiskManagerService {
       const riskConfig = settingsMap.riskConfig;
       if (riskConfig) {
         if (riskConfig.maxDrawdown) this.maxDailyLossPercent = parseFloat(riskConfig.maxDrawdown);
-        if (riskConfig.maxOpenPositions) this.maxOpenPositions = parseInt(riskConfig.maxOpenPositions, 10);
+        if (riskConfig.maxOpenPositions) {
+          let val = parseInt(riskConfig.maxOpenPositions, 10);
+          // V144: Auto-migrate stale riskConfig.maxOpenPositions (same fix as RiskGatekeeper)
+          if (val <= 5) {
+            val = parseInt(this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), 10);
+            this.logger.warn(`🛡️ V144: Auto-upgrading RiskManager.maxOpenPositions from ${riskConfig.maxOpenPositions} to ${val} (stale old default)`);
+            this.prisma.setting.upsert({
+              where: { key: 'riskConfig' },
+              update: { value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(val) }) },
+              create: { key: 'riskConfig', value: JSON.stringify({ ...riskConfig, maxOpenPositions: String(val) }) },
+            }).catch(() => {});
+          }
+          this.maxOpenPositions = val;
+        }
         if (riskConfig.stopLossDefault) this.defaultStopLossPercent = parseFloat(riskConfig.stopLossDefault);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
         if (riskConfig.riskPerTrade) this.maxPositionSizePercent = parseFloat(riskConfig.riskPerTrade) * 5; // Scale risk per trade to position size

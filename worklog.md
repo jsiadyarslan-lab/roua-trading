@@ -545,3 +545,26 @@ Stage Summary:
 - Commit: 5aba1b6f3 pushed to main
 - 4 bugs fixed that caused smart_executor/agent trades to be invisible or misclassified
 - New source badges will appear on all closed trades after deployment
+
+---
+Task ID: V140B-3
+Agent: Main Agent
+Task: Fix wallet balance numbers inconsistency (الرصيد vs الحالي vs P&L)
+
+Work Log:
+- Found root cause: account.cash was set to totalAvailableUsd (free only)
+  instead of totalEquityUsd (total balance = free + used margin)
+- This made الحالي - الرصيد = $2,472 but P&L = $11.93 (inconsistent!)
+- The gap was positionValue + PnL, not just PnL
+- Fixed equity calculation formula:
+  Before: equity = totalAvailableUsd + positionsMarketValue + unrealizedPnl (WRONG: double-counts margin)
+  After:  equity = totalEquityUsd + positionsUnrealizedPnl (CORRECT: standard trading equity)
+- Fixed cash/balance display:
+  Before: cash = totalAvailableUsd (only free cash)
+  After:  cash = totalEquityUsd (total wallet balance = free + used)
+- Now: الحالي - الرصيد = P&L (consistent!)
+
+Stage Summary:
+- Commit: 337250198 pushed to main
+- Wallet numbers will now be logically consistent after deployment
+- Expected: الرصيد ~$18,844, الحالي ~$18,856, P&L ~$12

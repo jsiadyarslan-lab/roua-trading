@@ -590,3 +590,28 @@ Stage Summary:
 - Commit: 571c88368 pushed to main
 - Executor will now survive NestJS restarts and auto-restore enabled users
 - 7-day silent expiry bug also fixed with TTL refresh
+---
+Task ID: V141
+Agent: Main Agent
+Task: Fix Agent/Executor interference + add closeReason + rebuild closed trades UI
+
+Work Log:
+- Deep microscopic investigation of Agent vs Smart Executor code paths
+- Found 5 critical interference issues between the two systems
+- Fixed Smart Executor stale eviction to only close its own positions (source filter)
+- Fixed Smart Executor position count to only count its own positions
+- Fixed Agent duplicate position check to allow hedge (opposite direction) positions
+- Fixed Position Monitor to skip Agent positions (Agent manages its own SL/TP)
+- Added closeReason field to Position Prisma schema + auto-migration in PrismaService
+- Set closeReason in ALL 7 close paths: closePosition, forceClose, paper safety net, Agent TradingService, Agent fallback, Position Monitor, ExchangeSync
+- Added closeReason to ClosePositionRequest interface
+- Rebuilt closed trades UI to fetch from DB API (/api/trading/positions/history) instead of localStorage
+- Added Arabic close reason badges (وقف خسارة، أخذ ربح، يدوي، تلقائي، استراتيجي، مزامنة، إجباري)
+- Added entry/exit price, SL/TP, duration display for closed trades
+- Pushed V141 to GitHub (Railway + Vercel auto-deploy)
+
+Stage Summary:
+- V141 deployed with 10 files changed, 233 insertions, 41 deletions
+- Key fixes: source isolation between Agent/Executor, closeReason tracking, DB-backed closed trades UI
+- All close paths now record WHY a position was closed
+- Closed trades no longer vanish from UI (fetched from database)

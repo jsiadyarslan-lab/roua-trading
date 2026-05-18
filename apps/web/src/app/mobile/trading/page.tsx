@@ -271,9 +271,9 @@ export default function TradingPage() {
 
   return (
     <div style={{
-      /* Direct calc: --app-height minus navbar padding.
-         Template uses minHeight-only, so we must calculate our own height. */
-      height: 'calc(var(--app-height, 100dvh) - 35px - env(safe-area-inset-bottom, 0px))',
+      /* CSS Grid layout: <main> is already sized to viewport minus navbar.
+         Just fill 100% of the grid cell — no navbar subtraction needed. */
+      height: '100%',
       background: '#0B0E14',
       display: 'flex',
       flexDirection: 'column',

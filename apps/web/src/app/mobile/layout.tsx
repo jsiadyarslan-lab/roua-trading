@@ -51,9 +51,21 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <MobileToastOverlay />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        {/* FIXED container — position:fixed;inset:0 guarantees the container
-            fills the ENTIRE viewport (including safe-area with viewport-fit:cover).
-            The flex column splits space between <main> and <MobileNavBar>. */}
+        {/* ═══════════════════════════════════════════════════════════
+            RADICAL REDESIGN: CSS Grid instead of position:absolute
+
+            Previous architecture: everything was position:absolute with
+            z-index stacking → chart canvas captured touch events in navbar
+            area via lightweight-charts setPointerCapture().
+
+            New architecture: CSS Grid with 2 rows:
+              Row 1 (1fr): <main> content — chart, scrollable pages
+              Row 2 (auto): <MobileNavBar> — always at bottom
+
+            Grid rows are HARD BOUNDARIES. The chart canvas in Row 1
+            CANNOT capture touch events in Row 2. No z-index tricks,
+            no protection shields, no pointer-event hacks needed.
+            ═══════════════════════════════════════════════════════════ */}
         <div
           style={{
             position: 'fixed',
@@ -67,48 +79,29 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             width: '100%',
             margin: '0 auto',
             overflow: 'hidden',
+            display: 'grid',
+            gridTemplateRows: '1fr auto',
           } as React.CSSProperties}
         >
-          {/* Main content — fills entire container.
-              Navbar uses position:absolute bottom:0 so it overlays the bottom.
-              Scrollable pages add their own paddingBottom for navbar clearance. */}
+          {/* Row 1: Content area — fills remaining space above navbar.
+              Chart pages use position:absolute;inset:0 to fill this cell.
+              Scrollable pages use overflow-y:auto for scrolling.
+              No paddingBottom needed — grid row is a hard boundary. */}
           <main
             style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              position: 'relative',
+              minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorY: 'contain',
-              /* Padding for scrollable pages so content doesn't hide behind navbar.
-                 Chart page uses position:absolute which clips at navbar boundary. */
-              paddingBottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
             }}
           >
             {children}
           </main>
-          {/* Touch-interception shield — sits between <main> and navbar.
-              Prevents chart canvas (lightweight-charts pointer capture) from
-              stealing touch events in the navbar area. This invisible layer
-              at z-index:45 absorbs stray touches before they reach the chart,
-              while the navbar at z-index:50 still receives intended taps. */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: 0,
-              left: 0,
-              right: 0,
-              height: 'calc(48px + env(safe-area-inset-bottom, 0px))',
-              zIndex: 45,
-              pointerEvents: 'none',
-              touchAction: 'manipulation',
-            }}
-          />
-          {/* Navbar — position:absolute bottom:0 guarantees it's at the screen bottom.
-              z-index:50 sits above the touch shield (z:45) and chart (z:auto). */}
+          {/* Row 2: Navbar — in its own grid row.
+              The grid boundary is a HARD WALL that no chart canvas
+              can cross. Touch events here ALWAYS go to the navbar. */}
           <MobileNavBar />
         </div>
       </AuthGuard>

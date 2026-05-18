@@ -1141,7 +1141,7 @@ export default function MobileNotificationsPage() {
           ════════════════════════════════════ */}
       {notifications.length > 0 && activeFilter !== 'settings' && (
         <div style={{
-          position: 'fixed', bottom: 'calc(80px + env(safe-area-inset-bottom))',
+          position: 'fixed', bottom: 'calc(64px + env(safe-area-inset-bottom, 0px))',
           left: 20, right: 20, zIndex: 40,
         }}>
           <motion.button

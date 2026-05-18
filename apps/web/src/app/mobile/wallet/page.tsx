@@ -1223,7 +1223,7 @@ export default function MobileWalletPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
+                position: 'fixed', bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 201,
                 background: 'rgba(28,28,30,0.98)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',
@@ -1313,7 +1313,7 @@ export default function MobileWalletPage() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
+                position: 'fixed', bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 201,
                 background: 'rgba(28,28,30,0.98)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',
@@ -1384,12 +1384,10 @@ export default function MobileWalletPage() {
         )}
       </AnimatePresence>
 
-      {/* ── Bottom padding for navbar ── */}
-      {/* V155 FIX: Bottom spacer must be tall enough to clear the navbar.
-          The layout <main> provides paddingBottom for the navbar, but this
-          extra spacer ensures the last content card is fully visible above
-          the navbar when scrolled to the bottom. */}
-      <div style={{ height: 80 }} />
+      {/* Bottom spacing for scrollable content. With CSS Grid layout,
+          the navbar is in its own grid row — no overlap with content.
+          Small spacer for visual breathing room only. */}
+      <div style={{ height: 20 }} />
     </div>
   )
 }

@@ -109,25 +109,15 @@ export default function MobileNavBar() {
 
   return (
     <>
-      {/* ═══════════════════════════════════════════════════════
-          Bottom Navigation — position:absolute;bottom:0;left:0;right:0
-          GUARANTEED to be at the screen bottom. No flex gap possible.
-          The container (layout.tsx) is position:fixed;inset:0 so
-          this nav's bottom:0 = the screen bottom edge.
-          ═══════════════════════════════════════════════════════ */}
+      {/* ═══════════════════════════════════════════════════════════
+          Navbar — CSS Grid item (2nd row in layout.tsx)
+          NO position:absolute, NO z-index, NO pointer-events hacks.
+          The grid row boundary is a HARD WALL — chart canvas in
+          Row 1 can NEVER capture touch events here. Every tap on
+          this nav goes directly to its buttons.
+          ═══════════════════════════════════════════════════════════ */}
       <nav
         style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          pointerEvents: 'auto',
-          /* FIX: border-box so safe-area padding is INCLUDED in height,
-             not added on top. Total visible height = 48px on Android,
-             48+safe-area on iPhone — no extra space above the bar.
-             Was: content-box + height:56 + paddingBelow = ~90px on iPhone.
-             Now: border-box + height:48 + paddingBelow inside = ~82px on iPhone. */
           boxSizing: 'border-box',
           height: 'calc(48px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
@@ -136,7 +126,6 @@ export default function MobileNavBar() {
           WebkitBackdropFilter: 'blur(40px) saturate(200%)',
           borderTop: '0.5px solid rgba(0,212,255,0.15)',
           boxShadow: '0 -2px 16px rgba(0,0,0,0.3), 0 -1px 0 rgba(0,212,255,0.08)',
-          isolation: 'isolate',
           touchAction: 'manipulation',
         }}
       >
@@ -147,17 +136,14 @@ export default function MobileNavBar() {
             justifyContent: 'space-around',
             height: 48,
             direction: 'rtl',
-            pointerEvents: 'auto',
           }}
         >
           {NAV_ITEMS.map((item) => {
             /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {
               const active = isActive(item.href)
-              /* FIX: Removed marginTop:-12 that pushed button above nav bar,
-                   making the total visible nav area ~102px. Now flat/in-line. */
               return (
-                <div key={item.href} style={{ position: 'relative', marginTop: 0, zIndex: 10, pointerEvents: 'auto' }}>
+                <div key={item.href} style={{ position: 'relative', zIndex: 10 }}>
                   <motion.button
                     whileTap={{ scale: 0.92 }}
                     onClick={() => handleNav(item.href)}
@@ -177,7 +163,6 @@ export default function MobileNavBar() {
                       gap: 0, cursor: 'pointer',
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                       padding: 0,
-                      pointerEvents: 'auto',
                     }}
                   >
                     <Wallet size={22} color={active ? '#FFFFFF' : '#00D4FF'} strokeWidth={2} />
@@ -216,7 +201,6 @@ export default function MobileNavBar() {
                   cursor: 'pointer',
                   padding: 0,
                   zIndex: 10,
-                  pointerEvents: 'auto',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

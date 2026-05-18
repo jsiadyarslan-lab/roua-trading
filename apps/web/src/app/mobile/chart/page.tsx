@@ -397,11 +397,10 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Fill the entire main area. Chart extends visually behind the
-         semi-transparent navbar (MetaTrader style) for full-screen effect,
-         BUT the bottom 48px+safe-area is a touch-dead zone so the
-         lightweight-charts canvas cannot steal pointer events from the
-         MobileNavBar overlay above it. */
+      /* Fill the entire <main> grid cell. With CSS Grid architecture,
+         the navbar is in its own grid row — completely separated.
+         The chart CANNOT extend into the navbar area because grid
+         rows are hard boundaries. No bottom offset needed. */
       position: 'absolute',
       top: 0,
       left: 0,
@@ -412,21 +411,17 @@ function ChartPageContent() {
     }}>
 
       {/* ═══════════════════════════════════════════════════
-          CHART — fills ENTIRE page visually (MetaTrader style)
-          BUT clip the bottom to prevent canvas touch capture
-          in the navbar zone. Visual bleed-through is preserved
-          via the semi-transparent navbar background.
+          CHART — fills entire main grid cell.
+          CSS Grid ensures the navbar is in a SEPARATE row,
+          so the chart canvas CANNOT capture touch events
+          in the navbar area. No bottom clip needed.
           ═══════════════════════════════════════════════════ */}
       <div style={{
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
-        /* FIX: Stop the chart canvas at navbar boundary so it cannot
-           capture touch/pointer events in the navbar area. The navbar
-           (z-index:50) sits visually on top with semi-transparent bg,
-           so the chart still *looks* full-screen behind it. */
-        bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))',
+        bottom: 0,
         direction: 'ltr',
       }}>
         <RouaChart
@@ -646,7 +641,7 @@ function ChartPageContent() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 45,
+                position: 'fixed', bottom: 'calc(48px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 55,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',

@@ -78,6 +78,42 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         `📦 Prisma database unavailable at startup — API will continue and retry with exponential backoff`,
       );
       this.scheduleReconnect();
+    } else {
+      // ── Auto-migrate missing columns on startup ──
+      // This ensures the database schema matches the Prisma schema even if
+      // `prisma migrate deploy` failed or was skipped during deployment.
+      await this.autoMigrateMissingColumns();
+    }
+  }
+
+  /**
+   * Auto-migrate missing columns that are defined in the Prisma schema
+   * but may not exist in the production database yet.
+   *
+   * Uses $executeRawUnsafe with IF NOT EXISTS — safe to run multiple times.
+   * This is a safety net for when Railway migrations fail silently.
+   */
+  private async autoMigrateMissingColumns(): Promise<void> {
+    const migrations: { table: string; column: string; sql: string }[] = [
+      {
+        table: 'Position',
+        column: 'exitPrice',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "exitPrice" Decimal(18,8)`,
+      },
+    ];
+
+    for (const migration of migrations) {
+      try {
+        await this.$executeRawUnsafe(migration.sql);
+        this.logger.log(`📦 Auto-migration: Added ${migration.table}.${migration.column}`);
+      } catch (error: any) {
+        // Column already exists — this is fine
+        if (error?.message?.includes('already exists') || error?.message?.includes('duplicate')) {
+          this.logger.log(`📦 Auto-migration: ${migration.table}.${migration.column} already exists ✅`);
+        } else {
+          this.logger.warn(`📦 Auto-migration failed for ${migration.table}.${migration.column}: ${error?.message?.substring(0, 200)}`);
+        }
+      }
     }
   }
 

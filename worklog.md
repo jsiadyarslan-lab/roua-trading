@@ -383,3 +383,19 @@ Stage Summary:
 - Old-format keys are automatically cleaned up on startup
 - Full architecture documentation added for per-user isolation principle
 - All Redis keys now verified as per-user isolated ✅
+
+---
+Task ID: V138
+Agent: Main Agent
+Task: V138 — Bump BUILD_CACHE to v137 to ensure per-user isolation fixes deploy to Railway
+
+Work Log:
+- Discovered BUILD_CACHE was still v134 — Railway Docker layer caching would reuse old build
+- V136 (user isolation) and V137 (circuit breaker per-user) fixes were in code but NOT deployed
+- Bumped BUILD_CACHE from v134-consolidated-briefs-wider-sl to v137-per-user-isolation-circuit-breaker
+- Pushed to GitHub, triggering Railway auto-deploy
+
+Stage Summary:
+- BUILD_CACHE bumped to v137 — Railway will now do a full rebuild with all isolation fixes
+- User confirmed platform is now working as a real trading platform for the first time
+- Council analyzes → Executor executes → Trades close with profit/loss ✅

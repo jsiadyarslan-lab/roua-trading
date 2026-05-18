@@ -440,6 +440,8 @@ export class CredentialsService {
       equity: number;
       available: number;
       currency: string;
+      /** V150 FIX: Leverage-aware used margin for this exchange (not raw asset 'used') */
+      usedMargin: number;
       assets: Array<{ currency: string; free: number; used: number; total: number }>;
       error?: string;
     }>;
@@ -490,6 +492,7 @@ export class CredentialsService {
               equity: 0,
               available: 0,
               currency: 'USD',
+              usedMargin: 0,
               assets: [],
               error: 'بيانات الاعتماد غير مكتملة — يرجى حذف المفتاح وإضافته مرة أخرى',
             };
@@ -514,6 +517,7 @@ export class CredentialsService {
             equity: 0,
             available: 0,
             currency: 'USD',
+            usedMargin: 0,
             assets: [],
             error: error.message || 'فشل في جلب الرصيد',
           };
@@ -530,6 +534,7 @@ export class CredentialsService {
         equity: 0,
         available: 0,
         currency: 'USD',
+        usedMargin: 0,
         assets: [],
         error: r.reason?.message || 'خطأ غير معروف',
       },
@@ -595,6 +600,8 @@ export class CredentialsService {
         equity: paperEquity,
         available: paperAvailableUsd,
         currency: 'USD',
+        // V150 FIX: Include usedMargin directly — leverage-aware from calculateMargin()
+        usedMargin,
         assets: [{
           currency: 'USD',
           free: paperAvailableUsd,
@@ -608,13 +615,29 @@ export class CredentialsService {
 
     const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
     const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
-    // V148 FIX: Include totalUsedMargin in response so frontend doesn't have to
-    // compute it incorrectly as totalEquityUsd - totalAvailableUsd (which caps at
-    // equity when available=0) or fall back to positionsMarketValue (full notional).
-    // The correct usedMargin is already calculated per-exchange using calculateMargin()
-    // which is leverage-aware (forex /50, gold /20, crypto /1).
+    // ═══════════════════════════════════════════════════════════════
+    // V150 FIX: Calculate totalUsedMargin using DIRECT usedMargin field.
+    //
+    // BUG (V148): The old code searched assets for currency==='USD':
+    //   const usedAsset = e.assets?.find((a: any) => a.currency === 'USD');
+    // This MISSED real Binance accounts because Binance uses 'USDT' not 'USD'.
+    // Result: totalUsedMargin only counted paper-trading margin, ignoring real exchanges.
+    //
+    // V150: Each exchange entry now has a `usedMargin` field that is:
+    //   - Real exchanges (Binance): USDT locked in open orders (from CCXT fetchBalance)
+    //   - Paper trading: Leverage-aware margin from calculateMargin()
+    // We sum this directly — no more unreliable asset-currency lookup.
+    // ═══════════════════════════════════════════════════════════════
     const totalUsedMargin = exchanges.reduce((sum, e) => {
-      const usedAsset = e.assets?.find((a: any) => a.currency === 'USD');
+      // V150: Use the direct usedMargin field when available
+      if ((e as any).usedMargin !== undefined && (e as any).usedMargin !== null) {
+        return sum + (e as any).usedMargin;
+      }
+      // Fallback: For legacy exchanges without usedMargin, search assets
+      // Check both 'USD' and 'USDT' to handle Binance correctly
+      const usedAsset = e.assets?.find((a: any) =>
+        a.currency === 'USD' || a.currency === 'USDT'
+      );
       return sum + (usedAsset?.used || 0);
     }, 0);
 
@@ -650,6 +673,8 @@ export class CredentialsService {
     equity: number;
     available: number;
     currency: string;
+    /** V150: Leverage-aware used margin for real exchanges (USDT locked in orders for spot) */
+    usedMargin: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
   }> {
@@ -662,7 +687,7 @@ export class CredentialsService {
     if (!ExchangeClass) {
       return {
         exchange, label, credentialId, isTestnet,
-        equity: 0, available: 0, currency: 'USD', assets: [],
+        equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
         error: `البورصة "${exchange}" غير مدعومة`,
       };
     }
@@ -725,7 +750,7 @@ export class CredentialsService {
           errMsg.includes('ECONNRESET') || errMsg.includes('network') || errMsg.includes('سحب')) {
         return {
           exchange, label, credentialId, isTestnet,
-          equity: 0, available: 0, currency: 'USD', assets: [],
+          equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
           error: `تعذر الاتصال بالبورصة — يرجى المحاولة لاحقاً`,
         };
       }
@@ -734,7 +759,7 @@ export class CredentialsService {
       if (this._isAuthError(errMsg)) {
         return {
           exchange, label, credentialId, isTestnet,
-          equity: 0, available: 0, currency: 'USD', assets: [],
+          equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
           error: `مفتاح API غير صالح أو منتهي الصلاحية — يرجى حذفه وإضافته مرة أخرى`,
         };
       }
@@ -742,7 +767,7 @@ export class CredentialsService {
       // For any other error, return with the error message
       return {
         exchange, label, credentialId, isTestnet,
-        equity: 0, available: 0, currency: 'USD', assets: [],
+        equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
         error: `خطأ في جلب الرصيد: ${errMsg.substring(0, 100)}`,
       };
     }
@@ -750,7 +775,7 @@ export class CredentialsService {
     if (!balance || typeof balance !== 'object') {
       return {
         exchange, label, credentialId, isTestnet,
-        equity: 0, available: 0, currency: 'USD', assets: [],
+        equity: 0, available: 0, currency: 'USD', usedMargin: 0, assets: [],
         error: 'لم يتم استلام بيانات الرصيد من البورصة',
       };
     }
@@ -818,7 +843,18 @@ export class CredentialsService {
       available = freeUsd || assets.reduce((sum, a) => sum + a.free, 0);
     }
 
-    this.logger.log(`💰 Balance fetched from ${exchange}/${label}: equity=$${equity}, available=$${available}, ${assets.length} assets`);
+    // (moved into the return block above)
+
+    // V150 FIX: Calculate usedMargin for real exchanges.
+    // For spot exchanges (Binance spot), usedMargin = USDT/USD locked in open orders.
+    // This is the `used` field from the exchange's balance API.
+    // For futures exchanges, this would be the actual margin used.
+    const exchangeUsedMargin = usdtUsed; // USDT locked in open orders on spot
+
+    this.logger.log(
+      `💰 Balance fetched from ${exchange}/${label}: equity=$${equity}, available=$${available}, ` +
+      `usedMargin=$${exchangeUsedMargin}, ${assets.length} assets`
+    );
 
     return {
       exchange,
@@ -828,6 +864,7 @@ export class CredentialsService {
       equity,
       available,
       currency: 'USD',
+      usedMargin: exchangeUsedMargin,
       assets,
     };
   }

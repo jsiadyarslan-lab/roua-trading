@@ -12,6 +12,7 @@ import { PlaceOrderRequest, OrderSide, OrderType } from '../../../modules/tradin
 import { EvaluatedSignal, TradeExecution, RiskAssessment, AgentDecision } from '../types/agent.types';
 import { OrderDispatcherService } from '../../../modules/trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../../modules/trading/services/exposure-manager.service';
+import { CredentialsService } from '../../../modules/portfolio/credentials/credentials.service';
 
 /**
  * OrderExecutorService — Executes trades with safety and precision
@@ -64,6 +65,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     @Optional() private readonly orderDispatcher: OrderDispatcherService,
     @Optional() private readonly exposureManager: ExposureManagerService,
     @Optional() private readonly exchangeService: ExchangeService,
+    @Optional() private readonly credentialsService: CredentialsService,
   ) {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
 
@@ -379,6 +381,45 @@ export class OrderExecutorService implements OnModuleDestroy {
         };
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // V150 FIX: Pre-trade balance check for REAL exchanges.
+      // Before submitting an order to Binance/KuCoin/etc., verify the
+      // account has sufficient balance. This prevents:
+      //   1. Wasting API calls on orders that will be rejected
+      //   2. "binance Account has insufficient balance" errors every minute
+      //   3. Unnecessary error logs and retry attempts
+      //
+      // For paper trading, this check is skipped (paper has unlimited balance).
+      // ═══════════════════════════════════════════════════════════════
+      if (credential.exchange !== 'paper-trading') {
+        try {
+          const balanceCheck = await this._checkSufficientBalance(
+            credential,
+            signal.symbol,
+            signal.action as OrderSide,
+            risk.positionSize,
+            signal.entryPrice,
+          );
+          if (!balanceCheck.sufficient) {
+            this.logger.warn(
+              `⚡ V150 ORDER REJECTED: Insufficient balance for ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+              `on ${credential.exchange} — need $${balanceCheck.required.toFixed(2)}, have $${balanceCheck.available.toFixed(2)}`
+            );
+            return {
+              success: false,
+              error: `رصيد غير كافي في ${credential.exchange} — يحتاج $${balanceCheck.required.toFixed(2)}، المتاح $${balanceCheck.available.toFixed(2)}`,
+              executionTimeMs: Date.now() - startTime,
+            };
+          }
+        } catch (balanceErr: any) {
+          // Balance check failed — log warning but continue with order
+          // (the exchange itself will reject if balance is insufficient)
+          this.logger.warn(
+            `⚡ V150: Pre-trade balance check failed for ${credential.exchange}: ${balanceErr.message} — proceeding with order submission`
+          );
+        }
+      }
+
       // Construct the order request
       const orderRequest: PlaceOrderRequest = {
         credentialId,
@@ -619,6 +660,69 @@ export class OrderExecutorService implements OnModuleDestroy {
       if (date.getTime() < cutoff) {
         this.recentOrders.delete(key);
       }
+    }
+  }
+
+  /**
+   * V150: Check if the exchange account has sufficient balance for a trade.
+   * Uses CredentialsService.fetchAllExchangeBalances() which caches results
+   * for 5 seconds, so this is efficient and won't hammer the exchange API.
+   *
+   * Prevents "insufficient balance" errors from Binance that would occur
+   * anyway, saving API calls and reducing log noise.
+   *
+   * @returns { sufficient: boolean, required: number, available: number }
+   */
+  private async _checkSufficientBalance(
+    credential: any,
+    symbol: string,
+    side: string,
+    quantity: number,
+    price: number,
+  ): Promise<{ sufficient: boolean; required: number; available: number }> {
+    // Calculate order value (notional)
+    const orderValue = Math.abs(quantity * price);
+    // For BUY orders on spot, you need the full notional value in quote currency (USDT)
+    // For SELL orders on spot, you need the quantity in base currency (not checked here since V147 blocks SELL on spot)
+    const required = orderValue * 1.005; // Add 0.5% buffer for fees/slippage
+
+    // Use CredentialsService to fetch balance (with 5-second cache)
+    if (!this.credentialsService) {
+      // CredentialsService not available — skip check (exchange will reject if insufficient)
+      return { sufficient: true, required, available: Infinity };
+    }
+
+    try {
+      // fetchAllExchangeBalances returns balances for ALL exchanges, including the one we need
+      const balances = await this.credentialsService.fetchAllExchangeBalances(credential.userId);
+      // Find the specific exchange's available balance
+      const exchangeBalance = balances.exchanges.find(
+        (e: any) => e.credentialId === credential.id ||
+          e.exchange === credential.exchange ||
+          (credential.exchange.includes('test') && e.isTestnet && e.exchange.includes(credential.exchange.replace('_test', '').replace('_future_test', '')))
+      );
+
+      if (!exchangeBalance) {
+        // Exchange not found in balance response — skip check
+        return { sufficient: true, required, available: Infinity };
+      }
+
+      const available = exchangeBalance.available || 0;
+      const sufficient = available >= required;
+
+      if (!sufficient) {
+        this.logger.warn(
+          `⚡ V150: Balance check FAILED for ${credential.exchange}: ` +
+          `need $${required.toFixed(2)}, have $${available.toFixed(2)} available`
+        );
+      }
+
+      return { sufficient, required, available };
+    } catch (err: any) {
+      // Balance check failed — log warning but don't block the trade
+      // (the exchange itself will reject if balance is insufficient)
+      this.logger.warn(`⚡ V150: Balance check error for ${credential.exchange}: ${err.message}`);
+      return { sufficient: true, required, available: Infinity };
     }
   }
 }

@@ -10,6 +10,7 @@ import { TradingModule } from '../../modules/trading/trading.module';
 import { ExchangeModule } from '../../modules/exchange/exchange.module';
 import { AiModule } from '../../modules/ai/ai.module';
 import { StrategicCouncilModule } from '../../modules/ai/strategic-council/strategic-council.module';
+import { PortfolioModule } from '../../modules/portfolio/portfolio.module';
 
 // Agent Services
 import { MarketAnalyzerService } from './services/market-analyzer.service';
@@ -72,6 +73,7 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
     forwardRef(() => ExchangeModule),
     forwardRef(() => AiModule),
     forwardRef(() => StrategicCouncilModule),  // V145: Agent needs council briefs (M30+) to execute trades
+    forwardRef(() => PortfolioModule),  // V150: Agent needs CredentialsService for pre-trade balance check
   ],
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [

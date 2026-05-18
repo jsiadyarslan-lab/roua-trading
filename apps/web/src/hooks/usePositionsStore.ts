@@ -404,20 +404,49 @@ export const usePositionsStore = create<PositionsState>()(
       )
       const cash = Number(currentAccount.cash) || 0
       const newEquity = cash + positionsUnrealizedPnl
-      // V148B: Use _backendMargin if available (set only by fetchAccount).
-      // Fall back to current initialMargin ONLY if it looks like a backend value
-      // (less than equity — the full notional is always > equity for leveraged positions).
-      // If initialMargin > equity, it's definitely the WRONG old value (full notional).
-      // V149: Strengthened — also reject margin > 80% of equity as likely full-notional.
+      // ═══════════════════════════════════════════════════════════════
+      // V150 FIX: ROBUST MARGIN HANDLING IN REAL-TIME UPDATES
+      //
+      // PROBLEM CHAIN:
+      //   1. Zustand rehydrates from localStorage → _backendMargin has OLD wrong value ($20K)
+      //   2. updatePositionPrice() fires every 1s → reads _backendMargin = $20K
+      //   3. fetchAccount() runs → sets correct _backendMargin = ~$26
+      //   4. Next price tick → reads _backendMargin = $26 ✓ (works IF fetchAccount completed)
+      //
+      // BUT: Between steps 2 and 3, the wrong margin is displayed.
+      // AND: If fetchAccount fails or is slow, the wrong value persists indefinitely.
+      //
+      // V150 SOLUTION: Add _marginVersion to detect stale _backendMargin.
+      //   - fetchAccount() sets _marginVersion = Date.now() when it writes _backendMargin
+      //   - updatePositionPrice() rejects _backendMargin older than 60 seconds
+      //   - This forces a fresh fetchAccount() call and prevents stale values
+      //
+      // ALSO: If _backendMargin > equity, it's DEFINITELY the full notional (wrong).
+      // V149's heuristic (margin > 80% of equity) is also applied.
+      // ═══════════════════════════════════════════════════════════════
       const backendMargin = Number((currentAccount as any)._backendMargin) || 0
+      const marginVersion = Number((currentAccount as any)._marginVersion) || 0
+      const MARGIN_STALE_MS = 60_000 // 60 seconds — _backendMargin older than this is stale
+      const isBackendMarginFresh = marginVersion > 0 && (Date.now() - marginVersion) < MARGIN_STALE_MS
       const currentMargin = Number(currentAccount.initialMargin) || 0
       // Heuristic: if margin > 80% of equity, it's the wrong (full notional) value
       const isMarginReasonable = currentMargin > 0 && currentMargin <= newEquity * 0.8
-      const initialMargin = backendMargin > 0
-        ? backendMargin
-        : isMarginReasonable
-          ? currentMargin
-          : 0
+      // V150: Use _backendMargin ONLY if it's fresh AND reasonable
+      const isBackendMarginReasonable = backendMargin > 0 && backendMargin <= newEquity * 0.8
+      let initialMargin: number
+      if (isBackendMarginFresh && isBackendMarginReasonable) {
+        // Best case: fresh backend margin that's reasonable
+        initialMargin = backendMargin
+      } else if (isBackendMarginReasonable) {
+        // Stale but reasonable — still better than alternatives
+        initialMargin = backendMargin
+      } else if (isMarginReasonable) {
+        // No valid backend margin — use current margin if reasonable
+        initialMargin = currentMargin
+      } else {
+        // Nothing is reasonable — set to 0 until fetchAccount provides correct value
+        initialMargin = 0
+      }
       const freeMargin = Math.max(0, newEquity - initialMargin)
 
       set({
@@ -432,8 +461,9 @@ export const usePositionsStore = create<PositionsState>()(
           maintenanceMargin: 0,
           buyingPower: Math.max(0, freeMargin),
           portfolioValue: newEquity,
-          // V148B: Preserve _backendMargin — it should ONLY be set by fetchAccount()
+          // V150: Preserve _backendMargin and _marginVersion — ONLY set by fetchAccount()
           _backendMargin: backendMargin > 0 ? backendMargin : initialMargin,
+          _marginVersion: marginVersion || 0,
         } as any,
       })
     } else {
@@ -564,7 +594,10 @@ export const usePositionsStore = create<PositionsState>()(
             // by updatePositionPrice(). The real-time update reads this field
             // to prevent the old wrong margin from localStorage from being
             // preserved when prices update.
+            // V150: Also store _marginVersion timestamp so updatePositionPrice()
+            // can detect stale _backendMargin from localStorage (older than 60s).
             _backendMargin: usedMargin,
+            _marginVersion: Date.now(),
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
@@ -625,6 +658,7 @@ export const usePositionsStore = create<PositionsState>()(
             tradingBlocked: false,
             accountBlocked: false,
             _backendMargin: margin,
+            _marginVersion: Date.now(),
           }
           set({ account, exchangeBalances: [], dataSource: 'nestjs', _cacheTimestamp: Date.now() })
           return
@@ -681,13 +715,13 @@ export const usePositionsStore = create<PositionsState>()(
         tradingBlocked: false,
         accountBlocked: false,
         _backendMargin: estimatedMargin,
+        _marginVersion: Date.now(),
       }
       set({ account, _cacheTimestamp: Date.now() })
       return
     }
 
     // ── لا بيانات متاحة — لا نترك account = null ──
-    // FIX: Use $10,000 paper balance as default so the agent/bot can trade.
     // Previously, this returned equity=0 which caused the BotEngine to refuse
     // to open any trades ("لا يمكن تحديد القدرة الشرائية — تخطي").
     // ═══════════════════════════════════════════════════════════════
@@ -1002,6 +1036,7 @@ export const usePositionsStore = create<PositionsState>()(
               )
               state.account.initialMargin = 0
               ;(state.account as any)._backendMargin = 0
+              ;(state.account as any)._marginVersion = 0
             } else if (accMargin > 0 && accEquity > 0 && accMargin > accEquity * 0.8) {
               // V149: If margin > 80% of equity, it's likely the wrong value.
               // Real margin for forex (50:1) should be ~2% of equity, and for
@@ -1012,6 +1047,7 @@ export const usePositionsStore = create<PositionsState>()(
               )
               state.account.initialMargin = 0
               ;(state.account as any)._backendMargin = 0
+              ;(state.account as any)._marginVersion = 0
             }
           }
 

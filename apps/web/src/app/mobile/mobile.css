@@ -24,6 +24,7 @@
   padding-top: var(--m-safe-t);
   padding-bottom: calc(var(--m-nav-total) + 8px);
   overflow-x: hidden;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   width: 100%;

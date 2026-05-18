@@ -23,3 +23,28 @@ Stage Summary:
   2. Binance timeout too short (5s → 15s with retry)
   3. Frontend silently mixing failed + paper-trading balance
 - Key files changed: nestjs-proxy.ts, credentials.service.ts, usePositionsStore.ts, Dockerfile
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix shared $12,342.85 balance bug — deep investigation and fix
+
+Work Log:
+- Read credentials.service.ts (full balance chain), credentials.controller.ts, nestjs-proxy.ts, usePositionsStore.ts
+- Traced the complete balance flow from browser → nestjs-proxy → NestJS → CredentialsService → Exchange API
+- Found TWO root causes that prevented the V162 fix from working:
+  1. TypeScript build error: totalUsedMargin added to early return but NOT to return type → tsc fails → Docker build fails → V162 never deployed
+  2. Frontend hasPaperOnly bug: exchanges.some() was TRUE for users with BOTH real+paper exchanges → $10,000 fallback overrode the exchangeUnavailable flag
+- Fixed backend: Added totalUsedMargin: number to fetchAllExchangeBalances return type
+- Fixed frontend: Changed exchanges.some() to exchanges.every() → hasOnlyPaperExchanges
+- Updated Dockerfile BUILD_CACHE to v163
+- Verified TypeScript compiles locally (no errors)
+- Pushed to GitHub → Railway auto-deploy
+- Verified deployment: buildCache=v163-hasPaperOnly-fix on production
+
+Stage Summary:
+- Root cause chain: Binance always fails from Railway → paper balance always added → total = paper only → Smart Executor gives same positions to all → all see $12,342.85
+- V162's allRealExchangesFailed flag was correct but never worked due to build failure + hasPaperOnly bug
+- Fix deployed: v163-hasPaperOnly-fix
+- Balance endpoint now returns totalUsedMargin + allRealExchangesFailed + hasRealCredentials
+- Frontend now correctly shows exchangeUnavailable indicator when all real exchanges fail

@@ -17,7 +17,7 @@ import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
-import { TradingBriefDTO, AGENT_TIMEFRAMES, isAgentTimeframe } from '../../modules/ai/strategic-council/strategic-council.types';
+import { TradingBriefDTO, AGENT_TIMEFRAMES, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
 
 import {
   AgentStatus,
@@ -1578,6 +1578,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           const minConfidence = 40;
           if (brief.confidence < minConfidence) {
             this.logger.debug(`🧠 Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${minConfidence}%`);
+            continue;
+          }
+
+          // V146c: Check if the symbol is supported by the user's exchange.
+          // Binance doesn't support forex (EUR/USD) or commodities (XAU/USD).
+          // Without this check, the Agent dispatches orders that always fail
+          // with "binance does not have market symbol EUR/USD".
+          const userExchange = state.config.exchangeName || 'binance';
+          if (!isSymbolSupportedByExchange(brief.pair, userExchange)) {
+            this.logger.debug(
+              `🧠 Skipping brief ${brief.id} — ${brief.pair} not supported on ${userExchange}`
+            );
             continue;
           }
 

@@ -136,9 +136,12 @@ export class OrderDispatcherService {
         if (existing.side === request.side && existing.source !== request.source) {
           // Different source, same direction — ALLOW (different timeframe/trade)
           this.logger.log(`[Dispatcher] V146b Cross-source same-direction allowed: ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
-        }
-
-        if (request.isPaperTrading) {
+        } else if (existing.side !== request.side && existing.source !== request.source) {
+          // V146c: Different source, opposite direction — ALLOW (Agent vs Executor hedge)
+          // The Smart Executor has BUY (M1/M5/M15) and Agent wants SELL (M30/H1/H4).
+          // This is a valid cross-timeframe hedge, not a duplicate position.
+          this.logger.log(`[Dispatcher] V146c Cross-source hedge allowed: ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
+        } else if (request.isPaperTrading) {
           // Paper trading: Opposite direction → allow hedge
           this.logger.log(`[Dispatcher] V133 Paper hedge allowed: ${request.symbol} has ${existing.side}, opening ${request.side}`);
         } else {

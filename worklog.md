@@ -467,3 +467,34 @@ Stage Summary:
 - getClosedPositions returns trades relation and supports date range filtering
 - getTradeHistory supports date range filtering
 - Both controller endpoints pass from/to query params through to service
+
+---
+Task ID: V140
+Agent: Main Agent
+Task: V140 — Fix wallet & closed trades section: exitPrice, P&L dedup, date filter, asset valuation, deposit/withdraw
+
+Work Log:
+- Deep analysis of wallet and closed trades sections (13 bugs found)
+- Added exitPrice Decimal? field to Position model in Prisma schema
+- Populated exitPrice in closePosition(), forceClosePosition() (3 locations)
+- Added include: { trades: true } to getClosedPositions query
+- Added from/to date range filtering to getClosedPositions and getTradeHistory (backend)
+- Updated TradingController to accept from/to query params
+- Fixed triple P&L counting — single source of truth from closedPositions (deduped paper trades)
+- Fixed win rate / trade count mismatch (was trades.length, now totalTradeCount)
+- Fixed non-USDT assets showing $0 equity (USD price conversion table for major cryptos)
+- Fixed deposit/withdraw fake success — now shows error instead of misleading success
+- Reduced balance cache TTL from 60s to 5s
+- Added time period filter UI: الكل/يومي/أسبوعي/شهري/سنوي/محدد with date range picker
+- Added useMemo date filtering for closedPositions, trades, and paperTrades
+- Fixed source badge: smart_executor→SMART, agent→AGENT, auto_paper→PAPER
+- Derived exitPrice from trades relation when field is null (backward compatible)
+- TypeScript compilation: 0 errors (both api and web)
+- BUILD_CACHE: v140-wallet-closed-trades-fix
+- Deployment verified: deployMarker=ROUA-V140-WALLET-CLOSED-TRADES-FIX
+
+Stage Summary:
+- 10 files changed, 266 insertions, 121 deletions
+- 8 bugs fixed (C1, C2, C3, C5, C7, W1/W6, W3, W4)
+- 1 new feature: date range filter for closed trades (يومي/أسبوعي/شهري/سنوي/محدد)
+- Backend now supports from/to params on /api/trading/positions/history and /api/trading/trades

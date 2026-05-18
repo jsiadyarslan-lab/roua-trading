@@ -1576,7 +1576,8 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
 
 // ── Trend Line Detection ───────────────────────────────
 function detectTrendLines(candles: CandleData[]): TrendLine[] {
-  if (!candles || candles.length < 30) return [];
+  // FIX: Reduced from 30 to 10
+  if (!candles || candles.length < 10) return [];
   const lines: TrendLine[] = [];
   const lookback = Math.min(100, candles.length);
 
@@ -1586,7 +1587,7 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
     const prev = candles[i - 1];
     const curr = candles[i];
     const next = candles[i + 1] || curr;
-    if (curr.low <= prev.low && curr.low <= next.low) {
+    if (curr.low < prev.low && curr.low <= next.low) { // FIX: relaxed
       lows.push({ time: curr.time, price: curr.low });
     }
   }
@@ -1594,9 +1595,9 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
   if (lows.length >= 2) {
     const first = lows[0];
     const last = lows[lows.length - 1];
-    if (last.price > first.price) {
+    if (last.time > first.time) {
       lines.push({
-        type: 'ascending',
+        type: last.price >= first.price ? 'ascending' : 'descending',
         startPoint: first,
         endPoint: last,
         strength: lows.length >= 4 ? 'strong' : lows.length >= 3 ? 'medium' : 'weak',
@@ -1628,6 +1629,23 @@ function detectTrendLines(candles: CandleData[]): TrendLine[] {
     }
   }
 
+  // FIX: Fallback if no swing points found
+  if (lines.length === 0 && candles.length >= 10) {
+    const start = candles[Math.max(0, candles.length - Math.min(100, candles.length))];
+    const end = candles[candles.length - 1];
+    lines.push({
+      type: end.low >= start.low ? 'ascending' : 'descending',
+      startPoint: { time: start.time, price: start.low },
+      endPoint: { time: end.time, price: end.low },
+      strength: 'weak',
+    });
+    lines.push({
+      type: end.high >= start.high ? 'ascending' : 'descending',
+      startPoint: { time: start.time, price: start.high },
+      endPoint: { time: end.time, price: end.high },
+      strength: 'weak',
+    });
+  }
   return lines;
 }
 

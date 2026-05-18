@@ -9,11 +9,13 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import {
   Brain, Bot, ScanSearch, ChevronRight, TrendingUp, TrendingDown,
   Bell, Activity, Plus, ShieldCheck, Link2, ChevronLeft, Zap, Loader2, Target,
   RefreshCw, Eye, EyeOff, Wallet, Cpu, Globe2, BarChart3, ArrowUpRight,
-  ArrowDownRight, Flame, History, X
+  ArrowDownRight, Flame, History, X, Shield, DollarSign, Sparkles, Gauge,
+  Minus
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { ScopedStyle } from '@/components/ScopedStyle'
@@ -679,6 +681,359 @@ function MobileOrderBookPreview() {
   )
 }
 
+/* ─── Autonomous Agent Home Widget ──────── */
+const AGENT_STRATEGY_LABELS: Record<string, string> = {
+  AUTO: 'تلقائي',
+  SWING: 'سوينغ',
+  GRID: 'شبكة',
+  MEAN_REVERSION: 'عودة للمتوسط',
+  MOMENTUM_BREAKOUT: 'اختراق الزخم',
+  DCA: 'متوسط التكلفة',
+  VWAP_RSI: 'VWAP + RSI',
+}
+
+function AgentHomeWidget() {
+  const router = useRouter()
+  const {
+    agentState, positions, loading, fetchStatus, startAgent, stopAgent,
+    startAutoRefresh, stopAutoRefresh,
+  } = useAgentStore()
+
+  const status = agentState?.status ?? null
+  const isRunning = status === AgentStatus.RUNNING
+  const strategy = agentState?.config?.strategy ?? StrategyType.AUTO
+  const dailyPnL = Number(agentState?.dailyPnL ?? 0)
+  const dailyTrades = Number(agentState?.dailyTradesCount ?? 0)
+  const consecutiveLosses = Number(agentState?.consecutiveLosses ?? 0)
+  const isPaper = agentState?.config?.isPaperTrading ?? false
+
+  useEffect(() => {
+    fetchStatus()
+    startAutoRefresh()
+    return () => stopAutoRefresh()
+  }, [fetchStatus, startAutoRefresh, stopAutoRefresh])
+
+  const statusColor = isRunning ? '#00FFA3' : status === AgentStatus.EMERGENCY_STOP ? '#FF4757' : status === AgentStatus.DAILY_LIMIT_REACHED ? '#FFB800' : '#8B92A8'
+  const statusLabel = isRunning ? 'يعمل' : status === AgentStatus.EMERGENCY_STOP ? 'إيقاف طارئ' : status === AgentStatus.DAILY_LIMIT_REACHED ? 'حد الخسارة' : status === AgentStatus.PAUSED ? 'متوقف مؤقتاً' : 'في الانتظار'
+
+  const handleToggle = useCallback(async () => {
+    if (isRunning) {
+      await stopAgent(false)
+    } else {
+      await startAgent(strategy)
+    }
+  }, [isRunning, strategy, startAgent, stopAgent])
+
+  return (
+    <IOSCard onClick={() => router.push('/mobile/agent')}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3 relative">
+          <motion.div
+            animate={isRunning ? { opacity: [0.15, 0.35, 0.15] } : {}}
+            transition={{ duration: 3, repeat: Infinity }}
+            style={{
+              position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
+              background: `linear-gradient(135deg, ${isRunning ? '#FF9F43' : '#8B92A8'}, ${isRunning ? '#A259FF' : '#4B5563'})`,
+              borderRadius: 20, filter: 'blur(10px)', zIndex: 0,
+            }}
+          />
+          <div style={{
+            width: 48, height: 48, borderRadius: 16,
+            background: isRunning ? 'linear-gradient(135deg, #FF9F43, #A259FF)' : 'rgba(139,146,168,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', zIndex: 1, border: '0.5px solid rgba(255,255,255,0.1)',
+          }}>
+            <Cpu size={24} color={isRunning ? '#FFFFFF' : '#8B92A8'} />
+          </div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>الوكيل المستقل</p>
+            <p style={{ fontSize: 11, color: '#FF9F43', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 1 }}>
+              وكيل التداول الذاتي بالذكاء الاصطناعي
+            </p>
+          </div>
+        </div>
+        <ChevronLeft size={20} color="rgba(235,235,245,0.3)" />
+      </div>
+
+      {/* Status Bar */}
+      <div style={{
+        padding: '10px 14px', borderRadius: 14,
+        background: `${statusColor}08`, border: `0.5px solid ${statusColor}20`,
+        marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      }}>
+        <div className="flex items-center gap-2">
+          <motion.div
+            animate={isRunning ? { scale: [1, 1.4, 1] } : {}}
+            transition={{ repeat: Infinity, duration: 1.5 }}
+            style={{ width: 8, height: 8, borderRadius: 4, background: statusColor, boxShadow: `0 0 8px ${statusColor}60` }}
+          />
+          <span style={{ fontSize: 12, fontWeight: 700, color: statusColor, fontFamily: "'Cairo', sans-serif" }}>{statusLabel}</span>
+          {isPaper && isRunning && (
+            <span style={{
+              fontSize: 8, fontWeight: 700, padding: '2px 6px', borderRadius: 6,
+              background: 'rgba(0,212,255,0.1)', color: '#00D4FF', border: '0.5px solid rgba(0,212,255,0.2)',
+              fontFamily: "'Cairo', sans-serif",
+            }}>ورقي</span>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>
+            {AGENT_STRATEGY_LABELS[strategy] || strategy}
+          </span>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            onClick={(e) => { e.stopPropagation(); handleToggle() }}
+            disabled={loading}
+            style={{
+              padding: '6px 14px', borderRadius: 10,
+              background: isRunning ? 'rgba(255,71,87,0.12)' : 'linear-gradient(135deg, #00FFC6, #0A84FF)',
+              border: isRunning ? '0.5px solid rgba(255,71,87,0.25)' : 'none',
+              color: isRunning ? '#FF4757' : '#000', fontSize: 10, fontWeight: 800,
+              fontFamily: "'Cairo', sans-serif", cursor: 'pointer',
+            }}
+          >
+            {isRunning ? 'إيقاف' : 'تشغيل'}
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Quick Stats Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div style={{
+          padding: '10px 8px', borderRadius: 14, textAlign: 'center',
+          background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)',
+        }}>
+          <DollarSign size={12} color={dailyPnL >= 0 ? '#00FFA3' : '#FF4757'} style={{ margin: '0 auto 4px' }} />
+          <div style={{ fontSize: 14, fontWeight: 800, color: dailyPnL >= 0 ? '#00FFA3' : '#FF4757', fontFamily: "'JetBrains Mono', monospace" }}>
+            {dailyPnL >= 0 ? '+' : ''}{dailyPnL.toFixed(2)}
+          </div>
+          <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>ربح اليوم</div>
+        </div>
+        <div style={{
+          padding: '10px 8px', borderRadius: 14, textAlign: 'center',
+          background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)',
+        }}>
+          <Activity size={12} color="#00D4FF" style={{ margin: '0 auto 4px' }} />
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{dailyTrades}</div>
+          <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>صفقات اليوم</div>
+        </div>
+        <div style={{
+          padding: '10px 8px', borderRadius: 14, textAlign: 'center',
+          background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.06)',
+        }}>
+          <Shield size={12} color={consecutiveLosses >= 3 ? '#FF4757' : '#B388FF'} style={{ margin: '0 auto 4px' }} />
+          <div style={{ fontSize: 14, fontWeight: 800, color: consecutiveLosses >= 3 ? '#FF4757' : '#FFFFFF', fontFamily: "'JetBrains Mono', monospace" }}>{consecutiveLosses}</div>
+          <div style={{ fontSize: 9, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>خسائر متتالية</div>
+        </div>
+      </div>
+
+      {/* Open positions count */}
+      {positions.length > 0 && (
+        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>مراكز مفتوحة:</span>
+          <span style={{
+            padding: '1px 8px', borderRadius: 8,
+            background: 'rgba(0,212,255,0.12)', color: '#00D4FF',
+            fontSize: 10, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+            border: '0.5px solid rgba(0,212,255,0.2)',
+          }}>{positions.length}</span>
+        </div>
+      )}
+    </IOSCard>
+  )
+}
+
+/* ─── AI Council Home Widget ─────────────── */
+function AICouncilHomeWidget({ consensus }: { consensus: any }) {
+  const router = useRouter()
+  const [councilData, setCouncilData] = useState<any>(consensus)
+  const [loading, setLoading] = useState(false)
+
+  // Refresh every 60 seconds
+  useEffect(() => {
+    setCouncilData(consensus)
+  }, [consensus])
+
+  const rec = councilData?.recommendation ?? 'HOLD'
+  const score = councilData?.consensusScore ?? 0
+  const modelsResponded = councilData?.meta?.modelsResponded ?? councilData?.analyses?.length ?? 0
+  const analyses = councilData?.analyses ?? []
+  const color = rec === 'BUY' ? '#00FFA3' : rec === 'SELL' ? '#FF4757' : '#FFB800'
+  const recLabel = rec === 'BUY' ? 'شراء' : rec === 'SELL' ? 'بيع' : 'انتظار'
+  const isRealAI = councilData?.meta?.source === 'real-ai' || councilData?.meta?.source === 'partial-ai'
+
+  // Vote distribution
+  const voteCounts = analyses.reduce(
+    (acc: { buy: number; sell: number; hold: number }, a: any) => {
+      if (a.vote === 'BUY') acc.buy += 1
+      else if (a.vote === 'SELL') acc.sell += 1
+      else acc.hold += 1
+      return acc
+    },
+    { buy: 0, sell: 0, hold: 0 }
+  )
+  const totalVotes = voteCounts.buy + voteCounts.sell + voteCounts.hold
+
+  return (
+    <IOSCard onClick={() => router.push('/mobile/ai')}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-3 relative">
+          <motion.div
+            animate={{ opacity: [0.15, 0.35, 0.15] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            style={{
+              position: 'absolute', top: -6, left: -6, right: -6, bottom: -6,
+              background: 'linear-gradient(135deg, #7C3AED, #00D4FF)',
+              borderRadius: 20, filter: 'blur(10px)', zIndex: 0,
+            }}
+          />
+          <div style={{
+            width: 48, height: 48, borderRadius: 16,
+            background: 'linear-gradient(135deg, #7C3AED, #5B21B6)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', zIndex: 1, border: '0.5px solid rgba(255,255,255,0.1)',
+          }}>
+            <Brain size={24} color="#FFFFFF" />
+            {!councilData && (
+              <motion.div
+                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                style={{ position: 'absolute', inset: 0, borderRadius: 16, border: '2px solid #A78BFA' }}
+              />
+            )}
+          </div>
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الذكاء الاصطناعي</p>
+            <p style={{ fontSize: 11, color: '#A78BFA', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 1 }}>
+              {councilData ? `${modelsResponded} نماذج نشطة` : '6 نماذج تفحص السوق'}
+            </p>
+          </div>
+        </div>
+        <ChevronLeft size={20} color="rgba(235,235,245,0.3)" />
+      </div>
+
+      {/* Consensus Hero */}
+      <div style={{
+        padding: '16px', borderRadius: 20,
+        background: `${color}08`, border: `0.5px solid ${color}20`,
+        marginBottom: 12, position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Animated glow */}
+        <motion.div
+          animate={{ opacity: [0.1, 0.25, 0.1] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute', top: '-30%', left: '10%', width: '80%', height: '60%',
+            background: `radial-gradient(ellipse, ${color}40, transparent 70%)`,
+            filter: 'blur(30px)', pointerEvents: 'none',
+          }}
+        />
+        <div className="flex items-center justify-between" style={{ position: 'relative', zIndex: 1 }}>
+          <div className="flex items-center gap-3">
+            <div style={{ position: 'relative' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: 28,
+                background: `${color}15`, border: `2px solid ${color}40`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <span style={{ fontSize: 20, fontWeight: 900, color, fontFamily: "'JetBrains Mono', monospace", textShadow: `0 0 20px ${color}60` }}>
+                  {score}
+                </span>
+              </div>
+              {isRealAI && (
+                <div style={{
+                  position: 'absolute', top: -3, right: -3,
+                  width: 14, height: 14, borderRadius: 7,
+                  background: '#A78BFA', border: '2px solid #1A1D29',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Sparkles size={7} color="#FFFFFF" />
+                </div>
+              )}
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 900, color, fontFamily: "'Cairo', sans-serif", textShadow: `0 0 30px ${color}50`, lineHeight: 1.1 }}>
+                {councilData ? recLabel : 'جاري التحليل...'}
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: isRealAI ? '#A78BFA' : '#00FFA3' }} className="animate-pulse" />
+                <span style={{ fontSize: 9, fontWeight: 700, color: isRealAI ? '#A78BFA' : '#00FFA3', fontFamily: 'monospace' }}>
+                  {isRealAI ? 'AI LIVE' : 'LIVE'}
+                </span>
+                <span style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace", direction: 'ltr' }}>BTC/USD</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Vote Distribution Bar */}
+      {totalVotes > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div className="flex items-center justify-between mb-2">
+            <span style={{ fontSize: 10, fontWeight: 700, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>توزيع الأصوات</span>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: '#00FFA3' }} />
+                <span style={{ fontSize: 9, color: '#00FFA3', fontFamily: "'JetBrains Mono', monospace" }}>{voteCounts.buy}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: '#FFB800' }} />
+                <span style={{ fontSize: 9, color: '#FFB800', fontFamily: "'JetBrains Mono', monospace" }}>{voteCounts.hold}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div style={{ width: 6, height: 6, borderRadius: 3, background: '#FF4757' }} />
+                <span style={{ fontSize: 9, color: '#FF4757', fontFamily: "'JetBrains Mono', monospace" }}>{voteCounts.sell}</span>
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', gap: 2, direction: 'ltr' }}>
+            {voteCounts.buy > 0 && (
+              <div style={{ width: `${(voteCounts.buy / totalVotes) * 100}%`, height: '100%', background: '#00FFA3', borderRadius: 3 }} />
+            )}
+            {voteCounts.hold > 0 && (
+              <div style={{ width: `${(voteCounts.hold / totalVotes) * 100}%`, height: '100%', background: '#FFB800', borderRadius: 3 }} />
+            )}
+            {voteCounts.sell > 0 && (
+              <div style={{ width: `${(voteCounts.sell / totalVotes) * 100}%`, height: '100%', background: '#FF4757', borderRadius: 3 }} />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Top Models Preview */}
+      {analyses.length > 0 && (
+        <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+          {analyses.slice(0, 4).map((a: any, i: number) => {
+            const vColor = a.vote === 'BUY' ? '#00FFA3' : a.vote === 'SELL' ? '#FF4757' : '#FFB800'
+            const vIcon = a.vote === 'BUY' ? TrendingUp : a.vote === 'SELL' ? TrendingDown : Minus
+            const VIcon = vIcon
+            const shortName = a.model?.includes('Groq') ? 'Groq' : a.model?.includes('Gemini') ? 'Gemini' : a.model?.includes('GLM') ? 'GLM-4' : a.model?.includes('HuggingFace') || a.model?.includes('HF') ? 'HF' : a.model?.includes('Ollama') ? 'Ollama' : a.model?.includes('Bedrock') || a.model?.includes('Claude') ? 'Bedrock' : a.model?.split('/')?.[0] || '?'
+            return (
+              <div key={i} style={{
+                padding: '8px 10px', borderRadius: 12, flexShrink: 0,
+                background: `${vColor}08`, border: `0.5px solid ${vColor}18`,
+                display: 'flex', alignItems: 'center', gap: 6, minWidth: 100,
+              }}>
+                <VIcon size={12} color={vColor} />
+                <div>
+                  <p style={{ fontSize: 9, fontWeight: 700, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif", lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 70 }}>{a.role?.split(' ')[0]}</p>
+                  <div className="flex items-center gap-1">
+                    <span style={{ fontSize: 7, color: '#8B92A8', fontFamily: 'monospace' }}>{shortName}</span>
+                    <span style={{ fontSize: 8, fontWeight: 800, color: vColor, fontFamily: "'JetBrains Mono', monospace" }}>{safeConfidence(a.confidence)}%</span>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </IOSCard>
+  )
+}
+
 /* ─── Mobile Positions / Recent Trades ───── */
 function MobilePositions() {
   const positions = usePositionsStore(s => s.positions)
@@ -1213,62 +1568,17 @@ export default function MobileHomePage() {
       </div>
       <LatestRecommendations />
 
-      {/* ── AI Council Card ── */}
+      {/* ── الوكيل المستقل ── */}
       <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
-        تحليلات الذكاء الاصطناعي
+        الوكيل المستقل
       </h2>
-      <IOSCard onClick={() => router.push('/mobile/ai')}>
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-4 relative">
-            <motion.div
-              animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.1, 1] }}
-              transition={{ duration: 4, repeat: Infinity }}
-              style={{
-                position: 'absolute', top: -5, left: -5, right: -5, bottom: -5,
-                background: 'linear-gradient(135deg, #7C3AED, #00D4FF)',
-                borderRadius: 20, filter: 'blur(10px)', zIndex: 0
-              }}
-            />
-            <div style={{
-              width: 48, height: 48, borderRadius: 16,
-              background: 'linear-gradient(135deg, #7C3AED, #5B21B6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              position: 'relative', zIndex: 1, border: '0.5px solid rgba(255,255,255,0.1)'
-            }}>
-              <Brain size={24} color="#FFFFFF" />
-              {!consensus && (
-                <motion.div
-                  animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
-                  transition={{ duration: 2, repeat: Infinity }}
-                  style={{ position: 'absolute', inset: 0, borderRadius: 16, border: '2px solid #A78BFA' }}
-                />
-              )}
-            </div>
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              <p style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الخبراء</p>
-              <p style={{ fontSize: 11, color: '#A78BFA', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 1 }}>
-                {consensus ? `${consensus.meta.modelsResponded} نماذج نشطة` : '6 نماذج تفحص السوق'}
-              </p>
-            </div>
-          </div>
-          <ChevronLeft size={20} color="rgba(235,235,245,0.3)" />
-        </div>
-        
-        <div style={{
-          padding: '14px', borderRadius: 20,
-          background: 'rgba(0,212,255,0.05)', border: '0.5px solid rgba(0,212,255,0.1)',
-        }}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#00D4FF', boxShadow: '0 0 10px #00D4FF' }} className="animate-pulse" />
-              <span style={{ fontSize: 13, color: '#FFFFFF', fontFamily: "'JetBrains Mono', monospace", fontWeight: 800 }}>BTC/USD</span>
-            </div>
-            <span style={{ fontSize: 13, color: '#00D4FF', fontFamily: "'Cairo', sans-serif", fontWeight: 800 }}>
-              {consensus ? `إجماع ${consensus.recommendation === 'BUY' ? 'شراء' : consensus.recommendation === 'SELL' ? 'بيع' : 'انتظار'} (${consensus.consensusScore}%)` : 'جاري التحليل...'}
-            </span>
-          </div>
-        </div>
-      </IOSCard>
+      <AgentHomeWidget />
+
+      {/* ── مجلس الذكاء الاصطناعي ── */}
+      <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
+        مجلس الذكاء الاصطناعي
+      </h2>
+      <AICouncilHomeWidget consensus={consensus} />
 
       {/* ── Watchlist Section ── */}
       <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
@@ -1288,22 +1598,22 @@ export default function MobileHomePage() {
       </h2>
       <MobilePositions />
 
-      {/* ── Agent, Bot & Scanner Grid ── */}
+      {/* ── الأدوات الذكية ── */}
       <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif", margin: '24px 24px 12px' }}>
         الأدوات الذكية
       </h2>
       <div className="grid grid-cols-3 gap-3 px-5 mb-8">
-        {/* Agent Card */}
+        {/* المنفذ الذكي Card */}
         <motion.div
           whileTap={{ scale: 0.96 }}
           onClick={() => router.push('/mobile/agent')}
           style={{ background: '#1C1C1E', borderRadius: 28, padding: 16, position: 'relative', overflow: 'hidden', border: '0.5px solid rgba(255,255,255,0.06)' }}
         >
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,159,67,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-            <Cpu size={20} color="#FF9F43" />
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(0,212,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+            <Zap size={20} color="#00D4FF" />
           </div>
-          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>الوكيل</p>
-          <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>تداول ذاتي</p>
+          <p style={{ fontSize: 13, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>المنفذ</p>
+          <p style={{ fontSize: 10, color: 'rgba(235,235,245,0.4)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginTop: 2 }}>تنفيذ ذكي</p>
         </motion.div>
 
         {/* Bot Card */}

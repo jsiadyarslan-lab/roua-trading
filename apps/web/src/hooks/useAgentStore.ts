@@ -69,6 +69,8 @@ export interface AgentConfig {
   symbols: string[]
   credentialId: string
   isPaperTrading?: boolean
+  isTestnet?: boolean  // V135: Testnet is NOT paper trading
+  exchangeName?: string  // V135: Exchange name for display
   createdAt: string
   updatedAt: string
 }

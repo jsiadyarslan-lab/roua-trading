@@ -81,7 +81,7 @@ export function QuickExecutionMini({
   const inputPadding = mobile ? '10px' : '12px'
   const actionHeight = mobile ? 52 : 42
   const statusTone = getStatusTone(dataStatus)
-  const environmentLabel = 'ورقي'
+  const environmentLabel = 'تجريبي'  // V135: Was hardcoded 'ورقي' — QuickExecutionMini always uses simulated mode
   const inferredOrderType = pendingAction === 'sell' ? 'بيع' : 'شراء'
 
 
@@ -322,7 +322,7 @@ export function QuickExecutionMini({
           borderRadius: 6, padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#00C853', fontFamily: "'JetBrains Mono', monospace" }}>حساب تجريبي (PAPER)</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "'JetBrains Mono', monospace" }}>حساب تجريبي (TESTNET)</span>
         </div>
         {account && (
           <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
@@ -341,7 +341,7 @@ export function QuickExecutionMini({
           { label: 'الكمية', value: quantity || '—', tone: 'var(--accent)' },
           { label: 'النوع', value: inferredOrderType, tone: pendingAction === 'sell' ? 'var(--danger)' : 'var(--success)' },
           { label: 'المخاطرة', value: potentialLoss !== null ? `$${potentialLoss.toFixed(2)}` : '—', tone: 'var(--warning)' },
-          { label: 'البيئة', value: environmentLabel, tone: 'var(--success)' },
+          { label: 'البيئة', value: environmentLabel, tone: 'var(--warning)' },
         ].map(item => (
           <div key={item.label} style={{
             minWidth: 0,

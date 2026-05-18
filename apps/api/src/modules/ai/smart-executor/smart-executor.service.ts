@@ -517,6 +517,28 @@ export class SmartExecutorService implements OnModuleDestroy {
     // ── Read risk settings from user's saved preferences. ──
     const userRiskSettings = await this._loadUserRiskSettings(userId);
 
+    // V135: Read credential metadata for display (isTestnet, isPaperTrading, exchangeName)
+    let isPaperTrading = false;
+    let isTestnet = false;
+    let exchangeName: string | undefined;
+    if (activeCredentialId) {
+      try {
+        const cred = await this.prisma.exchangeCredential.findFirst({
+          where: { id: activeCredentialId, userId },
+          select: { testnet: true, exchange: true },
+        });
+        if (cred) {
+          isPaperTrading = cred.exchange === 'paper-trading';
+          isTestnet = cred.testnet === true && cred.exchange !== 'paper-trading';
+          exchangeName = cred.exchange;
+        }
+      } catch (err: any) {
+        this.logger.warn(`⚔️ V135 Could not read credential metadata for user ${userId}: ${err.message}`);
+      }
+    } else {
+      isPaperTrading = true;  // No credential = paper mode
+    }
+
     const state: UserExecutorState = {
       enabled: true,
       dailyPnL: 0,
@@ -527,6 +549,9 @@ export class SmartExecutorService implements OnModuleDestroy {
       maxOpenPositions: config?.maxOpenPositions || userRiskSettings.maxOpenPositions,
       riskPerTradePercent: config?.riskPerTradePercent || userRiskSettings.riskPerTradePercent,
       activeCredentialId,
+      isPaperTrading,  // V135
+      isTestnet,       // V135
+      exchangeName,    // V135
     };
 
     // ── Persist to BOTH Redis AND Database ──
@@ -721,20 +746,50 @@ export class SmartExecutorService implements OnModuleDestroy {
     }
 
     // Check if daily loss limit reached
-    // FIX: Previously hardcoded to false. Now we actually check each user's
-    // daily PnL against their portfolio value * (maxDailyLossPercent / 100).
+    // V135 FIX: Previously, this checked ALL users including simulated accounts
+    // (paper/testnet). Simulated accounts should bypass the daily loss limit
+    // (matching _processUserBriefs behavior). Without this bypass:
+    //   - Paper/testnet accounts would show "daily limit exceeded" even with 0 trades
+    //   - The widget would show "حد يومي" status incorrectly
+    //   - This was the root cause of the user's reported bug: "لماذا يعطيني تم
+    //     تجاوز الحد اليومي وهو لم ينفذ اصلا"
     let dailyLossLimitReached = false;
     try {
       const threshold = this.config.maxDailyLossPercent; // default 5%
 
       if (userId) {
-        // User-specific check: compare this user's dailyPnL against their portfolio threshold
+        // User-specific check
         const userState = await this.getUserState(userId);
         if (userState && userState.enabled) {
-          const portfolio = await this._getPortfolioValue(userId);
-          if (portfolio > 0) {
-            const lossLimit = portfolio * (threshold / 100);
-            dailyLossLimitReached = todayPnL < -lossLimit;
+          // V135: Check if user's active credential is simulated (paper/testnet)
+          let isSimulated = false;
+          try {
+            const activeCredId = userState.activeCredentialId;
+            if (activeCredId) {
+              const cred = await this.prisma.exchangeCredential.findFirst({
+                where: { id: activeCredId, userId },
+                select: { testnet: true, exchange: true },
+              });
+              if (cred && (cred.testnet === true || this._isSimulatedExchange(cred.exchange))) {
+                isSimulated = true;
+              }
+            } else {
+              // No credential = paper mode by default
+              isSimulated = true;
+            }
+          } catch (credErr: any) {
+            this.logger.debug(`getStatus: could not check credential type for ${userId}: ${credErr.message}`);
+          }
+
+          // V135: SKIP daily loss limit check for simulated accounts
+          if (!isSimulated) {
+            const portfolio = await this._getPortfolioValue(userId);
+            if (portfolio > 0) {
+              const lossLimit = portfolio * (threshold / 100);
+              dailyLossLimitReached = todayPnL < -lossLimit;
+            }
+          } else {
+            this.logger.debug(`getStatus: daily limit check BYPASSED for user ${userId} — simulated account`);
           }
         }
       } else {
@@ -744,6 +799,25 @@ export class SmartExecutorService implements OnModuleDestroy {
           try {
             const userState = await this.getUserState(uid);
             if (userState && userState.enabled) {
+              // V135: Skip simulated accounts in global check too
+              let isSimulated = false;
+              try {
+                const activeCredId = userState.activeCredentialId;
+                if (activeCredId) {
+                  const cred = await this.prisma.exchangeCredential.findFirst({
+                    where: { id: activeCredId, userId: uid },
+                    select: { testnet: true, exchange: true },
+                  });
+                  if (cred && (cred.testnet === true || this._isSimulatedExchange(cred.exchange))) {
+                    isSimulated = true;
+                  }
+                } else {
+                  isSimulated = true;
+                }
+              } catch { /* assume not simulated for safety */ }
+
+              if (isSimulated) continue;  // Skip simulated accounts
+
               const portfolio = await this._getPortfolioValue(uid);
               if (portfolio > 0) {
                 const lossLimit = portfolio * (threshold / 100);
@@ -1322,7 +1396,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     // V126: Migrate old state format if needed
     if ((userState as any).routingMode !== undefined) {
       delete (userState as any).routingMode;
-      delete (userState as any).isPaperTrading;
+      // V135: Don't delete isPaperTrading — it's now a legitimate field
       if ((userState as any).credentialId && !userState.activeCredentialId) {
         userState.activeCredentialId = (userState as any).credentialId;
       }
@@ -1394,8 +1468,26 @@ export class SmartExecutorService implements OnModuleDestroy {
         where: { id: userState.activeCredentialId, userId },
         select: { testnet: true, exchange: true },
       });
-      if (cred && (cred.testnet === true || this._isSimulatedExchange(cred.exchange))) {
-        isSimulated = true;
+      if (cred) {
+        isSimulated = cred.testnet === true || this._isSimulatedExchange(cred.exchange);
+        // V135: Update trading mode metadata in user state for frontend display
+        const newIsPaperTrading = cred.exchange === 'paper-trading';
+        const newIsTestnet = cred.testnet === true && cred.exchange !== 'paper-trading';
+        const newExchangeName = cred.exchange;
+        if (userState.isPaperTrading !== newIsPaperTrading ||
+            userState.isTestnet !== newIsTestnet ||
+            userState.exchangeName !== newExchangeName) {
+          userState.isPaperTrading = newIsPaperTrading;
+          userState.isTestnet = newIsTestnet;
+          userState.exchangeName = newExchangeName;
+          // Persist updated metadata
+          await this.redis.set(
+            `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+            JSON.stringify(userState),
+            86400000 * 7,
+          );
+          this._persistUserStateToDB(userId, userState).catch(() => {});
+        }
       }
     } catch (err: any) {
       this.logger.debug(`⚔️ Could not check credential type for user ${userId}: ${err.message}`);

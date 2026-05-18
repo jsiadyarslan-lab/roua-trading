@@ -542,6 +542,8 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     // ═══════════════════════════════════════════════════════════════
     let credential: any = null;
     let isPaperTrading = false;
+    let isTestnet = false;  // V135: Separate testnet from paper trading
+    let exchangeName: string | undefined;  // V135: Exchange name for display
 
     // Priority: dto.credentialId > activeCredentialId from user settings
     let effectiveCredentialId = dto.credentialId;
@@ -613,11 +615,18 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         throw new NotFoundException('الحساب المفعّل غير صالح أو غير موجود — اختر حساباً آخر من الإعدادات');
       }
 
-      // Determine if this is a simulated credential (paper/testnet)
-      isPaperTrading = credential.testnet === true || credential.exchange === 'paper-trading';
+      // V135: Determine trading mode — separate testnet from paper trading.
+      //   - isPaperTrading = true → exchange='paper-trading' (locally simulated, no real exchange)
+      //   - isTestnet = true → testnet=true on a real exchange (e.g., Binance testnet)
+      //   - Both false → live/real trading with real funds
+      // Previously, testnet accounts were lumped with paper trading, causing the
+      // widget to show "ورقي" even when connected to a real exchange via testnet.
+      isPaperTrading = credential.exchange === 'paper-trading';
+      isTestnet = credential.testnet === true && credential.exchange !== 'paper-trading';
+      exchangeName = credential.exchange;
       this.logger.log(
-        `🧠 V126 Agent starting for user ${userId} on ${credential.exchange} ` +
-        `(testnet=${credential.testnet || false}, simulated=${isPaperTrading})`,
+        `🧠 V135 Agent starting for user ${userId} on ${credential.exchange} ` +
+        `(testnet=${credential.testnet || false}, isPaperTrading=${isPaperTrading}, isTestnet=${isTestnet})`,
       );
     }
 
@@ -656,6 +665,8 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         this.DEFAULT_SYMBOLS,
       credentialId: effectiveCredentialId || credential?.id || `paper-${userId}`,
       isPaperTrading,
+      isTestnet,  // V135: Separate testnet from paper
+      exchangeName,  // V135: Exchange name for display
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -1834,7 +1845,9 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 strategyParams: this._getDefaultStrategyParams(session.strategy as StrategyType),
                 symbols: this.DEFAULT_SYMBOLS,
                 credentialId: session.credentialId,
-                isPaperTrading: true,
+                isPaperTrading: true,  // Fallback recovery — assume paper if can't parse
+                isTestnet: false,  // V135: Separate testnet from paper
+                exchangeName: undefined,  // V135: Unknown exchange on recovery
                 createdAt: session.startedAt,
                 updatedAt: session.updatedAt,
               };

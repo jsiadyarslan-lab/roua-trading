@@ -49,6 +49,8 @@ interface UserExecutorState {
   // Legacy fields (for migration display)
   credentialId?: string
   isPaperTrading?: boolean
+  isTestnet?: boolean  // V135: Testnet is NOT paper trading
+  exchangeName?: string  // V135: Exchange name for display
   routingMode?: string
 }
 
@@ -264,7 +266,7 @@ export function SmartExecutorPanel() {
         <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
 
-      {/* Active Account Banner */}
+      {/* V135: Active Account Banner — shows live/testnet/paper mode */}
       <div style={{
         padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
@@ -274,10 +276,29 @@ export function SmartExecutorPanel() {
         {isActive && activeCredId ? (
           <span style={{
             padding: '1px 6px', borderRadius: 3,
-            background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 700,
-            border: '1px solid rgba(0,255,163,0.3)',
+            background: userState?.isTestnet
+              ? 'rgba(255,184,0,0.15)'
+              : userState?.isPaperTrading
+                ? 'rgba(0,212,255,0.10)'
+                : 'rgba(0,255,163,0.15)',
+            color: userState?.isTestnet
+              ? T.amber
+              : userState?.isPaperTrading
+                ? T.accent
+                : T.success,
+            fontWeight: 700,
+            border: userState?.isTestnet
+              ? '1px solid rgba(255,184,0,0.3)'
+              : userState?.isPaperTrading
+                ? '1px solid rgba(0,212,255,0.2)'
+                : '1px solid rgba(0,255,163,0.3)',
           }}>
-            مفعّل
+            {userState?.isTestnet
+              ? `تجريبي${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
+              : userState?.isPaperTrading
+                ? 'ورقي'
+                : `مباشر${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
+            }
           </span>
         ) : isActive ? (
           <span style={{

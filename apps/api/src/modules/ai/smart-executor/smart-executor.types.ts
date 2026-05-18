@@ -65,4 +65,8 @@ export interface UserExecutorState {
   maxOpenPositions: number;
   riskPerTradePercent: number;
   activeCredentialId?: string;  // User's chosen account from settings
+  // V135: Trading mode metadata — populated from the active credential
+  isPaperTrading?: boolean;    // exchange='paper-trading' (locally simulated)
+  isTestnet?: boolean;         // testnet=true on a real exchange (e.g., Binance testnet)
+  exchangeName?: string;       // Exchange name for display (e.g., 'binance', 'alpaca')
 }

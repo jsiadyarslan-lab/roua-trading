@@ -96,8 +96,18 @@ export interface AgentConfig {
   // Exchange credential to use
   credentialId: string;
 
-  // Paper trading mode (no real exchange connection)
+  // Paper trading mode (no real exchange connection — simulated locally)
   isPaperTrading?: boolean;
+
+  // V135: Testnet mode (real exchange API but testnet/sandbox environment)
+  // This is DIFFERENT from isPaperTrading:
+  //   - isPaperTrading = true → no real exchange, simulated locally (exchange='paper-trading')
+  //   - isTestnet = true → real exchange connection, but using testnet/sandbox funds
+  //   - Both false → live/real trading with real funds
+  isTestnet?: boolean;
+
+  // V135: Exchange name for display (e.g., 'binance', 'alpaca', 'paper-trading')
+  exchangeName?: string;
 
   // Auto-generated
   createdAt: Date;

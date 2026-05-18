@@ -150,6 +150,9 @@ export function AgentControlMini() {
   const config = agentState?.config
   const strategy = config?.strategy ?? StrategyType.AUTO
   const isPaperTrading = config?.isPaperTrading ?? !selectedCredentialId
+  const isTestnet = config?.isTestnet ?? false  // V135: Testnet is NOT paper trading
+  const exchangeName = config?.exchangeName  // V135: Exchange name for display
+  const isLiveMode = !isPaperTrading && !isTestnet  // V135: Real trading with real funds
   const statusColor = getStatusColor(status)
   const dailyPnL = agentState?.dailyPnL ?? 0
   const lastSignalAt = agentState?.lastSignalAt
@@ -278,21 +281,38 @@ export function AgentControlMini() {
             {getStatusLabel(status)}
           </span>
 
-          {/* Paper Trading Badge — V133: Show reason why paper mode */}
-          {isPaperTrading && isRunning && (
+          {/* V135: Trading Mode Badge — show correct mode instead of always "ورقي" */}
+          {isRunning && (
             <span
-              title={!selectedCredentialId && !config?.isPaperTrading
-                ? 'لم يتم اختيار حساب تداول من الإعدادات — التداول ورقي تلقائياً. اختر حسابك من الإعدادات للتبديل للحقيقي.'
-                : 'التداول في وضع ورقي (تجريبي) — بدون أموال حقيقية'
+              title={
+                isPaperTrading && !isTestnet
+                  ? 'لم يتم اختيار حساب تداول من الإعدادات — التداول ورقي تلقائياً. اختر حسابك من الإعدادات للتبديل للحقيقي.'
+                  : isTestnet
+                    ? `متصل ببورصة ${exchangeName || 'تجريبي'} عبر بيئة تجريبية (testnet) — أموال افتراضية على بورصة حقيقية`
+                    : `تداول حقيقي على ${exchangeName || 'البورصة'} — أموال حقيقية`
               }
               style={{
                 fontSize: 10, padding: '2px 7px', borderRadius: 6,
-                background: 'rgba(0,212,255,0.10)', color: T.accent,
+                background: isPaperTrading && !isTestnet
+                  ? 'rgba(0,212,255,0.10)'
+                  : isTestnet
+                    ? 'rgba(255,184,0,0.10)'
+                    : 'rgba(0,255,163,0.10)',
+                color: isPaperTrading && !isTestnet
+                  ? T.accent
+                  : isTestnet
+                    ? T.amber
+                    : T.green,
                 fontWeight: 700, fontFamily: FONT_AR, flexShrink: 0,
                 cursor: 'help',
               }}
             >
-              ورقي{!selectedCredentialId && !config?.isPaperTrading ? ' ⚙' : ''}
+              {isPaperTrading && !isTestnet
+                ? `ورقي${!selectedCredentialId && !config?.isPaperTrading ? ' ⚙' : ''}`
+                : isTestnet
+                  ? `تجريبي${exchangeName ? ` (${exchangeName})` : ''}`
+                  : `مباشر${exchangeName ? ` (${exchangeName})` : ''}`
+              }
             </span>
           )}
         </div>

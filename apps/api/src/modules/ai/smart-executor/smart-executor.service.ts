@@ -87,31 +87,31 @@ export class SmartExecutorService implements OnModuleDestroy {
   ) {
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
 
-    // FIX: REMOVED auto-start completely. Previously, the executor would
-    // auto-start after 10 seconds, restore user states from DB/Redis,
-    // and sync with AgentSession — all without user consent. This caused
-    // phantom trades to be created for every user on every server restart.
+    // FIX (V136): Only run startup cleanup. No auto-restore, no heartbeat.
     //
-    // Now: The executor does NOTHING until a user explicitly clicks "تشغيل"
-    // from their dashboard. No auto-start, no auto-restore, no cross-system sync.
+    // ROOT CAUSE of multiple bugs:
+    //   1. _autoRestoreFromDB() read ALL SMART_EXECUTOR_USER_STATE:* entries from DB
+    //      and restored EVERY user — even those who were auto-enabled by AuthService
+    //      and never explicitly clicked "تشغيل". This caused the executor to trade
+    //      for ALL users on every server restart.
+    //   2. The 60-second heartbeat kept re-enabling users from DB, making it
+    //      impossible to truly disable the executor for any user.
+    //   3. Combined with AuthService's auto-enable (now removed), this created
+    //      phantom trades for every user who ever logged in.
     //
-    // Only run startup cleanup to purge any leftover phantom data:
+    // V136 PRINCIPLE: The executor ONLY runs for users who explicitly enable it.
+    //   - Startup: Only cleanup phantom data (no restore)
+    //   - New user registration: No auto-enable (AuthService fix)
+    //   - User clicks "تشغيل": enableUser() adds them to the tick loop
+    //   - User clicks "إيقاف": disableUser() removes them
+    //   - Server restart: Users must re-enable (explicit consent required)
+    //
+    // This ensures ZERO phantom trades and full user isolation.
     setTimeout(() => {
-      this._startupCleanup().then(() => {
-        this._autoRestoreFromDB();
+      this._startupCleanup().catch((err: any) => {
+        this.logger.warn(`⚔️ Startup cleanup failed: ${err.message}`);
       });
     }, 20000); // 20s — give DB more time to be ready on Railway cold starts
-
-    // FIX: Periodic check for newly enabled users.
-    // When a new user registers and gets auto-enabled (paper mode) via AuthService,
-    // the executor might not be running yet. This heartbeat checks every 60 seconds
-    // for new enabled users in the DB and starts the tick loop if needed.
-    // This ensures new users see automated trading within 60 seconds of registration.
-    setInterval(() => {
-      if (!this.isRunning) {
-        this._autoRestoreFromDB().catch(() => {});
-      }
-    }, 60000);
   }
 
   /**
@@ -181,19 +181,36 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge expired TradingBrief records: ${briefErr.message}`);
       }
 
-      // ── STEP 4: Clear Redis user states (volatile) — DB states preserved ──
-      // Redis states are volatile and may be stale. Clear them so they get
-      // re-populated from DB (the source of truth for explicitly-enabled users).
+      // ── STEP 4: Clear Redis user states (volatile) ──
+      // V136: Clear ALL Redis and DB executor user states on startup.
+      // These were previously auto-created by AuthService and _autoRestoreFromDB()
+      // for users who never explicitly enabled trading. Now: clean slate.
+      // Users must explicitly click "تشغيل" after server restart.
       try {
         const userKeys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
         for (const key of userKeys) {
           await this.redis.del(key);
         }
         if (userKeys.length > 0) {
-          this.logger.log(`⚔️ STARTUP: Cleared ${userKeys.length} volatile Redis user state(s) (DB states preserved)`);
+          this.logger.log(`⚔️ STARTUP: Cleared ${userKeys.length} volatile Redis user state(s)`);
         }
       } catch (redisErr: any) {
         this.logger.warn(`⚔️ Failed to clear executor Redis states: ${redisErr.message}`);
+      }
+
+      // ── STEP 4.1: Clean up stale DB user state entries (V136) ──
+      // Remove SMART_EXECUTOR_USER_STATE:* entries that were auto-created
+      // by AuthService without explicit user consent. These orphaned entries
+      // would be picked up by any future auto-restore mechanism.
+      try {
+        const staleDbStates = await this.prisma.setting.deleteMany({
+          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        });
+        if (staleDbStates.count > 0) {
+          this.logger.log(`⚔️ STARTUP: Cleaned up ${staleDbStates.count} stale DB executor user state(s) (V136 — users must re-enable)`);
+        }
+      } catch (dbCleanErr: any) {
+        this.logger.warn(`⚔️ Failed to clean up stale DB user states: ${dbCleanErr.message}`);
       }
 
       // ── STEP 5: Clear global executor state from Redis ──
@@ -318,63 +335,19 @@ export class SmartExecutorService implements OnModuleDestroy {
    */
 
   /**
-   * FIX: Auto-restore enabled users from DB after startup or when new users register.
-   * Reads DB-persisted user states (source of truth for explicit user consent)
-   * and repopulates Redis + starts the tick loop if any enabled users are found.
+   * REMOVED (V136): _autoRestoreFromDB() has been PERMANENTLY DELETED.
    *
-   * This is SAFE because:
-   *   - Only users with DB records are restored (explicit consent)
-   *   - Phantom positions are already cleaned up by _startupCleanup()
-   *   - Dedup prevents duplicate trades (Redis + DB processed keys)
+   * ROOT CAUSE: This method read ALL SMART_EXECUTOR_USER_STATE:* entries from DB
+   * and restored EVERY user — including those auto-enabled by AuthService without
+   * explicit consent. Combined with the 60-second heartbeat, this meant:
+   *   - Every user who ever logged in got their executor state restored
+   *   - The tick loop would trade for ALL restored users
+   *   - Disabling a user was futile — the heartbeat would re-enable them
+   *   - Phantom trades appeared for users who never clicked "تشغيل"
+   *
+   * V136: The executor ONLY enables users who explicitly click "تشغيل" via enableUser().
+   * On server restart, users must re-enable. This ensures explicit consent.
    */
-  private async _autoRestoreFromDB(): Promise<void> {
-    try {
-      if (!this.prisma?.isAvailable?.()) {
-        this.logger.warn('⚔️ DB not yet available for auto-restore — will retry');
-        return;
-      }
-
-      // Read all DB-persisted user states
-      const dbStates = await this.prisma.setting.findMany({
-        where: { key: { startsWith: this.DB_USER_STATE_KEY } },
-      });
-
-      if (dbStates.length === 0) {
-        this.logger.debug('⚔️ No enabled users found in DB — executor stays idle until a user enables it.');
-        return;
-      }
-
-      let restoredCount = 0;
-      for (const s of dbStates) {
-        try {
-          const state = JSON.parse(s.value);
-          if (state.enabled) {
-            const userId = s.key.replace(this.DB_USER_STATE_KEY + ':', '');
-
-            // Re-populate Redis from DB
-            await this.redis.set(
-              `${this.REDIS_USER_STATE_PREFIX}${userId}`,
-              JSON.stringify(state),
-              86400000 * 7,
-            );
-
-            restoredCount++;
-            this.logger.debug(`⚔️ Restored enabled user ${userId} from DB (activeCredential: ${state.activeCredentialId || 'none'})`);
-          }
-        } catch {
-          // Malformed state — skip
-        }
-      }
-
-      // Auto-start the tick loop if any users were restored
-      if (restoredCount > 0 && !this.isRunning) {
-        this.logger.log(`⚔️ Auto-starting tick loop — ${restoredCount} user(s) restored from DB`);
-        await this.start('auto-restore');
-      }
-    } catch (error: any) {
-      this.logger.warn(`⚔️ Auto-restore failed (non-critical): ${error.message}. Executor will start when a user enables it.`);
-    }
-  }
 
   // ── Lifecycle ──
 
@@ -910,12 +883,16 @@ export class SmartExecutorService implements OnModuleDestroy {
    * PURGE PHANTOM POSITIONS: Delete all positions from the
    * database that were created from degraded/fallback data.
    * These show as $0.00-$0.04 trades on the dashboard.
+   *
+   * V136: Added optional userId parameter to scope deletion to a specific user.
+   * If no userId is provided, operates on all users (for admin/system use).
    */
-  async purgePhantomPositions(): Promise<{ deleted: number }> {
+  async purgePhantomPositions(userId?: string): Promise<{ deleted: number }> {
     try {
-      const allPositions = await this.prisma.position.findMany({
-        where: { status: 'OPEN' },
-      });
+      const where: any = { status: 'OPEN' };
+      if (userId) where.userId = userId;
+
+      const allPositions = await this.prisma.position.findMany({ where });
 
       const phantomIds: string[] = [];
       for (const pos of allPositions) {
@@ -1135,62 +1112,48 @@ export class SmartExecutorService implements OnModuleDestroy {
 
   /**
    * Get all users with executor enabled
-   * FIX: Use RedisService.scanKeys() instead of (this.redis as any)['client'].scan().
-   * The Redis client is private in RedisService, so accessing it via `as any`
-   * is fragile and breaks in production builds. The scanKeys() method is
-   * the official API for this pattern.
+   *
+   * V136: Only reads from Redis — NO DB fallback.
+   *
+   * ROOT CAUSE of cross-user bug: The DB fallback read ALL
+   * SMART_EXECUTOR_USER_STATE:* entries, including those auto-created by
+   * AuthService for users who never explicitly enabled trading. This meant
+   * the tick loop would trade for EVERY user who ever logged in.
+   *
+   * Now: Only Redis entries created by enableUser() (explicit user action)
+   * are checked. If Redis restarts, users must re-enable via the UI.
+   * This is the correct trade-off: explicit consent > convenience.
    */
   private async _getEnabledUsers(): Promise<string[]> {
     const userIds = new Set<string>();
 
-    // Step 1: Check Redis for enabled users (fast path)
+    // Only read from Redis — entries are created by enableUser() (explicit action)
     try {
       const keys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
       for (const k of keys) {
-        userIds.add(k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+        // Verify the state is actually enabled (not stale)
+        try {
+          const raw = await this.redis.get(k);
+          if (raw) {
+            const state = JSON.parse(raw);
+            if (state.enabled) {
+              userIds.add(k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+            } else {
+              // Disabled state — clean up from Redis
+              await this.redis.del(k).catch(() => {});
+            }
+          }
+        } catch {
+          // Malformed entry — remove it
+          await this.redis.del(k).catch(() => {});
+        }
       }
     } catch {
-      // Redis unavailable — fall through to DB check
-    }
-
-    // Step 2: DB fallback — recover users whose state was persisted to DB
-    // but lost from Redis (e.g., Redis restart on Railway).
-    // FIX: Previously, this step was DELETED, causing silent data loss on Redis restart.
-    // A user who clicked "تفعيل" would appear enabled in getUserState() (which reads DB)
-    // but _getEnabledUsers() (which only read Redis) would return empty → tick loop skips them.
-    // Now: we also read from DB to ensure no user is lost on Redis restart.
-    if (userIds.size === 0) {
-      try {
-        const dbStates = await this.prisma.setting.findMany({
-          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
-        });
-        for (const s of dbStates) {
-          try {
-            const state = JSON.parse(s.value);
-            if (state.enabled) {
-              const userId = s.key.replace(this.DB_USER_STATE_KEY + ':', '');
-              userIds.add(userId);
-              // Re-populate Redis from DB so next read is fast
-              await this.redis.set(
-                `${this.REDIS_USER_STATE_PREFIX}${userId}`,
-                JSON.stringify(state),
-                86400000 * 7,
-              ).catch(() => {});
-            }
-          } catch {
-            // Malformed state — ignore
-          }
-        }
-        if (userIds.size > 0) {
-          this.logger.log(`⚔️ Recovered ${userIds.size} enabled user(s) from DB (Redis was empty — likely restart)`);
-        }
-      } catch (dbErr: any) {
-        this.logger.warn(`⚔️ Failed to read enabled users from DB: ${dbErr.message}`);
-      }
+      // Redis unavailable — no users can be processed
     }
 
     if (userIds.size > 0) {
-      this.logger.debug(`⚔️ Enabled users total: ${userIds.size}`);
+      this.logger.debug(`⚔️ Enabled users: ${userIds.size}`);
     }
 
     return Array.from(userIds);

@@ -1397,6 +1397,54 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     if (state.status !== AgentStatus.RUNNING) return;
 
+    // ═══════════════════════════════════════════════════════════════
+    // V136: Re-read activeCredentialId from user settings on each cycle.
+    // ROOT CAUSE of "ورقي" showing despite Binance in settings:
+    //   The agent's state (isPaperTrading, exchangeName) was set once
+    //   at start and never refreshed. If the user changed their
+    //   active credential in settings AFTER starting the agent, the
+    //   widget still showed "ورقي" from the stale state.
+    //   Now: we re-read and update the credential metadata every cycle.
+    // ═══════════════════════════════════════════════════════════════
+    try {
+      const activeSetting = await this.prisma.setting.findFirst({
+        where: { key: `user:${userId}:activeCredentialId` },
+      });
+      const settingsActiveId = activeSetting?.value || undefined;
+
+      if (settingsActiveId && settingsActiveId !== state.config.credentialId) {
+        // User changed their credential — update agent state
+        state.config.credentialId = settingsActiveId;
+
+        // Read the new credential's metadata
+        const credential = await this.prisma.exchangeCredential.findFirst({
+          where: { id: settingsActiveId, userId, isValid: true },
+          select: { testnet: true, exchange: true },
+        });
+
+        if (credential) {
+          state.config.isPaperTrading = credential.exchange === 'paper-trading';
+          state.config.isTestnet = credential.testnet === true && credential.exchange !== 'paper-trading';
+          state.config.exchangeName = credential.exchange;
+          this.logger.log(
+            `🧠 V136 Agent credential updated for user ${userId}: ` +
+            `${credential.exchange} (isPaperTrading=${state.config.isPaperTrading}, isTestnet=${state.config.isTestnet})`,
+          );
+        }
+        await this._saveAgentState(userId, state);
+      } else if (!settingsActiveId && state.config.credentialId && !state.config.credentialId.startsWith('paper-')) {
+        // User removed their active credential — revert to paper trading
+        state.config.credentialId = `paper-${userId}`;
+        state.config.isPaperTrading = true;
+        state.config.isTestnet = false;
+        state.config.exchangeName = undefined;
+        this.logger.log(`🧠 V136 Agent credential removed for user ${userId} — reverting to paper trading`);
+        await this._saveAgentState(userId, state);
+      }
+    } catch (err: any) {
+      this.logger.debug(`🧠 V136 Could not refresh credential for user ${userId}: ${err.message}`);
+    }
+
     // Check if daily loss limit reached
     const dailyLimitReached = await this.riskCalculator.isDailyLimitReached(
       userId,

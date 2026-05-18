@@ -138,7 +138,15 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      const settings = await this.prisma.setting.findMany();
+      // V136 FIX: Only read GLOBAL system settings (riskConfig, botConfig),
+      // NOT all user-specific settings. Previously, findMany() loaded EVERY
+      // setting from EVERY user into memory — a data leak risk and performance
+      // issue. User-specific settings are read per-request via _loadUserRiskSettings().
+      const settings = await this.prisma.setting.findMany({
+        where: {
+          key: { in: ['riskConfig', 'botConfig', 'AUTO_TRADING_ENABLED'] },
+        },
+      });
       const settingsMap: Record<string, any> = {};
       for (const s of settings) {
         try {

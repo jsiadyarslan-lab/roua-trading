@@ -369,61 +369,26 @@ export class AuthService {
           });
 
           // ═══════════════════════════════════════════════════════════════
-          // FIX: Auto-enable Smart Executor (paper mode) for new users.
-          // When a new user gets their paper-trading credential created,
-          // also enable the Smart Executor in paper trading mode so they
-          // can see automated trading in action immediately — no manual
-          // "تفعيل" button click needed.
+          // FIX (V136): REMOVED auto-enable of Smart Executor.
           //
-          // This writes the same Redis + DB state that enableUser() does,
-          // without injecting SmartExecutorService (avoids circular deps).
-          // The executor's tick loop will pick up the user on the next cycle.
+          // ROOT CAUSE of multiple bugs:
+          //   1. "ورقي" showing on widget despite Binance in settings — because
+          //      the auto-enabled state had isPaperTrading=true with no
+          //      activeCredentialId, and this stale state persisted even after
+          //      the user selected Binance in settings.
+          //   2. "تم تجاوز الحد اليومي" with 0 trades — the auto-enabled
+          //      executor state had no activeCredentialId, making it fall
+          //      through to simulated-only check incorrectly.
+          //   3. Cross-user data leakage — ALL users got auto-enabled on login,
+          //      causing the executor to iterate over ALL users on every tick.
+          //   4. Phantom trades — the executor would start trading for users
+          //      who never explicitly clicked "تشغيل".
           //
-          // IMPORTANT: Only auto-enable paper trading mode. Real trading
-          // accounts must ALWAYS be manually enabled by the user.
+          // PRINCIPLE: Every user action must be EXPLICIT. The user must
+          // click "تشغيل" to enable trading. No auto-enable, ever.
+          // Only the paper-trading credential is auto-created (safe — no
+          // trading until user explicitly enables).
           // ═══════════════════════════════════════════════════════════════
-          try {
-            const executorState = {
-              enabled: true,
-              dailyPnL: 0,
-              dailyTrades: 0,
-              dailyResetAt: new Date().toISOString(),
-              lastTradeAt: null,
-              consecutiveLosses: 0,
-              maxOpenPositions: 5,
-              riskPerTradePercent: 1,
-              credentialId: undefined,
-              isPaperTrading: true,
-            };
-
-            // 1. Save to Redis (same key pattern as SmartExecutorService)
-            await this.redis.set(
-              `smart-executor:user:${user.id}`,
-              JSON.stringify(executorState),
-              86400000 * 7, // 7 days
-            );
-
-            // 2. Save to DB (survives Redis restart)
-            await this.prisma.setting.upsert({
-              where: { key: `SMART_EXECUTOR_USER_STATE:${user.id}` },
-              update: { value: JSON.stringify(executorState) },
-              create: { key: `SMART_EXECUTOR_USER_STATE:${user.id}`, value: JSON.stringify(executorState) },
-            });
-
-            this.logger.log(`⚔️ Auto-enabled Smart Executor (paper) for new user ${user.id}`);
-
-            await this.auditService.log({
-              userId: user.id,
-              action: 'SMART_EXECUTOR_AUTO_ENABLED',
-              resource: 'smart-executor',
-              details: 'Auto-enabled paper trading executor for new user',
-              userAgent,
-              ipAddress,
-            });
-          } catch (execErr: any) {
-            // Non-fatal — executor can be enabled manually later
-            this.logger.warn(`Failed to auto-enable executor for user ${user.id}: ${execErr.message}`);
-          }
         }
       } catch (demoErr: any) {
         // Non-fatal - don't fail login if demo account creation fails

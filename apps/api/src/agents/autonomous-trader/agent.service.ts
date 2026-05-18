@@ -1593,6 +1593,21 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             continue;
           }
 
+          // V146d: On SPOT exchanges, SELL requires owning the base currency.
+          // You can't short-sell on spot — only sell what you already hold.
+          // The Agent opens NEW positions, so SELL on spot means "I want to go short"
+          // which is impossible without margin/futures. Skip these briefs entirely.
+          const isSpotExchange = !state.config.isPaperTrading &&
+            !state.config.isTestnet &&
+            userExchange !== 'alpaca'; // Alpaca supports short selling on stocks
+          const isBriefSell = brief.direction === 'SELL';
+          if (isSpotExchange && isBriefSell) {
+            this.logger.debug(
+              `🧠 Skipping SELL brief ${brief.id} — ${brief.pair} SELL not possible on spot exchange ${userExchange} (need margin/futures for short selling)`
+            );
+            continue;
+          }
+
           // Check market hours
           const marketStatus = isMarketOpen(brief.pair);
           if (!marketStatus.open) {

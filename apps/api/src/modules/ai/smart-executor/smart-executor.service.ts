@@ -2609,6 +2609,19 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
+      // V146d: On SPOT exchanges, SELL requires owning the base currency.
+      // You can't short-sell on spot — only sell what you already hold.
+      // The Executor opens NEW positions, so SELL on spot = "go short" which
+      // is impossible without margin/futures. Skip these briefs entirely.
+      if (!isSimulatedExecution && brief.direction === 'SELL' &&
+          credential.exchange !== 'alpaca') { // Alpaca supports short on stocks
+        this.logger.debug(
+          `⚔️ Skipping SELL brief ${brief.id} — ${brief.pair} SELL not possible on spot exchange ${credential.exchange}`,
+        );
+        result.error = `بيع ${brief.pair} غير ممكن على حساب سبوت — يحتاج حساب مارجن/فيوتشر`;
+        return result;
+      }
+
       this.logger.log(
         `⚔️ V126 Executing brief ${brief.pair} for user ${userId} ` +
         `on ${credential.exchange} (testnet=${credential.testnet || false}, simulated=${isSimulatedExecution})`,

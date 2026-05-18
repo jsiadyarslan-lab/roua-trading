@@ -141,6 +141,10 @@ export interface AgentSettingsData {
   userId: string
   autoTradingEnabled: boolean
   paperBalance: number
+  // V153: User-configurable leverage for paper trading
+  paperForexLeverage: number
+  paperGoldLeverage: number
+  paperCryptoLeverage: number
   maxPositionSizePercent: number
   maxDailyLossPercent: number
   maxOpenPositions: number
@@ -656,6 +660,15 @@ export const useAgentStore = create<AgentStore>()(
           const data = await res.json()
           if (data.success && data.data) {
             set({ settings: data.data })
+            // V153: Sync user's leverage settings to margin calculator
+            try {
+              const { setUserLeverage } = await import('@/lib/margin-calculator')
+              setUserLeverage({
+                paperForexLeverage: data.data.paperForexLeverage,
+                paperGoldLeverage: data.data.paperGoldLeverage,
+                paperCryptoLeverage: data.data.paperCryptoLeverage,
+              })
+            } catch { /* margin calculator not available */ }
           }
         } catch {
           // Silent fail for settings

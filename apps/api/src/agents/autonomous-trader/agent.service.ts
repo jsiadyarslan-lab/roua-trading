@@ -996,6 +996,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     if (dto.autoTradingEnabled !== undefined) updateData.autoTradingEnabled = dto.autoTradingEnabled;
     if (dto.paperBalance !== undefined) updateData.paperBalance = dto.paperBalance;
+    // V153: Paper trading leverage (user-configurable)
+    if (dto.paperForexLeverage !== undefined) updateData.paperForexLeverage = dto.paperForexLeverage;
+    if (dto.paperGoldLeverage !== undefined) updateData.paperGoldLeverage = dto.paperGoldLeverage;
+    if (dto.paperCryptoLeverage !== undefined) updateData.paperCryptoLeverage = dto.paperCryptoLeverage;
     if (dto.maxPositionSizePercent !== undefined) updateData.maxPositionSizePercent = dto.maxPositionSizePercent;
     if (dto.maxDailyLossPercent !== undefined) updateData.maxDailyLossPercent = dto.maxDailyLossPercent;
     if (dto.maxOpenPositions !== undefined) updateData.maxOpenPositions = dto.maxOpenPositions;

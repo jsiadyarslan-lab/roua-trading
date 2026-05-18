@@ -8,7 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
-import { calculateMargin } from '../../trading/services/symbol-metadata';
+import { calculateMargin, getSymbolMetadata } from '../../trading/services/symbol-metadata';
 import * as crypto from 'crypto';
 import * as ccxt from 'ccxt';
 import { hostname } from 'os';
@@ -556,6 +556,14 @@ export class CredentialsService {
         where: { userId },
       });
       paperBalanceUsd = settings ? Number(settings.paperBalance) : 10000;
+      // V153 FIX: User-configurable leverage for paper trading.
+      // The platform only CONNECTS accounts — leverage is set by the broker/exchange.
+      // For paper trading simulation, we read the user's preferred leverage from settings.
+      // Previously hardcoded: forex=50, gold=20, crypto=1 (V147-V152).
+      // Now: reads from AgentSettings.paperForexLeverage, paperGoldLeverage, paperCryptoLeverage.
+      const forexLeverage = settings?.paperForexLeverage || 50;
+      const goldLeverage = settings?.paperGoldLeverage || 20;
+      const cryptoLeverage = settings?.paperCryptoLeverage || 1;
       // V147 FIX: Calculate leverage-aware used margin and unrealized P&L separately.
       // Previously, `totalExposure = qty × price` (full notional) was subtracted from
       // paperBalance as if it were margin. This caused the available balance to drop
@@ -563,7 +571,7 @@ export class CredentialsService {
       // For example: 5 EUR/USD positions with $500 notional each = $2,500 "exposure"
       // but actual margin = $2,500 / 50 = $50. The old code made available = $7,500
       // instead of the correct $9,950.
-      // Now: margin = notional / leverage (forex: /50, gold: /20, crypto: /1)
+      // Now: margin = notional / leverage (user-configurable per asset class)
       //       equity = balance + unrealized P&L
       //       available = equity - usedMargin
       let usedMargin = 0;
@@ -577,8 +585,15 @@ export class CredentialsService {
           const qty = Number(p.quantity) || 0;
           const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
           const entryPrice = Number(p.entryPrice) || 0;
-          // Leverage-aware margin (forex /50, gold /20, crypto /1)
-          usedMargin += calculateMargin(qty, currentPrice, p.symbol);
+          // V153: Use user-configured leverage per asset class
+          // getSymbolMetadata returns defaultLeverage; we override with user settings
+          const meta = getSymbolMetadata(p.symbol);
+          let leverage = meta.defaultLeverage;
+          if (meta.assetClass === 'FOREX') leverage = forexLeverage;
+          else if (meta.assetClass === 'COMMODITY') leverage = goldLeverage;
+          else if (meta.assetClass === 'CRYPTO') leverage = cryptoLeverage;
+          const notional = Math.abs(qty * currentPrice);
+          usedMargin += leverage > 0 ? notional / leverage : notional;
           // Unrealized P&L
           if (p.side === 'BUY') {
             unrealizedPnl += (currentPrice - entryPrice) * qty;

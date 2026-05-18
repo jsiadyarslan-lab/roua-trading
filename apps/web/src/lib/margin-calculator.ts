@@ -1,28 +1,55 @@
 /**
  * Client-Side Margin Calculator — Frontend equivalent of symbol-metadata.ts
  *
- * V151: This module provides leverage-aware margin calculation on the frontend.
- * Previously, the frontend had NO way to calculate margin from positions — it
- * relied entirely on the backend API, which caused flickering when:
- *   1. updatePositionPrice() (1s tick) overwrote margin with 0 or wrong value
- *   2. fetchAccount() (5-15s tick) set the correct value
- *   3. The 1s tick immediately overwrote it again
+ * V153: Leverage is now USER-CONFIGURABLE for paper trading.
+ * The platform only CONNECTS accounts — leverage is set by the broker/exchange.
+ * For paper trading, we read the user's preferred leverage from AgentSettings.
+ * For real exchanges, the exchange API provides the actual margin directly.
  *
- * Now: updatePositionPrice() can compute margin from positions using the same
- * leverage logic as the backend, ensuring consistency even between API calls.
- *
- * The leverage registry is intentionally simple — it only needs to know the
- * default leverage for common symbol types to calculate margin correctly.
+ * Default leverage values are used as fallbacks when user settings aren't loaded.
  */
 
-// ── Symbol Leverage Registry ──
-// Maps symbol patterns to their default leverage.
-// Must match the backend's SYMBOL_REGISTRY in symbol-metadata.ts.
+// ── Symbol Leverage Defaults (fallbacks when user settings not loaded) ──
+const DEFAULT_FOREX_LEVERAGE = 50
+const DEFAULT_GOLD_LEVERAGE = 20
+const DEFAULT_SILVER_LEVERAGE = 20
+const DEFAULT_CRYPTO_LEVERAGE = 1 // Spot trading
 
-const FOREX_LEVERAGE = 50
-const GOLD_LEVERAGE = 20
-const SILVER_LEVERAGE = 20
-const CRYPTO_LEVERAGE = 1 // Spot trading
+// V153: User-configurable leverage (loaded from AgentSettings)
+let _forexLeverage = DEFAULT_FOREX_LEVERAGE
+let _goldLeverage = DEFAULT_GOLD_LEVERAGE
+let _cryptoLeverage = DEFAULT_CRYPTO_LEVERAGE
+
+/**
+ * V153: Set user-configured leverage from AgentSettings.
+ * Called when settings are fetched from the API.
+ */
+export function setUserLeverage(settings: {
+  paperForexLeverage?: number
+  paperGoldLeverage?: number
+  paperCryptoLeverage?: number
+}) {
+  if (settings.paperForexLeverage && settings.paperForexLeverage > 0) {
+    _forexLeverage = settings.paperForexLeverage
+  }
+  if (settings.paperGoldLeverage && settings.paperGoldLeverage > 0) {
+    _goldLeverage = settings.paperGoldLeverage
+  }
+  if (settings.paperCryptoLeverage && settings.paperCryptoLeverage > 0) {
+    _cryptoLeverage = settings.paperCryptoLeverage
+  }
+}
+
+/**
+ * V153: Get current user-configured leverage values.
+ */
+export function getUserLeverage() {
+  return {
+    forex: _forexLeverage,
+    gold: _goldLeverage,
+    crypto: _cryptoLeverage,
+  }
+}
 
 // Known forex base currencies (3-letter fiat codes)
 const FOREX_BASES = new Set([
@@ -40,22 +67,20 @@ const CRYPTO_BASES = new Set([
 ])
 
 /**
- * Get the default leverage for a symbol.
- * Mirrors the backend's getSymbolMetadata().defaultLeverage logic.
+ * Detect the asset class of a symbol (forex, gold/silver, or crypto).
+ * Returns the asset class string for leverage lookup.
  */
-export function getSymbolLeverage(symbol: string): number {
+export function getAssetClass(symbol: string): 'forex' | 'gold' | 'crypto' {
   const upper = symbol.toUpperCase().replace(/\s+/g, '')
-
-  // Normalize: remove slash for pattern matching
   const noSlash = upper.replace(/\//g, '')
 
   // Direct commodity detection
-  if (noSlash.includes('XAU') || noSlash.includes('GOLD')) return GOLD_LEVERAGE
-  if (noSlash.includes('XAG') || noSlash.includes('SILVER')) return SILVER_LEVERAGE
+  if (noSlash.includes('XAU') || noSlash.includes('GOLD')) return 'gold'
+  if (noSlash.includes('XAG') || noSlash.includes('SILVER')) return 'gold'
 
   // Direct crypto detection
   const baseCurrency = noSlash.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
-  if (CRYPTO_BASES.has(baseCurrency)) return CRYPTO_LEVERAGE
+  if (CRYPTO_BASES.has(baseCurrency)) return 'crypto'
 
   // Normalize USDT → USD for forex lookup
   const usdSymbol = upper.replace(/\/USDT$/, '/USD').replace(/USDT$/, '/USD')
@@ -65,17 +90,33 @@ export function getSymbolLeverage(symbol: string): number {
   if (withSlash) {
     const parts = withSlash.split('/')
     const base = parts[0]
-    if (FOREX_BASES.has(base)) return FOREX_LEVERAGE
+    if (FOREX_BASES.has(base)) return 'forex'
   }
 
   // Without slash: try to extract 3-letter base
-  if (FOREX_BASES.has(baseCurrency)) return FOREX_LEVERAGE
+  if (FOREX_BASES.has(baseCurrency)) return 'forex'
 
   // JPY pair detection
-  if (noSlash.includes('JPY')) return FOREX_LEVERAGE
+  if (noSlash.includes('JPY')) return 'forex'
 
   // Default: crypto (1:1)
-  return CRYPTO_LEVERAGE
+  return 'crypto'
+}
+
+/**
+ * Get the leverage for a symbol.
+ * V153: Returns USER-CONFIGURED leverage for paper trading.
+ * For real exchanges, this is only used as a fallback — the exchange
+ * API provides the actual margin based on the user's account leverage.
+ */
+export function getSymbolLeverage(symbol: string): number {
+  const assetClass = getAssetClass(symbol)
+  switch (assetClass) {
+    case 'forex': return _forexLeverage
+    case 'gold': return _goldLeverage
+    case 'crypto': return _cryptoLeverage
+    default: return 1
+  }
 }
 
 /**
@@ -83,11 +124,8 @@ export function getSymbolLeverage(symbol: string): number {
  *
  * Margin = Notional Value / Leverage
  *
- * For spot crypto (leverage=1): margin = full notional value (collateral)
- * For forex (leverage=50): margin = notional / 50
- * For gold (leverage=20): margin = notional / 20
- *
- * This matches the backend's calculateMargin() in symbol-metadata.ts.
+ * V153: Uses user-configured leverage for paper trading.
+ * For real exchanges, the exchange API margin takes priority.
  */
 export function calculateClientMargin(
   quantity: number,
@@ -105,6 +143,9 @@ export function calculateClientMargin(
  * Returns { usedMargin, totalExposure } where:
  *   - usedMargin = sum of leverage-aware margin per position
  *   - totalExposure = sum of full notional values
+ *
+ * V153: Used for PAPER TRADING margin calculation.
+ * For REAL exchanges, the exchange API provides actual margin.
  */
 export function calculatePortfolioMargin(positions: Array<{
   qty: number
@@ -125,4 +166,22 @@ export function calculatePortfolioMargin(positions: Array<{
   }
 
   return { usedMargin, totalExposure }
+}
+
+/**
+ * V153: Inline margin calculation for components that can't import this module.
+ * Uses the same user-configured leverage as the main calculator.
+ * This is used by dashboard/page.tsx, PortfolioMini.tsx, wallet/page.tsx.
+ */
+export function getInlineMarginCalculator() {
+  return (positions: Array<{ qty: number; currentPrice: number; symbol: string }>) => {
+    let margin = 0
+    for (const p of positions) {
+      const qty = Number(p.qty) || 0
+      const price = Number(p.currentPrice) || 0
+      if (qty <= 0 || price <= 0) continue
+      margin += calculateClientMargin(qty, price, p.symbol)
+    }
+    return margin
+  }
 }

@@ -406,44 +406,48 @@ export const usePositionsStore = create<PositionsState>()(
       const cash = Number(currentAccount.cash) || 0
       const newEquity = cash + positionsUnrealizedPnl
       // ═══════════════════════════════════════════════════════════════
-      // V152 FIX: STABLE MARGIN IN REAL-TIME UPDATES — CLIENT-SIDE PRIMARY
+      // V153 FIX: CORRECT MARGIN PRIORITY IN REAL-TIME UPDATES
       //
-      // HISTORY (same as fetchAccount):
-      //   V151 used THREE-TIER with _backendMargin as TIER 1, but backend
-      //   margin was WRONG for no-slash symbols (EURUSDT → leverage=1).
-      //   This caused: correct client value ($400) → overwritten by backend ($12K)
+      // ARCHITECTURE: Platform only CONNECTS accounts. Leverage is set by exchange.
       //
-      // V152: Client-side calculation is PRIMARY (always correct).
-      // Backend margin is only used when client can't calculate (no positions).
+      // For REAL exchanges: Exchange margin is authoritative. The _backendMargin
+      //   from fetchAccount() contains the exchange's actual margin (balance.used.USDT).
+      //   This is TIER 1 when fresh and from a real exchange.
       //
-      // TIER 1: Client-side from positions (leverage-aware, handles all formats)
-      // TIER 2: Fresh _backendMargin from fetchAccount()
-      // TIER 3: Preserve current initialMargin
+      // For PAPER TRADING: Client-side calculation with user-configured leverage.
+      //   This is TIER 1 when no real exchange margin is available.
+      //
+      // PRIORITY:
+      //   1. Fresh exchange margin (from _backendMargin, real exchange only)
+      //   2. Client-side calculation (user-configured leverage for paper trading)
+      //   3. Preserve current initialMargin
       // ═══════════════════════════════════════════════════════════════
       const backendMargin = Number((currentAccount as any)._backendMargin) || 0
       const marginVersion = Number((currentAccount as any)._marginVersion) || 0
+      const isRealExchange = !!(currentAccount as any).isRealExchangeMargin
       const MARGIN_STALE_MS = 120_000 // 2 minutes
       const isBackendMarginFresh = marginVersion > 0 && (Date.now() - marginVersion) < MARGIN_STALE_MS
-      // V152: Client-side margin is TIER 1 (always correct)
+      // Client-side margin with user-configured leverage (for paper trading)
       const clientMargin = positions.length > 0
         ? calculatePortfolioMargin(positions).usedMargin
         : 0
       const currentMargin = Number(currentAccount.initialMargin) || 0
 
       let initialMargin: number
-      if (clientMargin > 0) {
-        // TIER 1: Client-side calculation from positions using leverage
-        // This is calculated every tick from actual positions, always current & correct
+      if (isRealExchange && isBackendMarginFresh && backendMargin > 0) {
+        // TIER 1: Real exchange margin — AUTHORITATIVE
+        // Exchange knows the user's actual leverage setting
+        initialMargin = backendMargin
+      } else if (clientMargin > 0) {
+        // TIER 2: Client-side calculation (user-configured leverage for paper trading)
         initialMargin = clientMargin
       } else if (isBackendMarginFresh && backendMargin > 0) {
-        // TIER 2: Fresh backend margin — use when no positions available for client calc
-        // but backend recently reported margin (positions may not be loaded yet)
+        // TIER 3: Fresh backend margin (paper trading backend calc)
         initialMargin = backendMargin
       } else if (currentMargin > 0) {
-        // TIER 3: Preserve existing margin — don't reset to 0!
+        // TIER 4: Preserve existing margin — don't reset to 0!
         initialMargin = currentMargin
       } else {
-        // No margin information available at all
         initialMargin = 0
       }
       const freeMargin = Math.max(0, newEquity - initialMargin)
@@ -511,38 +515,44 @@ export const usePositionsStore = create<PositionsState>()(
             (sum, p) => sum + (p.unrealizedPnl || 0),
             0,
           )
-          // V152 FIX: CLIENT-SIDE margin calculation is now PRIMARY (TIER 1).
+          // V153 FIX: CORRECT MARGIN PRIORITY — Exchange margin first for real accounts
           //
-          // HISTORY OF THIS BUG:
-          //   V148: Used backend totalUsedMargin as authoritative → backend had wrong
-          //         leverage (1:1 instead of 50:1 for no-slash symbols like EURUSDT)
-          //         → showed $20K instead of ~$400
-          //   V151: Added client-side fallback but backend still took priority →
-          //         wrong backend value ($12K) overrode correct client calc ($400)
-          //         → still showed $12,302 instead of ~$246
+          // ARCHITECTURE: The platform only CONNECTS accounts. Leverage is set by
+          // the broker/exchange, NOT by the platform. So:
           //
-          // ROOT CAUSE: Backend's getSymbolMetadata() failed for no-slash symbols
-          // (EURUSDT, XAUUSDT etc.) returning leverage=1 instead of 50 or 20.
-          // The client-side calculator correctly handles all symbol formats.
+          // For REAL exchanges: The exchange API provides actual usedMargin
+          //   (balance.used.USDT for spot, futures margin for futures accounts).
+          //   This is AUTHORITATIVE — it reflects the user's actual leverage on Binance.
           //
-          // V152 SOLUTION: Client-side is PRIMARY. Backend is only used as sanity
-          // check (if client returns 0 but backend says >0, something may be off).
+          // For PAPER TRADING: Client-side calculation using user-configured leverage
+          //   (from AgentSettings.paperForexLeverage, paperGoldLeverage, paperCryptoLeverage).
+          //   This is a simulation — the user chooses their preferred leverage.
           //
-          // TIER 1 (BEST): Client-side calculation from positions (leverage-aware)
-          //   - Always correct: uses getSymbolLeverage() which handles all formats
-          // TIER 2 (GOOD): Backend totalUsedMargin (may be wrong for no-slash symbols)
-          // TIER 3 (OK): totalEquityUsd - totalAvailableUsd (rough fallback)
+          // PRIORITY:
+          //   1. If user has REAL exchange with margin > 0: Use exchange margin (authoritative)
+          //   2. If user has positions + paper trading: Client-side calc (user-configured leverage)
+          //   3. Backend totalUsedMargin (may be wrong for no-slash symbols)
+          //   4. totalEquityUsd - totalAvailableUsd (rough fallback)
+          const hasRealExchanges = exchanges.some((e: any) => e.exchange !== 'paper-trading')
+          const realExchangeMargin = exchanges
+            .filter((e: any) => e.exchange !== 'paper-trading')
+            .reduce((sum: number, e: any) => sum + (e.usedMargin || 0), 0)
+
           let usedMargin: number
-          if (currentPositions.length > 0) {
-            // TIER 1: Client-side calculation — ALWAYS CORRECT for loaded positions
+          if (hasRealExchanges && realExchangeMargin > 0) {
+            // TIER 1: Real exchange margin — AUTHORITATIVE
+            // The exchange knows the user's actual leverage and calculates margin correctly
+            usedMargin = realExchangeMargin
+          } else if (currentPositions.length > 0) {
+            // TIER 2: Client-side calculation for paper trading or missing exchange margin
+            // Uses user-configured leverage (forex, gold, crypto) from AgentSettings
             const clientCalc = calculatePortfolioMargin(currentPositions)
             usedMargin = clientCalc.usedMargin
           } else if (totalUsedMargin > 0) {
-            // TIER 2: Backend margin — use when no positions loaded locally
-            // but backend reports margin (positions may not have synced yet)
+            // TIER 3: Backend margin — use when no positions loaded locally
             usedMargin = totalUsedMargin
           } else if (totalEquityUsd - totalAvailableUsd > 0) {
-            // TIER 3: Rough difference — only for real exchanges
+            // TIER 4: Rough difference — only for real exchanges
             usedMargin = totalEquityUsd - totalAvailableUsd
           } else {
             usedMargin = 0
@@ -628,6 +638,9 @@ export const usePositionsStore = create<PositionsState>()(
             // can detect stale _backendMargin from localStorage (older than 60s).
             _backendMargin: usedMargin,
             _marginVersion: Date.now(),
+            // V153: Mark whether margin came from real exchange API
+            // If true, updatePositionPrice() should trust it over client-side calc
+            isRealExchangeMargin: hasRealExchanges && realExchangeMargin > 0,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
@@ -668,13 +681,12 @@ export const usePositionsStore = create<PositionsState>()(
         const summary = data.data || data.summary || data
 
         if (summary && (summary.totalBalance !== undefined || summary.totalExposure !== undefined)) {
-          // V152 FIX: Client-side margin is PRIMARY, backend is SECONDARY.
-          // Same reason as the credentials/balances path above: backend's
-          // getSymbolMetadata() may return wrong leverage for no-slash symbols.
+          // V153 FIX: Client-side margin with user-configured leverage for paper trading.
+          // This NestJS path is for paper trading — use client-side calculation.
           let margin = 0
           const fallbackPos = get().positions
           if (fallbackPos.length > 0) {
-            // TIER 1: Client-side calculation — always correct
+            // TIER 1: Client-side calculation with user-configured leverage
             margin = calculatePortfolioMargin(fallbackPos).usedMargin
           } else if (summary.usedMargin > 0) {
             // TIER 2: Backend margin — use only when no positions loaded

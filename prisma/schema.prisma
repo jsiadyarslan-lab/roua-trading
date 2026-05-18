@@ -1039,6 +1039,13 @@ model AgentSettings {
   autoTradingEnabled Boolean @default(true)
   paperBalance       Decimal @default(10000) @db.Decimal(19, 4)
 
+  // Paper Trading Leverage (V153: user-configurable, NOT hardcoded)
+  // The platform only CONNECTS accounts — leverage is set by the broker/exchange.
+  // These settings are for paper trading simulation only.
+  paperForexLeverage Int @default(50)    // Default 1:50, user can change to 500 etc.
+  paperGoldLeverage  Int @default(20)    // Default 1:20 for XAU/XAG
+  paperCryptoLeverage Int @default(1)    // Default 1:1 (spot, no leverage)
+
   // Risk Parameters
   maxPositionSizePercent Decimal @default(2) @db.Decimal(5, 2)
   maxDailyLossPercent    Decimal @default(5) @db.Decimal(5, 2)

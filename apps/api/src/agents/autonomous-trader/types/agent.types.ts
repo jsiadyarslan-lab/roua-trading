@@ -437,6 +437,25 @@ export class UpdateAgentSettingsDto {
   @Min(100) @Max(1000000)
   paperBalance?: number;
 
+  // V153: Paper Trading Leverage (user-configurable)
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(1000)
+  paperForexLeverage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(500)
+  paperGoldLeverage?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  @Min(1) @Max(200)
+  paperCryptoLeverage?: number;
+
   // Risk Parameters
   @IsOptional()
   @IsNumber()

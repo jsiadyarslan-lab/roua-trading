@@ -374,6 +374,24 @@ export const usePositionsStore = create<PositionsState>()(
     // We still track longMarketValue = positionsMarketValue for display,
     // but we do NOT add it to equity.
     // ═══════════════════════════════════════════════════════════════
+    // FIX V148B: Real-time price update should NEVER change initialMargin.
+    // The margin is ONLY set by fetchAccount() from the backend, which uses
+    // the leverage-aware calculateMargin() function. The real-time update
+    // should only change equity-related fields that depend on current price.
+    //
+    // BUG: Previously, updatePositionPrice() would spread currentAccount
+    // which included the OLD initialMargin from localStorage (e.g., $19,548
+    // which is the full notional, not the real margin). Even though we
+    // tried to "preserve" the previous margin, the previous margin was
+    // the WRONG value from localStorage. This caused:
+    //   1. fetchAccount() sets initialMargin to correct ~$390
+    //   2. updatePositionPrice() fires and OVERWRITES with $19,548 from localStorage
+    //   3. User sees: briefly correct → immediately wrong again
+    //
+    // FIX: Store margin in a separate _backendMargin field that is ONLY
+    // set by fetchAccount(). updatePositionPrice() reads from this field
+    // and never overwrites it.
+    // ═══════════════════════════════════════════════════════════════
     const currentAccount = get().account
     if (currentAccount) {
       const positionsMarketValue = positions.reduce(
@@ -386,17 +404,19 @@ export const usePositionsStore = create<PositionsState>()(
       )
       const cash = Number(currentAccount.cash) || 0
       const newEquity = cash + positionsUnrealizedPnl
-      // V148 FIX: Scale margin proportionally to price change instead of
-      // falling back to positionsMarketValue (full notional = qty×price).
-      // For leveraged positions, margin = notional/leverage, so when price
-      // changes: newMargin ≈ oldMargin × (newPrice/oldPrice).
-      // If initialMargin was correctly set from backend (leverage-aware),
-      // we preserve it and only scale by the equity change ratio.
-      const previousMargin = Number(currentAccount.initialMargin) || 0
-      const previousEquity = Number(currentAccount.equity) || cash
-      const initialMargin = previousMargin > 0
-        ? previousMargin  // Keep backend's leverage-aware margin (stable)
-        : 0  // Don't fall back to full notional!
+      // V148B: Use _backendMargin if available (set only by fetchAccount).
+      // Fall back to current initialMargin ONLY if it looks like a backend value
+      // (less than equity — the full notional is always > equity for leveraged positions).
+      // If initialMargin > equity, it's definitely the WRONG old value (full notional).
+      const backendMargin = Number((currentAccount as any)._backendMargin) || 0
+      const currentMargin = Number(currentAccount.initialMargin) || 0
+      // Heuristic: if margin > 50% of equity, it's the wrong (full notional) value
+      const isMarginReasonable = currentMargin > 0 && currentMargin <= newEquity * 0.5
+      const initialMargin = backendMargin > 0
+        ? backendMargin
+        : isMarginReasonable
+          ? currentMargin
+          : 0
       const freeMargin = Math.max(0, newEquity - initialMargin)
 
       set({
@@ -411,7 +431,9 @@ export const usePositionsStore = create<PositionsState>()(
           maintenanceMargin: 0,
           buyingPower: Math.max(0, freeMargin),
           portfolioValue: newEquity,
-        },
+          // V148B: Preserve _backendMargin — it should ONLY be set by fetchAccount()
+          _backendMargin: backendMargin > 0 ? backendMargin : initialMargin,
+        } as any,
       })
     } else {
       set({ positions })
@@ -536,6 +558,12 @@ export const usePositionsStore = create<PositionsState>()(
             isPaperTrading: isTestnet,
             tradingBlocked: false,
             accountBlocked: false,
+            // V148B: Store the backend's leverage-aware margin separately.
+            // This field is ONLY set by fetchAccount() and NEVER overwritten
+            // by updatePositionPrice(). The real-time update reads this field
+            // to prevent the old wrong margin from localStorage from being
+            // preserved when prices update.
+            _backendMargin: usedMargin,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
@@ -595,6 +623,7 @@ export const usePositionsStore = create<PositionsState>()(
             isPaperTrading: true,
             tradingBlocked: false,
             accountBlocked: false,
+            _backendMargin: margin,
           }
           set({ account, exchangeBalances: [], dataSource: 'nestjs', _cacheTimestamp: Date.now() })
           return
@@ -650,6 +679,7 @@ export const usePositionsStore = create<PositionsState>()(
         isPaperTrading: true,
         tradingBlocked: false,
         accountBlocked: false,
+        _backendMargin: estimatedMargin,
       }
       set({ account, _cacheTimestamp: Date.now() })
       return
@@ -948,6 +978,26 @@ export const usePositionsStore = create<PositionsState>()(
           }
 
           if (!state) return
+
+          // ═══════════════════════════════════════════════════════════════
+          // V148B FIX: Clear stale/incorrect margin from localStorage.
+          // Old cached data had initialMargin = full notional (e.g., $19,548)
+          // instead of leverage-aware margin (~$390). When rehydrating,
+          // if initialMargin > equity, it's definitely the wrong value.
+          // Reset it to 0 so the real-time update doesn't preserve it,
+          // and fetchAccount() will set the correct value from the backend.
+          // ═══════════════════════════════════════════════════════════════
+          if (state.account) {
+            const accEquity = Number(state.account.equity) || 0
+            const accMargin = Number(state.account.initialMargin) || 0
+            if (accMargin > accEquity && accEquity > 0) {
+              console.warn(
+                `[PositionsStore] V148B: Clearing stale margin $${accMargin} > equity $${accEquity} — was full notional, not real margin`
+              )
+              state.account.initialMargin = 0
+              ;(state.account as any)._backendMargin = 0
+            }
+          }
 
           // ═══════════════════════════════════════════════════════════════
           // SECURITY: Validate that rehydrated data belongs to current user.

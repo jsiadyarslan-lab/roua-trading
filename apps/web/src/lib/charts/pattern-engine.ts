@@ -258,8 +258,457 @@ export function detectDoubleBottom(
   return patterns;
 }
 
+
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// MAIN ENGINE — runs all Phase 1 detectors
+// PHASE 2 PATTERNS: Triangle, Channel, Wedge, Head & Shoulders
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// ── Linear regression on a set of prices ──
+function linearRegression(points: { x: number; y: number }[]): { slope: number; intercept: number; r2: number } {
+  const n = points.length;
+  if (n < 2) return { slope: 0, intercept: points[0]?.y || 0, r2: 0 };
+  const sumX = points.reduce((s, p) => s + p.x, 0);
+  const sumY = points.reduce((s, p) => s + p.y, 0);
+  const sumXY = points.reduce((s, p) => s + p.x * p.y, 0);
+  const sumX2 = points.reduce((s, p) => s + p.x * p.x, 0);
+  const denom = n * sumX2 - sumX * sumX;
+  if (Math.abs(denom) < 1e-10) return { slope: 0, intercept: sumY / n, r2: 0 };
+  const slope = (n * sumXY - sumX * sumY) / denom;
+  const intercept = (sumY - slope * sumX) / n;
+  const meanY = sumY / n;
+  const ssTot = points.reduce((s, p) => s + Math.pow(p.y - meanY, 2), 0);
+  const ssRes = points.reduce((s, p) => s + Math.pow(p.y - (slope * p.x + intercept), 2), 0);
+  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+  return { slope, intercept, r2 };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// TRIANGLE DETECTION (Symmetric, Ascending, Descending)
+// Needs: ≥3 highs + ≥3 lows converging
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export function detectTriangles(
+  candles: CandleData[],
+  pivots?: SwingPoint[]
+): DetectedPattern[] {
+  const swings = pivots || detectZigZag(candles);
+  const patterns: DetectedPattern[] = [];
+  if (swings.length < 6) return patterns;
+
+  const highs = swings.filter(p => p.type === 'high').slice(-6);
+  const lows  = swings.filter(p => p.type === 'low').slice(-6);
+  if (highs.length < 3 || lows.length < 3) return patterns;
+
+  const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
+  const lowReg  = linearRegression(lows.map((p, i) => ({ x: i, y: p.price })));
+
+  // Convergence: slopes must go towards each other
+  const convergence = highReg.slope < 0.001 && lowReg.slope > -0.001
+    && highReg.slope - lowReg.slope > 0;
+  if (!convergence) return patterns;
+
+  // Classify triangle type
+  let triangleType: string;
+  let direction: PatternDirection;
+  const FLAT = 0.0005;
+  const highFlat = Math.abs(highReg.slope) < FLAT;
+  const lowFlat  = Math.abs(lowReg.slope)  < FLAT;
+
+  if (highFlat && !lowFlat && lowReg.slope > 0) {
+    triangleType = 'Ascending Triangle';
+    direction = 'bullish';
+  } else if (lowFlat && !highFlat && highReg.slope < 0) {
+    triangleType = 'Descending Triangle';
+    direction = 'bearish';
+  } else if (highReg.slope < 0 && lowReg.slope > 0) {
+    triangleType = 'Symmetrical Triangle';
+    direction = Math.abs(highReg.slope) > Math.abs(lowReg.slope) ? 'bearish' : 'bullish';
+  } else {
+    return patterns;
+  }
+
+  // Pattern quality: r² must be decent
+  const r2Avg = (highReg.r2 + lowReg.r2) / 2;
+  if (r2Avg < 0.5) return patterns;
+
+  const firstH = highs[0]; const lastH = highs[highs.length - 1];
+  const firstL = lows[0];  const lastL  = lows[lows.length - 1];
+
+  const timeStart = Math.min(firstH.time, firstL.time);
+  const timeEnd   = Math.max(lastH.time, lastL.time);
+  const barDuration = candles.length > 1
+    ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+  const patternBars = Math.round((timeEnd - timeStart) / barDuration);
+  const patternHeight = Math.abs(firstH.price - firstL.price);
+
+  const forecast: ForecastZone = {
+    priceMin: direction === 'bullish' ? lastH.price : lastL.price - patternHeight * 0.8,
+    priceMax: direction === 'bullish' ? lastH.price + patternHeight * 0.8 : lastL.price,
+    timeFrom: timeEnd + barDuration * Math.round(patternBars * 0.1),
+    timeTo:   timeEnd + barDuration * Math.round(patternBars * 0.6),
+    probability: Math.round(55 + r2Avg * 20),
+  };
+
+  const quality = scoreQuality(
+    [...highs, ...lows],
+    1 - r2Avg,
+    0.6
+  );
+  if (quality.overall < 4) return patterns;
+
+  patterns.push({
+    id: `triangle-${triangleType.replace(/ /g, '-')}-${timeStart}`,
+    type: triangleType,
+    direction,
+    status: 'completed',
+    points: [
+      { time: firstH.time, price: firstH.price, label: 'H1' },
+      { time: lastH.time,  price: lastH.price,  label: 'H2' },
+      { time: firstL.time, price: firstL.price, label: 'L1' },
+      { time: lastL.time,  price: lastL.price,  label: 'L2' },
+    ],
+    resistanceLine: {
+      p1: { time: firstH.time, price: firstH.price, label: 'R' },
+      p2: { time: lastH.time + barDuration * patternBars * 0.5, price: lastH.price + highReg.slope * 3, label: 'R' },
+    },
+    supportLine: {
+      p1: { time: firstL.time, price: firstL.price, label: 'S' },
+      p2: { time: lastL.time + barDuration * patternBars * 0.5, price: lastL.price + lowReg.slope * 3, label: 'S' },
+    },
+    forecast,
+    quality,
+    patternHeight,
+    breakoutPrice: direction === 'bullish' ? lastH.price : lastL.price,
+    timeStart,
+    timeEnd,
+  });
+
+  return patterns;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// CHANNEL DETECTION (Up / Down)
+// Parallel support and resistance with same slope
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export function detectChannels(
+  candles: CandleData[],
+  pivots?: SwingPoint[]
+): DetectedPattern[] {
+  const swings = pivots || detectZigZag(candles);
+  const patterns: DetectedPattern[] = [];
+  if (swings.length < 6) return patterns;
+
+  const highs = swings.filter(p => p.type === 'high').slice(-5);
+  const lows  = swings.filter(p => p.type === 'low').slice(-5);
+  if (highs.length < 3 || lows.length < 3) return patterns;
+
+  const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
+  const lowReg  = linearRegression(lows.map((p, i)  => ({ x: i, y: p.price })));
+
+  // Channels: slopes must be roughly parallel (within 30% relative difference)
+  const slopeRatioDiff = highReg.slope !== 0
+    ? Math.abs((highReg.slope - lowReg.slope) / highReg.slope)
+    : Math.abs(lowReg.slope);
+
+  if (slopeRatioDiff > 0.4) return patterns;
+
+  // Need decent r²
+  if (highReg.r2 < 0.5 || lowReg.r2 < 0.5) return patterns;
+
+  const avgSlope = (highReg.slope + lowReg.slope) / 2;
+  const channelType = avgSlope > 0.001 ? 'Channel Up' : avgSlope < -0.001 ? 'Channel Down' : 'Rectangle';
+  const direction: PatternDirection = channelType === 'Channel Up' ? 'bullish'
+    : channelType === 'Channel Down' ? 'bearish' : 'neutral' as any;
+
+  const firstH = highs[0]; const lastH = highs[highs.length - 1];
+  const firstL = lows[0];  const lastL  = lows[lows.length - 1];
+  const timeStart = Math.min(firstH.time, firstL.time);
+  const timeEnd   = Math.max(lastH.time, lastL.time);
+  const barDuration = candles.length > 1
+    ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+  const patternBars = Math.round((timeEnd - timeStart) / barDuration);
+  const patternHeight = Math.abs(lastH.price - lastL.price);
+  const r2Avg = (highReg.r2 + lowReg.r2) / 2;
+
+  const forecast: ForecastZone = {
+    priceMin: direction === 'bullish' ? lastH.price : lastL.price - patternHeight * 0.5,
+    priceMax: direction === 'bullish' ? lastH.price + patternHeight * 0.5 : lastL.price,
+    timeFrom: timeEnd + barDuration * 5,
+    timeTo:   timeEnd + barDuration * Math.max(10, patternBars * 0.5),
+    probability: Math.round(55 + r2Avg * 15),
+  };
+
+  const quality = scoreQuality([...highs, ...lows], 1 - r2Avg, 0.6);
+  if (quality.overall < 4) return patterns;
+
+  patterns.push({
+    id: `${channelType.replace(/ /g, '-').toLowerCase()}-${timeStart}`,
+    type: channelType,
+    direction: direction as PatternDirection,
+    status: 'completed',
+    points: [
+      { time: firstH.time, price: firstH.price, label: 'H1' },
+      { time: lastH.time,  price: lastH.price,  label: 'H2' },
+      { time: firstL.time, price: firstL.price, label: 'L1' },
+      { time: lastL.time,  price: lastL.price,  label: 'L2' },
+    ],
+    resistanceLine: {
+      p1: { time: firstH.time, price: firstH.price, label: 'R' },
+      p2: { time: timeEnd + barDuration * patternBars * 0.3, price: lastH.price + highReg.slope * 2, label: 'R' },
+    },
+    supportLine: {
+      p1: { time: firstL.time, price: firstL.price, label: 'S' },
+      p2: { time: timeEnd + barDuration * patternBars * 0.3, price: lastL.price + lowReg.slope * 2, label: 'S' },
+    },
+    forecast,
+    quality,
+    patternHeight,
+    breakoutPrice: direction === 'bullish' ? lastH.price : lastL.price,
+    timeStart,
+    timeEnd,
+  });
+
+  return patterns;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// WEDGE DETECTION (Falling / Rising)
+// Both lines slope same direction but converge
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export function detectWedges(
+  candles: CandleData[],
+  pivots?: SwingPoint[]
+): DetectedPattern[] {
+  const swings = pivots || detectZigZag(candles);
+  const patterns: DetectedPattern[] = [];
+  if (swings.length < 6) return patterns;
+
+  const highs = swings.filter(p => p.type === 'high').slice(-5);
+  const lows  = swings.filter(p => p.type === 'low').slice(-5);
+  if (highs.length < 3 || lows.length < 3) return patterns;
+
+  const highReg = linearRegression(highs.map((p, i) => ({ x: i, y: p.price })));
+  const lowReg  = linearRegression(lows.map((p, i)  => ({ x: i, y: p.price })));
+
+  // Wedge: both slopes same sign but converging (different steepness)
+  const sameSign = (highReg.slope > 0 && lowReg.slope > 0)
+    || (highReg.slope < 0 && lowReg.slope < 0);
+  if (!sameSign) return patterns;
+
+  // Convergence: one slope steeper than the other
+  const highSteeper = Math.abs(highReg.slope) > Math.abs(lowReg.slope);
+  const converging = highReg.slope > 0
+    ? highSteeper // rising wedge: high slope > low slope → converge
+    : !highSteeper; // falling wedge: low slope < high slope → converge
+
+  if (!converging) return patterns;
+  if (highReg.r2 < 0.5 || lowReg.r2 < 0.5) return patterns;
+
+  const isFalling = highReg.slope < 0;
+  const wedgeType = isFalling ? 'Falling Wedge' : 'Rising Wedge';
+  const direction: PatternDirection = isFalling ? 'bullish' : 'bearish';
+
+  const firstH = highs[0]; const lastH = highs[highs.length - 1];
+  const firstL = lows[0];  const lastL  = lows[lows.length - 1];
+  const timeStart = Math.min(firstH.time, firstL.time);
+  const timeEnd   = Math.max(lastH.time, lastL.time);
+  const barDuration = candles.length > 1
+    ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+  const patternBars = Math.round((timeEnd - timeStart) / barDuration);
+  const patternHeight = Math.abs(firstH.price - firstL.price);
+  const r2Avg = (highReg.r2 + lowReg.r2) / 2;
+
+  const forecast: ForecastZone = {
+    priceMin: direction === 'bullish' ? firstH.price - patternHeight * 0.2 : firstL.price - patternHeight,
+    priceMax: direction === 'bullish' ? firstH.price + patternHeight * 0.3 : firstL.price,
+    timeFrom: timeEnd + barDuration * 5,
+    timeTo:   timeEnd + barDuration * Math.max(15, patternBars * 0.6),
+    probability: Math.round(60 + r2Avg * 15),
+  };
+
+  const quality = scoreQuality([...highs, ...lows], 1 - r2Avg, 0.7);
+  if (quality.overall < 4) return patterns;
+
+  patterns.push({
+    id: `${wedgeType.replace(/ /g, '-').toLowerCase()}-${timeStart}`,
+    type: wedgeType,
+    direction,
+    status: 'completed',
+    points: [
+      { time: firstH.time, price: firstH.price, label: 'H1' },
+      { time: lastH.time,  price: lastH.price,  label: 'H2' },
+      { time: firstL.time, price: firstL.price, label: 'L1' },
+      { time: lastL.time,  price: lastL.price,  label: 'L2' },
+    ],
+    resistanceLine: {
+      p1: { time: firstH.time, price: firstH.price, label: 'R' },
+      p2: { time: timeEnd, price: lastH.price, label: 'R' },
+    },
+    supportLine: {
+      p1: { time: firstL.time, price: firstL.price, label: 'S' },
+      p2: { time: timeEnd, price: lastL.price, label: 'S' },
+    },
+    forecast,
+    quality,
+    patternHeight,
+    breakoutPrice: direction === 'bullish' ? lastH.price : lastL.price,
+    timeStart,
+    timeEnd,
+  });
+
+  return patterns;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// HEAD & SHOULDERS (+ Inverse)
+// Structure (H&S): peak - low - higher peak - low - peak
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+export function detectHeadAndShoulders(
+  candles: CandleData[],
+  pivots?: SwingPoint[]
+): DetectedPattern[] {
+  const swings = pivots || detectZigZag(candles);
+  const patterns: DetectedPattern[] = [];
+
+  const highs = swings.filter(p => p.type === 'high');
+  const lows  = swings.filter(p => p.type === 'low');
+
+  // ── Head & Shoulders (bearish) ──
+  for (let i = 0; i < highs.length - 2; i++) {
+    const ls = highs[i];     // left shoulder
+    const head = highs[i + 1];
+    const rs = highs[i + 2]; // right shoulder
+
+    // Head must be highest
+    if (head.price <= ls.price || head.price <= rs.price) continue;
+
+    // Shoulders roughly equal (within 4%)
+    const shoulderSymmetry = Math.abs(ls.price - rs.price) / ls.price;
+    if (shoulderSymmetry > 0.04) continue;
+
+    // Find troughs between shoulders
+    const t1 = lows.find(l => l.index > ls.index && l.index < head.index);
+    const t2 = lows.find(l => l.index > head.index && l.index < rs.index);
+    if (!t1 || !t2) continue;
+
+    // Neckline from t1 to t2
+    const necklineSlope = Math.abs((t2.price - t1.price) / t1.price);
+    if (necklineSlope > 0.03) continue; // too steep
+
+    const necklinePrice = (t1.price + t2.price) / 2;
+    const patternHeight = head.price - necklinePrice;
+    const barDuration = candles.length > 1
+      ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+    const patternBars = rs.index - ls.index;
+
+    const forecast: ForecastZone = {
+      priceMin: necklinePrice - patternHeight * 1.1,
+      priceMax: necklinePrice - patternHeight * 0.6,
+      timeFrom: rs.time + barDuration * 5,
+      timeTo:   rs.time + barDuration * patternBars,
+      probability: Math.round(68 + (1 - shoulderSymmetry / 0.04) * 10),
+    };
+
+    const quality = scoreQuality([ls, t1, head, t2, rs], shoulderSymmetry, 0.7);
+    if (quality.overall < 5) continue;
+
+    patterns.push({
+      id: `head-and-shoulders-${ls.time}`,
+      type: 'Head & Shoulders',
+      direction: 'bearish',
+      status: 'completed',
+      points: [
+        { time: ls.time, price: ls.price, label: 'LS' },
+        { time: t1.time, price: t1.price, label: 'T1' },
+        { time: head.time, price: head.price, label: 'H' },
+        { time: t2.time, price: t2.price, label: 'T2' },
+        { time: rs.time, price: rs.price, label: 'RS' },
+      ],
+      neckline: {
+        p1: { time: t1.time, price: t1.price, label: 'NL' },
+        p2: { time: rs.time + barDuration * patternBars * 0.5, price: t2.price, label: 'NL' },
+      },
+      resistanceLine: {
+        p1: { time: ls.time, price: ls.price, label: 'LS' },
+        p2: { time: rs.time, price: rs.price, label: 'RS' },
+      },
+      forecast,
+      quality,
+      patternHeight,
+      breakoutPrice: necklinePrice,
+      timeStart: ls.time,
+      timeEnd: rs.time,
+    });
+  }
+
+  // ── Inverse Head & Shoulders (bullish) ──
+  for (let i = 0; i < lows.length - 2; i++) {
+    const ls = lows[i];
+    const head = lows[i + 1];
+    const rs = lows[i + 2];
+
+    if (head.price >= ls.price || head.price >= rs.price) continue;
+
+    const shoulderSymmetry = Math.abs(ls.price - rs.price) / ls.price;
+    if (shoulderSymmetry > 0.04) continue;
+
+    const t1 = highs.find(h => h.index > ls.index && h.index < head.index);
+    const t2 = highs.find(h => h.index > head.index && h.index < rs.index);
+    if (!t1 || !t2) continue;
+
+    const necklineSlope = Math.abs((t2.price - t1.price) / t1.price);
+    if (necklineSlope > 0.03) continue;
+
+    const necklinePrice = (t1.price + t2.price) / 2;
+    const patternHeight = necklinePrice - head.price;
+    const barDuration = candles.length > 1
+      ? (candles[candles.length - 1].time - candles[0].time) / candles.length : 3600;
+    const patternBars = rs.index - ls.index;
+
+    const forecast: ForecastZone = {
+      priceMin: necklinePrice + patternHeight * 0.6,
+      priceMax: necklinePrice + patternHeight * 1.1,
+      timeFrom: rs.time + barDuration * 5,
+      timeTo:   rs.time + barDuration * patternBars,
+      probability: Math.round(68 + (1 - shoulderSymmetry / 0.04) * 10),
+    };
+
+    const quality = scoreQuality([ls, t1, head, t2, rs], shoulderSymmetry, 0.3);
+    if (quality.overall < 5) continue;
+
+    patterns.push({
+      id: `inverse-hs-${ls.time}`,
+      type: 'Inverse Head & Shoulders',
+      direction: 'bullish',
+      status: 'completed',
+      points: [
+        { time: ls.time, price: ls.price, label: 'LS' },
+        { time: t1.time, price: t1.price, label: 'T1' },
+        { time: head.time, price: head.price, label: 'H' },
+        { time: t2.time, price: t2.price, label: 'T2' },
+        { time: rs.time, price: rs.price, label: 'RS' },
+      ],
+      neckline: {
+        p1: { time: t1.time, price: t1.price, label: 'NL' },
+        p2: { time: rs.time + barDuration * patternBars * 0.5, price: t2.price, label: 'NL' },
+      },
+      supportLine: {
+        p1: { time: ls.time, price: ls.price, label: 'LS' },
+        p2: { time: rs.time, price: rs.price, label: 'RS' },
+      },
+      forecast,
+      quality,
+      patternHeight,
+      breakoutPrice: necklinePrice,
+      timeStart: ls.time,
+      timeEnd: rs.time,
+    });
+  }
+
+  return patterns;
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// MAIN ENGINE — runs all Phase 1+2 detectors
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export function runPatternEngine(
   candles: CandleData[],
@@ -273,6 +722,10 @@ export function runPatternEngine(
   const allPatterns: DetectedPattern[] = [
     ...detectDoubleTop(candles, pivots),
     ...detectDoubleBottom(candles, pivots),
+    ...detectTriangles(candles, pivots),
+    ...detectChannels(candles, pivots),
+    ...detectWedges(candles, pivots),
+    ...detectHeadAndShoulders(candles, pivots),
   ].filter(p => p.quality.overall >= minQ)
    .sort((a, b) => b.quality.overall - a.quality.overall)
    .slice(0, 10); // max 10 patterns at once

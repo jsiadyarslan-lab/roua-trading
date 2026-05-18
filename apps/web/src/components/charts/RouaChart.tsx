@@ -22,8 +22,7 @@ import { VolumeProfile } from './VolumeProfile';
 import { NewsMarkers, createNewsChartMarkers } from './NewsMarkers';
 import { WatchlistOverlay } from './WatchlistOverlay';
 import { AIPatternPanel } from './AIPatternPanel';
-import { runPatternEngine, type DetectedPattern } from '@/lib/charts/pattern-engine';
-import { PatternOverlay } from './PatternOverlay';
+import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
@@ -246,7 +245,6 @@ export default function RouaChart({
     try {
       const result = runPatternEngine(candles, { minQuality: 5 });
       patternEngineRef.current = result;
-      setDetectedPatterns(result.patterns);
       drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
     } catch (e: any) {
       console.debug('[PatternEngine] Error:', e.message);
@@ -781,8 +779,6 @@ export default function RouaChart({
   // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
   const lightweightChartsRef = useRef<any>(null);
   const patternEngineRef = useRef<ReturnType<typeof runPatternEngine> | null>(null);
-  const [showPatternOverlay, setShowPatternOverlay] = useState(false);
-  const [detectedPatterns, setDetectedPatterns] = useState<DetectedPattern[]>([]);
   // FIX: Move aiEntryExitMarkerRef here (before handlePatternsDetected) to avoid TDZ error
   // Previously this was declared at line ~1007, after handlePatternsDetected already used it
   const aiEntryExitMarkerRef = useRef<any>(null);
@@ -1678,26 +1674,6 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
-        {/* Pattern Overlay (Autochartist-style) */}
-        {showPatternOverlay && (
-          <div style={{ position: 'absolute', top: 40, left: 8, zIndex: 50 }}>
-            <PatternOverlay
-              patterns={detectedPatterns}
-              onPatternClick={(p) => {
-                try {
-                  const chartApi = chart.chartRef?.current;
-                  if (chartApi) {
-                    chartApi.timeScale().setVisibleRange({
-                      from: (p.timeStart - 3600 * 6) as any,
-                      to: (p.timeEnd + 3600 * 12) as any,
-                    });
-                  }
-                } catch {}
-              }}
-              onClose={() => setShowPatternOverlay(false)}
-            />
-          </div>
-        )}
 
         {/* AI Pattern Panel (draggable) */}
         {showAIPanel && (

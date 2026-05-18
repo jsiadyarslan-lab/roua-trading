@@ -10,6 +10,8 @@ import { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
+import { runPatternEngine, type DetectedPattern } from '@/lib/charts/pattern-engine';
+import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useNotificationStore } from '@/hooks/useNotificationStore';
 
@@ -98,7 +100,7 @@ const C = {
   downBg: 'rgba(255,71,87,0.06)',
 };
 
-type TabKey = 'patterns' | 'sr' | 'trend' | 'entry';
+type TabKey = 'patterns' | 'sr' | 'trend' | 'entry' | 'engine';
 
 export function AIPatternPanel({
   symbol,
@@ -118,6 +120,8 @@ export function AIPatternPanel({
   const [entryExit, setEntryExit] = useState<AIEntryExit | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabKey>('patterns');
+  const [enginePatterns, setEnginePatterns] = useState<DetectedPattern[]>([]);
+  const [engineRunning, setEngineRunning] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<'ai' | 'local' | null>(null);
 
@@ -500,6 +504,23 @@ export function AIPatternPanel({
     setSelectedId(id);
     onTrendLineClick?.(line);
   }, [onTrendLineClick]);
+
+  const runEngineDetection = async (chartRef?: any, lcRef?: any) => {
+    if (engineRunning || !candles || candles.length < 30) return;
+    setEngineRunning(true);
+    try {
+      const result = runPatternEngine(candles, { minQuality: 5 });
+      setEnginePatterns(result.patterns);
+      // Draw on chart if refs available
+      if (chartRef?.current && lcRef?.current) {
+        drawAllPatterns(chartRef.current, lcRef.current, result.patterns, true, 15 * 60 * 1000);
+      }
+    } catch (e: any) {
+      console.warn('[PatternEngine]', e.message);
+    } finally {
+      setEngineRunning(false);
+    }
+  };
 
   const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
     { key: 'patterns', label: 'الأنماط', icon: '🕯', count: patterns.length },
@@ -1236,6 +1257,96 @@ export function AIPatternPanel({
           textAlign: 'center',
         }}>
           انقر على أي عنصر لرسمه على الشارت والانتقال إليه
+        </div>
+      )}
+
+      {/* ── Engine: Chart Pattern Detection (Autochartist-style) ── */}
+      {activeTab === 'engine' && (
+        <div style={{ padding: '8px 0', overflowY: 'auto', maxHeight: 'calc(100% - 48px)' }}>
+          {/* Run button */}
+          <div style={{ padding: '8px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <button
+              onClick={() => runEngineDetection()}
+              disabled={engineRunning}
+              style={{
+                width: '100%', padding: '8px', borderRadius: 8, border: 'none',
+                background: engineRunning ? 'rgba(0,212,255,0.08)' : 'linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.1))',
+                color: '#00D4FF', fontWeight: 700, cursor: engineRunning ? 'not-allowed' : 'pointer',
+                fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              {engineRunning ? '⏳ جاري الكشف...' : '🔍 كشف الأنماط الهندسية'}
+            </button>
+            {enginePatterns.length > 0 && (
+              <button
+                onClick={() => setEnginePatterns([])}
+                style={{
+                  width: '100%', marginTop: 4, padding: '5px', borderRadius: 6, border: 'none',
+                  background: 'rgba(255,71,87,0.08)', color: 'rgba(255,71,87,0.7)',
+                  fontSize: 10, cursor: 'pointer',
+                }}>
+                ✕ مسح الأنماط من الشارت
+              </button>
+            )}
+          </div>
+
+          {/* Pattern list */}
+          {enginePatterns.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px 16px', color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>📊</div>
+              اضغط "كشف الأنماط" لتحليل الشارت
+              <div style={{ fontSize: 9, marginTop: 6, color: 'rgba(255,255,255,0.2)' }}>
+                Double Top/Bottom · Triangle · Channel · Wedge · H&S · Harmonic XABCD
+              </div>
+            </div>
+          ) : (
+            <div>
+              {enginePatterns.map((p, i) => {
+                const col = p.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+                return (
+                  <div key={p.id} style={{
+                    padding: '8px 12px',
+                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                    cursor: 'pointer', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  onClick={() => {
+                    // No chart ref here — handled by parent
+                  }}>
+                    {/* Row 1 */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ color: col, fontWeight: 800, fontSize: 11 }}>
+                          {p.direction === 'bullish' ? '▲' : '▼'}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.9)', fontWeight: 600, fontSize: 11 }}>
+                          {p.type}
+                        </span>
+                      </div>
+                      <span style={{
+                        background: p.quality.overall >= 7 ? 'rgba(0,255,163,0.15)' : 'rgba(0,212,255,0.1)',
+                        color: p.quality.overall >= 7 ? '#00FFA3' : '#00D4FF',
+                        borderRadius: 6, padding: '1px 6px', fontSize: 9, fontWeight: 700,
+                      }}>
+                        {p.quality.overall}/10
+                      </span>
+                    </div>
+                    {/* Row 2: forecast */}
+                    {p.forecast && (
+                      <div style={{ fontSize: 9, display: 'flex', gap: 10, color: 'rgba(255,255,255,0.5)' }}>
+                        <span>هدف: <span style={{ color: col }}>{p.forecast.priceMin.toFixed(2)} – {p.forecast.priceMax.toFixed(2)}</span></span>
+                        <span>احتمال: <span style={{ color: '#FFD700' }}>{p.forecast.probability}%</span></span>
+                      </div>
+                    )}
+                    {/* Row 3: status */}
+                    <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
+                      {p.status === 'breakout' ? '🚀 اختراق' : p.status === 'forming' ? '⏳ يتشكل' : '✅ مكتمل'}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 

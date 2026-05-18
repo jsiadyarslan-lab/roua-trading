@@ -397,10 +397,9 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Fill the entire main area using absolute positioning.
-         The navbar is now a flex sibling (not fixed), so main's
-         height = viewport - navbar. Absolute within main fills it
-         completely without any gap or overlap. */
+      /* Fill the entire main area including paddingBottom zone (MetaTrader style).
+         The navbar uses position:absolute;bottom:0 and overlays the bottom of the screen.
+         Chart extends behind the semi-transparent navbar for full-screen effect. */
       position: 'absolute',
       top: 0,
       left: 0,

@@ -61,37 +61,37 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             left: 0,
             right: 0,
             bottom: 0,
-            display: 'flex',
-            flexDirection: 'column',
             background: '#000000',
             color: '#F0F2F5',
             maxWidth: 480,
             width: '100%',
             margin: '0 auto',
             overflow: 'hidden',
-          }}
+          } as React.CSSProperties}
         >
-          {/* Content area — fills space above the navbar.
-              minHeight:0 allows flex child to shrink so overflow scrolling works.
-              paddingTop keeps content below the notch on iPhones. */}
+          {/* Main content — fills entire container.
+              Navbar uses position:absolute bottom:0 so it overlays the bottom.
+              Scrollable pages add their own paddingBottom for navbar clearance. */}
           <main
             style={{
-              position: 'relative',
-              flex: '1 1 0%',
-              minHeight: 0,
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorY: 'contain',
-              width: '100%',
-              zIndex: 1,
-              paddingTop: 'env(safe-area-inset-top, 0px)',
-              paddingLeft: 'env(safe-area-inset-left, 0px)',
-              paddingRight: 'env(safe-area-inset-right, 0px)',
+              /* Padding for scrollable pages so content doesn't hide behind navbar.
+                 Chart page uses position:absolute which extends into padding area (MetaTrader style). */
+              paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
             }}
           >
             {children}
           </main>
+          {/* Navbar — position:absolute bottom:0 guarantees it's at the screen bottom.
+              No flex layout dependency = no gap possible. */}
           <MobileNavBar />
         </div>
       </AuthGuard>

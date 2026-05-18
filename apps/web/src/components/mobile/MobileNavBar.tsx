@@ -93,13 +93,11 @@ export default function MobileNavBar() {
   const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
 
   const handleNav = (href: string) => {
-    console.log('[MobileNavBar] Clicked:', href)
     if (href === '__more__') {
       setShowMore(true)
       return
     }
     router.push(href)
-    console.log('[MobileNavBar] Pushed:', href)
   }
 
   const isActive = (href: string) => {
@@ -110,29 +108,44 @@ export default function MobileNavBar() {
 
   return (
     <>
-      {/* Bottom Navigation — flex child that stays at bottom of layout container */}
+      {/* ═══════════════════════════════════════════════════════
+          Bottom Navigation — position:absolute;bottom:0;left:0;right:0
+          GUARANTEED to be at the screen bottom. No flex gap possible.
+          The container (layout.tsx) is position:fixed;inset:0 so
+          this nav's bottom:0 = the screen bottom edge.
+          ═══════════════════════════════════════════════════════ */}
       <nav
         style={{
-          position: 'relative',
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
           zIndex: 50,
           pointerEvents: 'auto',
-          flexShrink: 0,
-          width: '100%',
-          /* content-box: height=56px is the icon area; paddingBottom ADDS to it
-             so on notched iPhones the gradient background covers the home-indicator zone.
-             On Android (no safe-area) the total is just 56px — no extra space. */
+          /* Icon row is exactly 56px. Safe-area padding is ADDED below it
+             so the gradient background covers the home-indicator zone on iPhones.
+             On Android (safe-area = 0) the total is just 56px — no extra space. */
           boxSizing: 'content-box',
           height: 56,
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.85) 100%)',
+          background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.92) 100%)',
           backdropFilter: 'blur(60px) saturate(250%)',
           WebkitBackdropFilter: 'blur(60px) saturate(250%)',
           borderTop: '0.5px solid rgba(0,212,255,0.15)',
           boxShadow: '0 -4px 24px rgba(0,0,0,0.4), 0 -1px 0 rgba(0,212,255,0.1)',
         }}
       >
-        <div className="flex items-center justify-around px-0.5" dir="rtl" style={{ pointerEvents: 'auto', height: 56 }}>
-          {NAV_ITEMS.map((item, idx) => {
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-around',
+            height: 56,
+            direction: 'rtl',
+            pointerEvents: 'auto',
+          }}
+        >
+          {NAV_ITEMS.map((item) => {
             /* Center wallet button — compact floating style */
             if ((item as any).isCenter) {
               const active = isActive(item.href)
@@ -146,8 +159,8 @@ export default function MobileNavBar() {
                       background: active
                         ? 'linear-gradient(135deg, #00D4FF 0%, #00A8CC 50%, #0066AA 100%)'
                         : 'linear-gradient(135deg, rgba(0,212,255,0.15) 0%, rgba(0,168,204,0.1) 100%)',
-                      border: active 
-                        ? '2px solid rgba(0,212,255,0.8)' 
+                      border: active
+                        ? '2px solid rgba(0,212,255,0.8)'
                         : '1.5px solid rgba(0,212,255,0.4)',
                       boxShadow: active
                         ? '0 0 20px rgba(0,212,255,0.6), 0 0 40px rgba(0,212,255,0.3), inset 0 1px 0 rgba(255,255,255,0.3)'
@@ -186,10 +199,10 @@ export default function MobileNavBar() {
                 onClick={() => handleNav(item.href)}
                 whileTap={{ scale: 0.9 }}
                 transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                className="flex items-center justify-center h-full"
-                style={{ 
-                  width: 64, 
-                  flexShrink: 0, 
+                style={{
+                  width: 64,
+                  height: 56,
+                  flexShrink: 0,
                   position: 'relative',
                   background: 'transparent',
                   border: 'none',
@@ -197,10 +210,12 @@ export default function MobileNavBar() {
                   padding: 0,
                   zIndex: 10,
                   pointerEvents: 'auto',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                <div 
-                  className="relative"
+                <div
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -214,9 +229,9 @@ export default function MobileNavBar() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <Icon 
-                    size={28} 
-                    color={active ? '#00D4FF' : 'rgba(255,255,255,0.5)'} 
+                  <Icon
+                    size={28}
+                    color={active ? '#00D4FF' : 'rgba(255,255,255,0.5)'}
                     strokeWidth={active ? 2.5 : 2}
                   />
                   {/* Elegant bottom line indicator */}
@@ -272,12 +287,13 @@ export default function MobileNavBar() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowMore(false)}
-              className="fixed inset-0"
-              style={{ 
-                background: 'rgba(0,0,0,0.75)', 
-                backdropFilter: 'blur(20px) saturate(180%)', 
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.75)',
+                backdropFilter: 'blur(20px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                zIndex: 50 
+                zIndex: 100,
               }}
             />
 
@@ -287,9 +303,12 @@ export default function MobileNavBar() {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-              className="fixed bottom-0 left-0 right-0"
               style={{
-                zIndex: 50,
+                position: 'fixed',
+                bottom: 0,
+                left: 0,
+                right: 0,
+                zIndex: 100,
                 background: 'linear-gradient(180deg, rgba(0,212,255,0.08) 0%, rgba(11,14,20,0.95) 100%)',
                 backdropFilter: 'blur(50px) saturate(220%)',
                 WebkitBackdropFilter: 'blur(50px) saturate(220%)',
@@ -303,19 +322,19 @@ export default function MobileNavBar() {
               }}
             >
               {/* Handle */}
-              <div className="flex justify-center pt-3 pb-2" style={{ flexShrink: 0 }}>
-                <div style={{ 
-                  width: 40, 
-                  height: 5, 
-                  borderRadius: 3, 
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 8, flexShrink: 0 }}>
+                <div style={{
+                  width: 40,
+                  height: 5,
+                  borderRadius: 3,
                   background: 'linear-gradient(90deg, transparent, rgba(0,212,255,0.5), transparent)',
                   boxShadow: '0 0 10px rgba(0,212,255,0.3)',
                 }} />
               </div>
 
               {/* Header */}
-              <div className="flex items-center justify-between px-6 py-3" dir="rtl" style={{ flexShrink: 0 }}>
-                <div className="flex items-center gap-2">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px 12px', direction: 'rtl', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 17, fontWeight: 900, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>
                     استكشف المزيد
                   </span>
@@ -330,7 +349,7 @@ export default function MobileNavBar() {
                     {ALL_MORE_ITEMS.filter(i => i.isNew).length} جديد
                   </span>
                 </div>
-                <motion.button 
+                <motion.button
                   whileTap={{ scale: 0.9 }}
                   onClick={() => setShowMore(false)}
                   style={{
@@ -354,7 +373,7 @@ export default function MobileNavBar() {
                 {MORE_CATEGORIES.map((category, catIdx) => (
                   <div key={category.title} style={{ marginBottom: catIdx < MORE_CATEGORIES.length - 1 ? 8 : 0 }}>
                     {/* Category Title */}
-                    <div className="px-5 pt-3 pb-2" dir="rtl">
+                    <div style={{ padding: '12px 20px 8px', direction: 'rtl' }}>
                       <span style={{
                         fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.3)',
                         fontFamily: "'Cairo', sans-serif", letterSpacing: '0.05em',
@@ -365,7 +384,7 @@ export default function MobileNavBar() {
                     </div>
 
                     {/* Category Items Grid */}
-                    <div className="grid grid-cols-3 gap-2.5 px-4" dir="rtl" style={{ overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, padding: '0 16px', direction: 'rtl', overflow: 'hidden' }}>
                       {category.items.map((item, i) => {
                         const Icon = item.icon
                         const globalIdx = catIdx * 100 + i
@@ -377,20 +396,26 @@ export default function MobileNavBar() {
                             transition={{ delay: globalIdx * 0.03 }}
                             whileTap={{ scale: 0.93 }}
                             onClick={() => { router.push(item.href); setShowMore(false) }}
-                            className="flex flex-col items-center gap-2 py-4 rounded-2xl relative"
                             style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: 8,
+                              padding: '16px 4px',
+                              borderRadius: 16,
+                              position: 'relative',
                               background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%)',
                               backdropFilter: 'blur(10px)',
                               border: `1px solid ${item.isNew ? `${item.color}50` : 'rgba(255,255,255,0.08)'}`,
-                              boxShadow: item.isNew 
-                                ? `0 4px 20px ${item.color}20, inset 0 1px 0 rgba(255,255,255,0.1)` 
+                              boxShadow: item.isNew
+                                ? `0 4px 20px ${item.color}20, inset 0 1px 0 rgba(255,255,255,0.1)`
                                 : '0 4px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.05)',
                               transition: 'all 0.3s ease',
                             }}
                           >
                             {/* New badge */}
                             {item.isNew && (
-                              <motion.div 
+                              <motion.div
                                 initial={{ scale: 0 }}
                                 animate={{ scale: 1 }}
                                 transition={{ delay: globalIdx * 0.03 + 0.2 }}
@@ -399,7 +424,7 @@ export default function MobileNavBar() {
                                   width: 8, height: 8, borderRadius: '50%',
                                   background: `linear-gradient(135deg, ${item.color}, #00D4FF)`,
                                   boxShadow: `0 0 10px ${item.color}, 0 0 20px ${item.color}50`,
-                                }} 
+                                }}
                               />
                             )}
                             <div
@@ -414,11 +439,11 @@ export default function MobileNavBar() {
                               <Icon size={20} color={item.color} strokeWidth={2} />
                             </div>
                             <span style={{
-                              fontSize: 11, 
-                              color: item.isNew ? '#F0F2F5' : 'rgba(255,255,255,0.85)', 
+                              fontSize: 11,
+                              color: item.isNew ? '#F0F2F5' : 'rgba(255,255,255,0.85)',
                               fontFamily: "'Cairo', sans-serif",
-                              lineHeight: 1.3, 
-                              textAlign: 'center', 
+                              lineHeight: 1.3,
+                              textAlign: 'center',
                               fontWeight: item.isNew ? 800 : 600,
                               maxWidth: '90%',
                               textShadow: item.isNew ? `0 0 20px ${item.color}40` : 'none',

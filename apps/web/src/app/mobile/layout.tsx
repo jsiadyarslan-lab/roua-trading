@@ -76,14 +76,17 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
                  area expands to fit all content and never scrolls. */
               minHeight: 0,
               /* Padding at the bottom so the fixed MobileNavBar doesn't cover content.
-                 Pages with their own fixed bottom bar (chart, trading) add extra
-                 padding via their own styles. */
-              paddingBottom: '56px',
+                 Must match MobileNavBar height (56px + safe-area-inset-bottom) to
+                 prevent the chart canvas from overlapping the NavBar touch zone. */
+              paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
               overflowY: 'auto',
               overflowX: 'hidden',
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorY: 'contain',
               width: '100%',
+              /* Isolate stacking context so high z-index elements inside the chart
+                 don't render above the NavBar (z-index: 50) */
+              zIndex: 1,
             }}
           >
             {children}

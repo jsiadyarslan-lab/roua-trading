@@ -22,6 +22,8 @@ import { VolumeProfile } from './VolumeProfile';
 import { NewsMarkers, createNewsChartMarkers } from './NewsMarkers';
 import { WatchlistOverlay } from './WatchlistOverlay';
 import { AIPatternPanel } from './AIPatternPanel';
+import { runPatternEngine } from '@/lib/charts/pattern-engine';
+import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { ChartTrading } from './ChartTrading';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
@@ -225,6 +227,22 @@ export default function RouaChart({
     }
   }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine]);
 
+  // ── Auto-run Pattern Engine when candles update ──
+  const runPatternDetection = useCallback(async () => {
+    const candles = candlesRef.current;
+    if (!candles || candles.length < 30) return;
+    const chartApi = chart.chartRef?.current;
+    const lc = lightweightChartsRef.current;
+    if (!chartApi || !lc) return;
+    try {
+      const result = runPatternEngine(candles, { minQuality: 5 });
+      patternEngineRef.current = result;
+      drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
+    } catch (e: any) {
+      console.debug('[PatternEngine] Error:', e.message);
+    }
+  }, [chart.chartRef]);
+
   // ── Ref to always have the latest setCandles without stale closures ──
   // The fetch effect uses this ref instead of chart.setCandles directly,
   // ensuring it always calls the latest version even across re-renders.
@@ -343,6 +361,8 @@ export default function RouaChart({
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
           candlesRef.current = unique;
+          // Run pattern engine after candles are updated
+          setTimeout(runPatternDetection, 300);
           // FIX: Use ref to avoid stale closure over chart.setCandles
           setCandlesRef.current(unique);
           // FIX: Auto-fit chart to show new timeframe data range.
@@ -398,6 +418,8 @@ export default function RouaChart({
 
       // Data is already sorted by construction (oldest → newest)
       candlesRef.current = candles;
+      // Re-run pattern engine on realtime update (throttled)
+      if (candles.length % 10 === 0) setTimeout(runPatternDetection, 200);
       // FIX: Use ref to avoid stale closure
       setCandlesRef.current(candles);
       // FIX: Auto-fit after simulated data too
@@ -750,6 +772,7 @@ export default function RouaChart({
   const aiPriceLinesRef = useRef<string[]>([]);
   // FIX: Cache lightweight-charts module to avoid repeated dynamic imports
   const lightweightChartsRef = useRef<any>(null);
+  const patternEngineRef = useRef<ReturnType<typeof runPatternEngine> | null>(null);
   // FIX: Move aiEntryExitMarkerRef here (before handlePatternsDetected) to avoid TDZ error
   // Previously this was declared at line ~1007, after handlePatternsDetected already used it
   const aiEntryExitMarkerRef = useRef<any>(null);

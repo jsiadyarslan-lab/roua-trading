@@ -12,32 +12,10 @@ export const metadata: Metadata = {
   description: 'منصة رؤى لربط الحسابات',
   manifest: '/manifest.json',
   applicationName: 'رؤى',
-  icons: {
-    icon: [
-      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-    ],
-    apple: [
-      { url: '/icon-192.png', sizes: '192x192' },
-      { url: '/icon-512.png', sizes: '512x512' },
-    ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'رؤى',
-  },
+  icons: { icon: [{ url: '/icon-192.png', type: 'image/png', sizes: '192x192' }, { url: '/icon-512.png', type: 'image/png', sizes: '512x512' }, { url: '/favicon.svg', type: 'image/svg+xml' }], apple: [{ url: '/icon-192.png', sizes: '192x192' }, { url: '/icon-512.png', sizes: '512x512' }] },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'رؤى' },
 }
-
-export const viewport: Viewport = {
-  themeColor: '#000000',
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-}
+export const viewport: Viewport = { themeColor: '#000000', width: 'device-width', initialScale: 1, maximumScale: 1, userScalable: false, viewportFit: 'cover' }
 
 export default function MobileLayout({ children }: { children: React.ReactNode }) {
   return (

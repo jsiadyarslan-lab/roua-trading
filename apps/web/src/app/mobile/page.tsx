@@ -17,32 +17,23 @@ import {
 } from 'lucide-react'
 import IOSCard from '@/components/mobile/IOSCard'
 
-/* ─── helpers ─── */
 const fmt2 = (n: number) => Math.abs(n).toFixed(2)
 
 function safeConfidence(val: unknown): number {
   if (typeof val === 'number' && Number.isFinite(val)) return val
-  if (val && typeof val === 'object' && 'compositeScore' in (val as any)) return (val as any).compositeScore ?? 0
+  if (val && typeof val === 'object' && 'compositeScore' in (val as Record<string, unknown>)) return (val as { compositeScore: number }).compositeScore ?? 0
   return Number.isFinite(Number(val)) ? Number(val) : 0
 }
 
-function safeAction(val: unknown): 'BUY' | 'SELL' | 'WAIT' {
-  if (val === 'BUY' || val === 'SELL' || val === 'WAIT') return val
-  return 'WAIT'
-}
-
-/* ─── Trading Mode Config ─── */
 const MODE_CONFIG: Record<TradingMode, { accent: string; labelAr: string }> = {
   trader: { accent: '#00D4FF', labelAr: 'تاجر' },
   investor: { accent: '#32D74B', labelAr: 'مستثمر' },
   ai: { accent: '#A78BFA', labelAr: 'ذكاء' },
 }
 
-/* ─── Currency Ticker ─── */
 function CurrencyTicker() {
   const quotes = useMarketStore(s => s.quotes)
   const displayPairs = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD']
-
   return (
     <div style={{ overflow: 'hidden', height: 36, display: 'flex', alignItems: 'center', background: 'rgba(0,212,255,0.03)', borderBottom: '0.5px solid rgba(0,212,255,0.08)', marginBottom: 8 }}>
       <div style={{ paddingInlineStart: 16, zIndex: 2, display: 'flex', alignItems: 'center', width: 80, position: 'relative' }}>
@@ -74,30 +65,22 @@ function CurrencyTicker() {
   )
 }
 
-/* ─── Watchlist ─── */
 function Watchlist() {
   const quotes = useMarketStore(s => s.quotes)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const router = useRouter()
   const [tab, setTab] = useState<'Crypto' | 'Forex'>('Crypto')
-  const SYMBOLS = tab === 'Crypto'
-    ? ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD']
-    : ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AUD/USD', 'USD/CHF']
-
+  const SYMBOLS = tab === 'Crypto' ? ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'ADA/USD'] : ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AUD/USD', 'USD/CHF']
   const hotMover = useMemo(() => SYMBOLS.map(s => ({ s, q: quotes[s] })).filter(x => x.q).sort((a, b) => Math.abs(b.q!.changePercent) - Math.abs(a.q!.changePercent))[0], [quotes, SYMBOLS])
-
   return (
     <IOSCard>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #5B21B6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <BarChart3 size={13} color="#FFF" />
-          </div>
+          <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg, #00D4FF, #5B21B6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><BarChart3 size={13} color="#FFF" /></div>
           <span style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>قائمة المراقبة</span>
         </div>
         <button onClick={() => router.push('/mobile/markets')} style={{ fontSize: 11, color: '#00D4FF', fontWeight: 800, fontFamily: "'Cairo', sans-serif", background: 'none', border: 'none' }}>المزيد</button>
       </div>
-
       <div style={{ display: 'flex', gap: 0, marginBottom: 10, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2 }}>
         {(['Crypto', 'Forex'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)} style={{ flex: 1, padding: '5px 0', borderRadius: 8, background: tab === t ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', color: tab === t ? '#00D4FF' : 'rgba(255,255,255,0.35)', fontSize: 10, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer' }}>
@@ -105,14 +88,12 @@ function Watchlist() {
           </button>
         ))}
       </div>
-
       {hotMover && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 10px', borderRadius: 10, background: 'rgba(255,183,0,0.04)', border: '0.5px solid rgba(255,183,0,0.1)', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Flame size={11} color="#FFB800" /><span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "'Cairo', sans-serif" }}>أكثر حركة</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ fontSize: 10, fontWeight: 900, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>{hotMover.s}</span><span style={{ fontSize: 9, fontWeight: 800, color: (hotMover.q?.changePercent ?? 0) >= 0 ? '#32D74B' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>{(hotMover.q?.changePercent ?? 0) >= 0 ? '+' : ''}{(hotMover.q?.changePercent ?? 0).toFixed(2)}%</span></div>
         </div>
       )}
-
       <div style={{ maxHeight: 240, overflowY: 'auto' }} className="m-no-scroll">
         {SYMBOLS.map(sym => {
           const q = quotes[sym]
@@ -139,12 +120,11 @@ function Watchlist() {
   )
 }
 
-/* ─── Agent Widget ─── */
 const STRATEGY_LABELS: Record<string, string> = { AUTO: 'تلقائي', SWING: 'سوينغ', GRID: 'شبكة', MEAN_REVERSION: 'عودة للمتوسط', MOMENTUM_BREAKOUT: 'اختراق الزخم', DCA: 'متوسط التكلفة', VWAP_RSI: 'VWAP+RSI' }
 
 function AgentWidget() {
   const router = useRouter()
-  const { agentState, positions, loading, fetchStatus, startAgent, stopAgent, startAutoRefresh, stopAutoRefresh } = useAgentStore()
+  const { agentState, loading, fetchStatus, startAgent, stopAgent, startAutoRefresh, stopAutoRefresh } = useAgentStore()
   const status = agentState?.status ?? null
   const isRunning = status === AgentStatus.RUNNING
   const strategy = agentState?.config?.strategy ?? StrategyType.AUTO
@@ -152,24 +132,15 @@ function AgentWidget() {
   const dailyTrades = Number(agentState?.dailyTradesCount ?? 0)
   const consecutiveLosses = Number(agentState?.consecutiveLosses ?? 0)
   const isPaper = agentState?.config?.isPaperTrading ?? false
-
   useEffect(() => { fetchStatus(); startAutoRefresh(); return () => stopAutoRefresh() }, [fetchStatus, startAutoRefresh, stopAutoRefresh])
-
   const statusColor = isRunning ? '#00FFA3' : status === AgentStatus.EMERGENCY_STOP ? '#FF4757' : status === AgentStatus.DAILY_LIMIT_REACHED ? '#FFB800' : '#8B92A8'
   const statusLabel = isRunning ? 'يعمل' : status === AgentStatus.EMERGENCY_STOP ? 'إيقاف طارئ' : status === AgentStatus.DAILY_LIMIT_REACHED ? 'حد الخسارة' : 'في الانتظار'
-
-  const handleToggle = useCallback(async () => {
-    if (isRunning) await stopAgent(false)
-    else await startAgent(strategy)
-  }, [isRunning, strategy, startAgent, stopAgent])
-
+  const handleToggle = useCallback(async () => { if (isRunning) await stopAgent(false); else await startAgent(strategy) }, [isRunning, strategy, startAgent, stopAgent])
   return (
     <IOSCard onClick={() => router.push('/mobile/agent')} highlight={isRunning}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: isRunning ? 'linear-gradient(135deg, #FF9F43, #A259FF)' : 'rgba(139,146,168,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-            <Cpu size={20} color={isRunning ? '#FFF' : '#8B92A8'} />
-          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: isRunning ? 'linear-gradient(135deg, #FF9F43, #A259FF)' : 'rgba(139,146,168,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}><Cpu size={20} color={isRunning ? '#FFF' : '#8B92A8'} /></div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>الوكيل المستقل</div>
             <div style={{ fontSize: 10, color: '#FF9F43', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>تداول ذاتي بالذكاء الاصطناعي</div>
@@ -177,7 +148,6 @@ function AgentWidget() {
         </div>
         <ChevronLeft size={18} color="rgba(255,255,255,0.2)" />
       </div>
-
       <div style={{ padding: '8px 12px', borderRadius: 12, background: `${statusColor}08`, border: `0.5px solid ${statusColor}18`, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColor, boxShadow: `0 0 6px ${statusColor}60` }} />
@@ -191,7 +161,6 @@ function AgentWidget() {
           </motion.button>
         </div>
       </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
         <div style={{ padding: '8px 6px', borderRadius: 12, textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)' }}>
           <DollarSign size={11} color={dailyPnL >= 0 ? '#00FFA3' : '#FF4757'} style={{ margin: '0 auto 3px' }} />
@@ -213,42 +182,31 @@ function AgentWidget() {
   )
 }
 
-/* ─── AI Council Widget ─── */
 function AICouncilWidget() {
   const router = useRouter()
-  const [consensus, setConsensus] = useState<any>(null)
+  const [consensus, setConsensus] = useState<Record<string, unknown> | null>(null)
   const [loading, setLoading] = useState(true)
   const { selectedSymbol } = useSymbolStore()
-
   useEffect(() => {
     async function fetchConsensus() {
-      try {
-        const res = await fetch(`/api/ai/consensus?symbol=${selectedSymbol}`)
-        if (res.ok) { const data = await res.json(); if (data.success) setConsensus(data.data) }
-      } catch { /* */ } finally { setLoading(false) }
+      try { const res = await fetch(`/api/ai/consensus?symbol=${selectedSymbol}`); if (res.ok) { const data = await res.json(); if (data.success) setConsensus(data.data) } } catch { /* */ } finally { setLoading(false) }
     }
     fetchConsensus()
     const interval = setInterval(fetchConsensus, 60000)
     return () => clearInterval(interval)
   }, [selectedSymbol])
-
-  const rec = consensus?.recommendation ?? 'HOLD'
+  const rec = (consensus?.recommendation as string) ?? 'HOLD'
   const score = safeConfidence(consensus?.consensusScore)
   const color = rec === 'BUY' ? '#00FFA3' : rec === 'SELL' ? '#FF4757' : '#FFB800'
   const recLabel = rec === 'BUY' ? 'شراء' : rec === 'SELL' ? 'بيع' : 'انتظار'
-  const analyses = consensus?.analyses ?? []
-  const votes = analyses.reduce((acc: { buy: number; sell: number; hold: number }, a: any) => {
-    if (a.vote === 'BUY') acc.buy += 1; else if (a.vote === 'SELL') acc.sell += 1; else acc.hold += 1; return acc
-  }, { buy: 0, sell: 0, hold: 0 })
+  const analyses = (consensus?.analyses as Array<Record<string, unknown>>) ?? []
+  const votes = analyses.reduce((acc: { buy: number; sell: number; hold: number }, a: Record<string, unknown>) => { if (a.vote === 'BUY') acc.buy += 1; else if (a.vote === 'SELL') acc.sell += 1; else acc.hold += 1; return acc }, { buy: 0, sell: 0, hold: 0 })
   const total = votes.buy + votes.sell + votes.hold
-
   return (
     <IOSCard onClick={() => router.push('/mobile/ai')}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #B388FF, #A259FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}>
-            <Brain size={20} color="#FFF" />
-          </div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #B388FF, #A259FF)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '0.5px solid rgba(255,255,255,0.08)' }}><Brain size={20} color="#FFF" /></div>
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>مجلس الذكاء الاصطناعي</div>
             <div style={{ fontSize: 10, color: '#B388FF', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>رؤى من 6 نماذج AI</div>
@@ -256,7 +214,6 @@ function AICouncilWidget() {
         </div>
         <ChevronLeft size={18} color="rgba(255,255,255,0.2)" />
       </div>
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 12px', borderRadius: 12, background: `${color}08`, border: `0.5px solid ${color}18` }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: `${color}15`, border: `1px solid ${color}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
           <span style={{ fontSize: 16, fontWeight: 900, color, fontFamily: "'JetBrains Mono', monospace" }}>{score}%</span>
@@ -266,7 +223,6 @@ function AICouncilWidget() {
           <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>{selectedSymbol} — ثقة {score}%</div>
         </div>
       </div>
-
       {total > 0 && (
         <div style={{ display: 'flex', height: 4, borderRadius: 2, overflow: 'hidden', direction: 'ltr' }}>
           <div style={{ width: `${(votes.buy / total) * 100}%`, background: '#00FFA3', borderRadius: 2 }} />
@@ -278,7 +234,6 @@ function AICouncilWidget() {
   )
 }
 
-/* ─── Quick Actions ─── */
 function QuickActions() {
   const router = useRouter()
   const items = [
@@ -287,16 +242,13 @@ function QuickActions() {
     { label: 'المراكز', icon: Activity, href: '/mobile/positions', color: '#00C853' },
     { label: 'ربط الحسابات', icon: Link2, href: '/mobile/kyc', color: '#00FFA3' },
   ]
-
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, padding: '0 16px', marginBottom: 12 }}>
       {items.map((item) => {
         const Icon = item.icon
         return (
           <button key={item.href} onClick={() => router.push(item.href)} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '10px 4px', borderRadius: 14, background: `${item.color}08`, border: `0.5px solid ${item.color}18`, cursor: 'pointer', touchAction: 'manipulation' }}>
-            <div style={{ width: 32, height: 32, borderRadius: 10, background: `${item.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icon size={16} color={item.color} />
-            </div>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: `${item.color}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon size={16} color={item.color} /></div>
             <span style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.7)', fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>{item.label}</span>
           </button>
         )
@@ -305,21 +257,16 @@ function QuickActions() {
   )
 }
 
-/* ─── HOME PAGE ─── */
 export default function MobileHomePage() {
   const router = useRouter()
   const { tradingMode } = useDashboardStore()
   const account = usePositionsStore(s => s.account)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const modeAccent = MODE_CONFIG[tradingMode]?.accent || '#00D4FF'
-
   useEffect(() => { fetchAccount() }, [fetchAccount])
-
   const buyingPower = account?.buying_power ? Number(account.buying_power) : 0
-
   return (
     <div className="m-page">
-      {/* Top Bar */}
       <div style={{ padding: '12px 16px 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between', direction: 'rtl' }}>
         <div>
           <div style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>رؤى</div>
@@ -331,28 +278,19 @@ export default function MobileHomePage() {
           </div>
         </div>
       </div>
-
       <CurrencyTicker />
       <QuickActions />
       <AgentWidget />
       <AICouncilWidget />
       <Watchlist />
-
-      {/* Portfolio Summary */}
       {buyingPower > 0 && (
         <IOSCard>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Wallet size={16} color="#00D4FF" />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>قوة الشراء</span>
-            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Wallet size={16} color="#00D4FF" /><span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>قوة الشراء</span></div>
           </div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>
-            ${buyingPower.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>${buyingPower.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
         </IOSCard>
       )}
-
       <div style={{ height: 16 }} />
     </div>
   )

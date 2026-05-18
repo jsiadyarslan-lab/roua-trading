@@ -1,84 +1,76 @@
 'use client'
 
+import { useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import { Home, BarChart2, Wallet, TrendingUp, Settings, Grid3X3, X, Brain, FlaskConical, ScanSearch, Radio, Newspaper, HelpCircle, Activity, Zap, Target, BellRing, UserCircle, Link2, CreditCard, Fingerprint, Users, GitMerge, Trophy, Eye, Cpu, Code, CalendarDays, Shield, Store } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import {
+  Home, BarChart2, Wallet, TrendingUp, Settings, Grid3X3, X,
+  Brain, FlaskConical, ScanSearch, Radio, Newspaper, HelpCircle,
+  Activity, Zap, Target, BellRing, UserCircle, Link2, CreditCard,
+  Fingerprint, Users, GitMerge, Trophy, Eye, Cpu, Code,
+  CalendarDays, Shield, Store
+} from 'lucide-react'
 
 const NAV_ITEMS = [
   { label: 'الرئيسية', href: '/mobile', icon: Home },
-  { label: 'الأسواق', href: '/mobile/markets', icon: TrendingUp },
-  { label: 'الشارت', href: '/mobile/chart', icon: BarChart2 },
-  { label: 'المحفظة', href: '/mobile/wallet', icon: Wallet, isCenter: true },
+  { label: 'الأسواق', href: '/mobile/markets', icon: BarChart2 },
+  { label: 'الشارت', href: '/mobile/chart', icon: TrendingUp },
+  { label: '__wallet__', href: '/mobile/wallet', icon: Wallet },
   { label: 'الإعدادات', href: '/mobile/settings', icon: Settings },
-  { label: 'المزيد', href: '__more__', icon: Grid3X3 },
+  { label: '__more__', href: '__more__', icon: Grid3X3 },
 ]
 
-interface MoreItem { label: string; href: string; icon: any; color: string; isNew?: boolean; sub?: string }
-interface MoreCategory { title: string; items: MoreItem[] }
-
-const MORE_CATEGORIES: MoreCategory[] = [
+const MORE_CATEGORIES = [
   {
     title: 'التداول',
     items: [
-      { label: 'المراكز المفتوحة', href: '/mobile/positions', icon: Activity, color: '#00C853', sub: 'تتبع صفقاتك' },
-      { label: 'التداول الحي', href: '/mobile/trading', icon: Zap, color: '#00D4FF', sub: 'تداول مباشر' },
-      { label: 'الاستراتيجيات', href: '/mobile/strategies', icon: FlaskConical, color: '#B388FF', sub: 'اختبر وبنِ' },
-      { label: 'محرر الاستراتيجيات', href: '/mobile/strategy-builder', icon: GitMerge, color: '#00D4FF', isNew: true, sub: 'No-Code' },
-      { label: 'اختبار الاستراتيجيات', href: '/mobile/strategies/backtest', icon: FlaskConical, color: '#FF9F43', isNew: true, sub: 'Backtest' },
-      { label: 'التداول الاجتماعي', href: '/mobile/social', icon: Users, color: '#FF6B9D', sub: 'تابع الأفضل' },
-      { label: 'متابعة الحسابات', href: '/mobile/copy-trading', icon: Eye, color: '#10B981', isNew: true, sub: 'Copy Trading' },
-      { label: 'لوحة الصدارة', href: '/mobile/leaderboard', icon: Trophy, color: '#FFB800', isNew: true, sub: 'الأفضل' },
-      { label: 'وكيل التداول', href: '/mobile/agent', icon: Cpu, color: '#FF9F43', sub: 'ذكاء اصطناعي' },
-      { label: 'المتجر', href: '/mobile/marketplace', icon: Store, color: '#00D4FF', isNew: true, sub: 'استراتيجيات' },
+      { label: 'المراكز المفتوحة', href: '/mobile/positions', icon: Activity },
+      { label: 'التداول الحي', href: '/mobile/trading', icon: Zap },
+      { label: 'الاستراتيجيات', href: '/mobile/strategies', icon: FlaskConical },
+      { label: 'محرر الاستراتيجيات', href: '/mobile/strategy-builder', icon: GitMerge },
+      { label: 'اختبار الاستراتيجيات', href: '/mobile/strategies/backtest', icon: FlaskConical },
+      { label: 'التداول الاجتماعي', href: '/mobile/social', icon: Users },
+      { label: 'متابعة الحسابات', href: '/mobile/copy-trading', icon: Eye },
+      { label: 'لوحة الصدارة', href: '/mobile/leaderboard', icon: Trophy },
+      { label: 'وكيل التداول', href: '/mobile/agent', icon: Cpu },
+      { label: 'المتجر', href: '/mobile/marketplace', icon: Store },
     ],
   },
   {
     title: 'الأدوات',
     items: [
-      { label: 'التحليلات', href: '/mobile/ai', icon: Brain, color: '#B388FF', sub: '6 نماذج AI' },
-      { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch, color: '#00FFA3', sub: 'فرص لحظية' },
-      { label: 'التوصيات', href: '/mobile/signals', icon: Radio, color: '#FFB800', sub: 'توصيات احترافية' },
-      { label: 'التنبؤات', href: '/mobile/prediction-market', icon: Target, color: '#00D4FF', isNew: true, sub: 'AI vs السوق' },
-      { label: 'AI Lab', href: '/mobile/neural', icon: Brain, color: '#A259FF', isNew: true, sub: 'مختبر ذكي' },
-      { label: 'الارتباط', href: '/mobile/correlation', icon: GitMerge, color: '#00D4FF', isNew: true, sub: 'بيرسون' },
-      { label: 'الأجندة', href: '/mobile/calendar', icon: CalendarDays, color: '#FFB800', isNew: true, sub: 'أحداث اقتصادية' },
-      { label: 'ملاذ المحفظة', href: '/mobile/sanctuary', icon: Shield, color: '#FFB800', isNew: true, sub: 'تحليل مخاطر' },
-      { label: 'الأخبار', href: '/mobile/news', icon: Newspaper, color: '#d4af37', sub: 'أخبار لحظية' },
-      { label: 'الإشعارات', href: '/mobile/notifications', icon: BellRing, color: '#FF4757', sub: 'تنبيهات' },
-      { label: 'API', href: '/mobile/api-docs', icon: Code, color: '#00D4FF', isNew: true, sub: 'المرجع البرمجي' },
+      { label: 'التحليلات', href: '/mobile/ai', icon: Brain },
+      { label: 'سكانر السوق', href: '/mobile/scanner', icon: ScanSearch },
+      { label: 'التوصيات', href: '/mobile/signals', icon: Radio },
+      { label: 'التنبؤات', href: '/mobile/prediction-market', icon: Target },
+      { label: 'AI Lab', href: '/mobile/neural', icon: Brain },
+      { label: 'الارتباط', href: '/mobile/correlation', icon: GitMerge },
+      { label: 'الأجندة', href: '/mobile/calendar', icon: CalendarDays },
+      { label: 'ملاذ المحفظة', href: '/mobile/sanctuary', icon: Shield },
+      { label: 'الأخبار', href: '/mobile/news', icon: Newspaper },
+      { label: 'الإشعارات', href: '/mobile/notifications', icon: BellRing },
+      { label: 'API', href: '/mobile/api-docs', icon: Code },
     ],
   },
   {
     title: 'الحساب',
     items: [
-      { label: 'الملف الشخصي', href: '/mobile/profile', icon: UserCircle, color: '#00D4FF', sub: 'معلوماتك' },
-      { label: 'ربط الحسابات', href: '/mobile/kyc', icon: Link2, color: '#00FFA3', sub: 'ربط الوساطة' },
-      { label: 'إعدادات البورصة', href: '/mobile/settings/exchange', icon: Link2, color: '#00D4FF', isNew: true, sub: 'مفاتيح API' },
-      { label: 'الفواتير', href: '/mobile/billing', icon: CreditCard, color: '#d4af37', sub: 'الاشتراكات' },
-      { label: 'الأمان', href: '/mobile/security', icon: Fingerprint, color: '#32D74B', sub: '2FA' },
-      { label: 'المساعدة', href: '/mobile/help', icon: HelpCircle, color: '#8B92A8', sub: 'الدعم' },
+      { label: 'الملف الشخصي', href: '/mobile/profile', icon: UserCircle },
+      { label: 'ربط الحسابات', href: '/mobile/kyc', icon: Link2 },
+      { label: 'إعدادات البورصة', href: '/mobile/settings/exchange', icon: CreditCard },
+      { label: 'الفواتير', href: '/mobile/billing', icon: CreditCard },
+      { label: 'الأمان', href: '/mobile/security', icon: Fingerprint },
+      { label: 'المساعدة', href: '/mobile/help', icon: HelpCircle },
     ],
   },
 ]
 
-/**
- * MOBILE NAVBAR — V2 Clean Architecture
- *
- * KEY DESIGN: This is the ONLY fixed element on the page.
- * No shell wrapper. No overflow:hidden container.
- * Pages scroll naturally. This just sits at the bottom.
- *
- * Height: 56px (compact, was 102px before)
- * Touch: Works on ALL pages because the chart page
- * now ends ABOVE this navbar (bottom: var(--m-nav-total))
- * so lightweight-charts can never steal touches from it.
- */
 export default function MobileNavBar() {
   const pathname = usePathname()
   const router = useRouter()
-  const [showMore, setShowMore] = useState(false)
-  const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const notifications = useNotificationStore(s => s.notifications)
+  const unreadCount = notifications.filter(n => !n.read).length
 
   const isActive = (href: string) => {
     if (href === '/mobile') return pathname === '/mobile'
@@ -89,103 +81,100 @@ export default function MobileNavBar() {
     <>
       <nav className="m-nav">
         {NAV_ITEMS.map((item) => {
-          if ((item as any).isCenter) {
+          if (item.href === '__wallet__') {
             const active = isActive(item.href)
             return (
               <button
                 key={item.href}
                 className={`m-nav-wallet ${active ? 'm-nav-wallet--active' : ''}`}
                 onClick={() => router.push(item.href)}
+                aria-label={item.label}
               >
-                <Wallet size={20} color={active ? '#FFF' : '#00D4FF'} strokeWidth={2} />
+                <Wallet size={20} color={active ? '#000' : '#00D4FF'} />
               </button>
             )
           }
-
-          const Icon = item.icon
+          if (item.href === '__more__') {
+            return (
+              <button
+                key="__more__"
+                className={`m-nav-btn ${moreOpen ? 'm-nav-btn--active' : ''}`}
+                onClick={() => setMoreOpen(true)}
+                aria-label={item.label}
+              >
+                <Grid3X3 size={20} />
+                <span className="m-nav-btn__label">{item.label}</span>
+                {moreOpen && <div className="m-nav-btn__dot" />}
+              </button>
+            )
+          }
           const active = isActive(item.href)
-
           return (
             <button
               key={item.href}
               className={`m-nav-btn ${active ? 'm-nav-btn--active' : ''}`}
-              onClick={() => {
-                if (item.href === '__more__') { setShowMore(true); return }
-                router.push(item.href)
-              }}
+              onClick={() => router.push(item.href)}
+              aria-label={item.label}
             >
-              <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} strokeWidth={active ? 2.5 : 2} />
-              <span className="m-nav-btn__label" style={{ color: active ? '#00D4FF' : 'rgba(255,255,255,0.4)' }}>{item.label}</span>
-              {active && <div className="m-nav-btn__dot" />}
+              <item.icon size={20} />
+              <span className="m-nav-btn__label">{item.label}</span>
               {item.href === '/mobile' && unreadCount > 0 && (
-                <div className="m-nav-badge">{unreadCount > 9 ? '9+' : unreadCount}</div>
+                <span className="m-nav-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
               )}
+              {active && <div className="m-nav-btn__dot" />}
             </button>
           )
         })}
       </nav>
 
-      {/* More Menu Sheet */}
-      {showMore && (
-        <>
-          <div onClick={() => setShowMore(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', zIndex: 100 }} />
-          <div style={{
-            position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 101,
-            background: 'linear-gradient(180deg, rgba(0,212,255,0.06) 0%, rgba(11,14,20,0.97) 100%)',
-            backdropFilter: 'blur(40px) saturate(200%)',
-            borderRadius: '28px 28px 0 0',
-            borderTop: '1px solid rgba(0,212,255,0.2)',
-            paddingBottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
-            maxHeight: '85vh', display: 'flex', flexDirection: 'column',
-          }}>
-            {/* Handle */}
-            <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0 6px', flexShrink: 0 }}>
-              <div style={{ width: 36, height: 4, borderRadius: 2, background: 'rgba(0,212,255,0.3)' }} />
-            </div>
-
-            {/* Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 10px', direction: 'rtl', flexShrink: 0 }}>
-              <span style={{ fontSize: 16, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>استكشف المزيد</span>
-              <button onClick={() => setShowMore(false)} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
-                <X size={18} color="rgba(255,255,255,0.5)" />
+      {/* More Bottom Sheet */}
+      {moreOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 10001, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}
+          onClick={() => setMoreOpen(false)}
+        >
+          <div
+            style={{
+              position: 'absolute', bottom: 0, left: 0, right: 0,
+              background: '#1A1D29', borderRadius: '20px 20px 0 0',
+              padding: '12px 16px 24px', maxHeight: '70vh', overflowY: 'auto',
+              direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+              borderTop: '0.5px solid rgba(0,212,255,0.15)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#F0F2F5' }}>المزيد</span>
+              <button onClick={() => setMoreOpen(false)} style={{ background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+                <X size={16} color="rgba(255,255,255,0.5)" />
               </button>
             </div>
-
-            {/* Content */}
-            <div style={{ overflowY: 'auto', flex: 1, WebkitOverflowScrolling: 'touch' }} className="m-no-scroll">
-              {MORE_CATEGORIES.map((cat) => (
-                <div key={cat.title} style={{ marginBottom: 12 }}>
-                  <div style={{ padding: '8px 16px 6px', direction: 'rtl' }}>
-                    <span style={{ fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,0.25)', fontFamily: "'Cairo', sans-serif", letterSpacing: '0.05em' }}>{cat.title}</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, padding: '0 12px', direction: 'rtl' }}>
-                    {cat.items.map((item) => {
-                      const Icon = item.icon
-                      return (
-                        <button
-                          key={item.href}
-                          onClick={() => { router.push(item.href); setShowMore(false) }}
-                          style={{
-                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
-                            padding: '12px 2px', borderRadius: 14, position: 'relative',
-                            background: 'rgba(255,255,255,0.04)', border: `1px solid ${item.isNew ? `${item.color}30` : 'rgba(255,255,255,0.06)'}`,
-                            cursor: 'pointer', touchAction: 'manipulation',
-                          }}
-                        >
-                          {item.isNew && <div style={{ position: 'absolute', top: 4, insetInlineStart: 4, width: 6, height: 6, borderRadius: '50%', background: item.color, boxShadow: `0 0 8px ${item.color}` }} />}
-                          <div style={{ width: 36, height: 36, borderRadius: 10, background: `${item.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${item.color}30`, pointerEvents: 'none' }}>
-                            <Icon size={16} color={item.color} />
-                          </div>
-                          <span style={{ fontSize: 10, color: item.isNew ? '#F0F2F5' : 'rgba(255,255,255,0.7)', fontFamily: "'Cairo', sans-serif", lineHeight: 1.2, textAlign: 'center', fontWeight: item.isNew ? 700 : 500, pointerEvents: 'none' }}>{item.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
+            {MORE_CATEGORIES.map((cat) => (
+              <div key={cat.title} style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: '#00D4FF', marginBottom: 8, letterSpacing: 1 }}>{cat.title}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+                  {cat.items.map((item) => {
+                    const Icon = item.icon
+                    return (
+                      <button
+                        key={item.href}
+                        onClick={() => { setMoreOpen(false); router.push(item.href) }}
+                        style={{
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
+                          padding: '10px 4px', borderRadius: 12, background: 'rgba(255,255,255,0.03)',
+                          border: '0.5px solid rgba(255,255,255,0.06)', cursor: 'pointer', touchAction: 'manipulation',
+                        }}
+                      >
+                        <Icon size={18} color="rgba(255,255,255,0.6)" />
+                        <span style={{ fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 1.2 }}>{item.label}</span>
+                      </button>
+                    )
+                  })}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
-        </>
+        </div>
       )}
     </>
   )

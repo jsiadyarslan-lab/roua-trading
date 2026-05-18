@@ -3,24 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 
-/**
- * Mobile Page Header — V2
- * Shared header with back button and title.
- * Sticky at top with blur backdrop.
- */
-export default function MobilePageHeader({
-  title,
-  subtitle,
-  onBack,
-  right,
-}: {
-  title: string
-  subtitle?: string
-  onBack?: () => void
-  right?: React.ReactNode
-}) {
+export default function MobilePageHeader({ title, subtitle, onBack, right }: { title: string; subtitle?: string; onBack?: () => void; right?: React.ReactNode }) {
   const router = useRouter()
-
   return (
     <div className="m-header">
       <button className="m-header__back" onClick={onBack || (() => router.back())}>

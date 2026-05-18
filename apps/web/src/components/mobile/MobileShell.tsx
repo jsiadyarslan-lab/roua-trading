@@ -1,14 +1,16 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { usePathname } from 'next/navigation'
 import MobileNavBar from './MobileNavBar'
 
 /**
- * MOBILE SHELL (v5 Rebuild)
+ * MOBILE SHELL (v6 Rebuild)
  *
  * Provides:
  * 1. The fixed .mobile-shell container
- * 2. .mobile-content area with padding-bottom for navbar
+ * 2. .mobile-content area — scrollable for normal pages,
+ *    overflow:hidden for chart pages (detected by pathname)
  * 3. .mobile-touch-barrier — transparent shield that blocks
  *    lightweight-charts' setPointerCapture() from stealing
  *    touches meant for the navbar
@@ -16,6 +18,9 @@ import MobileNavBar from './MobileNavBar'
  * 5. Toast overlay area
  */
 export default function MobileShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const isChartPage = pathname === '/mobile/chart' || pathname.startsWith('/mobile/chart?')
+
   const [swUpdate, setSwUpdate] = useState(false)
   const [swWaiting, setSwWaiting] = useState<ServiceWorker | null>(null)
 
@@ -54,10 +59,12 @@ export default function MobileShell({ children }: { children: React.ReactNode })
   return (
     <div className="mobile-shell">
       {/* ═══ CONTENT AREA ═══
-          padding-bottom: var(--roua-nav-total) reserves space
-          so page content doesn't hide behind the fixed navbar.
+          For chart pages: overflow:hidden (chart fills the space)
+          For all other pages: overflow-y:auto (pages can scroll)
+          padding-bottom reserves space so content doesn't hide
+          behind the fixed navbar.
       */}
-      <div className="mobile-content">
+      <div className={isChartPage ? 'mobile-content--chart' : 'mobile-content'}>
         {children}
       </div>
 
@@ -67,6 +74,8 @@ export default function MobileShell({ children }: { children: React.ReactNode })
           zone, preventing lightweight-charts from stealing them
           via setPointerCapture(). The navbar is ABOVE this
           (z-index:9999 > 9998) so navbar buttons still work.
+          On chart pages, the chart doesn't extend into this zone,
+          so the barrier acts as extra protection.
       */}
       <div className="mobile-touch-barrier" />
 

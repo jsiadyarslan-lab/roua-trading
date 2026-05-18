@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v160-rebuild';
+const CACHE_NAME = 'roua-v162-scroll-fix';
 
 const APP_SHELL = [
   '/manifest.json',

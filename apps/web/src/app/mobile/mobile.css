@@ -15,7 +15,7 @@
    CSS CUSTOM PROPERTIES — Safe Area + Layout Constants
    ═══════════════════════════════════════════════════════════ */
 :root {
-  --roua-nav-height: 48px;
+  --roua-nav-height: 44px;
   --roua-nav-safe-bottom: env(safe-area-inset-bottom, 0px);
   --roua-nav-total: calc(var(--roua-nav-height) + var(--roua-nav-safe-bottom));
   --roua-safe-top: env(safe-area-inset-top, 0px);
@@ -50,7 +50,7 @@
 /* ═══════════════════════════════════════════════════════════
    CONTENT AREA — Where pages live
    flex:1 takes all space above navbar.
-   overflow:hidden prevents chart canvas bleed.
+   overflow-y:auto enables scrolling for ALL pages.
    padding-bottom: var(--roua-nav-total) reserves space for
    the fixed navbar so pages don't hide behind it.
    ═══════════════════════════════════════════════════════════ */
@@ -58,21 +58,18 @@
   flex: 1;
   min-height: 0;
   position: relative;
-  overflow: hidden;
-  padding-bottom: var(--roua-nav-total);
-}
-
-/* Scrollable pages inside content */
-.mobile-content--scroll {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
+  padding-bottom: var(--roua-nav-total);
 }
 
-/* Chart pages fill content with position:absolute */
+/* Chart pages override: no scroll, chart fills content */
 .mobile-content--chart {
   overflow: hidden;
+  overflow-y: hidden;
+  padding-bottom: 0;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -141,8 +138,8 @@
 
 /* Regular nav button */
 .mobile-navbar__btn {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   flex-shrink: 0;
   position: relative;
   background: transparent;
@@ -262,14 +259,14 @@
   width: 100%;
 }
 
-/* Chart page variant — no scroll, chart fills it */
+/* Chart page variant — no scroll, chart fills it but leaves space for navbar */
 .mobile-page--chart {
   overflow: hidden;
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--roua-nav-total);
 }
 
 /* ═══════════════════════════════════════════════════════════

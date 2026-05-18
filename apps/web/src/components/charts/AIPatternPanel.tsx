@@ -6,7 +6,7 @@
 
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
@@ -40,6 +40,8 @@ export interface AIAnalysisResult {
 interface AIPatternPanelProps {
   symbol: string;
   candles: CandleData[];
+  chartApiRef?: React.MutableRefObject<any>;
+  lcRef?: React.MutableRefObject<any>;
   onPatternsDetected: (result: AIAnalysisResult) => void;
   onPatternClick?: (pattern: AIPattern) => void;
   onLevelClick?: (level: SupportResistanceLevel) => void;
@@ -111,6 +113,8 @@ export function AIPatternPanel({
   onTrendLineClick,
   onEntryExitClick,
   onClose,
+  chartApiRef,
+  lcRef,
 }: AIPatternPanelProps) {
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
@@ -505,15 +509,21 @@ export function AIPatternPanel({
     onTrendLineClick?.(line);
   }, [onTrendLineClick]);
 
-  const runEngineDetection = async (chartRef?: any, lcRef?: any) => {
+  const runEngineDetection = async () => {
     if (engineRunning || !candles || candles.length < 30) return;
     setEngineRunning(true);
     try {
       const result = runPatternEngine(candles, { minQuality: 5 });
       setEnginePatterns(result.patterns);
-      // Draw on chart if refs available
-      if (chartRef?.current && lcRef?.current) {
-        drawAllPatterns(chartRef.current, lcRef.current, result.patterns, true, 15 * 60 * 1000);
+      // Load LC if not already cached
+      if (lcRef && !lcRef.current) {
+        try { lcRef.current = await import('lightweight-charts'); } catch { /* skip */ }
+      }
+      // Draw on chart
+      const cApi = chartApiRef?.current;
+      const lc = lcRef?.current;
+      if (cApi && lc) {
+        drawAllPatterns(cApi, lc, result.patterns, true, 15 * 60 * 1000);
       }
     } catch (e: any) {
       console.warn('[PatternEngine]', e.message);

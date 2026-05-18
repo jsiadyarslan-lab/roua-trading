@@ -163,6 +163,7 @@ export default function RouaChart({
   // ── New Panel States ──
   const [showVolumeProfile, setShowVolumeProfile] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const [aiPanelCandles, setAiPanelCandles] = useState<CandleData[]>([]);
   const [showChartTrading, setShowChartTrading] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
   const [showWatchlist, setShowWatchlist] = useState(false);
@@ -815,6 +816,10 @@ export default function RouaChart({
   useEffect(() => {
     if (!showAIPanel) {
       cleanupAIOverlays();
+    }
+    // Snapshot candles for AI panel when opened
+    if (!showAIPanel && candlesRef.current?.length) {
+      setAiPanelCandles([...candlesRef.current]);
     }
   }, [showAIPanel, cleanupAIOverlays]);
 
@@ -1680,7 +1685,9 @@ export default function RouaChart({
           <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={300} minHeight={280}>
             <AIPatternPanel
               symbol={selectedSymbol}
-              candles={candlesRef.current || []}
+              candles={aiPanelCandles.length ? aiPanelCandles : candlesRef.current || []}
+              chartApiRef={chart.chartRef}
+              lcRef={lightweightChartsRef}
               onPatternsDetected={handlePatternsDetected}
               onPatternClick={(p) => {
                 try {

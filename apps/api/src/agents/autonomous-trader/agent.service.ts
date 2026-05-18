@@ -112,7 +112,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly signalEvaluator: SignalEvaluatorService,
     private readonly riskCalculator: RiskCalculatorService,
     private readonly orderExecutor: OrderExecutorService,
-    @Optional() private readonly councilService: StrategicCouncilService,
+    private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
   ) {
     // FIX: Lazy readiness check — try to connect to dependencies on first use
     // instead of permanently blocking if they're unavailable at constructor time.

@@ -107,33 +107,42 @@ export class OrderExecutorService implements OnModuleDestroy {
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // SUSTAINABLE FIX (V130): Replaced ExposureManager.canOpenPosition()
-      // with simple DB check. canOpenPosition() acquired a Redis lock that
-      // was never released, causing position lock deadlocks that blocked
-      // ALL trade execution across both Agent and Smart Executor.
+      // V145 FIX: Direction-aware position check — allow hedges.
+      // Previously, any existing position on the same symbol would block
+      // the Agent from trading. This meant if the Smart Executor had a
+      // BUY on BTC/USDT, the Agent was blocked from SELL on BTC/USDT
+      // (which is a valid hedge on M30+ timeframes).
       //
-      // OrderDispatcher (the single gateway) already prevents duplicates via:
-      //   1. IdempotencyService (cross-source userId:symbol:side lock)
-      //   2. Position.findFirst() in submitOrder() — prevents same-symbol duplicates
-      //   3. RiskGatekeeper — validates order before execution
-      //
-      // This pre-flight check provides a fail-fast error message before
-      // reaching OrderDispatcher, but is not the sole line of defense.
+      // Now: Only block if the SAME direction exists (duplicate position).
+      // Different direction = hedge = ALLOWED.
       // ═══════════════════════════════════════════════════════════════
       const existingPosition = await this.prisma.position.findFirst({
         where: { userId, symbol: signal.symbol, status: 'OPEN' },
       });
 
       if (existingPosition) {
-        this.logger.warn(
-          `⚡ ORDER REJECTED: existing open position for ${signal.symbol} ` +
-          `(source: ${existingPosition.source || 'unknown'}, side: ${existingPosition.side})`,
+        const existingSide = existingPosition.side; // 'BUY' or 'SELL'
+        const signalSide = signal.action === OrderSide.BUY ? 'BUY' : 'SELL';
+        const isOwnPosition = existingPosition.source === 'agent';
+
+        // Block if: same direction (duplicate) OR own position (any direction)
+        if (isOwnPosition || existingSide === signalSide) {
+          this.logger.warn(
+            `⚡ ORDER REJECTED: ${isOwnPosition ? 'own' : 'same-direction'} position for ${signal.symbol} ` +
+            `(existing: ${existingSide}/${existingPosition.source}, signal: ${signalSide})`,
+          );
+          return {
+            success: false,
+            error: `يوجد مركز ${isOwnPosition ? 'خاص' : 'بنفس الاتجاه'} لـ ${signal.symbol} (${existingSide}) — لا يمكن فتح مركز آخر بنفس الاتجاه`,
+            executionTimeMs: Date.now() - startTime,
+          };
+        }
+
+        // Different direction from another system — this is a hedge, allow it
+        this.logger.log(
+          `⚡ Hedge allowed: ${signal.symbol} has ${existingSide}/${existingPosition.source} position, ` +
+          `opening ${signalSide} (different direction)`,
         );
-        return {
-          success: false,
-          error: `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} — لا يمكن فتح مركز آخر`,
-          executionTimeMs: Date.now() - startTime,
-        };
       }
 
       // Pre-flight: Check for duplicate order (in-memory 30s window)

@@ -18,6 +18,9 @@ import { RedisService } from '../../../common/redis/redis.service';
 import { AIOrchestratorService } from '../services/ai-orchestrator.service';
 import { AuditService } from '../../../audit/audit.service';
 import { ExchangeService } from '../../exchange/exchange.service';
+import { NewsService } from '../../news/news.service';
+import { NewsIntegrationService } from '../../news/news-integration.service';
+import { RagService } from '../services/rag.service';
 import {
   ALL_COUNCIL_PAIRS,
   BINANCE_SUPPORTED_PAIRS,
@@ -77,8 +80,11 @@ export class StrategicCouncilService {
     private readonly audit: AuditService,
     private readonly exchangeService: ExchangeService,
     private readonly configService: ConfigService,
+    private readonly newsService: NewsService,
+    private readonly newsIntegration: NewsIntegrationService,
+    private readonly ragService: RagService,
   ) {
-    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine');
+    this.logger.log('🏛️ Strategic Council initialized — THE ONLY consensus engine (with news integration)');
     // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
     // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
     // Running DDL from application code causes connection pool exhaustion and
@@ -854,6 +860,198 @@ export class StrategicCouncilService {
 
   // ── Private: Core Analysis ──
 
+  // ── V143: News Context Integration ──
+
+  /**
+   * V143: Fetch recent news context for a trading pair.
+   * Retrieves relevant news articles from the NewsArticle database
+   * and formats them as context for AI consensus analysis.
+   *
+   * This bridges the gap between the news analysis pipeline
+   * (which fetches, translates, and analyzes news) and the
+   * trading decision pipeline (which was previously news-blind).
+   *
+   * Returns a formatted string with recent news sentiment,
+   * or empty string if no relevant news found (non-blocking).
+   */
+  private async _fetchNewsContextForPair(pair: string): Promise<string> {
+    try {
+      // Extract base symbol from pair (e.g., 'BTC' from 'BTC/USDT')
+      const baseSymbol = pair.split('/')[0];
+
+      // 1. Try RAG-based retrieval (semantic search — most relevant results)
+      const ragContext = await this.ragService.retrieveRelevantContext(
+        `${baseSymbol} cryptocurrency market news sentiment`,
+        5,
+      );
+      if (ragContext) {
+        this.logger.debug(`🏛️ V143: RAG context found for ${pair}: ${ragContext.length} chars`);
+      }
+
+      // 2. Also fetch latest news from NewsService (structured data with sentiment scores)
+      const latestNews = await this.newsService.getLatestNews({
+        symbol: baseSymbol,
+        limit: 5,
+      });
+
+      // Format structured news into context
+      let newsContext = '';
+
+      if (latestNews && latestNews.length > 0) {
+        const newsItems = latestNews.slice(0, 5).map((article: any, i: number) => {
+          const sentiment = article.sentimentLabel || 'neutral';
+          const impact = article.impactLevel || 'medium';
+          const score = typeof article.sentiment === 'number' ? article.sentiment.toFixed(2) : '0';
+          const title = article.translatedTitle || article.title || '';
+          const summary = article.summary || '';
+          const assets = article.affectedAssets || '';
+          const hoursAgo = article.publishedAt
+            ? Math.round((Date.now() - new Date(article.publishedAt).getTime()) / (60 * 60 * 1000))
+            : '?';
+
+          return `[${i + 1}] (${sentiment}, تأثير=${impact}, نقاط=${score}, منذ ${hoursAgo}ساعة) ${title}${summary ? ' — ' + summary : ''}${assets ? ' | أصول متأثرة: ' + assets : ''}`;
+        }).join('\n');
+
+        // Calculate aggregate news sentiment
+        const sentimentScores = latestNews
+          .map((a: any) => typeof a.sentiment === 'number' ? a.sentiment : 0)
+          .filter((s: number) => s !== 0);
+        const avgSentiment = sentimentScores.length > 0
+          ? sentimentScores.reduce((a: number, b: number) => a + b, 0) / sentimentScores.length
+          : 0;
+        const highImpactCount = latestNews.filter(
+          (a: any) => a.impactLevel === 'high' || a.impactLevel === 'HIGH'
+        ).length;
+
+        const sentimentDirection = avgSentiment > 0.2 ? 'إيجابي 🟢' : avgSentiment < -0.2 ? 'سلبي 🔴' : 'محايد ⚪';
+        const riskLevel = highImpactCount > 0 ? 'عالي ⚠️' : 'مقبول ✅';
+
+        newsContext = `\n\n📰 سياق الأخبار المحللة لـ ${pair} (${latestNews.length} خبر حديث):\n` +
+          `الملخص: اتجاه المشاعر ${sentimentDirection} (المعدل=${avgSentiment.toFixed(2)})، مستوى المخاطرة: ${riskLevel} (${highImpactCount} خبر عالي التأثير)\n` +
+          `الأخبار:\n${newsItems}`;
+      }
+
+      // Combine RAG context (semantic relevance) + structured news (sentiment scores)
+      // + market sentiment from rouatradingnews (Fear & Greed, Arab sentiment, geopolitical risk)
+      const parts: string[] = [];
+
+      if (ragContext) parts.push(`📚 سياق RAG ذي الصلة:\n${ragContext}`);
+      if (newsContext) parts.push(newsContext);
+
+      // V145: Also inject market sentiment from rouatradingnews
+      try {
+        const marketSentiment = await this.newsIntegration.getSentimentForAI();
+        if (marketSentiment) parts.push(marketSentiment);
+      } catch { /* non-blocking */ }
+
+      const combined = parts.join('\n\n---\n\n');
+
+      if (combined) {
+        this.logger.log(`🏛️ V143: News context injected for ${pair} (${combined.length} chars, ${latestNews?.length || 0} articles, RAG=${ragContext ? 'yes' : 'no'})`);
+      } else {
+        this.logger.debug(`🏛️ V143: No news context for ${pair} — proceeding without news`);
+      }
+
+      return combined;
+    } catch (error: any) {
+      // Non-blocking: news context failure should NEVER prevent brief generation
+      this.logger.warn(`🏛️ V143: News context fetch failed for ${pair}: ${error.message} — proceeding without news`);
+      return '';
+    }
+  }
+
+  /**
+   * V143: Calculate news risk score for a pair.
+   * Returns a value from -1 (strong sell signal from news) to +1 (strong buy signal),
+   * along with risk flags that the executor can use to gate trades.
+   *
+   * This is used by both the Strategic Council (to adjust confidence)
+   * and the Smart Executor (as a pre-execution risk gate).
+   */
+  async getNewsRiskScore(pair: string): Promise<{
+    score: number;          // -1 to +1 (negative = bearish news, positive = bullish news)
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+    opposingNews: boolean;  // true if high-impact news opposes the brief direction
+    sentimentLabel: string; // human-readable label
+    highImpactCount: number;
+    recentArticleCount: number;
+  }> {
+    const defaultResult = {
+      score: 0,
+      riskLevel: 'low' as const,
+      opposingNews: false,
+      sentimentLabel: 'لا أخبار متاحة',
+      highImpactCount: 0,
+      recentArticleCount: 0,
+    };
+
+    try {
+      const baseSymbol = pair.split('/')[0];
+      const latestNews = await this.newsService.getLatestNews({
+        symbol: baseSymbol,
+        limit: 10,
+      });
+
+      if (!latestNews || latestNews.length === 0) return defaultResult;
+
+      // Filter to last 6 hours only (stale news is irrelevant)
+      const sixHoursAgo = new Date(Date.now() - 6 * 60 * 60 * 1000);
+      const recentNews = latestNews.filter((a: any) =>
+        a.publishedAt && new Date(a.publishedAt) >= sixHoursAgo
+      );
+
+      if (recentNews.length === 0) return defaultResult;
+
+      // Calculate weighted sentiment score
+      let weightedScore = 0;
+      let totalWeight = 0;
+      let highImpactCount = 0;
+
+      for (const article of recentNews) {
+        const sentiment = typeof article.sentiment === 'number' ? article.sentiment : 0;
+        const impact = article.impactLevel?.toLowerCase();
+        const hoursAgo = article.publishedAt
+          ? (Date.now() - new Date(article.publishedAt).getTime()) / (60 * 60 * 1000)
+          : 24;
+
+        // Weight: high impact = 3x, medium = 2x, low = 1x
+        // Decay: recent news gets more weight (1.0 at 0h → 0.2 at 6h)
+        const impactWeight = impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+        const timeDecay = Math.max(0.2, 1 - (hoursAgo / 6));
+        const weight = impactWeight * timeDecay;
+
+        weightedScore += sentiment * weight;
+        totalWeight += weight;
+
+        if (impact === 'high') highImpactCount++;
+      }
+
+      const score = totalWeight > 0 ? Math.max(-1, Math.min(1, weightedScore / totalWeight)) : 0;
+
+      // Determine risk level
+      let riskLevel: 'low' | 'medium' | 'high' | 'critical';
+      if (highImpactCount >= 3 && Math.abs(score) > 0.5) riskLevel = 'critical';
+      else if (highImpactCount >= 2 && Math.abs(score) > 0.3) riskLevel = 'high';
+      else if (highImpactCount >= 1 || Math.abs(score) > 0.3) riskLevel = 'medium';
+      else riskLevel = 'low';
+
+      const sentimentLabel = score > 0.3 ? 'إيجابي قوي' : score > 0.1 ? 'إيجابي خفيف'
+        : score < -0.3 ? 'سلبي قوي' : score < -0.1 ? 'سلبي خفيف' : 'محايد';
+
+      return {
+        score,
+        riskLevel,
+        opposingNews: false, // Determined by caller based on brief direction
+        sentimentLabel,
+        highImpactCount,
+        recentArticleCount: recentNews.length,
+      };
+    } catch (error: any) {
+      this.logger.warn(`🏛️ V143: News risk score failed for ${pair}: ${error.message}`);
+      return defaultResult;
+    }
+  }
+
   /**
    * FIX: Reference prices for Forex/Stock/Commodity pairs.
    * These are approximate mid-market prices used ONLY when ALL live price sources fail.
@@ -1001,12 +1199,54 @@ export class StrategicCouncilService {
       },
     });
 
+    // V143: Fetch news context for this pair to inject into AI analysis.
+    // This is the KEY integration point — previously the council was news-blind.
+    // Now it sees recent news sentiment, impact levels, and affected assets
+    // before making BUY/SELL/HOLD decisions.
+    const newsContext = await this._fetchNewsContextForPair(pair);
+    const newsRisk = await this.getNewsRiskScore(pair);
+
     // Get AI consensus analysis
     // FIX: Pass forceFresh=true to bypass stale Redis cache from startup session.
     // The startup session (30s after boot) produces fallback/HOLD results that
     // get cached for 10 minutes, blocking all subsequent sessions from issuing briefs.
     // By forcing fresh AI calls, each Council session gets the CURRENT model state.
-    const consensus = await this.orchestrator.getConsensusAnalysis(pair, { forceFresh: true });
+    // V143: News context is injected via Redis cache key — the orchestrator reads
+    // it as part of the prompt context when generating analysis.
+    const consensus = await this.orchestrator.getConsensusAnalysis(pair, {
+      forceFresh: true,
+      newsContext: newsContext || undefined,
+    } as any);
+
+    // V143: Adjust confidence based on news risk score.
+    // If news sentiment strongly opposes the AI recommendation, reduce confidence.
+    // If news sentiment supports the AI recommendation, boost confidence slightly.
+    let newsAdjustedConfidence = consensus.consensusScore;
+    const newsDirection: BriefDirection = consensus.recommendation === 'BUY' ? 'BUY' : 'SELL';
+    const newsSupportsDirection = (newsDirection === 'BUY' && newsRisk.score > 0.1) ||
+                                   (newsDirection === 'SELL' && newsRisk.score < -0.1);
+    const newsOpposesDirection = (newsDirection === 'BUY' && newsRisk.score < -0.3) ||
+                                  (newsDirection === 'SELL' && newsRisk.score > 0.3);
+
+    if (newsOpposesDirection && newsRisk.riskLevel === 'critical') {
+      newsAdjustedConfidence = Math.max(0, consensus.consensusScore - 15);
+      this.logger.warn(`🏛️ V143: News OPPOSES ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}, risk=${newsRisk.riskLevel}) — confidence reduced ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+    } else if (newsOpposesDirection) {
+      newsAdjustedConfidence = Math.max(0, consensus.consensusScore - 8);
+      this.logger.log(`🏛️ V143: News slightly opposes ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}) — confidence adjusted ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+    } else if (newsSupportsDirection) {
+      newsAdjustedConfidence = Math.min(95, consensus.consensusScore + 5);
+      this.logger.log(`🏛️ V143: News supports ${newsDirection} for ${pair} (news score=${newsRisk.score.toFixed(2)}) — confidence boosted ${consensus.consensusScore}% → ${newsAdjustedConfidence}%`);
+    }
+
+    // V143: Apply news-adjusted confidence directly to the consensus object.
+    // This way, all downstream code (including the effectiveConsensus = consensus line)
+    // uses the news-adjusted values.
+    consensus.consensusScore = newsAdjustedConfidence;
+    if (newsContext) {
+      consensus.masterStrategy = (consensus.masterStrategy || '') +
+        `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`;
+    }
 
     // FIX: When AI models fail (isFallback=true, confidence=0), generate a technical-analysis
     // based brief instead of cancelling everything. This prevents the entire pipeline from
@@ -1015,13 +1255,15 @@ export class StrategicCouncilService {
 
     // FIX: Detailed decision logging — helps diagnose why briefs aren't being created.
     // Previously, the Council silently produced 0 briefs with no explanation.
+    // V143: Include news risk info in diagnostics.
     this.logger.log(
       `🏛️ Decision point for ${pair} ${timeframe}: ` +
       `recommendation=${consensus.recommendation}, score=${consensus.consensusScore}%, ` +
       `isFallback=${isAIFallback}, analyses=${consensus.analyses?.length || 0}, ` +
+      `newsRisk=${newsRisk.riskLevel}(${newsRisk.score.toFixed(2)}), ` +
       `existingBrief=${existingBrief ? existingBrief.id : 'none'}`,
     );
-    result.diagnostics?.push(`${pair} ${timeframe}: rec=${consensus.recommendation} score=${consensus.consensusScore}% fallback=${isAIFallback} models=${consensus.analyses?.length || 0}`);
+    result.diagnostics?.push(`${pair} ${timeframe}: rec=${consensus.recommendation} score=${consensus.consensusScore}% fallback=${isAIFallback} models=${consensus.analyses?.length || 0} newsRisk=${newsRisk.riskLevel}(${newsRisk.score.toFixed(2)})`);
 
     // FIX: Even when AI gives HOLD, try technical analysis as fallback.
     // In active Forex markets, there's ALWAYS a direction. The AI saying HOLD
@@ -1105,8 +1347,8 @@ export class StrategicCouncilService {
     // The old 15% threshold was arbitrary and didn't match MIN_CONSENSUS_SCORE.
     // Now uses the same constant consistently.
     if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < MIN_CONSENSUS_SCORE) {
-      this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping`);
-      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${MIN_CONSENSUS_SCORE}%)`);
+      this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping (news-adjusted from original AI score)`);
+      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${MIN_CONSENSUS_SCORE}%) [news-adjusted]`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
           where: { id: existingBrief.id },

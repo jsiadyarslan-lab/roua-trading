@@ -44,6 +44,7 @@ import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events'
 import { NotificationService } from '../../notification/notification.service';
 import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
+import { NewsService } from '../../news/news.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -100,8 +101,9 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly orchestrator: AIOrchestratorService,
     private readonly orderDispatcher: OrderDispatcherService,
     private readonly exposureManager: ExposureManagerService,
+    private readonly newsService: NewsService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it.');
+    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)');
 
     // FIX (V136): Only run startup cleanup. No auto-restore, no heartbeat.
     //
@@ -2040,6 +2042,39 @@ export class SmartExecutorService implements OnModuleDestroy {
     const conditionsMet = isSimulated || this._areEntryConditionsMet(brief, currentPrice, strictRules);
 
     if (conditionsMet) {
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // V144: NEWS RISK GATE — Check for opposing high-impact news
+      // before executing the trade. This is the last line of defense
+      // against trading against major news events.
+      //
+      // If there's high-impact negative news opposing the brief direction,
+      // we SKIP the execution for REAL accounts (paper accounts proceed
+      // since they're simulated and for testing).
+      //
+      // Example: Brief says BUY BTC but there's high-impact negative news
+      // (exchange hack, regulatory ban) → SKIP real execution.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      if (!isSimulated) {
+        try {
+          const newsCheck = await this._checkNewsRisk(brief.pair, brief.direction);
+          if (newsCheck.blocked) {
+            this.logger.warn(
+              `⚔️ V144: News risk gate BLOCKED ${brief.direction} ${brief.pair} — ` +
+              `${newsCheck.reason} (risk=${newsCheck.riskLevel}, score=${newsCheck.score.toFixed(2)})`
+            );
+            return; // Skip execution — news opposes this trade
+          } else if (newsCheck.warning) {
+            this.logger.log(
+              `⚔️ V144: News risk warning for ${brief.direction} ${brief.pair} — ` +
+              `${newsCheck.reason} (proceeding with caution)`
+            );
+          }
+        } catch (newsError: any) {
+          // Non-blocking: news check failure should NOT prevent execution
+          this.logger.warn(`⚔️ V144: News risk check failed: ${newsError.message} — proceeding without news gate`);
+        }
+      }
+
       // EXECUTE THE TRADE!
       const result = await this._executeBriefForUser(userId, brief, currentPrice, userState, portfolioValue);
 
@@ -2219,6 +2254,125 @@ export class SmartExecutorService implements OnModuleDestroy {
   /**
    * Check if entry conditions are met for a brief
    */
+  // ── V144: News Risk Gate ──
+
+  /**
+   * V144: Check news risk before executing a trade.
+   * Returns whether the trade should be blocked or warned about
+   * based on recent high-impact news opposing the trade direction.
+   *
+   * This is the executor's last line of defense against trading
+   * against major news events. Only applies to REAL accounts
+   * (paper accounts bypass this check).
+   *
+   * Blocking criteria:
+   * - 2+ high-impact news articles in the last 4 hours opposing the direction
+   * - OR 1+ critical-impact news with strongly opposing sentiment (score < -0.5 for BUY, > +0.5 for SELL)
+   * - News must be recent (< 4 hours old) to be relevant
+   *
+   * Warning criteria (proceed but log):
+   * - 1 high-impact opposing news
+   * - OR moderately opposing sentiment
+   */
+  private async _checkNewsRisk(
+    pair: string,
+    direction: 'BUY' | 'SELL',
+  ): Promise<{
+    blocked: boolean;
+    warning: boolean;
+    riskLevel: string;
+    score: number;
+    reason: string;
+  }> {
+    const safe = { blocked: false, warning: false, riskLevel: 'low', score: 0, reason: '' };
+
+    try {
+      const baseSymbol = pair.split('/')[0];
+      const latestNews = await this.newsService.getLatestNews({
+        symbol: baseSymbol,
+        limit: 10,
+      });
+
+      if (!latestNews || latestNews.length === 0) return safe;
+
+      // Only consider news from the last 4 hours
+      const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+      const recentNews = latestNews.filter((a: any) =>
+        a.publishedAt && new Date(a.publishedAt) >= fourHoursAgo
+      );
+
+      if (recentNews.length === 0) return safe;
+
+      // Find opposing high-impact news
+      let opposingHighImpact = 0;
+      let opposingCriticalImpact = 0;
+      let weightedScore = 0;
+      let totalWeight = 0;
+
+      for (const article of recentNews) {
+        const sentiment = typeof article.sentiment === 'number' ? article.sentiment : 0;
+        const impact = (article.impactLevel || '').toLowerCase();
+        const hoursAgo = article.publishedAt
+          ? (Date.now() - new Date(article.publishedAt).getTime()) / (60 * 60 * 1000)
+          : 24;
+
+        // Is this news opposing the brief direction?
+        const isOpposing = (direction === 'BUY' && sentiment < -0.2) ||
+                           (direction === 'SELL' && sentiment > 0.2);
+
+        if (isOpposing) {
+          const impactWeight = impact === 'high' ? 3 : impact === 'medium' ? 2 : 1;
+          const timeDecay = Math.max(0.2, 1 - (hoursAgo / 4));
+          const weight = impactWeight * timeDecay;
+
+          weightedScore += Math.abs(sentiment) * weight;
+          totalWeight += weight;
+
+          if (impact === 'high') opposingHighImpact++;
+          if (impact === 'high' && Math.abs(sentiment) > 0.5) opposingCriticalImpact++;
+        }
+      }
+
+      const score = totalWeight > 0 ? weightedScore / totalWeight : 0;
+
+      // Determine blocking/warning level
+      if (opposingCriticalImpact >= 1 || opposingHighImpact >= 2) {
+        return {
+          blocked: true,
+          warning: false,
+          riskLevel: 'critical',
+          score,
+          reason: `${opposingCriticalImpact} خبر حرج + ${opposingHighImpact} خبر عالي التأثير يعارض ${direction} خلال آخر 4 ساعات`,
+        };
+      }
+
+      if (opposingHighImpact >= 1 && score > 0.3) {
+        return {
+          blocked: true,
+          warning: false,
+          riskLevel: 'high',
+          score,
+          reason: `خبر عالي التأثير يعارض ${direction} مع نقاط مشاعر=${score.toFixed(2)}`,
+        };
+      }
+
+      if (opposingHighImpact >= 1 || (score > 0.2 && recentNews.length >= 2)) {
+        return {
+          blocked: false,
+          warning: true,
+          riskLevel: 'medium',
+          score,
+          reason: `${opposingHighImpact} خبر عالي التأثير معارض لكن غير حاسم — نقاط=${score.toFixed(2)}`,
+        };
+      }
+
+      return safe;
+    } catch (error: any) {
+      this.logger.warn(`⚔️ V144: _checkNewsRisk error: ${error.message}`);
+      return safe; // Non-blocking on error
+    }
+  }
+
   private _areEntryConditionsMet(
     brief: TradingBriefDTO,
     currentPrice: number,

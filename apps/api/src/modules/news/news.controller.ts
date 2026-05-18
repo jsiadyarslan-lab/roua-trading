@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { NewsService } from './news.service';
+import { NewsIntegrationService } from './news-integration.service';
 import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
@@ -18,7 +19,10 @@ import { Throttle } from '@nestjs/throttler';
 export class NewsController {
   private readonly logger = new Logger(NewsController.name);
 
-  constructor(private readonly newsService: NewsService) {}
+  constructor(
+    private readonly newsService: NewsService,
+    private readonly newsIntegration: NewsIntegrationService,
+  ) {}
 
   /**
    * GET /api/news/latest
@@ -52,6 +56,61 @@ export class NewsController {
     } catch (error: any) {
       this.logger.error(`Failed to fetch news: ${error.message}`, error.stack);
       throw new InternalServerErrorException('فشل في جلب الأخبار');
+    }
+  }
+
+  /**
+   * GET /api/news/feed
+   * V146: Alias for /api/news/latest — the frontend's NewsTicker.tsx
+   * and NewsMarkers.tsx components fetch from /api/news/feed,
+   * which previously didn't exist (404). This endpoint provides
+   * the same functionality as /api/news/latest with sensible defaults.
+   *
+   * PUBLIC endpoint — no auth required.
+   */
+  @Public()
+  @Get('feed')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async getNewsFeed(
+    @Query('symbol') symbol?: string,
+    @Query('sentiment') sentiment?: string,
+    @Query('category') category?: string,
+    @Query('limit') limitStr?: string,
+  ) {
+    const limit = Math.min(parseInt(limitStr || '20', 10) || 20, 50);
+
+    try {
+      const news = await this.newsService.getLatestNews({
+        symbol,
+        sentiment,
+        category,
+        limit,
+      });
+
+      return { success: true, data: news, count: news.length };
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch news feed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في جلب تغذية الأخبار');
+    }
+  }
+
+  /**
+   * GET /api/news/sentiment
+   * V145: Get market sentiment from rouatradingnews (Fear & Greed, Arab sentiment, geopolitical risk).
+   * This data is fetched periodically by NewsIntegrationService and cached in Redis.
+   *
+   * PUBLIC endpoint — useful for dashboard widgets.
+   */
+  @Public()
+  @Get('sentiment')
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  async getMarketSentiment() {
+    try {
+      const sentiment = await this.newsIntegration.getMarketSentiment();
+      return { success: true, data: sentiment };
+    } catch (error: any) {
+      this.logger.error(`Failed to fetch market sentiment: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في جلب مشاعر السوق');
     }
   }
 
@@ -96,6 +155,25 @@ export class NewsController {
     } catch (error: any) {
       this.logger.error(`Manual fetch failed: ${error.message}`, error.stack);
       throw new InternalServerErrorException('فشل في جلب الأخبار');
+    }
+  }
+
+  /**
+   * POST /api/news/pipeline
+   * V145: Trigger the news generation pipeline on the external rouatradingnews site.
+   * This causes the external site to generate new analyzed articles.
+   *
+   * PROTECTED — requires authentication (triggers external pipeline)
+   */
+  @Post('pipeline')
+  @Throttle({ default: { limit: 2, ttl: 60000 } })
+  async triggerPipeline(@Body() body?: { maxItems?: number }) {
+    try {
+      const result = await this.newsIntegration.triggerNewsPipeline(body?.maxItems || 15);
+      return { success: true, data: result, message: 'تم تشغيل خط أنابيب الأخبار' };
+    } catch (error: any) {
+      this.logger.error(`Pipeline trigger failed: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('فشل في تشغيل خط الأنابيب');
     }
   }
 }

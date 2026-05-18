@@ -11,6 +11,7 @@ import { PrismaModule } from '../../../common/prisma/prisma.module';
 import { RedisModule } from '../../../common/redis/redis.module';
 import { AuditModule } from '../../../audit/audit.module';
 import { ExchangeModule } from '../../exchange/exchange.module';
+import { NewsModule } from '../../news/news.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { ExchangeModule } from '../../exchange/exchange.module';
     AuditModule,
     ExchangeModule,
     forwardRef(() => AiModule),
+    NewsModule,
   ],
   controllers: [StrategicCouncilController],
   providers: [StrategicCouncilService],

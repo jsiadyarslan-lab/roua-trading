@@ -20,6 +20,7 @@ import { TradingModule } from '../../trading/trading.module';
 import { StrategicCouncilModule } from '../strategic-council/strategic-council.module';
 import { NotificationModule } from '../../notification/notification.module';
 import { AiModule } from '../ai.module';
+import { NewsModule } from '../../news/news.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { AiModule } from '../ai.module';
     forwardRef(() => StrategicCouncilModule),
     forwardRef(() => AiModule),
     NotificationModule,
+    NewsModule,
   ],
   controllers: [SmartExecutorController],
   providers: [SmartExecutorService],

@@ -355,3 +355,31 @@ Stage Summary:
 - Root cause of "daily limit exceeded" with 0 trades: auto-enabled state had no activeCredentialId
 - Root cause of cross-user data leakage: _autoRestoreFromDB() + 60s heartbeat restored ALL users
 - All 3 issues fixed by: removing auto-enable, removing auto-restore, adding per-cycle credential refresh
+
+---
+Task ID: V137
+Agent: Main Agent
+Task: V137 — Per-user isolation: Fix circuit breaker Redis keys cross-user contamination + add architecture documentation
+
+Work Log:
+- Deep code exploration of all platform services (Agent, SmartExecutor, RiskGatekeeper, ExposureManager, Idempotency)
+- Verified per-user isolation is ALREADY correct for: Agent state, Executor state, Position locks, Credentials, Risk limits, Daily PnL
+- Found CRITICAL BUG: Circuit breaker Redis keys used `circuit-breaker:{symbol}` (missing userId) causing cross-user contamination
+- In-memory Map correctly used `userId:symbol` key, but Redis persistence used `symbol` only
+- On server restart: User A's circuit breaker on BTC/USDT would be loaded for ALL users
+- Fixed RiskGatekeeperService:
+  - Changed Redis key prefix: `circuit-breaker:` → `circuit-breaker:v2:`
+  - _saveCircuitBreakerStateToRedis: Now uses cbKey (userId:symbol) as Redis key suffix
+  - _loadCircuitBreakerStateFromRedis: Parses userId from key, cleans up old-format keys
+  - _persistCircuitBreakerToRedis: Parameter renamed from `symbol` to `cbKey`, uses userId:symbol format
+- Added startup cleanup for old-format circuit breaker keys in both Agent and SmartExecutor
+- Added V137 per-user isolation architecture documentation in all 3 main service files
+- TypeScript compilation: 0 errors
+- Committed and pushed to main
+
+Stage Summary:
+- 3 files modified: risk-gatekeeper.service.ts, agent.service.ts, smart-executor.service.ts
+- Circuit breaker Redis keys now per-user: `circuit-breaker:v2:{userId}:{symbol}` (was `circuit-breaker:{symbol}`)
+- Old-format keys are automatically cleaned up on startup
+- Full architecture documentation added for per-user isolation principle
+- All Redis keys now verified as per-user isolated ✅

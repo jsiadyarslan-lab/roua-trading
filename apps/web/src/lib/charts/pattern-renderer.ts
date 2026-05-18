@@ -137,6 +137,33 @@ export function drawPattern(
       series.push(fcStart);
     }
 
+      // ── 4. Draw XABCD point labels for harmonic patterns ──
+    if (pattern.type.includes('Gartley') || pattern.type.includes('Bat') ||
+        pattern.type.includes('Butterfly') || pattern.type.includes('Crab') ||
+        pattern.type.includes('Head') || pattern.type.includes('Inverse')) {
+      // Connect all key points with lines
+      for (let pi = 0; pi < pattern.points.length - 1; pi++) {
+        const p1 = pattern.points[pi];
+        const p2 = pattern.points[pi + 1];
+        try {
+          const leg = chartApi.addSeries(lc.LineSeries, {
+            color: col.line,
+            lineWidth: 1,
+            lineStyle: pi % 2 === 0 ? 0 : 1,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+            title: `${p1.label}→${p2.label}`,
+          });
+          leg.setData([
+            { time: p1.time as any, value: p1.price },
+            { time: p2.time as any, value: p2.price },
+          ]);
+          series.push(leg);
+        } catch { /* skip */ }
+      }
+    }
+
     // Store and schedule removal
     drawnPatterns.set(pattern.id, {
       patternId: pattern.id,

@@ -86,10 +86,11 @@ interface Credential {
 // cards the GPU becomes overwhelmed, causing the page to feel "stuck"
 // when scrolling. Replaced with a solid semi-transparent background
 // that looks almost identical on a black background but scrolls smoothly.
+// V156 FIX: Removed whileTap from GlassCard — it intercepts touch events
+// and prevents scrolling on mobile. Using CSS :active pseudo-class instead.
 function GlassCard({ children, style, onClick }: { children: React.ReactNode; style?: React.CSSProperties; onClick?: () => void }) {
   return (
-    <motion.div
-      whileTap={onClick ? { scale: 0.98 } : undefined}
+    <div
       onClick={onClick}
       style={{
         background: 'rgba(22,22,24,0.92)',
@@ -97,11 +98,13 @@ function GlassCard({ children, style, onClick }: { children: React.ReactNode; st
         borderRadius: 28,
         padding: '18px 20px',
         cursor: onClick ? 'pointer' : 'default',
+        transition: 'transform 0.1s ease',
+        touchAction: 'pan-y',
         ...style,
       }}
     >
       {children}
-    </motion.div>
+    </div>
   )
 }
 
@@ -607,6 +610,32 @@ export default function MobileWalletPage() {
     return d.toLocaleDateString('ar', { month: 'short', day: 'numeric' })
   }
 
+  // ── Export trades to CSV ──
+  const handleExport = (period: 'daily' | 'weekly' | 'monthly' | 'all') => {
+    const data = pnlByPeriod[period]
+    if (data.trades.length === 0) return
+    
+    const headers = ['الرمز', 'النوع', 'سعر الدخول', 'سعر الخروج', 'الكمية', 'الربح/الخسارة', 'وقت الإغلاق']
+    const rows = data.trades.map((t: any) => [
+      t.symbol,
+      t.side === 'long' ? 'شراء' : 'بيع',
+      t.entryPrice?.toFixed(2) || '0',
+      t.exitPrice?.toFixed(2) || '0',
+      t.qty?.toString() || '0',
+      (t.realizedPnl || 0).toFixed(2),
+      new Date(t.closeTime).toLocaleString('ar'),
+    ])
+    
+    const csvContent = [headers, ...rows].map(r => r.join(',')).join('\n')
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `roua-pnl-${period}-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   return (
     <div style={{ minHeight: '100dvh', background: T.bgApp, direction: 'rtl', overflowX: 'hidden', width: '100%', paddingBottom: 'calc(70px + env(safe-area-inset-bottom))' }}>
       {/* ── Header ── */}
@@ -667,14 +696,14 @@ export default function MobileWalletPage() {
       {/* ── Account Linking Banner ── */}
       {!isLinked && (
         <div style={{ margin: '4px 16px 8px' }}>
-          <motion.button
-            whileTap={{ scale: 0.97 }}
+          <button
             onClick={() => router.push('/mobile/kyc')}
             style={{
               width: '100%', padding: '14px 16px', borderRadius: 18,
               background: `linear-gradient(135deg, ${T.accent}15, ${T.accent}08)`,
               border: `1px solid ${T.accent}30`,
               display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer',
+              touchAction: 'manipulation',
             }}
           >
             <div style={{ width: 40, height: 40, borderRadius: 12, background: `${T.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${T.accent}25` }}>
@@ -685,7 +714,7 @@ export default function MobileWalletPage() {
               <p style={{ fontSize: 10, color: T.text2, fontFamily: T.font }}>ربط حساب Alpaca لتفعيل التداول الحي والسحب/الإيداع</p>
             </div>
             <ExternalLink size={16} color={T.accent} />
-          </motion.button>
+          </button>
         </div>
       )}
 
@@ -748,8 +777,7 @@ export default function MobileWalletPage() {
 
       {/* ── Quick Action Buttons ── */}
       <div style={{ margin: '0 16px 12px', display: 'flex', gap: 8 }}>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => setShowDepositSheet(true)}
           style={{
             flex: 1, padding: '14px 0', borderRadius: 20,
@@ -757,40 +785,80 @@ export default function MobileWalletPage() {
             border: 'none', cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             boxShadow: `0 4px 20px ${T.success}25`,
+            touchAction: 'manipulation',
           }}
         >
           <Download size={16} color="#000" />
           <span style={{ fontSize: 13, fontWeight: 800, color: '#000', fontFamily: T.font }}>إيداع</span>
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => setShowWithdrawSheet(true)}
           style={{
             flex: 1, padding: '14px 0', borderRadius: 20,
             background: 'rgba(255,255,255,0.04)',
             border: `1px solid ${T.border}`, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            touchAction: 'manipulation',
           }}
         >
           <Send size={16} color={T.accent} />
           <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>سحب</span>
-        </motion.button>
+        </button>
 
-        <motion.button
-          whileTap={{ scale: 0.95 }}
+        <button
           onClick={() => router.push('/mobile/trading')}
           style={{
             flex: 1, padding: '14px 0', borderRadius: 20,
             background: 'rgba(255,255,255,0.04)',
             border: `1px solid ${T.border}`, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            touchAction: 'manipulation',
           }}
         >
           <ArrowRightLeft size={16} color={T.accent} />
           <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>تداول</span>
-        </motion.button>
+        </button>
       </div>
+
+      {/* ── Closed Trades Summary ── */}
+      {closedTrades.length > 0 && (
+        <div style={{ margin: '0 16px 12px' }}>
+          <GlassCard>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <Receipt size={14} color={T.amber} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>آخر الصفقات المغلقة</span>
+              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${T.amber}15`, color: T.amber, fontFamily: T.font, fontWeight: 700 }}>{closedTrades.length}</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {closedTrades.slice(0, 5).map(t => {
+                const isProfit = (t.realizedPnl || 0) >= 0
+                return (
+                  <div key={t.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '8px 10px', borderRadius: 10,
+                    background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isProfit ? <TrendingUp size={12} color={T.success} /> : <TrendingDown size={12} color={T.danger} />}
+                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: T.mono }}>{t.symbol}</span>
+                      <span style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>{t.side === 'long' ? 'شراء' : 'بيع'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: isProfit ? T.success : T.danger, fontFamily: T.mono }}>
+                        {isProfit ? '+' : '-'}${fmt(t.realizedPnl || 0)}
+                      </span>
+                      <span style={{ fontSize: 9, color: T.text3, fontFamily: T.font }}>
+                        {new Date(t.closeTime).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </GlassCard>
+        </div>
+      )}
 
       {/* ── P&L by Period with Extract Buttons ── */}
       <div style={{ margin: '0 16px 12px' }}>
@@ -806,14 +874,14 @@ export default function MobileWalletPage() {
               const isExpanded = expandedPeriod === period
               return (
                 <div key={period}>
-                  <motion.div
-                    whileTap={{ scale: 0.98 }}
+                  <div
                     onClick={() => setExpandedPeriod(isExpanded ? null : period)}
                     style={{
                       padding: '12px 14px', borderRadius: 14,
                       background: isExpanded ? `${isProfit ? T.success : T.danger}08` : 'rgba(255,255,255,0.03)',
                       border: `1px solid ${isExpanded ? (isProfit ? `${T.success}30` : `${T.danger}30`) : T.border}`,
                       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      touchAction: 'pan-y',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -836,22 +904,22 @@ export default function MobileWalletPage() {
                       </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <motion.button
-                        whileTap={{ scale: 0.9 }}
-                        onClick={(e) => { e.stopPropagation() }}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleExport(period) }}
                         style={{
                           padding: '6px 10px', borderRadius: 10,
                           background: `${T.accent}15`, border: `1px solid ${T.accent}30`,
                           display: 'flex', alignItems: 'center', gap: 4,
                           cursor: 'pointer',
+                          touchAction: 'manipulation',
                         }}
                       >
                         <FileDown size={11} color={T.accent} />
                         <span style={{ fontSize: 9, fontWeight: 700, color: T.accent, fontFamily: T.font }}>استخراج</span>
-                      </motion.button>
+                      </button>
                       {isExpanded ? <ChevronUp size={14} color={T.text2} /> : <ChevronDown size={14} color={T.text2} />}
                     </div>
-                  </motion.div>
+                  </div>
 
                   {/* Expanded trades list */}
                   <AnimatePresence>
@@ -864,6 +932,34 @@ export default function MobileWalletPage() {
                         style={{ overflow: 'hidden' }}
                       >
                         <div style={{ padding: '8px 8px 4px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {/* P&L Summary */}
+                          {(() => {
+                            const trades = data.trades
+                            const totalProfit = trades.filter((t: any) => (t.realizedPnl || 0) >= 0).reduce((s: number, t: any) => s + (t.realizedPnl || 0), 0)
+                            const totalLoss = trades.filter((t: any) => (t.realizedPnl || 0) < 0).reduce((s: number, t: any) => s + Math.abs(t.realizedPnl || 0), 0)
+                            const netPnl = totalProfit - totalLoss
+                            return (
+                              <div style={{
+                                display: 'flex', gap: 6, padding: '10px 12px', borderRadius: 12,
+                                background: `${netPnl >= 0 ? T.success : T.danger}08`,
+                                border: `1px solid ${netPnl >= 0 ? `${T.success}20` : `${T.danger}20`}`,
+                                marginBottom: 4,
+                              }}>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>إجمالي الربح</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.success, fontFamily: T.mono }}>+${fmt(totalProfit)}</div>
+                                </div>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>إجمالي الخسارة</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: T.danger, fontFamily: T.mono }}>-${fmt(totalLoss)}</div>
+                                </div>
+                                <div style={{ flex: 1, textAlign: 'center' }}>
+                                  <div style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>صافي الربح</div>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: netPnl >= 0 ? T.success : T.danger, fontFamily: T.mono }}>{netPnl >= 0 ? '+' : '-'}${fmt(Math.abs(netPnl))}</div>
+                                </div>
+                              </div>
+                            )
+                          })()}
                           {data.trades.slice(0, 10).map((t: any) => {
                             const tProfit = (t.realizedPnl || 0) >= 0
                             return (
@@ -904,45 +1000,6 @@ export default function MobileWalletPage() {
           </div>
         </GlassCard>
       </div>
-
-      {/* ── Closed Trades Summary ── (moved up higher) */}
-      {closedTrades.length > 0 && (
-        <div style={{ margin: '0 16px 12px' }}>
-          <GlassCard>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Receipt size={14} color={T.amber} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: T.font }}>آخر الصفقات المغلقة</span>
-              <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 4, background: `${T.amber}15`, color: T.amber, fontFamily: T.font, fontWeight: 700 }}>{closedTrades.length}</span>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {closedTrades.slice(0, 5).map(t => {
-                const isProfit = (t.realizedPnl || 0) >= 0
-                return (
-                  <div key={t.id} style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '8px 10px', borderRadius: 10,
-                    background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {isProfit ? <TrendingUp size={12} color={T.success} /> : <TrendingDown size={12} color={T.danger} />}
-                      <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: T.mono }}>{t.symbol}</span>
-                      <span style={{ fontSize: 9, color: T.text2, fontFamily: T.font }}>{t.side === 'long' ? 'شراء' : 'بيع'}</span>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 700, color: isProfit ? T.success : T.danger, fontFamily: T.mono }}>
-                        {isProfit ? '+' : '-'}${fmt(t.realizedPnl || 0)}
-                      </span>
-                      <span style={{ fontSize: 9, color: T.text3, fontFamily: T.font }}>
-                        {new Date(t.closeTime).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </GlassCard>
-        </div>
-      )}
 
       {/* ── Tab Switcher ── */}
       <div style={{ margin: '0 16px 12px', display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 14 }}>
@@ -1098,11 +1155,8 @@ export default function MobileWalletPage() {
                   )
                   const livePrice = quoteKey ? quotes[quoteKey]?.price : pos.currentPrice
                   return (
-                    <motion.div
+                    <div
                       key={`${pos.symbol}-${i}`}
-                      initial={{ opacity: 0, x: 20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04 }}
                       onClick={() => {
                         router.push(`/mobile/chart?symbol=${encodeURIComponent(pos.symbol)}`)
                       }}
@@ -1142,7 +1196,7 @@ export default function MobileWalletPage() {
                           </p>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   )
                 })}
               </div>

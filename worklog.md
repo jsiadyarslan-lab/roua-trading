@@ -121,3 +121,29 @@ Stage Summary:
   - apps/web/src/app/dashboard/page.tsx (V151 margin display)
   - apps/web/src/components/portfolio/PortfolioMini.tsx (V151 margin display)
   - apps/web/src/app/mobile/wallet/page.tsx (V151 margin display)
+---
+Task ID: V154
+Agent: Main Agent
+Task: Fix why all users see the same account balance
+
+Work Log:
+- Investigated the full balance fetch pipeline: frontend → BFF proxy → NestJS backend → CCXT/exchange
+- Identified 3 ROOT CAUSES for same balance across all users:
+  1. **CRITICAL**: `nestjs-proxy.ts` silently created guest sessions on 401, making ALL expired-session users share the same guest@roua.auto account ($10,000)
+  2. **HIGH**: 4 hardcoded $10,000 fallbacks in `usePositionsStore.ts` that activate when any API call fails
+  3. **HIGH**: `fetchAccount()` didn't check for user changes (unlike `fetchPositions()`)
+- Applied V154 fix:
+  - `nestjs-proxy.ts`: On 401, return the 401 response directly instead of creating a guest session. This ensures expired sessions trigger re-auth instead of silently showing guest data.
+  - `usePositionsStore.ts`: Added user-change detection at the top of `fetchAccount()` (same as `fetchPositions()`)
+  - `usePositionsStore.ts`: Added `checkAuthResponse()` helper that stops the fallback chain on 401 responses
+  - `usePositionsStore.ts`: All 4 fetch attempts now check for 401 before falling through
+  - `usePositionsStore.ts`: Attempt #4 (positions-only calculation) now fetches user's actual paper balance from API instead of hardcoding $10,000
+  - `usePositionsStore.ts`: Final fallback now preserves existing account data instead of overwriting with $10,000
+- Generated Prisma client to fix V153 TypeScript errors (paperForexLeverage etc. fields)
+- Both frontend and backend TypeScript compiles cleanly
+
+Stage Summary:
+- V154 fix ensures each user sees THEIR OWN balance, not a shared $10,000
+- Key insight: The proxy was "helpfully" creating guest sessions on auth failures, but this caused data mixing
+- The $10,000 default now ONLY applies to brand new users with no previous account data
+- All existing account data is preserved when APIs temporarily fail

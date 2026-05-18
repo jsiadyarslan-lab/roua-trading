@@ -478,12 +478,38 @@ export const usePositionsStore = create<PositionsState>()(
     }
   },
   fetchAccount: async () => {
+    // V154 FIX: Verify user hasn't changed — same as fetchPositions().
+    // Without this, if user A logs out and user B logs in on the same browser,
+    // user B briefly sees user A's balance from localStorage rehydration.
+    const currentUserId = getCurrentUserId()
+    const ownerUserId = get()._ownerUserId
+    if (currentUserId && ownerUserId && currentUserId !== ownerUserId) {
+      // User changed! Clear stale data from previous user
+      get().clearUserData()
+    }
+    // Track current user as owner of this data
+    if (currentUserId) set({ _ownerUserId: currentUserId } as any)
+
     await ensureAuth()
+
+    // V154 FIX: Handle 401 responses — don't fall through to $10,000 fallback.
+    // Previously, when the backend returned 401 (expired session), fetchAccount()
+    // silently fell through all try/catch blocks and showed $10,000 to every user.
+    // Now we check the response status and stop if the session is invalid.
+    const checkAuthResponse = (res: Response) => {
+      if (res.status === 401) {
+        console.warn('[PositionsStore] fetchAccount: Got 401 — session expired. NOT showing $10,000 fallback.')
+        return true // auth failed — don't use fallback
+      }
+      return false
+    }
 
     // ── المحاولة الأولى: أرصدة بيانات الاعتماد (Binance, KuCoin, OKX, etc.) ──
     // هذا هو المصدر الرئيسي لأرصدة البورصات المرتبطة بالمستخدم
     try {
       const res = await fetch('/api/portfolio/credentials/balances')
+      // V154 FIX: If session expired (401), STOP — don't fall through to $10,000 fallback
+      if (checkAuthResponse(res)) return
       if (res.ok) {
         const data = await res.json()
         if (data.success && data.data && data.data.exchanges?.length > 0) {
@@ -676,6 +702,8 @@ export const usePositionsStore = create<PositionsState>()(
     // ── المحاولة الثانية: NestJS Trading API ──
     try {
       const res = await fetch('/api/trading/positions/summary')
+      // V154 FIX: If session expired (401), STOP
+      if (checkAuthResponse(res)) return
       if (res.ok) {
         const data = await res.json()
         const summary = data.data || data.summary || data
@@ -725,6 +753,8 @@ export const usePositionsStore = create<PositionsState>()(
     // ── المحاولة الثالثة: Alpaca API ──
     try {
       const res = await fetch('/api/alpaca/account')
+      // V154 FIX: If session expired (401), STOP
+      if (checkAuthResponse(res)) return
       const j = await res.json()
       if (j.success && j.data) {
         set({ account: j.data, dataSource: 'alpaca', _cacheTimestamp: Date.now() })
@@ -735,20 +765,38 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── المحاولة الرابعة: حساب من المراكز المحملة ──
-    // FIX: Include paper balance ($10,000) + positions P&L
+    // V154 FIX: Try to fetch the user's actual paper balance from settings
+    // instead of hardcoding $10,000. This is the LAST source before the
+    // final fallback. If the settings fetch also fails (e.g. 401), we
+    // skip this attempt entirely to avoid showing the wrong balance.
     const fallbackPositions = get().positions
     if (fallbackPositions.length > 0) {
       const totalExposure = fallbackPositions.reduce((sum, p) => sum + (p.marketValue || p.qty * p.currentPrice), 0)
       const totalUnrealizedPnl = fallbackPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
-      // V151 FIX: Use client-side margin calculator (leverage-aware) instead of
-      // the old heuristic (posValue > $1000 → /30, else full value). The heuristic
-      // was inaccurate — it couldn't distinguish forex (50:1) from gold (20:1).
       const estimatedMargin = calculatePortfolioMargin(fallbackPositions).usedMargin
-      const PAPER_BALANCE_4 = 10000
-      const equity = PAPER_BALANCE_4 + totalUnrealizedPnl
+
+      // V154 FIX: Try to get the user's actual paper balance from API
+      // instead of hardcoding $10,000 for ALL users
+      let paperBalance = 10000 // Default for NEW users only
+      try {
+        const settingsRes = await fetch('/api/agent/trader/settings')
+        if (!settingsRes.ok) {
+          // V154: If auth failed, don't show stale/guest balance
+          if (checkAuthResponse(settingsRes)) return
+        } else {
+          const settingsData = await settingsRes.json()
+          if (settingsData.success && settingsData.data?.paperBalance > 0) {
+            paperBalance = settingsData.data.paperBalance
+          }
+        }
+      } catch {
+        // Settings unavailable — use default paper balance (new users)
+      }
+
+      const equity = paperBalance + totalUnrealizedPnl
       const account = {
         equity,
-        cash: PAPER_BALANCE_4,
+        cash: paperBalance,
         buyingPower: Math.max(0, equity - estimatedMargin),
         portfolioValue: equity,
         longMarketValue: totalExposure,
@@ -769,19 +817,31 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── لا بيانات متاحة — لا نترك account = null ──
-    // Previously, this returned equity=0 which caused the BotEngine to refuse
-    // to open any trades ("لا يمكن تحديد القدرة الشرائية — تخطي").
-    // ═══════════════════════════════════════════════════════════════
+    // V154 FIX: This final fallback should ONLY apply when the user has
+    // no exchange credentials AND no positions AND no settings — basically
+    // a brand new user. For authenticated users with API failures, we
+    // should NOT overwrite their real data with $10,000.
+    //
+    // If we already have account data (from a previous successful fetch),
+    // keep it instead of overwriting with the default.
+    const existingAccount = get().account
+    if (existingAccount && existingAccount.equity > 0) {
+      // We have existing data — don't overwrite with $10,000 default
+      console.warn('[PositionsStore] fetchAccount: All API sources failed but existing account data exists — keeping it')
+      return
+    }
+
+    // Truly no data — brand new user with no credentials
     const finalPositions = get().positions
     const finalPnl = finalPositions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
-    const FALLBACK_PAPER_BALANCE = 10000
+    const DEFAULT_NEW_USER_BALANCE = 10000
 
     set({
       account: {
-        equity: FALLBACK_PAPER_BALANCE + finalPnl,
-        cash: FALLBACK_PAPER_BALANCE,
-        buyingPower: FALLBACK_PAPER_BALANCE,
-        portfolioValue: FALLBACK_PAPER_BALANCE + finalPnl,
+        equity: DEFAULT_NEW_USER_BALANCE + finalPnl,
+        cash: DEFAULT_NEW_USER_BALANCE,
+        buyingPower: DEFAULT_NEW_USER_BALANCE,
+        portfolioValue: DEFAULT_NEW_USER_BALANCE + finalPnl,
         longMarketValue: 0,
         shortMarketValue: 0,
         initialMargin: 0,

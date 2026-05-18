@@ -338,19 +338,43 @@ async function proxyWithToken(
       console.warn(`[nestjs-proxy] 503 on ${method} ${pathname} — auth service unavailable`);
     }
 
-    // If NestJS returns 401, the AuthGuard should have auto-authenticated.
-    // This means something is wrong with the session. Create a new one and retry.
-    // Max 2 retries to prevent infinite loops.
-    // IMPORTANT: Do NOT overwrite the user's real cookie with a guest session.
-    // Guest sessions should only be used for the current request, not persisted.
-    if (response.status === 401 && retryCount < 2) {
-      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session (attempt ${retryCount + 1}/2)`)
-      const newSession = await forceCreateSession()
-      if (newSession) {
-        // setCookie=false to avoid overwriting real user's cookie with guest token
-        return proxyWithToken(request, method, newSession.token, false, retryCount + 1, connectRetryCount, connectRetryDelay)
+    // ═══════════════════════════════════════════════════════════════
+    // V154 FIX: Do NOT silently create guest sessions on 401!
+    //
+    // BUG: When a user's session expired, the proxy silently created a
+    // guest session and retried the request. This caused ALL users with
+    // expired sessions to see the SAME guest balance ($10,000) instead
+    // of their own account balance. Multiple users → same data!
+    //
+    // NEW: On 401, clear the invalid cookie and return the 401 response.
+    // The frontend's auth-store will detect this and redirect to login.
+    // This ensures each user always sees THEIR OWN data.
+    //
+    // Exception: If this is already a retry (retryCount > 0), just return
+    // the 401 — don't keep retrying with guest sessions.
+    // ═══════════════════════════════════════════════════════════════
+    if (response.status === 401) {
+      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — session invalid or expired. NOT creating guest session.`)
+      // Clear the invalid cookie so the frontend knows the session is gone
+      const responseBody = await response.text()
+      const responseHeaders: Record<string, string> = {
+        'Content-Type': response.headers.get('content-type') || 'application/json',
+        'Cache-Control': 'no-store',
       }
-      // FIX: Removed createSessionViaNestJS() fallback — NestJS has no /api/auth/guest endpoint.
+      const nextResponse = new NextResponse(responseBody, {
+        status: 401,
+        statusText: response.statusText,
+        headers: responseHeaders,
+      })
+      // Clear the invalid session cookie
+      nextResponse.cookies.set('roua_session', '', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 0,
+        path: '/',
+      })
+      return nextResponse
     }
 
     // FIX #9: Handle 403 Forbidden — usually means the session token is valid but
@@ -387,17 +411,6 @@ async function proxyWithToken(
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60, // 7 days (matching guest session TTL)
-        path: '/',
-      })
-    }
-
-    // Clear invalid cookie on 401
-    if (response.status === 401 && !setCookie) {
-      nextResponse.cookies.set('roua_session', '', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 0,
         path: '/',
       })
     }

@@ -79,15 +79,19 @@ interface Credential {
 }
 
 // ── Glass Card ──
+// FIX V155: Removed backdropFilter on mobile — it causes scroll freezing!
+// backdropFilter: blur() is extremely GPU-intensive on mobile browsers.
+// Each GlassCard creates a separate GPU compositing layer, and with 4-5
+// cards the GPU becomes overwhelmed, causing the page to feel "stuck"
+// when scrolling. Replaced with a solid semi-transparent background
+// that looks almost identical on a black background but scrolls smoothly.
 function GlassCard({ children, style, onClick }: { children: React.ReactNode; style?: React.CSSProperties; onClick?: () => void }) {
   return (
     <motion.div
       whileTap={onClick ? { scale: 0.98 } : undefined}
       onClick={onClick}
       style={{
-        background: 'rgba(28,28,30,0.6)',
-        backdropFilter: 'blur(40px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+        background: 'rgba(22,22,24,0.92)',
         border: `1px solid ${T.border}`,
         borderRadius: 28,
         padding: '18px 20px',
@@ -1020,14 +1024,14 @@ export default function MobileWalletPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (txStatus !== 'submitting') setShowDepositSheet(false) }}
-              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)' }}
             />
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
                 position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
-                background: 'rgba(28,28,30,0.98)', backdropFilter: 'blur(50px)',
+                background: 'rgba(28,28,30,0.98)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',
               }}
@@ -1110,14 +1114,14 @@ export default function MobileWalletPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => { if (txStatus !== 'submitting') setShowWithdrawSheet(false) }}
-              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }}
+              style={{ position: 'fixed', inset: 0, zIndex: 200, background: 'rgba(0,0,0,0.75)' }}
             />
             <motion.div
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
                 position: 'fixed', bottom: 'calc(35px + env(safe-area-inset-bottom))', left: 0, right: 0, zIndex: 201,
-                background: 'rgba(28,28,30,0.98)', backdropFilter: 'blur(50px)',
+                background: 'rgba(28,28,30,0.98)',
                 borderRadius: '24px 24px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.15)',
                 direction: 'rtl', maxHeight: '60vh', display: 'flex', flexDirection: 'column',
               }}
@@ -1188,7 +1192,11 @@ export default function MobileWalletPage() {
       </AnimatePresence>
 
       {/* ── Bottom padding for navbar ── */}
-      <div style={{ height: 20 }} />
+      {/* V155 FIX: Bottom spacer must be tall enough to clear the navbar.
+          The layout <main> provides paddingBottom for the navbar, but this
+          extra spacer ensures the last content card is fully visible above
+          the navbar when scrolled to the bottom. */}
+      <div style={{ height: 80 }} />
     </div>
   )
 }

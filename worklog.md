@@ -147,3 +147,29 @@ Stage Summary:
 - Key insight: The proxy was "helpfully" creating guest sessions on auth failures, but this caused data mixing
 - The $10,000 default now ONLY applies to brand new users with no previous account data
 - All existing account data is preserved when APIs temporarily fail
+---
+Task ID: V155
+Agent: Main Agent
+Task: Fix wallet page stuck/fixed when scrolling on mobile
+
+Work Log:
+- Investigated the wallet page scroll behavior in detail
+- Found the root cause: `backdropFilter: blur(40px)` on GlassCard component
+- `backdropFilter` is extremely GPU-intensive on mobile — each GlassCard creates a separate GPU compositing layer
+- With 4-5 GlassCards on the page, the GPU becomes overwhelmed and scroll events get blocked
+- Also found `backdropFilter` on deposit/withdraw bottom sheet overlays (4 more instances)
+- Additional issue: bottom spacer was only 20px, should be 80px to clear navbar
+
+Applied V155 fix:
+- GlassCard: Removed `backdropFilter: blur(40px) saturate(180%)` and `WebkitBackdropFilter`
+  - Replaced with solid `background: rgba(22,22,24,0.92)` which looks nearly identical on black background
+  - This eliminates all GPU compositing layers from the cards
+- Deposit/Withdraw overlay backdrop: Removed `backdropFilter: blur(5px)` — replaced with darker solid color
+- Deposit/Withdraw sheet: Removed `backdropFilter: blur(50px)` — solid background already at 0.98 opacity
+- Bottom spacer: Increased from 20px to 80px for navbar clearance
+- TypeScript compiles cleanly
+
+Stage Summary:
+- V155 fix eliminates scroll freezing on mobile wallet page
+- Key insight: backdrop-filter is a major performance killer on mobile, especially inside fixed-position containers
+- The visual difference is minimal (solid bg vs blurred bg on a black background)

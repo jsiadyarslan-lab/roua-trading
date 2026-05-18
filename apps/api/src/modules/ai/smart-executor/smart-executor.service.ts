@@ -354,6 +354,25 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge stale PaperOrder records: ${paperErr.message}`);
       }
 
+      // ── STEP 8: V143 — Clean up stale processedKey DB entries ──
+      // The Setting table accumulates `smart-executor:processed:*:db` entries
+      // for every brief execution. These never get cleaned up and grow indefinitely.
+      // Briefs expire within 24h max, so any processedKey older than 48h is stale.
+      try {
+        const twoDaysAgo = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000);
+        const staleProcessedKeys = await this.prisma.setting.deleteMany({
+          where: {
+            key: { startsWith: this.REDIS_PROCESSED_PREFIX },
+            updatedAt: { lt: twoDaysAgo },
+          },
+        });
+        if (staleProcessedKeys.count > 0) {
+          this.logger.log(`⚔️ V143 STARTUP: Purged ${staleProcessedKeys.count} stale processedKey DB entries (>48h old)`);
+        }
+      } catch (processedKeyErr: any) {
+        this.logger.warn(`⚔️ V143 Failed to purge stale processedKey entries: ${processedKeyErr.message}`);
+      }
+
       // ── REMOVED: Auto-enable for paper-trading users ──
       // ROOT FIX: Auto-enabling the Smart Executor for ALL users with paper-trading
       // credentials violates explicit user consent. It causes:

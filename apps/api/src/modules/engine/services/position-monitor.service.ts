@@ -98,15 +98,39 @@ export class PositionMonitorService {
       //   2. Trailing stop overrides (Position Monitor modifies Agent position SL)
       //   3. Attribution confusion (which system triggered the close?)
       // Each system manages its own positions independently.
+      // V141 FIX: Skip SL/TP monitoring and trailing stop for Agent positions
+      // (the Agent monitors its own positions via _monitorOpenPositions every 60s).
+      // V143 FIX: But DO allow price/PnL updates for Agent positions — otherwise
+      // the dashboard shows stale prices for Agent positions for up to 60 seconds.
+      //
+      // Previously (V141), Agent positions were completely excluded from monitoring.
+      // This meant their currentPrice and unrealizedPnl were only updated when the
+      // Agent cycle ran (every 60s). Now we split:
+      //   - Agent positions: price/PnL updates ONLY (no SL/TP check, no trailing stop)
+      //   - Other positions: full monitoring (SL/TP, trailing stop, price updates)
       let positions: any[];
+      let agentPositions: any[];
+      let nonAgentPositions: any[];
       try {
-        positions = await this.prisma.position.findMany({
+        // Non-agent positions: full monitoring
+        nonAgentPositions = await this.prisma.position.findMany({
           where: {
             status: 'OPEN',
-            entryPrice: { gt: 0 }, // Filter out phantom positions (zero-price dust)
-            source: { not: 'agent' }, // V141: Agent manages its own positions
+            entryPrice: { gt: 0 },
+            source: { not: 'agent' },
           },
         });
+
+        // Agent positions: price updates only (no SL/TP modifications)
+        agentPositions = await this.prisma.position.findMany({
+          where: {
+            status: 'OPEN',
+            entryPrice: { gt: 0 },
+            source: 'agent',
+          },
+        });
+
+        positions = [...nonAgentPositions, ...agentPositions];
       } catch (dbError: any) {
         // Table may not exist yet (e.g., Prisma db:push hasn't run or Position model is new)
         if (dbError.message?.includes('does not exist')) {
@@ -278,6 +302,10 @@ export class PositionMonitorService {
       return result; // Skip if can't get price
     }
 
+    // V143: For Agent positions, ONLY update price/PnL — no SL/TP checks,
+    // no trailing stop modifications. The Agent manages its own SL/TP exits.
+    const isAgentPosition = position.source === 'agent';
+
     // FIX: Convert Prisma Decimal fields to numbers for safe comparison.
     // Prisma Decimal objects don't compare correctly with JS `<=` / `>=` operators.
     const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
@@ -292,6 +320,30 @@ export class PositionMonitorService {
         : (entryPrice - currentPrice) * quantity;
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
+
+    // ── V143: Agent positions get price/PnL update ONLY ──
+    if (isAgentPosition) {
+      priceUpdates.push(
+        this.prisma.position.update({
+          where: { id: position.id },
+          data: {
+            currentPrice,
+            unrealizedPnl,
+            highestPrice:
+              position.side === 'BUY'
+                ? Math.max(position.highestPrice || currentPrice, currentPrice)
+                : position.highestPrice || currentPrice,
+            lowestPrice:
+              position.side === 'SELL'
+                ? Math.min(position.lowestPrice || currentPrice, currentPrice)
+                : position.lowestPrice || currentPrice,
+          },
+        }),
+      );
+      return result;
+    }
+
+    // ── Below: Full monitoring for non-Agent positions ──
 
     // ── Stop-Loss Check ──
     if (stopLossNum !== null) {

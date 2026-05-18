@@ -627,9 +627,63 @@ export class StrategicCouncilService {
 
     if (allBriefs.length === 0) return [];
 
+    // ═══════════════════════════════════════════════════════════════════
+    // V143 FIX: Separate consolidation for EXECUTOR and AGENT timeframes.
+    //
+    // ROOT CAUSE: Previously, getConsolidatedBriefs() grouped ALL briefs
+    // by pair regardless of timeframe type. This meant executor briefs
+    // (M1/M5/M15) could CANCEL agent briefs (M30/H1/H4/D1/W1) and
+    // vice versa. Since M1 briefs get 2x weight in the consolidation
+    // vote, they almost always won, causing agent-timeframe briefs to
+    // be cancelled (isActive=false). The Agent then couldn't see any
+    // M30+ briefs → ZERO agent trades.
+    //
+    // Example: BTC/USDT has M1=BUY (conf 55) and M30=SELL (conf 60).
+    // Old: M1 BUY score = 55 * 2.0 = 110, M30 SELL score = 60 * 1.0 = 60
+    // → BUY wins → M30 SELL cancelled → Agent has no briefs
+    //
+    // FIX: Consolidate WITHIN each timeframe group separately.
+    //   - Executor briefs only conflict with other executor briefs
+    //   - Agent briefs only conflict with other agent briefs
+    // Each system gets its own independent signal per pair.
+    // ═══════════════════════════════════════════════════════════════════
+    const executorBriefs = allBriefs.filter(b => EXECUTOR_TIMEFRAMES.includes(b.timeframe));
+    const agentBriefs = allBriefs.filter(b => AGENT_TIMEFRAMES.includes(b.timeframe));
+
+    const consolidated: TradingBriefDTO[] = [];
+
+    // Consolidate executor briefs independently
+    const executorConsolidated = await this._consolidateBriefsByPair(executorBriefs, 'EXECUTOR');
+    consolidated.push(...executorConsolidated);
+
+    // Consolidate agent briefs independently
+    const agentConsolidated = await this._consolidateBriefsByPair(agentBriefs, 'AGENT');
+    consolidated.push(...agentConsolidated);
+
+    this.logger.log(
+      `🏛️ V143 Consolidation: ${allBriefs.length} raw briefs → ${consolidated.length} consolidated ` +
+      `(executor: ${executorConsolidated.length}, agent: ${agentConsolidated.length}) ` +
+      `(pairs: ${consolidated.map(b => b.pair + ':' + b.direction + ':' + b.timeframe).join(', ')})`
+    );
+
+    return consolidated;
+  }
+
+  /**
+   * V143: Consolidate briefs by pair within a specific timeframe group.
+   * Each group (EXECUTOR or AGENT) resolves conflicts independently.
+   * Losing briefs are only cancelled WITHIN the same group — executor
+   * briefs never cancel agent briefs and vice versa.
+   */
+  private async _consolidateBriefsByPair(
+    briefs: TradingBriefDTO[],
+    group: 'EXECUTOR' | 'AGENT',
+  ): Promise<TradingBriefDTO[]> {
+    if (briefs.length === 0) return [];
+
     // Group by pair
     const byPair = new Map<string, TradingBriefDTO[]>();
-    for (const brief of allBriefs) {
+    for (const brief of briefs) {
       const existing = byPair.get(brief.pair) || [];
       existing.push(brief);
       byPair.set(brief.pair, existing);
@@ -637,44 +691,30 @@ export class StrategicCouncilService {
 
     const consolidated: TradingBriefDTO[] = [];
 
-    for (const [pair, briefs] of byPair) {
-      if (briefs.length === 0) continue;
+    for (const [pair, pairBriefs] of byPair) {
+      if (pairBriefs.length === 0) continue;
 
-      if (briefs.length === 1) {
-        // Only one brief for this pair — use it directly
-        consolidated.push(briefs[0]);
+      if (pairBriefs.length === 1) {
+        consolidated.push(pairBriefs[0]);
         continue;
       }
 
       // Multiple briefs for same pair — check if they agree on direction
-      const buyBriefs = briefs.filter(b => b.direction === 'BUY');
-      const sellBriefs = briefs.filter(b => b.direction === 'SELL');
+      const buyBriefs = pairBriefs.filter(b => b.direction === 'BUY');
+      const sellBriefs = pairBriefs.filter(b => b.direction === 'SELL');
 
       if (sellBriefs.length === 0) {
-        // All BUY — pick highest confidence
         const best = buyBriefs.sort((a, b) => b.confidence - a.confidence)[0];
         consolidated.push(best);
       } else if (buyBriefs.length === 0) {
-        // All SELL — pick highest confidence
         const best = sellBriefs.sort((a, b) => b.confidence - a.confidence)[0];
         consolidated.push(best);
       } else {
-        // ═══════════════════════════════════════════════════════════
-        // CONFLICTING DIRECTIONS: BUY and SELL on same pair
-        // This is the ROOT CAUSE of the open→close loop.
-        // FIX: Use a weighted vote based on confidence * timeframe weight.
-        // Shorter timeframes get a 2x multiplier (more responsive data).
-        // The side with the higher weighted score wins.
-        // ═══════════════════════════════════════════════════════════
+        // CONFLICTING DIRECTIONS within the same group
         const TF_WEIGHT: Record<string, number> = {
-          M1: 2.0,   // Most responsive — 2x weight
-          M5: 1.5,   // Responsive — 1.5x weight
-          M15: 1.2,  // Moderate — 1.2x weight
-          M30: 1.0,  // Standard
-          H1: 0.8,   // Slower
-          H4: 0.5,   // Slow
-          D1: 0.3,   // Very slow
-          W1: 0.2,   // Slowest
+          M1: 2.0, M5: 1.5, M15: 1.2,  // Executor: shorter = stronger
+          M30: 2.0, H1: 1.5, H4: 1.2,  // Agent: shorter = stronger (within agent group)
+          D1: 0.8, W1: 0.5,
         };
 
         const buyScore = buyBriefs.reduce((sum, b) =>
@@ -686,11 +726,10 @@ export class StrategicCouncilService {
         const losingBriefs = buyScore >= sellScore ? sellBriefs : buyBriefs;
         const winningDirection = buyScore >= sellScore ? 'BUY' : 'SELL';
 
-        // Pick the best brief from the winning side
         const best = winningBriefs.sort((a, b) => b.confidence - a.confidence)[0];
 
         this.logger.log(
-          `🏛️ V134 CONSOLIDATION: ${pair} has conflicting directions ` +
+          `🏛️ V143 CONSOLIDATION [${group}]: ${pair} has conflicting directions ` +
           `(BUY=${buyBriefs.length} score=${buyScore.toFixed(0)}, ` +
           `SELL=${sellBriefs.length} score=${sellScore.toFixed(0)}) ` +
           `→ Winner: ${winningDirection} (best confidence=${best.confidence}%, ` +
@@ -699,7 +738,9 @@ export class StrategicCouncilService {
 
         consolidated.push(best);
 
-        // Deactivate losing briefs to prevent them from confusing other consumers
+        // V143: Only cancel losing briefs WITHIN the same timeframe group.
+        // Previously, ALL losing briefs were cancelled, which destroyed
+        // agent signals when executor briefs won the vote.
         for (const losing of losingBriefs) {
           try {
             await this.prisma.tradingBrief.update({
@@ -707,18 +748,13 @@ export class StrategicCouncilService {
               data: {
                 isActive: false,
                 reviewStatus: 'CANCELLED',
-                analysisSummary: `V134: Cancelled by consolidation — ${pair} has ${winningDirection} consensus (score ${winningDirection === 'BUY' ? buyScore : sellScore} > ${winningDirection === 'BUY' ? sellScore : buyScore})`,
+                analysisSummary: `V143: Cancelled by ${group} consolidation — ${pair} has ${winningDirection} consensus within ${group} timeframes`,
               },
             });
           } catch { /* non-critical */ }
         }
       }
     }
-
-    this.logger.log(
-      `🏛️ V134 Consolidation: ${allBriefs.length} raw briefs → ${consolidated.length} consolidated ` +
-      `(pairs: ${consolidated.map(b => b.pair + ':' + b.direction).join(', ')})`
-    );
 
     return consolidated;
   }

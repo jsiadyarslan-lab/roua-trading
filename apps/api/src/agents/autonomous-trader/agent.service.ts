@@ -328,21 +328,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       }
 
       // ── PURGE: Delete only EXPIRED TradingBriefs (not all) ──
-      try {
-        const deletedBriefs = await this.prisma.tradingBrief.deleteMany({
-          where: {
-            OR: [
-              { expiresAt: { lt: new Date() } },
-              { isActive: false },
-            ],
-          },
-        });
-        if (deletedBriefs.count > 0) {
-          this.logger.log(`🧠 STARTUP: Purged ${deletedBriefs.count} expired TradingBrief(s) (preserving active ones)`);
-        }
-      } catch (err: any) {
-        this.logger.warn(`🧠 Failed to purge expired TradingBrief records: ${err.message}`);
-      }
+      // V143: REMOVED — Smart Executor's startup cleanup already handles this.
+      // Running the same deleteMany twice (once in Executor, once in Agent)
+      // is redundant and can cause race conditions on startup.
+      // The Executor's cleanup is comprehensive enough for both.
 
       // ── PURGE: Delete stale AutonomousTrade records (>7 days) ──
       try {
@@ -1681,7 +1670,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 status: execution.success ? 'EXECUTED' : 'REJECTED',
                 orderId: execution.orderId,
               }),
-              300, // 5 minutes TTL
+              300000, // 5 minutes TTL (was 300 = 300ms, effectively instant expiration — V143 fix)
             );
           } catch (redisErr: any) {
             this.logger.debug(`Could not cache agent decision: ${redisErr.message}`);

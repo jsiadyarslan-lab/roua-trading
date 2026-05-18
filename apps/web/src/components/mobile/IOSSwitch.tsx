@@ -40,6 +40,7 @@ export default function IOSSwitch({
       aria-checked={isOn}
       aria-label={ariaLabel}
       disabled={disabled}
+      className="ios-switch-button"
       style={{
         width: dimensions.track.w,
         height: dimensions.track.h,
@@ -52,6 +53,7 @@ export default function IOSSwitch({
         opacity: disabled ? 0.5 : 1,
         transition: 'background 0.25s ease',
         flexShrink: 0,
+        outline: 'none',
       }}
     >
       <motion.div

@@ -50,6 +50,30 @@ interface RouaChartProps {
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
+  // ── External toolbar control callbacks ──
+  onToggleIndicators?: () => void;
+  onToggleDrawings?: () => void;
+  onSetTool?: (tool: DrawingTool) => void;
+  onSetTimeframe?: (tf: string) => void;
+  activeTool?: DrawingTool;
+  chartType?: ChartType;
+  onSetChartType?: (type: ChartType) => void;
+  onZoomIn?: () => void;
+  onZoomOut?: () => void;
+  onTogglePause?: () => void;
+  isPaused?: boolean;
+  // Expose internal chart actions for external toolbar
+  chartActions?: React.MutableRefObject<{
+    toggleIndicators: () => void;
+    toggleDrawings: () => void;
+    setTool: (tool: DrawingTool) => void;
+    zoomIn: () => void;
+    zoomOut: () => void;
+    togglePause: () => void;
+    setChartType: (type: ChartType) => void;
+    isPaused: boolean;
+    activeTool: DrawingTool;
+  } | null>;
 }
 
 // ── Price-Synced Candle Timer Component ──
@@ -119,6 +143,7 @@ export default function RouaChart({
   onExpand = null,
   isChartFullscreen = false,
   onToggleChartFullscreen,
+  chartActions,
 }: RouaChartProps) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
@@ -177,6 +202,25 @@ export default function RouaChart({
     timeframe,
     onCrosshairMove: setCrosshairData,
   });
+
+  // ── Expose chart actions to parent via chartActions ref ──
+  useEffect(() => {
+    if (chartActions) {
+      chartActions.current = {
+        toggleIndicators: () => setShowIndicatorPanel(prev => !prev),
+        toggleDrawings: () => setShowDrawingPanel(prev => !prev),
+        setTool: chart.setTool,
+        zoomIn: chart.zoomIn,
+        zoomOut: chart.zoomOut,
+        togglePause: chart.togglePause,
+        setChartType: chart.setChartType,
+        isPaused: chart.isPaused,
+        activeTool: chart.activeTool,
+        addPriceLine: chart.addPriceLine,
+        removePriceLine: chart.removePriceLine,
+      };
+    }
+  }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine]);
 
   // ── Ref to always have the latest setCandles without stale closures ──
   // The fetch effect uses this ref instead of chart.setCandles directly,

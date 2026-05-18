@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useRef, Suspense } from 'react'
+import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -10,9 +10,12 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
+import { TIMEFRAMES } from '@/lib/charts/types'
+import type { DrawingTool } from '@/lib/charts/types'
 import {
   X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle,
-  Minus, Plus, Wallet, ArrowUpRight, ArrowDownRight
+  Minus, Plus, Crosshair, TrendingUp, Pencil, MousePointer2,
+  Clock, Zap, Timer, BarChart3, ChevronDown
 } from 'lucide-react'
 
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), {
@@ -36,6 +39,21 @@ const C = {
   border: 'rgba(255,255,255,0.08)',
 }
 
+/* ─── Pair Descriptions ─── */
+const PAIR_DESCRIPTIONS: Record<string, string> = {
+  'BTC/USD': 'Bitcoin vs US Dollar',
+  'ETH/USD': 'Ethereum vs US Dollar',
+  'XAU/USD': 'Gold vs US Dollar',
+  'EUR/USD': 'Euro vs US Dollar',
+  'GBP/USD': 'Great Britain Pound vs US Dollar',
+  'SOL/USD': 'Solana vs US Dollar',
+  'USD/JPY': 'US Dollar vs Japanese Yen',
+  'USD/CHF': 'US Dollar vs Swiss Franc',
+  'AUD/USD': 'Australian Dollar vs US Dollar',
+  'NZD/USD': 'New Zealand Dollar vs US Dollar',
+  'USD/CAD': 'US Dollar vs Canadian Dollar',
+}
+
 type ExecStatus = 'idle' | 'validating' | 'submitting' | 'filled' | 'rejected' | 'error'
 
 function ChartPageContent() {
@@ -51,6 +69,21 @@ function ChartPageContent() {
   const account = usePositionsStore(s => s.account)
   const positions = usePositionsStore(s => s.positions)
 
+  // Chart actions ref for external toolbar control
+  const chartActionsRef = useRef<{
+    toggleIndicators: () => void;
+    toggleDrawings: () => void;
+    setTool: (tool: DrawingTool) => void;
+    zoomIn: () => void;
+    zoomOut: () => void;
+    togglePause: () => void;
+    setChartType: (type: any) => void;
+    isPaused: boolean;
+    activeTool: DrawingTool;
+    addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
+    removePriceLine: (id: string) => void;
+  } | null>(null)
+
   // Read symbol and side from URL params
   useEffect(() => {
     const symbolParam = searchParams.get('symbol')
@@ -62,9 +95,10 @@ function ChartPageContent() {
   // Order form state
   const [showOrderSheet, setShowOrderSheet] = useState(false)
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
-  const [orderType, setOrderType] = useState<'market' | 'limit'>('market')
+  const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market')
   const [quantity, setQuantity] = useState('0.01')
   const [limitPrice, setLimitPrice] = useState('')
+  const [stopPrice, setStopPrice] = useState('')
   const [tpEnabled, setTpEnabled] = useState(false)
   const [slEnabled, setSlEnabled] = useState(false)
   const [tpValue, setTpValue] = useState('')
@@ -77,15 +111,23 @@ function ChartPageContent() {
 
   // Pair selector
   const [showPairDropdown, setShowPairDropdown] = useState(false)
+  // Timeframe panel
+  const [showTimeframePanel, setShowTimeframePanel] = useState(false)
   const PAIRS = ['BTC/USD', 'ETH/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD', 'SOL/USD']
 
-  // Live price
+  // Live price + OHLC
   const quoteKey = (quotes && selectedSymbol) ? Object.keys(quotes).find(k =>
     k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')
   ) : null
   const quote = quoteKey ? quotes[quoteKey] : null
   const livePrice = quote ? Number(quote.price) : null
   const changePercent = quote?.changePercent ?? 0
+  const ohlc = quote ? {
+    open: Number(quote.open || quote.price || 0),
+    high: Number(quote.high || quote.price || 0),
+    low: Number(quote.low || quote.price || 0),
+    close: Number(quote.close || quote.price || 0),
+  } : null
 
   // Account balance
   const buyingPower = account?.buying_power ? Number(account.buying_power) : 0
@@ -111,6 +153,7 @@ function ChartPageContent() {
     const qty = parseFloat(quantity)
     if (!qty || qty <= 0) return 'يرجى إدخال كمية صالحة'
     if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) return 'يرجى إدخال سعر الحد'
+    if (orderType === 'stop' && (!stopPrice || parseFloat(stopPrice) <= 0)) return 'يرجى إدخال سعر الوقف'
     if (!livePrice || livePrice <= 0) return 'سعر السوق غير متوفر حالياً'
 
     const tp = parseFloat(tpValue)
@@ -143,10 +186,11 @@ function ChartPageContent() {
       symbol: selectedSymbol,
       side: side,
       qty: parseFloat(quantity),
-      type: orderType,
+      type: orderType === 'stop' ? 'stop' : orderType,
       time_in_force: 'ioc',
     }
     if (orderType === 'limit' && limitPrice) body.limit_price = parseFloat(limitPrice)
+    if (orderType === 'stop' && stopPrice) body.stop_price = parseFloat(stopPrice)
     if (slEnabled && slValue) body.stop_loss = parseFloat(slValue)
     if (tpEnabled && tpValue) body.take_profit = parseFloat(tpValue)
 
@@ -170,6 +214,7 @@ function ChartPageContent() {
           type: orderType.toUpperCase(),
           quantity: parseFloat(quantity),
           price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined,
+          stopPrice: orderType === 'stop' && stopPrice ? parseFloat(stopPrice) : undefined,
           stopLoss: slEnabled && slValue ? parseFloat(slValue) : undefined,
           takeProfit: tpEnabled && tpValue ? parseFloat(tpValue) : undefined,
         }
@@ -254,7 +299,6 @@ function ChartPageContent() {
         price: filledPrice,
       })
 
-      // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
       refreshAfterTrade()
 
       setTimeout(() => {
@@ -265,6 +309,7 @@ function ChartPageContent() {
         setTpValue('')
         setSlValue('')
         setLimitPrice('')
+        setStopPrice('')
       }, 2500)
     }
   }
@@ -276,19 +321,140 @@ function ChartPageContent() {
     return p.toFixed(4)
   }
 
+  // Format OHLC short
+  const fmtOHLC = (p: number) => {
+    if (p > 100) return p.toFixed(2)
+    return p.toFixed(4)
+  }
+
   // Ref for dropdown
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const tfPanelRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setShowPairDropdown(false)
       }
+      if (tfPanelRef.current && !tfPanelRef.current.contains(e.target as Node)) {
+        setShowTimeframePanel(false)
+      }
     }
-    if (showPairDropdown) document.addEventListener('mousedown', handleClick)
+    document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
-  }, [showPairDropdown])
+  }, [])
 
   const [chartFullscreen, setChartFullscreen] = useState(false)
+
+  // Current timeframe label
+  const activeTF = TIMEFRAMES.find(t => t.value === timeframe)
+  const tfLabel = activeTF?.label || timeframe
+
+  // Open execution sheet for market order
+  const openExecution = useCallback((side: 'buy' | 'sell') => {
+    setOrderSide(side)
+    setOrderType('market')
+    setShowOrderSheet(true)
+  }, [])
+
+  // Open pending order sheet
+  const openPendingOrder = useCallback(() => {
+    setOrderSide('buy')
+    setOrderType('limit')
+    setShowOrderSheet(true)
+  }, [])
+
+  // ── Current Price Line (Red) & Support/Resistance Lines (Blue) ──
+  // Red horizontal line at the current live price
+  // Blue dashed lines at auto-calculated support/resistance levels
+  const prevPriceLinePrice = useRef<number | null>(null)
+
+  useEffect(() => {
+    const actions = chartActionsRef.current
+    if (!actions || !livePrice || livePrice <= 0) return
+
+    // Only update when price changes significantly (avoid jitter)
+    const shouldUpdate = prevPriceLinePrice.current === null ||
+      Math.abs(livePrice - prevPriceLinePrice.current) > (livePrice * 0.0001)
+
+    if (shouldUpdate) {
+      // ── Red current price line ──
+      actions.addPriceLine(
+        'mobile-current-price',
+        livePrice,
+        '#FF453A',
+        fmtPrice(livePrice),
+        1,
+        0,   // Solid line
+        true
+      )
+      prevPriceLinePrice.current = livePrice
+
+      // ── Blue support/resistance lines ──
+      // Calculate from OHLC data: support near recent low, resistance near recent high
+      if (ohlc) {
+        const priceRange = ohlc.high - ohlc.low
+        const supportLevel = ohlc.low - priceRange * 0.15
+        const resistanceLevel = ohlc.high + priceRange * 0.15
+
+        // Near-term support (just below current price)
+        const nearSupport = livePrice - priceRange * 0.08
+        // Near-term resistance (just above current price)
+        const nearResistance = livePrice + priceRange * 0.08
+
+        actions.addPriceLine(
+          'mobile-support-1',
+          nearSupport,
+          'rgba(0,122,255,0.6)',
+          'S1',
+          1,
+          2,   // Dashed line
+          true
+        )
+        actions.addPriceLine(
+          'mobile-resistance-1',
+          nearResistance,
+          'rgba(0,122,255,0.6)',
+          'R1',
+          1,
+          2,   // Dashed line
+          true
+        )
+        actions.addPriceLine(
+          'mobile-support-2',
+          supportLevel,
+          'rgba(0,122,255,0.35)',
+          'S2',
+          1,
+          3,   // Large dashed line
+          true
+        )
+        actions.addPriceLine(
+          'mobile-resistance-2',
+          resistanceLevel,
+          'rgba(0,122,255,0.35)',
+          'R2',
+          1,
+          3,   // Large dashed line
+          true
+        )
+      }
+    }
+  }, [livePrice, ohlc])
+
+  // Cleanup price lines on unmount or symbol change
+  useEffect(() => {
+    return () => {
+      const actions = chartActionsRef.current
+      if (actions) {
+        actions.removePriceLine('mobile-current-price')
+        actions.removePriceLine('mobile-support-1')
+        actions.removePriceLine('mobile-resistance-1')
+        actions.removePriceLine('mobile-support-2')
+        actions.removePriceLine('mobile-resistance-2')
+      }
+      prevPriceLinePrice.current = null
+    }
+  }, [selectedSymbol])
 
   return (
     <div style={{
@@ -297,47 +463,48 @@ function ChartPageContent() {
       display: 'flex',
       flexDirection: 'column',
     }}>
-      {/* Top Bar */}
+      {/* ═══════════════════════════════════════════════════
+          PAIR INFO BAR — MetaTrader Style
+          Name ▼ | TF | OHLC values | Description
+          ═══════════════════════════════════════════════════ */}
       <div style={{
         flexShrink: 0,
-        height: 48,
-        marginTop: 'calc(env(safe-area-inset-top) + 2px)',
-        marginLeft: 8,
-        marginRight: 8,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        paddingTop: 'calc(env(safe-area-inset-top) + 4px)',
+        paddingBottom: 4,
+        paddingLeft: 10,
+        paddingRight: 10,
+        background: '#0B0E14',
         direction: 'rtl',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, direction: 'ltr' }}>
+        {/* Line 1: Pair name ▼ + Timeframe + OHLC */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, direction: 'ltr' }}>
+          {/* Pair Selector */}
           <div ref={dropdownRef} style={{ position: 'relative' }}>
             <button
-              onClick={() => setShowPairDropdown(!showPairDropdown)}
+              onClick={() => { setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                padding: '4px 10px', borderRadius: 8,
-                background: 'rgba(0,212,255,0.08)',
-                border: '1px solid rgba(0,212,255,0.2)',
+                display: 'flex', alignItems: 'center', gap: 3,
+                padding: '2px 6px', borderRadius: 4,
+                background: 'transparent',
+                border: 'none',
                 cursor: 'pointer',
               }}
             >
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>
-                {selectedSymbol}
+              <span style={{ fontSize: 14, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.5 }}>
+                {selectedSymbol.replace('/', '')}
               </span>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5">
-                <polyline points="6 9 12 15 18 9"/>
-              </svg>
+              <ChevronDown size={12} color="#00D4FF" strokeWidth={3} />
             </button>
             {showPairDropdown && (
               <div style={{
-                position: 'absolute', top: '100%', left: 0, zIndex: 50,
-                minWidth: 140, maxHeight: 200, overflowY: 'auto',
-                background: 'rgba(20,20,22,0.98)',
+                position: 'absolute', top: '100%', left: 0, zIndex: 60,
+                minWidth: 150, maxHeight: 220, overflowY: 'auto',
+                background: 'rgba(15,17,23,0.98)',
                 backdropFilter: 'blur(20px)',
                 border: '1px solid rgba(0,212,255,0.2)',
-                borderRadius: 10,
+                borderRadius: 8,
                 padding: 4,
-                boxShadow: '0 8px 32px rgba(0,0,0,0.6)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
               }}>
                 {PAIRS.map(pair => {
                   const isActive = selectedSymbol === pair
@@ -346,7 +513,7 @@ function ChartPageContent() {
                       key={pair}
                       onClick={() => { setSelectedSymbol(pair); setShowPairDropdown(false) }}
                       style={{
-                        width: '100%', padding: '8px 10px', borderRadius: 6,
+                        width: '100%', padding: '8px 10px', borderRadius: 4,
                         background: isActive ? 'rgba(0,212,255,0.12)' : 'transparent',
                         border: 'none', cursor: 'pointer', textAlign: 'left',
                         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -366,118 +533,246 @@ function ChartPageContent() {
               </div>
             )}
           </div>
+
+          {/* Separator */}
+          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>|</span>
+
+          {/* Timeframe */}
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', fontFamily: "'JetBrains Mono', monospace" }}>
+            {tfLabel}
+          </span>
+
+          {/* Separator */}
+          <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: 12 }}>|</span>
+
+          {/* OHLC Values */}
+          {ohlc && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, fontFamily: "'JetBrains Mono', monospace" }}>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>O</span>
+              <span style={{ color: '#F0F2F5', fontWeight: 600 }}>{fmtOHLC(ohlc.open)}</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>H</span>
+              <span style={{ color: '#32D74B', fontWeight: 600 }}>{fmtOHLC(ohlc.high)}</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>L</span>
+              <span style={{ color: '#FF453A', fontWeight: 600 }}>{fmtOHLC(ohlc.low)}</span>
+              <span style={{ color: 'rgba(255,255,255,0.4)' }}>C</span>
+              <span style={{ color: changePercent >= 0 ? '#32D74B' : '#FF453A', fontWeight: 700 }}>{fmtOHLC(ohlc.close)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Line 2: Pair description */}
+        <div style={{ marginTop: 1, direction: 'ltr' }}>
+          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: "'Inter', sans-serif", fontWeight: 500 }}>
+            {PAIR_DESCRIPTIONS[selectedSymbol] || `${selectedSymbol} Trading`}
+          </span>
+        </div>
+      </div>
+
+      {/* ═══════════════════════════════════════════════════
+          TOOLBAR — Compact Icon Row
+          Execution | Pending | Indicators | Tools | Cursor | Timeframes
+          ═══════════════════════════════════════════════════ */}
+      <div style={{
+        flexShrink: 0,
+        height: 36,
+        paddingLeft: 6,
+        paddingRight: 6,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 2,
+        background: '#0B0E14',
+        borderTop: '1px solid rgba(255,255,255,0.04)',
+        borderBottom: '1px solid rgba(255,255,255,0.04)',
+        direction: 'rtl',
+      }}>
+        {/* زر التنفيذ (Execution) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => openExecution('buy')}
+          style={{
+            width: 32, height: 28, borderRadius: 6,
+            background: 'rgba(50,215,75,0.12)',
+            border: '1px solid rgba(50,215,75,0.25)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', position: 'relative',
+          }}
+          title="تنفيذ أمر سوقي"
+        >
+          <Zap size={14} color="#32D74B" />
+        </motion.button>
+
+        {/* زر تنفيذ أوامر معلقة (Pending Orders) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={openPendingOrder}
+          style={{
+            width: 32, height: 28, borderRadius: 6,
+            background: 'rgba(255,184,0,0.1)',
+            border: '1px solid rgba(255,184,0,0.2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          title="أوامر معلقة"
+        >
+          <Timer size={14} color="#FFB800" />
+        </motion.button>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' }} />
+
+        {/* زر المؤشرات (Indicators) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => chartActionsRef.current?.toggleIndicators()}
+          style={{
+            width: 32, height: 28, borderRadius: 6,
+            background: 'rgba(0,212,255,0.08)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          title="المؤشرات"
+        >
+          <BarChart3 size={14} color="#00D4FF" />
+        </motion.button>
+
+        {/* زر الأدوات (Tools / Drawings) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => chartActionsRef.current?.toggleDrawings()}
+          style={{
+            width: 32, height: 28, borderRadius: 6,
+            background: 'rgba(0,212,255,0.08)',
+            border: '1px solid rgba(0,212,255,0.15)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          title="أدوات الرسم"
+        >
+          <Pencil size={14} color="#00D4FF" />
+        </motion.button>
+
+        {/* زر المؤشر (Cursor) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={() => chartActionsRef.current?.setTool('cursor')}
+          style={{
+            width: 32, height: 28, borderRadius: 6,
+            background: 'rgba(0,212,255,0.15)',
+            border: '1px solid rgba(0,212,255,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+          title="المؤشر"
+        >
+          <MousePointer2 size={14} color="#00D4FF" />
+        </motion.button>
+
+        {/* Separator */}
+        <div style={{ width: 1, height: 18, background: 'rgba(255,255,255,0.08)', margin: '0 2px' }} />
+
+        {/* الفريمات الزمنية (Timeframes) */}
+        <div ref={tfPanelRef} style={{ position: 'relative' }}>
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={() => { setShowTimeframePanel(!showTimeframePanel); setShowPairDropdown(false) }}
+            style={{
+              height: 28, minWidth: 40, borderRadius: 6,
+              padding: '0 8px',
+              background: 'rgba(0,212,255,0.1)',
+              border: '1px solid rgba(0,212,255,0.25)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 3,
+              cursor: 'pointer',
+            }}
+            title="الإطار الزمني"
+          >
+            <Clock size={12} color="#00D4FF" />
+            <span style={{ fontSize: 10, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace" }}>{tfLabel}</span>
+          </motion.button>
+          {showTimeframePanel && (
+            <div style={{
+              position: 'absolute', top: '100%', right: 0, zIndex: 60,
+              minWidth: 220,
+              background: 'rgba(15,17,23,0.98)',
+              backdropFilter: 'blur(20px)',
+              border: '1px solid rgba(0,212,255,0.2)',
+              borderRadius: 8,
+              padding: 8,
+              boxShadow: '0 8px 32px rgba(0,0,0,0.7)',
+            }}>
+              <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 6, direction: 'rtl' }}>الإطار الزمني</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
+                {TIMEFRAMES.map(tf => {
+                  const isActive = timeframe === tf.value
+                  return (
+                    <button
+                      key={tf.value}
+                      onClick={() => { setTimeframe(tf.value); setShowTimeframePanel(false) }}
+                      style={{
+                        background: isActive ? '#00D4FF' : '#1a1f2e',
+                        border: `1px solid ${isActive ? '#00D4FF' : 'rgba(255,255,255,0.08)'}`,
+                        color: isActive ? '#000' : 'rgba(255,255,255,0.5)',
+                        borderRadius: 4, padding: '5px 0',
+                        fontSize: 9, fontWeight: isActive ? 800 : 600,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        cursor: 'pointer', textAlign: 'center',
+                      }}
+                    >
+                      {tf.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Spacer */}
+        <div style={{ flex: 1 }} />
+
+        {/* Live Price Display */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, direction: 'ltr' }}>
           <span style={{
-            fontSize: 14, fontWeight: 900,
+            fontSize: 13, fontWeight: 900,
             color: livePrice ? (changePercent >= 0 ? C.success : C.danger) : C.text2,
             fontFamily: "'JetBrains Mono', monospace",
           }}>
             {fmtPrice(livePrice)}
           </span>
           <span style={{
-            fontSize: 10, fontWeight: 700,
+            fontSize: 9, fontWeight: 700,
             color: changePercent >= 0 ? C.success : C.danger,
             fontFamily: "'JetBrains Mono', monospace",
-            padding: '2px 6px', borderRadius: 4,
+            padding: '1px 4px', borderRadius: 3,
             background: changePercent >= 0 ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)',
           }}>
             {changePercent >= 0 ? '+' : ''}{changePercent.toFixed(2)}%
           </span>
         </div>
-
-        <motion.button
-          whileTap={{ scale: 0.9 }}
-          onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
-          style={{
-            height: 32,
-            padding: '0 12px',
-            borderRadius: 8,
-            background: 'linear-gradient(135deg, #00D4FF 0%, #00A8CC 100%)',
-            border: 'none',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 4,
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(0,212,255,0.3)',
-          }}
-        >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#000" strokeWidth="2.5">
-            <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
-          </svg>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#000', fontFamily: "'Cairo', sans-serif" }}>تداول</span>
-        </motion.button>
       </div>
 
-      {/* Chart Area */}
+      {/* ═══════════════════════════════════════════════════
+          CHART AREA — Maximized
+          ═══════════════════════════════════════════════════ */}
       <div style={{
         flex: 1,
-        marginLeft: 8,
-        marginRight: 8,
-        borderRadius: 12,
-        overflow: 'hidden',
-        background: '#0B0E14',
-        border: '1px solid rgba(0,212,255,0.15)',
         position: 'relative',
         direction: 'ltr',
         minHeight: 0,
       }}>
         <RouaChart
           currentPrice={livePrice}
+          mobile={true}
+          hideToolbar={true}
           isChartFullscreen={chartFullscreen}
           onToggleChartFullscreen={() => setChartFullscreen(!chartFullscreen)}
+          chartActions={chartActionsRef}
         />
       </div>
 
-      {/* Quick Buy/Sell Buttons */}
-      <div style={{
-        flexShrink: 0,
-        marginLeft: 8,
-        marginRight: 8,
-        marginTop: 8,
-        display: 'flex',
-        gap: 8,
-      }}>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => { setOrderSide('buy'); setShowOrderSheet(true) }}
-          style={{
-            flex: 1,
-            height: 44,
-            borderRadius: 12,
-            background: 'rgba(50,215,75,0.15)',
-            border: '1px solid rgba(50,215,75,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            cursor: 'pointer',
-          }}
-        >
-          <ArrowUpRight size={16} color="#32D74B" />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#32D74B', fontFamily: "'Cairo', sans-serif" }}>شراء</span>
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => { setOrderSide('sell'); setShowOrderSheet(true) }}
-          style={{
-            flex: 1,
-            height: 44,
-            borderRadius: 12,
-            background: 'rgba(255,69,58,0.15)',
-            border: '1px solid rgba(255,69,58,0.3)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-            cursor: 'pointer',
-          }}
-        >
-          <ArrowDownRight size={16} color="#FF453A" />
-          <span style={{ fontSize: 13, fontWeight: 800, color: '#FF453A', fontFamily: "'Cairo', sans-serif" }}>بيع</span>
-        </motion.button>
-      </div>
-
-      {/* Order Sheet */}
+      {/* ═══════════════════════════════════════════════════
+          ORDER SHEET — Full Execution Panel
+          ═══════════════════════════════════════════════════ */}
       <AnimatePresence>
         {showOrderSheet && (
           <>
@@ -509,7 +804,9 @@ function ChartPageContent() {
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '0 20px', WebkitOverflowScrolling: 'touch' }}>
                 <div className="flex items-center justify-between mb-4">
-                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>تنفيذ صفقة</h2>
+                  <h2 style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontFamily: "'Cairo', sans-serif" }}>
+                    {orderType === 'market' ? 'تنفيذ أمر سوقي' : orderType === 'limit' ? 'أمر محدد' : 'أمر وقف'}
+                  </h2>
                   <button
                     onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }}
                     style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}
@@ -518,6 +815,7 @@ function ChartPageContent() {
                   </button>
                 </div>
 
+                {/* Buy/Sell Toggle */}
                 <div style={{ background: 'rgba(0,0,0,0.4)', borderRadius: 16, padding: 4, display: 'flex', marginBottom: 14, position: 'relative' }}>
                   <motion.div
                     animate={{ x: orderSide === 'buy' ? 0 : '100%' }}
@@ -527,30 +825,28 @@ function ChartPageContent() {
                   <button onClick={() => setOrderSide('sell')} style={{ flex: 1, height: 40, borderRadius: 12, border: 'none', background: 'transparent', fontSize: 15, fontWeight: 800, color: orderSide === 'sell' ? '#000' : '#FFF', fontFamily: "'Cairo', sans-serif", zIndex: 1, position: 'relative' }}>بيع</button>
                 </div>
 
+                {/* Order Type + Quantity */}
                 <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>نوع الأمر</label>
-                    <div style={{ display: 'flex', gap: 4, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
-                      <button
-                        onClick={() => setOrderType('market')}
-                        style={{
-                          flex: 1, padding: '6px 0', borderRadius: 8,
-                          background: orderType === 'market' ? C.accent : 'transparent',
-                          color: orderType === 'market' ? '#000' : C.text2,
-                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-                          border: 'none', cursor: 'pointer',
-                        }}
-                      >سوقي</button>
-                      <button
-                        onClick={() => setOrderType('limit')}
-                        style={{
-                          flex: 1, padding: '6px 0', borderRadius: 8,
-                          background: orderType === 'limit' ? C.accent : 'transparent',
-                          color: orderType === 'limit' ? '#000' : C.text2,
-                          fontSize: 11, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
-                          border: 'none', cursor: 'pointer',
-                        }}
-                      >محدد</button>
+                    <div style={{ display: 'flex', gap: 3, padding: 3, background: 'rgba(255,255,255,0.03)', borderRadius: 10 }}>
+                      {[
+                        { key: 'market' as const, label: 'سوقي' },
+                        { key: 'limit' as const, label: 'محدد' },
+                        { key: 'stop' as const, label: 'وقف' },
+                      ].map(ot => (
+                        <button
+                          key={ot.key}
+                          onClick={() => setOrderType(ot.key)}
+                          style={{
+                            flex: 1, padding: '5px 0', borderRadius: 8,
+                            background: orderType === ot.key ? C.accent : 'transparent',
+                            color: orderType === ot.key ? '#000' : C.text2,
+                            fontSize: 10, fontWeight: 800, fontFamily: "'Cairo', sans-serif",
+                            border: 'none', cursor: 'pointer',
+                          }}
+                        >{ot.label}</button>
+                      ))}
                     </div>
                   </div>
                   <div style={{ flex: 1.3 }}>
@@ -580,6 +876,7 @@ function ChartPageContent() {
                   </div>
                 </div>
 
+                {/* Quick Quantity Presets */}
                 {buyingPower > 0 && livePrice && livePrice > 0 && (
                   <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
                     {[5, 10, 25, 50].map(pct => (
@@ -601,6 +898,7 @@ function ChartPageContent() {
                   </div>
                 )}
 
+                {/* Limit Price */}
                 {orderType === 'limit' && (
                   <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 10 }}>
                     <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الحد</label>
@@ -617,6 +915,24 @@ function ChartPageContent() {
                   </motion.div>
                 )}
 
+                {/* Stop Price */}
+                {orderType === 'stop' && (
+                  <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} style={{ marginBottom: 10 }}>
+                    <label style={{ fontSize: 11, color: C.text2, fontFamily: "'Cairo', sans-serif", fontWeight: 700, display: 'block', marginBottom: 4 }}>سعر الوقف</label>
+                    <input
+                      value={stopPrice} onChange={e => setStopPrice(e.target.value)}
+                      type="number" placeholder={livePrice?.toString() || '0.00'}
+                      style={{
+                        width: '100%', height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.05)',
+                        border: `0.5px solid ${C.border}`, padding: '0 12px',
+                        color: C.text, fontSize: 13, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr', textAlign: 'left',
+                      }}
+                    />
+                  </motion.div>
+                )}
+
+                {/* TP/SL */}
                 <div className="space-y-2 mb-4">
                   <div style={{ background: 'rgba(255,255,255,0.03)', borderRadius: 14, padding: '12px', border: '0.5px solid rgba(255,255,255,0.05)' }}>
                     <div className="flex items-center justify-between">
@@ -653,6 +969,7 @@ function ChartPageContent() {
                   </div>
                 </div>
 
+                {/* Execute Button */}
                 <div style={{ flexShrink: 0, padding: '8px 20px 20px', borderTop: '0.5px solid rgba(255,255,255,0.08)', background: 'rgba(20,20,22,0.95)', position: 'relative', zIndex: 36 }}>
                   {(execStatus === 'idle' || execStatus === 'error' || execStatus === 'rejected') && (
                     <div style={{ display: 'flex', gap: 8 }}>

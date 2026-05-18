@@ -436,6 +436,13 @@
   min-width: 44px;
 }
 
+/* iOS Switch focus-visible for accessibility */
+.ios-switch-button:focus-visible {
+  outline: 2px solid #00D4FF;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(0, 212, 255, 0.25);
+}
+
 /* Scroll touch for iOS */
 .scroll-touch {
   -webkit-overflow-scrolling: touch;

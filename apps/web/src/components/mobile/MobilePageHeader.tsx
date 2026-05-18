@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 
 interface MobilePageHeaderProps {
   title: string
@@ -62,7 +62,7 @@ export default function MobilePageHeader({
           }}
           aria-label="رجوع"
         >
-          <ChevronLeft size={20} color="#F0F2F5" />
+          <ChevronRight size={20} color="#F0F2F5" />
         </motion.button>
         <div>
           <h1 style={{

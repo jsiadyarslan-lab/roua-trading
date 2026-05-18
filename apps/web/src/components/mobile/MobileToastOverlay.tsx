@@ -58,10 +58,16 @@ export default function MobileToastOverlay() {
   const router = useRouter()
 
   // Auto-dismiss toasts after 5 seconds
+  // FIX: Track dismissed toast IDs to prevent stale timers from firing
+  // after a toast has already been manually dismissed
   useEffect(() => {
     if (toasts.length === 0) return
+    const activeIds = new Set(toasts.map(t => t.id))
     const timers = toasts.map(t =>
-      setTimeout(() => dismissToast(t.id), 5000)
+      setTimeout(() => {
+        // Only dismiss if toast still exists in store
+        if (activeIds.has(t.id)) dismissToast(t.id)
+      }, 5000)
     )
     return () => timers.forEach(clearTimeout)
   }, [toasts, dismissToast])

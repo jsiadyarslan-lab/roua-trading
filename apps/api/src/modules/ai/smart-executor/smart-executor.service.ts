@@ -197,36 +197,47 @@ export class SmartExecutorService implements OnModuleDestroy {
         this.logger.warn(`⚔️ Failed to purge expired TradingBrief records: ${briefErr.message}`);
       }
 
-      // ── STEP 4: Clear Redis user states (volatile) ──
-      // V136: Clear ALL Redis and DB executor user states on startup.
-      // These were previously auto-created by AuthService and _autoRestoreFromDB()
-      // for users who never explicitly enabled trading. Now: clean slate.
-      // Users must explicitly click "تشغيل" after server restart.
+      // ── STEP 4: Clear Redis user states (volatile cache only) ──
+      // V140B FIX: Only clear Redis cache, NOT DB states!
+      // Previously this deleted BOTH Redis and DB user states on every restart,
+      // which meant users had to manually re-enable the executor after EVERY
+      // NestJS restart (crash, deployment, Railway cycling). This caused the
+      // executor to "stop after a few minutes" because NestJS restarts frequently.
+      //
+      // Now: Redis cache is cleared (volatile, will be re-populated from DB),
+      // but DB states are PRESERVED so auto-restore can re-enable the user.
       try {
         const userKeys = await this.redis.scanKeys(`${this.REDIS_USER_STATE_PREFIX}*`);
         for (const key of userKeys) {
           await this.redis.del(key);
         }
         if (userKeys.length > 0) {
-          this.logger.log(`⚔️ STARTUP: Cleared ${userKeys.length} volatile Redis user state(s)`);
+          this.logger.log(`⚔️ STARTUP: Cleared ${userKeys.length} volatile Redis user state(s) (DB states preserved)`);
         }
       } catch (redisErr: any) {
         this.logger.warn(`⚔️ Failed to clear executor Redis states: ${redisErr.message}`);
       }
 
-      // ── STEP 4.1: Clean up stale DB user state entries (V136) ──
-      // Remove SMART_EXECUTOR_USER_STATE:* entries that were auto-created
-      // by AuthService without explicit user consent. These orphaned entries
-      // would be picked up by any future auto-restore mechanism.
+      // ── STEP 4.1: V140B — REMOVED destructive DB cleanup ──
+      // Previously deleted ALL SMART_EXECUTOR_USER_STATE:* from DB on startup.
+      // This was needed in V136 to clean up auto-created states from AuthService,
+      // but now that AuthService no longer auto-creates states (V136 removed it),
+      // ALL remaining DB states are from users who EXPLICITLY enabled the executor.
+      // Deleting them caused the "executor stops after a few minutes" bug.
+      //
+      // Instead: Only delete states that have enabled=false (already disabled).
       try {
-        const staleDbStates = await this.prisma.setting.deleteMany({
-          where: { key: { startsWith: this.DB_USER_STATE_KEY } },
+        const disabledStates = await this.prisma.setting.deleteMany({
+          where: {
+            key: { startsWith: this.DB_USER_STATE_KEY },
+            value: { contains: '"enabled":false' },
+          },
         });
-        if (staleDbStates.count > 0) {
-          this.logger.log(`⚔️ STARTUP: Cleaned up ${staleDbStates.count} stale DB executor user state(s) (V136 — users must re-enable)`);
+        if (disabledStates.count > 0) {
+          this.logger.log(`⚔️ STARTUP: Cleaned up ${disabledStates.count} already-disabled DB executor state(s)`);
         }
       } catch (dbCleanErr: any) {
-        this.logger.warn(`⚔️ Failed to clean up stale DB user states: ${dbCleanErr.message}`);
+        this.logger.warn(`⚔️ Failed to clean up disabled DB user states: ${dbCleanErr.message}`);
       }
 
       // ── STEP 5: Clear global executor state from Redis ──
@@ -358,6 +369,54 @@ export class SmartExecutorService implements OnModuleDestroy {
       //   - No mutual exclusion lock needed — exposure-based coordination
 
       this.logger.log('⚔️ Startup cleanup complete (user data preserved)');
+
+      // ── V140B: Auto-restore explicitly-enabled users from DB ──
+      // After cleanup, re-populate Redis from DB for users who had
+      // explicitly enabled the executor (enabled: true). This prevents
+      // the "executor stops after a few minutes" bug caused by NestJS
+      // restarts (Railway cycling, crashes, deployments).
+      //
+      // This is SAFE because V136 already removed AuthService auto-creation.
+      // ALL remaining DB states with enabled:true are from users who
+      // explicitly clicked "تفعيل" in the UI.
+      try {
+        const enabledStates = await this.prisma.setting.findMany({
+          where: {
+            key: { startsWith: this.DB_USER_STATE_KEY },
+            value: { contains: '"enabled":true' },
+          },
+        });
+
+        if (enabledStates.length > 0) {
+          this.logger.log(`⚔️ RESTORE: Found ${enabledStates.length} explicitly-enabled user(s) in DB — re-enabling...`);
+
+          for (const state of enabledStates) {
+            try {
+              const userId = state.key.replace(this.DB_USER_STATE_KEY, '');
+              const stateData = JSON.parse(state.value);
+
+              // Re-populate Redis from DB
+              await this.redis.set(
+                `${this.REDIS_USER_STATE_PREFIX}${userId}`,
+                JSON.stringify(stateData),
+                86400000 * 7, // 7-day TTL
+              );
+
+              this.logger.log(`⚔️ RESTORE: Re-enabled user ${userId} from DB`);
+            } catch (restoreErr: any) {
+              this.logger.warn(`⚔️ Failed to restore user state: ${restoreErr.message}`);
+            }
+          }
+
+          // Auto-start the global executor if any users were restored
+          if (!this.isRunning) {
+            this.logger.log(`⚔️ RESTORE: Auto-starting executor for ${enabledStates.length} restored user(s)`);
+            await this.start('auto-restore');
+          }
+        }
+      } catch (restoreErr: any) {
+        this.logger.warn(`⚔️ Failed to auto-restore enabled users: ${restoreErr.message}`);
+      }
     } catch (error: any) {
       this.logger.warn(`⚔️ Startup cleanup failed (non-critical): ${error.message}`);
     }
@@ -1173,7 +1232,12 @@ export class SmartExecutorService implements OnModuleDestroy {
           if (raw) {
             const state = JSON.parse(raw);
             if (state.enabled) {
-              userIds.add(k.replace(this.REDIS_USER_STATE_PREFIX, ''));
+              const userId = k.replace(this.REDIS_USER_STATE_PREFIX, '');
+              userIds.add(userId);
+              // V140B: Refresh TTL on every read to prevent 7-day silent expiry.
+              // Without this, the Redis key expires after 7 days and the user
+              // is silently dropped from the tick loop.
+              await this.redis.expire(k, 86400000 * 7).catch(() => {});
             } else {
               // Disabled state — clean up from Redis
               await this.redis.del(k).catch(() => {});

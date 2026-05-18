@@ -397,18 +397,17 @@ function ChartPageContent() {
 
   return (
     <div style={{
-      /* Fixed position fills the entire viewport, then subtract navbar height.
-         Using fixed ensures the chart always fills the screen regardless of
-         parent flex/padding. The navbar (56px + safe-area) is at the bottom
-         of the viewport via MobileNavBar, so we must leave space for it. */
-      position: 'fixed',
+      /* Fill the entire main area using absolute positioning.
+         The navbar is now a flex sibling (not fixed), so main's
+         height = viewport - navbar. Absolute within main fills it
+         completely without any gap or overlap. */
+      position: 'absolute',
       top: 0,
       left: 0,
       right: 0,
-      bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))',
+      bottom: 0,
       background: '#0B0E14',
       overflow: 'hidden',
-      zIndex: 2,
     }}>
 
       {/* ═══════════════════════════════════════════════════
@@ -640,7 +639,7 @@ function ChartPageContent() {
               initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 350 }}
               style={{
-                position: 'fixed', bottom: '56px', left: 0, right: 0, zIndex: 45,
+                position: 'fixed', bottom: 'calc(56px + env(safe-area-inset-bottom, 0px))', left: 0, right: 0, zIndex: 45,
                 background: C.bg,
                 backdropFilter: 'blur(50px) saturate(200%)',
                 borderRadius: '24px 24px 0 0',

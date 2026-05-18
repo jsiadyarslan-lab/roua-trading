@@ -110,12 +110,14 @@ export default function MobileNavBar() {
 
   return (
     <>
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation — flex child that stays at bottom of layout container */}
       <nav
-        className="fixed bottom-0 left-0 right-0"
         style={{
+          position: 'relative',
           zIndex: 50,
           pointerEvents: 'auto',
+          flexShrink: 0,
+          width: '100%',
           height: 'calc(56px + env(safe-area-inset-bottom, 0px))',
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           background: 'linear-gradient(180deg, rgba(0,212,255,0.05) 0%, rgba(11,14,20,0.85) 100%)',

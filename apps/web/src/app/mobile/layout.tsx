@@ -66,14 +66,12 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             overflow: 'hidden',
           }}
         >
-          {/* Scrollable content area — fills remaining space above the navbar spacer */}
+          {/* Scrollable content area — fills space above the navbar.
+              minHeight:0 allows flex child to shrink so overflow scrolling works. */}
           <main
             style={{
               position: 'relative',
               flex: '1 1 0%',
-              /* CRITICAL: minHeight: 0 allows flexbox child to shrink below content
-                 height, enabling proper overflow scrolling. Without this, the main
-                 area expands to fit all content and never scrolls. */
               minHeight: 0,
               overflowY: 'auto',
               overflowX: 'hidden',
@@ -85,9 +83,6 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
             }}
           >
             {children}
-            {/* Spacer so the fixed MobileNavBar doesn't cover scrollable content.
-                NOT used by the chart page which manages its own full-viewport height. */}
-            <div style={{ height: 'calc(56px + env(safe-area-inset-bottom, 0px))', flexShrink: 0 }} />
           </main>
           <MobileNavBar />
         </div>

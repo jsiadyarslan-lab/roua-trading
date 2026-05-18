@@ -233,8 +233,16 @@ export default function RouaChart({
     const candles = candlesRef.current;
     if (!candles || candles.length < 30) return;
     const chartApi = chart.chartRef?.current;
+    if (!chartApi) return;
+
+    // FIX: Load lightweight-charts if not already cached
+    // Previously returned early if lc was null — now loads it on demand
+    if (!lightweightChartsRef.current) {
+      try {
+        lightweightChartsRef.current = await import('lightweight-charts');
+      } catch { return; }
+    }
     const lc = lightweightChartsRef.current;
-    if (!chartApi || !lc) return;
     try {
       const result = runPatternEngine(candles, { minQuality: 5 });
       patternEngineRef.current = result;

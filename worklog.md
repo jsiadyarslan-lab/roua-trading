@@ -80,3 +80,30 @@ Stage Summary:
 - Authenticated fetch diagnosis pending (V164c deploying)
 - The shared balance number ($12,143.47) is now clearly labeled as paper trading
 - Root cause chain confirmed: Binance auth fails → paper balance shown → same positions → same number
+---
+Task ID: V165
+Agent: main
+Task: Add Binance IP whitelist helper and Ed25519/RSA key type support to fix shared balance bug
+
+Work Log:
+- Searched web for Binance API key types: HMAC-SHA256 vs RSA vs Ed25519
+- Read Binance official docs: HMAC is deprecated, Ed25519 recommended
+- Discovered Binance IP restriction rules: keys expire every 90 days without IP whitelist
+- Found that cloud hosting (Railway) IPs are NOT whitelisted by default → Binance rejects auth requests
+- Added GET /api/portfolio/credentials/server-ip endpoint that returns Railway server IP (34.141.199.116)
+- Added getServerOutboundIp() method to credentials.service.ts
+- Updated exchange settings page with:
+  - Prominent IP whitelist banner showing server IP with copy-to-clipboard
+  - Step-by-step Arabic instructions for adding IP to Binance API key
+  - Key type selection (HMAC / Ed25519 / RSA) for Binance credentials
+  - Informational hints about each key type
+- Updated PortfolioMini: exchange unavailable banner now clickable → links to settings/exchange
+- Updated Dockerfile BUILD_CACHE=v165-ip-whitelist-key-type
+- Pushed to origin and verified deployment on Railway
+
+Stage Summary:
+- Railway server IP: 34.141.199.116
+- Server-ip endpoint returns: {"success":true,"data":{"serverIp":"34.141.199.116"}}
+- V165 deployed and verified on Railway
+- User needs to add 34.141.199.116 to their Binance API key IP whitelist to fix the shared balance bug
+- Key type selection UI now supports HMAC/Ed25519/RSA (HMAC still used by CCXT internally)

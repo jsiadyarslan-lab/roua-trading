@@ -593,6 +593,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const updated = { ...last, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
     candlesRef.current = [...candles.slice(0, -1), updated]; // Immutable update to avoid stale refs
 
+    if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
+
     if (settings.type === 'heikin-ashi') {
       // Only recalculate last candle for HA, not entire series
       const prevCandle = candles.length > 1 ? candles[candles.length - 2] : updated;
@@ -601,13 +603,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const haHigh = Math.max(updated.high, haOpen, haClose);
       const haLow = Math.min(updated.low, haOpen, haClose);
       const lastDisplay = { ...updated, open: haOpen, high: haHigh, low: haLow, close: haClose };
-      candleSeriesRef.current.update({
+      try { candleSeriesRef.current.update({
         time: lastDisplay.time as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
       } as any);
+      } catch { /* chart was destroyed between the null check and update */ }
     } else {
-      candleSeriesRef.current.update({
-        time: updated.time as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
-      } as any);
+      try {
+        candleSeriesRef.current.update({
+          time: updated.time as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
+        } as any);
+      } catch { /* chart was destroyed between the null check and update */ }
     }
 
     // Update volume — use `updated` (not `last`) for correct color after price change

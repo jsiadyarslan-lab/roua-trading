@@ -292,6 +292,8 @@ export default function RouaChart({
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.
       if (candlesRef.current.length === 0) return;
+      // Guard: don't update if chart hook is not ready
+      if (!chart.setCandles) return;
 
       // FIX: Align candle timestamp to the current timeframe's interval.
       // WebSocket (especially Socket.IO ticker) may send candles at 1-minute

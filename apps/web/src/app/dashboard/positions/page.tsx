@@ -205,29 +205,33 @@ export default function PositionsPage() {
     setCloseError('')
     const qty = closeQuantity ? parseFloat(closeQuantity) : closeDialog.quantity
     const isPartial = qty < closeDialog.quantity
+
+    // V172: Optimistic UI update — remove position IMMEDIATELY for instant feedback.
+    // Previously the UI waited for the full API response (~2-5s) before removing the row.
+    // Now: remove immediately, restore if the API fails.
+    const previousPositions = positions
+    if (isPartial) {
+      setPositions((prev) => prev.map((p) => p.id === closeDialog.id ? { ...p, quantity: p.quantity - qty } : p))
+    } else {
+      setPositions((prev) => prev.filter((p) => p.id !== closeDialog.id))
+    }
+    setCloseDialog(null) // Close dialog immediately
+
     try {
-      // FIX: Pass dbId so closePositionUnified always routes through NestJS
-      // for DB positions. Without this, if the id is not a valid UUID format,
-      // it falls through to Alpaca, which returns 404 for DB-only positions.
       const result = await closePositionUnified(closeDialog.id, isPartial ? qty : undefined, { dbId: closeDialog.dbId || closeDialog.id })
       if (result.success) {
-        if (isPartial) {
-          setPositions((prev) => prev.map((p) => p.id === closeDialog.id ? { ...p, quantity: p.quantity - qty } : p))
-        } else {
-          setPositions((prev) => prev.filter((p) => p.id !== closeDialog.id))
-        }
         fetchSummary()
-        // FIX V114: Also refresh the Zustand positions store after close.
-        // Previously, only the local useState was updated — the Zustand store
-        // kept the old position, causing it to reappear on other pages or
-        // after navigation. refreshAfterTrade() triggers a staggered refresh
-        // (immediate + 2s + 5s) to ensure the backend state is synced.
         usePositionsStore.getState().refreshAfterTrade()
-        setCloseDialog(null)
       } else {
+        // Restore position on failure
+        setPositions(previousPositions)
+        setCloseDialog(closeDialog)
         throw new Error(result.error || 'فشل في إغلاق المركز')
       }
     } catch (err: unknown) {
+      // Restore position on network error
+      setPositions(previousPositions)
+      setCloseDialog(closeDialog)
       setCloseError(err instanceof Error ? err.message : String(err))
     } finally {
       setClosing(false)

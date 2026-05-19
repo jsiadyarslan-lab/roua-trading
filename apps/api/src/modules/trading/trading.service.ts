@@ -727,15 +727,15 @@ export class TradingService {
       // and positions to remain stuck OPEN.
       //
       // Now: Only try getQuote with a 3-second timeout. If it fails or times out,
-      // fall back to entryPrice (which is always available for an OPEN position).
-      // Paper trading doesn't need exact market prices — entryPrice is fine.
+      // V172: Reduced getQuote timeout 3s → 1s. Paper positions always have
+      // currentPrice set by the position monitor — getQuote is rarely needed.
       let closePrice = posCurrentPrice;
       if (!closePrice || closePrice <= 0) {
         try {
           const quotePromise = this.exchangeService.getQuote(position.symbol);
           const quote = await Promise.race([
             quotePromise,
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000)),
           ]);
           closePrice = quote?.price || posEntryPrice;
         } catch {

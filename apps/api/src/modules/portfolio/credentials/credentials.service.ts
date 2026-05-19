@@ -746,8 +746,14 @@ export class CredentialsService {
       );
     }
 
-    const totalEquityUsd = exchanges.reduce((sum, e) => sum + e.equity, 0);
-    const totalAvailableUsd = exchanges.reduce((sum, e) => sum + e.available, 0);
+    // If the user has real exchange credentials, account totals must come only
+    // from real exchanges. Paper trading stays in the breakdown, not the total.
+    const totalSources = hasRealCredentials
+      ? exchanges.filter((e) => e.exchange !== 'paper-trading')
+      : exchanges;
+
+    const totalEquityUsd = totalSources.reduce((sum, e) => sum + e.equity, 0);
+    const totalAvailableUsd = totalSources.reduce((sum, e) => sum + e.available, 0);
     // ═══════════════════════════════════════════════════════════════
     // V150 FIX: Calculate totalUsedMargin using DIRECT usedMargin field.
     //
@@ -761,7 +767,7 @@ export class CredentialsService {
     //   - Paper trading: Leverage-aware margin from calculateMargin()
     // We sum this directly — no more unreliable asset-currency lookup.
     // ═══════════════════════════════════════════════════════════════
-    const totalUsedMargin = exchanges.reduce((sum, e) => {
+    const totalUsedMargin = totalSources.reduce((sum, e) => {
       // V150: Use the direct usedMargin field when available
       if ((e as any).usedMargin !== undefined && (e as any).usedMargin !== null) {
         return sum + (e as any).usedMargin;
@@ -793,7 +799,9 @@ export class CredentialsService {
 
     // V162: Log the final balance composition for debugging
     const paperEquity = exchanges.find(e => e.exchange === 'paper-trading')?.equity || 0;
-    const realEquity = totalEquityUsd - paperEquity;
+    const realEquity = exchanges
+      .filter((e) => e.exchange !== 'paper-trading')
+      .reduce((sum, e) => sum + e.equity, 0);
     this.logger.log(
       `💰 V162 Balance for user ${userId}: total=$${totalEquityUsd.toFixed(2)} ` +
       `(real=$${realEquity.toFixed(2)}, paper=$${paperEquity.toFixed(2)}) ` +
@@ -1238,8 +1246,17 @@ export class CredentialsService {
 
         // If balance fetch fails with auth error → key is genuinely invalid
         if (this._isAuthError(balanceMessage)) {
-          // FIX: "Unauthorized" from Binance can also mean IP restriction.
-          // Try fetchTicker as a lighter check before rejecting completely.
+          // Binance public ticker checks do not prove the private API key can
+          // read account balances. Reject it so the UI does not mark a broken
+          // real account as linked and then fall back to a shared paper balance.
+          if (exchange.toLowerCase().includes('binance')) {
+            const testnetHint = isBinanceTest
+              ? ' تأكد أن المفتاح من Binance Testnet وليس من الحساب الحي، وأن صلاحية القراءة مفعلة وأن قيود IP تسمح بخادم المنصة.'
+              : ' إذا كنت تستخدم مفتاح Testnet، اختر "Binance Spot Testnet" أو "Binance Futures Testnet" بدلاً من "Binance". تأكد أيضاً من تفعيل صلاحية القراءة وقيود IP.'
+            return { valid: false, error: `تعذر قراءة رصيد Binance بهذا المفتاح.${testnetHint}` };
+          }
+
+          // For non-Binance exchanges, keep the lighter public check fallback.
           try {
             if (typeof exchangeInstance.fetchTicker === 'function') {
               await exchangeInstance.fetchTicker('BTC/USDT');
@@ -1269,9 +1286,15 @@ export class CredentialsService {
           return { valid: true, permissions: ['read', 'trade'] };
         }
 
-        // If permission error → key is valid but missing permissions
+        // If permission error → key is not usable for balance reads.
         if (balanceMessage.includes('Permission') || balanceMessage.includes('forbidden') ||
             balanceMessage.includes('IP ban') || balanceMessage.includes('ip not allowed')) {
+          if (exchange.toLowerCase().includes('binance')) {
+            return {
+              valid: false,
+              error: 'مفتاح Binance لا يستطيع قراءة الرصيد. فعّل صلاحية القراءة وتأكد من قيود IP أو أضف IP الخادم في Binance.',
+            };
+          }
           this.logger.warn(`Key valid but restricted: ${balanceMessage.substring(0, 100)}`);
           return { valid: true, permissions: ['read', 'trade'] };
         }

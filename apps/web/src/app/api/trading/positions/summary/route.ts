@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createNestJSProxyHandlers } from '@/lib/nestjs-proxy'
 
 export const dynamic = 'force-dynamic'
 
@@ -10,7 +9,8 @@ export const dynamic = 'force-dynamic'
  * fallback to equity=0 and buyingPower=0, which broke BotEngine risk calc.
  *
  * Proxies to NestJS /api/trading/positions/summary.
- * If NestJS is unavailable, returns a calculated summary from paper trades.
+ * If NestJS is unavailable, returns an unavailable response instead of a
+ * synthetic shared balance.
  */
 export async function GET(req: NextRequest) {
   const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
@@ -25,30 +25,34 @@ export async function GET(req: NextRequest) {
       },
     })
 
-    if (res.ok) {
-      const data = await res.json()
-      return NextResponse.json(data)
-    }
-  } catch {
-    // NestJS unavailable — use paper trading fallback below
+    const data = await res.json().catch(() => null)
+    return NextResponse.json(
+      data || {
+        success: false,
+        error: 'Trading API unavailable',
+      },
+      { status: res.status },
+    )
+  } catch (error) {
+    console.warn('[positions/summary] NestJS unavailable:', error)
   }
 
-  // FIX: Return paper trading balance ($10,000) when NestJS is unavailable.
-  // Previously returned totalBalance=0, which caused BotEngine to refuse trading
-  // ("لا يمكن تحديد القدرة الشرائية"). Now returns the standard paper balance
-  // so the agent and bot can function in paper trading mode even without NestJS.
-  return NextResponse.json({
-    success: true,
-    source: 'paper-trading-fallback',
-    data: {
-      totalPositions: 0,
-      totalValue: 0,
-      unrealizedPnl: 0,
-      realizedPnl: 0,
-      totalBalance: 10000,     // FIX: Paper trading balance — allows agent/bot to trade
-      totalExposure: 0,
-      currency: 'USD',
-      mode: 'paper-trading',
+  return NextResponse.json(
+    {
+      success: false,
+      source: 'nestjs-unavailable',
+      error: 'قاعدة بيانات التداول غير متاحة حالياً، ولا يمكن عرض رصيد افتراضي لحساب حقيقي.',
+      data: {
+        totalPositions: 0,
+        totalValue: 0,
+        unrealizedPnl: 0,
+        realizedPnl: 0,
+        totalBalance: 0,
+        totalExposure: 0,
+        currency: 'USD',
+        mode: 'unavailable',
+      },
     },
-  })
+    { status: 503 },
+  )
 }

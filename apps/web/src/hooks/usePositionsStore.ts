@@ -566,24 +566,21 @@ export const usePositionsStore = create<PositionsState>()(
 
           if (allRealFailed) {
             // ALL real exchanges failed — user has Binance/Alpaca but they're unreachable.
-            // V164 FIX: Instead of showing $0 (which is confusing), show the paper balance
-            // BUT clearly mark it as "paper trading" with exchangeUnavailable flag.
-            // The UI component (PortfolioMini) reads this flag and shows a warning.
-            // This way: users see a number (not $0) + know it's paper, not real.
+            // Do not display paper balance as a substitute for a broken real
+            // exchange account. That made multiple real users appear to have
+            // the same balance.
             console.warn(
-              `[PositionsStore] V164: ALL ${realExchangesFailed.length} real exchange balance(s) FAILED. ` +
-              `Showing paper trading balance ($${paperExchange?.equity || 0}) with warning. ` +
+              `[PositionsStore] ALL ${realExchangesFailed.length} real exchange balance(s) FAILED. ` +
+              `Showing exchange-unavailable state instead of paper balance. ` +
               `Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
             )
             exchangeUnavailable = true
-            // V164: Use paper balance as the display value, but mark it as paper
-            // The UI will show a clear "⚠ البورصة غير متاحة" warning
-            adjustedTotalEquityUsd = paperExchange?.equity || 0
-            adjustedTotalAvailableUsd = paperExchange?.available || 0
-            adjustedTotalUsedMargin = paperExchange?.usedMargin || 0
+            adjustedTotalEquityUsd = 0
+            adjustedTotalAvailableUsd = 0
+            adjustedTotalUsedMargin = 0
           } else if (realExchangesSuccess.length > 0) {
-            // At least one real exchange succeeded — use total from ALL exchanges
-            // (successful real + paper trading)
+            // At least one real exchange succeeded — backend totals exclude
+            // paper trading when real credentials exist.
             adjustedTotalEquityUsd = totalEquityUsd
             adjustedTotalAvailableUsd = totalAvailableUsd
             adjustedTotalUsedMargin = totalUsedMargin
@@ -717,11 +714,10 @@ export const usePositionsStore = create<PositionsState>()(
             effectiveEquity = adjustedTotalEquityUsd  // Already = balance + PnL
             effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
           } else if (exchangeUnavailable) {
-            // V164: Real exchange failed — showing paper balance as fallback.
-            // Paper equity already includes unrealized PnL from backend,
-            // so don't add it again (would double-count).
-            effectiveEquity = adjustedTotalEquityUsd  // Paper balance already = base + PnL
-            effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw paper balance
+            // Real exchange failed. Keep the balance empty and let the UI show
+            // the unavailable state instead of reusing the shared paper balance.
+            effectiveEquity = 0
+            effectiveCash = 0
           } else {
             // V140B: For real accounts, equity = totalBalance + unrealizedPnl
             // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)
@@ -760,6 +756,10 @@ export const usePositionsStore = create<PositionsState>()(
             exchangeUnavailable,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
+
+          if (exchangeUnavailable) {
+            return
+          }
 
           // ═══════════════════════════════════════════════════════════════
           // FIX: REMOVED wallet asset "positions" creation.

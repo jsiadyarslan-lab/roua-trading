@@ -30,8 +30,9 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, AreaChart, Area, BarChart, Bar,
 } from 'recharts'
-import { TrendingUp, TrendingDown, Award, Target, BarChart2, X as XIcon, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain } from 'lucide-react'
+import { TrendingUp, TrendingDown, Award, Target, BarChart2, X as XIcon, Shield, Activity, RefreshCw, Loader2, AlertTriangle, ChevronRight, Clock, History, Brain, Download, FileText } from 'lucide-react'
 import { usePaperTradesStore, ClosedPaperTrade } from '@/hooks/usePaperTradesStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { fetchPositionsUnified, fetchSummaryUnified, closePositionUnified } from '@/lib/api-fetch'
 import { fmtPriceLocale } from '@/lib/price-format'
 
@@ -219,6 +220,11 @@ export default function PortfolioPage() {
   const [apiError, setApiError] = useState<string | null>(null)
   const [showClosed, setShowClosed] = useState(false)
   const { closedTrades: closedPaperTrades } = usePaperTradesStore()
+  // V168: Use the shared positions store which merges API + paper trading positions
+  const storePositions = usePositionsStore(s => s.positions)
+  const storeAccount = usePositionsStore(s => s.account)
+  const storeFetchPositions = usePositionsStore(s => s.fetchPositions)
+  const storeFetchAccount = usePositionsStore(s => s.fetchAccount)
 
   // New states for P5 (Portfolio Optimization)
   const [searchQuery, setSearchQuery] = useState('')
@@ -262,8 +268,38 @@ export default function PortfolioPage() {
 
   const fetchPositions = useCallback(async () => {
     try {
+      // V168: First try the shared store (which merges API + paper trading)
+      await storeFetchPositions()
+      const storeP = usePositionsStore.getState().positions
+      // Also try the direct unified fetch as backup
       const result = await fetchPositionsUnified()
-      setPositions(result.positions as Position[])
+      // Merge: deduplicate by symbol+side
+      const apiPositions = result.positions as Position[]
+      const allMap = new Map<string, Position>()
+      // Add store positions first (includes paper trades)
+      storeP.forEach((p: any) => {
+        const key = `${p.symbol}-${p.side}`
+        if (!allMap.has(key)) allMap.set(key, {
+          id: p.id || p.dbId || key,
+          symbol: p.symbol,
+          side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
+          quantity: Number(p.qty) || 0,
+          entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
+          currentPrice: Number(p.currentPrice) || 0,
+          unrealizedPnl: Number(p.unrealizedPnl) || 0,
+          exchange: p.exchange,
+          stopLoss: Number(p.stopLoss || p.sl) || undefined,
+          takeProfit: Number(p.takeProfit || p.tp) || undefined,
+          openedAt: p.openedAt,
+          source: p.source || p.tradeSource,
+        })
+      })
+      // Add API positions (override if same key)
+      apiPositions.forEach((p: Position) => {
+        const key = `${p.symbol}-${p.side}`
+        allMap.set(key, p)
+      })
+      setPositions(Array.from(allMap.values()))
       if (result.error) {
         setApiError(result.error)
       } else {
@@ -272,7 +308,7 @@ export default function PortfolioPage() {
     } catch (e: unknown) {
       setApiError(`خطأ في الاتصال بخادم التداول: ${e instanceof Error ? e.message : 'غير معروف'}`)
     }
-  }, [])
+  }, [storeFetchPositions])
 
   const fetchClosedPositions = useCallback(async () => {
     try {
@@ -290,6 +326,19 @@ export default function PortfolioPage() {
 
   const fetchSummary = useCallback(async () => {
     try {
+      // V168: Use store account as primary source
+      await storeFetchAccount()
+      const acct = usePositionsStore.getState().account
+      if (acct) {
+        setSummary({
+          totalPositions: positions.length,
+          totalValue: Number(acct.equity) || Number(acct.totalValue) || 0,
+          unrealizedPnl: Number(acct.unrealizedPnl) || 0,
+          realizedPnl: Number(acct.realizedPnl) || 0,
+        })
+        return
+      }
+      // Fallback to unified fetch
       const result = await fetchSummaryUnified()
       if (result.summary) {
         setSummary(result.summary as PositionSummary)
@@ -297,7 +346,7 @@ export default function PortfolioPage() {
     } catch (_e: unknown) {
       // Error handled silently
     }
-  }, [])
+  }, [storeFetchAccount, positions.length])
 
   const fetchTrades = useCallback(async () => {
     try {
@@ -463,6 +512,66 @@ export default function PortfolioPage() {
   const totalTradeCount = dateFilteredClosedPositions.length + dateFilteredPaperTrades.filter(t => !dateFilteredClosedPositions.some(p => p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01)).length
   const winRate = totalTradeCount > 0 ? (winningCount / totalTradeCount) * 100 : 0
 
+  // V168: Total profit/loss size per category
+  const totalProfitSize = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) > 0).reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
+    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) > 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
+  const totalLossSize = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) < 0).reduce((sum, p) => sum + Math.abs(p.realizedPnl || 0), 0)
+    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) < 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + Math.abs(p.realizedPnl || 0), 0)
+
+  // V168: Export functions
+  const exportToCSV = useCallback((data: any[], filename: string) => {
+    if (data.length === 0) return
+    const headers = Object.keys(data[0])
+    const csvRows = [
+      headers.join(','),
+      ...data.map(row => headers.map(h => {
+        const val = row[h]
+        // Escape quotes and wrap in quotes if contains comma
+        const str = String(val ?? '')
+        return str.includes(',') || str.includes('"') ? `"${str.replace(/"/g, '""')}"` : str
+      }).join(','))
+    ]
+    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }, [])
+
+  const exportOpenPositions = useCallback(() => {
+    const data = positions.map(p => ({
+      'الزوج': p.symbol,
+      'اتجاه': p.side === 'BUY' ? 'شراء' : 'بيع',
+      'كمية': p.quantity,
+      'سعر الدخول': p.entryPrice,
+      'السعر الحالي': p.currentPrice,
+      'وقف خسارة': p.stopLoss || '',
+      'جني أرباح': p.takeProfit || '',
+      'P&L': p.unrealizedPnl || 0,
+      'تاريخ الفتح': p.openedAt || '',
+      'المصدر': p.source || '',
+    }))
+    exportToCSV(data, 'open_positions')
+  }, [positions, exportToCSV])
+
+  const exportClosedTrades = useCallback((data: any[]) => {
+    const csvData = data.map(t => ({
+      'الزوج': t.symbol,
+      'اتجاه': t.side === 'BUY' ? 'شراء' : 'بيع',
+      'نوع': t.type,
+      'كمية': t.quantity,
+      'سعر الدخول': t.price,
+      'سعر الخروج': t.exitPrice || '',
+      'P&L': t.pnl || 0,
+      'سبب الإغلاق': t.exitReason || '',
+      'تاريخ الفتح': t.openedAt || '',
+      'تاريخ الإغلاق': t.executedAt,
+    }))
+    exportToCSV(csvData, 'closed_trades')
+  }, [exportToCSV])
+
   // ── Performance chart data (daily P&L from trades + closed paper trades) ──
   const performanceData = (() => {
     const dailyMap: Record<string, { date: string; pnl: number; trades: number }> = {}
@@ -618,6 +727,43 @@ export default function PortfolioPage() {
           fontSize: 18, color: T.text, margin: 0,
         }}>المحفظة</h1>
         <div style={{ flex: 1 }} />
+        {/* V168: Export buttons */}
+        {(positions.length > 0 || filteredHistory.length > 0) && (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {positions.length > 0 && (
+              <button
+                onClick={exportOpenPositions}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '5px 10px', borderRadius: 7,
+                  border: `0.5px solid ${T.green}44`, background: `${T.green}0d`,
+                  color: T.green, fontFamily: "'Cairo', sans-serif",
+                  fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                }}
+                title="تصدير الصفقات المفتوحة CSV"
+              >
+                <Download size={10} />
+                مفتوحة
+              </button>
+            )}
+            {filteredHistory.length > 0 && (
+              <button
+                onClick={() => exportClosedTrades(filteredHistory)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 4,
+                  padding: '5px 10px', borderRadius: 7,
+                  border: `0.5px solid ${T.blue}44`, background: `${T.blue}0d`,
+                  color: T.cyan, fontFamily: "'Cairo', sans-serif",
+                  fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
+                }}
+                title="تصدير الصفقات المغلقة CSV"
+              >
+                <FileText size={10} />
+                مغلقة
+              </button>
+            )}
+          </div>
+        )}
         <button
           onClick={fetchAll}
           disabled={loading}
@@ -654,6 +800,16 @@ export default function PortfolioPage() {
           color={totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2}
           icon={TrendingUp}
           sub={`${closedPositions.length} صفقة مغلقة`}
+        />
+        <StatCard
+          label="إجمالي الربح" value={`+$${fmt(totalProfitSize, 2)}`}
+          color={T.green} icon={TrendingUp}
+          sub={`${winningCount} صفقة رابحة`}
+        />
+        <StatCard
+          label="إجمالي الخسارة" value={`-$${fmt(totalLossSize, 2)}`}
+          color={T.red} icon={TrendingDown}
+          sub={`${losingCount} صفقة خاسرة`}
         />
         <StatCard
           label="نسبة الفوز" value={`${winRate.toFixed(1)}%`}

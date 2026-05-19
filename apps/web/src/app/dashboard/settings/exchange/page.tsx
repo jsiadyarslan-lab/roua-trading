@@ -245,17 +245,42 @@ export default function ExchangeSettingsPage() {
                     )}
                   </button>
                 </div>
-                <ol className="mt-3 text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
-                  <li>اذهب إلى <span className="text-foreground font-medium" dir="ltr">Binance → API Management</span></li>
-                  <li>اضغط <span className="text-foreground font-medium">Edit</span> بجانب مفتاح API الخاص بك</li>
-                  <li>في قسم <span className="text-foreground font-medium" dir="ltr">IP Access Restrictions</span></li>
-                  <li>اختر <span className="text-foreground font-medium">Restrict access to trusted IPs only</span></li>
-                  <li>أضف عنوان IP: <code className="text-amber-300 font-mono font-bold">{serverIp}</code></li>
-                  <li>احفظ التغييرات ✅</li>
-                </ol>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  💡 <span className="text-foreground">ملاحظة:</span> يمكنك أيضاً اختيار "Unrestricted" لكن Binance ستنهي صلاحية المفتاح كل 90 يوم.
-                </p>
+
+                {/* V166: Key-type-aware IP restriction instructions */}
+                {keyType === 'hmac' ? (
+                  <>
+                    <ol className="mt-3 text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                      <li>اذهب إلى <span className="text-foreground font-medium" dir="ltr">Binance → API Management</span></li>
+                      <li>اضغط <span className="text-foreground font-medium">Edit</span> بجانب مفتاح API الخاص بك</li>
+                      <li>في قسم <span className="text-foreground font-medium" dir="ltr">IP Access Restrictions</span></li>
+                      <li>اختر <span className="text-foreground font-medium">Restrict access to trusted IPs only</span></li>
+                      <li>أضف عنوان IP: <code className="text-amber-300 font-mono font-bold">{serverIp}</code></li>
+                      <li>احفظ التغييرات ✅</li>
+                    </ol>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      💡 <span className="text-foreground">ملاحظة:</span> مفاتيح HMAC بدون IP Restriction لن تملك إلا صلاحية القراءة فقط. يمكنك أيضاً اختيار "Unrestricted" لكن Binance ستنهي صلاحية المفتاح كل 90 يوم.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div className="mt-3 p-2.5 rounded-md bg-blue-500/8 border border-blue-500/15">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        مفاتيح {keyType === 'ed25519' ? 'Ed25519' : 'RSA'} هي مفاتيح <span className="text-blue-300 font-medium">Self-generated</span> — لا تحتاج إلى IP Access Restrictions لأنها أكثر أماناً بشكل افتراضي.
+                        Binance يتيح لك صلاحيات كاملة بدون قيود IP عند استخدام هذا النوع من المفاتيح.
+                      </p>
+                    </div>
+                    <ol className="mt-3 text-xs text-muted-foreground space-y-1.5 list-decimal list-inside">
+                      <li>اذهب إلى <span className="text-foreground font-medium" dir="ltr">Binance → API Management</span></li>
+                      <li>اضغط <span className="text-foreground font-medium">Edit</span> بجانب مفتاح API الخاص بك</li>
+                      <li>تأكد أن صلاحيات <span className="text-foreground font-medium" dir="ltr">Spot & Margin Trading</span> و <span className="text-foreground font-medium" dir="ltr">User Data</span> مفعّلة ✅</li>
+                      <li>لا حاجة لإضافة IP Restriction — مفتاحك آمن بدونها</li>
+                    </ol>
+                    <p className="mt-2 text-xs text-amber-300">
+                      ⚠️ <span className="text-foreground">مهم:</span> تأكد أنك لصقت <span className="font-medium">المفتاح الخاص كاملاً</span> (بما في ذلك أسطر BEGIN/END) في حقل "المفتاح الخاص" أدناه.
+                      المفتاح الخاص ≠ المفتاح العام. المفتاح العام رفعته إلى Binance، أما الخاص فنحتاجه هنا للتوقيع.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           </div>

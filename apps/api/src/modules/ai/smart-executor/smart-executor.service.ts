@@ -630,6 +630,44 @@ export class SmartExecutorService implements OnModuleDestroy {
           isPaperTrading = cred.exchange === 'paper-trading';
           isTestnet = cred.testnet === true && cred.exchange !== 'paper-trading';
           exchangeName = cred.exchange;
+        } else {
+          // CRITICAL FIX: activeCredentialId points to a deleted credential.
+          // Auto-select a new valid credential for this user instead of
+          // silently falling through to paper trading mode.
+          this.logger.warn(
+            `⚔️ CRITICAL: activeCredentialId=${activeCredentialId} not found for user ${userId} ` +
+            `— credential was deleted. Auto-selecting new credential.`
+          );
+          // Clear stale setting
+          try {
+            await this.prisma.setting.deleteMany({
+              where: { key: `user:${userId}:activeCredentialId` },
+            });
+          } catch { /* ignore */ }
+          // Find a new valid credential
+          const newCred = await this.prisma.exchangeCredential.findFirst({
+            where: { userId, isValid: true },
+            orderBy: { createdAt: 'desc' },
+            select: { id: true, testnet: true, exchange: true },
+          });
+          if (newCred) {
+            activeCredentialId = newCred.id;
+            isPaperTrading = newCred.exchange === 'paper-trading';
+            isTestnet = newCred.testnet === true && newCred.exchange !== 'paper-trading';
+            exchangeName = newCred.exchange;
+            // Persist the new selection
+            await this.prisma.setting.upsert({
+              where: { key: `user:${userId}:activeCredentialId` },
+              update: { value: newCred.id },
+              create: { key: `user:${userId}:activeCredentialId`, value: newCred.id },
+            });
+            this.logger.log(
+              `⚔️ Auto-selected new credential ${newCred.id} (${newCred.exchange}) for user ${userId}`
+            );
+          } else {
+            activeCredentialId = undefined;
+            isPaperTrading = true;
+          }
         }
       } catch (err: any) {
         this.logger.warn(`⚔️ V135 Could not read credential metadata for user ${userId}: ${err.message}`);

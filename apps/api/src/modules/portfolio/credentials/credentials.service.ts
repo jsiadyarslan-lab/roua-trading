@@ -382,6 +382,24 @@ export class CredentialsService {
     // the old balance until the cache expires.
     this.invalidateBalanceCache(userId);
 
+    // ── CRITICAL FIX: Clear activeCredentialId if it points to the deleted credential ──
+    // When a user deletes a credential and adds a new one, the old activeCredentialId
+    // in Setting still points to the deleted credential. SmartExecutor then fails to
+    // find the credential and falls back to paper trading — same balance for all users.
+    try {
+      const activeSetting = await this.prisma.setting.findFirst({
+        where: { key: `user:${userId}:activeCredentialId` },
+      });
+      if (activeSetting?.value === credentialId) {
+        await this.prisma.setting.delete({
+          where: { id: activeSetting.id },
+        });
+        this.logger.log(`🗑️ Cleared stale activeCredentialId for user ${userId}`);
+      }
+    } catch (clearErr: any) {
+      this.logger.warn(`Failed to clear activeCredentialId: ${clearErr.message}`);
+    }
+
     this.logger.log(`🗑️ Credential deleted: ${credential.exchange}/${credential.label}`);
 
     return { success: true };

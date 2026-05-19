@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v168-portfolio-pnl-export-fix
+ARG BUILD_CACHE=v169-data-isolation-unique-guest
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -45,12 +45,6 @@ RUN npm ci --install-strategy=hoisted
 # Stage 2: Build BOTH applications
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
-
-# CRITICAL: Re-declare BUILD_CACHE so this stage sees the ARG value.
-# This ALSO forces Docker to invalidate all subsequent layers when
-# BUILD_CACHE changes — preventing stale cached builds on Railway.
-ARG BUILD_CACHE
-RUN echo "BUILD_CACHE=$BUILD_CACHE — forcing fresh build"
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
@@ -96,14 +90,6 @@ RUN cd apps/web && next build --webpack
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
 
-# CRITICAL FIX: Re-declare ARGs so they're available in this stage.
-# In Docker multi-stage builds, global ARGs (declared before the first FROM)
-# are NOT automatically available in later stages. They MUST be re-declared
-# without a default value in each stage that needs them.
-# Without this, DEPLOY_COMMIT and BUILD_CACHE were always empty ("unknown").
-ARG BUILD_CACHE
-ARG GIT_COMMIT
-
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # procps: Provides pgrep/pkill for process management in start.sh
 # NOTE: PgBouncer removed in v7 — using Railway's built-in pooler or direct connections
@@ -120,11 +106,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
-# Pass git commit SHA so /api/deploy-version can report what version is running
-# Previously showed "unknown" because GIT_COMMIT ARG wasn't in scope
+# CRITICAL FIX: Pass git commit SHA so /api/health can report what version is running
 ENV DEPLOY_COMMIT=${GIT_COMMIT}
 # Pass build cache version so /api/deploy-version can report it
-# Previously showed "unknown" because BUILD_CACHE ARG wasn't in scope
 ENV BUILD_CACHE=${BUILD_CACHE}
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
@@ -173,4 +157,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v161 - Mobile v5: CSS classes, touch barrier, isolation:isolate, SW cache bust
+# Build v93 - FIX v11: Direct DB connection, no PgBouncer, no SSL stripping

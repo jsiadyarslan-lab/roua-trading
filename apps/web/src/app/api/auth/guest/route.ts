@@ -84,27 +84,45 @@ export async function GET(request: NextRequest) {
       // Rate limit check failed — continue (don't block guest access)
     }
 
-    // ANTI-PHANTOM-USER FIX: Use the SHARED guest user instead of creating
-    // a new one per session. This prevents DB bloat from thousands of
-    // guest-{uuid}@roua.auto phantom accounts.
-    // Each guest still gets their own unique SESSION token, but all guests
-    // share the same user account. This is safe because GuestGuard blocks
-    // data-modifying actions for guest users.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // V169 FIX: UNIQUE guest user per session (DATA ISOLATION)
+    //
+    // ROOT CAUSE: Previously ALL guests shared guest@roua.auto, which
+    // meant every guest user saw the same balance, positions, and trades.
+    // Now: Each guest gets their own unique user account with isolated data.
+    //
+    // Guest cleanup: The maintenance cron job deletes guest-*@roua.auto
+    // users whose sessions have all expired, preventing DB bloat.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     let userId: string
-    const guestDisplayName = 'زائر تجريبي'
-    let guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
-    if (!guestUser) {
+    const guestUuid = crypto.randomBytes(8).toString('hex')
+    const guestEmail = `guest-${guestUuid}@roua.auto`
+    const guestDisplayName = `زائر ${guestUuid.substring(0, 6)}`
+    let guestUser = null
+    try {
+      guestUser = await db.user.create({
+        data: {
+          email: guestEmail,
+          displayName: guestDisplayName,
+          tier: 'FREE',
+        },
+      })
+    } catch {
+      // Race condition or duplicate — try with a different UUID
+      const altUuid = crypto.randomBytes(8).toString('hex')
       try {
         guestUser = await db.user.create({
           data: {
-            email: 'guest@roua.auto',
-            displayName: guestDisplayName,
+            email: `guest-${altUuid}@roua.auto`,
+            displayName: `زائر ${altUuid.substring(0, 6)}`,
             tier: 'FREE',
           },
         })
       } catch {
-        // Race condition: another request created it first
-        guestUser = await db.user.findUnique({ where: { email: 'guest@roua.auto' } })
+        // Still failed — redirect to login
+        const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('error', 'guest_creation_failed')
+        return NextResponse.redirect(loginUrl)
       }
     }
     if (!guestUser) {

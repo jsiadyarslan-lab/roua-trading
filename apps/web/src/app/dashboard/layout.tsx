@@ -55,7 +55,7 @@ export default function DashboardLayout({
         <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
-          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <DashboardLayoutStyles />
             <ErrorBoundary>
               <AuthInitializer />

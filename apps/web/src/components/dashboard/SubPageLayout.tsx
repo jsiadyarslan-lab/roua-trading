@@ -57,7 +57,7 @@ export default function SubPageLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   return (
-    <div dir="rtl" style={{ height: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div dir="rtl" style={{ minHeight: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
       {/* Top Navigation Bar */}
       <div style={{
         minHeight: '52px',

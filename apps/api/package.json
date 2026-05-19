@@ -37,20 +37,21 @@
     "ccxt": "^4.4.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.1.0",
     "ioredis": "^5.6.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.0",
-    "ws": "^8.20.0",
-    "compression": "^1.7.5"
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.1.19",
     "@types/amqplib": "^0.10.8",
+    "@types/compression": "^1.8.1",
     "@types/cookie-parser": "^1.4.8",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",
@@ -62,7 +63,6 @@
     "supertest": "^7.2.2",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
-    "typescript": "^5",
-    "@types/compression": "^1.7.5"
+    "typescript": "^5"
   }
 }

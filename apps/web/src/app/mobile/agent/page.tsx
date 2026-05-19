@@ -191,7 +191,7 @@ export default function MobileAgentPage() {
                       <div style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>{d.time}</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'left' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <div style={{
                       display: 'inline-block', padding: '2px 8px', borderRadius: 6,
                       background: d.action === 'BUY' ? 'rgba(0,255,163,0.1)' : d.action === 'SELL' ? 'rgba(255,71,87,0.1)' : 'rgba(139,146,168,0.1)',
@@ -202,17 +202,17 @@ export default function MobileAgentPage() {
                       {d.action === 'BUY' ? 'شراء' : d.action === 'SELL' ? 'بيع' : 'انتظار'}
                     </div>
                     {d.pnl && (
-                      <div style={{ fontSize: 10, fontWeight: 700, color: d.pnl.startsWith('+') ? C.green : C.red, fontFamily: "'JetBrains Mono', monospace", marginTop: 2 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: d.pnl.startsWith('+') ? C.green : C.red, fontFamily: "'JetBrains Mono', monospace", marginTop: 2, direction: 'ltr' }}>
                         {d.pnl}
                       </div>
                     )}
                   </div>
                 </div>
-                <div style={{ fontSize: 10, color: C.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6, paddingRight: 36 }}>
+                <div style={{ fontSize: 10, color: C.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6, paddingInlineStart: 36 }}>
                   {d.reason}
                 </div>
                 {/* Confidence bar */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, paddingRight: 36 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6, paddingInlineStart: 36 }}>
                   <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>الثقة</span>
                   <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
                     <div style={{
@@ -349,7 +349,7 @@ export default function MobileAgentPage() {
                       <div style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>{model.desc}</div>
                     </div>
                   </div>
-                  <div style={{ textAlign: 'left' }}>
+                  <div style={{ textAlign: 'start' }}>
                     <div style={{
                       display: 'inline-block', padding: '2px 6px', borderRadius: 4,
                       background: model.status === 'active' ? 'rgba(0,255,163,0.1)' : 'rgba(139,146,168,0.08)',
@@ -361,7 +361,7 @@ export default function MobileAgentPage() {
                     </div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingRight: 36 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, paddingInlineStart: 36 }}>
                   <span style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>الدقة</span>
                   <div style={{ flex: 1, height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.06)' }}>
                     <div style={{

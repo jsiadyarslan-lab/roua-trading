@@ -163,7 +163,7 @@ export default function MobileKycPage() {
                   {ex.label && <div style={{ fontSize: 9, color: C.text2, fontFamily: "'Cairo', sans-serif" }}>{ex.label}</div>}
                 </div>
               </div>
-              <div style={{ textAlign: 'left' }}>
+              <div style={{ textAlign: 'start', direction: 'ltr' }}>
                 <div style={{ fontSize: 12, fontWeight: 800, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>
                   ${Number(ex.equity).toFixed(2)}
                 </div>
@@ -350,14 +350,14 @@ export default function MobileKycPage() {
                     value={apiKey} onChange={e => setApiKey(e.target.value)}
                     placeholder="أدخل API Key"
                     style={{
-                      width: '100%', padding: '10px 36px 10px 12px', borderRadius: 8,
+                      width: '100%', padding: '10px 12px 10px 36px', borderRadius: 8,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${!apiKey ? C.border : 'rgba(0,212,255,0.3)'}`,
                       color: C.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                       outline: 'none', direction: 'ltr', boxSizing: 'border-box',
                     }}
                   />
                   <button onClick={() => setShowKey(!showKey)} style={{
-                    position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                    position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer', color: C.text2, padding: 0,
                   }}>
                     {showKey ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -376,14 +376,14 @@ export default function MobileKycPage() {
                     value={apiSecret} onChange={e => setApiSecret(e.target.value)}
                     placeholder="أدخل API Secret"
                     style={{
-                      width: '100%', padding: '10px 36px 10px 12px', borderRadius: 8,
+                      width: '100%', padding: '10px 12px 10px 36px', borderRadius: 8,
                       background: 'rgba(255,255,255,0.04)', border: `1px solid ${!apiSecret ? C.border : 'rgba(0,212,255,0.3)'}`,
                       color: C.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
                       outline: 'none', direction: 'ltr', boxSizing: 'border-box',
                     }}
                   />
                   <button onClick={() => setShowSecret(!showSecret)} style={{
-                    position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+                    position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer', color: C.text2, padding: 0,
                   }}>
                     {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}

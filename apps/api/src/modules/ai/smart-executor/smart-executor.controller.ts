@@ -161,8 +161,12 @@ export class SmartExecutorController {
    */
   @Get('user/status')
   async getUserStatus(@Request() req: any) {
-    const userState = await this.executorService.getUserState(req.user.id);
-    const globalStatus = await this.executorService.getStatus(req.user?.id);
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+    }
+    const userState = await this.executorService.getUserState(userId);
+    const globalStatus = await this.executorService.getStatus(userId);
     return {
       success: true,
       data: {

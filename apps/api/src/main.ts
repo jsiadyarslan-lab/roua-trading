@@ -58,31 +58,37 @@ async function bootstrap() {
       referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     }));
 
-    // BUG 11 FIX: Add Cache-Control headers based on response type.
-    // V170 CRITICAL FIX: Added `res.headersSent` check to prevent
-    // ERR_HTTP_HEADERS_SENT crash. When compression middleware or
-    // error handlers call res.end() after headers are already flushed,
-    // the old code tried to set Cache-Control → crash → server dies → 502s.
+    // V172 FIX: Set security + Cache-Control headers BEFORE response is sent.
+    // The V170 approach of wrapping res.end() was WRONG — compression middleware
+    // runs AFTER our wrapper and calls res.write() internally, which flushes headers
+    // before our wrapped res.end() code runs → "Cannot set headers after they are sent".
+    //
+    // FIX: Wrap res.json() instead. res.json() is called BEFORE compression runs,
+    // so we can safely set headers here. Also set static security headers upfront.
     app.use((req: any, res: any, next: any) => {
-      const originalEnd = res.end;
-      res.end = function (...args: any[]) {
-        // V170: Only set headers if they haven't been sent yet
-        if (!res.headersSent && !res.getHeader('Cache-Control')) {
+      // Static security headers — safe to set upfront (no body yet)
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-XSS-Protection', '0');
+
+      // Wrap res.json() to inject Cache-Control before any middleware sees the response
+      const originalJson = res.json.bind(res);
+      res.json = function (body: any) {
+        if (!res.getHeader('Cache-Control')) {
           const path = req.url || req.originalUrl || '';
-          if (path.includes('/api/exchange/') || path.includes('/api/health') || path.includes('/api/scanner/overview') || path.includes('/api/scanner/heatmap')) {
+          if (
+            path.includes('/api/exchange/') ||
+            path.includes('/api/health') ||
+            path.includes('/api/scanner/overview') ||
+            path.includes('/api/scanner/heatmap')
+          ) {
             res.setHeader('Cache-Control', 'public, max-age=5');
           } else {
             res.setHeader('Cache-Control', 'private, no-cache');
           }
         }
-        return originalEnd.apply(res, args);
+        return originalJson(body);
       };
 
-      // V170: Guard these too — setting headers after they're sent is fatal
-      if (!res.headersSent) {
-        res.setHeader('X-Content-Type-Options', 'nosniff');
-        res.setHeader('X-XSS-Protection', '0');
-      }
       next();
     });
 
@@ -248,13 +254,7 @@ async function bootstrap() {
 
       res.json({
         modules,
-        routes: {
-          total: routePaths.length,
-          smartExecutor: smartExecutorRoutes,
-          strategicCouncil: strategicCouncilRoutes,
-          agent: agentRoutes,
-          engine: engineRoutes,
-        },
+        timestamp: new Date().toISOString(),
       });
     });
 
@@ -316,12 +316,6 @@ async function bootstrap() {
         uptime: Math.round(process.uptime()),
         checks,
         responseTimeMs: Date.now() - start,
-        // DIAGNOSTIC: Check critical module loading
-        _modules: {
-          smartExecutor: (() => { try { app.get(require('./modules/ai/smart-executor/smart-executor.service').SmartExecutorService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-          strategicCouncil: (() => { try { app.get(require('./modules/ai/strategic-council/strategic-council.service').StrategicCouncilService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-          agentTrader: (() => { try { app.get(require('./agents/autonomous-trader/agent.service').AutonomousTraderAgentService); return 'LOADED'; } catch { return 'MISSING'; } })(),
-        },
       });
     });
 
@@ -441,37 +435,33 @@ async function bootstrap() {
     console.log(`📊 Environment: ${configService.get('NODE_ENV', 'development')}`);
     console.log(`📊 API_PORT: ${port}`);
 
-    // FIX: Log registered NestJS routes to diagnose missing controllers.
-    // If SmartExecutor/StrategicCouncil routes are missing, it means the module
-    // failed to initialize (duplicate ScheduleModule.forRoot(), circular deps, etc.)
+    // V172: Simplified route diagnostic — the old collectRoutes() was wrong.
+    // NestJS registers routes internally (not accessible via expressApp._router.stack
+    // in the same way plain Express does). The old diagnostic ALWAYS showed 0 routes
+    // even when all modules loaded successfully, creating confusion.
+    //
+    // New approach: check if key services are in the NestJS DI container.
+    // If they are, their controllers and routes are definitely registered.
     try {
-      const expressApp = app.getHttpAdapter().getInstance();
-      const routes: string[] = [];
-      function collectRoutes(stack: any[], prefix = '') {
-        for (const layer of stack) {
-          if (layer.route) {
-            const methods = Object.keys(layer.route.methods).map((m: string) => m.toUpperCase());
-            routes.push(`${methods.join(',')} ${prefix}${layer.route.path}`);
-          } else if (layer.handle && layer.handle.stack) {
-            const regex = layer.regexp?.toString() || '';
-            const match = regex.match(/\/api\/([^/]+)/);
-            const subPrefix = match ? `/api/${match[1]}` : prefix;
-            collectRoutes(layer.handle.stack, subPrefix);
-          }
-        }
-      }
-      collectRoutes(expressApp._router?.stack || []);
-      const smartExecutorRoutes = routes.filter(r => r.includes('smart-executor'));
-      const strategicCouncilRoutes = routes.filter(r => r.includes('strategic-council'));
-      const agentRoutes = routes.filter(r => r.includes('agent/trader'));
-      const engineRoutes = routes.filter(r => r.includes('engine'));
-      console.log(`📋 Total routes: ${routes.length}`);
-      console.log(`📋 SmartExecutor routes: ${smartExecutorRoutes.length} ${smartExecutorRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 StrategicCouncil routes: ${strategicCouncilRoutes.length} ${strategicCouncilRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 AgentTrader routes: ${agentRoutes.length} ${agentRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
-      console.log(`📋 Engine routes: ${engineRoutes.length} ${engineRoutes.length > 0 ? '✅' : '❌ MISSING'}`);
+      const { SmartExecutorService } = require('./modules/ai/smart-executor/smart-executor.service');
+      const { StrategicCouncilService } = require('./modules/ai/strategic-council/strategic-council.service');
+      const { AutonomousTraderAgentService } = require('./agents/autonomous-trader/agent.service');
+      const { EngineController } = require('./modules/engine/engine.controller');
+
+      const smLoaded = (() => { try { app.get(SmartExecutorService); return '✅ OK'; } catch { return '❌ MISSING'; } })();
+      const scLoaded = (() => { try { app.get(StrategicCouncilService); return '✅ OK'; } catch { return '❌ MISSING'; } })();
+      const atLoaded = (() => { try { app.get(AutonomousTraderAgentService); return '✅ OK'; } catch { return '❌ MISSING'; } })();
+      const ecLoaded = (() => { try { app.get(EngineController); return '✅ OK'; } catch { return '❌ MISSING'; } })();
+
+      console.log(`📋 SmartExecutorService:        ${smLoaded}`);
+      console.log(`📋 StrategicCouncilService:     ${scLoaded}`);
+      console.log(`📋 AutonomousTraderAgentService:${atLoaded}`);
+      console.log(`📋 EngineController:            ${ecLoaded}`);
+
+      const allOk = [smLoaded, scLoaded, atLoaded, ecLoaded].every(s => s.includes('✅'));
+      console.log(`📋 Module status: ${allOk ? '✅ ALL LOADED' : '⚠️ SOME MISSING — check logs above for initialization errors'}`);
     } catch (diagError: any) {
-      console.warn(`📋 Route diagnostic failed: ${diagError.message}`);
+      console.warn(`📋 Module diagnostic failed: ${diagError.message}`);
     }
 
     // FIX #2: Graceful shutdown — handle SIGTERM from Railway

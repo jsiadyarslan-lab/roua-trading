@@ -238,6 +238,23 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     };
 
     const chart = createChart(container, chartOptions);
+
+    // ── FIX: Release pointer capture on mobile ──
+    // lightweight-charts calls setPointerCapture() on touch, which captures ALL
+    // subsequent pointer events (including those on the navbar). This makes the
+    // bottom navbar completely unresponsive after touching the chart.
+    // We intercept gotpointercapture and release it so events can reach the navbar.
+    if (isMobile) {
+      const canvas = container.querySelector('canvas');
+      if (canvas) {
+        canvas.addEventListener('gotpointercapture', (e: Event) => {
+          const pe = e as PointerEvent;
+          try {
+            (e.target as HTMLElement).releasePointerCapture(pe.pointerId);
+          } catch { /* already released */ }
+        });
+      }
+    }
     chartInstanceRef.current = chart;
 
     // ── Candlestick Series ──

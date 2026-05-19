@@ -1,6 +1,6 @@
 :root {
   --m-nav-h: 44px;
-  --m-safe-b: env(safe-area-inset-bottom, 0px);
+  --m-safe-b: env(safe-area-inset-bottom, 16px);
   --m-nav-total: calc(var(--m-nav-h) + var(--m-safe-b));
   --m-safe-t: env(safe-area-inset-top, 0px);
   --m-bg: #0B0E14;
@@ -53,6 +53,7 @@ html, body {
   padding-top: 0;
   overflow: hidden;
   z-index: 1;
+  touch-action: pan-y;
 }
 
 /* NAVBAR — fixed at bottom */
@@ -64,6 +65,7 @@ html, body {
   height: var(--m-nav-total);
   z-index: 9999;
   isolation: isolate;
+  pointer-events: auto;
   display: flex;
   align-items: center;
   justify-content: space-around;

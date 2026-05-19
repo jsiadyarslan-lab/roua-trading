@@ -438,6 +438,16 @@
   padding-top: env(safe-area-inset-top);
 }
 
+/* Safe area padding-bottom fallback */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 16px);
+}
+
+/* Chart container — allow vertical scroll on mobile */
+.chart-container {
+  touch-action: pan-y;
+}
+
 /* Touch target minimum */
 .touch-target {
   min-height: 44px;

@@ -24,7 +24,11 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <ServiceWorkerRegistrar />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        {children}
+        <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
+          <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(var(--m-nav-total, 60px) + 8px)' }}>
+            {children}
+          </main>
+        </div>
         <MobileNavBar />
         {/* Portal container — same as dashboard layout. Using document.body as portal
             target causes "Node cannot be found in the current page" errors when Next.js

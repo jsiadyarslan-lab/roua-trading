@@ -579,19 +579,31 @@ export const usePositionsStore = create<PositionsState>()(
             (hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0)
 
           if (allRealFailed) {
-            // ALL real exchanges failed — user has Binance/Alpaca but they're unreachable.
-            // Do not display paper balance as a substitute for a broken real
-            // exchange account. That made multiple real users appear to have
-            // the same balance.
+            // V170.2 FIX: Real exchanges failed, but user still needs to see their balance.
+            //
+            // OLD V162 BEHAVIOR (too aggressive): Set everything to $0 → user sees
+            // empty dashboard with no explanation. This was meant to prevent the
+            // "shared balance" bug but the root cause is now fixed (V136: Smart Executor
+            // no longer auto-enabled for all users, each user has own paper balance).
+            //
+            // NEW BEHAVIOR: Show the paper-trading balance as a FALLBACK, but set
+            // exchangeUnavailable=true so the UI can show a clear warning:
+            //   "⚠️ حساب Binance غير متاح — الرصيد المعروض هو تداول تجريبي"
+            // This way the user sees their balance AND understands why it might differ
+            // from their real exchange account.
             console.warn(
               `[PositionsStore] ALL ${realExchangesFailed.length} real exchange balance(s) FAILED. ` +
-              `Showing exchange-unavailable state instead of paper balance. ` +
+              `Falling back to paper-trading balance with warning. ` +
               `Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
             )
             exchangeUnavailable = true
-            adjustedTotalEquityUsd = 0
-            adjustedTotalAvailableUsd = 0
-            adjustedTotalUsedMargin = 0
+            // V170.2: Use paper-trading balance as fallback (user's own, not shared)
+            if (paperExchange && paperExchange.equity > 0) {
+              adjustedTotalEquityUsd = paperExchange.equity
+              adjustedTotalAvailableUsd = paperExchange.available || 0
+              adjustedTotalUsedMargin = paperExchange.usedMargin || 0
+            }
+            // If no paper balance available either, leave as backend totals (may be 0)
           } else if (realExchangesSuccess.length > 0) {
             // At least one real exchange succeeded — backend totals exclude
             // paper trading when real credentials exist.
@@ -728,10 +740,11 @@ export const usePositionsStore = create<PositionsState>()(
             effectiveEquity = adjustedTotalEquityUsd  // Already = balance + PnL
             effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
           } else if (exchangeUnavailable) {
-            // Real exchange failed. Keep the balance empty and let the UI show
-            // the unavailable state instead of reusing the shared paper balance.
-            effectiveEquity = 0
-            effectiveCash = 0
+            // V170.2: Real exchange failed, but we have paper balance as fallback.
+            // exchangeUnavailable=true tells the UI to show a warning banner.
+            // Use adjustedTotalEquityUsd (which now contains paper balance from V170.2 fix).
+            effectiveEquity = adjustedTotalEquityUsd > 0 ? adjustedTotalEquityUsd + positionsUnrealizedPnl : 0
+            effectiveCash = adjustedTotalEquityUsd > 0 ? adjustedTotalEquityUsd - positionsUnrealizedPnl : 0
           } else {
             // V140B: For real accounts, equity = totalBalance + unrealizedPnl
             // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)
@@ -771,9 +784,10 @@ export const usePositionsStore = create<PositionsState>()(
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 
-          if (exchangeUnavailable) {
-            return
-          }
+          // V170.2: Don't return early when exchangeUnavailable — we now show
+          // paper balance as fallback with a warning banner. The old code
+          // returned early, which prevented wallet data from loading.
+          // if (exchangeUnavailable) { return }
 
           // ═══════════════════════════════════════════════════════════════
           // FIX: REMOVED wallet asset "positions" creation.

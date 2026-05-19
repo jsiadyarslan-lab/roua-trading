@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { AIOrchestratorService } from './services/ai-orchestrator.service';
 import { GroqService } from './services/groq.service';

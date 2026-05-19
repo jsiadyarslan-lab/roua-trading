@@ -4,6 +4,7 @@ import {
   ExecutionContext,
   CallHandler,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { catchError, finalize, switchMap } from 'rxjs/operators';
@@ -36,29 +37,38 @@ import { Request } from 'express';
 export class UserIsolationInterceptor implements NestInterceptor {
   private readonly logger = new Logger(UserIsolationInterceptor.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  // V170: @Optional() prevents cascading failure if PrismaService is unavailable.
+  // Without this, a DB connection failure during bootstrap would prevent
+  // ALL modules from loading → 0 routes → entire API returns 502.
+  constructor(@Optional() private readonly prisma?: PrismaService) {}
+
+  // V170: Type-safe getter — prisma is @Optional() so it can be undefined
+  private get p(): PrismaService {
+    return this.prisma!;
+  }
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
     const userId = (request as any).user?.id;
 
-    if (!userId) {
-      // No authenticated user — public route or background service
+    if (!userId || !this.prisma) {
+      // No authenticated user, or PrismaService unavailable — pass through
       return next.handle();
     }
 
     // Set RLS context before the handler runs
+    // (uses 'p' getter which asserts prisma is defined — checked above)
     return new Observable((subscriber) => {
-      this.prisma.setRlsUserId(userId)
+      this.p.setRlsUserId(userId)
         .then(() => {
           next.handle()
             .pipe(
               finalize(() => {
                 // Always clear RLS context after request completes
-                this.prisma.clearRlsUserId().catch(() => {});
+                this.p.clearRlsUserId().catch(() => {});
               }),
               catchError((err) => {
-                this.prisma.clearRlsUserId().catch(() => {});
+                this.p.clearRlsUserId().catch(() => {});
                 return throwError(() => err);
               }),
             )

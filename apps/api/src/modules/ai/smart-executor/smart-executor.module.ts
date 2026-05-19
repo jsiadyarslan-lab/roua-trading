@@ -9,7 +9,7 @@
 //   - ExchangeModule → لجلب الأسعار الحالية
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SmartExecutorService } from './smart-executor.service';
 import { SmartExecutorController } from './smart-executor.controller';
 import { PrismaModule } from '../../../common/prisma/prisma.module';
@@ -30,8 +30,8 @@ import { CredentialsModule } from '../../portfolio/credentials/credentials.modul
     AuditModule,
     ExchangeModule,
     TradingModule,
-    forwardRef(() => StrategicCouncilModule),
-    forwardRef(() => AiModule),
+    StrategicCouncilModule,
+    AiModule,
     NotificationModule,
     NewsModule,
     CredentialsModule,

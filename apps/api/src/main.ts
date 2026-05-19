@@ -59,10 +59,15 @@ async function bootstrap() {
     }));
 
     // BUG 11 FIX: Add Cache-Control headers based on response type.
+    // V170 CRITICAL FIX: Added `res.headersSent` check to prevent
+    // ERR_HTTP_HEADERS_SENT crash. When compression middleware or
+    // error handlers call res.end() after headers are already flushed,
+    // the old code tried to set Cache-Control → crash → server dies → 502s.
     app.use((req: any, res: any, next: any) => {
       const originalEnd = res.end;
       res.end = function (...args: any[]) {
-        if (!res.getHeader('Cache-Control')) {
+        // V170: Only set headers if they haven't been sent yet
+        if (!res.headersSent && !res.getHeader('Cache-Control')) {
           const path = req.url || req.originalUrl || '';
           if (path.includes('/api/exchange/') || path.includes('/api/health') || path.includes('/api/scanner/overview') || path.includes('/api/scanner/heatmap')) {
             res.setHeader('Cache-Control', 'public, max-age=5');
@@ -73,8 +78,11 @@ async function bootstrap() {
         return originalEnd.apply(res, args);
       };
 
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      res.setHeader('X-XSS-Protection', '0');
+      // V170: Guard these too — setting headers after they're sent is fatal
+      if (!res.headersSent) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('X-XSS-Protection', '0');
+      }
       next();
     });
 
@@ -125,7 +133,7 @@ async function bootstrap() {
         return next();
       }
 
-      res.status(403).json({
+      return res.status(403).json({
         statusCode: 403,
         message: 'طلب مرفوض — مصدر غير مصرح به (CSRF protection)',
         timestamp: new Date().toISOString(),

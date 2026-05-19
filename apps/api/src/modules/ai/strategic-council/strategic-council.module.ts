@@ -2,7 +2,7 @@
 // Roua Trading — Strategic Council Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { StrategicCouncilService } from './strategic-council.service';
 import { StrategicCouncilController } from './strategic-council.controller';
@@ -20,7 +20,7 @@ import { NewsModule } from '../../news/news.module';
     RedisModule,
     AuditModule,
     ExchangeModule,
-    forwardRef(() => AiModule),
+    AiModule,
     NewsModule,
   ],
   controllers: [StrategicCouncilController],

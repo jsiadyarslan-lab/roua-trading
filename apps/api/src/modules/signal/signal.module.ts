@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SignalController } from './signal.controller';
 import { SignalService } from './signal.service';
 import { ExchangeModule } from '../exchange/exchange.module';
@@ -29,9 +29,10 @@ import { NotificationModule } from '../notification/notification.module';
     ExchangeModule,
     AiModule,
     AuditModule,
-    forwardRef(() => PredictionMarketModule),
-    forwardRef(() => TradingModule),
-    forwardRef(() => NotificationModule),
+    // V170: Removed forwardRef() — no circular dependencies exist
+    PredictionMarketModule,
+    TradingModule,
+    NotificationModule,
   ],
   controllers: [SignalController],
   providers: [SignalService],

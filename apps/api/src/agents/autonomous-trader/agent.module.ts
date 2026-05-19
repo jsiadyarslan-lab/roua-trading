@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Autonomous Trader Agent Module
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
 import { AuditModule } from '../../audit/audit.module';
@@ -65,15 +65,17 @@ import { AutonomousTraderAgentController, AutonomousTraderPublicController } fro
  */
 @Module({
   imports: [
-    // FIX: PrismaModule and RedisModule are @Global() — no import or forwardRef needed.
-    // Using forwardRef on global modules can delay DI resolution, causing @Optional()
-    // decorated parameters to receive null even when the services ARE available.
-    forwardRef(() => AuditModule),
-    forwardRef(() => TradingModule),
-    forwardRef(() => ExchangeModule),
-    forwardRef(() => AiModule),
-    forwardRef(() => StrategicCouncilModule),  // V145: Agent needs council briefs (M30+) to execute trades
-    forwardRef(() => PortfolioModule),  // V150: Agent needs CredentialsService for pre-trade balance check
+    // V170 FIX: Removed ALL forwardRef() wrappers — there are NO circular dependencies
+    // here. forwardRef() defers DI resolution, causing a race condition where
+    // providers from these modules are unavailable when agent.service.ts needs them.
+    // This was the ROOT CAUSE of the "0 routes" bug — modules failed to initialize
+    // because their providers resolved to null during the DI resolution phase.
+    AuditModule,
+    TradingModule,
+    ExchangeModule,
+    AiModule,
+    StrategicCouncilModule,  // V145: Agent needs council briefs (M30+) to execute trades
+    PortfolioModule,  // V150: Agent needs CredentialsService for pre-trade balance check
   ],
   controllers: [AutonomousTraderPublicController, AutonomousTraderAgentController],
   providers: [

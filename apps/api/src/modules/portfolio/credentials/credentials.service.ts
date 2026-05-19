@@ -171,6 +171,7 @@ export class CredentialsService {
       apiSecret: string;
       passphrase?: string;
       testnet?: boolean;
+      keyType?: string; // V170: Key type for Ed25519/RSA signing
     },
     ipAddress?: string,
     userAgent?: string,
@@ -242,6 +243,7 @@ export class CredentialsService {
         isValid: true,
         lastValidatedAt: new Date(),
         testnet: effectiveTestnet,
+        keyType: data.keyType || 'hmac', // V170: Persist key type for Ed25519/RSA signing
       },
     });
 
@@ -608,6 +610,7 @@ export class CredentialsService {
             decrypted.apiSecret,
             decrypted.passphrase,
             cred.testnet === true,
+            (cred as any).keyType || 'hmac', // V170: Pass key type for Ed25519/RSA
           );
         } catch (error: any) {
           // V164d: Log the FULL error details for debugging
@@ -857,6 +860,7 @@ export class CredentialsService {
     apiSecret: string,
     passphrase?: string,
     testnet: boolean = false,
+    keyType: string = 'hmac', // V170: Key type for Ed25519/RSA signing
   ): Promise<{
     exchange: string;
     label: string;
@@ -898,6 +902,14 @@ export class CredentialsService {
         adjustForTimeDifference: true,
       },
     };
+
+    // V170: Ed25519 key support — CCXT v4+ auto-detects PEM format in `secret`
+    // and uses Ed25519 signing. RSA keys also use PEM format in `secret`.
+    // For Ed25519, the user pastes the full PEM private key into the apiSecret field.
+    // CCXT will detect the PEM header and use the appropriate signing algorithm.
+    if (keyType === 'ed25519' || keyType === 'rsa') {
+      this.logger.log(`🔑 V170: Using ${keyType} key for ${exchange}/${label} — CCXT will auto-detect PEM format`);
+    }
 
     if (passphrase) {
       exchangeConfig.password = passphrase;

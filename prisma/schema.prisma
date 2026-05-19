@@ -257,6 +257,7 @@ model ExchangeCredential {
   isValid             Boolean    @default(true)
   lastValidatedAt     DateTime?
   testnet             Boolean    @default(false) // FIX: Testnet mode — when true, connects to exchange sandbox/testnet
+  keyType             String     @default("hmac") // V170: Key type — 'hmac', 'ed25519', or 'rsa' — needed for CCXT Ed25519 signing
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
   user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)

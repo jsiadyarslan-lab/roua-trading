@@ -1764,9 +1764,49 @@ export class SmartExecutorService implements OnModuleDestroy {
       } catch { /* use default */ }
 
       if (portfolio > 0 && userState.dailyPnL < -(portfolio * userMaxDailyLossPercent / 100)) {
-        this.logger.warn(`⚔️ User ${userId} hit daily loss limit (${userState.dailyPnL.toFixed(2)} < -${(portfolio * userMaxDailyLossPercent / 100).toFixed(2)} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) — pausing`);
+        const lossLimit = (portfolio * userMaxDailyLossPercent / 100).toFixed(2);
+        this.logger.warn(
+          `⚔️ HARD STOP: User ${userId} hit daily loss limit ` +
+          `(P&L: $${userState.dailyPnL.toFixed(2)} < -$${lossLimit} = ${userMaxDailyLossPercent}% of $${portfolio.toFixed(2)}) ` +
+          `— DISABLING executor and sending notification`
+        );
+
+        // ── HARD STOP: Disable executor for this user until tomorrow ──
+        await this.disableUser(userId);
+
+        // ── Persist daily loss flag to DB so restart doesn't reset it ──
+        try {
+          await this.prisma.setting.upsert({
+            where: { key: `user:${userId}:dailyLossHit` },
+            update: { value: new Date().toDateString() },
+            create: { key: `user:${userId}:dailyLossHit`, value: new Date().toDateString() },
+          });
+        } catch { /* non-fatal */ }
+
+        // ── Notify user ──
+        try {
+          await this.notificationService.sendToUser(userId, {
+            type: 'RISK_ALERT',
+            title: '🛑 تم إيقاف التداول — حد الخسارة اليومي',
+            message: `خسارة اليوم بلغت $${Math.abs(userState.dailyPnL).toFixed(2)} (${userMaxDailyLossPercent}% من المحفظة). تم إيقاف المنفذ الذكي تلقائياً حتى الغد.`,
+            severity: 'critical',
+          });
+        } catch { /* non-fatal */ }
+
         return;
       }
+
+      // ── Check if daily loss was hit today (persisted across restarts) ──
+      try {
+        const dailyLossFlag = await this.prisma.setting.findUnique({
+          where: { key: `user:${userId}:dailyLossHit` },
+        });
+        if (dailyLossFlag?.value === new Date().toDateString()) {
+          this.logger.warn(`⚔️ User ${userId} already hit daily loss limit today — executor remains disabled`);
+          await this.disableUser(userId);
+          return;
+        }
+      } catch { /* non-fatal */ }
     }
 
     // ═══════════════════════════════════════════════════════════

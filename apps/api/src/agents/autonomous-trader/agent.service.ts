@@ -1503,11 +1503,44 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     );
 
     if (dailyLimitReached) {
-      this.logger.warn(`🧠 User ${userId} hit daily loss limit — auto-stopping`);
+      this.logger.warn(`🧠 HARD STOP: User ${userId} hit daily loss limit — auto-stopping agent`);
       state.status = AgentStatus.DAILY_LIMIT_REACHED;
       await this._saveAgentState(userId, state);
+
+      // ── Persist to DB so restart doesn't reset it ──
+      try {
+        await this.prisma.setting.upsert({
+          where: { key: `user:${userId}:agentDailyLossHit` },
+          update: { value: new Date().toDateString() },
+          create: { key: `user:${userId}:agentDailyLossHit`, value: new Date().toDateString() },
+        });
+      } catch { /* non-fatal */ }
+
+      // ── Notify user ──
+      try {
+        await this.notificationService.sendToUser(userId, {
+          type: 'RISK_ALERT',
+          title: '🛑 تم إيقاف الوكيل — حد الخسارة اليومي',
+          message: `بلغ الوكيل الآليّ حد الخسارة اليومي المحدد. تم إيقافه تلقائياً حتى الغد لحماية رأس المال.`,
+          severity: 'critical',
+        });
+      } catch { /* non-fatal */ }
+
       return;
     }
+
+    // ── Check if daily loss was hit today (persisted across restarts) ──
+    try {
+      const dailyLossFlag = await this.prisma.setting.findUnique({
+        where: { key: `user:${userId}:agentDailyLossHit` },
+      });
+      if (dailyLossFlag?.value === new Date().toDateString()) {
+        this.logger.warn(`🧠 User ${userId} already hit daily loss limit today — agent remains stopped`);
+        state.status = AgentStatus.DAILY_LIMIT_REACHED;
+        await this._saveAgentState(userId, state);
+        return;
+      }
+    } catch { /* non-fatal */ }
 
     // CRITICAL: Monitor existing positions for SL/TP exits BEFORE opening new ones
     await this._monitorOpenPositions(userId, state);

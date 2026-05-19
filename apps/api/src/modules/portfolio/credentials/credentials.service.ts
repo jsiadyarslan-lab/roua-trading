@@ -7,8 +7,10 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { PrismaExtensionService } from '../../../common/prisma/prisma-extension.service';
 import { AuditService } from '../../../audit/audit.service';
 import { calculateMargin, getSymbolMetadata } from '../../trading/services/symbol-metadata';
+import { isValidUserId } from '../../../common/interceptors/userid-validation.interceptor';
 import * as crypto from 'crypto';
 import * as ccxt from 'ccxt';
 import { hostname } from 'os';
@@ -43,6 +45,7 @@ export class CredentialsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly prismaExtension: PrismaExtensionService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
   ) {
@@ -271,6 +274,16 @@ export class CredentialsService {
    * Get all credentials for a user (without decrypting secrets)
    */
   async getUserCredentials(userId: string) {
+    // ═══════════════════════════════════════════════════════════
+    // SECURITY: Validate userId before any Prisma query.
+    // If userId is undefined, Prisma strips it from WHERE clause,
+    // returning ALL credentials from ALL users!
+    // ═══════════════════════════════════════════════════════════
+    if (!isValidUserId(userId)) {
+      this.logger.error(`🚨 SECURITY: getUserCredentials called with invalid userId="${userId}"`);
+      return [];
+    }
+
     const credentials = await this.prisma.exchangeCredential.findMany({
       where: { userId },
       select: {

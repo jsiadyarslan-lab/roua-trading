@@ -80,6 +80,13 @@ export class PositionMonitorService {
     this.isMonitoring = true;
 
     try {
+      // ═══════════════════════════════════════════════════════════
+      // RLS BYPASS: Background service queries across ALL users.
+      // We must enable RLS bypass to access positions from all users.
+      // After the monitor cycle, we disable bypass to restore isolation.
+      // ═══════════════════════════════════════════════════════════
+      await this.prisma.enableRlsBypass();
+
       // Step 1: Get all open positions
       // ROOT FIX: Include ALL positions regardless of source or exchange.
       // Previously, positions from 'smart_executor', 'agent', 'paper_trading'
@@ -215,6 +222,8 @@ export class PositionMonitorService {
       this.logger.error(`🛡️ Position monitor cycle failed: ${error.message}`);
     } finally {
       this.isMonitoring = false;
+      // RLS: Disable bypass after background service completes
+      await this.prisma.disableRlsBypass().catch(() => {});
     }
   }
 

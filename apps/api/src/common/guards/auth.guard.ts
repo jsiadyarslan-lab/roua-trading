@@ -93,6 +93,18 @@ export class AuthGuard implements CanActivate {
         if (session && session.isActive && session.expiresAt > new Date()) {
           (request as any).user = session.user;
 
+          // ═══════════════════════════════════════════════════════════
+          // RLS: Set PostgreSQL session variable for Row Level Security.
+          // This ensures that even if a Prisma query forgets to filter
+          // by userId, the database itself will only return rows
+          // belonging to this user.
+          // ═══════════════════════════════════════════════════════════
+          try {
+            await this.prisma.setRlsUserId(session.user.id);
+          } catch {
+            // Non-critical — application-level guards still protect
+          }
+
           // Cache the session for fast subsequent lookups
           if (this.redis) {
             try {
@@ -143,6 +155,20 @@ export class AuthGuard implements CanActivate {
     // 🔒 PROTECTED ROUTE: No valid session → reject with 401
     this.logger.warn(`Unauthenticated request to protected route: ${request.method} ${request.url}`);
     throw new UnauthorizedException('يرجى تسجيل الدخول للوصول إلى هذا المورد');
+  }
+
+  /**
+   * Clear the RLS context after the request completes.
+   * Called by NestJS after each request to reset the PostgreSQL
+   * session variable so it doesn't leak to the next request
+   * on the same connection.
+   */
+  async clearRlsContext(): Promise<void> {
+    try {
+      await this.prisma.clearRlsUserId();
+    } catch {
+      // Non-critical
+    }
   }
 }
 

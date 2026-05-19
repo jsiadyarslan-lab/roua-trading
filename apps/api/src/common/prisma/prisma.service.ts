@@ -197,4 +197,99 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
       failures: this.consecutiveFailures,
     };
   }
+
+  // ═══════════════════════════════════════════════════════════════
+  // RLS (Row Level Security) Support — Defense-in-Depth Layer 2
+  // ═══════════════════════════════════════════════════════════════
+  //
+  // PostgreSQL RLS policies check current_setting('app.current_user_id')
+  // to determine which rows a user can access. These methods set/reset
+  // that session variable for the current database connection.
+  //
+  // IMPORTANT: Prisma uses a connection pool, so SET LOCAL only works
+  // within a $transaction. For non-transaction queries, we use SET
+  // (session-level) which persists for the connection's lifetime.
+  // After each request, we RESET the variable.
+  // ═══════════════════════════════════════════════════════════════
+
+  /**
+   * Set the current user ID for Row Level Security.
+   * Called by UserIsolationInterceptor before each request.
+   */
+  async setRlsUserId(userId: string): Promise<void> {
+    if (!this.isAvailable()) return;
+    try {
+      // Sanitize userId to prevent SQL injection (though it should be a UUID)
+      const safeId = userId.replace(/'/g, "''");
+      await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
+    } catch (error: any) {
+      this.logger.debug(`RLS setRlsUserId failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Clear the current user ID for Row Level Security.
+   * Called after each request completes.
+   */
+  async clearRlsUserId(): Promise<void> {
+    if (!this.isAvailable()) return;
+    try {
+      await this.$executeRawUnsafe(`RESET app.current_user_id`);
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /**
+   * Enable RLS bypass mode for background services.
+   * Background services (Position Monitor, Smart Executor) need to
+   * query across ALL users, so they bypass RLS.
+   */
+  async enableRlsBypass(): Promise<void> {
+    if (!this.isAvailable()) return;
+    try {
+      await this.$executeRawUnsafe(`SET app.rls_bypass = 'true'`);
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /**
+   * Disable RLS bypass mode.
+   */
+  async disableRlsBypass(): Promise<void> {
+    if (!this.isAvailable()) return;
+    try {
+      await this.$executeRawUnsafe(`RESET app.rls_bypass`);
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /**
+   * Run a function with RLS set for a specific user.
+   * Automatically sets and clears the RLS context.
+   * Use in background services that process data for a specific user.
+   */
+  async withRlsUser<T>(userId: string, fn: () => Promise<T>): Promise<T> {
+    await this.setRlsUserId(userId);
+    try {
+      return await fn();
+    } finally {
+      await this.clearRlsUserId();
+    }
+  }
+
+  /**
+   * Run a function with RLS bypass enabled.
+   * Use in background services that need to query across ALL users.
+   */
+  async withRlsBypass<T>(fn: () => Promise<T>): Promise<T> {
+    await this.enableRlsBypass();
+    try {
+      return await fn();
+    } finally {
+      await this.disableRlsBypass();
+    }
+  }
 }

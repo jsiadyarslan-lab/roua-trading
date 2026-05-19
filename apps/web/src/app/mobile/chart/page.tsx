@@ -105,7 +105,18 @@ function ChartContent() {
       const credentialId = credentials[0]?.id || credentials[0]?.credentialId
 
       if (credentialId) {
-        const nestBody = { credentialId, symbol: selectedSymbol, side: side.toUpperCase(), type: orderType.toUpperCase(), quantity: parseFloat(quantity), price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined, stopPrice: orderType === 'stop' && stopPrice ? parseFloat(stopPrice) : undefined, stopLoss: slEnabled && slValue ? parseFloat(slValue) : undefined, takeProfit: tpEnabled && tpValue ? parseFloat(tpValue) : undefined }
+        const nestBody = {
+          exchangeCredentialId: credentialId, // FIX: DTO expects exchangeCredentialId
+          symbol: selectedSymbol,
+          side: side.toUpperCase(),
+          type: orderType.toUpperCase(),
+          quantity: parseFloat(quantity),
+          price: orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : undefined,
+          // stopPrice removed — DTO doesn't support stop orders yet; use stopLoss instead
+          stopLoss: slEnabled && slValue ? parseFloat(slValue) : (stopPrice ? parseFloat(stopPrice) : undefined),
+          takeProfit: tpEnabled && tpValue ? parseFloat(tpValue) : undefined,
+          idempotencyKey: `mobile-${Date.now()}-${Math.random().toString(36).slice(2)}`, // FIX: required by DTO
+        }
         const res = await fetch('/api/trading/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nestBody) })
         const j = await res.json()
         if (res.ok && j.id) { success = true; filledPrice = j.filledAvgPrice || j.avgFillPrice || livePrice || 0; }

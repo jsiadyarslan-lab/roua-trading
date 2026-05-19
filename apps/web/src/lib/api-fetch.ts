@@ -198,8 +198,8 @@ export async function fetchSummaryUnified(): Promise<{
           summary: {
             totalPositions: raw.totalPositions ?? 0,
             totalValue: raw.totalValue ?? 0,
-            unrealizedPnl: raw.unrealizedPnl ?? 0,
-            realizedPnl: raw.realizedPnl ?? 0,
+            unrealizedPnl: Number(raw.unrealizedPnl) || 0,
+            realizedPnl: Number(raw.realizedPnl) || 0,
             source: 'nestjs',
           },
           source: 'nestjs',

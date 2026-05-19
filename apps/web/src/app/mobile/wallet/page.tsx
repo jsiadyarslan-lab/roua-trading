@@ -14,11 +14,11 @@ export default function MobileWalletPage() {
 
   useEffect(() => { fetchAccount() }, [fetchAccount])
 
-  const equity = Number(account?.equity ?? 0)
-  const unrealizedPnl = Number(account?.unrealizedPnl ?? 0)
-  const buyingPower = Number(account?.buying_power ?? 0)
-  const initialMargin = Number(account?.initialMargin ?? 0)
-  const cash = Number(account?.cash ?? 0)
+  const equity = Number(account?.equity ?? 0) || 0
+  const unrealizedPnl = Number(account?.unrealizedPnl ?? 0) || 0
+  const buyingPower = Number(account?.buying_power ?? 0) || 0
+  const initialMargin = Number(account?.initialMargin ?? 0) || 0
+  const cash = Number(account?.cash ?? 0) || 0
   const openPositions = positions.length
   const isUp = unrealizedPnl >= 0
 

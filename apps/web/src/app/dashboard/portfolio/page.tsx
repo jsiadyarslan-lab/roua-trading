@@ -40,11 +40,14 @@ import { fmtPriceLocale } from '@/lib/price-format'
 import { T } from '@/lib/unified-tokens'
 
 function fmt(n: number, decimals = 2) {
+  // FIX V169: Protect against NaN/Infinity — these produce "NaN"/"Infinity" in toLocaleString
+  if (!Number.isFinite(n)) return (0).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })
 }
 
 const formatPrice = (value: number, symbol?: string) => {
-  if (value === 0) return '—'
+  // FIX V169: Handle NaN and invalid values — show '—' instead of NaN
+  if (!Number.isFinite(value) || value === 0) return '—'
   return fmtPriceLocale(value, symbol)
 }
 
@@ -462,7 +465,11 @@ export default function PortfolioPage() {
     const { from, to } = getDateRange()
     if (!from && !to) return closedPositions
     return closedPositions.filter(p => {
-      const closedAt = p.closedAt ? new Date(p.closedAt).getTime() : 0
+      // FIX V169: If closedAt is missing, use openedAt as fallback (better than excluding the position)
+      const dateStr = p.closedAt || p.openedAt
+      if (!dateStr) return true // No date at all — include it (don't exclude)
+      const closedAt = new Date(dateStr).getTime()
+      if (isNaN(closedAt)) return true // Invalid date — include it
       if (from && closedAt < from.getTime()) return false
       if (to && closedAt > to.getTime()) return false
       return true
@@ -501,9 +508,10 @@ export default function PortfolioPage() {
       p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01
     ))
     .reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-  const totalRealizedPnl = dateFilteredClosedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + dedupedPaperPnl
+  // FIX V169: Add NaN protection — Number(x) || 0 catches NaN (NaN is falsy)
+  const totalRealizedPnl = Number(dateFilteredClosedPositions.reduce((sum, p) => sum + (Number(p.realizedPnl) || 0), 0) + dedupedPaperPnl) || 0
   // FIX V140: totalTradePnl now uses the same deduped logic
-  const totalTradePnl = dateFilteredClosedPositions.reduce((sum, p) => sum + (p.realizedPnl || 0), 0) + dedupedPaperPnl
+  const totalTradePnl = Number(dateFilteredClosedPositions.reduce((sum, p) => sum + (Number(p.realizedPnl) || 0), 0) + dedupedPaperPnl) || 0
   // FIX V140: Win rate uses combined history (deduped), not separate arrays
   const winningCount = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) > 0).length
     + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) > 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).length
@@ -512,11 +520,41 @@ export default function PortfolioPage() {
   const totalTradeCount = dateFilteredClosedPositions.length + dateFilteredPaperTrades.filter(t => !dateFilteredClosedPositions.some(p => p.symbol === t.symbol && Math.abs((p.entryPrice || 0) - t.entryPrice) < 0.01)).length
   const winRate = totalTradeCount > 0 ? (winningCount / totalTradeCount) * 100 : 0
 
-  // V168: Total profit/loss size per category
-  const totalProfitSize = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) > 0).reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) > 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + (p.realizedPnl || 0), 0)
-  const totalLossSize = dateFilteredClosedPositions.filter(p => (p.realizedPnl || 0) < 0).reduce((sum, p) => sum + Math.abs(p.realizedPnl || 0), 0)
-    + dateFilteredPaperTrades.filter(p => (p.realizedPnl || 0) < 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((cp.entryPrice || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + Math.abs(p.realizedPnl || 0), 0)
+  // FIX V169: Total profit/loss size — with NaN protection
+  const totalProfitSize = Number(dateFilteredClosedPositions.filter(p => (Number(p.realizedPnl) || 0) > 0).reduce((sum, p) => sum + (Number(p.realizedPnl) || 0), 0)
+    + dateFilteredPaperTrades.filter(p => (Number(p.realizedPnl) || 0) > 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((Number(cp.entryPrice) || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + (Number(p.realizedPnl) || 0), 0)) || 0
+  const totalLossSize = Number(dateFilteredClosedPositions.filter(p => (Number(p.realizedPnl) || 0) < 0).reduce((sum, p) => sum + Math.abs(Number(p.realizedPnl) || 0), 0)
+    + dateFilteredPaperTrades.filter(p => (Number(p.realizedPnl) || 0) < 0 && !dateFilteredClosedPositions.some(cp => cp.symbol === p.symbol && Math.abs((Number(cp.entryPrice) || 0) - p.entryPrice) < 0.01)).reduce((sum, p) => sum + Math.abs(Number(p.realizedPnl) || 0), 0)) || 0
+
+  // V169: P&L breakdown by source type (SMART/AGENT/PAPER/MANUAL)
+  const pnlByCategory = useMemo(() => {
+    const categories: Record<string, { label: string; color: string; pnl: number; count: number; wins: number }> = {
+      SMART: { label: 'المنفذ', color: T.amber, pnl: 0, count: 0, wins: 0 },
+      AGENT: { label: 'الوكيل', color: T.purple, pnl: 0, count: 0, wins: 0 },
+      PAPER: { label: 'ورقي', color: T.cyan, pnl: 0, count: 0, wins: 0 },
+      MANUAL: { label: 'يدوي', color: T.text2, pnl: 0, count: 0, wins: 0 },
+    }
+    // From DB closed positions
+    dateFilteredClosedPositions.forEach(p => {
+      const cat = p.source === 'smart_executor' ? 'SMART'
+        : p.source === 'agent' ? 'AGENT'
+        : p.source === 'auto_paper' ? 'PAPER' : 'MANUAL'
+      const pnl = Number(p.realizedPnl) || 0
+      categories[cat].pnl += pnl
+      categories[cat].count++
+      if (pnl > 0) categories[cat].wins++
+    })
+    // From localStorage paper trades (deduped)
+    dateFilteredPaperTrades
+      .filter(t => !dateFilteredClosedPositions.some(cp => cp.symbol === t.symbol && Math.abs((Number(cp.entryPrice) || 0) - t.entryPrice) < 0.01))
+      .forEach(t => {
+        const pnl = Number(t.realizedPnl) || 0
+        categories.PAPER.pnl += pnl
+        categories.PAPER.count++
+        if (pnl > 0) categories.PAPER.wins++
+      })
+    return Object.entries(categories).filter(([, v]) => v.count > 0)
+  }, [dateFilteredClosedPositions, dateFilteredPaperTrades])
 
   // V168: Export functions
   const exportToCSV = useCallback((data: any[], filename: string) => {
@@ -678,7 +716,9 @@ export default function PortfolioPage() {
         type: p.source === 'smart_executor' ? 'SMART' :
               p.source === 'agent' ? 'AGENT' :
               p.source === 'auto_paper' ? 'PAPER' : 'MANUAL',
-        quantity: p.quantity, price: p.entryPrice, pnl: p.realizedPnl || 0,
+        quantity: Number(p.quantity) || 0,
+        price: Number(p.entryPrice) || 0,  // FIX V169: Ensure entryPrice is a valid number
+        pnl: Number(p.realizedPnl) || 0,
         exitPrice: derivedExitPrice,
         stopLoss: p.stopLoss ? Number(p.stopLoss) : undefined,
         takeProfit: p.takeProfit ? Number(p.takeProfit) : undefined,
@@ -822,6 +862,46 @@ export default function PortfolioPage() {
           color={T.purple} icon={Award}
         />
       </div>
+
+      {/* V169: P&L by category breakdown */}
+      {pnlByCategory.length > 0 && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          {pnlByCategory.map(([key, cat]) => {
+            const catPnl = Number(cat.pnl) || 0
+            const catWinRate = cat.count > 0 ? (cat.wins / cat.count) * 100 : 0
+            return (
+              <div key={key} style={{
+                flex: '1 1 140px', padding: '10px 12px',
+                background: T.card,
+                border: `0.5px solid ${cat.color}22`,
+                borderRadius: 10,
+                display: 'flex', flexDirection: 'column', gap: 3,
+                position: 'relative', overflow: 'hidden',
+              }}>
+                <div style={{
+                  position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+                  background: `linear-gradient(90deg, transparent, ${cat.color}66, transparent)`,
+                }} />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: cat.color, fontWeight: 700 }}>{cat.label}</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.text3 }}>{cat.count} صفقة</span>
+                </div>
+                <div style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: 16, fontWeight: 800,
+                  color: catPnl > 0 ? T.green : catPnl < 0 ? T.red : T.text2,
+                  letterSpacing: '-0.02em',
+                }}>
+                  {catPnl > 0 ? '+' : catPnl < 0 ? '-' : ''}${fmt(Math.abs(catPnl), 2)}
+                </div>
+                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>
+                  نسبة الفوز: {catWinRate.toFixed(0)}% ({cat.wins}/{cat.count})
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Tabs ── */}
       <div className="portfolio-tabs-row" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>

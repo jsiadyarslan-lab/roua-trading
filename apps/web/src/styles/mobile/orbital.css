@@ -1,0 +1,209 @@
+/* ═══════════════════════════════════════════════════════════════
+   ROUA MOBILE — Orbital Navigation System
+   Floating button + Radial menu + AI Command
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Orbital Button (floating) ── */
+.r-orbital {
+  position: fixed;
+  bottom: var(--orbital-bottom);
+  right: var(--orbital-right);
+  width: var(--orbital-size);
+  height: var(--orbital-size);
+  border-radius: var(--radius-full);
+  background: linear-gradient(135deg, rgba(0,212,255,0.2) 0%, rgba(162,89,255,0.15) 100%);
+  border: 1.5px solid rgba(0,212,255,0.35);
+  box-shadow:
+    0 4px 20px rgba(0,0,0,0.4),
+    0 0 20px rgba(0,212,255,0.15),
+    inset 0 1px 1px rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: var(--z-orbital);
+  transition: transform var(--duration-fast) var(--ease-spring),
+              box-shadow var(--duration-normal) var(--ease-out);
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.r-orbital:active {
+  transform: scale(0.88);
+}
+
+.r-orbital--open {
+  background: linear-gradient(135deg, #00d4ff 0%, #a259ff 100%);
+  border-color: rgba(0,212,255,0.6);
+  box-shadow:
+    0 4px 24px rgba(0,0,0,0.5),
+    0 0 30px rgba(0,212,255,0.3);
+  transform: rotate(45deg);
+}
+
+.r-orbital--hidden {
+  transform: scale(0) translateY(40px);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Pulse animation when idle */
+.r-orbital::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: var(--radius-full);
+  background: transparent;
+  border: 1px solid rgba(0,212,255,0.2);
+  animation: r-orbital-pulse 3s ease-in-out infinite;
+}
+
+@keyframes r-orbital-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.15); opacity: 0; }
+}
+
+/* ── Radial Menu ── */
+.r-radial {
+  position: fixed;
+  bottom: calc(var(--orbital-bottom) + var(--orbital-size) / 2);
+  right: calc(var(--orbital-right) + var(--orbital-size) / 2);
+  z-index: var(--z-modal);
+  pointer-events: none;
+}
+
+.r-radial__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: var(--z-modal-backdrop);
+  opacity: 0;
+  transition: opacity var(--duration-normal) var(--ease-out);
+}
+
+.r-radial__backdrop--visible {
+  opacity: 1;
+}
+
+.r-radial__item {
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: rgba(26,29,41,0.95);
+  backdrop-filter: var(--blur-overlay);
+  border: 0.5px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+  transform: scale(0);
+  opacity: 0;
+  transition: transform var(--duration-normal) var(--ease-spring),
+              opacity var(--duration-fast) var(--ease-out);
+}
+
+.r-radial__item--visible {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.r-radial__item:active {
+  transform: scale(0.88) !important;
+}
+
+.r-radial__icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.r-radial__label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+  font-family: var(--font-cairo);
+  color: var(--c-text2);
+  line-height: 1;
+}
+
+.r-radial__item--active .r-radial__label {
+  color: var(--c-accent);
+}
+
+/* ── AI Command Panel ── */
+.r-ai-panel {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-ai-panel);
+  background: rgba(11,14,20,0.97);
+  backdrop-filter: var(--blur-overlay);
+  border-top: 0.5px solid var(--c-border-active);
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  padding: var(--space-lg);
+  padding-bottom: calc(var(--space-lg) + var(--safe-bottom));
+  transform: translateY(100%);
+  transition: transform var(--duration-slow) var(--ease-out);
+  box-shadow: 0 -8px 40px rgba(0,0,0,0.6);
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.r-ai-panel--open {
+  transform: translateY(0);
+}
+
+/* ── Quick Access Bar (swipe hint) ── */
+.r-quick-bar {
+  position: fixed;
+  bottom: calc(var(--safe-bottom) + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: var(--space-lg);
+  z-index: var(--z-content);
+  padding: 6px 16px;
+  border-radius: var(--radius-full);
+  background: rgba(26,29,41,0.6);
+  backdrop-filter: blur(20px);
+  border: 0.5px solid rgba(255,255,255,0.06);
+  transition: opacity var(--duration-normal) var(--ease-out),
+              transform var(--duration-normal) var(--ease-out);
+}
+
+.r-quick-bar--hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(20px);
+  pointer-events: none;
+}
+
+.r-quick-bar__item {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  color: var(--c-text3);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+
+.r-quick-bar__item--active {
+  color: var(--c-accent);
+}
+
+.r-quick-bar__item:active {
+  transform: scale(0.88);
+}

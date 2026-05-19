@@ -10,7 +10,6 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 export function DashboardLayoutStyles() {
   useScopedStyle(`@media (max-width: 767px) {
                 main { min-height: 100dvh !important; padding-bottom: 0 !important; overflow-y: auto !important; overflow-x: hidden !important; }
-                /* Ensure sub-pages fill the viewport on mobile */
                 main > div { min-height: 100% !important; }
               }`)
   return null

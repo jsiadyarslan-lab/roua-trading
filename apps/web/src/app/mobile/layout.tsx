@@ -4,8 +4,13 @@ import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
-import MobileNavBar from '@/components/mobile/MobileNavBar'
-import './mobile.css'
+import Shell from '@/components/mobile/Shell'
+
+import '@/styles/mobile/tokens.css'
+import '@/styles/mobile/base.css'
+import '@/styles/mobile/orbital.css'
+import '@/styles/mobile/components.css'
+import '@/styles/mobile/animations.css'
 
 export const metadata: Metadata = {
   title: 'رؤى — تطبيق الجوال',
@@ -24,15 +29,13 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <ServiceWorkerRegistrar />
         <NotificationPermissionBanner />
         <PushNotificationManager />
-        <div style={{ minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
-          <main style={{ flex: 1, overflowY: 'auto', paddingBottom: 'calc(var(--m-nav-total, 60px) + 8px)' }}>
+        <div className="r-shell">
+          <main className="r-main">
             {children}
           </main>
         </div>
-        <MobileNavBar />
-        {/* Portal container — same as dashboard layout. Using document.body as portal
-            target causes "Node cannot be found in the current page" errors when Next.js
-            client-side navigation replaces the body. This dedicated div stays stable. */}
+        <Shell />
+        {/* Portal container */}
         <div id="portal-root" />
       </AuthGuard>
     </MarketProvider>

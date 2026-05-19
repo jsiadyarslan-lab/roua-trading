@@ -239,36 +239,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const chart = createChart(container, chartOptions);
 
-    // ── ROOT CAUSE FIX: Block setPointerCapture on mobile ──
+    // ── Block setPointerCapture on mobile ──
     // lightweight-charts calls setPointerCapture() on the canvas on every
-    // pointerdown. This captures ALL subsequent pointer events to the canvas,
-    // completely blocking the bottom navbar from receiving any touch/click.
-    //
-    // ALL previous approaches FAILED:
-    //   ❌ releasePointerCapture on pointerup — too late, navbar already blocked
-    //   ❌ onTouchEnd on navbar — doesn't work on all mobile browsers
-    //   ❌ touch-action CSS — doesn't affect pointer capture
-    //   ❌ z-index changes — pointer capture overrides z-index
-    //
-    // THE ONLY RELIABLE FIX: Prevent setPointerCapture from being called
-    // on the canvas in the first place. By making it a no-op, the chart
-    // canvas can never steal pointer events from the navbar.
-    //
-    // Impact on chart: Pan/zoom still works (pointer events reach the canvas
-    // while the finger is over it). The only edge case is if the user drags
-    // their finger off the canvas edge during a pan — the pan stops. But on
-    // mobile the chart fills the screen, so this is negligible.
+    // pointerdown, which can interfere with touch interactions.
+    // Since the new mobile UI uses full-viewport chart with no bottom navbar,
+    // this is less critical but still prevents edge-case pointer capture issues.
     if (isMobile) {
       const blockPointerCapture = (canvas: HTMLCanvasElement) => {
-        // Override setPointerCapture to be a no-op on this canvas
-        // This prevents lightweight-charts from ever capturing pointer events
         canvas.setPointerCapture = () => canvas;
       };
-
-      // Block on any existing canvases
       container.querySelectorAll('canvas').forEach(blockPointerCapture);
-
-      // Watch for new canvases (lightweight-charts may recreate them)
       const captureObserver = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) {
@@ -279,8 +259,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         }
       });
       captureObserver.observe(container, { childList: true, subtree: true });
-
-      // Clean up on chart remove
       const originalRemove = chart.remove.bind(chart);
       chart.remove = () => {
         captureObserver.disconnect();

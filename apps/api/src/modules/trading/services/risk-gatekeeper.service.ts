@@ -81,17 +81,17 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   ) {
     // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
-      this.configService.get('RISK_MAX_POSITION_PERCENT', '20'),
+      this.configService.get('RISK_MAX_POSITION_PERCENT', '5'),
     );
     this.maxOpenPositions = parseInt(
-      this.configService.get('RISK_MAX_OPEN_POSITIONS', '20'), // V132: Increased from 10 to 20
+      this.configService.get('RISK_MAX_OPEN_POSITIONS', '10'), // Safe default for real accounts
       10,
     );
     this.executorMaxOpenPositions = parseInt(
-      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '15'), 10,
+      this.configService.get('EXECUTOR_MAX_OPEN_POSITIONS', '5'), 10,
     );
     this.agentMaxOpenPositions = parseInt(
-      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '15'), 10,
+      this.configService.get('AGENT_MAX_OPEN_POSITIONS', '5'), 10,
     );
     this.maxDailyLossPercent = parseFloat(
       this.configService.get('RISK_MAX_DAILY_LOSS_PERCENT', '5'),
@@ -100,7 +100,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       this.configService.get('RISK_MIN_ORDER_SIZE', '10'),
     );
     this.maxOrderSizeUSD = parseFloat(
-      this.configService.get('RISK_MAX_ORDER_SIZE', '50000'),
+      this.configService.get('RISK_MAX_ORDER_SIZE', '5000'),
     );
     this.stopLossDefault = parseFloat(
       this.configService.get('RISK_STOP_LOSS_DEFAULT', '2'),

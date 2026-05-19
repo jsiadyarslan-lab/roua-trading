@@ -71,21 +71,13 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** Configuration */
   private readonly config: ExecutorConfig = {
     tickIntervalMs: 10000,          // FIX: 10 seconds (was 2s) — reduces DB load by 5x
-    maxOpenPositions: 15,           // V132: Increased from 5 to 15 — with 7 crypto pairs and
-                                    // 2 directions (BUY/SELL), 5 was far too restrictive.
-                                    // Paper trading auto-closes stale positions (1h),
-                                    // so 15 open positions is safe. Real trading is
-                                    // capped by RiskGatekeeper per-portfolio limits.
+    maxOpenPositions: 5,            // Safe default for real accounts. Paper/testnet can increase via settings.
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
     riskPerTradePercent: 1,
-    minConfidence: 40,              // FIX: Lowered from 50 → 40. Technical fallback
-                                    // produces confidence=45-48, which was being rejected
-                                    // by the old minConfidence=50. With only 3/8 AI models
-                                    // working, most briefs come from technical analysis
-                                    // and need to pass the confidence check.
-                                    // A 40% confidence brief with proper SL/TP is better
-                                    // than no brief at all (pipeline stalled = 0 trades).
+    minConfidence: 65,              // SAFE DEFAULT for real accounts: 65% minimum confidence.
+                                    // 40% means the AI is more uncertain than certain.
+                                    // For paper/testnet, this can be lowered via settings.
   };
 
   /** Redis key patterns */

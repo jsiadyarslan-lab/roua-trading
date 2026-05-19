@@ -1638,7 +1638,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
           }
 
           // Check confidence threshold (use agent-specific minimum)
-          const minConfidence = 40;
+          const minConfidence = 65; // Safe default for real accounts
           if (brief.confidence < minConfidence) {
             this.logger.debug(`🧠 Skipping brief ${brief.id} — confidence ${brief.confidence}% < min ${minConfidence}%`);
             continue;

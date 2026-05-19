@@ -26,6 +26,10 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
         <PushNotificationManager />
         {children}
         <MobileNavBar />
+        {/* Portal container — same as dashboard layout. Using document.body as portal
+            target causes "Node cannot be found in the current page" errors when Next.js
+            client-side navigation replaces the body. This dedicated div stays stable. */}
+        <div id="portal-root" />
       </AuthGuard>
     </MarketProvider>
   )

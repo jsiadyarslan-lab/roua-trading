@@ -986,6 +986,15 @@ export default function DashboardPage() {
 
   const hasPositions = positions.length > 0 || paperTrades.length > 0
 
+  // Auto-open positions panel when positions are detected (first load or new positions)
+  const prevHasPositions = useRef(false)
+  useEffect(() => {
+    if (hasPositions && !prevHasPositions.current) {
+      setPosOpen(true)
+    }
+    prevHasPositions.current = hasPositions
+  }, [hasPositions])
+
   // Notify user when SmartExecutor opens a new position
   const prevPositionsCount = useRef(positions.length)
   const addNotificationFn = useNotificationStore(state => state.addNotification)

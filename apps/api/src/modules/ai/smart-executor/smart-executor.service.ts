@@ -45,6 +45,7 @@ import { NotificationService } from '../../notification/notification.service';
 import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
 import { NewsService } from '../../news/news.service';
+import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import {
   getSymbolMetadata,
   calculatePositionSizeFromRisk,
@@ -112,6 +113,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly orderDispatcher: OrderDispatcherService,
     private readonly exposureManager: ExposureManagerService,
     private readonly newsService: NewsService,
+    private readonly credentialsService: CredentialsService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)');
 
@@ -2748,6 +2750,25 @@ export class SmartExecutorService implements OnModuleDestroy {
         `notional=$${orderValue.toFixed(2)}, margin=$${margin.toFixed(2)} (leverage ${meta.defaultLeverage}:1), ` +
         `risk=$${(quantity * priceRisk).toFixed(2)} (${((quantity * priceRisk / portfolioValue) * 100).toFixed(2)}% of portfolio)`,
       );
+
+      // ── MARGIN CHECK: Verify available balance before submitting order ──
+      // SmartExecutor previously skipped this check, causing orders to be placed
+      // even when available margin was $0. Now we fetch live balance and compare.
+      try {
+        const balanceData = await this.credentialsService.fetchAllExchangeBalances(userId);
+        const availableUsd = balanceData.totalAvailableUsd;
+        if (availableUsd !== undefined && availableUsd < margin) {
+          result.error = `رصيد غير كافي في ${credential.exchange} — يحتاج $${margin.toFixed(2)}، المتاح $${availableUsd.toFixed(2)}`;
+          this.logger.warn(
+            `⚔️ MARGIN CHECK FAILED for ${userId} on ${brief.pair}: ` +
+            `needs $${margin.toFixed(2)}, available $${availableUsd.toFixed(2)} — skipping`
+          );
+          return result;
+        }
+      } catch (balErr: any) {
+        // Non-fatal — log and continue (exchange API may be temporarily unavailable)
+        this.logger.debug(`⚔️ Could not verify margin for ${userId}: ${balErr.message} — proceeding`);
+      }
 
       // ✅ FIX: Route through OrderDispatcher (handles RiskGatekeeper + TradingService + idempotency).
       // This prevents conflicts between SmartExecutor and AutonomousTrader.

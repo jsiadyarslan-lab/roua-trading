@@ -21,6 +21,7 @@ import { StrategicCouncilModule } from '../strategic-council/strategic-council.m
 import { NotificationModule } from '../../notification/notification.module';
 import { AiModule } from '../ai.module';
 import { NewsModule } from '../../news/news.module';
+import { CredentialsModule } from '../../portfolio/credentials/credentials.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { NewsModule } from '../../news/news.module';
     forwardRef(() => AiModule),
     NotificationModule,
     NewsModule,
+    CredentialsModule,
   ],
   controllers: [SmartExecutorController],
   providers: [SmartExecutorService],

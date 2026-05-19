@@ -643,6 +643,48 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         }
 
         this.logger.debug(`🛡️ Paper trading order ALLOWED (source=${orderSource}: ${sourcePositions}/${perSourceLimit}, total: ${totalOpenPositions}/${this.maxOpenPositions})`);
+
+        // V172: Paper margin check — prevent used margin from exceeding paper balance.
+        // Previously paper trading bypassed ALL balance checks → margin > balance.
+        try {
+          const settings = await this.prisma.agentSettings.findUnique({
+            where: { userId: command.userId },
+            select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true },
+          });
+          const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 10000;
+          const cryptoLev = settings?.paperCryptoLeverage ? Number(settings.paperCryptoLeverage) : 1;
+          const forexLev = settings?.paperForexLeverage ? Number(settings.paperForexLeverage) : 50;
+
+          // Current used margin from all open positions
+          const allOpen = await this.prisma.position.findMany({
+            where: { userId: command.userId, status: 'OPEN' },
+            select: { quantity: true, currentPrice: true, entryPrice: true, symbol: true },
+          });
+          let currentUsed = 0;
+          for (const pos of allOpen) {
+            const notional = Math.abs((Number(pos.quantity) || 0) * (Number(pos.currentPrice) || Number(pos.entryPrice) || 0));
+            const symIsForex = (pos.symbol || '').includes('/') && !(pos.symbol || '').match(/USDT|BTC|ETH|SOL|BNB/i);
+            currentUsed += symIsForex ? notional / forexLev : (cryptoLev > 1 ? notional / cryptoLev : notional);
+          }
+
+          // New position margin estimate
+          const newNotional = Math.abs((command.quantity || 0) * (command.price || 0));
+          if (newNotional > 10) {
+            const symIsForex = (command.symbol || '').includes('/') && !(command.symbol || '').match(/USDT|BTC|ETH|SOL|BNB/i);
+            const newMargin = symIsForex ? newNotional / forexLev : (cryptoLev > 1 ? newNotional / cryptoLev : newNotional);
+            if ((currentUsed + newMargin) > paperBalance * 1.02) {
+              const available = Math.max(0, paperBalance - currentUsed);
+              return {
+                allowed: false,
+                reason: `هامش الورق غير كافٍ. الرصيد: $${paperBalance.toFixed(0)}، المستخدم: $${currentUsed.toFixed(0)}، المتاح: $${available.toFixed(0)}، مطلوب للمركز الجديد: $${newMargin.toFixed(0)}.`,
+                failedCheck: 'PAPER_MARGIN_CHECK',
+              };
+            }
+          }
+        } catch {
+          // Non-fatal — if margin check fails, allow the order
+        }
+
         return { allowed: true };
       }
 

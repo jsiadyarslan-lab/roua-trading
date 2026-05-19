@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import {
@@ -80,6 +80,41 @@ export default function MobileNavBar() {
   const router = useRouter()
   const [moreOpen, setMoreOpen] = useState(false)
   const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
+  const navRef = useRef<HTMLElement>(null)
+
+  // ── CRITICAL FIX: Force navbar touch events to work even when chart has pointer capture ──
+  // lightweight-charts setPointerCapture() can steal all pointer events.
+  // We use capture-phase touchstart on the nav to ensure navigation always works.
+  useEffect(() => {
+    const nav = navRef.current
+    if (!nav) return
+
+    const forceNavTouch = (e: TouchEvent) => {
+      // Release any active pointer captures on the page
+      if (document.pointerLockElement) {
+        document.exitPointerLock()
+      }
+      // If any element has captured pointer, release it
+      const activeElement = document.activeElement as HTMLElement | null
+      if (activeElement && 'hasPointerCapture' in activeElement) {
+        try {
+          // Release all possible pointer IDs (touch uses pointerId starting from 1)
+          for (let i = 1; i <= 10; i++) {
+            activeElement.releasePointerCapture(i)
+          }
+        } catch { /* not captured */ }
+      }
+    }
+
+    // Use capture phase to intercept BEFORE any other handler
+    nav.addEventListener('touchstart', forceNavTouch, { capture: true, passive: true })
+    nav.addEventListener('pointerdown', forceNavTouch, { capture: true, passive: true })
+
+    return () => {
+      nav.removeEventListener('touchstart', forceNavTouch, { capture: true })
+      nav.removeEventListener('pointerdown', forceNavTouch, { capture: true })
+    }
+  }, [])
 
   const isActive = (href: string) => {
     if (href === '/mobile') return pathname === '/mobile'
@@ -88,7 +123,7 @@ export default function MobileNavBar() {
 
   return (
     <>
-      <nav className="m-nav">
+      <nav ref={navRef} className="m-nav">
         {NAV_ITEMS.map((item) => {
           // Wallet: circle button, no text label
           if (item.kind === 'wallet') {

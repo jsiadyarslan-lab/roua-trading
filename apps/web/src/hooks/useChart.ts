@@ -243,17 +243,57 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // lightweight-charts calls setPointerCapture() on touch, which captures ALL
     // subsequent pointer events (including those on the navbar). This makes the
     // bottom navbar completely unresponsive after touching the chart.
-    // We intercept gotpointercapture and release it so events can reach the navbar.
+    //
+    // Strategy: Use MutationObserver + per-canvas listener + document-level fallback
+    // to ensure pointer capture is ALWAYS released regardless of canvas recreation.
     if (isMobile) {
-      const canvas = container.querySelector('canvas');
-      if (canvas) {
-        canvas.addEventListener('gotpointercapture', (e: Event) => {
-          const pe = e as PointerEvent;
-          try {
-            (e.target as HTMLElement).releasePointerCapture(pe.pointerId);
-          } catch { /* already released */ }
+      const releaseCapture = (e: Event) => {
+        const pe = e as PointerEvent;
+        try {
+          (e.target as HTMLElement).releasePointerCapture(pe.pointerId);
+        } catch { /* already released */ }
+      };
+
+      // 1) Attach to all current and future canvases via MutationObserver
+      const attachToCanvas = (canvas: HTMLCanvasElement) => {
+        canvas.removeEventListener('gotpointercapture', releaseCapture);
+        canvas.addEventListener('gotpointercapture', releaseCapture);
+      };
+
+      // Attach to any existing canvases
+      container.querySelectorAll('canvas').forEach(attachToCanvas);
+
+      // Watch for new canvases being added (lightweight-charts recreates them)
+      const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node instanceof HTMLCanvasElement) {
+              attachToCanvas(node);
+            }
+          }
+        }
+      });
+      observer.observe(container, { childList: true, subtree: true });
+
+      // 2) Document-level fallback: intercept gotpointercapture on ANY canvas
+      //    inside our chart container, even if MutationObserver misses it
+      const docHandler = (e: Event) => {
+        if (container.contains(e.target as Node)) {
+          releaseCapture(e);
+        }
+      };
+      document.addEventListener('gotpointercapture', docHandler, true);
+
+      // 3) Store cleanup function so it runs when chart is destroyed
+      const originalRemove = chart.remove.bind(chart);
+      chart.remove = () => {
+        observer.disconnect();
+        document.removeEventListener('gotpointercapture', docHandler, true);
+        container.querySelectorAll('canvas').forEach(c => {
+          c.removeEventListener('gotpointercapture', releaseCapture);
         });
-      }
+        originalRemove();
+      };
     }
     chartInstanceRef.current = chart;
 

@@ -389,35 +389,32 @@ export class OrderExecutorService implements OnModuleDestroy {
       //   2. "binance Account has insufficient balance" errors every minute
       //   3. Unnecessary error logs and retry attempts
       //
-      // For paper trading, this check is skipped (paper has unlimited balance).
+      // FIX: Paper trading now checks AgentSettings.paperBalance — not unlimited.
+      // Real exchanges check live balance via CredentialsService.
       // ═══════════════════════════════════════════════════════════════
-      if (credential.exchange !== 'paper-trading') {
-        try {
-          const balanceCheck = await this._checkSufficientBalance(
-            credential,
-            signal.symbol,
-            signal.action as OrderSide,
-            risk.positionSize,
-            signal.entryPrice,
-          );
-          if (!balanceCheck.sufficient) {
-            this.logger.warn(
-              `⚡ V150 ORDER REJECTED: Insufficient balance for ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
-              `on ${credential.exchange} — need $${balanceCheck.required.toFixed(2)}, have $${balanceCheck.available.toFixed(2)}`
-            );
-            return {
-              success: false,
-              error: `رصيد غير كافي في ${credential.exchange} — يحتاج $${balanceCheck.required.toFixed(2)}، المتاح $${balanceCheck.available.toFixed(2)}`,
-              executionTimeMs: Date.now() - startTime,
-            };
-          }
-        } catch (balanceErr: any) {
-          // Balance check failed — log warning but continue with order
-          // (the exchange itself will reject if balance is insufficient)
+      try {
+        const balanceCheck = await this._checkSufficientBalance(
+          credential,
+          signal.symbol,
+          signal.action as OrderSide,
+          risk.positionSize,
+          signal.entryPrice,
+        );
+        if (!balanceCheck.sufficient) {
           this.logger.warn(
-            `⚡ V150: Pre-trade balance check failed for ${credential.exchange}: ${balanceErr.message} — proceeding with order submission`
+            `⚡ V150 ORDER REJECTED: Insufficient balance for ${signal.action} ${risk.positionSize} ${signal.symbol} ` +
+            `on ${credential.exchange} — need $${balanceCheck.required.toFixed(2)}, have $${balanceCheck.available.toFixed(2)}`
           );
+          return {
+            success: false,
+            error: `رصيد غير كافي في ${credential.exchange} — يحتاج $${balanceCheck.required.toFixed(2)}، المتاح $${balanceCheck.available.toFixed(2)}`,
+            executionTimeMs: Date.now() - startTime,
+          };
         }
+      } catch (balanceErr: any) {
+        this.logger.warn(
+          `⚡ V150: Pre-trade balance check failed for ${credential.exchange}: ${balanceErr.message} — proceeding with order submission`
+        );
       }
 
       // Construct the order request
@@ -682,19 +679,22 @@ export class OrderExecutorService implements OnModuleDestroy {
   ): Promise<{ sufficient: boolean; required: number; available: number }> {
     // Calculate order value (notional)
     const orderValue = Math.abs(quantity * price);
-    // For BUY orders on spot, you need the full notional value in quote currency (USDT)
-    // For SELL orders on spot, you need the quantity in base currency (not checked here since V147 blocks SELL on spot)
     const required = orderValue * 1.005; // Add 0.5% buffer for fees/slippage
 
     // Use CredentialsService to fetch balance (with 5-second cache)
     if (!this.credentialsService) {
-      // CredentialsService not available — skip check (exchange will reject if insufficient)
       return { sufficient: true, required, available: Infinity };
     }
 
     try {
-      // fetchAllExchangeBalances returns balances for ALL exchanges, including the one we need
       const balances = await this.credentialsService.fetchAllExchangeBalances(credential.userId);
+
+      // Paper trading: use paper balance from AgentSettings
+      if (credential.exchange === 'paper-trading') {
+        const paperExchange = balances.exchanges.find((e: any) => e.exchange === 'paper-trading');
+        const available = paperExchange?.available ?? 0;
+        return { sufficient: available >= required, required, available };
+      }
       // Find the specific exchange's available balance
       const exchangeBalance = balances.exchanges.find(
         (e: any) => e.credentialId === credential.id ||

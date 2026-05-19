@@ -11,7 +11,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { TIMEFRAMES } from '@/lib/charts/types'
 import type { DrawingTool } from '@/lib/charts/types'
-import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, Crosshair, TrendingUp, Pencil, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown } from 'lucide-react'
+import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown } from 'lucide-react'
 
 const RouaChart = dynamic(() => import('@/components/charts/RouaChart'), {
   ssr: false,
@@ -37,46 +37,6 @@ function ChartContent() {
   const account = usePositionsStore(s => s.account)
 
   const chartActionsRef = useRef<any>(null)
-
-  // ── CRITICAL FIX: Release pointer captures when touching outside the chart ──
-  // When the chart canvas has pointer capture, all pointer events go to it.
-  // This interceptor ensures pointer capture is released when the user touches
-  // the navbar area, allowing navigation to work properly.
-  useEffect(() => {
-    const releaseCaptures = () => {
-      try {
-        const allEls = document.querySelectorAll('canvas')
-        for (const el of allEls) {
-          const htmlEl = el as HTMLElement
-          if (typeof htmlEl.hasPointerCapture === 'function') {
-            for (let pid = 1; pid <= 20; pid++) {
-              try {
-                if (htmlEl.hasPointerCapture(pid)) {
-                  htmlEl.releasePointerCapture(pid)
-                }
-              } catch { /* not captured */ }
-            }
-          }
-        }
-      } catch { /* best effort */ }
-    }
-
-    // Listen on document for touchstart in capture phase — runs BEFORE anything else
-    const onTouchStartDoc = (e: TouchEvent) => {
-      const touch = e.touches[0]
-      if (!touch) return
-      // Check if touch is in the navbar area (bottom 80px of viewport)
-      const navHeight = 80
-      if (touch.clientY > window.innerHeight - navHeight) {
-        releaseCaptures()
-      }
-    }
-
-    document.addEventListener('touchstart', onTouchStartDoc, { capture: true, passive: true })
-    return () => {
-      document.removeEventListener('touchstart', onTouchStartDoc, { capture: true })
-    }
-  }, [])
 
   useEffect(() => {
     const symbolParam = searchParams.get('symbol')
@@ -202,7 +162,6 @@ function ChartContent() {
 
   const ToolBtn = ({ children, onClick, active, title }: { children: React.ReactNode; onClick: () => void; active?: boolean; title: string }) => (
     <button
-      onTouchEnd={(e) => { e.preventDefault(); onClick() }}
       onClick={onClick}
       title={title}
       style={{ width: 44, height: 32, borderRadius: 6, background: active ? 'rgba(0,212,255,0.12)' : 'transparent', border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: active ? '#00D4FF' : 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}
@@ -224,14 +183,14 @@ function ChartContent() {
         {/* Pair + Price overlay */}
         <div style={{ position: 'absolute', top: 40, left: 8, right: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', pointerEvents: 'none', zIndex: 5, direction: 'ltr' }}>
           <div ref={dropdownRef} style={{ position: 'relative', pointerEvents: 'auto' }}>
-            <button onTouchEnd={(e) => { e.preventDefault(); setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }} onClick={() => { setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }} style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,212,255,0.15)', cursor: 'pointer', backdropFilter: 'blur(12px)' }}>
+            <button onClick={() => { setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }} style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,212,255,0.15)', cursor: 'pointer', backdropFilter: 'blur(12px)' }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", letterSpacing: -0.5 }}>{selectedSymbol.replace('/', '')}</span>
               <ChevronDown size={10} color="#00D4FF" strokeWidth={3} />
             </button>
             {showPairDropdown && (
               <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 60, minWidth: 140, maxHeight: 200, overflowY: 'auto', background: 'rgba(15,17,23,0.98)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 8, padding: 4, boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
                 {PAIRS.map(pair => (
-                  <button key={pair} onTouchEnd={(e) => { e.preventDefault(); setSelectedSymbol(pair); setShowPairDropdown(false) }} onClick={() => { setSelectedSymbol(pair); setShowPairDropdown(false) }} style={{ width: '100%', padding: '7px 8px', borderRadius: 4, background: selectedSymbol === pair ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <button key={pair} onClick={() => { setSelectedSymbol(pair); setShowPairDropdown(false) }} style={{ width: '100%', padding: '7px 8px', borderRadius: 4, background: selectedSymbol === pair ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: selectedSymbol === pair ? '#00D4FF' : '#F0F2F5', fontFamily: "'JetBrains Mono', monospace" }}>{pair}</span>
                   </button>
                 ))}
@@ -262,7 +221,7 @@ function ChartContent() {
             <div style={{ position: 'absolute', top: '100%', left: 0, zIndex: 60, minWidth: 220, background: 'rgba(15,17,23,0.98)', backdropFilter: 'blur(20px)', border: '1px solid rgba(0,212,255,0.15)', borderRadius: 8, padding: 6, boxShadow: '0 8px 32px rgba(0,0,0,0.7)' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 2 }}>
                 {TIMEFRAMES.map(tf => (
-                  <button key={tf.value} onTouchEnd={(e) => { e.preventDefault(); setTimeframe(tf.value); setShowTimeframePanel(false) }} onClick={() => { setTimeframe(tf.value); setShowTimeframePanel(false) }} style={{ background: timeframe === tf.value ? '#00D4FF' : '#1a1f2e', border: `1px solid ${timeframe === tf.value ? '#00D4FF' : 'rgba(255,255,255,0.05)'}`, color: timeframe === tf.value ? '#000' : 'rgba(255,255,255,0.4)', borderRadius: 4, padding: '4px 0', fontSize: 8, fontWeight: timeframe === tf.value ? 800 : 600, fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer', textAlign: 'center' }}>{tf.label}</button>
+                  <button key={tf.value} onClick={() => { setTimeframe(tf.value); setShowTimeframePanel(false) }} style={{ background: timeframe === tf.value ? '#00D4FF' : '#1a1f2e', border: `1px solid ${timeframe === tf.value ? '#00D4FF' : 'rgba(255,255,255,0.05)'}`, color: timeframe === tf.value ? '#000' : 'rgba(255,255,255,0.4)', borderRadius: 4, padding: '4px 0', fontSize: 8, fontWeight: timeframe === tf.value ? 800 : 600, fontFamily: "'JetBrains Mono', monospace", cursor: 'pointer', textAlign: 'center' }}>{tf.label}</button>
                 ))}
               </div>
             </div>
@@ -273,13 +232,13 @@ function ChartContent() {
       {/* Order Sheet */}
       {showOrderSheet && (
         <>
-          <div onTouchEnd={(e) => { e.preventDefault(); if (execStatus !== 'submitting') setShowOrderSheet(false) }} onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }} />
+          <div onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(5px)' }} />
           <div style={{ position: 'fixed', bottom: 'calc(var(--m-nav-total, 56px))', left: 0, right: 0, zIndex: 55, background: C.bg, backdropFilter: 'blur(50px) saturate(200%)', borderRadius: '20px 20px 0 0', borderTop: '0.5px solid rgba(255,255,255,0.12)', direction: 'rtl', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)', maxHeight: '75vh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 10, paddingBottom: 6, flexShrink: 0 }}><div style={{ width: 32, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} /></div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '0 16px', WebkitOverflowScrolling: 'touch' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <h2 style={{ fontSize: 16, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>{orderType === 'market' ? 'تنفيذ أمر سوقي' : orderType === 'limit' ? 'أمر محدد' : 'أمر وقف'}</h2>
-                <button onTouchEnd={(e) => { e.preventDefault(); if (execStatus !== 'submitting') setShowOrderSheet(false) }} onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}><X size={16} color="#FFF" /></button>
+                <button onClick={() => { if (execStatus !== 'submitting') setShowOrderSheet(false) }} style={{ width: 28, height: 28, borderRadius: '50%', background: 'rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none' }}><X size={16} color="#FFF" /></button>
               </div>
 
               {/* Buy/Sell Toggle */}

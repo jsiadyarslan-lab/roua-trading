@@ -239,102 +239,51 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const chart = createChart(container, chartOptions);
 
-    // ── FIX: Smart pointer capture management on mobile ──
-    // lightweight-charts calls setPointerCapture() on touch, which captures ALL
-    // subsequent pointer events (including those on the navbar). This makes the
-    // bottom navbar completely unresponsive after touching the chart.
+    // ── ROOT CAUSE FIX: Block setPointerCapture on mobile ──
+    // lightweight-charts calls setPointerCapture() on the canvas on every
+    // pointerdown. This captures ALL subsequent pointer events to the canvas,
+    // completely blocking the bottom navbar from receiving any touch/click.
     //
-    // PREVIOUS APPROACH (BROKEN): Releasing capture immediately on gotpointercapture
-    // breaks chart panning because the chart needs capture for drag tracking.
+    // ALL previous approaches FAILED:
+    //   ❌ releasePointerCapture on pointerup — too late, navbar already blocked
+    //   ❌ onTouchEnd on navbar — doesn't work on all mobile browsers
+    //   ❌ touch-action CSS — doesn't affect pointer capture
+    //   ❌ z-index changes — pointer capture overrides z-index
     //
-    // NEW APPROACH:
-    // 1. Let the chart keep pointer capture during active touch (for panning/zooming)
-    // 2. Release capture on pointerup/pointerupoutside to free the navbar
-    // 3. Add a safety timeout that releases capture if it's held too long
-    // 4. The navbar uses onTouchEnd (not onClick) which bypasses pointer capture entirely
+    // THE ONLY RELIABLE FIX: Prevent setPointerCapture from being called
+    // on the canvas in the first place. By making it a no-op, the chart
+    // canvas can never steal pointer events from the navbar.
     //
-    // This approach: chart panning works ✅ + navbar always works ✅
+    // Impact on chart: Pan/zoom still works (pointer events reach the canvas
+    // while the finger is over it). The only edge case is if the user drags
+    // their finger off the canvas edge during a pan — the pan stops. But on
+    // mobile the chart fills the screen, so this is negligible.
     if (isMobile) {
-      // Track active pointer IDs to release them later
-      const activePointers = new Set<number>();
-
-      const onGotCapture = (e: Event) => {
-        const pe = e as PointerEvent;
-        activePointers.add(pe.pointerId);
+      const blockPointerCapture = (canvas: HTMLCanvasElement) => {
+        // Override setPointerCapture to be a no-op on this canvas
+        // This prevents lightweight-charts from ever capturing pointer events
+        canvas.setPointerCapture = () => canvas;
       };
 
-      const onLostCapture = (e: Event) => {
-        const pe = e as PointerEvent;
-        activePointers.delete(pe.pointerId);
-      };
+      // Block on any existing canvases
+      container.querySelectorAll('canvas').forEach(blockPointerCapture);
 
-      // Release capture on pointer up — chart is done with this touch
-      const onPointerUp = (e: PointerEvent) => {
-        const target = e.target as HTMLElement;
-        if (activePointers.has(e.pointerId)) {
-          try {
-            target.releasePointerCapture(e.pointerId);
-          } catch { /* already released */ }
-          activePointers.delete(e.pointerId);
-        }
-      };
-
-      // Safety: release ALL captures after 3 seconds (prevents stuck capture)
-      const safetyInterval = setInterval(() => {
-        if (activePointers.size > 0) {
-          const canvases = container.querySelectorAll('canvas');
-          for (const canvas of canvases) {
-            for (const pid of activePointers) {
-              try {
-                if ((canvas as any).hasPointerCapture?.(pid)) {
-                  (canvas as HTMLElement).releasePointerCapture(pid);
-                }
-              } catch { /* not captured */ }
-            }
-          }
-          activePointers.clear();
-        }
-      }, 3000);
-
-      // Attach to all current and future canvases via MutationObserver
-      const attachToCanvas = (canvas: HTMLCanvasElement) => {
-        canvas.removeEventListener('gotpointercapture', onGotCapture);
-        canvas.removeEventListener('lostpointercapture', onLostCapture);
-        canvas.removeEventListener('pointerup', onPointerUp);
-        canvas.removeEventListener('pointerupoutside', onPointerUp);
-        canvas.addEventListener('gotpointercapture', onGotCapture);
-        canvas.addEventListener('lostpointercapture', onLostCapture);
-        canvas.addEventListener('pointerup', onPointerUp);
-        canvas.addEventListener('pointerupoutside', onPointerUp);
-      };
-
-      // Attach to any existing canvases
-      container.querySelectorAll('canvas').forEach(attachToCanvas);
-
-      // Watch for new canvases being added (lightweight-charts recreates them)
-      const observer = new MutationObserver((mutations) => {
+      // Watch for new canvases (lightweight-charts may recreate them)
+      const captureObserver = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
           for (const node of mutation.addedNodes) {
             if (node instanceof HTMLCanvasElement) {
-              attachToCanvas(node);
+              blockPointerCapture(node);
             }
           }
         }
       });
-      observer.observe(container, { childList: true, subtree: true });
+      captureObserver.observe(container, { childList: true, subtree: true });
 
-      // Store cleanup function so it runs when chart is destroyed
+      // Clean up on chart remove
       const originalRemove = chart.remove.bind(chart);
       chart.remove = () => {
-        clearInterval(safetyInterval);
-        observer.disconnect();
-        container.querySelectorAll('canvas').forEach(c => {
-          c.removeEventListener('gotpointercapture', onGotCapture);
-          c.removeEventListener('lostpointercapture', onLostCapture);
-          c.removeEventListener('pointerup', onPointerUp);
-          c.removeEventListener('pointerupoutside', onPointerUp);
-        });
-        activePointers.clear();
+        captureObserver.disconnect();
         originalRemove();
       };
     }

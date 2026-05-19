@@ -170,9 +170,10 @@ export class CredentialsService {
     userAgent?: string,
   ) {
     const { exchange, label, apiKey, apiSecret, passphrase, testnet } = data;
+    const effectiveTestnet = testnet === true || exchange.toLowerCase().includes('test');
 
     // Step 1: Validate the API key against the actual exchange
-    const validation = await this._validateApiKey(exchange, apiKey, apiSecret, passphrase);
+    const validation = await this._validateApiKey(exchange, apiKey, apiSecret, passphrase, effectiveTestnet);
 
     if (!validation.valid) {
       await this.auditService.log({
@@ -234,7 +235,7 @@ export class CredentialsService {
         permissions: JSON.stringify(validation.permissions || ['read']),
         isValid: true,
         lastValidatedAt: new Date(),
-        testnet: testnet || false,
+        testnet: effectiveTestnet,
       },
     });
 
@@ -547,7 +548,7 @@ export class CredentialsService {
               exchange: cred.exchange,
               label: cred.label,
               credentialId: cred.id,
-              isTestnet: cred.exchange.includes('test'),
+              isTestnet: cred.testnet === true || cred.exchange.includes('test'),
               equity: 0,
               available: 0,
               currency: 'USD',
@@ -575,6 +576,7 @@ export class CredentialsService {
             decrypted.apiKey,
             decrypted.apiSecret,
             decrypted.passphrase,
+            cred.testnet === true,
           );
         } catch (error: any) {
           // V164d: Log the FULL error details for debugging
@@ -823,6 +825,7 @@ export class CredentialsService {
     apiKey: string,
     apiSecret: string,
     passphrase?: string,
+    testnet: boolean = false,
   ): Promise<{
     exchange: string;
     label: string;
@@ -841,7 +844,7 @@ export class CredentialsService {
     const isBinance = exchange.toLowerCase().startsWith('binance');
     const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test';
     const normalizedExchange = isBinance ? 'binance' : exchange;
-    const isTestnet = isBinanceTest || exchange.includes('test');
+    const isTestnet = testnet || isBinanceTest || exchange.includes('test');
 
     const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
     if (!ExchangeClass) {
@@ -872,7 +875,7 @@ export class CredentialsService {
     const instance = new ExchangeClass(exchangeConfig);
 
     // Apply testnet URLs (same logic as _doValidateApiKey)
-    if (isBinanceTest) {
+    if (isTestnet && isBinance) {
       if (exchange === 'binance_future_test') {
         instance.sandbox = true;
         instance.urls['api'] = {
@@ -889,7 +892,7 @@ export class CredentialsService {
         this.logger.log(`🔑 Balance fetch: Binance Futures Testnet via manual URL override`);
       } else {
         instance.setSandboxMode(true);
-        this.logger.log(`🔑 Balance fetch: Binance Spot Testnet via CCXT sandbox mode`);
+        this.logger.log(`🔑 Balance fetch: Binance Spot Testnet via CCXT sandbox mode (exchange=${exchange}, testnet=${testnet})`);
       }
     }
 
@@ -1122,11 +1125,12 @@ export class CredentialsService {
     apiKey: string,
     apiSecret: string,
     passphrase?: string,
+    testnet: boolean = false,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     // Wrap entire validation in a 10-second timeout
     const TIMEOUT_MS = 10_000;
 
-    const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret, passphrase);
+    const validationPromise = this._doValidateApiKey(exchange, apiKey, apiSecret, passphrase, testnet);
 
     // FIX (C5): Race the validation against a timeout.
     // CRITICAL: On timeout, REJECT the key (not accept it) to prevent
@@ -1151,9 +1155,10 @@ export class CredentialsService {
     apiKey: string,
     apiSecret: string,
     passphrase?: string,
+    testnet: boolean = false,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
     const isBinance = exchange.toLowerCase().startsWith('binance');
-    const isBinanceTest = exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
+    const isBinanceTest = testnet || exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
     try {
       const normalizedExchange = isBinance ? 'binance' : exchange;
       const ExchangeClass = ccxt[normalizedExchange as keyof typeof ccxt] as any;
@@ -1224,7 +1229,7 @@ export class CredentialsService {
         } else {
           // Spot Testnet — setSandboxMode works correctly
           exchangeInstance.setSandboxMode(true);
-          this.logger.log('🔑 Validating Binance Spot Testnet via CCXT sandbox mode');
+          this.logger.log(`🔑 Validating Binance Spot Testnet via CCXT sandbox mode (exchange=${exchange}, testnet=${testnet})`);
         }
       }
 

@@ -20,6 +20,7 @@ import {
   Min,
   MaxLength,
   IsUUID,
+  Matches,
 } from 'class-validator';
 import { OrderSide, OrderType } from '@prisma/client';
 
@@ -32,6 +33,8 @@ export class PlaceOrderDto {
 
   @IsString()
   @MaxLength(30)
+  // SECURITY: Only allow alphanumeric + / . - _ (no SQL/shell special chars)
+  @Matches(/^[A-Za-z0-9\/\.\-_]+$/, { message: 'رمز التداول غير صالح — أحرف وأرقام و / . - _ فقط' })
   symbol!: string;
 
   @IsEnum(OrderSide)

@@ -302,7 +302,9 @@ export class StrategicCouncilService {
     // brief generation here. Briefs without enabled users are harmless.
     // ═══════════════════════════════════════════════════════════════════
     try {
-      let autoTradingEnabled = true;  // Default to TRUE — generate briefs by default
+      // SAFETY: Default to FALSE — auto trading must be explicitly enabled by admin.
+      // A new deployment should NOT start trading until the operator confirms readiness.
+      let autoTradingEnabled = false;
       try {
         const dbSetting = await this.prisma.setting.findUnique({
           where: { key: 'AUTO_TRADING_ENABLED' },
@@ -310,9 +312,9 @@ export class StrategicCouncilService {
         if (dbSetting) {
           autoTradingEnabled = JSON.parse(dbSetting.value);
         }
-        // If no DB setting, keep default TRUE (don't fall back to env var which may be false)
+        // If no DB setting exists, keep default FALSE (safe — operator must enable)
       } catch {
-        // DB lookup failed — keep default TRUE (generate briefs anyway)
+        // DB lookup failed — keep default FALSE (fail safe)
       }
 
       if (!autoTradingEnabled) {

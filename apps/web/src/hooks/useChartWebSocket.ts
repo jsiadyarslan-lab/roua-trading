@@ -324,10 +324,11 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           reconnectionAttempts: 5,
           reconnectionDelay: 2000,
         };
-        // Only include token in auth/query if it's actually available
+        // SECURITY: Token must ONLY be in auth (not in query/URL).
+        // query params appear in server logs, browser history, and referrer headers.
         if (token) {
           socketOptions.auth = { token };
-          socketOptions.query = { token };
+          // socketOptions.query intentionally omitted — tokens must not appear in URLs
         }
 
         const socket = io(`${wsUrl}/exchange`, socketOptions);

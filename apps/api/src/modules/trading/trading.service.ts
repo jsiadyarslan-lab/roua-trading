@@ -868,10 +868,19 @@ export class TradingService {
           ? posCurrentPrice
           : posEntryPrice);
 
-    const pnl =
+    // FIX: Deduct actual trading fees from PnL.
+    // For real exchanges, execution.fee contains the actual fee charged.
+    // For paper trading, fee is simulated at 0.1% per leg (entry + exit).
+    const grossPnl =
       position.side === 'BUY'
         ? (exitPrice - posEntryPrice) * closeQuantity
         : (posEntryPrice - exitPrice) * closeQuantity;
+    const exitFee = execution.fee ?? (exitPrice * closeQuantity * 0.001); // actual or estimated 0.1%
+    const entryFeeEstimate = posEntryPrice * closeQuantity * 0.001; // entry fee approximation
+    const totalFees = position.exchange === 'paper-trading'
+      ? exitFee + entryFeeEstimate  // paper: both fees simulated
+      : exitFee;                    // real: entry fee already paid, deduct exit fee only
+    const pnl = grossPnl - totalFees;
 
     // Record closing order, exit trade, and update position — all in one transaction
     // FIX: Optimistic locking — use version check in WHERE clause to prevent
@@ -1211,10 +1220,13 @@ export class TradingService {
     }
 
     const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
-    const pnl =
+    // FIX: Deduct simulated fees (0.1% per leg) from paper PnL.
+    const grossPnl2 =
       position.side === 'BUY'
         ? (currentPrice - posEntryPrice) * posQuantity
         : (posEntryPrice - currentPrice) * posQuantity;
+    const paperFees = (posEntryPrice + currentPrice) * posQuantity * 0.001;
+    const pnl = grossPnl2 - paperFees;
 
     // Create DB records without exchange execution
     const { order: closedOrder } = await this.prisma.$transaction(async (tx) => {

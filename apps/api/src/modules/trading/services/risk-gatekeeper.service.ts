@@ -279,6 +279,10 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     const drawdownCheck = await this.checkDailyDrawdownLimit(command.userId, command.exchangeCredentialId);
     if (!drawdownCheck.allowed) return drawdownCheck;
 
+    // Check 4b: Overall drawdown limit (all-time, not just today)
+    const overallDrawdownCheck = await this.checkOverallDrawdownLimit(command.userId, command.exchangeCredentialId);
+    if (!overallDrawdownCheck.allowed) return overallDrawdownCheck;
+
     // Check 5: Circuit breakers (scoped per user+symbol)
     const circuitCheck = await this.checkCircuitBreakers(command.userId, command.symbol);
     if (!circuitCheck.allowed) return circuitCheck;
@@ -804,6 +808,55 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     } catch (error: any) {
       this.logger.error(`Daily drawdown check error: ${error.message}`);
       return { allowed: false, reason: 'Cannot verify daily drawdown limit', failedCheck: 'DAILY_DRAWDOWN' };
+    }
+  }
+
+  /**
+   * CHECK 4b: Overall Drawdown Limit
+   *
+   * Stops trading if total realized losses exceed 30% of original portfolio value.
+   * This protects against catastrophic losses that span multiple days.
+   * Default threshold: 30% (configurable via RISK_MAX_OVERALL_DRAWDOWN_PERCENT env var).
+   */
+  async checkOverallDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
+    try {
+      if (exchangeCredentialId) {
+        const credential = await this.prisma.exchangeCredential.findUnique({ where: { id: exchangeCredentialId } });
+        if (this._isSimulatedCredential(credential)) return { allowed: true };
+      }
+
+      const maxOverallDrawdownPercent = parseFloat(
+        this.configService.get('RISK_MAX_OVERALL_DRAWDOWN_PERCENT', '30')
+      );
+
+      // Sum ALL realized losses from closed trades (no date filter)
+      const allTrades = await this.prisma.trade.findMany({
+        where: { userId, type: { in: ['EXIT', 'PARTIAL_EXIT'] } },
+        select: { pnl: true },
+      });
+      const totalPnL = allTrades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+
+      if (totalPnL < 0) {
+        const portfolioValue = await this._estimatePortfolioValue(userId);
+        if (portfolioValue > 0) {
+          const originalValue = portfolioValue + Math.abs(totalPnL);
+          const overallLossPercent = (Math.abs(totalPnL) / originalValue) * 100;
+          if (overallLossPercent >= maxOverallDrawdownPercent) {
+            this.logger.warn(
+              `🛡️ OVERALL DRAWDOWN: User ${userId} overall loss ${overallLossPercent.toFixed(1)}% >= limit ${maxOverallDrawdownPercent}%`
+            );
+            return {
+              allowed: false,
+              reason: `إجمالي خسائرك (${overallLossPercent.toFixed(1)}%) تجاوز الحد الأقصى الكلي (${maxOverallDrawdownPercent}%). يرجى مراجعة استراتيجيتك قبل الاستمرار.`,
+              failedCheck: 'OVERALL_DRAWDOWN',
+            };
+          }
+        }
+      }
+      return { allowed: true };
+    } catch (err: any) {
+      this.logger.warn(`Overall drawdown check failed (non-fatal): ${err.message}`);
+      return { allowed: true }; // Non-fatal — don't block trading on check failure
     }
   }
 

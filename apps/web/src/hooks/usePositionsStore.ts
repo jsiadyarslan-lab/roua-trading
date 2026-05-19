@@ -860,6 +860,25 @@ export const usePositionsStore = create<PositionsState>()(
     // instead of hardcoding $10,000. This is the LAST source before the
     // final fallback. If the settings fetch also fails (e.g. 401), we
     // skip this attempt entirely to avoid showing the wrong balance.
+    //
+    // CRITICAL: Do not use this local paper fallback for authenticated users.
+    // When a real/testnet exchange balance request fails, this branch made the
+    // UI rebuild the same paper balance from local positions, so users still
+    // saw the same number even after the exchange fallback was blocked above.
+    if (currentUserId) {
+      console.warn('[PositionsStore] fetchAccount: Skipping local paper balance fallback for authenticated user.')
+      const staleAccount = get().account
+      if (staleAccount?.isPaperTrading === true || staleAccount?.exchangeUnavailable === true) {
+        set({
+          account: null,
+          exchangeBalances: [],
+          dataSource: null,
+          _cacheTimestamp: Date.now(),
+        })
+      }
+      return
+    }
+
     const fallbackPositions = get().positions
     if (fallbackPositions.length > 0) {
       const totalExposure = fallbackPositions.reduce((sum, p) => sum + (p.marketValue || p.qty * p.currentPrice), 0)

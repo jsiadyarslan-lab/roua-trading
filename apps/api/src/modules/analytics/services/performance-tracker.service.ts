@@ -247,10 +247,16 @@ export class PerformanceTrackerService {
     };
   }
 
+  /**
+   * V168 SECURITY FIX: Removed _getFirstActiveUser() which returned
+   * the first user from the database — a cross-user data leakage vector.
+   * The cron job that used this method now simply skips if no userId
+   * is provided. Performance data should only be calculated per-user.
+   */
   private async _getFirstActiveUser(): Promise<string | null> {
-    try {
-      const user = await this.prisma.user.findFirst({ where: {} });
-      return user?.id || null;
-    } catch { return null; }
+    // V168: Do NOT return any user's ID from here.
+    // Performance cache updates should only happen when a specific
+    // user requests their data, not by blindly picking the first user.
+    return null;
   }
 }

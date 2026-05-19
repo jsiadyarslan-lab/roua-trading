@@ -128,3 +128,33 @@ Stage Summary:
 - V169 deployed to main (commit a5fb5a89e)
 - All 4 user issues addressed: nan$, too many decimals, entry price, period filter P&L
 - New feature: P&L by category cards showing profit, count, and win rate per source type
+
+---
+Task ID: V168
+Agent: Main Agent
+Task: Fix user data isolation in Roua Trading — Defense-in-Depth approach
+
+Work Log:
+- Explored entire codebase to identify cross-user data leakage vectors
+- Created PrismaExtensionService (Layer 1) — auto-injects userId filter on all Prisma queries
+- Created PostgreSQL RLS migration (Layer 2) — Row Level Security on 18 user-scoped tables
+- Fixed SmartExecutorService.getOpenPositions() — userId now REQUIRED (was optional, returned ALL users' data)
+- Fixed SmartExecutorService.purgePhantomPositions() — userId now REQUIRED (was optional, could delete ALL users' data)
+- Fixed SmartExecutorService.nuclearCleanup() — added required userId parameter, scoped ALL delete operations to userId
+- Fixed SmartExecutorController.nuclearCleanup() — now requires authenticated user
+- Fixed PerformanceTrackerService._getFirstActiveUser() — removed dangerous pattern that returned ANY user's ID
+- Added V168 comment to ExchangeSyncService._syncCycle() documenting that credential relationship provides user scoping
+- Verified Redis caching keys — all user-scoped keys already include userId
+- Verified AuthGuard — correctly extracts userId from session and injects into req.user.id
+- Verified all controllers — all use req.user.id correctly
+- Build succeeds: bun run build — 0 errors
+
+Stage Summary:
+- Created: apps/api/src/common/prisma/prisma-extension.service.ts
+- Modified: apps/api/src/common/prisma/prisma.module.ts
+- Created: prisma/migrations/20260519000000_enable_rls/migration.sql
+- Modified: apps/api/src/modules/ai/smart-executor/smart-executor.service.ts (3 methods fixed)
+- Modified: apps/api/src/modules/ai/smart-executor/smart-executor.controller.ts (nuclearCleanup)
+- Modified: apps/api/src/modules/trading/services/exchange-sync.service.ts (V168 comment)
+- Modified: apps/api/src/modules/analytics/services/performance-tracker.service.ts (_getFirstActiveUser)
+- Key security principle: Defense-in-Depth — 3 layers of protection (Prisma Extension, RLS, manual query fixes)

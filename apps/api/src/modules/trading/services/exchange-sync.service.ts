@@ -115,7 +115,10 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
     this.isRunning = true;
 
     try {
-      // Get all OPEN non-paper-trading positions from DB
+      // V168 SECURITY FIX: Get all OPEN non-paper-trading positions from DB
+      // We include credential relationship to verify userId ownership.
+      // Each position's credential includes the userId, so we process
+      // positions grouped by credential — each credential is user-specific.
       const openPositions = await this.prisma.position.findMany({
         where: {
           status: 'OPEN',

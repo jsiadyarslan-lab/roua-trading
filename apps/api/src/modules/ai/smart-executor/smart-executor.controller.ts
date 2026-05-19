@@ -175,15 +175,19 @@ export class SmartExecutorController {
 
   /**
    * POST /api/smart-executor/nuclear-cleanup — Delete ALL fake/paper trading data
-   * Removes all TradingBriefs, paper-trading Positions/Trades/Orders/Credentials,
-   * and clears all Redis executor states. Also stops the executor.
-   * This is a ONE-TIME operation to clean up phantom data.
+   * V168 SECURITY: Now requires authenticated user — only deletes that user's data.
+   * Removes user's TradingBriefs, paper-trading Positions/Trades/Orders/Credentials,
+   * and clears their Redis executor state. Also stops the executor.
    */
   @Post('nuclear-cleanup')
   @Throttle({ default: { limit: 2, ttl: 300000 } })
-  async nuclearCleanup() {
-    this.logger.warn('⚔️ NUCLEAR CLEANUP requested — deleting ALL fake/paper data');
-    const result = await this.executorService.nuclearCleanup();
+  async nuclearCleanup(@Request() req: any) {
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'المستخدم غير مُصادق عليه — لا يمكن تنفيذ التنظيف' };
+    }
+    this.logger.warn(`⚔️ V168 NUCLEAR CLEANUP requested by user ${userId}`);
+    const result = await this.executorService.nuclearCleanup(userId);
     return {
       success: true,
       data: result,

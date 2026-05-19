@@ -2,28 +2,21 @@
 > @roua/web@0.2.0 build
 > next build --webpack
 
-⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
- We detected multiple lockfiles and selected the directory of /home/z/my-project/bun.lock as the root directory.
- To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
-   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
- Detected additional lockfiles: 
-   * /home/z/my-project/roua-trading/package-lock.json
-
 ▲ Next.js 16.2.4 (webpack)
 - Experiments (use with caution):
   · optimizePackageImports
 
   Creating an optimized production build ...
-✓ Compiled successfully in 35.9s
+✓ Compiled successfully in 31.4s
   Skipping validation of types
-  Finished TypeScript config validation in 6ms ...
+  Finished TypeScript config validation in 5ms ...
   Collecting page data using 3 workers ...
 ⚠ Using edge runtime on a page currently disables static generation for that page
   Generating static pages using 3 workers (0/139) ...
   Generating static pages using 3 workers (34/139) 
   Generating static pages using 3 workers (69/139) 
   Generating static pages using 3 workers (104/139) 
-✓ Generating static pages using 3 workers (139/139) in 1076ms
+✓ Generating static pages using 3 workers (139/139) in 1311ms
   Finalizing page optimization ...
   Collecting build traces ...
 

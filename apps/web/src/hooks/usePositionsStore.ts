@@ -508,13 +508,14 @@ export const usePositionsStore = create<PositionsState>()(
     // Track current user as owner of this data
     if (currentUserId) set({ _ownerUserId: currentUserId } as any)
 
-    // V154 FIX: Handle 401 responses — don't fall through to $10,000 fallback.
+    // V154/V166 FIX: Handle auth-blocked responses — don't fall through to paper fallback.
     // Previously, when the backend returned 401 (expired session), fetchAccount()
     // silently fell through all try/catch blocks and showed $10,000 to every user.
-    // Now we check the response status and stop if the session is invalid.
+    // Now we stop on 401/403 so guest or invalid sessions cannot show a shared
+    // paper/demo balance after the real credentials endpoint refuses access.
     const checkAuthResponse = (res: Response) => {
-      if (res.status === 401) {
-        console.warn('[PositionsStore] fetchAccount: Got 401 — session expired. NOT showing $10,000 fallback.')
+      if (res.status === 401 || res.status === 403) {
+        console.warn(`[PositionsStore] fetchAccount: Got ${res.status} — auth blocked. NOT showing paper fallback.`)
         return true // auth failed — don't use fallback
       }
       return false

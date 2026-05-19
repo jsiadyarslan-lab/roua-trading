@@ -47,7 +47,7 @@ const SUPPORTED_EXCHANGES = [
 
 export default function ExchangeSettingsPage() {
   const router = useRouter()
-  const { loading: authLoading } = useAuth()
+  const { loading: authLoading, isGuest } = useAuth()
   const [credentials, setCredentials] = useState<Credential[]>([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
@@ -197,6 +197,33 @@ export default function ExchangeSettingsPage() {
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
         <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)' }} />
       </div>
+    )
+  }
+
+  if (isGuest) {
+    return (
+      <SubPageLayout
+        title="مفاتيح البورصات"
+        icon={<Key size={14} color="#fff" />}
+        iconBg="linear-gradient(135deg, #FFB800, #FF8C00)"
+      >
+        <div className="p-4 rounded-lg bg-amber-500/8 border border-amber-500/20">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium text-amber-300 text-sm mb-2">
+                ربط Binance غير متاح في وضع الزائر
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+                يجب تسجيل الدخول بحساب حقيقي قبل إضافة مفاتيح البورصة حتى يبقى الرصيد معزولا لكل مستخدم.
+              </p>
+              <Button onClick={() => router.push('/login')} size="sm">
+                تسجيل الدخول
+              </Button>
+            </div>
+          </div>
+        </div>
+      </SubPageLayout>
     )
   }
 

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Logger, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, Request, Logger, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { CredentialsService } from './credentials.service';
 import { AuthGuard } from '../../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
@@ -42,11 +42,27 @@ export class CredentialsController {
 
   constructor(private readonly credentialsService: CredentialsService) {}
 
+  private assertRealUser(req: any) {
+    const user = req.user;
+    const email = String(user?.email || '');
+    const id = String(user?.id || '');
+    const isGuest =
+      !id ||
+      id.startsWith('guest') ||
+      email === 'guest@roua.auto' ||
+      /^guest-[a-f0-9]+@roua\.auto$/.test(email);
+
+    if (isGuest) {
+      throw new ForbiddenException('يجب تسجيل الدخول بحساب حقيقي لربط مفاتيح البورصة أو عرض أرصدتها');
+    }
+  }
+
   /**
    * GET /api/portfolio/credentials — Get user's exchange credentials
    */
   @Get()
   async getCredentials(@Request() req: any) {
+    this.assertRealUser(req);
     const credentials = await this.credentialsService.getUserCredentials(req.user.id);
     return { success: true, data: credentials };
   }
@@ -60,6 +76,7 @@ export class CredentialsController {
     @Request() req: any,
     @Body() body: { testnet?: boolean },
   ) {
+    this.assertRealUser(req);
     try {
       const credential = await this.credentialsService.updateCredential(
         req.user.id,
@@ -91,6 +108,7 @@ export class CredentialsController {
     @Request() req: any,
     @Body() body: AddCredentialDto,
   ) {
+    this.assertRealUser(req);
     if (!body.exchange || !body.label || !body.apiKey || !body.apiSecret) {
       throw new BadRequestException('جميع الحقول مطلوبة');
     }
@@ -127,6 +145,7 @@ export class CredentialsController {
   @Get('balances')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async getBalances(@Request() req: any) {
+    this.assertRealUser(req);
     try {
       const balances = await this.credentialsService.fetchAllExchangeBalances(req.user.id);
       return { success: true, data: balances };
@@ -146,6 +165,7 @@ export class CredentialsController {
     @Request() req: any,
     @Param('id') id: string,
   ) {
+    this.assertRealUser(req);
     await this.credentialsService.deleteCredential(
       req.user.id,
       id,
@@ -191,6 +211,7 @@ export class CredentialsController {
    */
   @Get('test-connectivity')
   async testConnectivity(@Request() req: any) {
+    this.assertRealUser(req);
     const userId = req.user?.id;
     const results = await Promise.allSettled([
       this.credentialsService.testExchangeConnectivity('binance', userId),

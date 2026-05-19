@@ -798,6 +798,32 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
     await this._saveAgentState(userId, state);
 
+    // ── EMERGENCY: Close ALL open positions immediately ──
+    if (emergency) {
+      try {
+        const openPositions = await this.prisma.position.findMany({
+          where: { userId, status: 'OPEN' },
+          select: { id: true, symbol: true },
+        });
+
+        if (openPositions.length > 0) {
+          this.logger.warn(`🧠 EMERGENCY STOP: closing ${openPositions.length} open positions for user ${userId}`);
+          await Promise.allSettled(
+            openPositions.map((pos) =>
+              this.tradingService.closePositionWithRetry(userId, {
+                positionId: pos.id,
+                closeReason: 'EMERGENCY_STOP',
+              }).catch((err: any) =>
+                this.logger.error(`Failed to close position ${pos.id} (${pos.symbol}): ${err.message}`)
+              )
+            )
+          );
+        }
+      } catch (closeErr: any) {
+        this.logger.error(`Emergency position close failed: ${closeErr.message}`);
+      }
+    }
+
     // Update DB session
     try {
       const session = await this.prisma.agentSession.findFirst({

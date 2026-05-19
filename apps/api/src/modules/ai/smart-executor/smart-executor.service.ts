@@ -3485,4 +3485,8 @@ export class SmartExecutorService implements OnModuleDestroy {
   // to silently enable users who had active AgentSessions, leading to
   // DUPLICATE phantom trades from both systems. Each system (Executor and
   // Agent) is now fully independent — users must explicitly enable each one.
+
+  async closePosition(userId: string, positionId: string, closeReason: string): Promise<void> {
+    await this.tradingService.closePositionWithRetry(userId, { positionId, closeReason });
+  }
 }

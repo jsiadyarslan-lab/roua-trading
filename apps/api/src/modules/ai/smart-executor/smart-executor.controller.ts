@@ -72,6 +72,48 @@ export class SmartExecutorController {
   }
 
   /**
+   * POST /api/smart-executor/emergency-stop — Stop executor AND close all open positions
+   */
+  @Post('emergency-stop')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
+  async emergencyStop(@Request() req: any) {
+    const userId = req.user?.id;
+    if (!userId) {
+      return { success: false, error: 'المستخدم غير مُصادق عليه' };
+    }
+    this.logger.warn(`🚨 EMERGENCY STOP requested by user ${userId} — disabling executor and closing all positions`);
+
+    // 1. Disable executor
+    await this.executorService.disableUser(userId);
+
+    // 2. Close all open positions
+    const closed: string[] = [];
+    const failed: string[] = [];
+    try {
+      const openPositions = await this.executorService.getOpenPositions(userId);
+      await Promise.allSettled(
+        openPositions.map(async (pos: any) => {
+          try {
+            await this.executorService.closePosition(userId, pos.id, 'EMERGENCY_STOP');
+            closed.push(pos.symbol);
+          } catch {
+            failed.push(pos.symbol);
+          }
+        })
+      );
+    } catch (err: any) {
+      this.logger.error(`Emergency close failed: ${err.message}`);
+    }
+
+    return {
+      success: true,
+      message: `تم إيقاف المنفذ الذكي وإغلاق ${closed.length} صفقة`,
+      closed,
+      failed,
+    };
+  }
+
+  /**
    * GET /api/smart-executor/positions — Get open positions for current user
    * FIX: Now user-scoped — only returns the authenticated user's positions
    */

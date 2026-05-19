@@ -97,12 +97,16 @@ export class CredentialsService {
             this.logger.error('🚨 SECURITY ALERT: ENCRYPTION_KEY still not set in production! Real account credentials at risk.');
           }, 60_000);
         } else {
-          // No fallback at all — refuse to start
-          throw new Error(
-            '🚨 FATAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production. ' +
-            'Cannot encrypt/decrypt credentials — refusing to start. ' +
+          // No fallback — use temporary key and log critical error
+          // NOTE: We intentionally do NOT throw here — throwing in the constructor
+          // crashes ALL of NestJS and takes down every endpoint, which is worse
+          // than running with a temporary key. The operator will see the error logs.
+          this.logger.error(
+            '🚨 CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production! ' +
+            'Using temporary random key — all stored credentials will be unreadable after restart. ' +
             'Generate a key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
           );
+          encryptionKey = crypto.randomBytes(32);
         }
       } else {
         // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt

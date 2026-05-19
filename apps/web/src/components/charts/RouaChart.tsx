@@ -95,8 +95,8 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
     };
     update();
     const unsub = chart.onVisibleRangeChange(update);
-    // PERF: 1000ms is sufficient — price label position doesn't need 500ms updates
-    const interval = setInterval(update, 1000);
+    // PERF: 2000ms — price label coordinate doesn't need sub-second updates
+    const interval = setInterval(update, 2000);
     return () => { unsub(); clearInterval(interval); };
   }, [chart, currentPrice]);
 
@@ -473,7 +473,13 @@ export default function RouaChart({
 
     tick();
     const interval = setInterval(tick, 1000);
-    return () => clearInterval(interval);
+    // Pause when tab hidden to save CPU
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') clearInterval(interval);
+      else { tick(); setInterval(tick, 1000); }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
   }, [timeframe]);
 
 

@@ -60,7 +60,7 @@ export function GlobalLogicEngine() {
       if (!hasMatchingRealPosition) return
 
       const lastSyncAt = lastPriceSyncRef.current[normalizedSymbol] || 0
-      if (now - lastSyncAt < 1000) return // V139: reduced from 2000ms to 1000ms
+      if (now - lastSyncAt < 2000) return // PERF: 2000ms is sufficient for P&L display
 
       lastPriceSyncRef.current[normalizedSymbol] = now
       updatePositionPrice(symbol, price)
@@ -106,7 +106,7 @@ export function GlobalLogicEngine() {
     if (currentEquity > 0) {
       prevEquityRef.current = currentEquity
     }
-  }, 1000) // V139: reduced from 2000ms to 1000ms for faster P&L
+  }, 2000) // PERF: 2000ms interval — sufficient for P&L, 50% fewer renders vs 1000ms
 
   // ── Adaptive full fetch: 5s when active, 15s when idle ──
   // FIX: Reduced from 30s to 15s baseline, and 5s when automated trading is active.
@@ -123,7 +123,7 @@ export function GlobalLogicEngine() {
     } catch { /* store not ready */ }
 
     // Adaptive guard: 5s when active, 15s when idle
-    const minInterval = isActive ? 5000 : 15000
+    const minInterval = isActive ? 8000 : 20000 // PERF: 8s active, 20s idle
     if (now - lastFullFetchRef.current < minInterval) return
 
     lastFullFetchRef.current = now

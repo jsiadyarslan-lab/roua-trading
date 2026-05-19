@@ -792,7 +792,11 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ success: true, data: quote })
+    const res = NextResponse.json({ success: true, data: quote })
+    // PERFORMANCE: Allow browser/CDN to cache responses
+    const maxAgeSeconds = isCryptoPair ? 5 : 60
+    res.headers.set('Cache-Control', `public, max-age=${maxAgeSeconds}, stale-while-revalidate=${maxAgeSeconds * 2}`)
+    return res
   } catch (error: any) {
     console.error(`[exchange/quote] Error:`, error.message)
     // Return error instead of fake data

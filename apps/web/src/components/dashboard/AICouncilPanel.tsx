@@ -66,8 +66,9 @@ export function AICouncilPanel() {
   const [error, setError] = useState<string | null>(null)
   const [lastUpdate, setLastUpdate] = useState<string | null>(null)
   const [dataSource, setDataSource] = useState<'real-ai' | 'partial-ai' | 'scanner-rules' | 'fallback' | 'unknown'>('unknown')
-  const [countdown, setCountdown] = useState(180) // 3 min cache
+  const [countdown, setCountdown] = useState(600) // refresh cycle in seconds
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const nextFetchAt = useRef<number>(Date.now() + 600_000) // target timestamp
   const failCountRef = useRef(0) // Track consecutive failures for exponential backoff
   const abortRef = useRef<AbortController | null>(null) // Cancel in-flight requests
   const lastGoodAIData = useRef<{ data: ConsensusData; source: string; timestamp: number } | null>(null) // Keep last good AI result
@@ -95,8 +96,11 @@ export function AICouncilPanel() {
     }
   }, [])
 
-  // Initial keep-alive ping
-  useEffect(() => { pingKeepAlive() }, [pingKeepAlive])
+  // Deferred keep-alive ping — wait 5s after mount to avoid blocking initial load
+  useEffect(() => {
+    const t = setTimeout(() => pingKeepAlive(), 5000)
+    return () => clearTimeout(t)
+  }, [pingKeepAlive])
   // Periodic every 5 min — pauses when tab hidden
   useVisibleInterval(pingKeepAlive, 5 * 60 * 1000)
 
@@ -198,21 +202,26 @@ export function AICouncilPanel() {
 
   // Initial fetch on symbol change
   useEffect(() => {
+    nextFetchAt.current = Date.now() + 600_000
     fetchConsensus()
   }, [fetchConsensus])
 
   // Countdown Timer Logic
   useEffect(() => {
     if (loading) return // Pause countdown while fetching
+    // PERFORMANCE: Update countdown every 10s instead of every 1s.
+    // This reduces re-renders by 90% (6/min instead of 60/min).
+    // The display rounds to nearest 10s — imperceptible to users.
     countdownRef.current = setInterval(() => {
-      setCountdown((c) => {
-        if (c <= 1) {
-          fetchConsensus()
-          return 600 // 10 min refresh cycle (matches increased cache TTL)
-        }
-        return c - 1
-      })
-    }, 1000)
+      const remaining = Math.max(0, Math.round((nextFetchAt.current - Date.now()) / 1000))
+      if (remaining <= 0) {
+        nextFetchAt.current = Date.now() + 600_000
+        setCountdown(600)
+        fetchConsensus()
+      } else {
+        setCountdown(remaining)
+      }
+    }, 10_000)
 
     // Visual-only trend symbol animation — paused when tab hidden
     const startTrendInterval = () => {

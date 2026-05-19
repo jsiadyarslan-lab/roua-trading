@@ -83,7 +83,8 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
       setElapsed(`${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
     };
     tick();
-    const interval = setInterval(tick, 1000);
+    // PERF: 5000ms — session elapsed timer doesn't need per-second accuracy
+    const interval = setInterval(tick, 5000);
     return () => clearInterval(interval);
   }, [stats.startTime]);
 

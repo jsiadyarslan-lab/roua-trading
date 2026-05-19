@@ -11,6 +11,13 @@ const rawApiTarget = process.env.API_INTERNAL_URL || "http://127.0.0.1:3001";
 const apiTarget = rawApiTarget.includes("http://api:") ? "http://127.0.0.1:3001" : rawApiTarget;
 
 const nextConfig: NextConfig = {
+  // PERFORMANCE: Image optimization
+  images: {
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 86400, // 24 hours
+    deviceSizes: [640, 1080, 1920],
+    imageSizes: [16, 32, 64, 128],
+  },
   // reactStrictMode: only in development — avoids double-invoking effects in production
   reactStrictMode: process.env.NODE_ENV !== 'production',
   // SECURITY: Remove X-Powered-By header to prevent information disclosure

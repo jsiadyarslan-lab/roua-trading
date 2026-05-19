@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import compression from 'compression';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { PrismaService } from './common/prisma/prisma.service';
@@ -79,6 +80,19 @@ async function bootstrap() {
 
     // Cookie parser for session management
     app.use(cookieParser());
+
+    // PERFORMANCE: Enable gzip/brotli compression for all responses.
+    // Reduces JSON payload size by ~70% — critical for API responses with
+    // large position lists, briefs, and market data.
+    app.use(compression({
+      level: 6,        // Balance between speed and compression ratio
+      threshold: 1024, // Only compress responses > 1KB
+      filter: (req: any, res: any) => {
+        // Don't compress WebSocket upgrade requests
+        if (req.headers['upgrade'] === 'websocket') return false;
+        return compression.filter(req, res);
+      },
+    }));
 
     // ── CSRF Protection — Origin Validation ──
     const STATE_CHANGING_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
@@ -340,7 +354,7 @@ async function bootstrap() {
     app.useGlobalPipes(
       new ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: false,
+        forbidNonWhitelisted: true, // SECURITY: reject unknown properties
         transform: true,
         transformOptions: {
           enableImplicitConversion: true,

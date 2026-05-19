@@ -1826,9 +1826,11 @@ export class TradingService {
       const { apiKey, apiSecret } =
         await this.credentialsService.decryptCredential(credentialId, userId);
 
-      // Fetch credential to get testnet flag
+      // V168 FIX: Fetch credential to get testnet flag — WITH userId filter.
+      // Previously, this query had NO userId filter, meaning any user with a
+      // credentialId could read another user's testnet flag (IDOR vulnerability).
       const credential = await this.prisma.exchangeCredential.findFirst({
-        where: { id: credentialId },
+        where: { id: credentialId, userId },
       });
       const isTestnet = (credential as any)?.testnet || false;
 

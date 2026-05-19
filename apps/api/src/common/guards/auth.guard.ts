@@ -69,6 +69,28 @@ export class AuthGuard implements CanActivate {
             const parsed = JSON.parse(cached);
             if (parsed.authenticated && parsed.user) {
               (request as any).user = parsed.user;
+
+              // ═══════════════════════════════════════════════════════════
+              // V168 CRITICAL FIX: Set RLS context for CACHED sessions.
+              //
+              // ROOT CAUSE: When a session was served from Redis cache,
+              // setRlsUserId() was NEVER called — it was only called
+              // during the DB lookup path below. This meant:
+              //   - Cached session → no RLS context → connection pool
+              //     reuse could have previous user's RLS context
+              //   - User B sees User A's data on the same connection
+              //
+              // Now: Both cached and DB-lookup paths set RLS context.
+              // The UserIsolationInterceptor (registered globally in V168)
+              // provides an additional safety net by also setting RLS
+              // before the handler runs and clearing it after.
+              // ═══════════════════════════════════════════════════════════
+              try {
+                await this.prisma.setRlsUserId(parsed.user.id);
+              } catch {
+                // Non-critical — UserIsolationInterceptor will also set it
+              }
+
               return true;
             }
           }

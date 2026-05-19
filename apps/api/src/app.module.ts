@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { ScheduleModule } from '@nestjs/schedule';
@@ -26,6 +27,8 @@ import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.
 import { NotificationModule } from './modules/notification/notification.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { UserIsolationInterceptor } from './common/interceptors/user-isolation.interceptor';
+import { PrismaService } from './common/prisma/prisma.service';
 
 /**
  * FIX: BullModule has been COMPLETELY REMOVED from AppModule.
@@ -43,6 +46,27 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
  * ExecutionModule.registerBullQueue() when REDIS_URL is confirmed available.
  */
 @Module({
+  providers: [
+    // ═══════════════════════════════════════════════════════════════
+    // V168 CRITICAL FIX: Register UserIsolationInterceptor globally.
+    //
+    // ROOT CAUSE: This interceptor was defined but NEVER registered,
+    // which meant PostgreSQL RLS context (SET app.current_user_id)
+    // was ONLY set during AuthGuard DB lookups — NOT for cached
+    // sessions from Redis. With Prisma's connection pool, a connection
+    // that had User A's RLS context could be reused for User B's
+    // request (when served from cache), causing User B to see
+    // User A's data (the "$12,342.85 shared balance" bug).
+    //
+    // Now: Every authenticated request goes through this interceptor,
+    // which sets the RLS context before the handler runs and clears
+    // it after the request completes. This is defense-in-depth Layer 2.
+    // ═══════════════════════════════════════════════════════════════
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: UserIsolationInterceptor,
+    },
+  ],
   imports: [
     // ── Configuration ──
     ConfigModule.forRoot({

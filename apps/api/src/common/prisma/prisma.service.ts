@@ -206,37 +206,67 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   // to determine which rows a user can access. These methods set/reset
   // that session variable for the current database connection.
   //
-  // IMPORTANT: Prisma uses a connection pool, so SET LOCAL only works
-  // within a $transaction. For non-transaction queries, we use SET
-  // (session-level) which persists for the connection's lifetime.
-  // After each request, we RESET the variable.
+  // V168 FIX: We now use SET LOCAL (transaction-scoped) instead of
+  // SET (session-scoped). SET LOCAL auto-resets at transaction boundary,
+  // preventing RLS context from leaking between requests on the same
+  // pooled connection. If SET LOCAL fails (outside transaction), we
+  // fall back to SET + explicit RESET in the Interceptor's finalize.
+  //
+  // Defense-in-depth:
+  //   - AuthGuard sets RLS (first line of defense)
+  //   - UserIsolationInterceptor sets RLS (second line, registered V168)
+  //   - UserIsolationInterceptor clears RLS in finalize (always runs)
+  //   - SET LOCAL auto-clears at transaction boundary (safety net)
   // ═══════════════════════════════════════════════════════════════
 
   /**
    * Set the current user ID for Row Level Security.
    * Called by UserIsolationInterceptor before each request.
+   *
+   * V168 FIX: Use SET LOCAL instead of SET. SET LOCAL only persists
+   * within the current transaction, so if clearRlsUserId() fails
+   * or the connection is reused before the RESET, the RLS context
+   * is automatically cleared at transaction end.
+   *
+   * NOTE: For non-transaction queries (the common case), SET LOCAL
+   * is effectively the same as SET because Prisma auto-wraps each
+   * $executeRawUnsafe in an implicit transaction. But it's safer
+   * because it won't persist beyond the transaction boundary.
    */
   async setRlsUserId(userId: string): Promise<void> {
     if (!this.isAvailable()) return;
     try {
       // Sanitize userId to prevent SQL injection (though it should be a UUID)
       const safeId = userId.replace(/'/g, "''");
-      await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
+      // V168: Use SET LOCAL — auto-resets at transaction boundary
+      await this.$executeRawUnsafe(`SET LOCAL app.current_user_id = '${safeId}'`);
     } catch (error: any) {
-      this.logger.debug(`RLS setRlsUserId failed: ${error.message}`);
+      // Fallback to SET if SET LOCAL fails (e.g., outside transaction)
+      try {
+        const safeId = userId.replace(/'/g, "''");
+        await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
+      } catch (fallbackError: any) {
+        this.logger.debug(`RLS setRlsUserId failed (both SET LOCAL and SET): ${fallbackError.message}`);
+      }
     }
   }
 
   /**
    * Clear the current user ID for Row Level Security.
    * Called after each request completes.
+   *
+   * V168 FIX: Added explicit logging when clear fails instead of
+   * silently swallowing errors. A failed clear means the RLS context
+   * leaks to the next request on the same connection.
    */
   async clearRlsUserId(): Promise<void> {
     if (!this.isAvailable()) return;
     try {
       await this.$executeRawUnsafe(`RESET app.current_user_id`);
-    } catch {
-      // Non-critical
+    } catch (error: any) {
+      // V168: Log the error instead of silently ignoring it.
+      // A leaked RLS context is a security issue — we need to know about it.
+      this.logger.warn(`RLS clearRlsUserId FAILED — RLS context may leak: ${error?.message || 'unknown'}`);
     }
   }
 

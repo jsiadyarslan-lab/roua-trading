@@ -107,3 +107,24 @@ Stage Summary:
 - V165 deployed and verified on Railway
 - User needs to add 34.141.199.116 to their Binance API key IP whitelist to fix the shared balance bug
 - Key type selection UI now supports HMAC/Ed25519/RSA (HMAC still used by CCXT internally)
+
+---
+Task ID: 1
+Agent: main
+Task: Fix NaN in realized P&L, entry price display, period filter, decimal places, add P&L by category
+
+Work Log:
+- Fixed nan$ bug in api-fetch.ts: changed `raw.realizedPnl ?? 0` to `Number(raw.realizedPnl) || 0` (?? doesn't catch NaN)
+- Fixed fmt() function: added Number.isFinite() guard to return "0.00" for NaN/Infinity
+- Fixed formatPrice(): added Number.isFinite() check for invalid values
+- Fixed totalRealizedPnl/totalProfitSize/totalLossSize: added NaN protection with Number(x) || 0
+- Fixed period filter: when closedAt is null, positions were filtered out (closedAt=0 < from). Now uses openedAt as fallback and includes positions with no date
+- Fixed entry price in closed trades: added Number() conversion for entryPrice from API (Prisma Decimal fields serialized as strings)
+- Fixed formatCurrency in positions page: added maximumFractionDigits: 2 and NaN protection
+- Fixed wallet page: added || 0 protection for all account values
+- Added P&L breakdown by category (SMART/AGENT/PAPER/MANUAL) with win rate per category
+
+Stage Summary:
+- V169 deployed to main (commit a5fb5a89e)
+- All 4 user issues addressed: nan$, too many decimals, entry price, period filter P&L
+- New feature: P&L by category cards showing profit, count, and win rate per source type

@@ -1438,7 +1438,7 @@ export default function AutonomousTraderPage() {
      ═══════════════════════════════════════════════ */
   function SettingsTab() {
     const [localSettings, setLocalSettings] = useState({
-      autoTradingEnabled: settings?.autoTradingEnabled ?? true,
+      autoTradingEnabled: settings?.autoTradingEnabled ?? false, // safe default: off
       paperBalance: settings?.paperBalance ?? 10000,
       maxPositionSizePercent: settings?.maxPositionSizePercent ?? config?.maxPositionSizePercent ?? 2,
       maxDailyLossPercent: settings?.maxDailyLossPercent ?? config?.maxDailyLossPercent ?? 5,

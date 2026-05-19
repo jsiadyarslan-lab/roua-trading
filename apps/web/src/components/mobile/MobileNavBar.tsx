@@ -11,6 +11,43 @@ import {
   CalendarDays, Shield, Store
 } from 'lucide-react'
 
+// ═══════════════════════════════════════════════════════════════
+// CRITICAL FIX: Navbar buttons stop working after opening the chart page.
+//
+// ROOT CAUSE: lightweight-charts calls setPointerCapture() on the canvas,
+// which captures ALL pointer events, preventing onClick from firing on
+// navbar buttons (click events are derived from pointer events).
+//
+// SOLUTION: Use onTouchEnd handlers for navigation. Touch events are
+// NOT affected by setPointerCapture — they always fire on the element
+// under the finger. We also release any active pointer captures as a
+// belt-and-suspenders measure.
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * Release ALL active pointer captures on the page.
+ * This ensures the navbar can receive pointer events after chart interaction.
+ */
+function releaseAllPointerCaptures() {
+  try {
+    // Walk all elements and release any pointer captures
+    const allElements = document.querySelectorAll('*')
+    for (const el of allElements) {
+      const htmlEl = el as HTMLElement
+      if (typeof htmlEl.hasPointerCapture === 'function') {
+        // Try common pointer IDs (touch pointers start from 1)
+        for (let pid = 1; pid <= 20; pid++) {
+          try {
+            if (htmlEl.hasPointerCapture(pid)) {
+              htmlEl.releasePointerCapture(pid)
+            }
+          } catch { /* not captured */ }
+        }
+      }
+    }
+  } catch { /* best effort */ }
+}
+
 type NavItem = {
   label: string
   href: string
@@ -82,38 +119,42 @@ export default function MobileNavBar() {
   const unreadCount = useNotificationStore(s => s.notifications.filter(n => !n.read).length)
   const navRef = useRef<HTMLElement>(null)
 
-  // ── CRITICAL FIX: Force navbar touch events to work even when chart has pointer capture ──
-  // lightweight-charts setPointerCapture() can steal all pointer events.
-  // We use capture-phase touchstart on the nav to ensure navigation always works.
-  useEffect(() => {
-    const nav = navRef.current
-    if (!nav) return
+  // Track whether a touch navigation just happened to avoid double-fire with click
+  const touchNavRef = useRef(false)
 
-    const forceNavTouch = (e: TouchEvent) => {
-      // Release any active pointer captures on the page
-      if (document.pointerLockElement) {
-        document.exitPointerLock()
-      }
-      // If any element has captured pointer, release it
-      const activeElement = document.activeElement as HTMLElement | null
-      if (activeElement && 'hasPointerCapture' in activeElement) {
-        try {
-          // Release all possible pointer IDs (touch uses pointerId starting from 1)
-          for (let i = 1; i <= 10; i++) {
-            activeElement.releasePointerCapture(i)
-          }
-        } catch { /* not captured */ }
-      }
-    }
+  // ── TOUCH NAVIGATION HANDLERS ──
+  // These use touch events which are NOT affected by setPointerCapture.
+  // When the chart has pointer capture, onClick never fires (click comes from
+  // pointer events), but onTouchEnd ALWAYS fires because touch events bypass capture.
+  const handleNavTouch = useCallback((href: string, e: React.TouchEvent) => {
+    e.preventDefault() // Prevent subsequent click event
+    touchNavRef.current = true
+    setTimeout(() => { touchNavRef.current = false }, 400)
+    releaseAllPointerCaptures()
+    router.push(href)
+  }, [router])
 
-    // Use capture phase to intercept BEFORE any other handler
-    nav.addEventListener('touchstart', forceNavTouch, { capture: true, passive: true })
-    nav.addEventListener('pointerdown', forceNavTouch, { capture: true, passive: true })
+  const handleWalletTouch = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    touchNavRef.current = true
+    setTimeout(() => { touchNavRef.current = false }, 400)
+    releaseAllPointerCaptures()
+    router.push('/mobile/wallet')
+  }, [router])
 
-    return () => {
-      nav.removeEventListener('touchstart', forceNavTouch, { capture: true })
-      nav.removeEventListener('pointerdown', forceNavTouch, { capture: true })
-    }
+  const handleMoreTouch = useCallback((e: React.TouchEvent) => {
+    e.preventDefault()
+    touchNavRef.current = true
+    setTimeout(() => { touchNavRef.current = false }, 400)
+    releaseAllPointerCaptures()
+    setMoreOpen(true)
+  }, [])
+
+  // Safe click handler that skips if touch already handled navigation
+  const safeClick = useCallback((action: () => void) => {
+    if (touchNavRef.current) return // Touch already handled it
+    releaseAllPointerCaptures()
+    action()
   }, [])
 
   const isActive = (href: string) => {
@@ -132,7 +173,8 @@ export default function MobileNavBar() {
               <button
                 key={item.href}
                 className={`m-nav-wallet ${active ? 'm-nav-wallet--active' : ''}`}
-                onClick={() => router.push(item.href)}
+                onTouchEnd={handleWalletTouch}
+                onClick={() => safeClick(() => router.push(item.href))}
                 aria-label="المحفظة"
               >
                 <Wallet size={20} color={active ? '#FFF' : '#00D4FF'} strokeWidth={2} />
@@ -147,7 +189,8 @@ export default function MobileNavBar() {
               <button
                 key="more"
                 className={`m-nav-btn ${active ? 'm-nav-btn--active' : ''}`}
-                onClick={() => setMoreOpen(true)}
+                onTouchEnd={handleMoreTouch}
+                onClick={() => safeClick(() => setMoreOpen(true))}
                 aria-label="المزيد"
               >
                 <Grid3X3 size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} strokeWidth={active ? 2.5 : 2} />
@@ -164,7 +207,8 @@ export default function MobileNavBar() {
             <button
               key={item.href}
               className={`m-nav-btn ${active ? 'm-nav-btn--active' : ''}`}
-              onClick={() => router.push(item.href)}
+              onTouchEnd={(e) => handleNavTouch(item.href, e)}
+              onClick={() => safeClick(() => router.push(item.href))}
               aria-label={item.label}
             >
               <Icon size={20} color={active ? '#00D4FF' : 'rgba(255,255,255,0.4)'} strokeWidth={active ? 2.5 : 2} />
@@ -183,6 +227,7 @@ export default function MobileNavBar() {
         <>
           <div
             onClick={() => setMoreOpen(false)}
+            onTouchEnd={(e) => { e.preventDefault(); releaseAllPointerCaptures(); setMoreOpen(false) }}
             style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(16px)', zIndex: 100 }}
           />
           <div style={{
@@ -202,7 +247,7 @@ export default function MobileNavBar() {
             {/* Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px 10px', direction: 'rtl', flexShrink: 0 }}>
               <span style={{ fontSize: 16, fontWeight: 800, color: '#F0F2F5', fontFamily: "'Cairo', sans-serif" }}>استكشف المزيد</span>
-              <button onClick={() => setMoreOpen(false)} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <button onTouchEnd={(e) => { e.preventDefault(); setMoreOpen(false) }} onClick={() => setMoreOpen(false)} style={{ width: 32, height: 32, borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
                 <X size={18} color="rgba(255,255,255,0.5)" />
               </button>
             </div>
@@ -220,7 +265,8 @@ export default function MobileNavBar() {
                       return (
                         <button
                           key={item.href}
-                          onClick={() => { router.push(item.href); setMoreOpen(false) }}
+                          onTouchEnd={(e) => { e.preventDefault(); releaseAllPointerCaptures(); router.push(item.href); setMoreOpen(false) }}
+                          onClick={() => { if (!touchNavRef.current) { router.push(item.href); setMoreOpen(false) } }}
                           style={{
                             display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
                             padding: '12px 2px', borderRadius: 14, position: 'relative',

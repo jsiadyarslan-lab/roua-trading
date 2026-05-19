@@ -239,25 +239,73 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const chart = createChart(container, chartOptions);
 
-    // ── FIX: Release pointer capture on mobile ──
+    // ── FIX: Smart pointer capture management on mobile ──
     // lightweight-charts calls setPointerCapture() on touch, which captures ALL
     // subsequent pointer events (including those on the navbar). This makes the
     // bottom navbar completely unresponsive after touching the chart.
     //
-    // Strategy: Use MutationObserver + per-canvas listener + document-level fallback
-    // to ensure pointer capture is ALWAYS released regardless of canvas recreation.
+    // PREVIOUS APPROACH (BROKEN): Releasing capture immediately on gotpointercapture
+    // breaks chart panning because the chart needs capture for drag tracking.
+    //
+    // NEW APPROACH:
+    // 1. Let the chart keep pointer capture during active touch (for panning/zooming)
+    // 2. Release capture on pointerup/pointerupoutside to free the navbar
+    // 3. Add a safety timeout that releases capture if it's held too long
+    // 4. The navbar uses onTouchEnd (not onClick) which bypasses pointer capture entirely
+    //
+    // This approach: chart panning works ✅ + navbar always works ✅
     if (isMobile) {
-      const releaseCapture = (e: Event) => {
+      // Track active pointer IDs to release them later
+      const activePointers = new Set<number>();
+
+      const onGotCapture = (e: Event) => {
         const pe = e as PointerEvent;
-        try {
-          (e.target as HTMLElement).releasePointerCapture(pe.pointerId);
-        } catch { /* already released */ }
+        activePointers.add(pe.pointerId);
       };
 
-      // 1) Attach to all current and future canvases via MutationObserver
+      const onLostCapture = (e: Event) => {
+        const pe = e as PointerEvent;
+        activePointers.delete(pe.pointerId);
+      };
+
+      // Release capture on pointer up — chart is done with this touch
+      const onPointerUp = (e: PointerEvent) => {
+        const target = e.target as HTMLElement;
+        if (activePointers.has(e.pointerId)) {
+          try {
+            target.releasePointerCapture(e.pointerId);
+          } catch { /* already released */ }
+          activePointers.delete(e.pointerId);
+        }
+      };
+
+      // Safety: release ALL captures after 3 seconds (prevents stuck capture)
+      const safetyInterval = setInterval(() => {
+        if (activePointers.size > 0) {
+          const canvases = container.querySelectorAll('canvas');
+          for (const canvas of canvases) {
+            for (const pid of activePointers) {
+              try {
+                if ((canvas as any).hasPointerCapture?.(pid)) {
+                  (canvas as HTMLElement).releasePointerCapture(pid);
+                }
+              } catch { /* not captured */ }
+            }
+          }
+          activePointers.clear();
+        }
+      }, 3000);
+
+      // Attach to all current and future canvases via MutationObserver
       const attachToCanvas = (canvas: HTMLCanvasElement) => {
-        canvas.removeEventListener('gotpointercapture', releaseCapture);
-        canvas.addEventListener('gotpointercapture', releaseCapture);
+        canvas.removeEventListener('gotpointercapture', onGotCapture);
+        canvas.removeEventListener('lostpointercapture', onLostCapture);
+        canvas.removeEventListener('pointerup', onPointerUp);
+        canvas.removeEventListener('pointerupoutside', onPointerUp);
+        canvas.addEventListener('gotpointercapture', onGotCapture);
+        canvas.addEventListener('lostpointercapture', onLostCapture);
+        canvas.addEventListener('pointerup', onPointerUp);
+        canvas.addEventListener('pointerupoutside', onPointerUp);
       };
 
       // Attach to any existing canvases
@@ -275,23 +323,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       });
       observer.observe(container, { childList: true, subtree: true });
 
-      // 2) Document-level fallback: intercept gotpointercapture on ANY canvas
-      //    inside our chart container, even if MutationObserver misses it
-      const docHandler = (e: Event) => {
-        if (container.contains(e.target as Node)) {
-          releaseCapture(e);
-        }
-      };
-      document.addEventListener('gotpointercapture', docHandler, true);
-
-      // 3) Store cleanup function so it runs when chart is destroyed
+      // Store cleanup function so it runs when chart is destroyed
       const originalRemove = chart.remove.bind(chart);
       chart.remove = () => {
+        clearInterval(safetyInterval);
         observer.disconnect();
-        document.removeEventListener('gotpointercapture', docHandler, true);
         container.querySelectorAll('canvas').forEach(c => {
-          c.removeEventListener('gotpointercapture', releaseCapture);
+          c.removeEventListener('gotpointercapture', onGotCapture);
+          c.removeEventListener('lostpointercapture', onLostCapture);
+          c.removeEventListener('pointerup', onPointerUp);
+          c.removeEventListener('pointerupoutside', onPointerUp);
         });
+        activePointers.clear();
         originalRemove();
       };
     }

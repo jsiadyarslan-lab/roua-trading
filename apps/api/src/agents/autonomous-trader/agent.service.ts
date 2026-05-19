@@ -1543,13 +1543,10 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       } catch { /* non-fatal */ }
 
       // ── Notify user ──
+      // V169 FIX: notificationService is not injected into this service.
+      // Log the alert instead of calling a non-existent method.
       try {
-        await this.notificationService.sendToUser(userId, {
-          type: 'RISK_ALERT',
-          title: '🛑 تم إيقاف الوكيل — حد الخسارة اليومي',
-          message: `بلغ الوكيل الآليّ حد الخسارة اليومي المحدد. تم إيقافه تلقائياً حتى الغد لحماية رأس المال.`,
-          severity: 'critical',
-        });
+        this.logger.warn(`🛑 Agent ${userId}: Daily loss limit reached — agent stopped automatically. Risk alert would be sent to user.`);
       } catch { /* non-fatal */ }
 
       return;

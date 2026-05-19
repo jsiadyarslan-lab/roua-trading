@@ -1776,12 +1776,15 @@ export class SmartExecutorService implements OnModuleDestroy {
         } catch { /* non-fatal */ }
 
         // ── Notify user ──
+        // V169 FIX: Use sendNotification() instead of non-existent sendToUser()
         try {
-          await this.notificationService.sendToUser(userId, {
-            type: 'RISK_ALERT',
+          await this.notificationService.sendNotification({
+            userId,
+            type: 'RISK_WARNING',
+            priority: 'URGENT',
             title: '🛑 تم إيقاف التداول — حد الخسارة اليومي',
-            message: `خسارة اليوم بلغت $${Math.abs(userState.dailyPnL).toFixed(2)} (${userMaxDailyLossPercent}% من المحفظة). تم إيقاف المنفذ الذكي تلقائياً حتى الغد.`,
-            severity: 'critical',
+            body: `خسارة اليوم بلغت $${Math.abs(userState.dailyPnL).toFixed(2)} (${userMaxDailyLossPercent}% من المحفظة). تم إيقاف المنفذ الذكي تلقائياً حتى الغد.`,
+            source: 'smart-executor',
           });
         } catch { /* non-fatal */ }
 

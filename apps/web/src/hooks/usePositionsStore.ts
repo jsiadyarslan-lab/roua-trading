@@ -805,6 +805,24 @@ export const usePositionsStore = create<PositionsState>()(
     }
 
     // ── المحاولة الثانية: NestJS Trading API ──
+    // Do not use paper-trading position summary as an account-balance fallback
+    // for authenticated users. The dashboard balance must come from
+    // /portfolio/credentials/balances; otherwise a real/testnet exchange outage
+    // can still be masked by the same simulated paper portfolio value.
+    if (currentUserId) {
+      console.warn('[PositionsStore] fetchAccount: Credentials balance unavailable for authenticated user — not using trading summary fallback.')
+      const staleAccount = get().account
+      if (staleAccount?.isPaperTrading === true || staleAccount?.exchangeUnavailable === true) {
+        set({
+          account: null,
+          exchangeBalances: [],
+          dataSource: null,
+          _cacheTimestamp: Date.now(),
+        })
+      }
+      return
+    }
+
     try {
       const res = await fetch('/api/trading/positions/summary')
       // V154 FIX: If session expired (401), STOP

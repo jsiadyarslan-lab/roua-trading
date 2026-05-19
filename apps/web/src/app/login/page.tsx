@@ -375,7 +375,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen text-white overflow-hidden flex items-center justify-center" dir="rtl" style={{ background: '#000000' }}>
+    <div className="relative min-h-screen text-white overflow-x-hidden flex items-center justify-center" dir="rtl" style={{ background: '#000000' }}>
       {/* Background */}
       <div className="fixed inset-0 -z-10">
         <div

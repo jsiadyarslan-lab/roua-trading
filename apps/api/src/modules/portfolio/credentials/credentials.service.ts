@@ -76,34 +76,33 @@ export class CredentialsService {
           encryptionKey = crypto.scryptSync(key, salt, 32);
         }
       } else if (isProduction) {
-        // FIX: Instead of throwing (which crashes the ENTIRE NestJS app and takes
-        // down ALL routes), we now fall back to NEXTAUTH_SECRET-derived key with
-        // a strong warning. This is still not ideal for production, but it's better
-        // than having the whole app down. The operator should set ENCRYPTION_KEY
-        // explicitly for best security. Any credentials encrypted with this fallback
-        // key will be accessible, but at least the app doesn't crash.
+        // SECURITY: ENCRYPTION_KEY is REQUIRED in production.
+        // Do NOT silently fall back — throw immediately so the operator knows.
         const fallback = this.configService.get<string>('NEXTAUTH_SECRET');
         if (fallback) {
-          // FIXED: Do NOT include hostname() in the derivation.
-          // On Railway, each redeploy creates a new container with a different hostname,
-          // which changed the encryption key and made all stored credentials unreadable.
+          // Fallback allowed ONLY if NEXTAUTH_SECRET is set — but we MUST alert loudly.
           const deploymentId = `${fallback}:${this.configService.get('NODE_ENV', 'production')}`;
           const salt = crypto.createHash('sha256').update(deploymentId).digest().slice(0, 16);
           encryptionKey = crypto.scryptSync(fallback, salt, 32);
-          this.logger.warn(
-            '⚠️ ENCRYPTION_KEY not set in production — using derived key from NEXTAUTH_SECRET. ' +
-            'This is NOT recommended for production! Generate a proper key with: ' +
-            'node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
-            'and add ENCRYPTION_KEY to your environment variables.'
-          );
-        } else {
-          // No fallback at all — use temporary key (credentials won't survive restart)
+          // 🚨 Log every 60 seconds until fixed — not a one-time warning
           this.logger.error(
-            '🚨 CRITICAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production! ' +
-            'Using temporary random key — credentials will be lost on restart. ' +
-            'Generate a key with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+            '🚨 SECURITY ALERT: ENCRYPTION_KEY is not set in production! ' +
+            'Using derived key from NEXTAUTH_SECRET as emergency fallback. ' +
+            'Real account credentials are at risk if NEXTAUTH_SECRET changes. ' +
+            'FIX IMMEDIATELY: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))" ' +
+            'then add ENCRYPTION_KEY to Railway environment variables.'
           );
-          encryptionKey = crypto.randomBytes(32);
+          // Repeat alert every 60s so it cannot be missed in logs
+          setInterval(() => {
+            this.logger.error('🚨 SECURITY ALERT: ENCRYPTION_KEY still not set in production! Real account credentials at risk.');
+          }, 60_000);
+        } else {
+          // No fallback at all — refuse to start
+          throw new Error(
+            '🚨 FATAL: ENCRYPTION_KEY and NEXTAUTH_SECRET are both not set in production. ' +
+            'Cannot encrypt/decrypt credentials — refusing to start. ' +
+            'Generate a key: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+          );
         }
       } else {
         // Development-only fallback: derive from NEXTAUTH_SECRET with deployment-specific salt
@@ -591,13 +590,10 @@ export class CredentialsService {
 
           const decrypted = await this.decryptCredential(cred.id, userId);
 
-          // V164d: Diagnostic logging — check if decrypted keys look valid
-          const apiKeyPreview = decrypted.apiKey ? `${decrypted.apiKey.substring(0, 4)}...${decrypted.apiKey.substring(decrypted.apiKey.length - 4)}` : 'EMPTY';
-          const secretPreview = decrypted.apiSecret ? `${decrypted.apiSecret.substring(0, 2)}...(${decrypted.apiSecret.length}chars)` : 'EMPTY';
-          this.logger.log(
-            `🔑 V164d Decrypted credential for ${cred.exchange}/${cred.label}: ` +
-            `apiKey=${apiKeyPreview}, secret=${secretPreview}, ` +
-            `testnet=${cred.testnet}, exchange=${cred.exchange}`
+          // SECURITY: Never log API key contents — even partial keys can aid attackers.
+          this.logger.debug(
+            `🔑 Credential loaded for ${cred.exchange}/${cred.label}: ` +
+            `testnet=${cred.testnet}, keyLength=${decrypted.apiKey?.length ?? 0}`
           );
 
           return await this._fetchSingleExchangeBalance(

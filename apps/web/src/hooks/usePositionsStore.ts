@@ -597,13 +597,27 @@ export const usePositionsStore = create<PositionsState>()(
               `Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
             )
             exchangeUnavailable = true
-            // V170.2: Use paper-trading balance as fallback (user's own, not shared)
+            // V171: Use paper-trading balance as fallback (user's own, not shared)
+            // V171 FIX: With the backend V171 fix, paperExchange should ALWAYS exist
+            // now (backend adds default $10,000 entry if AgentSettings query fails).
+            // But as a safety net, if paperExchange is still missing, use totalEquityUsd
+            // from backend (which now includes paper when all real failed), or $10,000.
             if (paperExchange && paperExchange.equity > 0) {
               adjustedTotalEquityUsd = paperExchange.equity
               adjustedTotalAvailableUsd = paperExchange.available || 0
               adjustedTotalUsedMargin = paperExchange.usedMargin || 0
+            } else if (totalEquityUsd > 0) {
+              // Backend already included paper in totals (V171 backend fix)
+              adjustedTotalEquityUsd = totalEquityUsd
+              adjustedTotalAvailableUsd = totalAvailableUsd
+              adjustedTotalUsedMargin = totalUsedMargin
+            } else {
+              // Last resort: hardcoded $10,000 default
+              console.warn('[PositionsStore] No paper balance and no backend total — using $10,000 default')
+              adjustedTotalEquityUsd = 10000
+              adjustedTotalAvailableUsd = 10000
+              adjustedTotalUsedMargin = 0
             }
-            // If no paper balance available either, leave as backend totals (may be 0)
           } else if (realExchangesSuccess.length > 0) {
             // At least one real exchange succeeded — backend totals exclude
             // paper trading when real credentials exist.
@@ -740,11 +754,20 @@ export const usePositionsStore = create<PositionsState>()(
             effectiveEquity = adjustedTotalEquityUsd  // Already = balance + PnL
             effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
           } else if (exchangeUnavailable) {
-            // V170.2: Real exchange failed, but we have paper balance as fallback.
+            // V171: Real exchange failed, but we have paper balance as fallback.
             // exchangeUnavailable=true tells the UI to show a warning banner.
-            // Use adjustedTotalEquityUsd (which now contains paper balance from V170.2 fix).
-            effectiveEquity = adjustedTotalEquityUsd > 0 ? adjustedTotalEquityUsd + positionsUnrealizedPnl : 0
-            effectiveCash = adjustedTotalEquityUsd > 0 ? adjustedTotalEquityUsd - positionsUnrealizedPnl : 0
+            // V171 FIX: adjustedTotalEquityUsd is ALWAYS > 0 now (backend V171 ensures
+            // paper-trading entry exists and is included in totals when all real fail).
+            // We still guard against 0 as a safety net, using the same logic as hasOnlyPaperExchanges.
+            if (adjustedTotalEquityUsd > 0) {
+              // Paper balance already includes unrealized PnL from backend positions
+              effectiveEquity = adjustedTotalEquityUsd
+              effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
+            } else {
+              // Safety net: should never reach here with V171 backend fix
+              effectiveEquity = 10000 + positionsUnrealizedPnl
+              effectiveCash = 10000
+            }
           } else {
             // V140B: For real accounts, equity = totalBalance + unrealizedPnl
             // (totalEquityUsd from real exchanges is wallet balance, NOT including PnL)

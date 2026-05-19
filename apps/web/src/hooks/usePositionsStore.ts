@@ -105,6 +105,21 @@ function getCurrentUserId(): string | null {
   return null
 }
 
+async function resolveCurrentUserId(): Promise<string | null> {
+  let userId = getCurrentUserId()
+  if (userId) return userId
+
+  await ensureAuth()
+  userId = getCurrentUserId()
+  if (userId) return userId
+
+  try {
+    await useAuthStore.getState().refreshUser()
+  } catch { /* Auth refresh failed; caller will handle as unauthenticated */ }
+
+  return getCurrentUserId()
+}
+
 /** Track the userId that the store was last hydrated for */
 let _lastHydratedUserId: string | null = null
 
@@ -484,7 +499,7 @@ export const usePositionsStore = create<PositionsState>()(
     // V154 FIX: Verify user hasn't changed — same as fetchPositions().
     // Without this, if user A logs out and user B logs in on the same browser,
     // user B briefly sees user A's balance from localStorage rehydration.
-    const currentUserId = getCurrentUserId()
+    const currentUserId = await resolveCurrentUserId()
     const ownerUserId = get()._ownerUserId
     if (currentUserId && ownerUserId && currentUserId !== ownerUserId) {
       // User changed! Clear stale data from previous user
@@ -492,8 +507,6 @@ export const usePositionsStore = create<PositionsState>()(
     }
     // Track current user as owner of this data
     if (currentUserId) set({ _ownerUserId: currentUserId } as any)
-
-    await ensureAuth()
 
     // V154 FIX: Handle 401 responses — don't fall through to $10,000 fallback.
     // Previously, when the backend returned 401 (expired session), fetchAccount()
@@ -1038,7 +1051,7 @@ export const usePositionsStore = create<PositionsState>()(
 
   fetchPositions: async () => {
     // SECURITY: Verify user hasn't changed — if it has, clear stale data first
-    const currentUserId = getCurrentUserId()
+    const currentUserId = await resolveCurrentUserId()
     const ownerUserId = get()._ownerUserId
     if (currentUserId && ownerUserId && currentUserId !== ownerUserId) {
       // User changed! Clear stale data from previous user
@@ -1060,7 +1073,6 @@ export const usePositionsStore = create<PositionsState>()(
     set({ _lastFetchStart: Date.now() } as any)
 
     set({ loading: true, error: null })
-    await ensureAuth()
 
     // ── المحاولة الأولى: NestJS API ──
     try {

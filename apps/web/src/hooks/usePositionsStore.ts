@@ -848,8 +848,14 @@ export const usePositionsStore = create<PositionsState>()(
     // can still be masked by the same simulated paper portfolio value.
     if (currentUserId) {
       console.warn('[PositionsStore] fetchAccount: Credentials balance unavailable for authenticated user — not using trading summary fallback.')
+      // V171 FIX: Do NOT set account:null when backend fails temporarily.
+      // Setting account:null causes $0.00 display, which is worse than showing
+      // stale data. The user sees a brief flash of $0 every time the backend
+      // has a transient error (DB timeout, Binance IP-blocked, etc.).
+      // Instead, keep the stale account — the next successful fetch will update it.
+      // Only set null if there's genuinely no previous data at all.
       const staleAccount = get().account
-      if (staleAccount?.isPaperTrading === true || staleAccount?.exchangeUnavailable === true) {
+      if (!staleAccount) {
         set({
           account: null,
           exchangeBalances: [],
@@ -936,8 +942,9 @@ export const usePositionsStore = create<PositionsState>()(
     // saw the same number even after the exchange fallback was blocked above.
     if (currentUserId) {
       console.warn('[PositionsStore] fetchAccount: Skipping local paper balance fallback for authenticated user.')
+      // V171 FIX: Same as above — don't null out account on transient failures.
       const staleAccount = get().account
-      if (staleAccount?.isPaperTrading === true || staleAccount?.exchangeUnavailable === true) {
+      if (!staleAccount) {
         set({
           account: null,
           exchangeBalances: [],

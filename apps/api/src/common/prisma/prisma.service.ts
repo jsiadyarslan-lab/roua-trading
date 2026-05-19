@@ -105,6 +105,13 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         column: 'closeReason',
         sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "closeReason" TEXT`,
       },
+      // V171: keyType column for ExchangeCredential — if this migration fails,
+      // ALL credential queries throw "column keyType does not exist" → $0 balance
+      {
+        table: 'ExchangeCredential',
+        column: 'keyType',
+        sql: `ALTER TABLE "ExchangeCredential" ADD COLUMN IF NOT EXISTS "keyType" TEXT NOT NULL DEFAULT 'hmac'`,
+      },
     ];
 
     for (const migration of migrations) {
@@ -206,48 +213,50 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
   // to determine which rows a user can access. These methods set/reset
   // that session variable for the current database connection.
   //
-  // V168 FIX: We now use SET LOCAL (transaction-scoped) instead of
-  // SET (session-scoped). SET LOCAL auto-resets at transaction boundary,
-  // preventing RLS context from leaking between requests on the same
-  // pooled connection. If SET LOCAL fails (outside transaction), we
-  // fall back to SET + explicit RESET in the Interceptor's finalize.
+  // V171 FIX: Reverted from SET LOCAL back to SET (session-scoped).
   //
-  // Defense-in-depth:
-  //   - AuthGuard sets RLS (first line of defense)
-  //   - UserIsolationInterceptor sets RLS (second line, registered V168)
-  //   - UserIsolationInterceptor clears RLS in finalize (always runs)
-  //   - SET LOCAL auto-clears at transaction boundary (safety net)
+  // WHY SET LOCAL BROKE EVERYTHING:
+  //   V168 changed SET → SET LOCAL, intending that the RLS context
+  //   auto-resets at transaction boundary. But with connection_limit=1,
+  //   Prisma runs each $executeRawUnsafe in its own implicit transaction.
+  //   So SET LOCAL sets the value, the implicit transaction commits
+  //   immediately, and the value is RESET. The next query (findMany,
+  //   findUnique, etc.) runs in a NEW transaction with NO RLS context.
+  //   RLS policy: current_setting('app.current_user_id', true) = '' ≠ userId
+  //   → ALL user-specific queries return 0 rows → balance = $0.00
+  //
+  // The fallback to SET (in the catch block) was NEVER reached because
+  // SET LOCAL doesn't throw — it just has no lasting effect.
+  //
+  // Defense-in-depth for context leaking (the V168 concern):
+  //   - UserIsolationInterceptor ALWAYS calls clearRlsUserId() in finalize
+  //   - AuthGuard also sets RLS before UserIsolationInterceptor
+  //   - With connection_limit=1, there's only 1 connection — no pool reuse
+  //   - The session-scoped SET is safe as long as clearRlsUserId() runs
   // ═══════════════════════════════════════════════════════════════
 
   /**
    * Set the current user ID for Row Level Security.
-   * Called by UserIsolationInterceptor before each request.
+   * Called by AuthGuard and UserIsolationInterceptor before each request.
    *
-   * V168 FIX: Use SET LOCAL instead of SET. SET LOCAL only persists
-   * within the current transaction, so if clearRlsUserId() fails
-   * or the connection is reused before the RESET, the RLS context
-   * is automatically cleared at transaction end.
+   * V171 FIX: Use SET (session-scoped), NOT SET LOCAL.
+   * SET LOCAL is broken with Prisma's connection_limit=1 because each
+   * $executeRawUnsafe runs in its own implicit transaction, so the
+   * SET LOCAL value is immediately lost when that transaction commits.
    *
-   * NOTE: For non-transaction queries (the common case), SET LOCAL
-   * is effectively the same as SET because Prisma auto-wraps each
-   * $executeRawUnsafe in an implicit transaction. But it's safer
-   * because it won't persist beyond the transaction boundary.
+   * Safety: clearRlsUserId() is called by UserIsolationInterceptor's
+   * finalize handler after every request, preventing context leaking.
    */
   async setRlsUserId(userId: string): Promise<void> {
     if (!this.isAvailable()) return;
     try {
       // Sanitize userId to prevent SQL injection (though it should be a UUID)
       const safeId = userId.replace(/'/g, "''");
-      // V168: Use SET LOCAL — auto-resets at transaction boundary
-      await this.$executeRawUnsafe(`SET LOCAL app.current_user_id = '${safeId}'`);
+      // V171: Use SET (session-scoped) — SET LOCAL doesn't work with
+      // Prisma's implicit transactions + connection_limit=1
+      await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
     } catch (error: any) {
-      // Fallback to SET if SET LOCAL fails (e.g., outside transaction)
-      try {
-        const safeId = userId.replace(/'/g, "''");
-        await this.$executeRawUnsafe(`SET app.current_user_id = '${safeId}'`);
-      } catch (fallbackError: any) {
-        this.logger.debug(`RLS setRlsUserId failed (both SET LOCAL and SET): ${fallbackError.message}`);
-      }
+      this.logger.warn(`RLS setRlsUserId failed: ${error?.message}`);
     }
   }
 

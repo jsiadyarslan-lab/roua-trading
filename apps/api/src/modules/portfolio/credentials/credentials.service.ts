@@ -653,6 +653,7 @@ export class CredentialsService {
         available: 0,
         currency: 'USD',
         usedMargin: 0,
+        paperBalance: undefined as number | undefined,
         assets: [],
         error: r.reason?.message || 'خطأ غير معروف',
       },
@@ -926,6 +927,8 @@ export class CredentialsService {
     currency: string;
     /** V150: Leverage-aware used margin for real exchanges (USDT locked in orders for spot) */
     usedMargin: number;
+    /** V173d: paperBalance — only set for paper-trading, undefined for real exchanges */
+    paperBalance?: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
     /** V164d: Raw error detail for diagnostics */

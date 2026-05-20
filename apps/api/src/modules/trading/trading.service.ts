@@ -907,11 +907,13 @@ export class TradingService {
       position.side === 'BUY'
         ? (exitPrice - posEntryPrice) * closeQuantity
         : (posEntryPrice - exitPrice) * closeQuantity;
-    const exitFee = execution.fee ?? (exitPrice * closeQuantity * 0.001); // actual or estimated 0.1%
-    const entryFeeEstimate = posEntryPrice * closeQuantity * 0.001; // entry fee approximation
-    const totalFees = position.exchange === 'paper-trading'
-      ? exitFee + entryFeeEstimate  // paper: both fees simulated
-      : exitFee;                    // real: entry fee already paid, deduct exit fee only
+    // FIX V174: Only deduct EXIT fee from PnL.
+    // Entry fee was already paid when the position opened (_executePaperTrade
+    // charges 0.1% at entry and records it in the ENTRY trade).
+    // Adding entryFeeEstimate here caused double-counting — charging entry fee twice.
+    // BTC example: exitFee=$3.90 + entryFeeEstimate=$3.89 = $7.79 extra deduction.
+    const exitFee = execution.fee ?? (exitPrice * closeQuantity * 0.001);
+    const totalFees = exitFee; // exit fee only — entry fee already charged at open
     const pnl = grossPnl - totalFees;
 
     // Record closing order, exit trade, and update position — all in one transaction
@@ -1259,12 +1261,12 @@ export class TradingService {
     }
 
     const closeSide = position.side === 'BUY' ? 'SELL' : 'BUY';
-    // FIX: Deduct simulated fees (0.1% per leg) from paper PnL.
+    // FIX V174: Only deduct exit fee (0.1%). Entry fee was charged at open.
     const grossPnl2 =
       position.side === 'BUY'
         ? (currentPrice - posEntryPrice) * posQuantity
         : (posEntryPrice - currentPrice) * posQuantity;
-    const paperFees = (posEntryPrice + currentPrice) * posQuantity * 0.001;
+    const paperFees = currentPrice * posQuantity * 0.001; // exit fee only
     const pnl = grossPnl2 - paperFees;
 
     // Create DB records without exchange execution

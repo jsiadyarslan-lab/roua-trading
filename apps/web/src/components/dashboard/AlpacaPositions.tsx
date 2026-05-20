@@ -306,14 +306,12 @@ export function AlpacaPositions() {
 
   const closePosition = async (pos: typeof allPositions[0]) => {
     const id = pos.id
-    if (confirmClose !== id) {
-      setConfirmClose(id)
-      setTimeout(() => setConfirmClose(null), 3000)
-      return
-    }
-
-    setConfirmClose(null)
     setClosing(id)
+
+    // V173e: Optimistic removal — remove position from UI IMMEDIATELY
+    // before API responds. Restore if API fails.
+    const prevPositions = positions
+    setPositions(positions.filter(p => p.id !== id))
 
     // ═══════════════════════════════════════════════════════════════
     // FIX: PROBLEM 3 — Use LATEST market price when closing.
@@ -427,20 +425,19 @@ export function AlpacaPositions() {
       }
 
       if (closeSuccess) {
-        // FIX: Use refreshAfterTrade() for staggered refresh (immediate + 2s + 5s)
-        // instead of just fetchPositions(). This ensures account balance updates too.
         refreshAfterTrade()
         addNotification({
           source: 'trade',
           priority: 'high',
           action: 'CLOSE',
           title: `تم إغلاق مركز ${pos.symbol}`,
-          // FIX: Use livePrice instead of stale pos.currentPrice
           body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol} @ $${livePrice.toFixed(2)}`,
           pair: pos.symbol,
           price: livePrice,
         })
       } else {
+        // Restore position if close failed
+        setPositions(prevPositions)
         alert(`فشل الإغلاق: ${closeError}`)
       }
     } catch {
@@ -694,68 +691,39 @@ export function AlpacaPositions() {
           <button
             type="button"
             onClick={async () => {
-              // FIX V114: Close all positions with per-position error handling.
-              // Previously, if one position failed to close, the entire loop
-              // would stop and remaining positions stayed open. Now each position
-              // gets its own try/catch, and failed positions get a force-close
-              // attempt as a fallback. Stagger requests with 200ms delay to
-              // avoid rate limiting (10 req/min throttle on close endpoint).
-              let closedCount = 0
-              let failedCount = 0
-              for (const pos of allPositions) {
+              // V173e: Parallel close + optimistic removal
+              // OLD: sequential for-loop + 200ms delay = ~3s for 8 positions
+              // NEW: Promise.all = all close in parallel = ~350ms
+              const prevPositions = positions
+              setPositions([])
+              clearAllPaperTrades()
+
+              const results = await Promise.all(allPositions.map(async (pos) => {
                 try {
-                  if (pos.isPaper) {
-                    closePaperTrade(pos.id)
-                    closedCount++
-                  } else if (pos.dbId) {
+                  if (pos.isPaper) return { ok: true }
+                  if (pos.dbId) {
                     const res = await fetch('/api/trading/positions/close', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ positionId: pos.dbId }),
                     })
-                    if (res.ok) {
-                      closedCount++
-                    } else {
-                      // Close failed — try force-close as fallback
-                      try {
-                        const forceRes = await fetch('/api/trading/positions/force-close', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({
-                            positionId: pos.dbId,
-                            reason: `V114 Close All fallback: close failed`,
-                          }),
-                        })
-                        if (forceRes.ok) {
-                          closedCount++
-                        } else {
-                          failedCount++
-                        }
-                      } catch {
-                        failedCount++
-                      }
-                    }
-                  } else {
-                    const { closePositionUnified } = await import('@/lib/api-fetch')
-                    const result = await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
-                    if (result.success) {
-                      closedCount++
-                    } else {
-                      failedCount++
-                    }
+                    if (res.ok) return { ok: true }
+                    const forceRes = await fetch('/api/trading/positions/force-close', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ positionId: pos.dbId, reason: 'Close All' }),
+                    })
+                    return { ok: forceRes.ok }
                   }
-                } catch {
-                  failedCount++
-                }
-                // Stagger to avoid rate limiting
-                if (allPositions.length > 1) {
-                  await new Promise(r => setTimeout(r, 200))
-                }
-              }
-              // Clear all local state
-              clearAllPaperTrades()
-              setPositions([])
-              // FIX: Use refreshAfterTrade() for staggered refresh instead of manual timeout
+                  const { closePositionUnified } = await import('@/lib/api-fetch')
+                  const r = await closePositionUnified(pos.rawSymbol ?? pos.symbol, undefined, { dbId: pos.dbId || undefined })
+                  return { ok: r.success }
+                } catch { return { ok: false } }
+              }))
+
+              const closedCount = results.filter(r => r.ok).length
+              const failedCount = results.filter(r => !r.ok).length
+              if (failedCount > 0) setPositions(prevPositions)
               refreshAfterTrade()
               if (failedCount > 0) {
                 addNotification({

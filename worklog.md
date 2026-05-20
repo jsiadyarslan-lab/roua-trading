@@ -591,3 +591,177 @@ Stage Summary:
 - 4 TypeScript errors fixed across 3 files (guest route, notifications page, root useChart)
 - Missing useScopedStyle hook created for root scaffold
 - Both root and apps/web builds pass successfully
+---
+Task ID: 3
+Agent: Mobile Pages Builder
+Task: Build mobile trading app pages (trade, markets, more) with Flux CSS system
+
+Work Log:
+- Explored project structure: flux.css, FluxComponents.tsx, FluxShell.tsx, all store hooks
+- Studied existing mobile home page (page.tsx) for design patterns and component usage
+- Read all store interfaces: useAgentStore, useMarketStore, usePaperTradesStore, usePositionsStore, useSymbolStore, useNotificationStore, useBotStore, useDashboardStore, api-fetch
+- Created FILE 1: /mobile/trade/page.tsx (~380 lines) — Smart trade execution page with:
+  - AgentControl: agent status display, start/stop toggle, strategy selector dropdown (8 strategies), auto-refresh via useAgentStore
+  - DailyStats: daily P&L, trade count, consecutive losses from agentState
+  - QuickTradePanel: symbol picker with live prices, buy/sell toggle, quantity input, execute trade via NestJS smart-executor API + paper trade recording, notification dispatch
+  - RiskProtection: editable max daily loss %, max position size %, risk per trade % with save via updateRiskParams
+  - TradeLog: recent 10 trades (open + closed) from usePaperTradesStore with source labels (وكيل/بوت/يدوي)
+- Created FILE 2: /mobile/markets/page.tsx (~260 lines) — Markets page with real data:
+  - Search bar with clear button
+  - Category tabs (الكل/كريبتو/فوركس/سلع) using f-tabs CSS class
+  - Favorites toggle with localStorage persistence
+  - Hot movers section (top 3 by absolute change %)
+  - Market list with: branded symbol icons (18 symbols with color map), SVG sparkline mini charts, live price + change % from useMarketStore, favorite star per symbol
+  - Click navigates to /mobile/chart?symbol=XXX
+  - Skeleton loading state when no quotes loaded yet
+- Created FILE 3: /mobile/more/page.tsx (~160 lines) — More/Explore page:
+  - 3 categories: التداول (المراكز, الاستراتيجيات, التداول الاجتماعي, البوت), الأدوات (التحليلات, سكانر السوق, التوصيات, الأخبار), الحساب (ربط الحسابات, الإعدادات, الأمان, المساعدة, API)
+  - 4-column grid with colored icon buttons per item using lucide-react icons
+  - Quick links section: الشارت, المحفظة, الوكيل, الرادار
+  - Version info footer
+  - All items link to real routes (/mobile/positions, /mobile/strategies, etc.)
+- All pages use f- prefixed CSS classes (f-page, f-stagger, f-tabs, f-tabs__item, f-card, f-card--hl, f-card--nm, f-header, f-skel)
+- All pages import Header, Card, Switch, SkelLine, SkelCard from @/components/mobile/FluxComponents
+- All text in Arabic with var(--f-cairo) and var(--f-mono) font families
+- ESLint check: 0 errors on all 3 new files
+- Next.js build verification: passes successfully with /mobile/trade, /mobile/markets, /mobile/more routes listed
+
+Stage Summary:
+- 3 mobile pages built with Flux CSS system and real API data integration
+- Trade page: agent control + quick trade + daily stats + risk settings + trade log
+- Markets page: search + category tabs + sparklines + hot movers + favorites
+- More page: 13 navigation items in 3 categories + 4 quick links
+- Build passes with 0 new errors
+---
+Task ID: 2
+Agent: Mobile Pages Developer
+Task: Build mobile trading app pages (chart, wallet, positions) from scratch using FluxComponents
+
+Work Log:
+- Read existing codebase: flux.css (f- prefix design system), FluxComponents.tsx (Header, Card, Switch, SkelLine, SkelCard), FluxShell.tsx (5-tab nav), all stores (useMarketStore, useSymbolStore, usePositionsStore, usePaperTradesStore, useNotificationStore, useAgentStore, useDashboardStore), api-fetch.ts, chart types
+- Read existing mobile page.tsx (home) for pattern reference
+- Read RouaChart.tsx component API (props: currentPrice, mobile, hideToolbar, isChartFullscreen, onToggleChartFullscreen, chartActions)
+- Created FILE 1: /apps/web/src/app/mobile/chart/page.tsx (~430 lines)
+  - Dynamic import of RouaChart with SSR disabled
+  - Pair selector dropdown with live prices from useMarketStore
+  - Price display with change percentage (green/red color coding)
+  - Quick Trade Bar at bottom (Buy/Sell/Pending buttons)
+  - Order sheet modal with: buy/sell toggle, market/limit/stop selector, quantity +/- buttons, TP/SL toggles with price inputs, execute button calling usePaperTradesStore.addTrade + useNotificationStore + refreshAfterTrade
+  - Toolbar at top: indicators, drawings, chart type, timeframe, fullscreen toggle
+  - Chart type selector (candle, line, area, bar)
+  - Timeframe grid selector using TIMEFRAMES from @/lib/charts/types
+  - Fullscreen mode using f-page--chart class
+  - Uses useSearchParams for symbol param with Suspense boundary
+  - Fixed: Replaced non-existent `Indicators` icon with `Gauge` from lucide-react
+- Created FILE 2: /apps/web/src/app/mobile/wallet/page.tsx (~200 lines)
+  - Total equity card with P&L indicator (unrealizedPnl + pnlPct)
+  - Grid of 4 stat cards: buying power, initial margin, cash, open positions count
+  - Safety disclaimer card with risk warning text
+  - Linked exchange accounts list from usePositionsStore.exchangeBalances
+  - Exchange cards show: name, testnet badge, error badge, equity, available balance
+  - Empty state with link to /mobile/kyc if no exchanges linked
+  - Loading skeleton state using SkelCard from FluxComponents
+  - Uses Header, Card, SkelCard from FluxComponents
+- Created FILE 3: /apps/web/src/app/mobile/positions/page.tsx (~280 lines)
+  - Portfolio summary card with total unrealized P&L, P&L percentage, equity
+  - Stats row: total positions, long count (green), short count (red)
+  - Filter tabs (all/long/short) with counts using f-tabs CSS class
+  - Sort button with dropdown menu (pnl/size/time)
+  - Position cards with: symbol, side badge (شراء/بيع), source badge (المنفذ/الوكيل/ورقي), quantity, entry price, current price, position value, P&L amount & percentage
+  - P&L bar visualization (gradient fill, proportional width)
+  - Close button with two-step confirmation (إغلاق → تأكيد/إلغاء)
+  - Uses closePositionUnified from api-fetch for real API close
+  - Empty state with link to chart page
+  - Imports Card/Header from FluxComponents (NOT IOSCard/MobilePageHeader)
+- All text in Arabic as required
+- All pages use ONLY f- prefixed CSS classes from flux.css
+- All pages connect to REAL API data via stores
+- Build verification: `npx next build` succeeds with all 3 routes listed (/mobile/chart, /mobile/wallet, /mobile/positions)
+
+Stage Summary:
+- 3 mobile pages created from scratch: chart, wallet, positions
+- Chart page: immersive trading with RouaChart, order sheet, pair selector, chart type/timeframe selectors, fullscreen mode
+- Wallet page: equity overview, 4 stat cards, safety disclaimer, exchange accounts with error/testnet badges
+- Positions page: portfolio summary, filters, sort, P&L bars, close confirmation with real API
+- All pages use flux.css f- prefix classes, FluxComponents, and real store data
+- Build passes with 0 errors
+
+---
+Task ID: 4
+Agent: Mobile Pages Builder (Task 4)
+Task: Build AI Council, KYC, News, and Settings mobile pages with Flux CSS
+
+Work Log:
+- Read existing project structure: flux.css, FluxComponents.tsx (Header, Card, Switch, SkelLine, SkelCard), FluxShell.tsx
+- Read all relevant store hooks: useSymbolStore, useAgentStore, useDashboardStore, useNotificationStore, useMarketStore, usePositionsStore
+- Read API route handlers: /api/ai/consensus (POST, 3-layer resilience), /api/portfolio/credentials (NestJS proxy), /api/news/latest (GET), /api/settings (GET/PUT)
+- Read existing mobile home page for design patterns and component usage conventions
+
+Created FILE 1: /mobile/ai/page.tsx (~300 lines) — AI Council page:
+  - SymbolSelector component with dropdown picker (6 symbols)
+  - Fetches consensus from POST /api/ai/consensus with symbol in body
+  - Main recommendation card with confidence score, BUY/SELL/HOLD label, strength indicator
+  - Price & meta info row (current price, models responded/expected, source type)
+  - Master strategy display card
+  - Conflict explanation card when models disagree
+  - VotingBar component with proportional buy/hold/sell distribution
+  - ModelCard component for each AI model analysis with vote, confidence bar, reasoning
+  - Auto-refresh every 120 seconds, manual refresh button
+  - Loading skeleton states, empty state
+
+Created FILE 2: /mobile/kyc/page.tsx (~350 lines) — KYC / API Key management page:
+  - CredentialCard component with validity badge, ID preview, test/delete actions
+  - AddCredentialForm with collapsible form: exchange selector (5 exchanges), label, API key, secret with show/hide toggle, testnet switch
+  - Fetches credentials from GET /api/portfolio/credentials
+  - Add credential via POST /api/portfolio/credentials
+  - Delete credential via DELETE /api/portfolio/credentials/:id
+  - Test connection via POST /api/portfolio/credentials/:id/test
+  - Summary card with total/valid/invalid counts
+  - Notification dispatch for success/failure actions
+  - Loading skeleton states, empty state
+
+Created FILE 3: /mobile/news/page.tsx (~280 lines) — News page:
+  - Fetches news from GET /api/news/latest with sentiment filter
+  - Sentiment filter tabs (الكل/إيجابي/سلبي/محايد) using f-tabs CSS class
+  - NewsCard component with category badge, sentiment badge, impact indicator, title, summary, affected assets tags, source & time
+  - NewsDetail full-screen overlay with complete article view, key takeaways, affected assets, external link
+  - Arabic time formatting (منذ X دقيقة/ساعة/يوم)
+  - Auto-refresh every 5 minutes, manual refresh button
+  - Source indicator in header (رؤى للأخبار/محلي)
+  - Loading skeleton states, empty state
+
+Created FILE 4: /mobile/settings/page.tsx (~290 lines) — Settings page:
+  - Trading mode selector (trader/investor/ai) with icons, labels, descriptions using useDashboardStore
+  - Mode changes saved to both local store and API via PUT /api/settings
+  - Notification toggles: browser notifications, sound, trade alerts, AI alerts via useNotificationStore
+  - All toggles persist to API via PUT /api/settings
+  - Language toggle (العربية/English) with useDashboardStore.toggleLanguage
+  - Theme toggle (dark only for now, always-on switch)
+  - Agent status section showing current agent state and daily P&L
+  - About section with app name, version, current mode, language
+  - Saving indicator toast at bottom when settings are being saved
+  - Fetches settings from GET /api/settings on mount
+
+All pages:
+- Use ONLY f- prefixed CSS classes from flux.css (f-page, f-header, f-card, f-card--hl, f-tabs, f-tabs__item, f-section__title, f-empty, f-stagger, f-switch)
+- Import components from @/components/mobile/FluxComponents (Header, Card, Switch, SkelCard, SkelLine)
+- All text in Arabic
+- Connected to REAL API endpoints (no mock/placeholder data)
+- Loading skeleton states for async operations
+- Empty states for when no data is available
+- Consistent dark glass design matching existing mobile pages
+- TypeScript strict mode compliant
+- ESLint check passed with 0 new errors (pre-existing errors are in unrelated files)
+- TypeScript type-check with project tsconfig passes with 0 errors
+
+Stage Summary:
+- 4 mobile pages created: AI Council, KYC, News, Settings
+- All pages connected to real API endpoints with proper error handling
+- Consistent use of Flux CSS system (f- prefix) and FluxComponents
+- All Arabic text, RTL direction
+- Trading mode selector in Settings updates useDashboardStore and persists to API
+- KYC page provides full CRUD for exchange API credentials
+- News page fetches real news with sentiment filtering
+- AI Council page shows multi-model consensus with voting visualization
+- Build verification: lint passes (0 new errors), TypeScript passes
+

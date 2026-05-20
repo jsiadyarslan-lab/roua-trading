@@ -18,6 +18,7 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { getDataStatus, getSourceLabel, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { getSymbolLeverage } from '@/lib/margin-calculator'
 import { useSidebarState } from '@/hooks/useSidebarState'
 
 const DASHBOARD_SYMBOLS = ['BTC/USD', 'ETH/USD', 'EUR/USD', 'GBP/USD', 'XAU/USD', 'AAPL', 'TSLA']
@@ -1192,8 +1193,6 @@ export default function DashboardPage() {
   //
   // V152: The client-side inline calculator correctly handles ALL symbol
   // formats (with/without slash, USDT/USD suffix). Use it as PRIMARY.
-  // V172d FIX: Margin uses ENTRY PRICE (not currentPrice).
-  // Margin is fixed when position opens — it doesn't change with price moves.
   const accountMargin = Number(account?.initialMargin) || 0
   const clientSideMargin = positions.length > 0
     ? (() => {
@@ -1203,15 +1202,7 @@ export default function DashboardPage() {
           const entryPx = Number((p as any).entryPrice || p.currentPrice) || 0
           if (qty <= 0 || entryPx <= 0) continue
           const notional = Math.abs(qty * entryPx)
-          const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
-          const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
-          const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']
-          const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','DOT','AVAX','LINK','MATIC','UNI','ATOM','LTC','SHIB']
-          let leverage = 1
-          if (symbol.includes('XAU') || symbol.includes('GOLD')) leverage = 20
-          else if (symbol.includes('XAG') || symbol.includes('SILVER')) leverage = 20
-          else if (CRYPTO_BASES.includes(base)) leverage = 1
-          else if (FOREX_BASES.includes(base) || symbol.includes('JPY')) leverage = 50
+          const leverage = getSymbolLeverage(p.symbol || '') || 1
           margin += notional / leverage
         }
         return margin

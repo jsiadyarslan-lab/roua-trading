@@ -47,6 +47,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { closePositionUnified, isNestJsId } from '@/lib/api-fetch'
 import { toast } from '@/hooks/use-toast'
+import { getSymbolLeverage } from '@/lib/margin-calculator'
 
 export function usePortfolioSummary() {
   const positions = usePositionsStore(s => s.positions)
@@ -90,19 +91,11 @@ export function usePortfolioSummary() {
           let margin = 0
           for (const p of positions) {
             const qty = Number(p.qty) || 0
-            // V172d: entryPrice (fixed margin), not currentPrice (floating)
+            // V173c: getSymbolLeverage reads user-configured leverage (set via setUserLeverage on mount)
             const entryPx = Number((p as any).entryPrice || p.currentPrice) || 0
             if (qty <= 0 || entryPx <= 0) continue
             const notional = Math.abs(qty * entryPx)
-            const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
-            const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
-            const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']
-            const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','DOT','AVAX','LINK','MATIC','UNI','ATOM','LTC','SHIB']
-            let leverage = 1
-            if (symbol.includes('XAU') || symbol.includes('GOLD')) leverage = 20
-            else if (symbol.includes('XAG') || symbol.includes('SILVER')) leverage = 20
-            else if (CRYPTO_BASES.includes(base)) leverage = 1
-            else if (FOREX_BASES.includes(base) || symbol.includes('JPY')) leverage = 50
+            const leverage = getSymbolLeverage(p.symbol || '') || 1
             margin += notional / leverage
           }
           return margin

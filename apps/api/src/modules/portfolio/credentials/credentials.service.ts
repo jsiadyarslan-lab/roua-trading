@@ -680,16 +680,24 @@ export class CredentialsService {
       const forexLeverage = settings?.paperForexLeverage || 50;
       const goldLeverage = settings?.paperGoldLeverage || 20;
       const cryptoLeverage = settings?.paperCryptoLeverage || 1;
-      // V147 FIX: Calculate leverage-aware used margin and unrealized P&L separately.
-      // Previously, `totalExposure = qty × price` (full notional) was subtracted from
-      // paperBalance as if it were margin. This caused the available balance to drop
-      // by THOUSANDS for forex positions where the actual margin is only 2% of notional.
-      // For example: 5 EUR/USD positions with $500 notional each = $2,500 "exposure"
-      // but actual margin = $2,500 / 50 = $50. The old code made available = $7,500
-      // instead of the correct $9,950.
-      // Now: margin = notional / leverage (user-configurable per asset class)
-      //       equity = balance + unrealized P&L
-      //       available = equity - usedMargin
+      // V172d: Correct margin-account model for paper trading.
+      // paperBalance = remaining FREE cash (after margin deductions)
+      // usedMargin   = sum of margin locked in all open positions
+      // unrealizedPnL = floating profit/loss on open positions
+      //
+      // equity = paperBalance + usedMargin + unrealizedPnL
+      //        = free cash + locked margin + floating PnL
+      //        = total account value at current prices
+      //
+      // available = equity - usedMargin = paperBalance + unrealizedPnL
+      //           = what you can still use to open new positions
+      //
+      // Example: balance=10,000, open BTC 0.1 @ 77,000 (margin=7,700)
+      //   paperBalance = 2,300  (free cash)
+      //   usedMargin   = 7,700  (locked)
+      //   unrealizedPnL= 0
+      //   equity       = 2,300 + 7,700 + 0 = 10,000  ✅
+      //   available    = 2,300 + 0 = 2,300            ✅
       let usedMargin = 0;
       let unrealizedPnl = 0;
       try {
@@ -701,16 +709,15 @@ export class CredentialsService {
           const qty = Number(p.quantity) || 0;
           const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
           const entryPrice = Number(p.entryPrice) || 0;
-          // V153: Use user-configured leverage per asset class
-          // getSymbolMetadata returns defaultLeverage; we override with user settings
           const meta = getSymbolMetadata(p.symbol);
           let leverage = meta.defaultLeverage;
           if (meta.assetClass === 'FOREX') leverage = forexLeverage;
           else if (meta.assetClass === 'COMMODITY') leverage = goldLeverage;
           else if (meta.assetClass === 'CRYPTO') leverage = cryptoLeverage;
-          const notional = Math.abs(qty * currentPrice);
-          usedMargin += leverage > 0 ? notional / leverage : notional;
-          // Unrealized P&L
+          // usedMargin based on ENTRY price (matches what was deducted from paperBalance)
+          const entryNotional = Math.abs(qty * entryPrice);
+          usedMargin += leverage > 0 ? entryNotional / leverage : entryNotional;
+          // unrealizedPnL = price difference × quantity
           if (p.side === 'BUY') {
             unrealizedPnl += (currentPrice - entryPrice) * qty;
           } else {
@@ -720,8 +727,10 @@ export class CredentialsService {
       } catch {
         // If position lookup fails, assume no margin used
       }
-      const paperEquity = paperBalanceUsd + unrealizedPnl;
-      paperAvailableUsd = Math.max(0, paperEquity - usedMargin);
+      // V172d: equity = freeCash + lockedMargin + unrealizedPnL = total account value
+      // available = freeCash + unrealizedPnL = paperBalance + unrealizedPnL
+      const paperEquity = paperBalanceUsd + usedMargin + unrealizedPnl;
+      paperAvailableUsd = Math.max(0, paperBalanceUsd + unrealizedPnl);
       // Add paper-trading as an exchange entry in the response
       exchanges.push({
         exchange: 'paper-trading',

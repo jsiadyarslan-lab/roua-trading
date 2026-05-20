@@ -351,16 +351,47 @@ export class TradingService {
       userAgent,
     });
 
+    // V172d FIX: Deduct margin from paperBalance when opening a paper-trading position.
+    if (credential.exchange === 'paper-trading' && execution.success) {
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+        });
+        if (settings) {
+          const meta = getSymbolMetadata(request.symbol);
+          const cryptoLev = Number(settings.paperCryptoLeverage) || 1;
+          const forexLev = Number(settings.paperForexLeverage) || 50;
+          const goldLev = Number(settings.paperGoldLeverage) || 20;
+          let leverage = 1;
+          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+          else leverage = cryptoLev;
+
+          const notional = request.quantity * currentPrice;
+          const marginToDeduct = leverage > 1 ? notional / leverage : notional;
+
+          const oldBalance = Number(settings.paperBalance);
+          const newBalance = oldBalance - marginToDeduct;
+          await this.prisma.agentSettings.update({
+            where: { userId },
+            data: { paperBalance: newBalance },
+          });
+          this.logger.log(
+            `📝 V172d Paper margin deducted on open: $${oldBalance.toFixed(2)} - $${marginToDeduct.toFixed(2)} = $${newBalance.toFixed(2)} (${request.symbol} qty=${request.quantity} @ ${currentPrice})`,
+          );
+        }
+      } catch (err: any) {
+        this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
+      }
+    }
+
     this.logger.log(
       `✅ Order executed: ${order.id} — ${request.side} ${execution.filledQuantity}/${request.quantity} ${request.symbol} @ ${execution.averagePrice}`,
     );
 
     return order;
   }
-
-  /**
-   * Cancel an open order
-   */
   async cancelOrder(
     userId: string,
     orderId: string,
@@ -996,30 +1027,38 @@ export class TradingService {
     // after the old position was closed.
     this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
-    // FIX V117: Update paperBalance after closing a paper-trading position.
-    // Previously, paperBalance in AgentSettings was NEVER updated after closing,
-    // so the balance always showed the initial $10,000/$20,000 regardless of
-    // accumulated profits/losses. This made the platform appear broken — users
-    // close profitable positions but their balance doesn't change.
-    // Now: Add the realized PnL to paperBalance so it reflects actual performance.
-    if (position.exchange === 'paper-trading' && pnl !== 0) {
+    // V172d FIX: Return MARGIN + PnL to paperBalance on close.
+    if (position.exchange === 'paper-trading') {
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId },
+          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
         });
         if (settings) {
+          const meta = getSymbolMetadata(position.symbol);
+          const cryptoLev = Number(settings.paperCryptoLeverage) || 1;
+          const forexLev = Number(settings.paperForexLeverage) || 50;
+          const goldLev = Number(settings.paperGoldLeverage) || 20;
+          let leverage = 1;
+          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+          else leverage = cryptoLev;
+
+          const notional = posEntryPrice * closeQuantity;
+          const marginToReturn = leverage > 1 ? notional / leverage : notional;
+
           const oldBalance = Number(settings.paperBalance);
-          const newBalance = oldBalance + pnl;
+          const newBalance = oldBalance + marginToReturn + pnl;
           await this.prisma.agentSettings.update({
             where: { userId },
             data: { paperBalance: newBalance },
           });
           this.logger.log(
-            `📝 V117 Paper balance updated: $${oldBalance.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)}`,
+            `📝 V172d Paper balance on close: $${oldBalance.toFixed(2)} + margin $${marginToReturn.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)} (${position.symbol})`,
           );
         }
       } catch (err: any) {
-        this.logger.warn(`V117 Failed to update paper balance: ${err.message}`);
+        this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
       }
     }
 
@@ -1308,26 +1347,38 @@ export class TradingService {
     // for the same symbol can be executed after force close.
     this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
-    // FIX V117: Update paperBalance after force-closing a paper-trading position.
-    // Same logic as closePosition() — paperBalance must reflect realized PnL.
-    if (position.exchange === 'paper-trading' && pnl !== 0) {
+    // V172d FIX: Return MARGIN + PnL to paperBalance on force-close.
+    if (position.exchange === 'paper-trading') {
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId },
+          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
         });
         if (settings) {
+          const meta = getSymbolMetadata(position.symbol);
+          const cryptoLev = Number(settings.paperCryptoLeverage) || 1;
+          const forexLev = Number(settings.paperForexLeverage) || 50;
+          const goldLev = Number(settings.paperGoldLeverage) || 20;
+          let leverage = 1;
+          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+          else leverage = cryptoLev;
+
+          const notional = Number(position.entryPrice) * posQuantity;
+          const marginToReturn = leverage > 1 ? notional / leverage : notional;
+
           const oldBalance = Number(settings.paperBalance);
-          const newBalance = oldBalance + pnl;
+          const newBalance = oldBalance + marginToReturn + pnl;
           await this.prisma.agentSettings.update({
             where: { userId },
             data: { paperBalance: newBalance },
           });
           this.logger.log(
-            `📝 V117 Paper balance updated (force-close): $${oldBalance.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)}`,
+            `📝 V172d Paper balance on force-close: $${oldBalance.toFixed(2)} + margin $${marginToReturn.toFixed(2)} + PnL $${pnl.toFixed(2)} = $${newBalance.toFixed(2)} (${position.symbol})`,
           );
         }
       } catch (err: any) {
-        this.logger.warn(`V117 Failed to update paper balance (force-close): ${err.message}`);
+        this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);
       }
     }
 

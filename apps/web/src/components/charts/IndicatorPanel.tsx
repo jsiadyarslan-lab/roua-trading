@@ -168,6 +168,8 @@ export function IndicatorPanel({
         }}
       />
 
+      {/* Scrollable list */}
+      <div style={{ overflowY: 'auto', maxHeight: 320 }}>
       {/* Overlay Section */}
       {filteredOverlay.length > 0 && (
         <>
@@ -202,6 +204,7 @@ export function IndicatorPanel({
           {filteredOsc.map(renderItem)}
         </>
       )}
+      </div>
     </div>
   );
 }

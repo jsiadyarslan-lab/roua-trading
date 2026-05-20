@@ -15,8 +15,11 @@ import {
   Globe,
   Copy,
   Info,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { useAuth } from '@/hooks/useAuth'
+import { useAgentStore } from '@/hooks/useAgentStore'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -58,6 +61,40 @@ export default function ExchangeSettingsPage() {
   // V165: Server IP for Binance IP whitelist
   const [serverIp, setServerIp] = useState<string | null>(null)
   const [ipLoading, setIpLoading] = useState(false)
+
+  // V172: Leverage settings for testnet/paper accounts
+  const { settings: agentSettings, updateSettings, fetchSettings } = useAgentStore()
+  const [leverageSaving, setLeverageSaving] = useState(false)
+  const [leverageSaved, setLeverageSaved] = useState(false)
+  const [leverageOpen, setLeverageOpen] = useState(false)
+  const [cryptoLev, setCryptoLev] = useState(1)
+  const [forexLev, setForexLev] = useState(50)
+  const [goldLev, setGoldLev] = useState(20)
+
+  // Load leverage from agentSettings when available
+  useEffect(() => {
+    if (agentSettings) {
+      setCryptoLev(agentSettings.paperCryptoLeverage ?? 1)
+      setForexLev(agentSettings.paperForexLeverage ?? 50)
+      setGoldLev(agentSettings.paperGoldLeverage ?? 20)
+    }
+  }, [agentSettings])
+
+  const hasTestAccount = credentials.some(c =>
+    c.exchange === 'paper-trading' || c.exchange?.includes('test')
+  )
+
+  const handleSaveLeverage = async () => {
+    setLeverageSaving(true)
+    await updateSettings({
+      paperCryptoLeverage: cryptoLev,
+      paperForexLeverage: forexLev,
+      paperGoldLeverage: goldLev,
+    })
+    setLeverageSaving(false)
+    setLeverageSaved(true)
+    setTimeout(() => setLeverageSaved(false), 3000)
+  }
   const [ipCopied, setIpCopied] = useState(false)
 
   // Form state
@@ -110,7 +147,8 @@ export default function ExchangeSettingsPage() {
   useEffect(() => {
     fetchCredentials()
     fetchServerIp()
-  }, [fetchCredentials, fetchServerIp])
+    fetchSettings()
+  }, [fetchCredentials, fetchServerIp, fetchSettings])
 
   // Copy server IP to clipboard
   const copyServerIp = () => {
@@ -675,6 +713,156 @@ export default function ExchangeSettingsPage() {
               )
             })}
           </div>
+        )}
+
+        {/* ── Leverage Settings — testnet/paper only ── */}
+        {hasTestAccount && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="bg-slate-900/60 border-slate-700/50">
+              <CardHeader
+                className="cursor-pointer select-none pb-3"
+                onClick={() => setLeverageOpen(v => !v)}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">⚖️</span>
+                    <CardTitle className="text-sm font-medium text-slate-200">
+                      الرافعة المالية — الحسابات التجريبية
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[10px] text-amber-400 border-amber-400/30 bg-amber-400/5">
+                      تجريبي فقط
+                    </Badge>
+                  </div>
+                  {leverageOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                </div>
+                <p className="text-xs text-slate-500 mt-1 mr-7">
+                  تُطبَّق على حسابات Paper Trading وBinance Testnet فقط. لا تؤثر على الحسابات الحقيقية.
+                </p>
+              </CardHeader>
+
+              <AnimatePresence>
+                {leverageOpen && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    style={{ overflow: 'hidden' }}
+                  >
+                    <CardContent className="pt-0 space-y-5">
+                      <div className="h-px bg-slate-700/50" />
+
+                      {/* Crypto */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm text-slate-300 flex items-center gap-2">
+                            <span>₿</span> كريبتو (BTC، ETH، SOL...)
+                          </Label>
+                          <span className="text-sm font-mono font-bold text-orange-400">
+                            {cryptoLev}x
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-6">1x</span>
+                          <input
+                            type="range"
+                            min={1} max={10} step={1}
+                            value={cryptoLev}
+                            onChange={e => setCryptoLev(Number(e.target.value))}
+                            className="flex-1 accent-orange-500 cursor-pointer"
+                          />
+                          <span className="text-xs text-slate-500 w-8">10x</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Spot = 1x بلا رافعة. هامش BTC 0.001 @ 77,000 = ${(77 / cryptoLev).toFixed(0)}
+                        </p>
+                      </div>
+
+                      {/* Forex */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm text-slate-300 flex items-center gap-2">
+                            <span>💱</span> فوركس (EUR/USD، GBP/USD...)
+                          </Label>
+                          <span className="text-sm font-mono font-bold text-blue-400">
+                            {forexLev}x
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-6">10x</span>
+                          <input
+                            type="range"
+                            min={10} max={500} step={10}
+                            value={forexLev}
+                            onChange={e => setForexLev(Number(e.target.value))}
+                            className="flex-1 accent-blue-500 cursor-pointer"
+                          />
+                          <span className="text-xs text-slate-500 w-12">500x</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          هامش EUR/USD لوت 0.1 (10,000 وحدة) @ 1.08 = ${(10800 / forexLev).toFixed(0)}
+                        </p>
+                      </div>
+
+                      {/* Gold */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm text-slate-300 flex items-center gap-2">
+                            <span>🥇</span> معادن (XAU/USD، XAG/USD)
+                          </Label>
+                          <span className="text-sm font-mono font-bold text-yellow-400">
+                            {goldLev}x
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xs text-slate-500 w-6">5x</span>
+                          <input
+                            type="range"
+                            min={5} max={100} step={5}
+                            value={goldLev}
+                            onChange={e => setGoldLev(Number(e.target.value))}
+                            className="flex-1 accent-yellow-500 cursor-pointer"
+                          />
+                          <span className="text-xs text-slate-500 w-12">100x</span>
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          هامش XAU/USD 0.01 لوت @ 3,000 = ${(3000 * 0.01 * 100 / goldLev).toFixed(0)}
+                        </p>
+                      </div>
+
+                      {/* Warning */}
+                      <div className="flex gap-2 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                        <p className="text-xs text-amber-300/80">
+                          الرافعة المالية تضخّم الأرباح والخسائر. الرافعة العالية في التداول التجريبي تعطي نتائج غير واقعية.
+                        </p>
+                      </div>
+
+                      {/* Save */}
+                      <Button
+                        onClick={handleSaveLeverage}
+                        disabled={leverageSaving}
+                        className="w-full bg-slate-700 hover:bg-slate-600 text-white"
+                        size="sm"
+                      >
+                        {leverageSaving ? (
+                          <><Loader2 className="w-3 h-3 mr-2 animate-spin" /> جارٍ الحفظ...</>
+                        ) : leverageSaved ? (
+                          <><CheckCircle2 className="w-3 h-3 mr-2 text-green-400" /> تم الحفظ</>
+                        ) : (
+                          'حفظ إعدادات الرافعة'
+                        )}
+                      </Button>
+                    </CardContent>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </Card>
+          </motion.div>
         )}
 
     </SubPageLayout>

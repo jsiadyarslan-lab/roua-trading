@@ -25,7 +25,7 @@ import {
   OrderSide,
   OrderType,
 } from './trading.types';
-import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from '@prisma/client';
+import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from './trading.types';
 
 /**
  * Trading Controller — REST API for Trading Engine

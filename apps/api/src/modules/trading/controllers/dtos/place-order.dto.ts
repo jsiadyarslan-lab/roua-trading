@@ -22,10 +22,9 @@ import {
   IsUUID,
   Matches,
 } from 'class-validator';
-import { OrderSide, OrderType } from '@prisma/client';
+import { OrderSide, OrderType } from '../../trading.types';
 
 // Re-export Prisma enums for DTO use — single source of truth
-export { OrderSide as V2OrderSide, OrderType as V2OrderType } from '@prisma/client';
 
 export class PlaceOrderDto {
   @IsString()

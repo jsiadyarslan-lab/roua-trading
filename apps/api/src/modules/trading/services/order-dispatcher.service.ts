@@ -5,7 +5,7 @@ import { IdempotencyService } from './idempotency.service';
 import { RiskGatekeeperService } from './risk-gatekeeper.service';
 import { OrderStateManagerService } from './order-state-manager.service';
 import { TradingService } from '../trading.service';
-import { OrderSide, OrderType } from '@prisma/client';
+import { OrderSide, OrderType } from '../trading.types';
 import { OrderCommand } from '../events/order.events';
 import * as crypto from 'crypto';
 

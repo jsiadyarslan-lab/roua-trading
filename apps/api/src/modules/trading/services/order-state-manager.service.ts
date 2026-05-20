@@ -2,7 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { AuditService } from '../../../audit/audit.service';
 import { OrderCommand, OrderEventTypeEnum, OrderStatusEnum } from '../events/order.events';
-import { OrderSide, OrderType, OrderEventType, OrderStatus } from '@prisma/client';
+import { OrderSide, OrderType, OrderEventType, OrderStatus } from '../trading.types';
 
 /**
  * Order State Manager Service — Order Lifecycle Management

@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Order Events & Commands
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { OrderSide, OrderType, OrderStatus, OrderEventType } from '@prisma/client';
+import { OrderSide, OrderType, OrderStatus, OrderEventType } from '../trading.types';
 
 /**
  * Order Command — The input object for creating a new order
@@ -76,7 +76,6 @@ export class PositionInfo {
 
 // ── Enums — use Prisma-generated enums as single source of truth ──
 // Re-export from @prisma/client so all consumers import from one place.
-export { OrderSide as OrderSideEnum, OrderType as OrderTypeEnum, OrderStatus as OrderStatusEnum, OrderEventType as OrderEventTypeEnum } from '@prisma/client';
 
 // ── Queue Messages ──
 
@@ -103,3 +102,6 @@ export class OrderQueueMessage {
    * 'auto_paper' or 'user_manual' regardless of actual source. */
   source?: string;
 }
+
+// Re-exports for backward compatibility
+export { OrderSide as OrderSideEnum, OrderType as OrderTypeEnum, OrderStatus as OrderStatusEnum, OrderEventType as OrderEventTypeEnum } from '../trading.types';

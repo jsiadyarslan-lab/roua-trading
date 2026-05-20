@@ -18,8 +18,7 @@ import {
   PlaceOrderRequest,
   ClosePositionRequest,
 } from './trading.types';
-import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from '@prisma/client';
-
+import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType, OrderStatus as PrismaOrderStatus } from './trading.types';
 /**
  * Trading Engine Service — Roua Trading (رؤى)
  *

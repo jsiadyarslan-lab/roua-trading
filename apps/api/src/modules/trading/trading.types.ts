@@ -3,7 +3,6 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { IsString, IsNumber, IsEnum, IsOptional, IsBoolean, Min, IsUUID } from 'class-validator';
-import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from '@prisma/client';
 
 export enum OrderSide {
   BUY = 'BUY',
@@ -22,6 +21,15 @@ export enum OrderStatus {
   FILLED = 'FILLED',
   CANCELLED = 'CANCELLED',
   REJECTED = 'REJECTED',
+}
+
+export enum OrderEventType {
+  CREATED = 'CREATED',
+  ACCEPTED = 'ACCEPTED',
+  RISK_REJECTED = 'RISK_REJECTED',
+  SENT_TO_EXCHANGE = 'SENT_TO_EXCHANGE',
+  FILLED = 'FILLED',
+  CANCELLED = 'CANCELLED',
 }
 
 export enum PositionStatus {
@@ -85,8 +93,8 @@ export class ClosePositionDto {
 export interface PlaceOrderRequest {
   credentialId: string;
   symbol: string;
-  side: OrderSide | PrismaOrderSide;
-  type: OrderType | PrismaOrderType;
+  side: OrderSide;
+  type: OrderType;
   quantity: number;
   price?: number;
   stopLoss?: number;

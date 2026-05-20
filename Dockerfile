@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v173e-close-fast-balance-stable
+ARG BUILD_CACHE=v174-flux-ui-mobile-rebuild
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -157,4 +157,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v93 - FIX v11: Direct DB connection, no PgBouncer, no SSL stripping
+# Build v94 - Flux UI mobile rebuild: new bottom nav, single CSS, all pages working

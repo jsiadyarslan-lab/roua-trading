@@ -236,9 +236,28 @@ function ChartContent() {
 
       {/* Quick Trade Bar — bottom of chart */}
       {!showOrderSheet && !chartFullscreen && (
-        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 'var(--z-overlay)', display: 'flex', gap: 8, padding: '8px 12px', background: 'rgba(11,14,20,0.92)', backdropFilter: 'blur(20px)', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
-          <button className="r-trade-btn r-trade-btn--buy" style={{ flex: 1 }} onClick={() => openExecution('buy')}>شراء</button>
-          <button className="r-trade-btn r-trade-btn--sell" style={{ flex: 1 }} onClick={() => openExecution('sell')}>بيع</button>
+        <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 'var(--z-overlay)', background: 'rgba(11,14,20,0.92)', backdropFilter: 'blur(20px)', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
+          {/* Account Info Mini Bar */}
+          {account && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 12px', borderBottom: '0.5px solid rgba(255,255,255,0.04)', direction: 'rtl' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>قوة الشراء</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: '#FFF', fontFamily: 'var(--font-mono)' }}>
+                  ${Number(account.buying_power ?? 0).toLocaleString('en', { maximumFractionDigits: 0 })}
+                </span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>P&L</span>
+                <span style={{ fontSize: 9, fontWeight: 800, color: Number(account.unrealizedPnl ?? 0) >= 0 ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)' }}>
+                  {Number(account.unrealizedPnl ?? 0) >= 0 ? '+' : ''}{Number(account.unrealizedPnl ?? 0).toFixed(2)}
+                </span>
+              </div>
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 8, padding: '8px 12px' }}>
+            <button className="r-trade-btn r-trade-btn--buy" style={{ flex: 1 }} onClick={() => openExecution('buy')}>شراء</button>
+            <button className="r-trade-btn r-trade-btn--sell" style={{ flex: 1 }} onClick={() => openExecution('sell')}>بيع</button>
+          </div>
         </div>
       )}
 

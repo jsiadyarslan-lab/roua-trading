@@ -860,6 +860,7 @@ export default function RouaChart({
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
     const chartApi = chart.chartRef?.current;
+    console.log('[AI Overlay] chartApi:', !!chartApi, 'patterns:', result.patterns.length, 'trendLines:', result.trendLines.length, 'support:', result.supportLevels.length);
     aiOverlaySeriesRef.current.forEach(s => {
       try { chartApi?.removeSeries(s); } catch (e) { console.warn('[AI Overlay] Failed to remove series:', e); }
       // Unregister from useChart's external tracking

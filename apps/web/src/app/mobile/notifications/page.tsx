@@ -1,291 +1,216 @@
 'use client'
 
-import { useState } from 'react'
-import { PageHeader, Card } from '@/components/mobile/Card'
-import { useNotificationStore, type NotifSource, type NotifAction, type Notification } from '@/hooks/useNotificationStore'
-import { useRouter } from 'next/navigation'
-import {
-  Bell, BellOff, CheckCheck, Trash2, TrendingUp, TrendingDown,
-  Cpu, Brain, Radio, Activity, Shield, AlertTriangle, Info,
-  ChevronDown, Volume2, VolumeX, Eye, Zap, X
-} from 'lucide-react'
+import { useState, useCallback, useMemo } from 'react'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
+import IOSSwitch from '@/components/mobile/IOSSwitch'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { BellRing, Cpu, Brain, ScanSearch, Activity, Trash2, Check, X, Zap, TrendingUp, TrendingDown, ChevronLeft, Filter } from 'lucide-react'
 
-const SOURCE_CONFIG: Record<NotifSource, { label: string; icon: any; color: string }> = {
-  bot: { label: 'المنفذ', icon: Cpu, color: '#059669' },
-  ai: { label: 'الذكاء', icon: Brain, color: '#B388FF' },
-  scanner: { label: 'السكانر', icon: Radio, color: '#00FFA3' },
-  trade: { label: 'التداول', icon: Activity, color: '#00D4FF' },
-  system: { label: 'النظام', icon: Shield, color: '#8B92A8' },
-  agent: { label: 'الوكيل', icon: Zap, color: '#FF9F43' },
+const SOURCE_ICONS: Record<string, typeof BellRing> = {
+  bot: Cpu, ai: Brain, scanner: ScanSearch, trade: Activity, system: BellRing, agent: Cpu,
 }
 
-const ACTION_CONFIG: Record<NotifAction, { label: string; color: string; bg: string }> = {
-  BUY: { label: 'شراء', color: '#00FFA3', bg: 'rgba(0,255,163,0.08)' },
-  SELL: { label: 'بيع', color: '#FF4757', bg: 'rgba(255,69,58,0.08)' },
-  INFO: { label: 'معلومة', color: '#00D4FF', bg: 'rgba(0,212,255,0.08)' },
-  WARN: { label: 'تحذير', color: '#FFB800', bg: 'rgba(255,184,0,0.08)' },
-  CLOSE: { label: 'إغلاق', color: '#FF9F43', bg: 'rgba(255,159,67,0.08)' },
-  CANCEL: { label: 'إلغاء', color: '#8B92A8', bg: 'rgba(139,146,168,0.08)' },
+const ACTION_COLORS: Record<string, string> = {
+  BUY: '#00FFA3', SELL: '#FF453A', INFO: '#00D4FF', WARN: '#FFB800', CLOSE: '#B388FF', CANCEL: '#8B92A8',
 }
 
-const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
-  urgent: { label: 'عاجل', color: '#FF4757' },
-  high: { label: 'مهم', color: '#FFB800' },
-  medium: { label: 'متوسط', color: '#00D4FF' },
-  low: { label: 'منخفض', color: '#8B92A8' },
+const ACTION_LABELS: Record<string, string> = {
+  BUY: 'شراء', SELL: 'بيع', INFO: 'معلومة', WARN: 'تحذير', CLOSE: 'إغلاق', CANCEL: 'إلغاء',
 }
 
-function timeAgo(ts: number): string {
-  const diff = Date.now() - ts
-  if (diff < 60000) return 'الآن'
-  if (diff < 3600000) return `منذ ${Math.floor(diff / 60000)} د`
-  if (diff < 86400000) return `منذ ${Math.floor(diff / 3600000)} س`
-  return new Date(ts).toLocaleDateString('ar-SA', { day: 'numeric', month: 'short' })
-}
+type NotifFilter = 'all' | 'trade' | 'ai' | 'bot' | 'system'
 
 export default function MobileNotificationsPage() {
-  const router = useRouter()
-  const {
-    notifications, settings,
-    markRead, markAllRead, dismiss, clearAll, updateSettings,
-  } = useNotificationStore()
+  const notifications = useNotificationStore(s => s.notifications)
+  const settings = useNotificationStore(s => s.settings)
+  const updateSettings = useNotificationStore(s => s.updateSettings)
+  const markRead = useNotificationStore(s => s.markRead)
+  const markAllRead = useNotificationStore(s => s.markAllRead)
+  const dismiss = useNotificationStore(s => s.dismiss)
+  const clearAll = useNotificationStore(s => s.clearAll)
 
-  const [filter, setFilter] = useState<NotifSource | 'all'>('all')
-  const [showSettings, setShowSettings] = useState(false)
+  const [activeFilter, setActiveFilter] = useState<NotifFilter>('all')
+  const [showSettings, setShowSettings] = useState(true)
 
-  const unread = notifications.filter(n => !n.read).length
-  const filtered = filter === 'all' ? notifications : notifications.filter(n => n.source === filter)
-  const sourceCounts = notifications.reduce((acc, n) => {
-    acc[n.source] = (acc[n.source] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
+  // Filter notifications
+  const filteredNotifications = useMemo(() => {
+    if (activeFilter === 'all') return notifications
+    return notifications.filter(n => n.source === activeFilter)
+  }, [notifications, activeFilter])
+
+  // Stats
+  const unreadCount = notifications.filter(n => !n.read).length
+  const tradeCount = notifications.filter(n => n.source === 'trade').length
+  const aiCount = notifications.filter(n => n.source === 'ai').length
+  const botCount = notifications.filter(n => n.source === 'bot').length
+
+  // Time formatting
+  const formatTime = (timestamp: number) => {
+    const now = Date.now()
+    const diff = now - timestamp
+    if (diff < 60000) return 'الآن'
+    if (diff < 3600000) return `منذ ${Math.floor(diff / 60000)} د`
+    if (diff < 86400000) return `منذ ${Math.floor(diff / 3600000)} س`
+    return new Date(timestamp).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })
+  }
 
   return (
-    <div className="r-page">
-      <PageHeader
-        title="الإشعارات الذكية"
-        subtitle={unread > 0 ? `${unread} غير مقروء` : 'لا إشعارات جديدة'}
-      />
-
-      {/* Quick Actions */}
-      {notifications.length > 0 && (
-        <div style={{ display: 'flex', gap: 8, padding: '0 var(--space-lg)', marginBottom: 8 }}>
-          {unread > 0 && (
-            <button
-              onClick={markAllRead}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 10,
-                background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)',
-                color: '#00D4FF', fontSize: 10, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                cursor: 'pointer', touchAction: 'manipulation', flex: 1, justifyContent: 'center',
-              }}
-            >
-              <CheckCheck size={14} />
-              قراءة الكل
+    <div className="m-page">
+      <MobilePageHeader title="الإشعارات" subtitle={`${unreadCount} غير مقروء`} right={
+        notifications.length > 0 ? (
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button onClick={markAllRead} style={{ background: 'rgba(0,212,255,0.08)', border: '0.5px solid rgba(0,212,255,0.15)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <Check size={12} color="#00D4FF" />
+              <span style={{ fontSize: 8, fontWeight: 700, color: '#00D4FF', fontFamily: "'Cairo', sans-serif" }}>قراءة الكل</span>
             </button>
-          )}
-          <button
-            onClick={() => { if (confirm('حذف جميع الإشعارات؟')) clearAll() }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 10,
-              background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)',
-              color: '#FF4757', fontSize: 10, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-              cursor: 'pointer', touchAction: 'manipulation',
-            }}
-          >
-            <Trash2 size={12} />
-          </button>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 14px', borderRadius: 10,
-              background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)',
-              color: '#B388FF', fontSize: 10, fontWeight: 800, cursor: 'pointer', touchAction: 'manipulation',
-            }}
-          >
-            {showSettings ? <Eye size={14} /> : <Bell size={14} />}
-          </button>
-        </div>
-      )}
-
-      {/* Settings Panel */}
-      {showSettings && (
-        <Card>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-            <Bell size={16} color="#B388FF" />
-            <span style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: 'var(--font-cairo)' }}>إعدادات الإشعارات</span>
+            <button onClick={clearAll} style={{ background: 'rgba(255,69,58,0.08)', border: '0.5px solid rgba(255,69,58,0.15)', borderRadius: 8, padding: '4px 8px', cursor: 'pointer' }}>
+              <Trash2 size={12} color="#FF453A" />
+            </button>
           </div>
+        ) : undefined
+      } />
 
-          {/* Main toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {settings.enabled ? <Bell size={14} color="#00D4FF" /> : <BellOff size={14} color="#FF4757" />}
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#FFF', fontFamily: 'var(--font-cairo)' }}>الإشعارات</span>
+      {/* Unread Summary */}
+      {unreadCount > 0 && (
+        <IOSCard>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #FF453A, #FF6B6B)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <BellRing size={18} color="#FFF" />
             </div>
-            <button onClick={() => updateSettings({ enabled: !settings.enabled })} style={{ width: 42, height: 24, borderRadius: 12, position: 'relative', border: 'none', background: settings.enabled ? '#00D4FF' : 'rgba(255,255,255,0.1)', cursor: 'pointer', touchAction: 'manipulation' }}>
-              <div style={{ position: 'absolute', top: 2, insetInlineStart: settings.enabled ? 20 : 2, width: 20, height: 20, borderRadius: '50%', background: '#FFF', transition: 'inset-inline-start 0.2s' }} />
-            </button>
-          </div>
-
-          {/* Sound */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {settings.soundEnabled ? <Volume2 size={14} color="#FFB800" /> : <VolumeX size={14} color="#8B92A8" />}
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#FFF', fontFamily: 'var(--font-cairo)' }}>الصوت</span>
-            </div>
-            <button onClick={() => updateSettings({ soundEnabled: !settings.soundEnabled })} style={{ width: 42, height: 24, borderRadius: 12, position: 'relative', border: 'none', background: settings.soundEnabled ? '#FFB800' : 'rgba(255,255,255,0.1)', cursor: 'pointer', touchAction: 'manipulation' }}>
-              <div style={{ position: 'absolute', top: 2, insetInlineStart: settings.soundEnabled ? 20 : 2, width: 20, height: 20, borderRadius: '50%', background: '#FFF', transition: 'inset-inline-start 0.2s' }} />
-            </button>
-          </div>
-
-          {/* Source toggles */}
-          {(['bot', 'ai', 'scanner', 'trade'] as const).map(src => {
-            const cfg = SOURCE_CONFIG[src]
-            const key = `${src}Alerts` as keyof typeof settings
-            const enabled = settings[key] as boolean
-            const IconComp = cfg.icon
-            return (
-              <div key={src} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <IconComp size={12} color={cfg.color} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>{cfg.label}</span>
-                </div>
-                <button onClick={() => updateSettings({ [key]: !enabled })} style={{ width: 36, height: 20, borderRadius: 10, position: 'relative', border: 'none', background: enabled ? cfg.color : 'rgba(255,255,255,0.1)', cursor: 'pointer', touchAction: 'manipulation' }}>
-                  <div style={{ position: 'absolute', top: 2, insetInlineStart: enabled ? 16 : 2, width: 16, height: 16, borderRadius: '50%', background: '#FFF', transition: 'inset-inline-start 0.2s' }} />
-                </button>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>لديك {unreadCount} إشعار جديد</div>
+              <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>
+                {tradeCount > 0 && `${tradeCount} تداول `}{aiCount > 0 && `${aiCount} ذكاء `}{botCount > 0 && `${botCount} بوت`}
               </div>
-            )
-          })}
-        </Card>
+            </div>
+            <button onClick={markAllRead} style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(0,212,255,0.1)', border: '0.5px solid rgba(0,212,255,0.2)', cursor: 'pointer' }}>
+              <span style={{ fontSize: 9, fontWeight: 800, color: '#00D4FF', fontFamily: "'Cairo', sans-serif" }}>قراءة الكل</span>
+            </button>
+          </div>
+        </IOSCard>
       )}
+
+      {/* Notification Settings */}
+      <IOSCard>
+        <button onClick={() => setShowSettings(!showSettings)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Zap size={16} color="#00D4FF" />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>إعدادات الإشعارات</span>
+          </div>
+          <ChevronLeft size={16} color="rgba(255,255,255,0.3)" style={{ transform: showSettings ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
+        </button>
+        {showSettings && (
+          <div style={{ marginTop: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Cpu size={12} color="#059669" />
+                <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>تنبيهات البوت</span>
+              </div>
+              <IOSSwitch value={settings.botAlerts} onChange={v => updateSettings({ botAlerts: v })} color="#059669" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Brain size={12} color="#B388FF" />
+                <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>تنبيهات AI</span>
+              </div>
+              <IOSSwitch value={settings.aiAlerts} onChange={v => updateSettings({ aiAlerts: v })} color="#B388FF" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ScanSearch size={12} color="#00D4FF" />
+                <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>تنبيهات السكانر</span>
+              </div>
+              <IOSSwitch value={settings.scannerAlerts} onChange={v => updateSettings({ scannerAlerts: v })} color="#00D4FF" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '0.5px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Activity size={12} color="#00FFA3" />
+                <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>تنبيهات التداول</span>
+              </div>
+              <IOSSwitch value={settings.tradeAlerts} onChange={v => updateSettings({ tradeAlerts: v })} color="#00FFA3" />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <BellRing size={12} color="#d4af37" />
+                <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>الصوت</span>
+              </div>
+              <IOSSwitch value={settings.soundEnabled} onChange={v => updateSettings({ soundEnabled: v })} color="#d4af37" />
+            </div>
+          </div>
+        )}
+      </IOSCard>
 
       {/* Filter Tabs */}
       {notifications.length > 0 && (
-        <div className="r-tabs" style={{ margin: '0 var(--space-lg) var(--space-sm)' }}>
-          <button className={`r-tabs__item ${filter === 'all' ? 'r-tabs__item--active' : ''}`} onClick={() => setFilter('all')}>
-            الكل {notifications.length}
-          </button>
-          {Object.entries(SOURCE_CONFIG).map(([src, cfg]) => {
-            const count = sourceCounts[src] || 0
-            if (count === 0) return null
-            return (
-              <button key={src} className={`r-tabs__item ${filter === src ? 'r-tabs__item--active' : ''}`} onClick={() => setFilter(src as NotifSource)}>
-                {cfg.label}
-              </button>
-            )
-          })}
+        <div style={{ padding: '0 16px', marginBottom: 8, display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2, margin: '0 16px 8px', direction: 'rtl' }}>
+          {([
+            { key: 'all' as NotifFilter, label: 'الكل', count: notifications.length },
+            { key: 'trade' as NotifFilter, label: 'تداول', count: tradeCount },
+            { key: 'ai' as NotifFilter, label: 'AI', count: aiCount },
+            { key: 'bot' as NotifFilter, label: 'بوت', count: botCount },
+          ]).map(tab => (
+            <button key={tab.key} onClick={() => setActiveFilter(tab.key)} style={{ flex: 1, padding: '5px 8px', borderRadius: 8, background: activeFilter === tab.key ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <span style={{ fontSize: 10, fontWeight: activeFilter === tab.key ? 800 : 600, color: activeFilter === tab.key ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif" }}>{tab.label}</span>
+              {tab.count > 0 && <span style={{ fontSize: 8, fontWeight: 800, color: activeFilter === tab.key ? '#00D4FF' : 'rgba(255,255,255,0.25)', fontFamily: "'JetBrains Mono', monospace" }}>{tab.count}</span>}
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Notification List */}
-      {notifications.length === 0 ? (
-        <Card>
-          <div className="r-empty">
-            <Bell size={40} color="#8B92A8" />
-            <div className="r-empty__title">لا توجد إشعارات</div>
-            <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', marginTop: 4 }}>
-              ستظهر هنا تنبيهات التداول والتوصيات والتحذيرات
-            </div>
+      {/* Notification list */}
+      {filteredNotifications.length === 0 ? (
+        <IOSCard>
+          <div style={{ textAlign: 'center', padding: '30px 0' }}>
+            <BellRing size={32} color="#8B92A8" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>لا توجد إشعارات</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif", marginTop: 4 }}>ستظهر الإشعارات هنا عند وصولها</div>
           </div>
-        </Card>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <div className="r-empty">
-            <div className="r-empty__title">لا توجد إشعارات من هذا المصدر</div>
-          </div>
-        </Card>
-      ) : filtered.map(notif => {
-        const srcCfg = SOURCE_CONFIG[notif.source]
-        const actCfg = ACTION_CONFIG[notif.action]
-        const priCfg = PRIORITY_CONFIG[notif.priority]
-        const SrcIcon = srcCfg.icon
-        const isUnread = !notif.read
-
-        return (
-          <Card
-            key={notif.id}
-            onClick={() => {
-              if (isUnread) markRead(notif.id)
-              if (notif.pair) router.push(`/mobile/chart?symbol=${notif.pair}`)
-            }}
-          >
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-              {/* Source Icon */}
-              <div style={{
-                width: 40, height: 40, borderRadius: 12, flexShrink: 0,
-                background: `${srcCfg.color}12`, border: `1px solid ${srcCfg.color}25`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                position: 'relative',
-              }}>
-                <SrcIcon size={18} color={srcCfg.color} />
-                {isUnread && (
-                  <div style={{
-                    position: 'absolute', top: -2, insetInlineEnd: -2,
-                    width: 8, height: 8, borderRadius: 4,
-                    background: '#FF4757', boxShadow: '0 0 6px rgba(255,71,87,0.5)',
-                  }} />
-                )}
+        </IOSCard>
+      ) : (
+        filteredNotifications.slice(0, 30).map(n => {
+          const Icon = SOURCE_ICONS[n.source] || BellRing
+          const actionColor = ACTION_COLORS[n.action] || '#8B92A8'
+          const actionLabel = ACTION_LABELS[n.action] || ''
+          const isBuy = n.action === 'BUY'
+          const isSell = n.action === 'SELL'
+          
+          return (
+            <IOSCard key={n.id} onClick={() => markRead(n.id)}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, opacity: n.read ? 0.5 : 1 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: `${actionColor}12`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: `0.5px solid ${actionColor}20` }}>
+                  <Icon size={16} color={actionColor} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                    <span style={{ fontSize: 12, fontWeight: 800, color: '#FFF', fontFamily: "'Cairo', sans-serif" }}>{n.title}</span>
+                    {actionLabel && (
+                      <span style={{ fontSize: 8, fontWeight: 800, color: actionColor, fontFamily: "'Cairo', sans-serif", padding: '1px 5px', borderRadius: 4, background: `${actionColor}12`, border: `0.5px solid ${actionColor}20` }}>{actionLabel}</span>
+                    )}
+                    {!n.read && (
+                      <div style={{ width: 6, height: 6, borderRadius: 3, background: '#00D4FF', boxShadow: '0 0 6px rgba(0,212,255,0.5)', flexShrink: 0 }} />
+                    )}
+                  </div>
+                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>{n.body}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.2)', fontFamily: "'JetBrains Mono', monospace" }}>{formatTime(n.timestamp)}</span>
+                    {n.pair && (
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace", padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.06)' }}>{n.pair}</span>
+                    )}
+                    {n.price && (
+                      <span style={{ fontSize: 8, fontWeight: 700, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>${n.price.toFixed(2)}</span>
+                    )}
+                  </div>
+                </div>
+                <button onClick={(e) => { e.stopPropagation(); dismiss(n.id) }} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, flexShrink: 0 }}>
+                  <X size={12} color="rgba(255,255,255,0.2)" />
+                </button>
               </div>
-
-              {/* Content */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                  <span style={{
-                    fontSize: 9, fontWeight: 800, padding: '1px 6px', borderRadius: 4,
-                    background: actCfg.bg, color: actCfg.color,
-                    fontFamily: 'var(--font-cairo)',
-                  }}>
-                    {actCfg.label}
-                  </span>
-                  <span style={{
-                    fontSize: 8, fontWeight: 700, padding: '1px 5px', borderRadius: 4,
-                    background: `${priCfg.color}10`, color: priCfg.color,
-                    border: `0.5px solid ${priCfg.color}20`,
-                    fontFamily: 'var(--font-cairo)',
-                  }}>
-                    {priCfg.label}
-                  </span>
-                  {notif.confidence !== undefined && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color: '#B388FF', fontFamily: 'var(--font-mono)' }}>
-                      {notif.confidence}%
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 12, fontWeight: isUnread ? 800 : 600, color: isUnread ? '#FFF' : '#8B92A8', fontFamily: 'var(--font-cairo)', lineHeight: 1.4 }}>
-                  {notif.title}
-                </div>
-                <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', lineHeight: 1.3, marginTop: 2 }}>
-                  {notif.body}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                  <span style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>{timeAgo(notif.timestamp)}</span>
-                  {notif.pair && (
-                    <span style={{ fontSize: 8, fontWeight: 800, color: '#00D4FF', fontFamily: 'var(--font-mono)' }}>{notif.pair}</span>
-                  )}
-                  {notif.price && (
-                    <span style={{ fontSize: 8, fontWeight: 700, color: '#FFF', fontFamily: 'var(--font-mono)' }}>${notif.price.toFixed(2)}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Dismiss */}
-              <button
-                onClick={(e) => { e.stopPropagation(); dismiss(notif.id) }}
-                style={{
-                  width: 28, height: 28, borderRadius: 8, flexShrink: 0,
-                  background: 'rgba(255,255,255,0.04)', border: 'none',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', touchAction: 'manipulation',
-                }}
-              >
-                <X size={12} color="rgba(255,255,255,0.3)" />
-              </button>
-            </div>
-          </Card>
-        )
-      })}
-
-      <div style={{ height: 80 }} />
+            </IOSCard>
+          )
+        })
+      )}
+      <div style={{ height: 16 }} />
     </div>
   )
 }

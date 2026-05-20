@@ -1,568 +1,246 @@
 'use client'
 
 import { useEffect, useState, useCallback, useMemo } from 'react'
-import { PageHeader, Card } from '@/components/mobile/Card'
-import { SkeletonCard } from '@/components/mobile/Skeleton'
+import MobilePageHeader from '@/components/mobile/MobilePageHeader'
+import IOSCard from '@/components/mobile/IOSCard'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
-import { useRouter } from 'next/navigation'
-import {
-  Activity, TrendingUp, TrendingDown, X, Loader2, ShieldAlert,
-  DollarSign, Percent, Clock, ExternalLink, AlertTriangle,
-  Target, Crosshair, Edit3, Check, XCircle, Zap
-} from 'lucide-react'
+import { TrendingUp, TrendingDown, X, Loader2, DollarSign, Activity, Shield, ArrowUpDown, Filter } from 'lucide-react'
 
-/** Format duration from openedAt ISO string to Arabic readable format */
-function formatDuration(openedAt?: string): string {
-  if (!openedAt) return '—'
-  const start = new Date(openedAt).getTime()
-  const now = Date.now()
-  const diffMs = now - start
-  if (diffMs < 0) return 'الآن'
-
-  const minutes = Math.floor(diffMs / 60000)
-  const hours = Math.floor(minutes / 60)
-  const days = Math.floor(hours / 24)
-
-  if (days > 0) return `${days}ي ${hours % 60}س`
-  if (hours > 0) return `${hours}س ${minutes % 60}د`
-  if (minutes > 0) return `${minutes}د`
-  return 'الآن'
-}
+type FilterTab = 'all' | 'long' | 'short'
+type SortBy = 'pnl' | 'size' | 'time'
 
 export default function MobilePositionsPage() {
-  const router = useRouter()
-  const { positions, fetchPositions, refreshAfterTrade, account, loading } = usePositionsStore()
+  const positions = usePositionsStore(s => s.positions)
+  const fetchPositions = usePositionsStore(s => s.fetchPositions)
+  const fetchAccount = usePositionsStore(s => s.fetchAccount)
+  const account = usePositionsStore(s => s.account)
   const quotes = useMarketStore(s => s.quotes)
-  const [closingId, setClosingId] = useState<string | null>(null)
+  const [closing, setClosing] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
-  const [closePercent, setClosePercent] = useState(100)
-  const [filter, setFilter] = useState<'all' | 'long' | 'short'>('all')
-  const [confirmCloseAll, setConfirmCloseAll] = useState(false)
-  const [closingAll, setClosingAll] = useState(false)
+  const [filterTab, setFilterTab] = useState<FilterTab>('all')
+  const [sortBy, setSortBy] = useState<SortBy>('pnl')
 
-  // TP/SL inline edit state
-  const [editingTPSL, setEditingTPSL] = useState<string | null>(null)
-  const [editTP, setEditTP] = useState('')
-  const [editSL, setEditSL] = useState('')
-  const [savingTPSL, setSavingTPSL] = useState(false)
+  useEffect(() => { fetchPositions(); fetchAccount() }, [fetchPositions, fetchAccount])
 
-  useEffect(() => { fetchPositions() }, [fetchPositions])
-
-  const handleClose = async (posId: string, percent: number = 100) => {
-    setClosingId(posId)
+  const handleClose = useCallback(async (pos: { id?: string; dbId?: string; symbol: string; side: string }) => {
+    const id = pos.dbId || pos.id
+    if (!id) return
+    setClosing(id)
     try {
       const res = await fetch('/api/smart-executor/close', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ positionId: posId, percent }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionId: id }),
       })
-      if (res.ok) refreshAfterTrade()
-    } catch { /* */ }
-    finally { setClosingId(null); setConfirmClose(null); setClosePercent(100) }
-  }
-
-  const handleCloseAll = async () => {
-    setClosingAll(true)
-    try {
-      // Close all positions sequentially
-      for (const pos of positions) {
-        await fetch('/api/smart-executor/close', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ positionId: pos.dbId || pos.id }),
-        })
+      const data = await res.json()
+      if (data.success) {
+        usePositionsStore.getState().refreshAfterTrade()
       }
-      refreshAfterTrade()
-    } catch { /* */ }
-    finally { setClosingAll(false); setConfirmCloseAll(false) }
-  }
-
-  const handleSaveTPSL = async (posId: string) => {
-    setSavingTPSL(true)
-    try {
-      const body: any = { positionId: posId }
-      if (editTP) body.takeProfit = parseFloat(editTP)
-      if (editSL) body.stopLoss = parseFloat(editSL)
-      await fetch('/api/smart-executor/update-position', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      refreshAfterTrade()
-    } catch { /* */ }
-    finally { setSavingTPSL(false); setEditingTPSL(null) }
-  }
-
-  const openTPSLEditor = useCallback((pos: any) => {
-    setEditingTPSL(pos.dbId || pos.id)
-    setEditTP(pos.tp || pos.takeProfit ? String(pos.tp || pos.takeProfit) : '')
-    setEditSL(pos.sl || pos.stopLoss ? String(pos.sl || pos.stopLoss) : '')
+    } catch { /* silent */ } finally {
+      setClosing(null)
+      setConfirmClose(null)
+    }
   }, [])
 
+  // Filter and sort positions
+  const filteredPositions = useMemo(() => {
+    let filtered = positions
+    if (filterTab === 'long') filtered = positions.filter(p => p.side === 'long' || p.side === 'LONG' || p.side === 'BUY')
+    if (filterTab === 'short') filtered = positions.filter(p => p.side === 'short' || p.side === 'SHORT' || p.side === 'SELL')
+    
+    return [...filtered].sort((a, b) => {
+      if (sortBy === 'pnl') return Math.abs(b.unrealizedPnl ?? 0) - Math.abs(a.unrealizedPnl ?? 0)
+      if (sortBy === 'size') return (b.qty ?? 0) - (a.qty ?? 0)
+      return 0 // time: default order
+    })
+  }, [positions, filterTab, sortBy])
+
+  // Portfolio summary calculations
+  const totalUnrealizedPnl = useMemo(() => positions.reduce((sum, p) => sum + (p.unrealizedPnl ?? 0), 0), [positions])
+  const totalUnrealizedPnlPct = useMemo(() => {
+    const totalValue = positions.reduce((sum, p) => sum + (Number(p.avgEntryPrice) * Number(p.qty)), 0)
+    return totalValue > 0 ? (totalUnrealizedPnl / totalValue) * 100 : 0
+  }, [positions, totalUnrealizedPnl])
+  const longCount = positions.filter(p => p.side === 'long' || p.side === 'LONG' || p.side === 'BUY').length
+  const shortCount = positions.filter(p => p.side === 'short' || p.side === 'SHORT' || p.side === 'SELL').length
+  const isTotalUp = totalUnrealizedPnl >= 0
   const equity = Number(account?.equity ?? 0) || 0
-  const unrealizedPnl = Number(account?.unrealizedPnl ?? 0) || 0
-  const totalPnlPct = equity > 0 ? (unrealizedPnl / equity) * 100 : 0
-  const isUp = unrealizedPnl >= 0
-
-  const filtered = useMemo(() => filter === 'all' ? positions : positions.filter(p => filter === 'long' ? p.side === 'long' : p.side === 'short'), [filter, positions])
-  const longCount = useMemo(() => positions.filter(p => p.side === 'long').length, [positions])
-  const shortCount = useMemo(() => positions.filter(p => p.side === 'short').length, [positions])
-
-  // Show skeleton cards while positions are loading
-  if (loading && positions.length === 0) {
-    return (
-      <div className="r-page">
-        <PageHeader title="المراكز المفتوحة" subtitle="جارٍ التحميل..." />
-        <SkeletonCard lines={4} />
-        <SkeletonCard lines={4} />
-        <SkeletonCard lines={3} />
-        <div style={{ height: 80 }} />
-      </div>
-    )
-  }
 
   return (
-    <div className="r-page">
-      <PageHeader title="المراكز المفتوحة" subtitle={`${positions.length} مركز نشط`} />
+    <div className="m-page">
+      <MobilePageHeader title="المراكز المفتوحة" subtitle={`${positions.length} مركز`} />
 
-      {/* Account Summary */}
-      {positions.length > 0 && (
-        <Card highlight>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+      {/* Portfolio Summary Card */}
+      <IOSCard highlight>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 40, height: 40, borderRadius: 12, background: isTotalUp ? 'linear-gradient(135deg, #00FFA3, #10B981)' : 'linear-gradient(135deg, #FF453A, #DC2626)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <DollarSign size={20} color="#FFF" />
+            </div>
             <div>
-              <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', fontWeight: 700, marginBottom: 2 }}>إجمالي P&L غير المحقق</div>
-              <div style={{ fontSize: 28, fontWeight: 900, color: isUp ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)' }}>
-                {isUp ? '+' : ''}${unrealizedPnl.toFixed(2)}
+              <div style={{ fontSize: 11, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>إجمالي الربح/الخسارة</div>
+              <div style={{ fontSize: 22, fontWeight: 900, color: isTotalUp ? '#00FFA3' : '#FF4757', fontFamily: "'JetBrains Mono', monospace" }}>
+                {isTotalUp ? '+' : ''}${totalUnrealizedPnl.toFixed(2)}
               </div>
             </div>
-            <div style={{
-              padding: '8px 14px', borderRadius: 12,
-              background: isUp ? 'rgba(0,255,163,0.08)' : 'rgba(255,69,58,0.08)',
-              border: `1px solid ${isUp ? 'rgba(0,255,163,0.2)' : 'rgba(255,69,58,0.2)'}`,
-              textAlign: 'center',
-            }}>
-              <div style={{ fontSize: 18, fontWeight: 900, color: isUp ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)' }}>
-                {isUp ? '+' : ''}{totalPnlPct.toFixed(2)}%
-              </div>
-              <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>نسبة</div>
-            </div>
           </div>
+          <div style={{ padding: '4px 10px', borderRadius: 8, background: isTotalUp ? 'rgba(0,255,163,0.08)' : 'rgba(255,69,58,0.08)', border: `0.5px solid ${isTotalUp ? 'rgba(0,255,163,0.15)' : 'rgba(255,69,58,0.15)'}` }}>
+            <span style={{ fontSize: 12, fontWeight: 800, color: isTotalUp ? '#00FFA3' : '#FF4757', fontFamily: "'JetBrains Mono', monospace" }}>
+              {isTotalUp ? '+' : ''}{totalUnrealizedPnlPct.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+        {/* Stats row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+          <div style={{ padding: '8px 6px', borderRadius: 10, textAlign: 'center', background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)' }}>
+            <Activity size={12} color="#00D4FF" style={{ margin: '0 auto 3px' }} />
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>{positions.length}</div>
+            <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>إجمالي</div>
+          </div>
+          <div style={{ padding: '8px 6px', borderRadius: 10, textAlign: 'center', background: 'rgba(0,255,163,0.03)', border: '0.5px solid rgba(0,255,163,0.08)' }}>
+            <TrendingUp size={12} color="#00FFA3" style={{ margin: '0 auto 3px' }} />
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#00FFA3', fontFamily: "'JetBrains Mono', monospace" }}>{longCount}</div>
+            <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>شراء</div>
+          </div>
+          <div style={{ padding: '8px 6px', borderRadius: 10, textAlign: 'center', background: 'rgba(255,69,58,0.03)', border: '0.5px solid rgba(255,69,58,0.08)' }}>
+            <TrendingDown size={12} color="#FF453A" style={{ margin: '0 auto 3px' }} />
+            <div style={{ fontSize: 16, fontWeight: 800, color: '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>{shortCount}</div>
+            <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>بيع</div>
+          </div>
+        </div>
+        {equity > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8, padding: '6px 10px', borderRadius: 10, background: 'rgba(0,212,255,0.04)', border: '0.5px solid rgba(0,212,255,0.08)' }}>
+            <Shield size={12} color="#00D4FF" />
+            <span style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>رأس المال:</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>${equity.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          </div>
+        )}
+      </IOSCard>
 
-          {/* Distribution bar */}
-          <div style={{ display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', direction: 'ltr' }}>
-            <div style={{ width: `${(longCount / positions.length) * 100}%`, background: '#00FFA3', borderRadius: 3 }} />
-            <div style={{ width: `${(shortCount / positions.length) * 100}%`, background: '#FF4757', borderRadius: 3 }} />
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#00FFA3', fontFamily: 'var(--font-cairo)' }}>{longCount} شراء</span>
-            <span style={{ fontSize: 9, fontWeight: 700, color: '#FF4757', fontFamily: 'var(--font-cairo)' }}>{shortCount} بيع</span>
-          </div>
-        </Card>
-      )}
-
-      {/* Filter Tabs + Close All */}
+      {/* Filter Tabs + Sort */}
       {positions.length > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 var(--space-lg) var(--space-sm)' }}>
-          <div className="r-tabs" style={{ margin: 0, flex: 1 }}>
-            {([['all', 'الكل'], ['long', 'شراء'], ['short', 'بيع']] as const).map(([key, label]) => (
-              <button key={key} className={`r-tabs__item ${filter === key ? 'r-tabs__item--active' : ''}`} onClick={() => setFilter(key)}>
-                {label} {key === 'all' ? positions.length : key === 'long' ? longCount : shortCount}
+        <div style={{ padding: '0 16px', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', direction: 'rtl' }}>
+          {/* Filter tabs */}
+          <div style={{ display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2 }}>
+            {([
+              { key: 'all' as FilterTab, label: 'الكل', count: positions.length },
+              { key: 'long' as FilterTab, label: 'شراء', count: longCount },
+              { key: 'short' as FilterTab, label: 'بيع', count: shortCount },
+            ]).map(tab => (
+              <button key={tab.key} onClick={() => setFilterTab(tab.key)} style={{ padding: '5px 12px', borderRadius: 8, background: filterTab === tab.key ? 'rgba(0,212,255,0.12)' : 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: filterTab === tab.key ? 800 : 600, color: filterTab === tab.key ? '#00D4FF' : 'rgba(255,255,255,0.4)', fontFamily: "'Cairo', sans-serif" }}>{tab.label}</span>
+                <span style={{ fontSize: 8, fontWeight: 800, color: filterTab === tab.key ? '#00D4FF' : 'rgba(255,255,255,0.25)', fontFamily: "'JetBrains Mono', monospace" }}>{tab.count}</span>
               </button>
             ))}
           </div>
-
-          {/* Close All Button */}
-          {confirmCloseAll ? (
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px',
-              borderRadius: 8, background: 'rgba(255,69,58,0.1)',
-              border: '1px solid rgba(255,69,58,0.25)',
-            }}>
-              <button
-                onClick={handleCloseAll}
-                disabled={closingAll}
-                style={{
-                  padding: '4px 10px', borderRadius: 6,
-                  background: '#FF4757', border: 'none',
-                  color: '#FFF', fontSize: 11, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                  cursor: 'pointer', touchAction: 'manipulation',
-                  display: 'flex', alignItems: 'center', gap: 4,
-                }}
-              >
-                {closingAll ? <Loader2 size={12} className="r-anim-spin" /> : <AlertTriangle size={12} />}
-                تأكيد
-              </button>
-              <button
-                onClick={() => setConfirmCloseAll(false)}
-                style={{
-                  padding: '4px 8px', borderRadius: 6,
-                  background: 'rgba(255,255,255,0.06)', border: 'none',
-                  color: '#8B92A8', fontSize: 10, fontWeight: 700,
-                  cursor: 'pointer', touchAction: 'manipulation',
-                }}
-              >
-                إلغاء
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setConfirmCloseAll(true)}
-              style={{
-                padding: '6px 12px', borderRadius: 8,
-                background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)',
-                color: '#FF4757', fontSize: 10, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                cursor: 'pointer', touchAction: 'manipulation',
-                display: 'flex', alignItems: 'center', gap: 4,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <X size={12} />
-              إغلاق الكل
-            </button>
-          )}
+          {/* Sort button */}
+          <button onClick={() => { const next: Record<SortBy, SortBy> = { pnl: 'size', size: 'time', time: 'pnl' }; setSortBy(next[sortBy]) }} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '0.5px solid rgba(255,255,255,0.06)', cursor: 'pointer' }}>
+            <ArrowUpDown size={10} color="#8B92A8" />
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>
+              {sortBy === 'pnl' ? 'ربح' : sortBy === 'size' ? 'حجم' : 'وقت'}
+            </span>
+          </button>
         </div>
       )}
 
       {positions.length === 0 ? (
-        <Card>
-          <div className="r-empty">
-            <Activity size={40} color="#8B92A8" />
-            <div className="r-empty__title">لا توجد مراكز مفتوحة</div>
-            <button
-              onClick={() => router.push('/mobile/markets')}
-              style={{
-                marginTop: 12, padding: '10px 28px', borderRadius: 12,
-                background: 'linear-gradient(135deg, #00D4FF, #5B21B6)', border: 'none',
-                color: '#FFF', fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                cursor: 'pointer', touchAction: 'manipulation',
-              }}
-            >
-              استكشف الأسواق
-            </button>
+        <IOSCard>
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <TrendingUp size={40} color="#8B92A8" style={{ margin: '0 auto 12px' }} />
+            <div style={{ fontSize: 14, fontWeight: 800, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>لا توجد مراكز مفتوحة</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', fontFamily: "'Cairo', sans-serif", marginTop: 4 }}>ابدأ التداول لرؤية مراكزك هنا</div>
           </div>
-        </Card>
-      ) : filtered.map(pos => {
-        const isLong = pos.side === 'long'
-        const pnl = Number(pos.unrealizedPnl ?? 0)
-        const posUp = pnl >= 0
-        const entryPrice = Number(pos.entryPrice ?? pos.avgEntryPrice ?? 0)
-        const currentPrice = Number(pos.currentPrice ?? 0)
-        const qty = Number(pos.qty ?? 0)
-        const marketValue = currentPrice * qty
-        const pnlPct = entryPrice > 0 ? ((currentPrice - entryPrice) / entryPrice) * 100 * (isLong ? 1 : -1) : 0
+        </IOSCard>
+      ) : filteredPositions.length === 0 ? (
+        <IOSCard>
+          <div style={{ textAlign: 'center', padding: '30px 0' }}>
+            <Filter size={28} color="#8B92A8" style={{ margin: '0 auto 8px' }} />
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#8B92A8', fontFamily: "'Cairo', sans-serif" }}>لا توجد مراكز {filterTab === 'long' ? 'شراء' : 'بيع'}</div>
+          </div>
+        </IOSCard>
+      ) : (
+        filteredPositions.map(pos => {
+          const pnl = pos.unrealizedPnl ?? 0
+          const pnlPct = pos.unrealizedPnlPct ?? 0
+          const isUp = pnl >= 0
+          const isLong = pos.side === 'long' || pos.side === 'LONG' || pos.side === 'BUY'
+          const posId = pos.dbId || pos.id || ''
+          const isConfirming = confirmClose === posId
+          const isClosing = closing === posId
+          const entryPrice = Number(pos.avgEntryPrice) || 0
+          const currentPrice = Number(pos.currentPrice) || 0
+          const qty = Number(pos.qty) || 0
+          const positionValue = entryPrice * qty
+          // P&L bar visualization
+          const pnlBarWidth = Math.min(Math.abs(pnlPct) * 3, 100)
 
-        const quote = quotes[pos.symbol]
-        const livePrice = quote ? Number(quote.price) : currentPrice
-
-        const posKey = pos.dbId || pos.id
-        const isEditingTPSL = editingTPSL === posKey
-        const tpValue = pos.tp || pos.takeProfit
-        const slValue = pos.sl || pos.stopLoss
-
-        return (
-          <Card key={pos.id} style={{ padding: 'var(--space-xl)' }}>
-            {/* Subtle background tint overlay based on profit/loss */}
-            <div style={{
-              position: 'absolute', inset: 0, borderRadius: 'var(--radius-lg)',
-              background: posUp
-                ? 'linear-gradient(135deg, rgba(0,255,163,0.03) 0%, transparent 60%)'
-                : 'linear-gradient(135deg, rgba(255,69,58,0.03) 0%, transparent 60%)',
-              pointerEvents: 'none', zIndex: 0,
-            }} />
-
-            <div style={{ position: 'relative', zIndex: 1 }}>
-              {/* Header Row — Symbol + Side Badge + Duration + PnL */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  {/* Side icon — ENLARGED to 52x52 */}
-                  <div style={{
-                    width: 52, height: 52, borderRadius: 14,
-                    background: isLong ? 'rgba(0,255,163,0.1)' : 'rgba(255,69,58,0.1)',
-                    border: `1px solid ${isLong ? 'rgba(0,255,163,0.2)' : 'rgba(255,69,58,0.2)'}`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {isLong ? <TrendingUp size={26} color="#00FFA3" /> : <TrendingDown size={26} color="#FF4757" />}
+          return (
+            <IOSCard key={posId} highlight={isUp && pnl > 0}>
+              {/* Top row: Symbol + Side + P&L */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: isLong ? 'rgba(0,255,163,0.1)' : 'rgba(255,69,58,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: `0.5px solid ${isLong ? 'rgba(0,255,163,0.2)' : 'rgba(255,69,58,0.2)'}` }}>
+                    {isLong ? <TrendingUp size={18} color="#00FFA3" /> : <TrendingDown size={18} color="#FF453A" />}
                   </div>
                   <div>
-                    {/* Symbol — fontSize 20 */}
-                    <div style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: 'var(--font-mono)' }}>{pos.symbol}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 3 }}>
-                      {/* Side badge — ENLARGED */}
-                      <span style={{
-                        fontSize: 11, fontWeight: 800, padding: '3px 12px', borderRadius: 6,
-                        background: isLong ? 'rgba(0,255,163,0.12)' : 'rgba(255,69,58,0.12)',
-                        color: isLong ? '#00FFA3' : '#FF4757',
-                        border: `1px solid ${isLong ? 'rgba(0,255,163,0.25)' : 'rgba(255,69,58,0.25)'}`,
-                        fontFamily: 'var(--font-mono)',
-                        letterSpacing: '0.5px',
-                      }}>
-                        {isLong ? 'LONG' : 'SHORT'}
-                      </span>
-                      {/* Quantity */}
-                      <span style={{ fontSize: 12, color: '#8B92A8', fontFamily: 'var(--font-mono)' }}>× {qty}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 15, fontWeight: 900, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>{pos.symbol}</span>
+                      <span style={{ fontSize: 9, fontWeight: 800, color: isLong ? '#00FFA3' : '#FF453A', fontFamily: "'Cairo', sans-serif", padding: '2px 6px', borderRadius: 5, background: isLong ? 'rgba(0,255,163,0.1)' : 'rgba(255,69,58,0.1)', border: `0.5px solid ${isLong ? 'rgba(0,255,163,0.15)' : 'rgba(255,69,58,0.15)'}` }}>{isLong ? 'شراء' : 'بيع'}</span>
                     </div>
+                    <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>الكمية: {qty}</div>
                   </div>
                 </div>
-
-                {/* PnL Block — ENLARGED */}
                 <div style={{ textAlign: 'left' }}>
-                  {/* PnL amount — fontSize 26 */}
-                  <div style={{ fontSize: 26, fontWeight: 900, color: posUp ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)', lineHeight: 1.1 }}>
-                    {posUp ? '+' : ''}{pnl.toFixed(2)}
+                  <div style={{ fontSize: 18, fontWeight: 900, color: isUp ? '#00FFA3' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {isUp ? '+' : ''}${pnl.toFixed(2)}
                   </div>
-                  {/* PnL percentage — fontSize 14 */}
-                  <div style={{
-                    display: 'inline-block', padding: '2px 10px', borderRadius: 6,
-                    background: posUp ? 'rgba(0,255,163,0.08)' : 'rgba(255,69,58,0.08)',
-                    border: `1px solid ${posUp ? 'rgba(0,255,163,0.15)' : 'rgba(255,69,58,0.15)'}`,
-                    marginTop: 2,
-                  }}>
-                    <span style={{ fontSize: 14, fontWeight: 800, color: posUp ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)' }}>
-                      {posUp ? '+' : ''}{pnlPct.toFixed(2)}%
-                    </span>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: isUp ? '#00FFA3' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>
+                    {isUp ? '+' : ''}{pnlPct.toFixed(2)}%
                   </div>
                 </div>
               </div>
 
-              {/* Duration + TP/SL row */}
-              <div style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                marginBottom: 12, padding: '6px 10px', borderRadius: 8,
-                background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.04)',
-              }}>
-                {/* Duration */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <Clock size={12} color="#8B92A8" />
-                  <span style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', fontWeight: 700 }}>
-                    {formatDuration(pos.openedAt)}
-                  </span>
-                </div>
+              {/* P&L Bar Visualization */}
+              <div style={{ height: 3, borderRadius: 2, background: 'rgba(255,255,255,0.04)', marginBottom: 10, direction: 'ltr', overflow: 'hidden' }}>
+                <div style={{ width: `${pnlBarWidth}%`, height: '100%', borderRadius: 2, background: isUp ? 'linear-gradient(90deg, #00FFA3, #10B981)' : 'linear-gradient(90deg, #FF453A, #DC2626)', transition: 'width 0.5s' }} />
+              </div>
 
-                {/* TP/SL quick view + edit */}
-                {isEditingTPSL ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Target size={10} color="#00FFA3" />
-                      <input
-                        type="number"
-                        value={editTP}
-                        onChange={e => setEditTP(e.target.value)}
-                        placeholder="TP"
-                        style={{
-                          width: 56, height: 24, borderRadius: 4,
-                          background: 'rgba(0,255,163,0.06)', border: '1px solid rgba(0,255,163,0.15)',
-                          color: '#00FFA3', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                          textAlign: 'center', outline: 'none',
-                        }}
-                      />
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Crosshair size={10} color="#FF4757" />
-                      <input
-                        type="number"
-                        value={editSL}
-                        onChange={e => setEditSL(e.target.value)}
-                        placeholder="SL"
-                        style={{
-                          width: 56, height: 24, borderRadius: 4,
-                          background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)',
-                          color: '#FF4757', fontSize: 10, fontWeight: 700, fontFamily: 'var(--font-mono)',
-                          textAlign: 'center', outline: 'none',
-                        }}
-                      />
-                    </div>
-                    <button
-                      onClick={() => handleSaveTPSL(posKey)}
-                      disabled={savingTPSL}
-                      style={{
-                        width: 24, height: 24, borderRadius: 4,
-                        background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-                        color: '#00D4FF', cursor: 'pointer', touchAction: 'manipulation',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      {savingTPSL ? <Loader2 size={10} className="r-anim-spin" /> : <Check size={10} />}
-                    </button>
-                    <button
-                      onClick={() => setEditingTPSL(null)}
-                      style={{
-                        width: 24, height: 24, borderRadius: 4,
-                        background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                        color: '#8B92A8', cursor: 'pointer', touchAction: 'manipulation',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      <XCircle size={10} />
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => openTPSLEditor(pos)}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 8, padding: '2px 8px', borderRadius: 6,
-                      background: 'transparent', border: '1px solid rgba(255,255,255,0.06)',
-                      cursor: 'pointer', touchAction: 'manipulation',
-                    }}
-                  >
-                    {/* TP indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Target size={10} color="#00FFA3" />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: tpValue ? '#00FFA3' : '#555', fontFamily: 'var(--font-mono)' }}>
-                        {tpValue ? Number(tpValue).toFixed(2) : '—'}
-                      </span>
-                    </div>
-                    {/* SL indicator */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                      <Crosshair size={10} color="#FF4757" />
-                      <span style={{ fontSize: 10, fontWeight: 700, color: slValue ? '#FF4757' : '#555', fontFamily: 'var(--font-mono)' }}>
-                        {slValue ? Number(slValue).toFixed(2) : '—'}
-                      </span>
-                    </div>
-                    <Edit3 size={9} color="#8B92A8" />
+              {/* Price Details Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, marginBottom: 10 }}>
+                <div style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 2 }}>الدخول</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>${entryPrice.toFixed(entryPrice > 100 ? 2 : 4)}</div>
+                </div>
+                <div style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 2 }}>الحالي</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: isUp ? '#00FFA3' : '#FF453A', fontFamily: "'JetBrains Mono', monospace" }}>${currentPrice.toFixed(currentPrice > 100 ? 2 : 4)}</div>
+                </div>
+                <div style={{ padding: '6px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.04)', textAlign: 'center' }}>
+                  <div style={{ fontSize: 8, color: '#8B92A8', fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 2 }}>القيمة</div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: '#FFF', fontFamily: "'JetBrains Mono', monospace" }}>${positionValue.toFixed(positionValue > 100 ? 2 : 4)}</div>
+                </div>
+              </div>
+
+              {/* Close button */}
+              {isConfirming ? (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => handleClose(pos)} disabled={isClosing} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: '#FF453A', border: 'none', color: '#FFF', fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', opacity: isClosing ? 0.6 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                    {isClosing && <Loader2 size={14} className="animate-spin" />}
+                    {isClosing ? 'جارٍ الإغلاق...' : 'تأكيد الإغلاق'}
                   </button>
-                )}
-              </div>
-
-              {/* Price Details Grid — fontSize 14 for values, 10 for labels */}
-              <div style={{
-                display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
-                padding: '12px', borderRadius: 12,
-                background: 'rgba(255,255,255,0.02)', border: '0.5px solid rgba(255,255,255,0.05)',
-                marginBottom: 12,
-              }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', fontWeight: 700, marginBottom: 3 }}>سعر الدخول</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: 'var(--font-mono)' }}>
-                    ${entryPrice > 0 ? entryPrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </div>
+                  <button onClick={() => setConfirmClose(null)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: 'none', color: '#8B92A8', fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer' }}>إلغاء</button>
                 </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', fontWeight: 700, marginBottom: 3 }}>السعر الحالي</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: posUp ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)' }}>
-                    ${livePrice > 0 ? livePrice.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: 'var(--font-cairo)', fontWeight: 700, marginBottom: 3 }}>القيمة السوقية</div>
-                  <div style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: 'var(--font-mono)' }}>
-                    ${marketValue > 0 ? marketValue.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '—'}
-                  </div>
-                </div>
-              </div>
-
-              {/* PnL Progress Bar */}
-              <div style={{ marginBottom: 12 }}>
-                <div style={{
-                  height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.06)',
-                  overflow: 'hidden', direction: 'ltr',
-                }}>
-                  <div style={{
-                    width: `${Math.min(Math.abs(pnlPct) * 5, 100)}%`,
-                    height: '100%', borderRadius: 3,
-                    background: posUp ? 'linear-gradient(90deg, #00FFA3, #10B981)' : 'linear-gradient(90deg, #FF4757, #EF4444)',
-                  }} />
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div style={{ display: 'flex', gap: 8 }}>
-                {/* View Chart button — fontSize 13 */}
-                <button
-                  onClick={() => router.push(`/mobile/chart?symbol=${pos.symbol}`)}
-                  style={{
-                    flex: 1, height: 44, borderRadius: 10,
-                    background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)',
-                    color: '#00D4FF', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    touchAction: 'manipulation',
-                  }}
-                >
-                  <ExternalLink size={15} />
-                  عرض الشارت
+              ) : (
+                <button onClick={() => setConfirmClose(posId)} style={{ width: '100%', padding: '10px 0', borderRadius: 10, background: 'rgba(255,69,58,0.06)', border: '0.5px solid rgba(255,69,58,0.15)', color: '#FF453A', fontSize: 12, fontWeight: 800, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                  <X size={14} /> إغلاق المركز
                 </button>
-
-                {confirmClose === posKey ? (
-                  <div style={{
-                    flex: 1.5, display: 'flex', flexDirection: 'column', gap: 6,
-                    padding: '8px 10px', borderRadius: 10,
-                    background: 'rgba(255,69,58,0.06)',
-                    border: '1px solid rgba(255,69,58,0.15)',
-                  }}>
-                    {/* Percentage selector */}
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {([25, 50, 75, 100] as const).map(pct => (
-                        <button
-                          key={pct}
-                          onClick={() => setClosePercent(pct)}
-                          style={{
-                            flex: 1, height: 30, borderRadius: 6,
-                            background: closePercent === pct
-                              ? 'rgba(255,69,58,0.2)'
-                              : 'rgba(255,255,255,0.04)',
-                            border: closePercent === pct
-                              ? '1px solid rgba(255,69,58,0.4)'
-                              : '1px solid rgba(255,255,255,0.06)',
-                            color: closePercent === pct ? '#FF4757' : '#8B92A8',
-                            fontSize: 11, fontWeight: 800, fontFamily: 'var(--font-mono)',
-                            cursor: 'pointer', touchAction: 'manipulation',
-                            transition: 'all 150ms ease',
-                          }}
-                        >
-                          {pct}%
-                        </button>
-                      ))}
-                    </div>
-                    {/* Confirm / Cancel */}
-                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                      <AlertTriangle size={12} color="#FF4757" />
-                      <button
-                        onClick={() => handleClose(posKey, closePercent)}
-                        disabled={closingId === posKey}
-                        style={{
-                          flex: 1, height: 34, borderRadius: 8,
-                          background: '#FF4757', border: 'none',
-                          color: '#FFF', fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                          cursor: 'pointer', touchAction: 'manipulation',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
-                        }}
-                      >
-                        {closingId === posKey ? <Loader2 size={12} className="r-anim-spin" /> : <Zap size={12} />}
-                        تأكيد إغلاق {closePercent}%
-                      </button>
-                      <button
-                        onClick={() => { setConfirmClose(null); setClosePercent(100) }}
-                        style={{
-                          padding: '0 10px', height: 34, borderRadius: 8,
-                          background: 'rgba(255,255,255,0.06)', border: 'none',
-                          color: '#8B92A8', fontSize: 10, fontWeight: 700,
-                          cursor: 'pointer', touchAction: 'manipulation',
-                        }}
-                      >
-                        إلغاء
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  /* Close Position button — fontSize 13 */
-                  <button
-                    onClick={() => setConfirmClose(posKey ?? null)}
-                    style={{
-                      flex: 1, height: 44, borderRadius: 10,
-                      background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)',
-                      color: '#FF4757', fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-cairo)',
-                      cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                      touchAction: 'manipulation',
-                    }}
-                  >
-                    <X size={15} />
-                    إغلاق المركز
-                  </button>
-                )}
-              </div>
-            </div>
-          </Card>
-        )
-      })}
-
-      <div style={{ height: 80 }} />
+              )}
+            </IOSCard>
+          )
+        })
+      )}
+      <div style={{ height: 16 }} />
     </div>
   )
 }

@@ -67,6 +67,7 @@ interface UseChartReturn {
   registerExternalSeries: (series: ISeriesApi<SeriesType>) => void;
   unregisterExternalSeries: (series: ISeriesApi<SeriesType>) => void;
   clearExternalSeries: () => void;
+  setCrosshairMode: (enabled: boolean) => void;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -210,16 +211,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       crosshair: {
         mode: 0, // Normal
         vertLine: {
-          color: CHART_COLORS.crosshair,
-          width: 1,
+          color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair,
+          width: isMobile ? 1 : 1,
           style: 2,
-          labelBackgroundColor: T.card,
+          labelVisible: true,
+          labelBackgroundColor: isMobile ? '#2a2e3e' : T.card,
         },
         horzLine: {
-          color: CHART_COLORS.crosshair,
-          width: 1,
+          color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair,
+          width: isMobile ? 1 : 1,
           style: 2,
-          labelBackgroundColor: T.card,
+          labelVisible: true,
+          labelBackgroundColor: isMobile ? '#2a2e3e' : T.card,
         },
       },
       rightPriceScale: {
@@ -1476,8 +1479,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } else {
           return {
             mode: 0, // Normal
-            vertLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: T.card },
-            horzLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: T.card },
+            vertLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
+            horzLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
           };
         }
       })(),
@@ -1639,6 +1642,32 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     externalSeriesRef.current.clear();
   }, []);
 
+  // ── Crosshair Mode ────────────────────────────────────
+  // When crosshair mode is enabled on mobile, disable touch panning so the
+  // crosshair follows the user's finger. When disabled, re-enable panning.
+  const setCrosshairMode = useCallback((enabled: boolean) => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+    if (enabled) {
+      // Crosshair mode: disable touch/mouse panning so crosshair follows finger
+      chart.applyOptions({
+        handleScroll: {
+          mouseWheel: true,
+          pressedMouseMove: false,
+          horzTouchDrag: false,
+          vertTouchDrag: false,
+        },
+      });
+    } else {
+      // Normal mode: re-enable panning (restore original mobile settings)
+      chart.applyOptions({
+        handleScroll: {
+          vertTouchDrag: false,
+        },
+      });
+    }
+  }, []);
+
   // visibleRangeCallbackRef and prevCallbackRef are now declared at the top
   // of the hook (near other refs) to prevent TDZ errors. See line ~91.
 
@@ -1792,5 +1821,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     registerExternalSeries,
     unregisterExternalSeries,
     clearExternalSeries,
+    setCrosshairMode,
   };
 }

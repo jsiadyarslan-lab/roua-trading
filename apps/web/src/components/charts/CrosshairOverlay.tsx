@@ -72,9 +72,8 @@ export function CrosshairOverlay({
   const overlayPriceSize = mobile ? 14 : 16;
   const overlayPairSize = mobile ? 10 : 11;
 
-  // Mobile: minimal overlay — only feed status (chart page shows pair/price/%)
+  // Mobile: compact OHLC overlay when crosshair is active + feed status
   if (mobile) {
-    if (feedState !== 'fallback') return null;
     return (
       <div style={{
         position: 'absolute',
@@ -83,12 +82,77 @@ export function CrosshairOverlay({
         left: 0,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        padding: '2px 6px',
+        justifyContent: 'space-between',
+        padding: '2px 8px',
         pointerEvents: 'none',
         zIndex: 3,
+        direction: 'ltr',
       }}>
-        <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
+        {/* OHLC data — visible only when crosshair is active (user touching chart) */}
+        {crosshairData ? (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'rgba(11,14,20,0.85)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 4,
+            padding: '2px 6px',
+            border: '1px solid rgba(255,255,255,0.06)',
+          }}>
+            <span style={{
+              fontSize: 8,
+              color: COLORS.textMuted,
+              fontFamily: "'JetBrains Mono', monospace",
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+            }}>
+              <span>O <b style={{ color: 'rgba(255,255,255,0.55)' }}>{crosshairData.open.toFixed(decimals)}</b></span>
+              <span>H <b style={{ color: 'rgba(63,185,80,0.75)' }}>{crosshairData.high.toFixed(decimals)}</b></span>
+              <span>L <b style={{ color: 'rgba(248,81,73,0.75)' }}>{crosshairData.low.toFixed(decimals)}</b></span>
+              <span>C <b style={{ color: isBull ? 'rgba(63,185,80,0.75)' : 'rgba(248,81,73,0.75)' }}>{crosshairData.close.toFixed(decimals)}</b></span>
+            </span>
+            <span style={{
+              fontSize: 8,
+              fontFamily: "'JetBrains Mono', monospace",
+              color: changeColor,
+              fontWeight: 700,
+              padding: '0px 3px',
+              borderRadius: 2,
+              background: `${changeColor}15`,
+            }}>
+              {crosshairData.changePercent >= 0 ? '+' : ''}{crosshairData.changePercent.toFixed(2)}%
+            </span>
+            <span style={{
+              fontSize: 7,
+              color: COLORS.textMuted,
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              Vol:{formatVolume(crosshairData.volume)}
+            </span>
+          </div>
+        ) : <div />}
+        {/* Right: date when crosshair active, or feed status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          {crosshairData && (
+            <span style={{
+              fontSize: 7,
+              color: COLORS.cyan,
+              fontFamily: "'JetBrains Mono', monospace",
+              background: 'rgba(11,14,20,0.85)',
+              backdropFilter: 'blur(8px)',
+              borderRadius: 4,
+              padding: '2px 5px',
+              border: '1px solid rgba(0,212,255,0.12)',
+            }}>
+              {crosshairData.dateStr}
+            </span>
+          )}
+          {feedState === 'fallback' && (
+            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
+          )}
+        </div>
       </div>
     );
   }

@@ -77,7 +77,9 @@ interface RouaChartProps {
     activeTool: DrawingTool;
     addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
     removePriceLine: (id: string) => void;
+    setCrosshairMode: (enabled: boolean) => void;
   } | null>;
+  onCrosshairDataChange?: (data: CrosshairData | null) => void;
 }
 
 // ── Price-Synced Candle Timer Component ──
@@ -148,6 +150,7 @@ export default function RouaChart({
   isChartFullscreen = false,
   onToggleChartFullscreen,
   chartActions,
+  onCrosshairDataChange,
 }: RouaChartProps) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
@@ -202,10 +205,15 @@ export default function RouaChart({
   }, [timeframe]);
 
   // ── Chart Hook ─────────────────────────────────────────
+  const handleCrosshairMove = useCallback((data: CrosshairData | null) => {
+    setCrosshairData(data);
+    onCrosshairDataChange?.(data);
+  }, [onCrosshairDataChange]);
+
   const chart = useChart({
     symbol: selectedSymbol,
     timeframe,
-    onCrosshairMove: setCrosshairData,
+    onCrosshairMove: handleCrosshairMove,
     mobile,
   });
 
@@ -224,9 +232,10 @@ export default function RouaChart({
         activeTool: chart.activeTool,
         addPriceLine: chart.addPriceLine,
         removePriceLine: chart.removePriceLine,
+        setCrosshairMode: chart.setCrosshairMode,
       };
     }
-  }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine]);
+  }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine, chart.setCrosshairMode]);
 
   // ── Auto-run Pattern Engine when candles update ──
   const runPatternDetection = useCallback(async () => {

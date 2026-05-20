@@ -10,7 +10,8 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { TIMEFRAMES } from '@/lib/charts/types'
-import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
+import type { CrosshairData } from '@/lib/charts/types'
+import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ChevronRight, Crosshair } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
    ROUA MOBILE — Immersive Trading Chart
@@ -63,6 +64,8 @@ function ChartContent() {
   const [showPairDropdown, setShowPairDropdown] = useState(false)
   const [showTimeframePanel, setShowTimeframePanel] = useState(false)
   const [chartFullscreen, setChartFullscreen] = useState(false)
+  const [crosshairMode, setCrosshairMode] = useState(false)
+  const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null)
 
   const quoteKey = quotes && selectedSymbol ? Object.keys(quotes).find(k => k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')) : null
   const quote = quoteKey ? quotes[quoteKey] : null
@@ -151,6 +154,16 @@ function ChartContent() {
   const openExecution = useCallback((side: 'buy' | 'sell') => { setOrderSide(side); setOrderType('market'); setShowOrderSheet(true) }, [])
   const openPendingOrder = useCallback(() => { setOrderSide('buy'); setOrderType('limit'); setShowOrderSheet(true) }, [])
 
+  const toggleCrosshair = useCallback(() => {
+    const next = !crosshairMode
+    setCrosshairMode(next)
+    chartActionsRef.current?.setCrosshairMode?.(next)
+  }, [crosshairMode])
+
+  const handleCrosshairData = useCallback((data: CrosshairData | null) => {
+    setCrosshairData(data)
+  }, [])
+
   const prevPriceLinePrice = useRef<number | null>(null)
   useEffect(() => {
     const actions = chartActionsRef.current
@@ -181,11 +194,11 @@ function ChartContent() {
     <div className="r-page--chart">
       {/* Chart container — full viewport */}
       <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, direction: 'ltr' }}>
-        <RouaChart currentPrice={livePrice} mobile={true} hideToolbar={true} isChartFullscreen={chartFullscreen} onToggleChartFullscreen={() => setChartFullscreen(!chartFullscreen)} chartActions={chartActionsRef} />
+        <RouaChart currentPrice={livePrice} mobile={true} hideToolbar={true} isChartFullscreen={chartFullscreen} onToggleChartFullscreen={() => setChartFullscreen(!chartFullscreen)} chartActions={chartActionsRef} onCrosshairDataChange={handleCrosshairData} />
 
-        {/* Pair + Price overlay */}
-        <div style={{ position: 'absolute', top: 40, left: 8, right: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', pointerEvents: 'none', zIndex: 'var(--z-overlay)', direction: 'ltr' }}>
-          <div ref={dropdownRef} style={{ position: 'relative', pointerEvents: 'auto' }}>
+        {/* Pair + Price overlay — shows OHLC when crosshair active */}
+        <div style={{ position: 'absolute', top: 36, left: 8, right: 8, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', pointerEvents: 'none', zIndex: 'var(--z-overlay)', direction: 'ltr', gap: 6 }}>
+          <div ref={dropdownRef} style={{ position: 'relative', pointerEvents: 'auto', flexShrink: 0 }}>
             <button onClick={() => { setShowPairDropdown(!showPairDropdown); setShowTimeframePanel(false) }} style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', border: '1px solid rgba(0,212,255,0.15)', cursor: 'pointer', backdropFilter: 'blur(12px)' }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: '#00D4FF', fontFamily: 'var(--font-mono)', letterSpacing: -0.5 }}>{selectedSymbol.replace('/', '')}</span>
               <ChevronDown size={10} color="#00D4FF" strokeWidth={3} />
@@ -200,11 +213,35 @@ function ChartContent() {
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <span style={{ fontSize: 13, fontWeight: 900, color: priceColor, fontFamily: 'var(--font-mono)' }}>{fmtPrice(livePrice)}</span>
-            <span style={{ fontSize: 8, fontWeight: 700, color: isPositive ? C.success : C.danger, fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: 3, background: isPositive ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)' }}>{isPositive ? '+' : ''}{changePercent.toFixed(2)}%</span>
-          </div>
+          {/* Crosshair OHLC or Live Price */}
+          {crosshairMode && crosshairData ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(12px)', border: '1px solid rgba(160,200,220,0.15)', flexShrink: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 12, fontWeight: 900, color: crosshairData.close >= crosshairData.open ? C.success : C.danger, fontFamily: 'var(--font-mono)' }}>{fmtPrice(crosshairData.close)}</span>
+              <span style={{ fontSize: 7, color: C.text2, fontFamily: 'var(--font-mono)', display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span>O<b style={{ color: 'rgba(255,255,255,0.5)' }}>{crosshairData.open > 100 ? crosshairData.open.toFixed(2) : crosshairData.open.toFixed(4)}</b></span>
+                <span>H<b style={{ color: 'rgba(63,185,80,0.7)' }}>{crosshairData.high > 100 ? crosshairData.high.toFixed(2) : crosshairData.high.toFixed(4)}</b></span>
+                <span>L<b style={{ color: 'rgba(248,81,73,0.7)' }}>{crosshairData.low > 100 ? crosshairData.low.toFixed(2) : crosshairData.low.toFixed(4)}</b></span>
+              </span>
+              <span style={{ fontSize: 7, fontWeight: 700, color: crosshairData.changePercent >= 0 ? C.success : C.danger, fontFamily: 'var(--font-mono)', padding: '0px 3px', borderRadius: 2, background: crosshairData.changePercent >= 0 ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)' }}>
+                {crosshairData.changePercent >= 0 ? '+' : ''}{crosshairData.changePercent.toFixed(2)}%
+              </span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '3px 8px', borderRadius: 6, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <span style={{ fontSize: 13, fontWeight: 900, color: priceColor, fontFamily: 'var(--font-mono)' }}>{fmtPrice(livePrice)}</span>
+              <span style={{ fontSize: 8, fontWeight: 700, color: isPositive ? C.success : C.danger, fontFamily: 'var(--font-mono)', padding: '1px 4px', borderRadius: 3, background: isPositive ? 'rgba(50,215,75,0.1)' : 'rgba(255,69,58,0.1)' }}>{isPositive ? '+' : ''}{changePercent.toFixed(2)}%</span>
+            </div>
+          )}
         </div>
+
+        {/* Crosshair date label — bottom of chart */}
+        {crosshairMode && crosshairData && (
+          <div style={{ position: 'absolute', bottom: chartFullscreen ? 4 : 68, left: '50%', transform: 'translateX(-50%)', pointerEvents: 'none', zIndex: 'var(--z-overlay)', direction: 'ltr' }}>
+            <span style={{ fontSize: 8, fontWeight: 700, color: '#00D4FF', fontFamily: 'var(--font-mono)', background: 'rgba(11,14,20,0.85)', backdropFilter: 'blur(8px)', padding: '2px 8px', borderRadius: 4, border: '1px solid rgba(0,212,255,0.12)', whiteSpace: 'nowrap' }}>
+              {crosshairData.dateStr}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Toolbar — compact, top */}
@@ -213,6 +250,7 @@ function ChartContent() {
         <button onClick={openPendingOrder} title="أوامر معلقة" style={{ width: 44, height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}><Timer size={14} /></button>
         <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)', margin: '0 2px', flexShrink: 0 }} />
         <button onClick={() => chartActionsRef.current?.toggleIndicators()} title="المؤشرات" style={{ width: 44, height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}><BarChart3 size={14} /></button>
+        <button onClick={toggleCrosshair} title="التصالب" style={{ width: 44, height: 32, borderRadius: 6, background: crosshairMode ? 'rgba(0,212,255,0.15)' : 'transparent', border: crosshairMode ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: crosshairMode ? '#00D4FF' : 'rgba(255,255,255,0.5)', touchAction: 'manipulation', transition: 'all 0.15s' }}><Crosshair size={14} /></button>
         <div style={{ flex: 1 }} />
         <div ref={tfPanelRef} style={{ position: 'relative' }}>
           <button onClick={() => { setShowTimeframePanel(!showTimeframePanel); setShowPairDropdown(false) }} title="الإطار الزمني" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px', height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', cursor: 'pointer', touchAction: 'manipulation' }}>

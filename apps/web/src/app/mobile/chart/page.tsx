@@ -10,7 +10,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { TIMEFRAMES } from '@/lib/charts/types'
-import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ArrowRight } from 'lucide-react'
+import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ChevronRight } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
    ROUA MOBILE — Immersive Trading Chart
@@ -231,7 +231,7 @@ function ChartContent() {
           )}
         </div>
         <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)', margin: '0 2px', flexShrink: 0 }} />
-        <button onClick={() => router.back()} title="رجوع" style={{ width: 44, height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}><ArrowRight size={14} /></button>
+        <button onClick={() => router.back()} title="رجوع" style={{ width: 44, height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}><ChevronRight size={14} /></button>
       </div>
 
       {/* Quick Trade Bar — bottom of chart */}

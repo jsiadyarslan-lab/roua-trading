@@ -30,11 +30,11 @@ export default function MobileSettingsPage() {
       <Card>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Bell size={16} color="#00D4FF" /><span style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: 'var(--font-cairo)' }}>إشعارات المتصفح</span></div>
-          <Switch value={settings.browser ?? true} onChange={v => updateSettings({ browser: v })} />
+          <Switch value={settings.browserNotifications ?? true} onChange={v => updateSettings({ browserNotifications: v })} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Volume2 size={16} color="#FFB800" /><span style={{ fontSize: 13, fontWeight: 700, color: '#FFF', fontFamily: 'var(--font-cairo)' }}>صوت التنبيهات</span></div>
-          <Switch value={settings.sound ?? false} onChange={v => updateSettings({ sound: v })} />
+          <Switch value={settings.soundEnabled ?? false} onChange={v => updateSettings({ soundEnabled: v })} />
         </div>
       </Card>
       <div style={{ height: 80 }} />

@@ -265,7 +265,7 @@ function QuickActions() {
 // ── Main Page ──
 export default function MobileHomePage() {
   const router = useRouter()
-  const { tradingMode } = useDashboardStore()
+  const tradingMode = useDashboardStore(s => s.mode)
   const account = usePositionsStore(s => s.account)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const modeAccent = MODE_CONFIG[tradingMode]?.accent || '#00D4FF'

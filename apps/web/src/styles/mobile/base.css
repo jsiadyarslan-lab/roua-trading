@@ -2,19 +2,19 @@
    ROUA MOBILE — Base Reset & Global Styles
    ═══════════════════════════════════════════════════════════════ */
 
-/* Override dashboard's overflow:hidden — mobile pages MUST scroll */
-html, body {
-  overflow: auto !important;
+/* Mobile shell: body is locked, scrolling happens inside .r-main only */
+html {
+  overflow: hidden !important;
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
 }
 
-/* Prevent rubber-band scrolling on iOS */
 body {
   position: fixed;
   width: 100%;
   height: 100dvh;
-  overflow: hidden;
+  overflow: hidden !important;
+  overscroll-behavior: none;
 }
 
 /* ── Mobile Shell ── */

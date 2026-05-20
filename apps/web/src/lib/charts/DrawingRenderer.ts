@@ -177,6 +177,12 @@ export class DrawingRenderer {
     const h = this.overlayCanvas.height;
     this.ctx.clearRect(0, 0, w, h);
 
+    // Clip all drawing to canvas bounds — prevents lines from going outside chart
+    this.ctx.save();
+    this.ctx.beginPath();
+    this.ctx.rect(0, 0, w, h);
+    this.ctx.clip();
+
     // Draw all persisted drawings
     const drawings = this.drawingManager.getAll();
     for (const drawing of drawings) {
@@ -187,6 +193,8 @@ export class DrawingRenderer {
     if (this.isDrawing && this.clickedPoints.length > 0 && this.mousePixel) {
       this.renderPreview();
     }
+
+    this.ctx.restore();
   }
 
   // ══════════════════════════════════════════════════════════

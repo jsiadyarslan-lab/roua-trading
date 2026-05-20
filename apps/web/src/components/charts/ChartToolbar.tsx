@@ -846,6 +846,30 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         {/* MTF and ChartGrid buttons are already in Group 8 above — removed duplicate here */}
 
+        {/* MTF (Multi-Timeframe) */}
+        {onToggleMTF && (
+          <button
+            style={btnStyle}
+            onClick={onToggleMTF}
+            title="تحليل متعدد الأطر الزمنية"
+          >
+            MTF
+          </button>
+        )}
+
+        {/* Chart Grid (Multi-Chart Layout) */}
+        {onToggleChartGrid && (
+          <button
+            style={btnStyle}
+            onClick={onToggleChartGrid}
+            title="Multi-Chart Grid Layout"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+            </svg>
+          </button>
+        )}
+
         {/* Share */}
         {onToggleShare && (
           <button

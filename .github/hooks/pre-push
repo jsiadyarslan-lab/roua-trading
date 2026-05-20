@@ -1,0 +1,26 @@
+#!/bin/bash
+# pre-push hook — يُنفَّذ تلقائياً قبل كل git push
+# التثبيت: cp .github/hooks/pre-push .git/hooks/pre-push && chmod +x .git/hooks/pre-push
+
+echo "🔍 فحص TypeScript..."
+
+cd apps/api
+ERRORS=$(npx tsc --noEmit 2>&1 | grep "error TS" | wc -l)
+if [ "$ERRORS" -gt 0 ]; then
+  echo "❌ يوجد $ERRORS خطأ TypeScript في apps/api — أصلحها قبل الـ push"
+  npx tsc --noEmit 2>&1 | grep "error TS" | head -10
+  exit 1
+fi
+cd ../..
+
+echo "✅ TypeScript نظيف"
+
+echo "🔍 تشغيل اختبارات المحاسبة..."
+node tests/accounting.test.js
+if [ $? -ne 0 ]; then
+  echo "❌ اختبارات المحاسبة فشلت — لا push حتى تُصلح"
+  exit 1
+fi
+
+echo "✅ كل الفحوصات نجحت — متابعة الـ push"
+exit 0

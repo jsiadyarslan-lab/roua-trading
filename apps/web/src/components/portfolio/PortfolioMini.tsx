@@ -90,9 +90,10 @@ export function usePortfolioSummary() {
           let margin = 0
           for (const p of positions) {
             const qty = Number(p.qty) || 0
-            const price = Number(p.currentPrice) || 0
-            if (qty <= 0 || price <= 0) continue
-            const notional = Math.abs(qty * price)
+            // V172d: entryPrice (fixed margin), not currentPrice (floating)
+            const entryPx = Number((p as any).entryPrice || p.currentPrice) || 0
+            if (qty <= 0 || entryPx <= 0) continue
+            const notional = Math.abs(qty * entryPx)
             const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
             const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
             const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']

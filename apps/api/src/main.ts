@@ -386,60 +386,11 @@ async function bootstrap() {
     // ── Start HTTP server ──
     await app.listen(port, '0.0.0.0');
 
-    // ── V172d: One-time migration — reconcile paperBalance for existing open positions ──
-    // Before V172d, paperBalance was never deducted when opening positions.
-    // On first boot after upgrade, we calculate the total margin locked in existing open
-    // positions and subtract it from paperBalance so the display is correct.
-    // This runs ONCE per user (detected by a flag in AgentSettings or by comparing values).
-    try {
-      const { PrismaService } = require('./common/prisma/prisma.service');
-      const { getSymbolMetadata, AssetClass } = require('./modules/trading/services/symbol-metadata');
-      const prisma = app.get(PrismaService);
-
-      const allUsers = await prisma.agentSettings.findMany({
-        select: { userId: true, paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true, paperBalanceMigrated: true },
-      }).catch(() => []);
-
-      for (const settings of allUsers) {
-        if ((settings as any).paperBalanceMigrated) continue; // already migrated
-
-        const openPositions = await prisma.position.findMany({
-          where: { userId: settings.userId, status: 'OPEN', exchange: 'paper-trading' },
-          select: { quantity: true, entryPrice: true, symbol: true },
-        }).catch(() => []);
-
-        if (openPositions.length === 0) continue;
-
-        let totalMarginLocked = 0;
-        const cryptoLev = Number(settings.paperCryptoLeverage) || 1;
-        const forexLev = Number(settings.paperForexLeverage) || 50;
-        const goldLev = Number(settings.paperGoldLeverage) || 20;
-
-        for (const pos of openPositions) {
-          const meta = getSymbolMetadata(pos.symbol);
-          let leverage = 1;
-          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
-          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
-          else leverage = cryptoLev;
-          const notional = Number(pos.quantity) * Number(pos.entryPrice);
-          totalMarginLocked += leverage > 1 ? notional / leverage : notional;
-        }
-
-        const currentBalance = Number(settings.paperBalance);
-        // Only migrate if balance appears to be "gross" (not yet deducted)
-        // Heuristic: if balance > 9500 but open positions exist with large margin, migrate
-        if (totalMarginLocked > 50 && currentBalance > totalMarginLocked) {
-          const migratedBalance = currentBalance - totalMarginLocked;
-          await prisma.agentSettings.update({
-            where: { userId: settings.userId },
-            data: { paperBalance: migratedBalance },
-          }).catch(() => {});
-          console.log(`🔄 V172d migration: user ${settings.userId} paperBalance $${currentBalance.toFixed(0)} → $${migratedBalance.toFixed(0)} (deducted $${totalMarginLocked.toFixed(0)} margin from ${openPositions.length} open positions)`);
-        }
-      }
-    } catch (migErr: any) {
-      console.warn(`⚠️ V172d migration skipped: ${migErr.message}`);
-    }
+    // ── V172d: One-time migration removed — used paperBalanceMigrated field
+    // that doesn't exist in schema. Migration is not needed: existing open
+    // positions will have their margin returned correctly when they close
+    // (V172d closePosition returns margin + PnL). New positions opened after
+    // V172d will have margin deducted correctly on open.
 
     // ── DIAGNOSTIC: Verify Socket.IO is properly attached ──
     // Socket.IO v4+ uses the HTTP server's 'upgrade' event for WebSocket

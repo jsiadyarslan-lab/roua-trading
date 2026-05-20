@@ -1192,17 +1192,17 @@ export default function DashboardPage() {
   //
   // V152: The client-side inline calculator correctly handles ALL symbol
   // formats (with/without slash, USDT/USD suffix). Use it as PRIMARY.
-  // Only fall back to account.initialMargin when no positions are loaded.
+  // V172d FIX: Margin uses ENTRY PRICE (not currentPrice).
+  // Margin is fixed when position opens — it doesn't change with price moves.
   const accountMargin = Number(account?.initialMargin) || 0
   const clientSideMargin = positions.length > 0
     ? (() => {
-        // Import-free inline margin calc (matches margin-calculator.ts logic)
         let margin = 0
         for (const p of positions) {
           const qty = Number(p.qty) || 0
-          const price = Number(p.currentPrice) || 0
-          if (qty <= 0 || price <= 0) continue
-          const notional = Math.abs(qty * price)
+          const entryPx = Number((p as any).entryPrice || p.currentPrice) || 0
+          if (qty <= 0 || entryPx <= 0) continue
+          const notional = Math.abs(qty * entryPx)
           const symbol = (p.symbol || '').toUpperCase().replace(/\//g, '')
           const base = symbol.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
           const FOREX_BASES = ['EUR','GBP','USD','AUD','NZD','CAD','CHF','JPY','SGD','HKD','NOK','SEK','DKK','PLN','CZK','HUF','TRY','ZAR','MXN','BRL','RUB','CNY','INR','KRW','THB']

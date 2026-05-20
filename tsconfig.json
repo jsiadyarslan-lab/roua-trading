@@ -22,7 +22,12 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",
@@ -33,6 +38,10 @@
   ],
   "exclude": [
     "node_modules",
-    "apps/api"
+    "apps",
+    "skills",
+    "mini-services",
+    "examples",
+    "scripts"
   ]
 }

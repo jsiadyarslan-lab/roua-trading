@@ -11,6 +11,7 @@ import '@/styles/mobile/base.css'
 import '@/styles/mobile/orbital.css'
 import '@/styles/mobile/components.css'
 import '@/styles/mobile/animations.css'
+import '@/app/mobile/mobile.css'
 
 export const metadata: Metadata = {
   title: 'رؤى — تطبيق الجوال',

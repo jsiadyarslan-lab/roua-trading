@@ -82,12 +82,12 @@ export function useChart(options: UseChartOptions) {
       },
       grid: {
         vertLines: { color: CHART_COLORS.grid },
-        horLines: { color: CHART_COLORS.grid },
+        horzLines: { color: CHART_COLORS.grid },
       },
       crosshair: {
         mode: 0,
         vertLine: { color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: CHART_COLORS.card },
-        horLine: { color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: CHART_COLORS.card },
+        horzLine: { color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: CHART_COLORS.card },
       },
       rightPriceScale: {
         borderColor: CHART_COLORS.cardBorder,

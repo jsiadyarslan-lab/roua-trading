@@ -98,7 +98,7 @@ export async function GET(request: NextRequest) {
     const guestUuid = crypto.randomBytes(8).toString('hex')
     const guestEmail = `guest-${guestUuid}@roua.auto`
     const guestDisplayName = `زائر ${guestUuid.substring(0, 6)}`
-    let guestUser = null
+    let guestUser: any = null
     try {
       guestUser = await db.user.create({
         data: {

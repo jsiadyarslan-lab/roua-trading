@@ -560,3 +560,34 @@ Stage Summary:
 - Positions page: portfolio summary, filters, P&L bars, price grid
 - Notifications page: filters, summary, collapsible settings, enhanced cards
 - Build passes with NEXT_PRIVATE_DISABLE_TURBOPACK=1
+---
+Task ID: 1
+Agent: Build Fix Agent
+Task: Fix critical build failures — @/lib/db module resolution, mobile CSS import, and TypeScript errors
+
+Work Log:
+- Investigated root cause of `Cannot find module '@/lib/db'` build error when running `npx next build` from project root
+- Found that root tsconfig.json had no `@/*` path alias; apps/web/tsconfig.json had it pointing to `./src/*`
+- Root build picks up ALL .ts files (including apps/web/) via `**/*.ts` include pattern, but had no path resolution for `@/`
+- Attempted multi-path alias `["./src/*", "./apps/web/src/*"]` — caused conflicts when both dirs had same-named files (e.g., utils.ts)
+- Final solution: Added `"@/*": ["./src/*"]` to root tsconfig, excluded `apps/`, `skills/`, `mini-services/`, `examples/`, `scripts/` from root tsconfig
+- This isolates root build (scaffold app) from apps/web build (real app), each with their own tsconfig
+- Issue 2: Added `import '@/app/mobile/mobile.css'` to mobile layout.tsx after the r- CSS imports so both m- and r- prefixed classes work
+- Issue 3: Verified overflow CSS conflict is resolved by cascade order (mobile.css imported after base.css, its !important wins)
+- Fixed TypeScript error in guest/route.ts: `let guestUser = null` → `let guestUser: any = null` (type inference blocked assignment)
+- Fixed TypeScript error in notifications/page.tsx: duplicate `padding` property in inline style object removed
+- Fixed root src/ scaffold TypeScript errors:
+  - Created missing `src/hooks/useScopedStyle.ts` hook (used by chart.tsx for scoped CSS injection)
+  - Fixed `horLines` → `horzLines` in root src/hooks/useChart.ts (lightweight-charts v5 API)
+  - Fixed `horLine` → `horzLine` in root src/hooks/useChart.ts (same API fix)
+- Both builds verified passing:
+  - `cd /home/z/my-project && npx next build` — succeeds (root scaffold app, 4 pages)
+  - `cd /home/z/my-project/apps/web && npx next build` — succeeds (full web app, 130+ pages)
+
+Stage Summary:
+- Root cause of @/lib/db error: monorepo root tsconfig lacked path alias and picked up apps/web/ files
+- Fix: Proper tsconfig isolation with excludes and path aliases per-project
+- mobile.css import added to mobile layout — both old (m-) and new (r-) CSS class systems now work
+- 4 TypeScript errors fixed across 3 files (guest route, notifications page, root useChart)
+- Missing useScopedStyle hook created for root scaffold
+- Both root and apps/web builds pass successfully

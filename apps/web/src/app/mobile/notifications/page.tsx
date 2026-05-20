@@ -143,7 +143,7 @@ export default function MobileNotificationsPage() {
 
       {/* Filter Tabs */}
       {notifications.length > 0 && (
-        <div style={{ padding: '0 16px', marginBottom: 8, display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2, margin: '0 16px 8px', direction: 'rtl' }}>
+        <div style={{ display: 'flex', gap: 0, background: 'rgba(255,255,255,0.03)', borderRadius: 10, padding: 2, margin: '0 16px 8px', direction: 'rtl' }}>
           {([
             { key: 'all' as NotifFilter, label: 'الكل', count: notifications.length },
             { key: 'trade' as NotifFilter, label: 'تداول', count: tradeCount },

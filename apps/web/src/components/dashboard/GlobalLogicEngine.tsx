@@ -1,10 +1,11 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useAgentStore } from '@/hooks/useAgentStore'
 
 /**
  * GlobalLogicEngine
@@ -26,11 +27,19 @@ export function GlobalLogicEngine() {
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
+  const fetchSettings = useAgentStore(s => s.fetchSettings)
   const lastPriceSyncRef = useRef<Record<string, number>>({})
   const lastFullFetchRef = useRef<number>(0)
-  // FIX: Track previous equity for balance change notifications
   const prevEquityRef = useRef<number>(0)
   const lastNotificationRef = useRef<number>(0)
+
+  // V175: Fetch AgentSettings ONCE on mount so leverage is available immediately.
+  // Without this, margin-calculator uses DEFAULT_CRYPTO_LEVERAGE=1 instead of
+  // user-configured 10x, causing margin display = full notional ($36,788 instead of $3,678)
+  // and triggering V149 "Clearing stale margin" warning on every page load.
+  useEffect(() => {
+    fetchSettings()
+  }, [fetchSettings])
 
   // ── Price sync: every 1 second (V139: reduced from 2s for faster P&L updates) ──
   // Only updates currentPrice in existing positions — does NOT replace the array.

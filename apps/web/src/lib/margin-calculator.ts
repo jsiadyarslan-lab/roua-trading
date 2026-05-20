@@ -150,6 +150,7 @@ export function calculateClientMargin(
 export function calculatePortfolioMargin(positions: Array<{
   qty: number
   currentPrice: number
+  entryPrice?: number  // V175: use entryPrice (fixed margin), fallback to currentPrice
   symbol: string
 }>): { usedMargin: number; totalExposure: number } {
   let usedMargin = 0
@@ -157,7 +158,8 @@ export function calculatePortfolioMargin(positions: Array<{
 
   for (const p of positions) {
     const qty = Number(p.qty) || 0
-    const price = Number(p.currentPrice) || 0
+    // V175: Margin is based on ENTRY price (fixed at open), not currentPrice
+    const price = Number(p.entryPrice || p.currentPrice) || 0
     if (qty <= 0 || price <= 0) continue
 
     const notional = Math.abs(qty * price)

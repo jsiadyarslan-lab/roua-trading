@@ -41,9 +41,10 @@ interface CardProps {
   highlight?: boolean
   noMargin?: boolean
   className?: string
+  style?: React.CSSProperties
 }
 
-export function Card({ children, onClick, highlight, noMargin, className }: CardProps) {
+export function Card({ children, onClick, highlight, noMargin, className, style }: CardProps) {
   const cls = [
     'r-card',
     highlight && 'r-card--highlight',
@@ -52,7 +53,7 @@ export function Card({ children, onClick, highlight, noMargin, className }: Card
   ].filter(Boolean).join(' ')
 
   return (
-    <div className={cls} onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined}>
+    <div className={cls} onClick={onClick} style={{ ...(onClick ? { cursor: 'pointer' } : {}), ...style }}>
       {children}
     </div>
   )

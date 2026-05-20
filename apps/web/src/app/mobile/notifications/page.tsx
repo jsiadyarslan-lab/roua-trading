@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import {
   Bell, BellOff, CheckCheck, Trash2, TrendingUp, TrendingDown,
   Cpu, Brain, Radio, Activity, Shield, AlertTriangle, Info,
-  ChevronDown, Volume2, VolumeX, Eye, Zap
+  ChevronDown, Volume2, VolumeX, Eye, Zap, X
 } from 'lucide-react'
 
 const SOURCE_CONFIG: Record<NotifSource, { label: string; icon: any; color: string }> = {

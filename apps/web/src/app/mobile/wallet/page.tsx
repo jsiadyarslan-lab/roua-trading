@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { PageHeader, Card } from '@/components/mobile/Card'
+import { SkeletonCard, SkeletonLine } from '@/components/mobile/Skeleton'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { Wallet, DollarSign, CreditCard, TrendingUp, Shield, Link2, AlertTriangle } from 'lucide-react'
 
@@ -10,16 +11,45 @@ export default function MobileWalletPage() {
   const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const positions = usePositionsStore(s => s.positions)
+  const loading = usePositionsStore(s => s.loading)
 
   useEffect(() => { fetchAccount() }, [fetchAccount])
 
-  const equity = Number(account?.equity ?? 0) || 0
-  const unrealizedPnl = Number(account?.unrealizedPnl ?? 0) || 0
-  const buyingPower = Number(account?.buying_power ?? 0) || 0
-  const initialMargin = Number(account?.initialMargin ?? 0) || 0
-  const cash = Number(account?.cash ?? 0) || 0
+  const equity = useMemo(() => Number(account?.equity ?? 0) || 0, [account?.equity])
+  const unrealizedPnl = useMemo(() => Number(account?.unrealizedPnl ?? 0) || 0, [account?.unrealizedPnl])
+  const buyingPower = useMemo(() => Number(account?.buying_power ?? 0) || 0, [account?.buying_power])
+  const initialMargin = useMemo(() => Number(account?.initialMargin ?? 0) || 0, [account?.initialMargin])
+  const cash = useMemo(() => Number(account?.cash ?? 0) || 0, [account?.cash])
   const openPositions = positions.length
   const isUp = unrealizedPnl >= 0
+
+  // Show skeleton while account data is loading
+  if (loading && !account) {
+    return (
+      <div className="r-page">
+        <PageHeader title="المحفظة" subtitle="منصة ربط حسابات" />
+        <SkeletonCard lines={3} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 var(--space-lg)', marginBottom: 12 }}>
+          <Card noMargin>
+            <div style={{ textAlign: 'center' }}>
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 16, width: 50, margin: '0 auto 4px', borderRadius: 6 }} />
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 20, width: 80, margin: '0 auto 4px', borderRadius: 6 }} />
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 10, width: 60, margin: '0 auto', borderRadius: 4 }} />
+            </div>
+          </Card>
+          <Card noMargin>
+            <div style={{ textAlign: 'center' }}>
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 16, width: 50, margin: '0 auto 4px', borderRadius: 6 }} />
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 20, width: 80, margin: '0 auto 4px', borderRadius: 6 }} />
+              <div className="r-skeleton r-skeleton--shimmer" style={{ height: 10, width: 60, margin: '0 auto', borderRadius: 4 }} />
+            </div>
+          </Card>
+        </div>
+        <SkeletonCard lines={2} />
+        <div style={{ height: 80 }} />
+      </div>
+    )
+  }
 
   return (
     <div className="r-page">

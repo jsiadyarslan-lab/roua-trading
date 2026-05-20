@@ -1,7 +1,7 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
+import { useState, useEffect, useRef, Suspense, useCallback, useMemo } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -11,7 +11,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { ensureAuth } from '@/lib/api-fetch'
 import { TIMEFRAMES } from '@/lib/charts/types'
 import type { CrosshairData } from '@/lib/charts/types'
-import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ChevronRight, Crosshair } from 'lucide-react'
+import { X, Target, ShieldAlert, Loader2, CheckCircle, AlertCircle, Minus, Plus, MousePointer2, Clock, Zap, Timer, BarChart3, ChevronDown, ChevronRight, Crosshair, BookOpen, Activity } from 'lucide-react'
 
 /* ═══════════════════════════════════════════════════════════════
    ROUA MOBILE — Immersive Trading Chart
@@ -66,6 +66,11 @@ function ChartContent() {
   const [chartFullscreen, setChartFullscreen] = useState(false)
   const [crosshairMode, setCrosshairMode] = useState(false)
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null)
+  const [showBookPanel, setShowBookPanel] = useState(false)
+  const [bookTab, setBookTab] = useState<'orderbook' | 'trades'>('orderbook')
+  const [orderBookAsks, setOrderBookAsks] = useState<{ price: number; amount: number; total: number }[]>([])
+  const [orderBookBids, setOrderBookBids] = useState<{ price: number; amount: number; total: number }[]>([])
+  const [recentTrades, setRecentTrades] = useState<{ price: number; amount: number; time: number; side: 'buy' | 'sell' }[]>([])
 
   const quoteKey = quotes && selectedSymbol ? Object.keys(quotes).find(k => k.toUpperCase().replace('/', '') === selectedSymbol.toUpperCase().replace('/', '')) : null
   const quote = quoteKey ? quotes[quoteKey] : null
@@ -148,11 +153,91 @@ function ChartContent() {
     }
   }
 
-  const fmtPrice = (p: number | null) => { if (!p) return '—'; if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return p.toFixed(4) }
+  const fmtPrice = useCallback((p: number | null) => { if (!p) return '—'; if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return p.toFixed(4) }, [])
+  const fmtBookPrice = useCallback((p: number) => { if (p > 100) return p.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return p.toFixed(4) }, [])
   const activeTF = TIMEFRAMES.find(t => t.value === timeframe)
   const tfLabel = activeTF?.label || timeframe
-  const openExecution = useCallback((side: 'buy' | 'sell') => { setOrderSide(side); setOrderType('market'); setShowOrderSheet(true) }, [])
-  const openPendingOrder = useCallback(() => { setOrderSide('buy'); setOrderType('limit'); setShowOrderSheet(true) }, [])
+  const openExecution = useCallback((side: 'buy' | 'sell') => { setOrderSide(side); setOrderType('market'); setShowOrderSheet(true); setShowBookPanel(false) }, [])
+  const openPendingOrder = useCallback(() => { setOrderSide('buy'); setOrderType('limit'); setShowOrderSheet(true); setShowBookPanel(false) }, [])
+
+  /* ── Order Book & Recent Trades Mock Data ── */
+  const generateOrderBook = useCallback((basePrice: number) => {
+    const tick = basePrice > 1000 ? 0.50 : basePrice > 100 ? 0.05 : basePrice > 10 ? 0.005 : 0.0005
+    const askLevels = 12 + Math.floor(Math.random() * 4)
+    const bidLevels = 12 + Math.floor(Math.random() * 4)
+    const asks: { price: number; amount: number; total: number }[] = []
+    const bids: { price: number; amount: number; total: number }[] = []
+    let askTotal = 0
+    for (let i = 0; i < askLevels; i++) {
+      const price = basePrice + tick * (i + 1) + (Math.random() - 0.5) * tick * 0.3
+      const amount = parseFloat((Math.random() * 5 + 0.01).toFixed(4))
+      askTotal += amount
+      asks.push({ price: parseFloat(price.toFixed(basePrice > 100 ? 2 : 4)), amount, total: parseFloat(askTotal.toFixed(4)) })
+    }
+    let bidTotal = 0
+    for (let i = 0; i < bidLevels; i++) {
+      const price = basePrice - tick * (i + 1) + (Math.random() - 0.5) * tick * 0.3
+      const amount = parseFloat((Math.random() * 5 + 0.01).toFixed(4))
+      bidTotal += amount
+      bids.push({ price: parseFloat(price.toFixed(basePrice > 100 ? 2 : 4)), amount, total: parseFloat(bidTotal.toFixed(4)) })
+    }
+    asks.sort((a, b) => b.price - a.price)
+    bids.sort((a, b) => b.price - a.price)
+    return { asks, bids }
+  }, [])
+
+  const generateRecentTrades = useCallback((basePrice: number) => {
+    const trades: { price: number; amount: number; time: number; side: 'buy' | 'sell' }[] = []
+    const now = Date.now()
+    for (let i = 0; i < 25; i++) {
+      const offset = (Math.random() - 0.5) * (basePrice > 1000 ? 2 : basePrice > 100 ? 0.2 : 0.002)
+      const price = parseFloat((basePrice + offset).toFixed(basePrice > 100 ? 2 : 4))
+      const amount = parseFloat((Math.random() * 3 + 0.001).toFixed(4))
+      const time = now - Math.floor(Math.random() * 120000)
+      const side: 'buy' | 'sell' = Math.random() > 0.5 ? 'buy' : 'sell'
+      trades.push({ price, amount, time, side })
+    }
+    trades.sort((a, b) => b.time - a.time)
+    return trades
+  }, [])
+
+  useEffect(() => {
+    if (!livePrice || livePrice <= 0) return
+    const { asks, bids } = generateOrderBook(livePrice)
+    setOrderBookAsks(asks)
+    setOrderBookBids(bids)
+    setRecentTrades(generateRecentTrades(livePrice))
+    const interval = setInterval(() => {
+      if (!livePrice || livePrice <= 0) return
+      const { asks, bids } = generateOrderBook(livePrice)
+      setOrderBookAsks(asks)
+      setOrderBookBids(bids)
+      setRecentTrades(prev => {
+        const now = Date.now()
+        const offset = (Math.random() - 0.5) * (livePrice > 1000 ? 2 : livePrice > 100 ? 0.2 : 0.002)
+        const price = parseFloat((livePrice + offset).toFixed(livePrice > 100 ? 2 : 4))
+        const amount = parseFloat((Math.random() * 3 + 0.001).toFixed(4))
+        const side: 'buy' | 'sell' = Math.random() > 0.5 ? 'buy' : 'sell'
+        const newTrade = { price, amount, time: now, side }
+        const updated = [newTrade, ...prev].slice(0, 30)
+        return updated
+      })
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [livePrice, generateOrderBook, generateRecentTrades])
+
+  const formatRelativeTime = useCallback((ts: number) => {
+    const diff = Math.floor((Date.now() - ts) / 1000)
+    if (diff < 5) return 'الآن'
+    if (diff < 60) return `منذ ${diff}د`
+    if (diff < 3600) return `منذ ${Math.floor(diff / 60)}د`
+    return `منذ ${Math.floor(diff / 3600)}س`
+  }, [])
+
+  const spreadValue = orderBookAsks.length > 0 && orderBookBids.length > 0 ? orderBookAsks[orderBookAsks.length - 1].price - orderBookBids[0].price : 0
+  const spreadPercent = livePrice && spreadValue ? ((spreadValue / livePrice) * 100).toFixed(3) : '0.000'
+  const maxAskTotal = orderBookAsks.length > 0 ? orderBookAsks[orderBookAsks.length - 1].total : 1
+  const maxBidTotal = orderBookBids.length > 0 ? orderBookBids[0].total : 1
 
   const toggleCrosshair = useCallback(() => {
     const next = !crosshairMode
@@ -251,6 +336,8 @@ function ChartContent() {
         <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.08)', margin: '0 2px', flexShrink: 0 }} />
         <button onClick={() => chartActionsRef.current?.toggleIndicators()} title="المؤشرات" style={{ width: 44, height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,0.5)', touchAction: 'manipulation' }}><BarChart3 size={14} /></button>
         <button onClick={toggleCrosshair} title="التصالب" style={{ width: 44, height: 32, borderRadius: 6, background: crosshairMode ? 'rgba(0,212,255,0.15)' : 'transparent', border: crosshairMode ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: crosshairMode ? '#00D4FF' : 'rgba(255,255,255,0.5)', touchAction: 'manipulation', transition: 'all 0.15s' }}><Crosshair size={14} /></button>
+        <button onClick={() => { setShowBookPanel(!showBookPanel); if (!showBookPanel) setBookTab('orderbook') }} title="دفتر الأوامر" style={{ width: 44, height: 32, borderRadius: 6, background: showBookPanel && bookTab === 'orderbook' ? 'rgba(0,212,255,0.15)' : 'transparent', border: showBookPanel && bookTab === 'orderbook' ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: showBookPanel && bookTab === 'orderbook' ? '#00D4FF' : 'rgba(255,255,255,0.5)', touchAction: 'manipulation', transition: 'all 0.15s' }}><BookOpen size={14} /></button>
+        <button onClick={() => { setShowBookPanel(!showBookPanel); if (!showBookPanel) setBookTab('trades') }} title="آخر الصفقات" style={{ width: 44, height: 32, borderRadius: 6, background: showBookPanel && bookTab === 'trades' ? 'rgba(0,212,255,0.15)' : 'transparent', border: showBookPanel && bookTab === 'trades' ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: showBookPanel && bookTab === 'trades' ? '#00D4FF' : 'rgba(255,255,255,0.5)', touchAction: 'manipulation', transition: 'all 0.15s' }}><Activity size={14} /></button>
         <div style={{ flex: 1 }} />
         <div ref={tfPanelRef} style={{ position: 'relative' }}>
           <button onClick={() => { setShowTimeframePanel(!showTimeframePanel); setShowPairDropdown(false) }} title="الإطار الزمني" style={{ display: 'flex', alignItems: 'center', gap: 2, padding: '0 8px', height: 32, borderRadius: 6, background: 'transparent', border: '1px solid transparent', cursor: 'pointer', touchAction: 'manipulation' }}>
@@ -273,7 +360,7 @@ function ChartContent() {
       </div>
 
       {/* Quick Trade Bar — bottom of chart */}
-      {!showOrderSheet && !chartFullscreen && (
+      {!showOrderSheet && !chartFullscreen && !showBookPanel && (
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 'var(--z-overlay)', background: 'rgba(11,14,20,0.92)', backdropFilter: 'blur(20px)', borderTop: '0.5px solid rgba(255,255,255,0.06)' }}>
           {/* Account Info Mini Bar */}
           {account && (
@@ -295,6 +382,105 @@ function ChartContent() {
           <div style={{ display: 'flex', gap: 8, padding: '8px 12px' }}>
             <button className="r-trade-btn r-trade-btn--buy" style={{ flex: 1 }} onClick={() => openExecution('buy')}>شراء</button>
             <button className="r-trade-btn r-trade-btn--sell" style={{ flex: 1 }} onClick={() => openExecution('sell')}>بيع</button>
+          </div>
+        </div>
+      )}
+
+      {/* Order Book / Recent Trades Panel */}
+      {showBookPanel && !showOrderSheet && !chartFullscreen && (
+        <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--z-overlay)', background: 'rgba(11,14,20,0.95)', backdropFilter: 'blur(30px) saturate(180%)', borderTop: '0.5px solid rgba(0,212,255,0.12)', direction: 'rtl', height: '40vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRadius: '16px 16px 0 0', boxShadow: '0 -8px 40px rgba(0,0,0,0.6)' }}>
+          {/* Drag Handle */}
+          <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 8, paddingBottom: 4, flexShrink: 0 }}>
+            <div style={{ width: 32, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.15)' }} />
+          </div>
+
+          {/* Tab Switcher */}
+          <div style={{ display: 'flex', gap: 2, padding: '0 12px 8px', flexShrink: 0 }}>
+            <button onClick={() => setBookTab('orderbook')} style={{ flex: 1, height: 30, borderRadius: 8, background: bookTab === 'orderbook' ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)', border: bookTab === 'orderbook' ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', color: bookTab === 'orderbook' ? '#00D4FF' : '#8B92A8', fontSize: 11, fontWeight: 800, fontFamily: 'var(--font-cairo)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <BookOpen size={12} /> دفتر الأوامر
+            </button>
+            <button onClick={() => setBookTab('trades')} style={{ flex: 1, height: 30, borderRadius: 8, background: bookTab === 'trades' ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)', border: bookTab === 'trades' ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent', color: bookTab === 'trades' ? '#00D4FF' : '#8B92A8', fontSize: 11, fontWeight: 800, fontFamily: 'var(--font-cairo)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+              <Activity size={12} /> آخر الصفقات
+            </button>
+            <button onClick={() => setShowBookPanel(false)} style={{ width: 30, height: 30, borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: '1px solid transparent', color: '#8B92A8', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <ChevronDown size={14} />
+            </button>
+          </div>
+
+          {/* Order Book Content */}
+          {bookTab === 'orderbook' && (
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', direction: 'ltr' }}>
+              {/* Header Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 12px 4px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>السعر</span>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>الكمية</span>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>المجموع</span>
+              </div>
+
+              {/* Asks (Red) */}
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                {orderBookAsks.map((level, i) => (
+                  <div key={`ask-${i}`} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 12px', minHeight: 18 }}>
+                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: `${(level.total / maxAskTotal) * 100}%`, background: 'rgba(255,71,87,0.08)', pointerEvents: 'none' }} />
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#FF4757', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'right', flex: 1, position: 'relative', zIndex: 1 }}>{fmtBookPrice(level.price)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#F0F2F5', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'center', flex: 1, position: 'relative', zIndex: 1 }}>{level.amount.toFixed(4)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'left', flex: 1, position: 'relative', zIndex: 1 }}>{level.total.toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Spread Indicator */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '4px 12px', background: 'rgba(0,212,255,0.04)', borderTop: '0.5px solid rgba(0,212,255,0.1)', borderBottom: '0.5px solid rgba(0,212,255,0.1)', flexShrink: 0 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: '#00D4FF', fontFamily: 'var(--font-mono)', direction: 'ltr' }}>{livePrice ? fmtBookPrice(livePrice) : '—'}</span>
+                <span style={{ fontSize: 7, color: '#8B92A8', fontFamily: 'var(--font-cairo)' }}>فارق</span>
+                <span style={{ fontSize: 8, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-mono)', direction: 'ltr' }}>${spreadValue.toFixed(livePrice && livePrice > 100 ? 2 : 4)}</span>
+                <span style={{ fontSize: 8, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-mono)', direction: 'ltr' }}>({spreadPercent}%)</span>
+              </div>
+
+              {/* Bids (Green) */}
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                {orderBookBids.map((level, i) => (
+                  <div key={`bid-${i}`} style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 12px', minHeight: 18 }}>
+                    <div style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: `${(level.total / maxBidTotal) * 100}%`, background: 'rgba(0,255,163,0.08)', pointerEvents: 'none' }} />
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#00FFA3', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'right', flex: 1, position: 'relative', zIndex: 1 }}>{fmtBookPrice(level.price)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#F0F2F5', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'center', flex: 1, position: 'relative', zIndex: 1 }}>{level.amount.toFixed(4)}</span>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'left', flex: 1, position: 'relative', zIndex: 1 }}>{level.total.toFixed(4)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Recent Trades Content */}
+          {bookTab === 'trades' && (
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', direction: 'ltr' }}>
+              {/* Header Row */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 12px 4px', borderBottom: '0.5px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>السعر</span>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>الكمية</span>
+                <span style={{ fontSize: 8, fontWeight: 700, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl' }}>الوقت</span>
+              </div>
+
+              {/* Trades List */}
+              <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', WebkitOverflowScrolling: 'touch' }}>
+                {recentTrades.map((trade, i) => (
+                  <div key={`trade-${i}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '2px 12px', minHeight: 20, background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1 }}>
+                      <div style={{ width: 5, height: 5, borderRadius: '50%', background: trade.side === 'buy' ? '#00FFA3' : '#FF4757', flexShrink: 0 }} />
+                      <span style={{ fontSize: 9, fontWeight: 700, color: trade.side === 'buy' ? '#00FFA3' : '#FF4757', fontFamily: 'var(--font-mono)', direction: 'ltr' }}>{fmtBookPrice(trade.price)}</span>
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#F0F2F5', fontFamily: 'var(--font-mono)', direction: 'ltr', textAlign: 'center', flex: 1 }}>{trade.amount.toFixed(4)}</span>
+                    <span style={{ fontSize: 8, fontWeight: 600, color: '#8B92A8', fontFamily: 'var(--font-cairo)', direction: 'rtl', textAlign: 'left', flex: 1 }}>{formatRelativeTime(trade.time)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Mini Quick Trade inside Book Panel */}
+          <div style={{ display: 'flex', gap: 8, padding: '8px 12px', borderTop: '0.5px solid rgba(255,255,255,0.06)', flexShrink: 0, direction: 'rtl' }}>
+            <button className="r-trade-btn r-trade-btn--buy" style={{ flex: 1, padding: '6px 0', fontSize: 11 }} onClick={() => openExecution('buy')}>شراء</button>
+            <button className="r-trade-btn r-trade-btn--sell" style={{ flex: 1, padding: '6px 0', fontSize: 11 }} onClick={() => openExecution('sell')}>بيع</button>
           </div>
         </div>
       )}

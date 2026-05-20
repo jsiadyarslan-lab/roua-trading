@@ -57,3 +57,31 @@
 .r-stagger > *:nth-child(6) { animation-delay: 250ms; }
 .r-stagger > *:nth-child(7) { animation-delay: 300ms; }
 .r-stagger > *:nth-child(8) { animation-delay: 350ms; }
+
+/* ── Skeleton Pulse ── */
+@keyframes r-skeleton-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.6; }
+}
+
+.r-skeleton {
+  background: rgba(255, 255, 255, 0.04);
+  animation: r-skeleton-pulse 1.5s ease-in-out infinite;
+}
+
+/* ── Skeleton Shimmer (gradient sweep variant) ── */
+@keyframes r-skeleton-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.r-skeleton--shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.08) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 200% 100%;
+  animation: r-skeleton-shimmer 1.8s ease-in-out infinite;
+}

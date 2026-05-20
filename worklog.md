@@ -236,4 +236,309 @@ Stage Summary:
 - Built-in lightweight-charts axis labels show price (right) and time (bottom)
 - Crosshair hides when user lifts finger (default lightweight-charts behavior)
 - All existing functionality preserved (trading, indicators, pair switching, timeframe)
+---
+Task ID: 1-b
+Agent: Markets Sparklines Developer
+Task: Add sparkline mini charts and enhance markets page
 
+Work Log:
+- Read existing markets/page.tsx (87 lines, flat list with price + change%)
+- Read tokens.css, Card.tsx, useMarketStore.ts to understand design system and data structure
+- Implemented SVG Sparkline component with catmull-rom to bezier curve smoothing
+- Implemented generateSparkline() function that creates realistic 24-point price data from current price and change %
+- Added semi-transparent gradient fill beneath sparkline lines (green for up, red for down)
+- Enhanced symbol icons with branded color map (BTC=#F7931A, ETH=#627EEA, SOL=#9945FF, etc.)
+- Added 24h High/Low range display below symbol name (H: 67,234 · L: 65,890)
+- Added 24h volume indicator below high/low (Vol: 1.2B format)
+- Implemented useFavorites() hook with localStorage persistence
+- Added favorite star button on each row (yellow filled when favorited)
+- Added favorites-only filter toggle (star button in filter row)
+- Added gainers/losers filter buttons (الكل / صاعد / هابط)
+- Added sorting dropdown (افتراضي / التغير % / الحجم / السعر)
+- Added empty state message when no results found
+- All Arabic text uses fontFamily: var(--font-cairo), numbers use var(--font-mono)
+- Maintained dark glass aesthetic with existing CSS variables
+- Preserved click-to-navigate-to-chart behavior
+- ESLint check passed with 0 errors on the file
+- TypeScript type-check passed with 0 errors
+
+Stage Summary:
+- Markets page enhanced from 87 lines to 489 lines with rich functionality
+- Sparkline mini charts: SVG-based, 60x28px, smooth cubic bezier curves, gradient fill, green/red coloring
+- Enhanced rows: branded symbol icons, 24h H/L range, volume indicator, favorite star
+- Filters: All/Gainers/Losers tabs + favorites-only toggle
+- Sorting: Default, Change %, Volume, Price with dropdown selector
+- Favorites: localStorage-persisted per-symbol star toggle
+- All existing functionality preserved (search, category tabs, hot mover, navigation to chart)
+---
+Task ID: 1-a
+Agent: Chart Order Book Developer
+Task: Add Order Book and Recent Trades panels to mobile chart page
+
+Work Log:
+- Read existing chart page.tsx (389 lines) to understand current code structure
+- Read tokens.css for design token reference (z-index, fonts, colors, spacing)
+- Added BookOpen and Activity icons to lucide-react imports
+- Added 5 new state variables: showBookPanel, bookTab, orderBookAsks, orderBookBids, recentTrades
+- Created generateOrderBook() mock data generator: 12-15 ask/bid levels based on live price, with cumulative totals
+- Created generateRecentTrades() mock data generator: 25 trades with realistic prices, amounts, timestamps, and buy/sell side
+- Added useEffect with 2-second interval to update order book data and append new trades in real-time
+- Added formatRelativeTime() helper for Arabic relative time display (الآن, منذ 2د, منذ 1س)
+- Calculated spreadValue, spreadPercent, maxAskTotal, maxBidTotal for order book visualization
+- Added fmtBookPrice() helper for consistent price formatting in order book
+- Added BookOpen toolbar button that toggles order book panel (highlights when active)
+- Added Activity toolbar button that toggles recent trades panel (highlights when active)
+- Built tabbed bottom slide-up panel (40vh height) with:
+  - Drag handle at top
+  - Tab switcher between "دفتر الأوامر" and "آخر الصفقات" with close button
+  - Order Book view: header row, asks (red, sorted high→low) with depth bars, spread indicator, bids (green, sorted high→low) with depth bars
+  - Recent Trades view: header row, scrollable list with colored side dots, price, amount, relative time
+  - Mini buy/sell Quick Trade bar at panel bottom
+- Quick Trade Bar hidden when book panel is open (replaced by panel's own mini trade bar)
+- Book panel auto-closes when order sheet opens (setShowBookPanel(false) in openExecution/openPendingOrder)
+- Dark glass aesthetic: rgba(11,14,20,0.95) background, backdrop blur, cyan border accent
+- All Arabic text uses var(--font-cairo), all numbers use var(--font-mono)
+- LTR direction for number/chart content, RTL for Arabic text
+- ESLint check passed with 0 errors on the file
+- Existing chart functionality completely preserved
+
+Stage Summary:
+- Order Book panel with 12-15 ask/bid levels, cumulative depth bars (red for asks, green for bids), and spread indicator
+- Recent Trades panel with 25+ trades, colored side indicators, and Arabic relative time
+- Tabbed bottom slide-up panel at 40vh with smooth dark glass design
+- Mock data generators simulate realistic order book and trade data, updating every 2 seconds
+- Two new toolbar buttons (BookOpen, Activity) with active state highlighting
+- Mini trade bar inside panel so users can trade while viewing order book
+- All existing functionality preserved (chart, crosshair, indicators, pair switching, timeframe, order sheet)
+
+---
+Task ID: 1-c
+Agent: Trading Page Developer
+Task: Upgrade trading page from placeholder to full functional trading dashboard
+
+Work Log:
+- Read current trading/page.tsx (18 lines, placeholder with "هذه الميزة قيد التطوير")
+- Read chart/page.tsx (389 lines) to extract trade execution logic, PAIRS list, and UI patterns
+- Read Card.tsx, tokens.css, components.css, base.css for design system understanding
+- Read all store hooks: usePositionsStore, useMarketStore, useSymbolStore, usePaperTradesStore, useNotificationStore
+- Read api-fetch.ts for ensureAuth function
+- Read positions/page.tsx for reference on position display patterns
+- Completely rewrote trading/page.tsx from 18 lines to ~580 lines with full trading dashboard
+- Implemented 5 major sections:
+  1. Account Overview Card: equity, P&L indicator (up/down arrow + color), buying power, daily P&L, open positions count, P&L percentage
+  2. Active Positions Summary: compact row format showing up to 3 positions with symbol, LONG/SHORT badge, P&L amount, "عرض الكل" button navigating to /mobile/positions, overflow indicator
+  3. Quick Trade Card: symbol dropdown with search (reuse PAIRS), live prices in dropdown, Buy/Sell toggle (same animated design as chart page), order type selector (Market/Limit/Stop), quantity input with +/- buttons, conditional Limit/Stop price inputs, TP/SL toggles with price inputs, execute button with status states (idle/submitting/filled/rejected/error), full trade execution logic reused from chart page
+  4. Recent Activity Feed: last 5 paper trades with symbol, side icon, LONG/SHORT badge, qty×price, P&L, time
+  5. Market Movers Card: top gainers and losers from current market data in 2-column grid, clickable to select symbol for trading
+- All Arabic text uses fontFamily: 'var(--font-cairo)', numbers use 'var(--font-mono)'
+- RTL direction for Arabic text, LTR for numbers and price inputs
+- Dark glass aesthetic with rgba backgrounds, backdrop blur, accent borders
+- Used existing CSS classes: r-page, r-card, r-trade-btn, r-anim-spin
+- Used existing components: PageHeader, Card (with highlight for account overview)
+- Page fully scrollable with bottom spacer
+- ESLint check passed with 0 errors on the file
+- TypeScript type-check passed with 0 errors on the file
+
+Stage Summary:
+- Trading page completely rebuilt from placeholder to full functional trading dashboard (~580 lines)
+- 5 major sections implemented: Account Overview, Active Positions, Quick Trade, Recent Activity, Market Movers
+- Full trade execution logic integrated (same as chart page): NestJS first, Alpaca fallback, paper trade recording, notifications, position refresh
+- All stores correctly wired: usePositionsStore (account, positions, refreshAfterTrade), useMarketStore (quotes), useSymbolStore (selectedSymbol), usePaperTradesStore (trades, addTrade), useNotificationStore (addNotification)
+- Build verification: ESLint passes with 0 errors, TypeScript passes with 0 errors
+
+---
+Task ID: 2-b
+Agent: Scanner Page Developer
+Task: Upgrade scanner page from placeholder to full market scanner
+
+Work Log:
+- Read existing scanner/page.tsx (18 lines, placeholder with "هذه الميزة قيد التطوير")
+- Read Card.tsx for PageHeader and Card component APIs (supports title, subtitle, right slot, onClick, highlight)
+- Read tokens.css for CSS variables (colors, fonts, spacing, radius, z-index)
+- Read components.css, base.css, animations.css for existing CSS classes and animation keyframes
+- Read markets/page.tsx (489 lines) for reference on filter/sort patterns and symbol color map
+- Read useMarketStore.ts for live quote data integration (QuoteData interface, quotes record)
+- Completely rewrote scanner/page.tsx from 18 lines to ~380 lines with full market scanner
+- Implemented all 5 required features:
+
+1. **Scanner Dashboard Header**: PageHeader with "سكانر السوق" title, dynamic subtitle showing filtered result count, filter toggle button with active indicator dot
+
+2. **Filter Panel (collapsible)**: Animated slide-down panel with 5 filter groups:
+   - Signal Type: الكل / شراء / بيع (pill buttons with green/red/accent colors)
+   - Confidence: >70% / >80% / >90% (pill buttons with amber color)
+   - Timeframe: 1m / 5m / 15m / 1H / 4H / 1D (pill buttons with purple color)
+   - Asset Class: كريبتو / فوركس / سلع (pill buttons with orange color)
+   - Sort By: التاريخ / الثقة / التغير% / الحجم (pill buttons with accent color)
+   - Reset filters button (appears when any filter is active)
+
+3. **Signal Cards**: Each card shows:
+   - Branded symbol icon (colored circle with 2 letters from SYMBOL_COLORS map)
+   - Signal type badge: "شراء" (green) or "بيع" (red)
+   - Confidence percentage with circular SVG progress ring (color-coded: green ≥90%, cyan ≥80%, amber ≥70%, red <70%)
+   - Current price (live from useMarketStore when available) and change%
+   - AI model name badge with purple styling (GPT-4o, Claude-3.5, Gemini Pro, Llama 3, Mistral Large, Command R+)
+   - Time since signal generated (Arabic: الآن, 5د, 2س)
+   - Click navigates to /mobile/chart?symbol=XXX
+
+4. **Mock Data Generator**: generateScannerSignals() creates 15-25 realistic signals:
+   - Symbols from all 3 asset classes (BTC, ETH, SOL, XRP, BNB, ADA, DOGE, AVAX, DOT, LINK, EUR, GBP, JPY, AUD, CHF, CAD, XAU, XAG, OIL)
+   - Random buy/sell signals with confidence 65-98%
+   - Random AI model names from 6 options
+   - Timestamps within last 4 hours
+   - Default realistic prices per symbol, overridden by live market data when available
+
+5. **Quick Scan Button**: Fixed floating button at bottom center:
+   - "مسح سريع" (Quick Scan) with Zap icon
+   - When clicked: 1.5s loading state with spinning Loader2 icon and "جارٍ المسح..." text
+   - Glow pulse animation during scanning
+   - Refreshes signal list with new mock data after loading
+   - Disabled during scan with cursor change
+
+- Empty state with Radar icon and helpful message when no signals match filters
+- Stagger animation on signal cards using r-anim-fade-up class
+- All Arabic text uses fontFamily: var(--font-cairo), numbers use var(--font-mono)
+- RTL direction for Arabic text, LTR for numbers
+- Used existing components: PageHeader, Card from @/components/mobile/Card
+- Used existing CSS classes: r-page, r-card, r-anim-fade-up, r-anim-spin, r-glow-pulse
+- Dark glass aesthetic matching existing app design
+- ESLint check passed with 0 errors on the file
+
+Stage Summary:
+- Scanner page completely rebuilt from placeholder to full market scanner (~380 lines)
+- 5 major features: Dashboard header, collapsible filter panel, signal cards with SVG confidence rings, mock data generator, floating quick scan button
+- Live market data integration via useMarketStore (quotes merge into signal prices)
+- All design tokens and CSS variables properly used
+- Build verification: ESLint passes with 0 errors
+
+---
+Task ID: 2-a
+Agent: Portfolio Analytics Developer
+Task: Upgrade portfolio page to full analytics dashboard
+
+Work Log:
+- Read existing portfolio/page.tsx (18 lines, placeholder with "هذه الميزة قيد التطوير")
+- Read Card.tsx for PageHeader and Card component APIs
+- Read tokens.css for CSS variables (colors, fonts, spacing, radius)
+- Read components.css, base.css for existing CSS classes and layout patterns
+- Read usePositionsStore.ts for account data, positions, fetchAccount, fetchPositions
+- Read useMarketStore.ts for live quote data structure
+- Read usePaperTradesStore.ts for closed/open paper trades (ClosedPaperTrade, PaperTrade interfaces)
+- Read wallet/page.tsx and positions/page.tsx for design pattern reference
+- Completely rewrote portfolio/page.tsx from 18 lines to 625 lines with comprehensive analytics dashboard
+- Implemented all 6 required sections:
+
+1. **Portfolio Overview Card (highlighted)**: Total equity with 24h P&L change indicator (green/red), long vs short asset allocation mini bar with percentages, uses usePositionsStore for account data
+
+2. **Performance Metrics Grid (2x2)**:
+   - Win Rate: calculated from closed paper trades (wins / total), shows win count / total trades
+   - Sharpe Ratio: simple calculation from realizedPct returns with mean/stddev
+   - Max Drawdown: calculated from equity curve via peak-to-trough analysis
+   - Profit Factor: gross profit / gross loss with quality indicator (ممتاز/جيد/مقبول/ضعيف)
+
+3. **P&L Timeline**: SVG-based bar chart for last 7 days with green (profit) / red (loss) bars, Arabic day labels (سبت, أحد, إثنين, ثلاثاء, أربعاء, خميس, جمعة), zero line separator, value labels above/below bars, realistic mock data
+
+4. **Asset Allocation Section**: Positions grouped by asset type (Crypto/Forex/Commodities) using classifyAsset() helper, each group shows total value, P&L, position count, colored progress bar with allocation percentage, click navigates to /mobile/positions
+
+5. **Risk Assessment Card**:
+   - Leverage Level: margin/equity ratio with color-coded progress bar
+   - Concentration Risk: largest position / total portfolio value percentage
+   - Correlation Risk: Low/Medium/High based on asset type diversification
+   - Margin Usage: initialMargin/equity as percentage
+   - Overall Risk Score: 1-10 composite with color gradient (green→yellow→orange→red)
+
+6. **Trade Statistics**: Total trades (closed + open paper), Average P&L per trade, Best/Worst trade with colored icons, Average holding time (Arabic format: 2ي 5س), uses usePaperTradesStore
+
+- Helper functions: fmtUSD(), fmtPct(), riskColor(), classifyAsset(), PnlBarChart(), ProgressBar()
+- All Arabic text uses fontFamily: 'var(--font-cairo)', numbers use 'var(--font-mono)'
+- RTL direction for Arabic text, LTR for numbers and charts
+- Dark glass aesthetic matching existing app design with rgba backgrounds
+- Empty state shown when no positions and no trades
+- ESLint check passed with 0 errors on the file
+
+Stage Summary:
+- Portfolio page completely rebuilt from placeholder to comprehensive analytics dashboard (625 lines)
+- 6 major sections: Overview, Performance Metrics, P&L Timeline, Asset Allocation, Risk Assessment, Trade Statistics
+- SVG-based bar chart for P&L timeline (no external charting library)
+- Real calculations from usePositionsStore and usePaperTradesStore data
+- Risk scoring system with composite 1-10 score from leverage, concentration, correlation, and margin metrics
+- Asset classification system grouping positions into Crypto/Forex/Commodities
+- Build verification: ESLint passes with 0 errors
+
+---
+Task ID: 2-c
+Agent: Signals & News Pages Developer
+Task: Upgrade signals and news pages from placeholders to full functional pages
+
+Work Log:
+- Read existing signals/page.tsx (18 lines, placeholder "هذه الميزة قيد التطوير")
+- Read existing news/page.tsx (18 lines, placeholder "هذه الميزة قيد التطوير")
+- Read Card.tsx for PageHeader and Card component APIs (title, subtitle, right slot, onClick, highlight)
+- Read tokens.css for CSS variables (colors, fonts, spacing, radius, z-index)
+- Read components.css, base.css for existing CSS classes and layout patterns
+- Read useMarketStore.ts for live quote data integration (QuoteData interface, quotes record)
+- Read markets/page.tsx for design pattern reference (filter tabs, symbol colors, search bar)
+- Completely rewrote signals/page.tsx from 18 lines to ~310 lines with AI Trading Signals Dashboard
+- Completely rewrote news/page.tsx from 18 lines to ~330 lines with Market News Feed
+
+Signals page features:
+- PageHeader with "التوصيات" title, active count subtitle, RefreshCw button for manual refresh
+- Summary stats row: buy count (green), sell count (red), total count (cyan)
+- Filter tabs: الكل / شراء / بيع / انتظار (using r-tabs CSS class)
+- Each signal card shows: branded symbol icon, signal type label (شراء قوي/شراء/بيع/بيع قوي/انتظار), entry/TP/SL price grid, R:R ratio with shield icon, confidence bar with color-coded progress, AI model name with brain icon, time ago, status badge (نشط/مكتمل/ملغي)
+- Click signal navigates to /mobile/chart?symbol=XXX
+- 15 mock signals with realistic TP/SL levels, 60% active / 25% completed / 15% cancelled distribution
+- Live prices from useMarketStore when available (falls back to mock entry prices)
+
+News page features:
+- PageHeader with "الأخبار" title and news count subtitle
+- Search bar for filtering news (headline, summary, symbols, source)
+- Filter tabs: الكل / كريبتو / فوركس / اقتصاد with count badges
+- Each news card shows: source badge (color-coded: CoinDesk=#F7931A, Reuters=#FF8000, Bloomberg=#627EEA, etc.), headline (bold), summary (3-line clamp), time ago with clock icon, related symbols as badges, sentiment indicator (إيجابي/سلبي/محايد), impact level (عالي/متوسط/منخفض), external link button
+- 18 realistic Arabic market news items: mix of crypto, forex, and economic news
+- Sources: CoinDesk, Reuters, Bloomberg, Arabian Business, Cointelegraph, ForexLive, CNBC
+- Time range: last 24 hours with Arabic time format
+- Mix of positive/negative/neutral sentiment
+
+Both pages:
+- All Arabic text uses fontFamily: 'var(--font-cairo)', numbers use 'var(--font-mono)'
+- RTL direction for Arabic text, LTR for numbers
+- Dark glass aesthetic with rgba backgrounds, accent borders, backdrop blur
+- r-page class for full scrollability
+- 80px bottom spacer for orbital nav
+- Empty state messages when no results match filters
+- ESLint passes with 0 errors on both files
+- TypeScript type-check passes with 0 errors on both files
+
+Stage Summary:
+- Signals page rebuilt from placeholder to full AI Trading Signals Dashboard (~310 lines)
+- News page rebuilt from placeholder to full Market News Feed (~330 lines)
+- 15 realistic trading signals with confidence bars, R:R ratios, status badges
+- 18 realistic Arabic market news items with sentiment and impact indicators
+- Both pages integrate with useMarketStore for live price data
+- Build verification: ESLint passes, TypeScript passes
+---
+Task ID: 3-a
+Agent: Polish & Skeleton Developer
+Task: Add skeleton loading states and performance optimizations
+
+Work Log:
+- Read all target files: page.tsx (home), positions/page.tsx, markets/page.tsx, wallet/page.tsx, chart/page.tsx
+- Read existing components: Card.tsx, animations.css, usePositionsStore.ts, useMarketStore.ts
+- Created new Skeleton component at /components/mobile/Skeleton.tsx with: SkeletonLine, SkeletonCard, SkeletonCircle, SkeletonGrid, SkeletonRow
+- Added skeleton CSS to animations.css: r-skeleton pulse animation (0.3→0.6→0.3 opacity) and r-skeleton--shimmer gradient sweep variant
+- Added loading state to Homepage: AgentWidget shows skeleton when !agentState && loading, AICouncilWidget shows skeleton when loading=true
+- Added loading state to Positions page: shows 3 skeleton cards when loading && positions.length === 0
+- Added loading state to Markets page: shows 5 SkeletonRow components when hasQuotes is false (no quote data loaded yet)
+- Added loading state to Wallet page: shows skeleton layout when loading && !account
+- Added useMemo for buyingPower in Homepage
+- Added useMemo for filtered positions, longCount, shortCount in Positions page
+- Added useMemo for equity, unrealizedPnl, buyingPower, initialMargin, cash in Wallet page
+- Added useCallback for fmtPrice, fmtBookPrice, formatRelativeTime in Chart page
+- ESLint check passed with 0 errors on all modified files
+
+Stage Summary:
+- New Skeleton.tsx component with 5 reusable skeleton components (Line, Card, Circle, Grid, Row)
+- CSS animations for skeleton pulse and shimmer effects added to animations.css
+- 4 pages now show skeleton loading states instead of blank screens during data fetch
+- Performance optimizations added: useMemo for computed values in Home/Positions/Wallet, useCallback for utility functions in Chart
+- Build verification: ESLint passes with 0 errors

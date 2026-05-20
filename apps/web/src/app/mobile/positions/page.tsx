@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { PageHeader, Card } from '@/components/mobile/Card'
+import { SkeletonCard } from '@/components/mobile/Skeleton'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useRouter } from 'next/navigation'
@@ -31,7 +32,7 @@ function formatDuration(openedAt?: string): string {
 
 export default function MobilePositionsPage() {
   const router = useRouter()
-  const { positions, fetchPositions, refreshAfterTrade, account } = usePositionsStore()
+  const { positions, fetchPositions, refreshAfterTrade, account, loading } = usePositionsStore()
   const quotes = useMarketStore(s => s.quotes)
   const [closingId, setClosingId] = useState<string | null>(null)
   const [confirmClose, setConfirmClose] = useState<string | null>(null)
@@ -101,9 +102,22 @@ export default function MobilePositionsPage() {
   const totalPnlPct = equity > 0 ? (unrealizedPnl / equity) * 100 : 0
   const isUp = unrealizedPnl >= 0
 
-  const filtered = filter === 'all' ? positions : positions.filter(p => filter === 'long' ? p.side === 'long' : p.side === 'short')
-  const longCount = positions.filter(p => p.side === 'long').length
-  const shortCount = positions.filter(p => p.side === 'short').length
+  const filtered = useMemo(() => filter === 'all' ? positions : positions.filter(p => filter === 'long' ? p.side === 'long' : p.side === 'short'), [filter, positions])
+  const longCount = useMemo(() => positions.filter(p => p.side === 'long').length, [positions])
+  const shortCount = useMemo(() => positions.filter(p => p.side === 'short').length, [positions])
+
+  // Show skeleton cards while positions are loading
+  if (loading && positions.length === 0) {
+    return (
+      <div className="r-page">
+        <PageHeader title="المراكز المفتوحة" subtitle="جارٍ التحميل..." />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={4} />
+        <SkeletonCard lines={3} />
+        <div style={{ height: 80 }} />
+      </div>
+    )
+  }
 
   return (
     <div className="r-page">
@@ -529,7 +543,7 @@ export default function MobilePositionsPage() {
                 ) : (
                   /* Close Position button — fontSize 13 */
                   <button
-                    onClick={() => setConfirmClose(posKey)}
+                    onClick={() => setConfirmClose(posKey ?? null)}
                     style={{
                       flex: 1, height: 44, borderRadius: 10,
                       background: 'rgba(255,69,58,0.06)', border: '1px solid rgba(255,69,58,0.15)',

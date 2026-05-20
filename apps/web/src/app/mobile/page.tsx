@@ -10,6 +10,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { Card } from '@/components/mobile/Card'
+import { SkeletonCard, SkeletonLine } from '@/components/mobile/Skeleton'
 import {
   Brain, BarChart3, ChevronLeft, TrendingUp, TrendingDown, Wallet,
   Cpu, Activity, Shield, DollarSign, Flame, Zap, Loader2, Link2, Sparkles,
@@ -138,6 +139,29 @@ function AgentWidget() {
   const statusLabel = isRunning ? 'يعمل' : status === AgentStatus.EMERGENCY_STOP ? 'إيقاف طارئ' : status === AgentStatus.DAILY_LIMIT_REACHED ? 'حد الخسارة' : 'في الانتظار'
   const handleToggle = useCallback(async () => { if (isRunning) await stopAgent(false); else await startAgent(strategy) }, [isRunning, strategy, startAgent, stopAgent])
 
+  // Show skeleton while first load is happening and no agent state yet
+  if (!agentState && loading) {
+    return (
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="r-skeleton r-skeleton--shimmer" style={{ width: 40, height: 40, borderRadius: 12 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <SkeletonLine width={100} height={14} />
+              <SkeletonLine width={130} height={10} />
+            </div>
+          </div>
+        </div>
+        <div className="r-skeleton r-skeleton--shimmer" style={{ height: 36, borderRadius: 12, marginBottom: 10 }} />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
+          <div className="r-skeleton r-skeleton--shimmer" style={{ height: 60, borderRadius: 12 }} />
+          <div className="r-skeleton r-skeleton--shimmer" style={{ height: 60, borderRadius: 12 }} />
+          <div className="r-skeleton r-skeleton--shimmer" style={{ height: 60, borderRadius: 12 }} />
+        </div>
+      </Card>
+    )
+  }
+
   return (
     <Card onClick={() => router.push('/mobile/agent')} highlight={isRunning}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -206,6 +230,25 @@ function AICouncilWidget() {
   const votes = analyses.reduce((acc: { buy: number; sell: number; hold: number }, a: Record<string, unknown>) => { if (a.vote === 'BUY') acc.buy += 1; else if (a.vote === 'SELL') acc.sell += 1; else acc.hold += 1; return acc }, { buy: 0, sell: 0, hold: 0 })
   const total = votes.buy + votes.sell + votes.hold
 
+  // Show skeleton while consensus is loading
+  if (loading) {
+    return (
+      <Card>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="r-skeleton r-skeleton--shimmer" style={{ width: 40, height: 40, borderRadius: 12 }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <SkeletonLine width={120} height={14} />
+              <SkeletonLine width={90} height={10} />
+            </div>
+          </div>
+        </div>
+        <div className="r-skeleton r-skeleton--shimmer" style={{ height: 52, borderRadius: 12, marginBottom: 10 }} />
+        <div className="r-skeleton r-skeleton--shimmer" style={{ height: 4, borderRadius: 2 }} />
+      </Card>
+    )
+  }
+
   return (
     <Card onClick={() => router.push('/mobile/ai')}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
@@ -270,7 +313,7 @@ export default function MobileHomePage() {
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const modeAccent = MODE_CONFIG[tradingMode]?.accent || '#00D4FF'
   useEffect(() => { fetchAccount() }, [fetchAccount])
-  const buyingPower = account?.buying_power ? Number(account.buying_power) : 0
+  const buyingPower = useMemo(() => account?.buying_power ? Number(account.buying_power) : 0, [account?.buying_power])
 
   return (
     <div className="r-page r-stagger">

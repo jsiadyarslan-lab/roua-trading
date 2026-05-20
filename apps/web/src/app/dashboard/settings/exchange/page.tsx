@@ -66,7 +66,7 @@ export default function ExchangeSettingsPage() {
   const { settings: agentSettings, updateSettings, fetchSettings } = useAgentStore()
   const [leverageSaving, setLeverageSaving] = useState(false)
   const [leverageSaved, setLeverageSaved] = useState(false)
-  const [leverageOpen, setLeverageOpen] = useState(false)
+  const [leverageOpen, setLeverageOpen] = useState(true)
   const [cryptoLev, setCryptoLev] = useState(1)
   const [forexLev, setForexLev] = useState(50)
   const [goldLev, setGoldLev] = useState(20)

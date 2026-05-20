@@ -3077,15 +3077,47 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   private async _getPaperPortfolioValue(userId: string): Promise<number> {
+    // V172d: paperBalance is now FREE CASH (margin deducted on open).
+    // Portfolio value = freeCash + lockedMargin + unrealizedPnL = full equity.
+    // We approximate: equity ≈ freeCash + lockedMargin (skip unrealizedPnL for simplicity).
     try {
       const settings = await this.prisma.agentSettings.findUnique({
         where: { userId },
+        select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
       });
-      if (settings && Number(settings.paperBalance) > 0) {
-        return Number(settings.paperBalance);
+      const freeCash = settings ? Number(settings.paperBalance) : 10000;
+
+      // Calculate locked margin from open positions
+      const openPositions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN', exchange: 'paper-trading' },
+        select: { quantity: true, entryPrice: true, symbol: true, currentPrice: true, side: true },
+      });
+
+      let lockedMargin = 0;
+      let unrealizedPnl = 0;
+      const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+      const forexLev = Number(settings?.paperForexLeverage) || 50;
+      const goldLev = Number(settings?.paperGoldLeverage) || 20;
+
+      for (const pos of openPositions) {
+        const qty = Number(pos.quantity) || 0;
+        const entry = Number(pos.entryPrice) || 0;
+        const current = Number(pos.currentPrice) || entry;
+        const { getSymbolMetadata, AssetClass } = require('../../../modules/trading/services/symbol-metadata');
+        const meta = getSymbolMetadata(pos.symbol);
+        let leverage = cryptoLev;
+        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+        const notional = qty * entry;
+        lockedMargin += leverage > 1 ? notional / leverage : notional;
+        unrealizedPnl += pos.side === 'BUY' ? (current - entry) * qty : (entry - current) * qty;
       }
-    } catch {}
-    return 10000; // Default paper balance
+
+      const equity = freeCash + lockedMargin + unrealizedPnl;
+      return equity > 0 ? equity : 10000;
+    } catch {
+      return 10000;
+    }
   }
 
   /**

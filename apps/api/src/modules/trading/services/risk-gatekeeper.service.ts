@@ -1291,18 +1291,35 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     });
 
     if (paperCredential) {
-      // Paper-trading user — use AgentSettings.paperBalance
+      // V172d: paperBalance = free cash, equity = freeCash + lockedMargin + unrealizedPnL
       try {
         const settings = await this.prisma.agentSettings.findUnique({
           where: { userId },
+          select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
         });
-        if (settings && Number(settings.paperBalance) > 0) {
-          return Number(settings.paperBalance);
+        const freeCash = settings ? Number(settings.paperBalance) : 10000;
+        const openPositions = await this.prisma.position.findMany({
+          where: { userId, status: 'OPEN', exchange: 'paper-trading' },
+          select: { quantity: true, entryPrice: true, symbol: true },
+        }).catch(() => []);
+        let lockedMargin = 0;
+        const { getSymbolMetadata, AssetClass } = require('../../../modules/trading/services/symbol-metadata');
+        const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
+        const forexLev = Number(settings?.paperForexLeverage) || 50;
+        const goldLev = Number(settings?.paperGoldLeverage) || 20;
+        for (const pos of openPositions) {
+          const meta = getSymbolMetadata(pos.symbol);
+          let leverage = cryptoLev;
+          if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
+          else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
+          const notional = Number(pos.quantity) * Number(pos.entryPrice);
+          lockedMargin += leverage > 1 ? notional / leverage : notional;
         }
+        const equity = freeCash + lockedMargin;
+        return equity > 0 ? equity : 10000;
       } catch {
-        // AgentSettings not available
+        return 10000;
       }
-      return 10000; // Default paper balance
     }
 
     // Step 2: Real exchange user — use Portfolio table + open positions

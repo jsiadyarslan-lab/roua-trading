@@ -452,9 +452,29 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
 
   // ── Load Data for All Cells ──
   useEffect(() => {
-    const initTimer = setTimeout(() => {
-      cells.forEach(cell => { if (cell.symbol) loadDataForCell(cell); });
-    }, 150);
+    let attempts = 0;
+    const maxAttempts = 20; // 20 × 100ms = 2s max wait
+
+    const tryLoad = () => {
+      attempts++;
+      // Check if all containers are ready
+      const allReady = cells.every(cell => containerRefs.current.has(cell.id));
+      if (allReady) {
+        cells.forEach(cell => { if (cell.symbol) loadDataForCell(cell); });
+        return;
+      }
+      // Also check if at least some containers are ready — load those
+      const readyCells = cells.filter(cell => containerRefs.current.has(cell.id));
+      if (readyCells.length > 0) {
+        readyCells.forEach(cell => { if (cell.symbol) loadDataForCell(cell); });
+      }
+      // Retry for remaining containers if not at max attempts
+      if (attempts < maxAttempts) {
+        initTimer = setTimeout(tryLoad, 100);
+      }
+    };
+
+    let initTimer: ReturnType<typeof setTimeout> = setTimeout(tryLoad, 50);
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 

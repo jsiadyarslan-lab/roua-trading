@@ -831,12 +831,13 @@ export default function RouaChart({
 
   // FIX: Clean up AI overlays when AI panel is closed
   useEffect(() => {
-    if (!showAIPanel) {
+    if (showAIPanel) {
+      // Snapshot candles NOW when panel opens so AI analysis gets fresh data
+      if (candlesRef.current?.length) {
+        setAiPanelCandles([...candlesRef.current]);
+      }
+    } else {
       cleanupAIOverlays();
-    }
-    // Snapshot candles for AI panel when opened
-    if (!showAIPanel && candlesRef.current?.length) {
-      setAiPanelCandles([...candlesRef.current]);
     }
   }, [showAIPanel, cleanupAIOverlays]);
 

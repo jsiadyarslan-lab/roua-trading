@@ -747,12 +747,17 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveCash = 10000
             }
           } else if (hasOnlyPaperExchanges) {
-            // V147 FIX: Backend now returns equity = balance + unrealizedPnL for paper-trading.
-            // Do NOT add positionsUnrealizedPnl again — it would double-count the P&L!
-            // For paper: effectiveEquity = totalEquityUsd (already includes PnL from backend)
-            // effectiveCash = raw balance (equity - PnL)
-            effectiveEquity = adjustedTotalEquityUsd  // Already = balance + PnL
-            effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl  // Raw balance without PnL
+            // V173c FIX: Use paperBalance directly from API as effectiveCash.
+            // OLD: effectiveCash = totalEquityUsd - positionsUnrealizedPnl
+            //   → Both values update at different rates (API polling vs WebSocket)
+            //   → Timing mismatch causes الرصيد to jitter every second
+            // NEW: paperBalance = freeCash in DB, changes ONLY on open/close
+            //   → Completely stable between trades, no jitter
+            const paperExchangeBalance = (paperExchange as any)?.paperBalance
+            effectiveEquity = adjustedTotalEquityUsd   // equity = paperBalance + usedMargin + unrealizedPnL
+            effectiveCash = paperExchangeBalance > 0
+              ? paperExchangeBalance + (paperExchange?.usedMargin || 0)  // freeCash + lockedMargin = balance before PnL
+              : adjustedTotalEquityUsd - positionsUnrealizedPnl           // fallback
           } else if (exchangeUnavailable) {
             // V171: Real exchange failed, but we have paper balance as fallback.
             // exchangeUnavailable=true tells the UI to show a warning banner.

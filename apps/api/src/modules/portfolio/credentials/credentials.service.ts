@@ -740,8 +740,11 @@ export class CredentialsService {
         equity: paperEquity,
         available: paperAvailableUsd,
         currency: 'USD',
-        // V150 FIX: Include usedMargin directly — leverage-aware from calculateMargin()
         usedMargin,
+        // V173c: Expose paperBalance directly so frontend can show stable "الرصيد"
+        // without subtracting positionsUnrealizedPnl (which causes timing mismatch jitter).
+        // paperBalance = free cash in DB, changes ONLY on position open/close.
+        paperBalance: paperBalanceUsd,
         assets: [{
           currency: 'USD',
           free: paperAvailableUsd,

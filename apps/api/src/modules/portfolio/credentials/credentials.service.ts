@@ -501,6 +501,8 @@ export class CredentialsService {
       currency: string;
       /** V150 FIX: Leverage-aware used margin for this exchange (not raw asset 'used') */
       usedMargin: number;
+      /** V173d: freeCash in DB — changes ONLY on open/close, never on price moves */
+      paperBalance?: number;
       assets: Array<{ currency: string; free: number; used: number; total: number }>;
       error?: string;
       /** V164d: Raw error message from exchange (for diagnostics) */

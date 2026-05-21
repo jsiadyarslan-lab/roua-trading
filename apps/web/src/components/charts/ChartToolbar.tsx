@@ -536,7 +536,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={btnStyle}
               onClick={onToggleMTF}
-              title="تحليل متعدد الأطر الزمنية"
+              title="عرض نفس الزوج بأطر زمنية مختلفة (1m/5m/15m/1H)"
             >
               MTF
             </button>

@@ -708,9 +708,17 @@ export default function RouaChart({
         addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
-      if (sl > 0) addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, '', false);
+      if (sl > 0) {
+        const slPnl = entryPrice > 0 ? ((sl - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
+        const slLabel = `SL  ${slPnl !== 0 ? (slPnl > 0 ? '+' : '') + slPnl.toFixed(2) + '$' : ''}`;
+        addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, true);
+      }
       const tp = Number(pos.takeProfit || pos.tp || 0);
-      if (tp > 0) addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, '', false);
+      if (tp > 0) {
+        const tpPnl = entryPrice > 0 ? ((tp - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
+        const tpLabel = `TP  ${tpPnl !== 0 ? (tpPnl > 0 ? '+' : '') + tpPnl.toFixed(2) + '$' : ''}`;
+        addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, true);
+      }
     });
 
     // Paper trades (including executor and agent trades)
@@ -734,9 +742,16 @@ export default function RouaChart({
       const entryPrice = Number(trade.entryPrice || 0);
       const isLong = (trade.side || '').toLowerCase() === 'long';
       
+      const qty = Number(trade.qty || 1);
       addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
-      if (trade.sl && Number(trade.sl) > 0) addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, '', false);
-      if (trade.tp && Number(trade.tp) > 0) addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, '', false);
+      if (trade.sl && Number(trade.sl) > 0) {
+        const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
+        addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, true);
+      }
+      if (trade.tp && Number(trade.tp) > 0) {
+        const tpP = ((Number(trade.tp) - entryPrice) * qty * (isLong ? 1 : -1));
+        addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, true);
+      }
     });
 
     return () => {
@@ -1311,50 +1326,40 @@ export default function RouaChart({
                 left: 10,
                 zIndex: 100,
                 display: 'flex',
+                flexDirection: 'column',
                 alignItems: 'center',
                 gap: 3,
                 borderRadius: 10,
                 background: 'rgba(8,10,18,0.88)',
                 backdropFilter: 'blur(24px) saturate(2)',
                 border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset, 0 1px 0 rgba(255,255,255,0.06) inset',
-                padding: '3px 4px',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                padding: tradePanelCollapsed ? '3px' : '5px 6px',
                 pointerEvents: chart.activeTool === 'cursor' ? 'auto' : 'none',
                 overflow: 'hidden',
-                maxWidth: tradePanelCollapsed ? 26 : 400,
-                transition: 'max-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s ease',
+                transition: 'all 0.2s ease',
               }}
             >
-              {/* Collapse Toggle — icon only */}
+              {/* Collapse Toggle — top center */}
               <button
                 onClick={() => setTradePanelCollapsed(!tradePanelCollapsed)}
                 style={{
-                  background: 'rgba(255,255,255,0.06)',
+                  background: 'rgba(255,255,255,0.05)',
                   border: 'none',
-                  borderRadius: 5,
-                  color: 'rgba(255,255,255,0.45)',
-                  width: 20,
-                  height: 20,
+                  borderRadius: 4,
+                  color: 'rgba(255,255,255,0.35)',
+                  width: tradePanelCollapsed ? 20 : '100%',
+                  height: 14,
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  transition: 'all 0.2s ease',
                   outline: 'none',
                   padding: 0,
-                  flexShrink: 0,
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.12)';
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.8)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.color = 'rgba(255,255,255,0.45)';
                 }}
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: 'transform 0.25s ease', transform: tradePanelCollapsed ? 'rotate(180deg)' : 'rotate(0deg)' }}>
-                  <polyline points="15 18 9 12 15 6" />
+                <svg width="10" height="6" viewBox="0 0 10 6" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <polyline points={tradePanelCollapsed ? "1 1 5 5 9 1" : "1 5 5 1 9 5"} />
                 </svg>
               </button>
 
@@ -1382,10 +1387,10 @@ export default function RouaChart({
                     style={{
                       background: '#00C853',
                       border: 'none',
-                      borderRadius: 6,
+                      borderRadius: 5,
                       color: '#000',
-                      padding: '5px 12px',
-                      fontSize: 11,
+                      padding: '4px 9px',
+                      fontSize: 10,
                       fontWeight: 800,
                       cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif",
@@ -1399,27 +1404,13 @@ export default function RouaChart({
                     ▲ شراء
                   </button>
 
-                  {/* LOT Size Control */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 2,
-                    background: 'rgba(255,255,255,0.06)',
-                    borderRadius: 6,
-                    padding: '3px 6px',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                  }}>
-                    <button
-                      onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 14, cursor: 'pointer', padding: '0 2px', lineHeight: 1, outline: 'none' }}
-                    >−</button>
-                    <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
-                      {lotSize.toFixed(2)}
-                    </span>
-                    <button
-                      onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 14, cursor: 'pointer', padding: '0 2px', lineHeight: 1, outline: 'none' }}
-                    >+</button>
+                  {/* LOT */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'rgba(255,255,255,0.05)', borderRadius: 5, padding: '2px 4px' }}>
+                    <button onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
+                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>−</button>
+                    <span style={{ color: '#ccc', fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 28, textAlign: 'center' }}>{lotSize.toFixed(2)}</span>
+                    <button onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
+                      style={{ background: 'none', border: 'none', color: '#888', fontSize: 12, cursor: 'pointer', padding: '0 2px', outline: 'none' }}>+</button>
                   </div>
 
                   {/* Sell Button */}
@@ -1443,10 +1434,10 @@ export default function RouaChart({
                     style={{
                       background: '#F44336',
                       border: 'none',
-                      borderRadius: 6,
+                      borderRadius: 5,
                       color: '#fff',
-                      padding: '5px 12px',
-                      fontSize: 11,
+                      padding: '4px 9px',
+                      fontSize: 10,
                       fontWeight: 800,
                       cursor: 'pointer',
                       fontFamily: "'Cairo', sans-serif",
@@ -1542,12 +1533,17 @@ export default function RouaChart({
                 try {
                   const chartApi = chart.chartRef?.current;
                   if (chartApi && p.time) {
-                    chartApi.timeScale().setVisibleRange({
-                      from: (p.time - 3600 * 6) as any,
-                      to: (p.time + 3600 * 6) as any,
-                    });
+                    // Keep current zoom level — only scroll to pattern time
+                    const currentRange = chartApi.timeScale().getVisibleRange();
+                    if (currentRange) {
+                      const rangeWidth = (currentRange.to as number) - (currentRange.from as number);
+                      chartApi.timeScale().setVisibleRange({
+                        from: (p.time - rangeWidth * 0.4) as any,
+                        to: (p.time + rangeWidth * 0.6) as any,
+                      });
+                    }
                   }
-                } catch { /* timeScale may not support setVisibleRange */ }
+                } catch { /* ignore */ }
               }}
               onLevelClick={(level) => {
                 try {

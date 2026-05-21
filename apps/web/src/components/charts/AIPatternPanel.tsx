@@ -532,12 +532,7 @@ export function AIPatternPanel({
       if (lcRef && !lcRef.current) {
         try { lcRef.current = await import('lightweight-charts'); } catch { /* skip */ }
       }
-      // Draw on chart
-      const cApi = chartApiRef?.current;
-      const lc = lcRef?.current;
-      if (cApi && lc) {
-        drawAllPatterns(cApi, lc, result.patterns, true, 15 * 60 * 1000);
-      }
+      // NOTE: Do NOT draw all patterns here — draw only on click (onEnginePatternClick)
     } catch (e: any) {
       console.warn('[PatternEngine]', e.message);
     } finally {
@@ -1302,7 +1297,15 @@ export function AIPatternPanel({
             </button>
             {enginePatterns.length > 0 && (
               <button
-                onClick={() => setEnginePatterns([])}
+                onClick={() => {
+                  setEnginePatterns([]);
+                  // Clear drawn patterns from the actual chart
+                  const cApi = chartApiRef?.current;
+                  const lc = lcRef?.current;
+                  if (cApi && lc) {
+                    try { clearAllPatterns(cApi); } catch { /* ignore */ }
+                  }
+                }}
                 style={{
                   width: '100%', marginTop: 4, padding: '5px', borderRadius: 6, border: 'none',
                   background: 'rgba(255,71,87,0.08)', color: 'rgba(255,71,87,0.7)',
@@ -1334,8 +1337,26 @@ export function AIPatternPanel({
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  onClick={() => {
-                    // No chart ref here — handled by parent
+                  onClick={async () => {
+                    const cApi = chartApiRef?.current;
+                    if (!cApi || !lcRef) return;
+                    if (!lcRef.current) {
+                      try { lcRef.current = await import('lightweight-charts'); } catch { return; }
+                    }
+                    const lc = lcRef.current;
+                    if (lc) {
+                      try { drawAllPatterns(cApi, lc, [p], true, 30 * 60 * 1000); } catch { /* ignore */ }
+                      // Scroll to pattern without changing zoom
+                      const pts = p.points;
+                      if (pts?.length) {
+                        const t = pts[0].time;
+                        const range = cApi.timeScale().getVisibleRange();
+                        if (range) {
+                          const w = (range.to as number) - (range.from as number);
+                          try { cApi.timeScale().setVisibleRange({ from: (t - w * 0.3) as any, to: (t + w * 0.7) as any }); } catch {}
+                        }
+                      }
+                    }
                   }}>
                     {/* Row 1 */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>

@@ -966,72 +966,10 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
-    // ── Draw Pattern Shapes on chart ──
-    try {
-      if (chartApi && result.patterns.length > 0) {
-        const { AreaSeries, LineSeries } = lc;
-
-        result.patterns.forEach((p, i) => {
-          if (!p.shapePoints || p.shapePoints.length < 2) return;
-
-          const color = p.shapeColor || (p.direction === 'bullish' ? 'rgba(0,255,163,0.15)' : p.direction === 'bearish' ? 'rgba(255,71,87,0.15)' : 'rgba(251,191,36,0.15)');
-          const lineColor = p.direction === 'bullish' ? 'rgba(0,255,163,0.5)' : p.direction === 'bearish' ? 'rgba(255,71,87,0.5)' : 'rgba(251,191,36,0.5)';
-
-          if (p.shapeType === 'polygon' && p.shapePoints.length >= 3) {
-            // FIX: Filter null/NaN from area data to prevent "Value is null" crash
-            const areaData = filterValidData(
-              p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
-            );
-            if (areaData.length >= 2) {
-              // Ensure chronological order
-              areaData.sort((a, b) => a.time - b.time);
-              const areaSeries = chartApi.addSeries(AreaSeries, {
-                topColor: color,
-                bottomColor: color.replace(/[\d.]+\)$/, '0.05)'),
-                lineColor: lineColor,
-                lineWidth: 1 as any,
-                priceLineVisible: false,
-                lastValueVisible: false,
-                crosshairMarkerVisible: false,
-              });
-              try {
-                areaSeries.setData(areaData as any);
-                aiOverlaySeriesRef.current.push(areaSeries);
-                chart.registerExternalSeries(areaSeries); // Track in useChart for cleanup
-              } catch (e) {
-                console.warn('[AI Overlay] AreaSeries setData error:', e);
-                try { chartApi.removeSeries(areaSeries); } catch {}
-              }
-            }
-          } else if (p.shapePoints.length >= 2) {
-            // FIX: Filter null/NaN from line data
-            const lineData = filterValidData(
-              p.shapePoints.map(pt => ({ time: pt.time as any, value: pt.price }))
-            );
-            if (lineData.length >= 2) {
-              // Ensure chronological order
-              lineData.sort((a, b) => a.time - b.time);
-              const shapeLine = chartApi.addSeries(LineSeries, {
-                color: lineColor,
-                lineWidth: 2 as any,
-                lineStyle: 0,
-                priceLineVisible: false,
-                lastValueVisible: false,
-                crosshairMarkerVisible: false,
-              });
-              try {
-                shapeLine.setData(lineData as any);
-                aiOverlaySeriesRef.current.push(shapeLine);
-                chart.registerExternalSeries(shapeLine); // Track in useChart for cleanup
-              } catch (e) {
-                console.warn('[AI Overlay] LineSeries setData error:', e);
-                try { chartApi.removeSeries(shapeLine); } catch {}
-              }
-            }
-          }
-        });
-      }
-    } catch (e) { console.warn('[AI Overlay] Pattern shapes error:', e); }
+    // ── Pattern markers ──
+    // Patterns are shown as arrow markers on candles (set in aiPatterns state above,
+    // applied by the combined-markers useEffect). No AreaSeries per pattern —
+    // that caused chart rescaling chaos when 10+ patterns loaded simultaneously.
 
     // ── Draw Entry/Exit lines on chart ──
     if (result.entryExit) {

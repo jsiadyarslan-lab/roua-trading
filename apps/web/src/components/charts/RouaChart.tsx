@@ -1524,7 +1524,7 @@ export default function RouaChart({
           <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={360} minHeight={320}>
             <AIPatternPanel
               symbol={selectedSymbol}
-              candles={aiPanelCandles.length ? aiPanelCandles : candlesRef.current || []}
+              candles={candlesRef.current || []}
               chartApiRef={chart.chartRef}
               lcRef={lightweightChartsRef}
               onPatternsDetected={handlePatternsDetected}

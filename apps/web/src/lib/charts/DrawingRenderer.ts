@@ -71,6 +71,7 @@ export class DrawingRenderer {
   private dragStartY: number = 0;
   private dragOriginalPoints: DrawingPoint[] = []; // Deep copy of points at drag start
   private dragStartChartPoint: DrawingPoint | null = null; // Chart coord at drag start
+  private dragPointIndex: number = -1; // -1 = move whole drawing, >=0 = move single endpoint
 
   // ── Event handler refs (for cleanup) ───────────────────
   private boundMouseDown: (e: MouseEvent) => void;
@@ -151,6 +152,7 @@ export class DrawingRenderer {
     this.dragDrawingId = null;
     this.dragOriginalPoints = [];
     this.dragStartChartPoint = null;
+    this.dragPointIndex = -1;
     if (tool === 'cursor') {
       this.setChartInteractionEnabled(true);
       this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
@@ -327,6 +329,7 @@ export class DrawingRenderer {
     this.dragDrawingId = drawing.id;
     this.dragStartX = pixelX;
     this.dragStartY = pixelY;
+    this.dragPointIndex = -1; // reset — caller sets specific index if endpoint drag
     // Deep copy the original points so we always apply delta from the start position
     this.dragOriginalPoints = drawing.points.map(p => ({ ...p }));
     // Save the chart coordinate at the drag start for delta calculation
@@ -422,27 +425,39 @@ export class DrawingRenderer {
             .filter((p): p is PixelPoint => p !== null);
 
           // Check endpoints first
-          let nearPoint = false;
-          for (const pp of pixelPts) {
+          // Check endpoints first — if near endpoint, drag only that point
+          let nearEndpointIdx = -1;
+          for (let pi = 0; pi < pixelPts.length; pi++) {
+            const pp = pixelPts[pi];
             if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
                 Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-              nearPoint = true;
+              nearEndpointIdx = pi;
               break;
             }
           }
 
-          // If not near an endpoint, check proximity to line segments
-          if (!nearPoint && pixelPts.length >= 2) {
+          if (nearEndpointIdx >= 0) {
+            // Drag single endpoint (resize/extend the line)
+            this.startDrag(drawing, x, y, e);
+            this.dragPointIndex = nearEndpointIdx;
+            this.container.style.cursor = 'crosshair';
+            return;
+          }
+
+          // If not near an endpoint, check proximity to line segments → move whole drawing
+          let nearSegment = false;
+          if (pixelPts.length >= 2) {
             for (let i = 0; i < pixelPts.length - 1; i++) {
               if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
-                nearPoint = true;
+                nearSegment = true;
                 break;
               }
             }
           }
 
-          if (nearPoint) {
+          if (nearSegment) {
             this.startDrag(drawing, x, y, e);
+            this.dragPointIndex = -1; // move whole drawing
             this.container.style.cursor = 'move';
             return;
           }
@@ -489,18 +504,23 @@ export class DrawingRenderer {
       const drawing = this.drawingManager.get(this.dragDrawingId);
       if (drawing) {
         if (drawing.type === 'horizontal') {
-          // For horizontal lines, only update the price (keep time)
           this.drawingManager.update(this.dragDrawingId, {
             points: [{ ...this.dragOriginalPoints[0], price: this.dragOriginalPoints[0].price + deltaPrice }],
           });
         } else if (drawing.type === 'vertical') {
-          // For vertical lines, only update the time (keep price)
           this.drawingManager.update(this.dragDrawingId, {
             points: [{ ...this.dragOriginalPoints[0], time: this.dragOriginalPoints[0].time + deltaTime }],
           });
+        } else if (this.dragPointIndex >= 0 && this.dragPointIndex < this.dragOriginalPoints.length) {
+          // Endpoint drag — only move the selected point (extend/shrink the line)
+          const newPoints = this.dragOriginalPoints.map((pt, i) =>
+            i === this.dragPointIndex
+              ? { ...pt, price: pt.price + deltaPrice, time: pt.time + deltaTime }
+              : { ...pt }
+          );
+          this.drawingManager.update(this.dragDrawingId, { points: newPoints });
         } else {
-          // For all other drawings, move all points by the same delta
-          // Always apply delta to the ORIGINAL points (saved at drag start) to prevent drift
+          // Whole-drawing drag — move all points by same delta
           const newPoints = this.dragOriginalPoints.map(pt => ({
             ...pt,
             price: pt.price + deltaPrice,
@@ -540,19 +560,22 @@ export class DrawingRenderer {
             .map(p => this.chartPointToPixel(p))
             .filter((p): p is PixelPoint => p !== null);
 
+          // Check endpoints first — show crosshair to indicate resize
           for (const pp of pixelPts) {
             if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
                 Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
               nearDrawing = true;
+              this.container.style.cursor = 'crosshair';
               break;
             }
           }
 
-          // Check line segments
+          // Check line segments — show move cursor
           if (!nearDrawing && pixelPts.length >= 2) {
             for (let i = 0; i < pixelPts.length - 1; i++) {
               if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
                 nearDrawing = true;
+                this.container.style.cursor = 'move';
                 break;
               }
             }
@@ -561,7 +584,7 @@ export class DrawingRenderer {
           if (nearDrawing) break;
         }
       }
-      this.container.style.cursor = nearDrawing ? 'pointer' : '';
+      if (!nearDrawing) this.container.style.cursor = '';
       return;
     }
 

@@ -61,7 +61,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     timestamp: number;
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [autoMode, setAutoMode] = useState(true);
+  const [autoMode, setAutoMode] = useState(false); // Manual by default — user enables auto
   const [countdown, setCountdown] = useState(AUTO_INTERVAL / 1000);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);

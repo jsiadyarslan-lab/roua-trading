@@ -1317,6 +1317,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       try { chart.removeSeries(candleSeriesRef.current); } catch {}
       candleSeriesRef.current = null;
     }
+    // Reset markers plugin so it gets re-created on the new series
+    markersPluginRef.current = null;
 
     if (type === 'line') {
       const lineSeries = chart.addSeries(LineSeries, {

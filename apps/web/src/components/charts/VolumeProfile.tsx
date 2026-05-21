@@ -72,7 +72,7 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
 
     const renderCanvas = () => {
       const dpr = window.devicePixelRatio || 1;
-      const h = canvas.parentElement?.clientHeight || 400;
+      const h = Math.max(canvas.parentElement?.clientHeight || 0, canvas.parentElement?.offsetHeight || 0, 400);
       canvas.width = width * dpr;
       canvas.height = h * dpr;
       canvas.style.width = `${width}px`;

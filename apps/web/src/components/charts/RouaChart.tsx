@@ -22,6 +22,7 @@ import { VolumeProfile } from './VolumeProfile';
 import { NewsMarkers, createNewsChartMarkers } from './NewsMarkers';
 import { WatchlistOverlay } from './WatchlistOverlay';
 import { AIPatternPanel } from './AIPatternPanel';
+import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { ChartTrading } from './ChartTrading';
@@ -1519,85 +1520,31 @@ export default function RouaChart({
         )}
 
 
-        {/* AI Pattern Panel (draggable) */}
+        {/* AI Smart Panel (redesigned — auto-detect + instant signals) */}
         {showAIPanel && (
-          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={360} minHeight={320}>
-            <AIPatternPanel
+          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={320} minHeight={200}>
+            <AISmartPanel
               symbol={selectedSymbol}
               candles={candlesRef.current || []}
-              chartApiRef={chart.chartRef}
-              lcRef={lightweightChartsRef}
+              currentPrice={currentPrice}
               onPatternsDetected={handlePatternsDetected}
-              onPatternClick={(p) => {
-                try {
-                  const chartApi = chart.chartRef?.current;
-                  if (chartApi && p.time) {
-                    // Keep current zoom level — only scroll to pattern time
-                    const currentRange = chartApi.timeScale().getVisibleRange();
-                    if (currentRange) {
-                      const rangeWidth = (currentRange.to as number) - (currentRange.from as number);
-                      chartApi.timeScale().setVisibleRange({
-                        from: (p.time - rangeWidth * 0.4) as any,
-                        to: (p.time + rangeWidth * 0.6) as any,
-                      });
-                    }
-                  }
-                } catch { /* ignore */ }
-              }}
-              onLevelClick={(level) => {
-                try {
-                  const color = level.type === 'support' ? '#00FFA3' : '#FF4757';
-                  chart.addPriceLine(`ai-level-${level.price}`, level.price, color, '', 2, 0, true);
-                } catch { /* ignore */ }
-              }}
-              onTrendLineClick={(line) => {
-                try {
-                  const chartApi = chart.chartRef?.current;
-                  if (!chartApi) return;
-                  // FIX: Draw the trendline directly on chart
-                  const lc = lightweightChartsRef.current;
-                  if (lc?.LineSeries) {
-                    const color = line.type === 'ascending' ? 'rgba(0,255,163,0.9)' : 'rgba(255,71,87,0.9)';
-                    const lineWidth = line.strength === 'strong' ? 3 : line.strength === 'medium' ? 2 : 1;
-                    try {
-                      const series = chartApi.addSeries(lc.LineSeries, {
-                        color, lineWidth: lineWidth as any, lineStyle: 0,
-                        priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-                        title: line.type === 'ascending' ? '↗ دعم' : '↘ مقاومة',
-                      });
-                      const t1 = line.startPoint.time; const t2 = line.endPoint.time;
-                      const points = t1 < t2
-                        ? [{ time: t1 as any, value: line.startPoint.price }, { time: t2 as any, value: line.endPoint.price }]
-                        : [{ time: t2 as any, value: line.endPoint.price }, { time: t1 as any, value: line.startPoint.price }];
-                      series.setData(points as any);
-                      setTimeout(() => { try { chartApi.removeSeries(series); } catch {} }, 5 * 60 * 1000);
-                    } catch { /* LC not ready */ }
-                  }
-                  const fromTime = Math.min(line.startPoint.time, line.endPoint.time);
-                  const toTime = Math.max(line.startPoint.time, line.endPoint.time);
-                  chartApi.timeScale().setVisibleRange({
-                    from: (fromTime - 3600 * 3) as any,
-                    to: (toTime + 3600 * 3) as any,
-                  });
-                } catch { /* ignore */ }
-              }}
-              onEntryExitClick={(entryExit) => {
-                try {
-                  chart.removePriceLine('ai-entry-quick');
-                  chart.removePriceLine('ai-sl-quick');
-                  chart.removePriceLine('ai-tp-quick');
-                  if (entryExit.entryPrice > 0) {
-                    chart.addPriceLine('ai-entry-quick', entryExit.entryPrice, '#00D4FF', '', 2, 0, false);
-                  }
-                  if (entryExit.stopLoss > 0) {
-                    chart.addPriceLine('ai-sl-quick', entryExit.stopLoss, '#FF4757', '', 2, 2, false);
-                  }
-                  if (entryExit.takeProfit > 0) {
-                    chart.addPriceLine('ai-tp-quick', entryExit.takeProfit, '#00FFA3', '', 2, 2, false);
-                  }
-                } catch { /* ignore */ }
-              }}
               onClose={() => setShowAIPanel(false)}
+              chartApiRef={chart.chartRef}
+              onExecuteTrade={(side, entry, sl, tp) => {
+                const { addTrade } = usePaperTradesStore.getState();
+                addTrade({
+                  symbol: selectedSymbol,
+                  side,
+                  qty: 0.01,
+                  entryPrice: entry,
+                  currentPrice: entry,
+                  entryTime: Date.now(),
+                  strategy: 'ai',
+                  source: 'manual',
+                  sl,
+                  tp,
+                });
+              }}
             />
           </DraggablePanel>
         )}

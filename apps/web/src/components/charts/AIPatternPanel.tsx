@@ -15,14 +15,14 @@ import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useNotificationStore } from '@/hooks/useNotificationStore';
 
-interface SupportResistanceLevel {
+export interface SupportResistanceLevel {
   price: number;
   type: 'support' | 'resistance';
   strength: 'weak' | 'medium' | 'strong';
   touches: number;
 }
 
-interface TrendLine {
+export interface TrendLine {
   type: 'ascending' | 'descending';
   startPoint: { time: number; price: number };
   endPoint: { time: number; price: number };
@@ -1511,7 +1511,7 @@ function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanc
 }
 
 // ── Basic Local Pattern Detection (fallback) ─────────────
-function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
+export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
   const patterns: AIPattern[] = [];
   if (!candles || candles.length < 2) return patterns;
 
@@ -1673,7 +1673,7 @@ function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
 }
 
 // ── Support/Resistance Level Detection ──────────────────
-function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[] {
+export function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[] {
   if (!candles || candles.length < 20) return [];
   const levels: SupportResistanceLevel[] = [];
   const windowSize = 8;
@@ -1726,7 +1726,7 @@ function detectSupportResistance(candles: CandleData[]): SupportResistanceLevel[
 }
 
 // ── Trend Line Detection ───────────────────────────────
-function detectTrendLines(candles: CandleData[]): TrendLine[] {
+export function detectTrendLines(candles: CandleData[]): TrendLine[] {
   // FIX: Reduced from 30 to 10
   if (!candles || candles.length < 10) return [];
   const lines: TrendLine[] = [];

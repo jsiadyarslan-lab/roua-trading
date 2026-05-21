@@ -287,6 +287,7 @@ export function AIPatternPanel({
         setPatterns([...detectedPatterns]);
       }
 
+      console.log('[AIPanel] calling onPatternsDetected with', detectedPatterns.length, 'patterns,', lines.length, 'trendLines');
       onPatternsDetected({
         patterns: detectedPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),

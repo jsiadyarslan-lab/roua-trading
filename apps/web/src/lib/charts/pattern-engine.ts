@@ -722,33 +722,70 @@ interface HarmonicRatios {
 }
 
 const HARMONIC_PATTERNS: Record<string, HarmonicRatios> = {
+  // ── الأنماط الكلاسيكية ──────────────────────────────────
   'Gartley': {
-    XAB:  [0.618, 0.618], // exact 0.618
+    XAB:  [0.618, 0.618],
     ABC:  [0.382, 0.886],
     BCD:  [1.27, 1.618],
-    XAD:  [0.786, 0.786], // D = 0.786 of XA
+    XAD:  [0.786, 0.786],
     precision: 0.05,
   },
   'Bat': {
     XAB:  [0.382, 0.500],
     ABC:  [0.382, 0.886],
     BCD:  [1.618, 2.618],
-    XAD:  [0.886, 0.886], // D = 0.886 of XA
+    XAD:  [0.886, 0.886],
     precision: 0.05,
   },
+  'Alternate Bat': {
+    XAB:  [0.382, 0.382],
+    ABC:  [0.382, 0.886],
+    BCD:  [2.0,   3.618],
+    XAD:  [1.13,  1.13],
+    precision: 0.06,
+  },
   'Butterfly': {
-    XAB:  [0.786, 0.786], // exact 0.786
+    XAB:  [0.786, 0.786],
     ABC:  [0.382, 0.886],
     BCD:  [1.618, 2.618],
-    XAD:  [1.27, 1.41],   // D extends beyond XA
+    XAD:  [1.27,  1.41],
     precision: 0.05,
   },
   'Crab': {
     XAB:  [0.382, 0.618],
     ABC:  [0.382, 0.886],
     BCD:  [2.618, 3.618],
-    XAD:  [1.618, 1.618], // exact 1.618 extension
+    XAD:  [1.618, 1.618],
     precision: 0.05,
+  },
+  'Deep Crab': {
+    XAB:  [0.886, 0.886],
+    ABC:  [0.382, 0.886],
+    BCD:  [2.0,   3.618],
+    XAD:  [1.618, 1.618],
+    precision: 0.06,
+  },
+  // ── أنماط أحدث: Cypher, Shark, 5-0 ─────────────────────
+  'Cypher': {
+    XAB:  [0.382, 0.618],
+    ABC:  [1.13,  1.41],
+    BCD:  [1.272, 2.0],
+    XAD:  [0.786, 0.786],  // D = 0.786 retracement of XC
+    precision: 0.07,
+  },
+  'Shark': {
+    XAB:  [0.446, 0.618],
+    ABC:  [1.13,  1.618],
+    BCD:  [1.618, 2.24],
+    XAD:  [0.886, 1.13],
+    precision: 0.07,
+  },
+  '5-0': {
+    XAB:  [1.13,  1.618],
+    ABC:  [1.618, 2.24],
+    BCD:  [0.50,  0.50],   // 50% retracement of BC
+    XAD:  [0.50,  0.50],
+    precision: 0.06,
   },
 };
 

@@ -1554,23 +1554,28 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Set Markers on Main Series ──
-  // FIX: Persist markers in ref so they survive setData() calls.
-  // lightweight-charts v5 clears markers when setData() is called on the series,
-  // which happens on every new candle from WebSocket. Without this ref,
-  // signal/news/AI markers would disappear on every data update.
   const setMarkers = useCallback((markers: any[]) => {
     markersRef.current = markers;
     const series = mainSeriesRef.current || candleSeriesRef.current;
-    if (!series) return;
+    if (!series) { console.warn('[setMarkers] No series available'); return; }
     try {
-      // lightweight-charts v5: use createSeriesMarkers plugin, not series.setMarkers()
+      // lightweight-charts v5: createSeriesMarkers plugin API
       if (!markersPluginRef.current) {
         markersPluginRef.current = createSeriesMarkers(series as any, markers);
+        console.log('[setMarkers] created plugin, markers:', markers.length);
       } else {
         markersPluginRef.current.setMarkers(markers);
+        console.log('[setMarkers] updated markers:', markers.length);
       }
-    } catch {
-      // Markers API may fail silently
+    } catch (e) {
+      console.warn('[setMarkers] error, resetting plugin:', e);
+      // Reset and try again with fresh plugin
+      markersPluginRef.current = null;
+      try {
+        markersPluginRef.current = createSeriesMarkers(series as any, markers);
+      } catch (e2) {
+        console.error('[setMarkers] fatal:', e2);
+      }
     }
   }, []);
 

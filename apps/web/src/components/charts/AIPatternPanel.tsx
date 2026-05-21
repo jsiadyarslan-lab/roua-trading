@@ -208,6 +208,7 @@ export function AIPatternPanel({
       const detectedPatterns: AIPattern[] = [];
       let usedSource: 'ai' | 'local' = 'local';
 
+      // Parse AI response into detectedPatterns
       try {
         // FIX: More robust JSON parsing — try multiple strategies before regex
         let parsed = result.patterns || result.data || result;
@@ -264,30 +265,40 @@ export function AIPatternPanel({
         usedSource = 'local';
       }
 
+      // ── ALWAYS runs — outside the parsing try/catch ──
       setDataSource(usedSource);
       setPatterns(detectedPatterns);
 
-      // FIX: Show informative message when no patterns detected
       if (detectedPatterns.length === 0) {
-        setError('لم يتم اكتشاف أنماط شموع واضحة في البيانات الحالية. حاول تغيير الإطار الزمني أو انتظر تشكيل أنماط جديدة.');
+        setError('لم يتم اكتشاف أنماط شموع واضحة في البيانات الحالية.');
       }
 
-      const levels = detectSupportResistance(candles);
-      setSrLevels(levels);
-
-      const lines = detectTrendLines(candles);
-      setTrendLines(lines);
-
-      // Detect Harmonic Patterns and merge
-      const harmonicPatterns = detectHarmonicPatterns(candles);
-      if (harmonicPatterns.length > 0) {
-        detectedPatterns.push(...harmonicPatterns);
-        // Sort patterns by time
-        detectedPatterns.sort((a, b) => b.time - a.time);
-        setPatterns([...detectedPatterns]);
+      // Detect levels and trendlines (separate try/catch so they don't block onPatternsDetected)
+      let levels: SupportResistanceLevel[] = [];
+      let lines: TrendLine[] = [];
+      try {
+        levels = detectSupportResistance(candles);
+        setSrLevels(levels);
+        lines = detectTrendLines(candles);
+        setTrendLines(lines);
+      } catch (e) {
+        console.warn('[AIPanel] levels/trendlines error:', e);
       }
 
-      console.log('[AIPanel] calling onPatternsDetected with', detectedPatterns.length, 'patterns,', lines.length, 'trendLines');
+      // Harmonic patterns (separate try/catch)
+      try {
+        const harmonicPatterns = detectHarmonicPatterns(candles);
+        if (harmonicPatterns.length > 0) {
+          detectedPatterns.push(...harmonicPatterns);
+          detectedPatterns.sort((a, b) => b.time - a.time);
+          setPatterns([...detectedPatterns]);
+        }
+      } catch (e) {
+        console.warn('[AIPanel] harmonic patterns error:', e);
+      }
+
+      // ALWAYS call onPatternsDetected — this is the key fix
+      console.log('[AIPanel] calling onPatternsDetected:', detectedPatterns.length, 'patterns,', lines.length, 'trendLines,', levels.length, 'levels');
       onPatternsDetected({
         patterns: detectedPatterns,
         supportLevels: levels.filter(l => l.type === 'support'),

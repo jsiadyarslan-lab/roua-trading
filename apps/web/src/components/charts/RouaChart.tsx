@@ -1422,14 +1422,12 @@ export default function RouaChart({
 
               {/* Trade Buttons (collapsible) */}
               {!tradePanelCollapsed && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                   {/* Buy Button */}
                   <button
                     className="roua-btn-buy"
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      // FIX: Use last candle close as fallback when currentPrice is null/0
-                      // This ensures entry is always pinned to a real price on the chart
                       const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
                       const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
@@ -1444,138 +1442,46 @@ export default function RouaChart({
                       });
                     }}
                     style={{
-                      position: 'relative',
-                      background: 'linear-gradient(135deg, #00E676 0%, #00C853 40%, #00FFA3 100%)',
-                      border: '1px solid rgba(0,255,163,0.35)',
-                      borderRadius: 7,
+                      background: '#00C853',
+                      border: 'none',
+                      borderRadius: 6,
                       color: '#000',
-                      padding: '4px 8px',
-                      fontSize: 8.7,
-                      fontWeight: 900,
+                      padding: '5px 12px',
+                      fontSize: 11,
+                      fontWeight: 800,
                       cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      letterSpacing: 0.3,
                       fontFamily: "'Cairo', sans-serif",
-                      boxShadow: '0 0 10px rgba(0,255,163,0.18), 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)',
-                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                      overflow: 'hidden',
+                      letterSpacing: 0.5,
                       outline: 'none',
+                      transition: 'opacity 0.15s',
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
-                    <span style={{
-                      position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.22) 0%, transparent 100%)',
-                      borderRadius: '7px 7px 0 0',
-                      pointerEvents: 'none',
-                    }} />
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
-                      <polyline points="18 15 12 9 6 15" />
-                    </svg>
-                    <span style={{ textShadow: '0 1px 1px rgba(0,0,0,0.12)' }}>شراء</span>
+                    ▲ شراء
                   </button>
 
-                  {/* LOT Size Control with +/- buttons */}
+                  {/* LOT Size Control */}
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    background: 'rgba(255,255,255,0.04)',
+                    gap: 2,
+                    background: 'rgba(255,255,255,0.06)',
                     borderRadius: 6,
-                    border: '1px solid rgba(255,255,255,0.06)',
-                    padding: '1px 2px',
-                    gap: 0,
+                    padding: '3px 6px',
+                    border: '1px solid rgba(255,255,255,0.08)',
                   }}>
-                    {/* Decrease Lot */}
                     <button
                       onClick={() => setLotSize(prev => Math.max(0.01, +(prev - 0.01).toFixed(2)))}
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: 'none',
-                        borderRadius: 4,
-                        color: 'rgba(255,255,255,0.6)',
-                        width: 18,
-                        height: 18,
-                        fontSize: 10,
-                        fontWeight: 900,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        transition: 'all 0.15s ease',
-                        outline: 'none',
-                        padding: 0,
-                        lineHeight: 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,71,87,0.2)';
-                        e.currentTarget.style.color = '#FF4757';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                      }}
-                    >
-                      −
-                    </button>
-
-                    {/* Lot Value Display */}
-                    <div style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '1px 3px',
-                      minWidth: 30,
-                      gap: 0,
-                    }}>
-                      <span style={{ fontSize: 4.7, color: 'rgba(255,255,255,0.35)', fontWeight: 800, letterSpacing: 1.2, textTransform: 'uppercase', lineHeight: 1 }}>LOT</span>
-                      <span style={{
-                        color: '#fff',
-                        fontSize: 9.4,
-                        fontWeight: 900,
-                        fontFamily: "'JetBrains Mono', monospace",
-                        lineHeight: 1.2,
-                        textAlign: 'center',
-                      }}>
-                        {lotSize.toFixed(2)}
-                      </span>
-                    </div>
-
-                    {/* Increase Lot */}
+                      style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 14, cursor: 'pointer', padding: '0 2px', lineHeight: 1, outline: 'none' }}
+                    >−</button>
+                    <span style={{ color: '#fff', fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", minWidth: 32, textAlign: 'center' }}>
+                      {lotSize.toFixed(2)}
+                    </span>
                     <button
                       onClick={() => setLotSize(prev => +(prev + 0.01).toFixed(2))}
-                      style={{
-                        background: 'rgba(255,255,255,0.06)',
-                        border: 'none',
-                        borderRadius: 4,
-                        color: 'rgba(255,255,255,0.6)',
-                        width: 18,
-                        height: 18,
-                        fontSize: 10,
-                        fontWeight: 900,
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontFamily: "'JetBrains Mono', monospace",
-                        transition: 'all 0.15s ease',
-                        outline: 'none',
-                        padding: 0,
-                        lineHeight: 1,
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.background = 'rgba(0,255,163,0.2)';
-                        e.currentTarget.style.color = '#00FFA3';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                        e.currentTarget.style.color = 'rgba(255,255,255,0.6)';
-                      }}
-                    >
-                      +
-                    </button>
+                      style={{ background: 'none', border: 'none', color: '#aaa', fontSize: 14, cursor: 'pointer', padding: '0 2px', lineHeight: 1, outline: 'none' }}
+                    >+</button>
                   </div>
 
                   {/* Sell Button */}
@@ -1583,7 +1489,6 @@ export default function RouaChart({
                     className="roua-btn-sell"
                     onClick={() => {
                       const { addTrade } = usePaperTradesStore.getState();
-                      // FIX: Use last candle close as fallback when currentPrice is null/0
                       const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
                       const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
@@ -1598,36 +1503,23 @@ export default function RouaChart({
                       });
                     }}
                     style={{
-                      position: 'relative',
-                      background: 'linear-gradient(135deg, #FF1744 0%, #FF5252 40%, #FF6B81 100%)',
-                      border: '1px solid rgba(255,71,87,0.35)',
-                      borderRadius: 7,
+                      background: '#F44336',
+                      border: 'none',
+                      borderRadius: 6,
                       color: '#fff',
-                      padding: '4px 8px',
-                      fontSize: 8.7,
-                      fontWeight: 900,
+                      padding: '5px 12px',
+                      fontSize: 11,
+                      fontWeight: 800,
                       cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 3,
-                      letterSpacing: 0.3,
                       fontFamily: "'Cairo', sans-serif",
-                      boxShadow: '0 0 10px rgba(255,71,87,0.18), 0 1px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.15)',
-                      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-                      overflow: 'hidden',
+                      letterSpacing: 0.5,
                       outline: 'none',
+                      transition: 'opacity 0.15s',
                     }}
+                    onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
+                    onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
-                    <span style={{
-                      position: 'absolute', top: 0, left: 0, right: 0, height: '45%',
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.18) 0%, transparent 100%)',
-                      borderRadius: '7px 7px 0 0',
-                      pointerEvents: 'none',
-                    }} />
-                    <span style={{ textShadow: '0 1px 1px rgba(0,0,0,0.25)' }}>بيع</span>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.2))' }}>
-                      <polyline points="6 9 12 15 18 9" />
-                    </svg>
+                    ▼ بيع
                   </button>
                 </div>
               )}

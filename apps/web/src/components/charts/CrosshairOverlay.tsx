@@ -162,7 +162,7 @@ export function CrosshairOverlay({
     <div style={{
       position: 'absolute',
       top: 0,
-      right: 0,
+      right: 72, // ← leave space for right price axis (prevents symbol overlapping price label)
       left: 0,
       display: 'flex',
       alignItems: 'center',

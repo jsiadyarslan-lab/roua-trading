@@ -67,6 +67,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const failCountRef = useRef(0);
+
   const analyze = useCallback(async () => {
     if (loading || !candles || candles.length < 10) return;
     if (abortRef.current) abortRef.current.abort();
@@ -91,7 +93,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         signal: abortRef.current.signal,
       });
 
-      if (!response.ok) throw new Error('فشل الاتصال بالـ AI');
+      if (!response.ok) {
+        failCountRef.current++;
+        // On 503/API unavailable, use local analysis only — don't throw
+        throw new Error(response.status === 503 ? 'ai_unavailable' : 'فشل الاتصال بالـ AI');
+      }
       const result = await response.json();
 
       // Parse patterns
@@ -158,6 +164,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
     } catch (e: any) {
       if (e?.name === 'AbortError') return;
+      const isUnavailable = e?.message === 'ai_unavailable';
       // Fallback to local only
       try {
         const last50 = candles.slice(-50);
@@ -176,23 +183,33 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           tp: signal === 'BUY' ? price * 1.016 : price * 0.984, timestamp: Date.now(),
         });
         onPatternsDetected({ patterns: allPatterns, supportLevels, resistanceLevels, trendLines, entryExit: null });
-      } catch { setError('فشل التحليل'); }
+      } catch { if (!isUnavailable) setError('فشل التحليل'); }
     } finally {
       setLoading(false);
     }
   }, [candles, symbol, currentPrice, onPatternsDetected]);
 
-  // Auto-detect every 5 minutes
+  // Stable ref for analyze — prevents auto-detect from re-triggering on every candle update
+  const analyzeRef = useRef(analyze);
+  useEffect(() => { analyzeRef.current = analyze; }, [analyze]);
+
+  // Auto-detect every 5 minutes — only depends on autoMode
   useEffect(() => {
-    if (!autoMode) { if (timerRef.current) clearInterval(timerRef.current); return; }
-    analyze();
-    timerRef.current = setInterval(analyze, AUTO_INTERVAL);
+    if (!autoMode) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (countdownRef.current) clearInterval(countdownRef.current);
+      return;
+    }
+    // Run once immediately
+    analyzeRef.current();
+    setCountdown(AUTO_INTERVAL / 1000);
+    timerRef.current = setInterval(() => { analyzeRef.current(); setCountdown(AUTO_INTERVAL / 1000); }, AUTO_INTERVAL);
     countdownRef.current = setInterval(() => setCountdown(c => Math.max(0, c - 1)), 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [autoMode, analyze]);
+  }, [autoMode]); // NOTE: stable — does not depend on analyze/candles
 
   const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
   const fmtTime = (t: number) => new Date(t).toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit' });

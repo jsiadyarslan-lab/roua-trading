@@ -7,6 +7,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType, Time, MouseEventParams, DeepPartial, ChartOptions } from 'lightweight-charts';
+import { createSeriesMarkers } from 'lightweight-charts';
 import type {
   CandleData, ChartType, ActiveIndicator, Drawing, DrawingTool,
   ChartSettings, CrosshairData
@@ -95,6 +96,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // when setData() is called on the series. We store them in a ref and re-apply
   // after every setData call so signal/news/AI markers don't disappear.
   const markersRef = useRef<any[]>([]);
+  const markersPluginRef = useRef<ReturnType<typeof createSeriesMarkers> | null>(null);
   const onCrosshairMoveRef = useRef(onCrosshairMove);
   // FIX: Moved visibleRangeCallbackRef and prevCallbackRef up from line ~1321 to here
   // to prevent TDZ (Temporal Dead Zone) error — initChart() at line ~136 references
@@ -1186,18 +1188,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       console.error('[useChart] setCandles setData error:', e);
     }
 
-    // FIX: Re-apply stored markers after setData — lightweight-charts v5 clears
-    // markers when setData() is called, so we must re-apply them to keep
-    // signal/news/AI pattern markers visible across data reloads.
+    // Re-apply stored markers after setData
     const storedMarkers = markersRef.current;
     if (storedMarkers.length > 0) {
       const series = mainSeriesRef.current || candleSeriesRef.current;
       if (series) {
         try {
-          (series as any).setMarkers(storedMarkers);
-        } catch {
-          // Markers API may fail silently after setData
-        }
+          if (!markersPluginRef.current) {
+            markersPluginRef.current = createSeriesMarkers(series as any, storedMarkers);
+          } else {
+            markersPluginRef.current.setMarkers(storedMarkers);
+          }
+        } catch { /* ignore */ }
       }
     }
 
@@ -1559,7 +1561,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const series = mainSeriesRef.current || candleSeriesRef.current;
     if (!series) return;
     try {
-      (series as any).setMarkers(markers);
+      // lightweight-charts v5: use createSeriesMarkers plugin, not series.setMarkers()
+      if (!markersPluginRef.current) {
+        markersPluginRef.current = createSeriesMarkers(series as any, markers);
+      } else {
+        markersPluginRef.current.setMarkers(markers);
+      }
     } catch {
       // Markers API may fail silently
     }

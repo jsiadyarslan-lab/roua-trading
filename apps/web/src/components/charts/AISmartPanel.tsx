@@ -68,11 +68,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const abortRef = useRef<AbortController | null>(null);
 
   const failCountRef = useRef(0);
+  const isRunningRef = useRef(false); // Hard lock to prevent concurrent calls
 
   const analyze = useCallback(async () => {
+    // Hard lock — prevents concurrent execution even with async state
+    if (isRunningRef.current) return;
     if (loading || !candles || candles.length < 10) return;
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
+    isRunningRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -95,7 +99,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       if (!response.ok) {
         failCountRef.current++;
-        // On 503/API unavailable, use local analysis only — don't throw
+        // After 3 consecutive failures, disable auto-mode to stop spamming
+        if (failCountRef.current >= 3) {
+          setAutoMode(false);
+        }
         throw new Error(response.status === 503 ? 'ai_unavailable' : 'فشل الاتصال بالـ AI');
       }
       const result = await response.json();
@@ -186,6 +193,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       } catch { if (!isUnavailable) setError('فشل التحليل'); }
     } finally {
       setLoading(false);
+      isRunningRef.current = false;
     }
   }, [candles, symbol, currentPrice, onPatternsDetected]);
 

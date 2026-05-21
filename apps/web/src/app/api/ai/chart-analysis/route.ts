@@ -7,29 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 
-// ── ZAI Singleton — reuse connection across requests ──
-// FIX: Previously created a new ZAI instance per request → slow + wasteful
-let _zaiInstance: any = null;
-let _zaiCreating = false;
-async function getZAI(): Promise<any> {
-  if (_zaiInstance) return _zaiInstance;
-  if (_zaiCreating) {
-    // Wait for ongoing creation
-    await new Promise(r => setTimeout(r, 1000));
-    return _zaiInstance;
-  }
-  _zaiCreating = true;
-  try {
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    _zaiInstance = await ZAI.create();
-    return _zaiInstance;
-  } catch {
-    _zaiInstance = null;
-    return null;
-  } finally {
-    _zaiCreating = false;
-  }
-}
+// GROQ API used directly via fetch — no SDK needed
 
 // ── Request timeout helper ──
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
@@ -436,33 +414,31 @@ export async function POST(request: NextRequest) {
       instruction.includes('نقاط الدخول') || instruction.includes('entry and exit')
     );
 
-    // Try to use z-ai-web-dev-sdk (singleton — reuse connection)
+    // Use GROQ API directly (no external SDK needed)
+    const groqApiKey = process.env.GROQ_API_KEY;
+    if (!groqApiKey) throw new Error('GROQ_API_KEY not configured');
+
     try {
-      const zai = await withTimeout(getZAI(), 3000);
-      if (!zai) throw new Error('ZAI unavailable');
-
-      // Build system prompt based on request type
       const systemPrompt = isEntryExitRequest
-        ? `أنت محلل فني خبير في تداول العملات والعملات الرقمية. حلل بيانات الشارت المقدمة وحدد أفضل نقاط الدخول والخروج. أعد النتيجة ككائن JSON فقط يحتوي على: "direction" ("long" أو "short")، "entryPrice" (رقم)، "stopLoss" (رقم)، "takeProfit" (رقم)، "confidence" (0-1)، "reasonAr" (شرح بالعربية، 2-3 جمل)، "keyLevels" (مصفوفة من {price: number, label: string} مع مستويات الدعم/المقاومة الرئيسية).`
-        : `أنت محلل فني خبير في أنماط الشموع اليابانية. حلل بيانات الشارت المقدمة واكتشف أي أنماط شموع. أعد النتائج كمصفوفة JSON فقط. كل عنصر يجب أن يحتوي على: "type" (اسم النمط بالإنجليزية)، "timeIndex" (فهرس base-0 في البيانات)، "confidence" (0-1)، "direction" ("bullish"|"bearish"|"neutral"). الأنماط المطلوبة: Doji, Hammer, Inverted Hammer, Engulfing Bullish, Engulfing Bearish, Morning Star, Evening Star, Three White Soldiers, Three Black Crows, Harami Bullish, Harami Bearish, Piercing Line, Dark Cloud Cover, Spinning Top, Marubozu, Shooting Star, Dragonfly Doji, Gravestone Doji, Belt Hold, Abandoned Baby, Tweezer Top, Tweezer Bottom.`;
+        ? 'You are an expert technical analyst. Analyze OHLC data and return ONLY a JSON object with: {"direction":"long"|"short","entryPrice":number,"stopLoss":number,"takeProfit":number,"confidence":number,"reasonAr":string}'
+        : 'You are an expert candlestick pattern analyst. Analyze OHLC data and return ONLY a JSON array of patterns. Each: {"type":string,"timeIndex":number,"confidence":number,"direction":"bullish"|"bearish"|"neutral"}';
 
-      // Use the client's instruction as the user message if provided
-      // FIX: Use compact JSON format for candles — AI parses it more reliably
       const candlesJson = candlesToJson(candles);
-      const userMessage = instruction
-        ? instruction
-        : `حلل بيانات الشارت التالية لـ ${symbol} (JSON OHLCV):\n${candlesJson}${indicators ? `\n\nمؤشرات: ${indicators}` : ''}`;
+      const userMessage = `Analyze ${symbol} OHLC data:\n${candlesJson}`;
 
-      const completion = await withTimeout(zai.chat.completions.create({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      }), 15000); // 15 second timeout
+      const groqRes = await withTimeout(fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${groqApiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'llama-3.1-8b-instant',
+          messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+          temperature: 0.2, max_tokens: 1500,
+        }),
+      }), 15000);
 
-      const responseText = (completion as any).choices?.[0]?.message?.content || '';
+      if (!groqRes.ok) throw new Error(`GROQ ${groqRes.status}`);
+      const groqData = await groqRes.json();
+      const responseText = groqData.choices?.[0]?.message?.content || '';
 
       // Handle entry/exit response differently from pattern response
       if (isEntryExitRequest) {

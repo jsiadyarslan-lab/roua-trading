@@ -546,11 +546,11 @@ export function AIPatternPanel({
   };
 
   const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
-    { key: 'patterns', label: 'الأنماط', icon: '🕯', count: patterns.length },
-    { key: 'sr', label: 'الدعم/المقاومة', icon: '⚡', count: srLevels.length },
-    { key: 'trend', label: 'الاتجاهات', icon: '📉', count: trendLines.length },
-    { key: 'entry', label: 'دخول/خروج', icon: '🎯', count: entryExit ? 1 : 0 },
-    { key: 'engine', label: 'أنماط هندسية', icon: '📊', count: enginePatterns.length },
+    { key: 'patterns', label: 'أنماط', icon: '🕯', count: patterns.length },
+    { key: 'sr', label: 'دعم/مقاومة', icon: '⚡', count: srLevels.length },
+    { key: 'trend', label: 'اتجاه', icon: '📉', count: trendLines.length },
+    { key: 'entry', label: 'دخول', icon: '🎯', count: entryExit ? 1 : 0 },
+    { key: 'engine', label: 'هندسية', icon: '📊', count: enginePatterns.length },
   ];
 
   return (

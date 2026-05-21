@@ -307,30 +307,25 @@ export function AIPatternPanel({
         entryExit: null,
       });
     } catch (err: unknown) {
-      // FIX: Don't show error for aborted requests
       if (err instanceof Error && err.name === 'AbortError') return;
       setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
-      const last50 = (candles || []).slice(-50);
-      const localPatterns = detectLocalPatterns(last50);
-      const levels = detectSupportResistance(candles || []);
-      const lines = detectTrendLines(candles || []);
-      const harmonicPatterns = detectHarmonicPatterns(candles || []);
-      const classicPatterns = detectClassicPatterns(candles || []);
-      const allPatterns = [...harmonicPatterns, ...classicPatterns];
-      
-      const allLocalPatterns = [...localPatterns, ...allPatterns].sort((a, b) => b.time - a.time);
-      
-      setDataSource('local');
-      setPatterns(allLocalPatterns);
-      setSrLevels(levels);
-      setTrendLines(lines);
-      onPatternsDetected({
-        patterns: allLocalPatterns,
-        supportLevels: levels.filter(l => l.type === 'support'),
-        resistanceLevels: levels.filter(l => l.type === 'resistance'),
-        trendLines: lines,
-        entryExit: null,
-      });
+      // Fallback: use local detection, each step isolated
+      try {
+        const last50 = (candles || []).slice(-50);
+        const localPatterns = detectLocalPatterns(last50);
+        let levels: SupportResistanceLevel[] = [];
+        let lines: TrendLine[] = [];
+        try { levels = detectSupportResistance(candles || []); } catch { /* skip */ }
+        try { lines = detectTrendLines(candles || []); } catch { /* skip */ }
+        let extraPatterns: AIPattern[] = [];
+        try { extraPatterns = [...detectHarmonicPatterns(candles || []), ...detectClassicPatterns(candles || [])]; } catch { /* skip */ }
+        const allPatterns = [...localPatterns, ...extraPatterns].sort((a, b) => b.time - a.time);
+        setDataSource('local');
+        setPatterns(allPatterns);
+        setSrLevels(levels);
+        setTrendLines(lines);
+        onPatternsDetected({ patterns: allPatterns, supportLevels: levels.filter(l=>l.type==='support'), resistanceLevels: levels.filter(l=>l.type==='resistance'), trendLines: lines, entryExit: null });
+      } catch { /* complete fallback failed */ }
     } finally {
       setLoading(false);
     }

@@ -188,6 +188,7 @@ export default function RouaChart({
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
   const positionLineIdsRef = useRef<string[]>([]);
+  const signalLineIdsRef = useRef<string[]>([]);
 
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
@@ -896,8 +897,8 @@ export default function RouaChart({
     }
     const lc = lightweightChartsRef.current;
 
-    // Add support/resistance levels as price lines
-    result.supportLevels.forEach((level, i) => {
+    // Add support/resistance levels as price lines — limit to 3 each to avoid clutter
+    result.supportLevels.slice(0, 3).forEach((level, i) => {
       const opacity = level.strength === 'strong' ? 0.7 : level.strength === 'medium' ? 0.5 : 0.3;
       chart.addPriceLine(
         `ai-support-${i}`,
@@ -911,7 +912,7 @@ export default function RouaChart({
       aiPriceLinesRef.current.push(`ai-support-${i}`);
     });
 
-    result.resistanceLevels.forEach((level, i) => {
+    result.resistanceLevels.slice(0, 3).forEach((level, i) => {
       const opacity = level.strength === 'strong' ? 0.7 : level.strength === 'medium' ? 0.5 : 0.3;
       chart.addPriceLine(
         `ai-resistance-${i}`,
@@ -1111,26 +1112,24 @@ export default function RouaChart({
         const markers = convertToChartMarkers(signals, briefs, selectedSymbol);
         setSignalMarkers(markers);
 
-        // Add SL/TP price lines for signals (desktop only — mobile skips
-        // auto-drawn lines to keep the chart clean; only the red current-price
-        // line and user-initiated position lines should appear on mobile)
+        // Add SL/TP price lines for signals — clear old ones first
         if (!mobile) {
-          signals.forEach((signal: any) => {
+          signalLineIdsRef.current.forEach(id => chart.removePriceLine(id));
+          signalLineIdsRef.current = [];
+          // Only show lines for the latest signal (avoid chart clutter)
+          const latestSignal = signals[signals.length - 1];
+          if (latestSignal) {
             const normalizeSymbolLocal = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
             const chartSymbol = normalizeSymbolLocal(selectedSymbol);
-            const sigSymbol = normalizeSymbolLocal(signal.pair || signal.symbol || '');
-            if (!sigSymbol.includes(chartSymbol) && !chartSymbol.includes(sigSymbol)) return;
-
-            const sl = Number(signal.stopLoss || 0);
-            const tp = Number(signal.takeProfit || 0);
-            const signalId = signal.id || `${signal.createdAt}-${signal.action}`;
-            if (sl > 0) {
-              chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.6)', '', 1, 2, false);
+            const sigSymbol = normalizeSymbolLocal((latestSignal as any).pair || (latestSignal as any).symbol || '');
+            if (sigSymbol.includes(chartSymbol) || chartSymbol.includes(sigSymbol)) {
+              const sl = Number(latestSignal.stopLoss || 0);
+              const tp = Number(latestSignal.takeProfit || 0);
+              const signalId = latestSignal.id || `${latestSignal.createdAt}-${latestSignal.action}`;
+              if (sl > 0) { chart.addPriceLine(`sl-${signalId}`, sl, 'rgba(255, 71, 87, 0.5)', 'SL', 1, 2, true); signalLineIdsRef.current.push(`sl-${signalId}`); }
+              if (tp > 0) { chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.5)', 'TP', 1, 2, true); signalLineIdsRef.current.push(`tp-${signalId}`); }
             }
-            if (tp > 0) {
-              chart.addPriceLine(`tp-${signalId}`, tp, 'rgba(0, 255, 163, 0.6)', '', 1, 2, false);
-            }
-          });
+          }
         }
       } catch {
         // Signals not available

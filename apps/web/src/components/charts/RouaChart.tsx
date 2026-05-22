@@ -1522,7 +1522,12 @@ export default function RouaChart({
 
         {/* AI Smart Panel (redesigned — auto-detect + instant signals) */}
         {showAIPanel && (
-          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={340} minHeight={480}>
+          <DraggablePanel
+            defaultPosition={{ top: 40, right: 8 }}
+            defaultWidth={340}
+            minHeight={360}
+            style={{ maxHeight: 'calc(100vh - 160px)' }}
+          >
             <AISmartPanel
               symbol={selectedSymbol}
               candles={candlesRef.current || []}

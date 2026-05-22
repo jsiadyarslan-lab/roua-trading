@@ -190,7 +190,7 @@ export function DraggablePanel({
         ...style,
         zIndex: 500,
         minHeight,
-        overflow: 'hidden',
+        overflow: 'visible',
         display: 'flex',
         flexDirection: 'column',
       }}

@@ -63,15 +63,16 @@ export function DraggablePanel({
     if (pos !== null) return;
     if (!panelRef.current) return;
 
-    const parent = panelRef.current.parentElement;
-    if (!parent) return;
-
-    const parentRect = parent.getBoundingClientRect();
+    // With position:fixed, coordinates are relative to viewport
+    const vpW = window.innerWidth;
+    const vpH = window.innerHeight;
+    const panelW = panelRef.current.offsetWidth || 280;
+    const panelH = panelRef.current.offsetHeight || 300;
     let x = 0;
     let y = 0;
 
     if (defaultPosition.right !== undefined) {
-      x = parentRect.width - (defaultPosition.right || 0) - (panelRef.current.offsetWidth || 280);
+      x = vpW - (defaultPosition.right || 0) - panelW;
     } else if (defaultPosition.left !== undefined) {
       x = defaultPosition.left;
     }
@@ -79,7 +80,7 @@ export function DraggablePanel({
     if (defaultPosition.top !== undefined) {
       y = defaultPosition.top;
     } else if (defaultPosition.bottom !== undefined) {
-      y = parentRect.height - (defaultPosition.bottom || 0) - (panelRef.current.offsetHeight || 300);
+      y = vpH - (defaultPosition.bottom || 0) - panelH;
     }
 
     setPos({ x: Math.max(0, x), y: Math.max(0, y) });
@@ -94,8 +95,9 @@ export function DraggablePanel({
     e.preventDefault();
     e.stopPropagation();
 
-    const currentLeft = panelRef.current?.offsetLeft || 0;
-    const currentTop = panelRef.current?.offsetTop || 0;
+    const rect = panelRef.current?.getBoundingClientRect();
+    const currentLeft = rect?.left || 0;
+    const currentTop = rect?.top || 0;
 
     dragState.current = {
       isDragging: true,
@@ -164,11 +166,14 @@ export function DraggablePanel({
   // Convert defaultPosition to CSS for initial render (before drag sets pos)
   const initialStyle: React.CSSProperties = pos === null
     ? {
-        position: 'absolute',
-        ...defaultPosition,
+        position: 'fixed',
+        top: defaultPosition.top ?? 'auto',
+        right: defaultPosition.right ?? 'auto',
+        bottom: defaultPosition.bottom ?? 'auto',
+        left: defaultPosition.left ?? 'auto',
       }
     : {
-        position: 'absolute',
+        position: 'fixed',
         left: pos.x,
         top: pos.y,
       };

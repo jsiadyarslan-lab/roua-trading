@@ -38,8 +38,7 @@ export function DraggablePanel({
 }: DraggablePanelProps) {
   // ── Position state ──
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -77,14 +76,8 @@ export function DraggablePanel({
     e.preventDefault();
     e.stopPropagation();
 
-    const rect = panelRef.current?.getBoundingClientRect();
-    const currentLeft = rect?.left || 0;
-    const currentTop = rect?.top || 0;
-
-    // Switch from CSS right/top to left/top on first drag
-    if (pos === null) {
-      setPos({ x: currentLeft, y: currentTop });
-    }
+    const currentLeft = panelRef.current?.offsetLeft || 0;
+    const currentTop = panelRef.current?.offsetTop || 0;
 
     dragState.current = {
       isDragging: true,
@@ -153,18 +146,16 @@ export function DraggablePanel({
   // Convert defaultPosition to CSS for initial render (before drag sets pos)
   const initialStyle: React.CSSProperties = pos === null
     ? {
-        position: 'fixed',
+        position: 'absolute',
         top: defaultPosition.top !== undefined ? defaultPosition.top : 'auto',
         right: defaultPosition.right !== undefined ? defaultPosition.right : 'auto',
         bottom: defaultPosition.bottom !== undefined ? defaultPosition.bottom : 'auto',
         left: defaultPosition.left !== undefined ? defaultPosition.left : 'auto',
       }
     : {
-        position: 'fixed',
+        position: 'absolute',
         left: pos.x,
         top: pos.y,
-        right: 'auto',
-        bottom: 'auto',
       };
 
   const sizeStyle: React.CSSProperties = size
@@ -173,7 +164,7 @@ export function DraggablePanel({
       ? { width: defaultWidth, minHeight }
       : { minHeight };
 
-  const panelEl = (
+  return (
     <div
       ref={panelRef}
       className={className}
@@ -218,7 +209,4 @@ export function DraggablePanel({
       )}
     </div>
   );
-
-  if (!mounted) return null;
-  return createPortal(panelEl, document.body);
 }

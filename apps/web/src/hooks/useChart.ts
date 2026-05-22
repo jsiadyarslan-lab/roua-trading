@@ -1556,27 +1556,28 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Set Markers on Main Series ──
   const setMarkers = useCallback((markers: any[]) => {
     markersRef.current = markers;
-    const series = mainSeriesRef.current || candleSeriesRef.current;
-    if (!series) { console.warn('[setMarkers] No series available'); return; }
-    try {
-      // lightweight-charts v5: createSeriesMarkers plugin API
-      if (!markersPluginRef.current) {
-        markersPluginRef.current = createSeriesMarkers(series as any, markers);
-        console.log('[setMarkers] created plugin, markers:', markers.length);
-      } else {
-        markersPluginRef.current.setMarkers(markers);
-        console.log('[setMarkers] updated markers:', markers.length);
+    const applyMarkers = () => {
+      const series = mainSeriesRef.current || candleSeriesRef.current;
+      if (!series) {
+        console.warn('[setMarkers] series not ready, retrying in 500ms');
+        setTimeout(applyMarkers, 500);
+        return;
       }
-    } catch (e) {
-      console.warn('[setMarkers] error, resetting plugin:', e);
-      // Reset and try again with fresh plugin
-      markersPluginRef.current = null;
       try {
-        markersPluginRef.current = createSeriesMarkers(series as any, markers);
-      } catch (e2) {
-        console.error('[setMarkers] fatal:', e2);
+        if (!markersPluginRef.current) {
+          markersPluginRef.current = createSeriesMarkers(series as any, markers);
+          console.log('[setMarkers] created plugin with', markers.length, 'markers');
+        } else {
+          markersPluginRef.current.setMarkers(markers);
+          console.log('[setMarkers] updated', markers.length, 'markers');
+        }
+      } catch (e) {
+        console.warn('[setMarkers] error, resetting:', e);
+        markersPluginRef.current = null;
+        try { markersPluginRef.current = createSeriesMarkers(series as any, markers); } catch (e2) { console.error('[setMarkers] fatal:', e2); }
       }
-    }
+    };
+    applyMarkers();
   }, []);
 
   // ── Price Lines (for positions/trades) ──

@@ -1252,7 +1252,7 @@ export default function RouaChart({
       />}
 
       {/* ── CHART AREA ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative', minHeight: 0 }}>
         {/* OHLC Overlay */}
         <CrosshairOverlay
           symbol={selectedSymbol}

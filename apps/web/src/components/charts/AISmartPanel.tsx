@@ -138,18 +138,51 @@ export function AISmartPanel({
       setCandlePatterns(localPatterns);
       onPatternsDetected({ patterns: allLocal, supportLevels: levels.filter(l=>l.type==='support').slice(0,3), resistanceLevels: levels.filter(l=>l.type==='resistance').slice(0,3), trendLines: lines, entryExit: null });
 
-      // 3. AI signal via backend route (GROQ_API_KEY is server-side only)
+      // 3. مجلس الذكاء — الأولوية على chart-analysis
       const price = currentPrice ?? candles[candles.length-1]?.close ?? 0;
       if (failCountRef.current < 3) {
         try {
           if (abortRef.current) abortRef.current.abort();
           abortRef.current = new AbortController();
+          // استدعاء مجلس الذكاء أولاً (8 نماذج AI)
+          const councilRes = await fetch('/api/ai/consensus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol }),
+            signal: abortRef.current?.signal,
+          });
+          if (councilRes.ok) {
+            const councilData = await councilRes.json();
+            if (councilData.success && councilData.data) {
+              const d = councilData.data;
+              const dir = d.recommendation === 'BUY' ? 'BUY' : d.recommendation === 'SELL' ? 'SELL' : 'WAIT';
+              const modelsUsed = d.meta?.modelsResponded || d.analyses?.length || 0;
+              failCountRef.current = 0;
+              setSignal({
+                direction: dir as 'BUY'|'SELL'|'WAIT',
+                confidence: (d.consensusScore || 50) / 100,
+                entry: price,
+                sl: dir==='BUY'?price*0.992:price*1.008,
+                tp: dir==='BUY'?price*1.016:price*0.984,
+                reason: `مجلس ${modelsUsed} نموذج AI • ${d.masterStrategy?.slice(0,40)||''}`,
+                timestamp: Date.now(),
+              });
+              return; // انتهى — لا نحتاج chart-analysis
+            }
+          }
+        } catch (councilErr: any) {
+          if (councilErr?.name === 'AbortError') return;
+          // فشل المجلس — يكمل للـ chart-analysis
+        }
+        // fallback: chart-analysis route
+        try {
+          if (abortRef.current) abortRef.current.abort();
           const last20 = candles.slice(-20).map(c => `${c.close.toFixed(2)}`).join(',');
           const r = await fetch('/api/ai/chart-analysis', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol, candles: last20, instruction: `Analyze ${symbol}. Current: ${price}. Last 20 closes: ${last20}. Return JSON: {"signal":"BUY"|"SELL"|"WAIT","confidence":0-1,"entry":${price},"stopLoss":number,"takeProfit":number,"reason":"short Arabic reason"}` }),
-            signal: abortRef.current.signal,
+            signal: abortRef.current?.signal,
           });
           if (r.ok) {
             const data = await r.json();

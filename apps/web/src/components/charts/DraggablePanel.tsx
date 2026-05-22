@@ -176,8 +176,8 @@ export function DraggablePanel({
   const sizeStyle: React.CSSProperties = size
     ? { width: size.w, height: size.h }
     : defaultWidth
-      ? { width: defaultWidth }
-      : {};
+      ? { width: defaultWidth, minHeight }
+      : { minHeight };
 
   return (
     <div

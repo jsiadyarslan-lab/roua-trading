@@ -865,14 +865,9 @@ export default function RouaChart({
   const aiProcessingRef = useRef(false);
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
-    // FIX: Prevent concurrent execution — if already processing, skip this call
-    if (aiProcessingRef.current) {
-      console.warn('[AI Overlay] Skipping — previous analysis still processing');
-      return;
-    }
-    aiProcessingRef.current = true;
-
+    // Direct execution — no lock needed
     try {
+    console.log('[AI Overlay] patterns received:', result.patterns.length, 'support:', result.supportLevels.length);
     setAiPatterns(result.patterns);
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -1181,8 +1176,7 @@ export default function RouaChart({
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
     chart.setMarkers(combinedMarkers);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newsMarkers, aiPatterns, signalMarkers]);
+  }, [newsMarkers, aiPatterns, signalMarkers, chart]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 
@@ -1523,14 +1517,13 @@ export default function RouaChart({
 
         {/* AI Smart Panel (redesigned — auto-detect + instant signals) */}
         {showAIPanel && (
-          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={320} minHeight={200}>
+          <DraggablePanel defaultPosition={{ top: 120, right: 290 }} defaultWidth={340} minHeight={360}>
             <AISmartPanel
               symbol={selectedSymbol}
               candles={candlesRef.current || []}
               currentPrice={currentPrice}
               onPatternsDetected={handlePatternsDetected}
               onClose={() => setShowAIPanel(false)}
-              chartApiRef={chart.chartRef}
               onExecuteTrade={(side, entry, sl, tp) => {
                 const { addTrade } = usePaperTradesStore.getState();
                 addTrade({

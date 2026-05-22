@@ -1559,16 +1559,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const series = mainSeriesRef.current || candleSeriesRef.current;
     if (!series) return;
     try {
-      // Always destroy and recreate to ensure correct series binding
-      if (markersPluginRef.current) {
-        try { markersPluginRef.current.setMarkers([]); } catch {}
-        markersPluginRef.current = null;
-      }
-      if (markers.length > 0) {
+      if (!markersPluginRef.current) {
+        // Create plugin on current series
         markersPluginRef.current = createSeriesMarkers(series as any, markers);
+      } else {
+        // Update existing plugin
+        markersPluginRef.current.setMarkers(markers);
       }
-    } catch (e) {
-      console.warn('[setMarkers]', e);
+    } catch {
+      // Plugin detached or broken — recreate
+      markersPluginRef.current = null;
+      try {
+        markersPluginRef.current = createSeriesMarkers(series as any, markers);
+      } catch {}
     }
   }, []);
 

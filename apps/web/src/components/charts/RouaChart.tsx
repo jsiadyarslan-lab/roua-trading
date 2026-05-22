@@ -873,6 +873,7 @@ export default function RouaChart({
     aiProcessingRef.current = true;
 
     try {
+    console.log('[AI Overlay] setAiPatterns:', result.patterns.length, 'patterns', result.patterns.slice(0,2).map(p=>p.type+' t='+p.time));
     setAiPatterns(result.patterns);
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -1180,6 +1181,7 @@ export default function RouaChart({
 
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
+    console.log('[setMarkers useEffect] total:', combinedMarkers.length, 'ai:', aiPatterns.length);
     chart.setMarkers(combinedMarkers);
   }, [newsMarkers, aiPatterns, signalMarkers, chart]);
 

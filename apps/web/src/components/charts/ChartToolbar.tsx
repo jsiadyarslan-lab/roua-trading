@@ -531,23 +531,23 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* MTF */}
+          {/* MTF — نفس الزوج، أطر زمنية مختلفة */}
           {onToggleMTF && (
             <button
               style={btnStyle}
               onClick={onToggleMTF}
-              title="عرض نفس الزوج بأطر زمنية مختلفة (1m/5m/15m/1H)"
+              title="MTF: نفس الزوج على أطر زمنية متعددة (1m / 15m / 4H / 1D)"
             >
               MTF
             </button>
           )}
 
-          {/* Chart Grid */}
+          {/* Chart Grid — أزواج مختلفة في شبكة */}
           {onToggleChartGrid && (
             <button
               style={btnStyle}
               onClick={onToggleChartGrid}
-              title="Multi-Chart Grid"
+              title="شبكة شارتات: أزواج مختلفة جنباً لجنب (2×2 / 3×3)"
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
@@ -844,31 +844,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
-        {/* MTF and ChartGrid buttons are already in Group 8 above — removed duplicate here */}
-
-        {/* MTF (Multi-Timeframe) */}
-        {onToggleMTF && (
-          <button
-            style={btnStyle}
-            onClick={onToggleMTF}
-            title="تحليل متعدد الأطر الزمنية"
-          >
-            MTF
-          </button>
-        )}
-
-        {/* Chart Grid (Multi-Chart Layout) */}
-        {onToggleChartGrid && (
-          <button
-            style={btnStyle}
-            onClick={onToggleChartGrid}
-            title="Multi-Chart Grid Layout"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-            </svg>
-          </button>
-        )}
+        {/* MTF and ChartGrid buttons are in Group 8 above */}
 
         {/* Share */}
         {onToggleShare && (

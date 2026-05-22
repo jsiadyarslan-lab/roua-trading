@@ -836,7 +836,6 @@ export default function RouaChart({
     aiPriceLinesRef.current = [];
     // FIX: Also clear the entry/exit marker ref when cleaning up overlays
     aiEntryExitMarkerRef.current = null;
-    aiProcessingRef.current = false; // reset lock so next analyze() can run
     setAiPatterns([]);
   }, [chart]);
 
@@ -874,7 +873,6 @@ export default function RouaChart({
     aiProcessingRef.current = true;
 
     try {
-    console.log('[AI Overlay] setAiPatterns:', result.patterns.length, 'patterns', result.patterns.slice(0,2).map(p=>p.type+' t='+p.time));
     setAiPatterns(result.patterns);
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -1182,9 +1180,9 @@ export default function RouaChart({
 
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
-    console.log('[setMarkers useEffect] total:', combinedMarkers.length, 'ai:', aiPatterns.length);
     chart.setMarkers(combinedMarkers);
-  }, [newsMarkers, aiPatterns, signalMarkers]); // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsMarkers, aiPatterns, signalMarkers]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 
@@ -1255,7 +1253,7 @@ export default function RouaChart({
       />}
 
       {/* ── CHART AREA ── */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'visible', position: 'relative', minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
         {/* OHLC Overlay */}
         <CrosshairOverlay
           symbol={selectedSymbol}
@@ -1525,12 +1523,7 @@ export default function RouaChart({
 
         {/* AI Smart Panel (redesigned — auto-detect + instant signals) */}
         {showAIPanel && (
-          <DraggablePanel
-            defaultPosition={{ top: 120, right: 290 }}
-            defaultWidth={340}
-            minHeight={360}
-            style={{ maxHeight: 'calc(100vh - 160px)' }}
-          >
+          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={320} minHeight={200}>
             <AISmartPanel
               symbol={selectedSymbol}
               candles={candlesRef.current || []}

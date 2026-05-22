@@ -37,7 +37,6 @@ export function DraggablePanel({
 }: DraggablePanelProps) {
   // ── Position state ──
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -59,12 +58,32 @@ export function DraggablePanel({
     startH: number;
   }>({ isResizing: false, startX: 0, startY: 0, startW: 0, startH: 0 });
 
-  // Initialize drag position when user first drags
-  // (before drag, we use CSS right/top directly via initialStyle)
+  // Initialize position from defaults on first mount
   useEffect(() => {
     if (pos !== null) return;
-    // pos stays null until user drags — initialStyle handles initial placement
-  }, [pos]);
+    if (!panelRef.current) return;
+
+    const parent = panelRef.current.parentElement;
+    if (!parent) return;
+
+    const parentRect = parent.getBoundingClientRect();
+    let x = 0;
+    let y = 0;
+
+    if (defaultPosition.right !== undefined) {
+      x = parentRect.width - (defaultPosition.right || 0) - (panelRef.current.offsetWidth || 280);
+    } else if (defaultPosition.left !== undefined) {
+      x = defaultPosition.left;
+    }
+
+    if (defaultPosition.top !== undefined) {
+      y = defaultPosition.top;
+    } else if (defaultPosition.bottom !== undefined) {
+      y = parentRect.height - (defaultPosition.bottom || 0) - (panelRef.current.offsetHeight || 300);
+    }
+
+    setPos({ x: Math.max(0, x), y: Math.max(0, y) });
+  }, [defaultPosition, pos]);
 
   // ── Drag handlers ──
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -146,10 +165,7 @@ export function DraggablePanel({
   const initialStyle: React.CSSProperties = pos === null
     ? {
         position: 'absolute',
-        top: defaultPosition.top !== undefined ? defaultPosition.top : 'auto',
-        right: defaultPosition.right !== undefined ? defaultPosition.right : 'auto',
-        bottom: defaultPosition.bottom !== undefined ? defaultPosition.bottom : 'auto',
-        left: defaultPosition.left !== undefined ? defaultPosition.left : 'auto',
+        ...defaultPosition,
       }
     : {
         position: 'absolute',
@@ -173,7 +189,6 @@ export function DraggablePanel({
         ...sizeStyle,
         ...style,
         zIndex: 500,
-        minHeight,
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',

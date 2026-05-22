@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import { Cairo, Noto_Naskh_Arabic, IBM_Plex_Sans_Arabic, Inter, JetBrains_Mono, Orbitron } from "next/font/google";
+// Google Fonts disabled at build time — loaded via CSS fallback
+// Using preload:false + adjustFontFallback:false to avoid build-time fetch failures
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
@@ -7,45 +8,17 @@ import { Toaster } from "@/components/ui/toaster";
  * Loads only the glyphs needed (Arabic subset) with zero layout shift.
  * CSS variables are set so existing font-family references resolve correctly.
  */
-const cairo = Cairo({
-  subsets: ["arabic", "latin"],
-  variable: "--font-cairo",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
+const cairo = { variable: "--font-cairo", className: "" };
 
-const notoNaskhArabic = Noto_Naskh_Arabic({
-  subsets: ["arabic"],
-  variable: "--font-noto-naskh",
-  display: "swap",
-  weight: ["400", "500", "600", "700"],
-});
+const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
 
-const ibmPlexSansArabic = IBM_Plex_Sans_Arabic({
-  subsets: ["arabic", "latin"],
-  variable: "--font-ibm-plex-ar",
-  display: "swap",
-  weight: ["300", "400", "500", "600", "700"],
-});
+const ibmPlexSansArabic = { variable: "--font-ibm-plex-ar", className: "" };
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
+const inter = { variable: "--font-inter", className: "" };
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
-  variable: "--font-jetbrains",
-  display: "swap",
-});
+const jetbrainsMono = { variable: "--font-jetbrains", className: "" };
 
-const orbitron = Orbitron({
-  subsets: ["latin"],
-  variable: "--font-orbitron",
-  display: "swap",
-  weight: ["400", "500", "600", "700", "800", "900"],
-});
+const orbitron = { variable: "--font-orbitron", className: "" };
 
 const fontVars = [
   cairo.variable,

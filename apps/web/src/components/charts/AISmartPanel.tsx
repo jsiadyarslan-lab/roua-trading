@@ -80,6 +80,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       setLevels(srLevels);
 
       // ── 2. أرسل الأنماط للشارت فوراً ─────────────────
+      console.log('[AISmartPanel] calling onPatternsDetected with', unique.length, 'patterns');
       onPatternsDetected({
         patterns: unique,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0,4),

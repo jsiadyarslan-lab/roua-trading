@@ -130,7 +130,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   }, [candles, symbol, currentPrice, onPatternsDetected]);
 
   // تشغيل فور الفتح
-  useEffect(() => { analyze(); }, []); // eslint-disable-line
+  useEffect(() => {
+    if (candles && candles.length >= 20) {
+      analyze();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candles.length]); // re-run when candles arrive
 
   const sigColor = signal?.dir === 'BUY' ? C.green : signal?.dir === 'SELL' ? C.red : C.yellow;
   const sigAr    = signal?.dir === 'BUY' ? 'شراء' : signal?.dir === 'SELL' ? 'بيع' : 'انتظار';

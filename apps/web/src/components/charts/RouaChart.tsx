@@ -1520,7 +1520,7 @@ export default function RouaChart({
           <DraggablePanel defaultPosition={{ top: 120, right: 290 }} defaultWidth={340} minHeight={360}>
             <AISmartPanel
               symbol={selectedSymbol}
-              candles={candlesRef.current || []}
+              candles={aiPanelCandles}
               currentPrice={currentPrice}
               onPatternsDetected={handlePatternsDetected}
               onClose={() => setShowAIPanel(false)}

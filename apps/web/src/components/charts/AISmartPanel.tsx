@@ -210,7 +210,7 @@ export function AISmartPanel({
   ];
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100%', minHeight:0, background:T.bg, borderRadius:10, border:`1px solid ${T.border}`, overflow:'hidden', fontFamily:"'Cairo',sans-serif", boxShadow:'0 20px 60px rgba(0,0,0,0.6)' }}>
+    <div style={{ display:'flex', flexDirection:'column', height:'100%', background:T.bg, borderRadius:10, border:`1px solid ${T.border}`, overflow:'hidden', fontFamily:"'Cairo',sans-serif", boxShadow:'0 20px 60px rgba(0,0,0,0.6)' }}>
 
       {/* ── Header (DRAG HANDLE) ──────────────────────────── */}
       <div

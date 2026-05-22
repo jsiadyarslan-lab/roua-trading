@@ -99,7 +99,13 @@ export function AISmartPanel({
     try {
       // 1. Local pattern detection (instant, no API)
       const last50 = candles.slice(-50);
-      const localPatterns = detectLocalPatterns(last50);
+      const rawPatterns = detectLocalPatterns(last50);
+      // Deduplicate — keep only latest occurrence of each pattern type
+      const seen = new Set<string>();
+      const localPatterns = rawPatterns.reverse().filter(p => {
+        if (seen.has(p.type)) return false;
+        seen.add(p.type); return true;
+      }).reverse();
       const levels = detectSupportResistance(candles);
       const lines = detectTrendLines(candles);
       setSrLevels(levels);
@@ -154,23 +160,38 @@ export function AISmartPanel({
               // Direct signal (future enhancement)
               setSignal({ direction: data.signal, confidence: data.confidence ?? 0.6, entry: data.entry || price, sl: data.stopLoss || (data.signal==='BUY'?price*0.992:price*1.008), tp: data.takeProfit || (data.signal==='BUY'?price*1.016:price*0.984), reason: data.reason || data.reasonAr || '', timestamp: Date.now() });
             } else if (pats.length > 0) {
-              // Derive signal from returned patterns
+              // Derive signal from AI-returned patterns
               const bull = pats.filter((p: any) => p.direction === 'bullish').length;
               const bear = pats.filter((p: any) => p.direction === 'bearish').length;
               const dir = bull > bear ? 'BUY' : bear > bull ? 'SELL' : 'WAIT';
               const conf = pats.reduce((s: number, p: any) => s + (p.confidence || 0.5), 0) / pats.length;
               setSignal({ direction: dir as 'BUY'|'SELL'|'WAIT', confidence: conf, entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, reason: `AI: ${bull} صعودي، ${bear} هبوطي`, timestamp: Date.now() });
             } else {
-              throw new Error('no patterns');
+              // API returned 0 patterns (GROQ not configured) — use local analysis
+              const bull = localPatterns.filter(p=>p.direction==='bullish').length;
+              const bear = localPatterns.filter(p=>p.direction==='bearish').length;
+              const dir = bull > bear ? 'BUY' : bear > bull ? 'SELL' : 'WAIT';
+              const conf = localPatterns.length > 0 ? Math.max(bull, bear) / localPatterns.length : 0.5;
+              const reason = data.source === 'local' ? `تحليل فني: ${bull} صعودي، ${bear} هبوطي` : `${bull} صعودي، ${bear} هبوطي`;
+              setSignal({ direction: dir as 'BUY'|'SELL'|'WAIT', confidence: conf, entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, reason, timestamp: Date.now() });
             }
           } else { failCountRef.current++; setSignal({ direction: 'WAIT', confidence: 0.5, entry: price, sl: price*0.992, tp: price*1.016, reason: 'تحليل محلي فقط', timestamp: Date.now() }); }
         } catch { failCountRef.current++; setSignal({ direction: 'WAIT', confidence: 0.5, entry: price, sl: price*0.992, tp: price*1.016, reason: 'تحليل محلي', timestamp: Date.now() }); }
       } else {
-        // Derive signal from local patterns
-        const bullCount = localPatterns.filter(p=>p.direction==='bullish').length;
-        const bearCount = localPatterns.filter(p=>p.direction==='bearish').length;
-        const dir = bullCount > bearCount ? 'BUY' : bearCount > bullCount ? 'SELL' : 'WAIT';
-        setSignal({ direction: dir as 'BUY'|'SELL'|'WAIT', confidence: Math.max(bullCount, bearCount) / Math.max(localPatterns.length, 1), entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, reason: `${bullCount} نمط صعودي، ${bearCount} نمط هبوطي`, timestamp: Date.now() });
+        // Derive signal from local patterns + basic TA
+        const bull = localPatterns.filter(p=>p.direction==='bullish').length;
+        const bear = localPatterns.filter(p=>p.direction==='bearish').length;
+        // Basic EMA trend
+        const last20 = candles.slice(-20);
+        const ema9 = last20.slice(-9).reduce((s,c)=>s+c.close,0)/9;
+        const ema20 = last20.reduce((s,c)=>s+c.close,0)/20;
+        const trend = ema9 > ema20 ? 'bullish' : 'bearish';
+        // Combine: patterns + trend
+        const bullScore = bull + (trend === 'bullish' ? 2 : 0);
+        const bearScore = bear + (trend === 'bearish' ? 2 : 0);
+        const dir = bullScore > bearScore ? 'BUY' : bearScore > bullScore ? 'SELL' : 'WAIT';
+        const conf = Math.min(0.85, Math.max(0.35, Math.abs(bullScore - bearScore) / (bullScore + bearScore + 1)));
+        setSignal({ direction: dir as 'BUY'|'SELL'|'WAIT', confidence: conf, entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, reason: `EMA${trend==='bullish'?'↑':'↓'} • ${bull} صعودي ${bear} هبوطي`, timestamp: Date.now() });
       }
     } catch (e) { /* silent */ }
     finally { setLoading(false); isRunningRef.current = false; }

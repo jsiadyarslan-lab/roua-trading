@@ -105,43 +105,36 @@ export function AISmartPanel({
       setSrLevels(levels);
       setTrendLines(lines);
 
-      // 2. Geometric + Harmonic patterns from local engine
-      if (!engineRan) {
-        const engineResult = runPatternEngine(candles, { minQuality: 5 });
-        const geo = engineResult.patterns.filter(p =>
-          ['Double Top','Double Bottom','Head and Shoulders','Inv. Head and Shoulders',
-           'Ascending Triangle','Descending Triangle','Symmetrical Triangle',
-           'Rising Wedge','Falling Wedge','Rising Channel','Falling Channel','Horizontal Channel']
-          .includes(p.type)
-        );
-        const har = engineResult.patterns.filter(p =>
-          ['Gartley','Bat','Alternate Bat','Butterfly','Crab','Deep Crab','Cypher','Shark','5-0']
-          .includes(p.type)
-        );
-        setGeoPatterns(geo);
-        setHarmonicPatterns(har);
-        setEngineRan(true);
+      // 2. Geometric + Harmonic patterns from local engine (always run)
+      const engineResult = runPatternEngine(candles, { minQuality: 5 });
+      const geo = engineResult.patterns.filter(p =>
+        ['Double Top','Double Bottom','Head and Shoulders','Inv. Head and Shoulders',
+         'Ascending Triangle','Descending Triangle','Symmetrical Triangle',
+         'Rising Wedge','Falling Wedge','Rising Channel','Falling Channel','Horizontal Channel']
+        .includes(p.type)
+      );
+      const har = engineResult.patterns.filter(p =>
+        ['Gartley','Bat','Alternate Bat','Butterfly','Crab','Deep Crab','Cypher','Shark','5-0']
+        .includes(p.type)
+      );
+      setGeoPatterns(geo);
+      setHarmonicPatterns(har);
+      setEngineRan(true);
 
-        // Merge all local patterns for chart markers
-        const allLocal = [...localPatterns, ...engineResult.patterns.map(p => ({
-          type: p.type,
-          labelAr: PAR[p.type] || p.type,
-          time: p.timeEnd,
-          price: p.points[p.points.length - 1]?.price || 0,
-          confidence: p.quality.overall / 10,
-          direction: p.direction as 'bullish'|'bearish'|'neutral',
-        }))].sort((a, b) => b.time - a.time);
-        setCandlePatterns(localPatterns);
-        onPatternsDetected({ patterns: allLocal, supportLevels: levels.filter(l=>l.type==='support').slice(0,3), resistanceLevels: levels.filter(l=>l.type==='resistance').slice(0,3), trendLines: lines, entryExit: null });
-      } else {
-        setCandlePatterns(localPatterns);
-        onPatternsDetected({ patterns: localPatterns, supportLevels: levels.filter(l=>l.type==='support').slice(0,3), resistanceLevels: levels.filter(l=>l.type==='resistance').slice(0,3), trendLines: lines, entryExit: null });
-      }
+      const allLocal = [...localPatterns, ...engineResult.patterns.map(p => ({
+        type: p.type,
+        labelAr: PAR[p.type] || p.type,
+        time: p.timeEnd,
+        price: p.points[p.points.length - 1]?.price || 0,
+        confidence: p.quality.overall / 10,
+        direction: p.direction as 'bullish'|'bearish'|'neutral',
+      }))].sort((a, b) => b.time - a.time);
+      setCandlePatterns(localPatterns);
+      onPatternsDetected({ patterns: allLocal, supportLevels: levels.filter(l=>l.type==='support').slice(0,3), resistanceLevels: levels.filter(l=>l.type==='resistance').slice(0,3), trendLines: lines, entryExit: null });
 
-      // 3. AI signal via GROQ
-      const groqKey = process.env.NEXT_PUBLIC_GROQ_KEY;
+      // 3. AI signal via backend route (GROQ_API_KEY is server-side only)
       const price = currentPrice ?? candles[candles.length-1]?.close ?? 0;
-      if (groqKey && failCountRef.current < 3) {
+      if (failCountRef.current < 3) {
         try {
           if (abortRef.current) abortRef.current.abort();
           abortRef.current = new AbortController();
@@ -154,11 +147,21 @@ export function AISmartPanel({
           });
           if (r.ok) {
             const data = await r.json();
+            // Route returns {patterns:[...]} — derive signal from patterns
+            const pats = data.patterns || [];
+            failCountRef.current = 0;
             if (data.signal) {
-              failCountRef.current = 0;
-              setSignal({ direction: data.signal, confidence: data.confidence ?? 0.6, entry: data.entry || price, sl: data.stopLoss || (data.signal==='BUY'?price*0.992:price*1.008), tp: data.takeProfit || (data.signal==='BUY'?price*1.016:price*0.984), reason: data.reason || '', timestamp: Date.now() });
+              // Direct signal (future enhancement)
+              setSignal({ direction: data.signal, confidence: data.confidence ?? 0.6, entry: data.entry || price, sl: data.stopLoss || (data.signal==='BUY'?price*0.992:price*1.008), tp: data.takeProfit || (data.signal==='BUY'?price*1.016:price*0.984), reason: data.reason || data.reasonAr || '', timestamp: Date.now() });
+            } else if (pats.length > 0) {
+              // Derive signal from returned patterns
+              const bull = pats.filter((p: any) => p.direction === 'bullish').length;
+              const bear = pats.filter((p: any) => p.direction === 'bearish').length;
+              const dir = bull > bear ? 'BUY' : bear > bull ? 'SELL' : 'WAIT';
+              const conf = pats.reduce((s: number, p: any) => s + (p.confidence || 0.5), 0) / pats.length;
+              setSignal({ direction: dir as 'BUY'|'SELL'|'WAIT', confidence: conf, entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, reason: `AI: ${bull} صعودي، ${bear} هبوطي`, timestamp: Date.now() });
             } else {
-              throw new Error('no signal');
+              throw new Error('no patterns');
             }
           } else { failCountRef.current++; setSignal({ direction: 'WAIT', confidence: 0.5, entry: price, sl: price*0.992, tp: price*1.016, reason: 'تحليل محلي فقط', timestamp: Date.now() }); }
         } catch { failCountRef.current++; setSignal({ direction: 'WAIT', confidence: 0.5, entry: price, sl: price*0.992, tp: price*1.016, reason: 'تحليل محلي', timestamp: Date.now() }); }

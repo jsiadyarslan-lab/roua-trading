@@ -1556,28 +1556,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Set Markers on Main Series ──
   const setMarkers = useCallback((markers: any[]) => {
     markersRef.current = markers;
-    const applyMarkers = () => {
-      const series = mainSeriesRef.current || candleSeriesRef.current;
-      if (!series) {
-        console.warn('[setMarkers] series not ready, retrying in 500ms');
-        setTimeout(applyMarkers, 500);
-        return;
-      }
-      try {
-        if (!markersPluginRef.current) {
-          markersPluginRef.current = createSeriesMarkers(series as any, markers);
-          console.log('[setMarkers] created plugin with', markers.length, 'markers');
-        } else {
-          markersPluginRef.current.setMarkers(markers);
-          console.log('[setMarkers] updated', markers.length, 'markers');
-        }
-      } catch (e) {
-        console.warn('[setMarkers] error, resetting:', e);
+    const series = mainSeriesRef.current || candleSeriesRef.current;
+    if (!series) return;
+    try {
+      // Always destroy and recreate to ensure correct series binding
+      if (markersPluginRef.current) {
+        try { markersPluginRef.current.setMarkers([]); } catch {}
         markersPluginRef.current = null;
-        try { markersPluginRef.current = createSeriesMarkers(series as any, markers); } catch (e2) { console.error('[setMarkers] fatal:', e2); }
       }
-    };
-    applyMarkers();
+      if (markers.length > 0) {
+        markersPluginRef.current = createSeriesMarkers(series as any, markers);
+      }
+    } catch (e) {
+      console.warn('[setMarkers]', e);
+    }
   }, []);
 
   // ── Price Lines (for positions/trades) ──

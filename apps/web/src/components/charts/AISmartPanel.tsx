@@ -149,7 +149,7 @@ export function AISmartPanel({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ symbol }),
-            signal: abortRef.current?.signal,
+            signal: AbortSignal.timeout ? AbortSignal.timeout(15000) : abortRef.current?.signal,
           });
           if (councilRes.ok) {
             const councilData = await councilRes.json();

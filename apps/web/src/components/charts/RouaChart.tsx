@@ -1176,7 +1176,9 @@ export default function RouaChart({
     // Sort by time and apply
     combinedMarkers.sort((a, b) => (a.time as number) - (b.time as number));
     chart.setMarkers(combinedMarkers);
-  }, [newsMarkers, aiPatterns, signalMarkers, chart]);
+  // chart.setMarkers is stable (useCallback), safe to omit from deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsMarkers, aiPatterns, signalMarkers]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 

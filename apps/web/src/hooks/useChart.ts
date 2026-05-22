@@ -1557,25 +1557,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const setMarkers = useCallback((markers: any[]) => {
     markersRef.current = markers;
     const series = mainSeriesRef.current || candleSeriesRef.current;
-    if (!series) { console.warn('[setMarkers] No series available'); return; }
+    if (!series) return;
     try {
-      // lightweight-charts v5: createSeriesMarkers plugin API
       if (!markersPluginRef.current) {
         markersPluginRef.current = createSeriesMarkers(series as any, markers);
-        console.log('[setMarkers] created plugin, markers:', markers.length);
       } else {
-        markersPluginRef.current.setMarkers(markers);
-        console.log('[setMarkers] updated markers:', markers.length);
+        // Try update, reset if plugin is stale (attached to old series)
+        try {
+          markersPluginRef.current.setMarkers(markers);
+        } catch {
+          markersPluginRef.current = null;
+          markersPluginRef.current = createSeriesMarkers(series as any, markers);
+        }
       }
-    } catch (e) {
-      console.warn('[setMarkers] error, resetting plugin:', e);
-      // Reset and try again with fresh plugin
+    } catch {
       markersPluginRef.current = null;
-      try {
-        markersPluginRef.current = createSeriesMarkers(series as any, markers);
-      } catch (e2) {
-        console.error('[setMarkers] fatal:', e2);
-      }
+      try { markersPluginRef.current = createSeriesMarkers(series as any, markers); } catch {}
     }
   }, []);
 

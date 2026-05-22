@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 
 interface DraggablePanelProps {
   children: ReactNode;
@@ -37,6 +38,8 @@ export function DraggablePanel({
 }: DraggablePanelProps) {
   // ── Position state ──
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -170,7 +173,7 @@ export function DraggablePanel({
       ? { width: defaultWidth, minHeight }
       : { minHeight };
 
-  return (
+  const panelEl = (
     <div
       ref={panelRef}
       className={className}
@@ -181,7 +184,7 @@ export function DraggablePanel({
         ...style,
         zIndex: 500,
         minHeight,
-        overflow: 'visible',
+        overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
       }}
@@ -215,4 +218,7 @@ export function DraggablePanel({
       )}
     </div>
   );
+
+  if (!mounted) return null;
+  return createPortal(panelEl, document.body);
 }

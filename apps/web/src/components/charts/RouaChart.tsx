@@ -836,6 +836,7 @@ export default function RouaChart({
     aiPriceLinesRef.current = [];
     // FIX: Also clear the entry/exit marker ref when cleaning up overlays
     aiEntryExitMarkerRef.current = null;
+    aiProcessingRef.current = false; // reset lock so next analyze() can run
     setAiPatterns([]);
   }, [chart]);
 

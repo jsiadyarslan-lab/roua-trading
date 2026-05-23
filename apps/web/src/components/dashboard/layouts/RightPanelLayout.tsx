@@ -12,6 +12,7 @@ import { MultiTfScannerMini } from '@/components/dashboard/MultiTfScannerMini'
 import { useDecisionFlow } from '@/hooks/useDecisionFlow'
 import { useTabAlertStore, type TabId } from '@/hooks/useTabAlertStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 const T = {
   bg: '#0B0E14',
@@ -50,6 +51,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
           transform: translateY(0) scale(0.98);
         }
       `)
+  const tr = useTranslations('dashboard.rightPanel')
   const [active, setActive] = useState('executor')
   const { selectedSymbol, scanner, council } = useDecisionFlow()
   const { alerts, clearAlert } = useTabAlertStore()
@@ -61,24 +63,24 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
   }
 
   const TABS = [
-    { id: 'executor', label: 'المنفذ', accent: T.cyan, icon: Swords, subtitle: 'المنفذ الذكي' },
-    { id: 'strategic', label: 'المجلس', accent: T.purple, icon: Landmark, subtitle: 'المجلس الاستراتيجي' },
-    { id: 'trader', label: 'الوكيل', accent: '#FF8C42', icon: Bot, subtitle: 'وكيل التداول الذاتي' },
-    { id: 'council', label: 'AI', accent: T.accent, icon: Brain, subtitle: 'إجماع الذكاء الاصطناعي' },
-    { id: 'scanner', label: 'السكانر', accent: T.amber, icon: ScanSearch, subtitle: 'اكتشاف الفرص' },
-    { id: 'signals', label: 'إشارات', accent: T.green, icon: Sparkles, subtitle: 'التحويل للتنفيذ' },
+    { id: 'executor', label: tr('tabExecutor'), accent: T.cyan, icon: Swords, subtitle: tr('subtitleExecutor') },
+    { id: 'strategic', label: tr('tabStrategic'), accent: T.purple, icon: Landmark, subtitle: tr('subtitleStrategic') },
+    { id: 'trader', label: tr('tabTrader'), accent: '#FF8C42', icon: Bot, subtitle: tr('subtitleTrader') },
+    { id: 'council', label: tr('tabCouncil'), accent: T.accent, icon: Brain, subtitle: tr('subtitleCouncil') },
+    { id: 'scanner', label: tr('tabScanner'), accent: T.amber, icon: ScanSearch, subtitle: tr('subtitleScanner') },
+    { id: 'signals', label: tr('tabSignals'), accent: T.green, icon: Sparkles, subtitle: tr('subtitleSignals') },
   ]
   const activeTab = TABS.find((tab) => tab.id === active) || TABS[0]
   const headlineMap = {
-    executor: 'المنفذ الذكي يراقب Briefs',
-    strategic: 'المجلس الاستراتيجي يوزن الأدلة',
-    council: council?.recommendation ? `إجماع AI يميل إلى ${council.recommendation}` : 'إجماع الذكاء الاصطناعي',
-    scanner: scanner ? `${scanner.pair} تحت المجهر` : 'السكانر يفتش عن فرصة',
-    signals: 'الإشارات الجاهزة للتنفيذ',
-    trader: 'وكيل التداول الذاتي',
+    executor: tr('headlineExecutor'),
+    strategic: tr('headlineStrategic'),
+    council: council?.recommendation ? tr('headlineCouncil', { recommendation: council.recommendation }) : tr('headlineCouncilDefault'),
+    scanner: scanner ? tr('headlineScanner', { symbol: scanner.pair }) : tr('headlineScannerDefault'),
+    signals: tr('headlineSignals'),
+    trader: tr('headlineTrader'),
   } as const
 
-  const headline = headlineMap[active as keyof typeof headlineMap] ?? 'مركز القرار التشغيلي'
+  const headline = headlineMap[active as keyof typeof headlineMap] ?? tr('headlineDefault')
 
   return (
     <div
@@ -130,7 +132,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 }}
               />
               <div style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                مركز القرار التشغيلي
+                {tr('decisionCenter')}
               </div>
             </div>
             <div style={{ marginTop: 2, fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>

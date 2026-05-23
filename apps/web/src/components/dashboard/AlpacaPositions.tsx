@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { RefreshCw, TrendingDown, TrendingUp, X as XIcon, History } from 'lucide-react'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
@@ -64,12 +65,13 @@ function getTradeSourceLabel(
   source?: string,
   tradeSource?: string,
   exchange?: string,
+  t: (key: string) => string = () => '',
 ): { label: string; color: string; bg: string; border: string } | null {
   // Priority 1: Smart Executor source (check BEFORE agent to prevent mislabeling)
   if (source === 'bot' || source === 'executor' || source === 'smart_executor'
       || tradeSource === 'smart_executor' || tradeSource === 'auto_paper') {
     return {
-      label: 'المنفذ',
+      label: t('sourceExecutor'),
       color: T.cyan,
       bg: 'rgba(0,212,255,0.12)',
       border: 'rgba(0,212,255,0.20)',
@@ -78,7 +80,7 @@ function getTradeSourceLabel(
   // Priority 2: Agent source
   if (source === 'agent' || tradeSource === 'agent') {
     return {
-      label: 'الوكيل',
+      label: t('sourceAgent'),
       color: T.purple,
       bg: 'rgba(168,85,247,0.12)',
       border: 'rgba(168,85,247,0.20)',
@@ -87,7 +89,7 @@ function getTradeSourceLabel(
   // Priority 3: Paper trading (from exchange name or isPaper flag)
   if (isPaper || exchange === 'paper-trading' || tradeSource === 'user_manual') {
     return {
-      label: 'ورقي',
+      label: t('sourcePaper'),
       color: T.amber,
       bg: 'rgba(255,184,0,0.12)',
       border: 'rgba(255,184,0,0.20)',
@@ -97,6 +99,8 @@ function getTradeSourceLabel(
 }
 
 export function AlpacaPositions() {
+  const t = useTranslations('dashboard.alpacaPositions')
+  const tc = useTranslations('common')
   useScopedStyle(`
         @keyframes spin {
           from { transform: rotate(0deg); }
@@ -132,13 +136,13 @@ export function AlpacaPositions() {
   function getCloseReasonLabel(reason: string | null | undefined): { label: string; color: string } | null {
     if (!reason) return null
     const r = reason.toUpperCase()
-    if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: 'وقف خسارة', color: T.danger }
-    if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: 'أخذ ربح', color: T.success }
-    if (r === 'MANUAL') return { label: 'يدوي', color: T.text2 }
-    if (r.includes('STALE') || r.includes('AUTO')) return { label: 'تلقائي', color: T.amber }
-    if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: 'استراتيجي', color: T.purple }
-    if (r.includes('EXCHANGE_SYNC')) return { label: 'مزامنة', color: T.cyan }
-    if (r === 'FORCE_CLOSE') return { label: 'إجباري', color: T.danger }
+    if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: t('reasonStopLoss'), color: T.danger }
+    if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: t('reasonTakeProfit'), color: T.success }
+    if (r === 'MANUAL') return { label: t('reasonManual'), color: T.text2 }
+    if (r.includes('STALE') || r.includes('AUTO')) return { label: t('reasonAuto'), color: T.amber }
+    if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: t('reasonStrategic'), color: T.purple }
+    if (r.includes('EXCHANGE_SYNC')) return { label: t('reasonSync'), color: T.cyan }
+    if (r === 'FORCE_CLOSE') return { label: t('reasonForce'), color: T.danger }
     return { label: reason, color: T.text3 }
   }
 
@@ -150,9 +154,9 @@ export function AlpacaPositions() {
     const diffMs = end - start
     const hours = Math.floor(diffMs / 3600000)
     const minutes = Math.floor((diffMs % 3600000) / 60000)
-    if (hours > 24) return `${Math.floor(hours / 24)}ي ${hours % 24}س`
-    if (hours > 0) return `${hours}س ${minutes}د`
-    return `${minutes}د`
+    if (hours > 24) return `${Math.floor(hours / 24)}${t('durationDayShort')} ${hours % 24}${t('durationHourShort')}`
+    if (hours > 0) return `${hours}${t('durationHourShort')} ${minutes}${t('durationMinShort')}`
+    return `${minutes}${t('durationMinShort')}`
   }
 
   // Collect symbols from all sources to avoid duplicates
@@ -340,8 +344,8 @@ export function AlpacaPositions() {
         source: 'trade',
         priority: 'medium',
         action: 'CLOSE',
-        title: `تم إغلاق مركز ورقي ${pos.symbol}`,
-        body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol}`,
+        title: t('closedPaperPosition', { symbol: pos.symbol }),
+        body: `${pos.side === 'long' ? tc('buy') : tc('sell')} ${pos.qty} ${pos.symbol}`,
         pair: pos.symbol,
         price: livePrice,
       })
@@ -397,14 +401,14 @@ export function AlpacaPositions() {
                   if (forceRes.ok) {
                     closeSuccess = true
                   } else {
-                    closeError = result.error || json.message || 'خطأ غير معروف'
+                    closeError = result.error || json.message || t('unknownError')
                   }
                 } catch {
-                  closeError = result.error || json.message || 'خطأ غير معروف'
+                  closeError = result.error || json.message || t('unknownError')
                 }
               }
             } catch {
-              closeError = json.message || json.error || 'خطأ غير معروف'
+              closeError = json.message || json.error || t('unknownError')
             }
           }
         }
@@ -420,7 +424,7 @@ export function AlpacaPositions() {
         if (result.success) {
           closeSuccess = true
         } else {
-          closeError = result.error || 'خطأ غير معروف'
+          closeError = result.error || t('unknownError')
         }
       }
 
@@ -430,18 +434,18 @@ export function AlpacaPositions() {
           source: 'trade',
           priority: 'high',
           action: 'CLOSE',
-          title: `تم إغلاق مركز ${pos.symbol}`,
-          body: `${pos.side === 'long' ? 'شراء' : 'بيع'} ${pos.qty} ${pos.symbol} @ $${livePrice.toFixed(2)}`,
+          title: t('closedPosition', { symbol: pos.symbol }),
+          body: `${pos.side === 'long' ? tc('buy') : tc('sell')} ${pos.qty} ${pos.symbol} @ $${livePrice.toFixed(2)}`,
           pair: pos.symbol,
           price: livePrice,
         })
       } else {
         // Restore position if close failed
         setPositions(prevPositions)
-        alert(`فشل الإغلاق: ${closeError}`)
+        alert(t('closeFailed', { error: closeError }))
       }
     } catch {
-      alert('خطأ في إغلاق المركز')
+      alert(t('closeError'))
     } finally {
       setClosing(null)
     }
@@ -486,15 +490,15 @@ export function AlpacaPositions() {
               fontFamily: "'Cairo', sans-serif",
             }}
           >
-            <div>العقد</div>
-            <div style={{ textAlign: 'center' }}>الفتح</div>
-            <div style={{ textAlign: 'center' }}>كمية</div>
-            <div style={{ textAlign: 'center' }}>دخول</div>
-            <div style={{ textAlign: 'center' }}>حالي</div>
+            <div>{t('contract')}</div>
+            <div style={{ textAlign: 'center' }}>{t('opening')}</div>
+            <div style={{ textAlign: 'center' }}>{t('qty')}</div>
+            <div style={{ textAlign: 'center' }}>{t('entry')}</div>
+            <div style={{ textAlign: 'center' }}>{t('current')}</div>
             <div style={{ textAlign: 'center' }}>TP</div>
             <div style={{ textAlign: 'center' }}>SL</div>
             <div style={{ textAlign: 'center' }}>P&L</div>
-            <div style={{ textAlign: 'center' }}>إغلاق</div>
+            <div style={{ textAlign: 'center' }}>{t('closeBtn')}</div>
           </div>
         )}
 
@@ -515,8 +519,8 @@ export function AlpacaPositions() {
               padding: 16,
             }}
           >
-            <div style={{ fontSize: 11, color: T.text }}>لا توجد صفقات مفتوحة الآن</div>
-            <div style={{ fontSize: 9 }}>عند فتح مركز سيظهر هنا بشكل مضغوط مع زر إغلاق مباشر.</div>
+            <div style={{ fontSize: 11, color: T.text }}>{t('noOpenTrades')}</div>
+            <div style={{ fontSize: 9 }}>{t('noOpenTradesHint')}</div>
           </div>
         )}
 
@@ -531,7 +535,7 @@ export function AlpacaPositions() {
                 hour: '2-digit',
                 minute: '2-digit',
               })
-            : 'غير محدد'
+            : t('undefined')
 
           // Determine source badge
           const sourceBadge = getTradeSourceLabel(
@@ -539,6 +543,7 @@ export function AlpacaPositions() {
             position.source,
             position.tradeSource,
             (position as any).exchange,
+            t,
           )
 
           return (
@@ -584,7 +589,7 @@ export function AlpacaPositions() {
                   }}
                 >
                   {isLong ? <TrendingUp size={7} /> : <TrendingDown size={7} />}
-                  {isLong ? 'شراء' : 'بيع'}
+                  {isLong ? tc('buy') : tc('sell')}
                 </span>
                 {/* FIX: Show source badge for EVERY trade */}
                 {sourceBadge && (
@@ -671,11 +676,11 @@ export function AlpacaPositions() {
                   {closing === position.id ? (
                     <RefreshCw size={8} style={{ animation: 'spin 1s linear infinite' }} />
                   ) : confirmClose === position.id ? (
-                    'تأكيد'
+                    tc('confirm')
                   ) : (
                     <>
                       <XIcon size={8} />
-                      إغلاق
+                      {t('closeBtn')}
                     </>
                   )}
                 </button>
@@ -730,8 +735,8 @@ export function AlpacaPositions() {
                   source: 'trade',
                   priority: 'high',
                   action: 'CLOSE',
-                  title: `تم إغلاق ${closedCount} مراكز`,
-                  body: `${failedCount} مراكز فشل الإغلاق — حاول إغلاقها يدوياً`,
+                  title: t('closedPositionsCount', { count: closedCount }),
+                  body: t('closeFailedPositions', { count: failedCount }),
                   pair: '',
                   price: 0,
                 })
@@ -755,7 +760,7 @@ export function AlpacaPositions() {
             }}
           >
             <XIcon size={9} />
-            إغلاق وإزالة الكل
+            {t('closeAndRemoveAll')}
           </button>
         </div>
       )}
@@ -778,7 +783,7 @@ export function AlpacaPositions() {
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <History size={12} />
-              الصفقات المغلقة ({dbClosedPositions.length + closedTrades.length})
+              {t('closedTrades')} ({dbClosedPositions.length + closedTrades.length})
             </div>
             <span style={{ fontSize: 8, transform: showClosed ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s' }}>▼</span>
           </button>
@@ -795,7 +800,7 @@ export function AlpacaPositions() {
                 const takeProfit = Number(cp.takeProfit) || 0
                 const quantity = Number(cp.quantity) || 0
                 const pnlUp = realizedPnl >= 0
-                const sourceBadge = getTradeSourceLabel(cp.exchange === 'paper-trading', cp.source, undefined, cp.exchange)
+                const sourceBadge = getTradeSourceLabel(cp.exchange === 'paper-trading', cp.source, undefined, cp.exchange, t)
                 const closeReasonBadge = getCloseReasonLabel(cp.closeReason)
                 const duration = cp.openedAt && cp.closedAt ? formatDuration(cp.openedAt, cp.closedAt) : '—'
                 const closedDate = cp.closedAt
@@ -829,7 +834,7 @@ export function AlpacaPositions() {
                     {/* Row 2: Entry → Exit, SL, TP, Qty, Duration */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                       <span>
-                        دخول {fmtPricePlain(entryPrice, cp.symbol)} → خروج {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
+                        {t('entry')} {fmtPricePlain(entryPrice, cp.symbol)} → {t('exit')} {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
                       </span>
                       {stopLoss > 0 && <span style={{ color: T.danger }}>SL {fmtPricePlain(stopLoss, cp.symbol)}</span>}
                       {takeProfit > 0 && <span style={{ color: T.success }}>TP {fmtPricePlain(takeProfit, cp.symbol)}</span>}
@@ -852,7 +857,7 @@ export function AlpacaPositions() {
 
                 const isLong = ct.side === 'long'
                 const pnlUp = ct.realizedPnl >= 0
-                const closedSourceBadge = getTradeSourceLabel(true, ct.source)
+                const closedSourceBadge = getTradeSourceLabel(true, ct.source, undefined, undefined, t)
                 return (
                   <div key={ct.id} style={{
                     borderRadius: 8, border: `1px solid ${pnlUp ? 'rgba(0,255,163,0.12)' : 'rgba(255,71,87,0.12)'}`,
@@ -874,7 +879,7 @@ export function AlpacaPositions() {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 7, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                       <span>
-                        دخول {fmtPricePlain(ct.entryPrice, ct.symbol)} → خروج {fmtPricePlain(ct.exitPrice, ct.symbol)}
+                        {t('entry')} {fmtPricePlain(ct.entryPrice, ct.symbol)} → {t('exit')} {fmtPricePlain(ct.exitPrice, ct.symbol)}
                       </span>
                       {ct.sl ? <span style={{ color: T.danger }}>SL {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
                       {ct.tp ? <span style={{ color: T.success }}>TP {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
@@ -894,7 +899,7 @@ export function AlpacaPositions() {
                     fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                   }}
                 >
-                  {closedLoading ? 'جارٍ التحديث...' : 'تحديث'}
+                  {closedLoading ? t('updating') : t('update')}
                 </button>
                 <button
                   onClick={clearClosedTrades}
@@ -904,7 +909,7 @@ export function AlpacaPositions() {
                     fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                   }}
                 >
-                  مسح المحلية
+                  {t('clearLocal')}
                 </button>
               </div>
             </div>

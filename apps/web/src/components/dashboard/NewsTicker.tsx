@@ -109,11 +109,11 @@ export default function NewsTicker() {
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
         {isLoading ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>t('loading')</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{tn('loading')}</span>
           </div>
         ) : newsItems.length === 0 ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>t('unavailable')</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{tn('unavailable')}</span>
           </div>
         ) : (
           <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>

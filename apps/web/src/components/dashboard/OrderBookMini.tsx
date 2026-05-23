@@ -47,6 +47,7 @@ export function OrderBookMini() {
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const tc = useTranslations('common')
+  const t = useTranslations('dashboard.execution')
   // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
   const selectedQuote = useMarketStore(state => state.quotes[selectedSymbol])
 
@@ -225,15 +226,15 @@ export function OrderBookMini() {
         fontSize: 9, color: 'var(--muted)', fontWeight: 800, textTransform: 'uppercase',
         letterSpacing: '0.05em'
       }}>
-        <span>tc("price")</span>
-        <span>tc("quantity")</span>
+        <span>{tc('price')}</span>
+        <span>{tc('quantity')}</span>
       </div>
 
       <div className="custom-scrollbar no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         {basePrice === 0 && asks.length === 0 ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 8 }}>
             <div style={{ width: 24, height: 24, border: '2px solid var(--accent)', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
-            <span style={{ color: 'var(--muted)', fontSize: 11 }}>tc("connecting")</span>
+            <span style={{ color: 'var(--muted)', fontSize: 11 }}>{t('connecting')}</span>
 
           </div>
         ) : (

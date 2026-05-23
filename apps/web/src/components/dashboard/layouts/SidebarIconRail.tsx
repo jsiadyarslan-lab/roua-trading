@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { useTranslations } from 'next-intl'
 
 const FONT_MONO = "'JetBrains Mono', monospace"
 
@@ -28,16 +29,16 @@ export interface TabConfig {
 }
 
 const TAB_CONFIG: TabConfig[] = [
-  { id: 'portfolio', label: 'المحفظة', helper: 'الرصيد والمراكز', accent: '#0A84FF', icon: Wallet },
-  { id: 'execute', label: 'التنفيذ', helper: 'أمر سريع', accent: '#00FFA3', icon: Zap },
-  { id: 'book', label: 'دفتر الأوامر', helper: 'العمق والسيولة', accent: '#FF4757', icon: BookOpen },
-  { id: 'watch', label: 'قائمة السوق', helper: 'المراقبة الحية', accent: '#00D4FF', icon: Eye },
-  { id: 'alerts', label: 'التنبيهات', helper: 'قواعد المتابعة', accent: '#FFB800', icon: Bell },
-  { id: 'ai', label: 'رؤى AI', helper: 'الشرح والسياق', accent: '#B388FF', icon: Brain },
-  { id: 'news', label: 'الأخبار', helper: 'تدفق السوق', accent: '#00D4FF', icon: Newspaper },
-  { id: 'calendar', label: 'الأجندة', helper: 'أحداث مؤثرة', accent: '#FFB800', icon: CalendarDays },
-  { id: 'backtest', label: 'المختبر', helper: 'اختبار سريع', accent: '#B388FF', icon: FlaskConical },
-  { id: 'correlation', label: 'الارتباط', helper: 'ترابط الأصول', accent: '#00FFA3', icon: GitBranch },
+  { id: 'portfolio', label: '', helper: '', accent: '#0A84FF', icon: Wallet },
+  { id: 'execute', label: '', helper: '', accent: '#00FFA3', icon: Zap },
+  { id: 'book', label: '', helper: '', accent: '#FF4757', icon: BookOpen },
+  { id: 'watch', label: '', helper: '', accent: '#00D4FF', icon: Eye },
+  { id: 'alerts', label: '', helper: '', accent: '#FFB800', icon: Bell },
+  { id: 'ai', label: '', helper: '', accent: '#B388FF', icon: Brain },
+  { id: 'news', label: '', helper: '', accent: '#00D4FF', icon: Newspaper },
+  { id: 'calendar', label: '', helper: '', accent: '#FFB800', icon: CalendarDays },
+  { id: 'backtest', label: '', helper: '', accent: '#B388FF', icon: FlaskConical },
+  { id: 'correlation', label: '', helper: '', accent: '#00FFA3', icon: GitBranch },
 ]
 
 interface SidebarIconRailProps {
@@ -55,7 +56,15 @@ export function SidebarIconRail({
   collapsed,
   badges = {},
 }: SidebarIconRailProps) {
+  const t = useTranslations('dashboard.sidebarTabs')
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
+
+  // Resolve translated labels & helpers
+  const translatedTabs = tabs.map(tab => ({
+    ...tab,
+    label: t(tab.id),
+    helper: t(tab.id + 'Helper'),
+  }))
 
   return (
     <aside
@@ -87,7 +96,7 @@ export function SidebarIconRail({
           gap: 4,
         }}
       >
-        {tabs.map((tab) => {
+        {translatedTabs.map((tab) => {
           const isActive = tab.id === activeTab
           const isHovered = hoveredTab === tab.id
           const badgeCount = badges[tab.id]

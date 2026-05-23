@@ -465,9 +465,9 @@ function NotificationItem({
               }}
             >
               {notif.action === 'BUY'
-                ? 'شراء'
+                ? tc('buy')
                 : notif.action === 'SELL'
-                  ? 'بيع'
+                  ? tc('sell')
                   : notif.action}
             </span>
           </div>
@@ -496,15 +496,17 @@ function NotificationItem({
 
 /* ══ Notification Settings Panel ═════════════════════════ */
 function NotifSettingsPanel() {
-  const { settings, updateSettings } = useNotificationStore()
+  const tn = useTranslations('dashboard.notifications')
+  const tc = useTranslations('common')
+
   const rows: { key: keyof typeof settings; label: string }[] = [
-    { key: 'enabled', label: 'تفعيل التنبيهات' },
-    { key: 'soundEnabled', label: 'الصوت' },
-    { key: 'browserNotifications', label: 'إشعارات الجهاز' },
-    { key: 'botAlerts', label: 'تنبيهات البوت' },
-    { key: 'aiAlerts', label: 'تنبيهات الـ AI' },
-    { key: 'scannerAlerts', label: 'تنبيهات السكانر' },
-    { key: 'tradeAlerts', label: 'تحركات حادة في السوق' },
+    { key: 'enabled', label: tn('enableAlerts') },
+    { key: 'soundEnabled', label: tn('sound') },
+    { key: 'browserNotifications', label: tn('deviceNotifications') },
+    { key: 'botAlerts', label: tn('botAlerts') },
+    { key: 'aiAlerts', label: tn('aiAlertsLabel') },
+    { key: 'scannerAlerts', label: tn('scannerAlertsLabel') },
+    { key: 'tradeAlerts', label: tn('sharpMarketMoves') },
   ]
 
   return (
@@ -551,8 +553,8 @@ function NotifSettingsPanel() {
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#FFB800' }}>⚡ تنفيذ تلقائي للإشارات</span>
-            <p style={{ fontSize: 9, color: '#8B92A8', margin: '2px 0 0' }}>تنفيذ الإشارات المؤهلة تلقائياً</p>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#FFB800' }}>{tn('autoExecuteSignals')}</span>
+            <p style={{ fontSize: 9, color: '#8B92A8', margin: '2px 0 0' }}>{tn('autoExecuteDesc')}</p>
           </div>
           <button
             onClick={() => updateSettings({ autoExecute: !(settings as any).autoExecute })}
@@ -593,7 +595,7 @@ function NotifSettingsPanel() {
             marginTop: 6,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span style={{ fontSize: 9, color: '#8B92A8' }}>حد الثقة للتنفيذ التلقائي</span>
+              <span style={{ fontSize: 9, color: '#8B92A8' }}>{tn('confidenceThreshold')}</span>
               <span style={{ fontSize: 9, color: '#FFB800', fontWeight: 800 }}>{settings.minConfidence}%</span>
             </div>
             <input
@@ -606,7 +608,7 @@ function NotifSettingsPanel() {
               style={{ width: '100%', accentColor: '#FFB800' }}
             />
             <p style={{ fontSize: 8, color: '#8B92A8', margin: '4px 0 0', lineHeight: 1.4 }}>
-              سيتم تنفيذ الإشارات تلقائياً فقط عندما تتجاوز نسبة الثقة هذا الحد، مع وقف خسارة إلزامي 2%
+              {tn('autoExecuteNotice')}
             </p>
           </div>
         )}
@@ -614,7 +616,7 @@ function NotifSettingsPanel() {
 
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-          <span style={{ fontSize: 11, color: '#F0F2F5' }}>حد الثقة الأدنى</span>
+          <span style={{ fontSize: 11, color: '#F0F2F5' }}>{tn('minConfidence')}</span>
           <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800 }}>{settings.minConfidence}%</span>
         </div>
         <input
@@ -634,6 +636,7 @@ function NotifSettingsPanel() {
 /* ══ Main Notification Center Bell + Panel ════════════════ */
 export function NotificationCenter() {
   const { notifications, markRead, markAllRead, dismiss, clearAll } = useNotificationStore()
+  const tn = useTranslations('dashboard.notifications')
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'settings'>('all')
   const unread = notifications.filter((n) => !n.read).length
@@ -729,8 +732,8 @@ export function NotificationCenter() {
               }}
             >
               <span style={{ fontSize: 13, fontWeight: 900, color: '#fff' }}>
-                مركز التنبيهات{' '}
-                {unread > 0 && <span style={{ color: '#00D4FF', fontSize: 11 }}>({unread} جديد)</span>}
+                {tn('title')}{' '}
+                {unread > 0 && <span style={{ color: '#00D4FF', fontSize: 11 }}>({unread} {tn('new')})</span>}
               </span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {unread > 0 && (
@@ -744,7 +747,7 @@ export function NotificationCenter() {
                       cursor: 'pointer',
                     }}
                   >
-                    تحديد الكل كمقروء
+                    {tn('markAllRead')}
                   </button>
                 )}
                 {notifications.length > 0 && (
@@ -758,7 +761,7 @@ export function NotificationCenter() {
                       cursor: 'pointer',
                     }}
                   >
-                    مسح الكل
+                    {tn('clearAll')}
                   </button>
                 )}
               </div>
@@ -781,7 +784,7 @@ export function NotificationCenter() {
                     fontFamily: "'Cairo', sans-serif",
                   }}
                 >
-                  {t === 'all' ? 'التنبيهات' : 'الإعدادات'}
+                  {t === 'all' ? tn('alerts') : tn('settings')}
                 </button>
               ))}
             </div>
@@ -791,7 +794,7 @@ export function NotificationCenter() {
                 {notifications.length === 0 ? (
                   <div style={{ padding: 40, textAlign: 'center', opacity: 0.3 }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>🔔</div>
-                    <div style={{ fontSize: 12 }}>لا توجد تنبيهات بعد</div>
+                    <div style={{ fontSize: 12 }}>{tn('noAlertsYet')}</div>
                   </div>
                 ) : (
                   notifications.map((n) => (

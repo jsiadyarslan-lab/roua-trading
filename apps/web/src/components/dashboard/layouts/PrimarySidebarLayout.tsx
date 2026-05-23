@@ -8,21 +8,10 @@ import { useSidebarState, type TabId } from '@/hooks/useSidebarState'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { usePriceAlertStore } from '@/hooks/usePriceAlertStore'
 import { T } from '@/lib/theme-tokens'
-
-const TAB_TONES: Record<string, string> = {
-  portfolio: 'المركز المالي',
-  execute: 'أمر السوق',
-  book: 'بنية السوق',
-  watch: 'الرموز النشطة',
-  alerts: 'الشروط والتنبيه',
-  ai: 'القراءة التفسيرية',
-  news: 'السياق الإخباري',
-  calendar: 'الماكرو القادم',
-  backtest: 'صلاحية الفكرة',
-  correlation: 'مخاطر التداخل',
-}
+import { useTranslations } from 'next-intl'
 
 export function PrimarySidebarLayout() {
+  const tsl = useTranslations('dashboard.sidebarTabs')
   const {
     activeTab,
     setActiveTab,
@@ -39,12 +28,12 @@ export function PrimarySidebarLayout() {
 
   const activeTabInfo = useMemo(
     () => ({
-      label: active.label,
-      helper: active.helper,
+      label: tsl(active.id),
+      helper: tsl(active.id + 'Helper'),
       accent: active.accent,
-      tone: TAB_TONES[active.id] || '',
+      tone: tsl(active.id),
     }),
-    [active]
+    [active, tsl]
   )
 
   // Badges: positions count for portfolio, alerts count for alerts
@@ -99,8 +88,8 @@ export function PrimarySidebarLayout() {
       <button
         type="button"
         onClick={toggleCollapse}
-        title={collapsed ? 'توسيع السايدبار (Ctrl+B)' : 'تصغير السايدبار (Ctrl+B)'}
-        aria-label={collapsed ? 'توسيع السايدبار' : 'تصغير السايدبار'}
+        title={collapsed ? tsl('expand') : tsl('collapse')}
+        aria-label={collapsed ? tsl('expandAria') : tsl('collapseAria')}
         className="sidebar-collapse-btn"
         style={{
           position: 'absolute',

@@ -7,6 +7,7 @@ import { PortfolioHeatMap } from '@/components/portfolio/PortfolioHeatMap'
 import { QuickActionsBar } from '@/components/portfolio/QuickActionsBar'
 import { PositionCard } from '@/components/portfolio/PositionCard'
 import { T } from '@/lib/theme-tokens'
+import { useTranslations } from 'next-intl'
 
 /* ── Default Real Data State ── */
 const DEFAULT: PortfolioSummary = {
@@ -194,7 +195,7 @@ export function PortfolioMini({
   compact = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'في انتظار ربط API',
+  sourceLabel = '',
   selectedSymbol,
 }: {
   mobile?: boolean
@@ -205,6 +206,8 @@ export function PortfolioMini({
   selectedSymbol?: string
 }) {
   const { data } = usePortfolioSummary()
+  const tp = useTranslations('portfolio')
+  const tc = useTranslations('common')
   const positions = usePositionsStore(s => s.positions)
   const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
   // V164: Read the exchangeUnavailable flag to show warning when real exchange fails
@@ -249,7 +252,7 @@ export function PortfolioMini({
         background: 'rgba(255,255,255,0.025)',
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>حالة الحساب</div>
+          <div style={{ fontSize: 8.5, color: T.text3, marginBottom: 3 }}>{tp('accountStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
             <span style={{
               display: 'inline-flex',
@@ -290,10 +293,10 @@ export function PortfolioMini({
           <span style={{ fontSize: 11 }}>⚠️</span>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 8.5, fontWeight: 800, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>
-              البورصة غير متاحة — اضغط للحل
+              {tp('exchangeUnavailable')}
             </div>
             <div style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              الرصيد المعروض ورقي. أضف عنوان IP للخادم إلى القائمة البيضاء في Binance ← صفحة المفاتيح
+              {tp('exchangeUnavailableHint')}
             </div>
           </div>
         </div>
@@ -311,7 +314,7 @@ export function PortfolioMini({
             <div style={{
               fontFamily: "'Cairo', sans-serif",
               fontSize: 9, color: T.text2,
-            }}>الرصيد الكلي</div>
+            }}>{tp('totalBalance')}</div>
             {/* V164: Show "ورقي" badge when displaying paper balance as fallback */}
             {exchangeUnavailable && (
               <span style={{
@@ -320,7 +323,7 @@ export function PortfolioMini({
                 fontWeight: 800, fontFamily: "'Cairo', sans-serif",
                 border: '0.5px solid rgba(0,212,255,0.3)',
               }}>
-                ورقي
+                {tp('paper')}
               </span>
             )}
           </div>
@@ -350,12 +353,12 @@ export function PortfolioMini({
           border: '0.5px solid rgba(255,255,255,0.04)',
         }}>
           <div style={{ fontSize: 7.5, color: T.text3, fontFamily: "'Cairo', sans-serif", fontWeight: 700, marginBottom: 1 }}>
-            أرصدة البورصات
+            {tp('exchangeBalances')}
           </div>
           {exchangeBalances.map((ex) => {
             const isPaper = ex.exchange === 'paper-trading'
             const exColor = isPaper ? T.cyan : ex.isTestnet ? T.amber : T.green
-            const exLabel = isPaper ? 'ورقي' : ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)
+            const exLabel = isPaper ? tp('paper') : ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)
             return (
               <div key={ex.credentialId || ex.exchange} style={{
                 display: 'flex', alignItems: 'center', gap: 5, fontSize: 8,
@@ -373,7 +376,7 @@ export function PortfolioMini({
                 </span>
                 {ex.error && (
                   <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>
-                    ⚠ خطأ
+                    ⚠ {tp('error')}
                   </span>
                 )}
                 {!isPaper && !ex.isTestnet && (
@@ -382,7 +385,7 @@ export function PortfolioMini({
                     background: 'rgba(0,255,163,0.1)', color: T.green,
                     fontWeight: 700,
                   }}>
-                    حقيقي
+                    {tp('real')}
                   </span>
                 )}
                 {ex.isTestnet && !isPaper && (
@@ -391,7 +394,7 @@ export function PortfolioMini({
                     background: 'rgba(255,184,0,0.1)', color: T.amber,
                     fontWeight: 700,
                   }}>
-                    تجريبي
+                    {tp('testnet')}
                   </span>
                 )}
               </div>
@@ -436,8 +439,8 @@ export function PortfolioMini({
       {/* Stats row */}
       <div style={{ display: 'flex', gap: 4 }}>
         {[
-          { label: 'مراكز', value: data.totalPositions, color: T.cyan },
-          { label: 'فوز%', value: `${data.winRate}%`, color: T.green },
+          { label: tp('positions'), value: data.totalPositions, color: T.cyan },
+          { label: tp('winPercent'), value: `${data.winRate}%`, color: T.green },
           { label: 'Exposure', value: `${Math.min(100, Math.abs(data.margin) > 0 && data.balance > 0 ? Math.round((Math.abs(data.margin) / data.balance) * 100) : 0)}%`, color: T.amber },
         ].map((stat) => (
           <div key={stat.label} style={{
@@ -462,10 +465,10 @@ export function PortfolioMini({
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>
-            {data.winCount} فائزة
+            {data.winCount} {tp('winningTrades', { count: data.winCount })}
           </span>
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>
-            {data.lossCount} خاسرة
+            {data.lossCount} {tp('losingTrades', { count: data.lossCount })}
           </span>
         </div>
         <div style={{
@@ -522,21 +525,21 @@ export function PortfolioMini({
                   if (result.success) {
                     usePositionsStore.getState().refreshAfterTrade()
                     toast({
-                      title: 'تم إغلاق المركز',
-                      description: `تم إغلاق مركز ${symbol} بنجاح`,
+                      title: tp('positionClosed'),
+                      description: tp('positionClosedDesc', { symbol }),
                     })
                   } else {
                     toast({
-                      title: 'فشل إغلاق المركز',
-                      description: result.error || 'حدث خطأ غير معروف',
+                      title: tp('positionCloseFailed'),
+                      description: result.error || tp('unknownError'),
                       variant: 'destructive',
                     })
                   }
                 } catch (err) {
                   console.warn('[PortfolioMini] Close failed:', err)
                   toast({
-                    title: 'فشل إغلاق المركز',
-                    description: err instanceof Error ? err.message : 'حدث خطأ أثناء إغلاق المركز',
+                    title: tp('positionCloseFailed'),
+                    description: err instanceof Error ? err.message : tp('positionCloseError'),
                     variant: 'destructive',
                   })
                 } finally {
@@ -547,7 +550,7 @@ export function PortfolioMini({
           ))}
           {positions.length > 5 && (
             <div style={{ textAlign: 'center', padding: '4px 0', fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              +{positions.length - 5} مركز إضافي
+              +{positions.length - 5} {tp('additionalPositions', { count: positions.length - 5 })}
             </div>
           )}
         </div>
@@ -559,7 +562,7 @@ export function PortfolioMini({
         alignItems: 'center',
         borderTop: `0.5px solid ${T.border}`, paddingTop: 5,
       }}>
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>الهامش المستخدم</span>
+        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>{tp('marginUsed')}</span>
         <span style={{
           fontFamily: "'JetBrains Mono', monospace",
           fontSize: 9.5, color: T.amber,

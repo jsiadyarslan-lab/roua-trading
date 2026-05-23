@@ -73,9 +73,9 @@ export function BotMini() {
   React.useEffect(() => {
     if (isOn && logs.length === 0) {
       const { addLog } = useBotStore.getState();
-      addLog(`[نظام] روبوت التداول جاهز — استراتيجية: ${settings.strategy}`, 'info');
-      addLog(`[نظام] المسح التلقائي نشط كل 30 ثانية — حد الثقة: ${settings.confLimit}%`, 'info');
-      addLog(`[مسح] جاري فحص ${7} أصول رئيسية...`, 'info');
+      addLog(tb('botReady', { strategy: settings.strategy }), 'info');
+      addLog(tb('autoScanActive', { limit: settings.confLimit }), 'info');
+      addLog(tb('scanningAssets', { count: 7 }), 'info');
     }
   }, []);
 
@@ -139,7 +139,7 @@ export function BotMini() {
               textOverflow: 'ellipsis',
             }}
           >
-            روبوت المتابعة الآلي
+            {tb('title')}
           </span>
           <span
             style={{
@@ -186,7 +186,7 @@ export function BotMini() {
               lineHeight: 1,
             }}
           >
-            {isOn ? 'إيقاف' : 'تشغيل'}
+            {isOn ? tb('off') : tb('on')}
           </button>
         </div>
       </div>
@@ -210,7 +210,7 @@ export function BotMini() {
             lineHeight: 1,
           }}
         >
-          السجل
+          {tb('log')}
         </button>
         <button
           type="button"
@@ -229,7 +229,7 @@ export function BotMini() {
             lineHeight: 1,
           }}
         >
-          الإعدادات
+          {tb('config')}
         </button>
       </div>
 
@@ -249,15 +249,15 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('trades')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('trades')}</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('profit')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('profit')}</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('winRate')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('winRate')}</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
             </div>
           </div>
@@ -274,15 +274,15 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('openPositions')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('openPositions')}</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('winsLosses')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('winsLosses')}</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('sessionLoss')</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>{tb('sessionLoss')}</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
                 ${stats.sessionLoss}
               </div>
@@ -304,7 +304,7 @@ export function BotMini() {
             }}
           >
             {logs.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>tb('emptyLog')</div>
+              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>{tb('emptyLog')}</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
@@ -333,7 +333,7 @@ export function BotMini() {
       ) : (
         <div className="bot-mini-config" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('strategy')</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('strategy')}</label>
             <select
               value={settings.strategy}
               onChange={(e) => updateSettings({ strategy: e.target.value })}
@@ -349,16 +349,16 @@ export function BotMini() {
                 touchAction: 'manipulation',
               }}
             >
-              <option value="AUTO">AUTO (تلقائي — اختيار أفضل استراتيجية)</option>
-              <option value="TREND_FOLLOWING">Trend Following (اتباع الاتجاه)</option>
-              <option value="MEAN_REVERSION">Mean Reversion (ارتداد متوسط)</option>
-              <option value="BREAKOUT">Breakout (الاختراق)</option>
-              <option value="MOMENTUM">Momentum (الزخم)</option>
+              <option value="AUTO">AUTO ({tb('autoStrategy')})</option>
+              <option value="TREND_FOLLOWING">Trend Following ({tb('trendFollowing')})</option>
+              <option value="MEAN_REVERSION">Mean Reversion ({tb('meanReversion')})</option>
+              <option value="BREAKOUT">Breakout ({tb('breakout')})</option>
+              <option value="MOMENTUM">Momentum ({tb('momentum')})</option>
             </select>
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('riskPerTrade')</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('riskPerTrade')}</label>
             <input
               type="range"
               min="1"
@@ -372,7 +372,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('minConfidence')</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('minConfidence')}</label>
             <input
               type="range"
               min="50"
@@ -386,7 +386,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('aiConsensusMode')</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{tb('aiConsensusMode')}</label>
             <div
               onClick={() => updateSettings({ useAIConsensus: !settings.useAIConsensus })}
               role="button"
@@ -415,11 +415,11 @@ export function BotMini() {
               }}
             >
               <span style={{ fontSize: 11, fontWeight: 700, color: settings.useAIConsensus ? 'var(--accent)' : 'var(--text3)' }}>
-                {settings.useAIConsensus ? '⚡ مفعل (إجماع 6 نماذج)' : 'متوقف (زخم فني فقط)'}
+                {settings.useAIConsensus ? tb('aiConsensusOn') : tb('aiConsensusOff')}
               </span>
             </div>
             <p style={{ fontSize: 8, color: 'var(--text4)', marginTop: 4, lineHeight: 1.4 }}>
-              * عند التفعيل، سيقوم البوت باستشارة 6 نماذج ذكاء اصطناعي قبل كل صفقة.
+              {tb('aiConsensusNote')}
             </p>
           </div>
         </div>

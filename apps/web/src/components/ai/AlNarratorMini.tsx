@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { Activity, ShieldCheck, Zap, Bell, CheckCircle2, TrendingUp, TrendingDown, Brain, Crosshair } from 'lucide-react'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
+import { useTranslations } from 'next-intl'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
 interface Keyword {
@@ -55,6 +56,8 @@ export function AlNarratorMini({
   const [recommendation, setRecommendation] = useState<SmartRecommendation | null>(null)
   const [recLoading, setRecLoading] = useState(false)
   const [alertToast, setAlertToast] = useState<{ symbol: string; sentiment: string; risk: string; confidence: number; summary: string } | null>(null)
+  const t = useTranslations('ai.narrator')
+  const tc = useTranslations('common')
 
   const fetchNarrative = useCallback(async () => {
     setLoading(true)
@@ -112,7 +115,7 @@ export function AlNarratorMini({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `أعطني توصية تداول مباشرة لـ ${selectedSymbol} مع تحديد نقطة الدخول ووقف الخسارة والهدف. أجب بهذا التنسيق فقط: الإجراء | الدخول | وقف الخسارة | الهدف | السبب`,
+          message: t('recommendationPrompt', { symbol: selectedSymbol }),
           symbol: selectedSymbol,
           type: 'signal_generation',
           style: 'abbreviated',
@@ -129,8 +132,15 @@ export function AlNarratorMini({
         const tpMatch = content.match(/(?:الهدف|TP|Take\s*Profit)[:\s]*([\d.,]+)/i)
         const reasonMatch = content.match(/(?:السبب|Reason)[:\s]*(.+)/i)
 
+        const rawAction = actionMatch ? actionMatch[1] : (content.includes('شراء') || content.includes('BUY') ? 'buy' : content.includes('بيع') || content.includes('SELL') ? 'sell' : 'wait')
+        const normalizeAction = (raw: string): string => {
+          if (raw === 'شراء' || raw.toLowerCase() === 'buy') return 'buy'
+          if (raw === 'بيع' || raw.toLowerCase() === 'sell') return 'sell'
+          if (raw === 'انتظار' || raw.toLowerCase() === 'hold') return 'wait'
+          return 'wait'
+        }
         setRecommendation({
-          action: actionMatch ? actionMatch[1] : (content.includes('شراء') || content.includes('BUY') ? 'شراء' : content.includes('بيع') || content.includes('SELL') ? 'بيع' : 'انتظار'),
+          action: normalizeAction(rawAction),
           entry: entryMatch ? entryMatch[1] : '—',
           sl: slMatch ? slMatch[1] : '—',
           tp: tpMatch ? tpMatch[1] : '—',
@@ -138,20 +148,20 @@ export function AlNarratorMini({
         })
       } else {
         setRecommendation({
-          action: 'انتظار',
+          action: 'wait',
           entry: '—',
           sl: '—',
           tp: '—',
-          reason: 'لم أتمكن من الحصول على توصية حالياً',
+          reason: t('recommendationUnavailable'),
         })
       }
     } catch {
       setRecommendation({
-        action: 'انتظار',
+        action: 'wait',
         entry: '—',
         sl: '—',
         tp: '—',
-        reason: 'حدث خطأ في الاتصال بنماذج AI',
+        reason: t('aiConnectionError'),
       })
     } finally {
       setRecLoading(false)
@@ -162,21 +172,21 @@ export function AlNarratorMini({
   const handleAlert = () => {
     if (!selectedSymbol || !data) return
 
-    const sentimentAr = data.sentiment === 'bullish' ? 'صاعد' : data.sentiment === 'bearish' ? 'هابط' : 'محايد'
-    const riskAr = data.risk === 'Low' ? 'منخفضة' : data.risk === 'Medium' ? 'متوسطة' : 'عالية'
-    const alertBody = `التوجه: ${sentimentAr} | المخاطرة: ${riskAr} | الثقة: ${data.confidence}%`
+    const sentimentLabel = t(data.sentiment)
+    const riskLabel = t(data.risk === 'Low' ? 'lowRisk' : data.risk === 'Medium' ? 'mediumRiskLevel' : 'highRisk2')
+    const alertBody = `${t('sentiment')}: ${sentimentLabel} | ${t('risk')}: ${riskLabel} | ${t('confidence')}: ${data.confidence}%`
 
     // FIX: Use browser Notification API (non-blocking) — removed alert() that froze the UI
     if ('Notification' in window) {
       if (Notification.permission === 'granted') {
-        new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
+        new Notification(t('alertTitle', { symbol: selectedSymbol }), {
           body: alertBody,
           icon: '/favicon.ico',
         })
       } else if (Notification.permission !== 'denied') {
         Notification.requestPermission().then(perm => {
           if (perm === 'granted') {
-            new Notification(`رؤى — تنبيه ${selectedSymbol}`, {
+            new Notification(t('alertTitle', { symbol: selectedSymbol }), {
               body: alertBody,
               icon: '/favicon.ico',
             })
@@ -188,8 +198,8 @@ export function AlNarratorMini({
     // FIX: Show inline toast notification instead of blocking alert()
     setAlertToast({
       symbol: selectedSymbol,
-      sentiment: sentimentAr,
-      risk: riskAr,
+      sentiment: data.sentiment,
+      risk: data.risk,
       confidence: data.confidence,
       summary: data.summary || data.narrative?.slice(0, 100) || '',
     })
@@ -230,7 +240,7 @@ export function AlNarratorMini({
             animation: isHighConfidence ? 'orb-pulse 2s infinite' : 'none'
           }} />
           <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>
-            {selectedSymbol ? `ما الذي يحدث في ${selectedSymbol}؟` : 'رؤى الذكاء الاصطناعي'}
+            {selectedSymbol ? t('whatIsHappening', { symbol: selectedSymbol }) : t('aiInsights')}
           </span>
         </div>
 
@@ -250,7 +260,7 @@ export function AlNarratorMini({
           {/* Council Briefs Row — إشارات المجلس النشطة */}
           {activeBriefs.length > 0 && (
             <div style={{ padding: '8px 10px', background: 'rgba(0,212,255,0.05)', borderRadius: 10, border: '1px solid rgba(0,212,255,0.15)', marginBottom: 4 }}>
-              <div style={{ fontSize: 8, color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ إشارات المجلس الاستراتيجي</div>
+              <div style={{ fontSize: 8, color: 'rgba(0,212,255,0.8)', fontWeight: 700, marginBottom: 6, letterSpacing: 1 }}>🏛️ {t('councilSignals')}</div>
               {activeBriefs.map((b: any, i: number) => (
                 <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', fontSize: 9, borderTop: i > 0 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
                   <span style={{ color: b.direction === 'BUY' ? '#00FFA3' : '#FF4757', fontWeight: 800 }}>{b.direction === 'BUY' ? '▲' : '▼'} {b.pair}</span>
@@ -268,11 +278,11 @@ export function AlNarratorMini({
                flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>التوجه العام</span>
+               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('overallTrend')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   {data.sentiment === 'bullish' ? <TrendingUp size={16} color="var(--success)" /> : <TrendingDown size={16} color="var(--danger)" />}
                   <span style={{ fontSize: 13, fontWeight: 900, color: sentimentColor[data.sentiment], fontFamily: "'Cairo', sans-serif" }}>
-                    {data.sentiment === 'bullish' ? 'صعود مؤسسي' : data.sentiment === 'bearish' ? 'هبوط سيادي' : data.sentiment === 'volatile' ? 'تذبذب حاد' : 'تذبذب جانبي'}
+                    {data.sentiment === 'bullish' ? t('institutionalBullish') : data.sentiment === 'bearish' ? t('sovereignBearish') : data.sentiment === 'volatile' ? t('sharpVolatility') : t('sidewaysVolatility')}
                   </span>
                </div>
             </div>
@@ -280,7 +290,7 @@ export function AlNarratorMini({
                flex: 1, padding: compact ? '10px' : '12px', borderRadius: 12, background: 'rgba(255,255,255,0.02)',
                border: '1px solid var(--card-border)', display: 'flex', flexDirection: 'column', gap: 4
             }}>
-               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>مستوى المخاطرة</span>
+               <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700 }}>{t('riskLevel')}</span>
                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <ShieldCheck size={16} color={data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)'} />
                   <span style={{
@@ -288,7 +298,7 @@ export function AlNarratorMini({
                     color: data.risk === 'Low' ? 'var(--success)' : data.risk === 'Medium' ? '#FFB800' : 'var(--danger)',
                     fontFamily: "'Cairo', sans-serif"
                   }}>
-                    {data.risk === 'Low' ? 'منخفضة جداً' : data.risk === 'Medium' ? 'متوسطة' : 'عالية المخاطر'}
+                    {data.risk === 'Low' ? t('veryLowRisk') : data.risk === 'Medium' ? t('mediumRisk') : t('highRiskLevel')}
                   </span>
                </div>
             </div>
@@ -297,7 +307,7 @@ export function AlNarratorMini({
           {/* Institutional Confidence Meter */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>مؤشر الثقة الرقمي</span>
+                <span style={{ fontSize: 9, color: 'var(--text-muted-safe)', fontWeight: 800 }}>{t('digitalConfidenceIndex')}</span>
                 <span className="price" style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 900 }}>{data.confidence}%</span>
              </div>
              <div style={{ width: '100%', height: 8, background: 'rgba(255,255,255,0.05)', borderRadius: 10, overflow: 'hidden', padding: 1.5 }}>
@@ -317,12 +327,12 @@ export function AlNarratorMini({
             padding: '10px', background: 'rgba(0,229,255,0.03)',
             borderRadius: 10, border: '1px solid rgba(0,229,255,0.1)'
           }}>
-             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>خطوات التحليل</span>
+             <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, marginBottom: 4 }}>{t('analysisSteps')}</span>
              {[
-               { label: 'تحليل الأخبار العالمية', status: 'checked' },
-               { label: 'فحص المؤشرات الفنية (RSI/MACD)', status: 'checked' },
-               { label: 'قياس تدفق السيولة', status: data.confidence > 80 ? 'checked' : 'loading' },
-               { label: 'تقييم المخاطر', status: 'checked' }
+               { label: t('globalNewsAnalysis'), status: 'checked' },
+               { label: t('technicalIndicatorsCheck'), status: 'checked' },
+               { label: t('liquidityFlowMeasurement'), status: data.confidence > 80 ? 'checked' : 'loading' },
+               { label: t('riskAssessment'), status: 'checked' }
              ].map((step, si) => (
                <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 8, opacity: step.status === 'checked' ? 1 : 0.4 }}>
                   {step.status === 'checked' ? <CheckCircle2 size={12} color="var(--success)" /> : <Activity size={12} className="spinning" />}
@@ -342,8 +352,8 @@ export function AlNarratorMini({
             lineHeight: 1.7,
           }}>
             {data.summary || (selectedSymbol
-              ? `المساعد يقرأ ${selectedSymbol} الآن ويربط السرد بالاتجاه والبيانات الحية.`
-              : 'المساعد يربط السرد بحركة السوق الحالية.')}
+              ? t('assistantReading', { symbol: selectedSymbol })
+              : t('assistantConnecting'))}
           </div>
 
           {!compact && data.nextTrigger && (
@@ -356,7 +366,7 @@ export function AlNarratorMini({
               color: 'var(--text2)',
               lineHeight: 1.7,
             }}>
-              <strong style={{ color: 'var(--accent)' }}>المحفز التالي:</strong> {data.nextTrigger}
+              <strong style={{ color: 'var(--accent)' }}>{t('nextTriggerLabel')}</strong> {data.nextTrigger}
             </div>
           )}
 
@@ -377,7 +387,7 @@ export function AlNarratorMini({
                   position: 'absolute', bottom: 0, left: 0, right: 0, height: 24,
                   background: 'linear-gradient(to top, var(--surface), transparent)',
                   display: 'flex', justifyContent: 'center', alignItems: 'flex-end', fontSize: 8, color: 'var(--accent)', fontWeight: 800
-               }}>اضغط للتوسع...</div>
+               }}>{t('tapToExpand')}</div>
              )}
           </div>
 
@@ -391,7 +401,7 @@ export function AlNarratorMini({
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6,
               }}>
                 <span style={{ fontSize: 9, color: 'var(--accent)', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <Crosshair size={10} /> التوصية الذكية — {selectedSymbol}
+                  <Crosshair size={10} /> {t('smartRecommendationTitle', { symbol: selectedSymbol })}
                 </span>
                 <button
                   onClick={() => setShowRecommendation(false)}
@@ -402,19 +412,19 @@ export function AlNarratorMini({
               </div>
               {recLoading ? (
                 <div style={{ fontSize: 10, color: 'var(--text2)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Activity size={10} className="spinning" /> جاري التحليل...
+                  <Activity size={10} className="spinning" /> {t('analyzing')}
                 </div>
               ) : recommendation ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 10, color: 'var(--text2)' }}>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <span style={{
                       padding: '2px 8px', borderRadius: 4, fontWeight: 800,
-                      background: recommendation.action === 'شراء' ? 'rgba(0,255,198,0.1)' : recommendation.action === 'بيع' ? 'rgba(255,77,77,0.1)' : 'rgba(255,184,0,0.1)',
-                      color: recommendation.action === 'شراء' ? 'var(--success)' : recommendation.action === 'بيع' ? 'var(--danger)' : '#FFB800',
+                      background: recommendation.action === 'buy' ? 'rgba(0,255,198,0.1)' : recommendation.action === 'sell' ? 'rgba(255,77,77,0.1)' : 'rgba(255,184,0,0.1)',
+                      color: recommendation.action === 'buy' ? 'var(--success)' : recommendation.action === 'sell' ? 'var(--danger)' : '#FFB800',
                     }}>
-                      {recommendation.action}
+                      {t(recommendation.action)}
                     </span>
-                    <span>دخول: <strong style={{ color: 'var(--text)' }}>{recommendation.entry}</strong></span>
+                    <span>{t('entryLabel')} <strong style={{ color: 'var(--text)' }}>{recommendation.entry}</strong></span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <span>SL: <strong style={{ color: 'var(--danger)' }}>{recommendation.sl}</strong></span>
@@ -442,7 +452,7 @@ export function AlNarratorMini({
                   opacity: recLoading ? 0.6 : 1,
                }}
              >
-                <Zap size={13} fill="currentColor" /> توصية ذكية
+                <Zap size={13} fill="currentColor" /> {t('smartRecommendation')}
              </button>
              <button
                onClick={handleAlert}
@@ -454,7 +464,7 @@ export function AlNarratorMini({
                   fontFamily: "'Cairo', sans-serif"
                }}
              >
-                <Bell size={12} /> تنبيه
+                <Bell size={12} /> {t('alert')}
              </button>
           </div>
         </>
@@ -486,7 +496,7 @@ export function AlNarratorMini({
           animation: 'toast-slide-in 0.3s ease',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <span style={{ fontWeight: 800, color: 'var(--accent)' }}>🔔 تنبيه {alertToast.symbol}</span>
+            <span style={{ fontWeight: 800, color: 'var(--accent)' }}>🔔 {t('alertTitle', { symbol: alertToast.symbol })}</span>
             <button
               onClick={() => setAlertToast(null)}
               style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 10 }}
@@ -494,7 +504,7 @@ export function AlNarratorMini({
               ✕
             </button>
           </div>
-          <div>التوجه: <strong style={{ color: alertToast.sentiment === 'صاعد' ? 'var(--success)' : alertToast.sentiment === 'هابط' ? 'var(--danger)' : 'var(--primary)' }}>{alertToast.sentiment}</strong> | المخاطرة: {alertToast.risk} | الثقة: {alertToast.confidence}%</div>
+          <div>{t('sentiment')}: <strong style={{ color: alertToast.sentiment === 'bullish' ? 'var(--success)' : alertToast.sentiment === 'bearish' ? 'var(--danger)' : 'var(--primary)' }}>{t(alertToast.sentiment)}</strong> | {t('risk')}: {t(alertToast.risk === 'Low' ? 'lowRisk' : alertToast.risk === 'Medium' ? 'mediumRiskLevel' : 'highRisk2')} | {t('confidence')}: {alertToast.confidence}%</div>
           {alertToast.summary && <div style={{ marginTop: 2, opacity: 0.7 }}>{alertToast.summary}</div>}
         </div>
       )}

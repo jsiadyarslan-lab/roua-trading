@@ -2,6 +2,7 @@
 
 import { useEffect, type ReactNode } from 'react'
 import { X as XIcon, Pin } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface SidebarDrawerProps {
   open: boolean
@@ -18,6 +19,7 @@ export function SidebarDrawer({
   pinned = false,
   children,
 }: SidebarDrawerProps) {
+  const ts = useTranslations('dashboard.sidebar')
   // Close on Escape key
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -127,7 +129,7 @@ export function SidebarDrawer({
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
-              الشريط الجانبي
+              {ts('title')}
             </span>
           </div>
 
@@ -137,7 +139,7 @@ export function SidebarDrawer({
               <button
                 type="button"
                 onClick={onPin}
-                title={pinned ? 'إلغاء التثبيت' : 'تثبيت'}
+                title={pinned ? ts('unpin') : ts('pin')}
                 style={{
                   background: pinned
                     ? 'rgba(0,212,255,0.15)'
@@ -167,7 +169,7 @@ export function SidebarDrawer({
               <button
                 type="button"
                 onClick={onClose}
-                title="إغلاق"
+                title={ts('closeBtn')}
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.08)',

@@ -10,14 +10,14 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl';
 
 // Signal explanations map
-const SIGNAL_EXPLANATIONS: Record<string, string> = {
-  'buy': 'السكانر رصد مؤشرات شراء — قد يكون هناك صعود قريب',
-  'sell': 'السكانر رصد مؤشرات بيع — قد يكون هناك هبوط قريب',
-  'neutral': 'لا توجد إشارة واضحة — السوق في حالة ترقب',
-  'STRONG_BUY': 'إشارة شراء قوية — عدة مؤشرات تتفق على الصعود',
-  'BUY': 'إشارة شراء — المؤشرات تميل للصعود',
-  'STRONG_SELL': 'إشارة بيع قوية — عدة مؤشرات تتفق على الهبوط',
-  'SELL': 'إشارة بيع — المؤشرات تميل للهبوط',
+const SIGNAL_EXPLANATION_KEYS: Record<string, string> = {
+  'buy': 'signalExplanationBuy',
+  'sell': 'signalExplanationSell',
+  'neutral': 'signalExplanationNeutral',
+  'STRONG_BUY': 'signalExplanationStrongBuy',
+  'BUY': 'signalExplanationBuy2',
+  'STRONG_SELL': 'signalExplanationStrongSell',
+  'SELL': 'signalExplanationSell2',
 };
 
 export function ScannerMini({ mobile = false, compact = false, selectedSymbol }: { mobile?: boolean; compact?: boolean; selectedSymbol?: string }) {
@@ -164,7 +164,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Activity size={10} color="var(--accent)" className={scanning ? 'animate-pulse' : ''} />
           <span style={{ fontSize: 8, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>
-            سكانر الأسواق
+            {ts('title')}
           </span>
           <span style={{ fontSize: 6, background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
             {signals.length > 0 ? `${signals.length} ${ts("pair")}` : ''}
@@ -213,7 +213,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)', fontFamily: "'Cairo', sans-serif" }}>
-                {spotlight.pair === activeSymbol ? '🎯 الأصل المحدد تحت المجهر' : 'الفرصة الأهم'}
+                {spotlight.pair === activeSymbol ? ts('selectedUnderMicroscope') : ts('topOpportunity')}
               </span>
               <span style={{
                 fontSize: 7,
@@ -229,12 +229,12 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             </div>
             <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
               {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
-                ? `ظهر ${spotlight.pair} لأن: ${spotlight.reasons.slice(0, 2).join('، ')}.`
-                : `السكانر يراقب ${spotlight.pair} بانتظار تأكيد.`}
+                ? ts('appearedBecause', { symbol: spotlight.pair, reasons: spotlight.reasons.slice(0, 2).join('، ') })
+                : ts('scannerWatching', { symbol: spotlight.pair })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>
-              <span>{spotlight.source || 'في انتظار الربط'}</span>
-              <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp) : (lastScan || 'الآن')}</span>
+              <span>{spotlight.source || ts('awaitingConnection')}</span>
+              <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp) : (lastScan || tc('justNow'))}</span>
             </div>
           </div>
         )}
@@ -253,7 +253,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         ) : signals.length === 0 ? (
           <div style={{ padding: compact ? 15 : 30, textAlign: 'center', opacity: 0.4 }}>
              <span style={{ fontSize: 20 }}>📡</span>
-             <div style={{ fontSize: 8, marginTop: 6 }}>ts('noSignals')</div>
+             <div style={{ fontSize: 8, marginTop: 6 }}>{ts('noSignals')}</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -264,7 +264,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
               const dirColor = isBuy ? '#00E676' : isSell ? '#FF5252' : '#FFB800'
               const dirBg = isBuy ? 'rgba(0,230,118,0.10)' : isSell ? 'rgba(255,82,82,0.10)' : 'rgba(255,184,0,0.10)'
               const isActiveSig = sig.pair === activeSymbol
-              const signalExplanation = SIGNAL_EXPLANATIONS[sig.dir] || SIGNAL_EXPLANATIONS[sig.direction] || 'إشارة من السكانر'
+              const signalExplanation = ts(SIGNAL_EXPLANATION_KEYS[sig.dir] || SIGNAL_EXPLANATION_KEYS[sig.direction] || 'signalFromScanner')
 
               return (
                 <div
@@ -312,7 +312,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                         {isBuy ? tc('buy') : isSell ? tc('sell') : ts('watch')}
                       </span>
                       {isActiveSig && (
-                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ts('selected')</span>
+                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>{ts('selected')}</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
@@ -338,7 +338,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                       {sig.rsi != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>RSI {sig.rsi}</span>}
                       {sig.macdSignal != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>MACD {sig.macdSignal}</span>}
                     </div>
-                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || 'الآن')}</span>
+                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || tc('justNow'))}</span>
                   </div>
                 </div>
               )
@@ -354,7 +354,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         const isBuy = sig.dir === 'buy'
         const isSell = sig.dir === 'sell'
         const dirColor = isBuy ? '#00E676' : isSell ? '#FF5252' : '#FFB800'
-        const explanation = SIGNAL_EXPLANATIONS[sig.dir] || SIGNAL_EXPLANATIONS[sig.direction] || 'إشارة من السكانر'
+        const explanation = ts(SIGNAL_EXPLANATION_KEYS[sig.dir] || SIGNAL_EXPLANATION_KEYS[sig.direction] || 'signalFromScanner')
         const reasons = Array.isArray(sig.reasons) ? sig.reasons.slice(0, 3).join(' · ') : ''
         return (
           <div style={{

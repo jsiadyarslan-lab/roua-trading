@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import type { QuoteData } from '@/hooks/useMarketStore'
 import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
@@ -57,27 +58,21 @@ const PANEL_H = 30
 
 
 // Mode configuration — determines UI accent and available features per mode
-const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: string; labelAr: string; description: string }> = {
+const MODE_CONFIG: Record<TradingMode, { accent: string; glowBg: string; label: string }> = {
   trader: {
     accent: '#00d4ff',
     glowBg: 'rgba(0,212,255,0.04)',
     label: 'Trader',
-    labelAr: 'وضع التاجر',
-    description: 'ربط سريع، شارت متقدم، متابعة فورية',
   },
   investor: {
     accent: '#10b981',
     glowBg: 'rgba(16,185,129,0.04)',
     label: 'Investor',
-    labelAr: 'وضع المستثمر',
-    description: 'محفظة استثمارية، توزيع الأصول، أداء طويل المدى',
   },
   ai: {
     accent: '#a78bfa',
     glowBg: 'rgba(167,139,250,0.04)',
     label: 'AI',
-    labelAr: 'وضع الذكاء الاصطناعي',
-    description: 'تحليلات AI، توصيات ذكية، إشارات آلية',
   },
 }
 
@@ -103,6 +98,8 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
   isMobile: boolean
   onClose: () => void
 }) {
+  const t = useTranslations('dashboard.trading')
+  const tc = useTranslations('common')
   const [orderSide, setOrderSide] = useState<'buy' | 'sell'>('buy')
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop_limit'>('market')
   const [quantity, setQuantity] = useState('0.01')
@@ -147,7 +144,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 
     const qty = parseFloat(quantity)
     if (isNaN(qty) || qty <= 0) {
-      setStatus({ msg: 'الكمية غير صالحة', type: 'error' })
+      setStatus({ msg: t('invalidQuantity'), type: 'error' })
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
       return
     }
@@ -158,23 +155,23 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
     // FIX: Validate SL/TP against the LIVE effective price, not stale price
     if (orderSide === 'buy') {
       if (sl > 0 && effectivePrice > 0 && sl >= effectivePrice) {
-        setStatus({ msg: 'يجب أن يكون وقف الخسارة أقل من السعر الحالي', type: 'error' })
+        setStatus({ msg: t('slMustBeBelowPrice'), type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
       if (tp > 0 && effectivePrice > 0 && tp <= effectivePrice) {
-        setStatus({ msg: 'يجب أن يكون جني الأرباح أعلى من السعر الحالي', type: 'error' })
+        setStatus({ msg: t('tpMustBeAbovePrice'), type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
     } else {
       if (sl > 0 && effectivePrice > 0 && sl <= effectivePrice) {
-        setStatus({ msg: 'يجب أن يكون وقف الخسارة أعلى من السعر الحالي', type: 'error' })
+        setStatus({ msg: t('slMustBeAbovePrice'), type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
       if (tp > 0 && effectivePrice > 0 && tp >= effectivePrice) {
-        setStatus({ msg: 'يجب أن يكون جني الأرباح أقل من السعر الحالي', type: 'error' })
+        setStatus({ msg: t('tpMustBeBelowPrice'), type: 'error' })
         setTimeout(() => setStatus({ msg: '', type: '' }), 3000)
         return
       }
@@ -204,7 +201,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       const j = await res.json()
 
       if (j.success) {
-        const filled = j.filledAvgPrice ? ` بسعر $${parseFloat(j.filledAvgPrice).toFixed(2)}` : ''
+        const filled = j.filledAvgPrice ? ` @ $${parseFloat(j.filledAvgPrice).toFixed(2)}` : ''
         addPaperTrade({
           symbol: selectedSymbol,
           side: orderSide === 'buy' ? 'long' : 'short',
@@ -220,20 +217,20 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           source: 'trade',
           priority: 'high',
           action: orderSide === 'buy' ? 'BUY' : 'SELL',
-          title: `تم ${orderSide === 'buy' ? 'شراء' : 'بيع'} ${selectedSymbol}`,
-          body: `تم تنفيذ ${qty} ${selectedSymbol}${filled}`,
+          title: `${orderSide === 'buy' ? tc('buy') : tc('sell')} ${selectedSymbol}`,
+          body: t('orderExecuted', { qty, symbol: selectedSymbol, filled }),
           pair: selectedSymbol,
           price: j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : effectivePrice,
         })
         // FIX: Use refreshAfterTrade for staggered refresh (immediate + 2s + 5s)
         refreshAfterTrade()
-        setStatus({ msg: `✅ تم ${orderSide === 'buy' ? 'الشراء' : 'البيع'} بنجاح`, type: 'success' })
+        setStatus({ msg: `✅ ${t('orderSuccess', { side: orderSide === 'buy' ? tc('buy') : tc('sell') })}`, type: 'success' })
         setTimeout(() => onClose(), 1200)
       } else {
-        setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+        setStatus({ msg: `❌ ${j.error || t('executionFailed')}`, type: 'error' })
       }
     } catch {
-      setStatus({ msg: '❌ خطأ في الشبكة', type: 'error' })
+      setStatus({ msg: `❌ ${tc('connectionError')}`, type: 'error' })
     } finally {
       setLoading(false)
       setTimeout(() => setStatus({ msg: '', type: '' }), 4000)
@@ -295,7 +292,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             gap: 4,
           }}
         >
-          شراء <span style={{ fontSize: 10 }}>▲</span>
+          {tc('buy')} <span style={{ fontSize: 10 }}>▲</span>
         </button>
         <button
           onClick={() => setOrderSide('sell')}
@@ -319,7 +316,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
             gap: 4,
           }}
         >
-          بيع <span style={{ fontSize: 10 }}>▼</span>
+          {tc('sell')} <span style={{ fontSize: 10 }}>▼</span>
         </button>
       </div>
 
@@ -333,10 +330,10 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
         border: '1px solid rgba(255,255,255,0.05)',
       }}>
         {([
-          { key: 'market', label: 'سوقي' },
-          { key: 'limit', label: 'محدود' },
-          { key: 'stop_limit', label: 'وقف محدود' },
-        ] as const).map(({ key, label }) => (
+          { key: 'market' as const, label: tc('market') },
+          { key: 'limit' as const, label: tc('limit') },
+          { key: 'stop_limit' as const, label: t('stopLimit') },
+        ]).map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setOrderType(key)}
@@ -365,7 +362,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* Limit Price (when limit/stop_limit) */}
       {(orderType === 'limit' || orderType === 'stop_limit') && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>سعر الحد</label>
+          <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('limitPrice')}</label>
           <input
             value={limitPrice}
             onChange={e => setLimitPrice(e.target.value)}
@@ -381,7 +378,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 
       {/* Quantity */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
+        <label style={{ fontSize: 10, color: T.text2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('quantity')}</label>
         <input
           value={quantity}
           onChange={e => setQuantity(e.target.value)}
@@ -398,7 +395,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
       {/* SL / TP Row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: T.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة</label>
+          <label style={{ fontSize: 10, color: T.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('stopLoss')}</label>
           <input
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
@@ -411,7 +408,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           />
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 10, color: T.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح</label>
+          <label style={{ fontSize: 10, color: T.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('takeProfit')}</label>
           <input
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
@@ -454,7 +451,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.08)' }}
         >
           <Target size={12} />
-          حساب تلقائي (SL 1% / TP 2%)
+          {t('autoCalc')}
         </button>
       )}
 
@@ -475,7 +472,7 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
           justifyContent: 'center',
           gap: 6,
         }}>
-          ⚠️ السعر قد يكون قديماً — سيتم استخدام آخر سعر متاح عند التنفيذ
+          {t('stalePriceWarning')}
         </div>
       )}
 
@@ -527,13 +524,15 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
         onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
       >
         <Zap size={16} fill="white" />
-        {loading ? 'جارٍ التنفيذ...' : orderSide === 'buy' ? 'شراء' : 'بيع'} {selectedSymbol}
+        {loading ? tc('processing') : orderSide === 'buy' ? tc('buy') : tc('sell')} {selectedSymbol}
       </button>
     </div>
   )
 }
 
 export default function DashboardPage() {
+  const t = useTranslations('dashboard.home')
+  const tc = useTranslations('common')
   const { collapsed: sidebarCollapsed } = useSidebarState()
   useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
@@ -1006,13 +1005,13 @@ export default function DashboardPage() {
       // New position(s) detected — notify
       const newest = positions[0]
       if (newest) {
-        const dir = newest.side === 'BUY' ? '🟢 شراء' : '🔴 بيع'
+        const dir = newest.side === 'BUY' ? `🟢 ${tc('buy')}` : `🔴 ${tc('sell')}`
         addNotificationFn({
           source: 'trade',
           priority: 'high',
           action: newest.side === 'BUY' ? 'BUY' : 'SELL',
           title: `${dir} — ${newest.symbol}`,
-          body: `فتح المنفذ الذكي مركزاً جديداً @ $${Number(newest.entryPrice ?? newest.currentPrice).toFixed(2)}`,
+          body: t('smartExecutorOpenedPosition', { price: Number(newest.entryPrice ?? newest.currentPrice).toFixed(2) }),
           pair: newest.symbol,
         })
         setPosOpen(true)
@@ -1139,9 +1138,9 @@ export default function DashboardPage() {
   }, [globalQuotes, selectedSymbol])
 
   const mobileSummaryCards = [
-    { label: 'الرصيد', value: formatMoney(account?.equity), tone: T.text },
-    { label: 'قوة الشراء', value: formatMoney(account?.buyingPower), tone: T.success },
-    { label: 'المراكز', value: `${positions.length}`, tone: T.cyan },
+    { label: tc('balance'), value: formatMoney(account?.equity), tone: T.text },
+    { label: tc('buyingPower'), value: formatMoney(account?.buyingPower), tone: T.success },
+    { label: tc('positions'), value: `${positions.length}`, tone: T.cyan },
   ]
 
   const quoteStatus = getDataStatus(activeQuote)
@@ -1251,11 +1250,11 @@ export default function DashboardPage() {
               <span style={{
                 fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800,
                 color: modeConfig.accent, letterSpacing: '0.02em',
-              }}>{modeConfig.labelAr}</span>
+              }}>{({ trader: t('modeTraderLabel'), investor: t('modeInvestorLabel'), ai: t('modeAiLabel') })[mode]}</span>
               <span style={{
                 fontFamily: "'Cairo', sans-serif", fontSize: 10,
                 color: T.text3, marginInlineEnd: 8,
-              }}>— {modeConfig.description}</span>
+              }}>— {({ trader: t('modeTraderDesc'), investor: t('modeInvestorDesc'), ai: t('modeAiDesc') })[mode]}</span>
               <div style={{ flex: 1 }} />
               {mode === 'trader' && (
                 <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 600 }}>
@@ -1300,27 +1299,27 @@ export default function DashboardPage() {
                 {/* LED + الرصيد */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
                   <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الرصيد</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('balance')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(cashValue)}</span>
                 </div>
                 {/* الرصيد الحالي */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>الحالي</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('current')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.cyan }}>{formatMoney(equityValue)}</span>
                 </div>
                 {/* الهامش المتاح */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>هامش متاح</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('freeMargin')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.success }}>{formatMoney(freeMargin)}</span>
                 </div>
                 {/* الهامش المستخدم */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>مستخدم</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('used')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(initialMargin)}</span>
                 </div>
                 {/* نسبة الهامش */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>نسبة</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('ratio')}</span>
                   <span dir="ltr" style={{
                     fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
                     color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger
@@ -1343,8 +1342,8 @@ export default function DashboardPage() {
 
                 <button
                   onClick={() => setPosOpen(prev => !prev)}
-                  title={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
-                  aria-label={posOpen ? 'إخفاء المراكز' : 'إظهار المراكز'}
+                  title={posOpen ? t('hidePositions') : t('showPositions')}
+                  aria-label={posOpen ? t('hidePositions') : t('showPositions')}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.text3, padding: 4, borderRadius: 6, transition: 'all 0.2s' }}
                   onMouseEnter={e => (e.currentTarget.style.color = T.cyan)}
                   onMouseLeave={e => (e.currentTarget.style.color = T.text3)}
@@ -1454,8 +1453,8 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setTradeDialogOpen(true)}
-                    title="تنفيذ الأوامر"
-                    aria-label="فتح نافذة التنفيذ"
+                    title={t('executeOrders')}
+                    aria-label={t('openExecutionWindow')}
                     style={{
                       width: 34, height: 34, borderRadius: 10,
                       background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
@@ -1473,8 +1472,8 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={() => setChartExpanded(value => !value)}
-                    title={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
-                    aria-label={chartExpanded ? 'تصغير الرسم البياني' : 'توسيع الرسم البياني'}
+                    title={chartExpanded ? t('collapseChart') : t('expandChart')}
+                    aria-label={chartExpanded ? t('collapseChart') : t('expandChart')}
                     style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer', padding: 2 }}
                   >
                     <ChevronDown size={14} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
@@ -1564,7 +1563,7 @@ export default function DashboardPage() {
                   <Zap size={14} color="#00D4FF" />
                 </div>
                 <div>
-                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>تنفيذ الأوامر</div>
+                  <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 15, fontWeight: 800, color: '#F0F2F5' }}>{t('executeOrders')}</div>
                   <div style={{ fontSize: 10, color: '#8B92A8', fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol} · {formatQuotePrice(currentPrice)}</div>
                 </div>
               </div>
@@ -1616,8 +1615,8 @@ export default function DashboardPage() {
           type="button"
           className="sidebar-fab sidebar-fab--pulsing"
           onClick={() => setSidebarDrawerOpen(true)}
-          title="فتح الشريط الجانبي"
-          aria-label="فتح الشريط الجانبي"
+          title={t('openSidebar')}
+          aria-label={t('openSidebar')}
         >
           <PanelRight size={22} />
         </button>
@@ -1629,8 +1628,8 @@ export default function DashboardPage() {
           type="button"
           className="sidebar-fab"
           onClick={() => setSidebarDrawerOpen(true)}
-          title="القائمة"
-          aria-label="القائمة"
+          title={tc('menu')}
+          aria-label={tc('menu')}
         >
           <PanelRight size={22} />
         </button>

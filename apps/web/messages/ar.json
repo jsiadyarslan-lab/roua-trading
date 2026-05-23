@@ -432,7 +432,7 @@
       "portfolio": "المحفظة",
       "sanctuary": "الملاذ",
       "aiAnalysis": "تحليل AI",
-      "neuralLab": "Neural Lab",
+      "neuralLab": "مختبر الشبكات العصبية",
       "advancedScanner": "السكانر المتقدم",
       "strategicAnalysis": "تحليلات استراتيجية",
       "strategyBacktest": "اختبار الاستراتيجيات",
@@ -1165,10 +1165,10 @@
       "closeProfit": "ربح",
       "closeLoss": "خسارة",
       "securePosition": "🛡️ تأمين {symbol}",
-      "paperTrading": "Paper Trading 📄",
-      "liveTrading": "Live Trading ⚡",
-      "aiConsensus": "AI Consensus 🧠",
-      "technicalOnly": "Technical Only 📊",
+      "paperTrading": "تداول ورقي 📄",
+      "liveTrading": "تداول مباشر ⚡",
+      "aiConsensus": "إجماع AI 🧠",
+      "technicalOnly": "تحليل فني فقط 📊",
       "autoStrategy": "تلقائي",
       "trendFollowing": "متابعة الاتجاه",
       "meanReversion": "عودة للمتوسط",
@@ -1865,7 +1865,8 @@
       "gridBuySellPoints": "عدد نقاط الشراء/البيع في الشبكة",
       "gridSpacing": "المسافة بين المستويات",
       "spacingPercentage": "النسبة المئوية بين كل مستوى",
-      "quantityPerLevel": "الكمية لكل مستوى"
+      "quantityPerLevel": "الكمية لكل مستوى",
+      "statusEmergencyStop": "إيقاف طوارئ"
     },
     "alpacaPositions": {
       "sourceExecutor": "المنفذ",
@@ -2253,5 +2254,30 @@
       "aiConnectionError": "حدث خطأ في الاتصال بنماذج AI",
       "recommendationPrompt": "أعطني توصية تداول مباشرة لـ {symbol} مع تحديد نقطة الدخول ووقف الخسارة والهدف. أجب بهذا التنسيق فقط: الإجراء | الدخول | وقف الخسارة | الهدف | السبب"
     }
+  },
+  "portfolio": {
+    "accountStatus": "حالة الحساب",
+    "exchangeUnavailable": "البورصة غير متاحة",
+    "exchangeUnavailableHint": "قد تحتاج لإضافة IP الخاص بك للقائمة البيضاء في إعدادات البورصة",
+    "totalBalance": "الرصيد الإجمالي",
+    "paper": "ورقي",
+    "exchangeBalances": "أرصدة البورصات",
+    "error": "خطأ",
+    "real": "حقيقي",
+    "testnet": "تجريبي",
+    "positions": "المراكز",
+    "winPercent": "نسبة الربح",
+    "positionClosed": "تم إغلاق المركز",
+    "positionClosedDesc": "تم إغلاق مركز {symbol} بنجاح",
+    "positionCloseFailed": "فشل إغلاق المركز",
+    "unknownError": "خطأ غير معروف",
+    "positionCloseError": "حدث خطأ أثناء إغلاق المركز",
+    "marginUsed": "الهامش المستخدم",
+    "winningTrades": "{count} صفقة رابحة",
+    "losingTrades": "{count} صفقة خاسرة",
+    "additionalPositions": "+{count} مراكز إضافية",
+    "pnl": "الربح والخسارة",
+    "exposure": "التعرض",
+    "loadingTrader": "جاري التحميل"
   }
 }

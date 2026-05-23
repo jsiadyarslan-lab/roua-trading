@@ -213,7 +213,7 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
     <div className={isDesktop ? 'logo-orb' : 'logo-orb-mobile'} style={{
       position: isDesktop ? 'absolute' : 'relative',
       top: isDesktop ? '50%' : undefined,
-      right: isDesktop ? 10 : undefined,
+      insetInlineStart: isDesktop ? 10 : undefined,
       transform: isDesktop ? 'translateY(-50%)' : undefined,
       width: D, height: D, borderRadius: '50%',
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,

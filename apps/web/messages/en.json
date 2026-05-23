@@ -1547,7 +1547,14 @@
       "aiCommSubtitle": "How AI communicates with you",
       "terminate": "Terminate",
       "lastActivity": "Last activity",
-      "stealthMode": "Stealth Mode"
+      "stealthMode": "Stealth Mode",
+      "accountSelectorInfo": "The executor and agent will only execute on the account you choose. You decide.",
+      "real": "Real",
+      "paper": "Paper",
+      "testnet": "Testnet",
+      "lastCheck": "Last check:",
+      "permCatLinking": "Account Linking",
+      "permAiInsights": "AI Insights"
     },
     "predictionMarket": {
       "title": "Prediction Markets",
@@ -2247,5 +2254,30 @@
       "aiConnectionError": "Error connecting to AI models",
       "recommendationPrompt": "Give me a direct trading recommendation for {symbol} with entry point, stop loss, and target. Answer in this format only: Action | Entry | Stop Loss | Target | Reason"
     }
+  },
+  "portfolio": {
+    "accountStatus": "Account Status",
+    "exchangeUnavailable": "Exchange Unavailable",
+    "exchangeUnavailableHint": "You may need to add your IP to the whitelist in exchange settings",
+    "totalBalance": "Total Balance",
+    "paper": "Paper",
+    "exchangeBalances": "Exchange Balances",
+    "error": "Error",
+    "real": "Real",
+    "testnet": "Testnet",
+    "positions": "Positions",
+    "winPercent": "Win Rate",
+    "positionClosed": "Position Closed",
+    "positionClosedDesc": "Successfully closed {symbol} position",
+    "positionCloseFailed": "Position Close Failed",
+    "unknownError": "Unknown Error",
+    "positionCloseError": "An error occurred while closing the position",
+    "marginUsed": "Margin Used",
+    "winningTrades": "{count} winning",
+    "losingTrades": "{count} losing",
+    "additionalPositions": "+{count} more positions",
+    "pnl": "P&L",
+    "exposure": "Exposure",
+    "loadingTrader": "Loading"
   }
 }

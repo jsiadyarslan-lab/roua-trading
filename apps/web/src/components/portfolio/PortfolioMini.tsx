@@ -425,7 +425,7 @@ export function PortfolioMini({
           background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}0d`,
           border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}22`,
         }}>
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>P&L</span>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>{tp('pnl')}</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11, fontWeight: 700,
@@ -441,7 +441,7 @@ export function PortfolioMini({
         {[
           { label: tp('positions'), value: data.totalPositions, color: T.cyan },
           { label: tp('winPercent'), value: `${data.winRate}%`, color: T.green },
-          { label: 'Exposure', value: `${Math.min(100, Math.abs(data.margin) > 0 && data.balance > 0 ? Math.round((Math.abs(data.margin) / data.balance) * 100) : 0)}%`, color: T.amber },
+          { label: tp('exposure'), value: `${Math.min(100, Math.abs(data.margin) > 0 && data.balance > 0 ? Math.round((Math.abs(data.margin) / data.balance) * 100) : 0)}%`, color: T.amber },
         ].map((stat) => (
           <div key={stat.label} style={{
             flex: 1, textAlign: 'center',

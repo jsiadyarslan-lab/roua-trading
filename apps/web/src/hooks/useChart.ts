@@ -1587,31 +1587,35 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // priceLinesRef is already declared at the top with other refs
 
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
-    if (!candleSeriesRef.current) return;
-
-    // Remove existing line with same id
-    if (priceLinesRef.current.has(id)) {
+    const doAdd = () => {
+      if (!candleSeriesRef.current) return false;
+      if (priceLinesRef.current.has(id)) {
+        try {
+          const existingLine = priceLinesRef.current.get(id);
+          if (existingLine && candleSeriesRef.current) {
+            candleSeriesRef.current.removePriceLine(existingLine);
+          }
+        } catch {}
+        priceLinesRef.current.delete(id);
+      }
       try {
-        const existingLine = priceLinesRef.current.get(id);
-        if (existingLine && candleSeriesRef.current) {
-          candleSeriesRef.current.removePriceLine(existingLine);
-        }
-      } catch {}
-      priceLinesRef.current.delete(id);
-    }
+        const line = candleSeriesRef.current.createPriceLine({
+          price,
+          color,
+          lineWidth: lineWidth as any,
+          lineStyle: lineStyle as any,
+          axisLabelVisible: axisLabelVisible,
+          title: label || '',
+        });
+        priceLinesRef.current.set(id, line);
+        return true;
+      } catch { return false; }
+    };
 
-    try {
-      const line = candleSeriesRef.current.createPriceLine({
-        price,
-        color,
-        lineWidth: lineWidth as any,
-        lineStyle: lineStyle as any, // 0=Solid, 1=Dotted, 2=Dashed, 3=LargeDashed, 4=SparseDotted
-        axisLabelVisible: axisLabelVisible,
-        title: label || '',
-      });
-      priceLinesRef.current.set(id, line);
-    } catch {
-      // Price line creation may fail
+    if (!doAdd()) {
+      // Series not ready yet — retry after data loads
+      setTimeout(doAdd, 300);
+      setTimeout(doAdd, 800);
     }
   }, []);
 

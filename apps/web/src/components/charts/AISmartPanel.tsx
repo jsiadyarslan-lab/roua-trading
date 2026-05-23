@@ -9,6 +9,10 @@ import type { AIAnalysisResult, SupportResistanceLevel } from './AIPatternPanel'
 import type { AIPattern, CandleData } from '@/lib/charts/types';
 import { detectLocalPatterns, detectSupportResistance, detectTrendLines } from './AIPatternPanel';
 import { detectSMC } from '@/lib/charts/SMCDetector';
+import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns';
+import { detectElliottWaves } from '@/lib/charts/ElliottWave';
+import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
+import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -84,8 +88,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       setPatterns(unique);
       setLevels(srLevels);
 
-      // ── 2. أرسل الأنماط + SMC للشارت فوراً ────────────────────
+      // ── 2. أرسل الأنماط + SMC + هندسي + إليوت للشارت ──────────
       const smcData = detectSMC(c);
+      const geoPatterns = detectGeometricPatterns(c);
+      const elliottPattern = detectElliottWaves(c);
+      const wyckoff = detectWyckoff(c);
+      const volumeProfile = calcVolumeProfile(c);
       onPatternsRef.current({
         patterns: unique,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
@@ -93,6 +101,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         trendLines,
         entryExit: null,
         smcData,
+        geoPatterns,
+        elliottPattern,
+        wyckoff,
+        volumeProfile,
       });
 
       // ── 3. مجلس الذكاء (8 نماذج) ─────────────────────────

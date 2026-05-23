@@ -1022,10 +1022,82 @@ export default function RouaChart({
       });
     }
 
+    // ── Geometric Patterns on chart ──
+    if (result.geoPatterns?.length && chartApi) {
+      result.geoPatterns.forEach((pat, i) => {
+        try {
+          const col = pat.direction === 'bullish' ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
+          const colLight = pat.direction === 'bullish' ? 'rgba(0,255,163,0.3)' : 'rgba(255,71,87,0.3)';
+          // Draw lines connecting pattern points
+          if (pat.points.length >= 2) {
+            const linePts = pat.points.slice().sort((a,b) => a.time - b.time);
+            const validPts = linePts.filter(p => p.time > 0 && p.price > 0);
+            if (validPts.length >= 2) {
+              const geoS = chartApi.addSeries(lc.LineSeries, { color: col, lineWidth: 2 as any, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+              geoS.setData(validPts.map(p => ({ time: p.time as any, value: p.price })));
+              aiOverlaySeriesRef.current.push(geoS);
+              chart.registerExternalSeries(geoS);
+            }
+          }
+          // Target line
+          if (pat.target) {
+            chart.addPriceLine(`geo-target-${i}`, pat.target, colLight, `${pat.labelAr} 🎯`, 1, 2, false);
+            aiPriceLinesRef.current.push(`geo-target-${i}`);
+          }
+        } catch {}
+      });
+    }
+
+    // ── Elliott Wave on chart ──
+    if (result.elliottPattern && chartApi) {
+      const ew = result.elliottPattern;
+      try {
+        const col = ew.direction === 'bullish' ? 'rgba(147,197,253,0.9)' : 'rgba(252,165,165,0.9)';
+        const wavePts = ew.waves.slice().sort((a,b) => a.time - b.time);
+        if (wavePts.length >= 2) {
+          const ewS = chartApi.addSeries(lc.LineSeries, { color: col, lineWidth: 2 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: true });
+          ewS.setData(wavePts.map(w => ({ time: w.time as any, value: w.price })));
+          // Wave labels as markers
+          const ewMarkers = wavePts.map(w => ({ time: w.time as any, position: (ew.direction==='bullish'?(w.type==='impulse'?'belowBar':'aboveBar'):(w.type==='impulse'?'aboveBar':'belowBar')) as any, color: col, shape: 'circle' as any, text: w.waveNumber }));
+          lc.createSeriesMarkers(ewS as any, ewMarkers);
+          aiOverlaySeriesRef.current.push(ewS);
+          chart.registerExternalSeries(ewS);
+        }
+        if (ew.nextTarget) {
+          chart.addPriceLine('elliott-target', ew.nextTarget, col, `موجة ${ew.currentWave} 🌊`, 1, 2, false);
+          aiPriceLinesRef.current.push('elliott-target');
+        }
+      } catch {}
+    }
+
     // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,
     // applied by the combined-markers useEffect). No AreaSeries per pattern —
     // that caused chart rescaling chaos when 10+ patterns loaded simultaneously.
+
+    // ── Wyckoff Phase label ──
+    if (result.wyckoff && result.wyckoff.phase !== 'Unknown') {
+      try {
+        const w = result.wyckoff;
+        const col = w.bias === 'bullish' ? 'rgba(0,255,163,0.7)' : w.bias === 'bearish' ? 'rgba(255,71,87,0.7)' : 'rgba(251,191,36,0.7)';
+        // Show current Wyckoff phase on chart
+        w.events.forEach((ev, i) => {
+          chart.addPriceLine(`wyckoff-ev-${i}`, ev.price, col, `وايكوف: ${w.labelAr} (${ev.labelAr})`, 1, 1, false);
+          aiPriceLinesRef.current.push(`wyckoff-ev-${i}`);
+        });
+      } catch {}
+    }
+
+    // ── Volume Profile — POC, VAH, VAL ──
+    if (result.volumeProfile && result.volumeProfile.poc > 0) {
+      try {
+        const vp = result.volumeProfile;
+        chart.addPriceLine('vp-poc', vp.poc, 'rgba(251,191,36,0.9)', 'POC', 2, 0, true);
+        chart.addPriceLine('vp-vah', vp.vah, 'rgba(0,200,255,0.6)', 'VAH', 1, 2, false);
+        chart.addPriceLine('vp-val', vp.val, 'rgba(255,100,100,0.6)', 'VAL', 1, 2, false);
+        aiPriceLinesRef.current.push('vp-poc', 'vp-vah', 'vp-val');
+      } catch {}
+    }
 
     // ── Draw Entry/Exit lines on chart ──
     if (result.entryExit) {
@@ -1194,15 +1266,22 @@ export default function RouaChart({
       combinedMarkers.push(...newsChartMarkers);
     }
 
-    // Add AI pattern markers
+    // Add AI pattern markers — show Arabic name on candle
     if (aiPatterns.length) {
+      // Deduplicate by time to avoid stacking on same candle
+      const usedTimes = new Set<number>();
       aiPatterns.forEach(p => {
+        const t = p.time as number;
+        if (usedTimes.has(t)) return;
+        usedTimes.add(t);
+        const label = p.labelAr || p.type;
+        const shortLabel = label.length > 6 ? label.slice(0, 6) : label;
         combinedMarkers.push({
-          time: p.time as any,
+          time: t as any,
           position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
           color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
           shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
-          text: p.labelAr || p.type,
+          text: shortLabel,
         });
       });
     }

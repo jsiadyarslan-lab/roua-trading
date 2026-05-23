@@ -40,6 +40,10 @@ export interface AIAnalysisResult {
     fvgs: import('@/lib/charts/SMCDetector').FairValueGap[];
     structureBreaks: import('@/lib/charts/SMCDetector').StructureBreak[];
   };
+  geoPatterns?: import('@/lib/charts/GeometricPatterns').GeometricPattern[];
+  elliottPattern?: import('@/lib/charts/ElliottWave').ElliottPattern | null;
+  wyckoff?: import('@/lib/charts/WyckoffAnalysis').WyckoffResult;
+  volumeProfile?: import('@/lib/charts/VolumeProfile').VolumeProfileResult;
 }
 
 interface AIPatternPanelProps {

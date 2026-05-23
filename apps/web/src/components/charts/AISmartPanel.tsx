@@ -34,7 +34,7 @@ const NAMES: Record<string, string> = {
   'Falling Wedge':'إسفين هابط',
 };
 
-type Tab = 'signal' | 'patterns' | 'levels';
+type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced';
 
 interface Props {
   symbol: string;
@@ -51,6 +51,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [signal, setSignal] = useState<{ dir: 'BUY' | 'SELL' | 'WAIT'; conf: number; entry: number; sl: number; tp: number; reason: string; ts: number } | null>(null);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
   const [levels, setLevels] = useState<SupportResistanceLevel[]>([]);
+  const [geoList, setGeoList] = useState<any[]>([]);
+  const [elliottData, setElliottData] = useState<any>(null);
+  const [wyckoffData, setWyckoffData] = useState<any>(null);
+  const [volProfile, setVolProfile] = useState<any>(null);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -85,8 +89,6 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       const srLevels = detectSupportResistance(c);
       const trendLines = detectTrendLines(c);
-      setPatterns(unique);
-      setLevels(srLevels);
 
       // ── 2. أرسل الأنماط + SMC + هندسي + إليوت للشارت ──────────
       const smcData = detectSMC(c);
@@ -94,6 +96,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       const elliottPattern = detectElliottWaves(c);
       const wyckoff = detectWyckoff(c);
       const volumeProfile = calcVolumeProfile(c);
+
+      setPatterns(unique);
+      setLevels(srLevels);
+      setGeoList(geoPatterns);
+      setElliottData(elliottPattern);
+      setWyckoffData(wyckoff);
+      setVolProfile(volumeProfile);
       onPatternsRef.current({
         patterns: unique,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
@@ -190,7 +199,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', 'الإشارة'], ['patterns', `أنماط ${patterns.length}`], ['levels', 'المستويات']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', 'الإشارة'], ['patterns', `شموع ${patterns.length}`], ['levels', 'مستويات'], ['smc', 'SMC'], ['advanced', 'متقدم']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '5px 3px', background: 'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 10, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.12s' }}>{l}</button>
         ))}
       </div>
@@ -303,6 +312,66 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 ))}
               </div>
             ) : null)}
+          </div>
+        )}
+
+        {/* SMC — Wyckoff + Volume Profile */}
+        {tab === 'smc' && (
+          <div style={{ padding: 8 }}>
+            {wyckoffData && wyckoffData.phase !== 'Unknown' && (
+              <div style={{ background: C.card, border: `1px solid ${wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow}30`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
+                <div style={{ color: C.dim, fontSize: 8, marginBottom: 3 }}>وايكوف Wyckoff</div>
+                <div style={{ color: wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow, fontSize: 13, fontWeight: 800 }}>{wyckoffData.labelAr}</div>
+                <div style={{ color: C.mut, fontSize: 8.5, marginTop: 2 }}>{Math.round((wyckoffData.confidence||0)*100)}% ثقة</div>
+              </div>
+            )}
+            {volProfile && volProfile.poc > 0 && (
+              <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
+                <div style={{ color: C.dim, fontSize: 8, marginBottom: 6 }}>Volume Profile</div>
+                {([['POC — نقطة التحكم', volProfile.poc, C.yellow], ['VAH — أعلى القيمة', volProfile.vah, C.cyan], ['VAL — أدنى القيمة', volProfile.val, C.red]] as [string,number,string][]).map(([l,v,col]) => (
+                  <div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:4, padding:'3px 0', borderBottom:`1px solid ${C.border}` }}>
+                    <span style={{ color: col, fontSize: 8.5, fontWeight: 700 }}>{l}</span>
+                    <span style={{ color: C.text, fontSize: 9, fontFamily:'monospace' }}>{v>999?v.toFixed(2):v.toFixed(5)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!wyckoffData && !volProfile && <div style={{ textAlign:'center', padding: 20, color: C.dim, fontSize: 10 }}>اضغط ⟳ للتحليل</div>}
+          </div>
+        )}
+
+        {/* ADVANCED — Geometric + Elliott */}
+        {tab === 'advanced' && (
+          <div style={{ padding: 8 }}>
+            {geoList.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>أنماط هندسية ({geoList.length})</div>
+                {geoList.map((g: any, i: number) => {
+                  const col = g.direction==='bullish'?C.green:g.direction==='bearish'?C.red:C.yellow;
+                  return (
+                    <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'5px 8px', borderRadius:5, background:C.card, marginBottom:3, border:`1px solid ${col}18` }}>
+                      <span style={{ color:col, fontSize:9.5, fontWeight:600 }}>{g.direction==='bullish'?'▲':'▼'} {g.labelAr}</span>
+                      <span style={{ color:C.mut, fontSize:8 }}>{Math.round(g.confidence*100)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {elliottData && (
+              <div style={{ background:C.card, borderRadius:6, padding:'8px 10px', marginBottom:8, border:`1px solid ${elliottData.direction==='bullish'?C.green:C.red}25` }}>
+                <div style={{ color:C.dim, fontSize:8, marginBottom:3 }}>موجات إليوت</div>
+                <div style={{ color:elliottData.direction==='bullish'?C.green:C.red, fontSize:12, fontWeight:700 }}>
+                  {elliottData.type === '5-wave' ? 'موجة 5 دافعة' : 'تصحيح ABC'} — موجة {elliottData.currentWave}
+                </div>
+                <div style={{ display:'flex', gap:4, marginTop:5 }}>
+                  {elliottData.waves?.map((w: any) => (
+                    <span key={w.waveNumber} style={{ background:`${elliottData.direction==='bullish'?C.green:C.red}20`, color:elliottData.direction==='bullish'?C.green:C.red, padding:'2px 5px', borderRadius:3, fontSize:8, fontWeight:700 }}>{w.waveNumber}</span>
+                  ))}
+                </div>
+                {elliottData.nextTarget && <div style={{ color:C.dim, fontSize:8.5, marginTop:4 }}>الهدف: <span style={{ color:C.cyan, fontFamily:'monospace' }}>{elliottData.nextTarget.toFixed(2)}</span></div>}
+              </div>
+            )}
+            {geoList.length===0 && !elliottData && <div style={{ textAlign:'center', padding:20, color:C.dim, fontSize:10 }}>اضغط ⟳ للتحليل</div>}
           </div>
         )}
       </div>

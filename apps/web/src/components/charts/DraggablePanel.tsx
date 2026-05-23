@@ -184,12 +184,13 @@ export function DraggablePanel({
   const sizeStyle: React.CSSProperties = size
     ? { width: size.w, height: size.h }
     : defaultWidth
-      ? { width: defaultWidth, minHeight }
-      : { minHeight };
+      ? { width: defaultWidth, height: minHeight, minHeight }
+      : { height: minHeight, minHeight };
 
   return (
     <div
       ref={panelRef}
+      data-draggable-panel="true"
       className={className}
       onMouseDown={handleDragStart}
       style={{

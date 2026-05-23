@@ -869,12 +869,6 @@ export default function RouaChart({
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     // Direct execution — no lock needed
     try {
-    // DEBUG: show on screen
-    const dbgEl = document.getElementById('__hpd_debug') || document.createElement('div');
-    dbgEl.id = '__hpd_debug';
-    dbgEl.style.cssText = 'position:fixed;bottom:40px;left:10px;background:#1a1a2e;color:#00FFA3;padding:4px 8px;z-index:99999;font-size:10px;border-radius:4px;border:1px solid #00FFA3';
-    dbgEl.textContent = 'handlePatternsDetected: ' + result.patterns.length + ' patterns';
-    document.body.appendChild(dbgEl);
     setAiPatterns(result.patterns);
 
     // DIRECT: بناء markers مباشرة من result.patterns وتطبيقها فوراً

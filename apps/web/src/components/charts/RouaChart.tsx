@@ -1517,33 +1517,7 @@ export default function RouaChart({
         )}
 
 
-        {/* AI Smart Panel (redesigned — auto-detect + instant signals) */}
-        {showAIPanel && (
-          <DraggablePanel defaultPosition={{ top: 120, right: 290 }} defaultWidth={340} minHeight={360}>
-            <AISmartPanel
-              symbol={selectedSymbol}
-              candles={aiPanelCandles}
-              currentPrice={currentPrice}
-              onPatternsDetected={handlePatternsDetected}
-              onClose={() => setShowAIPanel(false)}
-              onExecuteTrade={(side, entry, sl, tp) => {
-                const { addTrade } = usePaperTradesStore.getState();
-                addTrade({
-                  symbol: selectedSymbol,
-                  side,
-                  qty: 0.01,
-                  entryPrice: entry,
-                  currentPrice: entry,
-                  entryTime: Date.now(),
-                  strategy: 'ai',
-                  source: 'manual',
-                  sl,
-                  tp,
-                });
-              }}
-            />
-          </DraggablePanel>
-        )}
+
 
         {/* Chart Trading Panel (draggable) */}
         {showChartTrading && currentPrice && (
@@ -1815,6 +1789,34 @@ export default function RouaChart({
           <span style={{ fontSize: 12, color: '#FF4757', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
             {orderError}
           </span>
+        </div>
+      )}
+
+      {/* AI Smart Panel — position:fixed outside all overflow:hidden */}
+      {showAIPanel && (
+        <div style={{ position: 'fixed', top: 120, right: 290, zIndex: 9999, width: 340, minHeight: 360 }}>
+          <AISmartPanel
+            symbol={selectedSymbol}
+            candles={aiPanelCandles}
+            currentPrice={currentPrice}
+            onPatternsDetected={handlePatternsDetected}
+            onClose={() => setShowAIPanel(false)}
+            onExecuteTrade={(side, entry, sl, tp) => {
+              const { addTrade } = usePaperTradesStore.getState();
+              addTrade({
+                symbol: selectedSymbol,
+                side,
+                qty: 0.01,
+                entryPrice: entry,
+                currentPrice: entry,
+                entryTime: Date.now(),
+                strategy: 'ai',
+                source: 'manual',
+                sl,
+                tp,
+              });
+            }}
+          />
         </div>
       )}
     </div>

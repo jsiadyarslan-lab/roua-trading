@@ -1331,7 +1331,7 @@ export default function DashboardPage() {
                 </div>
                 {/* P&L */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('pnl')}</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>P/L</span>
                   <span dir="ltr" style={{
                     fontSize: 12, fontWeight: unrealizedPnl !== 0 ? 800 : 600, fontFamily: "'JetBrains Mono', monospace",
                     color: isProfitable ? T.success : unrealizedPnl < 0 ? T.danger : T.text3,

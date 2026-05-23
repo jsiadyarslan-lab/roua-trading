@@ -431,7 +431,7 @@ export function PortfolioMini({
           background: `${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}0d`,
           border: `0.5px solid ${data.totalPnl > 0 ? T.green : data.totalPnl < 0 ? T.red : T.text2}22`,
         }}>
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>{tp('pnl')}</span>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9.5, color: T.text2, marginInlineEnd: 6 }}>P/L</span>
           <span style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 11, fontWeight: 700,

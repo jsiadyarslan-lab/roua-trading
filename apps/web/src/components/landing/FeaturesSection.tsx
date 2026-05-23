@@ -1,41 +1,51 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
-const features = [
+interface FeatureData {
+  num: string;
+  icon: string;
+  titleKey: string;
+  titleEn: string;
+  descKey: string;
+  meta: string[];
+}
+
+const features: FeatureData[] = [
   {
     num: '01', icon: '🗣️',
-    title: 'المحلل متعدد اللغات', titleEn: 'Polyglot Analyst',
-    desc: 'يحلل الأسواق بلغات متعددة في الوقت الفعلي، مما يمنحك رؤى عالمية دون حواجز لغوية. يدعم العربية والإنجليزية والصينية واليابانية وغيرها من اللغات الرئيسية.',
+    titleKey: 'multilingualAnalyst', titleEn: 'Polyglot Analyst',
+    descKey: 'multilingualAnalystDesc',
     meta: ['🌍 12+ لغة', '⚡ تحليل فوري', '🧠 ذكاء متعدد']
   },
   {
     num: '02', icon: '📡',
-    title: 'إشارات رؤى', titleEn: 'Roua Signals',
-    desc: 'إشارات تداول فورية مدعومة بالذكاء الاصطناعي، تعتمد على تحليل الأنماط والمشاعر السوقية لتقديم توصيات مبنية على تحليل متعدد النماذج.',
+    titleKey: 'rouaSignals', titleEn: 'Roua Signals',
+    descKey: 'rouaSignalsDesc',
     meta: ['🎯 ذكاء متعدد', '⏱️ تنبيه فوري', '📊 50+ زوج']
   },
   {
     num: '03', icon: '📰',
-    title: 'رادار الأخبار الموحد', titleEn: 'Unified News Radar',
-    desc: 'يراقب آلاف المصادر الإخبارية والاجتماعية في وقت واحد، ويصفي الإشارات الضوضائية ليقدم لك فقط ما يؤثر على محفظتك.',
+    titleKey: 'newsRadar', titleEn: 'Unified News Radar',
+    descKey: 'newsRadarDesc',
     meta: ['📡 مصادر متعددة', '⚡ رصد فوري', '🧠 تصفية ذكية']
   },
   {
     num: '04', icon: '🛡️',
-    title: 'ملاذ المحفظة', titleEn: 'Portfolio Sanctuary',
-    desc: 'حماية ذكية لمحفظتك من التقلبات الحادة عبر تنبيهات المخاطر التنبؤية وتوصيات إعادة التوازن التلقائية.',
+    titleKey: 'sanctuary', titleEn: 'Portfolio Sanctuary',
+    descKey: 'sanctuaryDesc',
     meta: ['🛡️ حماية 24/7', '📉 تقليل المخاطر', '⚖️ توازن تلقائي']
   },
   {
     num: '05', icon: '🧪',
-    title: 'المختبر الذكي', titleEn: 'Smart Lab',
-    desc: 'اختبر استراتيجياتك في بيئة محاكاة واقعية قبل المخاطرة. حلل الأداء التاريخي وحسّن معاملاتك بناءً على بيانات حقيقية.',
+    titleKey: 'smartLab', titleEn: 'Smart Lab',
+    descKey: 'smartLabDesc',
     meta: ['🧪 محاكاة حقيقية', '📈 بيانات تاريخية', '🔧 تحسين تلقائي']
   },
 ];
 
-function FeatureCard({ feature }: { feature: typeof features[0] }) {
+function FeatureCard({ feature, t }: { feature: FeatureData; t: ReturnType<typeof useTranslations> }) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -69,8 +79,8 @@ function FeatureCard({ feature }: { feature: typeof features[0] }) {
     <div className="feature-card fade-in" ref={cardRef}>
       <div className="feature-number">{feature.num}</div>
       <div className="feature-icon">{feature.icon}</div>
-      <h3>{feature.title} <span>{feature.titleEn}</span></h3>
-      <p>{feature.desc}</p>
+      <h3>{t(feature.titleKey)} <span>{feature.titleEn}</span></h3>
+      <p>{t(feature.descKey)}</p>
       <div className="feature-meta">
         {feature.meta.map((tag, i) => (
           <span key={i}>{tag}</span>
@@ -81,20 +91,22 @@ function FeatureCard({ feature }: { feature: typeof features[0] }) {
 }
 
 export default function FeaturesSection() {
+  const t = useTranslations('landing.features');
+
   return (
     <section className="section features-section" id="features">
       <div className="section-header fade-in">
         <div className="section-label">CORE FEATURES</div>
         <h2 className="section-title">
-          أدوات متقدمة للمتداول<br /><span className="highlight">الذكي</span>
+          {t('sectionTitlePart1')}<br /><span className="highlight">{t('sectionTitleHighlight')}</span>
         </h2>
         <p className="section-desc">
-          مجموعة متكاملة من الأدوات المدعومة بالذكاء الاصطناعي لتحليل الأسواق واتخاذ قرارات أذكى
+          {t('sectionDesc')}
         </p>
       </div>
       <div className="features-grid">
         {features.map((feature, i) => (
-          <FeatureCard key={i} feature={feature} />
+          <FeatureCard key={i} feature={feature} t={t} />
         ))}
       </div>
     </section>

@@ -1,5 +1,7 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
+
 const signalsData = [
   { pair: 'EUR/USD', action: 'BUY', profit: '+1.2%', isBuy: true },
   { pair: 'BTC/USD', action: 'BUY', profit: '+3.4%', isBuy: true },
@@ -13,6 +15,7 @@ const signalsData = [
 
 export default function LiveSignals() {
   const items = [...signalsData, ...signalsData];
+  const t = useTranslations('landing.liveSignals');
 
   return (
     <div className="live-signals">
@@ -23,7 +26,7 @@ export default function LiveSignals() {
         color: 'rgba(148, 163, 184, 0.7)',
         fontFamily: 'var(--font-ar, sans-serif)',
       }}>
-        أمثلة توضيحية فقط — لا تمثل إشارات حقيقية
+        {t('disclaimer')}
       </div>
       <div className="live-signals-track">
         {items.map((sig, i) => (

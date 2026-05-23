@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { getPnlColor } from '@/lib/unified-tokens'
 
@@ -65,6 +66,8 @@ function isPhantomTrade(pos: any): boolean {
 }
 
 export function SmartExecutorPanel() {
+  const t = useTranslations('dashboard.executor')
+  const tc = useTranslations('common')
   const [status, setStatus] = useState<ExecutorStatus | null>(null)
   const [userState, setUserState] = useState<UserExecutorState | null>(null)
   const [positions, setPositions] = useState<any[]>([])
@@ -204,7 +207,7 @@ export function SmartExecutorPanel() {
             boxShadow: isActive ? `0 0 10px ${T.success}, 0 0 20px rgba(0,255,163,0.4)` : 'none',
             animation: isActive ? 'agentCtrlPulse 2s ease-in-out infinite' : 'none',
           }} />
-          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>المنفذ الذكي</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>{t('title')}</span>
 
           {/* Monitoring Heartbeat */}
           {isActive && (
@@ -229,7 +232,7 @@ export function SmartExecutorPanel() {
             background: isActive ? 'rgba(0,255,163,0.15)' : 'rgba(255,255,255,0.06)',
             color: isActive ? T.success : T.text3, fontWeight: 700, fontFamily: 'monospace',
           }}>
-            {isActive ? 'نشط' : 'متوقف'}
+            {isActive ? t('active') : t('inactive')}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
@@ -239,7 +242,7 @@ export function SmartExecutorPanel() {
               borderRadius: 5, border: '1px solid rgba(0,255,163,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(0,255,163,0.15)', color: T.success, fontWeight: 800,
             }}>
-              {loading ? '...' : 'تفعيل'}
+              {loading ? '...' : t('activate')}
             </button>
           ) : (
             <button onClick={disableExecutor} disabled={loading} style={{
@@ -247,7 +250,7 @@ export function SmartExecutorPanel() {
               borderRadius: 5, border: '1px solid rgba(255,71,87,0.3)', cursor: loading ? 'not-allowed' : 'pointer',
               background: 'rgba(255,71,87,0.15)', color: T.danger, fontWeight: 700,
             }}>
-              {loading ? '...' : 'إيقاف'}
+              {loading ? '...' : t('deactivate')}
             </button>
           )}
         </div>
@@ -258,12 +261,12 @@ export function SmartExecutorPanel() {
         display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, padding: 6,
         borderBottom: '1px solid rgba(0,212,255,0.08)',
       }}>
-        <StatBox label="Briefs نشطة" value={activeBriefs.toString()} color={T.cyan} />
-        <StatBox label="تنفيذات المنفذ" value={todayExecs.toString()} color={T.green} />
-        <StatBox label="مراكز مفتوحة" value={(status?.openPositions ?? 0).toString()} color={T.purple} />
-        <StatBox label="ر/خ اليوم" value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={getPnlColor(Number(userState?.dailyPnL ?? 0))} />
-        <StatBox label="صفقاتك اليوم" value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
-        <StatBox label="خسائر متتالية" value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
+        <StatBox label={t('activeBriefs')} value={activeBriefs.toString()} color={T.cyan} />
+        <StatBox label={t('executorExecutions')} value={todayExecs.toString()} color={T.green} />
+        <StatBox label={t('openPositions')} value={(status?.openPositions ?? 0).toString()} color={T.purple} />
+        <StatBox label={t('dailyPnL')} value={`$${Number(userState?.dailyPnL ?? 0).toFixed(2)}`} color={getPnlColor(Number(userState?.dailyPnL ?? 0))} />
+        <StatBox label={t('yourTradesToday')} value={(userState?.dailyTrades ?? 0).toString()} color={T.amber} />
+        <StatBox label={t('consecutiveLosses')} value={(userState?.consecutiveLosses ?? 0).toString()} color={(userState?.consecutiveLosses ?? 0) >= 3 ? T.danger : T.text3} />
       </div>
 
       {/* V135: Active Account Banner — shows live/testnet/paper mode */}
@@ -272,7 +275,7 @@ export function SmartExecutorPanel() {
         display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
         background: isActive ? 'rgba(0,255,163,0.04)' : 'transparent',
       }}>
-        <span style={{ color: T.text3 }}>الحساب:</span>
+        <span style={{ color: T.text3 }}>{t('account')}:</span>
         {isActive && activeCredId ? (
           <span style={{
             padding: '1px 6px', borderRadius: 3,
@@ -294,10 +297,10 @@ export function SmartExecutorPanel() {
                 : '1px solid rgba(0,255,163,0.3)',
           }}>
             {userState?.isTestnet
-              ? `تجريبي${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
+              ? `${t('testnet')}${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
               : userState?.isPaperTrading
-                ? 'ورقي'
-                : `مباشر${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
+                ? t('paper')
+                : `${t('live')}${userState?.exchangeName ? ` (${userState.exchangeName})` : ''}`
             }
           </span>
         ) : isActive ? (
@@ -306,17 +309,17 @@ export function SmartExecutorPanel() {
             background: 'rgba(255,184,0,0.15)', color: T.amber, fontWeight: 700,
             border: '1px solid rgba(255,184,0,0.3)',
           }}>
-            اختر حساباً من الإعدادات
+            {t('chooseAccount')}
           </span>
         ) : (
           <span style={{ color: T.text3, fontSize: 6.5 }}>
-            فعّل المنفذ واختر حسابك من الإعدادات
+            {t('activateAndChoose')}
           </span>
         )}
         {isActive && (
           <>
-            <span style={{ color: T.text3 }}>• خطر: {userState?.riskPerTradePercent}%</span>
-            <span style={{ color: T.text3 }}>• حد المراكز: {userState?.maxOpenPositions}</span>
+            <span style={{ color: T.text3 }}>• {t('risk')}: {userState?.riskPerTradePercent}%</span>
+            <span style={{ color: T.text3 }}>• {t('positionLimitLabel')}: {userState?.maxOpenPositions}</span>
           </>
         )}
       </div>
@@ -324,7 +327,7 @@ export function SmartExecutorPanel() {
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 7, color: T.amber }}>⚠ الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
+          <span style={{ fontSize: 7, color: T.amber }}>{t('serverUnavailableBanner')}</span>
         </div>
       )}
 
@@ -344,12 +347,12 @@ export function SmartExecutorPanel() {
           <div style={{ padding: '12px 8px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             {isActive && status?.activeBriefs === 0 && (
               <div style={{ fontSize: 7, color: T.amber, textAlign: 'center', opacity: 0.8 }}>
-                ⏳ ينتظر Briefs من المجلس الاستراتيجي...
+                {t('awaitingBriefs')}
               </div>
             )}
             {isActive && (status?.activeBriefs ?? 0) > 0 && (
               <div style={{ fontSize: 7, color: T.cyan, textAlign: 'center', opacity: 0.8 }}>
-                🔍 {status?.activeBriefs} Brief نشط — يفحص شروط الدخول كل 10 ثوانٍ
+                {t('activeBriefScanning', { count: status?.activeBriefs ?? 0 })}
               </div>
             )}
             {isActive && status?.lastError && (
@@ -359,12 +362,12 @@ export function SmartExecutorPanel() {
             )}
             {!isActive && (
               <div style={{ padding: 12, textAlign: 'center', opacity: 0.4, fontSize: 9 }}>
-                فعّل المنفذ الذكي لبدء التداول التلقائي
+                {t('activateToStart')}
               </div>
             )}
             {isActive && !status?.lastError && (status?.activeBriefs ?? 0) === 0 && (
               <div style={{ padding: 6, textAlign: 'center', opacity: 0.3, fontSize: 8 }}>
-                لا توجد مراكز مفتوحة
+                {t('noOpenPositions')}
               </div>
             )}
           </div>
@@ -380,7 +383,7 @@ export function SmartExecutorPanel() {
                 background: 'rgba(255,255,255,0.02)', fontSize: 8,
               }}>
                 <span style={{ color: pos.side === 'BUY' ? T.success : T.danger, fontWeight: 800, minWidth: 22 }}>
-                  {pos.side === 'BUY' ? 'شراء' : 'بيع'}
+                  {pos.side === 'BUY' ? tc('buy') : tc('sell')}
                 </span>
                 <span style={{ color: T.text, fontWeight: 700, fontFamily: 'monospace' }}>{pos.symbol}</span>
                 <div style={{ flex: 1 }} />

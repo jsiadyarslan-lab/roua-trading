@@ -4,6 +4,7 @@ import { Suspense, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield, KeyRound, Timer } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 
 /**
@@ -18,20 +19,22 @@ import { motion, AnimatePresence } from 'framer-motion'
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const t = useTranslations('auth')
+  const tc = useTranslations('common')
   const [loading, setLoading] = useState<'google' | 'passkey' | 'email' | 'otp-send' | 'otp-verify' | null>(null)
   const [email, setEmail] = useState('')
   const [error, setError] = useState(() => {
     const urlError = searchParams.get('error')
-    if (urlError === 'access_denied') return 'تم رفض الوصول. حاول مرة أخرى.'
-    if (urlError === 'oauth_not_configured') return 'تسجيل الدخول عبر Google غير مُفعّل حالياً.'
-    if (urlError === 'token_exchange_failed') return 'فشل الاتصال بـ Google. حاول لاحقاً.'
-    if (urlError === 'no_access_token') return 'فشل في الحصول على رمز الوصول من Google.'
-    if (urlError === 'user_info_failed') return 'فشل في جلب معلومات الحساب.'
-    if (urlError === 'no_email') return 'لم يتم العثور على بريد إلكتروني في حساب Google.'
-    if (urlError === 'db_unavailable') return 'قاعدة البيانات غير متاحة حالياً. يرجى إعادة المحاولة بعد بضع ثوانٍ.'
-    if (urlError === 'user_creation_failed') return 'فشل إنشاء حساب المستخدم.'
-    if (urlError === 'session_creation_failed') return 'فشل إنشاء الجلسة. يرجى المحاولة مرة أخرى.'
-    if (urlError === 'unknown') return 'حدث خطأ غير متوقع. حاول مرة أخرى.'
+    if (urlError === 'access_denied') return t('accessDenied')
+    if (urlError === 'oauth_not_configured') return t('googleNotEnabled')
+    if (urlError === 'token_exchange_failed') return t('googleConnectionFailed')
+    if (urlError === 'no_access_token') return t('googleNoAccessToken')
+    if (urlError === 'user_info_failed') return t('googleUserInfoFailed')
+    if (urlError === 'no_email') return t('googleNoEmail')
+    if (urlError === 'db_unavailable') return t('dbUnavailable')
+    if (urlError === 'user_creation_failed') return t('userCreationFailed')
+    if (urlError === 'session_creation_failed') return t('sessionCreationFailed')
+    if (urlError === 'unknown') return t('unknownError')
     return ''
   })
 
@@ -108,14 +111,14 @@ function LoginForm() {
 
       if (checkRes.status === 501) {
         const data = await checkRes.json()
-        setError(data.message || 'تسجيل الدخول عبر Google غير مُفعّل حالياً.')
+        setError(data.message || t('googleNotEnabled'))
         setLoading(null)
         return
       }
 
       window.location.href = '/api/auth/signin/google'
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'فشل تسجيل الدخول عبر Google')
+      setError(err instanceof Error ? err.message : t('googleFailed'))
       setLoading(null)
     }
   }
@@ -125,14 +128,14 @@ function LoginForm() {
     setError('')
     try {
       if (!window.PublicKeyCredential) {
-        setError('متصفحك لا يدعم Passkeys. استخدم الدخول بالبريد الإلكتروني.')
+        setError(t('passkeyNotSupported'))
         setLoading(null)
         return
       }
 
       const available = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
       if (!available) {
-        setError('لا يوجد مُصادق Passkey متاح على هذا الجهاز.')
+        setError(t('passkeyNotAvailable'))
         setLoading(null)
         return
       }
@@ -179,7 +182,7 @@ function LoginForm() {
             router.push(callbackUrl)
           } else {
             const data = await verifyRes.json()
-            setError(data.error || 'فشل التحقق من Passkey')
+            setError(data.error || t('passkeyFailed'))
           }
         }
         return
@@ -223,14 +226,14 @@ function LoginForm() {
           router.push(callbackUrl)
         } else {
           const data = await verifyRes.json()
-          setError(data.error || 'فشل التحقق من Passkey')
+          setError(data.error || t('passkeyFailed'))
         }
       }
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'NotAllowedError') {
         setError('')
       } else {
-        setError(err instanceof Error ? err.message : 'فشل تسجيل الدخول عبر Passkey')
+        setError(err instanceof Error ? err.message : t('passkeyLoginFailed'))
       }
     } finally {
       setLoading(null)
@@ -239,13 +242,13 @@ function LoginForm() {
 
   const handleEmailLogin = async () => {
     if (!email.trim()) {
-      setError('يرجى إدخال بريدك الإلكتروني')
+      setError(t('emailRequired'))
       return
     }
 
     // Basic email validation
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('يرجى إدخال بريد إلكتروني صحيح')
+      setError(t('emailInvalid'))
       return
     }
 
@@ -265,13 +268,13 @@ function LoginForm() {
           const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
           router.push(callbackUrl)
         } else {
-          setError(data.error === 'GUEST_LOGIN_BLOCKED' ? 'تسجيل الدخول كضيف غير مسموح. استخدم بريدك الحقيقي.' : 'فشل تسجيل الدخول. حاول مرة أخرى.')
+          setError(data.error === 'GUEST_LOGIN_BLOCKED' ? t('guestNotAllowed') : t('loginFailed'))
         }
       } else {
-        setError('فشل تسجيل الدخول. حاول مرة أخرى.')
+        setError(t('loginFailed'))
       }
     } catch {
-      setError('حدث خطأ في الاتصال. حاول مرة أخرى.')
+      setError(t('connectionError'))
     } finally {
       setLoading(null)
     }
@@ -279,12 +282,12 @@ function LoginForm() {
 
   const handleSendOtp = async () => {
     if (!email.trim()) {
-      setError('يرجى إدخال بريدك الإلكتروني')
+      setError(t('emailRequired'))
       return
     }
 
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      setError('يرجى إدخال بريد إلكتروني صحيح')
+      setError(t('emailInvalid'))
       return
     }
 
@@ -307,14 +310,14 @@ function LoginForm() {
         // Focus first OTP input
         setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
       } else if (res.status === 429) {
-        setError(data.message || 'طلبات كثيرة. حاول مرة أخرى بعد قليل.')
+        setError(data.message || t('tooManyRequests'))
       } else if (data.error === 'GUEST_LOGIN_BLOCKED') {
-        setError('تسجيل الدخول كضيف غير مسموح. استخدم بريدك الحقيقي.')
+        setError(t('guestNotAllowed'))
       } else {
-        setError(data.message || 'فشل إرسال رمز التحقق. حاول مرة أخرى.')
+        setError(data.message || t('codeFailed'))
       }
     } catch {
-      setError('حدث خطأ في الاتصال. حاول مرة أخرى.')
+      setError(t('connectionError'))
     } finally {
       setLoading(null)
     }
@@ -323,7 +326,7 @@ function LoginForm() {
   const handleVerifyOtp = async (otpCode?: string) => {
     const code = otpCode || otp.join('')
     if (code.length !== 6) {
-      setError('يرجى إدخال رمز التحقق كاملاً')
+      setError(t('codeRequired'))
       return
     }
 
@@ -343,18 +346,18 @@ function LoginForm() {
         const callbackUrl = searchParams.get('callbackUrl') || '/dashboard'
         router.push(callbackUrl)
       } else if (data.error === 'INVALID_OTP') {
-        setError(data.message || 'رمز التحقق غير صحيح')
+        setError(data.message || t('codeInvalid'))
         setOtp(['', '', '', '', '', ''])
         setTimeout(() => otpInputRefs.current[0]?.focus(), 100)
       } else if (data.error === 'OTP_EXPIRED') {
-        setError(data.message || 'انتهت صلاحية رمز التحقق')
+        setError(data.message || t('codeExpired'))
         setOtpSent(false)
         setOtp(['', '', '', '', '', ''])
       } else {
-        setError(data.message || 'فشل التحقق. حاول مرة أخرى.')
+        setError(data.message || t('verificationFailed'))
       }
     } catch {
-      setError('حدث خطأ في الاتصال. حاول مرة أخرى.')
+      setError(t('connectionError'))
     } finally {
       setLoading(null)
     }
@@ -375,7 +378,7 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen text-white overflow-x-hidden flex items-center justify-center" dir="rtl" style={{ background: '#000000' }}>
+    <div className="relative min-h-screen text-white overflow-x-hidden flex items-center justify-center" style={{ background: '#000000' }}>
       {/* Background */}
       <div className="fixed inset-0 -z-10">
         <div
@@ -422,7 +425,7 @@ function LoginForm() {
                     backgroundClip: 'text',
                   }}
                 >
-                  رؤى
+                  {tc('brand')}
                 </h1>
               </div>
             </div>
@@ -439,7 +442,7 @@ function LoginForm() {
             className="text-lg font-bold text-center mb-6"
             style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}
           >
-            مرحباً بك في رؤى
+            {t('welcomeBack')}
           </motion.h2>
 
           {/* Email Input */}
@@ -461,7 +464,7 @@ function LoginForm() {
                     else if (!otpSent) handleSendOtp()
                   }
                 }}
-                placeholder="أدخل بريدك الإلكتروني"
+                placeholder={t('emailPlaceholder')}
                 dir="ltr"
                 disabled={otpSent}
                 className="w-full py-3.5 pe-10 ps-4 rounded-xl text-sm outline-none transition-all duration-200 placeholder:text-white/20 disabled:opacity-50"
@@ -515,7 +518,7 @@ function LoginForm() {
                     style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
                   >
                     <KeyRound className="w-4 h-4" />
-                    <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-send' ? 'جارٍ الإرسال...' : 'إرسال رمز التحقق'}</span>
+                    <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-send' ? t('sending') : t('sendCode')}</span>
                   </motion.button>
                 ) : (
                   /* OTP Input + Verify */
@@ -526,7 +529,7 @@ function LoginForm() {
                     className="mb-4"
                   >
                     <p className="text-center text-white/40 text-xs mb-3" style={{ fontFamily: 'var(--font-ar)' }}>
-                      أدخل الرمز المُرسل إلى <span dir="ltr" className="text-white/60">{email}</span>
+                      {t('enterCode')} <span dir="ltr" className="text-white/60">{email}</span>
                     </p>
 
                     {/* 6-digit OTP Input */}
@@ -576,7 +579,7 @@ function LoginForm() {
                                  transition-all duration-200 mb-3"
                       style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
                     >
-                      <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-verify' ? 'جارٍ التحقق...' : 'تسجيل الدخول'}</span>
+                      <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'otp-verify' ? t('verifying') : t('verifyCode')}</span>
                     </motion.button>
 
                     {/* Resend OTP */}
@@ -584,7 +587,7 @@ function LoginForm() {
                       {otpTimer > 0 ? (
                         <div className="flex items-center justify-center gap-1.5 text-white/25 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>
                           <Timer className="w-3 h-3" />
-                          <span>إعادة الإرسال بعد {otpTimer} ثانية</span>
+                          <span>{t('resendAfter', { seconds: otpTimer })}</span>
                         </div>
                       ) : (
                         <button
@@ -593,7 +596,7 @@ function LoginForm() {
                           className="text-cyan-400/70 hover:text-cyan-400 text-xs transition-colors disabled:opacity-40"
                           style={{ fontFamily: 'var(--font-ar)' }}
                         >
-                          إعادة إرسال الرمز
+                          {t('resendCode')}
                         </button>
                       )}
                     </div>
@@ -607,7 +610,7 @@ function LoginForm() {
                     className="text-white/25 hover:text-white/40 text-[11px] transition-colors"
                     style={{ fontFamily: 'var(--font-ar)' }}
                   >
-                    ← تسجيل الدخول المباشر
+                    ← {t('directLogin')}
                   </button>
                 </div>
               </motion.div>
@@ -636,7 +639,7 @@ function LoginForm() {
                   style={{ boxShadow: '0 0 20px rgba(0, 212, 255, 0.15)' }}
                 >
                   <Mail className="w-4 h-4" />
-                  <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? 'جارٍ الدخول...' : 'تسجيل الدخول بالبريد'}</span>
+                  <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'email' ? t('loggingIn') : t('loginWithEmail')}</span>
                 </motion.button>
 
                 {/* Switch to OTP Login */}
@@ -646,7 +649,7 @@ function LoginForm() {
                     className="text-white/25 hover:text-white/40 text-[11px] transition-colors"
                     style={{ fontFamily: 'var(--font-ar)' }}
                   >
-                    ← تسجيل الدخول برمز التحقق
+                    ← {t('loginWithCode')}
                   </button>
                 </div>
               </motion.div>
@@ -656,7 +659,7 @@ function LoginForm() {
           {/* Divider */}
           <div className="flex items-center gap-4 my-4">
             <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-            <span className="text-white/20 text-[11px]" style={{ fontFamily: 'var(--font-ar)' }}>أو</span>
+            <span className="text-white/20 text-[11px]" style={{ fontFamily: 'var(--font-ar)' }}>{tc('or')}</span>
             <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
           </div>
 
@@ -676,7 +679,7 @@ function LoginForm() {
                        transition-all duration-200 mb-3"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'google' ? 'جارٍ الاتصال...' : 'Google'}</span>
+            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'google' ? t('googleConnecting') : 'Google'}</span>
           </motion.button>
 
           {/* Passkey Button */}
@@ -695,7 +698,7 @@ function LoginForm() {
                        transition-all duration-200 mb-4"
           >
             <Fingerprint className="w-4 h-4" style={{ color: '#00d4ff' }} />
-            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? 'جارٍ التحقق...' : 'Passkey'}</span>
+            <span style={{ fontFamily: 'var(--font-ar)' }}>{loading === 'passkey' ? t('passkeyVerifying') : 'Passkey'}</span>
           </motion.button>
 
           {/* Error Message */}
@@ -719,12 +722,12 @@ function LoginForm() {
           >
             <div className="flex items-center gap-1.5 text-white/20 text-[10px]">
               <Shield className="w-3 h-3" />
-              <span style={{ fontFamily: 'var(--font-ar)' }}>مشفر بالكامل</span>
+              <span style={{ fontFamily: 'var(--font-ar)' }}>{tc('encrypted')}</span>
             </div>
             <div className="w-1 h-1 rounded-full bg-white/10" />
             <div className="flex items-center gap-1.5 text-white/20 text-[10px]">
               <Fingerprint className="w-3 h-3" />
-              <span style={{ fontFamily: 'var(--font-ar)' }}>بدون كلمة مرور</span>
+              <span style={{ fontFamily: 'var(--font-ar)' }}>{tc('noPassword')}</span>
             </div>
           </motion.div>
 
@@ -736,10 +739,10 @@ function LoginForm() {
             className="mt-4 text-center text-white/15 text-[10px]"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            بتسجيل الدخول، أنت توافق على{' '}
-            <a href="/terms" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">شروط الاستخدام</a>
-            {' '}و{' '}
-            <a href="/privacy" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">سياسة الخصوصية</a>
+            {t('byLoggingIn')}{' '}
+            <a href="/terms" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">{tc('termsOfUse')}</a>
+            {' '}{t('and')}{' '}
+            <a href="/privacy" className="text-white/25 hover:text-white/40 transition-colors underline decoration-white/10">{tc('privacyPolicy')}</a>
           </motion.p>
         </motion.div>
 
@@ -753,7 +756,7 @@ function LoginForm() {
           <p className="text-white/15 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>
             <a href="/" className="hover:text-white/30 transition-colors flex items-center justify-center gap-1.5">
               <ArrowRight className="w-3 h-3" />
-              العودة إلى الصفحة الرئيسية
+              {t('backToHome')}
             </a>
           </p>
         </motion.div>

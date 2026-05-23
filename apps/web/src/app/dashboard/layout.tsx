@@ -12,28 +12,35 @@ import NotificationPermissionBanner from '@/components/shared/NotificationPermis
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
 import { Metadata, Viewport } from 'next'
 import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
+import { getLocale, getTranslations } from 'next-intl/server'
 
-export const metadata: Metadata = {
-  title: 'رؤى | منصة ربط الحسابات الاحترافية',
-  description: 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform',
-  manifest: '/manifest.json',
-  applicationName: 'Roua Link',
-  icons: {
-    icon: [
-      { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-      { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
-      { url: '/favicon.svg', type: 'image/svg+xml' },
-    ],
-    apple: [
-      { url: '/icon-192.png', sizes: '192x192' },
-      { url: '/icon-512.png', sizes: '512x512' },
-    ],
-  },
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Roua Link',
-  },
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale()
+  const isAr = locale === 'ar'
+  return {
+    title: isAr ? 'رؤى | منصة ربط الحسابات الاحترافية' : 'Roua | Professional Account Linking Platform',
+    description: isAr
+      ? 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform'
+      : 'Roua platform for linking and monitoring smart accounts - AI analytics and trading signals',
+    manifest: '/manifest.json',
+    applicationName: 'Roua Link',
+    icons: {
+      icon: [
+        { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+        { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+      ],
+      apple: [
+        { url: '/icon-192.png', sizes: '192x192' },
+        { url: '/icon-512.png', sizes: '512x512' },
+      ],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'black-translucent',
+      title: 'Roua Link',
+    },
+  }
 }
 
 export const viewport: Viewport = {
@@ -44,15 +51,18 @@ export const viewport: Viewport = {
   userScalable: true,
 }
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const locale = await getLocale()
+  const dir = locale === 'ar' ? 'rtl' : 'ltr'
+
   return (
     <MarketProvider>
       <AuthGuard>
-        <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: 'rtl', display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
+        <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: dir, display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
           <AppHeader />
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>

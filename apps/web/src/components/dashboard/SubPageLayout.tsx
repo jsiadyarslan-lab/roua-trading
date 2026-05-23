@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ChevronLeft, Menu, X as XIcon } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 interface SubPageLayoutProps {
   children: React.ReactNode
@@ -55,9 +56,10 @@ export default function SubPageLayout({
       `)
   const router = useRouter()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const tc = useTranslations('common')
 
   return (
-    <div dir="rtl" style={{ minHeight: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
+    <div style={{ minHeight: '100%', background: 'var(--bg-app)', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', overflowY: 'auto', overflowX: 'hidden' }}>
       {/* Top Navigation Bar */}
       <div style={{
         minHeight: '52px',
@@ -85,7 +87,7 @@ export default function SubPageLayout({
           }}
         >
           <ChevronLeft size={16} />
-          <span className="hide-mobile">لوحة القيادة</span>
+          <span className="hide-mobile">{tc('dashboard')}</span>
         </button>
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)' }} />

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { Zap, ShieldCheck, ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
@@ -19,13 +20,15 @@ export function QuickExecutionMini({
   mobile = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'في انتظار ربط API',
+  sourceLabel,
 }: {
   mobile?: boolean
   dataStatus?: DataStatus
   lastUpdatedAt?: string | number | null
   sourceLabel?: string
 }) {
+  const t = useTranslations('dashboard.execution')
+  const tc = useTranslations('common')
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
@@ -81,22 +84,22 @@ export function QuickExecutionMini({
   const inputPadding = mobile ? '10px' : '12px'
   const actionHeight = mobile ? 52 : 42
   const statusTone = getStatusTone(dataStatus)
-  const environmentLabel = 'تجريبي'  // V135: Was hardcoded 'ورقي' — QuickExecutionMini always uses simulated mode
-  const inferredOrderType = pendingAction === 'sell' ? 'بيع' : 'شراء'
+  const environmentLabel = t('demoLabel')
+  const inferredOrderType = pendingAction === 'sell' ? tc('sell') : tc('buy')
 
 
   const validateAndConfirm = (side: 'buy' | 'sell') => {
     setExecutionState('validating')
     if (!localSymbol) {
       setExecutionState('rejected')
-      setStatus({ msg: '❌ يرجى إدخال رمز الأصل', type: 'error' });
+      setStatus({ msg: t('invalidSymbol'), type: 'error' });
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
       return;
     }
     const qtyNum = parseFloat(quantity)
     if (isNaN(qtyNum) || qtyNum <= 0) {
       setExecutionState('rejected')
-      setStatus({ msg: '❌ الكمية غير صالحة', type: 'error' });
+      setStatus({ msg: t('invalidQuantity'), type: 'error' });
       setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
       return;
     }
@@ -110,26 +113,26 @@ export function QuickExecutionMini({
       if (side === 'buy') {
         if (slNum > 0 && slNum >= price) {
           setExecutionState('rejected')
-          setStatus({ msg: '❌ وقف الخسارة يجب أن يكون أقل من سعر الشراء', type: 'error' });
+          setStatus({ msg: t('stopLossRuleBuy'), type: 'error' });
           setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
           return;
         }
         if (tpNum > 0 && tpNum <= price) {
           setExecutionState('rejected')
-          setStatus({ msg: '❌ جني الأرباح يجب أن يكون أعلى من سعر الشراء', type: 'error' });
+          setStatus({ msg: t('takeProfitRuleBuy'), type: 'error' });
           setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
           return;
         }
       } else {
         if (slNum > 0 && slNum <= price) {
           setExecutionState('rejected')
-          setStatus({ msg: '❌ وقف الخسارة يجب أن يكون أعلى من سعر البيع', type: 'error' });
+          setStatus({ msg: t('stopLossRuleSell'), type: 'error' });
           setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
           return;
         }
         if (tpNum > 0 && tpNum >= price) {
           setExecutionState('rejected')
-          setStatus({ msg: '❌ جني الأرباح يجب أن يكون أقل من سعر البيع', type: 'error' });
+          setStatus({ msg: t('takeProfitRuleSell'), type: 'error' });
           setTimeout(() => setStatus({ msg: '', type: '' }), 3000);
           return;
         }
@@ -139,7 +142,7 @@ export function QuickExecutionMini({
     setPendingAction(side);
     setExecutionState('ready')
     setStatus({ 
-      msg: `تأكيد عملية ${side === 'buy' ? 'الشراء' : 'البيع'} لـ ${quantity} من ${localSymbol}؟`, 
+      msg: side === 'buy' ? t('confirmBuy', { qty: quantity, symbol: localSymbol }) : t('confirmSell', { qty: quantity, symbol: localSymbol }), 
       type: 'confirm' 
     });
   }
@@ -149,7 +152,7 @@ export function QuickExecutionMini({
     const side = pendingAction
     setLoading(true)
     setExecutionState('submitting')
-    setStatus({ msg: `⏳ جارٍ إرسال أمر ${side === 'buy' ? 'شراء' : 'بيع'} عبر Alpaca...`, type: 'loading' })
+    setStatus({ msg: side === 'buy' ? t('sendingBuyOrder') : t('sendingSellOrder'), type: 'loading' })
 
     try {
       const body: Record<string, any> = {
@@ -175,7 +178,7 @@ export function QuickExecutionMini({
         // Previously, accessing j.symbol, j.qty etc. without optional chaining could
         // cause crashes or undefined values propagating into the UI.
         const filledPrice = j.filledAvgPrice ? parseFloat(j.filledAvgPrice) : null
-        const filled = filledPrice ? ` بسعر $${filledPrice.toFixed(2)}` : ''
+        const filled = filledPrice ? ` @ $${filledPrice.toFixed(2)}` : ''
         const responseSymbol = j.symbol || localSymbol
         const responseQty = j.qty || quantity
         const responseOrderId = j.orderId || j.id || ''
@@ -194,7 +197,7 @@ export function QuickExecutionMini({
         })
 
         setStatus({
-          msg:  `✅ تمت عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${responseQty} ${responseSymbol}${filled}\nرقم الأمر: ${responseOrderId?.slice(0,8)}...`,
+          msg:  side === 'buy' ? t('buyExecuted', { qty: responseQty, symbol: responseSymbol, filled }) : t('sellExecuted', { qty: responseQty, symbol: responseSymbol, filled }) + `\n${t('orderId', { id: responseOrderId?.slice(0,8) ?? '' })}`,
           type: 'success',
         })
         setExecutionState(filledPrice ? 'filled' : 'accepted')
@@ -202,8 +205,8 @@ export function QuickExecutionMini({
           source: 'trade',
           priority: 'high',
           action: side === 'buy' ? 'BUY' : 'SELL',
-          title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${responseSymbol}`,
-          body: `تم تنفيذ ${responseQty} ${responseSymbol}${filled || ' في وضع paper'}`,
+          title: side === 'buy' ? tc('buy') + ' ' + responseSymbol : tc('sell') + ' ' + responseSymbol,
+          body: side === 'buy' ? t('buyExecuted', { qty: responseQty, symbol: responseSymbol, filled: filled || '' }) : t('sellExecuted', { qty: responseQty, symbol: responseSymbol, filled: filled || '' }),
           pair: responseSymbol,
           price: filledPrice || currentPrice,
         })
@@ -238,15 +241,15 @@ export function QuickExecutionMini({
 
           setExecutionState('accepted')
           setStatus({
-            msg:  `📝 تم تسجيل عملية ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} ${localSymbol} (ورقي — غير متصل بـ Alpaca)`,
+            msg:  side === 'buy' ? t('paperModeBuy', { qty: quantity, symbol: localSymbol }) : t('paperModeSell', { qty: quantity, symbol: localSymbol }),
             type: 'success',
           })
           addNotification({
             source: 'trade',
             priority: 'high',
             action: side === 'buy' ? 'BUY' : 'SELL',
-            title: `صفقة ورقية: ${side === 'buy' ? 'شراء' : 'بيع'} ${localSymbol}`,
-            body: `تم تسجيل ${quantity} ${localSymbol} في الوضع الورقي`,
+            title: side === 'buy' ? t('paperTradeBuy', { symbol: localSymbol }) : t('paperTradeSell', { symbol: localSymbol }),
+            body: t('paperRecorded', { qty: quantity, symbol: localSymbol }),
             pair: localSymbol,
             price: currentPrice,
           })
@@ -254,12 +257,12 @@ export function QuickExecutionMini({
           refreshAfterTrade()
         } else {
           setExecutionState('rejected')
-          setStatus({ msg: `❌ ${j.error || 'فشل التنفيذ'}`, type: 'error' })
+          setStatus({ msg: `❌ ${j.error || t('executionFailed')}`, type: 'error' })
         }
       }
     } catch {
       setExecutionState('rejected')
-      setStatus({ msg: '❌ خطأ في الشبكة — تعذّر الوصول للمزود', type: 'error' })
+      setStatus({ msg: t('networkError'), type: 'error' })
     } finally {
       setLoading(false)
       setPendingAction(null)
@@ -269,7 +272,7 @@ export function QuickExecutionMini({
 
   return (
     <div style={{
-      direction: 'rtl',
+      
       width: '100%', height: '100%',
       padding: cardPadding,
       display: 'flex', flexDirection: 'column', gap: 10,
@@ -287,7 +290,7 @@ export function QuickExecutionMini({
         gap: 12,
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>حالة التنفيذ</div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{t('executionStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction)}</span>
             <span style={{
@@ -322,11 +325,11 @@ export function QuickExecutionMini({
           borderRadius: 6, padding: '3px 8px',
         }}>
           <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#00C853', boxShadow: '0 0 6px #00C853' }} />
-          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "'JetBrains Mono', monospace" }}>حساب تجريبي (TESTNET)</span>
+          <span style={{ fontSize: 9, fontWeight: 800, color: '#FFB800', fontFamily: "'JetBrains Mono', monospace" }}>{t('demoAccount')}</span>
         </div>
         {account && (
           <div style={{ fontSize: 9, color: 'var(--muted)', fontFamily: "'JetBrains Mono', monospace" }}>
-            القوة الشرائية: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${formatCashValue(account.cash)}</span>
+            {t('buyingPowerLabel')}: <span style={{ color: 'var(--success)', fontWeight: 700 }}>${formatCashValue(account.cash)}</span>
           </div>
         )}
       </div>
@@ -337,11 +340,11 @@ export function QuickExecutionMini({
         gap: 8,
       }}>
         {[
-          { label: 'الأصل', value: localSymbol || '—', tone: 'var(--foreground)' },
-          { label: 'الكمية', value: quantity || '—', tone: 'var(--accent)' },
-          { label: 'النوع', value: inferredOrderType, tone: pendingAction === 'sell' ? 'var(--danger)' : 'var(--success)' },
-          { label: 'المخاطرة', value: potentialLoss !== null ? `$${potentialLoss.toFixed(2)}` : '—', tone: 'var(--warning)' },
-          { label: 'البيئة', value: environmentLabel, tone: 'var(--warning)' },
+          { label: t('asset'), value: localSymbol || '—', tone: 'var(--foreground)' },
+          { label: t('quantityLabel'), value: quantity || '—', tone: 'var(--accent)' },
+          { label: t('typeLabel'), value: inferredOrderType, tone: pendingAction === 'sell' ? 'var(--danger)' : 'var(--success)' },
+          { label: t('riskLabel'), value: potentialLoss !== null ? `$${potentialLoss.toFixed(2)}` : '—', tone: 'var(--warning)' },
+          { label: t('envLabel'), value: environmentLabel, tone: 'var(--warning)' },
         ].map(item => (
           <div key={item.label} style={{
             minWidth: 0,
@@ -359,7 +362,7 @@ export function QuickExecutionMini({
       {/* Symbol & Quantity Wrapper */}
       <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1.5, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الأصل</label>
+          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>{t('asset')}</label>
           <input 
             value={localSymbol}
             onChange={e => setLocalSymbol(e.target.value.toUpperCase())}
@@ -379,7 +382,7 @@ export function QuickExecutionMini({
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>الكمية</label>
+          <label style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 800 }}>{t('quantityLabel')}</label>
           <input 
             value={quantity}
             onChange={e => setQuantity(e.target.value)}
@@ -418,14 +421,14 @@ export function QuickExecutionMini({
             fontWeight: 800,
           }}
         >
-          <span>الإعدادات المتقدمة: TP / SL / المخاطرة</span>
+          <span>{t('advancedSettings')}</span>
           {showAdvanced ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       )}
 
       {(!mobile || showAdvanced) && <div style={{ display: 'flex', gap: 10 }}>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--success)', fontWeight: 800 }}>جني أرباح</label>
+          <label style={{ fontSize: 9, color: 'var(--success)', fontWeight: 800 }}>{tc('takeProfit')}</label>
           <input 
             value={takeProfit}
             onChange={e => setTakeProfit(e.target.value)}
@@ -442,7 +445,7 @@ export function QuickExecutionMini({
           />
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <label style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 800 }}>وقف خسارة</label>
+          <label style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 800 }}>{tc('stopLoss')}</label>
           <input 
             value={stopLoss}
             onChange={e => setStopLoss(e.target.value)}
@@ -493,7 +496,7 @@ export function QuickExecutionMini({
             display: 'flex', alignItems: 'center', gap: 4
           }}
         >
-          <Calculator size={10} /> حساب تلقائي
+          <Calculator size={10} /> {t('autoCalculate')}
         </button>
       </div>}
 
@@ -508,7 +511,7 @@ export function QuickExecutionMini({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Calculator size={12} color="var(--accent)" />
-            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>حاسبة المخاطرة</span>
+            <span style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif" }}>{t('riskCalculator')}</span>
           </div>
           {showRiskCalc ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
         </button>
@@ -517,7 +520,7 @@ export function QuickExecutionMini({
           <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
             {/* Risk % slider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>نسبة المخاطرة:</span>
+              <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 700, whiteSpace: 'nowrap' }}>{t('riskPercent')}:</span>
               <input
                 type="range" min="0.1" max="10" step="0.1"
                 value={riskPct}
@@ -532,9 +535,9 @@ export function QuickExecutionMini({
             {/* Stats row */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
               {[
-                { label: 'مبلغ المخاطرة', value: account ? `$${riskAmount.toFixed(0)}` : '—', color: 'var(--danger)' },
-                { label: 'الكمية المثلى', value: autoQty ?? (currentPrice > 0 ? `~${(riskAmount / currentPrice).toFixed(4)}` : '—'), color: 'var(--accent)' },
-                { label: 'نسبة المكاسب/خسائر', value: rrRatio ? `${rrRatio}:1` : '—', color: parseFloat(rrRatio ?? '0') >= 2 ? 'var(--success)' : 'var(--warning)' },
+                { label: t('riskAmount'), value: account ? `$${riskAmount.toFixed(0)}` : '—', color: 'var(--danger)' },
+                { label: t('optimalQuantity'), value: autoQty ?? (currentPrice > 0 ? `~${(riskAmount / currentPrice).toFixed(4)}` : '—'), color: 'var(--accent)' },
+                { label: t('winLossRatio'), value: rrRatio ? `${rrRatio}:1` : '—', color: parseFloat(rrRatio ?? '0') >= 2 ? 'var(--success)' : 'var(--warning)' },
               ].map(({ label, value, color }) => (
                 <div key={label} style={{
                   background: 'var(--surface)', borderRadius: 8, padding: '6px 8px',
@@ -552,13 +555,13 @@ export function QuickExecutionMini({
                 {potentialGain !== null && (
                   <div style={{ flex: 1, background: 'rgba(0,200,83,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(0,200,83,0.2)', textAlign: 'center' }}>
                     <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--success)', fontFamily: 'monospace' }}>+${potentialGain.toFixed(2)}</div>
-                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>جني أرباح مقدّر</div>
+                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedTakeProfit')}</div>
                   </div>
                 )}
                 {potentialLoss !== null && (
                   <div style={{ flex: 1, background: 'rgba(255,59,48,0.07)', borderRadius: 8, padding: '6px 8px', border: '1px solid rgba(255,59,48,0.2)', textAlign: 'center' }}>
                     <div style={{ fontSize: 11, fontWeight: 900, color: 'var(--danger)', fontFamily: 'monospace' }}>-${potentialLoss.toFixed(2)}</div>
-                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>وقف خسارة مقدّر</div>
+                    <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>{t('estimatedStopLoss')}</div>
                   </div>
                 )}
               </div>
@@ -573,7 +576,7 @@ export function QuickExecutionMini({
                   fontWeight: 700, fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                ← تطبيق الكمية المثلى ({autoQty})
+                {t('applyOptimalQty', { qty: autoQty })}
               </button>
             )}
           </div>
@@ -597,7 +600,7 @@ export function QuickExecutionMini({
             }}
           >
             <Zap size={12} fill="white" />
-            شراء
+            {tc('buy')}
           </button>
           <button 
             onClick={() => validateAndConfirm('sell')}
@@ -613,7 +616,7 @@ export function QuickExecutionMini({
             }}
           >
             <Zap size={12} fill="white" />
-            بيع
+            {tc('sell')}
           </button>
         </div>
       ) : (
@@ -633,7 +636,7 @@ export function QuickExecutionMini({
             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             <Zap size={14} fill="white" />
-            {loading && pendingAction === 'buy' ? 'جارٍ...' : 'شراء'}
+            {loading && pendingAction === 'buy' ? tc('processing') : tc('buy')}
           </button>
           <button 
             onClick={() => validateAndConfirm('sell')}
@@ -650,7 +653,7 @@ export function QuickExecutionMini({
             onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             <Zap size={14} fill="white" />
-            {loading && pendingAction === 'sell' ? 'جارٍ...' : 'بيع'}
+            {loading && pendingAction === 'sell' ? tc('processing') : tc('sell')}
           </button>
         </div>
       )}
@@ -676,7 +679,7 @@ export function QuickExecutionMini({
                   padding: '6px 16px', color: '#fff', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
                 }}
               >
-                تأكيد
+                {tc('confirm')}
               </button>
               <button 
                 onClick={() => setStatus({ msg: '', type: '' })}
@@ -685,7 +688,7 @@ export function QuickExecutionMini({
                   padding: '6px 16px', color: 'var(--foreground)', fontWeight: 800, cursor: 'pointer', fontFamily: "'Cairo', sans-serif"
                 }}
               >
-                إلغاء
+                {tc('cancel')}
               </button>
             </div>
           )}
@@ -695,7 +698,7 @@ export function QuickExecutionMini({
       {/* Safety Badge */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, opacity: 0.6, marginTop: 4 }}>
         <ShieldCheck size={12} color="var(--success)" />
-        <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--muted)' }}>تداول مؤسسي مشفر 256-bit</span>
+        <span style={{ fontSize: 9, fontWeight: 600, color: 'var(--muted)' }}>{t('encryptedTrading')}</span>
       </div>
     </div>
   )

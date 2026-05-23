@@ -1,20 +1,17 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useEffect, useMemo } from 'react'
 import { TrendingUp, TrendingDown, Zap, Brain, Activity, Wallet } from 'lucide-react'
 
-const MODE: Record<TradingMode, { color: string; label: string }> = {
-  trader: { color: '#00D4FF', label: 'تاجر' },
-  investor: { color: '#32D74B', label: 'مستثمر' },
-  ai: { color: '#A78BFA', label: 'ذكاء' },
-}
-
 export default function MobileHome() {
   const router = useRouter()
+  const t = useTranslations('mobile')
+  const tc = useTranslations('common')
   const quotes = useMarketStore(s => s.quotes)
   const mode = useDashboardStore(s => s.mode)
   const account = usePositionsStore(s => s.account)
@@ -23,31 +20,38 @@ export default function MobileHome() {
   useEffect(() => { fetchAccount() }, [fetchAccount])
 
   const balance = useMemo(() => account?.buying_power ? Number(account.buying_power) : 0, [account?.buying_power])
+
+  const MODE: Record<TradingMode, { color: string; label: string }> = {
+    trader: { color: '#00D4FF', label: tc('trader') },
+    investor: { color: '#32D74B', label: tc('investor') },
+    ai: { color: '#A78BFA', label: tc('ai') },
+  }
+
   const modeColor = MODE[mode]?.color || '#00D4FF'
-  const modeLabel = MODE[mode]?.label || 'تاجر'
+  const modeLabel = MODE[mode]?.label || tc('trader')
 
   const pairs = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XAU/USD']
 
   return (
     <div className="m-page">
-      {/* الرأس */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div>
-          <div style={{ fontSize: 22, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>رؤى</div>
-          <div style={{ fontSize: 11, color: modeColor, fontFamily: 'var(--cairo)', fontWeight: 700 }}>منصة ربط الحسابات</div>
+          <div style={{ fontSize: 22, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>{tc('brand')}</div>
+          <div style={{ fontSize: 11, color: modeColor, fontFamily: 'var(--cairo)', fontWeight: 700 }}>{t('brandSub')}</div>
         </div>
         <div style={{ padding: '4px 10px', borderRadius: 8, background: `${modeColor}15`, border: `0.5px solid ${modeColor}30` }}>
           <span style={{ fontSize: 10, fontWeight: 800, color: modeColor, fontFamily: 'var(--cairo)' }}>{modeLabel}</span>
         </div>
       </div>
 
-      {/* أزرار سريعة */}
+      {/* Quick buttons */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 16 }}>
         {[
-          { label: 'الشارت', icon: TrendingUp, href: '/mobile/chart', color: '#00D4FF' },
-          { label: 'الوكيل', icon: Zap, href: '/mobile/trade', color: '#FF9F43' },
-          { label: 'الذكاء', icon: Brain, href: '/mobile/ai', color: '#B388FF' },
-          { label: 'المراكز', icon: Activity, href: '/mobile/positions', color: '#00FFA3' },
+          { label: t('home.chart'), icon: TrendingUp, href: '/mobile/chart', color: '#00D4FF' },
+          { label: t('home.agent'), icon: Zap, href: '/mobile/trade', color: '#FF9F43' },
+          { label: t('home.ai'), icon: Brain, href: '/mobile/ai', color: '#B388FF' },
+          { label: t('home.positions'), icon: Activity, href: '/mobile/positions', color: '#00FFA3' },
         ].map(item => {
           const Icon = item.icon
           return (
@@ -66,12 +70,12 @@ export default function MobileHome() {
         })}
       </div>
 
-      {/* قوة الشراء */}
+      {/* Buying Power */}
       {balance > 0 && (
         <div className="m-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             <Wallet size={16} color="#00D4FF" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'var(--cairo)' }}>قوة الشراء</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'var(--cairo)' }}>{t('wallet.buyingPower')}</span>
           </div>
           <div style={{ fontSize: 24, fontWeight: 900, color: '#FFF', fontFamily: 'var(--mono)' }}>
             ${balance.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -79,11 +83,11 @@ export default function MobileHome() {
         </div>
       )}
 
-      {/* قائمة المراقبة */}
+      {/* Watchlist */}
       <div className="m-card">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: 'var(--cairo)' }}>قائمة المراقبة</span>
-          <button onClick={() => router.push('/mobile/markets')} style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, fontFamily: 'var(--cairo)', background: 'none', border: 'none', cursor: 'pointer' }}>المزيد</button>
+          <span style={{ fontSize: 14, fontWeight: 800, color: '#FFF', fontFamily: 'var(--cairo)' }}>{tc('watchlist')}</span>
+          <button onClick={() => router.push('/mobile/markets')} style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 800, fontFamily: 'var(--cairo)', background: 'none', border: 'none', cursor: 'pointer' }}>{t('home.more')}</button>
         </div>
         {pairs.map(sym => {
           const q = quotes[sym]

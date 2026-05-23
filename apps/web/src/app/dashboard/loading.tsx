@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 export default function Loading() {
@@ -13,7 +14,6 @@ export default function Loading() {
       className="min-h-screen flex items-center justify-center"
       style={{
         background: '#06090f',
-        direction: 'rtl',
       }}
     >
       <div className="text-center">
@@ -40,7 +40,7 @@ export default function Loading() {
             backgroundClip: 'text',
           }}
         >
-          رؤى
+          {useTranslations('common')('brand')}
         </h2>
 
         <p
@@ -50,7 +50,7 @@ export default function Loading() {
             color: '#64748B',
           }}
         >
-          جارٍ تحميل المنصة...
+          {useTranslations('dashboard')('loading')}
         </p>
       </div>
 

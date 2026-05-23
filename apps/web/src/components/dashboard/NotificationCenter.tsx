@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { X as XIcon, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 import {
   useNotificationStore,
   Notification,
@@ -42,9 +43,9 @@ const ACTION_COLOR: Record<NotifAction, string> = {
 
 function timeAgo(ts: number) {
   const s = Math.floor((Date.now() - ts) / 1000)
-  if (s < 60) return `${s}ث`
-  if (s < 3600) return `${Math.floor(s / 60)}د`
-  return `${Math.floor(s / 3600)}س`
+  if (s < 60) return `${s}s`
+  if (s < 3600) return `${Math.floor(s / 60)}m`
+  return `${Math.floor(s / 3600)}h`
 }
 
 /* ══ Single Toast Card ════════════════════════════════════ */
@@ -62,6 +63,8 @@ function ToastCard({
   const { addTrade } = usePaperTradesStore()
   const dismissTimerRef = useRef<number | null>(null)
   const dismissCallbackRef = useRef(onDismiss)
+  const tc = useTranslations('common')
+  const tn = useTranslations('dashboard.notifications')
 
   useEffect(() => {
     dismissCallbackRef.current = onDismiss
@@ -138,7 +141,7 @@ function ToastCard({
             tp: (notif.price as number) * (isBuy ? 1.015 : 0.985),
             sl: (notif.price as number) * (isBuy ? 0.99 : 1.01),
             entryTime: Date.now(),
-            strategy: `تنفيذ سريع (${notif.source})`,
+            strategy: `${tn('quickExecution')} (${notif.source})`,
             source: 'manual',
           })
           window.setTimeout(() => {
@@ -163,7 +166,7 @@ function ToastCard({
       tp: (notif.price as number) * (isBuy ? 1.015 : 0.985),
       sl: (notif.price as number) * (isBuy ? 0.99 : 1.01),
       entryTime: Date.now(),
-      strategy: `تنبيه سريع (${notif.source})`,
+      strategy: `${tn('quickAlert')} (${notif.source})`,
       source: 'manual',
     })
 
@@ -198,7 +201,6 @@ function ToastCard({
         position: 'relative',
         overflow: 'hidden',
         cursor: notif.pair ? 'pointer' : 'default',
-        direction: 'rtl',
       }}
     >
       <div
@@ -284,9 +286,9 @@ function ToastCard({
                 }}
               >
                 {notif.action === 'BUY'
-                  ? 'شراء'
+                  ? tc('buy')
                   : notif.action === 'SELL'
-                    ? 'بيع'
+                    ? tc('sell')
                     : notif.action}
               </span>
             </div>
@@ -315,7 +317,7 @@ function ToastCard({
                   transition: 'all 0.2s',
                 }}
               >
-                {executed ? 'تم التنفيذ ✅' : executing ? 'جارٍ التنفيذ...' : 'تنفيذ ⚡'}
+                {executed ? tn('executed') : executing ? tn('executing') : tn('execute')}
               </button>
             )}
           </div>
@@ -353,6 +355,8 @@ export function NotificationToasts() {
         }
       `)
   const { toasts, dismissToast } = useNotificationStore()
+  const tc = useTranslations('common')
+  const tn = useTranslations('dashboard.notifications')
 
   return (
     <>
@@ -711,7 +715,7 @@ export function NotificationCenter() {
                 '0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(0,212,255,0.04)',
               overflow: 'hidden',
               fontFamily: "'Cairo', sans-serif",
-              direction: 'rtl',
+              
             }}
           >
             <div

@@ -1,16 +1,13 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 export default function CosmicCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // FIX: Use React state instead of direct DOM mutations for info panel.
-  // Direct textContent/classList mutations in requestAnimationFrame bypass
-  // React's reconciliation and cause "Node cannot be found in the current page"
-  // errors when React tries to update nodes that were modified outside its control.
-  const [activeSatellite, setActiveSatellite] = useState<{ name: string; desc: string; color: string } | null>(null);
-  // Track last active satellite name to avoid unnecessary re-renders
+  const [activeSatellite, setActiveSatellite] = useState<{ nameKey: string; descKey: string; color: string } | null>(null);
   const lastSatNameRef = useRef<string | null>(null);
+  const t = useTranslations('landing.cosmicCanvas');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -24,8 +21,8 @@ export default function CosmicCanvas() {
     let targetMouseX = 0, targetMouseY = 0;
 
     type Satellite = {
-      name: string
-      desc: string
+      nameKey: string
+      descKey: string
       color: string
       angle: number
       speed: number
@@ -35,12 +32,12 @@ export default function CosmicCanvas() {
     }
 
     const satellites: Satellite[] = [
-      { name: 'المحلل اللغوي', desc: 'يحلل الأسواق بلغات متعددة في الوقت الفعلي', color: '#00d4ff', angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
-      { name: 'تحليل الرسوم البيانية', desc: 'تحليل متقدم للأنماط التقنية بدقة عالية', color: '#7dd3fc', angle: 1.0, speed: 0.0035, radius: 390, tilt: 0.35, size: 10 },
-      { name: 'معالجة البيانات', desc: 'استدلال فائق السرعة في الوقت الفعلي', color: '#34d399', angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
-      { name: 'البنية التحتية الآمنة', desc: 'حماية البيانات والنماذج الأساسية', color: '#bae6fd', angle: 3.5, speed: 0.0028, radius: 430, tilt: 0.4, size: 9 },
-      { name: 'النماذج المحلية', desc: 'تحليلات حساسة بعيداً عن السحابة', color: '#a78bfa', angle: 4.2, speed: 0.0045, radius: 350, tilt: 0.5, size: 8 },
-      { name: 'بيانات السوق المباشرة', desc: 'بيانات شاملة مباشرة من الأسواق العالمية', color: '#f472b6', angle: 5.0, speed: 0.0065, radius: 260, tilt: 0.3, size: 9 }
+      { nameKey: 'linguisticAnalyst', descKey: 'linguisticAnalystDesc', color: '#00d4ff', angle: 0, speed: 0.0045, radius: 320, tilt: 0.45, size: 9 },
+      { nameKey: 'chartAnalysis', descKey: 'chartAnalysisDesc', color: '#7dd3fc', angle: 1.0, speed: 0.0035, radius: 390, tilt: 0.35, size: 10 },
+      { nameKey: 'dataProcessing', descKey: 'dataProcessingDesc', color: '#34d399', angle: 2.1, speed: 0.0055, radius: 290, tilt: 0.55, size: 8 },
+      { nameKey: 'secureInfra', descKey: 'secureInfraDesc', color: '#bae6fd', angle: 3.5, speed: 0.0028, radius: 430, tilt: 0.4, size: 9 },
+      { nameKey: 'localModels', descKey: 'localModelsDesc', color: '#a78bfa', angle: 4.2, speed: 0.0045, radius: 350, tilt: 0.5, size: 8 },
+      { nameKey: 'liveMarketData', descKey: 'liveMarketDataDesc', color: '#f472b6', angle: 5.0, speed: 0.0065, radius: 260, tilt: 0.3, size: 9 }
     ];
 
     const stars: { x: number; y: number; z: number; size: number; opacity: number; twinkleSpeed: number }[] = [];
@@ -380,13 +377,10 @@ export default function CosmicCanvas() {
       });
 
       const activeSat = hoveredSat as Satellite | null;
-      // FIX: Use React state setter instead of direct DOM mutations.
-      // Only update state when satellite actually changes to avoid
-      // excessive re-renders from requestAnimationFrame (60fps).
-      const newName = activeSat?.name ?? null;
-      if (newName !== lastSatNameRef.current) {
-        lastSatNameRef.current = newName;
-        setActiveSatellite(activeSat ? { name: activeSat.name, desc: activeSat.desc, color: activeSat.color } : null);
+      const newKey = activeSat?.nameKey ?? null;
+      if (newKey !== lastSatNameRef.current) {
+        lastSatNameRef.current = newKey;
+        setActiveSatellite(activeSat ? { nameKey: activeSat.nameKey, descKey: activeSat.descKey, color: activeSat.color } : null);
       }
       canvas!.style.cursor = activeSat ? 'pointer' : 'default';
     }
@@ -458,12 +452,11 @@ export default function CosmicCanvas() {
       <div id="canvas-container">
         <canvas id="universe" ref={canvasRef} />
       </div>
-      {/* FIX: Use React state + conditional className instead of direct DOM mutations */}
       <div className={`satellites-info${activeSatellite ? ' active' : ''}`} id="infoPanel">
         <h3 id="infoTitle" style={activeSatellite ? { color: activeSatellite.color } : undefined}>
-          {activeSatellite?.name ?? 'نموذج الذكاء الاصطناعي'}
+          {activeSatellite ? t(activeSatellite.nameKey) : t('defaultTitle')}
         </h3>
-        <p id="infoDesc">{activeSatellite?.desc ?? 'وصف النموذج'}</p>
+        <p id="infoDesc">{activeSatellite ? t(activeSatellite.descKey) : t('defaultDesc')}</p>
       </div>
     </>
   );

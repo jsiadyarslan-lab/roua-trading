@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { useBotStore } from '@/hooks/useBotStore';
-import { useScopedStyle } from '@/hooks/useScopedStyle';
+import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl';
 
 type BotTab = 'log' | 'config';
 
@@ -64,6 +65,8 @@ export function BotMini() {
         }
       `)
   const { isOn, engineState, setIsOn, logs, stats, settings, updateSettings } = useBotStore();
+  const tb = useTranslations('dashboard.bot');
+  const tc = useTranslations('common');
   const [activeTab, setActiveTab] = useState<BotTab>('log');
 
   // Add initial log entry if logs are empty and bot is on
@@ -77,20 +80,19 @@ export function BotMini() {
   }, []);
 
   const engineStateLabel = {
-    idle: 'متوقف',
-    armed: 'مسلّح',
-    scanning: 'يمسح السوق',
-    entering: 'يدخل صفقة',
-    managing: 'يدير المراكز',
-    exiting: 'يغلق مركزًا',
-    cooldown: 'تبريد',
+    idle: tb('stopped'),
+    armed: tb('armedLabel'),
+    scanning: tb('scanningMarket'),
+    entering: tb('enteringTrade'),
+    managing: tb('managingPositions'),
+    exiting: tb('closingPosition'),
+    cooldown: tb('coolingDown'),
   }[engineState];
 
   return (
     <div
       className="bot-mini-shell"
       style={{
-        direction: 'rtl',
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
@@ -247,15 +249,15 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>الصفقات</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('trades')</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--accent)' }}>{stats.trades}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>الربح</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('profit')</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--success)' }}>${stats.profit}</div>
             </div>
             <div className="card" style={{ padding: 5, textAlign: 'center', minHeight: 30 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>نسبة الفوز</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('winRate')</div>
               <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--amber)' }}>{stats.winRate}%</div>
             </div>
           </div>
@@ -272,15 +274,15 @@ export function BotMini() {
             }}
           >
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>مفتوحة</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('openPositions')</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)' }}>{stats.openPositions}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>فوز / خسارة</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('winsLosses')</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--foreground)' }}>{stats.wins}/{stats.losses}</div>
             </div>
             <div className="card" style={{ padding: 4, textAlign: 'center', minHeight: 26 }}>
-              <div style={{ fontSize: 7, color: 'var(--text3)' }}>خسارة الجلسة</div>
+              <div style={{ fontSize: 7, color: 'var(--text3)' }}>tb('sessionLoss')</div>
               <div style={{ fontSize: 9, fontWeight: 800, color: stats.sessionLoss < 0 ? 'var(--danger)' : 'var(--text3)' }}>
                 ${stats.sessionLoss}
               </div>
@@ -302,7 +304,7 @@ export function BotMini() {
             }}
           >
             {logs.length === 0 ? (
-              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>السجل فارغ</div>
+              <div style={{ padding: 30, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>tb('emptyLog')</div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 {logs.map((log, i) => (
@@ -331,7 +333,7 @@ export function BotMini() {
       ) : (
         <div className="bot-mini-config" style={{ padding: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>الاستراتيجية</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('strategy')</label>
             <select
               value={settings.strategy}
               onChange={(e) => updateSettings({ strategy: e.target.value })}
@@ -356,7 +358,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>المخاطرة لكل صفقة (%)</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('riskPerTrade')</label>
             <input
               type="range"
               min="1"
@@ -370,7 +372,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>حد الثقة الأدنى (%)</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('minConfidence')</label>
             <input
               type="range"
               min="50"
@@ -384,7 +386,7 @@ export function BotMini() {
           </div>
 
           <div>
-            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>وضع إجماع الذكاء الاصطناعي</label>
+            <label style={{ fontSize: 10, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>tb('aiConsensusMode')</label>
             <div
               onClick={() => updateSettings({ useAIConsensus: !settings.useAIConsensus })}
               role="button"

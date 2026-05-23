@@ -1,13 +1,7 @@
 'use client'
 
 import { ExternalLink, GitBranch, Link2, MessageCircle } from 'lucide-react'
-
-const NAV_LINKS = [
-  { label: 'الميزات', href: '#features' },
-  { label: 'الذكاء الاصطناعي', href: '#ai-models' },
-  { label: 'تسجيل الدخول', href: '/login' },
-  { label: 'لوحة التحكم', href: '/dashboard' },
-]
+import { useTranslations } from 'next-intl'
 
 const SOCIAL_LINKS = [
   { icon: ExternalLink, label: 'Twitter', href: 'https://twitter.com/rouatrading' },
@@ -17,6 +11,16 @@ const SOCIAL_LINKS = [
 ]
 
 export default function Footer() {
+  const t = useTranslations('landing.navbar')
+  const tc = useTranslations('common')
+
+  const NAV_LINKS = [
+    { label: t('features'), href: '#features' },
+    { label: t('ai'), href: '#ai-models' },
+    { label: tc('login'), href: '/login' },
+    { label: tc('dashboard'), href: '/dashboard' },
+  ]
+
   return (
     <footer
       className="relative border-t"
@@ -39,13 +43,13 @@ export default function Footer() {
                 backgroundClip: 'text',
               }}
             >
-              رؤى
+              {tc('brand')}
             </span>
             <span
               className="text-[10px] font-semibold tracking-[0.3em] mt-0.5"
               style={{ color: '#334155', fontFamily: 'var(--font-brand)' }}
             >
-              ROUA
+              {tc('brandSub')}
             </span>
           </div>
 
@@ -105,7 +109,7 @@ export default function Footer() {
         {/* Copyright */}
         <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
           <p className="text-[11px]" style={{ color: '#334155', fontFamily: 'var(--font-ar)' }}>
-            © {new Date().getFullYear()} رؤى. جميع الحقوق محفوظة.
+            © {new Date().getFullYear()} {tc('brand')}. {tc('allRightsReserved')}.
           </p>
           <p className="text-[9px] tracking-[0.2em]" style={{ color: '#1E293B', fontFamily: 'var(--font-brand)' }}>
             NEURAL TRADING INTELLIGENCE

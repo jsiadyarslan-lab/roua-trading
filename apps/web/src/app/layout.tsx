@@ -3,6 +3,8 @@ import type { Metadata, Viewport } from "next";
 // Using preload:false + adjustFontFallback:false to avoid build-time fetch failures
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { NextIntlClientProvider } from 'next-intl';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 
 /* ── Font Loading via next/font/google ──
  * Loads only the glyphs needed (Arabic subset) with zero layout shift.
@@ -31,65 +33,74 @@ const fontVars = [
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
-export const metadata: Metadata = {
-  title: "رؤى | منصة ربط الحسابات الذكية",
-  description:
-    "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform",
-  manifest: "/manifest.json",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "Roua",
-  },
-  applicationName: "Roua Link",
-  metadataBase: new URL(SITE_URL),
-  icons: {
-    icon: [
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/icon-192.png", sizes: "192x192" },
-      { url: "/icon-512.png", sizes: "512x512" },
-    ],
-  },
-  alternates: {
-    canonical: "/",
-  },
-  openGraph: {
-    title: "رؤى | منصة ربط الحسابات الذكية",
-    description:
-      "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية",
-    url: SITE_URL,
-    siteName: "رؤى — Roua Trading",
-    locale: "ar_SA",
-    type: "website",
-    images: [
-      {
-        url: "/icon-512.png",
-        width: 512,
-        height: 512,
-        alt: "رؤى — Roua Trading",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary",
-    title: "رؤى | منصة ربط الحسابات الذكية",
-    description:
-      "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات",
-    images: ["/icon-512.png"],
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('common');
+  const locale = await getLocale();
+  const isAr = locale === 'ar';
+
+  return {
+    title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
+    description: isAr
+      ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform"
+      : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
+    manifest: "/manifest.json",
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: "black-translucent",
+      title: "Roua",
+    },
+    applicationName: "Roua Link",
+    metadataBase: new URL(SITE_URL),
+    icons: {
+      icon: [
+        { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+        { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
+        { url: "/favicon.svg", type: "image/svg+xml" },
+      ],
+      apple: [
+        { url: "/icon-192.png", sizes: "192x192" },
+        { url: "/icon-512.png", sizes: "512x512" },
+      ],
+    },
+    alternates: {
+      canonical: "/",
+    },
+    openGraph: {
+      title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
+      description: isAr
+        ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية"
+        : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
+      url: SITE_URL,
+      siteName: isAr ? "رؤى — Roua Trading" : "Roua Trading",
+      locale: isAr ? "ar_SA" : "en_US",
+      type: "website",
+      images: [
+        {
+          url: "/icon-512.png",
+          width: 512,
+          height: 512,
+          alt: isAr ? "رؤى — Roua Trading" : "Roua Trading",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary",
+      title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
+      description: isAr
+        ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات"
+        : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking",
+      images: ["/icon-512.png"],
+    },
+    robots: {
       index: true,
       follow: true,
+      googleBot: {
+        index: true,
+        follow: true,
+      },
     },
-  },
-};
+  };
+}
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -102,17 +113,23 @@ export const viewport: Viewport = {
 
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+  const dir = locale === 'ar' ? 'rtl' : 'ltr';
+
   return (
-    <html lang="ar" dir="rtl" className="dark" suppressHydrationWarning>
+    <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
       <body className={`${fontVars} antialiased`}>
-        <GlobalStyleRegistry />
-        {children}
-        <Toaster />
+        <NextIntlClientProvider messages={messages}>
+          <GlobalStyleRegistry />
+          {children}
+          <Toaster />
+        </NextIntlClientProvider>
       </body>
     </html>
   );

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Zap, ChartBar, Key, Cpu, Globe } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { useTranslations } from 'next-intl';
 
 interface Planet {
   name: string;
@@ -12,7 +13,7 @@ interface Planet {
   color: string;
   orbitRadius: number;
   orbitDuration: number;
-  description: string;
+  descKey: string;
   size: number;
   startAngle: number;
 }
@@ -24,7 +25,7 @@ const planets: Planet[] = [
     color: '#FF6B35',
     orbitRadius: 90,
     orbitDuration: 14,
-    description: 'معالجة فائقة السرعة للاستدلال اللحظي وتحليل السوق في الوقت الفعلي',
+    descKey: 'groqDesc',
     size: 48,
     startAngle: 0,
   },
@@ -34,7 +35,7 @@ const planets: Planet[] = [
     color: '#4ECDC4',
     orbitRadius: 140,
     orbitDuration: 20,
-    description: 'نموذج لغوي متعدد اللغات لفهم السياق المالي العربي والعالمي',
+    descKey: 'glm4Desc',
     size: 44,
     startAngle: 60,
   },
@@ -44,7 +45,7 @@ const planets: Planet[] = [
     color: '#3B82F6',
     orbitRadius: 190,
     orbitDuration: 26,
-    description: 'تحليل متقدم للرسوم البيانية والأنماط التقنية بدقة عالية',
+    descKey: 'geminiDesc',
     size: 50,
     startAngle: 120,
   },
@@ -54,7 +55,7 @@ const planets: Planet[] = [
     color: '#8B5CF6',
     orbitRadius: 240,
     orbitDuration: 32,
-    description: 'بنية تحتية آمنة وموثوقة للنماذج الأساسية مع حماية البيانات',
+    descKey: 'bedrockDesc',
     size: 46,
     startAngle: 180,
   },
@@ -64,7 +65,7 @@ const planets: Planet[] = [
     color: '#10B981',
     orbitRadius: 285,
     orbitDuration: 38,
-    description: 'نماذج محلية خاصة للتحليلات الحساسة بعيداً عن السحابة',
+    descKey: 'ollamaDesc',
     size: 42,
     startAngle: 240,
   },
@@ -74,7 +75,7 @@ const planets: Planet[] = [
     color: '#F59E0B',
     orbitRadius: 325,
     orbitDuration: 44,
-    description: 'بيانات سوق شاملة ومباشرة من الأسواق العالمية ومؤشراتها',
+    descKey: 'twelveDataDesc',
     size: 44,
     startAngle: 300,
   },
@@ -102,6 +103,8 @@ function generateKeyframes() {
 
 export default function GalaxyOrchestra() {
   const [activeTooltip, setActiveTooltip] = useState<number | null>(null);
+  const t = useTranslations('landing.aiModels');
+  const tg = useTranslations('landing.galaxyOrchestra');
 
   const handlePlanetClick = useCallback((index: number) => {
     setActiveTooltip((prev) => (prev === index ? null : index));
@@ -127,10 +130,10 @@ export default function GalaxyOrchestra() {
         className="text-center mb-16"
       >
         <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-4">
-          أوركسترا المجرة
+          {t('orchestraTitle')}
         </h2>
         <p className="text-white/50 text-lg max-w-2xl mx-auto">
-          ستة نماذج ذكاء اصطناعي تعمل بتناغم لتحليل الأسواق من كل زاوية
+          {t('orchestraSubtitle')}
         </p>
       </motion.div>
 
@@ -269,13 +272,13 @@ export default function GalaxyOrchestra() {
                   {planets[activeTooltip].name}
                 </h4>
                 <p className="text-white/60 text-sm leading-relaxed">
-                  {planets[activeTooltip].description}
+                  {tg(planets[activeTooltip].descKey)}
                 </p>
                 <button
                   onClick={handleBackdropClick}
                   className="mt-3 text-white/40 text-xs hover:text-white/70 transition-colors"
                 >
-                  اضغط للإغلاق
+                  {tg('closeTooltip')}
                 </button>
               </motion.div>
             </>

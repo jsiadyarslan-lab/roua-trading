@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
@@ -19,6 +20,8 @@ import { ensureAuth } from '@/lib/api-fetch'
 ══════════════════════════════════════════════════════ */
 
 export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
+  const t = useTranslations('dashboard.notificationEngine')
+  const tc = useTranslations('common')
   const { addNotification, settings } = useNotificationStore()
   const { isOn: botOn, logs: botLogs } = useBotStore()
   const { selectedSymbol } = useSymbolStore()
@@ -71,8 +74,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'system',
           priority: 'high',
           action: 'WARN',
-          title: 'تنفيذ تلقائي فشل',
-          body: `لا توجد بيانات اعتماد بورصة مرتبطة. يرجى ربط حسابك أولاً.`,
+          title: t('autoExecuteFailed'),
+          body: t('noExchangeCredentials'),
           pair: data.pair,
         })
         return
@@ -108,8 +111,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'trade',
           priority: 'urgent',
           action: side === 'BUY' ? 'BUY' : 'SELL',
-          title: `⚡ تنفيذ تلقائي: ${side === 'BUY' ? 'شراء' : 'بيع'} ${data.pair}`,
-          body: `تم تنفيذ الإشارة تلقائياً (ثقة: ${data.confidence}%) — الأمر: ${j.data?.orderId?.slice(0, 8) || 'قيد المعالجة'}...`,
+          title: t('autoExecuteSuccess', { side: side === 'BUY' ? tc('buy') : tc('sell'), pair: data.pair }),
+          body: t('autoExecuteSuccessBody', { confidence: data.confidence, orderId: j.data?.orderId?.slice(0, 8) || '' }),
           pair: data.pair,
           price: entryPrice,
           confidence: data.confidence,
@@ -119,8 +122,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'system',
           priority: 'high',
           action: 'WARN',
-          title: 'تنفيذ تلقائي مرفوض',
-          body: `لم يتم التنفيذ التلقائي لـ ${data.pair}: ${j.message || 'تم الرفض من حارس المخاطر'}`,
+          title: t('autoExecuteRejected'),
+          body: t('autoExecuteRejectedBody', { pair: data.pair, reason: j.message || t('rejectedByRiskGuard') }),
           pair: data.pair,
         })
       }
@@ -129,8 +132,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
         source: 'system',
         priority: 'medium',
         action: 'WARN',
-        title: 'خطأ في التنفيذ التلقائي',
-        body: `فشل الاتصال: ${error.message || 'خطأ في الشبكة'}`,
+        title: t('autoExecuteError'),
+        body: t('connectionFailed', { error: error.message || tc('error') }),
         pair: data.pair,
       })
     } finally {
@@ -167,7 +170,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'bot',
           priority: 'urgent',
           action: log.type === 'buy' ? 'BUY' : 'SELL',
-          title: `🤖 البوت: إشارة ${log.type === 'buy' ? 'شراء' : 'بيع'}`,
+          title: `🤖 ${t('botSignal', { side: log.type === 'buy' ? tc('buy') : tc('sell') })}`,
           body: log.msg,
           pair: selectedSymbol,
         })
@@ -194,7 +197,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
         source: 'ai',
         priority: confidence >= 85 ? 'high' : 'medium',
         action: sentiment === 'bullish' ? 'BUY' : sentiment === 'bearish' ? 'SELL' : 'INFO',
-        title: `🧠 تحليل AI: ${sentiment === 'bullish' ? 'توقع صعود' : sentiment === 'bearish' ? 'توقع هبوط' : 'تحليل محايد'}`,
+        title: `🧠 ${t('aiAnalysis', { sentiment: sentiment === 'bullish' ? t('bullishPrediction') : sentiment === 'bearish' ? t('bearishPrediction') : t('neutralAnalysis') })}`,
         body: narrative.slice(0, 120) + (narrative.length > 120 ? '...' : ''),
         confidence: confidence ?? 70,
         pair: selectedSymbol,
@@ -225,8 +228,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
         source: 'scanner',
         priority: top.confidence >= 80 ? 'high' : 'medium',
         action: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'BUY' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'SELL' : 'INFO',
-        title: `📡 سكانر: ${top.symbol} — ${top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'إشارة شراء' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'إشارة بيع' : 'مراقبة'}`,
-        body: `قوة الإشارة ${top.confidence}% | ${(top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ')}`,
+        title: `📡 ${t('scannerSignal', { symbol: top.symbol, direction: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? tc('buySignal') : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? tc('sellSignal') : t('monitoring') })}`,
+        body: t('signalStrength', { confidence: top.confidence, reasons: (top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ') }),
         pair: top.symbol,
         price: top.price,
         confidence: top.confidence,
@@ -252,8 +255,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'trade',
           priority: change > 8 ? 'urgent' : 'high',
           action: (q.changePercent || 0) > 0 ? 'BUY' : 'SELL',
-          title: `⚡ تحرك حاد: ${symbol}`,
-          body: `السعر تغيّر بنسبة ${q.changePercent?.toFixed(2)}% — قد تكون فرصة تداول`,
+          title: `⚡ ${t('sharpMove', { symbol })}`,
+          body: t('priceChangeOpportunity', { change: q.changePercent?.toFixed(2) }),
           pair: symbol,
           price: q.price,
         })

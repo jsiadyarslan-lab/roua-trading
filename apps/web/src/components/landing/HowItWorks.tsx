@@ -1,30 +1,41 @@
 'use client';
 
-const steps = [
-  { num: '١', titleAr: 'أنشئ حسابك', titleEn: 'Sign Up', desc: 'سجّل دخولك في أقل من 30 ثانية عبر Google أو Passkey. لا كلمات مرور، لا تعقيد.' },
-  { num: '٢', titleAr: 'دع الذكاء يعمل', titleEn: 'AI Analysis', desc: 'ثمانية نماذج ذكاء اصطناعي تحلل الأسواق وتولّد إشارات تداول مبنية على تحليل متعدد النماذج.' },
-  { num: '٣', titleAr: 'ربط حساباتك بثقة', titleEn: 'Trade Smart', desc: 'نفّذ صفقاتك بناءً على رؤى مدعومة بالبيانات مع حماية المخاطر الذكية.' },
-  { num: '٤', titleAr: 'احمِ أرباحك', titleEn: 'Protect Profits', desc: 'نظام حماية تلقائي يراقب محفظتك ويُنذرك قبل التقلبات الحادة.' },
-];
+import { useTranslations } from 'next-intl';
+
+interface StepData {
+  num: string;
+  titleKey: string;
+  titleEn: string;
+  descKey: string;
+}
 
 export default function HowItWorks() {
+  const t = useTranslations('landing.howItWorks');
+
+  const steps: StepData[] = [
+    { num: '١', titleKey: 'step1Title', titleEn: 'Sign Up', descKey: 'step1Desc' },
+    { num: '٢', titleKey: 'step3Title', titleEn: 'AI Analysis', descKey: 'step2Desc' },
+    { num: '٣', titleKey: 'step2Title', titleEn: 'Trade Smart', descKey: 'step3Desc' },
+    { num: '٤', titleKey: 'step4Title', titleEn: 'Protect Profits', descKey: 'step4Desc' },
+  ];
+
   return (
     <section className="section" id="how">
       <div className="section-header fade-in">
         <div className="section-label">HOW IT WORKS</div>
         <h2 className="section-title">
-          من التسجيل إلى<br /><span className="highlight">الأرباح</span>
+          {t('titlePart1')}<br /><span className="highlight">{t('titleHighlight')}</span>
         </h2>
         <p className="section-desc">
-          أربع خطوات فقط تفصلك عن تداول أذكى مدعوم بالذكاء الاصطناعي
+          {t('subtitle')}
         </p>
       </div>
       <div className="steps-container">
         {steps.map((step, i) => (
           <div className="step-card fade-in" key={i}>
             <div className="step-number">{step.num}</div>
-            <h3>{step.titleAr} <span>{step.titleEn}</span></h3>
-            <p>{step.desc}</p>
+            <h3>{t(step.titleKey)} <span>{step.titleEn}</span></h3>
+            <p>{t(step.descKey)}</p>
           </div>
         ))}
       </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import dynamic from 'next/dynamic'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
 // Uses error-safe dynamic import to prevent ReferenceError
@@ -213,6 +214,8 @@ function formatDuration(start: string | number, end: string | number) {
 
 /* ── Main page ── */
 export default function PortfolioPage() {
+  const t = useTranslations('dashboard.portfolio')
+  const tc = useTranslations('common')
   const [tab, setTab] = useState<'positions' | 'performance' | 'risk' | 'coach'>('positions')
   const [positions, setPositions] = useState<Position[]>([])
   const [closedPositions, setClosedPositions] = useState<Position[]>([])

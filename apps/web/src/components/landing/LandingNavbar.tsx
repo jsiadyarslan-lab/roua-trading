@@ -5,17 +5,21 @@ import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Menu, X, LogIn, UserPlus, TrendingUp } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-
-const NAV_ITEMS = [
-  { label: 'الميزات', href: '#features' },
-  { label: 'الذكاء الاصطناعي', href: '#ai-models' },
-  { label: 'السوق المباشر', href: '#live-market' },
-  { label: 'آراء المتداولين', href: '#testimonials' },
-]
+import { useTranslations } from 'next-intl'
+import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
 
 export default function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
+  const t = useTranslations('landing.navbar')
+  const tc = useTranslations('common')
+
+  const NAV_ITEMS = [
+    { label: t('features'), href: '#features' },
+    { label: t('ai'), href: '#ai-models' },
+    { label: t('liveMarket'), href: '#live-market' },
+    { label: t('testimonials'), href: '#testimonials' },
+  ]
 
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20)
@@ -60,13 +64,13 @@ export default function LandingNavbar() {
                   backgroundClip: 'text',
                 }}
               >
-                رؤى
+                {tc('brand')}
               </span>
               <span
                 className="text-[8px] font-semibold tracking-[0.3em] opacity-40"
                 style={{ color: '#94A3B8', fontFamily: 'var(--font-brand)' }}
               >
-                ROUA
+                {tc('brandSub')}
               </span>
             </div>
           </Link>
@@ -93,6 +97,7 @@ export default function LandingNavbar() {
 
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center gap-2.5">
+            <LocaleSwitcher variant="navbar" />
             <Link href="/login">
               <Button
                 variant="ghost"
@@ -101,7 +106,7 @@ export default function LandingNavbar() {
                 style={{ color: '#94A3B8' }}
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
+                <span style={{ fontFamily: 'var(--font-ar)' }}>{t('login')}</span>
               </Button>
             </Link>
             <Link href="/login">
@@ -116,7 +121,7 @@ export default function LandingNavbar() {
                 }}
               >
                 <UserPlus className="w-3.5 h-3.5" />
-                <span style={{ fontFamily: 'var(--font-ar)' }}>ابدأ مجاناً</span>
+                <span style={{ fontFamily: 'var(--font-ar)' }}>{t('startFree')}</span>
               </Button>
             </Link>
           </div>
@@ -158,6 +163,9 @@ export default function LandingNavbar() {
                 </a>
               ))}
               <div className="pt-3 space-y-2" style={{ borderTop: '1px solid rgba(148,163,184,0.08)' }}>
+                <div className="flex justify-center">
+                  <LocaleSwitcher variant="navbar" />
+                </div>
                 <Link href="/login" onClick={() => setMobileOpen(false)}>
                   <Button
                     variant="ghost"
@@ -165,7 +173,7 @@ export default function LandingNavbar() {
                     style={{ color: '#94A3B8' }}
                   >
                     <LogIn className="w-4 h-4" />
-                    <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
+                    <span style={{ fontFamily: 'var(--font-ar)' }}>{t('login')}</span>
                   </Button>
                 </Link>
                 <Link href="/login" onClick={() => setMobileOpen(false)}>
@@ -178,7 +186,7 @@ export default function LandingNavbar() {
                     }}
                   >
                     <UserPlus className="w-4 h-4" />
-                    <span style={{ fontFamily: 'var(--font-ar)' }}>ابدأ مجاناً</span>
+                    <span style={{ fontFamily: 'var(--font-ar)' }}>{t('startFree')}</span>
                   </Button>
                 </Link>
               </div>

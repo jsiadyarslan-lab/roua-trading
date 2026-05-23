@@ -6,7 +6,8 @@ import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { useTabAlertStore } from '@/hooks/useTabAlertStore';
 import { formatFreshness } from '@/lib/dashboard-live';
 import { RefreshCw, Activity } from 'lucide-react';
-import { useScopedStyle } from '@/hooks/useScopedStyle';
+import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl';
 
 // Signal explanations map
 const SIGNAL_EXPLANATIONS: Record<string, string> = {
@@ -43,6 +44,8 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const scanningRef = useRef(false);
   const isFirstScanRef = useRef(true);
   const { selectedSymbol: storeSelectedSymbol, setSelectedSymbol } = useSymbolStore();
+  const ts = useTranslations('dashboard.scanner')
+  const tc = useTranslations('common')
   const activeSymbol = selectedSymbol || storeSelectedSymbol;
   const spotlight = signals.find(sig => sig.pair === activeSymbol) || signals[0] || null
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -146,7 +149,6 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
 
   return (
     <div style={{
-      direction: 'rtl',
       display: 'flex', flexDirection: 'column', height: '100%',
       background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16,
       border: '1px solid rgba(0,229,255,0.08)',
@@ -165,7 +167,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             سكانر الأسواق
           </span>
           <span style={{ fontSize: 6, background: 'rgba(255,184,0,0.10)', border: '0.5px solid rgba(255,184,0,0.20)', color: 'var(--amber)', padding: '0.5px 4px', borderRadius: 2, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            {signals.length > 0 ? `${signals.length} زوج` : ''}
+            {signals.length > 0 ? `${signals.length} ${ts("pair")}` : ''}
           </span>
           {lastScan && (
             <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>
@@ -187,7 +189,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             }}
           >
             <RefreshCw size={6} className={scanning ? 'animate-spin' : ''} />
-            {scanning ? 'جارٍ...' : 'فحص'}
+            {scanning ? ts('scanningDot') : ts('scan')}
           </button>
         </div>
       </div>}
@@ -222,7 +224,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                 fontFamily: "'Cairo', sans-serif",
                 fontWeight: 800,
               }}>
-                {spotlight.dir === 'buy' ? 'شراء' : spotlight.dir === 'sell' ? 'بيع' : 'ترقب'}
+                {spotlight.dir === 'buy' ? tc('buy') : spotlight.dir === 'sell' ? tc('sell') : ts('watch')}
               </span>
             </div>
             <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
@@ -251,7 +253,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         ) : signals.length === 0 ? (
           <div style={{ padding: compact ? 15 : 30, textAlign: 'center', opacity: 0.4 }}>
              <span style={{ fontSize: 20 }}>📡</span>
-             <div style={{ fontSize: 8, marginTop: 6 }}>لا توجد إشارات الآن.</div>
+             <div style={{ fontSize: 8, marginTop: 6 }}>ts('noSignals')</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -307,10 +309,10 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                         padding: '1px 5px', borderRadius: 3,
                         fontFamily: "'Cairo', sans-serif",
                       }}>
-                        {isBuy ? 'شراء' : isSell ? 'بيع' : 'ترقب'}
+                        {isBuy ? tc('buy') : isSell ? tc('sell') : ts('watch')}
                       </span>
                       {isActiveSig && (
-                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>محدد</span>
+                        <span style={{ fontSize: 6, background: 'rgba(0,229,255,0.12)', padding: '1px 4px', borderRadius: 3, color: 'var(--accent)', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>ts('selected')</span>
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>

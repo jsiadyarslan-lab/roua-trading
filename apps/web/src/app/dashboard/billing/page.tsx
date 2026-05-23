@@ -13,6 +13,7 @@ import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -42,89 +43,44 @@ interface PlanData {
   popular?: boolean
 }
 
-const PLANS: PlanData[] = [
+// Plan data is built inside the component using translations — see getPlans() below
+const PLAN_CONFIGS: { id: Role; price: number; color: string; gradient: string; icon: React.ReactNode; popular?: boolean; badgeKey?: string; featureKeys: string[]; featureIncluded: boolean[]; descKey: string }[] = [
   {
-    id: 'FREE',
-    name: 'مجاني',
-    price: 0,
-    period: 'شهر',
-    description: 'ابدأ بربط حسابك الأول واستكشف تحليلات السوق الأساسية. مثالي للمبتدئين الذين يريدون متابعة أداء استثماراتهم مع رؤى ذكاء اصطناعي محدودة.',
-    color: T.text2,
-    gradient: 'linear-gradient(135deg, #8B92A8, #64748b)',
+    id: 'FREE', price: 0, color: T.text2, gradient: 'linear-gradient(135deg, #8B92A8, #64748b)',
     icon: <Crown size={22} />,
-    features: [
-      { icon: <Link2 size={13} />, label: 'ربط حساب واحد', included: true },
-      { icon: <BarChart3 size={13} />, label: 'تحليلات أساسية', included: true },
-      { icon: <Radio size={13} />, label: 'إشارات محدودة', included: true },
-      { icon: <Brain size={13} />, label: 'رؤى AI أساسية', included: true },
-      { icon: <Users size={13} />, label: 'ربط حسابات متعددة', included: false },
-      { icon: <BarChart3 size={13} />, label: 'تحليل محفظة متقدم', included: false },
-      { icon: <Code2 size={13} />, label: 'وصول API', included: false },
-      { icon: <Globe size={13} />, label: 'بيانات حية مباشرة', included: false },
-    ],
+    descKey: 'planFreeDesc2',
+    featureKeys: ['planFreeF1','planFreeF2','planFreeF3','planFreeF4','planFreeF5','planFreeF6','planFreeF7','planFreeF8'],
+    featureIncluded: [true,true,true,true,false,false,false,false],
   },
   {
-    id: 'PRO',
-    name: 'برو',
-    price: 29,
-    period: 'شهر',
-    description: 'اربط حساباتك المتعددة واحصل على تحليلات AI متقدمة مع بيانات حية مباشرة. صُمم للمتداولين الذين يريدون رؤية شاملة لأداء محافظهم عبر جميع البورصات.',
-    color: T.cyan,
-    gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
-    icon: <Star size={22} />,
-    popular: true,
-    features: [
-      { icon: <Link2 size={13} />, label: 'ربط حتى 3 حسابات', included: true },
-      { icon: <Brain size={13} />, label: 'AI متقدم مع توصيات', included: true },
-      { icon: <Globe size={13} />, label: 'بيانات حية مباشرة', included: true },
-      { icon: <BarChart3 size={13} />, label: 'تحليلات غير محدودة', included: true },
-      { icon: <Radio size={13} />, label: 'ماسح ذكي للأسواق', included: true },
-      { icon: <Bell size={13} />, label: 'إشعارات فورية', included: true },
-      { icon: <BarChart3 size={13} />, label: 'تحليل محفظة متقدم', included: false },
-      { icon: <Code2 size={13} />, label: 'وصول API', included: false },
-    ],
+    id: 'PRO', price: 29, color: T.cyan, gradient: 'linear-gradient(135deg, #00D4FF, #0A84FF)',
+    icon: <Star size={22} />, popular: true,
+    descKey: 'planProDesc2',
+    featureKeys: ['planProF1','planProF2','planProF3','planProF4','planProF5','planProF6','planProF7','planProF8'],
+    featureIncluded: [true,true,true,true,true,true,false,false],
   },
   {
-    id: 'PREMIUM',
-    name: 'متميز',
-    price: 79,
-    period: 'شهر',
-    description: 'الخطة المثالية للمتداولين المحترفين مع محافظ متعددة عبر بورصات مختلفة. تحليل شامل لأداء جميع حساباتك مع نماذج AI متقدمة وتقارير مفصلة.',
-    color: T.amber,
-    gradient: 'linear-gradient(135deg, #FFB800, #FF8C00)',
-    icon: <Sparkles size={22} />,
-    badge: 'الأكثر قيمة',
-    features: [
-      { icon: <Link2 size={13} />, label: 'ربط حتى 10 حسابات', included: true },
-      { icon: <Brain size={13} />, label: 'نماذج AI متقدمة', included: true },
-      { icon: <Code2 size={13} />, label: 'وصول API كامل', included: true },
-      { icon: <Globe size={13} />, label: 'بيانات حية وتاريخية', included: true },
-      { icon: <BarChart3 size={13} />, label: 'تحليل محفظة متقدم', included: true },
-      { icon: <TrendingUp size={13} />, label: 'تتبع أداء متعدد', included: true },
-      { icon: <Bell size={13} />, label: 'تنبيهات ذكية مخصصة', included: true },
-      { icon: <FileText size={13} />, label: 'تصدير التقارير', included: true },
-    ],
+    id: 'PREMIUM', price: 79, color: T.amber, gradient: 'linear-gradient(135deg, #FFB800, #FF8C00)',
+    icon: <Sparkles size={22} />, badgeKey: 'bestValue',
+    descKey: 'planPremiumDesc2',
+    featureKeys: ['planPremiumF1','planPremiumF2','planPremiumF3','planPremiumF4','planPremiumF5','planPremiumF6','planPremiumF7','planPremiumF8'],
+    featureIncluded: [true,true,true,true,true,true,true,true],
   },
   {
-    id: 'INSTITUTIONAL',
-    name: 'مؤسسي',
-    price: 299,
-    period: 'شهر',
-    description: 'الحل الشامل للمؤسسات والصناديق الاستثمارية التي تدير حسابات متعددة عبر بورصات عديدة. تكامل كامل مع أنظمتكم الداخلية ودعم مخصص على مدار الساعة.',
-    color: T.green,
-    gradient: 'linear-gradient(135deg, #00FFA3, #00CC82)',
+    id: 'INSTITUTIONAL', price: 299, color: T.green, gradient: 'linear-gradient(135deg, #00FFA3, #00CC82)',
     icon: <Building2 size={22} />,
-    features: [
-      { icon: <Infinity size={13} />, label: 'ربط غير محدود', included: true },
-      { icon: <Headphones size={13} />, label: 'دعم مخصص 24/7', included: true },
-      { icon: <Server size={13} />, label: 'Webhooks للتكامل', included: true },
-      { icon: <Code2 size={13} />, label: 'API كامل + أولوية', included: true },
-      { icon: <Users size={13} />, label: 'حسابات فرعية', included: true },
-      { icon: <TrendingUp size={13} />, label: 'استراتيجيات مخصصة', included: true },
-      { icon: <Brain size={13} />, label: 'كل نماذج AI المتقدمة', included: true },
-      { icon: <Shield size={13} />, label: 'SLA ضمان وقت التشغيل', included: true },
-    ],
+    descKey: 'planInstDesc2',
+    featureKeys: ['planInstF1','planInstF2','planInstF3','planInstF4','planInstF5','planInstF6','planInstF7','planInstF8'],
+    featureIncluded: [true,true,true,true,true,true,true,true],
   },
+]
+
+const PLAN_ICONS: Record<string, React.ReactNode> = {
+  FREE: <Link2 size={13} />, PRO: <Link2 size={13} />, PREMIUM: <Link2 size={13} />, INSTITUTIONAL: <Infinity size={13} />,
+}
+const PLAN_FEATURE_ICONS = [
+  <Link2 size={13} />, <BarChart3 size={13} />, <Radio size={13} />, <Brain size={13} />,
+  <Users size={13} />, <BarChart3 size={13} />, <Code2 size={13} />, <Globe size={13} />,
 ]
 
 /* ═══════════════════════════════════════════════════════
@@ -183,6 +139,29 @@ export default function BillingPage() {
           .billing-pricing-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }`)
 
+  const t = useTranslations('dashboard.billing')
+  const tc = useTranslations('common')
+
+  const getPlans = (): PlanData[] => PLAN_CONFIGS.map(cfg => ({
+    id: cfg.id,
+    name: tc(cfg.id === 'INSTITUTIONAL' ? 'enterprise' : cfg.id.toLowerCase() as 'free'|'pro'|'premium'),
+    price: cfg.price,
+    period: tc('month'),
+    description: t(cfg.descKey),
+    color: cfg.color,
+    gradient: cfg.gradient,
+    icon: cfg.icon,
+    badge: cfg.badgeKey ? tc(cfg.badgeKey) : undefined,
+    popular: cfg.popular,
+    features: cfg.featureKeys.map((fk, i) => ({
+      icon: PLAN_FEATURE_ICONS[i] || <Check size={13} />,
+      label: t(fk),
+      included: cfg.featureIncluded[i],
+    })),
+  }))
+
+  const PLANS = getPlans()
+
   const user = useAuthStore(state => state.user)
   const userTier = (user?.tier || 'FREE') as Role
   const roleInfo = ROLE_INFO[userTier] || ROLE_INFO.FREE
@@ -201,13 +180,13 @@ export default function BillingPage() {
 
   const handleUpgrade = (planId: string) => {
     if (planId === userTier) {
-      toast({ title: 'أنت مشترك بالفعل في هذه الخطة', description: 'لا حاجة لترقية حسابك حيث أنك تستخدم هذه الخطة حالياً.' })
+      toast({ title: t('alreadySubscribed'), description: t('alreadySubscribedDesc') })
       return
     }
     setUpgrading(planId)
     setTimeout(() => {
       setUpgrading(null)
-      toast({ title: 'تم إرسال طلب الترقية', description: 'سيتم تفعيل خطتك الجديدة خلال لحظات بعد تأكيد الدفع.' })
+      toast({ title: t('upgradeRequested'), description: t('upgradeRequestedDesc') })
     }, 1500)
   }
 
@@ -215,16 +194,16 @@ export default function BillingPage() {
   
 
     if (!promoCode.trim()) {
-      toast({ title: 'أدخل رمز الخصم', description: 'يرجى إدخال رمز الخصم قبل التطبيق.' })
+      toast({ title: t('enterPromoCode'), description: t('enterPromoDesc') })
       return
     }
     setPromoApplying(true)
     setTimeout(() => {
       setPromoApplying(false)
       if (promoCode.toUpperCase() === 'ROUA2026') {
-        toast({ title: 'تم تطبيق الخصم بنجاح!', description: 'حصلت على خصم 20% على اشتراكك القادم. الرمز صالح لمدة 30 يوماً.' })
+        toast({ title: t('promoApplied'), description: t('promoAppliedDesc') })
       } else {
-        toast({ title: 'رمز الخصم غير صالح', description: 'الرمز الذي أدخلته غير صالح أو منتهي الصلاحية. حاول رمزاً آخر.' })
+        toast({ title: t('promoInvalid'), description: t('promoInvalidDesc') })
       }
     }, 1200)
   }
@@ -233,7 +212,7 @@ export default function BillingPage() {
 
   return (
     <div className="custom-scrollbar" style={{
-      direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+      fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══════════════════════════════════════════════════
@@ -255,10 +234,10 @@ export default function BillingPage() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>
-              المدفوعات والاشتراكات
+              {t('title')}
             </h1>
             <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>
-              إدارة اشتراكك وطرق الدفع وعرض سجل الفواتير
+              {t('subtitleFull')}
             </p>
           </div>
           <div style={{
@@ -310,19 +289,19 @@ export default function BillingPage() {
               </div>
               <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontSize: 20, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  خطة {roleInfo.label} الحالية
+                  {t('currentPlanLabel', { plan: roleInfo.label })}
                   {userTier === 'FREE' && (
                     <span style={{
                       fontSize: 9, padding: '2px 8px', borderRadius: 10,
                       background: `${T.cyan}12`, color: T.cyan,
                       fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-                    }}>ترقية متاحة</span>
+                    }}>{tc('upgradeAvailable')}</span>
                   )}
                 </div>
                 <div style={{ fontSize: 12, color: T.text3, marginTop: 4, lineHeight: 1.6 }}>
-                  {roleInfo.description} — أنت حالياً على خطة {roleInfo.label}
-                  {userTier !== 'INSTITUTIONAL' && '، يمكنك الترقية في أي وقت لفتح المزيد من الإمكانيات والمزايا الحصرية.'}
-                  {userTier === 'INSTITUTIONAL' && ' — أعلى مستوى من الخدمة والصلاحيات متاح لك بالكامل.'}
+                  {roleInfo.description} — {t('currentlyOnPlan', { plan: roleInfo.label })}
+                  {userTier !== 'INSTITUTIONAL' && t('upgradeAnytime')}
+                  {userTier === 'INSTITUTIONAL' && t('highestServiceLevel')}
                 </div>
               </div>
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
@@ -333,7 +312,7 @@ export default function BillingPage() {
                   {PLANS.find(p => p.id === userTier)?.price || 0}
                 </div>
                 <div style={{ fontSize: 10, color: T.text4 }}>
-                  $ / شهر
+                  {tc('perMonth')}
                 </div>
               </div>
             </div>
@@ -347,8 +326,8 @@ export default function BillingPage() {
               }}>
                 <Clock size={14} color={roleInfo.color} />
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.5 }}>
-                  <span style={{ fontWeight: 700, color: T.text }}>الدفع القادم:</span>
-                  {' '}28 مارس 2026 — سيتم تجديد اشتراكك تلقائياً بمبلغ{' '}
+                  <span style={{ fontWeight: 700, color: T.text }}>{t('nextPayment')}</span>
+                  {' '}{t('nextPaymentDate')} — {t('autoRenewAt')}{' '}
                   <span style={{ color: roleInfo.color, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
                     ${PLANS.find(p => p.id === userTier)?.price || 0}
                   </span>
@@ -369,8 +348,8 @@ export default function BillingPage() {
               <Sparkles size={14} color={T.purple} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>خطط الاشتراك</div>
-              <div style={{ fontSize: 11, color: T.text3 }}>اختر الخطة المناسبة لاحتياجاتك — يمكنك الترقية أو التخفيض في أي وقت</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('plansTitle')}</div>
+              <div style={{ fontSize: 11, color: T.text3 }}>{t('plansSubtitleFull')}</div>
             </div>
           </div>
 
@@ -402,7 +381,7 @@ export default function BillingPage() {
                       fontFamily: "'Cairo', sans-serif",
                       boxShadow: `0 0 12px ${T.cyan}30`,
                     }}>
-                      الأكثر شعبية
+                      {tc('mostPopular')}
                     </div>
                   )}
 
@@ -487,7 +466,7 @@ export default function BillingPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       }}>
                         <CheckCircle2 size={14} />
-                        خطتك الحالية
+                        {tc('currentPlan')}
                       </div>
                     ) : (
                       <button
@@ -507,11 +486,11 @@ export default function BillingPage() {
                         }}
                       >
                         {upgrading === plan.id ? (
-                          <>جاري المعالجة...</>
+                          <>{tc('processing')}</>
                         ) : isDowngrade ? (
-                          <><ArrowUpRight size={13} style={{ transform: 'rotate(180deg)' }} /> تخفيض الخطة</>
+                          <><ArrowUpRight size={13} style={{ transform: 'rotate(180deg)' }} /> {tc('downgrade')}</>
                         ) : (
-                          <><ArrowUpRight size={13} /> ترقية الآن</>
+                          <><ArrowUpRight size={13} /> {tc('upgrade')}</>
                         )}
                       </button>
                     )}
@@ -533,9 +512,9 @@ export default function BillingPage() {
               <Wallet size={14} color={T.green} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>طرق الدفع</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('paymentMethods')}</div>
               <div style={{ fontSize: 11, color: T.text3 }}>
-                أضف أو أدر بطاقاتك الائتمانية أو ادفع عبر العملات المشفرة بسرعة وأمان تام
+                {t('paymentMethodsSubtitle')}
               </div>
             </div>
           </div>
@@ -561,7 +540,7 @@ export default function BillingPage() {
                   }} />
                   <CreditCard size={16} color={selectedPayment === 'card' ? T.cyan : T.text3} />
                   <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'card' ? T.text : T.text3 }}>
-                    بطاقة ائتمان / خصم
+                    {t('creditDebit')}
                   </span>
                   <span style={{
                     marginRight: 'auto', fontSize: 9, padding: '2px 7px',
@@ -569,7 +548,7 @@ export default function BillingPage() {
                     fontWeight: 600, fontFamily: "'JetBrains Mono', monospace",
                   }}>
                     <Lock size={8} style={{ display: 'inline', verticalAlign: 'middle', marginLeft: 3 }} />
-                    مشفّر
+                    {t('encryptedBadge')}
                   </span>
                 </div>
               </div>
@@ -605,11 +584,11 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                       <div>
-                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>حامل البطاقة</div>
+                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>{t('cardHolder')}</div>
                         <div style={{ fontSize: 11, color: T.text2, fontWeight: 600 }}>{user?.displayName || 'ROUA USER'}</div>
                       </div>
                       <div>
-                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>الانتهاء</div>
+                        <div style={{ fontSize: 8, color: T.text4, marginBottom: 2 }}>{t('expiry')}</div>
                         <div style={{ fontSize: 11, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>{cardExpiry}</div>
                       </div>
                     </div>
@@ -618,7 +597,7 @@ export default function BillingPage() {
                   {/* Card Form (visual only) */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
-                      <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>رقم البطاقة</label>
+                      <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>{t('cardNumber')}</label>
                       <div style={{
                         display: 'flex', alignItems: 'center', gap: 8,
                         background: T.surface, border: `1px solid ${T.border}`,
@@ -646,7 +625,7 @@ export default function BillingPage() {
                     </div>
                     <div style={{ display: 'flex', gap: 10 }}>
                       <div style={{ flex: 1 }}>
-                        <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>تاريخ الانتهاء</label>
+                        <label style={{ fontSize: 10, color: T.text3, marginBottom: 4, display: 'block' }}>{t('expiryDate')}</label>
                         <input
                           type="text"
                           value={cardExpiry}
@@ -701,14 +680,14 @@ export default function BillingPage() {
                   }} />
                   <Bitcoin size={16} color={selectedPayment === 'crypto' ? T.amber : T.text3} />
                   <span style={{ fontSize: 13, fontWeight: 700, color: selectedPayment === 'crypto' ? T.text : T.text3 }}>
-                    عملات مشفرة
+                    {t('cryptoPay')}
                   </span>
                   <span style={{
                     marginRight: 'auto', fontSize: 9, padding: '2px 7px',
                     borderRadius: 10, background: `${T.amber}12`, color: T.amber,
                     fontWeight: 600,
                   }}>
-                    لامركزي
+                    {t('decentralized')}
                   </span>
                 </div>
               </div>
@@ -721,8 +700,7 @@ export default function BillingPage() {
                     marginBottom: 14,
                   }}>
                     <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
-                      ادفع باستخدام Bitcoin أو Ethereum أو USDT. المعاملة آمنة ولا تتطلب بيانات شخصية.
-                      يتم تأكيد الدفع خلال 3 تأكيدات على الشبكة، وعادة ما يستغرق الأمر أقل من 15 دقيقة.
+                      {t('cryptoPayDesc')}
                     </div>
                   </div>
 
@@ -775,9 +753,9 @@ export default function BillingPage() {
               <Receipt size={14} color={T.blue} />
             </div>
             <div>
-              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>سجل الفواتير</div>
+              <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('invoiceHistory')}</div>
               <div style={{ fontSize: 11, color: T.text3 }}>
-                عرض جميع المعاملات السابقة والفواتير — يمكنك تنزيل أي فاتورة كملف PDF
+                {t('invoiceSubtitle')}
               </div>
             </div>
           </div>
@@ -790,7 +768,7 @@ export default function BillingPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${T.border}` }}>
-                    {['التاريخ', 'الوصف', 'المبلغ', 'الحالة', ''].map(h => (
+                    {[t('tableDate'), t('tableDescription'), t('tableAmount'), t('tableStatus'), ''].map(h => (
                       <th key={h} style={{
                         padding: '12px 16px', textAlign: 'right',
                         fontSize: 10, fontWeight: 700, color: T.text4,
@@ -846,7 +824,7 @@ export default function BillingPage() {
                             }}
                             onMouseEnter={e => { e.currentTarget.style.borderColor = T.border2; e.currentTarget.style.color = T.cyan }}
                             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text3 }}
-                            onClick={() => toast({ title: 'جاري تنزيل الفاتورة', description: `سيتم تنزيل الفاتورة ${record.id} خلال لحظات.` })}
+                            onClick={() => toast({ title: t('downloadingInvoice'), description: t('downloadingInvoiceDesc', { id: record.id }) })}
                           >
                             <Download size={10} />
                             PDF
@@ -866,11 +844,11 @@ export default function BillingPage() {
               background: `${T.surface}30`,
             }}>
               <div style={{ fontSize: 10, color: T.text4 }}>
-                عرض آخر {billingHistory.length} معاملات
+                {t('lastTransactions', { n: billingHistory.length })}
               </div>
               <div style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <FileText size={10} />
-                إجمالي المدفوعات: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
+                {t('totalPayments')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>
                   ${billingHistory.filter(r => r.status === 'paid').reduce((sum, r) => sum + parseFloat(r.amount.replace('$', '')), 0).toFixed(2)}
                 </span>
               </div>
@@ -893,9 +871,9 @@ export default function BillingPage() {
                 <Gift size={18} color={T.pink} />
               </div>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>رمز الخصم</div>
+                <div style={{ fontSize: 14, fontWeight: 800, color: T.text }}>{t('promoCode')}</div>
                 <div style={{ fontSize: 11, color: T.text3 }}>
-                  هل لديك رمز ترويجي أو قسيمة خصم؟ أدخله هنا للحصول على خصم فوري على اشتراكك القادم. الأكواد الترويجية قابلة للتطبيق على جميع الخطط المدفوعة وقد تمنحك خصماً يصل إلى 50% من قيمة الاشتراك.
+                  {t('promoDesc')}
                 </div>
               </div>
             </div>
@@ -915,7 +893,7 @@ export default function BillingPage() {
                   type="text"
                   value={promoCode}
                   onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                  placeholder="أدخل رمز الخصم هنا..."
+                  placeholder={t('promoPlaceholder')}
                   maxLength={20}
                   style={{
                     flex: 1, background: 'none', border: 'none',
@@ -943,14 +921,14 @@ export default function BillingPage() {
                   opacity: promoApplying ? 0.7 : 1,
                 }}
               >
-                {promoApplying ? 'جاري التحقق...' : 'تطبيق الخصم'}
+                {promoApplying ? t('applying') : t('applyPromo')}
               </button>
             </div>
 
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Shield size={12} color={T.text4} />
               <span style={{ fontSize: 10, color: T.text4 }}>
-                جميع المعاملات مشفرة ومؤمنة بمعيار PCI DSS Level 1. لا نخزن بيانات بطاقتك على خوادمنا أبداً.
+                {t('allEncrypted')}
               </span>
             </div>
           </div>
@@ -962,10 +940,10 @@ export default function BillingPage() {
           gap: 10,
         }}>
           {[
-            { icon: <Shield size={14} />, color: T.green, label: 'ضمان استرداد 14 يوماً', desc: 'استرداد كامل خلال أول 14 يوماً بدون أسئلة' },
-            { icon: <Zap size={14} />, color: T.cyan, label: 'تفعيل فوري', desc: 'يتم تفعيل خطتك فوراً بعد تأكيد الدفع' },
-            { icon: <Lock size={14} />, color: T.amber, label: 'دفع آمن', desc: 'تشفير SSL 256-bit وحماية احتيال متقدمة' },
-            { icon: <Users size={14} />, color: T.purple, label: 'دعم متواصل', desc: 'فريق الدعم متاح على مدار الساعة لجميع الخطط' },
+            { icon: <Shield size={14} />, color: T.green, label: t('refundGuarantee'), desc: t('refundGuaranteeDesc') },
+            { icon: <Zap size={14} />, color: T.cyan, label: t('instantActivation'), desc: t('instantActivationDesc') },
+            { icon: <Lock size={14} />, color: T.amber, label: t('securePayment'), desc: t('securePaymentDesc') },
+            { icon: <Users size={14} />, color: T.purple, label: t('continuousSupport'), desc: t('continuousSupportDesc') },
           ].map((item, i) => (
             <div key={i} style={{
               padding: '12px 14px', borderRadius: 10,

@@ -1,9 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
+import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher';
 
 export default function CosmicNavbar() {
   const [scrolled, setScrolled] = useState(false);
+  const t = useTranslations('landing.navbar');
+  const tc = useTranslations('common');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,16 +19,17 @@ export default function CosmicNavbar() {
 
   return (
     <nav className={`nav ${scrolled ? 'scrolled' : ''}`} id="navbar">
-      <div className="nav-brand">رؤى</div>
+      <div className="nav-brand">{tc('brand')}</div>
       <div className="nav-links">
-        <a href="#models">النماذج</a>
-        <a href="#features">الأدوات</a>
-        <a href="#how">الطريقة</a>
-        <a href="#testimonials">التجارب</a>
+        <a href="#models">{t('models')}</a>
+        <a href="#features">{t('tools')}</a>
+        <a href="#how">{t('method')}</a>
+        <a href="#testimonials">{t('experiences')}</a>
       </div>
       <div className="nav-buttons">
-        <a href="/login" className="btn btn-outline">تسجيل الدخول</a>
-        <a href="/login" className="btn btn-primary">ابدأ الآن</a>
+        <LocaleSwitcher variant="navbar" />
+        <a href="/login" className="btn btn-outline">{t('login')}</a>
+        <a href="/login" className="btn btn-primary">{tc('signup')}</a>
       </div>
     </nav>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Activity } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 /* ── Types ── */
 interface CandleData {
@@ -179,6 +180,7 @@ export default function LiveMarketChart() {
   const [lastPrice, setLastPrice] = useState(67000)
   const [priceChange, setPriceChange] = useState(0)
   const priceUpdateRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const t = useTranslations('landing.liveChart')
 
   useEffect(() => {
     let current = 67000
@@ -238,7 +240,7 @@ export default function LiveMarketChart() {
             className="text-xl sm:text-2xl font-bold text-white"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            تتبع السوق في الوقت الفعلي
+            {t('title')}
           </h2>
         </div>
 
@@ -315,7 +317,7 @@ export default function LiveMarketChart() {
               fontFamily: 'var(--font-ar, sans-serif)',
             }}
           >
-            بيانات تجريبية — لا تمثل أسعاراً حقيقية
+            {t('demoDisclaimer')}
           </div>
         </div>
       </div>

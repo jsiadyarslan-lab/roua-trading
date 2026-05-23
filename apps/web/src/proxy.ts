@@ -2,12 +2,17 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * Proxy for route protection + security headers — Next.js 16
+ * Proxy for route protection + security headers + i18n locale — Next.js 16
  *
  * Protects all /dashboard/* routes (except /dashboard/admin/login).
  * - /dashboard/* routes: require roua_session cookie (non-guest)
  * - /dashboard/admin/* routes: require roua_admin_session cookie
  * - All other routes: pass through
+ *
+ * Also handles i18n locale detection:
+ * - Reads NEXT_LOCALE cookie (user's explicit choice, highest priority)
+ * - Falls back to Accept-Language header for auto-detection
+ * - Sets x-next-intl-locale header for next-intl's getRequestConfig
  *
  * Also adds security headers to ALL responses:
  * - HSTS, X-Content-Type-Options, X-Frame-Options, CSP, etc.
@@ -17,6 +22,31 @@ import type { NextRequest } from 'next/server'
  * Migrated from middleware.ts to proxy.ts for Next.js 16 compatibility.
  * See: https://nextjs.org/docs/messages/middleware-to-proxy
  */
+
+const SUPPORTED_LOCALES = ['ar', 'en']
+const DEFAULT_LOCALE = 'ar'
+
+/**
+ * Detect locale from cookie or Accept-Language header.
+ * Priority: NEXT_LOCALE cookie > Accept-Language header > default (ar)
+ */
+function detectLocale(request: NextRequest): string {
+  // 1. Cookie (highest priority - user's explicit choice)
+  const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
+  if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
+    return cookieLocale
+  }
+
+  // 2. Browser Accept-Language header
+  const acceptLanguage = request.headers.get('accept-language') || ''
+  const browserLocale = acceptLanguage.split(',')[0]?.split('-')[0]
+  if (browserLocale && SUPPORTED_LOCALES.includes(browserLocale)) {
+    return browserLocale
+  }
+
+  // 3. Default
+  return DEFAULT_LOCALE
+}
 
 /**
  * Add security headers to a response.

@@ -1,32 +1,41 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
-const testimonials = [
+interface TestimonialData {
+  tagKey: string;
+  textKey: string;
+  nameKey: string;
+  roleKey: string;
+  initial: string;
+}
+
+const testimonials: TestimonialData[] = [
   {
-    tag: 'المحلل متعدد اللغات',
-    text: 'المحلل متعدد اللغات يتيح تحليل الأسواق العالمية بلغات متعددة، مما يوفر رؤى شاملة دون حاجة لفريق مترجمين.',
-    name: 'ميزة المحلل',
-    role: 'تحليل متعدد اللغات · Multilingual Analysis',
+    tagKey: 'multilingualAnalyst',
+    textKey: 'multilingualAnalystText',
+    nameKey: 'multilingualAnalystName',
+    roleKey: 'multilingualAnalystRole',
     initial: '🔄',
   },
   {
-    tag: 'إشارات رؤى',
-    text: 'إشارات رؤى مدعومة بثمانية نماذج ذكاء اصطناعي تتناقش وتتوصل لإجماع قبل تقديم التوصيات، مما يعزز موثوقية التحليل.',
-    name: 'ميزة الإشارات',
-    role: 'تحليل متعدد النماذج · Multi-Model Consensus',
+    tagKey: 'rouaSignals',
+    textKey: 'rouaSignalsText',
+    nameKey: 'rouaSignalsName',
+    roleKey: 'rouaSignalsRole',
     initial: '🎯',
   },
   {
-    tag: 'رادار الأخبار',
-    text: 'رادار الأخبار يراقب المصادر الإخبارية ويفلتر الأحداث المؤثرة، مما يساعد في اتخاذ قرارات أسرع بناءً على آخر التطورات.',
-    name: 'ميزة الرادار',
-    role: 'رصد إخباري ذكي · Smart News Tracking',
+    tagKey: 'newsRadar',
+    textKey: 'newsRadarText',
+    nameKey: 'newsRadarName',
+    roleKey: 'newsRadarRole',
     initial: '📡',
   },
 ];
 
-function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
+function TestimonialCard({ item, t }: { item: TestimonialData; t: ReturnType<typeof useTranslations> }) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -58,14 +67,14 @@ function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
 
   return (
     <div className="testimonial-card fade-in" ref={cardRef}>
-      <div className="testimonial-tag">{t.tag}</div>
+      <div className="testimonial-tag">{t(item.tagKey)}</div>
       <div className="testimonial-quote">&quot;</div>
-      <p className="testimonial-text">{t.text}</p>
+      <p className="testimonial-text">{t(item.textKey)}</p>
       <div className="testimonial-author">
-        <div className="author-avatar">{t.initial}</div>
+        <div className="author-avatar">{item.initial}</div>
         <div className="author-info">
-          <h4>{t.name}</h4>
-          <span>{t.role}</span>
+          <h4>{t(item.nameKey)}</h4>
+          <span>{t(item.roleKey)}</span>
         </div>
       </div>
     </div>
@@ -73,20 +82,22 @@ function TestimonialCard({ t }: { t: typeof testimonials[0] }) {
 }
 
 export default function TestimonialsSection() {
+  const t = useTranslations('landing.testimonials');
+
   return (
     <section className="section" id="testimonials">
       <div className="section-header fade-in">
         <div className="section-label">TESTIMONIALS</div>
         <h2 className="section-title">
-          ماذا يقول<br /><span className="highlight">المتداولون</span>
+          {t('titlePart1')}<br /><span className="highlight">{t('titleHighlight')}</span>
         </h2>
         <p className="section-desc">
-          اكتشف الميزات التي تميز منصة رؤى
+          {t('sectionDesc')}
         </p>
       </div>
       <div className="testimonials-grid">
-        {testimonials.map((t, i) => (
-          <TestimonialCard key={i} t={t} />
+        {testimonials.map((item, i) => (
+          <TestimonialCard key={i} item={item} t={t} />
         ))}
       </div>
     </section>

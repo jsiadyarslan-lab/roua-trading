@@ -6,6 +6,7 @@ import { Lock, TrendingUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useState } from 'react'
 import { T } from '@/lib/unified-tokens'
+import { useTranslations } from 'next-intl'
 
 /**
  * GuestGuard — Prevents guest users from executing actions.
@@ -15,19 +16,20 @@ import { T } from '@/lib/unified-tokens'
  * - If user is guest: renders children with disabled overlay + upgrade prompt
  *
  * Usage:
- * <GuestGuard action="تنفيذ صفقة">
- *   <button onClick={executeTrade}>تنفيذ</button>
+ * <GuestGuard action="Execute trade">
+ *   <button onClick={executeTrade}>Execute</button>
  * </GuestGuard>
  */
 export function GuestGuard({
   children,
-  action = 'هذا الإجراء',
+  action = '',
 }: {
   children: React.ReactNode
   action?: string
 }) {
   const { isGuest, loading } = useAuth()
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const tg = useTranslations('guest')
 
   // While loading, render normally (don't block UI)
   if (loading) return <>{children}</>
@@ -51,8 +53,8 @@ export function GuestGuard({
       <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
         <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/80 backdrop-blur-sm border border-white/10">
           <Lock className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="text-white/90 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>
-            سجّل للوصول
+          <span className="text-white/90 text-xs">
+            {tg('loginToAccess')}
           </span>
         </div>
       </div>
@@ -82,6 +84,7 @@ function GuestUpgradeModal({
   onClose: () => void
 }) {
   const router = useRouter()
+  const tg = useTranslations('guest')
 
   return (
     <motion.div
@@ -102,7 +105,6 @@ function GuestUpgradeModal({
         transition={{ duration: 0.3, ease: 'easeOut' }}
         onClick={(e) => e.stopPropagation()}
         className="relative z-10 w-full max-w-sm backdrop-blur-2xl bg-white/[0.05] border border-white/10 rounded-2xl p-6 shadow-2xl"
-        dir="rtl"
       >
         {/* Icon */}
         <div className="flex justify-center mb-4">
@@ -118,13 +120,13 @@ function GuestUpgradeModal({
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-center mb-2" style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}>
-          هذا الإجراء يحتاج تسجيل دخول
+        <h3 className="text-lg font-bold text-center mb-2" style={{ color: '#E2E8F0' }}>
+          {tg('loginRequired')}
         </h3>
 
         {/* Description */}
-        <p className="text-center text-sm mb-6" style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}>
-          للحصول على تجربة كاملة مع جميع الميزات، سجّل دخولك مجاناً
+        <p className="text-center text-sm mb-6" style={{ color: '#94A3B8' }}>
+          {tg('fullExperienceDesc')}
         </p>
 
         {/* Login button */}
@@ -137,7 +139,7 @@ function GuestUpgradeModal({
           style={{ boxShadow: `0 0 20px ${T.profit}26` }}
         >
           <TrendingUp className="w-4 h-4" />
-          <span style={{ fontFamily: 'var(--font-ar)' }}>تسجيل الدخول</span>
+          <span>{tg('loginButton')}</span>
         </button>
 
         {/* Dismiss */}
@@ -146,9 +148,8 @@ function GuestUpgradeModal({
           className="w-full py-2.5 px-6 rounded-xl text-white/40 text-sm
                      hover:text-white/60 hover:bg-white/[0.03]
                      transition-all duration-200"
-          style={{ fontFamily: 'var(--font-ar)' }}
         >
-          متابعة كضيف
+          {tg('continueAsGuest')}
         </button>
       </motion.div>
     </motion.div>
@@ -163,6 +164,7 @@ export function GuestBanner() {
   const { isGuest, loading } = useAuth()
   const router = useRouter()
   const [dismissed, setDismissed] = useState(false)
+  const tg = useTranslations('guest')
 
   if (loading || !isGuest || dismissed) return null
 
@@ -173,11 +175,10 @@ export function GuestBanner() {
         background: `${T.profit}14`,
         borderColor: `${T.profit}26`,
       }}
-      dir="rtl"
     >
       <Lock className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-      <span className="text-xs" style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}>
-        أنت في وضع المشاهدة — سجّل للحصول على وصول كامل
+      <span className="text-xs" style={{ color: '#94A3B8' }}>
+        {tg('viewModeBanner')}
       </span>
       <button
         onClick={() => router.push('/login')}
@@ -185,10 +186,9 @@ export function GuestBanner() {
         style={{
           background: `${T.profit}26`,
           color: T.profit,
-          fontFamily: 'var(--font-ar)',
         }}
       >
-        تسجيل الدخول
+        {tg('loginButton')}
       </button>
       <button
         onClick={() => setDismissed(true)}

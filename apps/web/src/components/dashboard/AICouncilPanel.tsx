@@ -7,6 +7,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { T } from '@/lib/unified-tokens'
 import { safeStr, safeNum } from '@/lib/utils'
+import { useTranslations } from 'next-intl'
 
 interface Analysis {
   role: string
@@ -61,6 +62,8 @@ function getModelColor(model: string): string {
 
 export function AICouncilPanel() {
   const { selectedSymbol } = useSymbolStore()
+  const tai = useTranslations('dashboard.ai')
+  const tc = useTranslations('common')
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<ConsensusData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -74,7 +77,7 @@ export function AICouncilPanel() {
   const lastGoodAIData = useRef<{ data: ConsensusData; source: string; timestamp: number } | null>(null) // Keep last good AI result
   const [loadingPhase, setLoadingPhase] = useState(0)
   const [keepAliveStatus, setKeepAliveStatus] = useState<{ lastPingAt: string | null; nestJSUp: boolean } | null>(null)
-  const phases = ['جاري تجميع بيانات السوق الحية...', 'تحليل الزخم عبر النماذج الذكية...', 'مناقشة الإشارات الفنية...', 'بناء استراتيجية الإجماع النهائي...']
+  const phases = [tai('collectingData'), tai('analyzingMomentum'), tai('discussingSignals'), tai('buildingConsensus')]
   
   const [currentTrendSymbol, setCurrentTrendSymbol] = useState('BTC/USDT')
   const TREND_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'EUR/USD', 'GBP/USD']
@@ -278,7 +281,7 @@ export function AICouncilPanel() {
   const totalModels = data?.meta?.modelsExpected || 8
 
   return (
-    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", direction: 'rtl', border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 16 }}>
+    <div className="flex flex-col h-full overflow-hidden custom-scrollbar" style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', fontFamily: "'Cairo', sans-serif", border: `1px solid ${isRealAI ? 'rgba(0,212,255,0.15)' : 'rgba(0,212,255,0.08)'}`, borderRadius: 16 }}>
       {/* Header */}
       <div className="p-3 border-b border-white/5 flex items-center justify-between" style={{ background: isRealAI ? 'linear-gradient(90deg, rgba(0,212,255,0.18), rgba(179,136,255,0.08), transparent)' : 'linear-gradient(90deg, rgba(0,212,255,0.12), transparent)' }}>
         <div className="flex items-center gap-2">
@@ -289,7 +292,7 @@ export function AICouncilPanel() {
             )}
           </div>
           <div>
-            <h3 className="text-[11px] font-bold text-white">مجلس الذكاء الاصطناعي</h3>
+            <h3 className="text-[11px] font-bold text-white">{tai('councilTitle')}</h3>
             {/* Trend Heartbeat */}
             <div style={{ 
               display: 'flex', alignItems: 'center', gap: 4, 
@@ -349,7 +352,7 @@ export function AICouncilPanel() {
             onClick={fetchConsensus}
             disabled={loading}
             className="p-1.5 rounded-md transition-colors hover:bg-white/5"
-            title="تحديث التحليل"
+            title={tai('refreshAnalysis')}
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} color={T.text2} />
           </button>
@@ -365,7 +368,7 @@ export function AICouncilPanel() {
               <div className="absolute inset-0 animate-ping" style={{ background: T.accent + '10', borderRadius: '50%' }} />
             </div>
             <span className="text-[10px] animate-pulse" style={{ color: isRealAI ? T.purple + '90' : T.accent + '80', fontWeight: 'bold' }}>
-              {isRealAI ? phases[loadingPhase] : 'جاري بناء التحليل التقني...'}
+              {isRealAI ? phases[loadingPhase] : tai('buildingTechnicalAnalysis')}
             </span>
             {isRealAI && (
               <div className="flex gap-1 mt-1 flex-wrap justify-center px-4">
@@ -401,9 +404,9 @@ export function AICouncilPanel() {
           <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 flex items-start gap-2">
             <AlertCircle size={14} color={T.red} className="mt-0.5 flex-shrink-0" />
             <div>
-              <p className="text-[10px] font-bold text-red-400 mb-1">فشل في التحليل</p>
+              <p className="text-[10px] font-bold text-red-400 mb-1">{tai('analysisFailed')}</p>
               <p className="text-[9px] text-red-400/60">{error}</p>
-              <button onClick={fetchConsensus} className="mt-2 text-[9px] text-red-400 underline">إعادة المحاولة</button>
+              <button onClick={fetchConsensus} className="mt-2 text-[9px] text-red-400 underline">{tc('retry')}</button>
             </div>
           </div>
         )}
@@ -417,8 +420,8 @@ export function AICouncilPanel() {
                 <Wifi size={10} color={T.amber} />
                 <span className="text-[8px]" style={{ color: T.amber }}>
                   {dataSource === 'scanner-rules'
-                    ? 'خادم AI غير متصل — يُستخدم التحليل الفني كبديل'
-                    : 'بيانات محدودة — وضع الانتظار الوقائي'}
+                    ? tai('aiOfflineFallback')
+                    : tai('limitedDataFallback')}
                 </span>
               </div>
             )}
@@ -453,7 +456,7 @@ export function AICouncilPanel() {
             {isRealAI && respondedModels.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.04)', border: '1px solid rgba(179,136,255,0.1)' }}>
                 <Activity size={8} color={T.purple} />
-                <span className="text-[7px] font-bold" style={{ color: T.purple + 'aa' }}>النماذج النشطة:</span>
+                <span className="text-[7px] font-bold" style={{ color: T.purple + 'aa' }}>{tai('activeModelsLabel')}</span>
                 {respondedModels.map((model, i) => {
                   const color = getModelColor(model)
                   const shortName = getModelShortName(model)
@@ -514,7 +517,7 @@ export function AICouncilPanel() {
                 </span>
               </div>
 
-              <div className="text-[9px] mb-1 uppercase tracking-widest relative z-10" style={{ color: T.text2 }}>درجة الإجماع</div>
+              <div className="text-[9px] mb-1 uppercase tracking-widest relative z-10" style={{ color: T.text2 }}>{tai('consensusScore')}</div>
               <div className="text-4xl font-black font-mono mb-2 relative z-10" style={{ color: recColor, textShadow: `0 0 20px ${recColor}60` }}>
                 {data.consensusScore}%
               </div>
@@ -531,7 +534,7 @@ export function AICouncilPanel() {
                 className="inline-flex px-3 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest relative z-10"
                 style={{ background: `${recColor}15`, color: recColor, border: `1px solid ${recColor}30`, boxShadow: `0 0 10px ${recColor}20` }}
               >
-                {data.recommendation === 'BUY' ? (data.consensusScore >= 75 ? '⬆ شراء قوي' : '⬆ شراء') : data.recommendation === 'SELL' ? (data.consensusScore >= 75 ? '⬇ بيع قوي' : '⬇ بيع') : (data.consensusScore >= 75 ? '◆ إجماع على الانتظار' : data.consensusScore >= 50 ? '◆ ميل للانتظار' : '◆ حياد')}
+                {data.recommendation === 'BUY' ? (data.consensusScore >= 75 ? tai('strongBuy') : tai('buy')) : data.recommendation === 'SELL' ? (data.consensusScore >= 75 ? tai('strongSell') : tai('sell')) : (data.consensusScore >= 75 ? tai('holdConsensus') : data.consensusScore >= 50 ? tai('holdLean') : tai('neutral'))}
               </div>
             </div>
 
@@ -539,7 +542,7 @@ export function AICouncilPanel() {
             <div className="card" style={{ padding: '10px 11px', border: `1px solid ${isRealAI ? T.purple + '20' : T.accent + '15'}` }}>
               <div className="flex items-center gap-1.5 mb-1.5">
                 <Zap size={9} color={isRealAI ? T.purple : T.accent} />
-                <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>الاستراتيجية الموحدة</span>
+                <span className="text-[9px] font-bold" style={{ color: isRealAI ? T.purple : T.accent }}>{tai('unifiedStrategy')}</span>
               </div>
               <p className="text-[10px] leading-5" style={{ color: T.text + 'cc' }}>
                 {/* FIX React Error #31: AI may return objects instead of strings */}
@@ -551,7 +554,7 @@ export function AICouncilPanel() {
               <div className="card" style={{ padding: '10px 11px', border: `1px solid ${T.amber}25`, background: 'linear-gradient(180deg, rgba(255,184,0,0.08), rgba(255,255,255,0.015))' }}>
                 <div className="flex items-center gap-1.5 mb-1.5">
                   <AlertCircle size={9} color={T.amber} />
-                  <span className="text-[9px] font-bold" style={{ color: T.amber }}>تفسير التعارض</span>
+                  <span className="text-[9px] font-bold" style={{ color: T.amber }}>{tai('conflictInterpretation')}</span>
                 </div>
                 <p className="text-[9px] leading-5" style={{ color: T.text2 }}>
                   {/* FIX React Error #31: AI may return objects instead of strings */}
@@ -562,7 +565,7 @@ export function AICouncilPanel() {
 
             {/* Vote Distribution */}
             <div className="space-y-1.5">
-              <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>توزيع أصوات المجلس</div>
+              <div className="text-[8px] font-bold px-1 uppercase tracking-widest" style={{ color: T.text2 }}>{tai('voteDistribution')}</div>
               {data.analyses.map((a, i) => {
                 // FIX React Error #31: Sanitize AI vote data — AI may return objects instead of strings
                 const safeVote = safeStr(a.vote) as 'BUY' | 'SELL' | 'HOLD'

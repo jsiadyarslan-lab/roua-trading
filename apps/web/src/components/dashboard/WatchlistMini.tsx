@@ -115,7 +115,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
 
   return (
     <div style={{
-      direction: 'rtl',
+      
       width: '100%', height: '100%', display: 'flex', flexDirection: 'column',
       background: 'var(--bg)', overflow: 'hidden', fontFamily: "'Cairo', sans-serif"
     }}>

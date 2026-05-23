@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePriceAlertStore } from '@/hooks/usePriceAlertStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
@@ -10,6 +11,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
  * Checks all active alerts every time market prices update.
  */
 export function PriceAlertEngine() {
+  const t = useTranslations('dashboard.priceAlert')
   const globalQuotes = useMarketStore(state => state.quotes)
   const { alerts, triggerAlert } = usePriceAlertStore()
   const { addNotification } = useNotificationStore()
@@ -51,14 +53,14 @@ export function PriceAlertEngine() {
           source: 'system',
           priority: 'urgent',
           action: alert.condition.startsWith('change_down') || alert.condition === 'below' ? 'SELL' : 'BUY',
-          title: `🔔 تنبيه سعري: ${alert.symbol}`,
+          title: t('priceAlert', { symbol: alert.symbol }),
           body: alert.condition === 'above'
-            ? `وصل ${alert.symbol} إلى $${q.price.toLocaleString()} — فوق الحد المحدد ($${alert.targetPrice})`
+            ? t('reachedAbove', { symbol: alert.symbol, price: q.price.toLocaleString(), target: alert.targetPrice })
             : alert.condition === 'below'
-            ? `وصل ${alert.symbol} إلى $${q.price.toLocaleString()} — تحت الحد المحدد ($${alert.targetPrice})`
+            ? t('reachedBelow', { symbol: alert.symbol, price: q.price.toLocaleString(), target: alert.targetPrice })
             : alert.condition === 'change_up'
-            ? `${alert.symbol} ارتفع ${q.changePercent?.toFixed(2)}% — تجاوز +${alert.targetPrice}%`
-            : `${alert.symbol} انخفض ${q.changePercent?.toFixed(2)}% — تجاوز -${Math.abs(alert.targetPrice)}%`,
+            ? t('changeUpAlert', { symbol: alert.symbol, change: q.changePercent?.toFixed(2), target: alert.targetPrice })
+            : t('changeDownAlert', { symbol: alert.symbol, change: q.changePercent?.toFixed(2), target: Math.abs(alert.targetPrice) }),
           pair: alert.symbol,
           price: q.price,
           confidence: 100,

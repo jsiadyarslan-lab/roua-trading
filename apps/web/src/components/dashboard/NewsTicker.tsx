@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
+import { useTranslations } from 'next-intl'
 
 interface NewsItem {
   category: string
@@ -16,6 +17,7 @@ interface NewsItem {
 const emptyNewsItems: NewsItem[] = []
 
 export default function NewsTicker() {
+  const tn = useTranslations('dashboard.news')
   const tickerRef = useRef<HTMLDivElement>(null)
   const [newsItems, setNewsItems] = useState<NewsItem[]>(emptyNewsItems)
   const [isLoading, setIsLoading] = useState(true)
@@ -107,11 +109,11 @@ export default function NewsTicker() {
       <div className="flex-1 overflow-hidden h-full flex items-center" style={{ background: 'var(--bg-ticker)' }}>
         {isLoading ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>جاري تحميل الأخبار...</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>t('loading')</span>
           </div>
         ) : newsItems.length === 0 ? (
           <div className="flex items-center h-full px-4">
-            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>لا توجد أخبار متاحة حالياً</span>
+            <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>t('unavailable')</span>
           </div>
         ) : (
           <div ref={tickerRef} className="flex items-center h-full" style={{ animation: 'ql-news 60s linear infinite' }}>

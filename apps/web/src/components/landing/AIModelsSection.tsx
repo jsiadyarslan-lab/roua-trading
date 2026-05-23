@@ -1,17 +1,25 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
-const models = [
-  { icon: '⚡', title: 'معالجة فائقة السرعة', desc: 'للاستدلال اللحظي وتحليل السوق في الوقت الفعلي بأداء يتجاوز التوقعات', tag: 'Inference Engine' },
-  { icon: '🌐', title: 'نموذج لغوي متعدد', desc: 'يفهم السياق المالي العربي والعالمي بعمق، يدعم العربية والإنجليزية والصينية واليابانية', tag: 'Polyglot Analyst' },
-  { icon: '📊', title: 'تحليل الرسوم البيانية', desc: 'تحليل متقدم للأنماط التقنية بدقة عالية مع التعرف الآلي على التشكيلات السعرية', tag: 'Chart Vision' },
-  { icon: '🛡️', title: 'بنية تحتية آمنة', desc: 'للنماذج الأساسية مع حماية البيانات على مستوى المؤسسات وتشفير كامل', tag: 'Secure Core' },
-  { icon: '🔒', title: 'نماذج محلية خاصة', desc: 'للتحليلات الحساسة بعيداً عن السحابة، تضمن خصوصية كاملة لبياناتك', tag: 'On-Premise AI' },
-  { icon: '📡', title: 'بيانات سوق شاملة', desc: 'مباشرة من الأسواق العالمية ومؤشراتها بأقل تأخير ممكن', tag: 'Live Feed' },
+interface ModelData {
+  icon: string;
+  titleKey: string;
+  descKey: string;
+  tag: string;
+}
+
+const models: ModelData[] = [
+  { icon: '⚡', titleKey: 'fastProcessing', descKey: 'fastProcessingDesc', tag: 'Inference Engine' },
+  { icon: '🌐', titleKey: 'multilingualAnalyst', descKey: 'multilingualAnalystDesc', tag: 'Polyglot Analyst' },
+  { icon: '📊', titleKey: 'chartAnalysis', descKey: 'chartAnalysisDesc', tag: 'Chart Vision' },
+  { icon: '🛡️', titleKey: 'secureInfra', descKey: 'secureInfraDesc', tag: 'Secure Core' },
+  { icon: '🔒', titleKey: 'localModels', descKey: 'localModelsDesc', tag: 'On-Premise AI' },
+  { icon: '📡', titleKey: 'comprehensiveData', descKey: 'comprehensiveDataDesc', tag: 'Live Feed' },
 ];
 
-function ModelCard({ model }: { model: typeof models[0] }) {
+function ModelCard({ model, t }: { model: ModelData; t: ReturnType<typeof useTranslations> }) {
   const cardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,28 +52,30 @@ function ModelCard({ model }: { model: typeof models[0] }) {
   return (
     <div className="model-card fade-in" ref={cardRef}>
       <div className="model-icon">{model.icon}</div>
-      <h3>{model.title}</h3>
-      <p>{model.desc}</p>
+      <h3>{t(model.titleKey)}</h3>
+      <p>{t(model.descKey)}</p>
       <span className="tag">{model.tag}</span>
     </div>
   );
 }
 
 export default function AIModelsSection() {
+  const t = useTranslations('landing.aiModels');
+
   return (
     <section className="section ai-orchestrator" id="models">
       <div className="section-header fade-in">
         <div className="section-label">AI ORCHESTRATOR</div>
         <h2 className="section-title">
-          ستة نماذج ذكاء اصطناعي<br />تعمل <span className="highlight">بتناغم</span>
+          {t('sectionTitlePart1')}<br />{t('sectionTitleMiddle')} <span className="highlight">{t('sectionTitleHighlight')}</span>
         </h2>
         <p className="section-desc">
-          كل نموذج متخصص في جانب معين من التحليل، ويعملون معاً لتقديم رؤية شاملة للسوق
+          {t('sectionDesc')}
         </p>
       </div>
       <div className="models-grid">
         {models.map((model, i) => (
-          <ModelCard key={i} model={model} />
+          <ModelCard key={i} model={model} t={t} />
         ))}
       </div>
     </section>

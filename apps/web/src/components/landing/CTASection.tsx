@@ -4,10 +4,12 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useTranslations } from 'next-intl'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
 
 export default function CTASection() {
   const prefersReducedMotion = usePrefersReducedMotion()
+  const t = useTranslations('landing.cta')
 
   return (
     <section className="relative py-24 sm:py-32 px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -37,7 +39,7 @@ export default function CTASection() {
           className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"
           style={{ color: '#E2E8F0', fontFamily: 'var(--font-ar)' }}
         >
-          هل أنت مستعد لربط حساباتك{'\u00A0'}
+          {t('titlePart1')}{'\u00A0'}
           <span
             style={{
               background: 'linear-gradient(135deg, #10B981, #3B82F6)',
@@ -46,7 +48,7 @@ export default function CTASection() {
               backgroundClip: 'text',
             }}
           >
-            بذكاء؟
+            {t('titleHighlight')}
           </span>
         </h2>
 
@@ -54,7 +56,7 @@ export default function CTASection() {
           className="text-base mb-8 max-w-md mx-auto"
           style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
         >
-          انضم لآلاف المتداولين الذين يثقون في رؤى لاتخاذ قرارات أذكى
+          {t('joinCaption')}
         </p>
 
         <Link href="/login">
@@ -69,7 +71,7 @@ export default function CTASection() {
           >
             <span className="relative z-10 flex items-center gap-2">
               <Sparkles className="w-4 h-4" />
-              أطلق رؤى الآن
+              {t('launchNow')}
               <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
             </span>
           </Button>
@@ -79,7 +81,7 @@ export default function CTASection() {
           className="mt-5 text-xs"
           style={{ color: '#475569', fontFamily: 'var(--font-ar)' }}
         >
-          لا حاجة لبطاقة ائتمانية · إعداد في أقل من دقيقة
+          {t('noCreditCard')}
         </p>
       </motion.div>
     </section>

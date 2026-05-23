@@ -3,14 +3,15 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Globe, Zap, Radar, Shield, FlaskConical } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { usePrefersReducedMotion } from '@/hooks/use-reduced-motion'
 
 interface Feature {
   id: string
   icon: React.ElementType
-  titleAr: string
+  titleKey: string
   titleEn: string
-  description: string
+  descKey: string
   color: string
   glowColor: string
 }
@@ -19,45 +20,45 @@ const FEATURES: Feature[] = [
   {
     id: 'polyglot',
     icon: Globe,
-    titleAr: 'محلل متعدد اللغات',
+    titleKey: 'multilingualAnalyst',
     titleEn: 'Polyglot Analyst',
-    description: 'يحلل الأسواق بأكثر من 12 لغة',
+    descKey: 'multilingualAnalystDesc',
     color: '#3B82F6',
     glowColor: 'rgba(59, 130, 246, 0.3)',
   },
   {
     id: 'signals',
     icon: Zap,
-    titleAr: 'إشارات رؤى',
+    titleKey: 'rouaSignals',
     titleEn: 'Roua Signals',
-    description: 'إشارات تداول بمجلس ذكاء اصطناعي',
+    descKey: 'rouaSignalsDesc',
     color: '#FFD700',
     glowColor: 'rgba(255, 215, 0, 0.3)',
   },
   {
     id: 'radar',
     icon: Radar,
-    titleAr: 'رادار الأخبار',
+    titleKey: 'newsRadar',
     titleEn: 'News Radar',
-    description: 'يراقب مصادر إخبارية متعددة',
+    descKey: 'newsRadarDesc',
     color: '#A855F7',
     glowColor: 'rgba(168, 85, 247, 0.3)',
   },
   {
     id: 'sanctuary',
     icon: Shield,
-    titleAr: 'ملاذ المحفظة',
+    titleKey: 'sanctuary',
     titleEn: 'Portfolio Sanctuary',
-    description: 'تشفير عسكري لحماية أصولك',
+    descKey: 'sanctuaryDesc',
     color: '#10B981',
     glowColor: 'rgba(16, 185, 129, 0.3)',
   },
   {
     id: 'lab',
     icon: FlaskConical,
-    titleAr: 'المختبر الذكي',
+    titleKey: 'smartLab',
     titleEn: 'Smart Lab',
-    description: 'اختبر استراتيجياتك قبل المخاطرة',
+    descKey: 'smartLabDesc',
     color: '#06B6D4',
     glowColor: 'rgba(6, 182, 212, 0.3)',
   },
@@ -127,6 +128,7 @@ function NeuralConnections() {
 function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
   const [isHovered, setIsHovered] = useState(false)
   const prefersReducedMotion = usePrefersReducedMotion()
+  const t = useTranslations('landing.neuralFeatures')
 
   const Icon = feature.icon
 
@@ -184,7 +186,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
           className="text-lg font-bold mb-1"
           style={{ color: '#E5E7EB', fontFamily: 'var(--font-ar)' }}
         >
-          {feature.titleAr}
+          {t(feature.titleKey)}
         </h3>
         <span
           className="text-[11px] tracking-wider block mb-3"
@@ -198,7 +200,7 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
           className="text-sm leading-relaxed"
           style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
         >
-          {feature.description}
+          {t(feature.descKey)}
         </p>
 
         {/* Pulse dot indicator */}
@@ -214,6 +216,8 @@ function FeatureCard({ feature, index }: { feature: Feature; index: number }) {
 }
 
 export default function NeuralFeatures() {
+  const t = useTranslations('landing.neuralFeatures')
+
   return (
     <section id="features" className="relative py-24 px-4">
       <div className="max-w-6xl mx-auto">
@@ -223,7 +227,7 @@ export default function NeuralFeatures() {
             className="text-3xl md:text-4xl font-bold mb-4"
             style={{ color: '#E5E7EB', fontFamily: 'var(--font-ar)' }}
           >
-            ميزات{'\u00A0'}
+            {t('titlePart1')}{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #3B82F6, #10B981)',
@@ -232,14 +236,14 @@ export default function NeuralFeatures() {
                 backgroundClip: 'text',
               }}
             >
-              ذكية
+              {t('titleHighlight')}
             </span>
           </h2>
           <p
             className="text-base max-w-md mx-auto"
             style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
           >
-            تقنيات متقدمة مدعومة بالذكاء الاصطناعي لتحليل الأسواق وحماية استثماراتك
+            {t('subtitle')}
           </p>
         </div>
 

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 export default function HeroSection() {
+  const t = useTranslations('landing.hero');
+  const tc = useTranslations('common');
   const [typewriterText, setTypewriterText] = useState('');
   const [statsVisible, setStatsVisible] = useState(false);
   const statsRef = useRef<HTMLDivElement>(null);
-  const fullText = 'منصة ربط الحسابات المدعومة بالذكاء الاصطناعي الأكثر تقدماً في المنطقة. حيث تلتقي شبكة الكون المالي بعقل آلة يتنبأ قبل أن يحدث.';
+  const fullText = t('fullDescription');
 
   // Typewriter effect
   useEffect(() => {
@@ -19,7 +22,7 @@ export default function HeroSection() {
       }
     }, 800);
     return () => clearTimeout(timer);
-  }, []);
+  }, [fullText]);
 
   // Animated counters
   useEffect(() => {
@@ -68,19 +71,19 @@ export default function HeroSection() {
     <section className="hero">
       <div className="hero-badge">
         <div className="pulse-dot" />
-        <span>ستة نماذج ذكاء اصطناعي متناغمة</span>
+        <span>{t('sixAiModels')}</span>
       </div>
-      <h1 className="hero-title">رؤى</h1>
+      <h1 className="hero-title">{tc('brand')}</h1>
       <p className="hero-subtitle">
         {typewriterText}
         <span className="cursor-blink" />
       </p>
       <div className="hero-cta-group">
         <a href="/login" className="btn btn-glow" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
-          🚀 ابدأ ربط حساباتك
+          🚀 {t('cta')}
         </a>
         <a href="#features" className="btn btn-outline" style={{ fontSize: '1.05rem', padding: '1rem 2.8rem' }}>
-          استكشف المنصة
+          {t('explore')}
         </a>
       </div>
       <div style={{ marginTop: '0.8rem', textAlign: 'center' }}>
@@ -88,19 +91,19 @@ export default function HeroSection() {
       <div className="hero-stats" ref={statsRef}>
         <div className="stat-item">
           <div className="stat-number" data-target="8">0</div>
-          <div className="stat-label">نماذج ذكاء اصطناعي</div>
+          <div className="stat-label">{t('aiModels')}</div>
         </div>
         <div className="stat-item">
           <div className="stat-number" data-target="6">0</div>
-          <div className="stat-label">فئات أصول مدعومة</div>
+          <div className="stat-label">{t('assetClasses')}</div>
         </div>
         <div className="stat-item">
           <div className="stat-number" data-target="30">0</div>
-          <div className="stat-label">ثانية للإعداد</div>
+          <div className="stat-label">{t('setupSeconds')}</div>
         </div>
         <div className="stat-item">
           <div className="stat-number" data-target="24">0</div>
-          <div className="stat-label">ساعة مراقبة يومية</div>
+          <div className="stat-label">{t('dailyMonitoring')}</div>
         </div>
       </div>
     </section>

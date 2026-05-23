@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 export default function CountdownBanner() {
   const [timeLeft, setTimeLeft] = useState({ hours: 4, minutes: 32, seconds: 18 });
+  const t = useTranslations('landing.countdown');
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -25,22 +27,22 @@ export default function CountdownBanner() {
     <div className="countdown-banner fade-in">
       <div className="countdown-label">
         <div className="alert-dot" />
-        <span>الحدث المالي القادم: تقرير الفيدرالي الأمريكي</span>
+        <span>{t('fedEvent')}</span>
       </div>
       <div className="countdown-timer">
         <div className="countdown-unit">
           <div className="value">{pad(timeLeft.hours)}</div>
-          <div className="label">ساعة</div>
+          <div className="label">{t('hours')}</div>
         </div>
         <div className="countdown-sep">:</div>
         <div className="countdown-unit">
           <div className="value">{pad(timeLeft.minutes)}</div>
-          <div className="label">دقيقة</div>
+          <div className="label">{t('minutes')}</div>
         </div>
         <div className="countdown-sep">:</div>
         <div className="countdown-unit">
           <div className="value">{pad(timeLeft.seconds)}</div>
-          <div className="label">ثانية</div>
+          <div className="label">{t('seconds')}</div>
         </div>
       </div>
     </div>

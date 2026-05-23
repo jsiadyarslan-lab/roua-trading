@@ -1,19 +1,21 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Home, TrendingUp, Zap, Wallet, MoreHorizontal } from 'lucide-react'
-
-const NAV = [
-  { label: 'الرئيسية', href: '/mobile', icon: Home },
-  { label: 'الشارت', href: '/mobile/chart', icon: TrendingUp },
-  { label: 'تداول', href: '/mobile/trade', icon: Zap },
-  { label: 'المحفظة', href: '/mobile/wallet', icon: Wallet },
-  { label: 'المزيد', href: '/mobile/more', icon: MoreHorizontal },
-]
 
 export default function BottomNav() {
   const pathname = usePathname()
   const router = useRouter()
+  const t = useTranslations('mobile.bottomNav')
+
+  const NAV = [
+    { label: t('home'), href: '/mobile', icon: Home },
+    { label: t('chart'), href: '/mobile/chart', icon: TrendingUp },
+    { label: t('trade'), href: '/mobile/trade', icon: Zap },
+    { label: t('wallet'), href: '/mobile/wallet', icon: Wallet },
+    { label: t('more'), href: '/mobile/more', icon: MoreHorizontal },
+  ]
 
   return (
     <nav className="m-nav">

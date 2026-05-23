@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
@@ -24,6 +25,8 @@ import { useAgentStore } from '@/hooks/useAgentStore'
  * a notification is pushed so the user is aware of significant balance changes.
  */
 export function GlobalLogicEngine() {
+  const t = useTranslations('dashboard.globalLogic')
+  const tc = useTranslations('common')
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
@@ -102,8 +105,8 @@ export function GlobalLogicEngine() {
               source: 'trade',
               priority: isPositive ? 'medium' : 'high',
               action: isPositive ? 'BUY' : 'SELL',
-              title: `تحديث الرصيد: ${isPositive ? '+' : ''}$${equityDelta.toFixed(2)}`,
-              body: `الرصيد تغيّر من $${prevEquity.toFixed(2)} إلى $${currentEquity.toFixed(2)}`,
+              title: t('balanceUpdate', { delta: `${isPositive ? '+' : ''}$${equityDelta.toFixed(2)}` }),
+              body: t('balanceChanged', { from: `$${prevEquity.toFixed(2)}`, to: `$${currentEquity.toFixed(2)}` }),
               price: currentEquity,
             })
           } catch { /* notification store not ready */ }

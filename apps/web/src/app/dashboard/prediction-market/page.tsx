@@ -29,6 +29,7 @@ import {
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations, useLocale } from 'next-intl'
 
 // ── Data Types ──
 interface PredictionEvent {
@@ -116,22 +117,22 @@ function gapColor(gap: number | null | undefined): string {
   return 'var(--loss)'
 }
 
-function gapLabel(gap: number | null | undefined): string {
+function gapLabel(gap: number | null | undefined, t: (key: string) => string): string {
   if (gap == null || !Number.isFinite(gap)) return '—'
   const absGap = Math.abs(gap)
-  if (absGap < 0.05) return 'متوافق'
-  if (absGap < 0.15) return 'متوسط'
-  return 'كبير'
+  if (absGap < 0.05) return t('gapAligned')
+  if (absGap < 0.15) return t('gapMedium')
+  return t('gapLarge')
 }
 
-function categoryLabel(cat?: string): string {
+function categoryLabel(cat: string | undefined, t: (key: string) => string): string {
   switch (cat) {
-    case 'politics': return 'سياسة'
-    case 'economy': return 'اقتصاد'
-    case 'technology': return 'تقنية'
-    case 'sports': return 'رياضة'
-    case 'other': return 'أخرى'
-    default: return cat || 'أخرى'
+    case 'politics': return t('catPolitics')
+    case 'economy': return t('catEconomy')
+    case 'technology': return t('catTechnology')
+    case 'sports': return t('catSports')
+    case 'other': return t('catOther')
+    default: return cat || t('catOther')
   }
 }
 
@@ -145,9 +146,9 @@ function categoryColor(cat?: string): string {
   }
 }
 
-function voteConfig(vote: 'BUY' | 'SELL' | 'HOLD') {
+function voteConfig(vote: 'BUY' | 'SELL' | 'HOLD', t: (key: string) => string) {
   if (vote === 'BUY') return {
-    label: 'شراء',
+    label: t('buyLabel'),
     Icon: TrendingUp,
     color: 'var(--profit)',
     bgColor: 'var(--profit-bg)',
@@ -155,7 +156,7 @@ function voteConfig(vote: 'BUY' | 'SELL' | 'HOLD') {
     gradient: 'linear-gradient(135deg, #00FFC6, #10B981)',
   }
   if (vote === 'SELL') return {
-    label: 'بيع',
+    label: t('sellLabel'),
     Icon: TrendingDown,
     color: 'var(--loss)',
     bgColor: 'var(--loss-bg)',
@@ -163,7 +164,7 @@ function voteConfig(vote: 'BUY' | 'SELL' | 'HOLD') {
     gradient: 'linear-gradient(135deg, #FF4D4D, #EF4444)',
   }
   return {
-    label: 'انتظار',
+    label: t('holdLabel'),
     Icon: Minus,
     color: 'var(--warning)',
     bgColor: 'var(--warning-bg)',
@@ -173,23 +174,11 @@ function voteConfig(vote: 'BUY' | 'SELL' | 'HOLD') {
 }
 
 // ── Constants ──
-const TABS = [
-  { id: 'events', label: 'الأحداث' },
-  { id: 'gaps', label: 'أكبر الفجوات' },
-  { id: 'vote', label: 'تصويت AI' },
-]
-
-const CATEGORIES = [
-  { id: '', label: 'الكل' },
-  { id: 'politics', label: 'سياسة' },
-  { id: 'economy', label: 'اقتصاد' },
-  { id: 'technology', label: 'تقنية' },
-  { id: 'sports', label: 'رياضة' },
-  { id: 'other', label: 'أخرى' },
-]
+const TABS_IDS = ['events', 'gaps', 'vote'] as const
+const CATEGORIES_IDS = ['', 'politics', 'economy', 'technology', 'sports', 'other'] as const
 
 // ── ProbabilityBar Component ──
-function ProbabilityBar({ market, ai, gap }: { market: number; ai?: number | null; gap?: number | null }) {
+function ProbabilityBar({ market, ai, gap, t }: { market: number; ai?: number | null; gap?: number | null; t: (key: string) => string }) {
   const mktPct = Number.isFinite(market) ? market : 0
   const aiPct = ai != null && Number.isFinite(ai) ? ai : null
   const gapVal = gap != null && Number.isFinite(gap) ? gap : null
@@ -198,7 +187,7 @@ function ProbabilityBar({ market, ai, gap }: { market: number; ai?: number | nul
     <div style={{ width: '100%' }}>
       {/* Market Bar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-        <span style={{ fontSize: '9px', fontWeight: 700, color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>السوق</span>
+        <span style={{ fontSize: '9px', fontWeight: 700, color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>{t('marketLabel')}</span>
         <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '5px', overflow: 'hidden', position: 'relative' }}>
           <motion.div
             initial={{ width: 0 }}
@@ -242,7 +231,7 @@ function ProbabilityBar({ market, ai, gap }: { market: number; ai?: number | nul
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
           <span style={{ fontSize: '9px', fontWeight: 700, color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif', width: '32px', flexShrink: 0 }}>AI</span>
           <div style={{ flex: 1, height: '10px', background: 'var(--bg-input)', borderRadius: '5px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: '8px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>لم يتم التحليل بعد</span>
+            <span style={{ fontSize: '8px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('notAnalyzedYet')}</span>
           </div>
           <span style={{ fontSize: '10px', color: 'var(--text-faint)', width: '36px', textAlign: 'left', flexShrink: 0 }}>—</span>
         </div>
@@ -253,7 +242,7 @@ function ProbabilityBar({ market, ai, gap }: { market: number; ai?: number | nul
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '2px' }}>
           <ArrowUpDown size={10} style={{ color: gapColor(gapVal) }} />
           <span style={{ fontSize: '9px', fontWeight: 600, color: gapColor(gapVal), fontFamily: 'var(--font-ar), Inter, sans-serif' }}>
-            الفجوة: {formatPercent(gapVal)} ({gapLabel(gapVal)})
+            {t('gapLabel')} {formatPercent(gapVal)} ({gapLabel(gapVal, t)})
           </span>
         </div>
       )}
@@ -308,12 +297,14 @@ function StatCard({ icon, label, value, color, gradient, delay = 0 }: {
 }
 
 // ── Event Card Component ──
-function EventCard({ event, index, onAnalyze, analyzing }: {
+function EventCard({ event, index, onAnalyze, analyzing, t }: {
   event: PredictionEvent
   index: number
   onAnalyze: (id: string) => void
   analyzing: string | null
+  t: (key: string) => string
 }) {
+  const locale = useLocale()
   const symbols = safeParseJSON(event.relatedSymbols)
   const isAnalyzing = analyzing === event.id
 
@@ -357,7 +348,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
                 color: categoryColor(event.category),
                 fontFamily: 'var(--font-ar), Inter, sans-serif',
               }}>
-                {categoryLabel(event.category)}
+                {categoryLabel(event.category, t)}
               </span>
 
               {/* Source */}
@@ -402,7 +393,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
             }}
           >
             {isAnalyzing ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-            تحليل AI
+            {t('analyzeButton')}
           </button>
         </div>
 
@@ -426,20 +417,21 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
           market={event.marketProbability}
           ai={event.aiProbability}
           gap={event.predictionGap}
+          t={t}
         />
 
         {/* Footer: Volume, Liquidity, End Date */}
         <div className="pm-footer-row" style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '12px', flexWrap: 'wrap' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <DollarSign size={10} style={{ color: 'var(--text-faint)' }} />
-            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>الحجم:</span>
+            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('volumeLabel')}</span>
             <span style={{ fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">
               {formatVolume(safeNumber(event.volume24h))}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <Activity size={10} style={{ color: 'var(--text-faint)' }} />
-            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>السيولة:</span>
+            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('liquidityLabel')}</span>
             <span style={{ fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">
               {formatVolume(safeNumber(event.liquidity))}
             </span>
@@ -447,9 +439,9 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
           {event.endDate && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Clock size={10} style={{ color: 'var(--text-faint)' }} />
-              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>الانتهاء:</span>
+              <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('endDateLabel')}</span>
               <span style={{ fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">
-                {new Date(event.endDate).toLocaleDateString('ar-SA', { month: 'short', day: 'numeric' })}
+                {new Date(event.endDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : 'en-US', { month: 'short', day: 'numeric' })}
               </span>
             </div>
           )}
@@ -472,7 +464,7 @@ function EventCard({ event, index, onAnalyze, analyzing }: {
 }
 
 // ── Gap Card Component ──
-function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
+function GapCard({ event, index, t }: { event: PredictionEvent; index: number; t: (key: string) => string }) {
   const symbols = safeParseJSON(event.relatedSymbols)
   const gap = event.predictionGap
   const gapVal = safeNumber(gap)
@@ -527,7 +519,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
               color: categoryColor(event.category),
               fontFamily: 'var(--font-ar), Inter, sans-serif',
             }}>
-              {categoryLabel(event.category)}
+              {categoryLabel(event.category, t)}
             </span>
             {symbols.slice(0, 3).map((sym, i) => (
               <span key={i} style={{
@@ -552,7 +544,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
             {formatPercent(gapVal, 1)}
           </span>
           <span style={{ fontSize: '8px', color: gapColor(gapVal), fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
-            {gapLabel(gapVal)}
+            {gapLabel(gapVal, t)}
           </span>
         </div>
       </div>
@@ -560,7 +552,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
       {/* Gap Visualization Bar */}
       <div style={{ marginBottom: '10px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>حجم الفجوة</span>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('gapSize')}</span>
           <span style={{ fontSize: '9px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: gapColor(gapVal) }} dir="ltr">
             {absGap.toFixed(3)}
           </span>
@@ -586,7 +578,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingUp size={11} style={{ color: '#00D4FF' }} />
             <span style={{ fontSize: '9px', color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
-              السوق أعلى
+              {t('marketHigher')}
             </span>
           </div>
         )}
@@ -594,7 +586,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <TrendingDown size={11} style={{ color: '#A259FF' }} />
             <span style={{ fontSize: '9px', color: '#A259FF', fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
-              AI أعلى
+              {t('aiHigher')}
             </span>
           </div>
         )}
@@ -602,7 +594,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
             <CheckCircle2 size={11} style={{ color: 'var(--profit)' }} />
             <span style={{ fontSize: '9px', color: 'var(--profit)', fontFamily: 'var(--font-ar), Inter, sans-serif', fontWeight: 600 }}>
-              متوافق
+              {t('aligned')}
             </span>
           </div>
         )}
@@ -617,7 +609,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
             color: event.signalBoost >= 0 ? 'var(--profit)' : 'var(--loss)',
             fontFamily: 'var(--font-mono)',
           }} dir="ltr">
-            إشارة: {event.signalBoost >= 0 ? '+' : ''}{(event.signalBoost * 100).toFixed(0)}%
+            {t('signalLabel')} {event.signalBoost >= 0 ? '+' : ''}{(event.signalBoost * 100).toFixed(0)}%
           </span>
         )}
       </div>
@@ -629,7 +621,7 @@ function GapCard({ event, index }: { event: PredictionEvent; index: number }) {
           background: 'rgba(0, 212, 255, 0.06)', border: '1px solid rgba(0, 212, 255, 0.15)',
           textAlign: 'center',
         }}>
-          <div style={{ fontSize: '8px', color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>السوق</div>
+          <div style={{ fontSize: '8px', color: '#00D4FF', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '2px' }}>{t('marketLabel')}</div>
           <div style={{ fontSize: '13px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: '#00D4FF' }} dir="ltr">
             {formatPercent(event.marketProbability, 0)}
           </div>
@@ -721,6 +713,9 @@ export default function PredictionMarketPage() {
         }`)
 
   const { loading: authLoading } = useAuth()
+  const t = useTranslations('dashboard.predictionMarket')
+  const tc = useTranslations('common')
+  const locale = useLocale()
   const [activeTab, setActiveTab] = useState('events')
   const [events, setEvents] = useState<PredictionEvent[]>([])
   const [gaps, setGaps] = useState<PredictionEvent[]>([])
@@ -755,7 +750,7 @@ export default function PredictionMarketPage() {
         setEvents([])
       }
     } catch {
-      setError('تعذر تحميل الأحداث. تحقق من اتصالك وحاول مجدداً.')
+      setError(t('errorFetch'))
     } finally {
       setLoading(false)
     }
@@ -783,11 +778,11 @@ export default function PredictionMarketPage() {
     try {
       const res = await fetch('/api/prediction-market/sync?force=true', { method: 'POST' })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || data.message || 'فشل في المزامنة')
+      if (!res.ok || !data.success) throw new Error(data.error || data.message || t('errorSync'))
       await fetchEvents()
       await fetchGaps()
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'فشل في المزامنة')
+      setError(err instanceof Error ? err.message : t('errorSync'))
     } finally {
       setSyncing(false)
     }
@@ -799,7 +794,7 @@ export default function PredictionMarketPage() {
     try {
       const res = await fetch(`/api/prediction-market/analyze/${id}`, { method: 'POST' })
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'فشل في التحليل')
+      if (!res.ok || !data.success) throw new Error(data.error || t('errorAnalyze'))
       // Refresh events to get updated AI probability
       await fetchEvents()
       await fetchGaps()
@@ -820,10 +815,10 @@ export default function PredictionMarketPage() {
       if (data.success && data.data) {
         setVoteData(data.data)
       } else {
-        setVoteError('لا توجد بيانات تصويت متاحة لهذا الرمز')
+        setVoteError(t('noVoteData'))
       }
     } catch {
-      setVoteError('تعذر جلب تصويت AI. حاول مجدداً.')
+      setVoteError(t('errorFetchVote'))
     } finally {
       setVoteLoading(false)
     }
@@ -855,7 +850,7 @@ export default function PredictionMarketPage() {
       <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-app)' }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 className="animate-spin" style={{ width: 32, height: 32, color: 'var(--accent)', margin: '0 auto 12px' }} />
-          <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>جارٍ التحميل...</p>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('loadingText')}</p>
         </div>
       </div>
     )
@@ -863,17 +858,17 @@ export default function PredictionMarketPage() {
 
   return (
     <SubPageLayout
-      title="الأسواق التنبؤية"
+      title={t('title')}
       icon={<Target size={15} color="#fff" />}
       iconBg="linear-gradient(135deg, #00D4FF, #7C3AED)"
-      tabs={TABS}
+      tabs={TABS_IDS.map(id => ({ id, label: id === 'events' ? t('tabsEvents') : id === 'gaps' ? t('tabsGaps') : t('tabsVote') }))}
       activeTab={activeTab}
       onTabChange={setActiveTab}
       actions={
         <button
           onClick={handleSync}
           disabled={syncing}
-          aria-label="مزامنة الأحداث"
+          aria-label={t('syncAriaLabel')}
           style={{
             display: 'flex', alignItems: 'center', gap: '6px',
             padding: '6px 14px', borderRadius: '8px',
@@ -887,7 +882,7 @@ export default function PredictionMarketPage() {
           }}
         >
           {syncing ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-          مزامنة
+          {t('syncButton')}
         </button>
       }
     >
@@ -918,7 +913,7 @@ export default function PredictionMarketPage() {
       <div className="pm-stats-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '16px' }}>
         <StatCard
           icon={<BarChart3 size={12} color="#fff" />}
-          label="إجمالي الأحداث"
+          label={t('statTotalEvents')}
           value={totalEvents}
           color="#00D4FF"
           gradient="linear-gradient(135deg, #00D4FF, #0A84FF)"
@@ -926,7 +921,7 @@ export default function PredictionMarketPage() {
         />
         <StatCard
           icon={<ArrowUpDown size={12} color="#fff" />}
-          label="متوسط الفجوة"
+          label={t('statAvgGap')}
           value={formatPercent(avgGap)}
           color="#FFB800"
           gradient="linear-gradient(135deg, #FFB800, #F59E0B)"
@@ -934,7 +929,7 @@ export default function PredictionMarketPage() {
         />
         <StatCard
           icon={<CheckCircle2 size={12} color="#fff" />}
-          label="أحداث متوافقة"
+          label={t('statAlignedEvents')}
           value={alignedEvents}
           color="#00FFC6"
           gradient="linear-gradient(135deg, #00FFC6, #10B981)"
@@ -942,7 +937,7 @@ export default function PredictionMarketPage() {
         />
         <StatCard
           icon={<DollarSign size={12} color="#fff" />}
-          label="أحجام التداول"
+          label={t('statTradingVolume')}
           value={formatVolume(totalVolume)}
           color="#A259FF"
           gradient="linear-gradient(135deg, #A259FF, #7C3AED)"
@@ -955,12 +950,13 @@ export default function PredictionMarketPage() {
         display: 'flex', gap: '6px', marginBottom: '16px',
         flexWrap: 'wrap', overflow: 'hidden',
       }}>
-        {CATEGORIES.map(cat => {
-          const isActive = category === cat.id
+        {CATEGORIES_IDS.map(catId => {
+          const isActive = category === catId
+          const catLabel = catId === '' ? t('catAll') : catId === 'politics' ? t('catPolitics') : catId === 'economy' ? t('catEconomy') : catId === 'technology' ? t('catTechnology') : catId === 'sports' ? t('catSports') : t('catOther')
           return (
             <button
-              key={cat.id}
-              onClick={() => setCategory(cat.id)}
+              key={catId}
+              onClick={() => setCategory(catId)}
               style={{
                 padding: '5px 14px', borderRadius: '20px',
                 border: isActive ? '1px solid var(--accent-border)' : '1px solid var(--border)',
@@ -972,7 +968,7 @@ export default function PredictionMarketPage() {
                 whiteSpace: 'nowrap',
               }}
             >
-              {cat.label}
+              {catLabel}
             </button>
           )
         })}
@@ -1002,8 +998,8 @@ export default function PredictionMarketPage() {
                 }}>
                   <Loader2 size={20} className="animate-spin" color="#fff" />
                 </div>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>جارٍ تحميل الأحداث...</p>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginTop: '4px' }}>يتم جلب بيانات الأسواق التنبؤية</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('loadingEvents')}</p>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginTop: '4px' }}>{t('loadingEventsDesc')}</p>
               </div>
             ) : events.length === 0 ? (
               <motion.div
@@ -1032,9 +1028,9 @@ export default function PredictionMarketPage() {
                 }}>
                   <Target size={24} color="#fff" />
                 </div>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>لا توجد أحداث تنبؤية</p>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('noPredictionEvents')}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginTop: '6px', lineHeight: '1.6' }}>
-                  اضغط على زر المزامنة لجلب أحدث الأحداث من الأسواق التنبؤية
+                  {t('noPredictionEventsDesc')}
                 </p>
               </motion.div>
             ) : (
@@ -1047,7 +1043,7 @@ export default function PredictionMarketPage() {
                   }}>
                     <Target size={11} color="#fff" strokeWidth={2.2} />
                   </div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>الأحداث التنبؤية</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('predictionEvents')}</span>
                   <span style={{
                     fontSize: '9px', fontWeight: 700,
                     background: 'var(--accent-bg)', border: '1px solid var(--accent-border)',
@@ -1063,6 +1059,7 @@ export default function PredictionMarketPage() {
                       index={i}
                       onAnalyze={handleAnalyze}
                       analyzing={analyzing}
+                      t={t}
                     />
                   ))}
                 </AnimatePresence>
@@ -1086,7 +1083,7 @@ export default function PredictionMarketPage() {
                 borderRadius: '10px', padding: '48px', textAlign: 'center',
               }}>
                 <Loader2 size={24} className="animate-spin" style={{ color: 'var(--accent)', margin: '0 auto 12px' }} />
-                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>جارٍ تحميل الفجوات...</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('loadingGaps')}</p>
               </div>
             ) : gaps.length === 0 ? (
               <motion.div
@@ -1114,9 +1111,9 @@ export default function PredictionMarketPage() {
                 }}>
                   <ArrowUpDown size={24} color="#fff" />
                 </div>
-                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>لا توجد فجوات كبيرة</p>
+                <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('noGapsBig')}</p>
                 <p style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginTop: '6px', lineHeight: '1.6' }}>
-                  قم بتحليل بعض الأحداث لتظهر الفجوات بين السوق و AI
+                  {t('noGapsBigDesc')}
                 </p>
               </motion.div>
             ) : (
@@ -1130,7 +1127,7 @@ export default function PredictionMarketPage() {
                   }}>
                     <ArrowUpDown size={11} color="#fff" strokeWidth={2.2} />
                   </div>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>أكبر الفجوات</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('topGaps')}</span>
                   <span style={{
                     fontSize: '9px', fontWeight: 700,
                     background: 'var(--warning-bg)', border: '1px solid var(--border-warning)',
@@ -1147,15 +1144,15 @@ export default function PredictionMarketPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: 'var(--profit)' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>متوافق {'<'} 5%</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('alignedLess5')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: 'var(--warning)' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>متوسط 5-15%</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('medium5to15')}</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: 'var(--loss)' }} />
-                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>كبير {'>'} 15%</span>
+                    <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('largeGreater15')}</span>
                   </div>
                 </div>
 
@@ -1163,7 +1160,7 @@ export default function PredictionMarketPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                   <AnimatePresence mode="popLayout">
                     {gaps.map((event, i) => (
-                      <GapCard key={event.id} event={event} index={i} />
+                      <GapCard key={event.id} event={event} index={i} t={t} />
                     ))}
                   </AnimatePresence>
                 </div>
@@ -1205,7 +1202,7 @@ export default function PredictionMarketPage() {
                 }}>
                   <Brain size={11} color="#fff" strokeWidth={2.2} />
                 </div>
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>تصويت AI للرمز</span>
+                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('voteTitle')}</span>
                 <span style={{
                   fontSize: '8px', fontWeight: 700,
                   background: 'var(--purple-bg)', border: '1px solid var(--purple-border)',
@@ -1228,7 +1225,7 @@ export default function PredictionMarketPage() {
                     value={voteSymbol}
                     onChange={(e) => setVoteSymbol(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === 'Enter' && handleFetchVote()}
-                    placeholder="أدخل رمز الأصل (مثال: BTC)"
+                    placeholder={t('votePlaceholder')}
                     dir="ltr"
                     style={{
                       flex: 1, background: 'none', border: 'none', outline: 'none',
@@ -1254,7 +1251,7 @@ export default function PredictionMarketPage() {
                   }}
                 >
                   {voteLoading ? <Loader2 size={12} className="animate-spin" /> : <Vote size={12} />}
-                  تصويت
+                  {t('vote')}
                 </button>
               </div>
 
@@ -1297,14 +1294,14 @@ export default function PredictionMarketPage() {
                 {/* Vote Header */}
                 <div style={{ textAlign: 'center', marginBottom: '16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>تصويت AI لـ</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('aiVoteFor')}</span>
                     <span style={{ fontSize: '14px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--accent)' }} dir="ltr">{voteSymbol}</span>
                   </div>
                 </div>
 
                 {/* Vote Badge */}
                 {(() => {
-                  const config = voteConfig(voteData.vote)
+                  const config = voteConfig(voteData.vote, t)
                   const { Icon } = config
                   return (
                     <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
@@ -1331,7 +1328,7 @@ export default function PredictionMarketPage() {
                 {/* Confidence Gauge */}
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>مستوى الثقة</span>
+                    <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('confidenceLevel')}</span>
                   </div>
                   <ConfidenceGauge confidence={voteData.confidence} />
                 </div>
@@ -1346,7 +1343,7 @@ export default function PredictionMarketPage() {
                     background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '4px' }}>أحداث تم تحليلها</div>
+                    <div style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '4px' }}>{t('voteEventsAnalyzed')}</div>
                     <div style={{ fontSize: '16px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: 'var(--text-main)' }} dir="ltr">
                       {typeof voteData.eventsAnalyzed === 'number' ? voteData.eventsAnalyzed : 0}
                     </div>
@@ -1356,7 +1353,7 @@ export default function PredictionMarketPage() {
                     background: 'var(--bg-input)', border: '1px solid var(--border-subtle)',
                     textAlign: 'center',
                   }}>
-                    <div style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '4px' }}>متوسط الفجوة</div>
+                    <div style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginBottom: '4px' }}>{t('voteAvgGap')}</div>
                     <div style={{ fontSize: '16px', fontWeight: 800, fontFamily: 'var(--font-mono)', color: gapColor(voteData.avgGap) }} dir="ltr">
                       {formatPercent(voteData.avgGap)}
                     </div>
@@ -1370,14 +1367,14 @@ export default function PredictionMarketPage() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
                     <Brain size={12} style={{ color: 'var(--purple)' }} />
-                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--purple)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>تفسير AI</span>
+                    <span style={{ fontSize: '10px', fontWeight: 600, color: 'var(--purple)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('aiInterpretation')}</span>
                   </div>
                   <p style={{
                     fontSize: '11px', color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-ar), Inter, sans-serif', lineHeight: '1.7',
                     margin: 0,
                   }}>
-                    {safeString(voteData.reason, 'لا يوجد تفسير متاح')}
+                    {safeString(voteData.reason, t('noInterpretation'))}
                   </p>
                 </div>
               </motion.div>
@@ -1410,9 +1407,9 @@ export default function PredictionMarketPage() {
                 }}>
                   <Vote size={22} color="#fff" />
                 </div>
-                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>أدخل رمز الأصل للحصول على تصويت AI</p>
+                <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-main)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('enterSymbolPrompt')}</p>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', marginTop: '6px', lineHeight: '1.6' }}>
-                  سيقوم AI بتحليل الأحداث التنبؤية المرتبطة وتقديم توصية مدعومة بالبيانات
+                  {t('aiVoteDesc')}
                 </p>
               </motion.div>
             )}
@@ -1436,7 +1433,7 @@ export default function PredictionMarketPage() {
           <AlertTriangle size={10} color="#fff" strokeWidth={2.2} />
         </div>
         <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif', lineHeight: '1.7' }}>
-          الأسواق التنبؤية هي أداة تعليمية وتحليلية فقط. لا تشكل نصيحة استثمارية. قد يكون التداول في الأسواق التنبؤية محظوراً في بعض الولايات القضائية.
+          {t('disclaimerFull')}
         </span>
       </div>
     </SubPageLayout>

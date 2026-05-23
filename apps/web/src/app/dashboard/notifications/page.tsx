@@ -30,6 +30,7 @@ import { T } from '@/lib/theme-tokens'
 import { toast } from '@/hooks/use-toast'
 import { useNotificationStore, Notification as StoreNotification } from '@/hooks/useNotificationStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -68,62 +69,73 @@ interface PreferenceToggle {
    Category Config
    ═══════════════════════════════════════════════════════════ */
 
-const CATEGORY_CONFIG: Record<NotificationCategory, {
+const CATEGORY_CONFIG_KEY: Record<NotificationCategory, string> = {
+  signal: 'catSignals',
+  trade: 'catLinkedAccounts',
+  security: 'catSecurity',
+  system: 'catSystem',
+  price: 'catPrices',
+  ai: 'catAI',
+}
+
+function getCategoryConfig(t: (key: string) => string): Record<NotificationCategory, {
   label: string
   icon: React.ReactNode
   color: string
   bgColor: string
   borderColor: string
   gradient: string
-}> = {
-  signal: {
-    label: 'الإشارات',
-    icon: <Zap size={14} />,
-    color: T.success,
-    bgColor: `${T.success}14`,
-    borderColor: `${T.success}33`,
-    gradient: T.gradientGreen,
-  },
-  trade: {
-    label: 'الحسابات المربوطة',
-    icon: <BarChart3 size={14} />,
-    color: T.cyan,
-    bgColor: `${T.cyan}14`,
-    borderColor: `${T.cyan}33`,
-    gradient: T.gradientInfo,
-  },
-  security: {
-    label: 'الأمان',
-    icon: <ShieldCheck size={14} />,
-    color: T.danger,
-    bgColor: `${T.danger}14`,
-    borderColor: `${T.danger}33`,
-    gradient: T.gradientRed,
-  },
-  system: {
-    label: 'النظام',
-    icon: <Settings2 size={14} />,
-    color: T.text2,
-    bgColor: `${T.text2}14`,
-    borderColor: `${T.text2}26`,
-    gradient: `linear-gradient(135deg, ${T.text2}, #64748B)`,
-  },
-  price: {
-    label: 'الأسعار',
-    icon: <Target size={14} />,
-    color: T.amber,
-    bgColor: `${T.amber}14`,
-    borderColor: `${T.amber}33`,
-    gradient: `linear-gradient(135deg, ${T.amber}, #F59E0B)`,
-  },
-  ai: {
-    label: 'الذكاء الاصطناعي',
-    icon: <Brain size={14} />,
-    color: T.purple,
-    bgColor: `${T.purple}14`,
-    borderColor: `${T.purple}33`,
-    gradient: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
-  },
+}> {
+  return {
+    signal: {
+      label: t(CATEGORY_CONFIG_KEY.signal),
+      icon: <Zap size={14} />,
+      color: T.success,
+      bgColor: `${T.success}14`,
+      borderColor: `${T.success}33`,
+      gradient: T.gradientGreen,
+    },
+    trade: {
+      label: t(CATEGORY_CONFIG_KEY.trade),
+      icon: <BarChart3 size={14} />,
+      color: T.cyan,
+      bgColor: `${T.cyan}14`,
+      borderColor: `${T.cyan}33`,
+      gradient: T.gradientInfo,
+    },
+    security: {
+      label: t(CATEGORY_CONFIG_KEY.security),
+      icon: <ShieldCheck size={14} />,
+      color: T.danger,
+      bgColor: `${T.danger}14`,
+      borderColor: `${T.danger}33`,
+      gradient: T.gradientRed,
+    },
+    system: {
+      label: t(CATEGORY_CONFIG_KEY.system),
+      icon: <Settings2 size={14} />,
+      color: T.text2,
+      bgColor: `${T.text2}14`,
+      borderColor: `${T.text2}26`,
+      gradient: `linear-gradient(135deg, ${T.text2}, #64748B)`,
+    },
+    price: {
+      label: t(CATEGORY_CONFIG_KEY.price),
+      icon: <Target size={14} />,
+      color: T.amber,
+      bgColor: `${T.amber}14`,
+      borderColor: `${T.amber}33`,
+      gradient: `linear-gradient(135deg, ${T.amber}, #F59E0B)`,
+    },
+    ai: {
+      label: t(CATEGORY_CONFIG_KEY.ai),
+      icon: <Brain size={14} />,
+      color: T.purple,
+      bgColor: `${T.purple}14`,
+      borderColor: `${T.purple}33`,
+      gradient: `linear-gradient(135deg, ${T.purple}, #A259FF)`,
+    },
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -132,19 +144,19 @@ const CATEGORY_CONFIG: Record<NotificationCategory, {
 
 type FilterTab = 'all' | 'signal' | 'trade' | 'security' | 'system'
 
-const FILTER_TABS: { id: FilterTab; label: string }[] = [
-  { id: 'all', label: 'الكل' },
-  { id: 'signal', label: 'الإشارات' },
-  { id: 'trade', label: 'الحسابات' },
-  { id: 'security', label: 'الأمان' },
-  { id: 'system', label: 'النظام' },
+const FILTER_TAB_KEYS: { id: FilterTab; labelKey: string }[] = [
+  { id: 'all', labelKey: 'filterAll' },
+  { id: 'signal', labelKey: 'filterSignals' },
+  { id: 'trade', labelKey: 'filterAccounts' },
+  { id: 'security', labelKey: 'filterSecurity' },
+  { id: 'system', labelKey: 'filterSystem' },
 ]
 
 /* ═══════════════════════════════════════════════════════════
    Arabic Time Formatting
    ═══════════════════════════════════════════════════════════ */
 
-function formatTimeAgo(date: Date): string {
+function formatTimeAgo(date: Date, t: (key: string) => string): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffSec = Math.floor(diffMs / 1000)
@@ -154,13 +166,15 @@ function formatTimeAgo(date: Date): string {
   const diffWeek = Math.floor(diffDay / 7)
   const diffMonth = Math.floor(diffDay / 30)
 
-  if (diffSec < 60) return 'منذ لحظات'
-  if (diffMin < 60) return `منذ ${diffMin} ${diffMin === 1 ? 'دقيقة' : diffMin <= 10 ? 'دقائق' : 'دقيقة'}`
-  if (diffHour < 24) return `منذ ${diffHour} ${diffHour === 1 ? 'ساعة' : diffHour <= 10 ? 'ساعات' : 'ساعة'}`
-  if (diffDay === 1) return 'أمس'
-  if (diffDay < 7) return `منذ ${diffDay} ${diffDay <= 10 ? 'أيام' : 'يوم'}`
-  if (diffWeek < 4) return `منذ ${diffWeek} ${diffWeek === 1 ? 'أسبوع' : diffWeek <= 10 ? 'أسابيع' : 'أسبوع'}`
-  return `منذ ${diffMonth} ${diffMonth === 1 ? 'شهر' : diffMonth <= 10 ? 'أشهر' : 'شهر'}`
+  const unitFor = (n: number, singular: string, plural: string) => n === 1 ? t(singular) : n <= 10 ? t(plural) : t(singular)
+
+  if (diffSec < 60) return t('timeJustNow')
+  if (diffMin < 60) return t('timeAgo', { n: diffMin, unit: unitFor(diffMin, 'timeMinute', 'timeMinutes') })
+  if (diffHour < 24) return t('timeAgo', { n: diffHour, unit: unitFor(diffHour, 'timeHour', 'timeHours') })
+  if (diffDay === 1) return t('timeYesterday')
+  if (diffDay < 7) return t('timeAgo', { n: diffDay, unit: unitFor(diffDay, 'timeDay', 'timeDays') })
+  if (diffWeek < 4) return t('timeAgo', { n: diffWeek, unit: unitFor(diffWeek, 'timeWeek', 'timeWeeks') })
+  return t('timeAgo', { n: diffMonth, unit: unitFor(diffMonth, 'timeMonth', 'timeMonths') })
 }
 
 /* Mock data removed — only real notifications from the store are displayed */
@@ -180,6 +194,8 @@ function NotificationCard({
   onSelect,
   onAction,
   onDelete,
+  t,
+  tc,
 }: {
   item: NotificationItem
   index: number
@@ -191,8 +207,10 @@ function NotificationCard({
   onSelect: (id: string) => void
   onAction: (item: NotificationItem) => void
   onDelete: (id: string) => void
+  t: (key: string) => string
+  tc: (key: string) => string
 }) {
-  const config = CATEGORY_CONFIG[item.category]
+  const config = getCategoryConfig(t)[item.category]
 
   return (
     <motion.div
@@ -304,7 +322,7 @@ function NotificationCard({
                 gap: '3px',
               }} dir="ltr">
                 {item.signalDirection === 'BUY' ? <TrendingUp size={9} /> : <TrendingDown size={9} />}
-                {item.signalDirection === 'BUY' ? 'شراء' : 'بيع'}
+                {item.signalDirection === 'BUY' ? tc('buy') : tc('sell')}
               </span>
             )}
 
@@ -391,7 +409,7 @@ function NotificationCard({
               fontFamily: "'Cairo', sans-serif",
               opacity: 0.7,
             }}>
-              {formatTimeAgo(item.timestamp)}
+              {formatTimeAgo(item.timestamp, t)}
             </span>
 
             {/* Action button */}
@@ -513,7 +531,7 @@ function ToggleSwitch({
    Empty State Component
    ═══════════════════════════════════════════════════════════ */
 
-function EmptyState({ filterLabel }: { filterLabel: string }) {
+function EmptyState({ filterLabel, t }: { filterLabel: string; t: (key: string) => string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -564,7 +582,7 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
         fontFamily: "'Cairo', sans-serif",
         margin: '0 0 6px',
       }}>
-        لا توجد إشعارات
+        {t('emptyTitleAll')}
       </p>
       <p style={{
         fontSize: '12px',
@@ -573,9 +591,9 @@ function EmptyState({ filterLabel }: { filterLabel: string }) {
         lineHeight: '1.6',
         margin: 0,
       }}>
-        {filterLabel === 'الكل'
-          ? 'ليس لديك أي إشعارات حالياً. ستظهر هنا عند وصول تنبيهات جديدة.'
-          : `لا توجد إشعارات في قسم "${filterLabel}". حاول تغيير الفلتر.`}
+        {filterLabel === t('filterAll')
+          ? t('emptyDescAll')
+          : t('emptyDescFiltered', { filter: filterLabel })}
       </p>
     </motion.div>
   )
@@ -597,6 +615,10 @@ export default function NotificationsPage() {
         .notif-scroll::-webkit-scrollbar-track { background: transparent; }
         .notif-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
         .notif-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }`)
+
+  const t = useTranslations('dashboard.notifications')
+  const tc = useTranslations('common')
+  const CATEGORY_CONFIG = getCategoryConfig(t)
 
   // Use REAL notification store data instead of mock
   const { notifications: storeNotifications, markRead, markAllRead, dismiss, clearAll, settings, updateSettings } = useNotificationStore()
@@ -633,14 +655,14 @@ export default function NotificationsPage() {
 
   // Preferences state — synced with notification store
   const [preferences, setPreferences] = useState<PreferenceToggle[]>([
-    { key: 'signals', label: 'تنبيهات الإشارات', description: 'إشعارات إشارات الشراء والبيع', icon: <Zap size={13} />, enabled: settings.scannerAlerts },
-    { key: 'trades', label: 'تنبيهات الحسابات المربوطة', description: 'رصد الأوامر وإغلاق الصفقات على الحسابات المربوطة', icon: <BarChart3 size={13} />, enabled: settings.tradeAlerts },
-    { key: 'security', label: 'تنبيهات الأمان', description: 'تسجيل الدخول وتغييرات الحساب', icon: <ShieldCheck size={13} />, enabled: true },
-    { key: 'system', label: 'إشعارات النظام', description: 'الصيانة والتحديثات والأخبار', icon: <Settings2 size={13} />, enabled: true },
-    { key: 'prices', label: 'تنبيهات الأسعار', description: 'وصول الأسعار للأهداف المحددة', icon: <Target size={13} />, enabled: true },
-    { key: 'ai', label: 'رؤى الذكاء الاصطناعي', description: 'تحليلات وتنبؤات النماذج الذكية', icon: <Brain size={13} />, enabled: settings.aiAlerts },
-    { key: 'sound', label: 'الأصوات', description: 'تشغيل صوت عند وصول إشعار جديد', icon: <Volume2 size={13} />, enabled: settings.soundEnabled },
-    { key: 'desktop', label: 'إشعارات سطح المكتب', description: 'إرسال إشعارات المتصفح على سطح المكتب', icon: <BellRing size={13} />, enabled: settings.browserNotifications },
+    { key: 'signals', label: t('prefSignalsLabel'), description: t('prefSignalsDesc'), icon: <Zap size={13} />, enabled: settings.scannerAlerts },
+    { key: 'trades', label: t('prefTradesLabel'), description: t('prefTradesDesc'), icon: <BarChart3 size={13} />, enabled: settings.tradeAlerts },
+    { key: 'security', label: t('prefSecurityLabel'), description: t('prefSecurityDesc'), icon: <ShieldCheck size={13} />, enabled: true },
+    { key: 'system', label: t('prefSystemLabel'), description: t('prefSystemDesc'), icon: <Settings2 size={13} />, enabled: true },
+    { key: 'prices', label: t('prefPricesLabel'), description: t('prefPricesDesc'), icon: <Target size={13} />, enabled: true },
+    { key: 'ai', label: t('prefAILabel'), description: t('prefAIDesc'), icon: <Brain size={13} />, enabled: settings.aiAlerts },
+    { key: 'sound', label: t('prefSoundLabel'), description: t('prefSoundDesc'), icon: <Volume2 size={13} />, enabled: settings.soundEnabled },
+    { key: 'desktop', label: t('prefDesktopLabel'), description: t('prefDesktopDesc'), icon: <BellRing size={13} />, enabled: settings.browserNotifications },
   ])
 
   // Computed
@@ -661,7 +683,7 @@ export default function NotificationsPage() {
 
   const handleMarkAllAsRead = useCallback(() => {
     markAllRead()
-    toast({ title: 'تم التحديث', description: 'تم تحديد جميع الإشعارات كمقروءة' })
+    toast({ title: t('updated'), description: t('updatedDesc') })
   }, [markAllRead])
 
   const deleteNotification = useCallback((id: string) => {
@@ -671,7 +693,7 @@ export default function NotificationsPage() {
 
   const deleteSelected = useCallback(() => {
     selectedIds.forEach(id => dismiss(id))
-    toast({ title: 'تم الحذف', description: `تم حذف ${selectedIds.size} إشعار` })
+    toast({ title: t('deleted'), description: t('deletedDesc', { count: selectedIds.size }) })
     setSelectedIds(new Set())
   }, [selectedIds, dismiss])
 
@@ -694,13 +716,13 @@ export default function NotificationsPage() {
 
   const markSelectedAsRead = useCallback(() => {
     selectedIds.forEach(id => markRead(id))
-    toast({ title: 'تم التحديث', description: `تم تحديد ${selectedIds.size} إشعار كمقروء` })
+    toast({ title: t('updated'), description: t('readSelectedDesc', { count: selectedIds.size }) })
     setSelectedIds(new Set())
   }, [selectedIds, markRead])
 
   const handleAction = useCallback((item: NotificationItem) => {
     markRead(item.id)
-    toast({ title: item.title, description: item.actionLabel || 'تم فتح الإشعار' })
+    toast({ title: item.title, description: item.actionLabel || t('opened') })
   }, [markRead])
 
   const togglePreference = useCallback((key: string) => {
@@ -732,7 +754,7 @@ export default function NotificationsPage() {
 
   return (
     <SubPageLayout
-      title="مركز الإشعارات"
+      title={t('title')}
       icon={<Bell size={14} color="#fff" />}
       iconBg={`linear-gradient(135deg, ${T.cyan}, ${T.purple})`}
       actions={
@@ -749,7 +771,7 @@ export default function NotificationsPage() {
               color: T.cyan,
               fontFamily: "'JetBrains Mono', monospace",
             }}>
-              {unreadCount} جديد
+              {unreadCount} {t('new')}
             </span>
           )}
           {/* Mark all read */}
@@ -772,7 +794,7 @@ export default function NotificationsPage() {
                 transition: 'all 0.15s',
               }}
             >
-              <CheckCheck size={11} /> قراءة الكل
+              <CheckCheck size={11} /> {t('readAll')}
             </button>
           )}
           {/* Preferences toggle */}
@@ -798,7 +820,7 @@ export default function NotificationsPage() {
               transition: 'all 0.15s',
             }}
           >
-            <Settings2 size={11} /> التفضيلات
+            <Settings2 size={11} /> {t('preferences')}
           </button>
         </div>
       }
@@ -889,7 +911,7 @@ export default function NotificationsPage() {
           padding: '3px',
           border: '1px solid rgba(255,255,255,0.04)',
         }}>
-          {FILTER_TABS.map(tab => (
+          {FILTER_TAB_KEYS.map(tab => (
             <button
               key={tab.id}
               onClick={() => { setActiveFilter(tab.id); setSelectedIds(new Set()) }}
@@ -906,7 +928,7 @@ export default function NotificationsPage() {
                 transition: 'all 0.15s',
               }}
             >
-              {tab.label}
+              {t(tab.labelKey)}
               {tab.id !== 'all' && categoryStats[tab.id] > 0 && (
                 <span style={{
                   marginInlineEnd: '4px',
@@ -945,7 +967,7 @@ export default function NotificationsPage() {
             }}
           >
             <CheckSquare size={10} />
-            {allSelected ? 'إلغاء التحديد' : 'تحديد الكل'}
+            {allSelected ? t('deselectAll') : t('selectAll')}
           </button>
 
           {selectedCount > 0 && (
@@ -969,7 +991,7 @@ export default function NotificationsPage() {
                 }}
               >
                 <Eye size={10} />
-                تحديد كمقروء ({selectedCount})
+                {t('markAsReadCount', { count: selectedCount })}
               </button>
               <button
                 onClick={deleteSelected}
@@ -990,7 +1012,7 @@ export default function NotificationsPage() {
                 }}
               >
                 <Trash2 size={10} />
-                حذف المحدد ({selectedCount})
+                {t('deleteSelectedCount', { count: selectedCount })}
               </button>
             </>
           )}
@@ -999,7 +1021,7 @@ export default function NotificationsPage() {
 
       {/* ── Notification List ── */}
       {filteredNotifications.length === 0 ? (
-        <EmptyState filterLabel={FILTER_TABS.find(t => t.id === activeFilter)?.label || 'الكل'} />
+        <EmptyState filterLabel={FILTER_TAB_KEYS.find(ft => ft.id === activeFilter) ? t(FILTER_TAB_KEYS.find(ft => ft.id === activeFilter)!.labelKey) : t('filterAll')} t={t} />
       ) : (
         <div style={{
           display: 'flex',
@@ -1080,7 +1102,7 @@ export default function NotificationsPage() {
                   <Settings2 size={13} color="#fff" />
                 </div>
                 <span style={{ fontSize: '13px', fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  تفضيلات الإشعارات
+                  {t('notificationPrefs')}
                 </span>
                 <span style={{
                   fontSize: '8px',
@@ -1092,7 +1114,7 @@ export default function NotificationsPage() {
                   color: T.purple,
                   fontFamily: "'Cairo', sans-serif",
                 }}>
-                  الإعدادات
+                  {t('settingsTab')}
                 </span>
               </div>
 
@@ -1185,7 +1207,7 @@ export default function NotificationsPage() {
                   fontFamily: "'Cairo', sans-serif",
                   lineHeight: '1.5',
                 }}>
-                  إيقاف نوع معين من الإشعارات لن يؤثر على التشغيل الفعلي للمنصة، بل فقط على التنبيهات التي تصل لك.
+                  {t('disableNotice')}
                 </span>
               </div>
             </div>
@@ -1207,21 +1229,21 @@ export default function NotificationsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <Activity size={12} style={{ color: T.text2 }} />
           <span style={{ fontSize: '10px', color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
-            {notifications.length} إشعار إجمالي
+            {notifications.length} {t('totalNotifications')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
           <span style={{ fontSize: '10px', color: T.cyan, fontFamily: "'Cairo', sans-serif" }}>
-            {unreadCount} غير مقروء
+            {unreadCount} {t('unread')}
           </span>
           <span style={{ width: '1px', height: '12px', background: 'rgba(255,255,255,0.08)' }} />
           <span style={{ fontSize: '10px', color: T.success, fontFamily: "'Cairo', sans-serif" }}>
-            {notifications.length - unreadCount} مقروء
+            {notifications.length - unreadCount} {t('readStatus')}
           </span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <Wifi size={10} style={{ color: T.success }} />
           <span style={{ fontSize: '9px', color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
-            متصل مباشر
+            {t('liveConnection')}
           </span>
         </div>
       </div>

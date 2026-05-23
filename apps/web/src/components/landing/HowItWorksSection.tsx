@@ -3,12 +3,13 @@
 import { motion, type Variants } from 'framer-motion'
 import { UserPlus, Brain, TrendingUp, ShieldCheck } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 interface Step {
   icon: LucideIcon
-  title: string
+  titleKey: string
   subtitle: string
-  description: string
+  descKey: string
   color: string
   step: number
 }
@@ -16,33 +17,33 @@ interface Step {
 const steps: Step[] = [
   {
     icon: UserPlus,
-    title: 'أنشئ حسابك',
+    titleKey: 'step1Title',
     subtitle: 'Sign Up',
-    description: 'سجّل دخولك في أقل من 30 ثانية عبر Google أو Passkey. لا كلمات مرور، لا تعقيد.',
+    descKey: 'step1Desc',
     color: '#10B981',
     step: 1,
   },
   {
     icon: Brain,
-    title: 'دع الذكاء يعمل',
+    titleKey: 'step3Title',
     subtitle: 'AI Analysis',
-    description: 'ثمانية نماذج ذكاء اصطناعي تحلل الأسواق وتولّد إشارات تداول مبنية على تحليل متعدد النماذج.',
+    descKey: 'step2Desc',
     color: '#3B82F6',
     step: 2,
   },
   {
     icon: TrendingUp,
-    title: 'تداول بثقة',
+    titleKey: 'tradeSmart',
     subtitle: 'Trade Smart',
-    description: 'نفّذ صفقاتك بناءً على رؤى مدعومة بالبيانات مع حماية المخاطر الذكية.',
+    descKey: 'step3Desc',
     color: '#8B5CF6',
     step: 3,
   },
   {
     icon: ShieldCheck,
-    title: 'احمِ أرباحك',
+    titleKey: 'step4Title',
     subtitle: 'Protect Profits',
-    description: 'نظام حماية تلقائي يراقب محفظتك ويُنذرك قبل التقلبات الحادة.',
+    descKey: 'step4Desc',
     color: '#F59E0B',
     step: 4,
   },
@@ -65,6 +66,8 @@ const cardVariants: Variants = {
 }
 
 export default function HowItWorksSection() {
+  const t = useTranslations('landing.howItWorks')
+
   return (
     <section id="how-it-works" className="relative py-20 sm:py-28 px-4 sm:px-6 lg:px-8">
       {/* Section divider */}
@@ -97,7 +100,7 @@ export default function HowItWorksSection() {
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
             style={{ fontFamily: 'var(--font-ar)' }}
           >
-            من التسجيل إلى{'\u00A0'}
+            {t('titlePart1')}{'\u00A0'}
             <span
               style={{
                 background: 'linear-gradient(135deg, #8B5CF6, #3B82F6)',
@@ -106,14 +109,14 @@ export default function HowItWorksSection() {
                 backgroundClip: 'text',
               }}
             >
-              الأرباح
+              {t('titleHighlight')}
             </span>
           </h2>
           <p
             className="text-base max-w-lg mx-auto"
             style={{ color: '#64748B', fontFamily: 'var(--font-ar)' }}
           >
-            أربع خطوات فقط تفصلك عن تداول أذكى مدعوم بالذكاء الاصطناعي
+            {t('subtitle')}
           </p>
         </motion.div>
 
@@ -178,7 +181,7 @@ export default function HowItWorksSection() {
                     className="text-base font-bold text-white mb-1"
                     style={{ fontFamily: 'var(--font-ar)' }}
                   >
-                    {step.title}
+                    {t(step.titleKey)}
                   </h3>
                   <p
                     className="text-[10px] font-medium tracking-wider mb-3"
@@ -192,7 +195,7 @@ export default function HowItWorksSection() {
                     className="text-sm leading-relaxed"
                     style={{ color: '#94A3B8', fontFamily: 'var(--font-ar)' }}
                   >
-                    {step.description}
+                    {t(step.descKey)}
                   </p>
 
                   {/* Bottom accent */}

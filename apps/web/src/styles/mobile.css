@@ -44,7 +44,7 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   position: fixed; inset: 0;
   display: flex; flex-direction: column;
   background: var(--bg); color: var(--text);
-  direction: rtl; overflow: hidden;
+  overflow: hidden;
 }
 .m-main {
   flex: 1; overflow-y: auto; overflow-x: hidden;
@@ -58,7 +58,6 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
   height: calc(var(--nav-h) + var(--safe-b));
   padding-bottom: var(--safe-b);
   display: flex; align-items: flex-start; justify-content: space-around;
-  direction: rtl;
   background: rgba(11,14,20,0.95);
   backdrop-filter: blur(20px);
   border-top: 0.5px solid rgba(0,212,255,0.1);

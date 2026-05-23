@@ -2,14 +2,16 @@
 
 import Link from 'next/link'
 import { Home, ArrowLeft } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 
 export default function NotFound() {
+  const t = useTranslations('notFound')
+
   return (
     <div
       className="min-h-screen flex items-center justify-center px-4"
       style={{
         background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 50%), #06090f',
-        direction: 'rtl',
       }}
     >
       <div className="text-center max-w-md">
@@ -35,7 +37,7 @@ export default function NotFound() {
             color: '#E2E8F0',
           }}
         >
-          الصفحة غير موجودة
+          {t('title')}
         </h1>
 
         <p
@@ -45,7 +47,7 @@ export default function NotFound() {
             color: '#64748B',
           }}
         >
-          عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها
+          {t('description')}
         </p>
 
         {/* Action Buttons */}
@@ -60,7 +62,7 @@ export default function NotFound() {
             }}
           >
             <Home className="w-4 h-4" />
-            لوحة التحكم
+            {t('dashboard')}
           </Link>
 
           <Link
@@ -73,7 +75,7 @@ export default function NotFound() {
             }}
           >
             <ArrowLeft className="w-4 h-4" />
-            الصفحة الرئيسية
+            {t('home')}
           </Link>
         </div>
       </div>

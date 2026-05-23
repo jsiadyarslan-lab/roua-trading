@@ -18,6 +18,7 @@ import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } from '@/lib/permissions'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
@@ -64,7 +65,7 @@ function SelectBox({ value, onChange, options, small }: {
         borderRadius: 8, padding: small ? '4px 8px' : '6px 12px',
         color: T.text, fontSize: small ? 11 : 12,
         fontFamily: "'Cairo', sans-serif", fontWeight: 600,
-        outline: 'none', cursor: 'pointer', direction: 'rtl',
+        outline: 'none', cursor: 'pointer',
         appearance: 'none',
         minWidth: small ? 80 : 120,
       }}
@@ -167,6 +168,8 @@ function PermissionTag({ label, active, color }: { label: string; active: boolea
    This is saved to user settings (key: activeCredentialId).
 ══════════════════════════════════════════════════════ */
 function ActiveAccountSelector() {
+  const t = useTranslations('dashboard.settings')
+  const tc = useTranslations('common')
   const [credentials, setCredentials] = useState<any[]>([])
   const [activeCredentialId, setActiveCredentialId] = useState<string>('')
   const [loading, setLoading] = useState(true)
@@ -205,7 +208,7 @@ function ActiveAccountSelector() {
   if (loading) {
     return (
       <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
-        جاري تحميل الحسابات...
+        {t('loadingAccounts')}
       </div>
     )
   }
@@ -214,7 +217,7 @@ function ActiveAccountSelector() {
     return (
       <div style={{ padding: '12px 0', textAlign: 'center' }}>
         <div style={{ fontSize: 12, color: T.text3, marginBottom: 8 }}>
-          لا توجد حسابات مربوطة — اربط بورصة أولاً
+          {t('noLinkedAccounts')}
         </div>
         <button
           onClick={() => window.location.href = '/dashboard/settings/exchange'}
@@ -225,7 +228,7 @@ function ActiveAccountSelector() {
             fontFamily: "'Cairo', sans-serif",
           }}
         >
-          ربط بورصة
+          {t('linkExchange')}
         </button>
       </div>
     )
@@ -242,7 +245,7 @@ function ActiveAccountSelector() {
       }}>
         <Shield size={16} color={T.cyan} />
         <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-          المنفذ والوكيل سينفذان على الحساب الذي تختاره فقط. أنت من يقرر.
+          {t('accountSelectorBanner')}
         </div>
       </div>
 
@@ -253,15 +256,15 @@ function ActiveAccountSelector() {
           const isTestnet = cred.testnet || cred.exchange?.includes('test') || cred.exchange?.includes('Testnet')
           const isPaper = cred.exchange === 'paper-trading'
 
-          let typeLabel: string = 'حقيقي'
+          let typeLabel: string = t('real')
           let typeColor: string = T.green
           let typeIcon: string = '💰'
           if (isPaper) {
-            typeLabel = 'ورقي'
+            typeLabel = t('paper')
             typeColor = T.cyan
             typeIcon = '📝'
           } else if (isTestnet) {
-            typeLabel = 'تجريبي (Testnet)'
+            typeLabel = t('testnet')
             typeColor = T.amber
             typeIcon = '🧪'
           }
@@ -297,7 +300,7 @@ function ActiveAccountSelector() {
                   </span>
                 </div>
                 <div style={{ fontSize: 10, color: T.text4, marginTop: 2 }}>
-                  {cred.exchange} {cred.lastValidatedAt ? `• آخر تحقق: ${new Date(cred.lastValidatedAt).toLocaleDateString('ar')}` : ''}
+                  {cred.exchange} {cred.lastValidatedAt ? `• ${t('lastVerified')}: ${new Date(cred.lastValidatedAt).toLocaleDateString()}` : ''}
                 </div>
               </div>
 
@@ -330,6 +333,8 @@ export default function SettingsPage() {
           .perm-grid { grid-template-columns: repeat(2, 1fr) !important; }
         }`)
 
+  const t = useTranslations('dashboard.settings')
+  const tc = useTranslations('common')
   const router = useRouter()
   const user = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
@@ -442,8 +447,8 @@ export default function SettingsPage() {
           // Show current session as active
           setSessions([{
             id: 'current',
-            device: 'هذا الجهاز',
-            lastActive: 'الآن',
+            device: t('thisDevice'),
+            lastActive: t('now'),
             current: true,
           }])
         })
@@ -483,46 +488,46 @@ export default function SettingsPage() {
   }
 
   const tabs = [
-    { id: 'account', label: 'الحساب', icon: <User size={14} /> },
-    { id: 'subscription', label: 'الاشتراك', icon: <Crown size={14} /> },
-    { id: 'trading', label: 'ربط الحسابات', icon: <BarChart3 size={14} /> },
-    { id: 'notifications', label: 'الإشعارات', icon: <Bell size={14} /> },
-    { id: 'ai', label: 'الذكاء الاصطناعي', icon: <Brain size={14} /> },
-    { id: 'appearance', label: 'المظهر', icon: <Palette size={14} /> },
-    { id: 'security', label: 'الأمان', icon: <Shield size={14} /> },
-    { id: 'data', label: 'البيانات', icon: <Database size={14} /> },
+    { id: 'account', label: t('tabAccount'), icon: <User size={14} /> },
+    { id: 'subscription', label: t('tabSubscription'), icon: <Crown size={14} /> },
+    { id: 'trading', label: t('tabLinking'), icon: <BarChart3 size={14} /> },
+    { id: 'notifications', label: t('tabNotifications'), icon: <Bell size={14} /> },
+    { id: 'ai', label: t('tabAI'), icon: <Brain size={14} /> },
+    { id: 'appearance', label: t('tabAppearance'), icon: <Palette size={14} /> },
+    { id: 'security', label: t('tabSecurity'), icon: <Shield size={14} /> },
+    { id: 'data', label: t('tabData'), icon: <Database size={14} /> },
   ]
 
   // Permission categories for display
   const permissionCategories = [
-    { name: 'ربط الحسابات', perms: [
-      { perm: 'trade:view' as Permission, label: 'عرض التداول' },
-      { perm: 'trade:execute' as Permission, label: 'تنفيذ الصفقات' },
-      { perm: 'trade:paper' as Permission, label: 'عرض تجريبي' },
+    { name: t('tabLinking'), perms: [
+      { perm: 'trade:view' as Permission, label: t('permViewTrading') },
+      { perm: 'trade:execute' as Permission, label: t('permExecuteTrades') },
+      { perm: 'trade:paper' as Permission, label: t('demoView') },
     ]},
-    { name: 'الذكاء الاصطناعي', perms: [
-      { perm: 'ai:insights' as Permission, label: 'رؤى AI' },
-      { perm: 'ai:auto_trade' as Permission, label: 'متابعة تلقائية' },
-      { perm: 'ai:scanner' as Permission, label: 'ماسح ذكي' },
-      { perm: 'ai:advanced_models' as Permission, label: 'نماذج متقدمة' },
+    { name: t('tabAI'), perms: [
+      { perm: 'ai:insights' as Permission, label: t('permAiInsights') },
+      { perm: 'ai:auto_trade' as Permission, label: t('permAutoFollow') },
+      { perm: 'ai:scanner' as Permission, label: t('permSmartScanner') },
+      { perm: 'ai:advanced_models' as Permission, label: t('permAdvancedModels') },
     ]},
-    { name: 'المحفظة والاجتماعي', perms: [
-      { perm: 'portfolio:view' as Permission, label: 'عرض المحفظة' },
-      { perm: 'portfolio:advanced' as Permission, label: 'تحليل متقدم' },
-      { perm: 'social:view' as Permission, label: 'متابعة الحسابات' },
-      { perm: 'social:follow_accounts' as Permission, label: 'متابعة الحسابات' },
+    { name: t('permPortfolioSocial'), perms: [
+      { perm: 'portfolio:view' as Permission, label: t('permViewPortfolio') },
+      { perm: 'portfolio:advanced' as Permission, label: t('permAdvancedAnalysis') },
+      { perm: 'social:view' as Permission, label: t('permFollowAccounts') },
+      { perm: 'social:follow_accounts' as Permission, label: t('permFollowAccounts') },
     ]},
-    { name: 'API والبيانات', perms: [
-      { perm: 'api:access' as Permission, label: 'وصول API' },
-      { perm: 'api:webhooks' as Permission, label: 'Webhooks' },
-      { perm: 'data:real_time' as Permission, label: 'بيانات حية' },
-      { perm: 'data:historical' as Permission, label: 'بيانات تاريخية' },
-      { perm: 'data:export' as Permission, label: 'تصدير البيانات' },
+    { name: t('permApiData'), perms: [
+      { perm: 'api:access' as Permission, label: t('permApiAccess') },
+      { perm: 'api:webhooks' as Permission, label: t('permWebhooks') },
+      { perm: 'data:real_time' as Permission, label: t('liveData') },
+      { perm: 'data:historical' as Permission, label: t('permHistoricalData') },
+      { perm: 'data:export' as Permission, label: t('exportData') },
     ]},
   ]
 
   return (
-    <div className="custom-scrollbar" style={{ direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
+    <div className="custom-scrollbar" style={{ fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
       {/* Scoped styles via useScopedStyle */}{/* Header */}
       <div style={{
         padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
@@ -537,8 +542,8 @@ export default function SettingsPage() {
             <Settings size={18} color="#fff" />
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>الإعدادات</h1>
-            <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>إدارة حسابك وتخصيص منصة رؤى</p>
+            <h1 style={{ margin: 0, fontSize: 20, fontWeight: 900, color: T.text }}>{t('title')}</h1>
+            <p style={{ margin: 0, fontSize: 11, color: T.text3 }}>{t('subtitle')}</p>
           </div>
         </div>
 
@@ -591,7 +596,7 @@ export default function SettingsPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 18, fontWeight: 900, color: T.text, marginBottom: 4 }}>
-                  {user?.displayName || 'مستخدم رؤى'}
+                  {user?.displayName || t('defaultUserName')}
                 </div>
                 <div style={{ fontSize: 12, color: T.text2, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <Mail size={12} />
@@ -624,7 +629,7 @@ export default function SettingsPage() {
                 }}
               >
                 <UserCircle size={14} />
-                معلومات الحساب
+                {tc('accountInfo')}
               </button>
             </div>
 
@@ -633,8 +638,8 @@ export default function SettingsPage() {
               icon={<Key size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="مفاتيح API للبورصات"
-              subtitle="ربط منصات التداول وإدارة المفاتيح المشفرة"
+              title={t("apiKeysTitle")}
+              subtitle={t("apiKeysSubtitle")}
             >
               <div style={{ padding: '8px 0' }}>
                 <div style={{
@@ -645,8 +650,8 @@ export default function SettingsPage() {
                 }}>
                   <Shield size={16} color={T.cyan} />
                   <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-                    رؤى لا تلمس أموالك أبداً. المفاتيح مشفرة بـ AES-256-GCM وتُستخدم فقط للقراءة ومتابعة حساباتك المربوطة.
-                    <span style={{ color: T.red, fontWeight: 600 }}> المفاتيح ذات صلاحيات السحب تُرفض فوراً.</span>
+                    {t('apiKeysSecurityInfo')}
+                    <span style={{ color: T.red, fontWeight: 600 }}> {t('withdrawKeysRejected')}</span>
                   </div>
                 </div>
                 <button
@@ -663,7 +668,7 @@ export default function SettingsPage() {
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = T.border2 }}
                 >
                   <Key size={16} />
-                  إدارة مفاتيح API
+                  {t('manageApiKeys')}
                   <ChevronLeft size={14} style={{ transform: 'scaleX(-1)' }} />
                 </button>
               </div>
@@ -674,12 +679,12 @@ export default function SettingsPage() {
               icon={<Database size={18} color={T.blue} />}
               iconColor={T.blue}
               iconBg={`${T.blue}14`}
-              title="معلومات الحساب"
-              subtitle="بيانات الاشتراك والجلسة"
+              title={t("accountInfo")}
+              subtitle={t("accountInfoSubtitle")}
             >
               <SettingRow
                 icon={<User size={13} color={T.text3} />}
-                label="معرّف المستخدم"
+                label={t("userId")}
                 description={user?.id || '—'}
               >
                 <span style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
@@ -688,7 +693,7 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<TrendingUp size={13} color={T.text3} />}
-                label="مستوى الاشتراك"
+                label={t("subscriptionLevel")}
               >
                 <span style={{
                   padding: '2px 8px', borderRadius: 6,
@@ -701,17 +706,17 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Clock size={13} color={T.text3} />}
-                label="حالة الجلسة"
+                label={t("sessionStatus")}
               >
                 <span style={{ fontSize: 11, color: T.green, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <span style={{ width: 6, height: 6, borderRadius: 3, background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
-                  نشطة — تجديد تلقائي
+                  {t('activeAutoRenew')}
                 </span>
               </SettingRow>
               <SettingRow
                 icon={<RefreshCw size={13} color={T.text3} />}
-                label="تجديد الجلسة التلقائي"
-                description="يتم تجديد جلستك تلقائياً كل 15 دقيقة"
+                label={t('autoSessionRenewal')}
+                description={t('autoRenewSessionDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
               </SettingRow>
@@ -725,14 +730,14 @@ export default function SettingsPage() {
               <div style={{ padding: '16px 20px', borderBottom: `1px solid rgba(255,71,87,0.10)` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <AlertTriangle size={16} color={T.red} />
-                  <span style={{ fontSize: 13, fontWeight: 700, color: T.red }}>منطقة الخطر</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: T.red }}>{t('dangerZone')}</span>
                 </div>
               </div>
               <div style={{ padding: '8px 20px 16px' }}>
                 <SettingRow
                   icon={<LogOut size={13} color={T.red} />}
-                  label="تسجيل الخروج"
-                  description="إنهاء الجلسة الحالية من جميع الأجهزة"
+                  label={t("logout")}
+                  description={t("logoutDesc")}
                 >
                   <button
                     onClick={authLogout}
@@ -743,19 +748,19 @@ export default function SettingsPage() {
                       fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
                     }}
                   >
-                    خروج
+                    {tc('logout')}
                   </button>
                 </SettingRow>
                 <SettingRow
                   icon={<Trash2 size={13} color={T.red} />}
-                  label="حذف الحساب"
-                  description="حذف حسابك نهائياً مع جميع البيانات"
+                  label={t("deleteAccount")}
+                  description={t("deleteAccountDesc")}
                 >
                   <span style={{
                     fontSize: 10, padding: '3px 8px', borderRadius: 10,
                     background: 'rgba(255,255,255,0.04)', color: T.text3,
                     fontFamily: "'JetBrains Mono', monospace",
-                  }}>قريباً</span>
+                  }}>{t('comingSoon')}</span>
                 </SettingRow>
               </div>
             </div>
@@ -794,13 +799,13 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 22, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      خطة {roleInfo.label}
+                      {t('planLabel', { plan: roleInfo.label })}
                       {userTier === 'FREE' && (
                         <span style={{
                           fontSize: 10, padding: '2px 8px', borderRadius: 10,
                           background: `${T.cyan}12`, color: T.cyan,
                           fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-                        }}>ترقية</span>
+                        }}>{t('upgrade')}</span>
                       )}
                     </div>
                     <div style={{ fontSize: 12, color: T.text3, marginTop: 2 }}>{roleInfo.description}</div>
@@ -827,7 +832,7 @@ export default function SettingsPage() {
                           <div style={{
                             marginTop: 6, fontSize: 8, fontWeight: 700,
                             color: info.color, fontFamily: "'JetBrains Mono', monospace",
-                          }}>الحالية</div>
+                          }}>{t('current')}</div>
                         )}
                       </div>
                     )
@@ -841,8 +846,8 @@ export default function SettingsPage() {
               icon={<Shield size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="صلاحياتك الحالية"
-              subtitle={`لدى خطة ${roleInfo.label} ${userPermissions.length} صلاحية نشطة`}
+              title={t('yourPermissions')}
+              subtitle={t('planPermissionsCount', { plan: roleInfo.label, count: userPermissions.length })}
               badge={`${userPermissions.length}`}
             >
               <div style={{ padding: '8px 0' }}>
@@ -867,10 +872,10 @@ export default function SettingsPage() {
                 padding: 20, textAlign: 'center',
               }}>
                 <div style={{ fontSize: 16, fontWeight: 900, color: T.text, marginBottom: 8 }}>
-                  أطلق العنان للإمكانيات الكاملة
+                  {t('unlockFullPotential')}
                 </div>
                 <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.8, marginBottom: 16 }}>
-                  ترقية إلى خطة احترافية للحصول على متابعة حقيقية، ذكاء اصطناعي متقدم، ومتابعة الحسابات
+                  {t('upgradeProDesc')}
                 </div>
                 <button style={{
                   padding: '10px 28px', borderRadius: 10,
@@ -879,7 +884,7 @@ export default function SettingsPage() {
                   cursor: 'pointer', fontFamily: "'Cairo', sans-serif",
                   boxShadow: `0 0 20px ${T.cyan}30`,
                 }}>
-                  ترقية الآن
+                  {tc('upgrade')}
                 </button>
               </div>
             )}
@@ -894,8 +899,8 @@ export default function SettingsPage() {
               icon={<Key size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="الحساب المفعّل للتداول"
-              subtitle="اختر الحساب الذي سينفذ عليه المنفذ والوكيل — أنت من يقرر"
+              title={t('activeTradingAccount')}
+              subtitle={t('activeTradingAccountSubtitle')}
             >
               <ActiveAccountSelector />
             </SectionCard>
@@ -905,14 +910,14 @@ export default function SettingsPage() {
               icon={<Zap size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="وضع المتابعة"
-              subtitle="اختر أسلوب المتابعة المناسب لك"
+              title={t('tradingMode')}
+              subtitle={t('tradingModeSubtitle')}
             >
               <div style={{ display: 'flex', gap: 8, padding: '8px 0' }}>
                 {([
-                  { id: 'trader' as TradingMode, label: 'تاجر', desc: 'تنفيذ سريع', color: T.cyan, icon: <BarChart3 size={14} /> },
-                  { id: 'investor' as TradingMode, label: 'مستثمر', desc: 'استثمار طويل', color: T.green, icon: <TrendingUp size={14} /> },
-                  { id: 'ai' as TradingMode, label: 'AI', desc: 'ذكاء اصطناعي', color: T.purple, icon: <Brain size={14} /> },
+                  { id: 'trader' as TradingMode, label: t('traderMode'), desc: t('quickExecution'), color: T.cyan, icon: <BarChart3 size={14} /> },
+                  { id: 'investor' as TradingMode, label: t('investorMode'), desc: t('longInvestment'), color: T.green, icon: <TrendingUp size={14} /> },
+                  { id: 'ai' as TradingMode, label: 'AI', desc: t('aiIntelligence'), color: T.purple, icon: <Brain size={14} /> },
                 ]).map(m => (
                   <button
                     key={m.id}
@@ -942,13 +947,13 @@ export default function SettingsPage() {
               icon={<Sliders size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="تفضيلات المتابعة"
-              subtitle="إعدادات الأوامر والتنفيذ"
+              title={t('tradingPrefs')}
+              subtitle={t('orderExecSettings')}
             >
               <SettingRow
                 icon={<LineChart size={13} color={T.text3} />}
-                label="حجم الأمر الافتراضي"
-                description="نسبة رأس المال المستخدمة في كل صفقة"
+                label={t('defaultOrderSize')}
+                description={t('riskPerTradeDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -964,31 +969,31 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.text3} />}
-                label="مستوى المخاطرة"
-                description="الحد الأقصى للخسارة المسموح بها في الصفقة"
+                label={t('riskLevelLabel')}
+                description={t('riskLevelLabelDesc')}
               >
                 <SelectBox
                   value={riskLevel}
                   onChange={setRiskLevel}
                   options={[
-                    { value: 'conservative', label: 'محافظ' },
-                    { value: 'medium', label: 'متوسط' },
-                    { value: 'aggressive', label: 'جريء' },
+                    { value: 'conservative', label: t('conservative') },
+                    { value: 'medium', label: t('riskMedium') },
+                    { value: 'aggressive', label: t('bold') },
                   ]}
                   small
                 />
               </SettingRow>
               <SettingRow
                 icon={<CheckCircle2 size={13} color={T.text3} />}
-                label="تأكيد قبل التنفيذ"
-                description="عرض نافذة تأكيد قبل تنفيذ أي أمر على حسابك المربوط"
+                label={t('confirmBeforeExec')}
+                description={t('confirmBeforeExecDesc')}
               >
                 <Toggle checked={confirmTrades} onChange={() => setConfirmTrades(!confirmTrades)} color={T.cyan} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Eye size={13} color={T.text3} />}
-                label="عرض المراكز المفتوحة"
-                description="إظهار لوحة المراكز أسفل الشارت"
+                label={t('showOpenPositions')}
+                description={t('showOpenPositionsDesc')}
               >
                 <Toggle checked={showPositions} onChange={() => setShowPositions(!showPositions)} color={T.green} size="sm" />
               </SettingRow>
@@ -999,13 +1004,13 @@ export default function SettingsPage() {
               icon={<Shield size={18} color={T.green} />}
               iconColor={T.green}
               iconBg={`${T.green}14`}
-              title="إدارة المخاطر"
-              subtitle="تحكم بنسب الحماية — أنت صاحب القرار النهائي"
+              title={t('riskManagement')}
+              subtitle={t('riskManagementSubtitle')}
             >
               <SettingRow
                 icon={<Target size={13} color={T.danger} />}
-                label="وقف خسارة افتراضي"
-                description="النسبة المئوية لوقف الخسارة عند فتح صفقة جديدة"
+                label={t('defaultStopLoss')}
+                description={t('defaultStopLossDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1025,8 +1030,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<TrendingUp size={13} color={T.success} />}
-                label="جني أرباح افتراضي"
-                description="النسبة المئوية لجني الأرباح عند فتح صفقة جديدة"
+                label={t('defaultTakeProfit')}
+                description={t('defaultTakeProfitDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1046,8 +1051,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.amber} />}
-                label="مخاطرة لكل صفقة"
-                description="نسبة رأس المال المخاطرة في الصفقة الواحدة"
+                label={t('riskPerTrade')}
+                description={t('riskPerTradeLabelDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1067,8 +1072,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.danger} />}
-                label="أقصى خسارة يومية"
-                description="إذا خسرت هذه النسبة في يوم واحد، يتوقف التداول تلقائياً"
+                label={t('maxDailyLoss')}
+                description={t('maxDailyLossDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1088,8 +1093,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.cyan} />}
-                label="أقصى صفقات مفتوحة"
-                description="الحد الأقصى للصفقات المفتوحة في نفس الوقت"
+                label={t('maxOpenPositions')}
+                description={t('maxOpenPositionsDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1108,15 +1113,15 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Lock size={13} color={T.text3} />}
-                label="وقف خسارة تلقائي"
-                description="تعيين وقف خسارة تلقائياً عند فتح صفقة على حسابك المربوط"
+                label={t('autoStopLoss')}
+                description={t('autoStopLossDesc')}
               >
                 <Toggle checked={autoStopLoss} onChange={() => setAutoStopLoss(!autoStopLoss)} color={T.green} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.text3} />}
-                label="وقف متحرك (Trailing Stop)"
-                description="تعديل وقف الخسارة تلقائياً مع حركة السعر"
+                label={t('trailingStop')}
+                description={t('trailingStopDesc')}
               >
                 <Toggle checked={trailingStop} onChange={() => setTrailingStop(!trailingStop)} color={T.amber} size="sm" />
               </SettingRow>
@@ -1127,36 +1132,36 @@ export default function SettingsPage() {
               icon={<LineChart size={18} color={T.purple} />}
               iconColor={T.purple}
               iconBg={`${T.purple}14`}
-              title="إعدادات الشارت"
-              subtitle="نوع الرسم البياني والإطار الزمني"
+              title={t('chartSettings')}
+              subtitle={t('chartTypeTimeframe')}
             >
               <SettingRow
                 icon={<BarChart3 size={13} color={T.text3} />}
-                label="نوع الشارت الافتراضي"
+                label={t('defaultChartType')}
               >
                 <SelectBox
                   value={chartType}
                   onChange={setChartType}
                   options={[
-                    { value: 'candlestick', label: 'شموع يابانية' },
-                    { value: 'line', label: 'خطي' },
-                    { value: 'area', label: 'مساحي' },
-                    { value: 'bar', label: 'أعمدة' },
+                    { value: 'candlestick', label: t('candlestick') },
+                    { value: 'line', label: t('line') },
+                    { value: 'area', label: t('aggressive') },
+                    { value: 'bar', label: t('bars') },
                   ]}
                   small
                 />
               </SettingRow>
               <SettingRow
                 icon={<Clock size={13} color={T.text3} />}
-                label="الإطار الزمني الافتراضي"
+                label={t('defaultTimeframe')}
               >
                 <SelectBox
                   value={timeframe}
                   onChange={setTimeframe}
                   options={[
-                    { value: '1m', label: '1 دقيقة' }, { value: '5m', label: '5 دقائق' },
-                    { value: '15m', label: '15 دقيقة' }, { value: '1h', label: 'ساعة' },
-                    { value: '4h', label: '4 ساعات' }, { value: '1d', label: 'يومي' },
+                    { value: '1m', label: t('oneMinute') }, { value: '5m', label: t('fiveMinutes') },
+                    { value: '15m', label: t('fifteenMinutes') }, { value: '1h', label: t('hour') },
+                    { value: '4h', label: t('fourHours') }, { value: '1d', label: t('daily') },
                   ]}
                   small
                 />
@@ -1172,38 +1177,38 @@ export default function SettingsPage() {
               icon={<Bell size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="الإشعارات والتنبيهات"
-              subtitle="تخصيص طريقة استلامك للتنبيهات والتحذيرات"
+              title={t('notificationsAlerts')}
+              subtitle={t('notificationsAlertsSubtitle')}
             >
               <SettingRow
                 icon={<Bell size={13} color={T.cyan} />}
-                label="تفعيل الإشعارات"
-                description="استقبال تنبيهات المنصة"
+                label={t('enableNotifications')}
+                description={t('receivePlatformAlerts')}
               >
                 <Toggle checked={settings.enabled} onChange={() => updateSettings({ enabled: !settings.enabled })} color={T.cyan} />
               </SettingRow>
               <SettingRow
                 icon={<Volume2 size={13} color={T.green} />}
-                label="الأصوات"
-                description="تشغيل أصوات تنبيه عند الصفقات والإشارات"
+                label={t('sounds')}
+                description={t('soundsDesc')}
               >
                 <Toggle checked={settings.soundEnabled} onChange={() => updateSettings({ soundEnabled: !settings.soundEnabled })} color={T.green} />
               </SettingRow>
 
 
               <div style={{ height: 1, background: T.border, margin: '8px 0' }} />
-              <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.05em' }}>مصادر الإشعارات</div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: T.text4, padding: '4px 0 0', letterSpacing: '0.05em' }}>{t('notificationSources')}</div>
 
-              <SettingRow icon={<Bot size={13} color={T.purple} />} label="تنبيهات البوت">
+              <SettingRow icon={<Bot size={13} color={T.purple} />} label={t('botAlerts')}>
                 <Toggle checked={settings.botAlerts} onChange={() => updateSettings({ botAlerts: !settings.botAlerts })} color={T.purple} size="sm" />
               </SettingRow>
-              <SettingRow icon={<Brain size={13} color={T.cyan} />} label="تنبيهات الذكاء الاصطناعي">
+              <SettingRow icon={<Brain size={13} color={T.cyan} />} label={t('aiAlerts')}>
                 <Toggle checked={settings.aiAlerts} onChange={() => updateSettings({ aiAlerts: !settings.aiAlerts })} color={T.cyan} size="sm" />
               </SettingRow>
-              <SettingRow icon={<Radar size={13} color={T.amber} />} label="تنبيهات الماسح">
+              <SettingRow icon={<Radar size={13} color={T.amber} />} label={t('scannerAlerts')}>
                 <Toggle checked={settings.scannerAlerts} onChange={() => updateSettings({ scannerAlerts: !settings.scannerAlerts })} color={T.amber} size="sm" />
               </SettingRow>
-              <SettingRow icon={<BarChart3 size={13} color={T.green} />} label="تنبيهات التداول">
+              <SettingRow icon={<BarChart3 size={13} color={T.green} />} label={t('tradeAlerts')}>
                 <Toggle checked={settings.tradeAlerts} onChange={() => updateSettings({ tradeAlerts: !settings.tradeAlerts })} color={T.green} size="sm" />
               </SettingRow>
 
@@ -1213,7 +1218,7 @@ export default function SettingsPage() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                   <span style={{ fontSize: 12, color: T.text2, fontWeight: 600 }}>
                     <Target size={13} style={{ display: 'inline', verticalAlign: -2, marginLeft: 4 }} />
-                    الحد الأدنى لمستوى الثقة
+                    {t('minConfidenceLevel')}
                   </span>
                   <span style={{
                     fontSize: 12, fontWeight: 800, color: T.cyan,
@@ -1230,8 +1235,8 @@ export default function SettingsPage() {
                   style={{ width: '100%', accentColor: T.cyan, height: 4 }}
                 />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span style={{ fontSize: 9, color: T.text4 }}>جميع الإشارات</span>
-                  <span style={{ fontSize: 9, color: T.text4 }}>إشارات عالية الثقة فقط</span>
+                  <span style={{ fontSize: 9, color: T.text4 }}>{t('allSignals')}</span>
+                  <span style={{ fontSize: 9, color: T.text4 }}>{t('highConfidenceOnly')}</span>
                 </div>
               </div>
             </SectionCard>
@@ -1241,20 +1246,20 @@ export default function SettingsPage() {
               icon={<Clock size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="جدول الإشعارات"
-              subtitle="تحديد أوقات استلام التنبيهات"
+              title={t('notificationSchedule')}
+              subtitle={t('notificationScheduleDesc')}
             >
               <SettingRow
                 icon={<Bell size={13} color={T.text3} />}
-                label="وضع عدم الإزعاج"
-                description="كتم الإشعارات خارج ساعات التداول"
+                label={t('doNotDisturb')}
+                description={t('doNotDisturbDesc')}
               >
                 <Toggle checked={false} onChange={() => {}} color={T.amber} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.text3} />}
-                label="إشعارات الطوارئ فقط"
-                description="استقبال تنبيهات المخاطر العالية فقط أثناء وضع عدم الإزعاج"
+                label={t('emergencyOnly')}
+                description={t('emergencyOnlyDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.red} size="sm" />
               </SettingRow>
@@ -1269,29 +1274,29 @@ export default function SettingsPage() {
               icon={<Brain size={18} color={T.purple} />}
               iconColor={T.purple}
               iconBg={`${T.purple}14`}
-              title="إعدادات الذكاء الاصطناعي"
-              subtitle="تخصيص سلوك محرك AI والتوصيات"
+              title={t('aiSettings')}
+              subtitle={t('aiSettingsSubtitle')}
             >
               <SettingRow
                 icon={<Cpu size={13} color={T.purple} />}
-                label="نموذج AI"
-                description="اختر أسلوب التحليل والتنفيذ"
+                label={t('aiModel')}
+                description={t('aiModelDesc')}
               >
                 <SelectBox
                   value={aiModel}
                   onChange={setAiModel}
                   options={[
-                    { value: 'conservative', label: 'محافظ' },
-                    { value: 'balanced', label: 'متوازن' },
-                    { value: 'aggressive', label: 'جريء' },
+                    { value: 'conservative', label: t('conservative') },
+                    { value: 'balanced', label: t('balanced') },
+                    { value: 'aggressive', label: t('bold') },
                   ]}
                   small
                 />
               </SettingRow>
               <SettingRow
                 icon={<Target size={13} color={T.cyan} />}
-                label="حد الثقة للتنفيذ التلقائي"
-                description="الحد الأدنى من الثقة لتنفيذ توصيات AI تلقائياً"
+                label={t('autoExecConfidenceThreshold')}
+                description={t('autoExecConfidenceThresholdDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1307,8 +1312,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Zap size={13} color={T.amber} />}
-                label="المتابعة التلقائية بالـ AI"
-                description="السماح للذكاء الاصطناعي بتنفيذ الصفقات تلقائياً"
+                label={t('aiAutoFollow')}
+                description={t('aiAutoFollowDesc')}
               >
                 <Toggle checked={aiAutoTrade} onChange={() => setAiAutoTrade(!aiAutoTrade)} color={T.amber} />
               </SettingRow>
@@ -1318,34 +1323,34 @@ export default function SettingsPage() {
               icon={<MessageSquare size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="الرصد والتوصيات"
-              subtitle="كيف يتواصل AI معك"
+              title={t('monitoringRecommendations')}
+              subtitle={t('aiCommSubtitle')}
             >
               <SettingRow
                 icon={<Radar size={13} color={T.cyan} />}
-                label="مراقبة الأسواق المستمرة"
-                description="تحليل 24/7 للأنماط والفرص"
+                label={t('continuousMarketMonitoring')}
+                description={t('analysis247')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.cyan} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.green} />}
-                label="إشارات الدخول والخروج"
-                description="تنبيهات فورية عند اكتشاف فرصة"
+                label={t('entryExitSignals')}
+                description={t('instantOpportunityAlerts')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.amber} />}
-                label="تنبيهات المخاطر"
-                description="تحذيرات عند ارتفاع تقلبات السوق"
+                label={t('riskAlerts')}
+                description={t('highVolatilityWarnings')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.amber} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.purple} />}
-                label="تحليل المشاعر"
-                description="تحليل مشاعر السوق من الأخبار ووسائل التواصل"
+                label={t('sentimentAnalysis')}
+                description={t('sentimentAnalysisDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.purple} size="sm" />
               </SettingRow>
@@ -1360,26 +1365,26 @@ export default function SettingsPage() {
               icon={<Palette size={18} color={T.blue} />}
               iconColor={T.blue}
               iconBg={`${T.blue}14`}
-              title="المظهر واللغة"
-              subtitle="تخصيص شكل المنصة واتجاه العرض"
+              title={t('appearanceLanguage')}
+              subtitle={t('appearanceLanguageSubtitle')}
             >
               <SettingRow
                 icon={isDark ? <Moon size={13} color={T.blue} /> : <Sun size={13} color={T.amber} />}
-                label="الوضع الداكن"
-                description="مريح للعيون في البيئات المنخفضة الإضاءة"
+                label={t('darkMode')}
+                description={t('darkModeDesc')}
               >
                 <Toggle checked={isDark} onChange={() => setIsDark(!isDark)} color={T.blue} />
               </SettingRow>
               <SettingRow
                 icon={<Globe size={13} color={T.text3} />}
-                label="اللغة"
-                description="لغة واجهة المستخدم"
+                label={t('language')}
+                description={t('languageDesc')}
               >
                 <SelectBox
                   value="ar"
                   onChange={() => {}}
                   options={[
-                    { value: 'ar', label: 'العربية' },
+                    { value: 'ar', label: t('arabic') },
                     { value: 'en', label: 'English' },
                   ]}
                   small
@@ -1387,8 +1392,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Fingerprint size={13} color={T.text3} />}
-                label="اتجاه النص"
-                description="RTL — من اليمين لليسار"
+                label={t('textDirection')}
+                description={t('textDirectionRtl')}
               >
                 <span style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 6,
@@ -1399,24 +1404,24 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Eye size={13} color={T.text3} />}
-                label="حجم الخط"
-                description="تغيير حجم النصوص في الواجهة"
+                label={t('fontSize')}
+                description={t('fontSizeDesc')}
               >
                 <SelectBox
                   value="default"
                   onChange={() => {}}
                   options={[
-                    { value: 'small', label: 'صغير' },
-                    { value: 'default', label: 'افتراضي' },
-                    { value: 'large', label: 'كبير' },
+                    { value: 'small', label: t('fontSizeSmall') },
+                    { value: 'default', label: t('default') },
+                    { value: 'large', label: t('fontSizeLarge') },
                   ]}
                   small
                 />
               </SettingRow>
               <SettingRow
                 icon={<Monitor size={13} color={T.text3} />}
-                label="حركات الرسوم المتحركة"
-                description="تقليل الحركات لتحسين الأداء"
+                label={t('animations')}
+                description={t('animationsDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.cyan} size="sm" />
               </SettingRow>
@@ -1427,25 +1432,25 @@ export default function SettingsPage() {
               icon={<LineChart size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="مظهر الشارت"
-              subtitle="تخصيص ألوان وأسلوب الرسم البياني"
+              title={t('chartAppearance')}
+              subtitle={t('chartSettingsSubtitle')}
             >
               <SettingRow
                 icon={<BarChart3 size={13} color={T.text3} />}
-                label="لون الشموع الصاعدة"
+                label={t('bullishCandleColor')}
               >
                 <div style={{ width: 24, height: 16, borderRadius: 4, background: T.green, border: `1px solid ${T.border}` }} />
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.text3} />}
-                label="لون الشموع الهابطة"
+                label={t('bearishCandleColor')}
               >
                 <div style={{ width: 24, height: 16, borderRadius: 4, background: T.red, border: `1px solid ${T.border}` }} />
               </SettingRow>
               <SettingRow
                 icon={<Eye size={13} color={T.text3} />}
-                label="خطوط الشبكة"
-                description="عرض خطوط الشبكة على الشارت"
+                label={t('gridLines')}
+                description={t('gridLinesDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.blue} size="sm" />
               </SettingRow>
@@ -1460,31 +1465,31 @@ export default function SettingsPage() {
               icon={<Shield size={18} color={T.green} />}
               iconColor={T.green}
               iconBg={`${T.green}14`}
-              title="المصادقة الثنائية"
-              subtitle="حماية إضافية لحسابك"
+              title={t('twoFactorAuth')}
+              subtitle={t('twoFactorSubtitle')}
             >
               <SettingRow
                 icon={<Smartphone size={13} color={T.text3} />}
-                label="مصادقة التطبيق (TOTP)"
-                description="استخدم تطبيق مصادقة مثل Google Authenticator"
+                label={t('totpAuth')}
+                description={t('totpAuthDesc')}
               >
                 <button style={{
                   padding: '5px 12px', borderRadius: 8,
                   background: `${T.green}12`, border: `1px solid ${T.green}25`,
                   color: T.green, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                   fontFamily: "'Cairo', sans-serif",
-                }}>تفعيل</button>
+                }}>{tc('activate')}</button>
               </SettingRow>
               <SettingRow
                 icon={<Fingerprint size={13} color={T.text3} />}
-                label="مفاتيح المرور (Passkeys)"
-                description="مصادقة بيومترية بدون كلمة مرور — WebAuthn"
+                label={t('passkeys')}
+                description={t('passkeysDesc')}
               >
                 <span style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)', color: T.text3,
                   fontFamily: "'JetBrains Mono', monospace",
-                }}>قريباً</span>
+                }}>{t('comingSoon')}</span>
               </SettingRow>
             </SectionCard>
 
@@ -1492,37 +1497,37 @@ export default function SettingsPage() {
               icon={<Lock size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="أمان الجلسة"
-              subtitle="إدارة جلساتك النشطة"
+              title={t('sessionSecurity')}
+              subtitle={t('sessionSecuritySubtitle')}
             >
               <SettingRow
                 icon={<Clock size={13} color={T.text3} />}
-                label="مدة الجلسة"
-                description="الفترة قبل طلب إعادة تسجيل الدخول"
+                label={t('sessionDuration')}
+                description={t('sessionDurationDesc')}
               >
                 <SelectBox
                   value="30d"
                   onChange={() => {}}
                   options={[
-                    { value: '1h', label: 'ساعة واحدة' },
-                    { value: '24h', label: '24 ساعة' },
-                    { value: '7d', label: '7 أيام' },
-                    { value: '30d', label: '30 يوم' },
+                    { value: '1h', label: t('oneHour') },
+                    { value: '24h', label: t('twentyFourHours') },
+                    { value: '7d', label: t('sevenDays') },
+                    { value: '30d', label: t('thirtyDays') },
                   ]}
                   small
                 />
               </SettingRow>
               <SettingRow
                 icon={<RefreshCw size={13} color={T.green} />}
-                label="تجديد تلقائي للجلسة"
-                description="تمديد الجلسة تلقائياً أثناء النشاط"
+                label={t('autoSessionRenewal')}
+                description={t('autoSessionRenewalDesc')}
               >
                 <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Wifi size={13} color={T.text3} />}
-                label="إنهاء جميع الجلسات الأخرى"
-                description="تسجيل الخروج من جميع الأجهزة باستثناء هذا"
+                label={t('killOtherSessions')}
+                description={t('logoutOtherDevices')}
               >
                 <button
                   onClick={handleKillOtherSessions}
@@ -1532,7 +1537,7 @@ export default function SettingsPage() {
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif",
                   }}
-                >إنهاء</button>
+                >{t('terminate')}</button>
               </SettingRow>
             </SectionCard>
 
@@ -1541,8 +1546,8 @@ export default function SettingsPage() {
               icon={<Monitor size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="الجلسات النشطة"
-              subtitle="الأجهزة المتصلة بحسابك حالياً"
+              title={t('activeSessions')}
+              subtitle={t('activeSessionsDesc')}
             >
               <div style={{ padding: '8px 0' }}>
                 {sessions.map(session => (
@@ -1562,10 +1567,10 @@ export default function SettingsPage() {
                             fontSize: 8, padding: '1px 6px', borderRadius: 6,
                             background: `${T.cyan}12`, color: T.cyan,
                             fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                          }}>الحالية</span>
+                          }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: T.text4 }}>آخر نشاط: {session.lastActive}</div>
+                      <div style={{ fontSize: 10, color: T.text4 }}>{t('lastActivity')}: {session.lastActive}</div>
                     </div>
                   </div>
                 ))}
@@ -1576,19 +1581,19 @@ export default function SettingsPage() {
               icon={<AlertTriangle size={18} color={T.red} />}
               iconColor={T.red}
               iconBg={`${T.red}10`}
-              title="رمز الحماية من التصيد"
-              subtitle="كلمة سر تظهر في كل إشعار من رؤى للتأكد من أنه حقيقي"
+              title={t('antiPhishingCode')}
+              subtitle={t('antiPhishingCodeDesc')}
             >
               <SettingRow
                 icon={<Shield size={13} color={T.amber} />}
-                label="تفعيل رمز مكافحة التصيد"
-                description="يظهر رمزك السري في كل رسالة من المنصة"
+                label={t('enableAntiPhishing')}
+                description={t('antiPhishingCodeEnabled')}
               >
                 <span style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)', color: T.text3,
                   fontFamily: "'JetBrains Mono', monospace",
-                }}>قريباً</span>
+                }}>{t('comingSoon')}</span>
               </SettingRow>
             </SectionCard>
           </>
@@ -1601,13 +1606,13 @@ export default function SettingsPage() {
               icon={<Database size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title="بياناتك"
-              subtitle="إدارة بياناتك الشخصية وتنزيلها"
+              title={t('yourData')}
+              subtitle={t('exportDataSubtitle')}
             >
               <SettingRow
                 icon={<Download size={13} color={T.cyan} />}
-                label="تنزيل بياناتك"
-                description="احصل على نسخة من جميع بياناتك بصيغة JSON"
+                label={t('downloadYourData')}
+                description={t('downloadYourDataDesc')}
               >
                 <button
                   onClick={handleDataExport}
@@ -1622,19 +1627,19 @@ export default function SettingsPage() {
                   }}
                 >
                   {dataExportLoading ? <RefreshCw size={11} className="animate-spin" /> : <Download size={11} />}
-                  {dataExportLoading ? 'جارٍ التحضير...' : 'تنزيل'}
+                  {dataExportLoading ? t('preparing') : t('download')}
                 </button>
               </SettingRow>
               <SettingRow
                 icon={<Upload size={13} color={T.text3} />}
-                label="استيراد الإعدادات"
-                description="استعادة إعداداتك من ملف تصدير سابق"
+                label={t('importSettings')}
+                description={t('importSettingsDesc')}
               >
                 <span style={{
                   fontSize: 10, padding: '3px 8px', borderRadius: 10,
                   background: 'rgba(255,255,255,0.04)', color: T.text3,
                   fontFamily: "'JetBrains Mono', monospace",
-                }}>قريباً</span>
+                }}>{t('comingSoon')}</span>
               </SettingRow>
             </SectionCard>
 
@@ -1642,27 +1647,27 @@ export default function SettingsPage() {
               icon={<Eye size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="الخصوصية"
-              subtitle="تحكم في كيفية استخدام بياناتك"
+              title={t('privacy')}
+              subtitle={t('privacySubtitle')}
             >
               <SettingRow
                 icon={<Activity size={13} color={T.text3} />}
-                label="التحليلات والاستخدام"
-                description="مساعدتنا في تحسين المنصة من خلال مشاركة بيانات الاستخدام المجهولة"
+                label={t('analyticsUsage')}
+                description={t('analyticsUsageDesc')}
               >
                 <Toggle checked={analyticsEnabled} onChange={() => setAnalyticsEnabled(!analyticsEnabled)} color={T.cyan} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.text3} />}
-                label="تقارير الأعطال"
-                description="إرسال تقارير الأعطال تلقائياً لمساعدتنا في إصلاح المشاكل"
+                label={t('crashReports')}
+                description={t('crashReportsDesc')}
               >
                 <Toggle checked={crashReports} onChange={() => setCrashReports(!crashReports)} color={T.green} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Shield size={13} color={T.text3} />}
-                label="وضع التخفي"
-                description="إخفاء أرصدة ومبالغ المحفظة في الواجهة"
+                label={t('stealthMode')}
+                description={t('hideBalances')}
               >
                 <Toggle checked={false} onChange={() => {}} color={T.purple} size="sm" />
               </SettingRow>
@@ -1672,13 +1677,13 @@ export default function SettingsPage() {
               icon={<CreditCard size={18} color={T.purple} />}
               iconColor={T.purple}
               iconBg={`${T.purple}14`}
-              title="التخزين المؤقت"
-              subtitle="إدارة البيانات المخزنة محلياً"
+              title={t('cacheStorage')}
+              subtitle={t('cacheStorageSubtitle')}
             >
               <SettingRow
                 icon={<Database size={13} color={T.text3} />}
-                label="مسح التخزين المؤقت"
-                description="حذف البيانات المؤقتة المحفوظة في المتصفح"
+                label={t('clearCache')}
+                description={t('clearCacheDesc')}
               >
                 <button
                   onClick={() => {
@@ -1691,21 +1696,21 @@ export default function SettingsPage() {
                     color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
                     fontFamily: "'Cairo', sans-serif",
                   }}
-                >مسح</button>
+                >{tc('reset')}</button>
               </SettingRow>
               <SettingRow
                 icon={<Clock size={13} color={T.text3} />}
-                label="مدة التخزين المؤقت"
-                description="المدة قبل إعادة جلب البيانات من الخادم"
+                label={t('cacheDuration')}
+                description={t('cacheDurationDesc')}
               >
                 <SelectBox
                   value="5m"
                   onChange={() => {}}
                   options={[
-                    { value: '1m', label: 'دقيقة' },
-                    { value: '5m', label: '5 دقائق' },
-                    { value: '15m', label: '15 دقيقة' },
-                    { value: '1h', label: 'ساعة' },
+                    { value: '1m', label: t('minute') },
+                    { value: '5m', label: t('fiveMinutes') },
+                    { value: '15m', label: t('fifteenMinutes') },
+                    { value: '1h', label: t('hour') },
                   ]}
                   small
                 />

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react'
 import { useAgentStore, AgentStatus, StrategyType, MarketRegime, RegimeInfo } from '@/hooks/useAgentStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 import { fmtPriceLocale } from '@/lib/price-format'
 
 /* ═══════════════════════════════════════════════
@@ -53,28 +54,28 @@ function getStatusColor(status: AgentStatus | null): string {
   }
 }
 
-function getStatusLabel(status: AgentStatus | null): string {
-  if (!status) return 'غير مُفعّل'
+function getStatusLabel(status: AgentStatus | null, t: (k: string) => string): string {
+  if (!status) return t('statusInactive')
   switch (status) {
-    case AgentStatus.RUNNING: return 'يعمل'
-    case AgentStatus.PAUSED: return 'متوقف مؤقتاً'
-    case AgentStatus.STOPPED: return 'متوقف'
-    case AgentStatus.EMERGENCY_STOP: return 'إيقاف طارئ'
-    case AgentStatus.DAILY_LIMIT_REACHED: return 'حد الخسارة اليومية'
-    case AgentStatus.IDLE: return 'في الانتظار'
+    case AgentStatus.RUNNING: return t('statusRunning')
+    case AgentStatus.PAUSED: return t('statusPaused')
+    case AgentStatus.STOPPED: return t('statusStopped')
+    case AgentStatus.EMERGENCY_STOP: return t('emergencyStop')
+    case AgentStatus.DAILY_LIMIT_REACHED: return t('statusDailyLimit')
+    case AgentStatus.IDLE: return t('statusIdle')
     default: return status
   }
 }
 
-function getStrategyLabel(s: StrategyType): string {
+function getStrategyLabel(s: StrategyType, t: (k: string) => string): string {
   switch (s) {
-    case StrategyType.AUTO: return 'تلقائي'
-    case StrategyType.SCALPING: return 'سكالبينغ'
-    case StrategyType.SWING: return 'سوينغ'
-    case StrategyType.GRID: return 'شبكة'
-    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط'
-    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم'
-    case StrategyType.DCA: return 'متوسط التكلفة'
+    case StrategyType.AUTO: return t('strategyAuto')
+    case StrategyType.SCALPING: return t('strategyScalping')
+    case StrategyType.SWING: return t('strategySwing')
+    case StrategyType.GRID: return t('strategyGrid')
+    case StrategyType.MEAN_REVERSION: return t('strategyMeanReversion')
+    case StrategyType.MOMENTUM_BREAKOUT: return t('strategyMomentumBreakout')
+    case StrategyType.DCA: return t('strategyDCA')
     case StrategyType.VWAP_RSI: return 'VWAP + RSI'
     default: return s
   }
@@ -94,30 +95,30 @@ function getStrategyIcon(s: StrategyType) {
   }
 }
 
-function getStrategyDesc(s: StrategyType): string {
+function getStrategyDesc(s: StrategyType, t: (k: string) => string): string {
   switch (s) {
-    case StrategyType.AUTO: return 'تلقائي تكيفي — يختار أفضل استراتيجية حسب ظروف السوق'
-    case StrategyType.SCALPING: return 'صفقات سريعة — أرباح صغيرة متكررة'
-    case StrategyType.SWING: return 'صفقات متأرجحة — أرباح أكبر على مدى أيام'
-    case StrategyType.GRID: return 'شبكة أوامر — ربح من التذبذب'
-    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط — نسبة فوز عالية'
-    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم — ربح من الكسور الكبيرة'
-    case StrategyType.DCA: return 'متوسط التكلفة — تراكم منتظم وموثوق'
-    case StrategyType.VWAP_RSI: return 'VWAP + RSI — إدخالات عالية الاحتمالية'
-    default: return 'استراتيجية تداول'
+    case StrategyType.AUTO: return t('strategyAutoDesc')
+    case StrategyType.SCALPING: return t('strategyScalpingDesc')
+    case StrategyType.SWING: return t('strategySwingDesc')
+    case StrategyType.GRID: return t('strategyGridDesc')
+    case StrategyType.MEAN_REVERSION: return t('strategyMeanReversionDesc')
+    case StrategyType.MOMENTUM_BREAKOUT: return t('strategyMomentumBreakoutDesc')
+    case StrategyType.DCA: return t('strategyDCADesc')
+    case StrategyType.VWAP_RSI: return t('strategyVwapRsiDesc')
+    default: return t('strategyDefault')
   }
 }
 
 /* ═══════════════════════════════════════════════
    Regime Helper Functions
    ═══════════════════════════════════════════════ */
-function getRegimeLabel(regime: MarketRegime): string {
+function getRegimeLabel(regime: MarketRegime, t: (k: string) => string): string {
   switch (regime) {
-    case MarketRegime.TRENDING_UP: return 'صعودي متجه'
-    case MarketRegime.TRENDING_DOWN: return 'هبوطي متجه'
-    case MarketRegime.RANGING: return 'نطاق عرضي'
-    case MarketRegime.VOLATILE: return 'متقلب'
-    case MarketRegime.TRANSITIONAL: return 'انتقالي'
+    case MarketRegime.TRENDING_UP: return t('regimeTrendingUp')
+    case MarketRegime.TRENDING_DOWN: return t('regimeTrendingDown')
+    case MarketRegime.RANGING: return t('regimeRanging')
+    case MarketRegime.VOLATILE: return t('regimeVolatile')
+    case MarketRegime.TRANSITIONAL: return t('regimeTransitional')
     default: return regime
   }
 }
@@ -144,21 +145,21 @@ function getRegimeIcon(regime: MarketRegime): React.ReactNode {
   }
 }
 
-function getMomentumLabel(dir: string): string {
+function getMomentumLabel(dir: string, t: (k: string) => string): string {
   switch (dir) {
-    case 'UP': return 'صعودي'
-    case 'DOWN': return 'هبوطي'
-    case 'FLAT': return 'محايد'
+    case 'UP': return t('momentumUp')
+    case 'DOWN': return t('momentumDown')
+    case 'FLAT': return t('momentumFlat')
     default: return '—'
   }
 }
 
-function getVolatilityLabel(level: string): string {
+function getVolatilityLabel(level: string, t: (k: string) => string): string {
   switch (level) {
-    case 'LOW': return 'منخفض'
-    case 'MEDIUM': return 'متوسط'
-    case 'HIGH': return 'مرتفع'
-    case 'EXTREME': return 'شديد'
+    case 'LOW': return t('volatilityLow')
+    case 'MEDIUM': return t('volatilityMedium')
+    case 'HIGH': return t('volatilityHigh')
+    case 'EXTREME': return t('volatilityExtreme')
     default: return '—'
   }
 }
@@ -173,11 +174,11 @@ function getVolatilityColor(level: string): string {
   }
 }
 
-function getEMAAlignmentLabel(alignment: string): string {
+function getEMAAlignmentLabel(alignment: string, t: (k: string) => string): string {
   switch (alignment) {
-    case 'BULLISH': return 'صعودي'
-    case 'BEARISH': return 'هبوطي'
-    case 'MIXED': return 'مختلط'
+    case 'BULLISH': return t('momentumUp')
+    case 'BEARISH': return t('momentumDown')
+    case 'MIXED': return t('emaMixed')
     default: return '—'
   }
 }
@@ -234,6 +235,8 @@ function StatCard({ icon, label, value, subValue, color, mono }: {
    ═══════════════════════════════════════════════ */
 export default function AutonomousTraderPage() {
   useScopedStyle(AGENT_CSS)
+  const t = useTranslations('dashboard.autonomousTrader')
+  const tc = useTranslations('common')
   const {
     agentState, performance, positions, logs, loading, error,
     fetchStatus, fetchCredentials, startAgent, stopAgent, changeStrategy, updateRiskParams,
@@ -279,16 +282,16 @@ export default function AutonomousTraderPage() {
 
   // ── Tab definitions ──
   const TABS = [
-    { id: 'overview' as const, label: 'نظرة عامة', icon: <Bot size={14} /> },
-    { id: 'positions' as const, label: 'المراكز', icon: <ArrowUpDown size={14} /> },
-    { id: 'performance' as const, label: 'الأداء', icon: <BarChart3 size={14} /> },
-    { id: 'settings' as const, label: 'الإعدادات', icon: <Settings2 size={14} /> },
+    { id: 'overview' as const, label: t('tabOverview'), icon: <Bot size={14} /> },
+    { id: 'positions' as const, label: t('tabPositions'), icon: <ArrowUpDown size={14} /> },
+    { id: 'performance' as const, label: t('tabPerformance'), icon: <BarChart3 size={14} /> },
+    { id: 'settings' as const, label: t('tabSettings'), icon: <Settings2 size={14} /> },
   ]
 
   return (
     <>
       {/* Scoped styles via useScopedStyle */}
-      <div dir="rtl" style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
+      <div style={{ minHeight: '100vh', background: T.bg, color: T.text, fontFamily: FONT_AR }}>
         {/* ── Header ── */}
         <div style={{
           padding: '24px 28px 0',
@@ -311,7 +314,7 @@ export default function AutonomousTraderPage() {
             </div>
             <div>
               <h1 style={{ fontFamily: FONT_AR, fontSize: 22, fontWeight: 900, margin: 0, lineHeight: 1.2 }}>
-                وكيل التداول الذاتي
+                {t('title')}
               </h1>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
                 {/* Status LED */}
@@ -322,7 +325,7 @@ export default function AutonomousTraderPage() {
                   animation: isRunning ? 'agent-pulse 2s ease-in-out infinite' : 'none',
                 }} />
                 <span style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: getStatusColor(status) }}>
-                  {getStatusLabel(status)}
+                  {getStatusLabel(status, t)}
                 </span>
                 {isPaperTrading && isRunning && (
                   <span style={{
@@ -331,12 +334,12 @@ export default function AutonomousTraderPage() {
                     background: `${T.accent}15`, color: T.accent,
                     border: `1px solid ${T.accent}30`,
                   }}>
-                    ورقي
+                    {t('paperMode')}
                   </span>
                 )}
                 {config && (
                   <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginInlineEnd: 8 }}>
-                    • {getStrategyLabel(config.strategy as StrategyType)}
+                    • {getStrategyLabel(config.strategy as StrategyType, t)}
                   </span>
                 )}
               </div>
@@ -349,7 +352,7 @@ export default function AutonomousTraderPage() {
               <button
                 onClick={() => setShowStrategyPicker(!showStrategyPicker)}
                 disabled={loading}
-                title={!hasCredential ? 'سيتم التفعيل في وضع التداول الورقي (بدون أموال حقيقية)' : undefined}
+                title={!hasCredential ? t('paperModeTooltip') : undefined}
                 style={{
                   ...btnStyle,
                   background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
@@ -361,7 +364,7 @@ export default function AutonomousTraderPage() {
                 }}
               >
                 <Play size={15} />
-                {hasCredential ? 'تفعيل الوكيل' : 'تفعيل الوكيل (ورقي)'}
+                {hasCredential ? t('activateAgent') : t('activateAgentPaper')}
               </button>
             )}
             {isRunning && (
@@ -377,7 +380,7 @@ export default function AutonomousTraderPage() {
                   }}
                 >
                   <Pause size={14} />
-                  إيقاف مؤقت
+                  {t('pauseAgent')}
                 </button>
                 {!confirmEmergency ? (
                   <button
@@ -391,7 +394,7 @@ export default function AutonomousTraderPage() {
                     }}
                   >
                     <AlertTriangle size={14} />
-                    إيقاف طارئ
+                    {t('emergencyStop')}
                   </button>
                 ) : (
                   <button
@@ -406,7 +409,7 @@ export default function AutonomousTraderPage() {
                     }}
                   >
                     <Flame size={14} />
-                    تأكيد الإيقاف الطارئ
+                    {t('confirmEmergencyStop')}
                   </button>
                 )}
               </>
@@ -423,7 +426,7 @@ export default function AutonomousTraderPage() {
                 }}
               >
                 <Play size={14} />
-                إعادة التفعيل
+                {t('reactivateAgent')}
               </button>
             )}
             {/* FIX: Allow restart when daily limit reached — user can override and continue trading */}
@@ -439,7 +442,7 @@ export default function AutonomousTraderPage() {
                 }}
               >
                 <RotateCcw size={14} />
-                تجاوز الحد وإعادة التفعيل
+                {t('overrideLimitReactivate')}
               </button>
             )}
           </div>
@@ -454,7 +457,7 @@ export default function AutonomousTraderPage() {
             <GlassCard>
               <div style={{ padding: 20 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, marginBottom: 16, color: T.text }}>
-                  اختر استراتيجية التداول
+                  {t('chooseStrategy')}
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
                   {/* FIX: SCALPING removed — it belongs to the Smart Executor (المنفذ الذكي), not the Agent */}
@@ -490,8 +493,7 @@ export default function AutonomousTraderPage() {
                           cursor: 'pointer',
                           textAlign: 'right',
                           transition: 'all 0.2s',
-                          direction: 'rtl',
-                        }}
+                          }}
                         onMouseEnter={e => {
                           if (!isActive) { e.currentTarget.style.borderColor = `${accent}55`; e.currentTarget.style.background = `${accent}08` }
                         }}
@@ -502,69 +504,69 @@ export default function AutonomousTraderPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                           <span style={{ color: accent, display: 'flex' }}>{getStrategyIcon(s)}</span>
                           <span style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: isActive ? accent : T.text }}>
-                            {getStrategyLabel(s)}
+                            {getStrategyLabel(s, t)}
                           </span>
                         </div>
                         <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.6 }}>
-                          {getStrategyDesc(s)}
+                          {getStrategyDesc(s, t)}
                         </div>
                         <div style={{
                           marginTop: 10, display: 'flex', gap: 6, flexWrap: 'wrap',
                         }}>
                           {s === StrategyType.AUTO && (
                             <>
-                              <StrategyTag label="كشف النظام تلقائي" />
-                              <StrategyTag label="تبديل ذكي" />
-                              <StrategyTag label="مُوصى به" />
+                              <StrategyTag label={t('tagAutoDetect')} />
+                              <StrategyTag label={t('tagSmartSwitch')} />
+                              <StrategyTag label={t('tagRecommended')} />
                             </>
                           )}
                           {s === StrategyType.SCALPING && (
                             <>
-                              <StrategyTag label="فريم: 1m-5m" />
-                              <StrategyTag label="TP: 1.5x ATR" />
-                              <StrategyTag label="SL: 1x ATR" />
+                              <StrategyTag label={t('tagFrame1m5m')} />
+                              <StrategyTag label={t('tagTP15ATR')} />
+                              <StrategyTag label={t('tagSL1ATR')} />
                             </>
                           )}
                           {s === StrategyType.SWING && (
                             <>
-                              <StrategyTag label="فريم: 1h-4h" />
-                              <StrategyTag label="TP: 4x ATR" />
-                              <StrategyTag label="SL: 2x ATR" />
+                              <StrategyTag label={t('tagFrame1h4h')} />
+                              <StrategyTag label={t('tagTP4ATR')} />
+                              <StrategyTag label={t('tagSL2ATR')} />
                             </>
                           )}
                           {s === StrategyType.GRID && (
                             <>
-                              <StrategyTag label="أوامر حدية" />
-                              <StrategyTag label="ربح من التذبذب" />
-                              <StrategyTag label="بدون اتجاه" />
+                              <StrategyTag label={t('tagLimitOrders')} />
+                              <StrategyTag label={t('tagProfitFromOscillation')} />
+                              <StrategyTag label={t('tagNoDirection')} />
                             </>
                           )}
                           {s === StrategyType.MEAN_REVERSION && (
                             <>
-                              <StrategyTag label="نسبة فوز: 60-70%" />
-                              <StrategyTag label="TP: عند المتوسط" />
-                              <StrategyTag label="SL: 2x ATR" />
+                              <StrategyTag label={t('tagWinRate60')} />
+                              <StrategyTag label={t('tagTPAtMean')} />
+                              <StrategyTag label={t('tagSL2ATR')} />
                             </>
                           )}
                           {s === StrategyType.MOMENTUM_BREAKOUT && (
                             <>
-                              <StrategyTag label="اختراقات قوية" />
-                              <StrategyTag label="TP: 3x ATR" />
-                              <StrategyTag label="SL: 1.5x ATR" />
+                              <StrategyTag label={t('tagStrongBreakouts')} />
+                              <StrategyTag label={t('tagTP3ATR')} />
+                              <StrategyTag label={t('tagSL15ATR')} />
                             </>
                           )}
                           {s === StrategyType.DCA && (
                             <>
-                              <StrategyTag label="تراكم منتظم" />
-                              <StrategyTag label="نسبة فوز: 70-80%" />
-                              <StrategyTag label="شراء ذكي" />
+                              <StrategyTag label={t('tagRegularAccumulation')} />
+                              <StrategyTag label={t('tagWinRate70')} />
+                              <StrategyTag label={t('tagSmartBuy')} />
                             </>
                           )}
                           {s === StrategyType.VWAP_RSI && (
                             <>
-                              <StrategyTag label="VWAP + RSI" />
-                              <StrategyTag label="TP: 2.5x ATR" />
-                              <StrategyTag label="إدخالات محترفة" />
+                              <StrategyTag label={t('tagVwapRsi')} />
+                              <StrategyTag label={t('tagTP25ATR')} />
+                              <StrategyTag label={t('tagProEntries')} />
                             </>
                           )}
                         </div>
@@ -586,41 +588,41 @@ export default function AutonomousTraderPage() {
         }}>
           <StatCard
             icon={<DollarSign size={13} />}
-            label="ربح/خسارة اليوم"
+            label={t('dailyPnL')}
             value={formatUSD(agentState?.dailyPnL)}
             color={(agentState?.dailyPnL ?? 0) > 0 ? T.green : (agentState?.dailyPnL ?? 0) < 0 ? T.red : T.text2}
             mono
           />
           <StatCard
             icon={<Activity size={13} />}
-            label="صفقاتك اليوم"
+            label={t('dailyTrades')}
             value={String(agentState?.dailyTradesCount ?? 0)}
             color={T.accent}
           />
           <StatCard
             icon={<Target size={13} />}
-            label="نسبة الفوز"
+            label={t('winRate')}
             value={formatPct(performance?.winRate)}
             color={(performance?.winRate ?? 0) >= 50 ? T.green : T.red}
           />
           <StatCard
             icon={<Shield size={13} />}
-            label="المراكز المفتوحة"
+            label={t('openPositions')}
             value={String(positions.length)}
-            subValue={`الحد: ${config?.maxOpenPositions ?? 20}`}  // V144: Changed from 15 to 20
+            subValue={`${t('limit')} ${config?.maxOpenPositions ?? 20}`}  // V144: Changed from 15 to 20
             color={T.purple}
           />
           <StatCard
             icon={<AlertCircle size={13} />}
-            label="خسائر متتالية"
+            label={t('consecutiveLosses')}
             value={String(agentState?.consecutiveLosses ?? 0)}
             color={(agentState?.consecutiveLosses ?? 0) >= 3 ? T.red : T.text2}
           />
           <StatCard
             icon={<Clock size={13} />}
-            label="دورات الوكيل"
+            label={t('agentCycles')}
             value={String(agentState?.totalCycles ?? 0)}
-            subValue={agentState?.lastCycleAt ? `آخر دورة: ${new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG')}` : undefined}
+            subValue={agentState?.lastCycleAt ? `${t('lastCycle')}: ${new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG')}` : undefined}
             color={T.text2}
           />
         </div>
@@ -652,7 +654,7 @@ export default function AutonomousTraderPage() {
           }}>
             <Activity size={16} />
             <span>
-              <strong>وضع التداول الورقي</strong> — سيتم تفعيل الوكيل في وضع تجريبي بأموال وهمية. لربط بورصة حقيقية، أضف مفتاح API من صفحة المحفظة.
+              <strong>{t('paperTradingMode')}</strong> — {t('paperTradingModeDesc')}
             </span>
           </div>
         )}
@@ -678,13 +680,13 @@ export default function AutonomousTraderPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 14, fontWeight: 800, color: T.red, marginBottom: 4 }}>
-                التداول الذاتي معطّل على مستوى النظام
+                {t('autoTradingDisabled')}
               </div>
               <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.7 }}>
-                وكيل التداول لا يعمل لأن التداول الذاتي معطّل.{' '}
+                {t('autoTradingDisabledDesc')}{' '}
                 {systemStatus?.source === 'database'
-                  ? 'الإعداد محفوظ في قاعدة البيانات — اضغط الزر لتفعيله فوراً.'
-                  : 'الإعداد يأتي من متغيرات البيئة (env) — اضغط الزر لحفظه في قاعدة البيانات وتفعيله.'
+                  ? t('settingFromDB')
+                  : t('settingFromEnv')
                 }
               </div>
             </div>
@@ -720,10 +722,10 @@ export default function AutonomousTraderPage() {
                : enableSystemResult === 'success' ? <CheckCircle2 size={14} />
                : enableSystemResult === 'error' ? <XCircle size={14} />
                : <Play size={14} />}
-              {enablingSystem ? 'جارٍ التفعيل...'
-               : enableSystemResult === 'success' ? 'تم التفعيل!'
-               : enableSystemResult === 'error' ? 'فشل التفعيل'
-               : 'تفعيل الآن'}
+              {enablingSystem ? t('enabling')
+               : enableSystemResult === 'success' ? t('enabled')
+               : enableSystemResult === 'error' ? t('enableFailed')
+               : t('enableNow')}
             </button>
           </div>
         )}
@@ -740,7 +742,7 @@ export default function AutonomousTraderPage() {
             animation: 'agent-pulse 2s ease-in-out infinite',
           }}>
             <AlertTriangle size={18} />
-            تم الإيقاف الطارئ — تم إغلاق جميع المراكز. يمكنك إعادة التفعيل عند الاستعداد.
+            {t('emergencyStopMessage')}
           </div>
         )}
 
@@ -755,7 +757,7 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, fontSize: 13, color: T.amber, fontWeight: 700,
           }}>
             <AlertTriangle size={18} />
-            تم بلوغ حد الخسارة اليومية ({config?.maxDailyLossPercent ?? 5}%) — اضغط "تجاوز الحد" للاستمرار، أو انتظر حتى بداية يوم جديد.
+            {t('dailyLimitReached')} ({config?.maxDailyLossPercent ?? 5}%) — {t('overrideLimit')}
           </div>
         )}
 
@@ -836,24 +838,24 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Cpu size={15} color={T.accent} />
-                حالة الوكيل
+                {t('agentStatus')}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <InfoRow label="الحالة" value={getStatusLabel(status)} valueColor={getStatusColor(status)} />
-                <InfoRow label="الاستراتيجية" value={config ? getStrategyLabel(config.strategy as StrategyType) : '—'} />
-                <InfoRow label="مُفعّل منذ" value={agentState?.startedAt ? new Date(agentState.startedAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—'} />
-                <InfoRow label="آخر دورة" value={agentState?.lastCycleAt ? new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG') : '—'} />
-                <InfoRow label="الرموز" value={config?.symbols?.length ? `${config.symbols.length} رمز` : '—'} />
-                <InfoRow label="خطر/صفقة" value={config ? `${config.riskPerTradePercent}%` : '—'} />
+                <InfoRow label={t('status')} value={getStatusLabel(status, t)} valueColor={getStatusColor(status)} />
+                <InfoRow label={t('strategy')} value={config ? getStrategyLabel(config.strategy as StrategyType, t) : '—'} />
+                <InfoRow label={t('activeSince')} value={agentState?.startedAt ? new Date(agentState.startedAt).toLocaleString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '—'} />
+                <InfoRow label={t('lastCycle')} value={agentState?.lastCycleAt ? new Date(agentState.lastCycleAt).toLocaleTimeString('ar-EG') : '—'} />
+                <InfoRow label={t('symbols')} value={config?.symbols?.length ? `${config.symbols.length} ${t('symbol')}` : '—'} />
+                <InfoRow label={t('riskPerTrade')} value={config ? `${config.riskPerTradePercent}%` : '—'} />
               </div>
 
               {/* Safety Badges */}
               <div style={{ marginTop: 16, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                <SafetyBadge icon={<Shield size={10} />} label="وقف خسارة إلزامي" color={T.green} />
-                <SafetyBadge icon={<AlertTriangle size={10} />} label="حد خسارة يومي" color={T.amber} />
-                <SafetyBadge icon={<XCircle size={10} />} label="بدون سحب" color={T.red} />
-                <SafetyBadge icon={<CheckCircle2 size={10} />} label="تدقيق كامل" color={T.accent} />
+                <SafetyBadge icon={<Shield size={10} />} label={t('mandatoryStopLoss')} color={T.green} />
+                <SafetyBadge icon={<AlertTriangle size={10} />} label={t('dailyLossLimit')} color={T.amber} />
+                <SafetyBadge icon={<XCircle size={10} />} label={t('noWithdrawal')} color={T.red} />
+                <SafetyBadge icon={<CheckCircle2 size={10} />} label={t('fullAudit')} color={T.accent} />
               </div>
             </div>
           </GlassCard>
@@ -863,26 +865,26 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Zap size={15} color={T.purple} />
-                الاستراتيجية النشطة
+                {t('activeStrategy')}
               </div>
               {config ? (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
                     <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(config.strategy as StrategyType)}</span>
                     <span style={{ fontFamily: FONT_AR, fontSize: 16, fontWeight: 900, color: T.text }}>
-                      {getStrategyLabel(config.strategy as StrategyType)}
+                      {getStrategyLabel(config.strategy as StrategyType, t)}
                     </span>
                   </div>
                   <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, lineHeight: 1.8, marginBottom: 12 }}>
-                    {getStrategyDesc(config.strategy as StrategyType)}
+                    {getStrategyDesc(config.strategy as StrategyType, t)}
                   </div>
                   {/* Strategy Params */}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {config.strategy === StrategyType.AUTO && (
                       <>
-                        <StrategyTag label="كشف النظام تلقائي" />
-                        <StrategyTag label="تبديل ذكي" />
-                        <StrategyTag label="مُوصى به" />
+                        <StrategyTag label={t('tagAutoDetect')} />
+                        <StrategyTag label={t('tagSmartSwitch')} />
+                        <StrategyTag label={t('tagRecommended')} />
                       </>
                     )}
                     {config.strategy === StrategyType.SCALPING && (
@@ -948,13 +950,13 @@ export default function AutonomousTraderPage() {
                         padding: '8px 16px',
                       }}
                     >
-                      تغيير الاستراتيجية
+                      {t('changeStrategy')}
                     </button>
                   )}
                 </div>
               ) : (
                 <div style={{ fontFamily: FONT_AR, fontSize: 12, color: T.text3, textAlign: 'center', padding: '20px 0' }}>
-                  قم بتفعيل الوكيل لاختيار استراتيجية
+                  {t('activateAgentToSelectStrategy')}
                 </div>
               )}
             </div>
@@ -966,7 +968,7 @@ export default function AutonomousTraderPage() {
               <div style={{ padding: 20 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Eye size={15} color="#FF9F43" />
-                  تحليل النظام (AUTO)
+                  {t('regimeAnalysis')}
                   <button
                     onClick={() => {
                       const sym = config?.symbols?.[0] || 'BTC/USDT'
@@ -979,7 +981,7 @@ export default function AutonomousTraderPage() {
                     }}
                   >
                     <RefreshCw size={10} />
-                    تحديث
+                    {t('refresh')}
                   </button>
                 </div>
 
@@ -1003,10 +1005,10 @@ export default function AutonomousTraderPage() {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontFamily: FONT_AR, fontSize: 14, fontWeight: 800, color: getRegimeColor(regimeInfo.regime) }}>
-                          {getRegimeLabel(regimeInfo.regime)}
+                          {getRegimeLabel(regimeInfo.regime, t)}
                         </div>
                         <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>
-                          ثقة: {regimeInfo.confidence}% • ADX: {regimeInfo.indicators?.adxProxy?.toFixed(0) || '—'} • زخم: {getMomentumLabel(regimeInfo.indicators?.momentumDirection)}
+                          {t('confidence')}: {regimeInfo.confidence}% • ADX: {regimeInfo.indicators?.adxProxy?.toFixed(0) || '—'} • {t('momentum')}: {getMomentumLabel(regimeInfo.indicators?.momentumDirection, t)}
                         </div>
                       </div>
                     </div>
@@ -1020,10 +1022,10 @@ export default function AutonomousTraderPage() {
                         marginBottom: 12,
                         display: 'flex', alignItems: 'center', gap: 10,
                       }}>
-                        <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>الاستراتيجية المختارة:</span>
+                        <span style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{t('selectedStrategy')}:</span>
                         <span style={{ color: T.accent, display: 'flex' }}>{getStrategyIcon(regimeInfo.currentStrategy)}</span>
                         <span style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: T.text }}>
-                          {getStrategyLabel(regimeInfo.currentStrategy)}
+                          {getStrategyLabel(regimeInfo.currentStrategy, t)}
                         </span>
                       </div>
                     )}
@@ -1032,7 +1034,7 @@ export default function AutonomousTraderPage() {
                     {regimeInfo.strategyScores && regimeInfo.strategyScores.length > 0 && (
                       <div>
                         <div style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 8 }}>
-                          ترتيب الاستراتيجيات
+                          {t('strategyRanking')}
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           {regimeInfo.strategyScores.slice(0, 5).map((score, i) => (
@@ -1049,7 +1051,7 @@ export default function AutonomousTraderPage() {
                               }}>#{i + 1}</span>
                               <span style={{ color: i === 0 ? T.accent : T.text3, display: 'flex' }}>{getStrategyIcon(score.strategy)}</span>
                               <span style={{ fontFamily: FONT_AR, fontSize: 11, fontWeight: i === 0 ? 700 : 400, color: i === 0 ? T.text : T.text2, flex: 1 }}>
-                                {getStrategyLabel(score.strategy)}
+                                {getStrategyLabel(score.strategy as StrategyType, t)}
                               </span>
                               <div style={{
                                 width: 60, height: 6, borderRadius: 3,
@@ -1079,16 +1081,16 @@ export default function AutonomousTraderPage() {
                       display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8,
                     }}>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>قوة الاتجاه</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>{t('trendStrength')}</div>
                         <div style={{ fontFamily: FONT_MONO, fontSize: 12, fontWeight: 800, color: T.text }}>{regimeInfo.indicators?.trendStrength ?? '—'}</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>تقلب</div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: getVolatilityColor(regimeInfo.indicators?.volatilityLevel) }}>{getVolatilityLabel(regimeInfo.indicators?.volatilityLevel)}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>{t('volatility')}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: getVolatilityColor(regimeInfo.indicators?.volatilityLevel) }}>{getVolatilityLabel(regimeInfo.indicators?.volatilityLevel, t)}</div>
                       </div>
                       <div style={{ textAlign: 'center' }}>
                         <div style={{ fontFamily: FONT_AR, fontSize: 8, color: T.text3 }}>EMA</div>
-                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: regimeInfo.indicators?.emaAlignment === 'BULLISH' ? T.green : regimeInfo.indicators?.emaAlignment === 'BEARISH' ? T.red : T.text3 }}>{getEMAAlignmentLabel(regimeInfo.indicators?.emaAlignment)}</div>
+                        <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 800, color: regimeInfo.indicators?.emaAlignment === 'BULLISH' ? T.green : regimeInfo.indicators?.emaAlignment === 'BEARISH' ? T.red : T.text3 }}>{getEMAAlignmentLabel(regimeInfo.indicators?.emaAlignment, t)}</div>
                       </div>
                     </div>
                   </div>
@@ -1098,8 +1100,8 @@ export default function AutonomousTraderPage() {
                     fontFamily: FONT_AR, fontSize: 11, color: T.text3,
                   }}>
                     <Brain size={24} style={{ marginBottom: 8, opacity: 0.3 }} />
-                    <div>اضغط "تحديث" لعرض تحليل النظام الحالي</div>
-                    <div style={{ fontSize: 9, marginTop: 4 }}>يحلل الوضع الحالي للسوق ويختار أفضل استراتيجية تلقائياً</div>
+                    <div>{t('pressRefreshForAnalysis')}</div>
+                    <div style={{ fontSize: 9, marginTop: 4 }}>{t('analyzesMarketAutoDesc')}</div>
                   </div>
                 )}
               </div>
@@ -1114,21 +1116,21 @@ export default function AutonomousTraderPage() {
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Timer size={15} color={T.accent} />
-                  سجل الأحداث
+                  {t('eventLog')}
                 </div>
                 <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: T.text3 }}>
-                  {filteredLogs.length} حدث
+                  {filteredLogs.length} {t('events')}
                 </span>
               </div>
 
               {/* FIX: Log Filter Buttons */}
               <div style={{ display: 'flex', gap: 4, marginBottom: 10, flexWrap: 'wrap' }}>
                 {([
-                  { key: 'all', label: 'الكل', color: T.text3 },
-                  { key: 'trade', label: 'صفقات', color: T.purple },
-                  { key: 'warning', label: 'تحذيرات', color: T.amber },
-                  { key: 'error', label: 'أخطاء', color: T.red },
-                  { key: 'info', label: 'معلومات', color: T.accent },
+                  { key: 'all', label: t('allDecisions'), color: T.text3 },
+                  { key: 'trade', label: t('trades'), color: T.purple },
+                  { key: 'warning', label: t('warnings'), color: T.amber },
+                  { key: 'error', label: t('errors'), color: T.red },
+                  { key: 'info', label: t('info'), color: T.accent },
                 ] as const).map(f => (
                   <button
                     key={f.key}
@@ -1153,8 +1155,8 @@ export default function AutonomousTraderPage() {
 
               <div style={{ flex: 1, overflowY: 'auto', maxHeight: 420, direction: 'ltr' }} className="custom-scrollbar">
                 {displayLogs.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3, direction: 'rtl' }}>
-                    لا توجد أحداث بعد — فعل الوكيل للبدء
+                  <div style={{ textAlign: 'center', padding: '40px 0', fontFamily: FONT_AR, fontSize: 12, color: T.text3, }}>
+                    {t('noEventsYet')}
                   </div>
                 ) : (
                   displayLogs.map((log, i) => (
@@ -1173,7 +1175,7 @@ export default function AutonomousTraderPage() {
                           : log.type === 'warning' ? T.amber
                           : log.type === 'trade' ? T.purple
                           : T.text2,
-                        direction: 'rtl',
+                        direction: 'ltr',
                       }}>
                         {log.msg}
                       </span>
@@ -1192,7 +1194,7 @@ export default function AutonomousTraderPage() {
                   }}
                 >
                   {expandedLog ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                  {expandedLog ? 'عرض أقل' : `عرض الكل (${filteredLogs.length})`}
+                  {expandedLog ? t('showLess') : `${t('showAll')} (${filteredLogs.length})`}
                 </button>
               )}
             </div>
@@ -1214,8 +1216,8 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, color: T.text3,
           }}>
             <ArrowUpDown size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div style={{ fontSize: 14, fontWeight: 700 }}>لا توجد مراكز مفتوحة</div>
-            <div style={{ fontSize: 11, marginTop: 6 }}>سيتم عرض المراكز هنا عندما يفتح الوكيل صفقات</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{t('noOpenPositions')}</div>
+            <div style={{ fontSize: 11, marginTop: 6 }}>{t('positionsWillAppearDesc')}</div>
           </div>
         </GlassCard>
       )
@@ -1252,9 +1254,9 @@ export default function AutonomousTraderPage() {
                     <span style={{
                       fontFamily: FONT_AR, fontSize: 9, padding: '2px 6px', borderRadius: 4,
                       background: `${T.purple}15`, color: T.purple,
-                    }}>{getStrategyLabel(pos.strategy as StrategyType)}</span>
+                    }}>{getStrategyLabel(pos.strategy as StrategyType, t)}</span>
                   </div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3, direction: 'rtl' }}>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3, }}>
                     {pos.reasoning?.substring(0, 80)}{pos.reasoning?.length > 80 ? '...' : ''}
                   </div>
                 </div>
@@ -1298,8 +1300,8 @@ export default function AutonomousTraderPage() {
                 {/* Confidence + Risk */}
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ display: 'flex', gap: 4 }}>
-                    <MiniGauge value={pos.confidence} max={100} color={T.accent} label="ثقة" />
-                    <MiniGauge value={pos.riskScore} max={100} color={T.amber} label="خطر" />
+                    <MiniGauge value={pos.confidence} max={100} color={T.accent} label={t('confidence')} />
+                    <MiniGauge value={pos.riskScore} max={100} color={T.amber} label={t('risk')} />
                   </div>
                 </div>
               </div>
@@ -1322,8 +1324,8 @@ export default function AutonomousTraderPage() {
             fontFamily: FONT_AR, color: T.text3,
           }}>
             <BarChart3 size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-            <div style={{ fontSize: 14, fontWeight: 700 }}>لا توجد بيانات أداء</div>
-            <div style={{ fontSize: 11, marginTop: 6 }}>ستظهر الإحصائيات بعد تنفيذ أول صفقة</div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>{t('noPerformanceData')}</div>
+            <div style={{ fontSize: 11, marginTop: 6 }}>{t('performanceWillAppearDesc')}</div>
           </div>
         </GlassCard>
       )
@@ -1338,7 +1340,7 @@ export default function AutonomousTraderPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>إجمالي الربح/الخسارة</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('totalPnl')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: pnlColor }}>
                 {formatUSD(performance.totalPnL)}
               </div>
@@ -1346,18 +1348,18 @@ export default function AutonomousTraderPage() {
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>نسبة الفوز</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('winRate')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: winRateColor }}>
                 {performance.winRate.toFixed(1)}%
               </div>
               <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 4 }}>
-                {performance.winningTrades} فوز / {performance.losingTrades} خسارة
+                {performance.winningTrades} {t('wins')} / {performance.losingTrades} {t('losses')}
               </div>
             </div>
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>عامل الربح</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('profitFactorLabel')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: performance.profitFactor >= 1.5 ? T.green : T.amber }}>
                 {performance.profitFactor.toFixed(2)}
               </div>
@@ -1365,7 +1367,7 @@ export default function AutonomousTraderPage() {
           </GlassCard>
           <GlassCard>
             <div style={{ padding: 20, textAlign: 'center' }}>
-              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>أقصى تراجع</div>
+              <div style={{ fontFamily: FONT_AR, fontSize: 11, color: T.text3, marginBottom: 8 }}>{t('maxDrawdownLabel')}</div>
               <div style={{ fontFamily: FONT_MONO, fontSize: 24, fontWeight: 900, color: T.red }}>
                 {performance.maxDrawdownPercent.toFixed(1)}%
               </div>
@@ -1381,18 +1383,18 @@ export default function AutonomousTraderPage() {
           <div style={{ padding: 20 }}>
             <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Gauge size={15} color={T.accent} />
-              مقاييس تفصيلية
+              {t('detailMetrics')}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px 24px' }}>
-              <DetailMetric label="إجمالي الصفقات" value={String(performance.totalTrades)} />
-              <DetailMetric label="متوسط الربح" value={formatUSD(performance.averageWin)} color={T.green} />
-              <DetailMetric label="متوسط الخسارة" value={formatUSD(performance.averageLoss)} color={T.red} />
-              <DetailMetric label="أفضل صفقة" value={formatUSD(performance.bestTrade)} color={T.green} />
-              <DetailMetric label="أسوأ صفقة" value={formatUSD(performance.worstTrade)} color={T.red} />
-              <DetailMetric label="نسبة شارب" value={performance.sharpeRatio.toFixed(2)} color={performance.sharpeRatio >= 1 ? T.green : T.amber} />
-              <DetailMetric label="فوز متتالي" value={String(performance.consecutiveWins)} color={T.green} />
-              <DetailMetric label="خسارة متتالية" value={String(performance.consecutiveLosses)} color={T.red} />
-              <DetailMetric label="متوسط مدة الاحتفاظ" value={`${Math.round(performance.averageHoldingTime)} دقيقة`} />
+              <DetailMetric label={t('totalTrades')} value={String(performance.totalTrades)} />
+              <DetailMetric label={t('avgProfit')} value={formatUSD(performance.averageWin)} color={T.green} />
+              <DetailMetric label={t('avgLoss')} value={formatUSD(performance.averageLoss)} color={T.red} />
+              <DetailMetric label={t('bestTrade')} value={formatUSD(performance.bestTrade)} color={T.green} />
+              <DetailMetric label={t('worstTrade')} value={formatUSD(performance.worstTrade)} color={T.red} />
+              <DetailMetric label={t('sharpeRatio')} value={performance.sharpeRatio.toFixed(2)} color={performance.sharpeRatio >= 1 ? T.green : T.amber} />
+              <DetailMetric label={t('consecutiveWins')} value={String(performance.consecutiveWins)} color={T.green} />
+              <DetailMetric label={t('consecutiveLoss')} value={String(performance.consecutiveLosses)} color={T.red} />
+              <DetailMetric label={t('avgHoldDuration')} value={`${Math.round(performance.averageHoldingTime)} ${t('minutes')}`} />
             </div>
           </div>
         </GlassCard>
@@ -1401,7 +1403,7 @@ export default function AutonomousTraderPage() {
         <GlassCard>
           <div style={{ padding: 20 }}>
             <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 14 }}>
-              توزيع الصفقات
+              {t('tradeDistribution')}
             </div>
             <div style={{ display: 'flex', height: 28, borderRadius: 8, overflow: 'hidden', direction: 'ltr' }}>
               {performance.totalTrades > 0 && (
@@ -1413,7 +1415,7 @@ export default function AutonomousTraderPage() {
                     fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#000',
                     transition: 'width 0.5s ease',
                   }}>
-                    {performance.winningTrades} فوز
+                    {performance.winningTrades} {t('wins')}
                   </div>
                   <div style={{
                     width: `${(performance.losingTrades / performance.totalTrades) * 100}%`,
@@ -1422,7 +1424,7 @@ export default function AutonomousTraderPage() {
                     fontFamily: FONT_MONO, fontSize: 10, fontWeight: 800, color: '#fff',
                     transition: 'width 0.5s ease',
                   }}>
-                    {performance.losingTrades} خسارة
+                    {performance.losingTrades} {t('losses')}
                   </div>
                 </>
               )}
@@ -1519,11 +1521,11 @@ export default function AutonomousTraderPage() {
     const settingSource = systemStatus?.source ?? 'env_var'
 
     const SETTINGS_TABS = [
-      { id: 'general' as const, label: 'عام', icon: <Settings2 size={12} /> },
-      { id: 'risk' as const, label: 'المخاطر', icon: <Shield size={12} /> },
-      { id: 'scalping' as const, label: 'سكالبينغ', icon: <Zap size={12} /> },
-      { id: 'swing' as const, label: 'سوينغ', icon: <TrendingUp size={12} /> },
-      { id: 'grid' as const, label: 'شبكة', icon: <Layers size={12} /> },
+      { id: 'general' as const, label: t('tabOverview'), icon: <Settings2 size={12} /> },
+      { id: 'risk' as const, label: t('risk'), icon: <Shield size={12} /> },
+      { id: 'scalping' as const, label: t('strategyScalping'), icon: <Zap size={12} /> },
+      { id: 'swing' as const, label: t('strategySwing'), icon: <TrendingUp size={12} /> },
+      { id: 'grid' as const, label: t('strategyGrid'), icon: <Layers size={12} /> },
     ]
 
     return (
@@ -1546,20 +1548,20 @@ export default function AutonomousTraderPage() {
               </div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, color: globalAutoTrading ? T.green : T.red, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {globalAutoTrading ? 'التداول الذاتي مفعّل' : 'التداول الذاتي معطّل'}
+                  {globalAutoTrading ? t('autoTradingEnabled') : t('autoTradingDisabled')}
                   <span style={{
                     fontSize: 9, padding: '2px 6px', borderRadius: 6,
                     background: settingSource === 'database' ? `${T.accent}15` : `${T.amber}15`,
                     color: settingSource === 'database' ? T.accent : T.amber,
                     fontFamily: FONT_AR, fontWeight: 600,
                   }}>
-                    {settingSource === 'database' ? 'من قاعدة البيانات' : 'من متغيرات البيئة'}
+                    {settingSource === 'database' ? t('fromDatabase') : t('fromEnv')}
                   </span>
                 </div>
                 <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 3 }}>
                   {globalAutoTrading
-                    ? 'يمكن تفعيل الوكيل — الإعدادات محفوظة في قاعدة البيانات ويمكن التحكم بها من هنا'
-                    : 'يجب تفعيل التداول الذاتي أولاً لكي يعمل الوكيل — اضغط الزر للتفعيل'
+                    ? t('canEnableAgent')
+                    : t('mustEnableAutoTrading')
                   }
                 </div>
               </div>
@@ -1578,7 +1580,7 @@ export default function AutonomousTraderPage() {
                 flexShrink: 0,
               }}
             >
-              {globalAutoTrading ? 'إيقاف' : 'تفعيل'}
+              {globalAutoTrading ? tc('deactivate') : tc('activate')}
             </button>
           </div>
         </GlassCard>
@@ -1611,15 +1613,15 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Settings2 size={15} color={T.accent} />
-                إعدادات عامة
+                {t('generalSettings')}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 {/* Auto Trading Toggle */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px solid ${T.border}` }}>
                   <div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>تفعيل التداول الذاتي</div>
-                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>السماح للوكيل بتنفيذ الصفقات تلقائياً</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{t('enableAutoTrading')}</div>
+                    <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3, marginTop: 2 }}>{t('allowAgentAutoDesc')}</div>
                   </div>
                   <button
                     onClick={() => handleSettingChange('autoTradingEnabled', !localSettings.autoTradingEnabled)}
@@ -1643,13 +1645,13 @@ export default function AutonomousTraderPage() {
 
                 {/* Default Strategy */}
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الاستراتيجية الافتراضية</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultStrategy')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {[
                       // FIX: SCALPING removed — it belongs to the Smart Executor
-                      { value: 'AUTO', label: 'تلقائي', icon: <Brain size={12} /> },
-                      { value: 'SWING', label: 'سوينغ', icon: <TrendingUp size={12} /> },
-                      { value: 'GRID', label: 'شبكة', icon: <Layers size={12} /> },
+                      { value: 'AUTO', label: t('strategyAuto'), icon: <Brain size={12} /> },
+                      { value: 'SWING', label: t('strategySwing'), icon: <TrendingUp size={12} /> },
+                      { value: 'GRID', label: t('strategyGrid'), icon: <Layers size={12} /> },
                     ].map(s => (
                       <button
                         key={s.value}
@@ -1675,8 +1677,8 @@ export default function AutonomousTraderPage() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                     <div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>رصيد التداول الورقي</div>
-                      <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>الرصيد الافتراضي عند عدم وجود محفظة</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text }}>{t('paperTradingBalance')}</div>
+                      <div style={{ fontFamily: FONT_AR, fontSize: 10, color: T.text3 }}>{t('paperBalanceDesc')}</div>
                     </div>
                     <div style={{
                       fontFamily: FONT_MONO, fontSize: 16, fontWeight: 900, color: T.green,
@@ -1704,7 +1706,7 @@ export default function AutonomousTraderPage() {
 
                 {/* Default Symbols */}
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الرموز الافتراضية</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('defaultSymbols')}</div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {localSettings.defaultSymbols.map((sym: string) => (
                       <span key={sym} style={{
@@ -1731,34 +1733,34 @@ export default function AutonomousTraderPage() {
               <div style={{ padding: 20 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <Shield size={15} color={T.amber} />
-                  معلمات المخاطر
+                  {t('riskParams')}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                   <RiskSlider
-                    label="حجم المركز الأقصى"
-                    subLabel="نسبة مئوية من رأس المال لكل صفقة"
+                    label={t('maxPositionSize')}
+                    subLabel={t('riskCapitalPercentDesc')}
                     value={localSettings.maxPositionSizePercent}
                     min={0.5} max={10} step={0.5} unit="%" color={T.accent}
                     onChange={(v) => handleSettingChange('maxPositionSizePercent', v)}
                   />
                   <RiskSlider
-                    label="حد الخسارة اليومية"
-                    subLabel="يُوقف الوكيل تلقائياً عند بلوغه"
+                    label={t('dailyLossLimit')}
+                    subLabel={t('autoStopOnLimitDesc')}
                     value={localSettings.maxDailyLossPercent}
                     min={1} max={20} step={0.5} unit="%" color={T.red}
                     onChange={(v) => handleSettingChange('maxDailyLossPercent', v)}
                   />
                   <RiskSlider
-                    label="عدد المراكز المفتوحة الأقصى"
-                    subLabel="أقصى عدد صفقات متزامنة"
+                    label={t('maxConcurrentTrades')}
+                    subLabel={t('maxConcurrentTradesDesc')}
                     value={localSettings.maxOpenPositions}
                     min={1} max={20} step={1} unit="" color={T.purple}  // V143: max increased from 15 to 20
                     onChange={(v) => handleSettingChange('maxOpenPositions', v)}
                   />
                   <RiskSlider
-                    label="نسبة المخاطرة لكل صفقة"
-                    subLabel="نسبة رأس المال المُخاطَر"
+                    label={t('riskPerTradePercent')}
+                    subLabel={t('riskCapitalPercent')}
                     value={localSettings.riskPerTradePercent}
                     min={0.5} max={5} step={0.25} unit="%" color={T.green}
                     onChange={(v) => handleSettingChange('riskPerTradePercent', v)}
@@ -1772,18 +1774,18 @@ export default function AutonomousTraderPage() {
               <div style={{ padding: 20 }}>
                 <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <AlertTriangle size={15} color={T.red} />
-                  قواعد السلامة
+                  {t('safetyRules')}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    { icon: <Shield size={13} />, title: 'وقف خسارة إلزامي', desc: 'لا يمكن فتح صفقة بدون تحديد وقف الخسارة', color: T.green },
-                    { icon: <DollarSign size={13} />, title: 'حد خسارة يومي', desc: 'إيقاف تلقائي عند تجاوز الحد المحدد', color: T.amber },
-                    { icon: <XCircle size={13} />, title: 'بدون سحب', desc: 'الوكيل لا يملك صلاحية السحب — تداول فقط', color: T.red },
-                    { icon: <CheckCircle2 size={13} />, title: 'تدقيق كامل', desc: 'كل قرار يتم تسجيله في سجل المراجعة', color: T.accent },
-                    { icon: <AlertTriangle size={13} />, title: 'خسائر متتالية', desc: '5 خسائر متتالية → إيقاف مؤقت تلقائي', color: T.amber },
-                    { icon: <Flame size={13} />, title: 'إيقاف طارئ', desc: 'إغلاق فوري لجميع المراكز عند الطوارئ', color: T.red },
-                    { icon: <RefreshCw size={13} />, title: 'نسبة مخاطرة/عائد', desc: 'الحد الأدنى 1:1.5 — لا صفقات بأقل من ذلك', color: T.accent },
-                    { icon: <ArrowUpDown size={13} />, title: 'بدون تكرار', desc: 'مركز واحد فقط لكل رمز', color: T.purple },
+                    { icon: <Shield size={13} />, title: t('mandatoryStopLoss'), desc: t('mandatorySLDesc'), color: T.green },
+                    { icon: <DollarSign size={13} />, title: t('dailyLossLimit'), desc: t('autoStopOnLimitDesc'), color: T.amber },
+                    { icon: <XCircle size={13} />, title: t('noWithdrawal'), desc: t('noWithdrawalDesc'), color: T.red },
+                    { icon: <CheckCircle2 size={13} />, title: t('fullAudit'), desc: t('auditLogDesc'), color: T.accent },
+                    { icon: <AlertTriangle size={13} />, title: t('consecutiveLosses'), desc: t('consecutiveLossAutoPause'), color: T.amber },
+                    { icon: <Flame size={13} />, title: t('emergencyStop'), desc: t('instantCloseEmergency'), color: T.red },
+                    { icon: <RefreshCw size={13} />, title: t('riskRewardRatio'), desc: t('minRiskRewardDesc'), color: T.accent },
+                    { icon: <ArrowUpDown size={13} />, title: t('noRepeat'), desc: t('onePositionPerSymbol'), color: T.purple },
                   ].map((rule, i) => (
                     <div key={i} style={{
                       display: 'flex', gap: 10, padding: '10px 12px',
@@ -1809,11 +1811,11 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Zap size={15} color={T.amber} />
-                معلمات السكالبينغ
+                {t('scalpingParams')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الإطار الزمني</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {['1m', '3m', '5m', '15m', '30m'].map(tf => (
                       <button
@@ -1834,17 +1836,17 @@ export default function AutonomousTraderPage() {
                   </div>
                 </div>
                 <RiskSlider
-                  label="جني الأرباح (نقاط)" subLabel="الهدف الأقصى للصفقة"
+                  label={t('takeProfitPips')} subLabel={t('maxTradeTarget')}
                   value={localSettings.scalpingTakeProfitPips} min={5} max={50} step={1} unit="" color={T.green}
                   onChange={(v) => handleSettingChange('scalpingTakeProfitPips', v)}
                 />
                 <RiskSlider
-                  label="وقف الخسارة (نقاط)" subLabel="الحد الأقصى للخسارة في الصفقة"
+                  label={t('stopLossPips')} subLabel={t('maxLossPerTrade')}
                   value={localSettings.scalpingStopLossPips} min={3} max={30} step={1} unit="" color={T.red}
                   onChange={(v) => handleSettingChange('scalpingStopLossPips', v)}
                 />
                 <RiskSlider
-                  label="الفرق الأقصى (سبيريد)" subLabel="أقصى فرق مسموح بين العرض والطلب"
+                  label={t('maxSpread')} subLabel={t('maxSpreadDesc')}
                   value={localSettings.scalpingMaxSpread} min={1} max={20} step={1} unit="" color={T.amber}
                   onChange={(v) => handleSettingChange('scalpingMaxSpread', v)}
                 />
@@ -1859,11 +1861,11 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <TrendingUp size={15} color={T.accent} />
-                معلمات السوينغ
+                {t('swingParams')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <div>
-                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>الإطار الزمني</div>
+                  <div style={{ fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text, marginBottom: 8 }}>{t('timeframe')}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     {['15m', '30m', '1h', '4h', '1d'].map(tf => (
                       <button
@@ -1884,12 +1886,12 @@ export default function AutonomousTraderPage() {
                   </div>
                 </div>
                 <RiskSlider
-                  label="فترة الاحتفاظ (ساعات)" subLabel="المدة المتوقعة للاحتفاظ بالصفقة"
-                  value={localSettings.swingHoldingPeriodHours} min={4} max={168} step={4} unit="ساعة" color={T.accent}
+                  label={t('holdingPeriodHours')} subLabel={t('expectedHoldDuration')}
+                  value={localSettings.swingHoldingPeriodHours} min={4} max={168} step={4} unit={t('hoursUnit')} color={T.accent}
                   onChange={(v) => handleSettingChange('swingHoldingPeriodHours', v)}
                 />
                 <RiskSlider
-                  label="فترة الاتجاه (شمعات)" subLabel="عدد الشمعات لتحليل الاتجاه"
+                  label={t('trendPeriodCandles')} subLabel={t('candlesForTrend')}
                   value={localSettings.swingTrendLookback} min={10} max={100} step={5} unit="" color={T.purple}
                   onChange={(v) => handleSettingChange('swingTrendLookback', v)}
                 />
@@ -1904,21 +1906,21 @@ export default function AutonomousTraderPage() {
             <div style={{ padding: 20 }}>
               <div style={{ fontFamily: FONT_AR, fontSize: 13, fontWeight: 800, marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Layers size={15} color={T.purple} />
-                معلمات الشبكة
+                {t('gridParams')}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                 <RiskSlider
-                  label="عدد المستويات" subLabel="عدد نقاط الشراء/البيع في الشبكة"
+                  label={t('gridLevelsCount')} subLabel={t('gridBuySellPoints')}
                   value={localSettings.gridLevels} min={2} max={20} step={1} unit="" color={T.purple}
                   onChange={(v) => handleSettingChange('gridLevels', v)}
                 />
                 <RiskSlider
-                  label="المسافة بين المستويات" subLabel="النسبة المئوية بين كل مستوى"
+                  label={t('gridSpacing')} subLabel={t('spacingPercentage')}
                   value={localSettings.gridSpacingPercent} min={0.1} max={5} step={0.1} unit="%" color={T.accent}
                   onChange={(v) => handleSettingChange('gridSpacingPercent', v)}
                 />
                 <RiskSlider
-                  label="الكمية لكل مستوى" subLabel="0 = حساب تلقائي حسب المخاطر"
+                  label={t('quantityPerLevel')} subLabel={t('autoCalculateRisk')}
                   value={localSettings.gridQuantityPerLevel} min={0} max={1} step={0.001} unit="" color={T.green}
                   onChange={(v) => handleSettingChange('gridQuantityPerLevel', v)}
                 />
@@ -1943,7 +1945,7 @@ export default function AutonomousTraderPage() {
             }}
           >
             <CheckCircle2 size={16} />
-            حفظ جميع الإعدادات
+            {tc('save')}
           </button>
         )}
       </div>

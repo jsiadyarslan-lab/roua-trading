@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { Eye, Shield, Star, TrendingUp, ArrowUpRight, Activity, AlertTriangle, UserCheck } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T } from '@/lib/unified-tokens'
@@ -19,6 +20,8 @@ type FilterTab = 'أداء' | 'مخاطر' | 'شعبية'
 
 export default function AccountMonitoringPage() {
   const router = useRouter()
+  const t = useTranslations('dashboard.copyTrading')
+  const tc = useTranslations('common')
   const [followingTraders, setFollowingTraders] = useState<Set<string>>(new Set())
   const [activeFilter, setActiveFilter] = useState<FilterTab>('أداء')
 
@@ -58,7 +61,7 @@ export default function AccountMonitoringPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
       {/* Demo Disclaimer Banner */}
       <div style={{
         background: `${T.amber}12`, border: `1px solid ${T.amber}35`,
@@ -66,9 +69,9 @@ export default function AccountMonitoringPage() {
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <AlertTriangle size={18} color={T.amber} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>بيانات تجريبية</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.amber }}>{tc('demoData')}</span>
         <span style={{ fontSize: 12, color: T.text2 }}>
-          — هذه بيانات تجريبية لأغراض العرض فقط. لا تمثل نتائج تداول حقيقية.
+          — {tc('disclaimer')}
         </span>
       </div>
 
@@ -79,9 +82,9 @@ export default function AccountMonitoringPage() {
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <Eye size={18} color={T.cyan} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>متابعة الأداء</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>{t('title')}</span>
         <span style={{ fontSize: 12, color: T.text2 }}>
-          — تابع أداء الحسابات المربوطة واستفد من رؤى تحليلية. المنصة لا تنفذ صفقات نيابة عنك بل توفر بيانات وتحليلات فقط.
+          — {t('subtitle')}
         </span>
       </div>
 
@@ -90,7 +93,7 @@ export default function AccountMonitoringPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <Eye size={20} color={T.green} />
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>متابعة الحسابات</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{t('title')}</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.amber}18`, color: T.amber,
@@ -98,7 +101,7 @@ export default function AccountMonitoringPage() {
             }}>DEMO</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            تابع أداء أفضل الحسابات المربوطة واحصل على رؤى تحليلية متقدمة لمساعدتك في اتخاذ قراراتك.
+            {t('subtitle')}
           </p>
         </div>
         <button
@@ -112,7 +115,7 @@ export default function AccountMonitoringPage() {
           onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text }}
         >
-          إدارة المحفظة <ArrowUpRight size={14} />
+          {tc('portfolio')} <ArrowUpRight size={14} />
         </button>
       </div>
 

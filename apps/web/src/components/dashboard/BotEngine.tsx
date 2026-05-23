@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
@@ -29,6 +30,8 @@ type SmartSignalLike = {
 }
 
 export function BotEngine() {
+  const t = useTranslations('dashboard.bot')
+  const tc = useTranslations('common')
   const { isOn, addLog, settings, setEngineState, patchStats, syncFromDB } = useBotStore()
   const addPaperTrade = usePaperTradesStore((state) => state.addTrade)
   const updatePaperTradePrice = usePaperTradesStore((state) => state.updatePrice)
@@ -68,7 +71,7 @@ export function BotEngine() {
     if (isOn) {
       const mode = PAPER_TRADING_MODE ? '[Paper Trading 📄]' : '[Live Trading ⚡]'
       const aiMode = settings.useAIConsensus ? '[AI Consensus 🧠]' : '[Technical Only 📊]'
-      addLog(`${mode} ${aiMode} تم تسليح المحرك — استراتيجية: ${settings.strategy}`, 'info')
+      addLog(t('engineArmed', { mode: PAPER_TRADING_MODE ? t('paperTrading') : t('liveTrading'), aiMode: settings.useAIConsensus ? t('aiConsensus') : t('technicalOnly'), strategy: settings.strategy }), 'info')
     }
   }, [isOn, hydrated, settings.strategy, settings.useAIConsensus, addLog, setEngineState])
 
@@ -159,10 +162,10 @@ export function BotEngine() {
               
               if (slNotMoved) {
                 usePaperTradesStore.getState().updateTrade(trade.id, { sl: breakEvenPrice })
-                addLog(`[حماية الأرباح] تم تأمين صفقة ${trade.symbol} ونقل وقف الخسارة إلى نقطة الدخول (Break-Even)! 🛡️`, 'info')
+                addLog(t('profitProtectionLog', { symbol: trade.symbol }), 'info')
                 useTabAlertStore.getState().pushAlert('bot', {
                   action: 'BUY',
-                  label: `🛡️ تأمين ${trade.symbol}`,
+                  label: t('securePosition', { symbol: trade.symbol }),
                   color: '#0A84FF',
                 })
               }
@@ -193,7 +196,7 @@ export function BotEngine() {
         const currentSettings = useBotStore.getState().settings
         const maxSessionLoss = currentSettings.maxDailyLoss
         if (currentStats.sessionLoss <= maxSessionLoss) {
-          addLog(`[الحماية] تم إيقاف دخول صفقات جديدة بسبب تجاوز حد خسارة الجلسة (${currentStats.sessionLoss.toFixed(0)}$ / الحد: ${maxSessionLoss.toFixed(0)}$)`, 'warn')
+          addLog(t('sessionLossLimit', { loss: currentStats.sessionLoss.toFixed(0), limit: maxSessionLoss.toFixed(0) }), 'warn')
           setEngineState('cooldown')
           return
         }
@@ -201,7 +204,7 @@ export function BotEngine() {
         const recentExecutions = executionTimestampsRef.current.filter((time) => Date.now() - time < 60 * 60 * 1000)
         executionTimestampsRef.current = recentExecutions
         if (recentExecutions.length >= MAX_TRADES_PER_HOUR) {
-          addLog('[الحماية] تم الوصول إلى الحد الأقصى للصفقات خلال الساعة', 'warn')
+          addLog(t('tradeRateLimit'), 'warn')
           setEngineState('cooldown')
           return
         }
@@ -229,7 +232,7 @@ export function BotEngine() {
             // Log market-closed message at most once per symbol per 10 minutes to avoid spam
             const lastLogTime = lastMarketClosedLogRef.current[signal.pair] || 0
             if (Date.now() - lastLogTime > 10 * 60 * 1000) {
-              addLog(`[حماية السوق] ${signal.pair} — ${marketStatus.reason} — تم تخطي الإشارة`, 'warn')
+              addLog(t('marketClosedSkip', { symbol: signal.pair, reason: marketStatus.reason || '' }), 'warn')
               lastMarketClosedLogRef.current[signal.pair] = Date.now()
             }
             continue
@@ -258,29 +261,29 @@ export function BotEngine() {
           // ═══════════════════════════════════════════════════
           if (settings.useAIConsensus) {
             setEngineState('scanning')
-            addLog(`[AI Council] جاري استشارة النماذج لـ ${signal.pair}...`, 'info')
+            addLog(t('councilConsulting', { symbol: signal.pair }), 'info')
 
             const councilResult = await consultAICouncil(signal.pair)
 
             if (!councilResult) {
-              addLog(`[AI Council] ⚠️ المجلس غير متاح — تخطي ${signal.pair} للسلامة`, 'warn')
+              addLog(t('councilUnavailable', { symbol: signal.pair }), 'warn')
               continue
             }
 
             const aiDirection = councilResult.recommendation === 'BUY' ? 'buy' : councilResult.recommendation === 'SELL' ? 'sell' : 'neutral'
-            const aiSource = councilResult.isRealAI ? '🧠 AI حقيقي' : '📊 تحليل فني'
+            const aiSource = councilResult.isRealAI ? t('aiConsensus') : t('technicalOnly')
 
             if (councilResult.recommendation === 'HOLD') {
-              addLog(`[AI Council] ${aiSource} — المجلس يوصي بالانتظار على ${signal.pair} (إجماع ${councilResult.consensusScore}%)`, 'warn')
+              addLog(t('councilHold', { source: aiSource, symbol: signal.pair, score: councilResult.consensusScore }), 'warn')
               continue
             }
 
             if (aiDirection !== signal.dir) {
-              addLog(`[AI Council] ${aiSource} — تعارض: السكانر=${signal.dir} لكن المجلس=${councilResult.recommendation} — تخطي ${signal.pair}`, 'warn')
+              addLog(t('councilConflict', { source: aiSource, scanner: signal.dir, council: councilResult.recommendation, symbol: signal.pair }), 'warn')
               continue
             }
 
-            addLog(`[AI Council] ${aiSource} — ✅ المجلس يؤكد ${councilResult.recommendation} على ${signal.pair} (إجماع ${councilResult.consensusScore}%)`, 'buy')
+            addLog(t('councilConfirm', { source: aiSource, direction: councilResult.recommendation, symbol: signal.pair, score: councilResult.consensusScore }), 'buy')
           }
 
           setEngineState('entering')
@@ -295,13 +298,13 @@ export function BotEngine() {
         if (executedCount === 0) {
           if (marketClosedCount > 0 && marketClosedCount === signals.length) {
             // All signals were for closed markets — don't spam, just note it once
-            addLog(`[حماية السوق] جميع الأسواق مغلقة حالياً — سيتم استئناف التداول عند الافتتاح`, 'warn')
+            addLog(t('allMarketsClosed'), 'warn')
           } else {
-            addLog(`[تحليل] لا توجد فرص منسجمة مع ${settings.useAIConsensus ? 'إجماع AI و' : ''}سياسة البوت الآن (${new Date().toLocaleTimeString('ar-SA')})`, 'info')
+            addLog(t('noAlignedOpportunities', { mode: settings.useAIConsensus ? 'AI ' : '', time: new Date().toLocaleTimeString() }), 'info')
           }
           setEngineState('armed')
         } else {
-          addLog(`[تنفيذ آلي] تم فتح ${executedCount} صفقة من محرك ${settings.useAIConsensus ? 'AI + السكانر' : 'السكانر'}`, 'buy')
+          addLog(t('autoExecuted', { count: executedCount, engine: settings.useAIConsensus ? 'AI + Scanner' : 'Scanner' }), 'buy')
           setEngineState('cooldown')
           window.setTimeout(() => {
             if (useBotStore.getState().isOn) setEngineState('armed')
@@ -309,7 +312,7 @@ export function BotEngine() {
         }
       } catch (error) {
         console.error('[BotEngine] scan failed', error)
-        addLog('[خطأ] فشل البوت في قراءة طبقة الإشارات الموحدة', 'warn')
+        addLog(t('scanFailed'), 'warn')
         setEngineState('armed')
       } finally {
         isBusy = false
@@ -374,7 +377,7 @@ export function BotEngine() {
     const lastExecutedAt = lastExecutionRef.current[executionKey] || 0
     const cooldownMs = 5 * 60 * 1000 // FIX: 5 minutes instead of 1 minute
     if (Date.now() - lastExecutedAt < cooldownMs) {
-      addLog(`[حماية] تبريد ${signal.pair} — آخر تنفيذ منذ ${Math.round((Date.now() - lastExecutedAt) / 1000)}ث`, 'warn')
+      addLog(t('cooldownLog', { symbol: signal.pair, seconds: Math.round((Date.now() - lastExecutedAt) / 1000) }), 'warn')
       return false
     }
 
@@ -406,7 +409,7 @@ export function BotEngine() {
       return (isPosLong && signal.dir === 'buy') || (!isPosLong && signal.dir === 'sell')
     })
     if (hasApiDuplicate) {
-      addLog(`[حماية] يوجد مركز مفتوح بالفعل على ${signal.pair} — تخطي لتجنب التكرار`, 'warn')
+      addLog(t('duplicatePosition', { symbol: signal.pair }), 'warn')
       return false
     }
 
@@ -423,7 +426,7 @@ export function BotEngine() {
     // at $0.00 / $0.01 that appear when APIs fail.
     // ═══════════════════════════════════════════════════
     if (price < 1) {
-      addLog(`[حماية] تم رفض صفقة ${signal.pair} بسعر غير واقعي $${price.toFixed(2)}`, 'warn')
+      addLog(t('unrealisticPrice', { symbol: signal.pair, price: price.toFixed(2) }), 'warn')
       return
     }
 
@@ -436,7 +439,7 @@ export function BotEngine() {
     const account = usePositionsStore.getState().account
     const buyingPower = Number(account?.buyingPower) || 0
     if (buyingPower <= 0) {
-      addLog(`[حماية] لا يمكن تحديد القدرة الشرائية — تخطي ${signal.pair}`, 'warn')
+      addLog(t('noBuyingPower', { symbol: signal.pair }), 'warn')
       return
     }
     const tradeAmount = Math.max(10, buyingPower * (settings.riskPct / 100))
@@ -449,7 +452,7 @@ export function BotEngine() {
     // ═══════════════════════════════════════════════════
     const tradeValue = qty * price
     if (tradeValue < 1) {
-      addLog(`[حماية] تم رفض صفقة ${signal.pair} بقيمة صغيرة جداً $${tradeValue.toFixed(2)}`, 'warn')
+      addLog(t('tinyTrade', { symbol: signal.pair, value: tradeValue.toFixed(2) }), 'warn')
       return
     }
     const isBuy = signal.dir === 'buy'
@@ -517,7 +520,7 @@ export function BotEngine() {
       })
 
       addLog(
-        `[دخول] ${isBuy ? 'شراء' : 'بيع'} ${signal.pair} @ $${price.toFixed(2)} | ثقة ${confidence}% | ${strategySource === 'ai-consensus' ? '🧠 AI إجماع' : '📊 فني'} | ${signal.reasons?.[0] || 'إشارة موحدة'}`,
+        t('entryLog', { side: isBuy ? tc('buy') : tc('sell'), symbol: signal.pair, price: price.toFixed(2), confidence, source: strategySource === 'ai-consensus' ? t('aiConsensus') : t('technicalOnly'), reason: signal.reasons?.[0] || '' }),
         isBuy ? 'buy' : 'sell'
       )
 
@@ -532,8 +535,8 @@ export function BotEngine() {
         source: 'bot',
         priority: confidence >= 80 ? 'high' : 'medium',
         action: isBuy ? 'BUY' : 'SELL',
-        title: `البوت فتح مركز ${isBuy ? 'شراء' : 'بيع'} على ${signal.pair}`,
-        body: `${strategySource === 'ai-consensus' ? '🧠 إجماع AI' : '📊 فني'} · ${signal.reasons?.[0] || 'إشارة scanner-engine'} · ثقة ${confidence}%`,
+        title: t('botOpenedPosition', { side: isBuy ? tc('buy') : tc('sell'), symbol: signal.pair }),
+        body: `${strategySource === 'ai-consensus' ? t('aiConsensus') : t('technicalOnly')} · ${signal.reasons?.[0] || ''} · ${tc('confidence')} ${confidence}%`,
         pair: signal.pair,
         price,
         confidence,
@@ -541,7 +544,7 @@ export function BotEngine() {
       return
     }
 
-    addLog(`[Live] محاولة تنفيذ ${isBuy ? 'شراء' : 'بيع'} على ${signal.pair}`, 'info')
+    addLog(t('liveAttempt', { side: isBuy ? tc('buy') : tc('sell'), symbol: signal.pair }), 'info')
   }
 
   const closeBotTrade = (trade: PaperTrade, exitPrice: number, reason: 'TP' | 'SL') => {
@@ -570,22 +573,22 @@ export function BotEngine() {
 
     const profitable = pnl > 0
     addLog(
-      `[خروج] ${trade.symbol} أُغلق عبر ${reason} @ $${exitPrice.toFixed(2)} | PnL ${pnl > 0 ? '+' : ''}${pnl.toFixed(2)}`,
+      t('exitLog', { symbol: trade.symbol, reason, price: exitPrice.toFixed(2), pnl: `${pnl > 0 ? '+' : ''}${pnl.toFixed(2)}` }),
       profitable ? 'buy' : 'sell'
     )
 
     // Push tab alert for bot exit
     useTabAlertStore.getState().pushAlert('bot', {
       action: profitable ? 'BUY' : 'SELL',
-      label: `${reason === 'TP' ? '✅ ربح' : '❌ خسارة'} ${trade.symbol} ${pnl > 0 ? '+' : ''}${pnl.toFixed(0)}$`,
+      label: `${reason === 'TP' ? '✅ ' + t('closeProfit') : '❌ ' + t('closeLoss')} ${trade.symbol} ${pnl > 0 ? '+' : ''}${pnl.toFixed(0)}$`,
       color: profitable ? '#00C853' : '#FF3B30',
     })
     addNotification({
       source: 'bot',
       priority: profitable ? 'medium' : 'high',
       action: profitable ? 'BUY' : 'SELL',
-      title: `تم إغلاق مركز البوت على ${trade.symbol}`,
-      body: `${reason} · ${pnl > 0 ? 'ربح' : 'خسارة'} ${pnl.toFixed(2)}$`,
+      title: t('botClosedPosition', { symbol: trade.symbol }),
+      body: `${reason} · ${pnl > 0 ? t('closeProfit') : t('closeLoss')} ${pnl.toFixed(2)}$`,
       pair: trade.symbol,
       price: exitPrice,
       confidence: 80,

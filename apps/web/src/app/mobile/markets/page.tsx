@@ -1,19 +1,21 @@
 'use client'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useMemo } from 'react'
 import { ChevronLeft } from 'lucide-react'
 
 export default function MarketsPage() {
   const router = useRouter()
+  const tm = useTranslations('mobile.more')
   const quotes = useMarketStore(s => s.quotes)
   const pairs = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'XRP/USD', 'BNB/USD', 'XAU/USD', 'EUR/USD', 'GBP/USD']
 
   return (
-    <div className="m-page" style={{ direction: 'rtl' }}>
+    <div className="m-page">
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <button onClick={() => router.back()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><ChevronLeft size={18} color="rgba(255,255,255,0.6)" /></button>
-        <span style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>الأسواق</span>
+        <span style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>{tm('markets')}</span>
       </div>
       {pairs.map(sym => {
         const q = quotes[sym]

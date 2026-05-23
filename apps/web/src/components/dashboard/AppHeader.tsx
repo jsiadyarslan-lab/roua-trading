@@ -6,6 +6,7 @@ import { getPortalRoot } from '@/lib/portal-root'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useShallow } from 'zustand/react/shallow'
+import { useTranslations } from 'next-intl'
 
 /**
  * SafeLink — Navigation wrapper that guarantees page transitions work.
@@ -76,6 +77,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useDashboardStore, type TradingMode } from '@/lib/dashboard-store'
 import { useAuthStore } from '@/lib/auth-store'
 import { NotificationCenter } from '@/components/dashboard/NotificationCenter'
+import { LocaleSwitcher } from '@/components/shared/LocaleSwitcher'
 
 /* ─── Design tokens ─── */
 const T = {
@@ -202,6 +204,7 @@ function CosmicOrb({ state, size = 68 }: { state: MarketState, size?: number }) 
 
 /* ══ Logo Circle ══ */
 function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'desktop' | 'mobile' }) {
+  const t = useTranslations()
   const c = STATE[state]
   const isDesktop = size === 'desktop'
   const D = isDesktop ? ORB_D : 48
@@ -230,12 +233,12 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
             fontFamily: "'Cairo', sans-serif",
             fontWeight: 900, fontSize: 11.5,
             color: T.text, lineHeight: 1.1,
-          }}>رؤى</div>
+          }}>{t('common.brand')}</div>
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: 6, color: c.core,
             letterSpacing: '0.1em', opacity: 0.85,
-          }}>ROUA</div>
+          }}>{t('common.brandSub')}</div>
         </div>
       )}
     </div>
@@ -283,6 +286,7 @@ function fetchNewsData(): Promise<NewsItem[]> {
 }
 
 function NewsTicker() {
+  const t = useTranslations()
   const [items, setItems] = useState<
     { text: string; textAr: string; categoryAr: string; color: string; impact: string }[]
   >([])
@@ -312,13 +316,12 @@ function NewsTicker() {
                 fontFamily: "'Cairo', sans-serif", fontSize: 11,
                 color: item.color || T.text2, flexShrink: 0,
                 display: 'inline-flex', alignItems: 'center', gap: 5,
-                direction: 'rtl',
               }}>
                 <span style={{
                   fontSize: 8, padding: '1px 5px', borderRadius: 3,
                   background: `${item.color}18`, color: item.color,
                   fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-                }}>{item.categoryAr || 'عام'}</span>
+                }}>{item.categoryAr || t('common.general')}</span>
                 {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
                 {item.textAr || item.text}
               </span>
@@ -328,7 +331,7 @@ function NewsTicker() {
           <span style={{
             padding: '0 14px', fontFamily: "'JetBrains Mono', monospace",
             fontSize: 9, color: T.text3,
-          }}>جارٍ تحميل الأخبار...</span>
+          }}>{t('dashboard.news.loading')}</span>
         )}
         {/* RTL: fade edge on the inline-start side (right in RTL) */}
         <div style={{
@@ -337,7 +340,8 @@ function NewsTicker() {
           pointerEvents: 'none',
         }} />
       </div>
-      <div style={{ flexShrink: 0, padding: '0 10px' }}>
+      <div style={{ flexShrink: 0, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <LocaleSwitcher variant="header" />
         <NotificationCenter />
       </div>
     </div>
@@ -447,6 +451,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 
 /* ══ Mobile News Ticker (compact) ══ */
 function MobileNewsTicker() {
+  const t = useTranslations()
   const [items, setItems] = useState<
     { textAr: string; categoryAr: string; color: string }[]
   >([])
@@ -471,7 +476,6 @@ function MobileNewsTicker() {
           fontFamily: "'Cairo', sans-serif", fontSize: 10,
           color: item.color || T.text2, flexShrink: 0,
           display: 'inline-flex', alignItems: 'center', gap: 4,
-          direction: 'rtl',
         }}>
           <span style={{
             fontSize: 7, padding: '0px 4px', borderRadius: 2,
@@ -486,7 +490,7 @@ function MobileNewsTicker() {
     <span style={{
       padding: '0 10px', fontFamily: "'Cairo', sans-serif",
       fontSize: 9, color: T.text3,
-    }}>جارٍ تحميل الأخبار...</span>
+    }}>{t('dashboard.news.loading')}</span>
   )
 }
 
@@ -526,37 +530,37 @@ interface NavLink {
 
 const NAV_LINKS: NavLink[] = [
   // ── Main 8 (visible in nav bar) ──
-  { href: '/dashboard',                        label: 'الرئيسية',           icon: Home },
-  { href: '/dashboard/portfolio',              label: 'المحفظة',            icon: Wallet,
+  { href: '/dashboard',                        label: 'home',              icon: Home },
+  { href: '/dashboard/portfolio',              label: 'portfolio',         icon: Wallet,
     children: [
-      { href: '/dashboard/sanctuary',  label: 'الملاذ',            icon: Shield },
+      { href: '/dashboard/sanctuary',  label: 'sanctuary',         icon: Shield },
     ]
   },
-  { href: '/dashboard/ai',                     label: 'تحليل AI',           icon: Brain },
-  { href: '/dashboard/neural',                  label: 'Neural Lab',         icon: FlaskConical },
-  { href: '/dashboard/scanner',                label: 'السكانر المتقدم',    icon: ScanSearch },
-  { href: '/dashboard/strategies',             label: 'تحليلات استراتيجية', icon: BarChart2,
+  { href: '/dashboard/ai',                     label: 'aiAnalysis',        icon: Brain },
+  { href: '/dashboard/neural',                  label: 'neuralLab',        icon: FlaskConical },
+  { href: '/dashboard/scanner',                label: 'advancedScanner',   icon: ScanSearch },
+  { href: '/dashboard/strategies',             label: 'strategicAnalysis', icon: BarChart2,
     children: [
-      { href: '/dashboard/strategies/backtest',  label: 'اختبار الاستراتيجيات', icon: FlaskConical },
-      { href: '/dashboard/strategies/builder',   label: 'بناء الاستراتيجية',   icon: Hammer },
+      { href: '/dashboard/strategies/backtest',  label: 'strategyBacktest', icon: FlaskConical },
+      { href: '/dashboard/strategies/builder',   label: 'strategyBuilder',  icon: Hammer },
     ]
   },
-  { href: '/dashboard/news',                   label: 'الأخبار',            icon: Newspaper,
+  { href: '/dashboard/news',                   label: 'news',              icon: Newspaper,
     children: [
-      { href: '/dashboard/news',                label: 'الأخبار',            icon: Newspaper },
-      { href: '/dashboard/news?tab=reports',    label: 'التقارير',           icon: BarChart3 },
+      { href: '/dashboard/news',                label: 'news',              icon: Newspaper },
+      { href: '/dashboard/news?tab=reports',    label: 'reports',           icon: BarChart3 },
     ]
   },
-  { href: '/dashboard/prediction-market',      label: 'الأسواق التنبؤية',   icon: Target },
+  { href: '/dashboard/prediction-market',      label: 'predictionMarket',  icon: Target },
   // ── More dropdown ──
-  { href: '/dashboard/leaderboard',            label: 'لوحة الصدارة',       icon: Trophy },
-  { href: '/dashboard/copy-trading',           label: 'متابعة الحسابات',    icon: Eye },
-  { href: '/dashboard/social',                 label: 'المجتمع الاجتماعي',  icon: Users },
-  { href: '/dashboard/calendar',               label: 'الأجندة الاقتصادية', icon: CalendarDays },
-  { href: '/dashboard/api-docs',               label: 'توثيق API',          icon: Code },
-  { href: '/dashboard/security/2fa',           label: 'المصادقة الثنائية',  icon: Shield },
-  { href: '/dashboard/help',                   label: 'مركز المساعدة',      icon: HelpCircle },
-  { href: '/dashboard/settings',               label: 'الإعدادات',          icon: Settings },
+  { href: '/dashboard/leaderboard',            label: 'leaderboard',       icon: Trophy },
+  { href: '/dashboard/copy-trading',           label: 'copyTrading',       icon: Eye },
+  { href: '/dashboard/social',                 label: 'social',            icon: Users },
+  { href: '/dashboard/calendar',               label: 'calendar',          icon: CalendarDays },
+  { href: '/dashboard/api-docs',               label: 'apiDocs',           icon: Code },
+  { href: '/dashboard/security/2fa',           label: 'twoFactor',         icon: Shield },
+  { href: '/dashboard/help',                   label: 'helpCenter',        icon: HelpCircle },
+  { href: '/dashboard/settings',               label: 'settings',          icon: Settings },
 ]
 
 /* ─── Helper: strip query params from href for pathname comparison ─── */
@@ -604,6 +608,7 @@ function MoreDropdown({
   const [pos, setPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+  const t = useTranslations()
 
   useEffect(() => {
     if (open && anchorRef.current) {
@@ -691,12 +696,12 @@ function MoreDropdown({
               }}
               >
                 <Icon size={15} strokeWidth={active ? 2.5 : 2} />
-                {label}
+                {t('dashboard.nav.' + label)}
                 {children && <ChevronDown size={11} style={{ marginInlineEnd: 'auto', opacity: 0.5 }} />}
               </div>
             </SafeLink>
             {children && (
-              <div style={{ paddingInlineEnd: 12, direction: 'rtl' }}>
+              <div style={{ paddingInlineEnd: 12 }}>
                 {children.map((child) => {
                   const childActive = isChildActive(child.href, pathname)
                   return (
@@ -720,7 +725,7 @@ function MoreDropdown({
                       }}
                       >
                         <child.icon size={13} strokeWidth={childActive ? 2.5 : 1.5} />
-                        {child.label}
+                        {t('dashboard.nav.' + child.label)}
                       </div>
                     </SafeLink>
                   )
@@ -749,6 +754,7 @@ function AccountDropdown({
 }) {
   const authUser = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
+  const t = useTranslations()
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 })
   const dropdownRef = useRef<HTMLDivElement>(null)
 
@@ -866,7 +872,7 @@ function AccountDropdown({
             <div style={{
               fontFamily: "'Cairo', sans-serif", fontSize: 13, fontWeight: 700,
               color: T.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-            }}>{authUser?.displayName || authUser?.email?.split('@')[0] || 'مستخدم'}</div>
+            }}>{authUser?.displayName || authUser?.email?.split('@')[0] || t('common.user')}</div>
             {authUser?.email && (
               <div style={{
                 fontFamily: "'JetBrains Mono', monospace", fontSize: 10,
@@ -898,7 +904,7 @@ function AccountDropdown({
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
         >
           <Settings size={15} strokeWidth={2} />
-          الإعدادات
+          {t('common.settings')}
         </div>
       </SafeLink>
 
@@ -913,7 +919,7 @@ function AccountDropdown({
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.text2 }}
         >
           <UserCircle size={15} strokeWidth={2} />
-          معلومات الحساب
+          {t('common.accountInfo')}
         </div>
       </SafeLink>
 
@@ -931,7 +937,7 @@ function AccountDropdown({
         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FF4757' }}
       >
         <LogOut size={15} strokeWidth={2} />
-        تسجيل الخروج
+        {t('common.logout')}
       </div>
     </div>,
     getPortalRoot()
@@ -958,6 +964,7 @@ function SubNavDropdown({
 }) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const pathname = usePathname()
+  const t = useTranslations()
 
   // Compute position from anchorEl (not stored in state to avoid cascading renders)
   const pos = (() => {
@@ -1018,7 +1025,6 @@ function SubNavDropdown({
       zIndex: 9999,
       boxShadow: '0 16px 48px rgba(0,0,0,0.6), 0 0 16px rgba(0,212,255,0.06)',
       animation: 'fadeInSlideDown 0.15s ease-out',
-      direction: 'rtl',
     }}>
       {items.map((child) => {
         const childActive = isChildActive(child.href, pathname)
@@ -1044,7 +1050,7 @@ function SubNavDropdown({
             }}
             >
               <ChildIcon size={14} strokeWidth={childActive ? 2.5 : 2} />
-              {child.label}
+              {t('dashboard.nav.' + child.label)}
             </div>
           </SafeLink>
         )
@@ -1055,6 +1061,7 @@ function SubNavDropdown({
 }
 
 function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: TradingMode) => void }) {
+  const t = useTranslations()
   const pathname = usePathname()
   const [moreOpen, setMoreOpen] = useState(false)
   const moreRef = useRef<HTMLDivElement>(null)
@@ -1081,10 +1088,10 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
   }, [])
 
   // Mode-specific styling
-  const modeConfig: Record<TradingMode, { accent: string; label: string; arLabel: string }> = {
-    trader:   { accent: '#00d4ff', label: 'Trader',   arLabel: 'تاجر'   },
-    investor: { accent: '#10b981', label: 'Investor', arLabel: 'مستثمر' },
-    ai:       { accent: '#a78bfa', label: 'AI',       arLabel: 'AI'      },
+  const modeConfig: Record<TradingMode, { accent: string }> = {
+    trader:   { accent: '#00d4ff' },
+    investor: { accent: '#10b981' },
+    ai:       { accent: '#a78bfa' },
   }
 
   return (
@@ -1124,7 +1131,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
                 whiteSpace: 'nowrap', transition: 'all 0.15s',
               }}>
                 <Icon size={14} strokeWidth={active ? 2.5 : 2} />
-                {label}
+                {t('dashboard.nav.' + label)}
                 {hasChildren && (
                   <ChevronDown size={10} style={{
                     transform: isSubOpen ? 'rotate(180deg)' : 'rotate(0deg)',
@@ -1170,7 +1177,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
           }}
         >
           <MoreHorizontal size={14} />
-          المزيد
+          {t('common.more')}
           <ChevronDown size={11} style={{
             transform: moreOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s',
@@ -1190,7 +1197,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
          display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
          border: '1px solid var(--card-border)', marginInlineStart: 12
       }}>
-         {([['trader', 'Trader'], ['investor', 'Investor'], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
+         {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
            const cfg = modeConfig[m]
            return (
              <button
@@ -1229,7 +1236,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
           }}
         >
           <User size={16} color="var(--accent)" />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>حسابي</span>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
           <ChevronDown size={12} style={{
             transform: accountOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s', color: T.text3,
@@ -1247,6 +1254,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
 
 /* ─── Dynamic Header Status LED ─── */
 function HeaderStatusLED() {
+  const t = useTranslations()
   // Derived boolean selector — only re-renders when live status actually changes
   const hasLive = useMarketStore((state) => {
     const entries = Object.values(state.quotes)
@@ -1257,7 +1265,7 @@ function HeaderStatusLED() {
   })
   
   const color = hasLive ? 'var(--success)' : T.amber
-  const label = hasLive ? 'مباشر' : 'بانتظار الربط'
+  const label = hasLive ? t('dashboard.header.connected') : t('dashboard.header.pending')
   
   return (
     <div style={{
@@ -1313,6 +1321,7 @@ header *::-webkit-scrollbar { display:none; }
 
 /* ─── Mobile Nav Item (separate component for hook usage) ─── */
 function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: string, onClose: () => void }) {
+  const t = useTranslations()
   const { href, label, icon: Icon, children } = link
   const active = isLinkActive(link, pathname)
   const hasChildren = children && children.length > 0
@@ -1331,7 +1340,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
             transition: 'all 0.15s',
           }}>
             <Icon size={18} />
-            {label}
+            {t('dashboard.nav.' + label)}
           </div>
         </SafeLink>
         {hasChildren && (
@@ -1369,7 +1378,7 @@ function MobileNavItem({ link, pathname, onClose }: { link: NavLink, pathname: s
                   fontFamily: "'Cairo', sans-serif", transition: 'all 0.15s',
                 }}>
                   <ChildIcon size={15} strokeWidth={childActive ? 2.5 : 1.5} />
-                  {child.label}
+                  {t('dashboard.nav.' + child.label)}
                 </div>
               </SafeLink>
             )
@@ -1385,6 +1394,7 @@ const ORBS = ['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD']
 
 /* ══ Root export ══ */
 export function AppHeader() {
+  const t = useTranslations()
   useScopedStyle(KF)
   const [menuOpen, setMenuOpen] = useState(false)
   const mode = useDashboardStore(state => state.mode)
@@ -1436,7 +1446,7 @@ export function AppHeader() {
             animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>القائمة</span>
+                <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('common.menu')}</span>
                 <XIcon size={24} color={T.text} onClick={() => setMenuOpen(false)} style={{ cursor: 'pointer' }} />
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -1452,7 +1462,7 @@ export function AppHeader() {
              {/* Mode Switcher + Account (mobile) */}
              <div style={{ marginTop: 20, paddingTop: 16, borderTop: `1px solid rgba(0,212,255,0.10)`, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8, border: `1px solid ${T.border}` }}>
-                  {([['trader', 'تاجر'], ['investor', 'مستثمر'], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
+                  {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
                     const accentMap: Record<TradingMode, string> = { trader: '#00d4ff', investor: '#10b981', ai: '#a78bfa' }
                     return (
                       <button key={m} onClick={() => handleModeChange(m)} style={{
@@ -1475,7 +1485,7 @@ export function AppHeader() {
                     border: '1px solid rgba(0,212,255,0.10)', cursor: 'pointer',
                   }}>
                     <User size={18} color="var(--accent)" />
-                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>حسابي</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, color: T.text, fontWeight: 700 }}>{t('common.myAccount')}</span>
                   </div>
                 </SafeLink>
                 <div
@@ -1488,7 +1498,7 @@ export function AppHeader() {
                   }}
                 >
                   <LogOut size={18} />
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 700 }}>تسجيل الخروج</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 700 }}>{t('common.logout')}</span>
                 </div>
              </div>
           </div>
@@ -1498,7 +1508,7 @@ export function AppHeader() {
       {/* Desktop Header Layout */}
       <header className="desktop-header" style={{
         position: 'sticky', top: 0, zIndex: 100,
-        direction: 'rtl', height: H_TOTAL,
+        height: H_TOTAL,
         overflow: 'visible',
       }}>
         <LogoCircle state={marketState} />
@@ -1520,7 +1530,6 @@ export function AppHeader() {
         backdropFilter: 'blur(24px) saturate(1.8)',
         WebkitBackdropFilter: 'blur(24px) saturate(1.8)',
         paddingTop: 'env(safe-area-inset-top)',
-        direction: 'rtl',
       }}>
         {/* Mobile top row: hamburger + brand + ticker + orb */}
         <div style={{
@@ -1534,8 +1543,8 @@ export function AppHeader() {
           <SafeLink href="/dashboard" style={{ textDecoration: "none" }} >
              <LogoCircle state={marketState} size="mobile" />
              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>رؤى</span>
-               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>ROUA</span>
+               <span style={{ fontFamily: "'Cairo', sans-serif", fontWeight: 900, fontSize: 15, color: T.text, whiteSpace: 'nowrap', lineHeight: 1.1 }}>{t('common.brand')}</span>
+               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
@@ -1543,6 +1552,7 @@ export function AppHeader() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+             <LocaleSwitcher variant="header" />
              <NotificationCenter />
           </div>
         </div>

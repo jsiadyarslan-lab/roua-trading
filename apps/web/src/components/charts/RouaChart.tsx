@@ -870,6 +870,41 @@ export default function RouaChart({
     console.log('[AI Overlay] patterns received:', result.patterns.length, 'support:', result.supportLevels.length);
     setAiPatterns(result.patterns);
 
+    // DIRECT: بناء markers مباشرة من result.patterns وتطبيقها فوراً
+    // لا ننتظر useEffect لأن aiPatterns قد يكون فارغاً في ذلك الوقت
+    if (result.patterns.length > 0) {
+      const candleTimes = (candlesRef.current || []).map((cd: any) => cd.time as number);
+      const usedT = new Set<number>();
+      const directMarkers: any[] = [];
+      result.patterns.forEach((p: any) => {
+        let t = p.time as number;
+        if (candleTimes.length > 0) {
+          t = candleTimes.reduce((a: number, b: number) => Math.abs(b-t) < Math.abs(a-t) ? b : a);
+        }
+        if (usedT.has(t)) return;
+        usedT.add(t);
+        const label = p.labelAr || p.type;
+        directMarkers.push({
+          time: t as any,
+          position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as any,
+          color: p.direction === 'bullish' ? '#00FFA3' : p.direction === 'bearish' ? '#FF4757' : '#fbbf24',
+          shape: (p.direction === 'bullish' ? 'arrowUp' : 'arrowDown') as any,
+          text: label.length > 6 ? label.slice(0, 6) : label,
+        });
+      });
+      // استدعاء مباشر مع دمج signalMarkers الموجودة
+      const tryApply = () => {
+        if (directMarkers.length === 0) return;
+        // دمج مع signal markers الموجودة لتجنب إزالتها
+        const combined = [...directMarkers, ...signalMarkers];
+        combined.sort((a: any, b: any) => (a.time as number) - (b.time as number));
+        chart.setMarkers(combined);
+      };
+      tryApply();
+      setTimeout(tryApply, 400);
+      setTimeout(tryApply, 1000);
+    }
+
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
     const chartApi = chart.chartRef?.current;
     console.log('[AI Overlay] chartApi:', !!chartApi, 'patterns:', result.patterns.length, 'trendLines:', result.trendLines.length, 'support:', result.supportLevels.length);

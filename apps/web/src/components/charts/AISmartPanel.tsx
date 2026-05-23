@@ -114,6 +114,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
             const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
             setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf: (d.data.consensusScore || 50) / 100, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: `مجلس ${models} نماذج`, ts: Date.now() });
+            if ((d.data.consensusScore || 0) >= 65 && dir !== 'WAIT') {
+              fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: dir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, confidence: (d.data.consensusScore||50)/100 }) }).catch(()=>{});
+            }
             return;
           }
         }

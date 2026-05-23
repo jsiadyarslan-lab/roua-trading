@@ -855,6 +855,7 @@ export default function RouaChart({
       }
     } else {
       cleanupAIOverlays();
+      setAiDirectMarkers([]);
     }
   }, [showAIPanel, cleanupAIOverlays]);
 
@@ -863,11 +864,17 @@ export default function RouaChart({
   // the first call's series additions to overlap with the second call's cleanup,
   // leaving orphaned series on the chart.
   const aiProcessingRef = useRef(false);
+  const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     // Direct execution — no lock needed
     try {
-    console.log('[AI Overlay] patterns received:', result.patterns.length, 'support:', result.supportLevels.length);
+    // DEBUG: show on screen
+    const dbgEl = document.getElementById('__hpd_debug') || document.createElement('div');
+    dbgEl.id = '__hpd_debug';
+    dbgEl.style.cssText = 'position:fixed;bottom:40px;left:10px;background:#1a1a2e;color:#00FFA3;padding:4px 8px;z-index:99999;font-size:10px;border-radius:4px;border:1px solid #00FFA3';
+    dbgEl.textContent = 'handlePatternsDetected: ' + result.patterns.length + ' patterns';
+    document.body.appendChild(dbgEl);
     setAiPatterns(result.patterns);
 
     // DIRECT: بناء markers مباشرة من result.patterns وتطبيقها فوراً
@@ -893,16 +900,8 @@ export default function RouaChart({
         });
       });
       // استدعاء مباشر مع دمج signalMarkers الموجودة
-      const tryApply = () => {
-        if (directMarkers.length === 0) return;
-        // دمج مع signal markers الموجودة لتجنب إزالتها
-        const combined = [...directMarkers, ...signalMarkers];
-        combined.sort((a: any, b: any) => (a.time as number) - (b.time as number));
-        chart.setMarkers(combined);
-      };
-      tryApply();
-      setTimeout(tryApply, 400);
-      setTimeout(tryApply, 1000);
+      // حفظ في state — يُطلق useEffect لدمجها مع بقية الـ markers
+      setAiDirectMarkers(directMarkers);
     }
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -1301,6 +1300,11 @@ export default function RouaChart({
       combinedMarkers.push(...newsChartMarkers);
     }
 
+    // Add direct pattern markers from handlePatternsDetected (always fresh)
+    if (aiDirectMarkers.length > 0) {
+      combinedMarkers.push(...aiDirectMarkers);
+    }
+
     // Add AI pattern markers — show Arabic name on candle
     if (aiPatterns.length) {
       // Get valid candle times from the chart data
@@ -1342,7 +1346,7 @@ export default function RouaChart({
     chart.setMarkers(combinedMarkers);
   // chart.setMarkers is stable (useCallback), safe to omit from deps
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [newsMarkers, aiPatterns, signalMarkers]);
+  }, [newsMarkers, aiPatterns, signalMarkers, aiDirectMarkers]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
 

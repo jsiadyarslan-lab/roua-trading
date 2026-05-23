@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { AIAnalysisResult, SupportResistanceLevel } from './AIPatternPanel';
 import type { AIPattern, CandleData } from '@/lib/charts/types';
 import { detectLocalPatterns, detectSupportResistance, detectTrendLines } from './AIPatternPanel';
+import { detectSMC } from '@/lib/charts/SMCDetector';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -83,13 +84,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       setPatterns(unique);
       setLevels(srLevels);
 
-      // ── 2. أرسل الأنماط للشارت فوراً ────────────────────
+      // ── 2. أرسل الأنماط + SMC للشارت فوراً ────────────────────
+      const smcData = detectSMC(c);
       onPatternsRef.current({
         patterns: unique,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
         resistanceLevels: srLevels.filter(l => l.type === 'resistance').slice(0, 4),
         trendLines,
         entryExit: null,
+        smcData,
       });
 
       // ── 3. مجلس الذكاء (8 نماذج) ─────────────────────────

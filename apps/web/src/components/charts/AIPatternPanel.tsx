@@ -35,6 +35,11 @@ export interface AIAnalysisResult {
   resistanceLevels: SupportResistanceLevel[];
   trendLines: TrendLine[];
   entryExit?: AIEntryExit | null;
+  smcData?: {
+    orderBlocks: import('@/lib/charts/SMCDetector').OrderBlock[];
+    fvgs: import('@/lib/charts/SMCDetector').FairValueGap[];
+    structureBreaks: import('@/lib/charts/SMCDetector').StructureBreak[];
+  };
 }
 
 interface AIPatternPanelProps {

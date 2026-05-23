@@ -978,6 +978,50 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
+    // ── SMC Overlays (Order Blocks, FVG, BOS/CHoCH) ──
+    if (result.smcData && chartApi) {
+      const { createSeriesMarkers: _cm, ...lcRest } = lc as any;
+
+      // Order Blocks — colored rectangles via LineSeries bands
+      result.smcData.orderBlocks.forEach((ob, i) => {
+        try {
+          const col = ob.type === 'bullish' ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)';
+          const borderCol = ob.type === 'bullish' ? 'rgba(0,255,163,0.5)' : 'rgba(255,71,87,0.5)';
+          // Top line
+          const topS = chartApi.addSeries(lc.LineSeries, { color: borderCol, lineWidth: 1 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          topS.setData([{ time: ob.time as any, value: ob.high }, { time: ob.endTime as any, value: ob.high }]);
+          // Bottom line
+          const botS = chartApi.addSeries(lc.LineSeries, { color: borderCol, lineWidth: 1 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
+          botS.setData([{ time: ob.time as any, value: ob.low }, { time: ob.endTime as any, value: ob.low }]);
+          aiOverlaySeriesRef.current.push(topS, botS);
+          chart.registerExternalSeries(topS);
+          chart.registerExternalSeries(botS);
+          // Label
+          chart.addPriceLine(`smc-ob-${ob.type}-${i}`, ob.type === 'bullish' ? ob.low : ob.high, borderCol, ob.type === 'bullish' ? `OB↑` : `OB↓`, 1, 1, false);
+          aiPriceLinesRef.current.push(`smc-ob-${ob.type}-${i}`);
+        } catch {}
+      });
+
+      // Fair Value Gaps — price lines marking the gap
+      result.smcData.fvgs.forEach((fvg, i) => {
+        try {
+          const col = fvg.type === 'bullish' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
+          chart.addPriceLine(`smc-fvg-h-${i}`, fvg.high, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 2, false);
+          chart.addPriceLine(`smc-fvg-l-${i}`, fvg.low, col, '', 1, 2, false);
+          aiPriceLinesRef.current.push(`smc-fvg-h-${i}`, `smc-fvg-l-${i}`);
+        } catch {}
+      });
+
+      // BOS/CHoCH — horizontal line + label
+      result.smcData.structureBreaks.forEach((br, i) => {
+        try {
+          const col = br.direction === 'bullish' ? 'rgba(0,200,255,0.8)' : 'rgba(255,150,0,0.8)';
+          chart.addPriceLine(`smc-bos-${i}`, br.price, col, `${br.type} ${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
+          aiPriceLinesRef.current.push(`smc-bos-${i}`);
+        } catch {}
+      });
+    }
+
     // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,
     // applied by the combined-markers useEffect). No AreaSeries per pattern —

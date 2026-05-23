@@ -454,7 +454,7 @@ export function AlpacaPositions() {
   return (
     <div
       style={{
-        direction: 'rtl',
+        direction: 'inherit',
         display: 'flex',
         flexDirection: 'column',
         height: 'auto',
@@ -495,9 +495,9 @@ export function AlpacaPositions() {
             <div style={{ textAlign: 'center' }}>{t('qty')}</div>
             <div style={{ textAlign: 'center' }}>{t('entry')}</div>
             <div style={{ textAlign: 'center' }}>{t('current')}</div>
-            <div style={{ textAlign: 'center' }}>TP</div>
-            <div style={{ textAlign: 'center' }}>SL</div>
-            <div style={{ textAlign: 'center' }}>P&L</div>
+            <div style={{ textAlign: 'center' }}>{t('tp')}</div>
+            <div style={{ textAlign: 'center' }}>{t('sl')}</div>
+            <div style={{ textAlign: 'center' }}>{t('pnl')}</div>
             <div style={{ textAlign: 'center' }}>{t('closeBtn')}</div>
           </div>
         )}
@@ -836,8 +836,8 @@ export function AlpacaPositions() {
                       <span>
                         {t('entry')} {fmtPricePlain(entryPrice, cp.symbol)} → {t('exit')} {exitPrice > 0 ? fmtPricePlain(exitPrice, cp.symbol) : '—'}
                       </span>
-                      {stopLoss > 0 && <span style={{ color: T.danger }}>SL {fmtPricePlain(stopLoss, cp.symbol)}</span>}
-                      {takeProfit > 0 && <span style={{ color: T.success }}>TP {fmtPricePlain(takeProfit, cp.symbol)}</span>}
+                      {stopLoss > 0 && <span style={{ color: T.danger }}>{t('sl')} {fmtPricePlain(stopLoss, cp.symbol)}</span>}
+                      {takeProfit > 0 && <span style={{ color: T.success }}>{t('tp')} {fmtPricePlain(takeProfit, cp.symbol)}</span>}
                       <span>{quantity}</span>
                       <span>{duration}</span>
                       <span>{closedDate}</span>
@@ -881,8 +881,8 @@ export function AlpacaPositions() {
                       <span>
                         {t('entry')} {fmtPricePlain(ct.entryPrice, ct.symbol)} → {t('exit')} {fmtPricePlain(ct.exitPrice, ct.symbol)}
                       </span>
-                      {ct.sl ? <span style={{ color: T.danger }}>SL {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
-                      {ct.tp ? <span style={{ color: T.success }}>TP {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
+                      {ct.sl ? <span style={{ color: T.danger }}>{t('sl')} {fmtPricePlain(ct.sl, ct.symbol)}</span> : null}
+                      {ct.tp ? <span style={{ color: T.success }}>{t('tp')} {fmtPricePlain(ct.tp, ct.symbol)}</span> : null}
                       <span>{ct.qty}</span>
                     </div>
                   </div>

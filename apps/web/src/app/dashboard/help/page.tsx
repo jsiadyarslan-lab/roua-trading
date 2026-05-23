@@ -422,7 +422,7 @@ export default function HelpCenterPage() {
     <div
       className="custom-scrollbar"
       style={{
-        direction: 'rtl',
+        direction: 'inherit',
         fontFamily: "'Cairo', sans-serif",
         height: '100%',
         overflowY: 'auto',
@@ -883,7 +883,7 @@ export default function HelpCenterPage() {
                       width: '100%', background: T.surface, border: `1px solid ${T.border}`,
                       borderRadius: 8, padding: '10px 12px',
                       color: T.text, fontFamily: "'Cairo', sans-serif", fontSize: 12,
-                      outline: 'none', cursor: 'pointer', direction: 'rtl',
+                      outline: 'none', cursor: 'pointer', direction: 'inherit',
                       appearance: 'none',
                     }}
                   >

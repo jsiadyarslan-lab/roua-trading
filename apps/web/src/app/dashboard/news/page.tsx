@@ -268,7 +268,7 @@ export default function NewsPage() {
   }, [items])
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
+    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '24px 16px' }}>
 
         {/* Header */}
@@ -1405,7 +1405,7 @@ function RichAnalysisContent({ content, catColor }: { content: string; catColor:
   let currentSectionIsKeyData = false
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: FONT_AR }}>
+    <div style={{ direction: 'inherit', fontFamily: FONT_AR }}>
       {blocks.map((block, i) => {
         // Track if we're in a key data section
         if (block.type === 'section-title' || block.type === 'h3' || block.type === 'h4') {

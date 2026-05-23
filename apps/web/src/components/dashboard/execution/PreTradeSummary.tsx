@@ -34,7 +34,7 @@ export function PreTradeSummary({
   const canAfford = buyingPower > 0 ? estimatedCost <= buyingPower : true
 
   return (
-    <div className="rounded-lg border border-[rgba(0,212,255,0.15)] bg-[rgba(0,212,255,0.03)] p-2.5" style={{ direction: 'rtl' }}>
+    <div className="rounded-lg border border-[rgba(0,212,255,0.15)] bg-[rgba(0,212,255,0.03)] p-2.5" style={{ direction: 'inherit' }}>
       <div className="flex items-center gap-1.5 mb-2">
         <Info size={10} className="text-[var(--accent)]" />
         <span className="text-[9px] font-extrabold text-[var(--accent)]">ملخص ما قبل التنفيذ</span>

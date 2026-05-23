@@ -52,7 +52,7 @@ export default function BacktestPage() {
   const s = result?.summary
 
   return (
-    <div style={{ padding: '24px 28px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
+    <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", background: T.bg, minHeight: '100vh' }}>
       {/* Scoped styles via useScopedStyle */}<div style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Activity size={22} color={T.purple} />

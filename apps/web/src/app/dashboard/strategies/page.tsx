@@ -97,7 +97,7 @@ export default function StrategiesPage() {
       <div style={{
         color: T.text,
         padding: 24,
-        direction: 'rtl',
+        direction: 'inherit',
         fontFamily: "'Cairo', sans-serif",
       }}>
         <div style={{
@@ -121,7 +121,7 @@ export default function StrategiesPage() {
     <div className="strategies-page-root" style={{
       width: '100%', height: 'calc(100vh - 60px)',
       background: T.bg, padding: '12px 20px', boxSizing: 'border-box',
-      direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+      direction: 'inherit', fontFamily: "'Cairo', sans-serif",
       display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden'
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ── 1. Top Bar: Macroeconomic Radar (Ultra-Micro) ── */}

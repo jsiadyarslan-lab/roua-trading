@@ -141,7 +141,7 @@ export function MultiTfPanel() {
   const alignConf = data ? (ALIGN_MAP[data.alignment] || ALIGN_MAP.NEUTRAL) : ALIGN_MAP.NEUTRAL
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 16 }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, padding: 16 }}>
       <ScopedStyle>{`
         @keyframes fadeInMT { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .mt-scroll::-webkit-scrollbar { width: 5px; }

@@ -309,7 +309,7 @@ export default function AICoachPanel() {
 
   return (
     <div style={{
-      width: '100%', direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+      width: '100%', direction: 'inherit', fontFamily: "'Cairo', sans-serif",
     }}>
       <ScopedStyle>{`
         .coach-advice-card:hover {
@@ -569,7 +569,7 @@ export default function AICoachPanel() {
                     background: `${T.bg}80`, border: `0.5px solid ${T.border}`,
                     borderRadius: 8, color: T.text,
                     fontFamily: "'Cairo', sans-serif", fontSize: 11,
-                    outline: 'none', direction: 'rtl',
+                    outline: 'none', direction: 'inherit',
                   }}
                   disabled={chatLoading}
                 />

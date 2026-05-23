@@ -150,7 +150,7 @@ function FormInput({ label, value, onChange, placeholder, readonly, type, icon }
             color: readonly ? T.text3 : T.text, fontSize: 13,
             fontFamily: type === 'email' ? "'JetBrains Mono', monospace" : "'Cairo', sans-serif",
             fontWeight: readonly ? 500 : 600, outline: 'none',
-            direction: 'rtl', transition: 'border-color 0.2s',
+            direction: 'inherit', transition: 'border-color 0.2s',
             cursor: readonly ? 'default' : 'text',
           }}
           onFocus={!readonly ? e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` } : undefined}
@@ -189,7 +189,7 @@ function FormSelect({ label, value, onChange, options, icon }: {
             padding: icon ? '10px 40px 10px 14px' : '10px 14px',
             color: T.text, fontSize: 13, fontWeight: 600,
             fontFamily: "'Cairo', sans-serif", outline: 'none',
-            direction: 'rtl', appearance: 'none', cursor: 'pointer',
+            direction: 'inherit', appearance: 'none', cursor: 'pointer',
           }}
           onFocus={e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` }}
           onBlur={e => { e.target.style.borderColor = T.border2; e.target.style.boxShadow = 'none' }}
@@ -300,7 +300,7 @@ export default function ProfilePage() {
   const avatarLetter = user?.displayName?.[0] || user?.email?.[0]?.toUpperCase() || 'R'
 
   return (
-    <div className="custom-scrollbar" style={{ direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
+    <div className="custom-scrollbar" style={{ direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto', background: T.bg }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}
       <div style={{
         padding: '24px 24px 0', borderBottom: `1px solid ${T.border}`,
@@ -482,7 +482,7 @@ export default function ProfilePage() {
                       padding: '10px 40px 10px 14px',
                       color: T.text3, fontSize: 13,
                       fontFamily: "'JetBrains Mono', monospace",
-                      fontWeight: 500, outline: 'none', direction: 'rtl', cursor: 'default',
+                      fontWeight: 500, outline: 'none', direction: 'inherit', cursor: 'default',
                     }}
                   />
                   {isEditing && (
@@ -553,7 +553,7 @@ export default function ProfilePage() {
                     borderRadius: 10, padding: '10px 14px',
                     color: isEditing ? T.text : T.text3, fontSize: 13,
                     fontFamily: "'Cairo', sans-serif", fontWeight: isEditing ? 600 : 500,
-                    outline: 'none', direction: 'rtl', resize: isEditing ? 'vertical' : 'none',
+                    outline: 'none', direction: 'inherit', resize: isEditing ? 'vertical' : 'none',
                     transition: 'border-color 0.2s', lineHeight: 1.8,
                   }}
                   onFocus={isEditing ? e => { e.target.style.borderColor = T.cyan; e.target.style.boxShadow = `0 0 0 3px ${T.cyan}15` } : undefined}
@@ -865,7 +865,7 @@ export default function ProfilePage() {
                       borderRadius: 8, padding: '8px 12px',
                       color: T.text, fontSize: 12, fontWeight: 600,
                       fontFamily: "'Cairo', sans-serif", outline: 'none',
-                      direction: 'rtl',
+                      direction: 'inherit',
                     }}
                   />
                   <button

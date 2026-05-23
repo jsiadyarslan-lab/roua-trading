@@ -757,7 +757,7 @@ export default function PortfolioPage() {
       width: '100%', minHeight: 'calc(100vh - 100px)',
       background: T.bg, overflow: 'auto',
       padding: '12px 14px', boxSizing: 'border-box',
-      direction: 'rtl',
+      direction: 'inherit',
       fontFamily: "'Cairo', sans-serif",
     }}>
       {/* Scoped styles injected via useScopedStyle to avoid Next.js 16 "Node cannot be found" error */}

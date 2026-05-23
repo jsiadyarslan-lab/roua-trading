@@ -311,7 +311,7 @@ export default function LeaderboardPage() {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        height: '100%', direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+        height: '100%', direction: 'inherit', fontFamily: "'Cairo', sans-serif",
         background: T.bg,
       }}>
         <div style={{ textAlign: 'center', color: T.text2 }}>
@@ -331,7 +331,7 @@ export default function LeaderboardPage() {
   if (!loading && traders.length === 0) {
     return (
       <div style={{
-        padding: '32px 24px', direction: 'rtl',
+        padding: '32px 24px', direction: 'inherit',
         fontFamily: "'Cairo', sans-serif",
         height: '100%', overflowY: 'auto',
         background: T.bg,
@@ -373,7 +373,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="custom-scrollbar" style={{
-      padding: '32px 24px', direction: 'rtl',
+      padding: '32px 24px', direction: 'inherit',
       fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto',
       background: T.bg,

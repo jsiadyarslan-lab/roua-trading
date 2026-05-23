@@ -106,7 +106,7 @@ export default function NewsArticlePage() {
 
   if (loading) {
     return (
-      <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
           <p style={{ color: T.text2, fontSize: 14 }}>جارٍ تحميل الخبر...</p>
@@ -117,7 +117,7 @@ export default function NewsArticlePage() {
 
   if (error || !article) {
     return (
-      <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
           <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || 'خبر غير موجود'}</h2>
@@ -133,7 +133,7 @@ export default function NewsArticlePage() {
   const hasImage = article.imageUrl && !imageError
 
   return (
-    <div style={{ direction: 'rtl', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
+    <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text }}>
 
       {/* ─── Hero Section with Image ─── */}
       {hasImage && (

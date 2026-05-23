@@ -138,7 +138,7 @@ export function BotCommandCenter() {
   }
 
   return (
-    <div className="custom-scrollbar no-scrollbar" style={{ direction: 'rtl', height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 12, border: `1px solid ${T.border}` }}>
+    <div className="custom-scrollbar no-scrollbar" style={{ direction: 'inherit', height: '100%', overflowY: 'auto', padding: '7px', display: 'flex', flexDirection: 'column', gap: 6, background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 12, border: `1px solid ${T.border}` }}>
 
       {/* Bot Master Switch */}
       <div style={{

@@ -62,7 +62,7 @@ export function PrimarySidebarLayout() {
         WebkitBackdropFilter: 'blur(16px) saturate(1.4)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
         transition: 'grid-template-columns 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        direction: 'rtl',
+        direction: 'inherit',
       }}
     >
       {/* Icon Rail */}

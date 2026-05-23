@@ -72,7 +72,7 @@ export function MarketOverview() {
   }, [scanData])
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 16 }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, padding: 16 }}>
       <ScopedStyle>{`
         @keyframes fadeInMO { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
       `}</ScopedStyle>

@@ -358,7 +358,13 @@ export function PortfolioMini({
           {exchangeBalances.map((ex) => {
             const isPaper = ex.exchange === 'paper-trading'
             const exColor = isPaper ? T.cyan : ex.isTestnet ? T.amber : T.green
-            const exLabel = isPaper ? tp('paper') : ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)
+            const exLabel = isPaper ? tp('paper') : (() => {
+              const exName = ex.exchange?.toLowerCase() || ''
+              if (exName.includes('binance-direct') || exName.includes('binance_direct')) return tp('exchangeBinanceDirect')
+              if (exName.includes('binance')) return tp('exchangeBinance')
+              if (exName.includes('alpaca')) return tp('exchangeAlpaca')
+              return ex.exchange.charAt(0).toUpperCase() + ex.exchange.slice(1)
+            })()
             return (
               <div key={ex.credentialId || ex.exchange} style={{
                 display: 'flex', alignItems: 'center', gap: 5, fontSize: 8,

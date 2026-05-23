@@ -319,7 +319,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         padding: '4px 10px', background: C.card,
         borderBottom: `1px solid ${C.border}`,
-        direction: 'rtl',
+        direction: 'inherit',
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

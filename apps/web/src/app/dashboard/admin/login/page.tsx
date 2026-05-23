@@ -81,7 +81,7 @@ export default function AdminLoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       padding: 20,
-      direction: 'rtl',
+      direction: 'inherit',
     }}>
       {/* Background effects */}
       <div style={{

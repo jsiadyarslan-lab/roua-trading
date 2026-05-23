@@ -99,7 +99,7 @@ export function PositionCard({
         background: unrealizedPnl > 0
           ? 'rgba(0,255,163,0.03)'
           : unrealizedPnl < 0 ? 'rgba(255,71,87,0.03)' : 'transparent',
-        direction: 'rtl',
+        direction: 'inherit',
         transition: 'all 0.15s ease',
         position: 'relative',
       }}

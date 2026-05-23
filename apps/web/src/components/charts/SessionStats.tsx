@@ -116,7 +116,7 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
       padding: 10,
       border: `1px solid ${C.border}`,
       minWidth: 170,
-      direction: 'rtl',
+      direction: 'inherit',
     }}>
       {/* Header */}
       <div data-drag-handle style={{

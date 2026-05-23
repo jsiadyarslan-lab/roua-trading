@@ -94,7 +94,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
         padding: '12px 14px',
         borderBottom: `1px solid ${C.border}`,
         background: `linear-gradient(180deg, ${C.card} 0%, rgba(17,22,32,0.6) 100%)`,
-        direction: 'rtl',
+        direction: 'inherit',
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -124,7 +124,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
       </div>
 
       {/* Create Alert */}
-      <div style={{ padding: '10px 14px', direction: 'rtl' }}>
+      <div style={{ padding: '10px 14px', direction: 'inherit' }}>
         {!showCreate ? (
           <button
             onClick={() => setShowCreate(true)}
@@ -235,7 +235,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
       </div>
 
       {/* Alert List */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px', direction: 'rtl' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '0 8px 8px', direction: 'inherit' }}>
         {alerts.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
             {alerts.map(alert => {

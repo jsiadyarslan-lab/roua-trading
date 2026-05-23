@@ -40,7 +40,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
       style={{
         display: 'flex',
         gap: 6,
-        direction: 'rtl',
+        direction: 'inherit',
         width: '100%',
       }}
     >

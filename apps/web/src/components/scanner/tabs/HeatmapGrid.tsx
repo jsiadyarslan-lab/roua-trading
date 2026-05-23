@@ -71,7 +71,7 @@ export function HeatmapGrid() {
   }, [items])
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, padding: 12 }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, padding: 12 }}>
       <ScopedStyle>{`
         @keyframes fadeCell { from { opacity:0; transform:scale(0.95); } to { opacity:1; transform:scale(1); } }
         .heat-cell:hover { transform: scale(1.03); box-shadow: 0 4px 20px rgba(0,0,0,0.5); z-index: 2; }

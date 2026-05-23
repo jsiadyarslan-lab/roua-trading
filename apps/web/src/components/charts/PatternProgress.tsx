@@ -229,7 +229,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
       padding: 10,
       border: `1px solid ${C.border}`,
       maxWidth: 220,
-      direction: 'rtl',
+      direction: 'inherit',
     }}>
       {/* Header */}
       <div data-drag-handle style={{

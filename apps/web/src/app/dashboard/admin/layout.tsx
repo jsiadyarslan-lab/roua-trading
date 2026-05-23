@@ -163,7 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        direction: 'rtl',
+        direction: 'inherit',
       }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 size={32} color="#00E5FF" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
@@ -193,7 +193,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const BG = '#0B0E14'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100%', direction: 'rtl', background: BG }}>
+    <div style={{ display: 'flex', minHeight: '100%', direction: 'inherit', background: BG }}>
       {/* Scoped styles via useScopedStyle */}{/* Mobile overlay */}
       {isMobile && mobileOpen && (
         <div className="admin-mobile-overlay" onClick={() => setMobileOpen(false)} />

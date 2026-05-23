@@ -227,7 +227,7 @@ export function AlNarratorMini({
         overflow: 'hidden',
         boxSizing: 'border-box',
         position: 'relative',
-        direction: 'rtl'
+        direction: 'inherit'
       }}
     >
       {/* Header: Title & Signal Pulse */}
@@ -491,7 +491,7 @@ export function AlNarratorMini({
           borderRadius: 10,
           fontSize: 10, color: 'var(--text2)',
           fontFamily: "'Cairo', sans-serif",
-          direction: 'rtl', lineHeight: 1.6,
+          direction: 'inherit', lineHeight: 1.6,
           zIndex: 10,
           animation: 'toast-slide-in 0.3s ease',
         }}>

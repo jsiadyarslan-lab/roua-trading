@@ -181,7 +181,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const resistance = levels.filter(l => l.type === 'resistance').slice(0, 4);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 360, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'rtl' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 360, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
       {/* Header */}
       <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.025)', cursor: 'grab', userSelect: 'none', flexShrink: 0 }}>
         <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

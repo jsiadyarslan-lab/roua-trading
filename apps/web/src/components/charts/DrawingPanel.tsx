@@ -144,7 +144,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           fontFamily: "'Cairo', sans-serif",
           outline: 'none',
           marginBottom: 8,
-          direction: 'rtl',
+          direction: 'inherit',
         }}
       />
 

@@ -22,7 +22,7 @@ export function ExecutionOverlay({ status, onConfirm, onCancel }: ExecutionOverl
 
   return (
     <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 rounded-lg bg-[rgba(15,17,19,0.92)] p-4 text-center backdrop-blur-sm"
-      style={{ direction: 'rtl' }}
+      style={{ direction: 'inherit' }}
     >
       {iconMap[status.type]}
       <div className="whitespace-pre-line text-[11px] font-extrabold leading-relaxed"

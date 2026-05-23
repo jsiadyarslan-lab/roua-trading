@@ -76,7 +76,7 @@ export function SidebarIconRail({
         flexDirection: 'column',
         background: `linear-gradient(180deg, #0A0D14, #0E1118)`,
         borderInlineStart: '1px solid rgba(0,212,255,0.12)',
-        direction: 'rtl',
+        direction: 'inherit',
         position: 'relative',
         overflow: 'visible',
       }}
@@ -202,7 +202,7 @@ export function SidebarIconRail({
                     padding: '3px 8px',
                     boxShadow: `0 4px 12px rgba(0,0,0,0.4), 0 0 8px ${tab.accent}15`,
                     backdropFilter: 'blur(8px)',
-                    direction: 'rtl',
+                    direction: 'inherit',
                     top: 'auto',
                     right: 'auto',
                     left: 'auto',

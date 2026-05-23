@@ -55,7 +55,7 @@ export function SidebarContentPanel({
       className="flex flex-col min-w-0 min-h-0"
       style={{
         background: `linear-gradient(180deg, #1E2233, #1A1D29)`,
-        direction: 'rtl',
+        direction: 'inherit',
       }}
     >
       {/* Tab content — no header, full height for content */}

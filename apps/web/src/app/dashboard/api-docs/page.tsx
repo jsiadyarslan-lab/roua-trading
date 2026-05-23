@@ -993,7 +993,7 @@ for signal in client.signals.stream():
     <div
       className="custom-scrollbar"
       style={{
-        direction: 'rtl',
+        direction: 'inherit',
         fontFamily: "'Cairo', sans-serif",
         height: '100%',
         overflowY: 'auto',

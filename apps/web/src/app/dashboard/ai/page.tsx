@@ -473,7 +473,7 @@ export default function AIPage() {
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
-      direction: 'rtl',
+      direction: 'inherit',
       fontFamily: "'Cairo', sans-serif",
       background: T.bg,
     }}>

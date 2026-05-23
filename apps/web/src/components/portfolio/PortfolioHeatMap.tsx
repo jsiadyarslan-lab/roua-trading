@@ -77,7 +77,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
           color: T.textMuted,
           fontSize: 10,
           fontFamily: "'Cairo', sans-serif",
-          direction: 'rtl',
+          direction: 'inherit',
         }}
       >
         لا توجد مراكز
@@ -102,7 +102,7 @@ export function PortfolioHeatMap({ positions }: PortfolioHeatMapProps) {
         justifyContent: 'center',
         alignItems: 'center',
         padding: 8,
-        direction: 'rtl',
+        direction: 'inherit',
       }}
     >
       <svg

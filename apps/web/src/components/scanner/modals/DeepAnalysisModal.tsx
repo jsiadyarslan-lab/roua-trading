@@ -102,7 +102,7 @@ export function DeepAnalysisModal() {
   const chgColor = (item?.changePercent ?? 0) >= 0 ? T.green : T.red
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: 16, overflow: 'auto', direction: 'rtl' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: 16, overflow: 'auto', direction: 'inherit' }}
       onClick={() => ctx.setSelectedSymbol(null)}>
       <ScopedStyle>{`
         @keyframes slideInDA { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }

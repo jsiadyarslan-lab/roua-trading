@@ -34,7 +34,7 @@ export function ScannerSidebar() {
   return (
     <div style={{
       width: 200, minWidth: 200, height: '100%', background: T.card,
-      borderInlineStart: `1px solid ${T.border}`, direction: 'rtl',
+      borderInlineStart: `1px solid ${T.border}`, direction: 'inherit',
       display: 'flex', flexDirection: 'column',
     }}>
       {/* Header */}
@@ -63,7 +63,7 @@ export function ScannerSidebar() {
                 background: active ? `${T.cyan}08` : 'transparent',
                 borderInlineEnd: active ? `2px solid ${T.cyan}` : '2px solid transparent',
                 color: active ? T.cyan : T.text3,
-                transition: 'all 0.2s', direction: 'rtl', textAlign: 'right',
+                transition: 'all 0.2s', direction: 'inherit', textAlign: 'right',
               }}
             >
               <span style={{ display: 'flex', color: active ? T.cyan : T.text3 }}>{item.icon}</span>

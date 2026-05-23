@@ -323,7 +323,7 @@ export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsC
         padding: '12px 14px',
         borderBottom: `1px solid ${C.border}`,
         background: `linear-gradient(180deg, ${C.card} 0%, rgba(17,22,32,0.6) 100%)`,
-        direction: 'rtl',
+        direction: 'inherit',
         cursor: 'grab',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

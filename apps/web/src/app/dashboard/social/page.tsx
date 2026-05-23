@@ -52,7 +52,7 @@ export default function SocialPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>

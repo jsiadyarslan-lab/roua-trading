@@ -46,7 +46,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
           padding: '48px 24px',
           textAlign: 'center',
           minHeight: '300px',
-          direction: 'rtl',
+          direction: 'inherit',
           fontFamily: "'Cairo', sans-serif",
         }}>
           <div style={{

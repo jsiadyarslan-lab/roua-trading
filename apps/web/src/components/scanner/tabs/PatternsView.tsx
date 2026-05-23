@@ -341,7 +341,7 @@ export function PatternsView() {
   }, [filteredItems])
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, display: 'flex', flexDirection: 'column' }}>
       <ScopedStyle>{`
         @keyframes fadeInPV { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .pv-scroll::-webkit-scrollbar { width: 5px; }

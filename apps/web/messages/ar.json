@@ -524,7 +524,18 @@
       "stopLimit": "وقف محدود",
       "limitPrice": "سعر الحد",
       "autoCalc": "حساب تلقائي (SL 1% / TP 2%)",
-      "stalePriceWarning": "⚠️ السعر قد يكون قديماً — سيتم استخدام آخر سعر متاح عند التنفيذ"
+      "stalePriceWarning": "⚠️ السعر قد يكون قديماً — سيتم استخدام آخر سعر متاح عند التنفيذ",
+      "balance": "الرصيد",
+      "equity": "حقوق الملكية",
+      "freeMargin": "الهامش الحر",
+      "margin": "الهامش",
+      "marginLevel": "مستوى الهامش",
+      "current": "الحالي",
+      "used": "المستخدم",
+      "ratio": "النسبة",
+      "pnl": "الر.خ",
+      "hidePositions": "إخفاء المراكز",
+      "showPositions": "عرض المراكز"
     },
     "home": {
       "modeTraderLabel": "وضع التاجر",
@@ -1903,7 +1914,10 @@
       "updating": "جارٍ التحديث...",
       "update": "تحديث",
       "clearLocal": "مسح المحلي",
-      "exit": "الخروج"
+      "exit": "الخروج",
+      "tp": "الهدف",
+      "sl": "وقف الخسارة",
+      "pnl": "الر.خ"
     },
     "sidebarTabs": {
       "portfolio": "المحفظة",
@@ -2278,6 +2292,11 @@
     "additionalPositions": "+{count} مراكز إضافية",
     "pnl": "الربح والخسارة",
     "exposure": "التعرض",
-    "loadingTrader": "جاري التحميل"
+    "loadingTrader": "جاري التحميل",
+    "exchangeBinance": "بينانس",
+    "exchangeBinanceDirect": "بينانس مباشر",
+    "exchangeAlpaca": "ألباكا",
+    "exchangePaperTrading": "ورقي",
+    "exchangeTestnet": "تجريبي"
   }
 }

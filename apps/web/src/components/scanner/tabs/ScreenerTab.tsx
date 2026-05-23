@@ -132,7 +132,7 @@ export function ScreenerTab() {
   }).length
 
   return (
-    <div style={{ flex: 1, overflow: 'auto', direction: 'rtl', background: T.card, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, display: 'flex', flexDirection: 'column' }}>
       <ScopedStyle>{`
         @keyframes fadeInRow { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
       `}</ScopedStyle>

@@ -38,7 +38,7 @@ export function ScannerTable() {
 
   return (
     <div style={{
-      flex: 1, overflow: 'auto', direction: 'rtl',
+      flex: 1, overflow: 'auto', direction: 'inherit',
       background: T.card,
     }}>
       <ScopedStyle>{`
@@ -81,7 +81,7 @@ export function ScannerTable() {
                     fontFamily: "'Cairo', sans-serif",
                     borderBottom: `1px solid ${T.border}`,
                     cursor: col.key ? 'pointer' : 'default',
-                    whiteSpace: 'nowrap', textAlign: 'center', direction: 'rtl',
+                    whiteSpace: 'nowrap', textAlign: 'center', direction: 'inherit',
                     width: col.width, minWidth: col.width,
                     userSelect: 'none', transition: 'color 0.2s',
                   }}

@@ -110,7 +110,7 @@ export default function StrategyBuilderPage() {
   }
 
   return (
-    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'rtl', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
+    <div className="custom-scrollbar" style={{ padding: '32px 24px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", height: '100%', overflowY: 'auto' }}>
       {/* Scoped styles via useScopedStyle */}{/* Header */}
       <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
         <div>
@@ -161,7 +161,7 @@ export default function StrategyBuilderPage() {
               style={{
                 flex: 1, background: 'transparent', border: 'none', outline: 'none',
                 color: T.text, fontSize: 15, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
-                direction: 'rtl',
+                direction: 'inherit',
               }}
               placeholder="اسم الاستراتيجية..."
             />

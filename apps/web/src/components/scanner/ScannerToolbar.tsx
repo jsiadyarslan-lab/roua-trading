@@ -75,7 +75,7 @@ export function ScannerToolbar() {
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '10px 16px', background: T.card,
-      borderBottom: `1px solid ${T.border}`, direction: 'rtl', flexWrap: 'wrap', gap: 8,
+      borderBottom: `1px solid ${T.border}`, direction: 'inherit', flexWrap: 'wrap', gap: 8,
     }}>
       {/* Left — title */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
@@ -131,7 +131,7 @@ export function ScannerToolbar() {
           style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
             fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text2,
-            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'rtl',
+            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
           }}
         >
           {TIMEFRAMES.map(t => (
@@ -147,7 +147,7 @@ export function ScannerToolbar() {
           style={{
             padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 700,
             fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text2,
-            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'rtl',
+            border: `0.5px solid ${T.border}`, cursor: 'pointer', direction: 'inherit',
           }}
         >
           {SIGNALS.map(s => (
@@ -167,7 +167,7 @@ export function ScannerToolbar() {
             style={{
               padding: '4px 28px 4px 10px', borderRadius: 6, fontSize: 10,
               fontFamily: "'Cairo', sans-serif", background: T.surface, color: T.text,
-              border: `0.5px solid ${T.border}`, direction: 'rtl', width: 120,
+              border: `0.5px solid ${T.border}`, direction: 'inherit', width: 120,
               outline: 'none',
             }}
           />

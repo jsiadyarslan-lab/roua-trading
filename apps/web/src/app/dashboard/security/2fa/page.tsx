@@ -451,7 +451,7 @@ export default function TwoFactorAuthPage() {
   ══════════════════════════════════════════════════════ */
   return (
     <div className="custom-scrollbar" style={{
-      direction: 'rtl', fontFamily: "'Cairo', sans-serif",
+      direction: 'inherit', fontFamily: "'Cairo', sans-serif",
       height: '100%', overflowY: 'auto', background: T.bg,
     }}>
       {/* Scoped styles via useScopedStyle */}{/* ═══ Header ═══ */}

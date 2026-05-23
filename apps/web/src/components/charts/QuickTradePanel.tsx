@@ -95,7 +95,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       padding: 14,
       border: `1px solid ${C.border}`,
       width: 260,
-      direction: 'rtl',
+      direction: 'inherit',
     }}>
       {/* Header */}
       <div data-drag-handle style={{

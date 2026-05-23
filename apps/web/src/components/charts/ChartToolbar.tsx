@@ -414,7 +414,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           borderBottom: `1px solid ${COLORS.border}`,
           flexShrink: 0,
           gap: 1,
-          direction: 'rtl',
+          direction: 'inherit',
           overflowX: 'auto',
           overflowY: 'visible',
         }}>
@@ -640,7 +640,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         borderBottom: `1px solid ${COLORS.border}`,
         flexShrink: 0,
         gap: 2,
-        direction: 'rtl',
+        direction: 'inherit',
         overflowX: 'auto',
         overflowY: 'visible',
       }}>

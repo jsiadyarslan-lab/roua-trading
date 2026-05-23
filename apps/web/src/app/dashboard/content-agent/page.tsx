@@ -950,7 +950,7 @@ export default function ContentAgentPage() {
               <div style={{ maxHeight: 340, overflowY: 'auto', direction: 'ltr' }} className="custom-scrollbar">
                 {displayLogs.length === 0 ? (
                   <div style={{
-                    textAlign: 'center', padding: '32px 20px', fontFamily: FONT_AR, fontSize: 13, color: T.text3, direction: 'rtl',
+                    textAlign: 'center', padding: '32px 20px', fontFamily: FONT_AR, fontSize: 13, color: T.text3, direction: 'inherit',
                     background: 'rgba(255,255,255,0.02)', borderRadius: 10, border: `1px dashed ${T.border}`,
                   }}>
                     لا توجد أحداث بعد
@@ -976,7 +976,7 @@ export default function ContentAgentPage() {
                         alignItems: 'flex-start',
                       }}>
                         <span style={{ color: logColor, display: 'flex', marginTop: 1, flexShrink: 0 }}>{logIcon}</span>
-                        <span style={{ color: logColor, direction: 'rtl', flex: 1, lineHeight: 1.6 }}>{log.msg}</span>
+                        <span style={{ color: logColor, direction: 'inherit', flex: 1, lineHeight: 1.6 }}>{log.msg}</span>
                         <span style={{ fontFamily: FONT_MONO, fontSize: 9, color: T.text3, whiteSpace: 'nowrap', paddingTop: 2 }}>
                           {log.time}
                         </span>
@@ -1097,13 +1097,13 @@ export default function ContentAgentPage() {
     const inputStyle: React.CSSProperties = {
       width: '100%', padding: '12px 16px', borderRadius: 10,
       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'rtl',
+      color: T.text, fontFamily: FONT_AR, fontSize: 13, outline: 'none', direction: 'inherit',
       transition: 'border-color 0.15s',
     }
     const selectStyle: React.CSSProperties = {
       width: '100%', padding: '12px 14px', borderRadius: 10,
       background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`,
-      color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'rtl',
+      color: T.text, fontFamily: FONT_AR, fontSize: 12, outline: 'none', direction: 'inherit',
     }
     const labelStyle: React.CSSProperties = {
       fontFamily: FONT_AR, fontSize: 12, fontWeight: 700, color: T.text2, marginBottom: 8, display: 'block',
@@ -1531,7 +1531,7 @@ function ArticleRow({ article, compact = false }: { article: any; compact?: bool
             marginTop: 16, padding: '16px 18px', borderRadius: 10,
             background: 'rgba(255,255,255,0.02)', border: `1px solid ${T.border}`,
             fontFamily: FONT_AR, fontSize: 14, color: T.text2, lineHeight: 2,
-            direction: 'rtl', maxHeight: 400, overflowY: 'auto',
+            direction: 'inherit', maxHeight: 400, overflowY: 'auto',
           }} className="custom-scrollbar">
             {(article.contentAr || article.contentEn).substring(0, 2000)}{(article.contentAr || article.contentEn).length > 2000 ? '...' : ''}
           </div>
@@ -1583,7 +1583,7 @@ function FilterSelect({ label, value, onChange, options }: {
     <div>
       <label style={{ fontFamily: FONT_AR, fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 5, display: 'block' }}>{label}</label>
       <select value={value} onChange={(e) => onChange(e.target.value || '')}
-        style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 11, outline: 'none', direction: 'rtl', minWidth: 120 }}>
+        style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.04)', border: `1px solid ${T.border}`, color: T.text, fontFamily: FONT_AR, fontSize: 11, outline: 'none', direction: 'inherit', minWidth: 120 }}>
         <option value="" style={{ background: T.bg2 }}>الكل</option>
         {options.map(o => <option key={o.value} value={o.value} style={{ background: T.bg2 }}>{o.label}</option>)}
       </select>
@@ -1596,7 +1596,7 @@ function QuickPreset({ label, icon, color, onClick }: { label: string; icon: Rea
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderRadius: 12,
       background: `${color}06`, border: `1px solid ${color}18`, cursor: 'pointer', textAlign: 'right',
-      transition: 'all 0.15s', direction: 'rtl',
+      transition: 'all 0.15s', direction: 'inherit',
     }}
       onMouseEnter={e => { e.currentTarget.style.background = `${color}12`; e.currentTarget.style.borderColor = `${color}30` }}
       onMouseLeave={e => { e.currentTarget.style.background = `${color}06`; e.currentTarget.style.borderColor = `${color}18` }}

@@ -524,7 +524,18 @@
       "stopLimit": "Stop Limit",
       "limitPrice": "Limit Price",
       "autoCalc": "Auto Calculate (SL 1% / TP 2%)",
-      "stalePriceWarning": "⚠️ Price may be stale — latest available price will be used at execution"
+      "stalePriceWarning": "⚠️ Price may be stale — latest available price will be used at execution",
+      "balance": "Balance",
+      "equity": "Equity",
+      "freeMargin": "Free Margin",
+      "margin": "Margin",
+      "marginLevel": "Margin Level",
+      "current": "Current",
+      "used": "Used",
+      "ratio": "Ratio",
+      "pnl": "P&L",
+      "hidePositions": "Hide Positions",
+      "showPositions": "Show Positions"
     },
     "home": {
       "modeTraderLabel": "Trader Mode",
@@ -1903,7 +1914,10 @@
       "updating": "Updating...",
       "update": "Update",
       "clearLocal": "Clear Local",
-      "exit": "Exit"
+      "exit": "Exit",
+      "tp": "TP",
+      "sl": "SL",
+      "pnl": "P&L"
     },
     "sidebarTabs": {
       "portfolio": "Portfolio",
@@ -2278,6 +2292,11 @@
     "additionalPositions": "+{count} more positions",
     "pnl": "P&L",
     "exposure": "Exposure",
-    "loadingTrader": "Loading"
+    "loadingTrader": "Loading",
+    "exchangeBinance": "Binance",
+    "exchangeBinanceDirect": "Binance Direct",
+    "exchangeAlpaca": "Alpaca",
+    "exchangePaperTrading": "Paper Trading",
+    "exchangeTestnet": "Testnet"
   }
 }

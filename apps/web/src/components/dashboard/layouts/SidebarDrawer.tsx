@@ -84,7 +84,7 @@ export function SidebarDrawer({
           zIndex: 50,
           display: 'flex',
           flexDirection: 'column',
-          direction: 'rtl',
+          direction: 'inherit',
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: pinned

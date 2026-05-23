@@ -1608,14 +1608,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           title: label || '',
         });
         priceLinesRef.current.set(id, line);
+        // expose count for debugging
+        (window as any).__plCount = priceLinesRef.current.size;
         return true;
-      } catch { return false; }
+      } catch (e) {
+        (window as any).__plError = String(e);
+        return false;
+      }
     };
 
     if (!doAdd()) {
       // Series not ready yet — retry after data loads
-      setTimeout(doAdd, 300);
-      setTimeout(doAdd, 800);
+      setTimeout(doAdd, 500);
+      setTimeout(doAdd, 1500);
+      setTimeout(doAdd, 3000);
     }
   }, []);
 

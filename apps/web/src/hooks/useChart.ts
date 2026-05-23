@@ -1559,22 +1559,41 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const apply = () => {
       const series = mainSeriesRef.current || candleSeriesRef.current;
-      if (!series) return false;
+      if (!series) {
+        // DEBUG: show in DOM
+        const d = document.getElementById('__markers_debug') || document.createElement('div');
+        d.id = '__markers_debug';
+        d.style.cssText = 'position:fixed;bottom:10px;left:10px;background:red;color:white;padding:4px 8px;z-index:99999;font-size:11px;border-radius:4px';
+        d.textContent = 'markers: no series! len=' + markers.length;
+        document.body.appendChild(d);
+        return false;
+      }
       try {
-        // Always recreate plugin — guarantees correct series binding
         if (markersPluginRef.current) {
           try { markersPluginRef.current.setMarkers([]); } catch {}
           markersPluginRef.current = null;
         }
         if (markers.length > 0) {
           markersPluginRef.current = createSeriesMarkers(series as any, markers);
+          // DEBUG success
+          const d = document.getElementById('__markers_debug') || document.createElement('div');
+          d.id = '__markers_debug';
+          d.style.cssText = 'position:fixed;bottom:10px;left:10px;background:green;color:white;padding:4px 8px;z-index:99999;font-size:11px;border-radius:4px';
+          d.textContent = 'markers OK: ' + markers.length + ' applied';
+          document.body.appendChild(d);
         }
         return true;
-      } catch { return false; }
+      } catch(e: any) {
+        const d = document.getElementById('__markers_debug') || document.createElement('div');
+        d.id = '__markers_debug';
+        d.style.cssText = 'position:fixed;bottom:10px;left:10px;background:orange;color:black;padding:4px 8px;z-index:99999;font-size:11px;border-radius:4px';
+        d.textContent = 'markers ERROR: ' + (e?.message||e);
+        document.body.appendChild(d);
+        return false;
+      }
     };
 
     if (!apply()) {
-      // Retry once after 500ms if series not ready
       setTimeout(apply, 500);
     }
   }, []);

@@ -1921,15 +1921,21 @@ export default function RouaChart({
         </div>
       )}
 
-      {/* AI Smart Panel — position:fixed outside all overflow:hidden */}
+      {/* AI Smart Panel — DraggablePanel with position:fixed */}
       {showAIPanel && (
-        <div style={{ position: 'fixed', top: 120, right: 290, zIndex: 9999, width: 340, minHeight: 360 }}>
+        <DraggablePanel defaultPosition={{ top: 120, right: 290 }} defaultWidth={340} minHeight={360} resizable style={{ zIndex: 9999 }}>
           <AISmartPanel
             symbol={selectedSymbol}
             candles={aiPanelCandles}
             currentPrice={currentPrice}
             onPatternsDetected={handlePatternsDetected}
             onClose={() => setShowAIPanel(false)}
+            onScrollToTime={(time) => {
+              try {
+                const ts = chart.chartRef?.current?.timeScale();
+                if (ts) ts.setVisibleRange({ from: (time - 3600 * 8) as any, to: (time + 3600 * 8) as any });
+              } catch {}
+            }}
             onExecuteTrade={(side, entry, sl, tp) => {
               const { addTrade } = usePaperTradesStore.getState();
               addTrade({
@@ -1946,7 +1952,7 @@ export default function RouaChart({
               });
             }}
           />
-        </div>
+        </DraggablePanel>
       )}
     </div>
   );

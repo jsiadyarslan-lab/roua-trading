@@ -43,9 +43,10 @@ interface Props {
   onPatternsDetected: (r: AIAnalysisResult) => void;
   onClose: () => void;
   onExecuteTrade?: (side: 'long' | 'short', entry: number, sl: number, tp: number) => void;
+  onScrollToTime?: (time: number) => void;
 }
 
-export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade }: Props) {
+export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime }: Props) {
   const [tab, setTab] = useState<Tab>('signal');
   const [loading, setLoading] = useState(false);
   const [signal, setSignal] = useState<{ dir: 'BUY' | 'SELL' | 'WAIT'; conf: number; entry: number; sl: number; tp: number; reason: string; ts: number } | null>(null);

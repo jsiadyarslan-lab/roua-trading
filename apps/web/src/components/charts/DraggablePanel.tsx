@@ -87,15 +87,16 @@ export function DraggablePanel({
 
   // ── Drag handlers ──
   const handleDragStart = useCallback((e: React.MouseEvent) => {
-    // Only drag from header area (first child or element with data-drag-handle)
     const target = e.target as HTMLElement;
     if (!target.closest('[data-drag-handle]')) return;
 
     e.preventDefault();
     e.stopPropagation();
 
-    const currentLeft = panelRef.current?.offsetLeft || 0;
-    const currentTop = panelRef.current?.offsetTop || 0;
+    // Use getBoundingClientRect for position:fixed elements
+    const rect = panelRef.current?.getBoundingClientRect();
+    const currentLeft = rect?.left || 0;
+    const currentTop = rect?.top || 0;
 
     dragState.current = {
       isDragging: true,
@@ -111,7 +112,12 @@ export function DraggablePanel({
       const dy = moveEvent.clientY - dragState.current.startY;
       const newX = dragState.current.startLeft + dx;
       const newY = dragState.current.startTop + dy;
-      setPos({ x: Math.max(0, newX), y: Math.max(0, newY) });
+      // Clamp to viewport
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const pw = panelRef.current?.offsetWidth || 340;
+      const ph = panelRef.current?.offsetHeight || 360;
+      setPos({ x: Math.max(0, Math.min(vw - pw, newX)), y: Math.max(0, Math.min(vh - 50, newY)) });
     };
 
     const handleDragEnd = () => {
@@ -164,13 +170,15 @@ export function DraggablePanel({
   // Convert defaultPosition to CSS for initial render (before drag sets pos)
   const initialStyle: React.CSSProperties = pos === null
     ? {
-        position: 'absolute',
+        position: 'fixed',
         ...defaultPosition,
       }
     : {
-        position: 'absolute',
+        position: 'fixed',
         left: pos.x,
         top: pos.y,
+        right: 'auto',
+        bottom: 'auto',
       };
 
   const sizeStyle: React.CSSProperties = size

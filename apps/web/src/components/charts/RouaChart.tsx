@@ -1009,50 +1009,52 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
-    // ── SMC + Geo + Elliott via chart.addPriceLine ──────────
-    // Use the existing addPriceLine which is already working for S/R
-    if (result.smcData) {
-      // Order Blocks
-      result.smcData.orderBlocks.slice(0, 3).forEach((ob, i) => {
-        const col = ob.type === 'bullish' ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
-        const id1 = `ob-hi-${i}`, id2 = `ob-lo-${i}`;
-        chart.addPriceLine(id1, ob.high, col, ob.type === 'bullish' ? 'OB↑' : 'OB↓', 1, 2, true);
-        chart.addPriceLine(id2, ob.low, col, '', 1, 2, false);
-        aiPriceLinesRef.current.push(id1, id2);
-      });
-      // FVG
-      result.smcData.fvgs.slice(0, 3).forEach((fvg, i) => {
-        const col = fvg.type === 'bullish' ? 'rgba(34,211,238,0.8)' : 'rgba(245,158,11,0.8)';
-        const id = `fvg-${i}`;
-        chart.addPriceLine(id, (fvg.high + fvg.low) / 2, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 1, true);
-        aiPriceLinesRef.current.push(id);
-      });
-      // BOS/CHoCH
-      result.smcData.structureBreaks.slice(0, 2).forEach((br, i) => {
-        const col = br.direction === 'bullish' ? 'rgba(59,130,246,0.9)' : 'rgba(249,115,22,0.9)';
-        const id = `bos-${i}`;
-        chart.addPriceLine(id, br.price, col, `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
-        aiPriceLinesRef.current.push(id);
-      });
-    }
-    // Geometric targets
-    if (result.geoPatterns?.length) {
-      result.geoPatterns.slice(0, 3).forEach((pat, i) => {
-        const col = pat.direction === 'bullish' ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
-        if (pat.target) {
-          const id = `geo-${i}`;
-          chart.addPriceLine(id, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
-          aiPriceLinesRef.current.push(id);
-        }
-      });
-    }
-    // Elliott target
-    if (result.elliottPattern?.nextTarget) {
-      const ew = result.elliottPattern;
-      const col = ew.direction === 'bullish' ? 'rgba(147,197,253,0.9)' : 'rgba(252,165,165,0.9)';
-      chart.addPriceLine('ew-target', ew.nextTarget!, col, `إليوت ${ew.currentWave}🌊`, 2, 0, true);
-      aiPriceLinesRef.current.push('ew-target');
-    }
+    // ── SMC + Geo + Elliott: draw after series is ready ──────
+    const drawExtraLines = () => {
+      if (result.smcData) {
+        result.smcData.orderBlocks.slice(0, 3).forEach((ob, i) => {
+          const col = ob.type === 'bullish' ? 'rgba(0,255,163,0.9)' : 'rgba(255,71,87,0.9)';
+          chart.addPriceLine(`ob-hi-${i}`, ob.high, col, ob.type === 'bullish' ? 'OB↑' : 'OB↓', 1, 2, true);
+          chart.addPriceLine(`ob-lo-${i}`, ob.low, col, '', 1, 2, false);
+          aiPriceLinesRef.current.push(`ob-hi-${i}`, `ob-lo-${i}`);
+        });
+        result.smcData.fvgs.slice(0, 3).forEach((fvg, i) => {
+          const col = fvg.type === 'bullish' ? 'rgba(34,211,238,0.9)' : 'rgba(245,158,11,0.9)';
+          chart.addPriceLine(`fvg-${i}`, (fvg.high + fvg.low) / 2, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 1, true);
+          aiPriceLinesRef.current.push(`fvg-${i}`);
+        });
+        result.smcData.structureBreaks.slice(0, 2).forEach((br, i) => {
+          const col = br.direction === 'bullish' ? 'rgba(59,130,246,0.9)' : 'rgba(249,115,22,0.9)';
+          chart.addPriceLine(`bos-${i}`, br.price, col, `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
+          aiPriceLinesRef.current.push(`bos-${i}`);
+        });
+      }
+      if (result.geoPatterns?.length) {
+        result.geoPatterns.slice(0, 3).forEach((pat, i) => {
+          if (!pat.target) return;
+          const col = pat.direction === 'bullish' ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
+          chart.addPriceLine(`geo-${i}`, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
+          aiPriceLinesRef.current.push(`geo-${i}`);
+        });
+      }
+      if (result.elliottPattern?.nextTarget) {
+        const ew = result.elliottPattern;
+        const col = ew.direction === 'bullish' ? 'rgba(147,197,253,0.9)' : 'rgba(252,165,165,0.9)';
+        chart.addPriceLine('ew-target', ew.nextTarget!, col, `إليوت ${ew.currentWave}🌊`, 2, 0, true);
+        aiPriceLinesRef.current.push('ew-target');
+      }
+      if (result.wyckoff && result.wyckoff.phase !== 'Unknown') {
+        const wCol = result.wyckoff.bias === 'bullish' ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
+        result.wyckoff.events.forEach((ev, i) => {
+          chart.addPriceLine(`wyckoff-${i}`, ev.price, wCol, `وايكوف: ${result.wyckoff!.labelAr}`, 1, 1, true);
+          aiPriceLinesRef.current.push(`wyckoff-${i}`);
+        });
+      }
+    };
+    // Run immediately + retry to ensure series is ready
+    drawExtraLines();
+    setTimeout(drawExtraLines, 500);
+    setTimeout(drawExtraLines, 1500);
 
     // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,

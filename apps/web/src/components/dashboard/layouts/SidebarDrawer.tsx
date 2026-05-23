@@ -89,7 +89,7 @@ export function SidebarDrawer({
           transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: pinned
             ? 'none'
-            : '-8px 0 32px rgba(0,0,0,0.4), -2px 0 8px rgba(0,212,255,0.08)',
+            : '0 0 32px rgba(0,0,0,0.4), 0 0 8px rgba(0,212,255,0.08)',
           overflow: 'hidden',
         }}
       >

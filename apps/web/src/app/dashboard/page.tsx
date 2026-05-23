@@ -1304,7 +1304,7 @@ export default function DashboardPage() {
                 </div>
                 {/* الرصيد الحالي */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('current')}</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('equity')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.cyan }}>{formatMoney(equityValue)}</span>
                 </div>
                 {/* الهامش المتاح */}
@@ -1314,12 +1314,12 @@ export default function DashboardPage() {
                 </div>
                 {/* الهامش المستخدم */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('used')}</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('margin')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(initialMargin)}</span>
                 </div>
                 {/* نسبة الهامش */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('ratio')}</span>
+                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('marginLevel')}</span>
                   <span dir="ltr" style={{
                     fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
                     color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger

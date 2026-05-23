@@ -17,6 +17,7 @@ import {
   Clock,
   Ban,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
 import SubPageLayout from '@/components/dashboard/SubPageLayout'
 import { fetchPositionsUnified } from '@/lib/api-fetch'
@@ -116,33 +117,35 @@ interface HistoryCandle {
 
 // ── Constants ──
 const TRADING_PAIRS = [
-  { symbol: 'BTC/USDT', name: 'بيتكوين', icon: '₿' },
-  { symbol: 'ETH/USDT', name: 'إيثريوم', icon: 'Ξ' },
-  { symbol: 'SOL/USDT', name: 'سولانا', icon: '◎' },
-  { symbol: 'BNB/USDT', name: 'بينانس', icon: '◆' },
-  { symbol: 'XRP/USDT', name: 'ريببل', icon: '✕' },
-  { symbol: 'ADA/USDT', name: 'كاردانو', icon: '♦' },
+  { symbol: 'BTC/USDT', nameKey: 'pairBTC', icon: '₿' },
+  { symbol: 'ETH/USDT', nameKey: 'pairETH', icon: 'Ξ' },
+  { symbol: 'SOL/USDT', nameKey: 'pairSOL', icon: '◎' },
+  { symbol: 'BNB/USDT', nameKey: 'pairBNB', icon: '◆' },
+  { symbol: 'XRP/USDT', nameKey: 'pairXRP', icon: '✕' },
+  { symbol: 'ADA/USDT', nameKey: 'pairADA', icon: '♦' },
 ]
 
 const ORDER_TYPES = [
-  { value: 'MARKET', label: 'سوقي' },
-  { value: 'LIMIT', label: 'محدد' },
+  { value: 'MARKET', labelKey: 'orderTypeMarket' },
+  { value: 'LIMIT', labelKey: 'orderTypeLimit' },
   // FIX: STOP_LIMIT removed — backend only supports MARKET and LIMIT.
   // Was causing 100% rejection for STOP_LIMIT orders.
 ]
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bgColor: string }> = {
-  PENDING: { label: 'معلق', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-  OPEN: { label: 'مفتوح', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
-  FILLED: { label: 'منفذ', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10' },
-  CANCELLED: { label: 'ملغي', color: 'text-gray-400', bgColor: 'bg-gray-500/10' },
-  REJECTED: { label: 'مرفوض', color: 'text-red-400', bgColor: 'bg-red-500/10' },
-  PARTIALLY_FILLED: { label: 'منفذ جزئياً', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
+const STATUS_KEYS: Record<string, { labelKey: string; color: string; bgColor: string }> = {
+  PENDING: { labelKey: 'statusPending', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
+  OPEN: { labelKey: 'statusOpen', color: 'text-yellow-400', bgColor: 'bg-yellow-500/10' },
+  FILLED: { labelKey: 'statusFilled', color: 'text-emerald-400', bgColor: 'bg-emerald-500/10' },
+  CANCELLED: { labelKey: 'statusCancelled', color: 'text-gray-400', bgColor: 'bg-gray-500/10' },
+  REJECTED: { labelKey: 'statusRejected', color: 'text-red-400', bgColor: 'bg-red-500/10' },
+  PARTIALLY_FILLED: { labelKey: 'statusPartial', color: 'text-blue-400', bgColor: 'bg-blue-500/10' },
 }
 
 export default function TradingPage() {
   const router = useRouter()
   const { loading: authLoading } = useAuth()
+  const t = useTranslations('dashboard.trading')
+  const tc = useTranslations('common')
 
   // Trading panel state
   const [symbol, setSymbol] = useState('BTC/USDT')
@@ -321,12 +324,12 @@ export default function TradingPage() {
     setOrderSuccess('')
 
     if (!quantity || quantity < MIN_QUANTITY) {
-      setOrderError(`الكمية يجب أن تكون على الأقل ${MIN_QUANTITY}`)
+      setOrderError(t('minQtyError', { min: MIN_QUANTITY }))
       return
     }
 
     if (!credentialId) {
-      setOrderError('يرجى اختيار حساب البورصة أولاً')
+      setOrderError(t('selectAccountError'))
       return
     }
 
@@ -377,11 +380,11 @@ export default function TradingPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        throw new Error(data.error || data.message || 'فشل في تنفيذ الطلب')
+        throw new Error(data.error || data.message || t('executionFailed'))
       }
 
       // v2 returns { orderId, status: 'ACCEPTED', riskScore }
-      setOrderSuccess(`تم قبول الطلب ✓ (معرّف: ${data.data?.orderId?.slice(0, 8) || ''}...، حالة: ${data.data?.status || 'مقبول'})`)
+      setOrderSuccess(t('orderAccepted', { id: data.data?.orderId?.slice(0, 8) || '', status: data.data?.status || t('accepted') }))
       setQuantity(0.01)
       setPrice('')
       setStopPrice('')
@@ -435,10 +438,10 @@ export default function TradingPage() {
         // FIX: Use refreshAfterTrade for staggered refresh
         usePositionsStore.getState().refreshAfterTrade()
       } else {
-        setOrderError(`فشل الإغلاق: ${result.error || 'خطأ غير معروف'}`)
+        setOrderError(t('closeFailed', { error: result.error || t('unknownError') }))
       }
     } catch (err: unknown) {
-      setOrderError(err instanceof Error ? err.message : 'خطأ في إغلاق المركز')
+      setOrderError(err instanceof Error ? err.message : t('closeError'))
     } finally {
       setClosingPosition(false)
       setClosePositionDialog(null)
@@ -529,18 +532,18 @@ export default function TradingPage() {
 
   return (
     <SubPageLayout
-      title="محرك المتابعة"
+      title={t('title')}
       icon={<Activity size={14} color="#fff" />}
       iconBg="linear-gradient(135deg, #00FFC6, #0A84FF)"
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           {apiUnavailable && (
             <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '9px', fontWeight: 600, color: 'var(--warning)', background: 'var(--warning-bg)', border: '1px solid var(--border-warning)', padding: '3px 8px', borderRadius: '6px' }}>
-              <AlertTriangle size={10} /> API غير متاح
+              <AlertTriangle size={10} /> {t('apiUnavailable')}
             </span>
           )}
           <button onClick={() => { fetchPositions(); fetchOrders(); fetchQuote(); fetchHistory() }} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '5px 12px', borderRadius: '7px', border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-ar)', cursor: 'pointer' }}>
-            <RefreshCw size={11} /> تحديث
+            <RefreshCw size={11} /> {t('refresh')}
           </button>
         </div>
       }
@@ -558,13 +561,13 @@ export default function TradingPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Zap className="w-4 h-4 text-emerald-400" />
-                  لوحة المتابعة
+                  {t('tradingPanel')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Symbol Selector */}
                 <div className="space-y-2">
-                  <Label className="text-xs">الزوج</Label>
+                  <Label className="text-xs">{t('pairLabel')}</Label>
                   <Select value={symbol} onValueChange={setSymbol}>
                     <SelectTrigger className="bg-background">
                       <SelectValue />
@@ -575,7 +578,7 @@ export default function TradingPage() {
                           <span className="flex items-center gap-2" dir="ltr">
                             <span>{pair.icon}</span>
                             {pair.symbol}
-                            <span className="text-muted-foreground text-xs">({pair.name})</span>
+                            <span className="text-muted-foreground text-xs">({t(pair.nameKey)})</span>
                           </span>
                         </SelectItem>
                       ))}
@@ -585,7 +588,7 @@ export default function TradingPage() {
 
                 {/* Side Toggle */}
                 <div className="space-y-2">
-                  <Label className="text-xs">الاتجاه</Label>
+                  <Label className="text-xs">{t('directionLabel')}</Label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() => setSide('BUY')}
@@ -596,7 +599,7 @@ export default function TradingPage() {
                       }`}
                     >
                       <TrendingUp className="w-4 h-4 inline ml-1" />
-                      شراء
+                      {tc('buy')}
                     </button>
                     <button
                       onClick={() => setSide('SELL')}
@@ -607,14 +610,14 @@ export default function TradingPage() {
                       }`}
                     >
                       <TrendingDown className="w-4 h-4 inline ml-1" />
-                      بيع
+                      {tc('sell')}
                     </button>
                   </div>
                 </div>
 
                 {/* Order Type */}
                 <div className="space-y-2">
-                  <Label className="text-xs">نوع الطلب</Label>
+                  <Label className="text-xs">{t('orderTypeLabel')}</Label>
                   <Select value={orderType} onValueChange={setOrderType}>
                     <SelectTrigger className="bg-background">
                       <SelectValue />
@@ -622,7 +625,7 @@ export default function TradingPage() {
                     <SelectContent>
                       {ORDER_TYPES.map((type) => (
                         <SelectItem key={type.value} value={type.value}>
-                          {type.label}
+                          {t(type.labelKey)}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -631,7 +634,7 @@ export default function TradingPage() {
 
                 {/* Quantity */}
                 <div className="space-y-2">
-                  <Label className="text-xs">الكمية</Label>
+                  <Label className="text-xs">{tc('quantity')}</Label>
                   <Input
                     type="number"
                     value={quantity}
@@ -654,7 +657,7 @@ export default function TradingPage() {
                 {/* Price (Limit/Stop-Limit) */}
                 {(orderType === 'LIMIT' || orderType === 'STOP_LIMIT') && (
                   <div className="space-y-2">
-                    <Label className="text-xs">سعر التنفيذ</Label>
+                    <Label className="text-xs">{t('executionPriceLabel')}</Label>
                     <Input
                       type="number"
                       value={price}
@@ -669,7 +672,7 @@ export default function TradingPage() {
                 {/* Stop Price (Stop-Limit) */}
                 {orderType === 'STOP_LIMIT' && (
                   <div className="space-y-2">
-                    <Label className="text-xs">سعر الوقف</Label>
+                    <Label className="text-xs">{t('stopPriceLabel')}</Label>
                     <Input
                       type="number"
                       value={stopPrice}
@@ -683,11 +686,11 @@ export default function TradingPage() {
 
                 {/* Credential Selector */}
                 <div className="space-y-2">
-                  <Label className="text-xs">حساب البورصة</Label>
+                  <Label className="text-xs">{t('exchangeAccountLabel')}</Label>
                   {credentials.length > 0 ? (
                     <Select value={credentialId} onValueChange={setCredentialId}>
                       <SelectTrigger className="bg-background">
-                        <SelectValue placeholder="اختر الحساب" />
+                        <SelectValue placeholder={t('chooseAccount')} />
                       </SelectTrigger>
                       <SelectContent>
                         {credentials.map((cred) => (
@@ -703,12 +706,12 @@ export default function TradingPage() {
                   ) : (
                     <div className="p-3 rounded-lg bg-yellow-500/5 border border-yellow-500/10 text-xs text-muted-foreground">
                       <Shield className="w-3 h-3 inline ml-1 text-yellow-400" />
-                      لا توجد مفاتيح API —{' '}
+                      {t('noApiKeys')}{' '}
                       <button
                         onClick={() => router.push('/dashboard/settings/exchange')}
                         className="text-teal-400 hover:underline"
                       >
-                        أضف مفتاح
+                        {t('addKey')}
                       </button>
                     </div>
                   )}
@@ -719,18 +722,18 @@ export default function TradingPage() {
                 {/* Position Value & Risk Info */}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-background border border-border">
-                    <p className="text-[10px] text-muted-foreground">القيمة المقدرة</p>
+                    <p className="text-[10px] text-muted-foreground">{t('estimatedValue')}</p>
                     <p className="text-sm font-medium" dir="ltr">{formatCurrency(estimatedPositionValue)}</p>
                   </div>
                   <div className="p-3 rounded-lg bg-background border border-border">
-                    <p className="text-[10px] text-muted-foreground">درجة المخاطر</p>
+                    <p className="text-[10px] text-muted-foreground">{t('riskScore')}</p>
                     <p className="text-sm font-medium">
                       {estimatedPositionValue > 10000 ? (
-                        <span className="text-red-400">مرتفع</span>
+                        <span className="text-red-400">{tc('high')}</span>
                       ) : estimatedPositionValue > 1000 ? (
-                        <span className="text-yellow-400">متوسط</span>
+                        <span className="text-yellow-400">{tc('medium')}</span>
                       ) : (
-                        <span className="text-emerald-400">منخفض</span>
+                        <span className="text-emerald-400">{tc('low')}</span>
                       )}
                     </p>
                   </div>
@@ -763,7 +766,7 @@ export default function TradingPage() {
                   {submitting ? (
                     <>
                       <Loader2 className="w-5 h-5 ml-2 animate-spin" />
-                      جارٍ التنفيذ...
+                      {t('executing')}
                     </>
                   ) : (
                     <>
@@ -772,7 +775,7 @@ export default function TradingPage() {
                       ) : (
                         <TrendingDown className="w-5 h-5 ml-2" />
                       )}
-                      تنفيذ الطلب
+                      {t('executeOrder')}
                     </>
                   )}
                 </Button>
@@ -784,7 +787,7 @@ export default function TradingPage() {
                   onClick={() => router.push('/dashboard/signals')}
                 >
                   <Zap className="w-4 h-4 ml-2" />
-                  تنفيذ من الإشارة
+                  {t('executeFromSignal')}
                 </Button>
               </CardContent>
             </Card>
@@ -831,7 +834,7 @@ export default function TradingPage() {
                           : 'bg-red-500/10 text-red-400 border-red-500/20'
                       } border`}
                     >
-                      {isPositive ? '▲' : '▼'} 24س
+                      {isPositive ? '▲' : '▼'} {t('h24')}
                     </Badge>
                   </div>
                 </div>
@@ -841,25 +844,25 @@ export default function TradingPage() {
                 {quote && (
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
                     <div className="p-2 rounded-lg bg-background border border-border">
-                      <p className="text-[10px] text-muted-foreground">أعلى سعر 24س</p>
+                      <p className="text-[10px] text-muted-foreground">{t('high24h')}</p>
                       <p className="text-xs font-medium text-emerald-400" dir="ltr">
                         {quote.high > 0 ? formatPrice(quote.high) : '—'}
                       </p>
                     </div>
                     <div className="p-2 rounded-lg bg-background border border-border">
-                      <p className="text-[10px] text-muted-foreground">أدنى سعر 24س</p>
+                      <p className="text-[10px] text-muted-foreground">{t('low24h')}</p>
                       <p className="text-xs font-medium text-red-400" dir="ltr">
                         {quote.low > 0 ? formatPrice(quote.low) : '—'}
                       </p>
                     </div>
                     <div className="p-2 rounded-lg bg-background border border-border">
-                      <p className="text-[10px] text-muted-foreground">الحجم 24س</p>
+                      <p className="text-[10px] text-muted-foreground">{t('volume24h')}</p>
                       <p className="text-xs font-medium" dir="ltr">
                         {quote.volume > 0 ? formatVolume(quote.volume) : '—'}
                       </p>
                     </div>
                     <div className="p-2 rounded-lg bg-background border border-border">
-                      <p className="text-[10px] text-muted-foreground">الافتتاح</p>
+                      <p className="text-[10px] text-muted-foreground">{t('openPrice')}</p>
                       <p className="text-xs font-medium" dir="ltr">
                         {quote.open > 0 ? formatPrice(quote.open) : '—'}
                       </p>
@@ -910,7 +913,7 @@ export default function TradingPage() {
                             borderRadius: '8px',
                             fontSize: '12px',
                           }}
-                          formatter={(value: number) => [formatPrice(value), 'السعر']}
+                          formatter={(value: number) => [formatPrice(value), t('priceLabel')]}
                         />
                         <Area
                           type="monotone"
@@ -926,7 +929,7 @@ export default function TradingPage() {
                       {loadingQuote ? (
                         <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
                       ) : (
-                        <p className="text-sm text-muted-foreground">لا تتوفر بيانات الرسم البياني</p>
+                        <p className="text-sm text-muted-foreground">{t('noChartData')}</p>
                       )}
                     </div>
                   )}
@@ -950,14 +953,14 @@ export default function TradingPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Activity className="w-4 h-4 text-amber-400" />
-                    المراكز المفتوحة
+                    {t('openPositions')}
                     <Badge variant="outline" className="text-xs mr-1">
-                      {positions.length} مركز
+                      {t('positionCount', { count: positions.length })}
                     </Badge>
                   </CardTitle>
                   {positions.length > 0 && (
                     <div className="text-left">
-                      <p className="text-xs text-muted-foreground">إجمالي الربح/الخسارة</p>
+                      <p className="text-xs text-muted-foreground">{t('totalPnl')}</p>
                       <p className={`text-sm font-bold ${totalUnrealizedPnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`} dir="ltr">
                         {totalUnrealizedPnl >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalUnrealizedPnl))}
                       </p>
@@ -969,18 +972,18 @@ export default function TradingPage() {
                 {loadingPositions ? (
                   <div className="text-center py-8">
                     <Loader2 className="w-6 h-6 text-muted-foreground mx-auto animate-spin" />
-                    <p className="text-xs text-muted-foreground mt-2">جارٍ التحميل...</p>
+                    <p className="text-xs text-muted-foreground mt-2">{t('loading')}</p>
                   </div>
                 ) : apiUnavailable ? (
                   <div className="text-center py-8">
                     <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-muted-foreground mb-2">محرك التداول غير متاح حالياً</p>
-                    <p className="text-xs text-muted-foreground">تأكد من تشغيل خادم NestJS على المنفذ 3001</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t('tradingEngineUnavailable')}</p>
+                    <p className="text-xs text-muted-foreground">{t('checkNestServer')}</p>
                   </div>
                 ) : positions.length === 0 ? (
                   <div className="text-center py-8">
                     <Activity className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-20" />
-                    <p className="text-sm text-muted-foreground">لا توجد مراكز مفتوحة</p>
+                    <p className="text-sm text-muted-foreground">{t('noOpenPositions')}</p>
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto space-y-2 custom-scrollbar">
@@ -1009,7 +1012,7 @@ export default function TradingPage() {
                                     ? 'bg-emerald-500/10 text-emerald-400'
                                     : 'bg-red-500/10 text-red-400'
                                 }`}>
-                                  {(pos.side === 'BUY' || pos.side === 'long') ? 'شراء' : 'بيع'}
+                                  {(pos.side === 'BUY' || pos.side === 'long') ? tc('buy') : tc('sell')}
                                 </Badge>
                                 <span>{pos.quantity}</span>
                                 <span>@</span>
@@ -1019,11 +1022,11 @@ export default function TradingPage() {
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-left">
-                              <p className="text-xs text-muted-foreground">السعر الحالي</p>
+                              <p className="text-xs text-muted-foreground">{t('currentPrice')}</p>
                               <p className="text-sm font-medium" dir="ltr">{formatPrice(pos.currentPrice)}</p>
                             </div>
                             <div className="text-left">
-                              <p className="text-xs text-muted-foreground">ر/خ</p>
+                              <p className="text-xs text-muted-foreground">{t('pnl')}</p>
                               <p className={`text-sm font-bold ${
                                 (pos.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                               }`} dir="ltr">
@@ -1039,7 +1042,7 @@ export default function TradingPage() {
                               variant="ghost"
                               size="sm"
                               onClick={() => setClosePositionDialog(pos)}
-                              aria-label="إغلاق المركز"
+                              aria-label={t('closePositionFull')}
                               className="text-muted-foreground hover:text-red-400 h-8 w-8 p-0"
                             >
                               <XCircle className="w-4 h-4" />
@@ -1065,29 +1068,29 @@ export default function TradingPage() {
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2">
                   <Clock className="w-4 h-4 text-cyan-400" />
-                  الطلبات الأخيرة
+                  {t('recentOrders')}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {loadingOrders ? (
                   <div className="text-center py-8">
                     <Loader2 className="w-6 h-6 text-muted-foreground mx-auto animate-spin" />
-                    <p className="text-xs text-muted-foreground mt-2">جارٍ التحميل...</p>
+                    <p className="text-xs text-muted-foreground mt-2">{t('loading')}</p>
                   </div>
                 ) : apiUnavailable ? (
                   <div className="text-center py-8">
                     <AlertTriangle className="w-8 h-8 text-yellow-400 mx-auto mb-3 opacity-50" />
-                    <p className="text-sm text-muted-foreground">لا يمكن تحميل الطلبات</p>
+                    <p className="text-sm text-muted-foreground">{t('ordersLoadFailed')}</p>
                   </div>
                 ) : orders.length === 0 ? (
                   <div className="text-center py-8">
                     <Clock className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-20" />
-                    <p className="text-sm text-muted-foreground">لا توجد طلبات سابقة</p>
+                    <p className="text-sm text-muted-foreground">{t('noPreviousOrders')}</p>
                   </div>
                 ) : (
                   <div className="max-h-96 overflow-y-auto space-y-2 custom-scrollbar">
                     {orders.map((order) => {
-                      const statusCfg = STATUS_CONFIG[order.status] || STATUS_CONFIG.PENDING
+                      const statusCfg = STATUS_KEYS[order.status] || STATUS_KEYS.PENDING
                       const canCancel = order.status === 'PENDING' || order.status === 'OPEN'
                       return (
                         <div
@@ -1111,7 +1114,7 @@ export default function TradingPage() {
                               </div>
                               <div className="flex items-center gap-2 mt-0.5">
                                 <Badge className={`text-[10px] border-0 ${statusCfg.bgColor} ${statusCfg.color}`}>
-                                  {statusCfg.label}
+                                  {t(statusCfg.labelKey)}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
                                   {order.quantity} @ {formatPrice(order.price)}
@@ -1147,7 +1150,7 @@ export default function TradingPage() {
           <div className="flex items-start gap-2">
             <AlertTriangle className="w-4 h-4 text-yellow-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-muted-foreground">
-              محرك التداول لأغراض تعليمية فقط. تداول بمسؤولية ولا تستثمر أكثر مما يمكنك تحمل خسارته. رؤى لا تلمس أموالك أبداً.
+              {t('disclaimer')}
             </p>
           </div>
         </div>
@@ -1157,29 +1160,29 @@ export default function TradingPage() {
       <Dialog open={!!closePositionDialog} onOpenChange={(open) => !open && setClosePositionDialog(null)}>
         <DialogContent className="bg-card border-border" dir="rtl">
           <DialogHeader>
-            <DialogTitle>تأكيد إغلاق المركز</DialogTitle>
+            <DialogTitle>{t('confirmClose')}</DialogTitle>
             <DialogDescription>
-              هل أنت متأكد من إغلاق مركز {closePositionDialog?.symbol}؟ هذا الإجراء لا يمكن التراجع عنه.
+              {t('confirmCloseDesc', { symbol: closePositionDialog?.symbol || '' })}
             </DialogDescription>
           </DialogHeader>
           {closePositionDialog && (
             <div className="grid grid-cols-2 gap-3 my-4">
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">الاتجاه</p>
+                <p className="text-[10px] text-muted-foreground">{t('directionLabel')}</p>
                 <p className={`text-sm font-medium ${closePositionDialog.side === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {closePositionDialog.side === 'BUY' ? 'شراء' : 'بيع'}
+                  {closePositionDialog.side === 'BUY' ? tc('buy') : tc('sell')}
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">الكمية</p>
+                <p className="text-[10px] text-muted-foreground">{tc('quantity')}</p>
                 <p className="text-sm font-medium">{closePositionDialog.quantity}</p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">سعر الدخول</p>
+                <p className="text-[10px] text-muted-foreground">{t('entryPrice')}</p>
                 <p className="text-sm font-medium" dir="ltr">{formatPrice(closePositionDialog.entryPrice)}</p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">ر/خ غير محقق</p>
+                <p className="text-[10px] text-muted-foreground">{t('unrealizedPnl')}</p>
                 <p className={`text-sm font-bold ${
                   (closePositionDialog.unrealizedPnl || 0) >= 0 ? 'text-emerald-400' : 'text-red-400'
                 }`} dir="ltr">
@@ -1192,10 +1195,10 @@ export default function TradingPage() {
             <Button
               variant="outline"
               onClick={() => setClosePositionDialog(null)}
-              aria-label="إلغاء إغلاق المركز"
+              aria-label={t('cancelCloseAria')}
               className="flex-1"
             >
-              إلغاء
+              {tc('cancel')}
             </Button>
             <Button
               onClick={handleClosePosition}
@@ -1207,7 +1210,7 @@ export default function TradingPage() {
               ) : (
                 <XCircle className="w-4 h-4 ml-2" />
               )}
-              إغلاق المركز
+              {t('closePositionFull')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1217,29 +1220,29 @@ export default function TradingPage() {
       <Dialog open={!!cancelOrderDialog} onOpenChange={(open) => !open && setCancelOrderDialog(null)}>
         <DialogContent className="bg-card border-border" dir="rtl">
           <DialogHeader>
-            <DialogTitle>تأكيد إلغاء الطلب</DialogTitle>
+            <DialogTitle>{t('confirmCancel')}</DialogTitle>
             <DialogDescription>
-              هل أنت متأكد من إلغاء طلب {cancelOrderDialog?.symbol}؟
+              {t('confirmCancelDesc', { symbol: cancelOrderDialog?.symbol || '' })}
             </DialogDescription>
           </DialogHeader>
           {cancelOrderDialog && (
             <div className="grid grid-cols-2 gap-3 my-4">
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">الاتجاه</p>
+                <p className="text-[10px] text-muted-foreground">{t('directionLabel')}</p>
                 <p className={`text-sm font-medium ${cancelOrderDialog.side === 'BUY' ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {cancelOrderDialog.side === 'BUY' ? 'شراء' : 'بيع'}
+                  {cancelOrderDialog.side === 'BUY' ? tc('buy') : tc('sell')}
                 </p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">النوع</p>
+                <p className="text-[10px] text-muted-foreground">{tc('type')}</p>
                 <p className="text-sm font-medium">{cancelOrderDialog.type}</p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">الكمية</p>
+                <p className="text-[10px] text-muted-foreground">{tc('quantity')}</p>
                 <p className="text-sm font-medium">{cancelOrderDialog.quantity}</p>
               </div>
               <div className="p-3 rounded-lg bg-background border border-border">
-                <p className="text-[10px] text-muted-foreground">السعر</p>
+                <p className="text-[10px] text-muted-foreground">{tc('price')}</p>
                 <p className="text-sm font-medium" dir="ltr">{formatPrice(cancelOrderDialog.price)}</p>
               </div>
             </div>
@@ -1248,10 +1251,10 @@ export default function TradingPage() {
             <Button
               variant="outline"
               onClick={() => setCancelOrderDialog(null)}
-              aria-label="إلغاء إلغاء الطلب"
+              aria-label={t('cancelCancelAria')}
               className="flex-1"
             >
-              تراجع
+              {t('goBack')}
             </Button>
             <Button
               onClick={handleCancelOrder}
@@ -1263,7 +1266,7 @@ export default function TradingPage() {
               ) : (
                 <Ban className="w-4 h-4 ml-2" />
               )}
-              إلغاء الطلب
+              {t('cancelOrderFull')}
             </Button>
           </DialogFooter>
         </DialogContent>

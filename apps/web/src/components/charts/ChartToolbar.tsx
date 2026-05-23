@@ -10,6 +10,7 @@ import { getPortalRoot } from '@/lib/portal-root';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 import { TIMEFRAMES } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { useTranslations } from 'next-intl';
 
 interface ChartToolbarProps {
   symbol: string;
@@ -65,19 +66,20 @@ interface ChartToolbarProps {
   priceAlertsCount?: number;
 }
 
-const CHART_TYPES: { key: ChartType; label: string }[] = [
-  { key: 'candle',       label: 'شموع' },
-  { key: 'hollow',       label: 'مجوفة' },
-  { key: 'bar',          label: 'OHLC' },
-  { key: 'line',         label: 'خط' },
-  { key: 'area',         label: 'منطقة' },
-  { key: 'heikin-ashi',  label: 'HA' },
-];
+// Chart type keys — labels resolved via i18n in the component
+const CHART_TYPE_KEYS: ChartType[] = ['candle', 'hollow', 'bar', 'line', 'area', 'heikin-ashi'];
+const CHART_TYPE_I18N_KEYS: Record<ChartType, string> = {
+  'candle': 'candle',
+  'hollow': 'hollow',
+  'bar': 'bar',
+  'line': 'line',
+  'area': 'area',
+  'heikin-ashi': 'heikinAshi',
+};
 
-// Only cursor in toolbar — all other drawing tools (trendline, horizontal, fibonacci, rectangle)
-// are available in the Drawing Panel (أدوات الرسم)
-const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; title: string }[] = [
-  { key: 'cursor',     icon: '↖', title: 'مؤشر' },
+// Only cursor in toolbar — all other drawing tools in the Drawing Panel
+const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; i18nKey: string }[] = [
+  { key: 'cursor',     icon: '↖', i18nKey: 'cursor' },
 ];
 
 export function ChartToolbar(props: ChartToolbarProps) {
@@ -102,6 +104,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     isFullscreen,
   } = props;
 
+  const t = useTranslations('chartToolbar');
   const [showChartTypePanel, setShowChartTypePanel] = useState(false);
   const [showTimeframePanel, setShowTimeframePanel] = useState(false);
   const [showExportPanel, setShowExportPanel] = useState(false);
@@ -264,7 +267,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const panelItemStyle: React.CSSProperties = {
     display: 'block',
     width: '100%',
-    textAlign: 'right' as const,
+    textAlign: 'start' as const,
     padding: '8px 10px',
     fontSize: 11,
     fontFamily: "'JetBrains Mono', monospace",
@@ -295,7 +298,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
     <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, right: tfPanelPos.right, minWidth: mobile ? 200 : 240 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>الإطار الزمني</div>
+      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('timeframe')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
           const isActive = timeframe === tf.value;
@@ -330,21 +333,21 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   const ctPanelPortal = showChartTypePanel && ctPanelPos ? createPortal(
     <div ref={ctPanelRef} style={{ ...panelBaseStyle, top: ctPanelPos.top, left: ctPanelPos.left, minWidth: mobile ? 130 : 150 }}>
-      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>نوع الشارت</div>
-      {CHART_TYPES.map(ct => (
+      <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('chartType')}</div>
+      {CHART_TYPE_KEYS.map(ctKey => (
         <button
-          key={ct.key}
+          key={ctKey}
           style={{
             ...panelItemStyle,
-            background: chartType === ct.key ? 'rgba(0,212,255,0.12)' : 'none',
-            color: chartType === ct.key ? COLORS.cyan : COLORS.textSecondary,
-            fontWeight: chartType === ct.key ? 700 : 400,
+            background: chartType === ctKey ? 'rgba(0,212,255,0.12)' : 'none',
+            color: chartType === ctKey ? COLORS.cyan : COLORS.textSecondary,
+            fontWeight: chartType === ctKey ? 700 : 400,
           }}
-          onClick={() => { onSetChartType(ct.key); setShowChartTypePanel(false); }}
+          onClick={() => { onSetChartType(ctKey); setShowChartTypePanel(false); }}
           onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,212,255,0.08)')}
-          onMouseLeave={e => (e.currentTarget.style.background = chartType === ct.key ? 'rgba(0,212,255,0.12)' : 'none')}
+          onMouseLeave={e => (e.currentTarget.style.background = chartType === ctKey ? 'rgba(0,212,255,0.12)' : 'none')}
         >
-          {ct.label}
+          {t(CHART_TYPE_I18N_KEYS[ctKey])}
         </button>
       ))}
     </div>,
@@ -354,24 +357,24 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const exportPanelPortal = showExportPanel && exportPanelPos ? createPortal(
     <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, right: exportPanelPos.right, minWidth: mobile ? 160 : 120 }}>
       {mobile ? [
-        { label: '📐 أدوات الرسم', action: onToggleDrawings },
-        { label: '🗑️ مسح الرسومات', action: onClearDrawings },
-        { label: '📊 ملف الحجم', action: onToggleVolumeProfile || (() => {}) },
-        { label: '🧠 تحليل AI', action: onToggleAIPanel || (() => {}) },
-        { label: '📈 تقدم الأنماط', action: onTogglePatternProgress || (() => {}) },
+        { label: `📐 ${t('drawings')}`, action: onToggleDrawings },
+        { label: `🗑️ ${t('clearDrawings')}`, action: onClearDrawings },
+        { label: `📊 ${t('volumeProfile')}`, action: onToggleVolumeProfile || (() => {}) },
+        { label: `🧠 ${t('aiAnalysis')}`, action: onToggleAIPanel || (() => {}) },
+        { label: `📈 ${t('patternProgress')}`, action: onTogglePatternProgress || (() => {}) },
         { label: '👣 Footprint', action: onToggleFootprint || (() => {}) },
-        { label: '🔔 تنبيهات', action: onToggleAlerts || (() => {}) },
+        { label: `🔔 ${t('alerts')}`, action: onToggleAlerts || (() => {}) },
         { label: '⏪ Replay Mode', action: onToggleReplay || (() => {}) },
         { label: '🔲 Heatmap', action: onToggleHeatmap || (() => {}) },
-        { label: '⚖️ مقارنة', action: onToggleCompare || (() => {}) },
-        { label: '📊 تحليل MTF', action: onToggleMTF || (() => {}) },
-        { label: '▦ شبكة الشارتات', action: onToggleChartGrid || (() => {}) },
-        { label: '🔗 مشاركة', action: onToggleShare || (() => {}) },
-        { label: '📋 قائمة المراقبة', action: onToggleWatchlist || (() => {}) },
-        { label: '💾 إدارة القوالب', action: onToggleTemplateManager || (() => {}) },
-        { label: '⚙️ إعدادات الشارت', action: onToggleChartSettings || (() => {}) },
-        { label: '📥 تصدير PNG', action: onExportPNG },
-        { label: '📥 تصدير CSV', action: onExportCSV },
+        { label: `⚖️ ${t('compare')}`, action: onToggleCompare || (() => {}) },
+        { label: `📊 ${t('mtfAnalysis')}`, action: onToggleMTF || (() => {}) },
+        { label: `▦ ${t('chartGrid')}`, action: onToggleChartGrid || (() => {}) },
+        { label: `🔗 ${t('share')}`, action: onToggleShare || (() => {}) },
+        { label: `📋 ${t('watchlist')}`, action: onToggleWatchlist || (() => {}) },
+        { label: `💾 ${t('templateManager')}`, action: onToggleTemplateManager || (() => {}) },
+        { label: `⚙️ ${t('chartSettings')}`, action: onToggleChartSettings || (() => {}) },
+        { label: `📥 ${t('exportPNG')}`, action: onExportPNG },
+        { label: `📥 ${t('exportCSV')}`, action: onExportCSV },
       ].map(item => (
         <button
           key={item.label}
@@ -381,9 +384,9 @@ export function ChartToolbar(props: ChartToolbarProps) {
           {item.label}
         </button>
       )) : [
-        { label: 'PNG صورة', action: onExportPNG },
-        { label: 'SVG صورة', action: onExportSVG },
-        { label: 'CSV بيانات', action: onExportCSV },
+        { label: t('exportImage'), action: onExportPNG },
+        { label: t('exportSVG'), action: onExportSVG },
+        { label: t('exportData'), action: onExportCSV },
       ].map(item => (
         <button
           key={item.label}
@@ -423,7 +426,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={{ ...btnStyle, padding: '0 6px' }}
               onClick={() => setShowChartTypePanel(!showChartTypePanel)}
-              title="نوع الشارت"
+              title={t('chartType')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="2" y="4" width="4" height="16" rx="1"/>
@@ -461,7 +464,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={fullscreenBtnStyle}
             onClick={onToggleFullscreen}
-            title={isFullscreen ? 'خروج من ملء الشاشة' : 'تكبير الشارت'}
+            title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
           >
             {fullscreenIcon}
           </button>
@@ -472,7 +475,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={activeTool === 'cursor' ? activeBtnStyle : btnStyle}
             onClick={() => onSetTool('cursor')}
-            title="مؤشر"
+            title={t('cursor')}
           >
             ↖
           </button>
@@ -481,7 +484,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={{ ...btnStyle, width: 'auto', padding: '0 5px', fontWeight: 700 }}
             onClick={onToggleIndicators}
-            title="المؤشرات"
+            title={t('indicators')}
           >
             IND
           </button>
@@ -489,8 +492,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <div style={sepStyle} />
 
           {/* Zoom In/Out */}
-          <button style={btnStyle} onClick={onZoomIn} title="تكبير">+</button>
-          <button style={btnStyle} onClick={onZoomOut} title="تصغير">−</button>
+          <button style={btnStyle} onClick={onZoomIn} title={t('zoomIn')}>+</button>
+          <button style={btnStyle} onClick={onZoomOut} title={t('zoomOut')}>−</button>
 
           <div style={sepStyle} />
 
@@ -510,7 +513,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={toggleBtnStyle(!!showChartTrading)}
               onClick={onToggleChartTrading}
-              title="تداول"
+              title={t('chartTrading')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
@@ -523,7 +526,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={toggleBtnStyle(!!showCompare)}
               onClick={onToggleCompare}
-              title="مقارنة أصل آخر"
+              title={t('compareAsset')}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
@@ -536,7 +539,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={btnStyle}
               onClick={onToggleMTF}
-              title="MTF: نفس الزوج على أطر زمنية متعددة (1m / 15m / 4H / 1D)"
+              title={t('mtfTooltip')}
             >
               MTF
             </button>
@@ -547,7 +550,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={btnStyle}
               onClick={onToggleChartGrid}
-              title="شبكة شارتات: أزواج مختلفة جنباً لجنب (2×2 / 3×3)"
+              title={t('chartGridTooltip')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
@@ -560,7 +563,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <button
               style={btnStyle}
               onClick={onToggleShare}
-              title="مشاركة الشارت"
+              title={t('shareChart')}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -601,7 +604,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
               fontWeight: 700,
             }}
             onClick={onTogglePause}
-            title={isPaused ? 'تشغيل' : 'إيقاف'}
+            title={isPaused ? t('play') : t('pause')}
           >
             {isPaused ? '▶' : '⏸'}
           </button>
@@ -610,7 +613,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
           {/* More tools menu (overflow) */}
           <div ref={exportRef} style={{ position: 'relative' }}>
-            <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title="المزيد">
+            <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title={t('more')}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/>
               </svg>
@@ -649,7 +652,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={btnStyle}
             onClick={() => setShowChartTypePanel(!showChartTypePanel)}
-            title="نوع الشارت"
+            title={t('chartType')}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="4" width="4" height="16" rx="1"/>
@@ -687,7 +690,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         <button
           style={fullscreenBtnStyle}
           onClick={onToggleFullscreen}
-          title={isFullscreen ? 'خروج من ملء الشاشة' : 'تكبير الشارت'}
+          title={isFullscreen ? t('exitFullscreen') : t('enterFullscreen')}
         >
           {fullscreenIcon}
         </button>
@@ -700,21 +703,21 @@ export function ChartToolbar(props: ChartToolbarProps) {
             key={tool.key}
             style={activeTool === tool.key ? activeBtnStyle : btnStyle}
             onClick={() => onSetTool(tool.key)}
-            title={tool.title}
+            title={tool.i18nKey ? t(tool.i18nKey) : tool.title}
           >
             {tool.icon}
           </button>
         ))}
 
         {/* Drawing Panel */}
-        <button style={btnStyle} onClick={onToggleDrawings} title="أدوات الرسم">
+        <button style={btnStyle} onClick={onToggleDrawings} title={t('drawings')}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><path d="M2 2l7.586 7.586"/>
           </svg>
         </button>
 
         {/* Clear Drawings */}
-        <button style={{ ...btnStyle, color: COLORS.danger }} onClick={onClearDrawings} title="مسح الرسومات">
+        <button style={{ ...btnStyle, color: COLORS.danger }} onClick={onClearDrawings} title={t('clearDrawings')}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M9 6V4h6v2"/>
           </svg>
@@ -723,17 +726,17 @@ export function ChartToolbar(props: ChartToolbarProps) {
         <div style={sepStyle} />
 
         {/* Zoom */}
-        <button style={btnStyle} onClick={onZoomIn} title="تكبير (+)">
+        <button style={btnStyle} onClick={onZoomIn} title={`${t('zoomIn')} (+)`}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <button style={btnStyle} onClick={onZoomOut} title="تصغير (-)">
+        <button style={btnStyle} onClick={onZoomOut} title={`${t('zoomOut')} (-)`}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/>
           </svg>
         </button>
-        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "'Cairo', sans-serif" }} onClick={onResetView} title="إعادة ضبط">
+        <button style={{ ...btnStyle, fontWeight: 700, width: 'auto', padding: '0 5px', fontFamily: "'Cairo', sans-serif" }} onClick={onResetView} title={t('resetView')}>
           ⊡
         </button>
 
@@ -743,7 +746,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         <button
           style={{ ...btnStyle, width: 'auto', padding: '0 7px', fontWeight: 700 }}
           onClick={onToggleIndicators}
-          title="المؤشرات"
+          title={t('indicators')}
         >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginInlineEnd: 3 }}>
             <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
@@ -758,7 +761,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showVolumeProfile)}
             onClick={onToggleVolumeProfile}
-            title="ملف الحجم"
+            title={t('volumeProfile')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="14" width="4" height="8"/><rect x="8" y="8" width="4" height="14"/><rect x="14" y="2" width="4" height="20"/>
@@ -771,7 +774,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showAIPanel)}
             onClick={onToggleAIPanel}
-            title="تحليل الأنماط بالذكاء الاصطناعي"
+            title={t('aiPatternAnalysis')}
           >
             🧠 AI
           </button>
@@ -782,7 +785,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showPatternProgress)}
             onClick={onTogglePatternProgress}
-            title="تقدم الأنماط الحية"
+            title={t('livePatternProgress')}
           >
             📈
           </button>
@@ -808,7 +811,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showAlerts)}
             onClick={onToggleAlerts}
-            title="التنبيهات"
+            title={t('alerts')}
           >
             🔔
           </button>
@@ -821,7 +824,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showChartTrading)}
             onClick={onToggleChartTrading}
-            title="تداول من الشارت"
+            title={t('chartTrading')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>
@@ -836,7 +839,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showCompare)}
             onClick={onToggleCompare}
-            title="مقارنة أصل آخر"
+            title={t('compareAsset')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
@@ -851,7 +854,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={btnStyle}
             onClick={onToggleShare}
-            title="مشاركة الشارت"
+            title={t('shareChart')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
@@ -865,7 +868,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={btnStyle}
             onClick={onToggleTemplateManager}
-            title="إدارة القوالب"
+            title={t('templateManager')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/>
@@ -878,7 +881,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           <button
             style={toggleBtnStyle(!!showWatchlist)}
             onClick={onToggleWatchlist}
-            title="قائمة المراقبة"
+            title={t('watchlist')}
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
@@ -888,7 +891,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         {/* Chart Settings */}
         {onToggleChartSettings && (
-          <button style={btnStyle} onClick={onToggleChartSettings} title="إعدادات الشارت">
+          <button style={btnStyle} onClick={onToggleChartSettings} title={t('chartSettings')}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
@@ -962,7 +965,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             fontWeight: 700,
           }}
           onClick={onTogglePause}
-          title={isPaused ? 'تشغيل التحديث (Space)' : 'إيقاف التحديث (Space)'}
+          title={isPaused ? `${t('playUpdate')} (Space)` : `${t('pauseUpdate')} (Space)`}
         >
           {isPaused ? '▶' : '⏸'}
         </button>
@@ -971,7 +974,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         {/* Export */}
         <div ref={exportRef} style={{ position: 'relative' }}>
-          <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title="تصدير">
+          <button style={btnStyle} onClick={() => setShowExportPanel(!showExportPanel)} title={t('export')}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
             </svg>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Brain, Send, Loader2, AlertTriangle, TrendingUp, BookOpen,
   ChevronDown, ChevronUp, MessageCircle, RefreshCw, Star,
@@ -37,11 +38,12 @@ interface ChatMessage {
 
 /* ── Rating display ── */
 function RatingBadge({ rating }: { rating: string }) {
+  const t = useTranslations('aiCoach')
   const config: Record<string, { label: string; color: string; bg: string; border: string; icon: any }> = {
-    excellent: { label: 'ممتاز', color: T.green, bg: `${T.green}14`, border: `${T.green}44`, icon: Award },
-    good: { label: 'جيد', color: T.blue, bg: `${T.blue}14`, border: `${T.blue}44`, icon: Star },
-    needs_improvement: { label: 'يحتاج تحسين', color: T.amber, bg: `${T.amber}14`, border: `${T.amber}44`, icon: AlertTriangle },
-    insufficient_data: { label: 'بيانات غير كافية', color: T.text3, bg: `${T.text3}0a`, border: `${T.text3}33`, icon: BookOpen },
+    excellent: { label: t('ratingExcellent'), color: T.green, bg: `${T.green}14`, border: `${T.green}44`, icon: Award },
+    good: { label: t('ratingGood'), color: T.blue, bg: `${T.blue}14`, border: `${T.blue}44`, icon: Star },
+    needs_improvement: { label: t('ratingNeedsImprovement'), color: T.amber, bg: `${T.amber}14`, border: `${T.amber}44`, icon: AlertTriangle },
+    insufficient_data: { label: t('ratingInsufficientData'), color: T.text3, bg: `${T.text3}0a`, border: `${T.text3}33`, icon: BookOpen },
   }
   const c = config[rating] || config.insufficient_data
   const Icon = c.icon
@@ -59,11 +61,12 @@ function RatingBadge({ rating }: { rating: string }) {
 
 /* ── Advice card with icon ── */
 function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: number; onAskCoach: (text: string) => void }) {
+  const t = useTranslations('aiCoach')
   const [expanded, setExpanded] = useState(false)
   const iconConfig: Record<string, { icon: any; color: string; bg: string; label: string }> = {
-    warning: { icon: AlertTriangle, color: T.amber, bg: `${T.amber}14`, label: 'تحذير' },
-    opportunity: { icon: TrendingUp, color: T.green, bg: `${T.green}14`, label: 'فرصة' },
-    education: { icon: BookOpen, color: T.cyan, bg: `${T.cyan}14`, label: 'تعليم' },
+    warning: { icon: AlertTriangle, color: T.amber, bg: `${T.amber}14`, label: t('tipWarning') },
+    opportunity: { icon: TrendingUp, color: T.green, bg: `${T.green}14`, label: t('tipOpportunity') },
+    education: { icon: BookOpen, color: T.cyan, bg: `${T.cyan}14`, label: t('tipEducation') },
   }
   const c = iconConfig[item.type] || iconConfig.education
   const Icon = c.icon
@@ -138,7 +141,7 @@ function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: numb
             }}
           >
             <MessageCircle size={10} />
-            اسأل المُدرّب
+            {t('askCoach')}
           </button>
         )}
       </div>
@@ -153,6 +156,7 @@ function AdviceCard({ item, index, onAskCoach }: { item: AdviceItem; index: numb
 
 /* ── Chat message bubble ── */
 function ChatBubble({ message }: { message: ChatMessage }) {
+  const t = useTranslations('aiCoach')
   const isUser = message.role === 'user'
   return (
     <div style={{
@@ -167,11 +171,11 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3 }}>
           {isUser ? (
-            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.blue }}>أنت</span>
+            <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.blue }}>{t('chatUser')}</span>
           ) : (
             <>
               <Brain size={10} color={T.purple} />
-              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.purple }}>المُدرّب</span>
+              <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700, color: T.purple }}>{t('chatCoach')}</span>
             </>
           )}
         </div>
@@ -186,6 +190,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 
 /* ── Main AICoachPanel Component ── */
 export default function AICoachPanel() {
+  const t = useTranslations('aiCoach')
   const { user } = useAuth()
   const { closedTrades, trades: openTrades } = usePaperTradesStore()
   const [coachData, setCoachData] = useState<CoachData | null>(null)
@@ -245,10 +250,10 @@ export default function AICoachPanel() {
       if (data.success) {
         setCoachData(data.data)
       } else {
-        setError(data.error || 'فشل في جلب النصائح')
+        setError(data.error || t('errorFetchFailed'))
       }
     } catch (e: any) {
-      setError('خطأ في الاتصال بالمُدرّب الذكي')
+      setError(t('errorConnection'))
     }
     setLoading(false)
   }, [user])
@@ -286,12 +291,12 @@ export default function AICoachPanel() {
         }])
       } else {
         setChatMessages(prev => [...prev, {
-          role: 'coach', content: 'عذراً، لم أتمكن من الإجابة. حاول مرة أخرى.', timestamp: new Date()
+          role: 'coach', content: t('errorAnswerFailed'), timestamp: new Date()
         }])
       }
     } catch {
       setChatMessages(prev => [...prev, {
-        role: 'coach', content: 'خطأ في الاتصال. يرجى المحاولة لاحقاً.', timestamp: new Date()
+        role: 'coach', content: t('errorChatConnection'), timestamp: new Date()
       }])
     }
     setChatLoading(false)
@@ -362,12 +367,12 @@ export default function AICoachPanel() {
           <div style={{ flex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 14, fontWeight: 800, color: T.text }}>
-                المُدرّب الذكي
+                {t('headerTitle')}
               </span>
               <Sparkles size={12} color={T.amber} />
             </div>
             <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
-              تحليل أداء مخصص بالذكاء الاصطناعي
+              {t('headerSubtitle')}
             </span>
           </div>
           <button
@@ -389,7 +394,7 @@ export default function AICoachPanel() {
           <div style={{ marginTop: 12, position: 'relative', zIndex: 1 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2 }}>
-                تقييم الأداء العام:
+                {t('performanceRating')}
               </span>
               <RatingBadge rating={coachData.rating} />
             </div>
@@ -403,10 +408,10 @@ export default function AICoachPanel() {
                 border: `0.5px solid ${T.border}`,
                 flexWrap: 'wrap',
               }}>
-                <StatChip label="صفقات" value={String(stats.totalTrades || 0)} color={T.cyan} />
-                <StatChip label="نسبة الفوز" value={`${stats.winRate || 0}%`} color={stats.winRate >= 50 ? T.green : T.red} />
-                <StatChip label="عامل الربح" value={String(stats.profitFactor === -1 ? '∞' : stats.profitFactor || 0)} color={T.amber} />
-                <StatChip label="أقصى تراجع" value={`$${stats.maxDrawdown || 0}`} color={T.red} />
+                <StatChip label={t('statTrades')} value={String(stats.totalTrades || 0)} color={T.cyan} />
+                <StatChip label={t('statWinRate')} value={`${stats.winRate || 0}%`} color={stats.winRate >= 50 ? T.green : T.red} />
+                <StatChip label={t('statProfitFactor')} value={String(stats.profitFactor === -1 ? '∞' : stats.profitFactor || 0)} color={T.amber} />
+                <StatChip label={t('statMaxDrawdown')} value={`$${stats.maxDrawdown || 0}`} color={T.red} />
               </div>
             )}
           </div>
@@ -421,10 +426,10 @@ export default function AICoachPanel() {
         }}>
           <Brain size={32} color={T.purple} style={{ margin: '0 auto 12px' }} className="coach-pulse" />
           <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, marginBottom: 4 }}>
-            المُدرّب الذكي يحلل أداءك...
+            {t('loadingAnalysis')}
           </p>
           <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
-            يتم فحص سجل الصفقات واستخراج الأنماط والنصائح
+            {t('loadingExamining')}
           </p>
         </div>
       )}
@@ -443,7 +448,7 @@ export default function AICoachPanel() {
             background: `${T.red}18`, color: T.red,
             border: `0.5px solid ${T.red}44`,
             fontFamily: "'Cairo', sans-serif", fontSize: 9.5, cursor: 'pointer',
-          }}>إعادة</button>
+          }}>{t('retry')}</button>
         </div>
       )}
 
@@ -455,10 +460,10 @@ export default function AICoachPanel() {
         }}>
           <BookOpen size={24} color={T.amber} style={{ margin: '0 auto 8px' }} />
           <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text, fontWeight: 700 }}>
-            أنت بحاجة إلى 10 صفقات على الأقل
+            {t('insufficientDataTitle')}
           </p>
           <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, marginTop: 4 }}>
-            ليقدم المُدرّب تحليلاً دقيقاً، أكمِل 10 صفقات ثم عد للاستشارة
+            {t('insufficientDataDesc')}
           </p>
         </div>
       )}
@@ -469,15 +474,15 @@ export default function AICoachPanel() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
             <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
             <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text }}>
-              نصائح المُدرّب
+              {t('coachTips')}
             </span>
             <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
-              {coachData.adviceItems.length} نصيحة
+              {coachData.adviceItems.length} {t('tipCount')}
             </span>
           </div>
           {coachData.adviceItems.map((item, i) => (
             <div key={`advice-${item.type}-${i}`} className="coach-fade-in" style={{ animationDelay: `${i * 0.1}s` }}>
-              <AdviceCard item={item} index={i} onAskCoach={(text) => handleAskCoach(`أخبرني أكثر عن: ${text}`)} />
+              <AdviceCard item={item} index={i} onAskCoach={(text) => handleAskCoach(`${t('askCoachMore')}${text}`)} />
             </div>
           ))}
         </div>
@@ -503,7 +508,7 @@ export default function AICoachPanel() {
             <div style={{ width: 3, height: 14, borderRadius: 2, background: T.purple }} />
             <MessageCircle size={13} color={T.purple} />
             <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, fontWeight: 700, color: T.text, flex: 1 }}>
-              اسأل مُدرّبك الذكي
+              {t('chatHeader')}
             </span>
             {chatMessages.length > 0 && (
               <span style={{
@@ -527,7 +532,7 @@ export default function AICoachPanel() {
                   <div style={{ textAlign: 'center', padding: '16px 0' }}>
                     <Brain size={20} color={T.text3} style={{ margin: '0 auto 8px', opacity: 0.3 }} />
                     <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>
-                      اطرح أي سؤال عن أداءك في التداول
+                      {t('chatEmpty')}
                     </p>
                   </div>
                 )}
@@ -544,7 +549,7 @@ export default function AICoachPanel() {
                     }}>
                       <Loader2 size={10} className="animate-spin" color={T.purple} />
                       <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.purple }}>
-                        المُدرّب يفكر...
+                        {t('coachThinking')}
                       </span>
                     </div>
                   </div>
@@ -563,7 +568,7 @@ export default function AICoachPanel() {
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder="اسأل مُدرّبك الذكي عن أي شيء يخص تداولك..."
+                  placeholder={t('chatPlaceholder')}
                   style={{
                     flex: 1, padding: '8px 12px',
                     background: `${T.bg}80`, border: `0.5px solid ${T.border}`,

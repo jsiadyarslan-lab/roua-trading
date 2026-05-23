@@ -217,7 +217,7 @@ export function RightPanelLayout({ quotes: _quotes }: { quotes: any }) {
                 <div style={{
                   position: 'absolute',
                   top: 1,
-                  left: 1,
+                  insetInlineEnd: 1,
                   minWidth: 8,
                   height: 8,
                   borderRadius: 999,

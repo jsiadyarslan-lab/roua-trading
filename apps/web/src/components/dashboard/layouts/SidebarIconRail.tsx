@@ -16,7 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 const FONT_MONO = "'JetBrains Mono', monospace"
 
@@ -57,6 +57,8 @@ export function SidebarIconRail({
   badges = {},
 }: SidebarIconRailProps) {
   const t = useTranslations('dashboard.sidebarTabs')
+  const locale = useLocale()
+  const isRtl = locale === 'ar'
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
   // Resolve translated labels & helpers
@@ -141,7 +143,8 @@ export function SidebarIconRail({
                       top: '20%',
                       bottom: '20%',
                       width: 1.5,
-                      borderRadius: '0 1px 1px 0',
+                      borderStartEndRadius: 1,
+                      borderEndEndRadius: 1,
                       background: tab.accent,
                       boxShadow: `0 0 4px ${tab.accent}55`,
                     }}
@@ -166,7 +169,7 @@ export function SidebarIconRail({
                   style={{
                     position: 'absolute',
                     top: 2,
-                    right: 2,
+                    insetInlineEnd: 2,
                     minWidth: 12,
                     height: 12,
                     borderRadius: 999,
@@ -210,13 +213,15 @@ export function SidebarIconRail({
                   }}
                   ref={(el) => {
                     if (!el) return
-                    // Position tooltip on the inline-start side (towards content area in RTL)
                     const parent = el.parentElement
                     if (parent) {
                       const rect = parent.getBoundingClientRect()
                       el.style.top = `${rect.top + rect.height / 2 - 12}px`
-                      // In RTL, tooltip goes to the left (inline-start = left visually)
-                      el.style.left = `${rect.left - el.offsetWidth - 6}px`
+                      if (isRtl) {
+                        el.style.left = `${rect.left - el.offsetWidth - 6}px`
+                      } else {
+                        el.style.left = `${rect.right + 6}px`
+                      }
                     }
                   }}
                 >

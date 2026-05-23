@@ -7,11 +7,14 @@ import { useTranslations } from 'next-intl'
 
 // Lazy-load AICoachPanel to avoid blocking initial render
 // Uses error-safe dynamic import to prevent ReferenceError
+// i18n: AICoachPanel fallbacks use hardcoded strings because dynamic() options
+// are evaluated at module scope where hooks are unavailable. These are rarely shown.
 const AICoachPanel = dynamic(
   () => import('@/components/portfolio/AICoachPanel').catch(() => ({
     default: () => (
       <div style={{ padding: 24, textAlign: 'center', background: T.card, borderRadius: 12 }}>
         <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.red }}>
+          {/* i18n: dashboard.portfolio.coachLoadError */}
           تعذر تحميل المُدرّب الذكي. يرجى تحديث الصفحة.
         </div>
       </div>
@@ -21,7 +24,7 @@ const AICoachPanel = dynamic(
     ssr: false,
     loading: () => (
       <div style={{ padding: 24, textAlign: 'center' }}>
-        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>جاري تحميل المُدرّب الذكي...</div>
+        <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>{/* i18n: dashboard.portfolio.coachLoading */}جاري تحميل المُدرّب الذكي...</div>
       </div>
     ),
   },
@@ -183,7 +186,7 @@ function ChartTooltip({ active, payload, label, prefix = '$' }: any) {
 }
 
 /* ── API Error Banner ── */
-function ApiErrorBanner({ error, onRetry }: { error: string; onRetry: () => void }) {
+function ApiErrorBanner({ error, onRetry, retryLabel }: { error: string; onRetry: () => void; retryLabel: string }) {
   return (
     <div style={{
       background: `${T.red}08`, border: `0.5px solid ${T.red}22`,
@@ -197,7 +200,7 @@ function ApiErrorBanner({ error, onRetry }: { error: string; onRetry: () => void
         background: `${T.red}18`, color: T.red,
         border: `0.5px solid ${T.red}44`,
         fontFamily: "'Cairo', sans-serif", fontSize: 9.5, cursor: 'pointer',
-      }}>إعادة المحاولة</button>
+      }}>{retryLabel}</button>
     </div>
   )
 }
@@ -312,7 +315,7 @@ export default function PortfolioPage() {
         setApiError(null)
       }
     } catch (e: unknown) {
-      setApiError(`خطأ في الاتصال بخادم التداول: ${e instanceof Error ? e.message : 'غير معروف'}`)
+      setApiError(`${t('connectionError')}: ${e instanceof Error ? e.message : t('unknown')}`)
     }
   }, [storeFetchPositions])
 
@@ -389,10 +392,10 @@ export default function PortfolioPage() {
         fetchClosedPositions()
         fetchTrades()
       } else {
-        setApiError(`فشل في إغلاق المركز: ${result.error || 'غير معروف'}`)
+        setApiError(`${t('closePositionFailed')}: ${result.error || t('unknown')}`)
       }
     } catch (e: unknown) {
-      setApiError(`خطأ في إغلاق المركز: ${e instanceof Error ? e.message : 'غير معروف'}`)
+      setApiError(`${t('closePositionError')}: ${e instanceof Error ? e.message : t('unknown')}`)
     }
     setClosing(null)
   }
@@ -409,7 +412,7 @@ export default function PortfolioPage() {
         const result = await closePositionUnified(pos.id, undefined, { dbId: pos.id })
         if (!result.success) {
           allSuccess = false
-          setApiError(`فشل في إغلاق المركز ${pos.symbol}: ${result.error || 'غير معروف'}`)
+          setApiError(t('closePositionSymbolFailed', { symbol: pos.symbol }) + `: ${result.error || t('unknown')}`)
         }
       }
       
@@ -424,7 +427,7 @@ export default function PortfolioPage() {
       await fetchTrades()
       setShowPanicConfirm(false)
     } catch (e: unknown) {
-      setApiError(`خطأ في إغلاق المراكز: ${e instanceof Error ? e.message : 'غير معروف'}`)
+      setApiError(`${t('closeAllPositionsError')}: ${e instanceof Error ? e.message : t('unknown')}`)
     }
     setClosingAll(false)
   }
@@ -532,10 +535,10 @@ export default function PortfolioPage() {
   // V169: P&L breakdown by source type (SMART/AGENT/PAPER/MANUAL)
   const pnlByCategory = useMemo(() => {
     const categories: Record<string, { label: string; color: string; pnl: number; count: number; wins: number }> = {
-      SMART: { label: 'المنفذ', color: T.amber, pnl: 0, count: 0, wins: 0 },
-      AGENT: { label: 'الوكيل', color: T.purple, pnl: 0, count: 0, wins: 0 },
-      PAPER: { label: 'ورقي', color: T.cyan, pnl: 0, count: 0, wins: 0 },
-      MANUAL: { label: 'يدوي', color: T.text2, pnl: 0, count: 0, wins: 0 },
+      SMART: { label: t('categorySmart'), color: T.amber, pnl: 0, count: 0, wins: 0 },
+      AGENT: { label: t('categoryAgent'), color: T.purple, pnl: 0, count: 0, wins: 0 },
+      PAPER: { label: t('categoryPaper'), color: T.cyan, pnl: 0, count: 0, wins: 0 },
+      MANUAL: { label: t('categoryManual'), color: T.text2, pnl: 0, count: 0, wins: 0 },
     }
     // From DB closed positions
     dateFilteredClosedPositions.forEach(p => {
@@ -583,32 +586,32 @@ export default function PortfolioPage() {
 
   const exportOpenPositions = useCallback(() => {
     const data = positions.map(p => ({
-      'الزوج': p.symbol,
-      'اتجاه': p.side === 'BUY' ? 'شراء' : 'بيع',
-      'كمية': p.quantity,
-      'سعر الدخول': p.entryPrice,
-      'السعر الحالي': p.currentPrice,
-      'وقف خسارة': p.stopLoss || '',
-      'جني أرباح': p.takeProfit || '',
+      [t('csvPair')]: p.symbol,
+      [t('csvDirection')]: p.side === 'BUY' ? tc('buy') : tc('sell'),
+      [t('csvQuantity')]: p.quantity,
+      [t('csvEntryPrice')]: p.entryPrice,
+      [t('csvCurrentPrice')]: p.currentPrice,
+      [t('csvStopLoss')]: p.stopLoss || '',
+      [t('csvTakeProfit')]: p.takeProfit || '',
       'P&L': p.unrealizedPnl || 0,
-      'تاريخ الفتح': p.openedAt || '',
-      'المصدر': p.source || '',
+      [t('csvDateOpened')]: p.openedAt || '',
+      [t('csvSource')]: p.source || '',
     }))
     exportToCSV(data, 'open_positions')
   }, [positions, exportToCSV])
 
   const exportClosedTrades = useCallback((data: any[]) => {
-    const csvData = data.map(t => ({
-      'الزوج': t.symbol,
-      'اتجاه': t.side === 'BUY' ? 'شراء' : 'بيع',
-      'نوع': t.type,
-      'كمية': t.quantity,
-      'سعر الدخول': t.price,
-      'سعر الخروج': t.exitPrice || '',
-      'P&L': t.pnl || 0,
-      'سبب الإغلاق': t.exitReason || '',
-      'تاريخ الفتح': t.openedAt || '',
-      'تاريخ الإغلاق': t.executedAt,
+    const csvData = data.map(trade => ({
+      [t('csvPair')]: trade.symbol,
+      [t('csvDirection')]: trade.side === 'BUY' ? tc('buy') : tc('sell'),
+      [t('csvType')]: trade.type,
+      [t('csvQuantity')]: trade.quantity,
+      [t('csvEntryPrice')]: trade.price,
+      [t('csvExitPrice')]: trade.exitPrice || '',
+      'P&L': trade.pnl || 0,
+      [t('csvCloseReason')]: trade.exitReason || '',
+      [t('csvDateOpened')]: trade.openedAt || '',
+      [t('csvDateClosed')]: trade.executedAt,
     }))
     exportToCSV(csvData, 'closed_trades')
   }, [exportToCSV])
@@ -768,7 +771,7 @@ export default function PortfolioPage() {
         <h1 style={{
           fontFamily: "'Cairo', sans-serif", fontWeight: 900,
           fontSize: 18, color: T.text, margin: 0,
-        }}>المحفظة</h1>
+        }}>{t('title')}</h1>
         <div style={{ flex: 1 }} />
         {/* V168: Export buttons */}
         {(positions.length > 0 || filteredHistory.length > 0) && (
@@ -783,10 +786,10 @@ export default function PortfolioPage() {
                   color: T.green, fontFamily: "'Cairo', sans-serif",
                   fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
                 }}
-                title="تصدير الصفقات المفتوحة CSV"
+                title={t('exportOpenCSV')}
               >
                 <Download size={10} />
-                مفتوحة
+                {t('open')}
               </button>
             )}
             {filteredHistory.length > 0 && (
@@ -799,10 +802,10 @@ export default function PortfolioPage() {
                   color: T.cyan, fontFamily: "'Cairo', sans-serif",
                   fontSize: 9, cursor: 'pointer', transition: 'all 0.2s',
                 }}
-                title="تصدير الصفقات المغلقة CSV"
+                title={t('exportClosedCSV')}
               >
                 <FileText size={10} />
-                مغلقة
+                {t('closed')}
               </button>
             )}
           </div>
@@ -819,46 +822,46 @@ export default function PortfolioPage() {
             opacity: loading ? 0.5 : 1,
           }}
         >
-          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> تحديث
+          <RefreshCw size={11} className={loading ? 'animate-spin' : ''} /> {tc('refresh')}
         </button>
       </div>
 
       {/* ── API Error Banner ── */}
-      {apiError && <ApiErrorBanner error={apiError} onRetry={fetchAll} />}
+      {apiError && <ApiErrorBanner error={apiError} onRetry={fetchAll} retryLabel={tc('retry')} />}
 
       {/* ── Stats cards ── */}
       <div className="portfolio-stats-row" style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         <StatCard
-          label="المراكز المفتوحة" value={String(positions.length)}
+          label={t('openPositions')} value={String(positions.length)}
           color={T.cyan} icon={BarChart2}
-          sub={`القيمة: $${fmt(summary?.totalValue || 0, 0)}`}
+          sub={`${t('value')}: $${fmt(summary?.totalValue || 0, 0)}`}
         />
         <StatCard
-          label="أ.خ غير محققة" value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
+          label={t('unrealizedPnl')} value={`${totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalUnrealizedPnl), 2)}`}
           color={totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2}
           icon={totalUnrealizedPnl > 0 ? TrendingUp : totalUnrealizedPnl < 0 ? TrendingDown : BarChart2}
         />
         <StatCard
-          label="أرباح محققة" value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
+          label={t('realizedProfit')} value={`${totalRealizedPnl > 0 ? '+' : totalRealizedPnl < 0 ? '-' : ''}$${fmt(Math.abs(totalRealizedPnl), 2)}`}
           color={totalRealizedPnl > 0 ? T.green : totalRealizedPnl < 0 ? T.red : T.text2}
           icon={TrendingUp}
-          sub={`${closedPositions.length} صفقة مغلقة`}
+          sub={`${closedPositions.length} ${t('closedTradeCount')}`}
         />
         <StatCard
-          label="إجمالي الربح" value={`+$${fmt(totalProfitSize, 2)}`}
+          label={t('totalProfit')} value={`+$${fmt(totalProfitSize, 2)}`}
           color={T.green} icon={TrendingUp}
-          sub={`${winningCount} صفقة رابحة`}
+          sub={`${winningCount} ${t('winningTradeCount')}`}
         />
         <StatCard
-          label="إجمالي الخسارة" value={`-$${fmt(totalLossSize, 2)}`}
+          label={t('totalLoss')} value={`-$${fmt(totalLossSize, 2)}`}
           color={T.red} icon={TrendingDown}
-          sub={`${losingCount} صفقة خاسرة`}
+          sub={`${losingCount} ${t('losingTradeCount')}`}
         />
         <StatCard
-          label="نسبة الفوز" value={`${winRate.toFixed(1)}%`}
-          sub={`من ${totalTradeCount} صفقة`}
+          label={t('winRate')} value={`${winRate.toFixed(1)}%`}
+          sub={t('fromTradeCount', { count: totalTradeCount })}
           color={T.amber} icon={Target}
-          note={winRate >= 60 ? 'ممتاز' : winRate >= 40 ? 'جيد' : undefined}
+          note={winRate >= 60 ? t('excellent') : winRate >= 40 ? t('good') : undefined}
         />
         <StatCard
           label="Sharpe Ratio" value={sharpeRatio !== null ? sharpeRatio.toFixed(2) : '—'}
@@ -887,7 +890,7 @@ export default function PortfolioPage() {
                 }} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: cat.color, fontWeight: 700 }}>{cat.label}</span>
-                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.text3 }}>{cat.count} صفقة</span>
+                  <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 8, color: T.text3 }}>{cat.count} {t('tradeCount')}</span>
                 </div>
                 <div style={{
                   fontFamily: "'JetBrains Mono', monospace",
@@ -898,7 +901,7 @@ export default function PortfolioPage() {
                   {catPnl > 0 ? '+' : catPnl < 0 ? '-' : ''}${fmt(Math.abs(catPnl), 2)}
                 </div>
                 <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>
-                  نسبة الفوز: {catWinRate.toFixed(0)}% ({cat.wins}/{cat.count})
+                  {t('winRateLabel')}: {catWinRate.toFixed(0)}% ({cat.wins}/{cat.count})
                 </div>
               </div>
             )
@@ -908,10 +911,10 @@ export default function PortfolioPage() {
 
       {/* ── Tabs ── */}
       <div className="portfolio-tabs-row" style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
-        <TabButton label="الصفقات" icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
-        <TabButton label="الأداء" icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
-        <TabButton label="المخاطر" icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
-        <TabButton label="المُدرّب الذكي" icon={Brain} active={tab === 'coach'} onClick={() => setTab('coach')} />
+        <TabButton label={t('tabTrades')} icon={Activity} active={tab === 'positions'} onClick={() => setTab('positions')} count={positions.length + closedPositions.length + closedPaperTrades.length} />
+        <TabButton label={t('tabPerformance')} icon={TrendingUp} active={tab === 'performance'} onClick={() => setTab('performance')} />
+        <TabButton label={t('tabRisk')} icon={Shield} active={tab === 'risk'} onClick={() => setTab('risk')} />
+        <TabButton label={t('tabCoach')} icon={Brain} active={tab === 'coach'} onClick={() => setTab('coach')} />
       </div>
 
       {/* ════════════════════════════════════════════ */}
@@ -930,7 +933,7 @@ export default function PortfolioPage() {
               <div style={{
                 fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                 fontSize: 12, color: T.text, marginBottom: 8,
-              }}>توزيع المراكز</div>
+              }}>{t('positionDistribution')}</div>
               {distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <PieChart>
@@ -953,7 +956,7 @@ export default function PortfolioPage() {
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد مراكز مفتوحة</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>{t('noOpenPositions')}</span>
                 </div>
               )}
             </div>
@@ -967,7 +970,7 @@ export default function PortfolioPage() {
               <div style={{
                 fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                 fontSize: 12, color: T.text, marginBottom: 8,
-              }}>منحنى الأرباح المحققة</div>
+              }}>{t('realizedProfitCurve')}</div>
               {equityCurve.length > 0 ? (
                 <ResponsiveContainer width="100%" height={200}>
                   <AreaChart data={equityCurve}>
@@ -985,7 +988,7 @@ export default function PortfolioPage() {
                 </ResponsiveContainer>
               ) : (
                 <div style={{ height: 200, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات أداء بعد</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>{t('noPerformanceData')}</span>
                 </div>
               )}
             </div>
@@ -1007,9 +1010,9 @@ export default function PortfolioPage() {
               <span style={{
                 fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                 fontSize: 12, color: T.text, flex: 1,
-              }}>الصفقات المفتوحة</span>
+              }}>{t('openTrades')}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text3 }}>
-                {positions.length} مركز
+                {positions.length} {t('position')}
               </span>
               {positions.length > 0 && (
                 <span style={{
@@ -1025,12 +1028,12 @@ export default function PortfolioPage() {
             {loading ? (
               <div style={{ padding: 32, textAlign: 'center' }}>
                 <Loader2 className="animate-spin" style={{ color: T.blue, margin: '0 auto' }} size={24} />
-                <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3, marginTop: 8 }}>جاري التحميل...</p>
+                <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3, marginTop: 8 }}>{tc('loading')}</p>
               </div>
             ) : positions.length === 0 ? (
               <div style={{ padding: 24, textAlign: 'center' }}>
                 <Activity size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مفتوحة حالياً</p>
+                <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>{t('noOpenTrades')}</p>
               </div>
             ) : isMobile ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 10 }}>
@@ -1050,7 +1053,7 @@ export default function PortfolioPage() {
                           background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                           color: pos.side === 'BUY' ? T.green : T.red,
                           border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
-                        }}>{pos.side === 'BUY' ? 'شراء ↑' : 'بيع ↓'}</span>
+                        }}>{pos.side === 'BUY' ? t('buyArrow') : t('sellArrow')}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <span style={{
@@ -1073,9 +1076,9 @@ export default function PortfolioPage() {
                       </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 10 }}>
-                      <div><span style={{ color: T.text3 }}>الكمية: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
-                      <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
-                      <div><span style={{ color: T.text3 }}>حالي: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
+                      <div><span style={{ color: T.text3 }}>{t('quantityLabel')}: </span><span style={{ color: T.text2 }}>{pos.quantity}</span></div>
+                      <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pos.entryPrice, pos.symbol)}</span></div>
+                      <div><span style={{ color: T.text3 }}>{t('currentLabel')}: </span><span style={{ color: T.text, fontWeight: 700 }}>{pos.currentPrice ? formatPrice(pos.currentPrice, pos.symbol) : '—'}</span></div>
                       <div><span style={{ color: T.text3 }}>SL: </span><span style={{ color: T.red }}>{pos.stopLoss ? formatPrice(pos.stopLoss, pos.symbol) : '—'}</span></div>
                       <div><span style={{ color: T.text3 }}>TP: </span><span style={{ color: T.green }}>{pos.takeProfit ? formatPrice(pos.takeProfit, pos.symbol) : '—'}</span></div>
                     </div>
@@ -1086,14 +1089,14 @@ export default function PortfolioPage() {
               <>
                 {/* Table head */}
                 <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                <div role="table" aria-label="الصفقات المفتوحة" style={{ minWidth: 800 }}>
+                <div role="table" aria-label={t('openTrades')} style={{ minWidth: 800 }}>
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: '100px 70px 70px 90px 90px 80px 80px 80px 80px',
                   padding: '5px 14px', gap: 0,
                   borderBottom: `0.5px solid ${T.border}`,
                 }}>
-                  {['الزوج','اتجاه','حجم','سعر الدخول','السعر الحالي','SL','TP','P&L','إجراء'].map((h) => (
+                  {[t('headerPair'),t('headerDirection'),t('headerSize'),t('headerEntryPrice'),t('headerCurrentPrice'),'SL','TP','P&L',t('headerAction')].map((h) => (
                     <div key={h} style={{
                       fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                       color: T.text3, textAlign: 'center',
@@ -1125,7 +1128,7 @@ export default function PortfolioPage() {
                         background: pos.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                         color: pos.side === 'BUY' ? T.green : T.red,
                         border: `0.5px solid ${pos.side === 'BUY' ? T.green : T.red}44`,
-                      }}>{pos.side === 'BUY' ? 'شراء ↑' : 'بيع ↓'}</span>
+                      }}>{pos.side === 'BUY' ? t('buyArrow') : t('sellArrow')}</span>
                     </div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pos.quantity}</div>
                     <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{formatPrice(pos.entryPrice, pos.symbol)}</div>
@@ -1155,7 +1158,7 @@ export default function PortfolioPage() {
                         }}
                       >
                         <XIcon size={9} />
-                        {closing === pos.id ? '...' : 'إغلاق'}
+                        {closing === pos.id ? '...' : tc('close')}
                       </button>
                     </div>
                   </div>
@@ -1186,9 +1189,9 @@ export default function PortfolioPage() {
               <span style={{
                 fontFamily: "'Cairo', sans-serif", fontWeight: 700,
                 fontSize: 12, color: T.text, flex: 1,
-              }}>الصفقات المغلقة</span>
+              }}>{t('closedTrades')}</span>
               <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text3 }}>
-                {closedPositions.length + closedPaperTrades.length} صفقة
+                {closedPositions.length + closedPaperTrades.length} {t('tradeCount')}
               </span>
               {totalRealizedPnl !== 0 && (
                 <span style={{
@@ -1206,8 +1209,8 @@ export default function PortfolioPage() {
               filteredHistory.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <History size={28} style={{ color: T.text3, opacity: 0.3, margin: '0 auto 8px' }} />
-                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>لا توجد صفقات مغلقة مطابقة</p>
-                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginTop: 4 }}>حاول تغيير إعدادات الفلترة أو ابدأ التداول</p>
+                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: T.text3 }}>{t('noMatchingClosedTrades')}</p>
+                  <p style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginTop: 4 }}>{t('tryChangingFilters')}</p>
                 </div>
               ) : (
                 <>
@@ -1228,7 +1231,7 @@ export default function PortfolioPage() {
                           fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 600,
                           cursor: 'pointer', transition: 'all 0.15s',
                         }}>
-                          {{ ALL: 'الكل', DAY: 'يومي', WEEK: 'أسبوعي', MONTH: 'شهري', YEAR: 'سنوي', CUSTOM: 'محدد' }[period]}
+                          {{ ALL: t('periodAll'), DAY: t('periodDaily'), WEEK: t('periodWeekly'), MONTH: t('periodMonthly'), YEAR: t('periodYearly'), CUSTOM: t('periodCustom') }[period]}
                         </button>
                       ))}
                     </div>
@@ -1248,7 +1251,7 @@ export default function PortfolioPage() {
                     )}
                     <input
                       type="text"
-                      placeholder="بحث بالرمز..."
+                      placeholder={t('searchBySymbol')}
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
                       style={{
@@ -1265,9 +1268,9 @@ export default function PortfolioPage() {
                         padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "'Cairo', sans-serif", outline: 'none'
                       }}
                     >
-                      <option value="ALL">كل الاتجاهات</option>
-                      <option value="BUY">شراء</option>
-                      <option value="SELL">بيع</option>
+                      <option value="ALL">{t('allDirections')}</option>
+                      <option value="BUY">{tc('buy')}</option>
+                      <option value="SELL">{tc('sell')}</option>
                     </select>
                     <select
                       value={statusFilter}
@@ -1277,9 +1280,9 @@ export default function PortfolioPage() {
                         padding: '4px 8px', color: T.text, fontSize: 11, fontFamily: "'Cairo', sans-serif", outline: 'none'
                       }}
                     >
-                      <option value="ALL">كل النتائج</option>
-                      <option value="WIN">رابحة</option>
-                      <option value="LOSS">خاسرة</option>
+                      <option value="ALL">{t('allResults')}</option>
+                      <option value="WIN">{t('winning')}</option>
+                      <option value="LOSS">{t('losing')}</option>
                     </select>
                   </div>
 
@@ -1302,14 +1305,14 @@ export default function PortfolioPage() {
                                 background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
                                 color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
                                 border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
-                              }}>{pt.type === 'SMART' ? 'منفذ' : pt.type === 'AGENT' ? 'وكيل' : pt.type === 'PAPER' ? 'ورقي' : 'يدوي'}</span>
+                              }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : t('sourceManual')}</span>
                               <span style={{
                                 padding: '1px 6px', borderRadius: 4,
                                 fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
                                 background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                                 color: pt.side === 'BUY' ? T.green : T.red,
                                 border: `0.5px solid ${pt.side === 'BUY' ? T.green : T.red}44`,
-                              }}>{pt.side === 'BUY' ? 'شراء' : 'بيع'}</span>
+                              }}>{pt.side === 'BUY' ? tc('buy') : tc('sell')}</span>
                             </div>
                             <span style={{
                               fontFamily: "'JetBrains Mono', monospace",
@@ -1320,29 +1323,29 @@ export default function PortfolioPage() {
                             </span>
                           </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 10 }}>
-                            <div><span style={{ color: T.text3 }}>حجم: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
-                            <div><span style={{ color: T.text3 }}>دخول: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
-                            <div><span style={{ color: T.text3 }}>إغلاق: </span><span style={{ color: T.text2 }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>وقف خسارة: </span><span style={{ color: T.red }}>{(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>جني ربح: </span><span style={{ color: T.green }}>{(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}</span></div>
-                            <div><span style={{ color: T.text3 }}>السبب: </span><span style={{
+                            <div><span style={{ color: T.text3 }}>{t('sizeLabel')}: </span><span style={{ color: T.text2 }}>{pt.quantity}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('entryLabel')}: </span><span style={{ color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('closeLabel')}: </span><span style={{ color: T.text2 }}>{(pt as any).exitPrice ? formatPrice((pt as any).exitPrice, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('stopLossLabel')}: </span><span style={{ color: T.red }}>{(pt as any).stopLoss ? formatPrice((pt as any).stopLoss, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('takeProfitLabel')}: </span><span style={{ color: T.green }}>{(pt as any).takeProfit ? formatPrice((pt as any).takeProfit, pt.symbol) : '—'}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('reasonLabel')}: </span><span style={{
                               color: (pt as any).exitReason === 'SL' ? T.red : (pt as any).exitReason === 'TP' ? T.green : T.text3,
-                            }}>{(pt as any).exitReason === 'SL' ? 'وقف خسارة' : (pt as any).exitReason === 'TP' ? 'جني ربح' : 'يدوي'}</span></div>
-                            <div><span style={{ color: T.text3 }}>مدة: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
-                            <div><span style={{ color: T.text3 }}>وقت: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
+                            }}>{(pt as any).exitReason === 'SL' ? t('exitSL') : (pt as any).exitReason === 'TP' ? t('exitTP') : t('exitManual')}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('durationLabel')}: </span><span style={{ color: T.text2 }}>{formatDuration(pt.openedAt, pt.executedAt)}</span></div>
+                            <div><span style={{ color: T.text3 }}>{t('timeLabel')}: </span><span style={{ color: T.text2 }}>{pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
                   <>
-                  <div role="table" aria-label="الصفقات المغلقة" style={{
+                  <div role="table" aria-label={t('closedTrades')} style={{
                     display: 'grid',
                     gridTemplateColumns: '100px 50px 55px 70px 70px 65px 65px 70px 55px 55px 70px 90px',
                     padding: '5px 14px', gap: 0,
                     borderBottom: `0.5px solid ${T.border}`,
                   }}>
-                    {['الزوج','اتجاه','حجم','دخول','إغلاق','وقف خسارة','جني ربح','ر.خ محققة','السبب','المدة','الحالة','وقت الإغلاق'].map((h) => (
+                    {[t('headerPair'),t('headerDirection'),t('headerSize'),t('entryLabel'),t('headerClose'),t('headerStopLoss'),t('headerTakeProfit'),t('headerRealizedPnl'),t('headerReason'),t('headerDuration'),t('headerStatus'),t('headerCloseTime')].map((h) => (
                       <div key={h} style={{
                         fontFamily: "'Cairo', sans-serif", fontSize: 9.5,
                         color: T.text3, textAlign: 'center',
@@ -1375,7 +1378,7 @@ export default function PortfolioPage() {
                           background: pt.type === 'SMART' ? `${T.amber}14` : pt.type === 'AGENT' ? `${T.purple}14` : pt.type === 'PAPER' ? `${T.cyan}14` : `${T.border}`,
                           color: pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.text3,
                           border: `0.5px solid ${pt.type === 'SMART' ? T.amber : pt.type === 'AGENT' ? T.purple : pt.type === 'PAPER' ? T.cyan : T.border}`,
-                        }}>{pt.type === 'SMART' ? 'منفذ' : pt.type === 'AGENT' ? 'وكيل' : pt.type === 'PAPER' ? 'ورقي' : 'يدوي'}</span>
+                        }}>{pt.type === 'SMART' ? t('sourceSmart') : pt.type === 'AGENT' ? t('sourceAgent') : pt.type === 'PAPER' ? t('sourcePaper') : t('sourceManual')}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'center' }}>
                         <span style={{
@@ -1383,7 +1386,7 @@ export default function PortfolioPage() {
                           fontFamily: "'JetBrains Mono', monospace", fontSize: 9, fontWeight: 700,
                           background: pt.side === 'BUY' ? `${T.green}18` : `${T.red}18`,
                           color: pt.side === 'BUY' ? T.green : T.red,
-                        }}>{pt.side === 'BUY' ? 'شراء' : 'بيع'}</span>
+                        }}>{pt.side === 'BUY' ? tc('buy') : tc('sell')}</span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{pt.quantity}</div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 10, color: T.text2 }}>{formatPrice(pt.price, pt.symbol)}</div>
@@ -1417,8 +1420,8 @@ export default function PortfolioPage() {
                           border: `0.5px solid ${(pt as any).exitReason === 'SL' ? T.red :
                                                   (pt as any).exitReason === 'TP' ? T.green : T.border}44`,
                         }}>
-                          {(pt as any).exitReason === 'SL' ? 'وقف' :
-                            (pt as any).exitReason === 'TP' ? 'جني' : 'يدوي'}
+                          {(pt as any).exitReason === 'SL' ? t('exitSLShort') :
+                            (pt as any).exitReason === 'TP' ? t('exitTPShort') : t('sourceManual')}
                         </span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
@@ -1429,7 +1432,7 @@ export default function PortfolioPage() {
                           padding: '1px 6px', borderRadius: 3,
                           fontFamily: "'Cairo', sans-serif", fontSize: 9, fontWeight: 700,
                           background: `${T.blue}18`, color: T.blue,
-                        }}>مغلقة</span>
+                        }}>{t('closed')}</span>
                       </div>
                       <div style={{ textAlign: 'center', fontFamily: "'JetBrains Mono', monospace", fontSize: 9, color: T.text3 }}>
                         {pt.executedAt ? new Date(pt.executedAt).toLocaleDateString('ar', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}
@@ -1458,11 +1461,11 @@ export default function PortfolioPage() {
         <>
           {/* Performance Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label="إجمالي الصفقات" value={String(trades.length)} color={T.blue} icon={Activity} />
-            <StatCard label="صفقات فائزة" value={String(winningCount)} color={T.green} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
-            <StatCard label="صفقات خاسرة" value={String(losingCount)} color={T.red} icon={TrendingDown} />
-            <StatCard label="متوسط الربح" value={`$${fmt(avgWin, 2)}`} color={T.green} icon={TrendingUp} />
-            <StatCard label="متوسط الخسارة" value={`$${fmt(avgLoss, 2)}`} color={T.red} icon={TrendingDown} />
+            <StatCard label={t('totalTrades')} value={String(trades.length)} color={T.blue} icon={Activity} />
+            <StatCard label={t('winningTrades')} value={String(winningCount)} color={T.green} icon={TrendingUp} sub={`${winRate.toFixed(1)}%`} />
+            <StatCard label={t('losingTrades')} value={String(losingCount)} color={T.red} icon={TrendingDown} />
+            <StatCard label={t('avgProfit')} value={`$${fmt(avgWin, 2)}`} color={T.green} icon={TrendingUp} />
+            <StatCard label={t('avgLoss')} value={`$${fmt(avgLoss, 2)}`} color={T.red} icon={TrendingDown} />
           </div>
 
           {/* Daily P&L Bar Chart */}
@@ -1473,7 +1476,7 @@ export default function PortfolioPage() {
             <div style={{
               fontFamily: "'Cairo', sans-serif", fontWeight: 700,
               fontSize: 12, color: T.text, marginBottom: 8,
-            }}>الربح/الخسارة اليومي</div>
+            }}>{t('dailyPnl')}</div>
             {performanceData.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={performanceData}>
@@ -1492,7 +1495,7 @@ export default function PortfolioPage() {
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات أداء بعد — نفّذ صفقات لرؤية التحليل</span>
+                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>{t('noPerformanceDataAction')}</span>
               </div>
             )}
           </div>
@@ -1505,7 +1508,7 @@ export default function PortfolioPage() {
             <div style={{
               fontFamily: "'Cairo', sans-serif", fontWeight: 700,
               fontSize: 12, color: T.text, marginBottom: 8,
-            }}>منحنى رأس المال التراكمي</div>
+            }}>{t('cumulativeEquityCurve')}</div>
             {equityCurve.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <AreaChart data={equityCurve}>
@@ -1523,7 +1526,7 @@ export default function PortfolioPage() {
               </ResponsiveContainer>
             ) : (
               <div style={{ height: 250, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>لا توجد بيانات أداء بعد</span>
+                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: T.text3 }}>{t('noPerformanceData')}</span>
               </div>
             )}
           </div>
@@ -1537,14 +1540,14 @@ export default function PortfolioPage() {
         <>
           {/* Risk Stats */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-            <StatCard label="معامل الربح" value={profitFactor >= 999 ? '999+' : profitFactor.toFixed(2)} color={T.green} icon={TrendingUp}
-              note={profitFactor >= 2 ? 'ممتاز' : profitFactor >= 1.5 ? 'جيد' : profitFactor >= 1 ? 'مقبول' : 'خطر'} />
-            <StatCard label="أقصى انخفاض" value={`$${fmt(maxDrawdown, 2)}`} color={T.red} icon={TrendingDown}
-              note={maxDrawdown === 0 ? 'لا انخفاض' : undefined} />
+            <StatCard label={t('profitFactor')} value={profitFactor >= 999 ? '999+' : profitFactor.toFixed(2)} color={T.green} icon={TrendingUp}
+              note={profitFactor >= 2 ? t('excellent') : profitFactor >= 1.5 ? t('good') : profitFactor >= 1 ? t('acceptable') : t('danger')} />
+            <StatCard label={t('maxDrawdown')} value={`$${fmt(maxDrawdown, 2)}`} color={T.red} icon={TrendingDown}
+              note={maxDrawdown === 0 ? t('noDrawdown') : undefined} />
             <StatCard label="Sharpe Ratio" value={sharpeRatio !== null ? sharpeRatio.toFixed(2) : '—'} color={T.purple} icon={Award}
-              note={sharpeRatio !== null ? (sharpeRatio >= 2 ? 'ممتاز' : sharpeRatio >= 1 ? 'جيد' : 'ضعيف') : undefined} />
-            <StatCard label="مخاطر مفتوحة" value={String(positions.length)} color={T.amber} icon={Shield}
-              sub={`${positions.filter(p => !p.stopLoss).length} بدون وقف خسارة`} />
+              note={sharpeRatio !== null ? (sharpeRatio >= 2 ? t('excellent') : sharpeRatio >= 1 ? t('good') : t('weak')) : undefined} />
+            <StatCard label={t('openRisk')} value={String(positions.length)} color={T.amber} icon={Shield}
+              sub={`${positions.filter(p => !p.stopLoss).length} ${t('withoutStopLoss')}`} />
           </div>
 
           {/* Risk Breakdown */}
@@ -1555,13 +1558,13 @@ export default function PortfolioPage() {
             <div style={{
               fontFamily: "'Cairo', sans-serif", fontWeight: 700,
               fontSize: 12, color: T.text, marginBottom: 12,
-            }}>تحليل المخاطر التفصيلي</div>
+            }}>{t('riskAnalysisTitle')}</div>
 
             {/* Risk metrics grid */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {/* Win/Loss ratio */}
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>نسبة الفوز/الخسارة</div>
+                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('winLossRatio')}</div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ height: 6, borderRadius: 3, background: `${T.red}22`, overflow: 'hidden' }}>
@@ -1573,21 +1576,21 @@ export default function PortfolioPage() {
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.green }}>{winningCount} فوز</span>
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red }}>{losingCount} خسارة</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.green }}>{winningCount} {t('wins')}</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red }}>{losingCount} {t('losses')}</span>
                 </div>
               </div>
 
               {/* Avg win vs avg loss */}
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>متوسط الربح vs متوسط الخسارة</div>
+                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('avgProfitVsLoss')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>متوسط الربح</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{t('avgProfit')}</span>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.green }}>+${fmt(avgWin, 2)}</div>
                   </div>
                   <div style={{ textAlign: 'start' }}>
-                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>متوسط الخسارة</span>
+                    <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{t('avgLoss')}</span>
                     <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 14, fontWeight: 700, color: T.red }}>-${fmt(avgLoss, 2)}</div>
                   </div>
                 </div>
@@ -1595,16 +1598,16 @@ export default function PortfolioPage() {
 
               {/* Open exposure */}
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${T.border}` }}>
-                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>التعرض المفتوح</div>
+                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('openExposure')}</div>
                 <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 18, fontWeight: 800, color: totalUnrealizedPnl > 0 ? T.green : totalUnrealizedPnl < 0 ? T.red : T.text2 }}>
                   {totalUnrealizedPnl > 0 ? '+' : totalUnrealizedPnl < 0 ? '-' : ''}${fmt(Math.abs(totalUnrealizedPnl), 2)}
                 </div>
-                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>عبر {positions.length} مركز مفتوح</span>
+                <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.text3 }}>{t('openPositionCount', { count: positions.length })}</span>
               </div>
 
               {/* SL coverage */}
               <div style={{ padding: '12px', background: T.bg, borderRadius: 8, border: `0.5px solid ${positions.some(p => !p.stopLoss) ? T.red + '44' : T.border}` }}>
-                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>تغطية وقف الخسارة</div>
+                <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text2, marginBottom: 6 }}>{t('stopLossCoverage')}</div>
                 {positions.length > 0 ? (
                   <>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -1624,12 +1627,12 @@ export default function PortfolioPage() {
                     </div>
                     {!positions.every(p => p.stopLoss) && (
                       <span className="animate-pulse" style={{ fontFamily: "'Cairo', sans-serif", fontSize: 9, color: T.red, marginTop: 4, display: 'block', fontWeight: 700 }}>
-                        ⚠️ تحذير: {positions.filter(p => !p.stopLoss).length} مركز بدون وقف خسارة!
+                        ⚠️ {t('warning')}: {positions.filter(p => !p.stopLoss).length} {t('warningNoStopLoss')}
                       </span>
                     )}
                   </>
                 ) : (
-                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>لا توجد مراكز مفتوحة</span>
+                  <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3 }}>{t('noOpenPositions')}</span>
                 )}
               </div>
             </div>
@@ -1643,11 +1646,11 @@ export default function PortfolioPage() {
           }}>
             <AlertTriangle size={14} style={{ color: T.amber, marginTop: 2, flexShrink: 0 }} />
             <div>
-              <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.amber, marginBottom: 2 }}>تنبيه إدارة المخاطر</div>
+              <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 700, color: T.amber, marginBottom: 2 }}>{t('riskManagementAlert')}</div>
               <div style={{ fontFamily: "'Cairo', sans-serif", fontSize: 10, color: T.text3, lineHeight: 1.6 }}>
-                التداول ينطوي على مخاطر عالية. الأداء السابق لا يضمن النتائج المستقبلية.
-                استخدم دائماً وقف الخسارة وإدارة حجم المركز المناسبة.
-                رؤى لا تلمس أموالك أبداً — نتابع حساباتك المربوطة فقط من خلال مفاتيح API المشفرة.
+                {t('riskDisclaimer')}
+                {t('riskDisclaimerLine2')}
+                {t('riskDisclaimerLine3')}
               </div>
             </div>
           </div>

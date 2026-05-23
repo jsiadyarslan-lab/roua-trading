@@ -200,8 +200,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', 'الإشارة'], ['patterns', `شموع ${patterns.length}`], ['levels', 'مستويات'], ['smc', 'SMC'], ['advanced', 'متقدم']] as [Tab, string][]).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '5px 3px', background: 'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 10, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.12s' }}>{l}</button>
+        {([['signal', 'الإشارة'], ['patterns', `شموع`], ['levels', 'S/R'], ['smc', 'SMC'], ['advanced', 'متقدم']] as [Tab, string][]).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
 

@@ -69,6 +69,8 @@ interface UseChartReturn {
   unregisterExternalSeries: (series: ISeriesApi<SeriesType>) => void;
   clearExternalSeries: () => void;
   setCrosshairMode: (enabled: boolean) => void;
+  mainSeriesRef: ReturnType<typeof import('react').useRef<any>>;
+  candleSeriesRef: ReturnType<typeof import('react').useRef<any>>;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -1838,5 +1840,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     unregisterExternalSeries,
     clearExternalSeries,
     setCrosshairMode,
+    mainSeriesRef,
+    candleSeriesRef,
   };
 }

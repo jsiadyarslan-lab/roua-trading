@@ -827,14 +827,17 @@ export default function RouaChart({
       });
       aiOverlaySeriesRef.current = [];
     }
-    // FIX: clearExternalSeries removes series from chart AND clears externalSeriesRef.
-    // We must also clear aiOverlaySeriesRef since those are the same series.
     chart.clearExternalSeries();
     aiPriceLinesRef.current.forEach(id => {
       try { chart.removePriceLine(id); } catch {}
     });
     aiPriceLinesRef.current = [];
-    // FIX: Also clear the entry/exit marker ref when cleaning up overlays
+    // Clean up direct price lines (createPriceLine on mainSeries)
+    const lines = (aiPriceLinesRef as any).__lines || [];
+    lines.forEach(({ series, line }: any) => {
+      try { series.removePriceLine(line); } catch {}
+    });
+    (aiPriceLinesRef as any).__lines = [];
     aiEntryExitMarkerRef.current = null;
     setAiPatterns([]);
   }, [chart]);
@@ -1006,94 +1009,81 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
-    // ── SMC Overlays (Order Blocks, FVG, BOS/CHoCH) ──
-    if (result.smcData && chartApi) {
-      const { createSeriesMarkers: _cm, ...lcRest } = lc as any;
-
-      // Order Blocks — colored rectangles via LineSeries bands
-      result.smcData.orderBlocks.forEach((ob, i) => {
+    // ── SMC Overlays via mainSeries.createPriceLine (reliable) ──
+    const mainS = chart.mainSeriesRef?.current || chart.candleSeriesRef?.current;
+    if (result.smcData && mainS) {
+      // Order Blocks — high and low as price lines
+      result.smcData.orderBlocks.slice(0,3).forEach((ob, i) => {
         try {
-          const col = ob.type === 'bullish' ? 'rgba(0,255,163,0.15)' : 'rgba(255,71,87,0.15)';
-          const borderCol = ob.type === 'bullish' ? 'rgba(0,255,163,0.5)' : 'rgba(255,71,87,0.5)';
-          // Top line
-          const topS = chartApi.addSeries(lc.LineSeries, { color: borderCol, lineWidth: 1 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-          topS.setData([{ time: ob.time as any, value: ob.high }, { time: ob.endTime as any, value: ob.high }]);
-          // Bottom line
-          const botS = chartApi.addSeries(lc.LineSeries, { color: borderCol, lineWidth: 1 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-          botS.setData([{ time: ob.time as any, value: ob.low }, { time: ob.endTime as any, value: ob.low }]);
-          aiOverlaySeriesRef.current.push(topS, botS);
-          chart.registerExternalSeries(topS);
-          chart.registerExternalSeries(botS);
-          // Label
-          chart.addPriceLine(`smc-ob-${ob.type}-${i}`, ob.type === 'bullish' ? ob.low : ob.high, borderCol, ob.type === 'bullish' ? `OB↑` : `OB↓`, 1, 1, false);
-          aiPriceLinesRef.current.push(`smc-ob-${ob.type}-${i}`);
+          const col = ob.type === 'bullish' ? '#00FFA3' : '#FF4757';
+          const hiLine = mainS.createPriceLine({ price: ob.high, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: false, title: ob.type === 'bullish' ? 'OB↑ top' : 'OB↓ top' });
+          const loLine = mainS.createPriceLine({ price: ob.low, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: ob.type === 'bullish' ? 'OB↑' : 'OB↓' });
+          aiPriceLinesRef.current.push(`smc-ob-hi-${i}`, `smc-ob-lo-${i}`);
+          // store refs for cleanup
+          (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+          (aiPriceLinesRef as any).__lines.push({ series: mainS, line: hiLine }, { series: mainS, line: loLine });
         } catch {}
       });
 
-      // Fair Value Gaps — price lines marking the gap
-      result.smcData.fvgs.forEach((fvg, i) => {
+      // FVG — midpoint dashed line
+      result.smcData.fvgs.slice(0,3).forEach((fvg, i) => {
         try {
-          const col = fvg.type === 'bullish' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
-          chart.addPriceLine(`smc-fvg-h-${i}`, fvg.high, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 2, false);
-          chart.addPriceLine(`smc-fvg-l-${i}`, fvg.low, col, '', 1, 2, false);
-          aiPriceLinesRef.current.push(`smc-fvg-h-${i}`, `smc-fvg-l-${i}`);
+          const col = fvg.type === 'bullish' ? '#22d3ee' : '#f59e0b';
+          const mid = (fvg.high + fvg.low) / 2;
+          const fvgLine = mainS.createPriceLine({ price: mid, color: col, lineWidth: 1, lineStyle: 1, axisLabelVisible: true, title: fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓' });
+          (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+          (aiPriceLinesRef as any).__lines.push({ series: mainS, line: fvgLine });
         } catch {}
       });
 
-      // BOS/CHoCH — horizontal line + label
-      result.smcData.structureBreaks.forEach((br, i) => {
+      // BOS/CHoCH
+      result.smcData.structureBreaks.slice(0,2).forEach((br, i) => {
         try {
-          const col = br.direction === 'bullish' ? 'rgba(0,200,255,0.8)' : 'rgba(255,150,0,0.8)';
-          chart.addPriceLine(`smc-bos-${i}`, br.price, col, `${br.type} ${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
-          aiPriceLinesRef.current.push(`smc-bos-${i}`);
+          const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
+          const bosLine = mainS.createPriceLine({ price: br.price, color: col, lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: `${br.type} ${br.direction === 'bullish' ? '↑' : '↓'}` });
+          (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+          (aiPriceLinesRef as any).__lines.push({ series: mainS, line: bosLine });
         } catch {}
       });
     }
 
-    // ── Geometric Patterns on chart ──
-    if (result.geoPatterns?.length && chartApi) {
-      result.geoPatterns.forEach((pat, i) => {
+    // ── Geometric Patterns — target price lines on chart ──
+    if (result.geoPatterns?.length && mainS) {
+      result.geoPatterns.slice(0, 3).forEach((pat, i) => {
         try {
-          const col = pat.direction === 'bullish' ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
-          const colLight = pat.direction === 'bullish' ? 'rgba(0,255,163,0.3)' : 'rgba(255,71,87,0.3)';
-          // Draw lines connecting pattern points
-          if (pat.points.length >= 2) {
-            const linePts = pat.points.slice().sort((a,b) => a.time - b.time);
-            const validPts = linePts.filter(p => p.time > 0 && p.price > 0);
-            if (validPts.length >= 2) {
-              const geoS = chartApi.addSeries(lc.LineSeries, { color: col, lineWidth: 2 as any, lineStyle: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
-              geoS.setData(validPts.map(p => ({ time: p.time as any, value: p.price })));
-              aiOverlaySeriesRef.current.push(geoS);
-              chart.registerExternalSeries(geoS);
-            }
-          }
-          // Target line
+          const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+          // Show target as price line
           if (pat.target) {
-            chart.addPriceLine(`geo-target-${i}`, pat.target, colLight, `${pat.labelAr} 🎯`, 1, 2, false);
-            aiPriceLinesRef.current.push(`geo-target-${i}`);
+            const geoLine = mainS.createPriceLine({ price: pat.target, color: col, lineWidth: 1, lineStyle: 2, axisLabelVisible: true, title: `${pat.labelAr} 🎯` });
+            (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+            (aiPriceLinesRef as any).__lines.push({ series: mainS, line: geoLine });
+          }
+          // Show key price level (neckline / breakout)
+          if (pat.points?.[1]) {
+            const neckLine = mainS.createPriceLine({ price: pat.points[1].price, color: col + '99', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: pat.labelAr });
+            (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+            (aiPriceLinesRef as any).__lines.push({ series: mainS, line: neckLine });
           }
         } catch {}
       });
     }
 
-    // ── Elliott Wave on chart ──
-    if (result.elliottPattern && chartApi) {
+    // ── Elliott Wave — target + current wave label ──
+    if (result.elliottPattern && mainS) {
       const ew = result.elliottPattern;
       try {
-        const col = ew.direction === 'bullish' ? 'rgba(147,197,253,0.9)' : 'rgba(252,165,165,0.9)';
-        const wavePts = ew.waves.slice().sort((a,b) => a.time - b.time);
-        if (wavePts.length >= 2) {
-          const ewS = chartApi.addSeries(lc.LineSeries, { color: col, lineWidth: 2 as any, lineStyle: 0, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: true });
-          ewS.setData(wavePts.map(w => ({ time: w.time as any, value: w.price })));
-          // Wave labels as markers
-          const ewMarkers = wavePts.map(w => ({ time: w.time as any, position: (ew.direction==='bullish'?(w.type==='impulse'?'belowBar':'aboveBar'):(w.type==='impulse'?'aboveBar':'belowBar')) as any, color: col, shape: 'circle' as any, text: w.waveNumber }));
-          lc.createSeriesMarkers(ewS as any, ewMarkers);
-          aiOverlaySeriesRef.current.push(ewS);
-          chart.registerExternalSeries(ewS);
-        }
+        const col = ew.direction === 'bullish' ? '#93c5fd' : '#fca5a5';
         if (ew.nextTarget) {
-          chart.addPriceLine('elliott-target', ew.nextTarget, col, `موجة ${ew.currentWave} 🌊`, 1, 2, false);
-          aiPriceLinesRef.current.push('elliott-target');
+          const ewLine = mainS.createPriceLine({ price: ew.nextTarget, color: col, lineWidth: 2, lineStyle: 0, axisLabelVisible: true, title: `إليوت موجة ${ew.currentWave} 🌊` });
+          (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+          (aiPriceLinesRef as any).__lines.push({ series: mainS, line: ewLine });
+        }
+        // Current price level label
+        const lastPrice = candlesRef.current?.[candlesRef.current.length - 1]?.close;
+        if (lastPrice) {
+          const ewNow = mainS.createPriceLine({ price: lastPrice * (ew.direction === 'bullish' ? 0.998 : 1.002), color: col + '88', lineWidth: 1, lineStyle: 1, axisLabelVisible: false, title: `موجة ${ew.currentWave}` });
+          (aiPriceLinesRef as any).__lines = (aiPriceLinesRef as any).__lines || [];
+          (aiPriceLinesRef as any).__lines.push({ series: mainS, line: ewNow });
         }
       } catch {}
     }

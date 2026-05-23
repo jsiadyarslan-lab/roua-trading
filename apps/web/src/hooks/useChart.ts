@@ -1556,23 +1556,26 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Set Markers on Main Series ──
   const setMarkers = useCallback((markers: any[]) => {
     markersRef.current = markers;
-    const series = mainSeriesRef.current || candleSeriesRef.current;
-    if (!series) return;
-    try {
-      if (!markersPluginRef.current) {
-        markersPluginRef.current = createSeriesMarkers(series as any, markers);
-      } else {
-        // Try update, reset if plugin is stale (attached to old series)
-        try {
-          markersPluginRef.current.setMarkers(markers);
-        } catch {
+
+    const apply = () => {
+      const series = mainSeriesRef.current || candleSeriesRef.current;
+      if (!series) return false;
+      try {
+        // Always recreate plugin — guarantees correct series binding
+        if (markersPluginRef.current) {
+          try { markersPluginRef.current.setMarkers([]); } catch {}
           markersPluginRef.current = null;
+        }
+        if (markers.length > 0) {
           markersPluginRef.current = createSeriesMarkers(series as any, markers);
         }
-      }
-    } catch {
-      markersPluginRef.current = null;
-      try { markersPluginRef.current = createSeriesMarkers(series as any, markers); } catch {}
+        return true;
+      } catch { return false; }
+    };
+
+    if (!apply()) {
+      // Retry once after 500ms if series not ready
+      setTimeout(apply, 500);
     }
   }, []);
 

@@ -1268,10 +1268,16 @@ export default function RouaChart({
 
     // Add AI pattern markers — show Arabic name on candle
     if (aiPatterns.length) {
-      // Deduplicate by time to avoid stacking on same candle
+      // Get valid candle times from the chart data
+      const candleTimes = (candlesRef.current || []).map(c => c.time as number);
       const usedTimes = new Set<number>();
       aiPatterns.forEach(p => {
-        const t = p.time as number;
+        // Snap to nearest actual candle time
+        let t = p.time as number;
+        if (candleTimes.length > 0) {
+          const nearest = candleTimes.reduce((a, b) => Math.abs(b - t) < Math.abs(a - t) ? b : a);
+          t = nearest;
+        }
         if (usedTimes.has(t)) return;
         usedTimes.add(t);
         const label = p.labelAr || p.type;

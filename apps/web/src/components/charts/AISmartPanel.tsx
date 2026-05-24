@@ -218,6 +218,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         </div>
       </div>
 
+      {/* Overlay Toggles */}
+      <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap' }}>
+        {([['S/R','sr','#4ade80'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['هندسي','geo','#a78bfa'],['إليوت','ew','#93c5fd']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+          <button key={key} onClick={()=>{ toggleOverlay(key); setTimeout(()=>{ runRef.current=false; analyze(); },50); }}
+            style={{ padding:'2px 7px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
+              border:`1px solid ${overlays[key]?col:'#333'}`,
+              background:overlays[key]?col+'22':'transparent',
+              color:overlays[key]?col:'#555',
+              transition:'all 0.15s' }}>
+            {lbl}
+          </button>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
         {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (

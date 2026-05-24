@@ -1004,48 +1004,17 @@ export default function RouaChart({
 
     // ── Draw Trend Lines on chart ──
     try {
-      if (chartApi && result.trendLines.length > 0) {
-        result.trendLines.forEach((line, i) => {
-          const color = line.type === 'ascending' ? 'rgba(0,255,163,0.6)' : 'rgba(255,71,87,0.6)';
-          const lineWidth = line.strength === 'strong' ? 2 : 1;
-          const trendSeries = chartApi.addSeries(lc.LineSeries, {
-            color,
-            lineWidth: lineWidth as any,
-            lineStyle: 0,
-            priceLineVisible: false,
-            lastValueVisible: false,
-            crosshairMarkerVisible: false,
-          });
-          // FIX: Filter null/NaN from trend line data and ensure sorted by time
-          const t1 = line.startPoint.time;
-          const t2 = line.endPoint.time;
-          const p1 = line.startPoint.price;
-          const p2 = line.endPoint.price;
-          
-          let points = [
-            { time: t1 as any, value: p1 },
-            { time: t2 as any, value: p2 },
-          ];
-          
-          if (t1 > t2) {
-            points = [
-              { time: t2 as any, value: p2 },
-              { time: t1 as any, value: p1 },
-            ];
-          }
-
-          const trendData = filterValidData(points);
-          if (trendData.length >= 2) {
-            trendSeries.setData(trendData as any);
-            aiOverlaySeriesRef.current.push(trendSeries);
-            chart.registerExternalSeries(trendSeries); // Track in useChart for cleanup
-          } else {
-            // Not enough valid points — remove the empty series
-            try { chartApi.removeSeries(trendSeries); } catch {}
-          }
-        });
-      }
-    } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
+      // Trend lines as price lines — persistent, no LineSeries issues
+      result.trendLines.slice(0, 4).forEach((line, i) => {
+        const color = line.type === 'ascending' ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
+        const midPrice = (line.startPoint.price + line.endPoint.price) / 2;
+        if (midPrice > 0 && isFinite(midPrice)) {
+          const label = line.type === 'ascending' ? `خط↑` : `خط↓`;
+          chart.addPriceLine(`trend-${i}`, midPrice, color, label, line.strength === 'strong' ? 2 : 1, 0, true);
+          aiPriceLinesRef.current.push(`trend-${i}`);
+        }
+      });
+    } catch (e) { console.warn('[AI Overlay] error:', e); }
 
     // ── SMC + Geo + Elliott via chart.addPriceLine (same as S/R) ──
     const ov = (result as any).overlays || { fvg:true, bos:true, sr:true, geo:true, ew:true, wyckoff:true };

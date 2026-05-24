@@ -14,6 +14,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -87,7 +88,7 @@ function Toggle({ checked, onChange, color, size = 'md', ariaLabel, disabled }: 
 /* ═══════════════════════════════════════════════════════
    Security Score Ring
 ═══════════════════════════════════════════════════════ */
-function SecurityScoreRing({ score }: { score: number }) {
+function SecurityScoreRing({ score, t }: { score: number; t: (key: string) => string }) {
   const radius = 52
   const stroke = 6
   const normalizedRadius = radius - stroke / 2
@@ -101,9 +102,9 @@ function SecurityScoreRing({ score }: { score: number }) {
   }
 
   const getLabel = (s: number) => {
-    if (s >= 80) return 'ممتاز'
-    if (s >= 50) return 'متوسط'
-    return 'ضعيف'
+    if (s >= 80) return t('scoreExcellent')
+    if (s >= 50) return t('scoreMedium')
+    return t('scoreWeak')
   }
 
   const color = getColor(score)
@@ -280,6 +281,7 @@ function OTPInput({ value, onChange, length = 6 }: {
    Main 2FA Page Component
 ═══════════════════════════════════════════════════════ */
 export default function TwoFactorAuthPage() {
+  const t = useTranslations('dashboard.security2fa')
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg) } }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         @keyframes pulseGlow { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
@@ -300,9 +302,9 @@ export default function TwoFactorAuthPage() {
 
   /* ─── Auth Methods State ─── */
   const [methods, setMethods] = useState<AuthMethod[]>([
-    { id: 'email', label: 'رمز البريد الإلكتروني', enabled: true },
-    { id: 'webauthn', label: 'المفاتيح الأمنية (Passkeys)', enabled: false },
-    { id: 'totp', label: 'تطبيق المصادقة (TOTP)', enabled: false },
+    { id: 'email', label: t('methodEmail'), enabled: true },
+    { id: 'webauthn', label: t('methodWebauthn'), enabled: false },
+    { id: 'totp', label: t('methodTotp'), enabled: false },
   ])
 
   /* ─── TOTP State ─── */
@@ -316,8 +318,8 @@ export default function TwoFactorAuthPage() {
   /* ─── WebAuthn State ─── */
   const [webauthnExpanded, setWebauthnExpanded] = useState(false)
   const [passkeys, setPasskeys] = useState<Passkey[]>([
-    { id: '1', name: 'MacBook Pro Touch ID', device: 'macOS', icon: <Laptop size={16} color={T.cyan} />, addedAt: '2025-11-15', lastUsed: 'منذ ساعتين' },
-    { id: '2', name: 'iPhone Face ID', device: 'iOS', icon: <PhoneIcon size={16} color={T.purple} />, addedAt: '2025-12-20', lastUsed: 'منذ يوم' },
+    { id: '1', name: 'MacBook Pro Touch ID', device: 'macOS', icon: <Laptop size={16} color={T.cyan} />, addedAt: '2025-11-15', lastUsed: t('toastTwoHoursAgo') },
+    { id: '2', name: 'iPhone Face ID', device: 'iOS', icon: <PhoneIcon size={16} color={T.purple} />, addedAt: '2025-12-20', lastUsed: t('toastOneDayAgo') },
   ])
   const [registeringPasskey, setRegisteringPasskey] = useState(false)
 
@@ -329,10 +331,10 @@ export default function TwoFactorAuthPage() {
 
   /* ─── Sessions State ─── */
   const [sessions] = useState<Session[]>([
-    { id: '1', device: 'MacBook Pro — Chrome', deviceIcon: <Laptop size={16} color={T.green} />, location: 'الرياض، السعودية', lastActive: 'الآن', ip: '192.168.1.***', current: true },
-    { id: '2', device: 'iPhone 15 Pro — Safari', deviceIcon: <PhoneIcon size={16} color={T.cyan} />, location: 'الرياض، السعودية', lastActive: 'منذ 3 ساعات', ip: '192.168.1.***', current: false },
-    { id: '3', device: 'iPad Air — Safari', deviceIcon: <Tablet size={16} color={T.purple} />, location: 'جدة، السعودية', lastActive: 'منذ يومين', ip: '10.0.0.***', current: false },
-    { id: '4', device: 'Windows PC — Edge', deviceIcon: <Monitor size={16} color={T.amber} />, location: 'دبي، الإمارات', lastActive: 'منذ أسبوع', ip: '172.16.0.***', current: false },
+    { id: '1', device: 'MacBook Pro — Chrome', deviceIcon: <Laptop size={16} color={T.green} />, location: t('sessionLocation1'), lastActive: t('sessionLastActive1'), ip: '192.168.1.***', current: true },
+    { id: '2', device: 'iPhone 15 Pro — Safari', deviceIcon: <PhoneIcon size={16} color={T.cyan} />, location: t('sessionLocation2'), lastActive: t('sessionLastActive2'), ip: '192.168.1.***', current: false },
+    { id: '3', device: 'iPad Air — Safari', deviceIcon: <Tablet size={16} color={T.purple} />, location: t('sessionLocation3'), lastActive: t('sessionLastActive3'), ip: '10.0.0.***', current: false },
+    { id: '4', device: 'Windows PC — Edge', deviceIcon: <Monitor size={16} color={T.amber} />, location: t('sessionLocation4'), lastActive: t('sessionLastActive4'), ip: '172.16.0.***', current: false },
   ])
 
   /* ─── Computed Values ─── */
@@ -348,15 +350,15 @@ export default function TwoFactorAuthPage() {
   /* ─── Handlers ─── */
   const handleCopyText = useCallback((text: string, label: string) => {
     navigator.clipboard.writeText(text.replace(/\s/g, '')).then(() => {
-      toast({ title: 'تم النسخ', description: `تم نسخ ${label} إلى الحافظة` })
+      toast({ title: t('toastCopied'), description: t('toastCopiedDesc', { label }) })
     }).catch(() => {
-      toast({ title: 'خطأ في النسخ', description: 'لم يتم نسخ النص' })
+      toast({ title: t('toastCopyError'), description: t('toastCopyErrorDesc') })
     })
-  }, [toast])
+  }, [toast, t])
 
   const handleTotpVerify = useCallback(async () => {
     if (totpCode.length !== 6) {
-      toast({ title: 'رمز غير مكتمل', description: 'يرجى إدخال 6 أرقام' })
+      toast({ title: t('toastIncompleteCode'), description: t('toastIncompleteCodeDesc') })
       return
     }
     setTotpVerifying(true)
@@ -365,33 +367,33 @@ export default function TwoFactorAuthPage() {
     if (totpCode === '123456' || totpCode.length === 6) {
       setTotpStep(4)
       updateMethod('totp', true)
-      toast({ title: 'تم التفعيل بنجاح', description: 'تم تفعيل المصادقة عبر تطبيق المصادقة' })
+      toast({ title: t('toastActivated'), description: t('toastActivatedDesc') })
     }
-  }, [totpCode, toast])
+  }, [totpCode, toast, t])
 
   const handleTotpDisable = useCallback(() => {
     setTotpStep(0)
     setTotpCode('')
     updateMethod('totp', false)
-    toast({ title: 'تم التعطيل', description: 'تم تعطيل المصادقة عبر تطبيق المصادقة' })
-  }, [toast])
+    toast({ title: t('toastDeactivated'), description: t('toastDeactivatedDesc') })
+  }, [toast, t])
 
   const handleRegisterPasskey = useCallback(async () => {
     setRegisteringPasskey(true)
     await new Promise(r => setTimeout(r, 2000))
     const newPasskey: Passkey = {
       id: String(Date.now()),
-      name: 'مفتاح أمني جديد',
-      device: 'هذا الجهاز',
+      name: t('toastNewPasskeyName'),
+      device: t('toastNewPasskeyDevice'),
       icon: <Fingerprint size={16} color={T.green} />,
       addedAt: new Date().toISOString().split('T')[0],
-      lastUsed: 'الآن',
+      lastUsed: t('toastNow'),
     }
     setPasskeys(prev => [...prev, newPasskey])
     updateMethod('webauthn', true)
     setRegisteringPasskey(false)
-    toast({ title: 'تم تسجيل المفتاح', description: 'تم تسجيل مفتاح أمني جديد بنجاح' })
-  }, [toast])
+    toast({ title: t('toastKeyRegistered'), description: t('toastKeyRegisteredDesc') })
+  }, [toast, t])
 
   const handleDeletePasskey = useCallback((id: string) => {
     setPasskeys(prev => {
@@ -401,8 +403,8 @@ export default function TwoFactorAuthPage() {
       }
       return updated
     })
-    toast({ title: 'تم حذف المفتاح', description: 'تم حذف المفتاح الأمني بنجاح' })
-  }, [toast])
+    toast({ title: t('toastKeyDeleted'), description: t('toastKeyDeletedDesc') })
+  }, [toast, t])
 
   const handleGenerateRecoveryCodes = useCallback(async () => {
     setGeneratingCodes(true)
@@ -413,11 +415,11 @@ export default function TwoFactorAuthPage() {
     setRecoveryCodes(codes)
     setCodesRevealed(true)
     setGeneratingCodes(false)
-    toast({ title: 'تم إنشاء الرموز', description: 'تم إنشاء 8 رموز استرداد جديدة' })
-  }, [toast])
+    toast({ title: t('toastCodesGenerated'), description: t('toastCodesGeneratedDesc') })
+  }, [toast, t])
 
   const handleDownloadRecoveryCodes = useCallback(() => {
-    const content = `رموز استرداد منصة رؤى\n========================\nتاريخ الإنشاء: ${new Date().toLocaleDateString('ar-SA')}\n\n${recoveryCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n⚠️ احفظ هذه الرموز في مكان آمن. لا تشاركها مع أي شخص.`
+    const content = `${t('recoveryFileHeader')}\n========================\n${t('recoveryFileDate', { date: new Date().toLocaleDateString() })}\n\n${recoveryCodes.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n⚠️ ${t('recoveryFileWarning')}`
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -425,25 +427,25 @@ export default function TwoFactorAuthPage() {
     a.download = `roua-recovery-codes-${new Date().toISOString().slice(0, 10)}.txt`
     a.click()
     URL.revokeObjectURL(url)
-    toast({ title: 'تم التحميل', description: 'تم تحميل رموز الاسترداد' })
-  }, [recoveryCodes, toast])
+    toast({ title: t('recoveryDownloadTitle'), description: t('recoveryDownloadDesc') })
+  }, [recoveryCodes, toast, t])
 
   const handleCopyAllRecoveryCodes = useCallback(() => {
-    handleCopyText(recoveryCodes.join('\n'), 'جميع رموز الاسترداد')
-  }, [recoveryCodes, handleCopyText])
+    handleCopyText(recoveryCodes.join('\n'), t('recoveryAllCodesLabel'))
+  }, [recoveryCodes, handleCopyText, t])
 
   const handleKillOtherSessions = useCallback(() => {
-    toast({ title: 'تم إنهاء الجلسات', description: 'تم تسجيل الخروج من جميع الأجهزة الأخرى' })
-  }, [toast])
+    toast({ title: t('toastSessionsTerminated'), description: t('toastSessionsTerminatedDesc') })
+  }, [toast, t])
 
   /* ─── Best Practices Data ─── */
   const bestPractices = [
-    { icon: <ShieldCheck size={16} color={T.green} />, title: 'فعّل طريقتين على الأقل', desc: 'لا تعتمد على طريقة واحدة. فعّل TOTP ومفتاح أمني للحماية المثلى.', color: T.green },
-    { icon: <KeyRound size={16} color={T.cyan} />, title: 'احفظ رموز الاسترداد بآمان', desc: 'خزّن رموز الاسترداد في مكان آمن خارج الجهاز، مثل خزنة رقمية أو ورقية.', color: T.cyan },
-    { icon: <AlertTriangle size={16} color={T.amber} />, title: 'لا تشارك رموزك أبداً', desc: 'لن يطلب منك فريق رؤى أي رمز تحقق أو كلمة مرور عبر الهاتف أو البريد.', color: T.amber },
-    { icon: <RefreshCw size={16} color={T.purple} />, title: 'حدّث رموز الاسترداد دورياً', desc: 'أنشئ رموز استرداد جديدة كل بضعة أشهر أو عند الشك بتسريبها.', color: T.purple },
-    { icon: <Monitor size={16} color={T.blue} />, title: 'راقب جلساتك النشطة', desc: 'راجع الأجهزة المتصلة بحسابك بانتظام وأنهِ أي جلسة غير معروفة.', color: T.blue },
-    { icon: <Lock size={16} color={T.red} />, title: 'استخدم كلمة مرور قوية', desc: 'اجمع بين الأحرف الكبيرة والصغيرة والأرقام والرموز في كلمة مرورك.', color: T.red },
+    { icon: <ShieldCheck size={16} color={T.green} />, title: t('tipEnableTwoTitle'), desc: t('tipEnableTwoDesc'), color: T.green },
+    { icon: <KeyRound size={16} color={T.cyan} />, title: t('tipSaveCodesTitle'), desc: t('tipSaveCodesDesc'), color: T.cyan },
+    { icon: <AlertTriangle size={16} color={T.amber} />, title: t('tipNeverShareTitle'), desc: t('tipNeverShareDesc'), color: T.amber },
+    { icon: <RefreshCw size={16} color={T.purple} />, title: t('tipRotateCodesTitle'), desc: t('tipRotateCodesDesc'), color: T.purple },
+    { icon: <Monitor size={16} color={T.blue} />, title: t('tipMonitorSessionsTitle'), desc: t('tipMonitorSessionsDesc'), color: T.blue },
+    { icon: <Lock size={16} color={T.red} />, title: t('tipStrongPasswordTitle'), desc: t('tipStrongPasswordDesc'), color: T.red },
   ]
 
   /* ═══════════════════════════════════════════════════════
@@ -472,10 +474,10 @@ export default function TwoFactorAuthPage() {
             </div>
             <div style={{ flex: 1 }}>
               <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>
-                المصادقة الثنائية (2FA)
+                {t('title')}
               </h1>
               <p style={{ margin: 0, fontSize: 12, color: T.text3, marginTop: 2 }}>
-                حماية إضافية لحسابك في منصة رؤى
+                {t('subtitle')}
               </p>
             </div>
             <div style={{
@@ -490,7 +492,7 @@ export default function TwoFactorAuthPage() {
                 color: securityScore >= 80 ? T.green : securityScore >= 50 ? T.amber : T.red,
                 fontFamily: "'Cairo', sans-serif",
               }}>
-                {securityScore >= 80 ? 'محمي' : securityScore >= 50 ? 'يمكن تحسينه' : 'يحتاج حماية'}
+                {securityScore >= 80 ? t('statusProtected') : securityScore >= 50 ? t('statusImprovable') : t('statusNeedsProtection')}
               </span>
             </div>
           </div>
@@ -512,7 +514,7 @@ export default function TwoFactorAuthPage() {
               }}>
                 <ShieldCheck size={14} color={T.cyan} />
                 <span style={{ fontSize: 12, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
-                  نظرة عامة على الأمان
+                  {t('securityOverview')}
                 </span>
               </div>
             </div>
@@ -522,7 +524,7 @@ export default function TwoFactorAuthPage() {
               alignItems: 'center',
             }}>
               {/* Score Ring */}
-              <SecurityScoreRing score={securityScore} />
+              <SecurityScoreRing score={securityScore} t={t} />
 
               {/* Methods List */}
               <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -562,7 +564,7 @@ export default function TwoFactorAuthPage() {
                           fontSize: 10, color: method.enabled ? config.color : T.text4,
                           fontFamily: "'Cairo', sans-serif", marginTop: 1,
                         }}>
-                          {method.enabled ? 'مفعّل' : 'غير مفعّل'}
+                          {method.enabled ? t('methodEnabled') : t('methodDisabled')}
                         </div>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -586,10 +588,10 @@ export default function TwoFactorAuthPage() {
                   <Info size={13} color={T.cyan} />
                   <span style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
                     {enabledCount >= 2
-                      ? `ممتاز! لديك ${enabledCount} طرق حماية مفعّلة`
+                      ? t('enabledCountExcellent', { count: enabledCount })
                       : enabledCount === 1
-                        ? 'يُنصح بتفعيل طريقة حماية إضافية على الأقل'
-                        : 'يرجى تفعيل طريقة حماية واحدة على الأقل'}
+                        ? t('enabledCountOne')
+                        : t('enabledCountNone')}
                   </span>
                 </div>
               </div>
@@ -603,9 +605,9 @@ export default function TwoFactorAuthPage() {
             icon={<Key size={18} color={T.cyan} />}
             iconColor={T.cyan}
             iconBg={`${T.cyan}14`}
-            title="تطبيق المصادقة (TOTP)"
-            subtitle="استخدم تطبيق مثل Google Authenticator أو Authy"
-            badge={methods.find(m => m.id === 'totp')?.enabled ? 'مفعّل' : 'غير مفعّل'}
+            title={t('totpTitle')}
+            subtitle={t('totpSubtitle')}
+            badge={methods.find(m => m.id === 'totp')?.enabled ? t('totpBadgeEnabled') : t('totpBadgeDisabled')}
             badgeColor={methods.find(m => m.id === 'totp')?.enabled ? T.green : T.text4}
             expandable
             expanded={totpExpanded}
@@ -623,7 +625,7 @@ export default function TwoFactorAuthPage() {
                 }}
                 color={T.cyan}
                 size="sm"
-                ariaLabel="تفعيل/تعطيل TOTP"
+                ariaLabel={t('totpToggleAria')}
               />
             }
           >
@@ -639,7 +641,7 @@ export default function TwoFactorAuthPage() {
                   }}>
                     <CheckCircle2 size={16} color={T.green} />
                     <div style={{ fontSize: 12, color: T.text2, lineHeight: 1.6 }}>
-                      تم تفعيل المصادقة عبر تطبيق المصادقة بنجاح. سيُطلب منك رمز تحقق عند كل تسجيل دخول.
+                      {t('totpEnabledMessage')}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
@@ -654,7 +656,7 @@ export default function TwoFactorAuthPage() {
                       }}
                     >
                       <RefreshCw size={12} />
-                      إعادة الإعداد
+                      {t('totpReSetup')}
                     </button>
                   </div>
                 </div>
@@ -667,10 +669,10 @@ export default function TwoFactorAuthPage() {
                     padding: '0 4px',
                   }}>
                     {[
-                      { n: 1, label: 'تثبيت التطبيق' },
-                      { n: 2, label: 'مسح الرمز' },
-                      { n: 3, label: 'إدخال الرمز' },
-                      { n: 4, label: 'تأكيد' },
+                      { n: 1, label: t('totpStep1') },
+                      { n: 2, label: t('totpStep2') },
+                      { n: 3, label: t('totpStep3') },
+                      { n: 4, label: t('totpStep4') },
                     ].map((step, idx) => (
                       <div key={step.n} style={{ flex: 1 }}>
                         <div style={{
@@ -706,10 +708,10 @@ export default function TwoFactorAuthPage() {
                           <Smartphone size={24} color={T.cyan} />
                         </div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 8, fontFamily: "'Cairo', sans-serif" }}>
-                          ثبّت تطبيق المصادقة
+                          {t('totpInstallTitle')}
                         </div>
                         <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.7, marginBottom: 16 }}>
-                          حمّل أحد تطبيقات المصادقة التالية على هاتفك
+                          {t('totpInstallDesc')}
                         </div>
                         <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                           {[
@@ -740,7 +742,7 @@ export default function TwoFactorAuthPage() {
                             transition: 'all 0.2s',
                           }}
                         >
-                          التالي — مسح الرمز
+                          {t('totpNextScan')}
                         </button>
                       </div>
                     </div>
@@ -758,7 +760,7 @@ export default function TwoFactorAuthPage() {
                         }}>
                           <QrCode size={14} color={T.cyan} />
                           <span style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                            امسح رمز QR
+                            {t('totpScanTitle')}
                           </span>
                         </div>
 
@@ -803,7 +805,7 @@ export default function TwoFactorAuthPage() {
 
                         <div style={{ textAlign: 'center', marginBottom: 14 }}>
                           <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.6 }}>
-                            وجّه كاميرا هاتفك نحو رمز QR أعلاه
+                            {t('totpScanDesc')}
                           </div>
                         </div>
 
@@ -817,7 +819,7 @@ export default function TwoFactorAuthPage() {
                             marginBottom: 6,
                           }}>
                             <span style={{ fontSize: 10, fontWeight: 600, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-                              المفتاح اليدوي (في حال تعذر المسح)
+                              {t('totpManualKey')}
                             </span>
                             <div style={{ display: 'flex', gap: 4 }}>
                               <button
@@ -832,7 +834,7 @@ export default function TwoFactorAuthPage() {
                                 {showTotpKey ? <EyeOff size={12} /> : <Eye size={12} />}
                               </button>
                               <button
-                                onClick={() => handleCopyText(totpKey, 'المفتاح')}
+                                onClick={() => handleCopyText(totpKey, t('totpManualKey').split('(')[0].trim())}
                                 style={{
                                   width: 26, height: 26, borderRadius: 6,
                                   background: T.surface, border: `1px solid ${T.border}`,
@@ -867,7 +869,7 @@ export default function TwoFactorAuthPage() {
                             fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
                           }}
                         >
-                          السابق
+                          {t('totpPrevious')}
                         </button>
                         <button
                           onClick={() => setTotpStep(3)}
@@ -880,7 +882,7 @@ export default function TwoFactorAuthPage() {
                             transition: 'all 0.2s',
                           }}
                         >
-                          التالي — إدخال الرمز
+                          {t('totpNextEnterCode')}
                         </button>
                       </div>
                     </div>
@@ -902,10 +904,10 @@ export default function TwoFactorAuthPage() {
                           <Hash size={24} color={T.cyan} />
                         </div>
                         <div style={{ fontSize: 14, fontWeight: 800, color: T.text, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
-                          أدخل رمز التحقق
+                          {t('totpEnterTitle')}
                         </div>
                         <div style={{ fontSize: 12, color: T.text3, lineHeight: 1.6, marginBottom: 20 }}>
-                          أدخل الرمز المكوّن من 6 أرقام من تطبيق المصادقة
+                          {t('totpEnterDesc')}
                         </div>
 
                         <OTPInput value={totpCode} onChange={setTotpCode} length={6} />
@@ -929,7 +931,7 @@ export default function TwoFactorAuthPage() {
                             }}
                           >
                             {totpVerifying ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <CheckCircle2 size={14} />}
-                            {totpVerifying ? 'جارٍ التحقق...' : 'تحقق'}
+                            {totpVerifying ? t('totpVerifying') : t('totpVerify')}
                           </button>
                         </div>
                       </div>
@@ -944,7 +946,7 @@ export default function TwoFactorAuthPage() {
                             fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
                           }}
                         >
-                          السابق
+                          {t('totpPrevious')}
                         </button>
                       </div>
                     </div>
@@ -955,7 +957,7 @@ export default function TwoFactorAuthPage() {
                     <div className="twofa-content" style={{ textAlign: 'center', padding: 20 }}>
                       <CheckCircle2 size={32} color={T.green} style={{ margin: '0 auto 12px' }} />
                       <div style={{ fontSize: 14, fontWeight: 800, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
-                        تم التفعيل بنجاح!
+                        {t('totpActivated')}
                       </div>
                     </div>
                   )}
@@ -971,9 +973,9 @@ export default function TwoFactorAuthPage() {
             icon={<Fingerprint size={18} color={T.purple} />}
             iconColor={T.purple}
             iconBg={`${T.purple}14`}
-            title="المفاتيح الأمنية (Passkeys)"
-            subtitle="استخدم بصمتك أو Face ID كمفتاح أمني"
-            badge={`${passkeys.length} مفتاح`}
+            title={t('webauthnTitle')}
+            subtitle={t('webauthnSubtitle')}
+            badge={t('webauthnBadge', { count: passkeys.length })}
             badgeColor={passkeys.length > 0 ? T.purple : T.text4}
             expandable
             expanded={webauthnExpanded}
@@ -990,7 +992,7 @@ export default function TwoFactorAuthPage() {
                 }}
                 color={T.purple}
                 size="sm"
-                ariaLabel="تفعيل/تعطيل Passkeys"
+                ariaLabel={t('webauthnToggleAria')}
               />
             }
           >
@@ -1004,8 +1006,7 @@ export default function TwoFactorAuthPage() {
               }}>
                 <Info size={16} color={T.purple} style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
-                  المفاتيح الأمنية (Passkeys) هي طريقة مصادقة حديثة تستخدم البصمة أو الوجه بدلاً من كلمات المرور. 
-                  هي أكثر أماناً لأنها لا يمكن اختراقها أو سرقتها عبر التصيد. يعتمد تشفيرها على جهازك فقط ولا تُرسل لأي خادم.
+                  {t('webauthnInfo')}
                 </div>
               </div>
 
@@ -1042,7 +1043,7 @@ export default function TwoFactorAuthPage() {
                         }}>
                           <span>{passkey.device}</span>
                           <span>•</span>
-                          <span>آخر استخدام: {passkey.lastUsed}</span>
+                          <span>{t('webauthnLastUsed', { time: passkey.lastUsed })}</span>
                         </div>
                       </div>
                       <button
@@ -1054,7 +1055,7 @@ export default function TwoFactorAuthPage() {
                           cursor: 'pointer', color: T.red, flexShrink: 0,
                           transition: 'all 0.2s',
                         }}
-                        title="حذف المفتاح"
+                        title={t('webauthnDeleteTitle')}
                       >
                         <Trash2 size={12} />
                       </button>
@@ -1068,7 +1069,7 @@ export default function TwoFactorAuthPage() {
                 }}>
                   <Fingerprint size={28} color={T.text4} style={{ margin: '0 auto 10px' }} />
                   <div style={{ fontSize: 12, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>
-                    لا توجد مفاتيح أمنية مسجلة
+                    {t('webauthnEmptyState')}
                   </div>
                 </div>
               )}
@@ -1091,7 +1092,7 @@ export default function TwoFactorAuthPage() {
                 ) : (
                   <Plus size={14} />
                 )}
-                {registeringPasskey ? 'جارٍ التسجيل...' : 'تسجيل مفتاح أمني جديد'}
+                {registeringPasskey ? t('webauthnRegistering') : t('webauthnRegisterNew')}
               </button>
             </div>
           </SectionCard>
@@ -1103,9 +1104,9 @@ export default function TwoFactorAuthPage() {
             icon={<KeyRound size={18} color={T.amber} />}
             iconColor={T.amber}
             iconBg={`${T.amber}14`}
-            title="رموز الاسترداد"
-            subtitle="رموز احتياطية للوصول لحسابك عند فقدان جهازك"
-            badge={recoveryCodes.length > 0 ? `${recoveryCodes.length} رمز` : undefined}
+            title={t('recoveryTitle')}
+            subtitle={t('recoverySubtitle')}
+            badge={recoveryCodes.length > 0 ? t('recoveryBadge', { count: recoveryCodes.length }) : undefined}
             badgeColor={T.amber}
             expandable
             expanded={recoveryExpanded}
@@ -1121,8 +1122,8 @@ export default function TwoFactorAuthPage() {
               }}>
                 <AlertTriangle size={16} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.7 }}>
-                  احفظ رموز الاسترداد في مكان آمن. هي الطريقة الوحيدة للوصول لحسابك إذا فقدت الوصول لجميع أجهزتك.
-                  <span style={{ color: T.red, fontWeight: 600 }}> لا تشاركها مع أي شخص.</span>
+                  {t('recoveryWarning')}
+                  <span style={{ color: T.red, fontWeight: 600 }}>{t('recoveryWarningShare')}</span>
                 </div>
               </div>
 
@@ -1137,10 +1138,10 @@ export default function TwoFactorAuthPage() {
                     <ShieldQuestion size={24} color={T.amber} />
                   </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
-                    لم يتم إنشاء رموز استرداد بعد
+                    {t('recoveryNotGenerated')}
                   </div>
                   <div style={{ fontSize: 11, color: T.text3, lineHeight: 1.6, marginBottom: 16 }}>
-                    أنشئ رموز استرداد جديدة كنسخة احتياطية لطرق المصادقة الخاصة بك
+                    {t('recoveryGenerateDesc')}
                   </div>
                   <button
                     onClick={handleGenerateRecoveryCodes}
@@ -1161,7 +1162,7 @@ export default function TwoFactorAuthPage() {
                     ) : (
                       <Hash size={14} />
                     )}
-                    {generatingCodes ? 'جارٍ الإنشاء...' : 'إنشاء رموز الاسترداد'}
+                    {generatingCodes ? t('recoveryGenerating') : t('recoveryGenerate')}
                   </button>
                 </div>
               ) : (
@@ -1196,7 +1197,7 @@ export default function TwoFactorAuthPage() {
                           {code}
                         </span>
                         <button
-                          onClick={() => handleCopyText(code, `رمز ${i + 1}`)}
+                          onClick={() => handleCopyText(code, t('recoveryCodeLabel', { number: i + 1 }))}
                           style={{
                             width: 24, height: 24, borderRadius: 6,
                             background: 'transparent', border: 'none',
@@ -1204,7 +1205,7 @@ export default function TwoFactorAuthPage() {
                             cursor: 'pointer', color: T.text4, flexShrink: 0,
                             transition: 'color 0.2s',
                           }}
-                          title="نسخ الرمز"
+                          title={t('recoveryCopyCodeTitle')}
                         >
                           <Copy size={11} />
                         </button>
@@ -1225,7 +1226,7 @@ export default function TwoFactorAuthPage() {
                       }}
                     >
                       {codesRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
-                      {codesRevealed ? 'إخفاء الرموز' : 'إظهار الرموز'}
+                      {codesRevealed ? t('recoveryHideCodes') : t('recoveryShowCodes')}
                     </button>
                     <button
                       onClick={handleDownloadRecoveryCodes}
@@ -1238,7 +1239,7 @@ export default function TwoFactorAuthPage() {
                       }}
                     >
                       <FileDown size={12} />
-                      تحميل الرموز
+                      {t('recoveryDownloadCodes')}
                     </button>
                     <button
                       onClick={handleCopyAllRecoveryCodes}
@@ -1251,7 +1252,7 @@ export default function TwoFactorAuthPage() {
                       }}
                     >
                       <ClipboardList size={12} />
-                      نسخ الكل
+                      {t('recoveryCopyAll')}
                     </button>
                     <button
                       onClick={handleGenerateRecoveryCodes}
@@ -1270,7 +1271,7 @@ export default function TwoFactorAuthPage() {
                       ) : (
                         <RefreshCw size={12} />
                       )}
-                      إعادة إنشاء
+                      {t('recoveryRegenerate')}
                     </button>
                   </div>
                 </div>
@@ -1285,8 +1286,8 @@ export default function TwoFactorAuthPage() {
             icon={<Lightbulb size={18} color={T.amber} />}
             iconColor={T.amber}
             iconBg={`${T.amber}14`}
-            title="نصائح الأمان"
-            subtitle="أفضل الممارسات لحماية حسابك"
+            title={t('tipsTitle')}
+            subtitle={t('tipsSubtitle')}
           >
             <div className="twofa-best-grid" style={{
               display: 'grid', gridTemplateColumns: '1fr 1fr',
@@ -1332,9 +1333,9 @@ export default function TwoFactorAuthPage() {
             icon={<Monitor size={18} color={T.cyan} />}
             iconColor={T.cyan}
             iconBg={`${T.cyan}14`}
-            title="إدارة الجلسات"
-            subtitle="الأجهزة المتصلة بحسابك حالياً"
-            badge={`${sessions.length} جلسة`}
+            title={t('sessionsTitle')}
+            subtitle={t('sessionsSubtitle')}
+            badge={t('sessionsBadge', { count: sessions.length })}
             badgeColor={T.cyan}
           >
             <div style={{ padding: '8px 0' }}>
@@ -1375,7 +1376,7 @@ export default function TwoFactorAuthPage() {
                               fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
                               flexShrink: 0,
                             }}>
-                              هذا الجهاز
+                              {t('sessionsThisDevice')}
                             </span>
                           )}
                         </div>
@@ -1402,7 +1403,7 @@ export default function TwoFactorAuthPage() {
                       </div>
                       {!session.current && (
                         <button
-                          onClick={() => toast({ title: 'تم إنهاء الجلسة', description: `تم تسجيل الخروج من ${session.device}` })}
+                          onClick={() => toast({ title: t('toastSessionTerminated'), description: t('toastSessionTerminatedDesc', { device: session.device }) })}
                           style={{
                             padding: '6px 10px', borderRadius: 6,
                             background: `${T.red}08`, border: `1px solid ${T.red}15`,
@@ -1413,7 +1414,7 @@ export default function TwoFactorAuthPage() {
                           }}
                         >
                           <LogOut size={10} />
-                          إنهاء
+                          {t('sessionsTerminate')}
                         </button>
                       )}
                     </div>
@@ -1435,7 +1436,7 @@ export default function TwoFactorAuthPage() {
                 }}
               >
                 <LogOut size={14} />
-                إنهاء جميع الجلسات الأخرى
+                {t('sessionsTerminateAll')}
               </button>
             </div>
           </SectionCard>

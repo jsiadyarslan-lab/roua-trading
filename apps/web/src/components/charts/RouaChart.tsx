@@ -860,10 +860,8 @@ export default function RouaChart({
       if (candlesRef.current?.length) {
         setAiPanelCandles([...candlesRef.current]);
       }
-    } else {
-      cleanupAIOverlays();
-      setAiDirectMarkers([]);
     }
+    // NOTE: Do NOT cleanup on close — lines should persist on chart
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAIPanel]);
 

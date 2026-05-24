@@ -1,241 +1,94 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Draggable & Resizable Panel Wrapper
-// Makes any floating panel on the chart draggable and resizable
+// ROUA Trading Chart — Draggable Panel
+// Uses DOM manipulation during drag — no React re-render flicker
 // ═══════════════════════════════════════════════════════════
 
-'use client';
-
-import React, { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from 'react';
+import React, { useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
 
 interface DraggablePanelProps {
   children: ReactNode;
-  /** Initial position — defaults to top-right */
-  defaultPosition?: { top?: number; right?: number; bottom?: number; left?: number };
-  /** Minimum width for resize */
-  minWidth?: number;
-  /** Minimum height for resize */
-  minHeight?: number;
-  /** Initial width */
+  defaultPosition?: { top?: number; left?: number; right?: number; bottom?: number };
   defaultWidth?: number;
-  /** Whether resize is allowed */
+  minHeight?: number;
+  minWidth?: number;
   resizable?: boolean;
-  /** Extra CSS for the outer wrapper */
   style?: React.CSSProperties;
-  /** CSS class name */
   className?: string;
 }
 
 export function DraggablePanel({
   children,
-  defaultPosition = { top: 42, right: 8 },
-  minWidth = 200,
-  minHeight = 100,
-  defaultWidth,
-  resizable = true,
+  defaultPosition = { top: 120, right: 290 },
+  defaultWidth = 340,
+  minHeight = 360,
+  minWidth = 280,
+  resizable = false,
   style,
   className,
 }: DraggablePanelProps) {
-  // ── Position state ──
-  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef({ dragging: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
 
-  // ── Drag state ──
-  const dragState = useRef<{
-    isDragging: boolean;
-    startX: number;
-    startY: number;
-    startLeft: number;
-    startTop: number;
-  }>({ isDragging: false, startX: 0, startY: 0, startLeft: 0, startTop: 0 });
-
-  // ── Resize state ──
-  const resizeState = useRef<{
-    isResizing: boolean;
-    startX: number;
-    startY: number;
-    startW: number;
-    startH: number;
-  }>({ isResizing: false, startX: 0, startY: 0, startW: 0, startH: 0 });
-
-  // Initialize position from defaults on first mount
-  useEffect(() => {
-    if (pos !== null) return;
-    if (!panelRef.current) return;
-
-    const parent = panelRef.current.parentElement;
-    if (!parent) return;
-
-    const parentRect = parent.getBoundingClientRect();
-    let x = 0;
-    let y = 0;
-
-    if (defaultPosition.right !== undefined) {
-      x = parentRect.width - (defaultPosition.right || 0) - (panelRef.current.offsetWidth || 280);
-    } else if (defaultPosition.left !== undefined) {
-      x = defaultPosition.left;
-    }
-
-    if (defaultPosition.top !== undefined) {
-      y = defaultPosition.top;
-    } else if (defaultPosition.bottom !== undefined) {
-      y = parentRect.height - (defaultPosition.bottom || 0) - (panelRef.current.offsetHeight || 300);
-    }
-
-    setPos({ x: Math.max(0, x), y: Math.max(0, y) });
-  }, [defaultPosition, pos]);
-
-  // ── Drag handlers ──
-  const handleDragStart = useCallback((e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (!target.closest('[data-drag-handle]')) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const rect = panelRef.current?.getBoundingClientRect();
-    const startLeft = rect?.left || 0;
-    const startTop = rect?.top || 0;
-
-    dragState.current = {
-      isDragging: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startLeft,
-      startTop,
-    };
-
-    const handleDragMove = (moveEvent: MouseEvent) => {
-      if (!dragState.current.isDragging || !panelRef.current) return;
-      const dx = moveEvent.clientX - dragState.current.startX;
-      const dy = moveEvent.clientY - dragState.current.startY;
-      const newX = Math.max(0, Math.min(window.innerWidth - (panelRef.current.offsetWidth || 340), dragState.current.startLeft + dx));
-      const newY = Math.max(0, Math.min(window.innerHeight - 50, dragState.current.startTop + dy));
-      // Move DOM directly — no React re-render, no flicker
-      panelRef.current.style.position = 'fixed';
-      panelRef.current.style.left = `${newX}px`;
-      panelRef.current.style.top = `${newY}px`;
-      panelRef.current.style.right = 'auto';
-      panelRef.current.style.bottom = 'auto';
-    };
-
-    const handleDragEnd = () => {
-      dragState.current.isDragging = false;
-      // Sync React state once at the end
-      if (panelRef.current) {
-        const r = panelRef.current.getBoundingClientRect();
-        setPos({ x: r.left, y: r.top });
-      }
-      document.removeEventListener('mousemove', handleDragMove);
-      document.removeEventListener('mouseup', handleDragEnd);
-    };
-
-    document.addEventListener('mousemove', handleDragMove);
-    document.addEventListener('mouseup', handleDragEnd);
-  }, []);
-
-  // ── Resize handlers ──
-  const handleResizeStart = useCallback((e: React.MouseEvent) => {
-    if (!resizable) return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const currentW = panelRef.current?.offsetWidth || 280;
-    const currentH = panelRef.current?.offsetHeight || 300;
-
-    resizeState.current = {
-      isResizing: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startW: currentW,
-      startH: currentH,
-    };
-
-    const handleResizeMove = (moveEvent: MouseEvent) => {
-      if (!resizeState.current.isResizing) return;
-      const dx = moveEvent.clientX - resizeState.current.startX;
-      const dy = moveEvent.clientY - resizeState.current.startY;
-      setSize({
-        w: Math.max(minWidth, resizeState.current.startW + dx),
-        h: Math.max(minHeight, resizeState.current.startH + dy),
-      });
-    };
-
-    const handleResizeEnd = () => {
-      resizeState.current.isResizing = false;
-      document.removeEventListener('mousemove', handleResizeMove);
-      document.removeEventListener('mouseup', handleResizeEnd);
-    };
-
-    document.addEventListener('mousemove', handleResizeMove);
-    document.addEventListener('mouseup', handleResizeEnd);
-  }, [resizable, minWidth, minHeight]);
-
-  // Convert defaultPosition to CSS — convert right→left so drag works correctly
-  const computedInitialPos = useMemo(() => {
+  // Convert right→left once at mount
+  const initPos = useMemo(() => {
     const p = defaultPosition as any;
-    if (p?.right !== undefined && p?.left === undefined) {
+    if (p.right !== undefined && p.left === undefined) {
       const w = typeof window !== 'undefined' ? window.innerWidth : 1366;
-      const panelW = defaultWidth || 340;
-      return { top: p.top || 120, left: w - panelW - p.right };
+      return { top: p.top ?? 120, left: Math.max(0, w - defaultWidth - p.right) };
     }
-    return p || { top: 120, left: 20 };
+    return { top: p.top ?? 120, left: p.left ?? 20 };
   }, []); // eslint-disable-line
 
-  const initialStyle: React.CSSProperties = pos === null
-    ? { position: 'fixed', ...computedInitialPos }
-    : { position: 'fixed', left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' };
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (!target.closest('[data-drag-handle]')) return;
+    e.preventDefault();
+    e.stopPropagation();
 
-  const sizeStyle: React.CSSProperties = size
-    ? { width: size.w, height: size.h }
-    : defaultWidth
-      ? { width: defaultWidth, height: minHeight, minHeight }
-      : { height: minHeight, minHeight };
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const rect = panel.getBoundingClientRect();
+    dragRef.current = { dragging: true, startX: e.clientX, startY: e.clientY, startLeft: rect.left, startTop: rect.top };
+
+    const onMove = (me: MouseEvent) => {
+      if (!dragRef.current.dragging || !panelRef.current) return;
+      const dx = me.clientX - dragRef.current.startX;
+      const dy = me.clientY - dragRef.current.startY;
+      const newLeft = Math.max(0, Math.min(window.innerWidth - (panelRef.current.offsetWidth || defaultWidth), dragRef.current.startLeft + dx));
+      const newTop = Math.max(0, Math.min(window.innerHeight - 60, dragRef.current.startTop + dy));
+      panelRef.current.style.left = `${newLeft}px`;
+      panelRef.current.style.top = `${newTop}px`;
+    };
+
+    const onUp = () => {
+      dragRef.current.dragging = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [defaultWidth]);
 
   return (
     <div
       ref={panelRef}
       data-draggable-panel="true"
       className={className}
-      onMouseDown={handleDragStart}
+      onMouseDown={handleMouseDown}
       style={{
-        ...initialStyle,
-        ...sizeStyle,
-        ...style,
-        zIndex: 500,
+        position: 'fixed',
+        left: initPos.left,
+        top: initPos.top,
+        width: defaultWidth,
         minHeight,
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
+        zIndex: 9999,
+        userSelect: 'none',
+        ...style,
       }}
     >
       {children}
-
-      {/* Resize handle — bottom-right corner */}
-      {resizable && (
-        <div
-          onMouseDown={handleResizeStart}
-          style={{
-            position: 'absolute',
-            bottom: 0,
-            right: 0,
-            width: 16,
-            height: 16,
-            cursor: 'nwse-resize',
-            zIndex: 501,
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'flex-end',
-            padding: 2,
-          }}
-        >
-          <svg width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ opacity: 0.3 }}>
-            <line x1="9" y1="1" x2="1" y2="9" stroke="#8B92A8" strokeWidth="1" />
-            <line x1="9" y1="4" x2="4" y2="9" stroke="#8B92A8" strokeWidth="1" />
-            <line x1="9" y1="7" x2="7" y2="9" stroke="#8B92A8" strokeWidth="1" />
-          </svg>
-        </div>
-      )}
     </div>
   );
 }

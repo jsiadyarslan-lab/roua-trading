@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Play, Plus, Settings2, Shield, Activity, GitBranch, Save, Trash2, X as XIcon, ArrowDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T } from '@/lib/unified-tokens'
@@ -15,53 +16,54 @@ interface StrategyNode {
   icon: string
 }
 
-const AVAILABLE_COMPONENTS: { category: string; items: Omit<StrategyNode, 'id'>[] }[] = [
-  {
-    category: 'مؤشرات (Indicators)',
-    items: [
-      { type: 'indicator', label: 'RSI', sublabel: 'مؤشر القوة النسبية', color: T.cyan, icon: '📊' },
-      { type: 'indicator', label: 'MACD', sublabel: 'تقارب/تباعد المتوسطات', color: T.cyan, icon: '📈' },
-      { type: 'indicator', label: 'Bollinger Bands', sublabel: 'نطاقات بولينجر', color: T.cyan, icon: '📏' },
-      { type: 'indicator', label: 'EMA', sublabel: 'المتوسط الأسي', color: T.cyan, icon: '📉' },
-    ],
-  },
-  {
-    category: 'شروط (Conditions)',
-    items: [
-      { type: 'condition', label: 'تقاطع مؤشرات', sublabel: 'Crossover', color: T.blue, icon: '🔀' },
-      { type: 'condition', label: 'مستوى سعري', sublabel: 'Price Level', color: T.blue, icon: '🎯' },
-      { type: 'condition', label: 'حجم تداول', sublabel: 'Volume Spike', color: T.blue, icon: '📦' },
-      { type: 'condition', label: 'زمني', sublabel: 'Time-based', color: T.blue, icon: '⏰' },
-    ],
-  },
-  {
-    category: 'إجراءات (Actions)',
-    items: [
-      { type: 'action', label: 'شراء (Buy Market)', sublabel: 'أمر سوق شراء', color: T.green, icon: '🟢' },
-      { type: 'action', label: 'بيع (Sell Market)', sublabel: 'أمر سوق بيع', color: T.amber, icon: '🟡' },
-      { type: 'action', label: 'شراء محدد', sublabel: 'Limit Buy', color: T.green, icon: '📋' },
-      { type: 'action', label: 'بيع محدد', sublabel: 'Limit Sell', color: T.amber, icon: '📋' },
-    ],
-  },
-  {
-    category: 'إدارة مخاطر (Risk)',
-    items: [
-      { type: 'risk', label: 'إيقاف خسارة', sublabel: 'Stop Loss', color: T.purple, icon: '🛑' },
-      { type: 'risk', label: 'جني أرباح', sublabel: 'Take Profit', color: T.purple, icon: '💰' },
-      { type: 'risk', label: 'حجم المركز', sublabel: 'Position Size %', color: T.purple, icon: '📐' },
-      { type: 'risk', label: 'الحد الأقصى للسحب', sublabel: 'Max Drawdown', color: T.purple, icon: '🧮' },
-    ],
-  },
-]
-
 export default function StrategyBuilderPage() {
   useScopedStyle(`@media (max-width: 767px) {
           .strategy-builder-main { height: 100% !important; }
         }`)
+  const sb = useTranslations('dashboard.strategyBuilder')
 
   const [nodes, setNodes] = useState<StrategyNode[]>([])
-  const [strategyName, setStrategyName] = useState('استراتيجية جديدة')
+  const [strategyName, setStrategyName] = useState(sb('newStrategy'))
   const [showPanel, setShowPanel] = useState(true)
+
+  const availableComponents: { category: string; items: Omit<StrategyNode, 'id'>[] }[] = [
+    {
+      category: sb('catIndicators'),
+      items: [
+        { type: 'indicator', label: sb('indRsiLabel'), sublabel: sb('indRsiSub'), color: T.cyan, icon: '📊' },
+        { type: 'indicator', label: sb('indMacdLabel'), sublabel: sb('indMacdSub'), color: T.cyan, icon: '📈' },
+        { type: 'indicator', label: sb('indBbLabel'), sublabel: sb('indBbSub'), color: T.cyan, icon: '📏' },
+        { type: 'indicator', label: sb('indEmaLabel'), sublabel: sb('indEmaSub'), color: T.cyan, icon: '📉' },
+      ],
+    },
+    {
+      category: sb('catConditions'),
+      items: [
+        { type: 'condition', label: sb('condCrossLabel'), sublabel: sb('condCrossSub'), color: T.blue, icon: '🔀' },
+        { type: 'condition', label: sb('condPriceLabel'), sublabel: sb('condPriceSub'), color: T.blue, icon: '🎯' },
+        { type: 'condition', label: sb('condVolumeLabel'), sublabel: sb('condVolumeSub'), color: T.blue, icon: '📦' },
+        { type: 'condition', label: sb('condTimeLabel'), sublabel: sb('condTimeSub'), color: T.blue, icon: '⏰' },
+      ],
+    },
+    {
+      category: sb('catActions'),
+      items: [
+        { type: 'action', label: sb('actBuyMarketLabel'), sublabel: sb('actBuyMarketSub'), color: T.green, icon: '🟢' },
+        { type: 'action', label: sb('actSellMarketLabel'), sublabel: sb('actSellMarketSub'), color: T.amber, icon: '🟡' },
+        { type: 'action', label: sb('actBuyLimitLabel'), sublabel: sb('actBuyLimitSub'), color: T.green, icon: '📋' },
+        { type: 'action', label: sb('actSellLimitLabel'), sublabel: sb('actSellLimitSub'), color: T.amber, icon: '📋' },
+      ],
+    },
+    {
+      category: sb('catRisk'),
+      items: [
+        { type: 'risk', label: sb('riskStopLossLabel'), sublabel: sb('riskStopLossSub'), color: T.purple, icon: '🛑' },
+        { type: 'risk', label: sb('riskTakeProfitLabel'), sublabel: sb('riskTakeProfitSub'), color: T.purple, icon: '💰' },
+        { type: 'risk', label: sb('riskPositionSizeLabel'), sublabel: sb('riskPositionSizeSub'), color: T.purple, icon: '📐' },
+        { type: 'risk', label: sb('riskMaxDrawdownLabel'), sublabel: sb('riskMaxDrawdownSub'), color: T.purple, icon: '🧮' },
+      ],
+    },
+  ]
 
   const addNode = (item: Omit<StrategyNode, 'id'>) => {
     const newNode: StrategyNode = {
@@ -69,7 +71,7 @@ export default function StrategyBuilderPage() {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     }
     setNodes(prev => [...prev, newNode])
-    toast({ title: `تمت إضافة: ${item.label}`, description: item.sublabel })
+    toast({ title: sb('toastAdded', { label: item.label }), description: item.sublabel })
   }
 
   const removeNode = (id: string) => {
@@ -88,25 +90,23 @@ export default function StrategyBuilderPage() {
 
   const handleSaveDraft = () => {
     if (nodes.length === 0) {
-      toast({ title: 'لا يمكن الحفظ', description: 'أضف مكونات واحدة على الأقل للاستراتيجية', variant: 'destructive' })
+      toast({ title: sb('toastCannotSave'), description: sb('toastCannotSaveDesc'), variant: 'destructive' })
       return
     }
-    toast({ title: 'تم حفظ المسودة ✅', description: `تم حفظ "${strategyName}" مع ${nodes.length} مكون` })
+    toast({ title: sb('toastDraftSaved'), description: sb('toastDraftSavedDesc', { name: strategyName, count: nodes.length }) })
   }
 
   const handleBacktest = () => {
     if (nodes.length === 0) {
-      toast({ title: 'لا يمكن الاختبار', description: 'أضف مكونات واحدة على الأقل للاستراتيجية', variant: 'destructive' })
+      toast({ title: sb('toastCannotTest'), description: sb('toastCannotTestDesc'), variant: 'destructive' })
       return
     }
-    toast({ title: 'جارٍ تشغيل Backtest...', description: 'سيتم إشعارك عند انتهاء الاختبار' })
+    toast({ title: sb('toastRunningBacktest'), description: sb('toastRunningBacktestDesc') })
   }
 
   const handleClearAll = () => {
-  
-
     setNodes([])
-    toast({ title: 'تم مسح الاستراتيجية' })
+    toast({ title: sb('toastCleared') })
   }
 
   return (
@@ -116,7 +116,7 @@ export default function StrategyBuilderPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <GitBranch size={20} color={T.cyan} />
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>محرر الاستراتيجيات البصري</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{sb('pageTitle')}</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.cyan}18`, color: T.cyan,
@@ -124,7 +124,7 @@ export default function StrategyBuilderPage() {
             }}>NO-CODE BUILDER</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            صمم خوارزميات التداول الخاصة بك باستخدام واجهة النقر — اختر المكونات واربطها بتسلسل منطقي.
+            {sb('pageSubtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 12 }}>
@@ -134,13 +134,13 @@ export default function StrategyBuilderPage() {
             onMouseEnter={e => { e.currentTarget.style.borderColor = T.cyan; e.currentTarget.style.color = T.cyan }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.text }}
           >
-            <Save size={16} /> حفظ المسودة
+            <Save size={16} /> {sb('saveDraft')}
           </button>
           <button
             onClick={handleBacktest}
             style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, color: '#fff', padding: '8px 20px', borderRadius: 8, fontSize: 13, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', transition: 'all 0.2s' }}
           >
-            <Play size={16} /> اختبار (Backtest)
+            <Play size={16} /> {sb('backtestBtn')}
           </button>
         </div>
       </div>
@@ -163,17 +163,17 @@ export default function StrategyBuilderPage() {
                 color: T.text, fontSize: 15, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
                 direction: 'inherit',
               }}
-              placeholder="اسم الاستراتيجية..."
+              placeholder={sb('strategyNamePlaceholder')}
             />
             <span style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-              {nodes.length} مكون
+              {sb('componentCount', { count: nodes.length })}
             </span>
             {nodes.length > 0 && (
               <button
                 onClick={handleClearAll}
                 style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: T.red, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}
               >
-                <Trash2 size={12} /> مسح الكل
+                <Trash2 size={12} /> {sb('clearAll')}
               </button>
             )}
           </div>
@@ -195,10 +195,10 @@ export default function StrategyBuilderPage() {
               <div style={{ position: 'relative', textAlign: 'center', padding: '60px 20px' }}>
                 <Settings2 size={48} color={T.border} style={{ marginBottom: 16, marginInline: 'auto' }} />
                 <div style={{ color: T.text2, fontSize: 14, fontWeight: 700, marginBottom: 8 }}>
-                  اضغط على المكونات من القائمة الجانبية لبناء استراتيجيتك
+                  {sb('emptyTitle')}
                 </div>
                 <div style={{ color: T.text3, fontSize: 12 }}>
-                  سيتم ربط المكونات تلقائياً بتسلسل منطقي
+                  {sb('emptySubtitle')}
                 </div>
               </div>
             ) : (
@@ -211,7 +211,7 @@ export default function StrategyBuilderPage() {
                   color: T.cyan, fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  ▶ بداية الاستراتيجية
+                  ▶ {sb('strategyStart')}
                 </div>
                 <ArrowDown size={20} color={T.text3} style={{ margin: '4px 0' }} />
 
@@ -240,7 +240,7 @@ export default function StrategyBuilderPage() {
                       </div>
                       {/* Step Number */}
                       <span style={{ fontSize: 10, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                        خطوة {idx + 1}
+                        {sb('step', { n: idx + 1 })}
                       </span>
                       {/* Move & Delete Buttons */}
                       <div style={{ display: 'flex', gap: 4 }}>
@@ -252,7 +252,7 @@ export default function StrategyBuilderPage() {
                             color: idx === 0 ? T.text3 : T.text2, cursor: idx === 0 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === 0 ? 0.3 : 1,
                           }}
-                          title="نقل للأعلى"
+                          title={sb('moveUp')}
                         >
                           <ArrowDown size={12} style={{ transform: 'rotate(180deg)' }} />
                         </button>
@@ -264,7 +264,7 @@ export default function StrategyBuilderPage() {
                             color: idx === nodes.length - 1 ? T.text3 : T.text2, cursor: idx === nodes.length - 1 ? 'not-allowed' : 'pointer',
                             padding: 2, display: 'flex', opacity: idx === nodes.length - 1 ? 0.3 : 1,
                           }}
-                          title="نقل للأسفل"
+                          title={sb('moveDown')}
                         >
                           <ArrowDown size={12} />
                         </button>
@@ -274,7 +274,7 @@ export default function StrategyBuilderPage() {
                             background: 'transparent', border: `1px solid ${T.border}`, borderRadius: 4,
                             color: T.red, cursor: 'pointer', padding: 2, display: 'flex',
                           }}
-                          title="حذف"
+                          title={sb('deleteNode')}
                         >
                           <XIcon size={12} />
                         </button>
@@ -292,7 +292,7 @@ export default function StrategyBuilderPage() {
                   color: T.purple, fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
                   display: 'flex', alignItems: 'center', gap: 6,
                 }}>
-                  ◼ نهاية الاستراتيجية
+                  ◼ {sb('strategyEnd')}
                 </div>
               </div>
             )}
@@ -319,9 +319,9 @@ export default function StrategyBuilderPage() {
 
           {showPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', flex: 1 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 800, color: T.text, margin: 0 }}>المكونات المتاحة</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 800, color: T.text, margin: 0 }}>{sb('availableComponents')}</h3>
 
-              {AVAILABLE_COMPONENTS.map((cat, catIdx) => (
+              {availableComponents.map((cat, catIdx) => (
                 <div key={catIdx}>
                   <div style={{ fontSize: 11, color: T.text2, fontWeight: 700, marginBottom: 8, paddingBottom: 4, borderBottom: `1px solid ${T.border}` }}>
                     {cat.category}

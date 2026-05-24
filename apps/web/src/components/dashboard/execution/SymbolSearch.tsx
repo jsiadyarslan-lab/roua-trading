@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { Search, X as XIcon, Star, TrendingUp, TrendingDown } from 'lucide-react'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { T } from '@/lib/theme-tokens'
+import { useTranslations } from 'next-intl'
 
 interface SymbolSearchProps {
   value: string
@@ -15,12 +16,6 @@ interface SymbolSearchProps {
 const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'DOGE/USD', 'AVAX/USD', 'DOT/USD', 'MATIC/USD', 'LINK/USD', 'UNI/USD']
 const FOREX_SYMBOLS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD', 'NZD/USD']
 const STOCK_SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META']
-
-const ALL_SYMBOLS = [
-  ...CRYPTO_SYMBOLS.map(s => ({ symbol: s, type: 'crypto' as const, label: 'عملة رقمية' })),
-  ...FOREX_SYMBOLS.map(s => ({ symbol: s, type: 'forex' as const, label: 'فوركس' })),
-  ...STOCK_SYMBOLS.map(s => ({ symbol: s, type: 'stock' as const, label: 'سهم' })),
-]
 
 const TYPE_COLORS: Record<string, string> = {
   crypto: T.amber,
@@ -43,11 +38,19 @@ function addRecentSymbol(symbol: string) {
 }
 
 export function SymbolSearch({ value, onChange, onSelect, currentPrice }: SymbolSearchProps) {
+  const te = useTranslations('dashboard.execution')
+  const tc = useTranslations('common')
   const [isOpen, setIsOpen] = useState(false)
   const [search, setSearch] = useState(value)
   const quotes = useMarketStore(state => state.quotes)
   const inputRef = useRef<HTMLInputElement>(null)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  const ALL_SYMBOLS = useMemo(() => [
+    ...CRYPTO_SYMBOLS.map(s => ({ symbol: s, type: 'crypto' as const, label: tc('crypto') })),
+    ...FOREX_SYMBOLS.map(s => ({ symbol: s, type: 'forex' as const, label: tc('forex') })),
+    ...STOCK_SYMBOLS.map(s => ({ symbol: s, type: 'stock' as const, label: tc('stocks') })),
+  ], [tc])
 
   useEffect(() => { setSearch(value) }, [value])
 
@@ -85,7 +88,7 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
       s.symbol.toUpperCase().replace(/\//g, '').includes(q) ||
       s.label.includes(search)
     )
-  }, [search])
+  }, [search, ALL_SYMBOLS])
 
   const handleSelect = (symbol: string) => {
     onChange(symbol)
@@ -106,9 +109,9 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
             onChange(e.target.value.toUpperCase())
           }}
           onFocus={() => setIsOpen(true)}
-          placeholder="ابحث عن أصل... (Ctrl+K)"
+          placeholder={te('searchAsset')}
           className="flex-1 bg-transparent text-[var(--foreground)] text-xs font-bold font-mono outline-none placeholder:text-[var(--text3)]"
-          aria-label="بحث الأصل"
+          aria-label={te('searchAssetAria')}
         />
         {(currentPrice ?? 0) > 0 && (
           <span className="text-[10px] font-mono font-bold text-[var(--accent)] whitespace-nowrap">
@@ -129,7 +132,7 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
             <div className="border-b border-[var(--card-border)] p-2">
               <div className="flex items-center gap-1 mb-1">
                 <Star size={9} className="text-[var(--amber)]" />
-                <span className="text-[8px] font-bold text-[var(--muted)]">الأصول الأخيرة</span>
+                <span className="text-[8px] font-bold text-[var(--muted)]">{te('recentAssets')}</span>
               </div>
               <div className="flex flex-wrap gap-1">
                 {recentSymbols.map(s => {
@@ -191,7 +194,7 @@ export function SymbolSearch({ value, onChange, onSelect, currentPrice }: Symbol
               )
             })}
             {filtered.length === 0 && (
-              <div className="py-3 text-center text-[9px] text-[var(--muted)]">لا توجد نتائج</div>
+              <div className="py-3 text-center text-[9px] text-[var(--muted)]">{te('noResults')}</div>
             )}
           </div>
         </div>

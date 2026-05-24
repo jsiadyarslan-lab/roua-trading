@@ -1193,7 +1193,28 @@
       "quantityPlaceholder": "الكمية",
       "pendingPricePlaceholder": "سعر الأمر المعلق",
       "cryptoLocalSLTP": "SL/TP محلي للكريبتو",
-      "autoCalc": "تلقائي"
+      "autoCalc": "تلقائي",
+      "marketOrderDesc": "تنفيذ فوري",
+      "limitOrderDesc": "سعر محدد",
+      "iocDesc": "إلغاء ما لم يُنفذ",
+      "gtcDesc": "صالح حتى الإلغاء",
+      "dayDesc": "صالح لليوم",
+      "recentAssets": "الأصول الأخيرة",
+      "noResults": "لا توجد نتائج",
+      "searchAsset": "ابحث عن أصل... (Ctrl+K)",
+      "searchAssetAria": "بحث الأصل",
+      "noOrders": "لا أوامر",
+      "activeCount": "{count} نشط",
+      "buyShort": "ش",
+      "sellShort": "ب",
+      "dealQuality": "جودة الصفقة",
+      "excellent": "ممتازة",
+      "acceptable": "مقبولة",
+      "weak": "ضعيفة",
+      "orderBook": "دفتر الأوامر",
+      "spreadMove": "حركة الفرق",
+      "redirecting": "جارٍ التحويل...",
+      "riskGuard": "حارس المخاطر"
     },
     "bot": {
       "armed": "تم تسليح المحرك",
@@ -2248,7 +2269,8 @@
       "buyArrow": "⬆ شراء",
       "sellArrow": "⬇ بيع",
       "execute": "تنفيذ",
-      "done": "تم"
+      "done": "تم",
+      "smartSignalsLabel": "الإشارات الذكية"
     },
     "strategicCouncil": {
       "title": "المجلس الاستراتيجي",

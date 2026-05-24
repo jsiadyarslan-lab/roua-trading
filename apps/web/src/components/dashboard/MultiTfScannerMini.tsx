@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
@@ -22,6 +22,7 @@ const T = {
 
 export function MultiTfScannerMini() {
   const tm = useTranslations('dashboard.multiTf')
+  const locale = useLocale()
   const { selectedSymbol } = useSymbolStore()
   const [data, setData] = useState<any[]>([])
   const [summary, setSummary] = useState<{ alignment: string; executionHint: string } | null>(null)
@@ -55,7 +56,7 @@ export function MultiTfScannerMini() {
 
         setData(processed)
         setScanCount(prev => prev + 1)
-        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        setLastUpdate(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
         setSummary({
           alignment: mtData.alignment === 'STRONG_BULLISH' ? tm('strongBullishConsensus') : mtData.alignment === 'BULLISH' ? tm('bullishConsensus') : mtData.alignment === 'STRONG_BEARISH' ? tm('strongBearishConsensus') : mtData.alignment === 'BEARISH' ? tm('bearishConsensus') : tm('mixedSignals'),

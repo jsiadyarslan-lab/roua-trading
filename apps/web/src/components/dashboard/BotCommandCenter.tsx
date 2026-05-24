@@ -8,7 +8,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 const T = {
   bg:      '#0B0E14',
@@ -58,6 +58,7 @@ export function BotCommandCenter() {
 
   const tb = useTranslations('dashboard.botCommand')
   const tc = useTranslations('common')
+  const locale = useLocale()
 
   const [signals, setSignals] = useState<SmartSignal[]>([])
   const [loading, setLoading] = useState(false)
@@ -75,7 +76,7 @@ export function BotCommandCenter() {
       const j = await res.json()
       if (j.success && j.data) {
         setSignals(j.data)
-        setLastRefresh(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        setLastRefresh(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
         const strongSignals = j.data.filter((s: SmartSignal) => s.conf >= 70)
         for (const sig of strongSignals) {
@@ -123,7 +124,7 @@ export function BotCommandCenter() {
       tp: sig.tp,
       sl: sig.sl,
       entryTime: Date.now(),
-      strategy: 'Smart Signals',
+      strategy: tb('smartSignalsLabel'),
       source: 'manual'
     })
 
@@ -161,7 +162,7 @@ export function BotCommandCenter() {
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: 7.5, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{tb('smartFollowEngine')}</span>
             <span style={{ fontSize: 5.5, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-              {isActive ? `ONLINE · ${engineState.toUpperCase()}` : tb('pausedManualOnly')}
+              {isActive ? `${tc('online').toUpperCase()} · ${engineState.toUpperCase()}` : tb('pausedManualOnly')}
             </span>
           </div>
         </div>
@@ -290,8 +291,8 @@ export function BotCommandCenter() {
                   {/* Row 3: TP/SL + Execute */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div style={{ display: 'flex', gap: 5, fontSize: 6, fontFamily: "'JetBrains Mono', monospace", color: T.text2 }}>
-                       <span>TP: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
-                       <span>SL: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
+                       <span>{tc('takeProfit')}: <span style={{ color: T.success }}>{sig.tp.toFixed(2)}</span></span>
+                       <span>{tc('stopLoss')}: <span style={{ color: T.danger }}>{sig.sl.toFixed(2)}</span></span>
                     </div>
                     <button
                       onClick={(e) => !executed && handleExecute(sig, e)}

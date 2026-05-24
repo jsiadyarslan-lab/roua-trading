@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react'
 import type { OpenOrder } from './hooks/useExecutionEngine'
+import { useTranslations } from 'next-intl'
 
 interface OrderHistoryProps {
   orders: OpenOrder[]
@@ -11,6 +12,7 @@ interface OrderHistoryProps {
 }
 
 export function OrderHistory({ orders, onCancel, onLoad }: OrderHistoryProps) {
+  const te = useTranslations('dashboard.execution')
   const [cancelling, setCancelling] = useState<string | null>(null)
 
   const handleCancel = async (orderId: string) => {
@@ -25,7 +27,7 @@ export function OrderHistory({ orders, onCancel, onLoad }: OrderHistoryProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           <span className="text-[8px] font-bold text-[var(--muted)]">
-            {orders.length > 0 ? `${orders.length} نشط` : 'لا أوامر'}
+            {orders.length > 0 ? te('activeCount', { count: orders.length }) : te('noOrders')}
           </span>
         </div>
         <button
@@ -53,7 +55,7 @@ export function OrderHistory({ orders, onCancel, onLoad }: OrderHistoryProps) {
                     {order.symbol}
                   </span>
                   <span className={`text-[6px] font-bold ${isBuy ? 'text-[var(--success)]' : 'text-[var(--danger)]'}`}>
-                    {isBuy ? 'ش' : 'ب'}
+                    {isBuy ? te('buyShort') : te('sellShort')}
                   </span>
                   <span className="font-mono text-[7px] text-[var(--muted)]">
                     ×{order.qty}

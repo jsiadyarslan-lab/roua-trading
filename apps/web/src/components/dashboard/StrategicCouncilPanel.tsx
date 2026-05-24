@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 
 const T = {
@@ -50,6 +50,7 @@ interface CouncilSession {
 export function StrategicCouncilPanel() {
   const ts = useTranslations('dashboard.strategicCouncil')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const [activeBriefs, setActiveBriefs] = useState<TradingBrief[]>([])
   const [historyBriefs, setHistoryBriefs] = useState<TradingBrief[]>([])
   const [lastSession, setLastSession] = useState<CouncilSession | null>(null)
@@ -237,7 +238,7 @@ export function StrategicCouncilPanel() {
 
   const formatTime = (iso: string) => {
     try {
-      return new Date(iso).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+      return new Date(iso).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })
     } catch { return '--:--' }
   }
 

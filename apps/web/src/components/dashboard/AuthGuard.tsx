@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { T } from '@/lib/unified-tokens'
+import { useTranslations } from 'next-intl'
 
 /**
  * AuthGuard — Enforces authentication for the dashboard.
@@ -22,6 +23,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const pathnameRef = useRef(pathname)
   const [status, setStatus] = useState<'loading' | 'authenticated' | 'unauthenticated'>('loading')
+  const tc = useTranslations('common')
+  const te = useTranslations('dashboard.execution')
 
   // Keep pathnameRef current without triggering re-auth
   pathnameRef.current = pathname
@@ -68,7 +71,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           </div>
-          <span className="text-white/20 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>جارٍ التحقق...</span>
+          <span className="text-white/20 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>{tc('verifying')}</span>
         </div>
       </div>
     )
@@ -84,7 +87,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           </div>
-          <span className="text-white/20 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>جارٍ التحويل...</span>
+          <span className="text-white/20 text-xs" style={{ fontFamily: 'var(--font-ar)' }}>{te('redirecting')}</span>
         </div>
       </div>
     )

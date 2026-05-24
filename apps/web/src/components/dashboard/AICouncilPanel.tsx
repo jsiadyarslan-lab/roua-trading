@@ -7,7 +7,7 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
 import { T } from '@/lib/unified-tokens'
 import { safeStr, safeNum } from '@/lib/utils'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 interface Analysis {
   role: string
@@ -64,6 +64,7 @@ export function AICouncilPanel() {
   const { selectedSymbol } = useSymbolStore()
   const tai = useTranslations('dashboard.ai')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const [loading, setLoading] = useState(false)
   const [data, setData] = useState<ConsensusData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -140,7 +141,7 @@ export function AICouncilPanel() {
             // Keep the last good AI data, just update the timestamp
             setData(lastGoodAIData.current.data)
             setDataSource(lastGoodAIData.current.source as 'real-ai' | 'partial-ai')
-            setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+            setLastUpdate(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
             failCountRef.current = 0
             return // Don't override with scanner-rules
           }
@@ -149,7 +150,7 @@ export function AICouncilPanel() {
         // Normal path: update with new data
         setData(j.data)
         setDataSource(newSource)
-        setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+        setLastUpdate(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
         failCountRef.current = 0 // Reset backoff on success
 
         // Save as last good AI result for future fallback
@@ -187,7 +188,7 @@ export function AICouncilPanel() {
           console.log('[AI Council] Fetch failed, keeping last AI result')
           setData(lastGoodAIData.current.data)
           setDataSource(lastGoodAIData.current.source as 'real-ai' | 'partial-ai')
-          setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
+          setLastUpdate(new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
           // Don't increment fail count if we have good data
           return
         }
@@ -430,7 +431,7 @@ export function AICouncilPanel() {
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
                 <Cpu size={10} color={T.purple} />
                 <span className="text-[8px]" style={{ color: T.purple }}>
-                  {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { count: data.meta?.modelsResponded || 0 }) + ` — ${data.meta?.processingTimeMs || 0}ms`}
+                  {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { ms: data.meta?.processingTimeMs || 0 })}
                 </span>
                 {connectionLayer === 'direct' && (
                   <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>{tc('live')}</span>

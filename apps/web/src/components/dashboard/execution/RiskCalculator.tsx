@@ -2,6 +2,7 @@
 
 import { ChevronDown, ChevronUp, Calculator } from 'lucide-react'
 import type { ExecutionState } from '@/lib/dashboard-live'
+import { useTranslations } from 'next-intl'
 
 interface RiskCalculatorProps {
   riskPct: string
@@ -26,6 +27,8 @@ export function RiskCalculator({
   onApplyQty,
   show, onToggle,
 }: RiskCalculatorProps) {
+  const te = useTranslations('dashboard.execution')
+
   return (
     <div className="border-t border-[var(--card-border)] pt-2">
       <button
@@ -34,7 +37,7 @@ export function RiskCalculator({
       >
         <div className="flex items-center gap-1.5">
           <Calculator size={12} className="text-[var(--accent)]" />
-          <span className="text-[10px] font-extrabold text-[var(--accent)]">حاسبة المخاطر</span>
+          <span className="text-[10px] font-extrabold text-[var(--accent)]">{te('riskCalculator')}</span>
         </div>
         {show ? <ChevronUp size={12} className="text-[var(--muted)]" /> : <ChevronDown size={12} className="text-[var(--muted)]" />}
       </button>
@@ -43,7 +46,7 @@ export function RiskCalculator({
         <div className="mt-2 flex flex-col gap-2">
           {/* Risk % slider */}
           <div className="flex items-center gap-2">
-            <span className="text-[9px] font-bold text-[var(--muted)] whitespace-nowrap">نسبة المخاطرة:</span>
+            <span className="text-[9px] font-bold text-[var(--muted)] whitespace-nowrap">{te('riskPercent')}:</span>
             <input
               type="range" min="0.1" max="10" step="0.1"
               value={riskPct}
@@ -73,9 +76,9 @@ export function RiskCalculator({
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-1.5">
             {[
-              { label: 'مبلغ المخاطرة', value: account ? `$${riskAmount.toFixed(0)}` : '—', color: 'var(--danger)' },
-              { label: 'الكمية المثلى', value: autoQty ?? (currentPrice > 0 ? `~${(riskAmount / currentPrice).toFixed(4)}` : '—'), color: 'var(--accent)' },
-              { label: 'نسبة المكاسب/خسائر', value: rrRatio ? `${rrRatio}:1` : '—', color: parseFloat(rrRatio ?? '0') >= 2 ? 'var(--success)' : 'var(--warning)' },
+              { label: te('riskAmount'), value: account ? `$${riskAmount.toFixed(0)}` : '—', color: 'var(--danger)' },
+              { label: te('optimalQuantity'), value: autoQty ?? (currentPrice > 0 ? `~${(riskAmount / currentPrice).toFixed(4)}` : '—'), color: 'var(--accent)' },
+              { label: te('winLossRatio'), value: rrRatio ? `${rrRatio}:1` : '—', color: parseFloat(rrRatio ?? '0') >= 2 ? 'var(--success)' : 'var(--warning)' },
             ].map(({ label, value, color }) => (
               <div key={label} className="rounded-lg border border-[var(--card-border)] bg-[var(--surface)] p-1.5 text-center">
                 <div className="font-mono text-[11px] font-black" style={{ color }}>{value}</div>
@@ -90,13 +93,13 @@ export function RiskCalculator({
               {potentialGain !== null && (
                 <div className="flex-1 rounded-lg border border-[rgba(0,200,83,0.2)] bg-[rgba(0,200,83,0.07)] p-1.5 text-center">
                   <div className="font-mono text-[11px] font-black text-[var(--success)]">+${potentialGain.toFixed(2)}</div>
-                  <div className="text-[7px] font-bold text-[var(--muted)]">جني أرباح مقدّر</div>
+                  <div className="text-[7px] font-bold text-[var(--muted)]">{te('estimatedTakeProfit')}</div>
                 </div>
               )}
               {potentialLoss !== null && (
                 <div className="flex-1 rounded-lg border border-[rgba(255,59,48,0.2)] bg-[rgba(255,59,48,0.07)] p-1.5 text-center">
                   <div className="font-mono text-[11px] font-black text-[var(--danger)]">-${potentialLoss.toFixed(2)}</div>
-                  <div className="text-[7px] font-bold text-[var(--muted)]">وقف خسارة مقدّر</div>
+                  <div className="text-[7px] font-bold text-[var(--muted)]">{te('estimatedStopLoss')}</div>
                 </div>
               )}
             </div>
@@ -105,7 +108,7 @@ export function RiskCalculator({
           {/* R:R visual gauge */}
           {rrRatio && (
             <div className="flex items-center gap-2">
-              <span className="text-[8px] font-bold text-[var(--muted)]">جودة الصفقة:</span>
+              <span className="text-[8px] font-bold text-[var(--muted)]">{te('dealQuality')}:</span>
               <div className="flex-1 h-1 rounded-full bg-[var(--card-border)] overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-300"
@@ -116,7 +119,7 @@ export function RiskCalculator({
                 />
               </div>
               <span className={`text-[8px] font-bold ${parseFloat(rrRatio) >= 2 ? 'text-[var(--success)]' : parseFloat(rrRatio) >= 1 ? 'text-[var(--warning)]' : 'text-[var(--danger)]'}`}>
-                {parseFloat(rrRatio) >= 2 ? 'ممتازة' : parseFloat(rrRatio) >= 1 ? 'مقبولة' : 'ضعيفة'}
+                {parseFloat(rrRatio) >= 2 ? te('excellent') : parseFloat(rrRatio) >= 1 ? te('acceptable') : te('weak')}
               </span>
             </div>
           )}
@@ -126,7 +129,7 @@ export function RiskCalculator({
               onClick={onApplyQty}
               className="rounded-md border border-dashed border-[var(--accent)] bg-[rgba(0,229,255,0.06)] px-2 py-1 text-[10px] font-bold text-[var(--accent)] cursor-pointer hover:bg-[rgba(0,229,255,0.1)] transition-colors"
             >
-              ← تطبيق الكمية المثلى ({autoQty})
+              {te('applyOptimalQty', { qty: autoQty })}
             </button>
           )}
         </div>

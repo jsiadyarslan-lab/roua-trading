@@ -2,6 +2,7 @@
 
 import { Info, DollarSign, Percent, BarChart3 } from 'lucide-react'
 import type { OrderType, OrderSide } from './hooks/useExecutionEngine'
+import { useTranslations } from 'next-intl'
 
 interface PreTradeSummaryProps {
   symbol: string
@@ -24,10 +25,10 @@ export function PreTradeSummary({
   stopLoss, takeProfit, estimatedCost, potentialGain, potentialLoss,
   rrRatio, account,
 }: PreTradeSummaryProps) {
+  const te = useTranslations('dashboard.execution')
   const qty = parseFloat(quantity) || 0
   if (!symbol || qty <= 0 || currentPrice <= 0) return null
 
-  const isBuy = side === 'buy'
   const effectivePrice = orderType === 'limit' && limitPrice ? parseFloat(limitPrice) : currentPrice
   const margin = estimatedCost * 0.5 // Estimate 50% margin
   const buyingPower = account?.buyingPower ?? 0
@@ -37,17 +38,17 @@ export function PreTradeSummary({
     <div className="rounded-lg border border-[rgba(0,212,255,0.15)] bg-[rgba(0,212,255,0.03)] p-2.5" style={{ direction: 'inherit' }}>
       <div className="flex items-center gap-1.5 mb-2">
         <Info size={10} className="text-[var(--accent)]" />
-        <span className="text-[9px] font-extrabold text-[var(--accent)]">ملخص ما قبل التنفيذ</span>
+        <span className="text-[9px] font-extrabold text-[var(--accent)]">{te('preTradeSummary')}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
-        <Row icon={<DollarSign size={9} />} label="التكلفة التقديرية" value={`$${estimatedCost.toFixed(2)}`} />
-        <Row icon={<DollarSign size={9} />} label="الهامش المطلوب" value={`~$${margin.toFixed(2)}`} />
-        {stopLoss && <Row icon={<Percent size={9} />} label="المخاطرة" value={`$${(potentialLoss ?? 0).toFixed(2)}`} valueColor="var(--danger)" />}
-        {takeProfit && <Row icon={<Percent size={9} />} label="الهدف" value={`$${(potentialGain ?? 0).toFixed(2)}`} valueColor="var(--success)" />}
+        <Row icon={<DollarSign size={9} />} label={te('estimatedCost')} value={`$${estimatedCost.toFixed(2)}`} />
+        <Row icon={<DollarSign size={9} />} label={te('requiredMargin')} value={`~$${margin.toFixed(2)}`} />
+        {stopLoss && <Row icon={<Percent size={9} />} label={te('riskLabel')} value={`$${(potentialLoss ?? 0).toFixed(2)}`} valueColor="var(--danger)" />}
+        {takeProfit && <Row icon={<Percent size={9} />} label={te('riskTarget')} value={`$${(potentialGain ?? 0).toFixed(2)}`} valueColor="var(--success)" />}
         {rrRatio && <Row icon={<BarChart3 size={9} />} label="R:R" value={`${rrRatio}:1`} valueColor={parseFloat(rrRatio) >= 2 ? 'var(--success)' : 'var(--warning)'} />}
         {orderType === 'limit' && limitPrice && (
-          <Row icon={<DollarSign size={9} />} label="فرق السعر"
+          <Row icon={<DollarSign size={9} />} label={te('spread')}
             value={`$${Math.abs(effectivePrice - currentPrice).toFixed(2)} (${((Math.abs(effectivePrice - currentPrice) / currentPrice) * 100).toFixed(2)}%)`}
           />
         )}
@@ -55,7 +56,7 @@ export function PreTradeSummary({
 
       {!canAfford && (
         <div className="mt-2 rounded border border-[rgba(255,71,87,0.2)] bg-[rgba(255,71,87,0.06)] px-2 py-1 text-[8px] font-bold text-[var(--danger)]">
-          القوة الشرائية غير كافية لهذه الصفقة
+          {te('insufficientBuyingPower')}
         </div>
       )}
     </div>

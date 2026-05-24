@@ -7,7 +7,7 @@ import { useTabAlertStore } from '@/hooks/useTabAlertStore';
 import { formatFreshness } from '@/lib/dashboard-live';
 import { RefreshCw, Activity } from 'lucide-react';
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 // Signal explanations map
 const SIGNAL_EXPLANATION_KEYS: Record<string, string> = {
@@ -46,6 +46,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
   const { selectedSymbol: storeSelectedSymbol, setSelectedSymbol } = useSymbolStore();
   const ts = useTranslations('dashboard.scanner')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const activeSymbol = selectedSymbol || storeSelectedSymbol;
   const spotlight = signals.find(sig => sig.pair === activeSymbol) || signals[0] || null
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -94,7 +95,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
         setSignals(sorted);
         setScanCount(prev => prev + 1);
         setLastScan(
-          new Date().toLocaleTimeString('ar-EG', {
+          new Date().toLocaleTimeString(locale, {
             hour: '2-digit',
             minute: '2-digit',
             second: '2-digit',
@@ -229,7 +230,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             </div>
             <div style={{ fontSize: 7.5, color: 'var(--text2)', lineHeight: 1.6, fontFamily: "'Cairo', sans-serif" }}>
               {Array.isArray(spotlight.reasons) && spotlight.reasons.length > 0
-                ? ts('appearedBecause', { symbol: spotlight.pair, reasons: spotlight.reasons.slice(0, 2).join('، ') })
+                ? ts('appearedBecause', { symbol: spotlight.pair, reasons: spotlight.reasons.slice(0, 2).join(' · ') })
                 : ts('scannerWatching', { symbol: spotlight.pair })}
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>

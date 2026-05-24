@@ -2,6 +2,7 @@
 
 import { ShieldAlert, CheckCircle, XCircle, Loader2, AlertTriangle } from 'lucide-react'
 import type { ExecutionStatus } from './hooks/useExecutionEngine'
+import { useTranslations } from 'next-intl'
 
 interface ExecutionOverlayProps {
   status: ExecutionStatus
@@ -10,6 +11,9 @@ interface ExecutionOverlayProps {
 }
 
 export function ExecutionOverlay({ status, onConfirm, onCancel }: ExecutionOverlayProps) {
+  const tc = useTranslations('common')
+  const te = useTranslations('dashboard.execution')
+
   if (!status.msg) return null
 
   const iconMap = {
@@ -41,22 +45,22 @@ export function ExecutionOverlay({ status, onConfirm, onCancel }: ExecutionOverl
             className="rounded bg-[var(--success)] border-none px-3 py-1 text-white font-extrabold cursor-pointer text-[10px] hover:opacity-90 transition-opacity"
             style={{ fontFamily: "'Cairo', sans-serif" }}
           >
-            تأكيد
+            {tc('confirm')}
           </button>
           <button
             onClick={onCancel}
             className="rounded bg-transparent border border-[var(--border)] px-3 py-1 text-[var(--foreground)] font-extrabold cursor-pointer text-[10px] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
             style={{ fontFamily: "'Cairo', sans-serif" }}
           >
-            إلغاء
+            {tc('cancel')}
           </button>
         </div>
       )}
 
-      {status.type === 'error' && status.msg.includes('حارس المخاطر') && (
+      {status.type === 'error' && status.msg.includes(te('riskGuard')) && (
         <div className="mt-1 flex items-center gap-1 rounded border border-[rgba(255,71,87,0.2)] bg-[rgba(255,71,87,0.06)] px-2 py-1">
           <ShieldAlert size={9} className="text-[var(--danger)]" />
-          <span className="text-[7px] font-bold text-[var(--danger)]">مرفوض من نظام إدارة المخاطر</span>
+          <span className="text-[7px] font-bold text-[var(--danger)]">{te('rejectedByRiskMgmt')}</span>
         </div>
       )}
     </div>

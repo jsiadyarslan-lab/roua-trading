@@ -1193,7 +1193,28 @@
       "quantityPlaceholder": "Quantity",
       "pendingPricePlaceholder": "Pending order price",
       "cryptoLocalSLTP": "Crypto Local SL/TP",
-      "autoCalc": "Auto"
+      "autoCalc": "Auto",
+      "marketOrderDesc": "Instant execution",
+      "limitOrderDesc": "Specified price",
+      "iocDesc": "Cancel if not executed",
+      "gtcDesc": "Valid until cancelled",
+      "dayDesc": "Valid for the day",
+      "recentAssets": "Recent Assets",
+      "noResults": "No results found",
+      "searchAsset": "Search for an asset... (Ctrl+K)",
+      "searchAssetAria": "Search asset",
+      "noOrders": "No orders",
+      "activeCount": "{count} Active",
+      "buyShort": "B",
+      "sellShort": "S",
+      "dealQuality": "Deal Quality",
+      "excellent": "Excellent",
+      "acceptable": "Acceptable",
+      "weak": "Weak",
+      "orderBook": "Order Book",
+      "spreadMove": "Spread move",
+      "redirecting": "Redirecting...",
+      "riskGuard": "Risk Guard"
     },
     "bot": {
       "armed": "Engine Armed",
@@ -2248,7 +2269,8 @@
       "buyArrow": "⬆ Buy",
       "sellArrow": "⬇ Sell",
       "execute": "Execute",
-      "done": "Done"
+      "done": "Done",
+      "smartSignalsLabel": "Smart Signals"
     },
     "strategicCouncil": {
       "title": "Strategic Council",

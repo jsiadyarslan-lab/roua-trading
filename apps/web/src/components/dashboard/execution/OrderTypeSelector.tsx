@@ -2,6 +2,7 @@
 
 import { T } from '@/lib/theme-tokens'
 import type { OrderType, TimeInForce } from './hooks/useExecutionEngine'
+import { useTranslations } from 'next-intl'
 
 interface OrderTypeSelectorProps {
   orderType: OrderType
@@ -12,15 +13,17 @@ interface OrderTypeSelectorProps {
 }
 
 export function OrderTypeSelector({ orderType, setOrderType, timeInForce, setTimeInForce, currentPrice }: OrderTypeSelectorProps) {
+  const te = useTranslations('dashboard.execution')
+
   const types: { key: OrderType; label: string; desc: string }[] = [
-    { key: 'market', label: 'سوقي', desc: 'تنفيذ فوري' },
-    { key: 'limit', label: 'معلق', desc: 'سعر محدد' },
+    { key: 'market', label: te('marketOrder'), desc: te('marketOrderDesc') },
+    { key: 'limit', label: te('limitOrder'), desc: te('limitOrderDesc') },
   ]
 
   const tifOptions: { key: TimeInForce; label: string; desc: string }[] = [
-    { key: 'ioc', label: 'IOC', desc: 'إلغاء ما لم يُنفذ' },
-    { key: 'gtc', label: 'GTC', desc: 'صالح حتى الإلغاء' },
-    { key: 'day', label: 'DAY', desc: 'صالح لليوم' },
+    { key: 'ioc', label: 'IOC', desc: te('iocDesc') },
+    { key: 'gtc', label: 'GTC', desc: te('gtcDesc') },
+    { key: 'day', label: 'DAY', desc: te('dayDesc') },
   ]
 
   return (

@@ -79,6 +79,7 @@ export function OrderBookPanelInner({
   lastUpdatedAt = null,
   sourceLabel = '',
 }: OrderBookPanelProps = {}) {
+  const te = useTranslations('dashboard.execution')
   const tc = useTranslations('common')
   const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const [expanded, setExpanded] = useState(!collapsedByDefault)
@@ -154,7 +155,7 @@ export function OrderBookPanelInner({
           fontFamily: 'var(--font-ar), Inter, sans-serif',
           textAlign: 'start',
           color: 'var(--text-main)',
-        }}>دفتر الأوامر</span>
+        }}>{te('orderBook')}</span>
         {quote && (
           <span style={{ fontSize: '8px', fontWeight: 600, color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }} dir="ltr">
             {selectedPair} · {sourceLabel}
@@ -200,7 +201,7 @@ export function OrderBookPanelInner({
               </span>
             </div>
             <span style={{ fontSize: '9px', color: buyPressure >= 50 ? 'var(--profit)' : 'var(--loss)', fontFamily: 'var(--font-mono)' }}>
-              Spread move {buyPressure >= 50 ? '↑' : '↓'}
+              {te('spreadMove')} {buyPressure >= 50 ? '↑' : '↓'}
             </span>
           </div>
 

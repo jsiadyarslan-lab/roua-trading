@@ -1901,20 +1901,8 @@ export default function RouaChart({
       {/* AI Smart Panel — simple position:fixed with inline drag */}
       {showAIPanel && (
         <div
-          ref={(el) => {
-            (aiPanelDivRef as any).current = el;
-            if (el) {
-              // Convert right→left at mount to prevent drag jumping
-              requestAnimationFrame(() => {
-                if (!el) return;
-                const r = el.getBoundingClientRect();
-                el.style.left = r.left + 'px';
-                el.style.top = r.top + 'px';
-                el.style.right = 'auto';
-              });
-            }
-          }}
-          style={{ position: 'fixed', top: 120, right: 290, width: 340, minHeight: 360, zIndex: 9999 }}
+          ref={(el) => { (aiPanelDivRef as any).current = el; }}
+          style={{ position: 'fixed', top: 120, left: 'calc(100vw - 630px)', width: 340, minHeight: 360, zIndex: 9999 }}
           onMouseDown={(e) => {
             const el = aiPanelDivRef.current;
             if (!el) return;

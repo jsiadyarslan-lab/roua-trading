@@ -78,10 +78,11 @@ export class AiController {
   @Public()
   @Post('consensus')
   @Throttle({ default: { limit: 2, ttl: 60000 } })
-  async consensus(@Body() body: { symbol?: string }) {
+  async consensus(@Body() body: { symbol?: string; language?: string }) {
     const symbol = body.symbol || 'BTC/USD';
-    this.logger.log(`🗳️ AI Council consensus request for ${symbol}`);
-    const result = await this.orchestrator.getConsensusAnalysis(symbol);
+    const language = body.language === 'en' ? 'en' : 'ar';
+    this.logger.log(`🗳️ AI Council consensus request for ${symbol} (lang: ${language})`);
+    const result = await this.orchestrator.getConsensusAnalysis(symbol, { language });
     return { success: true, data: result };
   }
 

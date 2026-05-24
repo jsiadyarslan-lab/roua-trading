@@ -413,7 +413,7 @@ function calcEMA(data: number[], period: number): number {
 
 // ─── Model Call Functions ────────────────────────────────────────
 
-async function callGroq(prompt: string): Promise<DirectAIResponse> {
+async function callGroq(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const apiKey = getKey('GROQ_API_KEY')
   if (!apiKey) return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
@@ -429,7 +429,8 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
   ]
 
   const start = Date.now()
-  const systemMsg = 'You are a financial analysis AI. Respond in Arabic. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+  const langInstruction = language === 'en' ? 'English' : 'Arabic'
+  const systemMsg = `You are a financial analysis AI. Respond in ${langInstruction}. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
 
   for (const model of modelCandidates) {
     try {
@@ -473,12 +474,13 @@ async function callGroq(prompt: string): Promise<DirectAIResponse> {
   return { model: 'Groq/Llama-3.3-70B', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All Groq models failed (rate limited or unavailable)' }
 }
 
-async function callGemini(prompt: string): Promise<DirectAIResponse> {
+async function callGemini(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   // FIX: Check both GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY
   const apiKey = getKey('GOOGLE_AI_STUDIO_API_KEY') || getKey('GEMINI_API_KEY')
   if (!apiKey) return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key (tried GOOGLE_AI_STUDIO_API_KEY and GEMINI_API_KEY)' }
 
   const start = Date.now()
+  const langInstruction = language === 'en' ? 'English' : 'Arabic'
   const modelCandidates = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.0-flash-001', 'gemini-1.5-flash', 'gemini-1.5-flash-8b', 'gemini-2.5-flash-preview-04-17', 'gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash-exp']
   const errors: string[] = []
 
@@ -497,7 +499,7 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
           method: 'POST',
           headers,
           body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in Arabic. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
+            contents: [{ role: 'user', parts: [{ text: `You are a financial AI analyst. Respond in ${langInstruction}. Provide analysis. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"\n\n${prompt}` }] }],
             generationConfig: { temperature: 0.4, maxOutputTokens: 1024 },
             // FIX: safetySettings — prevent financial content from being blocked as "dangerous"
             // Without these, Gemini frequently blocks financial analysis with finishReason: SAFETY
@@ -560,7 +562,7 @@ async function callGemini(prompt: string): Promise<DirectAIResponse> {
   return { model: 'Gemini/unavailable', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: `All Gemini models failed: ${errors.slice(0, 3).join(' | ')}` }
 }
 
-async function callGLM(prompt: string): Promise<DirectAIResponse> {
+async function callGLM(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const apiKey = getKey('GLM_API_KEY')
   if (!apiKey) return { model: 'GLM-4/glm-4-flash', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No API key' }
 
@@ -569,7 +571,8 @@ async function callGLM(prompt: string): Promise<DirectAIResponse> {
   const modelCandidates = ['glm-4-flash', 'glm-4', 'glm-3-turbo']
 
   const start = Date.now()
-  const systemMsg = 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+  const langInstruction = language === 'en' ? 'English' : 'Arabic'
+  const systemMsg = `You are a smart financial analyst. Respond in ${langInstruction} concisely. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
 
   for (const model of modelCandidates) {
     try {
@@ -627,7 +630,7 @@ async function callGLM(prompt: string): Promise<DirectAIResponse> {
   return { model: 'GLM-4/glm-4-flash', content: '', confidence: 0, processingTimeMs: Date.now() - start, success: false, error: 'All GLM models failed (rate limited or balance exhausted)' }
 }
 
-async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
+async function callHuggingFace(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   // FIX: Check both HUGGINGFACE_API_KEY and HF_API_KEY, then try OpenRouter as fallback
   const hfApiKey = getKey('HUGGINGFACE_API_KEY') || getKey('HF_API_KEY')
   const openrouterApiKey = getKey('OPENROUTER_API_KEY')
@@ -639,7 +642,8 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
   const start = Date.now()
   const TOTAL_HF_TIMEOUT = 35_000 // FIX: Reduced from 65s to 35s — prevents HuggingFace from blocking the entire consensus for over a minute. Most models respond in 5-10s if warm, 20-30s if cold. 35s is enough for 2 model attempts.
   const deadline = Date.now() + TOTAL_HF_TIMEOUT
-  const systemMsg = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير أنماط مالي. كن موجزاً ومبنياً على البيانات. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+  const langInstruction = language === 'en' ? 'English' : 'Arabic'
+  const systemMsg = `You are a financial analyst specializing in pattern recognition. Respond in ${langInstruction}. Be concise and data-driven. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
 
   // ── Strategy 1: Classic Inference API (MOST RELIABLE — works with ANY token!) ──
   // FIX: Moved Classic API to FIRST strategy because it works with ANY valid HF token,
@@ -796,7 +800,7 @@ async function callHuggingFace(prompt: string): Promise<DirectAIResponse> {
  * - Cloud Ollama (ollama.com, custom server) — works everywhere
  * - OpenAI-compatible endpoints (any /v1 endpoint)
  */
-async function callOllama(prompt: string): Promise<DirectAIResponse> {
+async function callOllama(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const baseUrl = getKey('OLLAMA_BASE_URL') || ''
   
   // FIX: If no OLLAMA_BASE_URL is set at all, check if we're on cloud
@@ -845,13 +849,16 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
     let requestBody: any
     let requestHeaders: Record<string, string> = { 'Content-Type': 'application/json' }
 
+    const langInstruction = language === 'en' ? 'English' : 'Arabic'
+    const ollamaSystemMsg = `You are a professional execution strategist. Respond in ${langInstruction}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
+
     if (baseUrl.endsWith('/v1') || baseUrl.endsWith('/v1/')) {
       // OpenAI-compatible endpoint (used by Ollama cloud proxies and some providers)
       apiEndpoint = `${baseUrl.replace(/\/$/, '')}/chat/completions`
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: ollamaSystemMsg },
           { role: 'user', content: prompt },
         ],
         temperature: 0.3,
@@ -864,7 +871,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
       requestBody = {
         model,
         messages: [
-          { role: 'system', content: 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت استراتيجي تنفيذ محترف. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+          { role: 'system', content: ollamaSystemMsg },
           { role: 'user', content: prompt },
         ],
         stream: false,
@@ -899,7 +906,7 @@ async function callOllama(prompt: string): Promise<DirectAIResponse> {
  * Uses free models with diverse perspectives to find counter-signals.
  * Also serves as fallback within HuggingFace service (NestJS layer).
  */
-async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
+async function callOpenRouter(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const apiKey = getKey('OPENROUTER_API_KEY')
   if (!apiKey) return { model: 'OpenRouter/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No OPENROUTER_API_KEY' }
 
@@ -929,7 +936,7 @@ async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: 'أنت محلل تباين مالي محترف. دورك هو البحث عن إشارات معاكسة وأسباب لعدم اتباع الاتجاه السائد. أجب بالعربية. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+            { role: 'system', content: `You are a professional divergence analyst. Your role is to find counter-signals and reasons not to follow the prevailing trend. Respond in ${language === 'en' ? 'English' : 'Arabic'}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"` },
             { role: 'user', content: prompt },
           ],
           temperature: 0.5,
@@ -965,7 +972,7 @@ async function callOpenRouter(prompt: string): Promise<DirectAIResponse> {
  * DeepSeek V3 is excellent at reasoning and Arabic support.
  * Uses the official DeepSeek API (also works via OpenRouter as fallback).
  */
-async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
+async function callDeepSeek(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const apiKey = getKey('DEEPSEEK_API_KEY')
   if (!apiKey) return { model: 'DeepSeek/unavailable', content: '', confidence: 0, processingTimeMs: 0, success: false, error: 'No DEEPSEEK_API_KEY' }
 
@@ -973,7 +980,8 @@ async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
   // FIX: Try deepseek-chat FIRST — deepseek-reasoner returns empty content
   // and puts the actual answer in reasoning_content, which is hard to extract.
   const modelCandidates = ['deepseek-chat', 'deepseek-reasoner']
-  const systemMsg = 'أنت محلل سيناريوهات مالي محترف. دورك هو تحليل السيناريوهات المحتملة وتقدير احتمالاتها. أجب بالعربية فقط. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+  const langInstruction = language === 'en' ? 'English' : 'Arabic'
+  const systemMsg = `You are a professional scenario analyst. Your role is to analyze possible scenarios and estimate their probabilities. Respond in ${langInstruction}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
 
   for (const model of modelCandidates) {
     try {
@@ -1080,7 +1088,7 @@ async function callDeepSeek(prompt: string): Promise<DirectAIResponse> {
  *
  * Uses the same SigV4 signing as the NestJS BedrockService.
  */
-async function callBedrock(prompt: string): Promise<DirectAIResponse> {
+async function callBedrock(prompt: string, language: 'ar' | 'en' = 'ar'): Promise<DirectAIResponse> {
   const accessKeyId = getKey('AWS_ACCESS_KEY_ID')
   const secretAccessKey = getKey('AWS_SECRET_ACCESS_KEY')
   const sessionToken = getKey('AWS_SESSION_TOKEN')
@@ -1112,8 +1120,9 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
       const isNova = modelId.includes('nova')
       
       let body: any
+      const langInstruction = language === 'en' ? 'English' : 'Arabic'
       if (isClaude) {
-        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. لا تستخدم الإنجليزية. أنت خبير مخاطر. قدّم تحليلاً حذراً مع التركيز على المخاطر. أبرز الجوانب السلبية دائماً. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        const systemPrompt = `You are a financial analyst specializing in risk assessment. Provide cautious analysis focused on risks. Always highlight negative aspects. Respond in ${langInstruction}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
         body = {
           anthropic_version: 'bedrock-2023-05-31',
           max_tokens: 1024,
@@ -1125,7 +1134,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
         // FIX: Amazon Nova model format — messages + inferenceConfig
         // Nova uses a different API format than Claude/Titan. Without this,
         // Nova models return validation errors and fail silently.
-        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. أنت خبير مخاطر. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        const systemPrompt = `You are a financial risk expert. Respond in ${langInstruction}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
         body = {
           messages: [
             { role: 'user', content: [{ text: `${systemPrompt}\n\n${prompt}` }] },
@@ -1137,7 +1146,7 @@ async function callBedrock(prompt: string): Promise<DirectAIResponse> {
           },
         }
       } else if (isTitan) {
-        const systemPrompt = 'أنت محلل مالي. أجب بالعربية فقط. أنت خبير مخاطر. IMPORTANT: Respond in Arabic only. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
+        const systemPrompt = `You are a financial risk expert. Respond in ${langInstruction}. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"`
         body = {
           inputText: `${systemPrompt}\n\n${prompt}`,
           textGenerationConfig: { maxTokenCount: 1024, temperature: 0.3, topP: 0.9 },
@@ -1419,7 +1428,7 @@ async function logDirectAiUsage(params: {
  * - If Ollama is unavailable → Groq takes استراتيجي التنفيذ
  * - If Bedrock is unavailable → GLM-4 takes خبير المخاطر
  */
-export async function runDirectCouncilConsensus(symbol: string): Promise<{
+export async function runDirectCouncilConsensus(symbol: string, language: 'ar' | 'en' = 'ar'): Promise<{
   success: boolean
   source: 'real-ai' | 'partial-ai'
   data: {
@@ -1451,8 +1460,54 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   // (e.g., models inventing BTC price as $28,500 when it's actually much higher)
   const marketData = await fetchQuickMarketData(symbol)
   const marketDataPrefix = marketData.price > 0
-    ? `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
-    : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n'
+    ? language === 'en'
+      ? `\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketData.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketData.rsi} (use this value only)\n- MACD: ${marketData.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketData.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketData.price.toLocaleString()}$ and nothing else.\n`
+      : `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
+    : language === 'en'
+      ? '\n⚠️⚠️⚠️ Unable to fetch live market data — DO NOT invent any price or number. If you need to mention a price, write "Price unavailable". Any fabricated price makes your analysis unreliable.\n'
+      : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n'
+
+  // Bilingual role prompts
+  const P = language === 'en' ? {
+    sentiment: `Analyze market sentiment and overall direction for ${symbol}. Evaluate momentum, general sentiment, and ideal entry point. Is the market bullish or bearish from a sentiment perspective?`,
+    technical: `Analyze the technical chart for ${symbol}. Evaluate trend, resistances, support, and key price levels. What is the prevailing technical direction?`,
+    macro: `Analyze the macroeconomic situation and its impact on ${symbol}. Evaluate macro factors affecting digital assets. Is the macro environment favorable?`,
+    patterns: `Do you see any recurring historical patterns in the current movement of ${symbol}? What is the prevailing pattern and does it repeat reliably? Provide an independent opinion.`,
+    execution: `You are a professional execution strategist. Analyze the best timing and approach for executing a trade on ${symbol}. Evaluate entry/exit points, appropriate position size, and risk management.`,
+    risk: `Identify potential risks for a trade on ${symbol}. Evaluate volatility level, worst-case scenario, and stop-loss levels. What are the main risks and how can they be hedged?`,
+    divergence: `Look for counter-signals or divergences in the analysis of ${symbol} — is there a reason not to follow the prevailing trend? Analyze from a different perspective and provide an independent opinion.`,
+    scenario: `Analyze possible scenarios for ${symbol}. What is the bullish scenario, the bearish scenario, and the neutral scenario? Estimate the probability of each scenario and provide a clear recommendation.`,
+  } : {
+    sentiment: `حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`,
+    technical: `حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`,
+    macro: `حلل الوضع الاقتصادي الكلي وتأثيره على ${symbol}. قيّم العوامل الكلية المؤثرة على الأصول الرقمية والسياق العربي. هل البيئة الماكروية مواتية؟`,
+    patterns: `هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`,
+    execution: `أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`,
+    risk: `حدد المخاطر المحتملة لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ ومستويات وقف الخسارة. ما هي المخاطر الرئيسية وكيف يمكن التحوط ضدها؟`,
+    divergence: `ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟ حلل من منظور مختلف وقدم رأياً مستقلاً.`,
+    scenario: `حلل السيناريوهات المحتملة لـ ${symbol}. ما السيناريو الصعودي والسيناريو الهبوطي والسيناريو المحايد؟ قيّم احتمال كل سيناريو وقدم توصية واضحة.`,
+  }
+
+  // Bilingual role names
+  const roleNames = language === 'en' ? {
+    sentiment: 'Sentiment Analyst',
+    technical: 'Technical Analyst',
+    macro: 'Macro Expert',
+    patterns: 'Pattern Expert',
+    execution: 'Execution Strategist',
+    risk: 'Risk Expert',
+    divergence: 'Divergence Analyst',
+    scenario: 'Scenario Analyst',
+  } : {
+    sentiment: 'محلل المشاعر',
+    technical: 'المحلل الفني',
+    macro: 'خبير الماكرو',
+    patterns: 'خبير الأنماط',
+    execution: 'استراتيجي التنفيذ',
+    risk: 'خبير المخاطر',
+    divergence: 'محلل التباين',
+    scenario: 'محلل السيناريوهات',
+  }
 
   // Define prompts for each model — each model gets a different perspective
   // Primary role assignment for 6 models
@@ -1465,57 +1520,57 @@ export async function runDirectCouncilConsensus(symbol: string): Promise<{
   }> = [
     {
       modelName: 'Groq',
-      callFn: () => callGroq(`${marketDataPrefix}حلل مشاعر السوق والتوجه العام حول ${symbol}. قيّم الزخم والمشاعر العامة ونقطة الدخول المثالية. هل السوق صعودي أم هبوطي من ناحية المشاعر؟`),
-      roles: ['محلل المشاعر'],
+      callFn: () => callGroq(`${marketDataPrefix}${P.sentiment}`, language),
+      roles: [roleNames.sentiment],
       prompt: 'sentiment',
       primaryOnly: false,
     },
     {
       modelName: 'Gemini',
-      callFn: () => callGemini(`${marketDataPrefix}حلل الشارت الفني لـ ${symbol}. قيّم الاتجاه والمقاومات والدعم ومستويات الأسعار الرئيسية. ما هو الاتجاه الفني السائد؟`),
-      roles: ['المحلل الفني'],
+      callFn: () => callGemini(`${marketDataPrefix}${P.technical}`, language),
+      roles: [roleNames.technical],
       prompt: 'technical',
       primaryOnly: false,
     },
     {
       modelName: 'GLM-4',
-      callFn: () => callGLM(`${marketDataPrefix}حلل الوضع الاقتصادي الكلي وتأثيره على ${symbol}. قيّم العوامل الكلية المؤثرة على الأصول الرقمية والسياق العربي. هل البيئة الماكروية مواتية؟`),
-      roles: ['خبير الماكرو'],
+      callFn: () => callGLM(`${marketDataPrefix}${P.macro}`, language),
+      roles: [roleNames.macro],
       prompt: 'macro',
       primaryOnly: false,
     },
     {
       modelName: 'HuggingFace',
-      callFn: () => callHuggingFace(`${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟ ما النمط السائد وهل يتكرر بشكل موثوق؟ قدم رأياً مستقلاً.`),
-      roles: ['خبير الأنماط'],
+      callFn: () => callHuggingFace(`${marketDataPrefix}${P.patterns}`, language),
+      roles: [roleNames.patterns],
       prompt: 'patterns',
       primaryOnly: false,
     },
     {
       modelName: 'Ollama',
-      callFn: () => callOllama(`${marketDataPrefix}أنت استراتيجي تنفيذ محترف. حلل أفضل توقيت وأسلوب لتنفيذ صفقة على ${symbol}. قيّم نقاط الدخول والخروج وحجم الصفقة المناسب وإدارة المخاطر.`),
-      roles: ['استراتيجي التنفيذ'],
+      callFn: () => callOllama(`${marketDataPrefix}${P.execution}`, language),
+      roles: [roleNames.execution],
       prompt: 'execution',
       primaryOnly: false,
     },
     {
       modelName: 'Bedrock',
-      callFn: () => callBedrock(`${marketDataPrefix}حدد المخاطر المحتملة لصفقة على ${symbol}. قيّم مستوى التذبذب والسيناريو الأسوأ ومستويات وقف الخسارة. ما هي المخاطر الرئيسية وكيف يمكن التحوط ضدها؟`),
-      roles: ['خبير المخاطر'],
+      callFn: () => callBedrock(`${marketDataPrefix}${P.risk}`, language),
+      roles: [roleNames.risk],
       prompt: 'risk',
       primaryOnly: false,
     },
     {
       modelName: 'OpenRouter',
-      callFn: () => callOpenRouter(`${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟ حلل من منظور مختلف وقدم رأياً مستقلاً.`),
-      roles: ['محلل التباين'],
+      callFn: () => callOpenRouter(`${marketDataPrefix}${P.divergence}`, language),
+      roles: [roleNames.divergence],
       prompt: 'divergence',
       primaryOnly: false,
     },
     {
       modelName: 'DeepSeek',
-      callFn: () => callDeepSeek(`${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol}. ما السيناريو الصعودي والسيناريو الهبوطي والسيناريو المحايد؟ قيّم احتمال كل سيناريو وقدم توصية واضحة.`),
-      roles: ['محلل السيناريوهات'],
+      callFn: () => callDeepSeek(`${marketDataPrefix}${P.scenario}`, language),
+      roles: [roleNames.scenario],
       prompt: 'scenario',
       primaryOnly: false,
     },

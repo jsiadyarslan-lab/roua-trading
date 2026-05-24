@@ -9,6 +9,86 @@ import { db, ensureDbReady } from '@/lib/db'
 
 type Vote = 'BUY' | 'SELL' | 'HOLD'
 
+// ── Bilingual text helper for Layer 3 scanner-rules ──
+function L3(lang: 'ar' | 'en') {
+  if (lang === 'en') return {
+    council: 'Council',
+    techAnalyst: 'Technical Analyst',
+    sentAnalyst: 'Sentiment Analyst',
+    riskExpert: 'Risk Expert',
+    macroExpert: 'Macro Expert',
+    patternExpert: 'Pattern Expert',
+    execStrategist: 'Execution Strategist',
+    noContextReason: 'Unable to build reliable market context right now, so the recommendation was downgraded to wait until data returns.',
+    councilProtection: 'The council entered protection mode because market data was insufficient or unreliable at this moment.',
+    waitUntilAI: `Wait on this symbol until AI models come back online, then reassess before any decision.`,
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) =>
+      `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) =>
+      `24h change ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, with ${dir} context on ${tf} timeframe.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) =>
+      `Risk level ${spreadRisk}. Data status: ${freshness}. ${!isFresh ? 'Confidence was reduced only, signal not fully cancelled.' : 'Calculated risk is acceptable.'}`,
+    macroReason: (daily: string, h4: string, hint: string) =>
+      `Daily timeframe ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) =>
+      `Current opportunity classification ${signalClass} with bias ${entryBias}. Range expansion ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) =>
+      `Regime: Daily ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'High', medium: 'Medium', low: 'Low',
+    recBuy: 'Buy', recSell: 'Sell', recHold: 'Hold',
+    recStrong: 'Strong', recClear: 'Clear', recProbable: 'Probable',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) =>
+      `Council consensus (${totalModels} models): ${recLabel} ${recStrength} with ${consensusScore}% confidence.`,
+    conflictCounterTrend: 'There is a conflict between the higher timeframe and the short trigger, but current momentum is sufficient to keep the council cautious rather than cancelling the recommendation entirely.',
+    conflictRiskVsTech: 'Technical analysis sees an opportunity, but the risk layer reduced aggression due to data quality or volatility.',
+    conflictBalanced: 'Core roles are balanced, so the council is content to monitor the market until a clearer gap emerges.',
+    conflictAligned: 'Core roles are relatively aligned and there is no fundamental conflict in the current decision.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) =>
+      `${recLabel} on ${symbol} with ${score}% consensus, classified as ${signalClass} with ${entryBias} bias. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Internal consensus engine failure, precautionary wait mode activated.',
+    errorConflict: 'Council fallback activated due to internal error, so no aggressive recommendation is allowed right now.',
+    errorMasterStrategy: 'Wait until analysis is complete and the council engine returns to normal operation.',
+  }
+  return {
+    council: 'المجلس',
+    techAnalyst: 'المحلل الفني',
+    sentAnalyst: 'محلل المشاعر',
+    riskExpert: 'خبير المخاطر',
+    macroExpert: 'خبير الماكرو',
+    patternExpert: 'خبير الأنماط',
+    execStrategist: 'استراتيجي التنفيذ',
+    noContextReason: 'تعذر بناء سياق سوق موثوق الآن، لذلك تم خفض التوصية إلى الانتظار حتى تعود البيانات.',
+    councilProtection: 'المجلس دخل وضع الحماية لأن بيانات السوق لم تكن كافية أو موثوقة عند هذه اللحظة.',
+    waitUntilAI: `الانتظار على هذا الرمز حتى تعود نماذج الذكاء الاصطناعي للعمل، ثم إعادة التقييم قبل أي قرار.`,
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) =>
+      `${reasons.join('، ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) =>
+      `تغير 24 ساعة ${change >= 0 ? '+' : ''}${change.toFixed(2)}%، مع سياق ${dir} على الإطار ${tf}.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) =>
+      `مستوى الخطر ${spreadRisk}. حالة البيانات: ${freshness}. ${!isFresh ? 'تم تخفيض الثقة فقط، لا إلغاء الإشارة بالكامل.' : 'يمكن السماح بالمخاطرة المقننة.'}`,
+    macroReason: (daily: string, h4: string, hint: string) =>
+      `الإطار اليومي ${daily}، و4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) =>
+      `تصنيف الفرصة الحالي ${signalClass} مع bias ${entryBias}. اتساع النطاق ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) =>
+      `النظام: يومي ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'مرتفع', medium: 'متوسط', low: 'منخفض',
+    recBuy: 'شراء', recSell: 'بيع', recHold: 'انتظار',
+    recStrong: 'قوي', recClear: 'واضح', recProbable: 'محتمل',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) =>
+      `إجماع المجلس (${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`,
+    conflictCounterTrend: 'هناك تعارض بين الإطار الأعلى والزناد القصير، لكن الزخم الحالي كافٍ لإبقاء المجلس حذرًا بدلًا من إلغاء التوصية بالكامل.',
+    conflictRiskVsTech: 'التحليل الفني يرى فرصة، لكن طبقة المخاطر خفّضت الاندفاع بسبب جودة البيانات أو التذبذب.',
+    conflictBalanced: 'الأدوار الأساسية متوازنة، لذلك يكتفي المجلس بمتابعة السوق حتى يظهر فرق أوضح.',
+    conflictAligned: 'الأدوار الأساسية متوافقة نسبيًا ولا يوجد تعارض جوهري في القرار الحالي.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) =>
+      `${recLabel} على ${symbol} بإجماع ${score}%، مع تصنيف ${signalClass} وانحياز ${entryBias}. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'فشل داخلي في محرك الإجماع، وتم تفعيل وضع الانتظار الوقائي.',
+    errorConflict: 'تم تفعيل fallback للمجلس بسبب خطأ داخلي، لذلك لا يتم السماح بتوصية هجومية الآن.',
+    errorMasterStrategy: 'الانتظار حتى يكتمل التحليل ويعود محرك المجلس للعمل الطبيعي.',
+  }
+}
+
 function extractProviderFromModel(model: string): string {
   const lower = (model || '').toLowerCase()
   if (lower.includes('groq')) return 'groq'
@@ -34,7 +114,8 @@ function toVote(dir: 'buy' | 'sell' | 'neutral'): Vote {
   return dir === 'buy' ? 'BUY' : dir === 'sell' ? 'SELL' : 'HOLD'
 }
 
-function directionLabel(dir: 'buy' | 'sell' | 'neutral') {
+function directionLabel(dir: 'buy' | 'sell' | 'neutral', language: 'ar' | 'en' = 'ar') {
+  if (language === 'en') return dir === 'buy' ? 'Bullish' : dir === 'sell' ? 'Bearish' : 'Neutral'
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
@@ -154,6 +235,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const symbol = body.symbol || 'BTC/USD'
+    const language: 'ar' | 'en' = body.language === 'en' ? 'en' : 'ar'
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
@@ -206,7 +288,7 @@ export async function POST(req: NextRequest) {
         const nestjsRes = await fetch(targetUrl, {
           method: 'POST',
           headers: nestjsHeaders,
-          body: JSON.stringify({ symbol }),
+          body: JSON.stringify({ symbol, language }),
           signal: AbortSignal.timeout(60000),
         })
 
@@ -282,7 +364,7 @@ export async function POST(req: NextRequest) {
         : 'NestJS unavailable'
       console.log(`[consensus] Layer 2 — Calling ALL AI models directly in parallel (${layer2Reason})`)
       try {
-        const directResult = await runDirectCouncilConsensus(symbol)
+        const directResult = await runDirectCouncilConsensus(symbol, language)
 
         if (directResult.success && directResult.data.analyses.length > 0) {
           // FIX: Log Layer 2 AI calls to AiUsageLog so costs are visible in dashboard
@@ -330,9 +412,10 @@ export async function POST(req: NextRequest) {
 
             // FIX: Recalculate consensus from MERGED analyses (not just Layer 2)
             const { consensusScore, recommendation } = recalculateConsensus(mergedAnalyses)
-            const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'
-            const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل'
-            const masterStrategy = directResult.data.masterStrategy || `إجماع المجلس (${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`
+            const l3t = L3(language)
+            const recLabel = recommendation === 'BUY' ? l3t.recBuy : recommendation === 'SELL' ? l3t.recSell : l3t.recHold
+            const recStrength = consensusScore >= 80 ? l3t.recStrong : consensusScore >= 60 ? l3t.recClear : l3t.recProbable
+            const masterStrategy = directResult.data.masterStrategy || l3t.consensusFallback(totalModels, recLabel, recStrength, consensusScore)
 
             const result = {
               success: true,
@@ -512,6 +595,7 @@ export async function POST(req: NextRequest) {
     const context = await fetchMarketContext(origin, symbol, '1h')
     const scanner = buildScannerResult(context)
     const mtf = await buildMultiTimeframeSnapshot(origin, symbol)
+    const l3 = L3(language)
 
     if (!scanner) {
       return NextResponse.json({
@@ -523,16 +607,16 @@ export async function POST(req: NextRequest) {
           recommendation: 'HOLD',
           analyses: [
             {
-              role: 'المجلس',
+              role: l3.council,
               model: 'Fallback/Guard',
               vote: 'HOLD',
               confidence: 42,
-              reason: 'تعذر بناء سياق سوق موثوق الآن، لذلك تم خفض التوصية إلى الانتظار حتى تعود البيانات.',
+              reason: l3.noContextReason,
               featuresUsed: ['fallback'],
             },
           ],
-          conflictExplanation: 'المجلس دخل وضع الحماية لأن بيانات السوق لم تكن كافية أو موثوقة عند هذه اللحظة.',
-          masterStrategy: `الانتظار على ${symbol} حتى تعود نماذج الذكاء الاصطناعي للعمل، ثم إعادة التقييم قبل أي قرار.`,
+          conflictExplanation: l3.councilProtection,
+          masterStrategy: l3.waitUntilAI,
           meta: {
             symbol,
             price: context.quote?.price ?? 0,
@@ -551,7 +635,7 @@ export async function POST(req: NextRequest) {
     }
 
     const { features } = scanner
-    const spreadRisk = Math.abs(scanner.change) > 3.5 ? 'مرتفع' : Math.abs(scanner.change) > 1.5 ? 'متوسط' : 'منخفض'
+    const spreadRisk = Math.abs(scanner.change) > 3.5 ? l3.high : Math.abs(scanner.change) > 1.5 ? l3.medium : l3.low
 
     const technicalVote = toVote(scanner.dir)
     const sentimentVote: Vote = scanner.change > 0.45 ? 'BUY' : scanner.change < -0.45 ? 'SELL' : 'HOLD'
@@ -577,51 +661,51 @@ export async function POST(req: NextRequest) {
 
     const analyses = [
       {
-        role: 'المحلل الفني',
+        role: l3.techAnalyst,
         model: 'Scanner/FeatureEngine',
         vote: technicalVote,
         confidence: scanner.strength,
-        reason: `${scanner.reasons.join('، ')}. RSI ${Math.round(features.rsi)} | EMA20 ${features.ema20.toFixed(2)} | EMA50 ${features.ema50.toFixed(2)}.`,
+        reason: l3.techReason(scanner.reasons, features.rsi, features.ema20, features.ema50),
         featuresUsed: ['rsi', 'ema20', 'ema50', 'slope20'],
       },
       {
-        role: 'محلل المشاعر',
+        role: l3.sentAnalyst,
         model: 'Scanner/MomentumLayer',
         vote: sentimentVote,
         confidence: Math.min(90, Math.round(52 + Math.abs(scanner.change) * 9)),
-        reason: `تغير 24 ساعة ${scanner.change >= 0 ? '+' : ''}${scanner.change.toFixed(2)}%، مع سياق ${directionLabel(scanner.dir)} على الإطار ${scanner.timeframe}.`,
+        reason: l3.sentReason(scanner.change, directionLabel(scanner.dir, language), scanner.timeframe),
         featuresUsed: ['changePercent', 'freshness'],
       },
       {
-        role: 'خبير المخاطر',
+        role: l3.riskExpert,
         model: 'Risk/GuardRail',
         vote: riskVote,
         confidence: scanner.freshness === 'fresh' ? 76 : scanner.freshness === 'stale' ? 58 : 44,
-        reason: `مستوى الخطر ${spreadRisk}. حالة البيانات: ${scanner.freshness}. ${scanner.freshness !== 'fresh' ? 'تم تخفيض الثقة فقط، لا إلغاء الإشارة بالكامل.' : 'يمكن السماح بالمخاطرة المقننة.'}`,
+        reason: l3.riskReason(spreadRisk, scanner.freshness, scanner.freshness === 'fresh'),
         featuresUsed: ['freshness', 'rangeExpansion'],
       },
       {
-        role: 'خبير الماكرو',
+        role: l3.macroExpert,
         model: 'MTF/RegimeEngine',
         vote: macroVote,
         confidence: mtf.alignment === 'strong' ? 84 : mtf.alignment === 'mixed' ? 64 : 50,
-        reason: `الإطار اليومي ${directionLabel(mtf.regime)}، و4H ${directionLabel(mtf.bias)}. ${mtf.executionHint}.`,
+        reason: l3.macroReason(directionLabel(mtf.regime, language), directionLabel(mtf.bias, language), mtf.executionHint),
         featuresUsed: ['regime', 'bias', 'alignment'],
       },
       {
-        role: 'خبير الأنماط',
+        role: l3.patternExpert,
         model: 'Scanner/PatternClassifier',
         vote: patternVote,
         confidence: scanner.signalClass === 'watch' ? 54 : 76,
-        reason: `تصنيف الفرصة الحالي ${scanner.signalClass} مع bias ${scanner.entryBias}. اتساع النطاق ${features.rangeExpansion.toFixed(2)}%.`,
+        reason: l3.patternReason(scanner.signalClass, scanner.entryBias, features.rangeExpansion),
         featuresUsed: ['signalClass', 'entryBias', 'rangeExpansion'],
       },
       {
-        role: 'استراتيجي التنفيذ',
+        role: l3.execStrategist,
         model: 'Execution/AlignmentPolicy',
         vote: executionVote,
         confidence: mtf.alignment === 'strong' ? 86 : mtf.alignment === 'mixed' ? 67 : 45,
-        reason: `النظام: يومي ${directionLabel(mtf.regime)} → 4H ${directionLabel(mtf.bias)} → 1H ${directionLabel(mtf.setup)} → 15m ${directionLabel(mtf.trigger)}.`,
+        reason: l3.execReason(directionLabel(mtf.regime, language), directionLabel(mtf.bias, language), directionLabel(mtf.setup, language), directionLabel(mtf.trigger, language)),
         featuresUsed: ['regime', 'bias', 'setup', 'trigger'],
       },
     ]
@@ -647,14 +731,15 @@ export async function POST(req: NextRequest) {
 
     const conflictExplanation =
       mtf.alignment === 'counter-trend' && recommendation !== 'HOLD'
-        ? 'هناك تعارض بين الإطار الأعلى والزناد القصير، لكن الزخم الحالي كافٍ لإبقاء المجلس حذرًا بدلًا من إلغاء التوصية بالكامل.'
+        ? l3.conflictCounterTrend
         : riskVote === 'HOLD' && technicalVote !== 'HOLD'
-          ? 'التحليل الفني يرى فرصة، لكن طبقة المخاطر خفّضت الاندفاع بسبب جودة البيانات أو التذبذب.'
+          ? l3.conflictRiskVsTech
           : recommendation === 'HOLD'
-            ? 'الأدوار الأساسية متوازنة، لذلك يكتفي المجلس بمتابعة السوق حتى يظهر فرق أوضح.'
-            : 'الأدوار الأساسية متوافقة نسبيًا ولا يوجد تعارض جوهري في القرار الحالي.'
+            ? l3.conflictBalanced
+            : l3.conflictAligned
 
-    const masterStrategy = `${recommendation === 'BUY' ? 'الشراء' : recommendation === 'SELL' ? 'البيع' : 'الانتظار'} على ${symbol} بإجماع ${consensusScore}%، مع تصنيف ${scanner.signalClass} وانحياز ${scanner.entryBias}. ${mtf.executionHint} ${conflictExplanation}`
+    const recLabel = recommendation === 'BUY' ? l3.recBuy : recommendation === 'SELL' ? l3.recSell : l3.recHold
+    const masterStrategy = l3.masterStrategy(recLabel, symbol, consensusScore, scanner.signalClass, scanner.entryBias, mtf.executionHint, conflictExplanation)
 
     return NextResponse.json({
       success: true,
@@ -681,6 +766,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (error: any) {
+    const l3e = L3(language)
     return NextResponse.json(
       {
         success: true,
@@ -691,16 +777,16 @@ export async function POST(req: NextRequest) {
           recommendation: 'HOLD',
           analyses: [
             {
-              role: 'المجلس',
+              role: l3e.council,
               model: 'Fallback/Error',
               vote: 'HOLD',
               confidence: 35,
-              reason: error?.message || 'فشل داخلي في محرك الإجماع، وتم تفعيل وضع الانتظار الوقائي.',
+              reason: l3e.errorReason(error?.message),
               featuresUsed: ['error-fallback'],
             },
           ],
-          conflictExplanation: 'تم تفعيل fallback للمجلس بسبب خطأ داخلي، لذلك لا يتم السماح بتوصية هجومية الآن.',
-          masterStrategy: 'الانتظار حتى يكتمل التحليل ويعود محرك المجلس للعمل الطبيعي.',
+          conflictExplanation: l3e.errorConflict,
+          masterStrategy: l3e.errorMasterStrategy,
           meta: {
             symbol: 'UNKNOWN',
             price: 0,

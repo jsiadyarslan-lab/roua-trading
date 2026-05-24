@@ -351,7 +351,7 @@ export default function AIPage() {
   // ── Fetch Narrator ──
   const fetchNarrator = async () => {
     try {
-      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
+      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}&lang=${locale === 'en' ? 'en' : 'ar'}`)
       const json = await res.json()
       if (json.success && json.data) {
         setNarratorData(json.data)
@@ -369,7 +369,7 @@ export default function AIPage() {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: selectedSymbol }),
+        body: JSON.stringify({ symbol: selectedSymbol, language: locale === 'en' ? 'en' : 'ar' }),
         signal: AbortSignal.timeout(45000),
       })
       const json = await res.json()

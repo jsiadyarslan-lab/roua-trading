@@ -516,7 +516,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     if (!result) {
       result = {
         model: 'Orchestrator/Fallback',
-        content: 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
+        content: enrichedRequest.language === 'en' ? 'Analysis currently unavailable. Please try again later.' : 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
         confidence: 0,
         processingTimeMs: 0,
         language: enrichedRequest.language || 'ar',
@@ -544,7 +544,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * dashboard generates 72 API calls/minute (6 models × 12 polls/min).
    * With caching, it's at most 6 calls per 5 minutes per symbol.
    */
-  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string }): Promise<{
+  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<{
     consensusScore: number;
     recommendation: 'BUY' | 'SELL' | 'HOLD';
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
@@ -561,6 +561,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // gets the CURRENT state of all AI models, not stale startup data.
     const forceFresh = options?.forceFresh ?? false;
     const newsContext = options?.newsContext ?? '';
+    const language = options?.language ?? 'ar';
 
     // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
     // FIX: Cache key version bumped to v8 to invalidate stale v7 results
@@ -598,14 +599,20 @@ export class AIOrchestratorService implements OnModuleDestroy {
     this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
 
     try {
-      const decisionInstruction = '\n\n⛔⛔⛔ تعليمات حاسمة حول القرار:\n- يجب أن تنهي ردك بسطر واحد بالضبط بهذا الشكل: "DECISION: BUY" أو "DECISION: SELL"\n- ممنوع تماماً كتابة "DECISION: HOLD" — لا يوجد انتظار في التداول النشط!\n- إذا لم تكن متأكداً بنسبة 100%، اختر الاتجاه الأكثر احتمالاً بناءً على التحليل\n- حتى لو كانت الإشارات متضاربة، اختر الاتجاه الأقوى (BUY أو SELL)\n- السوق دائماً يتحرك — ليس هناك "انتظار" — اختر اتجاهاً!\nهذا السطر يجب أن يكون آخر سطر في ردك.';
+      const decisionInstruction = language === 'en'
+        ? '\n\n⛔⛔⛔ CRITICAL decision instructions:\n- You MUST end your response with exactly one line in this format: "DECISION: BUY" or "DECISION: SELL"\n- Writing "DECISION: HOLD" is STRICTLY FORBIDDEN — there is no waiting in active trading!\n- If you are not 100% sure, choose the most probable direction based on analysis\n- Even if signals are conflicting, choose the stronger direction (BUY or SELL)\n- The market always moves — there is no "wait" — pick a direction!\nThis line MUST be the last line of your response.'
+        : '\n\n⛔⛔⛔ تعليمات حاسمة حول القرار:\n- يجب أن تنهي ردك بسطر واحد بالضبط بهذا الشكل: "DECISION: BUY" أو "DECISION: SELL"\n- ممنوع تماماً كتابة "DECISION: HOLD" — لا يوجد انتظار في التداول النشط!\n- إذا لم تكن متأكداً بنسبة 100%، اختر الاتجاه الأكثر احتمالاً بناءً على التحليل\n- حتى لو كانت الإشارات متضاربة، اختر الاتجاه الأقوى (BUY أو SELL)\n- السوق دائماً يتحرك — ليس هناك "انتظار" — اختر اتجاهاً!\nهذا السطر يجب أن يكون آخر سطر في ردك.';
 
       // FIX: Fetch live market data before building prompts to prevent hallucinations
       // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
       const marketData = await this._fetchQuickMarketData(symbol);
       const marketDataPrefix = marketData.price > 0
-        ? `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
-        : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
+        ? language === 'en'
+          ? `\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketData.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketData.rsi} (use this value only)\n- MACD: ${marketData.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketData.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketData.price.toLocaleString()}$ and nothing else.\n`
+          : `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
+        : language === 'en'
+          ? '\n⚠️⚠️⚠️ Unable to fetch live market data — DO NOT invent any price or number. If you need to mention a price, write "Price unavailable". Any fabricated price makes your analysis unreliable.\n'
+          : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
 
       // V143: Inject news context into all AI prompts.
       // This is the critical integration point where analyzed news
@@ -622,14 +629,19 @@ export class AIOrchestratorService implements OnModuleDestroy {
       // all roles from collapsing to a single model (GLM-4) when primary
       // models fail. This was causing 6+ roles to use GLM-4 simultaneously,
       // which defeats the multi-model purpose and causes rate-limiting.
-      const roles = [
+      const roles = language === 'en' ? [
+        { id: 'tech',   name: 'Technical Analyst',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}Analyze the technical chart for ${symbol} based on trend, momentum, and resistance levels.${decisionInstruction}` },
+        { id: 'sent',   name: 'Sentiment Analyst',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze current market sentiment for ${symbol} from a news and momentum perspective.${decisionInstruction}` },
+        { id: 'risk',   name: 'Risk Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}Identify risks of entering a trade on ${symbol} now, stop-loss levels, and worst-case scenario assessment.${decisionInstruction}` },
+        { id: 'macro',  name: 'Macro Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze the macroeconomic situation and its impact on ${symbol}.${decisionInstruction}` },
+        { id: 'pattern',name: 'Pattern Expert',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Do you see any recurring historical patterns in the current movement of ${symbol}?${decisionInstruction}` },
+        { id: 'exec',   name: 'Execution Strategist', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}What is the best timing for entering ${symbol} based on liquidity and available models?${decisionInstruction}` },
+        { id: 'diverge',name: 'Divergence Analyst',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Look for counter-signals or divergences in the analysis of ${symbol} — is there a reason not to follow the prevailing trend?${decisionInstruction}` },
+        { id: 'scenario', name: 'Scenario Analyst', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Analyze possible scenarios for ${symbol} with probability estimates for each scenario.${decisionInstruction}` },
+      ] : [
         { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
         { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
         { id: 'risk',   name: 'خبير المخاطر',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        // FIX: Demoted GLM from macro primary → 5th fallback. GLM averages 18s latency
-        // (well over the 15s timeout) and is expensive ($0.00140/1K). Gemini or Cerebras
-        // handle macro analysis faster and cheaper. GLM stays in fallback for its Arabic
-        // context strength when other models are unavailable.
         { id: 'macro',  name: 'خبير الماكرو',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
         { id: 'pattern',name: 'خبير الأنماط',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
         { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
@@ -744,7 +756,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
               symbol,
               prompt: role.prompt,
               type: 'market_analysis',
-              language: 'ar',
+              language,
             });
             // Log each council member's AI usage
             if (response.confidence > 0) {
@@ -841,7 +853,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
                 symbol,
                 prompt: role.prompt,
                 type: 'market_analysis',
-                language: 'ar',
+                language,
               });
 
               if (response.confidence > 0) {
@@ -963,13 +975,21 @@ export class AIOrchestratorService implements OnModuleDestroy {
       // If it fails, use a quick summary instead
       const totalModels = 8 + (predictionMarketVote ? 1 : 0);
       // FIX: Label must ALWAYS match recommendation — no contradictions
-      const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار';
-      const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل';
-      let masterStrategyContent = `إجماع المجلس (${analyses.length}/${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`;
+      const recLabel = language === 'en'
+        ? (recommendation === 'BUY' ? 'Buy' : recommendation === 'SELL' ? 'Sell' : 'Hold')
+        : (recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار');
+      const recStrength = language === 'en'
+        ? (consensusScore >= 80 ? 'Strong' : consensusScore >= 60 ? 'Clear' : 'Probable')
+        : (consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل');
+      let masterStrategyContent = language === 'en'
+        ? `Council consensus (${analyses.length}/${totalModels} models): ${recLabel} ${recStrength} with ${consensusScore}% confidence.`
+        : `إجماع المجلس (${analyses.length}/${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`;
 
       if (analyses.length > 0) {
         try {
-          const strategyPrompt = `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بإيجاز:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`;
+          const strategyPrompt = language === 'en'
+            ? `Based on the following council analyses, summarize the final trading strategy for ${symbol} in English concisely:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`
+            : `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بإيجاز:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`;
 
           // FIX: Try multiple models for master strategy, not just Groq.
           // Groq is often rate-limited (429), which means the master strategy
@@ -993,7 +1013,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
                 symbol,
                 prompt: strategyPrompt,
                 type: 'signal_generation',
-                language: 'ar',
+                language,
               });
               if (response.confidence > 0 && response.content.length > 10) {
                 masterStrategy = response;
@@ -1078,7 +1098,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     } catch (error: unknown) {
       const err = error instanceof Error ? error : new Error(String(error));
       this.logger.error(`❌ AI Council failed: ${err.message}`, err.stack);
-      return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: 'خطأ في معالجة طلب إجماع النماذج.', isFallback: true };
+      return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: language === 'en' ? 'Error processing consensus request.' : 'خطأ في معالجة طلب إجماع النماذج.', isFallback: true };
     }
   }
 

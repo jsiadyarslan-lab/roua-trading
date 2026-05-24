@@ -71,6 +71,7 @@ interface UseChartReturn {
   setCrosshairMode: (enabled: boolean) => void;
   mainSeriesRef: ReturnType<typeof import('react').useRef<any>>;
   candleSeriesRef: ReturnType<typeof import('react').useRef<any>>;
+  getCandleSeries: () => any;
 }
 
 export function useChart(options: UseChartOptions): UseChartReturn {
@@ -1586,6 +1587,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Price Lines (for positions/trades) ──
   // priceLinesRef is already declared at the top with other refs
 
+  // Direct access to candle series for external use
+  const getCandleSeries = useCallback(() => candleSeriesRef.current, []);
+
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
     const doAdd = () => {
       if (!candleSeriesRef.current) return false;
@@ -1852,5 +1856,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     setCrosshairMode,
     mainSeriesRef,
     candleSeriesRef,
+    getCandleSeries,
   };
 }

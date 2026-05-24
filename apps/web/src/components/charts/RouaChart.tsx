@@ -838,6 +838,12 @@ export default function RouaChart({
       try { series.removePriceLine(line); } catch {}
     });
     (aiPriceLinesRef as any).__lines = [];
+    // Clean up direct lines (new method)
+    const direct = (aiPriceLinesRef as any).__direct || [];
+    direct.forEach(({ s, l }: any) => {
+      try { s.removePriceLine(l); } catch {}
+    });
+    (aiPriceLinesRef as any).__direct = [];
     aiEntryExitMarkerRef.current = null;
     setAiPatterns([]);
   }, [chart]);
@@ -867,12 +873,14 @@ export default function RouaChart({
   // the first call's series additions to overlap with the second call's cleanup,
   // leaving orphaned series on the chart.
   const aiProcessingRef = useRef(false);
+  const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     // Direct execution — no lock needed
     try {
     setAiPatterns(result.patterns);
+    lastAnalysisResultRef.current = result; // save for retry
 
     // DIRECT: بناء markers مباشرة من result.patterns وتطبيقها فوراً
     // لا ننتظر useEffect لأن aiPatterns قد يكون فارغاً في ذلك الوقت
@@ -1009,52 +1017,74 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
-    // ── SMC + Geo + Elliott: draw after series is ready ──────
-    const drawExtraLines = () => {
+    // ── SMC + Geo + Elliott: direct createPriceLine on series ──
+    const addDirectLine = (series: any, price: number, color: string, label: string, lw: number, ls: number, axis: boolean) => {
+      if (!series || !price || !isFinite(price)) return null;
+      try {
+        return series.createPriceLine({ price, color, lineWidth: lw, lineStyle: ls, axisLabelVisible: axis, title: label });
+      } catch { return null; }
+    };
+
+    const drawDirect = () => {
+      const s = chart.getCandleSeries();
+      if (!s) return false;
+      const directLines: any[] = [];
+
       if (result.smcData) {
-        result.smcData.orderBlocks.slice(0, 3).forEach((ob, i) => {
-          const col = ob.type === 'bullish' ? 'rgba(0,255,163,0.9)' : 'rgba(255,71,87,0.9)';
-          chart.addPriceLine(`ob-hi-${i}`, ob.high, col, ob.type === 'bullish' ? 'OB↑' : 'OB↓', 1, 2, true);
-          chart.addPriceLine(`ob-lo-${i}`, ob.low, col, '', 1, 2, false);
-          aiPriceLinesRef.current.push(`ob-hi-${i}`, `ob-lo-${i}`);
+        result.smcData.orderBlocks.slice(0, 3).forEach((ob) => {
+          const col = ob.type === 'bullish' ? '#00FFA3' : '#FF4757';
+          const l1 = addDirectLine(s, ob.high, col, ob.type === 'bullish' ? 'OB↑' : 'OB↓', 1, 2, true);
+          const l2 = addDirectLine(s, ob.low, col, '', 1, 2, false);
+          if (l1) directLines.push(l1);
+          if (l2) directLines.push(l2);
         });
-        result.smcData.fvgs.slice(0, 3).forEach((fvg, i) => {
-          const col = fvg.type === 'bullish' ? 'rgba(34,211,238,0.9)' : 'rgba(245,158,11,0.9)';
-          chart.addPriceLine(`fvg-${i}`, (fvg.high + fvg.low) / 2, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 1, true);
-          aiPriceLinesRef.current.push(`fvg-${i}`);
+        result.smcData.fvgs.slice(0, 3).forEach((fvg) => {
+          const col = fvg.type === 'bullish' ? '#22d3ee' : '#f59e0b';
+          const l = addDirectLine(s, (fvg.high + fvg.low) / 2, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 1, true);
+          if (l) directLines.push(l);
         });
-        result.smcData.structureBreaks.slice(0, 2).forEach((br, i) => {
-          const col = br.direction === 'bullish' ? 'rgba(59,130,246,0.9)' : 'rgba(249,115,22,0.9)';
-          chart.addPriceLine(`bos-${i}`, br.price, col, `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
-          aiPriceLinesRef.current.push(`bos-${i}`);
+        result.smcData.structureBreaks.slice(0, 2).forEach((br) => {
+          const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
+          const l = addDirectLine(s, br.price, col, `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
+          if (l) directLines.push(l);
         });
       }
       if (result.geoPatterns?.length) {
-        result.geoPatterns.slice(0, 3).forEach((pat, i) => {
+        result.geoPatterns.slice(0, 3).forEach((pat) => {
           if (!pat.target) return;
-          const col = pat.direction === 'bullish' ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
-          chart.addPriceLine(`geo-${i}`, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
-          aiPriceLinesRef.current.push(`geo-${i}`);
+          const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+          const l = addDirectLine(s, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
+          if (l) directLines.push(l);
         });
       }
       if (result.elliottPattern?.nextTarget) {
         const ew = result.elliottPattern;
-        const col = ew.direction === 'bullish' ? 'rgba(147,197,253,0.9)' : 'rgba(252,165,165,0.9)';
-        chart.addPriceLine('ew-target', ew.nextTarget!, col, `إليوت ${ew.currentWave}🌊`, 2, 0, true);
-        aiPriceLinesRef.current.push('ew-target');
+        const col = ew.direction === 'bullish' ? '#93c5fd' : '#fca5a5';
+        const l = addDirectLine(s, ew.nextTarget!, col, `إليوت ${ew.currentWave}🌊`, 2, 0, true);
+        if (l) directLines.push(l);
       }
       if (result.wyckoff && result.wyckoff.phase !== 'Unknown') {
-        const wCol = result.wyckoff.bias === 'bullish' ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
-        result.wyckoff.events.forEach((ev, i) => {
-          chart.addPriceLine(`wyckoff-${i}`, ev.price, wCol, `وايكوف: ${result.wyckoff!.labelAr}`, 1, 1, true);
-          aiPriceLinesRef.current.push(`wyckoff-${i}`);
+        const wCol = result.wyckoff.bias === 'bullish' ? '#00FFA3' : '#FF4757';
+        result.wyckoff.events.forEach((ev: any) => {
+          const l = addDirectLine(s, ev.price, wCol, `وايكوف: ${result.wyckoff!.labelAr}`, 1, 1, true);
+          if (l) directLines.push(l);
         });
       }
+
+      // Store for cleanup
+      if (directLines.length > 0) {
+        (aiPriceLinesRef as any).__direct = (aiPriceLinesRef as any).__direct || [];
+        (aiPriceLinesRef as any).__direct.push(...directLines.map(l => ({ s, l })));
+        (window as any).__plCount = ((aiPriceLinesRef as any).__direct?.length || 0);
+        return true;
+      }
+      return false;
     };
-    // Run immediately + retry to ensure series is ready
-    drawExtraLines();
-    setTimeout(drawExtraLines, 500);
-    setTimeout(drawExtraLines, 1500);
+
+    if (!drawDirect()) {
+      setTimeout(drawDirect, 800);
+      setTimeout(drawDirect, 2000);
+    }
 
     // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,

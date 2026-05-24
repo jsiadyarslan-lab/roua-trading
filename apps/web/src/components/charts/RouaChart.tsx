@@ -1109,16 +1109,16 @@ export default function RouaChart({
       return false;
     };
 
-    // Show that we reached this point
-    const dbgEl = document.getElementById('__reach_debug') || document.createElement('div');
-    dbgEl.id = '__reach_debug';
-    dbgEl.style.cssText = 'position:fixed;bottom:30px;left:8px;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:9px;z-index:99999';
-    dbgEl.textContent = `reached: smcData=${!!(result as any).smcData} series=${!!chart.getCandleSeries()}`;
-    document.body.appendChild(dbgEl);
+    // Debug step 2
+    const d2 = document.getElementById('__s2') || document.createElement('div');
+    d2.id = '__s2'; d2.style.cssText = 'position:fixed;top:30px;left:8px;background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;z-index:99999';
+    const ser = chart.getCandleSeries();
+    d2.textContent = `s=${!!ser} smc=${!!(result as any).smcData} ob=${(result as any).smcData?.orderBlocks?.length||0} fvg=${(result as any).smcData?.fvgs?.length||0}`;
+    document.body.appendChild(d2);
 
     if (!drawDirect()) {
-      setTimeout(drawDirect, 800);
-      setTimeout(drawDirect, 2000);
+      setTimeout(drawDirect, 1000);
+      setTimeout(drawDirect, 3000);
     }
 
     // ── Pattern markers ──

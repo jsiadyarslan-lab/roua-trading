@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useRef, useCallback, useEffect, type ReactNode } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo, type ReactNode } from 'react';
 
 interface DraggablePanelProps {
   children: ReactNode;
@@ -171,20 +171,20 @@ export function DraggablePanel({
     document.addEventListener('mouseup', handleResizeEnd);
   }, [resizable, minWidth, minHeight]);
 
-  // Convert defaultPosition to CSS for initial render (before drag sets pos)
+  // Convert defaultPosition to CSS — convert right→left so drag works correctly
+  const computedInitialPos = useMemo(() => {
+    const p = defaultPosition as any;
+    if (p?.right !== undefined && p?.left === undefined) {
+      const w = typeof window !== 'undefined' ? window.innerWidth : 1366;
+      const panelW = defaultWidth || 340;
+      return { top: p.top || 120, left: w - panelW - p.right };
+    }
+    return p || { top: 120, left: 20 };
+  }, []); // eslint-disable-line
+
   const initialStyle: React.CSSProperties = pos === null
-    ? {
-        position: 'fixed',
-        ...defaultPosition,
-      }
-    : {
-        position: 'fixed',
-        left: pos.x,
-        top: pos.y,
-        right: 'auto',
-        bottom: 'auto',
-        transform: 'none',
-      };
+    ? { position: 'fixed', ...computedInitialPos }
+    : { position: 'fixed', left: pos.x, top: pos.y, right: 'auto', bottom: 'auto' };
 
   const sizeStyle: React.CSSProperties = size
     ? { width: size.w, height: size.h }

@@ -7,56 +7,63 @@ import { Eye, Shield, Star, TrendingUp, ArrowUpRight, Activity, AlertTriangle, U
 import { toast } from '@/hooks/use-toast'
 import { T } from '@/lib/unified-tokens'
 
+type FilterKey = 'performance' | 'risk' | 'popularity'
+
 const TRADERS = [
-  { id: '1', name: 'Quantum Alpha', type: 'High Frequency', winRate: '87.5%', profit: '+1,420%', risk: 'عالي', aum: '$4.2M', score: 95, followers: 1240, drawdown: '-12%' },
-  { id: '2', name: 'Institutional Flow', type: 'Macro Swing', winRate: '72.1%', profit: '+310%', risk: 'متوسط', aum: '$12.5M', score: 78, followers: 890, drawdown: '-8%' },
-  { id: '3', name: 'Crypto Sniper', type: 'Scalping', winRate: '91.2%', profit: '+840%', risk: 'مرتفع جداً', aum: '$1.1M', score: 88, followers: 2100, drawdown: '-22%' },
-  { id: '4', name: 'DeFi Yield Master', type: 'Yield Farming', winRate: '68.4%', profit: '+180%', risk: 'منخفض', aum: '$8.7M', score: 65, followers: 560, drawdown: '-4%' },
-  { id: '5', name: 'Momentum Trader', type: 'Trend Following', winRate: '79.3%', profit: '+560%', risk: 'متوسط', aum: '$3.1M', score: 82, followers: 1680, drawdown: '-15%' },
-  { id: '6', name: 'Stable Earn', type: 'Arbitrage', winRate: '94.8%', profit: '+45%', risk: 'منخفض جداً', aum: '$22M', score: 70, followers: 320, drawdown: '-2%' },
+  { id: '1', name: 'Quantum Alpha', type: 'High Frequency', winRate: '87.5%', profit: '+1,420%', riskKey: 'riskHigh', aum: '$4.2M', score: 95, followers: 1240, drawdown: '-12%' },
+  { id: '2', name: 'Institutional Flow', type: 'Macro Swing', winRate: '72.1%', profit: '+310%', riskKey: 'riskMedium', aum: '$12.5M', score: 78, followers: 890, drawdown: '-8%' },
+  { id: '3', name: 'Crypto Sniper', type: 'Scalping', winRate: '91.2%', profit: '+840%', riskKey: 'riskVeryHigh', aum: '$1.1M', score: 88, followers: 2100, drawdown: '-22%' },
+  { id: '4', name: 'DeFi Yield Master', type: 'Yield Farming', winRate: '68.4%', profit: '+180%', riskKey: 'riskLow', aum: '$8.7M', score: 65, followers: 560, drawdown: '-4%' },
+  { id: '5', name: 'Momentum Trader', type: 'Trend Following', winRate: '79.3%', profit: '+560%', riskKey: 'riskMedium', aum: '$3.1M', score: 82, followers: 1680, drawdown: '-15%' },
+  { id: '6', name: 'Stable Earn', type: 'Arbitrage', winRate: '94.8%', profit: '+45%', riskKey: 'riskVeryLow', aum: '$22M', score: 70, followers: 320, drawdown: '-2%' },
 ]
 
-type FilterTab = 'أداء' | 'مخاطر' | 'شعبية'
+const RISK_ORDER: Record<string, number> = {
+  riskVeryLow: 1,
+  riskLow: 2,
+  riskMedium: 3,
+  riskHigh: 4,
+  riskVeryHigh: 5,
+}
 
 export default function AccountMonitoringPage() {
   const router = useRouter()
-  const t = useTranslations('dashboard.copyTrading')
+  const ct = useTranslations('dashboard.copyTrading')
   const tc = useTranslations('common')
   const [followingTraders, setFollowingTraders] = useState<Set<string>>(new Set())
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('أداء')
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('performance')
 
   const toggleFollow = (traderId: string, traderName: string) => {
     setFollowingTraders(prev => {
       const next = new Set(prev)
       if (next.has(traderId)) {
         next.delete(traderId)
-        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم عرض تحديثات أداء هذا الحساب بعد الآن' })
+        toast({ title: ct('toastUnfollowed', { name: traderName }), description: ct('toastUnfollowedDesc') })
       } else {
         next.add(traderId)
-        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'ستظهر تحديثات أداء هذا الحساب في لوحتك' })
+        toast({ title: ct('toastFollowed', { name: traderName }), description: ct('toastFollowedDesc') })
       }
       return next
     })
   }
 
   const sortedTraders = [...TRADERS].sort((a, b) => {
-    if (activeFilter === 'أداء') return b.score - a.score
-    if (activeFilter === 'مخاطر') {
-      const riskOrder: Record<string, number> = { 'منخفض جداً': 1, 'منخفض': 2, 'متوسط': 3, 'عالي': 4, 'مرتفع جداً': 5 }
-      return (riskOrder[a.risk] || 3) - (riskOrder[b.risk] || 3)
+    if (activeFilter === 'performance') return b.score - a.score
+    if (activeFilter === 'risk') {
+      return (RISK_ORDER[a.riskKey] || 3) - (RISK_ORDER[b.riskKey] || 3)
     }
     return b.followers - a.followers
   })
 
-  const filterTabs: { key: FilterTab; icon: typeof TrendingUp }[] = [
-    { key: 'أداء', icon: TrendingUp },
-    { key: 'مخاطر', icon: Shield },
-    { key: 'شعبية', icon: UserCheck },
+  const filterTabs: { key: FilterKey; icon: typeof TrendingUp; label: string }[] = [
+    { key: 'performance', icon: TrendingUp, label: ct('filterPerformance') },
+    { key: 'risk', icon: Shield, label: ct('filterRisk') },
+    { key: 'popularity', icon: UserCheck, label: ct('filterPopularity') },
   ]
 
-  const riskColor = (risk: string) => {
-    if (risk.includes('منخفض')) return T.green
-    if (risk === 'متوسط') return T.amber
+  const riskColor = (riskKey: string) => {
+    if (riskKey === 'riskVeryLow' || riskKey === 'riskLow') return T.green
+    if (riskKey === 'riskMedium') return T.amber
     return T.red
   }
 
@@ -82,9 +89,9 @@ export default function AccountMonitoringPage() {
         display: 'flex', alignItems: 'center', gap: 10,
       }}>
         <Eye size={18} color={T.cyan} />
-        <span style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>{t('title')}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: T.cyan }}>{ct('title')}</span>
         <span style={{ fontSize: 12, color: T.text2 }}>
-          — {t('subtitle')}
+          — {ct('subtitle')}
         </span>
       </div>
 
@@ -93,7 +100,7 @@ export default function AccountMonitoringPage() {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
             <Eye size={20} color={T.green} />
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{t('title')}</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{ct('title')}</h1>
             <span style={{
               fontSize: 10, padding: '2px 8px', borderRadius: 20,
               background: `${T.amber}18`, color: T.amber,
@@ -101,7 +108,7 @@ export default function AccountMonitoringPage() {
             }}>DEMO</span>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            {t('subtitle')}
+            {ct('subtitle')}
           </p>
         </div>
         <button
@@ -122,9 +129,9 @@ export default function AccountMonitoringPage() {
       {/* Stats Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: Star, label: 'أفضل حساب هذا الأسبوع (تجريبي)', val: 'Quantum Alpha', color: T.amber },
-          { icon: Shield, label: 'إجمالي الأصول المراقبة (AUM)', val: '--', color: T.blue },
-          { icon: TrendingUp, label: 'متوسط العائد الشهري', val: '--', color: T.text2 },
+          { icon: Star, label: ct('bestAccountThisWeek'), val: 'Quantum Alpha', color: T.amber },
+          { icon: Shield, label: ct('totalAum'), val: '--', color: T.blue },
+          { icon: TrendingUp, label: ct('avgMonthlyReturn'), val: '--', color: T.text2 },
         ].map((f, i) => (
           <div key={i} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
@@ -143,7 +150,7 @@ export default function AccountMonitoringPage() {
 
       {/* Filter Tabs */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>الحسابات المتاحة للمتابعة</h2>
+        <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{ct('availableAccounts')}</h2>
         <div style={{ display: 'flex', gap: 6 }}>
           {filterTabs.map(tab => (
             <button
@@ -158,7 +165,7 @@ export default function AccountMonitoringPage() {
                 transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
               }}
             >
-              <tab.icon size={13} /> {tab.key}
+              <tab.icon size={13} /> {tab.label}
             </button>
           ))}
         </div>
@@ -168,6 +175,7 @@ export default function AccountMonitoringPage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
         {sortedTraders.map((trader) => {
           const isFollowing = followingTraders.has(trader.id)
+          const riskLabel = ct(trader.riskKey as any)
           return (
             <div key={trader.id} style={{
               background: T.card, border: `1px solid ${isFollowing ? `${T.green}35` : T.border}`,
@@ -190,28 +198,28 @@ export default function AccountMonitoringPage() {
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 800, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
                       {trader.name}
-                      {isFollowing && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `${T.green}18`, color: T.green, fontWeight: 800 }}>متابَع</span>}
+                      {isFollowing && <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 10, background: `${T.green}18`, color: T.green, fontWeight: 800 }}>{ct('following')}</span>}
                     </div>
                     <div style={{ fontSize: 11, color: T.text2 }}>{trader.type}</div>
                   </div>
                 </div>
-                <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, background: `${riskColor(trader.risk)}12`, color: riskColor(trader.risk), fontWeight: 800 }}>
-                  {trader.risk}
+                <span style={{ fontSize: 10, padding: '3px 8px', borderRadius: 20, background: `${riskColor(trader.riskKey)}12`, color: riskColor(trader.riskKey), fontWeight: 800 }}>
+                  {riskLabel}
                 </span>
               </div>
 
               {/* Stats Grid */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 16 }}>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>معدل الربح</div>
+                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('winRateLabel')}</div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: T.green, fontFamily: "'JetBrains Mono', monospace" }}>{trader.winRate}</div>
                 </div>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>العائد</div>
+                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('returnLabel')}</div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{trader.profit}</div>
                 </div>
                 <div style={{ background: T.surface, padding: 10, borderRadius: 8, textAlign: 'center' }}>
-                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>السحب</div>
+                  <div style={{ fontSize: 9, color: T.text3, marginBottom: 4 }}>{ct('drawdownLabel')}</div>
                   <div style={{ fontSize: 13, fontWeight: 800, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>{trader.drawdown}</div>
                 </div>
               </div>
@@ -219,9 +227,9 @@ export default function AccountMonitoringPage() {
               {/* Footer */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div style={{ fontSize: 11, color: T.text2 }}>
-                  الأصول: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{trader.aum}</span>
+                  {ct('assetsLabel')}: <span style={{ color: T.text, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace" }}>{trader.aum}</span>
                   <span style={{ margin: '0 6px', color: T.text3 }}>·</span>
-                  <span>{trader.followers} متابع</span>
+                  <span>{ct('followersCount', { count: trader.followers })}</span>
                 </div>
                 <button
                   onClick={() => toggleFollow(trader.id, trader.name)}
@@ -234,7 +242,7 @@ export default function AccountMonitoringPage() {
                     transition: 'all 0.2s', fontFamily: "'Cairo', sans-serif",
                   }}
                 >
-                  {isFollowing ? 'إلغاء المتابعة' : 'متابعة'} <Eye size={12} />
+                  {isFollowing ? ct('unfollow') : ct('follow')} <Eye size={12} />
                 </button>
               </div>
             </div>

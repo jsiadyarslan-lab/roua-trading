@@ -1942,7 +1942,7 @@ export default function RouaChart({
           style={{
             position: 'fixed',
             top: panelPos?.top ?? 130,
-            left: panelPos?.left ?? 680,
+            left: panelPos?.left ?? 350,
             width: 340,
             minHeight: 360,
             zIndex: 9999,

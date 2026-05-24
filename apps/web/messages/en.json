@@ -1616,7 +1616,9 @@
       "impactHigh": "High",
       "impactMedium": "Medium",
       "impactLow": "Low",
-      "today": "Today"
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "later": "Later"
     },
     "backtest": {
       "title": "Strategy Backtest",

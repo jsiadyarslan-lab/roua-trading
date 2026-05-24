@@ -9,11 +9,17 @@ export const dynamic = 'force-dynamic'
 //  3. Static high-quality curated list as fallback
 // ──────────────────────────────────────────
 
-// Day helper
-function dayLabel(offsetDays: number): string {
+// Day helper — returns ISO date label key for frontend i18n
+function dayLabelKey(offsetDays: number): string {
+  if (offsetDays === 0) return 'today'
+  if (offsetDays === 1) return 'tomorrow'
+  return 'later'
+}
+
+function dayLabelDisplay(offsetDays: number): string {
   const d = new Date()
   d.setDate(d.getDate() + offsetDays)
-  return d.toLocaleDateString('ar-SA', { weekday: 'long', month: 'long', day: 'numeric' })
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
 function isoDate(offsetDays: number): string {
@@ -23,31 +29,31 @@ function isoDate(offsetDays: number): string {
 }
 
 // ── Curated economic events database ──
-// Covers the next 7 days with realistic high-impact events
+// Covers the next 7 days with realistic high-impact events — all in English
 function generateWeeklyEvents() {
   const today = new Date()
   const dayOfWeek = today.getDay() // 0=Sun, 1=Mon ... 5=Fri, 6=Sat
 
   const events = [
     // Today / Tomorrow pattern events
-    { offsetDay: 0, time: '15:30', event: 'مبيعات التجزئة الأمريكية (MoM)', currency: 'USD', impact: 'high',   forecast: '+0.4%', previous: '+0.7%', affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD'] },
-    { offsetDay: 0, time: '17:00', event: 'مؤشر أسعار المنتجين الأمريكي PPI', currency: 'USD', impact: 'high',   forecast: '3.2%',  previous: '3.5%',  affectedPairs: ['EUR/USD', 'USD/JPY'] },
-    { offsetDay: 0, time: '19:00', event: 'طلبات الإعانة الأسبوعية (Initial Jobless Claims)', currency: 'USD', impact: 'medium', forecast: '215K',  previous: '211K',  affectedPairs: ['USD/JPY'] },
-    { offsetDay: 1, time: '09:00', event: 'قرار الفائدة الأوروبية (ECB Rate Decision)', currency: 'EUR', impact: 'high',   forecast: '4.50%', previous: '4.50%', affectedPairs: ['EUR/USD', 'EUR/GBP', 'EUR/JPY'] },
-    { offsetDay: 1, time: '10:00', event: 'تصريحات رئيسة ECB (لاغارد)', currency: 'EUR', impact: 'high',   forecast: '—',     previous: '—',     affectedPairs: ['EUR/USD'] },
-    { offsetDay: 1, time: '14:30', event: 'بيانات الإنتاج الصناعي الأمريكي', currency: 'USD', impact: 'medium', forecast: '+0.2%', previous: '+0.1%', affectedPairs: ['USD/JPY', 'USD/CHF'] },
-    { offsetDay: 2, time: '08:30', event: 'مؤشر أسعار المستهلك البريطاني CPI', currency: 'GBP', impact: 'high',   forecast: '3.1%',  previous: '3.4%',  affectedPairs: ['GBP/USD', 'EUR/GBP'] },
-    { offsetDay: 2, time: '15:30', event: 'أعداد الوظائف الأمريكية (NFP غير الزراعية)', currency: 'USD', impact: 'high',   forecast: '185K',  previous: '206K',  affectedPairs: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD'] },
-    { offsetDay: 2, time: '15:30', event: 'معدل البطالة الأمريكي', currency: 'USD', impact: 'high',   forecast: '3.9%',  previous: '3.9%',  affectedPairs: ['EUR/USD', 'GBP/USD'] },
-    { offsetDay: 3, time: '02:30', event: 'مؤشر PMI التصنيع الصيني (Caixin)', currency: 'CNY', impact: 'medium', forecast: '51.1',  previous: '51.0',  affectedPairs: ['AUD/USD', 'USD/CNH'] },
-    { offsetDay: 3, time: '10:00', event: 'مؤشر ثقة المستهلك في منطقة اليورو', currency: 'EUR', impact: 'medium', forecast: '-14.5', previous: '-14.0', affectedPairs: ['EUR/USD'] },
-    { offsetDay: 4, time: '08:00', event: 'الناتج المحلي الإجمالي الألماني (GDP Q1)', currency: 'EUR', impact: 'high',   forecast: '+0.2%', previous: '-0.1%', affectedPairs: ['EUR/USD', 'EUR/GBP'] },
-    { offsetDay: 4, time: '14:00', event: 'قرار الفائدة الأمريكية (FOMC Meeting Minutes)', currency: 'USD', impact: 'high',   forecast: '5.50%', previous: '5.50%', affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD', 'BTC/USD'] },
-    { offsetDay: 4, time: '15:00', event: 'مؤشر أسعار المستهلك الأمريكي CPI Core (YoY)', currency: 'USD', impact: 'high',   forecast: '3.6%',  previous: '3.8%',  affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD'] },
-    { offsetDay: 5, time: '09:30', event: 'مؤشر PMI الخدمات البريطاني', currency: 'GBP', impact: 'medium', forecast: '53.0',  previous: '53.1',  affectedPairs: ['GBP/USD'] },
-    { offsetDay: 5, time: '15:30', event: 'أرقام التجارة الخارجية الأمريكية', currency: 'USD', impact: 'medium', forecast: '-69.0B','previous': '-68.9B', affectedPairs: ['USD/JPY', 'EUR/USD'] },
-    { offsetDay: 6, time: '05:00', event: 'بيانات اجتماع بنك اليابان (BoJ)', currency: 'JPY', impact: 'high',   forecast: '—',     previous: '—',     affectedPairs: ['USD/JPY', 'EUR/JPY', 'GBP/JPY'] },
-    { offsetDay: 7, time: '14:30', event: 'المبيعات الأمريكية للمنازل القائمة', currency: 'USD', impact: 'low',    forecast: '4.2M',  previous: '4.4M',  affectedPairs: ['USD/CAD'] },
+    { offsetDay: 0, time: '15:30', event: 'US Retail Sales (MoM)', currency: 'USD', impact: 'high',   forecast: '+0.4%', previous: '+0.7%', affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD'] },
+    { offsetDay: 0, time: '17:00', event: 'US Producer Price Index (PPI)', currency: 'USD', impact: 'high',   forecast: '3.2%',  previous: '3.5%',  affectedPairs: ['EUR/USD', 'USD/JPY'] },
+    { offsetDay: 0, time: '19:00', event: 'Initial Jobless Claims', currency: 'USD', impact: 'medium', forecast: '215K',  previous: '211K',  affectedPairs: ['USD/JPY'] },
+    { offsetDay: 1, time: '09:00', event: 'ECB Rate Decision', currency: 'EUR', impact: 'high',   forecast: '4.50%', previous: '4.50%', affectedPairs: ['EUR/USD', 'EUR/GBP', 'EUR/JPY'] },
+    { offsetDay: 1, time: '10:00', event: 'ECB Press Conference (Lagarde)', currency: 'EUR', impact: 'high',   forecast: '—',     previous: '—',     affectedPairs: ['EUR/USD'] },
+    { offsetDay: 1, time: '14:30', event: 'US Industrial Production', currency: 'USD', impact: 'medium', forecast: '+0.2%', previous: '+0.1%', affectedPairs: ['USD/JPY', 'USD/CHF'] },
+    { offsetDay: 2, time: '08:30', event: 'UK Consumer Price Index (CPI)', currency: 'GBP', impact: 'high',   forecast: '3.1%',  previous: '3.4%',  affectedPairs: ['GBP/USD', 'EUR/GBP'] },
+    { offsetDay: 2, time: '15:30', event: 'US Non-Farm Payrolls (NFP)', currency: 'USD', impact: 'high',   forecast: '185K',  previous: '206K',  affectedPairs: ['EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD'] },
+    { offsetDay: 2, time: '15:30', event: 'US Unemployment Rate', currency: 'USD', impact: 'high',   forecast: '3.9%',  previous: '3.9%',  affectedPairs: ['EUR/USD', 'GBP/USD'] },
+    { offsetDay: 3, time: '02:30', event: 'China Caixin Manufacturing PMI', currency: 'CNY', impact: 'medium', forecast: '51.1',  previous: '51.0',  affectedPairs: ['AUD/USD', 'USD/CNH'] },
+    { offsetDay: 3, time: '10:00', event: 'Eurozone Consumer Confidence', currency: 'EUR', impact: 'medium', forecast: '-14.5', previous: '-14.0', affectedPairs: ['EUR/USD'] },
+    { offsetDay: 4, time: '08:00', event: 'German GDP (Q1)', currency: 'EUR', impact: 'high',   forecast: '+0.2%', previous: '-0.1%', affectedPairs: ['EUR/USD', 'EUR/GBP'] },
+    { offsetDay: 4, time: '14:00', event: 'FOMC Meeting Minutes', currency: 'USD', impact: 'high',   forecast: '5.50%', previous: '5.50%', affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD', 'BTC/USD'] },
+    { offsetDay: 4, time: '15:00', event: 'US Core CPI (YoY)', currency: 'USD', impact: 'high',   forecast: '3.6%',  previous: '3.8%',  affectedPairs: ['EUR/USD', 'GBP/USD', 'XAU/USD'] },
+    { offsetDay: 5, time: '09:30', event: 'UK Services PMI', currency: 'GBP', impact: 'medium', forecast: '53.0',  previous: '53.1',  affectedPairs: ['GBP/USD'] },
+    { offsetDay: 5, time: '15:30', event: 'US Trade Balance', currency: 'USD', impact: 'medium', forecast: '-69.0B','previous': '-68.9B', affectedPairs: ['USD/JPY', 'EUR/USD'] },
+    { offsetDay: 6, time: '05:00', event: 'BoJ Monetary Policy Meeting', currency: 'JPY', impact: 'high',   forecast: '—',     previous: '—',     affectedPairs: ['USD/JPY', 'EUR/JPY', 'GBP/JPY'] },
+    { offsetDay: 7, time: '14:30', event: 'US Existing Home Sales', currency: 'USD', impact: 'low',    forecast: '4.2M',  previous: '4.4M',  affectedPairs: ['USD/CAD'] },
   ]
 
   // Filter out weekend events (offsetDay lands on Sat/Sun)
@@ -59,34 +65,38 @@ function generateWeeklyEvents() {
   }).map(e => ({
     ...e,
     date: isoDate(e.offsetDay),
-    dateLabel: e.offsetDay === 0 ? 'اليوم' : e.offsetDay === 1 ? 'غداً' : dayLabel(e.offsetDay),
+    dateLabelKey: dayLabelKey(e.offsetDay),
+    dateLabel: dayLabelDisplay(e.offsetDay),
   }))
 }
 
-// ── AI Impact Analysis ──
+// ── AI Impact Analysis — all in English ──
 function getAIImpact(event: any): { summary: string; bias: 'bullish' | 'bearish' | 'neutral'; strength: number } {
   const evLower = event.event.toLowerCase()
   const curr = event.currency
 
-  if (evLower.includes('cpi') || evLower.includes('تضخم')) {
+  if (evLower.includes('cpi') || evLower.includes('inflation')) {
     const forecast = parseFloat(event.forecast) || 0
     const previous = parseFloat(event.previous) || 0
     if (forecast < previous) {
-      return { summary: `انخفاض ${curr} متوقع — تضخم أقل من السابق يقلل ضغط الفائدة`, bias: 'bearish', strength: 70 }
+      return { summary: `${curr} weakness expected — lower inflation reduces rate hike pressure`, bias: 'bearish', strength: 70 }
     }
-    return { summary: `تقوية ${curr} متوقعة — تضخم مرتفع يدعم الفائدة`, bias: 'bullish', strength: 65 }
+    return { summary: `${curr} strength expected — higher inflation supports rate hikes`, bias: 'bullish', strength: 65 }
   }
-  if (evLower.includes('nfp') || evLower.includes('وظائف')) {
-    return { summary: 'حدث NFP شديد التأثير — تقلبات واسعة متوقعة على الدولار وXAU/USD', bias: 'neutral', strength: 90 }
+  if (evLower.includes('nfp') || evLower.includes('employment') || evLower.includes('payroll')) {
+    return { summary: 'High-impact NFP event — significant volatility expected on USD and XAU/USD', bias: 'neutral', strength: 90 }
   }
-  if (evLower.includes('rate') || evLower.includes('فائدة')) {
-    return { summary: `قرار الفائدة: تأثير مباشر على ${curr} — راقب التصريحات المرافقة`, bias: 'neutral', strength: 85 }
+  if (evLower.includes('rate') || evLower.includes('fomc') || evLower.includes('ecb') || evLower.includes('boj')) {
+    return { summary: `Rate decision: direct impact on ${curr} — watch accompanying statements`, bias: 'neutral', strength: 85 }
   }
-  if (evLower.includes('gdp') || evLower.includes('ناتج')) {
+  if (evLower.includes('gdp') || evLower.includes('gross domestic')) {
     const forecast = parseFloat(event.forecast) || 0
-    return { summary: forecast > 0 ? `نمو إيجابي يدعم ${curr}` : `تقلص اقتصادي يضغط على ${curr}`, bias: forecast > 0 ? 'bullish' : 'bearish', strength: 60 }
+    return { summary: forecast > 0 ? `Positive growth supports ${curr}` : `Economic contraction pressures ${curr}`, bias: forecast > 0 ? 'bullish' : 'bearish', strength: 60 }
   }
-  return { summary: `حدث ${event.impact === 'high' ? 'عالي التأثير' : 'متوسط التأثير'} — راقب الأسواق لحظة الإعلان`, bias: 'neutral', strength: 40 }
+  if (evLower.includes('unemployment')) {
+    return { summary: `Unemployment data may shift ${curr} sentiment — monitor for surprises`, bias: 'neutral', strength: 75 }
+  }
+  return { summary: `${event.impact === 'high' ? 'High' : 'Moderate'}-impact event — watch markets at announcement time`, bias: 'neutral', strength: 40 }
 }
 
 export async function GET(req: Request) {
@@ -106,11 +116,12 @@ export async function GET(req: Request) {
       ai: getAIImpact(e),
     }))
 
-    // Group by date
+    // Group by dateLabelKey for i18n-friendly grouping
     const grouped: Record<string, typeof enriched> = {}
     for (const e of enriched) {
-      if (!grouped[e.dateLabel]) grouped[e.dateLabel] = []
-      grouped[e.dateLabel].push(e)
+      const groupKey = e.dateLabelKey
+      if (!grouped[groupKey]) grouped[groupKey] = []
+      grouped[groupKey].push(e)
     }
 
     return NextResponse.json({

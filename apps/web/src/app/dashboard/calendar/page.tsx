@@ -174,19 +174,19 @@ export default function CalendarPage() {
             <div key={i} style={{ height: 72, background: T.card, borderRadius: 12, border: `1px solid ${T.border}`, opacity: 0.5, animation: 'pulse 1.5s ease-in-out infinite' }} />
           ))}
         </div>
-      ) : Object.entries(grouped).map(([dateLabel, dayEvents]) => (
-        <div key={dateLabel} style={{ marginBottom: 24 }}>
+      ) : Object.entries(grouped).map(([dateLabelKey, dayEvents]) => (
+        <div key={dateLabelKey} style={{ marginBottom: 24 }}>
           {/* Date header */}
           <div style={{
             display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10,
             paddingBottom: 8, borderBottom: `1px solid ${T.border}`,
           }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dateLabel === t('today') ? T.green : T.amber }} />
-            <span style={{ fontSize: 15, fontWeight: 900, color: T.text }}>{dateLabel}</span>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dateLabelKey === 'today' ? T.green : T.amber }} />
+            <span style={{ fontSize: 15, fontWeight: 900, color: T.text }}>{t(dateLabelKey)} — {dayEvents[0]?.dateLabel || ''}</span>
             <span style={{
               fontSize: 9, padding: '1px 8px', borderRadius: 20,
-              background: dateLabel === t('today') ? `${T.green}15` : `${T.amber}15`,
-              color: dateLabel === t('today') ? T.green : T.amber, fontWeight: 800,
+              background: dateLabelKey === 'today' ? `${T.green}15` : `${T.amber}15`,
+              color: dateLabelKey === 'today' ? T.green : T.amber, fontWeight: 800,
             }}>
               {dayEvents.length} {dayEvents.length === 1 ? t('event') : t('events')}
             </span>
@@ -195,7 +195,7 @@ export default function CalendarPage() {
           {/* Event cards */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {dayEvents.map((event, idx) => {
-              const key = `${dateLabel}-${idx}`
+              const key = `${dateLabelKey}-${idx}`
               const isOpen = expanded === key
               const style = IMPACT_STYLE[event.impact as keyof typeof IMPACT_STYLE]
 

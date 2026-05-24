@@ -1616,7 +1616,9 @@
       "impactHigh": "عالي",
       "impactMedium": "متوسط",
       "impactLow": "منخفض",
-      "today": "اليوم"
+      "today": "اليوم",
+      "tomorrow": "غداً",
+      "later": "لاحقاً"
     },
     "backtest": {
       "title": "اختبار الاستراتيجيات",

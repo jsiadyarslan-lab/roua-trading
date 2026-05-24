@@ -4,17 +4,17 @@ import { useState, useEffect, useRef } from 'react'
 import { CalendarDays, Clock, TrendingUp, TrendingDown, Minus, Filter, RefreshCw, Brain } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-
-const IMPACT_STYLE = {
-  high:   { color: T.red,   label: 'عالي',    bullets: 3 },
-  medium: { color: T.amber, label: 'متوسط',   bullets: 2 },
-  low:    { color: T.text2, label: 'منخفض',   bullets: 1 },
-}
+import { useTranslations } from 'next-intl'
 
 const CURRENCIES = ['All', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AUD', 'CAD']
 
 function ImpactBullets({ level }: { level: 'high' | 'medium' | 'low' }) {
-  const { color, bullets } = IMPACT_STYLE[level]
+  const IMPACT_BULLETS: Record<string, { color: string; bullets: number }> = {
+    high:   { color: T.red,   bullets: 3 },
+    medium: { color: T.amber, bullets: 2 },
+    low:    { color: T.text2, bullets: 1 },
+  }
+  const { color, bullets } = IMPACT_BULLETS[level]
   return (
     <div style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
       {[1, 2, 3].map(i => (
@@ -37,6 +37,7 @@ function BiasIcon({ bias }: { bias: 'bullish' | 'bearish' | 'neutral' }) {
 export default function CalendarPage() {
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
 
+  const t = useTranslations('dashboard.calendar')
   const [events, setEvents] = useState<any[]>([])
   const [grouped, setGrouped] = useState<Record<string, any[]>>({})
   const [loading, setLoading] = useState(true)
@@ -45,6 +46,12 @@ export default function CalendarPage() {
   const [expanded, setExpanded] = useState<string | null>(null)
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  const IMPACT_STYLE: Record<string, { color: string; label: string; bullets: number }> = {
+    high:   { color: T.red,   label: t('impactHigh'),    bullets: 3 },
+    medium: { color: T.amber, label: t('impactMedium'),   bullets: 2 },
+    low:    { color: T.text2, label: t('impactLow'),      bullets: 1 },
+  }
 
   const fetchCalendar = async () => {
     setLoading(true)
@@ -73,7 +80,7 @@ export default function CalendarPage() {
   }, [currency, impact])
 
   const highImpact = events.filter(e => e.impact === 'high').length
-  const todayEvents = grouped['اليوم']?.length ?? 0
+  const todayEvents = grouped[t('today')]?.length ?? 0
 
   return (
     <div style={{ padding: '24px 28px', direction: 'inherit', fontFamily: "'Cairo', sans-serif", minHeight: '100vh', background: T.bg }}>
@@ -84,14 +91,14 @@ export default function CalendarPage() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
               <CalendarDays size={22} color={T.amber} />
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>الأجندة الاقتصادية</h1>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{t('title')}</h1>
               <span style={{
                 fontSize: 10, padding: '2px 10px', borderRadius: 20,
                 background: `${T.amber}18`, color: T.amber, fontFamily: 'monospace', fontWeight: 700,
               }}>ECONOMIC CALENDAR</span>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-              الأحداث الاقتصادية القادمة مع تحليل AI للتأثير المتوقع على الأسواق
+              {t('subtitle')}
             </p>
           </div>
 
@@ -101,16 +108,16 @@ export default function CalendarPage() {
             borderRadius: 10, color: T.blue, fontSize: 12, fontWeight: 800, cursor: 'pointer',
           }}>
             <RefreshCw size={13} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
-            تحديث
+            {t('refresh')}
           </button>
         </div>
 
         {/* Stats bar */}
         <div style={{ display: 'flex', gap: 12, marginTop: 16, flexWrap: 'wrap' }}>
           {[
-            { label: 'أحداث هذا الأسبوع', value: events.length, color: T.cyan },
-            { label: 'أحداث اليوم', value: todayEvents, color: T.amber },
-            { label: 'عالي التأثير', value: highImpact, color: T.red },
+            { label: t('weekEvents'), value: events.length, color: T.cyan },
+            { label: t('todayEvents'), value: todayEvents, color: T.amber },
+            { label: t('highImpact'), value: highImpact, color: T.red },
           ].map(s => (
             <div key={s.label} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
@@ -123,7 +130,7 @@ export default function CalendarPage() {
           {lastFetch && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: T.card, border: `1px solid ${T.border}`, borderRadius: 10 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: T.green, boxShadow: `0 0 6px ${T.green}` }} />
-              <span style={{ fontSize: 10, color: T.text2 }}>آخر تحديث: {lastFetch.toLocaleTimeString('ar-SA')}</span>
+              <span style={{ fontSize: 10, color: T.text2 }}>{t('lastUpdate')} {lastFetch.toLocaleTimeString('ar-SA')}</span>
             </div>
           )}
         </div>
@@ -133,7 +140,7 @@ export default function CalendarPage() {
       <div style={{ display: 'flex', gap: 12, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Filter size={13} color={T.text2} />
-          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>العملة:</span>
+          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{t('currency')}</span>
           {CURRENCIES.map(c => (
             <button key={c} onClick={() => setCurrency(c)} style={{
               padding: '4px 10px', borderRadius: 20, border: `1px solid ${currency === c ? T.blue : T.border}`,
@@ -145,16 +152,16 @@ export default function CalendarPage() {
           ))}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>التأثير:</span>
+          <span style={{ fontSize: 11, color: T.text2, fontWeight: 700 }}>{t('impact')}</span>
           {['All', 'high', 'medium', 'low'].map(i => (
             <button key={i} onClick={() => setImpact(i)} style={{
               padding: '4px 10px', borderRadius: 20,
-              border: `1px solid ${impact === i ? (IMPACT_STYLE[i as keyof typeof IMPACT_STYLE]?.color ?? T.blue) : T.border}`,
-              background: impact === i ? `${(IMPACT_STYLE[i as keyof typeof IMPACT_STYLE]?.color ?? T.blue)}18` : 'transparent',
-              color: impact === i ? (IMPACT_STYLE[i as keyof typeof IMPACT_STYLE]?.color ?? T.blue) : T.text2,
+              border: `1px solid ${impact === i ? (IMPACT_STYLE[i]?.color ?? T.blue) : T.border}`,
+              background: impact === i ? `${(IMPACT_STYLE[i]?.color ?? T.blue)}18` : 'transparent',
+              color: impact === i ? (IMPACT_STYLE[i]?.color ?? T.blue) : T.text2,
               fontSize: 10, fontWeight: 800, cursor: 'pointer', transition: 'all 0.15s',
             }}>
-              {i === 'All' ? 'الكل' : IMPACT_STYLE[i as keyof typeof IMPACT_STYLE]?.label}
+              {i === 'All' ? t('all') : IMPACT_STYLE[i]?.label}
             </button>
           ))}
         </div>
@@ -174,14 +181,14 @@ export default function CalendarPage() {
             display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10,
             paddingBottom: 8, borderBottom: `1px solid ${T.border}`,
           }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dateLabel === 'اليوم' ? T.green : T.amber }} />
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: dateLabel === t('today') ? T.green : T.amber }} />
             <span style={{ fontSize: 15, fontWeight: 900, color: T.text }}>{dateLabel}</span>
             <span style={{
               fontSize: 9, padding: '1px 8px', borderRadius: 20,
-              background: dateLabel === 'اليوم' ? `${T.green}15` : `${T.amber}15`,
-              color: dateLabel === 'اليوم' ? T.green : T.amber, fontWeight: 800,
+              background: dateLabel === t('today') ? `${T.green}15` : `${T.amber}15`,
+              color: dateLabel === t('today') ? T.green : T.amber, fontWeight: 800,
             }}>
-              {dayEvents.length} حدث
+              {dayEvents.length} {dayEvents.length === 1 ? t('event') : t('events')}
             </span>
           </div>
 
@@ -226,13 +233,13 @@ export default function CalendarPage() {
                       {event.forecast !== '—' && (
                         <div>
                           <div style={{ fontWeight: 900, color: T.cyan, fontFamily: 'monospace' }}>{event.forecast}</div>
-                          <div style={{ fontSize: 8 }}>توقع</div>
+                          <div style={{ fontSize: 8 }}>{t('forecast')}</div>
                         </div>
                       )}
                       {event.previous !== '—' && (
                         <div>
                           <div style={{ fontWeight: 700, fontFamily: 'monospace' }}>{event.previous}</div>
-                          <div style={{ fontSize: 8 }}>سابق</div>
+                          <div style={{ fontSize: 8 }}>{t('previous')}</div>
                         </div>
                       )}
                     </div>
@@ -252,13 +259,13 @@ export default function CalendarPage() {
                       <div style={{ display: 'flex', gap: 10, marginBottom: 12, alignItems: 'flex-start' }}>
                         <Brain size={14} color={T.purple} style={{ flexShrink: 0, marginTop: 2 }} />
                         <div>
-                          <div style={{ fontSize: 10, fontWeight: 800, color: T.purple, marginBottom: 4 }}>تحليل AI</div>
+                          <div style={{ fontSize: 10, fontWeight: 800, color: T.purple, marginBottom: 4 }}>{t('aiAnalysis')}</div>
                           <div style={{ fontSize: 12, color: T.text, lineHeight: 1.7 }}>{event.ai.summary}</div>
                         </div>
                         {/* Strength bar */}
                         <div style={{ marginRight: 'auto', textAlign: 'center', minWidth: 60 }}>
                           <div style={{ fontSize: 16, fontWeight: 900, color: style.color, fontFamily: 'monospace' }}>{event.ai.strength}%</div>
-                          <div style={{ fontSize: 8, color: T.text2 }}>قوة التأثير</div>
+                          <div style={{ fontSize: 8, color: T.text2 }}>{t('impactStrength')}</div>
                           <div style={{ marginTop: 4, height: 4, background: `${style.color}20`, borderRadius: 2, overflow: 'hidden' }}>
                             <div style={{ height: '100%', width: `${event.ai.strength}%`, background: style.color, borderRadius: 2 }} />
                           </div>
@@ -268,7 +275,7 @@ export default function CalendarPage() {
                       {/* Affected pairs */}
                       {event.affectedPairs?.length > 0 && (
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                          <span style={{ fontSize: 10, color: T.text2, fontWeight: 700 }}>الأزواج المتأثرة:</span>
+                          <span style={{ fontSize: 10, color: T.text2, fontWeight: 700 }}>{t('affectedPairs')}</span>
                           {event.affectedPairs.map((pair: string) => (
                             <span key={pair} style={{
                               fontSize: 10, padding: '2px 8px', borderRadius: 20,
@@ -290,7 +297,7 @@ export default function CalendarPage() {
       {!loading && events.length === 0 && (
         <div style={{ textAlign: 'center', padding: '60px 0', color: T.text2 }}>
           <CalendarDays size={40} style={{ marginBottom: 12, opacity: 0.3 }} />
-          <div style={{ fontSize: 15, fontWeight: 700 }}>لا توجد أحداث مطابقة لهذا الفلتر</div>
+          <div style={{ fontSize: 15, fontWeight: 700 }}>{t('noEvents')}</div>
         </div>
       )}
     </div>

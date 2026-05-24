@@ -423,6 +423,7 @@ export default function AIPage() {
           symbol: selectedSymbol,
           type: 'market_analysis',
           style: 'professional',
+          language: locale === 'en' ? 'en' : 'ar',
         }),
       })
 

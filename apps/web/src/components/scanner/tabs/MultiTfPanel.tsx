@@ -76,9 +76,9 @@ function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfDa
       </div>
       {/* Indicators */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-        <IndicatorBadge label="RSI" value={data.rsi !== null ? data.rsi.toFixed(0) : '—'} status={data.rsi !== null ? (data.rsi <= 30 ? 'oversold' : data.rsi >= 70 ? 'overbought' : data.rsi < 50 ? 'bearish' : 'bullish') : 'neutral'} />
-        <IndicatorBadge label="MACD" value={data.macdSignal ?? '—'} status={data.macdSignal?.includes('BUY') ? 'bullish' : data.macdSignal?.includes('SELL') ? 'bearish' : 'neutral'} />
-        <IndicatorBadge label="ADX" value={data.adx !== null ? data.adx.toFixed(0) : '—'} status={(data.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
+        <IndicatorBadge label={t('indicators.rsi')} value={data.rsi !== null ? data.rsi.toFixed(0) : '—'} status={data.rsi !== null ? (data.rsi <= 30 ? 'oversold' : data.rsi >= 70 ? 'overbought' : data.rsi < 50 ? 'bearish' : 'bullish') : 'neutral'} />
+        <IndicatorBadge label={t('indicators.macd')} value={data.macdSignal === 'NONE' ? t('indicators.none') : (data.macdSignal ?? '—')} status={data.macdSignal?.includes('BUY') ? 'bullish' : data.macdSignal?.includes('SELL') ? 'bearish' : 'neutral'} />
+        <IndicatorBadge label={t('indicators.adx')} value={data.adx !== null ? data.adx.toFixed(0) : '—'} status={(data.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
         <span style={{ fontSize: 8, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif", marginInlineEnd: 4 }}>
           {t('multiTf.confidence')} {data.confidence.toFixed(0)}%
         </span>

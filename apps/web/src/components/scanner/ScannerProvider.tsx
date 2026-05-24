@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useCallback } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { useScannerData } from './hooks/useScannerData'
 import { useScannerFilters } from './hooks/useScannerFilters'
 import { useBrowserNotifications } from './hooks/useBrowserNotifications'
@@ -50,10 +50,9 @@ export function useScannerContext() {
 }
 
 export function ScannerProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations('scannerAdvanced')
   const [activeTab, setActiveTab] = useState('scanner')
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null)
-  const t = useTranslations('scannerAdvanced')
-  const locale = useLocale()
 
   const {
     scanData, heatmapData, overview, loading, lastUpdate, countdown, refresh, error,
@@ -73,10 +72,10 @@ export function ScannerProvider({ children }: { children: React.ReactNode }) {
       symbol,
       type: 'RSI_OVERBOUGHT',
       value: 70,
-      label: locale === 'ar' ? `تنبيه تشبع شرائي RSI - ${symbol}` : `RSI Overbought Alert - ${symbol}`,
-      labelAr: `تنبيه تشبع شرائي RSI - ${symbol}`,
+      label: t('indicators.rsiOverboughtAlert', { symbol }),
+      labelAr: t('indicators.rsiOverboughtAlert', { symbol }),
     })
-  }, [notifications, locale])
+  }, [notifications, t])
 
   // NOTE: Previously tried EventSource('/api/scanner/feed') for SSE, but that
   // endpoint returns application/json, not text/event-stream. This caused

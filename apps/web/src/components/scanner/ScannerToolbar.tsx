@@ -35,9 +35,9 @@ export function ScannerToolbar() {
   const count = ctx.filteredData.length
 
   const CATEGORIES: { key: CategoryFilter; label: string }[] = [
-    { key: 'ALL', label: t('all') }, { key: 'CRYPTO', label: 'CRYPTO' },
-    { key: 'FOREX', label: 'FOREX' }, { key: 'STOCK', label: 'STOCK' },
-    { key: 'COMMODITY', label: 'COMMODITY' },
+    { key: 'ALL', label: t('all') }, { key: 'CRYPTO', label: t('categories.crypto') },
+    { key: 'FOREX', label: t('categories.forex') }, { key: 'STOCK', label: t('categories.stocks') },
+    { key: 'COMMODITY', label: t('categories.commodity') },
   ]
 
   const DIRECTIONS: { key: DirectionFilter; label: string }[] = [

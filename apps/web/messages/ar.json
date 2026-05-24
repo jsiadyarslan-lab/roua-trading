@@ -2351,6 +2351,7 @@
       "multiTimeframe": "متعدد الأطر",
       "overview": "نظرة عامة",
       "customScreener": "سكرينر مخصص",
+      "screener": "سكرينر",
       "advancedScanner": "السكانر المتقدم",
       "subtitle": "مسح شامل بالذكاء الاصطناعي مع 18+ مؤشر تقني",
       "live": "مباشر",
@@ -3481,6 +3482,49 @@
       "WTI/USD": "النفط الخام WTI",
       "BRENTUSD": "النفط الخام برنت",
       "BRENT/USD": "النفط الخام برنت"
+    },
+    "categories": {
+      "crypto": "عملات رقمية",
+      "forex": "فوركس",
+      "stocks": "أسهم",
+      "commodity": "سلع"
+    },
+    "indicators": {
+      "rsi": "RSI",
+      "macd": "MACD",
+      "stoch": "ستوك",
+      "adx": "ADX",
+      "bollinger": "بولينجر",
+      "stochastic": "ستوكاستيك",
+      "atr": "ATR",
+      "cci": "CCI",
+      "vwap": "VWAP",
+      "obv": "OBV",
+      "tenkan": "تنكان",
+      "kijun": "كيجون",
+      "tkCross": "تقاطع تن-كي",
+      "cloud": "السحابة",
+      "priceVsCloud": "السعر مقابل السحابة",
+      "sar": "SAR",
+      "volumeProfile": "ملف الحجم",
+      "none": "لا شيء",
+      "histogram": "هيستوغرام",
+      "poc": "POC",
+      "valueArea": "منطقة القيمة",
+      "riskReward": "مخاطر:عائد",
+      "strong": "قوي",
+      "moderate": "متوسط",
+      "weak": "ضعيف",
+      "rsiOverboughtAlert": "تنبيه تشبع شرائي RSI - {symbol}"
+    },
+    "aiOpinion": {
+      "consensus": "إجماع الذكاء الاصطناعي",
+      "strongBuy": "شراء قوي",
+      "strongSell": "بيع قوي",
+      "buy": "شراء",
+      "sell": "بيع",
+      "hold": "انتظار",
+      "neutral": "محايد"
     }
   }
 }

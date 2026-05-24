@@ -56,13 +56,14 @@ function IndCard({ label, value, interp, color, bar }: { label: string; value: s
   )
 }
 
-function LevelPill({ price, type, strength }: { price: number; type: 'support' | 'resistance'; strength: string }) {
+function LevelPill({ price, type, strength, t }: { price: number; type: 'support' | 'resistance'; strength: string; t: any }) {
   const color = type === 'support' ? T.green : T.red
   const sColor = strength === 'STRONG' ? T.green : strength === 'MODERATE' ? T.amber : T.text3
+  const strengthLabel = strength === 'STRONG' ? t('indicators.strong') : strength === 'MODERATE' ? t('indicators.moderate') : t('indicators.weak')
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', borderRadius: 4, background: `${color}10`, border: `0.5px solid ${color}30`, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color }}>
       {price.toLocaleString()}
-      <span style={{ fontSize: 7, color: sColor, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>({strength})</span>
+      <span style={{ fontSize: 7, color: sColor, fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>({strengthLabel})</span>
     </span>
   )
 }
@@ -138,7 +139,11 @@ export function DeepAnalysisModal() {
                       {getLocalizedAssetName(symbol, data?.name || item?.name || '', t, locale)}
                     </span>
                     <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.purple}15`, color: T.purple, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-                      {item?.category || data?.category || ''}
+                      {(() => {
+                        const cat = item?.category || data?.category || ''
+                        const catKey = cat === 'CRYPTO' ? 'categories.crypto' : cat === 'FOREX' ? 'categories.forex' : cat === 'STOCK' ? 'categories.stocks' : cat === 'COMMODITY' ? 'categories.commodity' : ''
+                        return catKey ? t(catKey) : cat
+                      })()}
                     </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
@@ -161,15 +166,15 @@ export function DeepAnalysisModal() {
               {/* Technical Indicators Grid */}
               <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.technicalIndicators')}</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
-                <IndCard label="RSI" value={item?.rsi?.toFixed(1) ?? '—'} interp={item?.rsi !== null ? (item!.rsi! <= 30 ? t('deep.oversold') : item!.rsi! >= 70 ? t('deep.overbought') : t('neutral')) : ''} color={item?.rsi !== null ? (item!.rsi! <= 30 ? T.cyan : item!.rsi! >= 70 ? T.purple : T.amber) : T.text3} bar={item?.rsi ?? 0} />
-                <IndCard label="MACD" value={item?.macdSignal ?? '—'} interp={item?.macdHistogram !== null ? `Histogram: ${item?.macdHistogram?.toFixed(2)}` : ''} color={item?.macdSignal?.includes('BUY') ? T.green : item?.macdSignal?.includes('SELL') ? T.red : T.text3} />
-                <IndCard label="Bollinger" value={item?.bollingerPosition ?? '—'} color={T.cyan} />
-                <IndCard label="Stochastic" value={item?.stochK != null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'} color={T.amber} bar={item?.stochK ?? 0} />
-                <IndCard label="ADX" value={item?.adx?.toFixed(1) ?? '—'} interp={(item?.adx ?? 0) > 25 ? t('deep.strongTrend') : t('deep.weakTrend')} color={(item?.adx ?? 0) > 25 ? T.green : T.text3} bar={item?.adx ?? 0} />
-                <IndCard label="ATR" value={item?.atr?.toFixed(2) ?? '—'} interp={item?.atrVolatility ?? ''} color={T.purple} />
+                <IndCard label={t('indicators.rsi')} value={item?.rsi?.toFixed(1) ?? '—'} interp={item?.rsi !== null ? (item!.rsi! <= 30 ? t('deep.oversold') : item!.rsi! >= 70 ? t('deep.overbought') : t('neutral')) : ''} color={item?.rsi !== null ? (item!.rsi! <= 30 ? T.cyan : item!.rsi! >= 70 ? T.purple : T.amber) : T.text3} bar={item?.rsi ?? 0} />
+                <IndCard label={t('indicators.macd')} value={item?.macdSignal === 'NONE' ? t('indicators.none') : (item?.macdSignal ?? '—')} interp={item?.macdHistogram !== null ? `${t('indicators.histogram')}: ${item?.macdHistogram?.toFixed(2)}` : ''} color={item?.macdSignal?.includes('BUY') ? T.green : item?.macdSignal?.includes('SELL') ? T.red : T.text3} />
+                <IndCard label={t('indicators.bollinger')} value={item?.bollingerPosition ?? '—'} color={T.cyan} />
+                <IndCard label={t('indicators.stochastic')} value={item?.stochK != null ? `${item.stochK.toFixed(0)}/${item.stochD?.toFixed(0)}` : '—'} color={T.amber} bar={item?.stochK ?? 0} />
+                <IndCard label={t('indicators.adx')} value={item?.adx?.toFixed(1) ?? '—'} interp={(item?.adx ?? 0) > 25 ? t('deep.strongTrend') : t('deep.weakTrend')} color={(item?.adx ?? 0) > 25 ? T.green : T.text3} bar={item?.adx ?? 0} />
+                <IndCard label={t('indicators.atr')} value={item?.atr?.toFixed(2) ?? '—'} interp={item?.atrVolatility ?? ''} color={T.purple} />
                 {/* New Advanced Indicators */}
-                <IndCard label="CCI" value={data?.cci?.value?.toFixed(1) ?? '—'} interp={data?.cci?.interpretation === 'OVERBOUGHT' ? t('deep.overbought') : data?.cci?.interpretation === 'OVERSOLD' ? t('deep.oversold') : t('neutral')} color={data?.cci?.interpretation === 'OVERBOUGHT' ? T.purple : data?.cci?.interpretation === 'OVERSOLD' ? T.cyan : T.text3} bar={data?.cci ? Math.min(Math.abs(data.cci.value), 200) / 2 : 0} />
-                <IndCard label="VWAP" value={data?.vwap?.value?.toFixed(2) ?? '—'} interp={data?.vwap?.position === 'ABOVE' ? t('deep.aboveVwap') : data?.vwap?.position === 'BELOW' ? t('deep.belowVwap') : t('deep.atVwap')} color={data?.vwap?.position === 'ABOVE' ? T.green : data?.vwap?.position === 'BELOW' ? T.red : T.text3} />
+                <IndCard label={t('indicators.cci')} value={data?.cci?.value?.toFixed(1) ?? '—'} interp={data?.cci?.interpretation === 'OVERBOUGHT' ? t('deep.overbought') : data?.cci?.interpretation === 'OVERSOLD' ? t('deep.oversold') : t('neutral')} color={data?.cci?.interpretation === 'OVERBOUGHT' ? T.purple : data?.cci?.interpretation === 'OVERSOLD' ? T.cyan : T.text3} bar={data?.cci ? Math.min(Math.abs(data.cci.value), 200) / 2 : 0} />
+                <IndCard label={t('indicators.vwap')} value={data?.vwap?.value?.toFixed(2) ?? '—'} interp={data?.vwap?.position === 'ABOVE' ? t('deep.aboveVwap') : data?.vwap?.position === 'BELOW' ? t('deep.belowVwap') : t('deep.atVwap')} color={data?.vwap?.position === 'ABOVE' ? T.green : data?.vwap?.position === 'BELOW' ? T.red : T.text3} />
               </div>
 
               {/* Ichimoku Cloud Section */}
@@ -177,12 +182,12 @@ export function DeepAnalysisModal() {
                 <>
                   <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.ichimokuCloud')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
-                    <IndCard label="Tenkan" value={data.ichimoku.tenkanSen.toFixed(2)} color={T.cyan} />
-                    <IndCard label="Kijun" value={data.ichimoku.kijunSen.toFixed(2)} color={T.amber} />
-                    <IndCard label="TK Cross" value={data.ichimoku.tkCross === 'BULLISH' ? t('deep.bullish') : data.ichimoku.tkCross === 'BEARISH' ? t('deep.bearish') : t('neutral')} color={data.ichimoku.tkCross === 'BULLISH' ? T.green : data.ichimoku.tkCross === 'BEARISH' ? T.red : T.text3} />
-                    <IndCard label="Cloud" value={data.ichimoku.cloudColor === 'BULLISH' ? t('deep.bullish') : data.ichimoku.cloudColor === 'BEARISH' ? t('deep.bearish') : t('neutral')} color={data.ichimoku.cloudColor === 'BULLISH' ? T.green : data.ichimoku.cloudColor === 'BEARISH' ? T.red : T.amber} />
-                    <IndCard label="Price vs Cloud" value={data.ichimoku.priceVsCloud === 'ABOVE' ? t('deep.above') : data.ichimoku.priceVsCloud === 'BELOW' ? t('deep.below') : t('deep.inside')} color={data.ichimoku.priceVsCloud === 'ABOVE' ? T.green : data.ichimoku.priceVsCloud === 'BELOW' ? T.red : T.amber} />
-                    <IndCard label="SAR" value={data.sar?.value?.toFixed(2) ?? '—'} interp={data.sar?.trend === 'RISING' ? t('deep.bullish') : t('deep.bearish')} color={data.sar?.trend === 'RISING' ? T.green : T.red} />
+                    <IndCard label={t('indicators.tenkan')} value={data.ichimoku.tenkanSen.toFixed(2)} color={T.cyan} />
+                    <IndCard label={t('indicators.kijun')} value={data.ichimoku.kijunSen.toFixed(2)} color={T.amber} />
+                    <IndCard label={t('indicators.tkCross')} value={data.ichimoku.tkCross === 'BULLISH' ? t('deep.bullish') : data.ichimoku.tkCross === 'BEARISH' ? t('deep.bearish') : t('neutral')} color={data.ichimoku.tkCross === 'BULLISH' ? T.green : data.ichimoku.tkCross === 'BEARISH' ? T.red : T.text3} />
+                    <IndCard label={t('indicators.cloud')} value={data.ichimoku.cloudColor === 'BULLISH' ? t('deep.bullish') : data.ichimoku.cloudColor === 'BEARISH' ? t('deep.bearish') : t('neutral')} color={data.ichimoku.cloudColor === 'BULLISH' ? T.green : data.ichimoku.cloudColor === 'BEARISH' ? T.red : T.amber} />
+                    <IndCard label={t('indicators.priceVsCloud')} value={data.ichimoku.priceVsCloud === 'ABOVE' ? t('deep.above') : data.ichimoku.priceVsCloud === 'BELOW' ? t('deep.below') : t('deep.inside')} color={data.ichimoku.priceVsCloud === 'ABOVE' ? T.green : data.ichimoku.priceVsCloud === 'BELOW' ? T.red : T.amber} />
+                    <IndCard label={t('indicators.sar')} value={data.sar?.value?.toFixed(2) ?? '—'} interp={data.sar?.trend === 'RISING' ? t('deep.bullish') : t('deep.bearish')} color={data.sar?.trend === 'RISING' ? T.green : T.red} />
                   </div>
                 </>
               )}
@@ -193,10 +198,10 @@ export function DeepAnalysisModal() {
                   <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.volumeAnalysis')}</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 14 }}>
                     {data.obv && (
-                      <IndCard label="OBV" value={data.obv.trend === 'RISING' ? t('deep.rising') : data.obv.trend === 'FALLING' ? t('deep.falling') : t('deep.flat')} interp={data.obv.divergence === 'BULLISH_DIVERGENCE' ? t('deep.bullishDivergence') : data.obv.divergence === 'BEARISH_DIVERGENCE' ? t('deep.bearishDivergence') : t('deep.noDivergence')} color={data.obv.trend === 'RISING' ? T.green : data.obv.trend === 'FALLING' ? T.red : T.text3} />
+                      <IndCard label={t('indicators.obv')} value={data.obv.trend === 'RISING' ? t('deep.rising') : data.obv.trend === 'FALLING' ? t('deep.falling') : t('deep.flat')} interp={data.obv.divergence === 'BULLISH_DIVERGENCE' ? t('deep.bullishDivergence') : data.obv.divergence === 'BEARISH_DIVERGENCE' ? t('deep.bearishDivergence') : t('deep.noDivergence')} color={data.obv.trend === 'RISING' ? T.green : data.obv.trend === 'FALLING' ? T.red : T.text3} />
                     )}
                     {data.volumeProfile && (
-                      <IndCard label="Volume Profile" value={`POC: ${data.volumeProfile.poc.toFixed(2)}`} interp={`VA: ${data.volumeProfile.valueAreaLow.toFixed(2)} - ${data.volumeProfile.valueAreaHigh.toFixed(2)}`} color={T.blue} />
+                      <IndCard label={t('indicators.volumeProfile')} value={`${t('indicators.poc')}: ${data.volumeProfile.poc.toFixed(2)}`} interp={`${t('indicators.valueArea')}: ${data.volumeProfile.valueAreaLow.toFixed(2)} - ${data.volumeProfile.valueAreaHigh.toFixed(2)}`} color={T.blue} />
                     )}
                   </div>
                 </>
@@ -205,8 +210,8 @@ export function DeepAnalysisModal() {
               {/* Support / Resistance */}
               <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>{t('deep.supportResistance')}</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 14 }}>
-                {(data?.support || []).map((s, i) => <LevelPill key={`s-${s.price}-${i}`} price={s.price} type="support" strength={s.strength} />)}
-                {(data?.resistance || []).map((r, i) => <LevelPill key={`r-${r.price}-${i}`} price={r.price} type="resistance" strength={r.strength} />)}
+                {(data?.support || []).map((s, i) => <LevelPill key={`s-${s.price}-${i}`} price={s.price} type="support" strength={s.strength} t={t} />)}
+                {(data?.resistance || []).map((r, i) => <LevelPill key={`r-${r.price}-${i}`} price={r.price} type="resistance" strength={r.strength} t={t} />)}
                 {!data?.support?.length && !data?.resistance?.length && <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('deep.noLevelData')}</span>}
               </div>
 
@@ -289,7 +294,7 @@ export function DeepAnalysisModal() {
                     <div><span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('deep.entry')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.entry.toLocaleString()}</div></div>
                     <div><span style={{ fontSize: 8, color: T.green, fontFamily: "'Cairo', sans-serif" }}>{t('deep.target')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.green, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.tp.toLocaleString()}</div></div>
                     <div><span style={{ fontSize: 8, color: T.red, fontFamily: "'Cairo', sans-serif" }}>{t('deep.stopLoss')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.red, fontFamily: "'JetBrains Mono', monospace" }}>${data.signal.sl.toLocaleString()}</div></div>
-                    <div><span style={{ fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>R:R</span><div style={{ fontSize: 12, fontWeight: 800, color: T.amber, fontFamily: "'JetBrains Mono', monospace" }}>{(Math.abs(data.signal.tp - data.signal.entry) / Math.abs(data.signal.entry - data.signal.sl)).toFixed(1)}</div></div>
+                    <div><span style={{ fontSize: 8, color: T.amber, fontFamily: "'Cairo', sans-serif" }}>{t('indicators.riskReward')}</span><div style={{ fontSize: 12, fontWeight: 800, color: T.amber, fontFamily: "'JetBrains Mono', monospace" }}>{(Math.abs(data.signal.tp - data.signal.entry) / Math.abs(data.signal.entry - data.signal.sl)).toFixed(1)}</div></div>
                   </div>
                   {data.signal.reasons?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>

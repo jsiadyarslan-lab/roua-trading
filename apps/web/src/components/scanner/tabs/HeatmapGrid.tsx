@@ -42,8 +42,8 @@ export function HeatmapGrid() {
   const [sortMode, setSortMode] = useState<SortMode>('changePercent')
 
   const CATS: { key: CatFilter; label: string }[] = [
-    { key: 'ALL', label: t('heatmap.all') }, { key: 'CRYPTO', label: 'CRYPTO' },
-    { key: 'FOREX', label: 'FOREX' }, { key: 'STOCK', label: 'STOCK' },
+    { key: 'ALL', label: t('heatmap.all') }, { key: 'CRYPTO', label: t('categories.crypto') },
+    { key: 'FOREX', label: t('categories.forex') }, { key: 'STOCK', label: t('categories.stocks') },
   ]
 
   const SORTS: { key: SortMode; label: string }[] = [

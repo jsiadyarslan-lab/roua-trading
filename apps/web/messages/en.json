@@ -2351,6 +2351,7 @@
       "multiTimeframe": "Multi-Timeframe",
       "overview": "Overview",
       "customScreener": "Custom Screener",
+      "screener": "Screener",
       "advancedScanner": "Advanced Scanner",
       "subtitle": "Comprehensive AI scan with 18+ technical indicators",
       "live": "Live",
@@ -3480,6 +3481,49 @@
       "WTI/USD": "Crude Oil WTI",
       "BRENTUSD": "Crude Oil Brent",
       "BRENT/USD": "Crude Oil Brent"
+    },
+    "categories": {
+      "crypto": "CRYPTO",
+      "forex": "FOREX",
+      "stocks": "STOCK",
+      "commodity": "COMMODITY"
+    },
+    "indicators": {
+      "rsi": "RSI",
+      "macd": "MACD",
+      "stoch": "Stoch",
+      "adx": "ADX",
+      "bollinger": "Bollinger",
+      "stochastic": "Stochastic",
+      "atr": "ATR",
+      "cci": "CCI",
+      "vwap": "VWAP",
+      "obv": "OBV",
+      "tenkan": "Tenkan",
+      "kijun": "Kijun",
+      "tkCross": "TK Cross",
+      "cloud": "Cloud",
+      "priceVsCloud": "Price vs Cloud",
+      "sar": "SAR",
+      "volumeProfile": "Volume Profile",
+      "none": "NONE",
+      "histogram": "Histogram",
+      "poc": "POC",
+      "valueArea": "Value Area",
+      "riskReward": "R:R",
+      "strong": "Strong",
+      "moderate": "Moderate",
+      "weak": "Weak",
+      "rsiOverboughtAlert": "RSI Overbought Alert - {symbol}"
+    },
+    "aiOpinion": {
+      "consensus": "AI Consensus",
+      "strongBuy": "Strong Buy",
+      "strongSell": "Strong Sell",
+      "buy": "Buy",
+      "sell": "Sell",
+      "hold": "Hold",
+      "neutral": "Neutral"
     }
   }
 }

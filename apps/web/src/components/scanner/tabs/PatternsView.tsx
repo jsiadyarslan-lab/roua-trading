@@ -510,9 +510,9 @@ export function PatternsView() {
                 {/* Indicators row */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                    <IndicatorBadge label="RSI" value={item.rsi !== null ? item.rsi.toFixed(1) : '—'} status={item.rsi !== null ? (item.rsi <= 30 ? 'oversold' : item.rsi >= 70 ? 'overbought' : 'neutral') : 'neutral'} />
-                    <IndicatorBadge label="ADX" value={item.adx !== null ? item.adx.toFixed(1) : '—'} status={(item.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
-                    <IndicatorBadge label="Stoch" value={item.stochK !== null ? `${item.stochK.toFixed(1)}` : '—'} status="neutral" />
+                    <IndicatorBadge label={t('indicators.rsi')} value={item.rsi !== null ? item.rsi.toFixed(1) : '—'} status={item.rsi !== null ? (item.rsi <= 30 ? 'oversold' : item.rsi >= 70 ? 'overbought' : 'neutral') : 'neutral'} />
+                    <IndicatorBadge label={t('indicators.adx')} value={item.adx !== null ? item.adx.toFixed(1) : '—'} status={(item.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
+                    <IndicatorBadge label={t('indicators.stoch')} value={item.stochK !== null ? `${item.stochK.toFixed(1)}` : '—'} status="neutral" />
                     <MiniScoreBar item={item} />
                   </div>
                   <button onClick={e => { e.stopPropagation(); ctx.setSelectedSymbol(item.symbol) }}

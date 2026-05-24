@@ -166,12 +166,12 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* RSI */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
-        <IndicatorBadge label="RSI" value={item.rsi ?? '—'} status={getRsiStatus(item.rsi)} />
+        <IndicatorBadge label={t('indicators.rsi')} value={item.rsi ?? '—'} status={getRsiStatus(item.rsi)} />
       </td>
 
       {/* MACD */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}` }}>
-        <IndicatorBadge label="MACD" value={item.macdSignal ?? '—'} status={getMacdStatus(item.macdSignal)} />
+        <IndicatorBadge label={t('indicators.macd')} value={item.macdSignal === 'NONE' ? t('indicators.none') : (item.macdSignal ?? '—')} status={getMacdStatus(item.macdSignal)} />
       </td>
 
       {/* Stoch */}

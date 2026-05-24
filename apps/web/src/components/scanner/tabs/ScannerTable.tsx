@@ -18,10 +18,10 @@ const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] =
   { key: 'technicalScore', labelKey: 'table.compositeScore', width: 90 },
   { key: 'changePercent', labelKey: 'table.changePercent', width: 90 },
   { key: 'confidence', labelKey: 'table.direction', width: 60 },
-  { key: 'rsi', labelKey: 'RSI', width: 70 },
-  { key: 'momentumScore', labelKey: 'MACD', width: 80 },
-  { key: null, labelKey: 'Stoch', width: 60 },
-  { key: null, labelKey: 'ADX', width: 50 },
+  { key: 'rsi', labelKey: 'indicators.rsi', width: 70 },
+  { key: 'momentumScore', labelKey: 'indicators.macd', width: 80 },
+  { key: null, labelKey: 'indicators.stoch', width: 60 },
+  { key: null, labelKey: 'indicators.adx', width: 50 },
   { key: null, labelKey: 'table.sparkline', width: 84 },
   { key: null, labelKey: 'table.aiOpinion', width: 90 },
   { key: null, labelKey: 'table.action', width: 90 },
@@ -74,8 +74,8 @@ export function ScannerTable() {
           <thead>
             <tr style={{ background: T.bg2, position: 'sticky', top: 0, zIndex: 2 }}>
               {COLUMN_KEYS.map(col => {
-                // Only translate keys that start with "table." — others like RSI, MACD are universal
-                const colLabel = col.labelKey.startsWith('table.') ? t(col.labelKey) : col.labelKey
+                // Only translate keys that start with "table." or "indicators." — others are universal
+                const colLabel = (col.labelKey.startsWith('table.') || col.labelKey.startsWith('indicators.')) ? t(col.labelKey) : col.labelKey
                 return (
                   <th
                     key={col.labelKey}

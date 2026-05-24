@@ -1941,8 +1941,8 @@ export default function RouaChart({
           ref={(el) => { (aiPanelDivRef as any).current = el; }}
           style={{
             position: 'fixed',
-            top: panelPos?.top ?? 120,
-            left: panelPos?.left ?? Math.max(10, (typeof window !== 'undefined' ? window.innerWidth : 1366) - 750),
+            top: panelPos?.top ?? 130,
+            left: panelPos?.left ?? 680,
             width: 340,
             minHeight: 360,
             zIndex: 9999,

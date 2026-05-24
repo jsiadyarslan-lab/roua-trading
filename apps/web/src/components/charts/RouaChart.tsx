@@ -1046,6 +1046,12 @@ export default function RouaChart({
     const drawDirect = () => {
       const s = chart.getCandleSeries();
       if (!s) return false;
+      // Debug: what type is the series?
+      const serType = s?.seriesType?.() || s?._internal_seriesType?.() || typeof s;
+      const d3 = document.getElementById('__s3') || document.createElement('div');
+      d3.id = '__s3'; d3.style.cssText = 'position:fixed;top:52px;left:8px;background:#7c3aed;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;z-index:99999';
+      d3.textContent = `serType=${serType} hasCPL=${typeof s?.createPriceLine}`;
+      document.body.appendChild(d3);
       const directLines: any[] = [];
 
       if (result.smcData) {

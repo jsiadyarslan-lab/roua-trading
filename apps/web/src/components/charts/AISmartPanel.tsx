@@ -72,6 +72,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [elliottData, setElliottData] = useState<any>(null);
   const [wyckoffData, setWyckoffData] = useState<any>(null);
   const [volProfile, setVolProfile] = useState<any>(null);
+  const [overlays, setOverlays] = useState({ fvg: false, bos: false, sr: true, geo: false, ew: false, wyckoff: false });
+  const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -131,6 +133,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         elliottPattern,
         wyckoff,
         volumeProfile,
+        overlays,
       });
 
       // ── 3. مجلس الذكاء (8 نماذج) ─────────────────────────

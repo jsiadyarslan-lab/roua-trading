@@ -865,12 +865,44 @@ export default function RouaChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAIPanel]);
 
+  // ── Background Pattern Detection (every 5 minutes) ──────
+  useEffect(() => {
+    if (!candlesRef.current?.length) return;
+    const detect = async () => {
+      try {
+        const c = candlesRef.current;
+        if (!c?.length || c.length < 30) return;
+        const { detectLocalPatterns } = await import('./AIPatternPanel');
+        const { detectSMC } = await import('@/lib/charts/SMCDetector');
+        const patterns = detectLocalPatterns(c.slice(-30));
+        const smc = detectSMC(c);
+        const highConf = patterns.filter(p => (p.confidence||0) >= 0.75);
+        const bos = smc.structureBreaks;
+        if ((highConf.length > 0 || bos.length > 0) && 'Notification' in window) {
+          if (Notification.permission === 'granted') {
+            const names = highConf.map(p => p.labelAr||p.type).join('، ');
+            const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join('، ');
+            const body = [names, bosNames].filter(Boolean).join(' | ');
+            new Notification(`رؤى — ${selectedSymbol}`, { body, icon: '/favicon.ico' });
+          } else if (Notification.permission === 'default') {
+            Notification.requestPermission();
+          }
+        }
+      } catch {}
+    };
+    detect();
+    const timer = setInterval(detect, 5 * 60 * 1000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol, timeframe]);
+
   // FIX: Guard against concurrent execution of handlePatternsDetected.
   // Since this is async (awaits dynamic import), calling it twice rapidly can cause
   // the first call's series additions to overlap with the second call's cleanup,
   // leaving orphaned series on the chart.
   const aiProcessingRef = useRef(false);
   const aiPanelDivRef = useRef<HTMLDivElement>(null);
+  const [panelPos, setPanelPos] = useState<{left:number;top:number}|null>(null);
   const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
@@ -1016,7 +1048,8 @@ export default function RouaChart({
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
     // ── SMC + Geo + Elliott via chart.addPriceLine (same as S/R) ──
-    if ((result as any).smcData) {
+    const ov = (result as any).overlays || { fvg:true, bos:true, sr:true, geo:true, ew:true, wyckoff:true };
+    if (ov.fvg && (result as any).smcData) {
       const smc = (result as any).smcData;
       smc.fvgs?.slice(0,4).forEach((fvg: any, i: number) => {
         const col = fvg.type === 'bullish' ? '#00ff88' : '#ff4444';
@@ -1024,19 +1057,23 @@ export default function RouaChart({
         chart.addPriceLine(`fvg-lo-${i}`, fvg.low, col, '', 1, 1, false);
         aiPriceLinesRef.current.push(`fvg-hi-${i}`, `fvg-lo-${i}`);
       });
-      smc.structureBreaks?.slice(0,2).forEach((br: any, i: number) => {
+    }
+    if (ov.bos && (result as any).smcData) {
+      (result as any).smcData.structureBreaks?.slice(0,2).forEach((br: any, i: number) => {
         const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
         chart.addPriceLine(`bos-${i}`, br.price, col, `${br.type}${br.direction==='bullish'?'↑':'↓'}`, 2, 0, true);
         aiPriceLinesRef.current.push(`bos-${i}`);
       });
     }
-    (result as any).geoPatterns?.slice(0,3).forEach((pat: any, i: number) => {
-      if (!pat.target) return;
-      const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
-      chart.addPriceLine(`geo-${i}`, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
-      aiPriceLinesRef.current.push(`geo-${i}`);
-    });
-    if ((result as any).elliottPattern?.nextTarget) {
+    if (ov.geo) {
+      (result as any).geoPatterns?.slice(0,3).forEach((pat: any, i: number) => {
+        if (!pat.target) return;
+        const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+        chart.addPriceLine(`geo-${i}`, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
+        aiPriceLinesRef.current.push(`geo-${i}`);
+      });
+    }
+    if (ov.ew && (result as any).elliottPattern?.nextTarget) {
       const ew = (result as any).elliottPattern;
       chart.addPriceLine('ew-t', ew.nextTarget, '#93c5fd', `إليوت ${ew.currentWave}🌊`, 2, 0, true);
       aiPriceLinesRef.current.push('ew-t');
@@ -1902,24 +1939,35 @@ export default function RouaChart({
       {showAIPanel && (
         <div
           ref={(el) => { (aiPanelDivRef as any).current = el; }}
-          style={{ position: 'fixed', top: 120, left: 'calc(100vw - 750px)', width: 340, minHeight: 360, zIndex: 9999 }}
+          style={{
+            position: 'fixed',
+            top: panelPos?.top ?? 120,
+            left: panelPos?.left ?? Math.max(10, (typeof window !== 'undefined' ? window.innerWidth : 1366) - 750),
+            width: 340,
+            minHeight: 360,
+            zIndex: 9999,
+          }}
           onMouseDown={(e) => {
-            const el = aiPanelDivRef.current;
-            if (!el) return;
             const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
             if (!handle) return;
             e.preventDefault();
+            const el = aiPanelDivRef.current;
+            if (!el) return;
             const rect = el.getBoundingClientRect();
-            const startX = e.clientX, startY = e.clientY;
-            const startL = rect.left, startT = rect.top;
-            el.style.right = 'auto';
-            el.style.left = startL + 'px';
-            el.style.top = startT + 'px';
+            const sx = e.clientX, sy = e.clientY;
+            const sl = rect.left, st = rect.top;
             const onMove = (me: MouseEvent) => {
-              el.style.left = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, startL + me.clientX - startX)) + 'px';
-              el.style.top = Math.max(0, Math.min(window.innerHeight - 50, startT + me.clientY - startY)) + 'px';
+              const nl = Math.max(0, Math.min(window.innerWidth - 340, sl + me.clientX - sx));
+              const nt = Math.max(0, Math.min(window.innerHeight - 50, st + me.clientY - sy));
+              if (el) { el.style.left = nl + 'px'; el.style.top = nt + 'px'; }
             };
-            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            const onUp = (me: MouseEvent) => {
+              const nl = Math.max(0, Math.min(window.innerWidth - 340, sl + me.clientX - sx));
+              const nt = Math.max(0, Math.min(window.innerHeight - 50, st + me.clientY - sy));
+              setPanelPos({ left: nl, top: nt });
+              document.removeEventListener('mousemove', onMove);
+              document.removeEventListener('mouseup', onUp);
+            };
             document.addEventListener('mousemove', onMove);
             document.addEventListener('mouseup', onUp);
           }}

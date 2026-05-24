@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'AVAX/USDT', 'DOT/USDT', 'MATIC/USDT'];
 
@@ -32,6 +33,8 @@ interface SwarmResult {
 }
 
 export default function SwarmPanel() {
+  const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [agentCount, setAgentCount] = useState(3);
   const [selectedSymbols, setSelectedSymbols] = useState<string[]>(['BTC/USDT', 'ETH/USDT', 'SOL/USDT']);
   const [riskTolerance, setRiskTolerance] = useState(50);
@@ -67,7 +70,7 @@ export default function SwarmPanel() {
       if (data.success) {
         setSwarm(data.data);
       } else {
-        setError(data.error || 'فشل في إطلاق السرب');
+        setError(data.error || t('swarmLaunchFailed'));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -101,6 +104,22 @@ export default function SwarmPanel() {
     }
   };
 
+  const getSignalLabel = (signal: string | null) => {
+    switch (signal) {
+      case 'BUY': return t('buy');
+      case 'SELL': return t('sell');
+      default: return t('wait');
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'RUNNING': return `🟢 ${t('swarmActive')}`;
+      case 'FAILED': return `🔴 ${t('swarmFailed')}`;
+      default: return `⚪ ${t('swarmStopped')}`;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Configuration */}
@@ -109,13 +128,13 @@ export default function SwarmPanel() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-500 text-sm">
             🐝
           </span>
-          سرب الوكلاء — Swarm Intelligence
+          {t('swarmTitle')}
         </h2>
 
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
           {/* Agent Count */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">عدد الوكلاء (1-10)</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('swarmAgentCount')}</label>
             <input
               type="range"
               min={1}
@@ -126,14 +145,14 @@ export default function SwarmPanel() {
             />
             <div className="mt-1 flex justify-between text-xs text-gray-500">
               <span>1</span>
-              <span className="text-amber-400 font-medium">{agentCount} وكلاء</span>
+              <span className="text-amber-400 font-medium">{agentCount} {t('swarmAgents')}</span>
               <span>10</span>
             </div>
           </div>
 
           {/* Risk Tolerance */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">تحمل المخاطر</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('swarmRiskTolerance')}</label>
             <input
               type="range"
               min={0}
@@ -143,16 +162,16 @@ export default function SwarmPanel() {
               className="w-full accent-amber-500"
             />
             <div className="mt-1 flex justify-between text-xs text-gray-500">
-              <span>🛡️ محافظ</span>
+              <span>🛡️ {t('swarmConservative')}</span>
               <span className="text-amber-400 font-medium">{riskTolerance}%</span>
-              <span>⚡ مخاطر عالية</span>
+              <span>⚡ {t('swarmHighRisk')}</span>
             </div>
           </div>
         </div>
 
         {/* Symbol Selection */}
         <div className="mt-4">
-          <label className="mb-2 block text-xs font-medium text-gray-400">الأصول المراقبة (اختر واحدًا أو أكثر)</label>
+          <label className="mb-2 block text-xs font-medium text-gray-400">{t('swarmMonitoredAssets')}</label>
           <div className="flex flex-wrap gap-2">
             {SYMBOLS.map((sym) => (
               <button
@@ -177,14 +196,14 @@ export default function SwarmPanel() {
             disabled={loading || selectedSymbols.length === 0}
             className="rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:from-amber-500 hover:to-orange-500 disabled:opacity-50"
           >
-            {loading ? '⏳ جاري الإطلاق...' : '🚀 إطلاق السرب'}
+            {loading ? `⏳ ${t('swarmLaunching')}` : `🚀 ${t('swarmLaunch')}`}
           </button>
           {swarm?.status === 'ACTIVE' && (
             <button
               onClick={stopSwarm}
               className="rounded-lg border border-red-500/30 bg-red-500/10 px-5 py-2 text-sm font-medium text-red-300 transition-all hover:bg-red-500/20"
             >
-              ⏹ إيقاف السرب
+              ⏹ {t('swarmStop')}
             </button>
           )}
         </div>
@@ -204,16 +223,16 @@ export default function SwarmPanel() {
           <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-5">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-amber-300">🏅 توافق السرب</h3>
+                <h3 className="text-sm font-semibold text-amber-300">🏅 {t('swarmConsensus')}</h3>
                 <p className="mt-1 text-2xl font-bold text-white">
                   {getSignalEmoji(swarm.consensus.action)}{' '}
-                  {swarm.consensus.action === 'BUY' ? 'شراء' : swarm.consensus.action === 'SELL' ? 'بيع' : 'انتظار'}
+                  {getSignalLabel(swarm.consensus.action)}
                 </p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-400">اتفاق الوكلاء</p>
+                <p className="text-xs text-gray-400">{t('swarmAgentAgreement')}</p>
                 <p className="text-lg font-bold text-amber-400">{swarm.consensus.agreement}%</p>
-                <p className="text-xs text-gray-500">ثقة: {swarm.consensus.confidence}%</p>
+                <p className="text-xs text-gray-500">{t('swarmConfidence')}: {swarm.consensus.confidence}%</p>
               </div>
             </div>
 
@@ -242,14 +261,14 @@ export default function SwarmPanel() {
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-gray-400">{agent.id}</span>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${getSignalColor(agent.signal)}`}>
-                    {getSignalEmoji(agent.signal)} {agent.signal === 'BUY' ? 'شراء' : agent.signal === 'SELL' ? 'بيع' : 'انتظار'}
+                    {getSignalEmoji(agent.signal)} {getSignalLabel(agent.signal)}
                   </span>
                 </div>
 
                 <p className="mt-2 text-sm font-medium text-white">{agent.symbol}</p>
 
                 <div className="mt-2 flex items-center justify-between text-xs">
-                  <span className="text-gray-400">الثقة</span>
+                  <span className="text-gray-400">{t('swarmConfidence')}</span>
                   <div className="flex items-center gap-2">
                     <div className="h-1.5 w-16 overflow-hidden rounded-full bg-white/5">
                       <div
@@ -262,7 +281,7 @@ export default function SwarmPanel() {
                 </div>
 
                 <div className="mt-1 flex items-center justify-between text-xs text-gray-500">
-                  <span>{agent.status === 'RUNNING' ? '🟢 نشط' : agent.status === 'FAILED' ? '🔴 فشل' : '⚪ متوقف'}</span>
+                  <span>{getStatusLabel(agent.status)}</span>
                 </div>
               </div>
             ))}
@@ -270,7 +289,7 @@ export default function SwarmPanel() {
 
           {/* Swarm ID */}
           <div className="text-center text-xs text-gray-600">
-            معرف السرب: {swarm.swarmId} • بدأ في: {new Date(swarm.startedAt).toLocaleString('ar')}
+            {t('swarmId')}: {swarm.swarmId} • {t('swarmStartedAt')}: {new Date(swarm.startedAt).toLocaleString(locale)}
           </div>
         </>
       )}

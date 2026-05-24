@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslations } from 'next-intl';
 import {
   LineChart,
   Line,
@@ -17,13 +18,31 @@ import {
 // Dynamic import for TradeChart (uses lightweight-charts which needs browser)
 const TradeChart = dynamic(() => import('./TradeChart'), { ssr: false });
 
+const STRATEGY_KEYS: Record<string, string> = {
+  'MOMENTUM': 'strategyMomentum',
+  'MEAN_REVERSION': 'strategyMeanReversion',
+  'BREAKOUT': 'strategyBreakout',
+  'SCALPING': 'strategyScalping',
+  'SWING': 'strategySwing',
+  'AI_COUNCIL': 'strategyAICouncil',
+};
+
+const STRATEGY_DESC_KEYS: Record<string, string> = {
+  'MOMENTUM': 'strategyMomentumDesc',
+  'MEAN_REVERSION': 'strategyMeanReversionDesc',
+  'BREAKOUT': 'strategyBreakoutDesc',
+  'SCALPING': 'strategyScalpingDesc',
+  'SWING': 'strategySwingDesc',
+  'AI_COUNCIL': 'strategyAICouncilDesc',
+};
+
 const STRATEGIES = [
-  { value: 'MOMENTUM', label: 'زخم (Momentum)', desc: 'شراء عند الصعود، بيع عند النزول' },
-  { value: 'MEAN_REVERSION', label: 'عودة للمتوسط (Mean Reversion)', desc: 'شراء عند التشبع بيعي، بيع عند التشبع شرائي' },
-  { value: 'BREAKOUT', label: 'اختراق (Breakout)', desc: 'شراء عند كسر المقاومة، بيع عند كسر الدعم' },
-  { value: 'SCALPING', label: 'سكالبينج (Scalping)', desc: 'صفقات سريعة على تحركات صغيرة' },
-  { value: 'SWING', label: 'سوينج (Swing)', desc: 'احتفاظ لأيام بناءً على الاتجاه' },
-  { value: 'AI_COUNCIL', label: 'مجلس الذكاء (AI Council)', desc: 'توافق Gemini + Groq + GLM' },
+  { value: 'MOMENTUM' },
+  { value: 'MEAN_REVERSION' },
+  { value: 'BREAKOUT' },
+  { value: 'SCALPING' },
+  { value: 'SWING' },
+  { value: 'AI_COUNCIL' },
 ];
 
 const SYMBOLS = [
@@ -73,6 +92,7 @@ const defaultEnd = today.toISOString().split('T')[0];
 const defaultStart = oneYearAgo.toISOString().split('T')[0];
 
 export default function BacktestPanel() {
+  const t = useTranslations('neuralLab');
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState(defaultStart);
@@ -107,10 +127,10 @@ export default function BacktestPanel() {
       if (data.success) {
         setResult(data.data);
       } else {
-        setError(data.error || 'فشل في تشغيل الباك تست');
+        setError(data.error || t('backtestFailed'));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'خطأ في الاتصال');
+      setError(err instanceof Error ? err.message : t('connectionError'));
     } finally {
       setLoading(false);
     }
@@ -154,7 +174,7 @@ export default function BacktestPanel() {
         credentials: 'include',
         body: JSON.stringify({
           format,
-          reportType: 'باك تست',
+          reportType: t('backtestReportType'),
           reportData: result,
         }),
       });
@@ -192,17 +212,17 @@ export default function BacktestPanel() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-cyan-500 text-sm">
             📊
           </span>
-          إعدادات الباك تست
+          {t('backtestTitle')}
         </h2>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Symbol */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">الأصل</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('asset')}</label>
             <select
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
-              aria-label="اختيار الأصل"
+              aria-label={t('backtestSelectAsset')}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {SYMBOLS.map((s) => (
@@ -213,22 +233,22 @@ export default function BacktestPanel() {
 
           {/* Strategy */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">الاستراتيجية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('strategy')}</label>
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
-              aria-label="اختيار الاستراتيجية"
+              aria-label={t('backtestSelectStrategy')}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {STRATEGIES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(STRATEGY_KEYS[s.value])}</option>
               ))}
             </select>
           </div>
 
           {/* Capital */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">رأس المال الأولي ($)</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('initialCapital')}</label>
             <input
               type="number"
               value={capital}
@@ -239,7 +259,7 @@ export default function BacktestPanel() {
 
           {/* Start Date */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">تاريخ البداية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('startDate')}</label>
             <input
               type="date"
               value={periodStart}
@@ -251,7 +271,7 @@ export default function BacktestPanel() {
 
           {/* End Date */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">تاريخ النهاية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('endDate')}</label>
             <input
               type="date"
               value={periodEnd}
@@ -268,7 +288,7 @@ export default function BacktestPanel() {
               disabled={loading}
               className="w-full rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50"
             >
-              {loading ? '⏳ جاري التشغيل...' : '▶ تشغيل الباك تست'}
+              {loading ? `⏳ ${t('backtestRunning')}` : `▶ ${t('backtestRun')}`}
             </button>
           </div>
         </div>
@@ -287,12 +307,12 @@ export default function BacktestPanel() {
           {/* Metrics Grid */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4 lg:grid-cols-6">
             {[
-              { label: 'إجمالي العائد', value: `${result.totalReturn.toFixed(2)}%`, color: result.totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
-              { label: 'نسبة الفوز', value: `${result.winRate.toFixed(1)}%`, color: 'text-blue-400' },
-              { label: 'عدد الصفقات', value: result.totalTrades.toString(), color: 'text-white' },
-              { label: 'أقصى انخفاض', value: `${result.maxDrawdown.toFixed(2)}%`, color: 'text-red-400' },
-              { label: 'معامل شارب', value: result.sharpeRatio.toFixed(2), color: 'text-yellow-400' },
-              { label: 'رأس المال النهائي', value: `$${result.finalCapital.toFixed(0)}`, color: result.finalCapital >= capital ? 'text-green-400' : 'text-red-400' },
+              { label: t('totalReturn'), value: `${result.totalReturn.toFixed(2)}%`, color: result.totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
+              { label: t('winRate'), value: `${result.winRate.toFixed(1)}%`, color: 'text-blue-400' },
+              { label: t('totalTrades'), value: result.totalTrades.toString(), color: 'text-white' },
+              { label: t('maxDrawdown'), value: `${result.maxDrawdown.toFixed(2)}%`, color: 'text-red-400' },
+              { label: t('sharpeRatio'), value: result.sharpeRatio.toFixed(2), color: 'text-yellow-400' },
+              { label: t('backtestFinalCapital'), value: `$${result.finalCapital.toFixed(0)}`, color: result.finalCapital >= capital ? 'text-green-400' : 'text-red-400' },
             ].map((m) => (
               <div key={m.label} className="rounded-xl border border-white/5 bg-[#111827] p-4">
                 <p className="text-xs text-gray-400">{m.label}</p>
@@ -307,7 +327,7 @@ export default function BacktestPanel() {
           {/* Equity Curve */}
           {result.equityCurve.length > 0 && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-300">📈 منحنى رأس المال</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-300">📈 {t('backtestEquityCurve')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <AreaChart data={result.equityCurve}>
                   <defs>
@@ -332,35 +352,35 @@ export default function BacktestPanel() {
           {/* Trades Table */}
           {result.trades.length > 0 && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-300">📋 سجل الصفقات ({result.trades.length})</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-300">📋 {t('backtestTradeLog')} ({result.trades.length})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
-                  <caption className="sr-only">جدول نتائج صفقات الباك تست</caption>
+                  <caption className="sr-only">{t('backtestTableCaption')}</caption>
                   <thead>
                     <tr className="border-b border-white/5 text-gray-400">
-                      <th className="px-2 py-2 text-right">الاتجاه</th>
-                      <th className="px-2 py-2 text-right">سعر الدخول</th>
-                      <th className="px-2 py-2 text-right">سعر الخروج</th>
-                      <th className="px-2 py-2 text-right">الربح/الخسارة</th>
-                      <th className="px-2 py-2 text-right">النسبة</th>
-                      <th className="px-2 py-2 text-right">المدة</th>
+                      <th className="px-2 py-2 text-right">{t('backtestDirection')}</th>
+                      <th className="px-2 py-2 text-right">{t('backtestEntryPrice')}</th>
+                      <th className="px-2 py-2 text-right">{t('backtestExitPrice')}</th>
+                      <th className="px-2 py-2 text-right">{t('backtestPnL')}</th>
+                      <th className="px-2 py-2 text-right">{t('backtestPercentage')}</th>
+                      <th className="px-2 py-2 text-right">{t('backtestDuration')}</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {result.trades.slice(0, 20).map((t, i) => (
-                      <tr key={`${t.entryDate}-${t.side}-${i}`} className="border-b border-white/[0.02]">
-                        <td className={`px-2 py-1.5 font-medium ${t.side === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
-                          {t.side === 'BUY' ? '🟢 شراء' : '🔴 بيع'}
+                    {result.trades.slice(0, 20).map((tr, i) => (
+                      <tr key={`${tr.entryDate}-${tr.side}-${i}`} className="border-b border-white/[0.02]">
+                        <td className={`px-2 py-1.5 font-medium ${tr.side === 'BUY' ? 'text-green-400' : 'text-red-400'}`}>
+                          {tr.side === 'BUY' ? `🟢 ${t('buy')}` : `🔴 ${t('sell')}`}
                         </td>
-                        <td className="px-2 py-1.5 text-gray-300">${t.entryPrice.toFixed(2)}</td>
-                        <td className="px-2 py-1.5 text-gray-300">${t.exitPrice.toFixed(2)}</td>
-                        <td className={`px-2 py-1.5 font-medium ${t.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          ${t.pnl.toFixed(2)}
+                        <td className="px-2 py-1.5 text-gray-300">${tr.entryPrice.toFixed(2)}</td>
+                        <td className="px-2 py-1.5 text-gray-300">${tr.exitPrice.toFixed(2)}</td>
+                        <td className={`px-2 py-1.5 font-medium ${tr.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          ${tr.pnl.toFixed(2)}
                         </td>
-                        <td className={`px-2 py-1.5 ${t.pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                          {t.pnlPercent.toFixed(2)}%
+                        <td className={`px-2 py-1.5 ${tr.pnlPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {tr.pnlPercent.toFixed(2)}%
                         </td>
-                        <td className="px-2 py-1.5 text-gray-400">{t.holdDuration}</td>
+                        <td className="px-2 py-1.5 text-gray-400">{tr.holdDuration}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -373,13 +393,13 @@ export default function BacktestPanel() {
           {result.aiInsights && (
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-violet-300">🤖 تحليل AI Council</h3>
+                <h3 className="text-sm font-semibold text-violet-300">🤖 {t('backtestAITitle')}</h3>
                 <button
                   onClick={() => applyRecommendation(result.aiInsights)}
                   disabled={applyingRec}
                   className="rounded-lg bg-gradient-to-r from-violet-600 to-fuchsia-600 px-3 py-1.5 text-xs font-semibold text-white transition-all hover:from-violet-500 hover:to-fuchsia-500 disabled:opacity-50"
                 >
-                  {applyingRec ? '⏳ جاري التطبيق...' : '⚡ تطبيق التوصية'}
+                  {applyingRec ? `⏳ ${t('backtestApplying')}` : `⚡ ${t('backtestApplyRecommendation')}`}
                 </button>
               </div>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300">{result.aiInsights}</p>
@@ -388,7 +408,7 @@ export default function BacktestPanel() {
 
           {/* Export Buttons */}
           <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-            <h3 className="mb-3 text-sm font-semibold text-gray-300">📥 تصدير التقرير</h3>
+            <h3 className="mb-3 text-sm font-semibold text-gray-300">📥 {t('backtestExportTitle')}</h3>
             <div className="flex flex-wrap gap-2">
               {[
                 { format: 'pdf', label: 'PDF', icon: '📄', color: 'from-red-600 to-rose-600' },
@@ -400,10 +420,10 @@ export default function BacktestPanel() {
                   key={btn.format}
                   onClick={() => exportReport(btn.format)}
                   disabled={exporting !== null}
-                  aria-label={`تصدير كـ ${btn.label}`}
+                  aria-label={t('backtestExportAs', { format: btn.label })}
                   className={`rounded-lg bg-gradient-to-r ${btn.color} px-4 py-2 text-sm font-medium text-white transition-all hover:opacity-90 disabled:opacity-50`}
                 >
-                  {exporting === btn.format ? '⏳ جاري...' : `${btn.icon} ${btn.label}`}
+                  {exporting === btn.format ? `⏳ ${t('backtestExporting')}` : `${btn.icon} ${btn.label}`}
                 </button>
               ))}
             </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface TradePoint {
   entryDate: string;
@@ -60,6 +61,7 @@ function generateCandleData(trades: TradePoint[]): CandleData[] {
 }
 
 export default function TradeChart({ trades, symbol }: TradeChartProps) {
+  const t = useTranslations('neuralLab');
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<any>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
@@ -122,7 +124,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
       const candleData = generateCandleData(trades);
       candleSeries.setData(candleData);
 
-      // Add markers for entry/exit points
+      // Add markers for entry/exit points — use t() via closure
       const markers: Array<{
         time: string;
         position: 'aboveBar' | 'belowBar';
@@ -139,7 +141,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
             position: trade.side === 'BUY' ? 'belowBar' : 'aboveBar',
             color: trade.side === 'BUY' ? '#22c55e' : '#ef4444',
             shape: trade.side === 'BUY' ? 'arrowUp' : 'arrowDown',
-            text: trade.side === 'BUY' ? 'دخول' : 'دخول بيع',
+            text: trade.side === 'BUY' ? t('tradeChartEntry') : t('tradeChartSellEntryShort'),
           });
         }
 
@@ -150,7 +152,7 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
             position: trade.side === 'BUY' ? 'aboveBar' : 'belowBar',
             color: trade.side === 'BUY' ? '#ef4444' : '#22c55e',
             shape: trade.side === 'BUY' ? 'arrowDown' : 'arrowUp',
-            text: 'خروج',
+            text: t('tradeChartExit'),
           });
         }
       }
@@ -206,14 +208,14 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
         chartRef.current = null;
       }
     };
-  }, [trades, symbol]);
+  }, [trades, symbol, t]);
 
   if (!trades || trades.length === 0) {
     return (
       <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-        <h3 className="mb-3 text-sm font-semibold text-gray-300">🕯️ مخطط الشموع</h3>
+        <h3 className="mb-3 text-sm font-semibold text-gray-300">🕯️ {t('tradeChartTitle')}</h3>
         <div className="flex h-[200px] items-center justify-center text-sm text-gray-500">
-          شغّل الباك تست أولاً لعرض مخطط الشموع
+          {t('tradeChartRunBacktestFirst')}
         </div>
       </div>
     );
@@ -222,19 +224,19 @@ export default function TradeChart({ trades, symbol }: TradeChartProps) {
   return (
     <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-300">🕯️ مخطط الشموع — نقاط الدخول والخروج</h3>
+        <h3 className="text-sm font-semibold text-gray-300">🕯️ {t('tradeChartCandlestick')} — {t('tradeChartEntryExit')}</h3>
         <div className="flex items-center gap-4 text-xs">
           <span className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-green-500" />
-            دخول شراء
+            {t('tradeChartBuyEntry')}
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-red-500" />
-            دخول بيع
+            {t('tradeChartSellEntry')}
           </span>
           <span className="flex items-center gap-1">
             <span className="inline-block h-3 w-0.5 bg-yellow-500" />
-            خروج
+            {t('tradeChartExit')}
           </span>
         </div>
       </div>

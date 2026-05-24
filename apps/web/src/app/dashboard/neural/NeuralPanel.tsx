@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   LineChart,
   Line,
@@ -13,18 +14,39 @@ import {
   AreaChart,
 } from 'recharts';
 
+const ARCHITECTURE_KEYS: Record<string, string> = {
+  'LSTM': 'neuralArchitectureLSTM',
+  'GRU': 'neuralArchitectureGRU',
+  'TRANSFORMER': 'neuralArchitectureTransformer',
+  'ENSEMBLE': 'neuralArchitectureEnsemble',
+};
+
+const ARCHITECTURE_DESC_KEYS: Record<string, string> = {
+  'LSTM': 'neuralArchitectureLSTMDesc',
+  'GRU': 'neuralArchitectureGRUDesc',
+  'TRANSFORMER': 'neuralArchitectureTransformerDesc',
+  'ENSEMBLE': 'neuralArchitectureEnsembleDesc',
+};
+
+const HORIZON_KEYS: Record<string, string> = {
+  '1h': 'neuralHorizon1h',
+  '4h': 'neuralHorizon4h',
+  '1d': 'neuralHorizon1d',
+  '7d': 'neuralHorizon7d',
+};
+
 const ARCHITECTURES = [
-  { value: 'LSTM', label: 'LSTM', desc: 'ذاكرة طويلة قصيرة المدى' },
-  { value: 'GRU', label: 'GRU', desc: 'وحدات متكررة متحكم بها' },
-  { value: 'TRANSFORMER', label: 'Transformer', desc: 'آلية الانتباه الذاتي' },
-  { value: 'ENSEMBLE', label: 'Ensemble', desc: 'تجميع جميع النماذج' },
+  { value: 'LSTM' },
+  { value: 'GRU' },
+  { value: 'TRANSFORMER' },
+  { value: 'ENSEMBLE' },
 ];
 
 const HORIZONS = [
-  { value: '1h', label: 'ساعة واحدة' },
-  { value: '4h', label: '4 ساعات' },
-  { value: '1d', label: 'يوم واحد' },
-  { value: '7d', label: 'أسبوع' },
+  { value: '1h' },
+  { value: '4h' },
+  { value: '1d' },
+  { value: '7d' },
 ];
 
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
@@ -51,6 +73,7 @@ interface NeuralPredictResult {
 }
 
 export default function NeuralPanel() {
+  const t = useTranslations('neuralLab');
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [architecture, setArchitecture] = useState('ENSEMBLE');
   const [horizon, setHorizon] = useState('1d');
@@ -75,7 +98,7 @@ export default function NeuralPanel() {
       if (data.success) {
         setModelTrained(true);
       } else {
-        setError(data.error || 'فشل في التدريب');
+        setError(data.error || t('neuralTrainFailed'));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -101,7 +124,7 @@ export default function NeuralPanel() {
       if (data.success) {
         setResult(data.data);
       } else {
-        setError(data.error || 'فشل في التنبؤ');
+        setError(data.error || t('neuralPredictFailed'));
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err));
@@ -118,17 +141,17 @@ export default function NeuralPanel() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 text-sm">
             🧠
           </span>
-          الشبكة العصبية — AI Council Ensemble
+          {t('neuralTitle')}
         </h2>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
           {/* Symbol */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">الأصل</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('asset')}</label>
             <select
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
-              aria-label="اختيار الأصل"
+              aria-label={t('neuralSelectAsset')}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {SYMBOLS.map((s) => (
@@ -139,37 +162,37 @@ export default function NeuralPanel() {
 
           {/* Architecture */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">البنية العصبية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('neuralArchitecture')}</label>
             <select
               value={architecture}
               onChange={(e) => setArchitecture(e.target.value)}
-              aria-label="اختيار البنية العصبية"
+              aria-label={t('neuralSelectArchitecture')}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {ARCHITECTURES.map((a) => (
-                <option key={a.value} value={a.value}>{a.label}</option>
+                <option key={a.value} value={a.value}>{t(ARCHITECTURE_KEYS[a.value])}</option>
               ))}
             </select>
           </div>
 
           {/* Horizon */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">أفق التنبؤ</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('neuralHorizon')}</label>
             <select
               value={horizon}
               onChange={(e) => setHorizon(e.target.value)}
-              aria-label="اختيار أفق التنبؤ"
+              aria-label={t('neuralSelectHorizon')}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-violet-500 focus:outline-none"
             >
               {HORIZONS.map((h) => (
-                <option key={h.value} value={h.value}>{h.label}</option>
+                <option key={h.value} value={h.value}>{t(HORIZON_KEYS[h.value])}</option>
               ))}
             </select>
           </div>
 
           {/* Steps */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">عدد الخطوات</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('neuralSteps')}</label>
             <input
               type="number"
               min={1}
@@ -188,17 +211,17 @@ export default function NeuralPanel() {
             disabled={training}
             className="rounded-lg border border-violet-500/30 bg-violet-500/10 px-5 py-2 text-sm font-medium text-violet-300 transition-all hover:bg-violet-500/20 disabled:opacity-50"
           >
-            {training ? '⏳ جاري التدريب...' : '🏋️ تدريب النموذج'}
+            {training ? `⏳ ${t('neuralTraining')}` : `🏋️ ${t('neuralTrainModel')}`}
           </button>
           <button
             onClick={predict}
             disabled={loading}
             className="rounded-lg bg-gradient-to-r from-violet-600 to-pink-600 px-5 py-2 text-sm font-semibold text-white transition-all hover:from-violet-500 hover:to-pink-500 disabled:opacity-50"
           >
-            {loading ? '⏳ جاري التنبؤ...' : '🔮 تنبؤ'}
+            {loading ? `⏳ ${t('neuralPredicting')}` : `🔮 ${t('neuralPredict')}`}
           </button>
           {modelTrained && (
-            <span className="flex items-center text-xs text-green-400">✅ النموذج مدرب</span>
+            <span className="flex items-center text-xs text-green-400">✅ {t('neuralModelTrained')}</span>
           )}
         </div>
       </div>
@@ -216,21 +239,21 @@ export default function NeuralPanel() {
           {/* Metrics */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             <div className="rounded-xl border border-white/5 bg-[#111827] p-4">
-              <p className="text-xs text-gray-400">السعر الحالي</p>
+              <p className="text-xs text-gray-400">{t('neuralCurrentPrice')}</p>
               <p className="mt-1 text-xl font-bold text-white">${result.currentPrice.toFixed(2)}</p>
             </div>
             <div className="rounded-xl border border-white/5 bg-[#111827] p-4">
-              <p className="text-xs text-gray-400">آخر سعر متوقع</p>
+              <p className="text-xs text-gray-400">{t('neuralLastPredictedPrice')}</p>
               <p className={`mt-1 text-xl font-bold ${result.predictions[result.predictions.length - 1]?.predictedPrice >= result.currentPrice ? 'text-green-400' : 'text-red-400'}`}>
                 ${result.predictions[result.predictions.length - 1]?.predictedPrice.toFixed(2)}
               </p>
             </div>
             <div className="rounded-xl border border-white/5 bg-[#111827] p-4">
-              <p className="text-xs text-gray-400">توافق AI Council</p>
+              <p className="text-xs text-gray-400">{t('neuralCouncilConsensus')}</p>
               <p className="mt-1 text-xl font-bold text-violet-400">{result.consensusScore}%</p>
             </div>
             <div className="rounded-xl border border-white/5 bg-[#111827] p-4">
-              <p className="text-xs text-gray-400">دقة النموذج</p>
+              <p className="text-xs text-gray-400">{t('neuralModelAccuracy')}</p>
               <p className="mt-1 text-xl font-bold text-yellow-400">{result.modelInfo.accuracy.toFixed(1)}%</p>
             </div>
           </div>
@@ -238,7 +261,7 @@ export default function NeuralPanel() {
           {/* Prediction Chart */}
           {result.predictions.length > 0 && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-300">📈 مخطط التنبؤات مع نطاق الثقة</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-300">📈 {t('neuralPredictionChart')}</h3>
               <ResponsiveContainer width="100%" height={350}>
                 <AreaChart data={result.predictions}>
                   <defs>
@@ -259,9 +282,9 @@ export default function NeuralPanel() {
                     labelStyle={{ color: '#9ca3af' }}
                     formatter={(value: number, name: string) => {
                       const labels: Record<string, string> = {
-                        predictedPrice: 'السعر المتوقع',
-                        upperBound: 'الحد الأعلى',
-                        lowerBound: 'الحد الأدنى',
+                        predictedPrice: t('neuralPredictedPrice'),
+                        upperBound: t('neuralUpperBound'),
+                        lowerBound: t('neuralLowerBound'),
                       };
                       return [`$${value.toFixed(2)}`, labels[name] || name];
                     }}
@@ -279,7 +302,7 @@ export default function NeuralPanel() {
           {/* AI Analysis */}
           {result.aiAnalysis && (
             <div className="rounded-xl border border-violet-500/20 bg-violet-500/5 p-5">
-              <h3 className="mb-3 text-sm font-semibold text-violet-300">🤖 تحليل AI Council</h3>
+              <h3 className="mb-3 text-sm font-semibold text-violet-300">🤖 {t('neuralAITitle')}</h3>
               <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-300">{result.aiAnalysis}</p>
             </div>
           )}

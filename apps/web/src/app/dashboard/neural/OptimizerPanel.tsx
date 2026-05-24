@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import {
   BarChart,
   Bar,
@@ -12,13 +13,22 @@ import {
   Legend,
 } from 'recharts';
 
+const STRATEGY_KEYS: Record<string, string> = {
+  'MOMENTUM': 'strategyMomentum',
+  'MEAN_REVERSION': 'strategyMeanReversion',
+  'BREAKOUT': 'strategyBreakout',
+  'SCALPING': 'strategyScalping',
+  'SWING': 'strategySwing',
+  'AI_COUNCIL': 'strategyAICouncil',
+};
+
 const STRATEGIES = [
-  { value: 'MOMENTUM', label: 'زخم (Momentum)', desc: 'شراء عند الصعود، بيع عند النزول' },
-  { value: 'MEAN_REVERSION', label: 'عودة للمتوسط (Mean Reversion)', desc: 'شراء عند التشبع بيعي، بيع عند التشبع شرائي' },
-  { value: 'BREAKOUT', label: 'اختراق (Breakout)', desc: 'شراء عند كسر المقاومة، بيع عند كسر الدعم' },
-  { value: 'SCALPING', label: 'سكالبينج (Scalping)', desc: 'صفقات سريعة على تحركات صغيرة' },
-  { value: 'SWING', label: 'سوينج (Swing)', desc: 'احتفاظ لأيام بناءً على الاتجاه' },
-  { value: 'AI_COUNCIL', label: 'مجلس الذكاء (AI Council)', desc: 'توافق Gemini + Groq + GLM' },
+  { value: 'MOMENTUM' },
+  { value: 'MEAN_REVERSION' },
+  { value: 'BREAKOUT' },
+  { value: 'SCALPING' },
+  { value: 'SWING' },
+  { value: 'AI_COUNCIL' },
 ];
 
 const SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT', 'ADA/USDT', 'EUR/USD', 'GBP/USD', 'USD/JPY', 'XAU/USD', 'AAPL', 'TSLA', 'NVDA'];
@@ -58,6 +68,7 @@ interface OptimizeResult {
 }
 
 export default function OptimizerPanel() {
+  const t = useTranslations('neuralLab');
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState(_defaultStart);
@@ -90,10 +101,10 @@ export default function OptimizerPanel() {
       if (data.success) {
         setResult(data.data);
       } else {
-        setError(data.error || 'فشل في التحسين');
+        setError(data.error || t('optimizerFailed'));
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'خطأ في الاتصال');
+      setError(err instanceof Error ? err.message : t('connectionError'));
     } finally {
       setLoading(false);
     }
@@ -107,13 +118,13 @@ export default function OptimizerPanel() {
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-sm">
             🔧
           </span>
-          مُحسِّن الاستراتيجية
+          {t('optimizerTitle')}
         </h2>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {/* Symbol */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">الأصل</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('asset')}</label>
             <select
               value={symbol}
               onChange={(e) => setSymbol(e.target.value)}
@@ -127,21 +138,21 @@ export default function OptimizerPanel() {
 
           {/* Strategy */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">الاستراتيجية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('strategy')}</label>
             <select
               value={strategy}
               onChange={(e) => setStrategy(e.target.value)}
               className="w-full rounded-lg border border-white/10 bg-[#0a0e17] px-3 py-2 text-sm text-white focus:border-emerald-500 focus:outline-none"
             >
               {STRATEGIES.map((s) => (
-                <option key={s.value} value={s.value}>{s.label}</option>
+                <option key={s.value} value={s.value}>{t(STRATEGY_KEYS[s.value])}</option>
               ))}
             </select>
           </div>
 
           {/* Capital */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">رأس المال الأولي ($)</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('initialCapital')}</label>
             <input
               type="number"
               value={capital}
@@ -152,7 +163,7 @@ export default function OptimizerPanel() {
 
           {/* Start Date */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">تاريخ البداية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('startDate')}</label>
             <input
               type="date"
               value={periodStart}
@@ -163,7 +174,7 @@ export default function OptimizerPanel() {
 
           {/* End Date */}
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-gray-400">تاريخ النهاية</label>
+            <label className="mb-1.5 block text-xs font-medium text-gray-400">{t('endDate')}</label>
             <input
               type="date"
               value={periodEnd}
@@ -179,7 +190,7 @@ export default function OptimizerPanel() {
               disabled={loading}
               className="w-full rounded-lg bg-gradient-to-r from-emerald-600 to-teal-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50"
             >
-              {loading ? '⏳ جاري التحسين...' : '🔧 بدء التحسين'}
+              {loading ? `⏳ ${t('optimizerRunning')}` : `🔧 ${t('optimizerStart')}`}
             </button>
           </div>
         </div>
@@ -198,12 +209,12 @@ export default function OptimizerPanel() {
           {/* Performance Metrics */}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
             {[
-              { label: 'إجمالي العائد', value: `${result.performance.totalReturn}%`, color: result.performance.totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
-              { label: 'نسبة الفوز', value: `${result.performance.winRate}%`, color: 'text-blue-400' },
-              { label: 'عدد الصفقات', value: result.performance.totalTrades.toString(), color: 'text-white' },
-              { label: 'أقصى انخفاض', value: `${result.performance.maxDrawdown}%`, color: 'text-red-400' },
-              { label: 'معامل شارب', value: result.performance.sharpeRatio.toFixed(2), color: 'text-yellow-400' },
-              { label: 'معامل الربح', value: result.performance.profitFactor.toFixed(2), color: 'text-emerald-400' },
+              { label: t('totalReturn'), value: `${result.performance.totalReturn}%`, color: result.performance.totalReturn >= 0 ? 'text-green-400' : 'text-red-400' },
+              { label: t('winRate'), value: `${result.performance.winRate}%`, color: 'text-blue-400' },
+              { label: t('totalTrades'), value: result.performance.totalTrades.toString(), color: 'text-white' },
+              { label: t('maxDrawdown'), value: `${result.performance.maxDrawdown}%`, color: 'text-red-400' },
+              { label: t('sharpeRatio'), value: result.performance.sharpeRatio.toFixed(2), color: 'text-yellow-400' },
+              { label: t('profitFactor'), value: result.performance.profitFactor.toFixed(2), color: 'text-emerald-400' },
             ].map((m) => (
               <div key={m.label} className="rounded-xl border border-white/5 bg-[#111827] p-4">
                 <p className="text-xs text-gray-400">{m.label}</p>
@@ -214,7 +225,7 @@ export default function OptimizerPanel() {
 
           {/* Best Parameters */}
           <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-5">
-            <h3 className="mb-3 text-sm font-semibold text-emerald-300">✨ أفضل البارامترات</h3>
+            <h3 className="mb-3 text-sm font-semibold text-emerald-300">✨ {t('optimizerBestParams')}</h3>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
               {Object.entries(result.bestParams).map(([key, value]) => (
                 <div key={key} className="rounded-lg border border-white/5 bg-[#0a0e17] p-3">
@@ -230,12 +241,12 @@ export default function OptimizerPanel() {
           {/* Comparison with previous best */}
           {result.previousBest && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-300">📊 مقارنة مع أفضل نتيجة سابقة</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-300">📊 {t('optimizerComparisonTitle')}</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={[
-                  { name: 'إجمالي العائد', أفضل: result.performance.totalReturn, سابق: result.previousBest.totalReturn },
-                  { name: 'نسبة الفوز', أفضل: result.performance.winRate, سابق: result.previousBest.winRate },
-                  { name: 'معامل شارب', أفضل: result.performance.sharpeRatio, سابق: result.previousBest.sharpeRatio },
+                  { name: t('totalReturn'), [t('optimizerBest')]: result.performance.totalReturn, [t('optimizerPrevious')]: result.previousBest.totalReturn },
+                  { name: t('winRate'), [t('optimizerBest')]: result.performance.winRate, [t('optimizerPrevious')]: result.previousBest.winRate },
+                  { name: t('sharpeRatio'), [t('optimizerBest')]: result.performance.sharpeRatio, [t('optimizerPrevious')]: result.previousBest.sharpeRatio },
                 ]}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
                   <XAxis dataKey="name" stroke="#6b7280" tick={{ fontSize: 11 }} />
@@ -245,8 +256,8 @@ export default function OptimizerPanel() {
                     labelStyle={{ color: '#9ca3af' }}
                   />
                   <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="أفضل" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="سابق" fill="#6b7280" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={t('optimizerBest')} fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey={t('optimizerPrevious')} fill="#6b7280" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -255,15 +266,15 @@ export default function OptimizerPanel() {
           {/* Iteration Results */}
           {result.allResults.length > 0 && (
             <div className="rounded-xl border border-white/5 bg-[#111827] p-5">
-              <h3 className="mb-4 text-sm font-semibold text-gray-300">🔄 نتائج التكرارات ({result.iterations} تكرار)</h3>
+              <h3 className="mb-4 text-sm font-semibold text-gray-300">🔄 {t('optimizerIterations')} ({result.iterations} {t('optimizerIteration')})</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-white/5 text-gray-400">
                       <th className="px-2 py-2 text-right">#</th>
-                      <th className="px-2 py-2 text-right">إجمالي العائد</th>
-                      <th className="px-2 py-2 text-right">نسبة الفوز</th>
-                      <th className="px-2 py-2 text-right">معامل شارب</th>
+                      <th className="px-2 py-2 text-right">{t('totalReturn')}</th>
+                      <th className="px-2 py-2 text-right">{t('winRate')}</th>
+                      <th className="px-2 py-2 text-right">{t('sharpeRatio')}</th>
                     </tr>
                   </thead>
                   <tbody>

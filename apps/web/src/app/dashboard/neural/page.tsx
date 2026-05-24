@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useTranslations } from 'next-intl';
 
 // Loading fallback spinner for dynamic imports
 function PanelLoader() {
@@ -19,18 +20,19 @@ const SwarmPanel = dynamic(() => import('./SwarmPanel'), { ssr: false, loading: 
 const OptimizerPanel = dynamic(() => import('./OptimizerPanel'), { ssr: false, loading: () => <PanelLoader /> });
 const ComparisonPanel = dynamic(() => import('./ComparisonPanel'), { ssr: false, loading: () => <PanelLoader /> });
 
-const TABS = [
-  { id: 'backtest', label: 'الباك تست', icon: '📊', desc: 'اختبار الاستراتيجيات على البيانات التاريخية' },
-  { id: 'optimizer', label: 'المُحسِّن', icon: '🔧', desc: 'تحسين بارامترات الاستراتيجية تلقائياً' },
-  { id: 'comparison', label: 'المقارنة', icon: '⚖️', desc: 'مقارنة أداء استراتيجيتين على نفس الأصل' },
-  { id: 'neural', label: 'الشبكة العصبية', icon: '🧠', desc: 'تنبؤات الأسعار عبر AI Council' },
-  { id: 'swarm', label: 'سرب الوكلاء', icon: '🐝', desc: 'تنسيق وكلاء التداول المتعددين' },
-] as const;
-
-type TabId = (typeof TABS)[number]['id'];
+type TabId = 'backtest' | 'optimizer' | 'comparison' | 'neural' | 'swarm';
 
 export default function NeuralLabPage() {
+  const t = useTranslations('neuralLab');
   const [activeTab, setActiveTab] = useState<TabId>('backtest');
+
+  const TABS: { id: TabId; label: string; icon: string; desc: string }[] = [
+    { id: 'backtest', label: t('tabBacktest'), icon: '📊', desc: t('tabBacktestDesc') },
+    { id: 'optimizer', label: t('tabOptimizer'), icon: '🔧', desc: t('tabOptimizerDesc') },
+    { id: 'comparison', label: t('tabComparison'), icon: '⚖️', desc: t('tabComparisonDesc') },
+    { id: 'neural', label: t('tabNeural'), icon: '🧠', desc: t('tabNeuralDesc') },
+    { id: 'swarm', label: t('tabSwarm'), icon: '🐝', desc: t('tabSwarmDesc') },
+  ];
 
   return (
     <div className="min-h-screen bg-[#0a0e17] text-white">
@@ -41,9 +43,9 @@ export default function NeuralLabPage() {
             🧪
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">AI Trading Lab</h1>
+            <h1 className="text-xl font-bold text-white">{t('title')}</h1>
             <p className="text-sm text-gray-400">
-              مختبر التداول الذكي — مدعوم بـ AI Council (6 نماذج: Gemini, Groq, GLM-4, HuggingFace, Ollama, Bedrock)
+              {t('subtitle')}
             </p>
           </div>
         </div>

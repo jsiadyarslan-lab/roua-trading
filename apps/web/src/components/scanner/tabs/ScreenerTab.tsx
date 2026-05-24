@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Filter, Zap, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronUp, RotateCcw } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
@@ -16,58 +17,47 @@ const T = {
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
-// ── Filter Types ──
-interface ScreenerFilter {
-  id: string
-  label: string
-  labelAr: string
-  type: 'range' | 'select' | 'toggle'
-  options?: { value: string; label: string }[]
-  min?: number
-  max?: number
-  value?: any
-}
-
-const FILTERS: ScreenerFilter[] = [
-  { id: 'action', label: 'Action', labelAr: 'التوصية', type: 'select', options: [
-    { value: 'ALL', label: 'الكل' }, { value: 'STRONG_BUY', label: 'شراء قوي' },
-    { value: 'BUY', label: 'شراء' }, { value: 'HOLD', label: 'انتظار' },
-    { value: 'SELL', label: 'بيع' }, { value: 'STRONG_SELL', label: 'بيع قوي' },
-  ]},
-  { id: 'signalType', label: 'Signal', labelAr: 'نوع الإشارة', type: 'select', options: [
-    { value: 'ALL', label: 'الكل' }, { value: 'STRONG_TREND', label: 'اتجاه قوي' },
-    { value: 'REVERSAL', label: 'انعكاس' }, { value: 'BREAKOUT', label: 'اختراق' },
-    { value: 'CONSOLIDATION', label: 'تماسك' }, { value: 'DIVERGENCE', label: 'تباعد' },
-  ]},
-  { id: 'trendScore', label: 'Trend', labelAr: 'الاتجاه', type: 'range', min: 0, max: 100 },
-  { id: 'momentumScore', label: 'Momentum', labelAr: 'الزخم', type: 'range', min: 0, max: 100 },
-  { id: 'volumeScore', label: 'Volume', labelAr: 'الحجم', type: 'range', min: 0, max: 100 },
-  { id: 'volatilityScore', label: 'Volatility', labelAr: 'التذبذب', type: 'range', min: 0, max: 100 },
-  { id: 'direction', label: 'Direction', labelAr: 'الاتجاه', type: 'select', options: [
-    { value: 'ALL', label: 'الكل' }, { value: 'BULLISH', label: 'صعودي' },
-    { value: 'BEARISH', label: 'هبوطي' }, { value: 'NEUTRAL', label: 'محايد' },
-  ]},
-  { id: 'timeframe', label: 'Timeframe', labelAr: 'الإطار الزمني', type: 'select', options: [
-    { value: 'ALL', label: 'الكل' }, { value: 'SCALP', label: 'سكالب' },
-    { value: 'DAY', label: 'يومي' }, { value: 'SWING', label: 'سوينغ' },
-    { value: 'POSITION', label: 'استثماري' },
-  ]},
-]
-
-// ── Preset Strategies ──
-const PRESETS = [
-  { id: 'momentum', label: 'زخم صعودي', labelEn: 'Momentum Breakout', icon: TrendingUp,
-    filters: { action: 'BUY', signalType: 'BREAKOUT', trendScore: 60, momentumScore: 60, volumeScore: 50 } },
-  { id: 'reversal', label: 'انعكاس ذهبي', labelEn: 'Golden Reversal', icon: RotateCcw,
-    filters: { action: 'BUY', signalType: 'REVERSAL', momentumScore: 50, volumeScore: 40 } },
-  { id: 'trend', label: 'اتجاه قوي', labelEn: 'Strong Trend', icon: Zap,
-    filters: { action: 'STRONG_BUY', signalType: 'STRONG_TREND', trendScore: 70 } },
-  { id: 'bearish', label: 'هبوطي', labelEn: 'Bearish Signal', icon: TrendingDown,
-    filters: { action: 'SELL', direction: 'BEARISH', trendScore: 50 } },
-]
-
 export function ScreenerTab() {
+  const t = useTranslations('scannerAdvanced')
   const { scanData, setSelectedSymbol } = useScannerContext()
+
+  const FILTERS = [
+    { id: 'action', labelAr: t('screener.recommendation'), type: 'select' as const, options: [
+      { value: 'ALL', label: t('all') }, { value: 'STRONG_BUY', label: t('strongBuy') },
+      { value: 'BUY', label: t('buy') }, { value: 'HOLD', label: t('hold') },
+      { value: 'SELL', label: t('sell') }, { value: 'STRONG_SELL', label: t('strongSell') },
+    ]},
+    { id: 'signalType', labelAr: t('screener.signalType'), type: 'select' as const, options: [
+      { value: 'ALL', label: t('all') }, { value: 'STRONG_TREND', label: t('filters.strongTrend') },
+      { value: 'REVERSAL', label: t('filters.reversal') }, { value: 'BREAKOUT', label: t('filters.breakout') },
+      { value: 'CONSOLIDATION', label: t('filters.consolidation') }, { value: 'DIVERGENCE', label: t('filters.divergence') },
+    ]},
+    { id: 'trendScore', labelAr: t('screener.trend'), type: 'range' as const, min: 0, max: 100 },
+    { id: 'momentumScore', labelAr: t('screener.momentum'), type: 'range' as const, min: 0, max: 100 },
+    { id: 'volumeScore', labelAr: t('screener.volume'), type: 'range' as const, min: 0, max: 100 },
+    { id: 'volatilityScore', labelAr: t('screener.volatility'), type: 'range' as const, min: 0, max: 100 },
+    { id: 'direction', labelAr: t('screener.direction'), type: 'select' as const, options: [
+      { value: 'ALL', label: t('all') }, { value: 'BULLISH', label: t('bullish') },
+      { value: 'BEARISH', label: t('bearish') }, { value: 'NEUTRAL', label: t('neutral') },
+    ]},
+    { id: 'timeframe', labelAr: t('screener.timeframe'), type: 'select' as const, options: [
+      { value: 'ALL', label: t('all') }, { value: 'SCALP', label: t('screener.scalp') },
+      { value: 'DAY', label: t('screener.daily') }, { value: 'SWING', label: t('screener.swing') },
+      { value: 'POSITION', label: t('screener.position') },
+    ]},
+  ]
+
+  const PRESETS = [
+    { id: 'momentum', label: t('screener.momentumBreakout'), icon: TrendingUp,
+      filters: { action: 'BUY', signalType: 'BREAKOUT', trendScore: 60, momentumScore: 60, volumeScore: 50 } },
+    { id: 'reversal', label: t('screener.goldenReversal'), icon: RotateCcw,
+      filters: { action: 'BUY', signalType: 'REVERSAL', momentumScore: 50, volumeScore: 40 } },
+    { id: 'trend', label: t('screener.strongTrendPreset'), icon: Zap,
+      filters: { action: 'STRONG_BUY', signalType: 'STRONG_TREND', trendScore: 70 } },
+    { id: 'bearish', label: t('screener.bearishSignal'), icon: TrendingDown,
+      filters: { action: 'SELL', direction: 'BEARISH', trendScore: 50 } },
+  ]
+
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({
     action: 'ALL', signalType: 'ALL', direction: 'ALL', timeframe: 'ALL',
     trendScore: 0, momentumScore: 0, volumeScore: 0, volatilityScore: 0,
@@ -142,11 +132,11 @@ export function ScreenerTab() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Filter size={16} color={T.cyan} />
           <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-            السكرينر المخصص
+            {t('screener.customScreener')}
           </span>
           {activeCount > 0 && (
             <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.cyan}15`, color: T.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-              {activeCount} فلتر نشط
+              {activeCount} {activeCount === 1 ? t('screener.activeFilter') : t('screener.activeFilters')}
             </span>
           )}
         </div>
@@ -154,7 +144,7 @@ export function ScreenerTab() {
           onClick={resetFilters}
           style={{ fontSize: 9, padding: '4px 10px', borderRadius: 4, border: `0.5px solid ${T.border}`, background: T.surface, color: T.text3, cursor: 'pointer', fontFamily: "'Cairo', sans-serif", fontWeight: 700, transition: 'all 0.2s' }}
         >
-          إعادة تعيين
+          {t('screener.reset')}
         </button>
       </div>
 
@@ -163,7 +153,7 @@ export function ScreenerTab() {
         <div style={{ width: 240, minWidth: 240, borderInlineStart: `1px solid ${T.border}`, overflowY: 'auto', padding: '8px 0' }}>
           {/* Presets */}
           <div style={{ padding: '8px 12px' }}>
-            <div style={{ fontSize: 9, fontWeight: 800, color: T.text3, fontFamily: "'Cairo', sans-serif", marginBottom: 6 }}>استراتيجيات جاهزة</div>
+            <div style={{ fontSize: 9, fontWeight: 800, color: T.text3, fontFamily: "'Cairo', sans-serif", marginBottom: 6 }}>{t('screener.presetStrategies')}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {PRESETS.map(p => {
                 const Icon = p.icon
@@ -262,11 +252,11 @@ export function ScreenerTab() {
           {/* Stats bar */}
           <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
             <div style={{ padding: '6px 12px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>النتائج: </span>
+              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('screener.results')} </span>
               <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: "'JetBrains Mono', monospace" }}>{filtered.length}</span>
             </div>
             <div style={{ padding: '6px 12px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>من أصل: </span>
+              <span style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('screener.outOf')} </span>
               <span style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>{scanData.length}</span>
             </div>
           </div>
@@ -274,9 +264,9 @@ export function ScreenerTab() {
           {filtered.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 200, gap: 8 }}>
               <Filter size={28} color={T.text3} style={{ opacity: 0.4 }} />
-              <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>لا توجد نتائج مطابقة للفلاتر</span>
+              <span style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('screener.noMatchingResults')}</span>
               <button onClick={resetFilters} style={{ fontSize: 9, padding: '4px 12px', borderRadius: 4, background: `${T.cyan}10`, color: T.cyan, border: `0.5px solid ${T.cyan}30`, cursor: 'pointer', fontFamily: "'Cairo', sans-serif", fontWeight: 700 }}>
-                إعادة تعيين الفلاتر
+                {t('screener.resetFilters')}
               </button>
             </div>
           ) : (
@@ -315,10 +305,10 @@ export function ScreenerTab() {
                       <ScoreGauge score={ss.compositeScore} size={36} showValue label="" />
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                         <span style={{ fontSize: 8, fontWeight: 800, color: T.cyan, fontFamily: "'Cairo', sans-serif" }}>
-                          {ss.signalType === 'STRONG_TREND' ? 'اتجاه قوي' : ss.signalType === 'REVERSAL' ? 'انعكاس' : ss.signalType === 'BREAKOUT' ? 'اختراق' : ss.signalType === 'DIVERGENCE' ? 'تباعد' : 'تماسك'}
+                          {ss.signalType === 'STRONG_TREND' ? t('filters.strongTrend') : ss.signalType === 'REVERSAL' ? t('filters.reversal') : ss.signalType === 'BREAKOUT' ? t('filters.breakout') : ss.signalType === 'DIVERGENCE' ? t('filters.divergence') : t('filters.consolidation')}
                         </span>
                         <span style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-                          {ss.tradeTimeframe === 'SCALP' ? 'سكالب' : ss.tradeTimeframe === 'DAY' ? 'يومي' : ss.tradeTimeframe === 'SWING' ? 'سوينغ' : 'استثماري'}
+                          {ss.tradeTimeframe === 'SCALP' ? t('screener.scalp') : ss.tradeTimeframe === 'DAY' ? t('screener.daily') : ss.tradeTimeframe === 'SWING' ? t('screener.swing') : t('screener.position')}
                         </span>
                       </div>
                     </div>
@@ -326,10 +316,10 @@ export function ScreenerTab() {
                     {/* Mini Score Bars */}
                     <div style={{ display: 'flex', gap: 8, flex: 1 }}>
                       {[
-                        { label: 'اتجاه', value: ss.trendScore, color: T.green },
-                        { label: 'زخم', value: ss.momentumScore, color: T.cyan },
-                        { label: 'حجم', value: ss.volumeScore, color: T.blue },
-                        { label: 'تذبذب', value: ss.volatilityScore, color: T.purple },
+                        { label: t('smartScore.trend'), value: ss.trendScore, color: T.green },
+                        { label: t('smartScore.momentum'), value: ss.momentumScore, color: T.cyan },
+                        { label: t('smartScore.volume'), value: ss.volumeScore, color: T.blue },
+                        { label: t('smartScore.volatility'), value: ss.volatilityScore, color: T.purple },
                       ].map(s => (
                         <div key={s.label} style={{ flex: 1 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
@@ -346,17 +336,17 @@ export function ScreenerTab() {
                     {/* Action Badge */}
                     <div style={{ minWidth: 60, textAlign: 'center' }}>
                       {(() => {
-                        const actionMap: Record<string, { bg: string; color: string; label: string }> = {
-                          'STRONG_BUY': { bg: `${T.green}15`, color: T.green, label: 'شراء قوي' },
-                          'BUY': { bg: `${T.green}10`, color: T.greenDim, label: 'شراء' },
-                          'HOLD': { bg: `${T.amber}10`, color: T.amber, label: 'انتظار' },
-                          'SELL': { bg: `${T.red}10`, color: T.redDim, label: 'بيع' },
-                          'STRONG_SELL': { bg: `${T.red}15`, color: T.red, label: 'بيع قوي' },
+                        const actionMap: Record<string, { bg: string; color: string; key: string }> = {
+                          'STRONG_BUY': { bg: `${T.green}15`, color: T.green, key: 'strongBuy' },
+                          'BUY': { bg: `${T.green}10`, color: T.greenDim, key: 'buy' },
+                          'HOLD': { bg: `${T.amber}10`, color: T.amber, key: 'hold' },
+                          'SELL': { bg: `${T.red}10`, color: T.redDim, key: 'sell' },
+                          'STRONG_SELL': { bg: `${T.red}15`, color: T.red, key: 'strongSell' },
                         }
                         const cfg = actionMap[ss.action] ?? actionMap['HOLD']
                         return (
                           <span style={{ fontSize: 9, fontWeight: 800, padding: '3px 8px', borderRadius: 4, background: cfg.bg, color: cfg.color, fontFamily: "'Cairo', sans-serif", display: 'inline-block' }}>
-                            {cfg.label}
+                            {t(cfg.key)}
                           </span>
                         )
                       })()}

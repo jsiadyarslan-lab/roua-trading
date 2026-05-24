@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 const T = {
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
   blue: '#0A84FF', purple: '#B388FF', amber: '#FFB800', cyan: '#00D4FF',
@@ -14,21 +16,38 @@ interface DirectionTagProps {
   size?: TagSize
 }
 
-const DIR_MAP: Record<string, { label: string; color: string; bg: string }> = {
-  STRONG_BUY:  { label: 'شراء قوي', color: T.green,   bg: `${T.green}15` },
-  BUY:         { label: 'شراء',     color: T.greenDim, bg: `${T.greenDim}12` },
-  NEUTRAL:     { label: 'محايد',    color: T.text2,    bg: `${T.text2}10` },
-  SELL:        { label: 'بيع',      color: T.redDim,   bg: `${T.redDim}12` },
-  STRONG_SELL: { label: 'بيع قوي',  color: T.red,     bg: `${T.red}15` },
+const DIR_KEYS: Record<string, string> = {
+  STRONG_BUY: 'direction.strongBuy',
+  BUY: 'direction.buy',
+  NEUTRAL: 'direction.neutral',
+  SELL: 'direction.sell',
+  STRONG_SELL: 'direction.strongSell',
 }
 
-const SIGNAL_MAP: Record<string, { label: string; color: string }> = {
-  TREND:         { label: 'اتجاهي',  color: T.blue },
-  REVERSION:     { label: 'انعكاسي', color: T.purple },
-  BREAKOUT:      { label: 'اختراق',  color: T.amber },
-  CONSOLIDATION: { label: 'تماسك',   color: T.text3 },
-  WATCH:         { label: 'مراقبة',  color: T.text3 },
-  DIVERGENCE:    { label: 'تباعد',   color: T.cyan },
+const DIR_COLORS: Record<string, { color: string; bg: string }> = {
+  STRONG_BUY:  { color: T.green,   bg: `${T.green}15` },
+  BUY:         { color: T.greenDim, bg: `${T.greenDim}12` },
+  NEUTRAL:     { color: T.text2,    bg: `${T.text2}10` },
+  SELL:        { color: T.redDim,   bg: `${T.redDim}12` },
+  STRONG_SELL: { color: T.red,     bg: `${T.red}15` },
+}
+
+const SIGNAL_KEYS: Record<string, string> = {
+  TREND: 'signal.trend',
+  REVERSION: 'signal.reversion',
+  BREAKOUT: 'signal.breakout',
+  CONSOLIDATION: 'signal.consolidation',
+  WATCH: 'signal.watch',
+  DIVERGENCE: 'signal.divergence',
+}
+
+const SIGNAL_COLORS: Record<string, string> = {
+  TREND: T.blue,
+  REVERSION: T.purple,
+  BREAKOUT: T.amber,
+  CONSOLIDATION: T.text3,
+  WATCH: T.text3,
+  DIVERGENCE: T.cyan,
 }
 
 const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = {
@@ -38,8 +57,10 @@ const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = 
 }
 
 export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionTagProps) {
-  const dirConf = DIR_MAP[direction] || DIR_MAP.NEUTRAL
-  const sigConf = signalClass ? SIGNAL_MAP[signalClass] : null
+  const t = useTranslations('scannerAdvanced')
+  const dirConf = DIR_COLORS[direction] || DIR_COLORS.NEUTRAL
+  const dirKey = DIR_KEYS[direction] || 'direction.neutral'
+  const sigConf = signalClass ? { color: SIGNAL_COLORS[signalClass] || T.text3, key: SIGNAL_KEYS[signalClass] } : null
   const sz = SIZE_MAP[size]
 
   return (
@@ -52,7 +73,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
         border: `0.5px solid ${dirConf.color}30`,
         lineHeight: 1.4,
       }}>
-        {dirConf.label}
+        {t(dirKey)}
       </span>
       {sigConf && (
         <span style={{
@@ -62,7 +83,7 @@ export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionT
           fontFamily: "'Cairo', sans-serif",
           lineHeight: 1.4,
         }}>
-          {sigConf.label}
+          {t(sigConf.key)}
         </span>
       )}
     </div>

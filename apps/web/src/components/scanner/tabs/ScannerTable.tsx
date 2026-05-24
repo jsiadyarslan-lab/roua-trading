@@ -1,6 +1,7 @@
 'use client'
 
 import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { ScannerTableRow } from './ScannerTableRow'
 import type { SortKey } from '../hooks/useScannerFilters'
@@ -12,18 +13,18 @@ const T = {
   border: 'rgba(255,255,255,0.06)',
 }
 
-const COLUMNS: { key: SortKey | null; label: string; width?: number }[] = [
-  { key: null, label: 'الرمز', width: 160 },
-  { key: 'technicalScore', label: 'الدرجة المركبة', width: 90 },
-  { key: 'changePercent', label: 'التغير%', width: 90 },
-  { key: 'confidence', label: 'الاتجاه', width: 60 },
-  { key: 'rsi', label: 'RSI', width: 70 },
-  { key: 'momentumScore', label: 'MACD', width: 80 },
-  { key: null, label: 'Stoch', width: 60 },
-  { key: null, label: 'ADX', width: 50 },
-  { key: null, label: 'الخط البياني', width: 84 },
-  { key: null, label: 'رأي AI', width: 90 },
-  { key: null, label: 'إجراء', width: 90 },
+const COLUMN_KEYS: { key: SortKey | null; labelKey: string; width?: number }[] = [
+  { key: null, labelKey: 'table.symbol', width: 160 },
+  { key: 'technicalScore', labelKey: 'table.compositeScore', width: 90 },
+  { key: 'changePercent', labelKey: 'table.changePercent', width: 90 },
+  { key: 'confidence', labelKey: 'table.direction', width: 60 },
+  { key: 'rsi', labelKey: 'RSI', width: 70 },
+  { key: 'momentumScore', labelKey: 'MACD', width: 80 },
+  { key: null, labelKey: 'Stoch', width: 60 },
+  { key: null, labelKey: 'ADX', width: 50 },
+  { key: null, labelKey: 'table.sparkline', width: 84 },
+  { key: null, labelKey: 'table.aiOpinion', width: 90 },
+  { key: null, labelKey: 'table.action', width: 90 },
 ]
 
 function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey | null; sortKey: SortKey; sortDir: string }) {
@@ -34,6 +35,7 @@ function SortIcon({ colKey, sortKey, sortDir }: { colKey: SortKey | null; sortKe
 }
 
 export function ScannerTable() {
+  const t = useTranslations('scannerAdvanced')
   const ctx = useScannerContext()
 
   return (
@@ -54,14 +56,14 @@ export function ScannerTable() {
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           height: 300, color: T.text3, fontFamily: "'Cairo', sans-serif", fontSize: 13,
         }}>
-          جاري تحميل البيانات...
+          {t('table.loading')}
         </div>
       ) : ctx.filteredData.length === 0 ? (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           height: 300, color: T.text3, fontFamily: "'Cairo', sans-serif", fontSize: 13,
         }}>
-          لا توجد بيانات مطابقة
+          {t('table.noData')}
         </div>
       ) : (
         <table style={{
@@ -71,27 +73,31 @@ export function ScannerTable() {
           {/* Header */}
           <thead>
             <tr style={{ background: T.bg2, position: 'sticky', top: 0, zIndex: 2 }}>
-              {COLUMNS.map(col => (
-                <th
-                  key={col.label}
-                  onClick={col.key ? () => { ctx.toggleSort(col.key!) } : undefined}
-                  style={{
-                    padding: '10px 8px', fontSize: 9, fontWeight: 800,
-                    color: col.key === ctx.sortKey ? T.cyan : T.text3,
-                    fontFamily: "'Cairo', sans-serif",
-                    borderBottom: `1px solid ${T.border}`,
-                    cursor: col.key ? 'pointer' : 'default',
-                    whiteSpace: 'nowrap', textAlign: 'center', direction: 'inherit',
-                    width: col.width, minWidth: col.width,
-                    userSelect: 'none', transition: 'color 0.2s',
-                  }}
-                >
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    {col.label}
-                    {col.key && <SortIcon colKey={col.key} sortKey={ctx.sortKey} sortDir={ctx.sortDir} />}
-                  </div>
-                </th>
-              ))}
+              {COLUMN_KEYS.map(col => {
+                // Only translate keys that start with "table." — others like RSI, MACD are universal
+                const colLabel = col.labelKey.startsWith('table.') ? t(col.labelKey) : col.labelKey
+                return (
+                  <th
+                    key={col.labelKey}
+                    onClick={col.key ? () => { ctx.toggleSort(col.key!) } : undefined}
+                    style={{
+                      padding: '10px 8px', fontSize: 9, fontWeight: 800,
+                      color: col.key === ctx.sortKey ? T.cyan : T.text3,
+                      fontFamily: "'Cairo', sans-serif",
+                      borderBottom: `1px solid ${T.border}`,
+                      cursor: col.key ? 'pointer' : 'default',
+                      whiteSpace: 'nowrap', textAlign: 'center', direction: 'inherit',
+                      width: col.width, minWidth: col.width,
+                      userSelect: 'none', transition: 'color 0.2s',
+                    }}
+                  >
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      {colLabel}
+                      {col.key && <SortIcon colKey={col.key} sortKey={ctx.sortKey} sortDir={ctx.sortDir} />}
+                    </div>
+                  </th>
+                )
+              })}
             </tr>
           </thead>
 

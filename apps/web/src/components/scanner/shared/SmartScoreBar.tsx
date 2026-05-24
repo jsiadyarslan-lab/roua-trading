@@ -1,5 +1,7 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 const T = {
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
   amber: '#FFB800', blue: '#0A84FF', cyan: '#00D4FF',
@@ -27,20 +29,21 @@ function getBarColor(val: number): string {
   return T.red
 }
 
-const BARS: { key: keyof SmartScore; label: string }[] = [
-  { key: 'trendScore',      label: 'اتجاه' },
-  { key: 'momentumScore',   label: 'زخم' },
-  { key: 'volatilityScore', label: 'تذبذب' },
-  { key: 'volumeScore',     label: 'حجم' },
-  { key: 'compositeScore',  label: 'مركب' },
+const BAR_KEYS: { key: keyof SmartScore; labelKey: string }[] = [
+  { key: 'trendScore',      labelKey: 'smartScore.trend' },
+  { key: 'momentumScore',   labelKey: 'smartScore.momentum' },
+  { key: 'volatilityScore', labelKey: 'smartScore.volatility' },
+  { key: 'volumeScore',     labelKey: 'smartScore.volume' },
+  { key: 'compositeScore',  labelKey: 'smartScore.composite' },
 ]
 
 export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
+  const t = useTranslations('scannerAdvanced')
   if (!smartScore) return null
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-      {BARS.map(({ key, label }) => {
+      {BAR_KEYS.map(({ key, labelKey }) => {
         const val = smartScore[key]
         const pct = Math.min(Math.max((val + 100) / 200 * 100, 0), 100) // -100..100 → 0..100%
         const color = getBarColor(val)
@@ -52,7 +55,7 @@ export function SmartScoreBar({ smartScore }: SmartScoreBarProps) {
               width: 32, fontSize: 8, fontWeight: 700, color: T.text3,
               fontFamily: "'Cairo', sans-serif", textAlign: 'right', flexShrink: 0,
             }}>
-              {label}
+              {t(labelKey)}
             </span>
             <div style={{
               flex: 1, height: isComposite ? 6 : 4,

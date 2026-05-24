@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react'
 import { Eye, Layers, Bell } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -55,12 +56,13 @@ function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; colo
 }
 
 function ActionBadge({ action }: { action: string }) {
-  const map: Record<string, { bg: string; color: string; label: string }> = {
-    'STRONG_BUY': { bg: `${T.green}15`, color: T.green, label: 'شراء قوي' },
-    'BUY': { bg: `${T.green}10`, color: T.greenDim, label: 'شراء' },
-    'HOLD': { bg: `${T.amber}10`, color: T.amber, label: 'انتظار' },
-    'SELL': { bg: `${T.red}10`, color: T.redDim, label: 'بيع' },
-    'STRONG_SELL': { bg: `${T.red}15`, color: T.red, label: 'بيع قوي' },
+  const t = useTranslations('scannerAdvanced')
+  const map: Record<string, { bg: string; color: string; key: string }> = {
+    'STRONG_BUY': { bg: `${T.green}15`, color: T.green, key: 'strongBuy' },
+    'BUY': { bg: `${T.green}10`, color: T.greenDim, key: 'buy' },
+    'HOLD': { bg: `${T.amber}10`, color: T.amber, key: 'hold' },
+    'SELL': { bg: `${T.red}10`, color: T.redDim, key: 'sell' },
+    'STRONG_SELL': { bg: `${T.red}15`, color: T.red, key: 'strongSell' },
   }
   const cfg = map[action] ?? map['HOLD']
   return (
@@ -68,12 +70,13 @@ function ActionBadge({ action }: { action: string }) {
       fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
       background: cfg.bg, color: cfg.color, fontFamily: "'Cairo', sans-serif",
     }}>
-      {cfg.label}
+      {t(cfg.key)}
     </span>
   )
 }
 
 function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, hasActiveAlert }: ScannerTableRowProps) {
+  const t = useTranslations('scannerAdvanced')
   const [hovered, setHovered] = useState(false)
   const dimmed = !item.marketOpen
   const chgColor = item.changePercent >= 0 ? T.green : T.red
@@ -200,7 +203,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
           <div style={{ display: 'flex', gap: 3 }}>
             <button
               onClick={e => { e.stopPropagation(); onSelect(item.symbol) }}
-              title="تحليل عميق"
+              title={t('actions.deepAnalysis')}
               style={{
                 padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
                 background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
@@ -211,7 +214,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
             </button>
             <button
               onClick={e => { e.stopPropagation() }}
-              title="متعدد الأطر"
+              title={t('actions.multiTimeframe')}
               style={{
                 padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
                 background: T.surface, color: T.text3, cursor: 'pointer', transition: 'all 0.2s',
@@ -222,7 +225,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
             </button>
             <button
               onClick={e => { e.stopPropagation(); onBellClick(item.symbol) }}
-              title="تنبيهات"
+              title={t('actions.alerts')}
               style={{
                 padding: 3, borderRadius: 3, border: `0.5px solid ${T.border}`,
                 background: T.surface, color: hasActiveAlert ? T.amber : T.text3,

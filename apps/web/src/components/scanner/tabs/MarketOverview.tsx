@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react'
 import { BarChart3 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
@@ -15,20 +16,21 @@ const T = {
   border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
-const SECTORS = [
-  { key: 'CRYPTO', label: 'عملات رقمية', color: T.cyan },
-  { key: 'FOREX', label: 'فوركس', color: T.green },
-  { key: 'STOCK', label: 'أسهم', color: T.amber },
-  { key: 'COMMODITY', label: 'سلع', color: T.purple },
-]
-
 export function MarketOverview() {
+  const t = useTranslations('scannerAdvanced')
   const ctx = useScannerContext()
   const { scanData, overview } = ctx
 
+  const SECTORS = [
+    { key: 'CRYPTO', label: t('sectors.crypto'), color: T.cyan },
+    { key: 'FOREX', label: t('sectors.forex'), color: T.green },
+    { key: 'STOCK', label: t('sectors.stocks'), color: T.amber },
+    { key: 'COMMODITY', label: t('sectors.commodities'), color: T.purple },
+  ]
+
   // Sentiment calculation
   const sentiment = useMemo(() => {
-    if (!scanData.length) return { score: 0, label: 'محايد', color: T.text3, bullCount: 0, bearCount: 0, neutralCount: 0 }
+    if (!scanData.length) return { score: 0, label: t('neutral'), color: T.text3, bullCount: 0, bearCount: 0, neutralCount: 0 }
     let bullCount = 0, bearCount = 0, neutralCount = 0, totalScore = 0
     scanData.forEach(d => {
       if (d.direction.includes('BUY')) bullCount++
@@ -37,10 +39,10 @@ export function MarketOverview() {
       totalScore += d.technicalScore
     })
     const avg = totalScore / scanData.length
-    const label = avg >= 30 ? 'صعودي' : avg <= -30 ? 'هبوطي' : 'محايد'
+    const label = avg >= 30 ? t('bullish') : avg <= -30 ? t('bearish') : t('neutral')
     const color = avg >= 30 ? T.green : avg <= -30 ? T.red : T.amber
     return { score: Math.round(avg), label, color, bullCount, bearCount, neutralCount }
-  }, [scanData])
+  }, [scanData, t])
 
   // Strongest signals
   const strongest = useMemo(() =>
@@ -80,18 +82,18 @@ export function MarketOverview() {
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <BarChart3 size={18} color={T.cyan} />
-          <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>نظرة عامة على السوق</span>
+          <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('overview.marketOverview')}</span>
         </div>
 
         {/* Sentiment Gauge */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, padding: '20px 16px', borderRadius: 10, background: T.bg2, border: `0.5px solid ${T.border}`, marginBottom: 16 }}>
-          <ScoreGauge score={sentiment.score} size={80} label="مشاعر السوق" showValue />
+          <ScoreGauge score={sentiment.score} size={80} label={t('overview.marketSentiment')} showValue />
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             <span style={{ fontSize: 16, fontWeight: 800, color: sentiment.color, fontFamily: "'Cairo', sans-serif" }}>{sentiment.label}</span>
             <div style={{ display: 'flex', gap: 12 }}>
-              <span style={{ fontSize: 10, fontWeight: 700, color: T.green, fontFamily: "'Cairo', sans-serif" }}>صعودي: {sentiment.bullCount}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: T.red, fontFamily: "'Cairo', sans-serif" }}>هبوطي: {sentiment.bearCount}</span>
-              <span style={{ fontSize: 10, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>محايد: {sentiment.neutralCount}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: T.green, fontFamily: "'Cairo', sans-serif" }}>{t('bullish')}: {sentiment.bullCount}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: T.red, fontFamily: "'Cairo', sans-serif" }}>{t('bearish')}: {sentiment.bearCount}</span>
+              <span style={{ fontSize: 10, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('neutral')}: {sentiment.neutralCount}</span>
             </div>
           </div>
         </div>
@@ -100,7 +102,7 @@ export function MarketOverview() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 16 }}>
           {/* Strongest Signals */}
           <div style={{ borderRadius: 8, border: `0.5px solid ${T.border}`, background: T.bg2, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>أقوى الإشارات</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>{t('overview.strongestSignals')}</div>
             {strongest.map(item => (
               <div key={item.symbol} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `0.5px solid ${T.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -121,7 +123,7 @@ export function MarketOverview() {
 
           {/* Top Gainers */}
           <div style={{ borderRadius: 8, border: `0.5px solid ${T.border}`, background: T.bg2, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>الأكثر ارتفاعاً</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>{t('overview.topGainers')}</div>
             {gainers.map(item => (
               <div key={item.symbol} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `0.5px solid ${T.border}` }}>
                 <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
@@ -139,7 +141,7 @@ export function MarketOverview() {
 
           {/* Top Losers */}
           <div style={{ borderRadius: 8, border: `0.5px solid ${T.border}`, background: T.bg2, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: T.red, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>الأكثر انخفاضاً</div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: T.red, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>{t('overview.topLosers')}</div>
             {losers.map(item => (
               <div key={item.symbol} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 0', borderBottom: `0.5px solid ${T.border}` }}>
                 <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{item.symbol}</span>
@@ -158,7 +160,7 @@ export function MarketOverview() {
 
         {/* Sector Distribution */}
         <div style={{ borderRadius: 8, border: `0.5px solid ${T.border}`, background: T.bg2, padding: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>توزيع القطاعات</div>
+          <div style={{ fontSize: 11, fontWeight: 800, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>{t('overview.sectorDistribution')}</div>
           {SECTORS.map(s => {
             const avg = sectorAvg[s.key] ?? 0
             const pct = Math.min(Math.max((avg + 100) / 200 * 100, 3), 100)

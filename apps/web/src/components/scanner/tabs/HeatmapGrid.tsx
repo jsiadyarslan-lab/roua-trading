@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import type { HeatmapItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
@@ -14,17 +15,6 @@ const T = {
 
 type SortMode = 'changePercent' | 'volume' | 'technicalScore'
 type CatFilter = 'ALL' | 'CRYPTO' | 'FOREX' | 'STOCK'
-
-const CATS: { key: CatFilter; label: string }[] = [
-  { key: 'ALL', label: 'الكل' }, { key: 'CRYPTO', label: 'CRYPTO' },
-  { key: 'FOREX', label: 'FOREX' }, { key: 'STOCK', label: 'STOCK' },
-]
-
-const SORTS: { key: SortMode; label: string }[] = [
-  { key: 'changePercent', label: 'التغير%' },
-  { key: 'volume', label: 'الحجم' },
-  { key: 'technicalScore', label: 'الدرجة' },
-]
 
 function getHeatColor(pct: number): string {
   return pct >= 0 ? (pct > 3 ? T.green : T.greenDim) : (pct < -3 ? T.red : T.redDim)
@@ -43,9 +33,21 @@ function scoreDot(score: number): string {
 }
 
 export function HeatmapGrid() {
+  const t = useTranslations('scannerAdvanced')
   const ctx = useScannerContext()
   const [catFilter, setCatFilter] = useState<CatFilter>('ALL')
   const [sortMode, setSortMode] = useState<SortMode>('changePercent')
+
+  const CATS: { key: CatFilter; label: string }[] = [
+    { key: 'ALL', label: t('heatmap.all') }, { key: 'CRYPTO', label: 'CRYPTO' },
+    { key: 'FOREX', label: 'FOREX' }, { key: 'STOCK', label: 'STOCK' },
+  ]
+
+  const SORTS: { key: SortMode; label: string }[] = [
+    { key: 'changePercent', label: t('heatmap.changePercent') },
+    { key: 'volume', label: t('heatmap.volume') },
+    { key: 'technicalScore', label: t('heatmap.score') },
+  ]
 
   const items = useMemo(() => {
     let data = ctx.heatmapData

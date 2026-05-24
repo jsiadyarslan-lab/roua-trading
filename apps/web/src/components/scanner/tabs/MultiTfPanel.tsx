@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Clock } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -17,13 +18,6 @@ const T = {
 
 const SYMBOLS = ['BTCUSDT', 'ETHUSDT', 'XRPUSDT', 'SOLUSDT', 'ADAUSDT', 'DOGEUSDT', 'EURUSD', 'GBPUSD', 'AAPL', 'TSLA', 'XAUUSD']
 
-const TIMEFRAMES = [
-  { key: 'M15', label: '15 دقيقة', weight: 0.5 },
-  { key: 'H1', label: '1 ساعة', weight: 1.0 },
-  { key: 'H4', label: '4 ساعات', weight: 1.5 },
-  { key: 'D1', label: 'يومي', weight: 2.0 },
-] as const
-
 interface TfData {
   direction: string; signalClass: string; technicalScore: number
   confidence: number; rsi: number | null; macdSignal: string | null; adx: number | null
@@ -35,24 +29,25 @@ interface MultiTfResult {
   executionHintAr: string
 }
 
-const ALIGN_MAP: Record<string, { label: string; color: string }> = {
-  STRONG_BULLISH: { label: 'توافق صعودي قوي', color: T.green },
-  BULLISH:        { label: 'توافق صعودي', color: T.greenDim },
-  NEUTRAL:        { label: 'توافق محايد', color: T.amber },
-  BEARISH:        { label: 'توافق هبوطي', color: T.redDim },
-  STRONG_BEARISH: { label: 'توافق هبوطي قوي', color: T.red },
+const ALIGN_KEYS: Record<string, { labelKey: string; color: string }> = {
+  STRONG_BULLISH: { labelKey: 'multiTf.strongBullishAlignment', color: T.green },
+  BULLISH:        { labelKey: 'multiTf.bullishAlignment', color: T.greenDim },
+  NEUTRAL:        { labelKey: 'multiTf.neutralAlignment', color: T.amber },
+  BEARISH:        { labelKey: 'multiTf.bearishAlignment', color: T.redDim },
+  STRONG_BEARISH: { labelKey: 'multiTf.strongBearishAlignment', color: T.red },
 }
 
-function getStrategy(alignment: string): string {
-  if (alignment.includes('BULLISH')) return 'اتبع الاتجاه الصاعد (Long)'
-  if (alignment.includes('BEARISH')) return 'اتبع الاتجاه الهابط (Short)'
-  return 'انتظر / ارتداد'
-}
+const TF_KEYS = [
+  { key: 'M15', labelKey: 'timeframes.15m', weight: 0.5 },
+  { key: 'H1', labelKey: 'timeframes.1h', weight: 1.0 },
+  { key: 'H4', labelKey: 'timeframes.4h', weight: 1.5 },
+  { key: 'D1', labelKey: 'timeframes.1d', weight: 2.0 },
+] as const
 
-function TfRow({ tf, data, weight }: { tf: typeof TIMEFRAMES[number]; data: TfData | undefined; weight: number }) {
+function TfRow({ tf, data, weight, t }: { tf: typeof TF_KEYS[number]; data: TfData | undefined; weight: number; t: any }) {
   if (!data) return (
     <div style={{ padding: '10px 14px', borderBottom: `1px solid ${T.border}`, opacity: 0.4 }}>
-      <div style={{ fontSize: 10, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>لا توجد بيانات</div>
+      <div style={{ fontSize: 10, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t('multiTf.noData')}</div>
     </div>
   )
   const scorePct = Math.min(Math.max((data.technicalScore + 100) / 200 * 100, 2), 100)
@@ -62,7 +57,7 @@ function TfRow({ tf, data, weight }: { tf: typeof TIMEFRAMES[number]; data: TfDa
     <div style={{ padding: '10px 14px', borderBottom: `1px solid ${T.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{tf.label}</span>
+          <span style={{ fontSize: 12, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t(tf.labelKey)}</span>
           <DirectionTag direction={data.direction} signalClass={data.signalClass} size="sm" />
         </div>
         <span style={{ fontSize: 9, fontWeight: 700, color: T.purple, fontFamily: "'JetBrains Mono', monospace" }}>
@@ -84,7 +79,7 @@ function TfRow({ tf, data, weight }: { tf: typeof TIMEFRAMES[number]; data: TfDa
         <IndicatorBadge label="MACD" value={data.macdSignal ?? '—'} status={data.macdSignal?.includes('BUY') ? 'bullish' : data.macdSignal?.includes('SELL') ? 'bearish' : 'neutral'} />
         <IndicatorBadge label="ADX" value={data.adx !== null ? data.adx.toFixed(0) : '—'} status={(data.adx ?? 0) > 25 ? 'bullish' : 'neutral'} />
         <span style={{ fontSize: 8, fontWeight: 700, color: T.text3, fontFamily: "'Cairo', sans-serif", marginInlineEnd: 4 }}>
-          ثقة: {data.confidence.toFixed(0)}%
+          {t('multiTf.confidence')} {data.confidence.toFixed(0)}%
         </span>
       </div>
     </div>
@@ -111,12 +106,19 @@ function ConfluenceMeter({ timeframes }: { timeframes: Record<string, TfData> })
 }
 
 export function MultiTfPanel() {
+  const t = useTranslations('scannerAdvanced')
   const ctx = useScannerContext()
   const [localSymbol, setLocalSymbol] = useState('BTCUSDT')
   const effectiveSymbol = ctx.selectedSymbol || localSymbol
   const [data, setData] = useState<MultiTfResult | null>(null)
   const [loading, setLoading] = useState(true)
   const prevSymbolRef = useRef(effectiveSymbol)
+
+  function getStrategy(alignment: string): string {
+    if (alignment.includes('BULLISH')) return t('multiTf.followLong')
+    if (alignment.includes('BEARISH')) return t('multiTf.followShort')
+    return t('multiTf.waitBounce')
+  }
 
   useEffect(() => {
     if (prevSymbolRef.current !== effectiveSymbol) {
@@ -138,7 +140,7 @@ export function MultiTfPanel() {
     return () => { stale = true }
   }, [effectiveSymbol])
 
-  const alignConf = data ? (ALIGN_MAP[data.alignment] || ALIGN_MAP.NEUTRAL) : ALIGN_MAP.NEUTRAL
+  const alignConf = data ? (ALIGN_KEYS[data.alignment] || ALIGN_KEYS.NEUTRAL) : ALIGN_KEYS.NEUTRAL
 
   return (
     <div style={{ flex: 1, overflow: 'auto', direction: 'inherit', background: T.card, padding: 16 }}>
@@ -154,10 +156,10 @@ export function MultiTfPanel() {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
               <Clock size={18} color={T.amber} />
-              <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>تحليل متعدد الأطر الزمنية</span>
+              <span style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('multiTf.title')}</span>
             </div>
             <p style={{ fontSize: 10, color: T.text3, fontFamily: "'Cairo', sans-serif", margin: 0 }}>
-              تحليل التوافق (Confluence) بين الأطر لاتخاذ قرار متوافق
+              {t('multiTf.subtitle')}
             </p>
           </div>
           <select value={effectiveSymbol} onChange={e => setLocalSymbol(e.target.value)}
@@ -176,8 +178,8 @@ export function MultiTfPanel() {
           <>
             {/* TF Rows */}
             <div style={{ borderRadius: 8, border: `0.5px solid ${T.border}`, background: T.bg2, marginBottom: 16, overflow: 'hidden' }}>
-              {TIMEFRAMES.map(tf => (
-                <TfRow key={tf.key} tf={tf} data={data?.timeframes?.[tf.key]} weight={tf.weight} />
+              {TF_KEYS.map(tf => (
+                <TfRow key={tf.key} tf={tf} data={data?.timeframes?.[tf.key]} weight={tf.weight} t={t} />
               ))}
             </div>
 
@@ -187,7 +189,7 @@ export function MultiTfPanel() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <div>
                     <span style={{ fontSize: 13, fontWeight: 800, color: alignConf.color, fontFamily: "'Cairo', sans-serif" }}>
-                      {alignConf.label}
+                      {t(alignConf.labelKey)}
                     </span>
                     <div style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
                       {data.executionHintAr}
@@ -198,12 +200,12 @@ export function MultiTfPanel() {
                   </span>
                 </div>
                 <div style={{ fontSize: 10, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
-                  الاستراتيجية: <span style={{ color: alignConf.color }}>{getStrategy(data.alignment)}</span>
+                  {t('multiTf.strategy')} <span style={{ color: alignConf.color }}>{getStrategy(data.alignment)}</span>
                 </div>
                 <ConfluenceMeter timeframes={data.timeframes} />
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                  {TIMEFRAMES.map(tf => (
-                    <span key={tf.key} style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{tf.label}</span>
+                  {TF_KEYS.map(tf => (
+                    <span key={tf.key} style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{t(tf.labelKey)}</span>
                   ))}
                 </div>
               </div>

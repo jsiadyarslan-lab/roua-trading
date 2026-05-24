@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { Brain, Sparkles, Filter, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -19,52 +20,43 @@ const T = {
 type PatternFilter = 'all' | 'bullish' | 'bearish' | 'neutral'
 type ConfidenceFilter = 'all' | 'high' | 'medium' | 'low'
 
-const FILTERS: { key: PatternFilter; label: string }[] = [
-  { key: 'all', label: 'الكل' }, { key: 'bullish', label: 'صعودي' },
-  { key: 'bearish', label: 'هبوطي' }, { key: 'neutral', label: 'محايد' },
-]
-
-const CONFIDENCE_FILTERS: { key: ConfidenceFilter; label: string }[] = [
-  { key: 'all', label: 'كل الثقات' }, { key: 'high', label: 'ثقة عالية' },
-  { key: 'medium', label: 'ثقة متوسطة' }, { key: 'low', label: 'ثقة منخفضة' },
-]
-
-// All known patterns with Arabic translations
-const PATTERN_NAMES: Record<string, string> = {
+// All known patterns — keys used for i18n lookup
+const PATTERN_KEYS: Record<string, string> = {
   // Candlestick patterns
-  HAMMER: 'مطرقة', INVERTED_HAMMER: 'مطرقة مقلوبة',
-  BULLISH_ENGULFING: 'ابتلاع صعودي', BEARISH_ENGULFING: 'ابتلاع هبوطي',
-  DOJI: 'دوجي', DRAGONFLY_DOJI: 'دوجي يعسوب', GRAVESTONE_DOJI: 'دوجي شاهد القبر',
-  MORNING_STAR: 'نجمة الصباح', EVENING_STAR: 'نجمة المساء',
-  THREE_WHITE_SOLDIERS: 'ثلاثة جنود بيض', THREE_BLACK_CROWS: 'ثلاثة غربان سوداء',
-  SHOOTING_STAR: 'نجمة ساقطة', HANGING_MAN: 'رجل معلق',
-  BULLISH_HARAMI: 'هارامي صعودي', BEARISH_HARAMI: 'هارامي هبوطي',
-  PIERCING_LINE: 'خط اختراق', DARK_CLOUD_COVER: 'سحابة مظلمة',
-  TWEEZER_TOP: 'قمة ملقاط', TWEEZER_BOTTOM: 'قاع ملقاط',
-  SPINNING_TOP: 'قمة دوارة',
-  RISING_THREE_METHODS: 'ثلاث صاعد', FALLING_THREE_METHODS: 'ثلاث هابط',
-  BULLISH_MARUBOZU: 'ماروبوزو صعودي', BEARISH_MARUBOZU: 'ماروبوزو هبوطي',
+  HAMMER: 'hammer', INVERTED_HAMMER: 'invertedHammer',
+  BULLISH_ENGULFING: 'bullishEngulfing', BEARISH_ENGULFING: 'bearishEngulfing',
+  DOJI: 'doji', DRAGONFLY_DOJI: 'dragonflyDoji', GRAVESTONE_DOJI: 'gravestoneDoji',
+  MORNING_STAR: 'morningStar', EVENING_STAR: 'eveningStar',
+  THREE_WHITE_SOLDIERS: 'threeWhiteSoldiers', THREE_BLACK_CROWS: 'threeBlackCrows',
+  SHOOTING_STAR: 'shootingStar', HANGING_MAN: 'hangingMan',
+  BULLISH_HARAMI: 'bullishHarami', BEARISH_HARAMI: 'bearishHarami',
+  PIERCING_LINE: 'piercingLine', DARK_CLOUD_COVER: 'darkCloudCover',
+  TWEEZER_TOP: 'tweezerTop', TWEEZER_BOTTOM: 'tweezerBottom',
+  SPINNING_TOP: 'spinningTop',
+  RISING_THREE_METHODS: 'risingThreeMethods', FALLING_THREE_METHODS: 'fallingThreeMethods',
+  BULLISH_MARUBOZU: 'bullishMarubozu', BEARISH_MARUBOZU: 'bearishMarubozu',
   // Chart patterns
-  BULL_FLAG: 'علم صعودي', BEAR_FLAG: 'علم هبوطي',
-  DOUBLE_TOP: 'قمة مزدوجة', DOUBLE_BOTTOM: 'قاع مزدوج',
-  BREAKOUT_BULLISH: 'اختراق صعودي', BREAKOUT_BEARISH: 'اختراق هبوطي',
-  CONSOLIDATION: 'تماسك',
-  HEAD_AND_SHOULDERS: 'رأس وكتفين', INVERSE_HEAD_SHOULDERS: 'رأس وكتفين معكوس',
-  ASCENDING_TRIANGLE: 'مثلث صاعد', DESCENDING_TRIANGLE: 'مثلث هابط',
-  CUP_HANDLE: 'كوب وعروة', ASCENDING_WEDGE: 'وتد صاعد', DESCENDING_WEDGE: 'وتد هابط',
-  CHANNEL: 'قناة',
+  BULL_FLAG: 'bullFlag', BEAR_FLAG: 'bearFlag',
+  DOUBLE_TOP: 'doubleTop', DOUBLE_BOTTOM: 'doubleBottom',
+  BREAKOUT_BULLISH: 'breakoutBullish', BREAKOUT_BEARISH: 'breakoutBearish',
+  CONSOLIDATION: 'consolidation',
+  HEAD_AND_SHOULDERS: 'headAndShoulders', INVERSE_HEAD_SHOULDERS: 'inverseHeadShoulders',
+  ASCENDING_TRIANGLE: 'ascendingTriangle', DESCENDING_TRIANGLE: 'descendingTriangle',
+  CUP_HANDLE: 'cupHandle', ASCENDING_WEDGE: 'ascendingWedge', DESCENDING_WEDGE: 'descendingWedge',
+  CHANNEL: 'channel',
   // Divergence patterns
-  BULL_DIV: 'تباعد صعودي', BEAR_DIV: 'تباعد هبوطي',
-  BULLISH_DIVERGENCE: 'تباعد صعودي', BEARISH_DIVERGENCE: 'تباعد هبوطي',
-  HIDDEN_BULLISH: 'تباعد صعودي مخفي', HIDDEN_BEARISH: 'تباعد هبوطي مخفي',
+  BULL_DIV: 'bullDivergence', BEAR_DIV: 'bearDivergence',
+  BULLISH_DIVERGENCE: 'bullDivergence', BEARISH_DIVERGENCE: 'bearDivergence',
+  HIDDEN_BULLISH: 'hiddenBullish', HIDDEN_BEARISH: 'hiddenBearish',
 }
 
 interface DetectedPattern {
   name: string
-  nameAr: string
+  nameKey: string
   type: 'BULLISH' | 'BEARISH' | 'NEUTRAL'
   confidence: number
-  descriptionAr: string
+  descriptionKey: string
+  descriptionParams?: Record<string, string | number>
 }
 
 function getPatternDirection(pType: string): 'bullish' | 'bearish' | 'neutral' {
@@ -74,9 +66,10 @@ function getPatternDirection(pType: string): 'bullish' | 'bearish' | 'neutral' {
 }
 
 function PatternPill({ pattern }: { pattern: DetectedPattern }) {
+  const t = useTranslations('scannerAdvanced')
   const dir = getPatternDirection(pattern.type)
   const color = dir === 'bullish' ? T.green : dir === 'bearish' ? T.red : T.amber
-  const arName = pattern.nameAr || PATTERN_NAMES[pattern.name] || pattern.name
+  const arName = pattern.nameKey ? t(`patterns.${pattern.nameKey}`) : pattern.name
   return (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 3,
@@ -134,80 +127,80 @@ function detectRealPatterns(item: {
   // RSI-based patterns
   if (item.rsi !== null && item.rsi <= 30) {
     patterns.push({
-      name: 'BULL_DIV', nameAr: 'تباعد صعودي RSI', type: 'BULLISH',
+      name: 'BULL_DIV', nameKey: 'rsiBullishDivergence', type: 'BULLISH',
       confidence: Math.round(60 + (30 - item.rsi) * 1.5),
-      descriptionAr: 'مؤشر القوة النسبية في منطقة التشبع البيعي، إشارة انعكاس صعودي محتمل',
+      descriptionKey: 'rsiOversoldDesc',
     })
   }
   if (item.rsi !== null && item.rsi >= 70) {
     patterns.push({
-      name: 'BEAR_DIV', nameAr: 'تباعد هبوطي RSI', type: 'BEARISH',
+      name: 'BEAR_DIV', nameKey: 'rsiBearishDivergence', type: 'BEARISH',
       confidence: Math.round(60 + (item.rsi - 70) * 1.5),
-      descriptionAr: 'مؤشر القوة النسبية في منطقة التشبع الشرائي، إشارة انعكاس هبوطي محتمل',
+      descriptionKey: 'rsiOverboughtDesc',
     })
   }
 
   // MACD patterns
   if (item.macdSignal === 'BULLISH_CROSSOVER') {
     patterns.push({
-      name: 'BULLISH_ENGULFING', nameAr: 'تقاطع صعودي MACD', type: 'BULLISH',
+      name: 'BULLISH_ENGULFING', nameKey: 'macdBullishCrossover', type: 'BULLISH',
       confidence: 75,
-      descriptionAr: 'تقاطع صعودي لخطوط MACD، إشارة شرائية قوية',
+      descriptionKey: 'macdBullishCrossoverDesc',
     })
   }
   if (item.macdSignal === 'BEARISH_CROSSOVER') {
     patterns.push({
-      name: 'BEARISH_ENGULFING', nameAr: 'تقاطع هبوطي MACD', type: 'BEARISH',
+      name: 'BEARISH_ENGULFING', nameKey: 'macdBearishCrossover', type: 'BEARISH',
       confidence: 75,
-      descriptionAr: 'تقاطع هبوطي لخطوط MACD، إشارة بيعية قوية',
+      descriptionKey: 'macdBearishCrossoverDesc',
     })
   }
 
   // Direction + ADX patterns
   if (item.direction?.includes('BUY') && (item.adx ?? 0) > 25) {
     patterns.push({
-      name: 'BULL_FLAG', nameAr: 'علم صعودي', type: 'BULLISH',
+      name: 'BULL_FLAG', nameKey: 'bullFlag', type: 'BULLISH',
       confidence: Math.round(55 + (item.adx ?? 0)),
-      descriptionAr: 'اتجاه صاعد قوي مع زخم متزايد، احتمال استمرار الصعود',
+      descriptionKey: 'strongBullishTrend',
     })
   }
   if (item.direction?.includes('SELL') && (item.adx ?? 0) > 25) {
     patterns.push({
-      name: 'BEAR_FLAG', nameAr: 'علم هبوطي', type: 'BEARISH',
+      name: 'BEAR_FLAG', nameKey: 'bearFlag', type: 'BEARISH',
       confidence: Math.round(55 + (item.adx ?? 0)),
-      descriptionAr: 'اتجاه هابط قوي مع زخم متزايد، احتمال استمرار الهبوط',
+      descriptionKey: 'strongBearishTrend',
     })
   }
 
   // Stochastic patterns
   if (item.stochK !== null && item.stochK < 20) {
     patterns.push({
-      name: 'HAMMER', nameAr: 'مطرقة', type: 'BULLISH',
+      name: 'HAMMER', nameKey: 'hammer', type: 'BULLISH',
       confidence: 65,
-      descriptionAr: 'ستوكاستيك في منطقة التشبع البيعي، إشارة ارتداد صعودي',
+      descriptionKey: 'stochOversoldDesc',
     })
   }
   if (item.stochK !== null && item.stochK > 80) {
     patterns.push({
-      name: 'SHOOTING_STAR', nameAr: 'نجمة ساقطة', type: 'BEARISH',
+      name: 'SHOOTING_STAR', nameKey: 'shootingStar', type: 'BEARISH',
       confidence: 65,
-      descriptionAr: 'ستوكاستيك في منطقة التشبع الشرائي، إشارة ارتداد هبوطي',
+      descriptionKey: 'stochOverboughtDesc',
     })
   }
 
   // Bollinger patterns
   if (item.bollingerPosition === 'BELOW_LOWER') {
     patterns.push({
-      name: 'DOUBLE_BOTTOM', nameAr: 'قاع مزدوج (بولنجر)', type: 'BULLISH',
+      name: 'DOUBLE_BOTTOM', nameKey: 'bollingerDoubleBottom', type: 'BULLISH',
       confidence: 70,
-      descriptionAr: 'السعر أسفل بولنجر السفلي، احتمال ارتداد قوي',
+      descriptionKey: 'bollingerDoubleBottomDesc',
     })
   }
   if (item.bollingerPosition === 'ABOVE_UPPER') {
     patterns.push({
-      name: 'DOUBLE_TOP', nameAr: 'قمة مزدوجة (بولنجر)', type: 'BEARISH',
+      name: 'DOUBLE_TOP', nameKey: 'bollingerDoubleTop', type: 'BEARISH',
       confidence: 70,
-      descriptionAr: 'السعر فوق بولنجر العلوي، احتمال تراجع',
+      descriptionKey: 'bollingerDoubleTopDesc',
     })
   }
 
@@ -216,26 +209,26 @@ function detectRealPatterns(item: {
     if (item.smartScore.signalType === 'REVERSAL') {
       patterns.push({
         name: item.smartScore.action.includes('BUY') ? 'DOUBLE_BOTTOM' : 'DOUBLE_TOP',
-        nameAr: item.smartScore.action.includes('BUY') ? 'انعكاس صعودي' : 'انعكاس هبوطي',
+        nameKey: item.smartScore.action.includes('BUY') ? 'smartBullishReversal' : 'smartBearishReversal',
         type: item.smartScore.action.includes('BUY') ? 'BULLISH' : 'BEARISH',
         confidence: Math.round((item.smartScore.confidence ?? 50) * 0.8),
-        descriptionAr: 'محرك التقييم الذكي يكتشف نمط انعكاس',
+        descriptionKey: 'smartReversalDesc',
       })
     }
     if (item.smartScore.signalType === 'BREAKOUT') {
       patterns.push({
         name: item.smartScore.action.includes('BUY') ? 'BREAKOUT_BULLISH' : 'BREAKOUT_BEARISH',
-        nameAr: item.smartScore.action.includes('BUY') ? 'اختراق صعودي' : 'اختراق هبوطي',
+        nameKey: item.smartScore.action.includes('BUY') ? 'smartBullishBreakout' : 'smartBearishBreakout',
         type: item.smartScore.action.includes('BUY') ? 'BULLISH' : 'BEARISH',
         confidence: Math.round((item.smartScore.confidence ?? 50) * 0.85),
-        descriptionAr: 'محرك التقييم الذكي يكتشف نمط اختراق',
+        descriptionKey: 'smartBreakoutDesc',
       })
     }
     if (item.smartScore.signalType === 'CONSOLIDATION') {
       patterns.push({
-        name: 'CONSOLIDATION', nameAr: 'تماسك',
+        name: 'CONSOLIDATION', nameKey: 'consolidation',
         type: 'NEUTRAL', confidence: 50,
-        descriptionAr: 'السوق في مرحلة تماسك، بانتظار تحديد الاتجاه',
+        descriptionKey: 'consolidationDesc',
       })
     }
   }
@@ -243,50 +236,63 @@ function detectRealPatterns(item: {
   // Large move patterns
   if (item.changePercent > 3) {
     patterns.push({
-      name: 'BREAKOUT_BULLISH', nameAr: 'اختراق صعودي قوي', type: 'BULLISH',
+      name: 'BREAKOUT_BULLISH', nameKey: 'strongBullishBreakout', type: 'BULLISH',
       confidence: 80,
-      descriptionAr: `حركة صعودية قوية ${item.changePercent.toFixed(1)}%، اختراق محتمل`,
+      descriptionKey: 'strongBullishBreakoutDesc',
+      descriptionParams: { pct: item.changePercent.toFixed(1) },
     })
   }
   if (item.changePercent < -3) {
     patterns.push({
-      name: 'BREAKOUT_BEARISH', nameAr: 'اختراق هبوطي قوي', type: 'BEARISH',
+      name: 'BREAKOUT_BEARISH', nameKey: 'strongBearishBreakout', type: 'BEARISH',
       confidence: 80,
-      descriptionAr: `حركة هبوطية قوية ${item.changePercent.toFixed(1)}%، ضغط بيعي`,
+      descriptionKey: 'strongBearishBreakoutDesc',
+      descriptionParams: { pct: Math.abs(item.changePercent).toFixed(1) },
     })
   }
 
   // Default if no patterns
   if (patterns.length === 0) {
     patterns.push({
-      name: 'DOJI', nameAr: 'دوجي (تردد)', type: 'NEUTRAL',
+      name: 'DOJI', nameKey: 'dojiIndecision', type: 'NEUTRAL',
       confidence: 40,
-      descriptionAr: 'لا توجد أنماط واضحة، السوق في حالة تردد',
+      descriptionKey: 'dojiIndecisionDesc',
     })
   }
 
   return patterns
 }
 
-// Pattern-specific search filter
-const PATTERN_SEARCH_OPTIONS: { value: string; label: string }[] = [
-  { value: 'ALL', label: 'كل الأنماط' },
-  { value: 'HAMMER', label: 'مطرقة' },
-  { value: 'ENGULFING', label: 'ابتلاع' },
-  { value: 'DOJI', label: 'دوجي' },
-  { value: 'BREAKOUT', label: 'اختراق' },
-  { value: 'REVERSAL', label: 'انعكاس' },
-  { value: 'FLAG', label: 'علم' },
-  { value: 'DIV', label: 'تباعد' },
-  { value: 'CONSOLIDATION', label: 'تماسك' },
+// Pattern-specific search filter keys
+const PATTERN_SEARCH_KEYS: { value: string; labelKey: string }[] = [
+  { value: 'ALL', labelKey: 'patterns.allPatterns' },
+  { value: 'HAMMER', labelKey: 'patterns.hammer' },
+  { value: 'ENGULFING', labelKey: 'patterns.engulfing' },
+  { value: 'DOJI', labelKey: 'patterns.doji' },
+  { value: 'BREAKOUT', labelKey: 'patterns.breakoutBullish' },
+  { value: 'REVERSAL', labelKey: 'patterns.reversal' },
+  { value: 'FLAG', labelKey: 'patterns.flag' },
+  { value: 'DIV', labelKey: 'patterns.div' },
+  { value: 'CONSOLIDATION', labelKey: 'patterns.consolidation' },
 ]
 
 export function PatternsView() {
+  const t = useTranslations('scannerAdvanced')
   const ctx = useScannerContext()
   const [filter, setFilter] = useState<PatternFilter>('all')
   const [confidenceFilter, setConfidenceFilter] = useState<ConfidenceFilter>('all')
   const [patternSearch, setPatternSearch] = useState('ALL')
   const [expandedFilters, setExpandedFilters] = useState(false)
+
+  const FILTERS: { key: PatternFilter; label: string }[] = [
+    { key: 'all', label: t('all') }, { key: 'bullish', label: t('bullish') },
+    { key: 'bearish', label: t('bearish') }, { key: 'neutral', label: t('neutral') },
+  ]
+
+  const CONFIDENCE_FILTERS: { key: ConfidenceFilter; label: string }[] = [
+    { key: 'all', label: t('patterns.allConfidences') }, { key: 'high', label: t('patterns.highConfidence') },
+    { key: 'medium', label: t('patterns.mediumConfidence') }, { key: 'low', label: t('patterns.lowConfidence') },
+  ]
 
   const openItems = useMemo(() => ctx.filteredData.filter(d => d.marketOpen), [ctx.filteredData])
 
@@ -353,17 +359,17 @@ export function PatternsView() {
       <div style={{ padding: '12px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Brain size={18} color={T.cyan} />
-          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>الأنماط الفنية المكتشفة</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('patterns.detectedPatterns')}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            {stats.bullish} صعودي
+            {stats.bullish} {t('bullish')}
           </span>
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.red}12`, color: T.red, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            {stats.bearish} هبوطي
+            {stats.bearish} {t('bearish')}
           </span>
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.amber}12`, color: T.amber, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            {stats.neutral} محايد
+            {stats.neutral} {t('neutral')}
           </span>
         </div>
       </div>
@@ -414,7 +420,7 @@ export function PatternsView() {
           }}
         >
           <Filter size={10} />
-          نمط محدد
+          {t('patterns.specificPattern')}
           {expandedFilters ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
         </button>
       </div>
@@ -422,7 +428,7 @@ export function PatternsView() {
       {/* Expanded pattern search */}
       {expandedFilters && (
         <div style={{ padding: '8px 16px', borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-          {PATTERN_SEARCH_OPTIONS.map(opt => (
+          {PATTERN_SEARCH_KEYS.map(opt => (
             <button key={opt.value} onClick={() => setPatternSearch(opt.value)}
               style={{
                 padding: '3px 10px', borderRadius: 4, fontSize: 8, fontWeight: 700,
@@ -432,7 +438,7 @@ export function PatternsView() {
                 border: `0.5px solid ${patternSearch === opt.value ? `${T.amber}30` : T.border}`,
                 transition: 'all 0.2s',
               }}
-            >{opt.label}</button>
+            >{t(opt.labelKey)}</button>
           ))}
         </div>
       )}
@@ -442,7 +448,7 @@ export function PatternsView() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filteredItems.length === 0 ? (
             <div style={{ textAlign: 'center', padding: 40, color: T.text3, fontSize: 12, fontFamily: "'Cairo', sans-serif" }}>
-              لا توجد أنماط مطابقة للفلاتر المحددة
+              {t('patterns.noMatchingPatterns')}
             </div>
           ) : filteredItems.map(({ item, patterns }, i) => {
             const chgColor = item.changePercent >= 0 ? T.green : T.red
@@ -490,14 +496,14 @@ export function PatternsView() {
                 </div>
 
                 {/* Top pattern description */}
-                {topPattern.descriptionAr && (
+                {topPattern.descriptionKey && (
                   <div style={{
                     fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif",
                     lineHeight: 1.5, marginBottom: 6,
                     display: 'flex', alignItems: 'flex-start', gap: 4,
                   }}>
                     <AlertTriangle size={9} color={T.amber} style={{ flexShrink: 0, marginTop: 1 }} />
-                    {topPattern.descriptionAr}
+                    {t(`patterns.${topPattern.descriptionKey}`, topPattern.descriptionParams)}
                   </div>
                 )}
 
@@ -517,7 +523,7 @@ export function PatternsView() {
                       fontWeight: 700, fontFamily: "'Cairo', sans-serif", cursor: 'pointer', transition: 'all 0.2s',
                     }}
                   >
-                    <Sparkles size={10} /> تحليل عميق
+                    <Sparkles size={10} /> {t('patterns.deepAnalysis')}
                   </button>
                 </div>
               </div>

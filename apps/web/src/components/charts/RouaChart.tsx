@@ -870,6 +870,7 @@ export default function RouaChart({
   // the first call's series additions to overlap with the second call's cleanup,
   // leaving orphaned series on the chart.
   const aiProcessingRef = useRef(false);
+  const aiPanelDivRef = useRef<HTMLDivElement>(null);
   const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
@@ -1897,9 +1898,32 @@ export default function RouaChart({
         </div>
       )}
 
-      {/* AI Smart Panel — DraggablePanel with position:fixed */}
+      {/* AI Smart Panel — simple position:fixed with inline drag */}
       {showAIPanel && (
-        <DraggablePanel defaultPosition={{ top: 120, right: 290 }} defaultWidth={340} minHeight={360} resizable style={{ zIndex: 9999 }}>
+        <div
+          ref={aiPanelDivRef}
+          style={{ position: 'fixed', top: 120, right: 290, width: 340, minHeight: 360, zIndex: 9999 }}
+          onMouseDown={(e) => {
+            const el = aiPanelDivRef.current;
+            if (!el) return;
+            const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
+            if (!handle) return;
+            e.preventDefault();
+            const rect = el.getBoundingClientRect();
+            let startX = e.clientX, startY = e.clientY;
+            let startL = rect.left, startT = rect.top;
+            el.style.right = 'auto';
+            el.style.left = startL + 'px';
+            el.style.top = startT + 'px';
+            const onMove = (me: MouseEvent) => {
+              el.style.left = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, startL + me.clientX - startX)) + 'px';
+              el.style.top = Math.max(0, Math.min(window.innerHeight - 50, startT + me.clientY - startY)) + 'px';
+            };
+            const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+          }}
+        >
           <AISmartPanel
             symbol={selectedSymbol}
             candles={aiPanelCandles}
@@ -1928,7 +1952,7 @@ export default function RouaChart({
               });
             }}
           />
-        </DraggablePanel>
+        </div>
       )}
     </div>
   );

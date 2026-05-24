@@ -93,35 +93,37 @@ export function DraggablePanel({
     e.preventDefault();
     e.stopPropagation();
 
-    // Use getBoundingClientRect for position:fixed elements
     const rect = panelRef.current?.getBoundingClientRect();
-    const currentLeft = rect?.left || 0;
-    const currentTop = rect?.top || 0;
+    const startLeft = rect?.left || 0;
+    const startTop = rect?.top || 0;
 
     dragState.current = {
       isDragging: true,
       startX: e.clientX,
       startY: e.clientY,
-      startLeft: currentLeft,
-      startTop: currentTop,
+      startLeft,
+      startTop,
     };
 
     const handleDragMove = (moveEvent: MouseEvent) => {
-      if (!dragState.current.isDragging) return;
+      if (!dragState.current.isDragging || !panelRef.current) return;
       const dx = moveEvent.clientX - dragState.current.startX;
       const dy = moveEvent.clientY - dragState.current.startY;
-      const newX = dragState.current.startLeft + dx;
-      const newY = dragState.current.startTop + dy;
-      // Clamp to viewport
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-      const pw = panelRef.current?.offsetWidth || 340;
-      const ph = panelRef.current?.offsetHeight || 360;
-      setPos({ x: Math.max(0, Math.min(vw - pw, newX)), y: Math.max(0, Math.min(vh - 50, newY)) });
+      const newX = Math.max(0, Math.min(window.innerWidth - (panelRef.current.offsetWidth || 340), dragState.current.startLeft + dx));
+      const newY = Math.max(0, Math.min(window.innerHeight - 50, dragState.current.startTop + dy));
+      // Move DOM directly — no React re-render, no flicker
+      panelRef.current.style.left = `${newX}px`;
+      panelRef.current.style.top = `${newY}px`;
+      panelRef.current.style.right = 'auto';
     };
 
     const handleDragEnd = () => {
       dragState.current.isDragging = false;
+      // Sync React state once at the end
+      if (panelRef.current) {
+        const r = panelRef.current.getBoundingClientRect();
+        setPos({ x: r.left, y: r.top });
+      }
       document.removeEventListener('mousemove', handleDragMove);
       document.removeEventListener('mouseup', handleDragEnd);
     };

@@ -1019,9 +1019,19 @@ export default function RouaChart({
 
     // ── SMC + Geo + Elliott: direct createPriceLine on series ──
     const addDirectLine = (series: any, price: number, color: string, label: string, lw: number, ls: number, axis: boolean) => {
-      if (!series || !price || !isFinite(price)) return null;
+      if (!series || price === undefined || price === null || !isFinite(price) || price <= 0) return null;
+      // Ensure price is a plain number (lightweight-charts v5 is strict)
+      const p = Number(price.toFixed(10));
       try {
-        return series.createPriceLine({ price, color, lineWidth: lw, lineStyle: ls, axisLabelVisible: axis, title: label });
+        const line = series.createPriceLine({
+          price: p,
+          color,
+          lineWidth: lw as any,
+          lineStyle: ls as any,
+          axisLabelVisible: axis,
+          title: label || '',
+        });
+        return line || null;
       } catch { return null; }
     };
 
@@ -1075,9 +1085,22 @@ export default function RouaChart({
       if (directLines.length > 0) {
         (aiPriceLinesRef as any).__direct = (aiPriceLinesRef as any).__direct || [];
         (aiPriceLinesRef as any).__direct.push(...directLines.map(l => ({ s, l })));
-        (window as any).__plCount = ((aiPriceLinesRef as any).__direct?.length || 0);
+        // Show success indicator
+        const el = document.getElementById('__draw_debug') || document.createElement('div');
+        el.id = '__draw_debug';
+        el.style.cssText = 'position:fixed;bottom:8px;left:8px;background:#00FFA3;color:#000;padding:3px 8px;border-radius:4px;font-size:10px;z-index:99999;font-family:monospace';
+        el.textContent = `✓ ${directLines.length} lines drawn`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 4000);
         return true;
       }
+      // Show fail indicator
+      const el2 = document.getElementById('__draw_debug') || document.createElement('div');
+      el2.id = '__draw_debug';
+      el2.style.cssText = 'position:fixed;bottom:8px;left:8px;background:#FF4757;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;z-index:99999;font-family:monospace';
+      el2.textContent = `✗ series=${!!s} data=${!!(result.smcData)}`;
+      document.body.appendChild(el2);
+      setTimeout(() => el2.remove(), 4000);
       return false;
     };
 

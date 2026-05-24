@@ -1588,7 +1588,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // priceLinesRef is already declared at the top with other refs
 
   // Direct access to candle series for external use
-  const getCandleSeries = useCallback(() => candleSeriesRef.current, []);
+  const getCandleSeries = useCallback(() => candleSeriesRef.current || mainSeriesRef.current, []);
 
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
     const doAdd = () => {

@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
   } catch (error: any) {
     console.error('[scanner/scan] Error:', error?.message)
     return NextResponse.json(
-      { success: false, error: 'Service unavailable', message: error?.message || 'تعذر الاتصال بخادم التحليل' },
+      { success: false, error: 'Service unavailable', message: error?.message || 'Failed to connect to analysis server' },
       { status: 502 },
     )
   }
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     console.error('[scanner/run] Error:', error?.message)
     // FIX: Return proper error status instead of 200 with success:false
     return NextResponse.json(
-      { success: false, error: error?.message || 'فشل في الاتصال بخادم المسح' },
+      { success: false, error: error?.message || 'Failed to connect to scanner server' },
       { status: 502 },
     )
   }

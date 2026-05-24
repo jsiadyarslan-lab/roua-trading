@@ -3215,7 +3215,8 @@
       "timeframe": "Timeframe:",
       "aboveVwap": "Above VWAP",
       "belowVwap": "Below VWAP",
-      "atVwap": "At VWAP"
+      "atVwap": "At VWAP",
+      "noData": "No data available"
     },
     "patterns": {
       "detectedPatterns": "Detected Technical Patterns",
@@ -3345,6 +3346,15 @@
       "neutralAlignment": "Neutral Alignment",
       "bearishAlignment": "Bearish Alignment",
       "strongBearishAlignment": "Strong Bearish Alignment"
-    }
+    },
+    "aiConsensus": {
+      "label": "AI Consensus:",
+      "strongBuy": "Strong Buy",
+      "buy": "Buy",
+      "hold": "Hold",
+      "sell": "Sell",
+      "strongSell": "Strong Sell"
+    },
+    "error": "Failed to load scanner data"
   }
 }

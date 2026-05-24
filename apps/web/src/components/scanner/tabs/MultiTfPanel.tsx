@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { Clock } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -27,6 +27,7 @@ interface MultiTfResult {
   symbol: string; timeframes: Record<string, TfData>
   alignment: string; weightedScore: number
   executionHintAr: string
+  executionHint?: string
 }
 
 const ALIGN_KEYS: Record<string, { labelKey: string; color: string }> = {
@@ -107,6 +108,7 @@ function ConfluenceMeter({ timeframes }: { timeframes: Record<string, TfData> })
 
 export function MultiTfPanel() {
   const t = useTranslations('scannerAdvanced')
+  const locale = useLocale()
   const ctx = useScannerContext()
   const [localSymbol, setLocalSymbol] = useState('BTCUSDT')
   const effectiveSymbol = ctx.selectedSymbol || localSymbol
@@ -192,7 +194,7 @@ export function MultiTfPanel() {
                       {t(alignConf.labelKey)}
                     </span>
                     <div style={{ fontSize: 9, color: T.text3, fontFamily: "'Cairo', sans-serif", marginTop: 2 }}>
-                      {data.executionHintAr}
+                      {locale === 'ar' ? data.executionHintAr : (data.executionHint || data.executionHintAr)}
                     </div>
                   </div>
                   <span style={{ fontSize: 28, fontWeight: 900, color: alignConf.color, fontFamily: "'JetBrains Mono', monospace" }}>

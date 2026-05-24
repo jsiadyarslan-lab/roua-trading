@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react'
 import { Eye, Layers, Bell } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { DirectionTag } from '../shared/DirectionTag'
 import { ScoreGauge } from '../shared/ScoreGauge'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
@@ -77,7 +77,26 @@ function ActionBadge({ action }: { action: string }) {
 
 function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, hasActiveAlert }: ScannerTableRowProps) {
   const t = useTranslations('scannerAdvanced')
+  const locale = useLocale()
   const [hovered, setHovered] = useState(false)
+
+  // Translate AI opinion based on locale instead of using hardcoded Arabic from backend
+  const aiOpinionText = (() => {
+    if (!item.aiOpinion && !item.smartScore) return null
+    const action = item.smartScore?.action
+    if (action) {
+      const actionLabelMap: Record<string, string> = {
+        'STRONG_BUY': t('aiConsensus.strongBuy'),
+        'BUY': t('aiConsensus.buy'),
+        'HOLD': t('aiConsensus.hold'),
+        'SELL': t('aiConsensus.sell'),
+        'STRONG_SELL': t('aiConsensus.strongSell'),
+      }
+      return `${t('aiConsensus.label')} ${actionLabelMap[action] || t('hold')}`
+    }
+    // Fallback: if only aiOpinion is available (no smartScore), show as-is
+    return item.aiOpinion
+  })()
   const dimmed = !item.marketOpen
   const chgColor = item.changePercent >= 0 ? T.green : T.red
   const ss = item.smartScore
@@ -183,13 +202,13 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
 
       {/* AI Opinion */}
       <td style={{ padding: '8px 6px', borderBottom: `1px solid ${T.border}`, textAlign: 'center' }}>
-        {item.aiOpinion ? (
+        {aiOpinionText ? (
           <div style={{
             fontSize: 8, fontWeight: 700, color: T.cyan,
             fontFamily: "'Cairo', sans-serif",
             lineHeight: 1.4,
           }}>
-            {safeStr(item.aiOpinion)}
+            {safeStr(aiOpinionText)}
           </div>
         ) : (
           <span style={{ fontSize: 9, color: T.text3 }}>—</span>

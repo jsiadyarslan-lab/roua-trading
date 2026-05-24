@@ -496,7 +496,7 @@ export class ScannerService {
         atrVolatility: technical?.atr?.volatilityLevel ?? null,
         vwapPosition: vwapResult?.position ?? null,
         technicalScore,
-        summary: technical?.summary ?? 'لا تتوفر بيانات كافية للتحليل',
+        summary: technical?.summary ?? 'Insufficient data for analysis',
       },
       // New advanced indicator fields
       smartScore,

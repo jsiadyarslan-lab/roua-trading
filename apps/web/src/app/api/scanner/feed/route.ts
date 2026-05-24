@@ -106,19 +106,19 @@ export async function GET(req: Request) {
           if (rsi !== null) {
             if (rsi < 30) {
               aiScore = 'Strong Buy'; aiColor = '#00FFC6'
-              reasons.push(`تشبع بيعي (RSI: ${rsi})`)
+              reasons.push(`Oversold (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi < 45) {
               aiScore = 'Buy'; aiColor = '#00FFC6'
-              reasons.push(`RSI منخفض (${rsi})`)
+              reasons.push(`Low RSI (${rsi})`)
               signalStrength += 12
             } else if (rsi > 70) {
               aiScore = 'Strong Sell'; aiColor = '#FF4D4D'
-              reasons.push(`تشبع شرائي (RSI: ${rsi})`)
+              reasons.push(`Overbought (RSI: ${rsi})`)
               signalStrength += 25
             } else if (rsi > 58) {
               aiScore = 'Sell'; aiColor = '#FF4D4D'
-              reasons.push(`RSI مرتفع (${rsi})`)
+              reasons.push(`High RSI (${rsi})`)
               signalStrength += 12
             }
           }
@@ -126,20 +126,20 @@ export async function GET(req: Request) {
           if (ema20 !== null && ema50 !== null) {
             if (ema20 > ema50) {
               if (aiScore === 'Neutral') { aiScore = 'Buy'; aiColor = '#00FFC6' }
-              reasons.push('تقاطع صعودي EMA 20/50')
+              reasons.push('EMA 20/50 Bullish Cross')
               signalStrength += 10
             } else {
               if (aiScore === 'Neutral') { aiScore = 'Sell'; aiColor = '#FF4D4D' }
-              reasons.push('تقاطع هبوطي EMA 20/50')
+              reasons.push('EMA 20/50 Bearish Cross')
               signalStrength += 10
             }
           }
 
           if (Math.abs(change) > 3) {
-            reasons.push(`زخم قوي (${change > 0 ? '+' : ''}${change.toFixed(1)}%)`)
+            reasons.push(`Strong Momentum (${change > 0 ? '+' : ''}${change.toFixed(1)}%)`)
             signalStrength += 10
           } else if (Math.abs(change) > 1) {
-            reasons.push(`${change > 0 ? 'ميل صعودي' : 'ميل هبوطي'} (${change.toFixed(1)}%)`)
+            reasons.push(`${change > 0 ? 'Bullish Trend' : 'Bearish Trend'} (${change.toFixed(1)}%)`)
             signalStrength += 5
           }
 

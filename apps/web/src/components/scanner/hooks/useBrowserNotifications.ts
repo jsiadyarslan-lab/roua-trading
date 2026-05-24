@@ -84,8 +84,8 @@ export function useBrowserNotifications() {
         // Send browser notification
         if (permission === 'granted') {
           try {
-            new Notification(`رؤى — ${symbol}`, {
-              body: alert.config.labelAr,
+            new Notification(`Roua — ${symbol}`, {
+              body: alert.config.label || alert.config.labelAr,
               icon: '/favicon.ico',
               tag: alert.id,
             })

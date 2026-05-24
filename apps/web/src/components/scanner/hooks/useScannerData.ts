@@ -80,7 +80,7 @@ export function useScannerData(options: UseScannerDataOptions = {}) {
     } catch (e: any) {
       if (e.name !== 'AbortError') {
         console.error('[ScannerData] Scan error:', e)
-        setError('فشل تحميل بيانات المسح')
+        setError('SCAN_FETCH_ERROR')
       }
     }
   }, [timeframe, category])

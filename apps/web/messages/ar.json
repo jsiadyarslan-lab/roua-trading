@@ -3216,7 +3216,8 @@
       "timeframe": "الإطار الزمني:",
       "aboveVwap": "فوق VWAP",
       "belowVwap": "تحت VWAP",
-      "atVwap": "عند VWAP"
+      "atVwap": "عند VWAP",
+      "noData": "لا تتوفر بيانات"
     },
     "patterns": {
       "detectedPatterns": "الأنماط الفنية المكتشفة",
@@ -3346,6 +3347,15 @@
       "neutralAlignment": "توافق محايد",
       "bearishAlignment": "توافق هبوطي",
       "strongBearishAlignment": "توافق هبوطي قوي"
-    }
+    },
+    "aiConsensus": {
+      "label": "إجماع الذكاء الاصطناعي:",
+      "strongBuy": "شراء قوي",
+      "buy": "شراء",
+      "hold": "انتظار",
+      "sell": "بيع",
+      "strongSell": "بيع قوي"
+    },
+    "error": "فشل تحميل بيانات المسح"
   }
 }

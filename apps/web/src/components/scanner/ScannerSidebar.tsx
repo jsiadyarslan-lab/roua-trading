@@ -25,12 +25,21 @@ export function ScannerSidebar() {
     return `${h}:${m}`
   }
 
+  const NAV_LABEL_KEYS: Record<string, string> = {
+    scanner: 'scanTable',
+    heatmap: 'heatmap',
+    patterns: 'patterns',
+    multitf: 'multiTimeframe',
+    overview: 'overview',
+    screener: 'customScreener',
+  }
+
   const navItems = NAV_KEYS.map((key, i) => {
     const Icon = NAV_ICONS[i]
     return {
       key,
       icon: <Icon size={16} />,
-      label: t(key === 'scanner' ? 'scanTable' : key === 'multitf' ? 'multiTimeframe' : key),
+      label: t(NAV_LABEL_KEYS[key] || key),
     }
   })
 

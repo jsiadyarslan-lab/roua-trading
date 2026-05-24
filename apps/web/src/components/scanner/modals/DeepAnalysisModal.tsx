@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { X as XIcon, TrendingUp, TrendingDown, Sparkles } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import { DirectionTag } from '../shared/DirectionTag'
 import { SmartScoreBar } from '../shared/SmartScoreBar'
@@ -69,6 +69,7 @@ function LevelPill({ price, type, strength }: { price: number; type: 'support' |
 
 export function DeepAnalysisModal() {
   const t = useTranslations('scannerAdvanced')
+  const locale = useLocale()
   const ctx = useScannerContext()
   const [data, setData] = useState<DeepData | null>(null)
   const [loading, setLoading] = useState(false)
@@ -216,13 +217,13 @@ export function DeepAnalysisModal() {
                       return (
                         <div key={p.nameAr + '-' + i} style={{ padding: 8, borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                            <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{p.nameAr}</span>
+                            <span style={{ fontSize: 10, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? p.nameAr : (p.name || p.nameAr)}</span>
                             <span style={{ fontSize: 8, padding: '1px 6px', borderRadius: 3, background: `${pColor}15`, color: pColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{p.type === 'bullish' ? t('deep.bullish') : p.type === 'bearish' ? t('deep.bearish') : t('neutral')}</span>
                           </div>
                           <div style={{ height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden', marginBottom: 4 }}>
                             <div style={{ width: `${p.confidence}%`, height: '100%', borderRadius: 2, background: pColor, transition: 'width 0.4s' }} />
                           </div>
-                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{p.description}</span>
+                          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? (p.descriptionAr || p.description) : (p.description || p.descriptionAr)}</span>
                         </div>
                       )
                     })}
@@ -239,14 +240,14 @@ export function DeepAnalysisModal() {
                       const cpColor = cp.type === 'BULLISH' ? T.green : cp.type === 'BEARISH' ? T.red : T.amber
                       return (
                         <div key={cp.nameAr + '-' + i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 6, background: T.bg, border: `0.5px solid ${T.border}` }}>
-                          <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{cp.nameAr}</span>
+                          <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? cp.nameAr : (cp.name || cp.nameAr)}</span>
                           <span style={{ fontSize: 7, padding: '1px 5px', borderRadius: 3, background: `${cpColor}15`, color: cpColor, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
                             {cp.type === 'BULLISH' ? t('deep.bullish') : cp.type === 'BEARISH' ? t('deep.bearish') : t('neutral')}
                           </span>
                           <div style={{ flex: 1, height: 3, borderRadius: 2, background: T.surface, overflow: 'hidden' }}>
                             <div style={{ width: `${cp.confidence}%`, height: '100%', borderRadius: 2, background: cpColor }} />
                           </div>
-                          <span style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{cp.descriptionAr || cp.description}</span>
+                          <span style={{ fontSize: 7, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>{locale === 'ar' ? (cp.descriptionAr || cp.description) : (cp.description || cp.descriptionAr)}</span>
                         </div>
                       )
                     })}
@@ -267,6 +268,8 @@ export function DeepAnalysisModal() {
                     <IndicatorBadge label={t('deep.risk')} value={data.aiAnalysis.riskLevel === 'LOW' ? t('deep.low') : data.aiAnalysis.riskLevel === 'HIGH' ? t('deep.high') : t('deep.medium')} status={data.aiAnalysis.riskLevel === 'LOW' ? 'bullish' : data.aiAnalysis.riskLevel === 'HIGH' ? 'bearish' : 'warning'} />
                   </div>
                   <p style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, margin: 0 }}>{data.aiAnalysis.analysisAr}</p>
+                  {/* Note: AI analysis text is generated in Arabic by the backend. 
+                      For full bilingual support, the backend would need a language parameter. */}
                 </div>
               )}
 
@@ -287,7 +290,7 @@ export function DeepAnalysisModal() {
                   </div>
                   {data.signal.reasons?.length > 0 && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 6 }}>
-                      {data.signal.reasons.map((r, i) => (
+                      {(locale === 'ar' && data.signal.reasonsAr?.length ? data.signal.reasonsAr : data.signal.reasons).map((r, i) => (
                         <span key={`reason-${i}`} style={{ fontSize: 9, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>• {r}</span>
                       ))}
                     </div>

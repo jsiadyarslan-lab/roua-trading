@@ -848,17 +848,15 @@ export default function RouaChart({
     setAiPatterns([]);
   }, [chart]);
 
-  // FIX: Clean up AI overlays when timeframe changes
-  // NOTE: These useEffects MUST be after cleanupAIOverlays is defined to avoid
-  // TDZ (Temporal Dead Zone) ReferenceError: "Cannot access 'cleanupAIOverlays' before initialization"
+  // Clean up AI overlays when timeframe changes
   useEffect(() => {
     cleanupAIOverlays();
-  }, [timeframe, cleanupAIOverlays]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeframe]);
 
-  // FIX: Clean up AI overlays when AI panel is closed
+  // Clean up AI overlays when AI panel is closed
   useEffect(() => {
     if (showAIPanel) {
-      // Snapshot candles NOW when panel opens so AI analysis gets fresh data
       if (candlesRef.current?.length) {
         setAiPanelCandles([...candlesRef.current]);
       }
@@ -866,7 +864,8 @@ export default function RouaChart({
       cleanupAIOverlays();
       setAiDirectMarkers([]);
     }
-  }, [showAIPanel, cleanupAIOverlays]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAIPanel]);
 
   // FIX: Guard against concurrent execution of handlePatternsDetected.
   // Since this is async (awaits dynamic import), calling it twice rapidly can cause

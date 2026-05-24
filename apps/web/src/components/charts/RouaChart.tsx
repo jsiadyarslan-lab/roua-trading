@@ -878,6 +878,11 @@ export default function RouaChart({
 
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     // Direct execution — no lock needed
+    // STEP 1 DEBUG
+    const d1 = document.getElementById('__s1') || document.createElement('div');
+    d1.id = '__s1'; d1.style.cssText = 'position:fixed;top:8px;left:8px;background:#f59e0b;color:#000;padding:2px 6px;border-radius:3px;font-size:9px;z-index:99999';
+    d1.textContent = 'HPD called: ' + result.patterns.length + 'p';
+    document.body.appendChild(d1);
     try {
     setAiPatterns(result.patterns);
     lastAnalysisResultRef.current = result; // save for retry

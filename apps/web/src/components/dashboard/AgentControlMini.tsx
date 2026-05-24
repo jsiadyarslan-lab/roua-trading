@@ -209,7 +209,7 @@ export function AgentControlMini() {
   return (
     <div
       className="agent-control-mini-shell"
-      dir="rtl"
+      dir="auto"
       style={{
         fontFamily: FONT_AR,
         background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))',

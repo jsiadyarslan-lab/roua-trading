@@ -425,8 +425,8 @@ export function StrategicCouncilPanel() {
                 {/* Prices */}
                 <div style={{ display: 'flex', gap: 8, fontSize: 7, color: T.text3, fontFamily: 'monospace' }}>
                   <span>{ts('entryLabel')} <b style={{ color: T.text }}>{brief.entryPrice.toFixed(2)}</b></span>
-                  <span>SL: <b style={{ color: T.danger }}>{brief.stopLoss.toFixed(2)}</b></span>
-                  <span>TP: <b style={{ color: T.success }}>{brief.takeProfit.toFixed(2)}</b></span>
+                  <span>{ts('stopLossShort')}: <b style={{ color: T.danger }}>{brief.stopLoss.toFixed(2)}</b></span>
+                  <span>{ts('takeProfitShort')}: <b style={{ color: T.success }}>{brief.takeProfit.toFixed(2)}</b></span>
                 </div>
                 {/* Confidence */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 3 }}>

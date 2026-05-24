@@ -196,7 +196,39 @@
     "connectionError": "Connection error occurred",
     "equity": "Equity",
     "margin": "Margin",
-    "marginLevel": "Margin Level"
+    "marginLevel": "Margin Level",
+    "statusLive": "Live",
+    "statusDelayed": "Delayed",
+    "statusFallback": "Fallback",
+    "statusDemo": "Demo",
+    "statusDisconnected": "Waiting for connection",
+    "sourceAwaitingApi": "Awaiting API connection",
+    "sourceBinanceWS": "Binance Direct",
+    "sourceBinance": "Binance",
+    "sourceCoinGecko": "CoinGecko",
+    "sourceTwelveData": "TwelveData",
+    "sourceYahoo": "Yahoo Finance",
+    "sourceMetalsDev": "Metals.dev",
+    "sourceFcsApi": "FCSAPI",
+    "sourceGoldPrice": "GoldPrice",
+    "sourceEcb": "ECB/Frankfurter",
+    "sourceAggregated": "Aggregated",
+    "notConnected": "Not connected",
+    "unknown": "Unknown",
+    "now": "Now",
+    "secondsAgoShort": "{n}s ago",
+    "minutesAgoShort": "{n}m ago",
+    "hoursAgoShort": "{n}h ago",
+    "temporary": "Temp",
+    "execValidating": "Validating order data",
+    "execReadyBuy": "Buy order ready",
+    "execReadySell": "Sell order ready",
+    "execSubmitting": "Submitting order to provider",
+    "execAccepted": "Order accepted",
+    "execFilled": "Order filled",
+    "execPartial": "Partial fill",
+    "execRejected": "Order rejected",
+    "execIdle": "Ready to execute"
   },
   "landing": {
     "hero": {
@@ -1081,7 +1113,24 @@
       "technicalAnalysisLabel": "📐 Technical",
       "realAILabel": "🧠 Real AI",
       "refreshAnalysis": "Refresh Analysis",
-      "activeModelsLabel": "Active Models:"
+      "activeModelsLabel": "Active Models:",
+      "realAI": "Real AI",
+      "realAnalysisFrom": "Real AI analysis — {ms}ms",
+      "httpError": "HTTP Error: {status}",
+      "consensusFailed": "Failed to get consensus",
+      "unexpectedError": "An unexpected error occurred",
+      "cachedAnalysis": "Cached analysis",
+      "partialAnalysis": "Partial analysis from {count} models",
+      "technicalAnalysis": "Technical Analysis",
+      "monitoringTrends": "Monitoring trends",
+      "aiLive": "AI LIVE",
+      "liveLabel": "LIVE",
+      "realAIEngine": "Real AI Engine",
+      "quantumAIEngine": "Quantum AI Engine",
+      "councilVersion": "Council v5.0",
+      "rolesCount": "{count} Roles",
+      "up": "UP",
+      "ping": "PING"
     },
     "execution": {
       "preTradeSummary": "Pre-Trade Summary",
@@ -1243,7 +1292,8 @@
       "awaitingBriefs": "⏳ Waiting for Briefs from strategic council...",
       "activeBriefScanning": "🔍 {count} active Brief — checking entry conditions every 10s",
       "activateToStart": "Activate Smart Executor to start auto-trading",
-      "noOpenPositions": "No open positions"
+      "noOpenPositions": "No open positions",
+      "monitoring": "MONITORING:"
     },
     "scanner": {
       "title": "Market Scanner",
@@ -1316,7 +1366,12 @@
       "maxDrawdown": "Max Drawdown",
       "quickRead": "Quick Read",
       "positiveResult": "Strategy showed positive returns on current symbol.",
-      "negativeResult": "Current result is weak and needs adjustment before relying on it."
+      "negativeResult": "Current result is weak and needs adjustment before relying on it.",
+      "strategyEmaCross": "EMA Cross",
+      "strategyRsiReversal": "RSI Reversal",
+      "strategySmaCross": "SMA Cross",
+      "profitFactor": "Profit Factor",
+      "sharpe": "Sharpe"
     },
     "correlation": {
       "title": "Correlation Matrix",
@@ -2221,7 +2276,9 @@
       "executed": "Executed",
       "modified": "Modified",
       "cancelled": "Cancelled",
-      "entryLabel": "Entry:"
+      "entryLabel": "Entry:",
+      "stopLossShort": "SL",
+      "takeProfitShort": "TP"
     },
     "priceAlerts": {
       "abovePrice": "Above Price",

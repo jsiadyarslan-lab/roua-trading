@@ -329,7 +329,7 @@ export function AICouncilPanel() {
           }} title={`Keep-alive: NestJS ${keepAliveStatus?.nestJSUp ? 'UP' : 'DOWN'} | Last ping: ${keepAliveStatus?.lastPingAt || 'never'}`}>
             <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} className={keepAliveStatus?.nestJSUp ? '' : 'animate-pulse'} />
             <span style={{ fontSize: 6, fontWeight: 700, color: keepAliveStatus?.nestJSUp ? T.green : T.amber, fontFamily: 'monospace' }}>
-              {keepAliveStatus?.nestJSUp ? 'UP' : 'PING'}
+              {keepAliveStatus?.nestJSUp ? tai('up') : tai('ping')}
             </span>
           </div>
           {/* Data Source Badge */}
@@ -513,7 +513,7 @@ export function AICouncilPanel() {
               <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
                 <div className={`w-1.5 h-1.5 rounded-full ${isRealAI ? 'bg-purple-500' : 'bg-green-500'} animate-ping`} />
                 <span className={`text-[7px] ${isRealAI ? 'text-purple-500' : 'text-green-500'}/80 font-bold font-mono`}>
-                  {isRealAI ? 'AI LIVE' : 'LIVE'}
+                  {isRealAI ? tai('aiLive') : tai('liveLabel')}
                 </span>
               </div>
 
@@ -631,12 +631,12 @@ export function AICouncilPanel() {
       <div className="p-2 flex items-center justify-between" style={{ borderTop: '1px solid rgba(255,255,255,0.04)', background: T.bg2 }}>
         <div className="flex items-center gap-1" style={{ opacity: 0.4 }}>
           <Shield size={9} />
-          <span className="text-[7px] font-bold uppercase">{isRealAI ? 'Real AI Engine' : 'Quantum AI Engine'}</span>
+          <span className="text-[7px] font-bold uppercase">{isRealAI ? tai('realAIEngine') : tai('quantumAIEngine')}</span>
         </div>
         <div className="flex items-center gap-1.5" style={{ opacity: 0.4 }}>
           <Heart size={7} color={keepAliveStatus?.nestJSUp ? T.green : T.amber} />
           <Info size={9} />
-          <span className="text-[7px] font-bold">Council v5.0 — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 8} AI` : '8 Roles'}</span>
+          <span className="text-[7px] font-bold">{tai('councilVersion')} — {isRealAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 8} AI` : tai('rolesCount', { count: 8 })}</span>
         </div>
       </div>
     </div>

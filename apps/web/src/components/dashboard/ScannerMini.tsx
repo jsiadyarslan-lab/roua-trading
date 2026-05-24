@@ -234,7 +234,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>
               <span>{spotlight.source || ts('awaitingConnection')}</span>
-              <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp) : (lastScan || tc('justNow'))}</span>
+              <span>{spotlight.timestamp ? formatFreshness(spotlight.timestamp, tc) : (lastScan || tc('justNow'))}</span>
             </div>
           </div>
         )}
@@ -338,7 +338,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
                       {sig.rsi != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>RSI {sig.rsi}</span>}
                       {sig.macdSignal != null && <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: "'JetBrains Mono', monospace" }}>MACD {sig.macdSignal}</span>}
                     </div>
-                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp) : (lastScan || tc('justNow'))}</span>
+                    <span style={{ fontSize: 6, color: 'var(--text3)', fontFamily: 'monospace' }}>{sig.timestamp ? formatFreshness(sig.timestamp, tc) : (lastScan || tc('justNow'))}</span>
                   </div>
                 </div>
               )

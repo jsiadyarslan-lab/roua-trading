@@ -196,7 +196,39 @@
     "connectionError": "حدث خطأ في الاتصال",
     "equity": "الرصيد الحالي",
     "margin": "الهامش",
-    "marginLevel": "مستوى الهامش"
+    "marginLevel": "مستوى الهامش",
+    "statusLive": "مباشر",
+    "statusDelayed": "متأخر",
+    "statusFallback": "احتياطي",
+    "statusDemo": "تجريبي",
+    "statusDisconnected": "بانتظار الربط",
+    "sourceAwaitingApi": "في انتظار ربط API",
+    "sourceBinanceWS": "بينانس مباشر",
+    "sourceBinance": "بينانس",
+    "sourceCoinGecko": "كوين جيكو",
+    "sourceTwelveData": "تويلف داتا",
+    "sourceYahoo": "ياهو فاينانس",
+    "sourceMetalsDev": "ميتالز",
+    "sourceFcsApi": "FCSAPI",
+    "sourceGoldPrice": "غولد برايس",
+    "sourceEcb": "البنك المركزي الأوروبي",
+    "sourceAggregated": "مجمّع",
+    "notConnected": "غير متصل",
+    "unknown": "غير معروف",
+    "now": "الآن",
+    "secondsAgoShort": "منذ {n}ث",
+    "minutesAgoShort": "منذ {n}د",
+    "hoursAgoShort": "منذ {n}س",
+    "temporary": "مؤقت",
+    "execValidating": "فحص بيانات الأمر",
+    "execReadyBuy": "الأمر الشرائي جاهز",
+    "execReadySell": "الأمر البيعي جاهز",
+    "execSubmitting": "إرسال الأمر إلى المزود",
+    "execAccepted": "تم قبول الأمر",
+    "execFilled": "تم تنفيذ الأمر",
+    "execPartial": "تنفيذ جزئي",
+    "execRejected": "تم رفض الأمر",
+    "execIdle": "جاهز للتنفيذ"
   },
   "landing": {
     "hero": {
@@ -1081,7 +1113,24 @@
       "technicalAnalysisLabel": "📐 تحليل تقني",
       "realAILabel": "🧠 AI حقيقي",
       "refreshAnalysis": "تحديث التحليل",
-      "activeModelsLabel": "النماذج النشطة:"
+      "activeModelsLabel": "النماذج النشطة:",
+      "realAI": "AI حقيقي",
+      "realAnalysisFrom": "تحليل AI حقيقي — {ms}ms",
+      "httpError": "خطأ HTTP: {status}",
+      "consensusFailed": "فشل في الحصول على الإجماع",
+      "unexpectedError": "حدث خطأ غير متوقع",
+      "cachedAnalysis": "تحليل مخزّن مؤقتاً",
+      "partialAnalysis": "تحليل جزئي من {count} نماذج",
+      "technicalAnalysis": "تحليل تقني",
+      "monitoringTrends": "يراقب الاتجاهات",
+      "aiLive": "AI مباشر",
+      "liveLabel": "مباشر",
+      "realAIEngine": "محرك AI حقيقي",
+      "quantumAIEngine": "محرك AI كمي",
+      "councilVersion": "المجلس v5.0",
+      "rolesCount": "{count} أدوار",
+      "up": "نشط",
+      "ping": "PING"
     },
     "execution": {
       "preTradeSummary": "ملخص ما قبل التنفيذ",
@@ -1243,7 +1292,8 @@
       "awaitingBriefs": "⏳ ينتظر Briefs من المجلس الاستراتيجي...",
       "activeBriefScanning": "🔍 {count} Brief نشط — يفحص شروط الدخول كل 10 ثوانٍ",
       "activateToStart": "فعّل المنفذ الذكي لبدء التداول التلقائي",
-      "noOpenPositions": "لا توجد مراكز مفتوحة"
+      "noOpenPositions": "لا توجد مراكز مفتوحة",
+      "monitoring": "يراقب:"
     },
     "scanner": {
       "title": "سكانر الأسواق",
@@ -1316,7 +1366,12 @@
       "maxDrawdown": "أقصى تراجع",
       "quickRead": "قراءة سريعة",
       "positiveResult": "الاستراتيجية أظهرت عائدًا إيجابيًا على الرمز الحالي.",
-      "negativeResult": "النتيجة الحالية ضعيفة وتحتاج ضبطًا قبل الاعتماد عليها."
+      "negativeResult": "النتيجة الحالية ضعيفة وتحتاج ضبطًا قبل الاعتماد عليها.",
+      "strategyEmaCross": "تقاطع EMA",
+      "strategyRsiReversal": "انعكاس RSI",
+      "strategySmaCross": "تقاطع SMA",
+      "profitFactor": "معامل الربح",
+      "sharpe": "شارب"
     },
     "correlation": {
       "title": "مصفوفة الارتباط",
@@ -2221,7 +2276,9 @@
       "executed": "تم التنفيذ",
       "modified": "معدّل",
       "cancelled": "ملغى",
-      "entryLabel": "دخول:"
+      "entryLabel": "دخول:",
+      "stopLossShort": "وقف",
+      "takeProfitShort": "هدف"
     },
     "priceAlerts": {
       "abovePrice": "فوق السعر",

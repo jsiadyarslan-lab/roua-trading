@@ -17,6 +17,7 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 export interface ActiveTabInfo {
   label: string
@@ -45,10 +46,12 @@ export function SidebarContentPanel({
         }
       `)
   const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
+  const tc = useTranslations('common')
+  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
   const activeQuote = useMarketStore((s) => selectedSymbol ? s.quotes[selectedSymbol] : null)
   const quoteStatus = getDataStatus(activeQuote)
-  const sourceLabel = getSourceLabel(activeQuote?.source)
+  const sourceLabel = getSourceLabel(activeQuote?.source, tcRef)
 
   return (
     <section

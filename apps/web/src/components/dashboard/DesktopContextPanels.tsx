@@ -59,6 +59,7 @@ function PanelShell({
 
 export function DesktopNewsPanel() {
   const t = useTranslations('dashboard.news')
+  const tc = useTranslations('common')
   const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -93,7 +94,7 @@ export function DesktopNewsPanel() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(item.categoryAr || item.category)}</span>
               <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                {item.publishedAt ? formatFreshness(item.publishedAt) : safeStr(item.source)}
+                {item.publishedAt ? formatFreshness(item.publishedAt, tc) : safeStr(item.source)}
               </span>
             </div>
             <div style={{ fontSize: 11, color: T.text, lineHeight: 1.8 }}>{safeStr(item.text)}</div>
@@ -153,9 +154,9 @@ export function DesktopCalendarPanel() {
 }
 
 const BACKTEST_STRATEGIES = [
-  { id: 'EMA_CROSSOVER', label: 'EMA Cross', color: T.cyan },
-  { id: 'RSI', label: 'RSI Reversal', color: T.amber },
-  { id: 'SMA_CROSSOVER', label: 'SMA Cross', color: T.purple },
+  { id: 'EMA_CROSSOVER', labelKey: 'strategyEmaCross', color: T.cyan },
+  { id: 'RSI', labelKey: 'strategyRsiReversal', color: T.amber },
+  { id: 'SMA_CROSSOVER', labelKey: 'strategySmaCross', color: T.purple },
 ]
 
 export function DesktopBacktestPanel() {
@@ -235,7 +236,7 @@ export function DesktopBacktestPanel() {
               cursor: 'pointer',
             }}
           >
-            {item.label}
+            {t(item.labelKey)}
           </button>
         ))}
         {['15m', '1h', '4h'].map(item => (
@@ -282,8 +283,8 @@ export function DesktopBacktestPanel() {
             <div style={{ fontSize: 9, color: T.text3 }}>{t('quickRead')}</div>
             <div style={{ marginTop: 6, fontSize: 11, color: T.text, lineHeight: 1.8 }}>
               {Number(summary.return || 0) >= 0 ? t('positiveResult') : t('negativeResult')}
-              {' '}Profit Factor: <span style={{ color: T.cyan }}>{Number(summary.profitFactor || 0).toFixed(2)}</span>
-              {' '}| Sharpe: <span style={{ color: T.purple }}>{Number(summary.sharpe || 0).toFixed(2)}</span>
+              {' '}{t('profitFactor')}: <span style={{ color: T.cyan }}>{Number(summary.profitFactor || 0).toFixed(2)}</span>
+              {' '}| {t('sharpe')}: <span style={{ color: T.purple }}>{Number(summary.sharpe || 0).toFixed(2)}</span>
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import { BarChart3, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-rea
 import { useSingleQuote } from '@/hooks/useMarketData'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
+import { useTranslations } from 'next-intl'
 
 interface OrderBookEntry {
   price: string
@@ -76,8 +77,10 @@ export function OrderBookPanelInner({
   collapsedByDefault = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'في انتظار ربط API',
+  sourceLabel = '',
 }: OrderBookPanelProps = {}) {
+  const tc = useTranslations('common')
+  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const [expanded, setExpanded] = useState(!collapsedByDefault)
   const selectedPair = useSymbolStore(state => state.selectedSymbol)
   const { quote } = useSingleQuote(selectedPair, 5000)
@@ -190,10 +193,10 @@ export function OrderBookPanelInner({
                 fontFamily: 'var(--font-mono)',
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
-                {getStatusLabel(dataStatus)}
+                {getStatusLabel(dataStatus, tcRef)}
               </span>
               <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-                {formatFreshness(lastUpdatedAt)}
+                {formatFreshness(lastUpdatedAt, tcRef)}
               </span>
             </div>
             <span style={{ fontSize: '9px', color: buyPressure >= 50 ? 'var(--profit)' : 'var(--loss)', fontFamily: 'var(--font-mono)' }}>

@@ -58,6 +58,7 @@ export function AlNarratorMini({
   const [alertToast, setAlertToast] = useState<{ symbol: string; sentiment: string; risk: string; confidence: number; summary: string } | null>(null)
   const t = useTranslations('ai.narrator')
   const tc = useTranslations('common')
+  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
 
   const fetchNarrative = useCallback(async () => {
     setLoading(true)
@@ -250,7 +251,7 @@ export function AlNarratorMini({
              background: `${statusTone}16`, border: `1px solid ${statusTone}32`,
              color: statusTone, fontFamily: 'var(--mono)', fontWeight: 700
           }}>
-            {getStatusLabel(dataStatus)} · {formatFreshness(data.timestamp)}
+            {getStatusLabel(dataStatus, tcRef)} · {formatFreshness(data.timestamp, tcRef)}
           </div>
         )}
       </div>

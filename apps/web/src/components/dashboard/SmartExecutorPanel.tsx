@@ -222,7 +222,7 @@ export function SmartExecutorPanel() {
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
               <span style={{ fontSize: 7, color: T.success, fontWeight: 700, fontFamily: 'monospace' }}>
-                MONITORING: {currentMonitoredSymbol}
+                {t('monitoring')} {currentMonitoredSymbol}
               </span>
             </div>
           )}

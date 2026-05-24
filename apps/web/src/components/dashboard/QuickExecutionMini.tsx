@@ -29,6 +29,7 @@ export function QuickExecutionMini({
 }) {
   const t = useTranslations('dashboard.execution')
   const tc = useTranslations('common')
+  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [localSymbol, setLocalSymbol] = useState(selectedSymbol)
   const [account, setAccount] = useState<{ cash: number; buyingPower: number } | null>(null)
@@ -292,7 +293,7 @@ export function QuickExecutionMini({
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontWeight: 700 }}>{t('executionStatus')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction)}</span>
+            <span style={{ fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{formatExecutionLabel(executionState, pendingAction, tcRef)}</span>
             <span style={{
               display: 'inline-flex',
               alignItems: 'center',
@@ -307,13 +308,13 @@ export function QuickExecutionMini({
               fontFamily: "'JetBrains Mono', monospace",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone, boxShadow: `0 0 8px ${statusTone}` }} />
-              {getStatusLabel(dataStatus)}
+              {getStatusLabel(dataStatus, tcRef)}
             </span>
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{sourceLabel}</div>
-          <div style={{ fontSize: 10, color: 'var(--foreground)', fontWeight: 700 }}>{formatFreshness(lastUpdatedAt)}</div>
+          <div style={{ fontSize: 10, color: 'var(--foreground)', fontWeight: 700 }}>{formatFreshness(lastUpdatedAt, tcRef)}</div>
         </div>
       </div>
 

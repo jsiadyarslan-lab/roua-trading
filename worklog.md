@@ -765,3 +765,24 @@ Stage Summary:
 - AI Council page shows multi-model consensus with voting visualization
 - Build verification: lint passes (0 new errors), TypeScript passes
 
+
+---
+Task ID: 4
+Agent: main
+Task: Translate social page - replace hardcoded Arabic strings with i18n keys
+
+Work Log:
+- Found social page at apps/web/src/app/dashboard/social/page.tsx
+- Identified all hardcoded Arabic: page title, subtitle, hero section, 4 feature cards with titles/descriptions, email signup section, toast messages
+- Moved FEATURES constant from module scope to inside the component to access translations
+- Added 23 new translation keys to dashboard.social namespace in both en.json and ar.json
+- Renamed translation function to `sl` for clarity
+- Updated all labels, titles, descriptions, form elements, toast messages
+- Built successfully with no errors
+- Committed and pushed to main (commit 712d285e)
+
+Stage Summary:
+- All hardcoded Arabic strings in social page replaced with i18n keys
+- Keys added: pageTitle, pageSubtitle, heroTitle, heroDesc, inDevelopment, upcomingFeatures, featureFollowTitle/Desc, featureShareTitle/Desc, featureRankingTitle/Desc, featureDiscussionsTitle/Desc, signupTitle, signupDesc, emailPlaceholder, notifyBtn, registeredSuccess, toastSignupTitle, toastSignupDesc
+- Arabic text in ar.json preserved exactly as original
+- Build passed, pushed to main branch

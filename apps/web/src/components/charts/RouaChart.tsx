@@ -1022,127 +1022,34 @@ export default function RouaChart({
       }
     } catch (e) { console.warn('[AI Overlay] Trend lines error:', e); }
 
-    // ── SMC + Geo + Elliott: direct createPriceLine on series ──
-    const addDirectLine = (series: any, price: number, color: string, label: string, lw: number, ls: number, axis: boolean) => {
-      if (!series || price === undefined || price === null || !isFinite(price) || price <= 0) return null;
-      const p = Number(price);
-      try {
-        return series.createPriceLine({
-          price: p,
-          color,
-          lineWidth: lw,
-          lineStyle: ls,
-          axisLabelVisible: axis,
-          title: label || '',
-        });
-      } catch (e) {
-        // Try minimal options
-        try {
-          return series.createPriceLine({ price: p, color, title: label || '' });
-        } catch { return null; }
-      }
-    };
-
-    const drawDirect = () => {
-      const s = chart.getCandleSeries();
-      if (!s) return false;
-      // Ensure price lines are enabled on this series
-      try { s.applyOptions({ priceLineVisible: true }); } catch {}
-      // Debug: what type is the series?
-      const serType = s?.seriesType?.() || s?._internal_seriesType?.() || typeof s;
-      const d3 = document.getElementById('__s3') || document.createElement('div');
-      d3.id = '__s3'; d3.style.cssText = 'position:fixed;top:52px;left:8px;background:#7c3aed;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;z-index:99999';
-      d3.textContent = `serType=${serType} hasCPL=${typeof s?.createPriceLine}`;
-      document.body.appendChild(d3);
-      const directLines: any[] = [];
-
-      if (result.smcData) {
-        result.smcData.orderBlocks.slice(0, 3).forEach((ob) => {
-          const col = ob.type === 'bullish' ? '#00FFA3' : '#FF4757';
-          const l1 = addDirectLine(s, ob.high, col, ob.type === 'bullish' ? 'OB↑' : 'OB↓', 1, 2, true);
-          const l2 = addDirectLine(s, ob.low, col, '', 1, 2, false);
-          if (l1) directLines.push(l1);
-          if (l2) directLines.push(l2);
-        });
-        result.smcData.fvgs.slice(0, 3).forEach((fvg) => {
-          // Use VERY visible colors and thick lines
-          const col = fvg.type === 'bullish' ? '#00ff00' : '#ff0000';
-          const mid = (fvg.high + fvg.low) / 2;
-          const l1 = addDirectLine(s, fvg.high, col, `FVG${fvg.type==='bullish'?'↑':'↓'} H`, 2, 0, true);
-          const l2 = addDirectLine(s, fvg.low, col, `FVG${fvg.type==='bullish'?'↑':'↓'} L`, 2, 0, false);
-          const l3 = addDirectLine(s, mid, col, `FVG${fvg.type==='bullish'?'↑':'↓'}`, 3, 0, true);
-          if (l1) directLines.push(l1);
-          if (l2) directLines.push(l2);
-          if (l3) directLines.push(l3);
-        });
-        result.smcData.structureBreaks.slice(0, 2).forEach((br) => {
-          const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
-          const l = addDirectLine(s, br.price, col, `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`, 2, 0, true);
-          if (l) directLines.push(l);
-        });
-      }
-      if (result.geoPatterns?.length) {
-        result.geoPatterns.slice(0, 3).forEach((pat) => {
-          if (!pat.target) return;
-          const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
-          const l = addDirectLine(s, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
-          if (l) directLines.push(l);
-        });
-      }
-      if (result.elliottPattern?.nextTarget) {
-        const ew = result.elliottPattern;
-        const col = ew.direction === 'bullish' ? '#93c5fd' : '#fca5a5';
-        const l = addDirectLine(s, ew.nextTarget!, col, `إليوت ${ew.currentWave}🌊`, 2, 0, true);
-        if (l) directLines.push(l);
-      }
-      if (result.wyckoff && result.wyckoff.phase !== 'Unknown') {
-        const wCol = result.wyckoff.bias === 'bullish' ? '#00FFA3' : '#FF4757';
-        result.wyckoff.events.forEach((ev: any) => {
-          const l = addDirectLine(s, ev.price, wCol, `وايكوف: ${result.wyckoff!.labelAr}`, 1, 1, true);
-          if (l) directLines.push(l);
-        });
-      }
-
-      // Store for cleanup
-      // cleanup old direct lines first
-      const oldDirect = (aiPriceLinesRef as any).__direct || [];
-      oldDirect.forEach(({ s: os, l: ol }: any) => { try { os.removePriceLine(ol); } catch {} });
-      (aiPriceLinesRef as any).__direct = [];
-
-      if (directLines.length > 0) {
-        (aiPriceLinesRef as any).__direct.push(...directLines.map(l => ({ s, l })));
-        const el = document.getElementById('__draw_debug') || document.createElement('div');
-        el.id = '__draw_debug';
-        el.style.cssText = 'position:fixed;bottom:8px;left:8px;background:#00FFA3;color:#000;padding:3px 8px;border-radius:4px;font-size:10px;z-index:99999;font-family:monospace';
-        // Show actual prices drawn
-        const fvgPrices = (result as any).smcData?.fvgs?.slice(0,2).map((f:any)=>((f.high+f.low)/2).toFixed(0)).join(',');
-        el.textContent = `✓ ${directLines.length} lines drawn | fvg@${fvgPrices}`;
-        document.body.appendChild(el);
-        setTimeout(() => { try { el.remove(); } catch {} }, 5000);
-        return true;
-      }
-      const el2 = document.getElementById('__draw_debug') || document.createElement('div');
-      el2.id = '__draw_debug';
-      el2.style.cssText = 'position:fixed;bottom:8px;left:8px;background:#FF4757;color:#fff;padding:3px 8px;border-radius:4px;font-size:10px;z-index:99999;font-family:monospace';
-      el2.textContent = `✗ 0 lines (fvg=${(result as any).smcData?.fvgs?.length||0})`;
-      document.body.appendChild(el2);
-      setTimeout(() => { try { el2.remove(); } catch {} }, 5000);
-      return false;
-    };
-
-    // Debug step 2
-    const d2 = document.getElementById('__s2') || document.createElement('div');
-    d2.id = '__s2'; d2.style.cssText = 'position:fixed;top:30px;left:8px;background:#3b82f6;color:#fff;padding:2px 6px;border-radius:3px;font-size:9px;z-index:99999';
-    const ser = chart.getCandleSeries();
-    d2.textContent = `s=${!!ser} smc=${!!(result as any).smcData} ob=${(result as any).smcData?.orderBlocks?.length||0} fvg=${(result as any).smcData?.fvgs?.length||0}`;
-    document.body.appendChild(d2);
-
-    if (!drawDirect()) {
-      setTimeout(drawDirect, 1000);
-      setTimeout(drawDirect, 3000);
+    // ── SMC + Geo + Elliott via chart.addPriceLine (same as S/R) ──
+    if ((result as any).smcData) {
+      const smc = (result as any).smcData;
+      smc.fvgs?.slice(0,4).forEach((fvg: any, i: number) => {
+        const col = fvg.type === 'bullish' ? '#00ff88' : '#ff4444';
+        chart.addPriceLine(`fvg-hi-${i}`, fvg.high, col, `FVG${fvg.type==='bullish'?'↑':'↓'}`, 2, 0, true);
+        chart.addPriceLine(`fvg-lo-${i}`, fvg.low, col, '', 1, 1, false);
+        aiPriceLinesRef.current.push(`fvg-hi-${i}`, `fvg-lo-${i}`);
+      });
+      smc.structureBreaks?.slice(0,2).forEach((br: any, i: number) => {
+        const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
+        chart.addPriceLine(`bos-${i}`, br.price, col, `${br.type}${br.direction==='bullish'?'↑':'↓'}`, 2, 0, true);
+        aiPriceLinesRef.current.push(`bos-${i}`);
+      });
+    }
+    (result as any).geoPatterns?.slice(0,3).forEach((pat: any, i: number) => {
+      if (!pat.target) return;
+      const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
+      chart.addPriceLine(`geo-${i}`, pat.target, col, `${pat.labelAr}🎯`, 1, 2, true);
+      aiPriceLinesRef.current.push(`geo-${i}`);
+    });
+    if ((result as any).elliottPattern?.nextTarget) {
+      const ew = (result as any).elliottPattern;
+      chart.addPriceLine('ew-t', ew.nextTarget, '#93c5fd', `إليوت ${ew.currentWave}🌊`, 2, 0, true);
+      aiPriceLinesRef.current.push('ew-t');
     }
 
-    // ── Pattern markers ──
+        // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,
     // applied by the combined-markers useEffect). No AreaSeries per pattern —
     // that caused chart rescaling chaos when 10+ patterns loaded simultaneously.

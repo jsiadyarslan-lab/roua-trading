@@ -1057,9 +1057,15 @@ export default function RouaChart({
           if (l2) directLines.push(l2);
         });
         result.smcData.fvgs.slice(0, 3).forEach((fvg) => {
-          const col = fvg.type === 'bullish' ? '#22d3ee' : '#f59e0b';
-          const l = addDirectLine(s, (fvg.high + fvg.low) / 2, col, fvg.type === 'bullish' ? 'FVG↑' : 'FVG↓', 1, 1, true);
-          if (l) directLines.push(l);
+          // Use VERY visible colors and thick lines
+          const col = fvg.type === 'bullish' ? '#00ff00' : '#ff0000';
+          const mid = (fvg.high + fvg.low) / 2;
+          const l1 = addDirectLine(s, fvg.high, col, `FVG${fvg.type==='bullish'?'↑':'↓'} H`, 2, 0, true);
+          const l2 = addDirectLine(s, fvg.low, col, `FVG${fvg.type==='bullish'?'↑':'↓'} L`, 2, 0, false);
+          const l3 = addDirectLine(s, mid, col, `FVG${fvg.type==='bullish'?'↑':'↓'}`, 3, 0, true);
+          if (l1) directLines.push(l1);
+          if (l2) directLines.push(l2);
+          if (l3) directLines.push(l3);
         });
         result.smcData.structureBreaks.slice(0, 2).forEach((br) => {
           const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';

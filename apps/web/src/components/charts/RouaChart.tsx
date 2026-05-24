@@ -1902,7 +1902,7 @@ export default function RouaChart({
       {showAIPanel && (
         <div
           ref={(el) => { (aiPanelDivRef as any).current = el; }}
-          style={{ position: 'fixed', top: 120, left: 'calc(100vw - 630px)', width: 340, minHeight: 360, zIndex: 9999 }}
+          style={{ position: 'fixed', top: 120, left: 'calc(100vw - 750px)', width: 340, minHeight: 360, zIndex: 9999 }}
           onMouseDown={(e) => {
             const el = aiPanelDivRef.current;
             if (!el) return;

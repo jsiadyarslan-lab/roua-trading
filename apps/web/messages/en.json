@@ -228,7 +228,19 @@
     "execFilled": "Order filled",
     "execPartial": "Partial fill",
     "execRejected": "Order rejected",
-    "execIdle": "Ready to execute"
+    "execIdle": "Ready to execute",
+    "roleFree": "Free",
+    "rolePro": "Pro",
+    "rolePlus": "Plus",
+    "rolePremium": "Premium",
+    "roleInstitutional": "Enterprise",
+    "roleAdmin": "Admin",
+    "roleFreeDesc": "One account & basic insights",
+    "roleProDesc": "Multiple accounts & AI",
+    "rolePlusDesc": "Advanced AI & API",
+    "rolePremiumDesc": "Full access, API & advanced tools",
+    "roleInstDesc": "Full institutional permissions",
+    "roleAdminDesc": "Full administrative permissions"
   },
   "landing": {
     "hero": {

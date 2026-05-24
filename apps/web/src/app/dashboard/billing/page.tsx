@@ -250,7 +250,7 @@ export default function BillingPage() {
              userTier === 'PRO' ? <Star size={13} color={roleInfo.color} /> :
              <Crown size={13} color={roleInfo.color} />}
             <span style={{ fontSize: 11, fontWeight: 700, color: roleInfo.color, fontFamily: "'Cairo', sans-serif" }}>
-              {roleInfo.label}
+              {tc(roleInfo.labelKey)}
             </span>
           </div>
         </div>
@@ -289,7 +289,7 @@ export default function BillingPage() {
               </div>
               <div style={{ flex: 1, minWidth: 120 }}>
                 <div style={{ fontSize: 20, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  {t('currentPlanLabel', { plan: roleInfo.label })}
+                  {t('currentPlanLabel', { plan: tc(roleInfo.labelKey) })}
                   {userTier === 'FREE' && (
                     <span style={{
                       fontSize: 9, padding: '2px 8px', borderRadius: 10,
@@ -299,7 +299,7 @@ export default function BillingPage() {
                   )}
                 </div>
                 <div style={{ fontSize: 12, color: T.text3, marginTop: 4, lineHeight: 1.6 }}>
-                  {roleInfo.description} — {t('currentlyOnPlan', { plan: roleInfo.label })}
+                  {tc(roleInfo.descriptionKey)} — {t('currentlyOnPlan', { plan: tc(roleInfo.labelKey) })}
                   {userTier !== 'INSTITUTIONAL' && t('upgradeAnytime')}
                   {userTier === 'INSTITUTIONAL' && t('highestServiceLevel')}
                 </div>

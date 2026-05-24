@@ -612,9 +612,9 @@ export default function SettingsPage() {
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}>
                     {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={10} /> : userTier === 'PRO' ? <Star size={10} /> : <Crown size={10} />}
-                    {roleInfo.label}
+                    {tc(roleInfo.labelKey)}
                   </span>
-                  <span style={{ fontSize: 10, color: T.text4 }}>{roleInfo.description}</span>
+                  <span style={{ fontSize: 10, color: T.text4 }}>{tc(roleInfo.descriptionKey)}</span>
                 </div>
               </div>
               <button
@@ -799,7 +799,7 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 22, fontWeight: 900, color: T.text, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      {t('planLabel', { plan: roleInfo.label })}
+                      {t('planLabel', { plan: tc(roleInfo.labelKey) })}
                       {userTier === 'FREE' && (
                         <span style={{
                           fontSize: 10, padding: '2px 8px', borderRadius: 10,
@@ -808,7 +808,7 @@ export default function SettingsPage() {
                         }}>{t('upgrade')}</span>
                       )}
                     </div>
-                    <div style={{ fontSize: 12, color: T.text3, marginTop: 2 }}>{roleInfo.description}</div>
+                    <div style={{ fontSize: 12, color: T.text3, marginTop: 2 }}>{tc(roleInfo.descriptionKey)}</div>
                   </div>
                 </div>
 
@@ -825,9 +825,9 @@ export default function SettingsPage() {
                         boxShadow: isActive ? `0 0 16px ${info.color}10` : 'none',
                       }}>
                         <div style={{ fontSize: 12, fontWeight: 800, color: isActive ? info.color : T.text3, fontFamily: "'Cairo', sans-serif" }}>
-                          {info.label}
+                          {tc(info.labelKey)}
                         </div>
-                        <div style={{ fontSize: 9, color: T.text4, marginTop: 2 }}>{info.description}</div>
+                        <div style={{ fontSize: 9, color: T.text4, marginTop: 2 }}>{tc(info.descriptionKey)}</div>
                         {isActive && (
                           <div style={{
                             marginTop: 6, fontSize: 8, fontWeight: 700,
@@ -847,7 +847,7 @@ export default function SettingsPage() {
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
               title={t('yourPermissions')}
-              subtitle={t('planPermissionsCount', { plan: roleInfo.label, count: userPermissions.length })}
+              subtitle={t('planPermissionsCount', { plan: tc(roleInfo.labelKey), count: userPermissions.length })}
               badge={`${userPermissions.length}`}
             >
               <div style={{ padding: '8px 0' }}>

@@ -228,7 +228,19 @@
     "execFilled": "تم تنفيذ الأمر",
     "execPartial": "تنفيذ جزئي",
     "execRejected": "تم رفض الأمر",
-    "execIdle": "جاهز للتنفيذ"
+    "execIdle": "جاهز للتنفيذ",
+    "roleFree": "مجاني",
+    "rolePro": "احترافي",
+    "rolePlus": "بلس",
+    "rolePremium": "نخبة",
+    "roleInstitutional": "مؤسسي",
+    "roleAdmin": "مدير",
+    "roleFreeDesc": "ربط حساب واحد ورؤى أساسية",
+    "roleProDesc": "ربط حسابات متعددة وذكاء اصطناعي",
+    "rolePlusDesc": "ذكاء اصطناعي متقدم وAPI",
+    "rolePremiumDesc": "وصول كامل وAPI وأدوات متقدمة",
+    "roleInstDesc": "صلاحيات مؤسسية كاملة",
+    "roleAdminDesc": "صلاحيات إدارية كاملة"
   },
   "landing": {
     "hero": {

@@ -13,6 +13,7 @@ import { useAuthStore } from '@/lib/auth-store'
 import { ROLE_INFO, type Role } from '@/lib/permissions'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ── Design Tokens (canonical + local extensions) ── */
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
@@ -230,6 +231,7 @@ export default function ProfilePage() {
 
   const user = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
+  const tc = useTranslations('common')
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false)
@@ -374,7 +376,7 @@ export default function ProfilePage() {
                   display: 'flex', alignItems: 'center', gap: 4,
                 }}>
                   {['PREMIUM', 'INSTITUTIONAL', 'PLUS'].includes(userTier) ? <Sparkles size={10} /> : userTier === 'PRO' ? <Star size={10} /> : <Crown size={10} />}
-                  {roleInfo.label}
+                  {tc(roleInfo.labelKey)}
                 </span>
                 {/* Member Since */}
                 <span style={{ fontSize: 10, color: T.text4, display: 'flex', alignItems: 'center', gap: 4, fontFamily: "'Cairo', sans-serif" }}>

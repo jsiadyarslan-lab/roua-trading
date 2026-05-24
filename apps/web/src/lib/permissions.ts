@@ -172,37 +172,68 @@ export function getPermissions(role: Role | string | undefined): Permission[] {
 }
 
 /**
- * Role display info
+ * Translation key mapping for role labels and descriptions.
+ * Use tc(key) in components to get the localized string.
  */
-export const ROLE_INFO: Record<Role, { label: string; color: string; description: string }> = {
+export const ROLE_LABEL_KEYS: Record<Role, string> = {
+  FREE: 'roleFree',
+  PRO: 'rolePro',
+  PLUS: 'rolePlus',
+  PREMIUM: 'rolePremium',
+  INSTITUTIONAL: 'roleInstitutional',
+  ADMIN: 'roleAdmin',
+}
+
+export const ROLE_DESC_KEYS: Record<Role, string> = {
+  FREE: 'roleFreeDesc',
+  PRO: 'roleProDesc',
+  PLUS: 'rolePlusDesc',
+  PREMIUM: 'rolePremiumDesc',
+  INSTITUTIONAL: 'roleInstDesc',
+  ADMIN: 'roleAdminDesc',
+}
+
+export const ROLE_INFO: Record<Role, { label: string; labelKey: string; color: string; description: string; descriptionKey: string }> = {
   FREE: {
-    label: 'مجاني',
+    label: 'Free',
+    labelKey: 'roleFree',
     color: '#8B92A8',
-    description: 'ربط حساب واحد ورؤى أساسية',
+    description: 'One account & basic insights',
+    descriptionKey: 'roleFreeDesc',
   },
   PRO: {
-    label: 'احترافي',
+    label: 'Pro',
+    labelKey: 'rolePro',
     color: '#00D4FF',
-    description: 'ربط حسابات متعددة وذكاء اصطناعي',
+    description: 'Multiple accounts & AI',
+    descriptionKey: 'roleProDesc',
   },
   PLUS: {
-    label: 'بلس',
+    label: 'Plus',
+    labelKey: 'rolePlus',
     color: '#A855F7',
-    description: 'ذكاء اصطناعي متقدم وAPI',
+    description: 'Advanced AI & API',
+    descriptionKey: 'rolePlusDesc',
   },
   PREMIUM: {
-    label: 'نخبة',
+    label: 'Premium',
+    labelKey: 'rolePremium',
     color: '#FFB800',
-    description: 'وصول كامل وAPI وأدوات متقدمة',
+    description: 'Full access, API & advanced tools',
+    descriptionKey: 'rolePremiumDesc',
   },
   INSTITUTIONAL: {
-    label: 'مؤسسي',
+    label: 'Enterprise',
+    labelKey: 'roleInstitutional',
     color: '#10B981',
-    description: 'صلاحيات مؤسسية كاملة',
+    description: 'Full institutional permissions',
+    descriptionKey: 'roleInstDesc',
   },
   ADMIN: {
-    label: 'مدير',
+    label: 'Admin',
+    labelKey: 'roleAdmin',
     color: '#FF4757',
-    description: 'صلاحيات إدارية كاملة',
+    description: 'Full administrative permissions',
+    descriptionKey: 'roleAdminDesc',
   },
 }

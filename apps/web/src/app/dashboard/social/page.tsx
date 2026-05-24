@@ -1,54 +1,56 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Users, MessageCircle, Trophy, TrendingUp, Mail, ArrowUpRight, Sparkles, CheckCircle } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { T } from '@/lib/unified-tokens'
 
-const FEATURES = [
-  {
-    icon: Users,
-    title: 'متابعة المتداولين',
-    desc: 'تابع أفضل المتداولين العرب وتعلم من استراتيجياتهم. احصل على إشعارات فورية عند تنفيذ صفقاتهم.',
-    color: T.cyan,
-    gradient: `linear-gradient(135deg, ${T.cyan}20, ${T.blue}10)`,
-    borderColor: `${T.cyan}30`,
-  },
-  {
-    icon: Sparkles,
-    title: 'مشاركة الاستراتيجيات',
-    desc: 'شارك استراتيجياتك المخصصة مع المجتمع. بناء سمعة مهنية كمتداول محترف.',
-    color: T.green,
-    gradient: `linear-gradient(135deg, ${T.green}20, ${T.cyan}10)`,
-    borderColor: `${T.green}30`,
-  },
-  {
-    icon: Trophy,
-    title: 'تصنيف الأداء',
-    desc: 'لوحة صدارة تعرض أفضل المتداولين حسب العائد والمخاطر والاتساق. تنافس على المراكز الأولى.',
-    color: T.amber,
-    gradient: `linear-gradient(135deg, ${T.amber}20, ${T.red}10)`,
-    borderColor: `${T.amber}30`,
-  },
-  {
-    icon: MessageCircle,
-    title: 'مناقشات السوق',
-    desc: 'ناقش تحركات السوق في الوقت الفعلي. شارك التحليلات الفنية والأساسية مع المجتمع.',
-    color: T.purple,
-    gradient: `linear-gradient(135deg, ${T.purple}20, ${T.blue}10)`,
-    borderColor: `${T.purple}30`,
-  },
-]
-
 export default function SocialPage() {
+  const sl = useTranslations('dashboard.social')
   const [email, setEmail] = useState('')
   const [submitted, setSubmitted] = useState(false)
+
+  const features = [
+    {
+      icon: Users,
+      title: sl('featureFollowTitle'),
+      desc: sl('featureFollowDesc'),
+      color: T.cyan,
+      gradient: `linear-gradient(135deg, ${T.cyan}20, ${T.blue}10)`,
+      borderColor: `${T.cyan}30`,
+    },
+    {
+      icon: Sparkles,
+      title: sl('featureShareTitle'),
+      desc: sl('featureShareDesc'),
+      color: T.green,
+      gradient: `linear-gradient(135deg, ${T.green}20, ${T.cyan}10)`,
+      borderColor: `${T.green}30`,
+    },
+    {
+      icon: Trophy,
+      title: sl('featureRankingTitle'),
+      desc: sl('featureRankingDesc'),
+      color: T.amber,
+      gradient: `linear-gradient(135deg, ${T.amber}20, ${T.red}10)`,
+      borderColor: `${T.amber}30`,
+    },
+    {
+      icon: MessageCircle,
+      title: sl('featureDiscussionsTitle'),
+      desc: sl('featureDiscussionsDesc'),
+      color: T.purple,
+      gradient: `linear-gradient(135deg, ${T.purple}20, ${T.blue}10)`,
+      borderColor: `${T.purple}30`,
+    },
+  ]
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!email.trim()) return
     setSubmitted(true)
-    toast({ title: 'تم التسجيل بنجاح ✅', description: `سنقوم بإشعارك عند إطلاق منصة متابعة الحسابات الاجتماعية على ${email}` })
+    toast({ title: sl('toastSignupTitle'), description: sl('toastSignupDesc', { email }) })
   }
 
   return (
@@ -57,7 +59,7 @@ export default function SocialPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           <Users size={20} color={T.cyan} />
-          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>متابعة الحسابات الاجتماعية</h1>
+          <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{sl('pageTitle')}</h1>
           <span style={{
             fontSize: 10, padding: '2px 8px', borderRadius: 20,
             background: `${T.cyan}18`, color: T.cyan,
@@ -65,7 +67,7 @@ export default function SocialPage() {
           }}>COMING SOON</span>
         </div>
         <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-          تواصل مع مجتمع المتداولين العرب، شارك التحليلات، وتعلم من الخبراء
+          {sl('pageSubtitle')}
         </p>
       </div>
 
@@ -98,11 +100,10 @@ export default function SocialPage() {
             <Users size={28} color={T.cyan} />
           </div>
           <h2 style={{ color: T.text, fontSize: 22, fontWeight: 900, margin: '0 0 12px' }}>
-            منصة متابعة الحسابات الاجتماعية
+            {sl('heroTitle')}
           </h2>
           <p style={{ color: T.text2, fontSize: 14, lineHeight: 1.8, maxWidth: 480, margin: '0 auto 24px' }}>
-            أول منصة متابعة حسابات اجتماعية عربية — شارك تحليلاتك، ناقش السوق،
-            وابني سمعتك كمتداول محترف.
+            {sl('heroDesc')}
           </p>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -110,7 +111,7 @@ export default function SocialPage() {
             background: `${T.cyan}15`, border: `1px solid ${T.cyan}40`,
             color: T.cyan, fontSize: 12, fontWeight: 700,
           }}>
-            <ArrowUpRight size={13} /> قيد التطوير
+            <ArrowUpRight size={13} /> {sl('inDevelopment')}
           </div>
         </div>
       </div>
@@ -118,11 +119,11 @@ export default function SocialPage() {
       {/* Feature Preview Cards */}
       <h3 style={{ fontSize: 16, fontWeight: 800, color: T.text, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
         <TrendingUp size={16} color={T.cyan} />
-        الميزات القادمة
+        {sl('upcomingFeatures')}
       </h3>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16, marginBottom: 32 }}>
-        {FEATURES.map((feature, i) => (
+        {features.map((feature, i) => (
           <div key={i} style={{
             background: feature.gradient,
             border: `1px solid ${feature.borderColor}`,
@@ -167,10 +168,10 @@ export default function SocialPage() {
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: T.text, marginBottom: 4 }}>
-            اشترك للحصول على إشعار عند الإطلاق
+            {sl('signupTitle')}
           </div>
           <div style={{ fontSize: 12, color: T.text2 }}>
-            كن أول من يعرف عند إطلاق منصة متابعة الحسابات الاجتماعية
+            {sl('signupDesc')}
           </div>
         </div>
 
@@ -181,7 +182,7 @@ export default function SocialPage() {
             background: `${T.green}15`, border: `1px solid ${T.green}30`,
             color: T.green, fontSize: 13, fontWeight: 700,
           }}>
-            <CheckCircle size={16} /> تم التسجيل بنجاح
+            <CheckCircle size={16} /> {sl('registeredSuccess')}
           </div>
         ) : (
           <form onSubmit={handleSubmit} style={{ display: 'flex', gap: 8, flex: '0 1 380px' }}>
@@ -189,7 +190,7 @@ export default function SocialPage() {
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
-              placeholder="بريدك الإلكتروني"
+              placeholder={sl('emailPlaceholder')}
               required
               dir="ltr"
               style={{
@@ -210,7 +211,7 @@ export default function SocialPage() {
                 transition: 'all 0.2s',
               }}
             >
-              أعلمني
+              {sl('notifyBtn')}
             </button>
           </form>
         )}

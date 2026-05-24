@@ -5,6 +5,7 @@ import { X as XIcon, TrendingUp, TrendingDown, Loader2 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { getPnlColor, isPnlPositive } from '@/lib/unified-tokens'
 import { fmtPrice, fmtPriceLocale } from '@/lib/price-format'
+import { useTranslations } from 'next-intl'
 
 interface PositionCardProps {
   symbol: string
@@ -65,6 +66,8 @@ export function PositionCard({
   const [slValue, setSlValue] = useState('')
   const [tpValue, setTpValue] = useState('')
 
+  const tPortfolio = useTranslations('portfolio')
+  const tc = useTranslations('common')
   const isLong = side === 'long' || side === 'LONG'
   const pnlPct =
     unrealizedPnlPct ??
@@ -74,7 +77,7 @@ export function PositionCard({
   const isProfitable = isPnlPositive(unrealizedPnl)
   const pnlColor = getPnlColor(unrealizedPnl)
   const sideColor = isLong ? T.green : T.red
-  const sideLabel = isLong ? 'شراء' : 'بيع'
+  const sideLabel = isLong ? tc('buy') : tc('sell')
 
   const effectiveSl = sl ?? stopLoss
   const effectiveTp = tp ?? takeProfit
@@ -173,7 +176,7 @@ export function PositionCard({
               fontFamily: "'Cairo', sans-serif",
             }}
           >
-            الدخول
+            {tc('entry')}
           </div>
           <div
             style={{
@@ -193,7 +196,7 @@ export function PositionCard({
               fontFamily: "'Cairo', sans-serif",
             }}
           >
-            الحالي
+            {tPortfolio('current')}
           </div>
           <div
             style={{
@@ -286,7 +289,7 @@ export function PositionCard({
               setSlValue(effectiveSl ? String(effectiveSl) : '')
               setEditingSl(true)
             }}
-            title={effectiveSl ? `SL: ${effectiveSl}` : 'تعيين وقف خسارة'}
+            title={effectiveSl ? `SL: ${effectiveSl}` : tPortfolio('setStopLoss')}
             style={{
               height: 18,
               padding: '0 4px',
@@ -351,7 +354,7 @@ export function PositionCard({
               setTpValue(effectiveTp ? String(effectiveTp) : '')
               setEditingTp(true)
             }}
-            title={effectiveTp ? `TP: ${effectiveTp}` : 'تعيين جني أرباح'}
+            title={effectiveTp ? `TP: ${effectiveTp}` : tPortfolio('setTakeProfit')}
             style={{
               height: 18,
               padding: '0 4px',
@@ -411,7 +414,7 @@ export function PositionCard({
                 }}
               >
                 {closing || loading ? <Loader2 size={9} className="animate-spin" /> : null}
-                تأكيد
+                {tc('confirm')}
               </button>
               <button
                 type="button"
@@ -435,7 +438,7 @@ export function PositionCard({
             <button
               type="button"
               onClick={() => setConfirmClose(true)}
-              title="إغلاق المركز"
+              title={tPortfolio('closePosition')}
               style={{
                 width: 20,
                 height: 20,

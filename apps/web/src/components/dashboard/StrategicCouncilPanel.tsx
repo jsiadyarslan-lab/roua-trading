@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 
 const T = {
@@ -47,6 +48,8 @@ interface CouncilSession {
 }
 
 export function StrategicCouncilPanel() {
+  const ts = useTranslations('dashboard.strategicCouncil')
+  const tc = useTranslations('common')
   const [activeBriefs, setActiveBriefs] = useState<TradingBrief[]>([])
   const [historyBriefs, setHistoryBriefs] = useState<TradingBrief[]>([])
   const [lastSession, setLastSession] = useState<CouncilSession | null>(null)
@@ -255,6 +258,22 @@ export function StrategicCouncilPanel() {
 
   const directionColors = { BUY: T.success, SELL: T.danger }
 
+  const consensusLabel = (confidence: number, direction: 'BUY' | 'SELL') => {
+    if (direction === 'BUY') {
+      if (confidence >= 80) return ts('strongBullishConsensus')
+      return ts('bullishConsensus')
+    }
+    if (confidence >= 80) return ts('strongBearishConsensus')
+    return ts('bearishConsensus')
+  }
+
+  const reviewStatusLabel = (status: string) => {
+    if (status === 'EXECUTED') return ts('executed')
+    if (status === 'MODIFIED') return ts('modified')
+    if (status === 'CANCELLED') return ts('cancelled')
+    return status
+  }
+
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', height: '100%',
@@ -276,7 +295,7 @@ export function StrategicCouncilPanel() {
             boxShadow: `0 0 10px ${T.purple}, 0 0 20px rgba(179,136,255,0.4)`,
             animation: 'agentCtrlPulse 2s ease-in-out infinite'
           }} />
-          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>المجلس الاستراتيجي</span>
+          <span style={{ fontSize: 10, fontWeight: 800, color: T.text }}>{ts('title')}</span>
           
           {/* Scanning Heartbeat */}
           <div style={{ 
@@ -290,7 +309,7 @@ export function StrategicCouncilPanel() {
               animation: 'agentCtrlPulse 1s ease-in-out infinite'
             }} />
             <span style={{ fontSize: 7, color: T.accent, fontWeight: 700, fontFamily: 'monospace' }}>
-              SCANNING: {currentScanSymbol}
+              {ts('scanning')} {currentScanSymbol}
             </span>
           </div>
 
@@ -298,7 +317,7 @@ export function StrategicCouncilPanel() {
             fontSize: 6.5, padding: '1px 5px', borderRadius: 4,
             background: 'rgba(179,136,255,0.15)', color: T.purple, fontWeight: 700,
           }}>
-            {activeBriefs.length} Briefs
+            {ts('briefsCount', { count: activeBriefs.length })}
           </span>
         </div>
         <button
@@ -312,14 +331,14 @@ export function StrategicCouncilPanel() {
             color: triggerStatus === 'processing' ? T.cyan : triggerStatus === 'already_running' ? T.amber : T.purple, fontWeight: 700,
           }}
         >
-          {triggerLoading ? '...' : triggerStatus === 'processing' ? '⏳ جاري التحليل...' : triggerStatus === 'already_running' ? '⏳ جلسة نشطة' : triggerStatus === 'completed' ? '✅ تم!' : 'جلسة يدوية'}
+          {triggerLoading ? '...' : triggerStatus === 'processing' ? ts('analyzing') : triggerStatus === 'already_running' ? ts('activeSession') : triggerStatus === 'completed' ? ts('completed') : ts('manualSession')}
         </button>
       </div>
 
       {/* Backend Offline Banner */}
       {backendOffline && (
         <div style={{ padding: '4px 8px', background: 'rgba(255,184,0,0.1)', borderBottom: '1px solid rgba(255,184,0,0.2)' }}>
-          <span style={{ fontSize: 7, color: T.amber }}>⚠ الخادم غير متاح — يُعاد الاتصال تلقائياً</span>
+          <span style={{ fontSize: 7, color: T.amber }}>{ts('serverUnavailable')}</span>
         </div>
       )}
 
@@ -329,12 +348,12 @@ export function StrategicCouncilPanel() {
           padding: '5px 8px', borderBottom: '1px solid rgba(0,212,255,0.08)',
           display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', fontSize: 7,
         }}>
-          <span style={{ color: T.text3 }}>آخر جلسة:</span>
+          <span style={{ color: T.text3 }}>{ts('lastSession')}</span>
           <span style={{ color: T.text, fontWeight: 700 }}>{formatTime(lastSession.timestamp)}</span>
-          <span style={{ color: T.text3 }}>• أزواج: {lastSession.pairsAnalyzed}</span>
-          <span style={{ color: T.success }}>+{lastSession.briefsIssued} جديد</span>
-          <span style={{ color: T.amber }}>~{lastSession.briefsModified} تعديل</span>
-          <span style={{ color: T.danger }}>×{lastSession.briefsCancelled} إلغاء</span>
+          <span style={{ color: T.text3 }}>{ts('pairs')} {lastSession.pairsAnalyzed}</span>
+          <span style={{ color: T.success }}>{ts('newBrief', { n: lastSession.briefsIssued })}</span>
+          <span style={{ color: T.amber }}>{ts('modifiedBrief', { n: lastSession.briefsModified })}</span>
+          <span style={{ color: T.danger }}>{ts('cancelledBrief', { n: lastSession.briefsCancelled })}</span>
           <span style={{ color: T.text3 }}>• {formatDuration(lastSession.durationMs)}</span>
         </div>
       )}
@@ -350,7 +369,7 @@ export function StrategicCouncilPanel() {
           border: `1px solid ${tab === 'active' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 5, color: tab === 'active' ? T.cyan : T.text3, cursor: 'pointer', fontWeight: 700,
         }}>
-          نشطة ({activeBriefs.length})
+          {ts('activeTab')} ({activeBriefs.length})
         </button>
         <button onClick={() => { setTab('history'); fetchHistory() }} style={{
           flex: 1, minHeight: 20, padding: '2px 5px', fontSize: 7,
@@ -358,7 +377,7 @@ export function StrategicCouncilPanel() {
           border: `1px solid ${tab === 'history' ? 'rgba(0,212,255,0.32)' : 'rgba(255,255,255,0.08)'}`,
           borderRadius: 5, color: tab === 'history' ? T.cyan : T.text3, cursor: 'pointer', fontWeight: 700,
         }}>
-          السجل
+          {ts('logTab')}
         </button>
       </div>
 
@@ -369,7 +388,7 @@ export function StrategicCouncilPanel() {
       }} className="custom-scrollbar">
         {(tab === 'active' ? activeBriefs : historyBriefs).length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', opacity: 0.3, fontSize: 9 }}>
-            {tab === 'active' ? 'لا توجد Briefs نشطة — ينتظر المجلس الجلسة القادمة' : 'لا يوجد سجل بعد'}
+            {tab === 'active' ? ts('noActiveBriefs') : ts('noLogYet')}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -386,7 +405,7 @@ export function StrategicCouncilPanel() {
                     background: `${directionColors[brief.direction]}18`,
                     color: directionColors[brief.direction], fontWeight: 800,
                   }}>
-                    {brief.direction === 'BUY' ? 'شراء' : 'بيع'}
+                    {brief.direction === 'BUY' ? tc('buy') : tc('sell')}
                   </span>
                   <span style={{ color: T.text, fontWeight: 700, fontSize: 9, fontFamily: 'monospace' }}>
                     {brief.pair}
@@ -405,7 +424,7 @@ export function StrategicCouncilPanel() {
                 </div>
                 {/* Prices */}
                 <div style={{ display: 'flex', gap: 8, fontSize: 7, color: T.text3, fontFamily: 'monospace' }}>
-                  <span>دخول: <b style={{ color: T.text }}>{brief.entryPrice.toFixed(2)}</b></span>
+                  <span>{ts('entryLabel')} <b style={{ color: T.text }}>{brief.entryPrice.toFixed(2)}</b></span>
                   <span>SL: <b style={{ color: T.danger }}>{brief.stopLoss.toFixed(2)}</b></span>
                   <span>TP: <b style={{ color: T.success }}>{brief.takeProfit.toFixed(2)}</b></span>
                 </div>
@@ -437,9 +456,7 @@ export function StrategicCouncilPanel() {
                         brief.reviewStatus === 'MODIFIED' ? T.amber : T.danger,
                       fontWeight: 700,
                     }}>
-                      {brief.reviewStatus === 'EXECUTED' ? 'تم التنفيذ' :
-                        brief.reviewStatus === 'MODIFIED' ? 'معدّل' :
-                          brief.reviewStatus === 'CANCELLED' ? 'ملغى' : brief.reviewStatus}
+                      {reviewStatusLabel(brief.reviewStatus)}
                     </span>
                   </div>
                 )}

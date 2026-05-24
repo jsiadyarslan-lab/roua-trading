@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { Bell, BellRing, Plus, Trash2, ChevronDown } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { usePriceAlertStore, AlertCondition } from '@/hooks/usePriceAlertStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
@@ -12,18 +13,13 @@ const T = {
   green: '#00FFC6', red: '#FF4D4D', amber: '#FFB800', blue: '#0A84FF',
 }
 
-const CONDITION_LABELS: Record<AlertCondition, string> = {
-  above:       'فوق السعر',
-  below:       'تحت السعر',
-  change_up:   'ارتفاع % عن اليوم',
-  change_down: 'انخفاض % عن اليوم',
-}
-
 const CONDITION_COLORS: Record<AlertCondition, string> = {
   above: T.green, below: T.red, change_up: T.green, change_down: T.red,
 }
 
 export function PriceAlertsPanel() {
+  const tp = useTranslations('dashboard.priceAlerts')
+  const tc = useTranslations('common')
   const { alerts, addAlert, removeAlert, clearTriggered } = usePriceAlertStore()
   const globalQuotes = useMarketStore(state => state.quotes)
   const { selectedSymbol } = useSymbolStore()
@@ -37,10 +33,17 @@ export function PriceAlertsPanel() {
 
   const currentPrice = globalQuotes[symbol]?.price ?? null
 
+  const conditionLabels: Record<AlertCondition, string> = {
+    above:       tp('abovePrice'),
+    below:       tp('belowPrice'),
+    change_up:   tp('pctUpToday'),
+    change_down: tp('pctDownToday'),
+  }
+
   const handleAdd = () => {
-    if (!symbol.trim()) { setError('أدخل رمز الأصل'); return }
+    if (!symbol.trim()) { setError(tp('enterAsset')); return }
     const val = parseFloat(targetPrice)
-    if (isNaN(val) || val <= 0) { setError('أدخل قيمة صالحة'); return }
+    if (isNaN(val) || val <= 0) { setError(tp('enterValue')); return }
     setError('')
     addAlert({ symbol: symbol.toUpperCase(), condition, targetPrice: val, note: note || undefined })
     setTargetPrice('')
@@ -61,18 +64,18 @@ export function PriceAlertsPanel() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Bell size={14} color={T.amber} />
           <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-            تنبيهات الأسعار
+            {tp('title')}
           </span>
           {active.length > 0 && (
             <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 20, background: `${T.amber}20`, color: T.amber, fontWeight: 800 }}>
-              {active.length} نشط
+              {tp('activeCount', { n: active.length })}
             </span>
           )}
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {triggered.length > 0 && (
             <button onClick={clearTriggered} style={{ fontSize: 9, color: T.muted, background: 'transparent', border: 'none', cursor: 'pointer' }}>
-              مسح المُشغَّلة ({triggered.length})
+              {tp('clearActive')} ({triggered.length})
             </button>
           )}
           <button
@@ -83,7 +86,7 @@ export function PriceAlertsPanel() {
               borderRadius: 6, color: T.blue, fontSize: 10, fontWeight: 800, cursor: 'pointer',
             }}
           >
-            <Plus size={12} /> إضافة
+            <Plus size={12} /> {tp('add')}
           </button>
         </div>
       </div>
@@ -98,7 +101,7 @@ export function PriceAlertsPanel() {
           <div style={{ display: 'flex', gap: 8 }}>
             {/* Symbol */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <label style={{ fontSize: 9, color: T.muted, fontWeight: 700 }}>الأصل</label>
+              <label style={{ fontSize: 9, color: T.muted, fontWeight: 700 }}>{tp('asset')}</label>
               <input
                 value={symbol}
                 onChange={e => setSymbol(e.target.value.toUpperCase())}
@@ -112,10 +115,10 @@ export function PriceAlertsPanel() {
             {/* Target */}
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
               <label style={{ fontSize: 9, color: T.muted, fontWeight: 700 }}>
-                القيمة
+                {tp('value')}
                 {currentPrice !== null && (
                   <span style={{ color: T.blue, marginInlineEnd: 4 }}>
-                    (حالي: {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)})
+                    {tp('currentLabel')} {currentPrice > 100 ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 }) : currentPrice.toFixed(4)})
                   </span>
                 )}
               </label>
@@ -134,7 +137,7 @@ export function PriceAlertsPanel() {
 
           {/* Condition Selector */}
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {(Object.keys(CONDITION_LABELS) as AlertCondition[]).map(c => (
+            {(Object.keys(conditionLabels) as AlertCondition[]).map(c => (
               <button
                 key={c}
                 onClick={() => setCondition(c)}
@@ -147,7 +150,7 @@ export function PriceAlertsPanel() {
                   transition: 'all 0.15s',
                 }}
               >
-                {CONDITION_LABELS[c]}
+                {conditionLabels[c]}
               </button>
             ))}
           </div>
@@ -162,7 +165,7 @@ export function PriceAlertsPanel() {
               fontFamily: "'Cairo', sans-serif",
             }}
           >
-            إضافة التنبيه
+            {tp('addAlert')}
           </button>
         </div>
       )}
@@ -173,9 +176,9 @@ export function PriceAlertsPanel() {
           <div style={{ padding: '40px 0', textAlign: 'center', color: T.muted }}>
             <Bell size={28} style={{ marginBottom: 8, opacity: 0.3 }} />
             <div style={{ fontSize: 12, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-              لا توجد تنبيهات
+              {tp('noAlerts')}
             </div>
-            <div style={{ fontSize: 10, marginTop: 4 }}>أضف تنبيهاً للبدء</div>
+            <div style={{ fontSize: 10, marginTop: 4 }}>{tp('addAlertToStart')}</div>
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -199,6 +202,15 @@ function AlertRow({ alert, onRemove, currentPrice }: {
   onRemove: () => void
   currentPrice?: number
 }) {
+  const tp = useTranslations('dashboard.priceAlerts')
+
+  const conditionLabels: Record<AlertCondition, string> = {
+    above:       tp('abovePrice'),
+    below:       tp('belowPrice'),
+    change_up:   tp('pctUpToday'),
+    change_down: tp('pctDownToday'),
+  }
+
   const color = CONDITION_COLORS[alert.condition]
   const isTriggered = alert.triggered
 
@@ -233,7 +245,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
               fontSize: 8, padding: '1px 6px', borderRadius: 20,
               background: `${color}15`, color, fontWeight: 800,
             }}>
-              {isTriggered ? '✓ مُشغَّل' : CONDITION_LABELS[alert.condition]}
+              {isTriggered ? tp('activeOn') : conditionLabels[alert.condition]}
             </span>
           </div>
           <div style={{ fontSize: 11, color, fontFamily: 'monospace', fontWeight: 800, marginTop: 2 }}>
@@ -242,7 +254,7 @@ function AlertRow({ alert, onRemove, currentPrice }: {
               : `$${alert.targetPrice.toLocaleString('en', { maximumFractionDigits: 4 })}`}
             {currentPrice && !isTriggered && (
               <span style={{ color: 'var(--muted)', fontSize: 9, fontWeight: 400, marginInlineEnd: 6 }}>
-                (حالي: ${currentPrice > 100
+                {tp('currentLabel')} ${currentPrice > 100
                   ? currentPrice.toLocaleString('en', { maximumFractionDigits: 2 })
                   : currentPrice.toFixed(4)})
               </span>

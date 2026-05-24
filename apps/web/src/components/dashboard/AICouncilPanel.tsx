@@ -124,7 +124,7 @@ export function AICouncilPanel() {
 
       if (!res.ok) {
         const text = await res.text()
-        throw new Error(`خطأ ${res.status}: ${text.slice(0, 100)}`)
+        throw new Error(`${tai('httpError', { status: res.status })}: ${text.slice(0, 100)}`)
       }
 
       const j = await res.json()
@@ -170,12 +170,12 @@ export function AICouncilPanel() {
         if (j.data?.recommendation && j.data.recommendation !== 'HOLD' && j.data.consensusScore >= 60) {
           useTabAlertStore.getState().pushAlert('council', {
             action: j.data.recommendation,
-            label: `${j.data.recommendation === 'BUY' ? '⬆ شراء' : '⬇ بيع'} ${j.data.consensusScore}%`,
+            label: `${j.data.recommendation === 'BUY' ? `⬆ ${tc('buy')}` : `⬇ ${tc('sell')}`} ${j.data.consensusScore}%`,
             color: j.source === 'real-ai' ? '#B388FF' : '#FFB800',
           })
         }
       } else {
-        throw new Error(j.error || 'فشل في الحصول على الإجماع')
+        throw new Error(j.error || tai('consensusFailed'))
       }
     } catch (e: any) {
       if (e.name === 'AbortError') return // Cancelled — don't show error
@@ -197,11 +197,11 @@ export function AICouncilPanel() {
       // Exponential backoff: 600s → 900s → max 1800s
       const backoffSeconds = Math.min(600 * Math.pow(1.5, failCountRef.current - 1), 1800)
       setCountdown(Math.round(backoffSeconds))
-      setError(e.message || 'خطأ غير متوقع')
+      setError(e.message || tai('unexpectedError'))
     } finally {
       setLoading(false)
     }
-  }, [selectedSymbol])
+  }, [selectedSymbol, tai, tc])
 
   // Initial fetch on symbol change
   useEffect(() => {
@@ -306,16 +306,16 @@ export function AICouncilPanel() {
                 animation: 'agentCtrlPulse 1s ease-in-out infinite'
               }} />
               <span style={{ fontSize: 7, color: T.purple, fontWeight: 700, fontFamily: 'monospace' }}>
-                MONITORING TRENDS: {currentTrendSymbol}
+                {tai('monitoringTrends')}: {currentTrendSymbol}
               </span>
             </div>
             <p className="text-[8px] font-mono" style={{ color: isRealAI ? T.purple + 'cc' : T.accent + '80' }}>
               {data?.meta ? (
                 <>
                   {data.meta.symbol} • RSI: {data.meta.rsi} • {data.meta.processingTimeMs}ms
-                  {isRealAI ? ' • 🧠 AI حقيقي' : data.meta.aiEngine ? ` • ${data.meta.aiEngine.includes('Scanner') ? '📐 تحليل تقني' : data.meta.aiEngine}` : ' • 📐 تحليل تقني'}
+                  {isRealAI ? ` • ${tai('realAI')}` : data.meta.aiEngine ? ` • ${data.meta.aiEngine.includes('Scanner') ? tai('technicalAnalysis') : data.meta.aiEngine}` : ` • ${tai('technicalAnalysis')}`}
                 </>
-              ) : `AI COUNCIL CONSENSUS ${lastUpdate ? `· ${lastUpdate}` : ''}`}
+              ) : `${tai('councilTitle')} ${lastUpdate ? `· ${lastUpdate}` : ''}`}
             </p>
           </div>
         </div>
@@ -341,7 +341,7 @@ export function AICouncilPanel() {
           }}>
             {isRealAI ? <Cpu size={8} color={T.purple} /> : <WifiOff size={8} color={T.amber} />}
             <span style={{ fontSize: 7, fontWeight: 700, color: isPartialAI ? T.accent : isRealAI ? T.purple : T.amber, fontFamily: 'monospace' }}>
-              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? '📐 تقني' : 'FB'}
+              {isPartialAI ? `${data?.meta?.modelsResponded || '?'}/${data?.meta?.modelsExpected || 7} AI` : isRealAI ? `${data?.meta?.modelsResponded || 7}/${data?.meta?.modelsExpected || 7} AI` : dataSource === 'scanner-rules' ? tai('technicalAnalysis') : 'FB'}
             </span>
           </div>
           {/* Countdown */}
@@ -430,10 +430,10 @@ export function AICouncilPanel() {
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(179,136,255,0.06)', border: '1px solid rgba(179,136,255,0.15)' }}>
                 <Cpu size={10} color={T.purple} />
                 <span className="text-[8px]" style={{ color: T.purple }}>
-                  {isCachedAI ? 'تحليل AI مخزّن مؤقتاً — لا يزال صالحاً' : `تحليل AI حقيقي من ${data.meta?.modelsResponded || 0} نماذج — ${data.meta?.processingTimeMs || 0}ms`}
+                  {isCachedAI ? tai('cachedAnalysis') : tai('realAnalysisFrom', { count: data.meta?.modelsResponded || 0 }) + ` — ${data.meta?.processingTimeMs || 0}ms`}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>{tc('live')}</span>
                 )}
                 {connectionLayer === 'nestjs' && (
                   <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(179,136,255,0.15)', color: T.purple, fontFamily: 'monospace', fontWeight: 700 }}>NestJS</span>
@@ -444,10 +444,10 @@ export function AICouncilPanel() {
               <div className="flex items-center gap-2 p-2 rounded-lg" style={{ background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.15)' }}>
                 <Cpu size={10} color={T.accent} />
                 <span className="text-[8px]" style={{ color: T.accent }}>
-                  تحليل AI من {data.meta?.modelsResponded || '?'}/6 نماذج — بعض النماذج تستجيب عبر البديل
+                  {tai('partialAnalysis', { count: data.meta?.modelsResponded || '?' })}
                 </span>
                 {connectionLayer === 'direct' && (
-                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>مباشر</span>
+                  <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: 'rgba(0,212,255,0.15)', color: T.accent, fontFamily: 'monospace', fontWeight: 700 }}>{tc('live')}</span>
                 )}
               </div>
             )}

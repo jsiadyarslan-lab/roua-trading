@@ -8,6 +8,7 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
+import { useTranslations } from 'next-intl'
 
 const T = {
   bg:      '#0B0E14',
@@ -54,6 +55,9 @@ export function BotCommandCenter() {
   const { addTrade } = usePaperTradesStore()
   const { addNotification } = useNotificationStore()
   const { isOn: isActive, setIsOn: setBotActive, engineState, settings } = useBotStore()
+
+  const tb = useTranslations('dashboard.botCommand')
+  const tc = useTranslations('common')
 
   const [signals, setSignals] = useState<SmartSignal[]>([])
   const [loading, setLoading] = useState(false)
@@ -126,8 +130,8 @@ export function BotCommandCenter() {
     setExecutedIds(prev => ({ ...prev, [sig.id || (sig.pair + sig.time)]: true }))
 
     addNotification({
-      title: 'تم تنفيذ الإشارة ✅',
-      body: `تم فتح صفقة ${sig.type} ورقية لـ ${sig.pair} بسعر $${formatSignalPrice(sig.price)}`,
+      title: tb('signalExecuted'),
+      body: tb('paperTradeOpened', { type: sig.type === 'BUY' ? tc('buy') : tc('sell'), pair: sig.pair }),
       priority: 'high',
       source: 'system',
       action: sig.type,
@@ -155,9 +159,9 @@ export function BotCommandCenter() {
             {isActive ? <Zap size={8} /> : <Pause size={8} />}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 7.5, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>محرك المتابعة الذكية</span>
+            <span style={{ fontSize: 7.5, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{tb('smartFollowEngine')}</span>
             <span style={{ fontSize: 5.5, color: isActive ? T.success : T.danger, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
-              {isActive ? `ONLINE · ${engineState.toUpperCase()}` : 'PAUSED · MANUAL ONLY'}
+              {isActive ? `ONLINE · ${engineState.toUpperCase()}` : tb('pausedManualOnly')}
             </span>
           </div>
         </div>
@@ -172,16 +176,16 @@ export function BotCommandCenter() {
             fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s ease'
           }}
         >
-          {isActive ? 'إيقاف' : 'تفعيل'}
+          {isActive ? tb('stop') : tb('activate')}
         </button>
       </div>
 
       {/* Risk Management — compact row */}
       <div style={{ display: 'flex', gap: 3 }}>
         {[
-          { id: 'low', label: 'منخفضة', color: T.success, desc: '0.05' },
-          { id: 'med', label: 'متوسطة', color: T.amber, desc: '0.15' },
-          { id: 'high', label: 'عالية', color: T.danger, desc: '0.30' }
+          { id: 'low', label: tb('low'), color: T.success, desc: '0.05' },
+          { id: 'med', label: tb('medium'), color: T.amber, desc: '0.15' },
+          { id: 'high', label: tb('high'), color: T.danger, desc: '0.30' }
         ].map(r => (
           <button
             key={r.id}
@@ -206,7 +210,7 @@ export function BotCommandCenter() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <ShieldAlert size={8} color={T.accent} />
-            <span style={{ fontSize: 7, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>بث الإشارات</span>
+            <span style={{ fontSize: 7, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{tb('signalStream')}</span>
             <span style={{ fontSize: 5.5, color: T.text3, fontFamily: 'monospace' }}>{countdown}s</span>
           </div>
           <button onClick={fetchSignals} disabled={loading} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 1 }}>
@@ -218,10 +222,10 @@ export function BotCommandCenter() {
           {loading && signals.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 40, gap: 4 }}>
               <Layers size={12} color={T.accent} className="animate-pulse" />
-              <span style={{ fontSize: 7, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>جاري فحص السوق...</span>
+              <span style={{ fontSize: 7, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>{tb('scanningMarket')}</span>
             </div>
           ) : signals.length === 0 ? (
-             <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 7, color: T.text3 }}>لا توجد إشارات قوية حالياً.</div>
+             <div style={{ textAlign: 'center', padding: '10px 0', fontSize: 7, color: T.text3 }}>{tb('noStrongSignals')}</div>
           ) : (
             signals.map((sig, i) => {
               const isBuy = sig.type === 'BUY'
@@ -260,7 +264,7 @@ export function BotCommandCenter() {
                       }}>{sig.type}</span>
                       <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{sig.pair}</span>
                       <span style={{ fontSize: 7, fontWeight: 700, color: isBuy ? T.success : T.danger, fontFamily: "'Cairo', sans-serif" }}>
-                        {isBuy ? '⬆ شراء' : '⬇ بيع'}
+                        {isBuy ? tb('buyArrow') : tb('sellArrow')}
                       </span>
                     </div>
                     <span style={{ fontSize: 9, fontWeight: 800, color: T.text, fontFamily: 'monospace' }}>{sig.conf}%</span>
@@ -303,7 +307,7 @@ export function BotCommandCenter() {
                         transition: 'all 0.2s ease'
                       }}
                     >
-                      {executed ? <><CheckCircle size={5} /> تم</> : 'تنفيذ'}
+                      {executed ? <><CheckCircle size={5} /> {tb('done')}</> : tb('execute')}
                     </button>
                   </div>
 

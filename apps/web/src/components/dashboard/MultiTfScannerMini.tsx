@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useTabAlertStore } from '@/hooks/useTabAlertStore'
@@ -20,6 +21,7 @@ const T = {
 }
 
 export function MultiTfScannerMini() {
+  const tm = useTranslations('dashboard.multiTf')
   const { selectedSymbol } = useSymbolStore()
   const [data, setData] = useState<any[]>([])
   const [summary, setSummary] = useState<{ alignment: string; executionHint: string } | null>(null)
@@ -56,7 +58,7 @@ export function MultiTfScannerMini() {
         setLastUpdate(new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' }))
 
         setSummary({
-          alignment: mtData.alignment === 'STRONG_BULLISH' ? 'توافق صعودي قوي' : mtData.alignment === 'BULLISH' ? 'توافق صعودي' : mtData.alignment === 'STRONG_BEARISH' ? 'توافق هبوطي قوي' : mtData.alignment === 'BEARISH' ? 'توافق هبوطي' : 'إشارات مختلطة',
+          alignment: mtData.alignment === 'STRONG_BULLISH' ? tm('strongBullishConsensus') : mtData.alignment === 'BULLISH' ? tm('bullishConsensus') : mtData.alignment === 'STRONG_BEARISH' ? tm('strongBearishConsensus') : mtData.alignment === 'BEARISH' ? tm('bearishConsensus') : tm('mixedSignals'),
           executionHint: mtData.executionHintAr || mtData.executionHint || '',
         })
 
@@ -102,7 +104,7 @@ export function MultiTfScannerMini() {
 
   // Determine overall strategy based on TFs
   const overallStrength = data.reduce((sum, item) => sum + (item.state === 'Bullish' ? item.strength : item.state === 'Bearish' ? -item.strength : 0), 0)
-  const strategy = overallStrength > 100 ? 'Trend Follow (Long)' : overallStrength < -100 ? 'Trend Follow (Short)' : 'Wait / Pullback'
+  const strategy = overallStrength > 100 ? tm('trendFollowLong') : overallStrength < -100 ? tm('trendFollowShort') : tm('waitPullback')
 
   return (
     <div className="custom-scrollbar" style={{  height: '100%', padding: '14px', display: 'flex', flexDirection: 'column', gap: 12, overflowY: 'auto', background: 'linear-gradient(180deg, rgba(255,255,255,0.025), rgba(255,255,255,0.01))', borderRadius: 16, border: `1px solid ${T.border}` }}>
@@ -120,14 +122,14 @@ export function MultiTfScannerMini() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 7, color: T.text2, fontFamily: 'monospace' }}>{countdown}s</span>
           <span style={{ fontSize: 6.5, background: `${T.purple}15`, border: `0.5px solid ${T.purple}30`, color: T.purple, padding: '2px 6px', borderRadius: 4, fontWeight: 700 }}>
-            {loading ? 'جاري المسح...' : 'Live Sync'}
+            {loading ? tm('scanning') : tm('liveSync')}
           </span>
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, justifyContent: 'center' }}>
         {data.length === 0 && !loading ? (
-           <div style={{ textAlign: 'center', color: T.text2, fontSize: 10 }}>لا تتوفر بيانات للرمز المحدد</div>
+           <div style={{ textAlign: 'center', color: T.text2, fontSize: 10 }}>{tm('noData')}</div>
         ) : (
           (data.length > 0 ? data : [
             { tf: '15M', state: '...', strength: 0, color: T.border },
@@ -143,7 +145,7 @@ export function MultiTfScannerMini() {
               <span style={{ fontSize: 9, color: t.color, fontWeight: 800, width: 24, textAlign: 'right', fontFamily: "'JetBrains Mono', monospace" }}>{t.strength}%</span>
               {t.state && t.state !== '...' && (
                 <span style={{ fontSize: 7, fontWeight: 700, color: t.color, fontFamily: 'monospace', minWidth: 42 }}>
-                  {t.state === 'Bullish' ? '⬆' : t.state === 'Bearish' ? '⬇' : '◆'} {t.state}
+                  {t.state === 'Bullish' ? '⬆' : t.state === 'Bearish' ? '⬇' : '◆'} {t.state === 'Bullish' ? tm('bullish') : t.state === 'Bearish' ? tm('bearish') : tm('neutral')}
                 </span>
               )}
             </div>
@@ -153,7 +155,7 @@ export function MultiTfScannerMini() {
 
       <div className="card" style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 6, fontSize: 10, color: T.text2, padding: '10px 12px', border: `1px solid ${T.border}`, borderRadius: 12, fontWeight: 600 }}>
         <div style={{ textAlign: 'center' }}>
-          استراتيجية الأطر: <span style={{color: T.purple}}>{strategy}</span>
+          {tm('tfStrategy')} <span style={{color: T.purple}}>{strategy}</span>
         </div>
         {summary && (
           <>

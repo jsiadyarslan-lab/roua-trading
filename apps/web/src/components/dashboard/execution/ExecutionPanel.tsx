@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Zap, ChevronDown, AlertTriangle, Calculator } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { useExecutionEngine } from './hooks/useExecutionEngine'
 import { ExecutionOverlay } from './ExecutionOverlay'
 import { OrderHistory } from './OrderHistory'
@@ -12,13 +13,18 @@ export function ExecutionPanel({
   mobile = false,
   dataStatus = 'disconnected',
   lastUpdatedAt = null,
-  sourceLabel = 'في انتظار ربط API',
+  sourceLabel,
 }: {
   mobile?: boolean
   dataStatus?: DataStatus
   lastUpdatedAt?: string | number | null
   sourceLabel?: string
 }) {
+  const te = useTranslations('dashboard.execution')
+  const tc = useTranslations('common')
+
+  const resolvedSourceLabel = sourceLabel ?? te('awaitingApi')
+
   const engine = useExecutionEngine()
   const [activeSubTab, setActiveSubTab] = useState<'order' | 'history'>('order')
 
@@ -40,7 +46,7 @@ export function ExecutionPanel({
         <input
           value={engine.localSymbol}
           onChange={e => { engine.setLocalSymbol(e.target.value.toUpperCase()); engine.setSelectedSymbol(e.target.value.toUpperCase()) }}
-          placeholder="رمز الأصل"
+          placeholder={te('assetPlaceholder')}
           className="w-[72px] rounded border border-[var(--card-border)] bg-[var(--surface)] px-1.5 py-0.5 text-[var(--foreground)] font-mono text-[10px] font-bold outline-none focus:border-[var(--accent)] transition-colors text-center"
         />
         {/* Live dot + price */}
@@ -66,14 +72,14 @@ export function ExecutionPanel({
           className={`flex-1 rounded py-0.5 text-[8px] font-bold border-none cursor-pointer transition-all ${
             activeSubTab === 'order' ? 'bg-[rgba(0,212,255,0.12)] text-[var(--accent)]' : 'bg-transparent text-[var(--muted)]'
           }`}
-        >أمر</button>
+        >{te('orderTab')}</button>
         <button
           onClick={() => { setActiveSubTab('history'); engine.loadOpenOrders() }}
           className={`flex-1 flex items-center justify-center gap-0.5 rounded py-0.5 text-[8px] font-bold border-none cursor-pointer transition-all ${
             activeSubTab === 'history' ? 'bg-[rgba(0,212,255,0.12)] text-[var(--accent)]' : 'bg-transparent text-[var(--muted)]'
           }`}
         >
-          أوامر
+          {te('ordersTab')}
           {engine.recentOrders.length > 0 && (
             <span className="text-[6px] bg-[rgba(0,212,255,0.15)] text-[var(--accent)] rounded-full px-0.5">{engine.recentOrders.length}</span>
           )}
@@ -107,7 +113,7 @@ export function ExecutionPanel({
                     : 'border-[var(--card-border)] bg-transparent text-[var(--muted)]'
                 }`}
               >
-                {t === 'market' ? 'سوقي' : 'معلق'}
+                {t === 'market' ? te('marketOrder') : te('limitOrder')}
               </button>
             ))}
             {/* TIF micro selector */}
@@ -127,7 +133,7 @@ export function ExecutionPanel({
             value={engine.quantity}
             onChange={e => engine.setQuantity(e.target.value)}
             type="number" step="0.01" min="0.01"
-            placeholder="الكمية"
+            placeholder={te('quantityPlaceholder')}
             className="w-full rounded border border-[var(--card-border)] bg-[var(--surface)] px-2 py-1 text-[var(--foreground)] font-mono text-[10px] font-bold outline-none focus:border-[var(--accent)] transition-colors"
           />
 
@@ -137,7 +143,7 @@ export function ExecutionPanel({
               value={engine.limitPrice}
               onChange={e => engine.setLimitPrice(e.target.value)}
               type="number" step="0.1"
-              placeholder="سعر الأمر المعلق"
+              placeholder={te('pendingPricePlaceholder')}
               className="w-full rounded border border-[rgba(0,212,255,0.2)] bg-[rgba(0,212,255,0.04)] px-2 py-1 text-[var(--accent)] font-mono text-[10px] font-bold outline-none focus:border-[var(--accent)] transition-colors"
             />
           )}
@@ -164,7 +170,7 @@ export function ExecutionPanel({
           {isCrypto && (engine.stopLoss || engine.takeProfit) && (
             <div className="flex items-center gap-0.5">
               <AlertTriangle size={6} className="text-[var(--warning)] shrink-0" />
-              <span className="text-[6px] text-[var(--warning)]">SL/TP محلي للكريبتو</span>
+              <span className="text-[6px] text-[var(--warning)]">{te('cryptoLocalSLTP')}</span>
             </div>
           )}
 
@@ -175,7 +181,7 @@ export function ExecutionPanel({
               className="flex-1 flex items-center justify-center gap-0.5 rounded border border-[rgba(0,229,255,0.12)] bg-[rgba(0,229,255,0.04)] py-0.5 text-[7px] font-bold text-[var(--accent)] cursor-pointer hover:bg-[rgba(0,229,255,0.08)] transition-colors"
             >
               <Calculator size={7} />
-              تلقائي
+              {te('autoCalc')}
             </button>
             <button
               onClick={() => {
@@ -187,7 +193,7 @@ export function ExecutionPanel({
               className="flex-1 flex items-center justify-center gap-0.5 rounded border border-[var(--card-border)] bg-transparent py-0.5 text-[7px] font-bold text-[var(--muted)] cursor-pointer hover:text-[var(--foreground)] transition-colors"
             >
               {engine.autoQty ? `${engine.autoQty}` : '—'}
-              <span className="text-[6px]">كمية</span>
+              <span className="text-[6px]">{te('quantityLabel')}</span>
             </button>
           </div>
 
@@ -217,7 +223,7 @@ export function ExecutionPanel({
             <div className="flex items-center justify-between px-0.5">
               <span className="text-[7px] text-[var(--muted)]">≈${engine.estimatedCost.toFixed(2)}</span>
               {engine.account && engine.account.buyingPower > 0 && engine.estimatedCost > engine.account.buyingPower && (
-                <span className="text-[7px] font-bold text-[var(--danger)]">رصيد غير كافٍ</span>
+                <span className="text-[7px] font-bold text-[var(--danger)]">{te('insufficientBalance')}</span>
               )}
             </div>
           )}
@@ -230,7 +236,7 @@ export function ExecutionPanel({
               className="btn-neon-buy flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Zap size={10} fill="white" />
-              {engine.loading && engine.pendingAction === 'buy' ? '...' : 'شراء'}
+              {engine.loading && engine.pendingAction === 'buy' ? '...' : tc('buy')}
             </button>
             <button
               onClick={() => engine.validateAndConfirm('sell')}
@@ -238,7 +244,7 @@ export function ExecutionPanel({
               className="btn-neon-sell flex flex-1 items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-extrabold cursor-pointer transition-transform active:scale-[0.97] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Zap size={10} fill="white" />
-              {engine.loading && engine.pendingAction === 'sell' ? '...' : 'بيع'}
+              {engine.loading && engine.pendingAction === 'sell' ? '...' : tc('sell')}
             </button>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Cpu, Play, Square, AlertTriangle, ExternalLink,
   Activity, Zap, TrendingUp, Clock, Settings2,
@@ -46,28 +47,28 @@ function getStatusColor(status: AgentStatus | null): string {
   }
 }
 
-function getStatusLabel(status: AgentStatus | null): string {
-  if (!status) return 'في الانتظار'
+function getStatusLabel(status: AgentStatus | null, ta: any): string {
+  if (!status) return ta('statusIdle')
   switch (status) {
-    case AgentStatus.RUNNING: return 'يعمل'
-    case AgentStatus.PAUSED: return 'متوقف مؤقتاً'
-    case AgentStatus.STOPPED: return 'متوقف'
-    case AgentStatus.EMERGENCY_STOP: return 'إيقاف طارئ'
-    case AgentStatus.DAILY_LIMIT_REACHED: return 'حد يومي'
-    case AgentStatus.IDLE: return 'في الانتظار'
+    case AgentStatus.RUNNING: return ta('statusRunning')
+    case AgentStatus.PAUSED: return ta('statusPaused')
+    case AgentStatus.STOPPED: return ta('statusStopped')
+    case AgentStatus.EMERGENCY_STOP: return ta('emergencyStop')
+    case AgentStatus.DAILY_LIMIT_REACHED: return ta('statusDailyLimit')
+    case AgentStatus.IDLE: return ta('statusIdle')
     default: return status
   }
 }
 
-function getStrategyLabel(s: StrategyType): string {
+function getStrategyLabel(s: StrategyType, ta: any): string {
   switch (s) {
-    case StrategyType.AUTO: return 'تلقائي'
-    case StrategyType.SCALPING: return 'سكالبينغ'
-    case StrategyType.SWING: return 'سوينغ'
-    case StrategyType.GRID: return 'شبكة'
-    case StrategyType.MEAN_REVERSION: return 'عودة للمتوسط'
-    case StrategyType.MOMENTUM_BREAKOUT: return 'اختراق الزخم'
-    case StrategyType.DCA: return 'متوسط التكلفة'
+    case StrategyType.AUTO: return ta('strategyAuto')
+    case StrategyType.SCALPING: return ta('strategyScalping')
+    case StrategyType.SWING: return ta('strategySwing')
+    case StrategyType.GRID: return ta('strategyGrid')
+    case StrategyType.MEAN_REVERSION: return ta('strategyMeanReversion')
+    case StrategyType.MOMENTUM_BREAKOUT: return ta('strategyMomentumBreakout')
+    case StrategyType.DCA: return ta('strategyDCA')
     case StrategyType.VWAP_RSI: return 'VWAP+RSI'
     default: return s
   }
@@ -87,20 +88,20 @@ function getStrategyAccent(s: StrategyType): string {
   }
 }
 
-function formatTimeAgo(isoString?: string): string {
+function formatTimeAgo(isoString: string | undefined, tc: any): string {
   if (!isoString) return '—'
   try {
     const date = new Date(isoString)
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffSec = Math.floor(diffMs / 1000)
-    if (diffSec < 60) return 'الآن'
+    if (diffSec < 60) return tc('justNow')
     const diffMin = Math.floor(diffSec / 60)
-    if (diffMin < 60) return `منذ ${diffMin} دقيقة`
+    if (diffMin < 60) return tc('minutesAgo', { n: diffMin })
     const diffHr = Math.floor(diffMin / 60)
-    if (diffHr < 24) return `منذ ${diffHr} ساعة`
+    if (diffHr < 24) return tc('hoursAgo', { n: diffHr })
     const diffDay = Math.floor(diffHr / 24)
-    return `منذ ${diffDay} يوم`
+    return tc('daysAgo', { n: diffDay })
   } catch {
     return '—'
   }
@@ -141,6 +142,9 @@ export function AgentControlMini() {
     fetchPositions, fetchPerformance
   } = useAgentStore()
   
+
+  const ta = useTranslations('dashboard.autonomousTrader')
+  const tc = useTranslations('common')
 
   const [showConfirm, setShowConfirm] = useState(false)
 
@@ -250,7 +254,7 @@ export function AgentControlMini() {
             fontSize: 13, fontWeight: 800, color: T.text,
             whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-            وكيل التداول الذاتي
+            {ta('title')}
           </span>
 
           {/* Evaluating Heartbeat */}
@@ -278,7 +282,7 @@ export function AgentControlMini() {
             color: statusColor, fontWeight: 700, fontFamily: FONT_AR,
             flexShrink: 0,
           }}>
-            {getStatusLabel(status)}
+            {getStatusLabel(status, ta)}
           </span>
 
           {/* V135: Trading Mode Badge — show correct mode instead of always "ورقي" */}
@@ -286,10 +290,10 @@ export function AgentControlMini() {
             <span
               title={
                 isPaperTrading && !isTestnet
-                  ? 'لم يتم اختيار حساب تداول من الإعدادات — التداول ورقي تلقائياً. اختر حسابك من الإعدادات للتبديل للحقيقي.'
+                  ? ta('paperTooltip')
                   : isTestnet
-                    ? `متصل ببورصة ${exchangeName || 'تجريبي'} عبر بيئة تجريبية (testnet) — أموال افتراضية على بورصة حقيقية`
-                    : `تداول حقيقي على ${exchangeName || 'البورصة'} — أموال حقيقية`
+                    ? ta('testnetTooltip', { exchange: exchangeName || '...' })
+                    : ta('liveTooltip', { exchange: exchangeName || '...' })
               }
               style={{
                 fontSize: 10, padding: '2px 7px', borderRadius: 6,
@@ -308,10 +312,10 @@ export function AgentControlMini() {
               }}
             >
               {isPaperTrading && !isTestnet
-                ? `ورقي${!selectedCredentialId && !config?.isPaperTrading ? ' ⚙' : ''}`
+                ? `${ta('paperMode')}${!selectedCredentialId && !config?.isPaperTrading ? ' ⚙' : ''}`
                 : isTestnet
-                  ? `تجريبي${exchangeName ? ` (${exchangeName})` : ''}`
-                  : `مباشر${exchangeName ? ` (${exchangeName})` : ''}`
+                  ? `${tc('demo')}${exchangeName ? ` (${exchangeName})` : ''}`
+                  : `${tc('live')}${exchangeName ? ` (${exchangeName})` : ''}`
               }
             </span>
           )}
@@ -341,7 +345,7 @@ export function AgentControlMini() {
             ) : (
               <Play size={12} fill="currentColor" />
             )}
-            {loading ? '...' : isRunning ? 'إيقاف' : 'تشغيل'}
+            {loading ? '...' : isRunning ? ta('stopBtn') : ta('startBtn')}
           </button>
         ) : (
           <div style={{ display: 'flex', gap: 5 }}>
@@ -357,7 +361,7 @@ export function AgentControlMini() {
               }}
             >
               <Square size={11} />
-              إيقاف
+              {ta('stopBtn')}
             </button>
             <button
               type="button"
@@ -372,7 +376,7 @@ export function AgentControlMini() {
               }}
             >
               <AlertTriangle size={11} />
-              طارئ
+              {ta('emergencyBtn')}
             </button>
           </div>
         )}
@@ -388,9 +392,9 @@ export function AgentControlMini() {
         {/* Strategy */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Zap size={11} color={strategyAccent} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>الاستراتيجية:</span>
+          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>{ta('strategyLabel')}</span>
           <span style={{ fontSize: 10, fontWeight: 800, color: strategyAccent }}>
-            {config ? getStrategyLabel(config.strategy as StrategyType) : '—'}
+            {config ? getStrategyLabel(config.strategy as StrategyType, ta) : '—'}
           </span>
         </div>
 
@@ -399,9 +403,9 @@ export function AgentControlMini() {
         {/* Last Signal */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <Clock size={11} color={T.text3} style={{ flexShrink: 0 }} />
-          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>آخر إشارة:</span>
+          <span style={{ fontSize: 10, color: T.text3, fontWeight: 600 }}>{ta('lastSignalLabel')}</span>
           <span style={{ fontSize: 10, fontWeight: 700, color: lastSignalAt ? T.text2 : T.text3 }}>
-            {formatTimeAgo(lastSignalAt || lastCycleAt)}
+            {formatTimeAgo(lastSignalAt || lastCycleAt, tc)}
           </span>
         </div>
       </div>
@@ -416,7 +420,7 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>ر/خ اليوم</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>{ta('dailyPnL')}</div>
           <div style={{
             fontSize: 13, fontWeight: 800,
             color: dailyPnL > 0 ? T.green : dailyPnL < 0 ? T.red : T.text2,
@@ -431,7 +435,7 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>نسبة الفوز</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>{ta('winRate')}</div>
           <div style={{
             fontSize: 13, fontWeight: 800,
             color: (performance?.winRate ?? 0) >= 50 ? T.green : T.amber,
@@ -446,7 +450,7 @@ export function AgentControlMini() {
           padding: 8, textAlign: 'center', minHeight: 44,
           background: 'rgba(255,255,255,0.02)', borderRadius: 10,
         }}>
-          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>مراكز مفتوحة</div>
+          <div style={{ fontSize: 10, color: T.text3, marginBottom: 2 }}>{ta('openPositions')}</div>
           <div style={{
             fontSize: 13, fontWeight: 800, color: positions.length > 0 ? T.accent : T.text3,
             fontFamily: FONT_MONO,
@@ -474,7 +478,7 @@ export function AgentControlMini() {
                 : <TrendingUp size={11} color={T.red} style={{ transform: 'scaleY(-1)' }} />}
               <span style={{ color: T.text, fontWeight: 700, fontFamily: FONT_MONO }}>{pos.symbol}</span>
               <span style={{ color: pos.side === 'BUY' ? T.green : T.red, fontWeight: 800, fontSize: 10 }}>
-                {pos.side === 'BUY' ? 'شراء' : 'بيع'}
+                {pos.side === 'BUY' ? tc('buy') : tc('sell')}
               </span>
               <div style={{ flex: 1 }} />
               <span style={{
@@ -487,7 +491,7 @@ export function AgentControlMini() {
           ))}
           {positions.length > 5 && (
             <div style={{ fontSize: 10, color: T.text3, textAlign: 'center', padding: '4px 0' }}>
-              +{positions.length - 5} أخرى
+              {ta('morePositions', { count: positions.length - 5 })}
             </div>
           )}
         </div>
@@ -516,7 +520,7 @@ export function AgentControlMini() {
         }}
       >
           <Settings2 size={13} />
-          لوحة التحكم الكاملة
+          {ta('fullDashboard')}
           <ExternalLink size={11} />
       </a>
 
@@ -543,10 +547,10 @@ export function AgentControlMini() {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <Play size={8} />
-            <span style={{ fontWeight: 700 }}>الوكيل جاهز للبدء</span>
+            <span style={{ fontWeight: 700 }}>{ta('agentReady')}</span>
           </div>
           <span style={{ color: T.text3, fontSize: 6.5 }}>
-            اضغط "تشغيل" لبدء التداول الورقي التلقائي باستراتيجية تكيفية
+            {ta('agentReadyDesc')}
           </span>
         </div>
       )}

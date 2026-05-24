@@ -7,9 +7,11 @@ import { Flame, TrendingUp, TrendingDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getDataStatus, getStatusLabel, getStatusTone } from '@/lib/dashboard-live'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 // Helper component to handle price pulse animation
 function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) {
+  const tw = useTranslations('dashboard.watchlist')
   const prevPrice = useRef<number | null>(price)
   const [pulse, setPulse] = useState(false)
 
@@ -23,7 +25,7 @@ function PriceDisplay({ price, isUp }: { price: number | null, isUp: boolean }) 
     if (prevPrice.current === null) prevPrice.current = price
   }, [price])
 
-  if (price === null) return <span style={{ color: 'var(--muted)', fontSize: 11 }}>Loading...</span>
+  if (price === null) return <span style={{ color: 'var(--muted)', fontSize: 11 }}>{tw('loading')}</span>
 
   return (
     <div className={`price ${pulse ? 'price-pulse' : ''}`} style={{ 
@@ -75,6 +77,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
     })
   )
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
+  const tw = useTranslations('dashboard.watchlist')
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({})
   const fetchedRef = useRef<Set<string>>(new Set())
@@ -127,6 +130,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
       }}>
         {(['Crypto', 'Forex', 'Stocks'] as const).map(tab => {
           const isActive = activeTab === tab
+          const tabLabel: Record<string, string> = { Crypto: tw('crypto'), Forex: tw('forex'), Stocks: tw('stocks') }
           return (
             <button
               key={tab}
@@ -142,7 +146,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                 display: 'flex', alignItems: 'center'
               }}
             >
-              {tab}
+              {tabLabel[tab]}
             </button>
           )
         })}
@@ -160,7 +164,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
         gap: 10,
       }}>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>Hot mover</div>
+          <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{tw('hotMover')}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Flame size={12} color="var(--warning)" />
             <span style={{ fontSize: 11, color: 'var(--foreground)', fontWeight: 800, fontFamily: 'var(--mono)' }}>{hotMover?.sym ?? '—'}</span>

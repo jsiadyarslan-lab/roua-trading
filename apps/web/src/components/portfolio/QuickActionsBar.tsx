@@ -2,39 +2,22 @@
 
 import { XCircle, Shield, RefreshCw, Link2 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
+import { useTranslations } from 'next-intl'
 
 interface QuickActionsBarProps {
   onAction?: (action: string) => void
 }
 
-const ACTIONS = [
-  {
-    id: 'close-all',
-    label: 'إغلاق الكل',
-    icon: XCircle,
-    accent: T.red,
-  },
-  {
-    id: 'hedge',
-    label: 'تحوط',
-    icon: Shield,
-    accent: T.amber,
-  },
-  {
-    id: 'rebalance',
-    label: 'إعادة توازن',
-    icon: RefreshCw,
-    accent: T.cyan,
-  },
-  {
-    id: 'link-account',
-    label: 'ربط حساب',
-    icon: Link2,
-    accent: T.green,
-  },
-]
+const ACTION_CONFIG = [
+  { id: 'close-all', labelKey: 'closeAll', icon: XCircle, accent: T.red },
+  { id: 'hedge', labelKey: 'hedge', icon: Shield, accent: T.amber },
+  { id: 'rebalance', labelKey: 'rebalance', icon: RefreshCw, accent: T.cyan },
+  { id: 'link-account', labelKey: 'linkAccount', icon: Link2, accent: T.green },
+] as const
 
 export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
+  const t = useTranslations('portfolio')
+
   return (
     <div
       style={{
@@ -44,7 +27,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
         width: '100%',
       }}
     >
-      {ACTIONS.map((action) => {
+      {ACTION_CONFIG.map((action) => {
         const Icon = action.icon
         return (
           <button
@@ -92,7 +75,7 @@ export function QuickActionsBar({ onAction }: QuickActionsBarProps) {
                 whiteSpace: 'nowrap',
               }}
             >
-              {action.label}
+              {t(action.labelKey)}
             </span>
           </button>
         )

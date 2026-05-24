@@ -2,6 +2,7 @@
 
 import { ScanSearch, LayoutGrid, Map, Brain, Clock, BarChart3, Filter, RefreshCw } from 'lucide-react'
 import { useScannerContext } from './ScannerProvider'
+import { useTranslations } from 'next-intl'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -9,19 +10,12 @@ const T = {
   text3: '#8B92A8', border: 'rgba(255,255,255,0.06)', border2: 'rgba(0,212,255,0.16)',
 }
 
-interface NavItem { key: string; icon: React.ReactNode; label: string }
-
-const NAV: NavItem[] = [
-  { key: 'scanner',  icon: <LayoutGrid size={16} />, label: 'جدول المسح' },
-  { key: 'heatmap',  icon: <Map size={16} />,        label: 'الخريطة الحرارية' },
-  { key: 'patterns', icon: <Brain size={16} />,      label: 'الأنماط' },
-  { key: 'multitf',  icon: <Clock size={16} />,      label: 'متعدد الأطر' },
-  { key: 'overview', icon: <BarChart3 size={16} />,  label: 'نظرة عامة' },
-  { key: 'screener', icon: <Filter size={16} />,     label: 'سكرينر مخصص' },
-]
+const NAV_KEYS = ['scanner', 'heatmap', 'patterns', 'multitf', 'overview', 'screener'] as const
+const NAV_ICONS = [LayoutGrid, Map, Brain, Clock, BarChart3, Filter] as const
 
 export function ScannerSidebar() {
   const { activeTab, setActiveTab, countdown, lastUpdate, refresh } = useScannerContext()
+  const t = useTranslations('dashboard.scannerSidebar')
   const mins = Math.floor(countdown / 60)
   const secs = countdown % 60
 
@@ -30,6 +24,15 @@ export function ScannerSidebar() {
     const m = d.getMinutes().toString().padStart(2, '0')
     return `${h}:${m}`
   }
+
+  const navItems = NAV_KEYS.map((key, i) => {
+    const Icon = NAV_ICONS[i]
+    return {
+      key,
+      icon: <Icon size={16} />,
+      label: t(key === 'scanner' ? 'scanTable' : key === 'multitf' ? 'multiTimeframe' : key),
+    }
+  })
 
   return (
     <div style={{
@@ -42,17 +45,17 @@ export function ScannerSidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
           <ScanSearch size={20} color={T.cyan} />
           <span style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-            السكانر المتقدم
+            {t('advancedScanner')}
           </span>
         </div>
         <p style={{ fontSize: 9, color: T.text3, lineHeight: 1.5, fontFamily: "'Cairo', sans-serif", margin: 0 }}>
-          مسح شامل بالذكاء الاصطناعي مع 18+ مؤشر تقني
+          {t('subtitle')}
         </p>
       </div>
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: '8px 0' }}>
-        {NAV.map(item => {
+        {navItems.map(item => {
           const active = activeTab === item.key
           return (
             <button
@@ -91,7 +94,7 @@ export function ScannerSidebar() {
               boxShadow: `0 0 6px ${T.green}60`,
             }} />
             <span style={{ fontSize: 9, fontWeight: 700, color: T.green, fontFamily: "'Cairo', sans-serif" }}>
-              مباشر
+              {t('live')}
             </span>
           </div>
           <span style={{
@@ -112,13 +115,13 @@ export function ScannerSidebar() {
             fontFamily: "'Cairo', sans-serif", fontWeight: 700, transition: 'all 0.2s',
           }}
         >
-          <RefreshCw size={12} /> تحديث الآن
+          <RefreshCw size={12} /> {t('refreshNow')}
         </button>
 
         {/* Last update */}
         {lastUpdate && (
           <span style={{ fontSize: 8, color: T.text3, fontFamily: "'Cairo', sans-serif", textAlign: 'center' }}>
-            آخر تحديث: {formatTime(lastUpdate)}
+            {t('lastUpdate')} {formatTime(lastUpdate)}
           </span>
         )}
 
@@ -129,7 +132,7 @@ export function ScannerSidebar() {
           fontFamily: "'Cairo', sans-serif", color: T.cyan,
           background: `${T.cyan}10`, border: `0.5px solid ${T.border2}`,
         }}>
-          18+ مؤشر تقني
+          {t('techIndicators')}
         </span>
       </div>
     </div>

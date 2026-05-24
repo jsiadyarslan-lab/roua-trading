@@ -48,6 +48,7 @@ export function OrderBookMini() {
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const tc = useTranslations('common')
   const t = useTranslations('dashboard.execution')
+  const tob = useTranslations('dashboard.orderBook')
   // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
   const selectedQuote = useMarketStore(state => state.quotes[selectedSymbol])
 
@@ -215,7 +216,7 @@ export function OrderBookMini() {
             boxShadow: connected ? '0 0 4px var(--success)' : 'none'
           }} />
           <span style={{ fontSize: 8, color: 'var(--muted)', fontFamily: 'monospace' }}>
-            {connected ? 'LIVE' : isCrypto ? 'CONNECTING' : 'SIM'}
+            {connected ? tob('live') : isCrypto ? tob('connecting') : tob('sim')}
           </span>
         </div>
       </div>
@@ -273,7 +274,7 @@ export function OrderBookMini() {
                   {isPositive ? '+' : ''}{(quote?.changePercent ?? 0).toFixed(2)}%
                 </div>
                 <div style={{ fontSize: 8, color: 'var(--muted)', fontWeight: 700 }}>
-                  {connected ? 'LIVE DEPTH' : 'LAST PRICE'}
+                  {connected ? tob('liveDepth') : tob('lastPrice')}
                 </div>
               </div>
             </div>

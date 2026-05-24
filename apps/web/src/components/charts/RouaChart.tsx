@@ -1046,6 +1046,8 @@ export default function RouaChart({
     const drawDirect = () => {
       const s = chart.getCandleSeries();
       if (!s) return false;
+      // Ensure price lines are enabled on this series
+      try { s.applyOptions({ priceLineVisible: true }); } catch {}
       // Debug: what type is the series?
       const serType = s?.seriesType?.() || s?._internal_seriesType?.() || typeof s;
       const d3 = document.getElementById('__s3') || document.createElement('div');

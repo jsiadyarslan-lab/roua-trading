@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { PRIMARY_SYMBOLS } from '@/lib/trading-intelligence'
 import { sanitizeCouncilResult, safeStr } from '@/lib/utils'
+import { useTranslations, useLocale } from 'next-intl'
 
 // ── Theme ──
 import { T } from '@/lib/unified-tokens'
@@ -74,10 +75,36 @@ interface NarratorData {
   nextTrigger?: string
 }
 
+// ── Role Name Map (same pattern as AICouncilPanel.tsx) ──
+const ROLE_NAME_MAP: Record<string, string> = {
+  'المحلل الفني': 'roleTech',
+  'محلل المشاعر': 'roleSent',
+  'خبير المخاطر': 'roleRisk',
+  'خبير الماكرو': 'roleMacro',
+  'خبير الأنماط': 'rolePattern',
+  'استراتيجي التنفيذ': 'roleExec',
+  'محلل التباين': 'roleDiverge',
+  'محلل السيناريوهات': 'roleScenario',
+  // English fallbacks
+  'Technical Analyst': 'roleTech',
+  'Sentiment Analyst': 'roleSent',
+  'Risk Expert': 'roleRisk',
+  'Macro Expert': 'roleMacro',
+  'Pattern Expert': 'rolePattern',
+  'Execution Strategist': 'roleExec',
+  'Divergence Analyst': 'roleDiverge',
+  'Scenario Analyst': 'roleScenario',
+}
+
+function translateRoleName(role: string, t: (key: string) => string): string {
+  const key = ROLE_NAME_MAP[role]
+  return key ? t(key) : role
+}
+
 // ── Local Storage Helpers ──
 const STORAGE_KEY = 'roua-ai-chat-history'
 
-function loadMessages(): Message[] {
+function loadMessages(locale: string, t: (key: string) => string): Message[] {
   if (typeof window === 'undefined') return []
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
@@ -86,12 +113,13 @@ function loadMessages(): Message[] {
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
     }
   } catch {}
+  const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US'
   return [{
     id: '1',
     role: 'ai',
-    content: 'مرحباً بك في مركز التحليل الذكي! أنا متصل بـ 6 نماذج AI (Gemini, Groq, GLM-4, HuggingFace, Ollama, Bedrock) مع دعم RAG. يمكنني:\n\n• تحليل أي أصل مالي بتفصيل\n• تقديم توصيات شراء/بيع مبنيّة على البيانات\n• قراءة المؤشرات الفنية الحية\n• تقديم تحليل المخاطر المتقدم\n• ترجمة وتحليل الأخبار المالية\n\nماذا تريد أن تحلل اليوم؟',
-    timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-    model: 'رؤى AI',
+    content: t('welcomeMessage'),
+    timestamp: new Date().toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }),
+    model: t('rouaAI'),
     confidence: 100,
     source: 'system',
   }]
@@ -245,12 +273,18 @@ export default function AIPage() {
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
+  // ── i18n ──
+  const t = useTranslations('dashboard.aiPage')
+  const locale = useLocale()
+  const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US'
+
   // ── Initialize ──
   // FIX: Wrapped fetch functions in useCallback to prevent stale closures
   // and unnecessary re-renders. Previously, regular functions were called
   // in useEffect with [] deps, causing React exhaustive-deps warnings.
   useEffect(() => {
-    setMessages(loadMessages())
+    setMessages(loadMessages(locale, t))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -281,7 +315,7 @@ export default function AIPage() {
         setNestjsConnected(json.data.connected || false)
       }
     } catch {
-      setFetchError('تعذر الاتصال بخدمة AI')
+      setFetchError(t('aiConnectionError'))
     }
   }
 
@@ -308,7 +342,7 @@ export default function AIPage() {
         })
       }
     } catch {
-      setFetchError('تعذر جلب المؤشرات الفنية')
+      setFetchError(t('techFetchError'))
     } finally {
       setTechLoading(false)
     }
@@ -323,7 +357,7 @@ export default function AIPage() {
         setNarratorData(json.data)
       }
     } catch {
-      setFetchError('تعذر جلب بيانات السرد الذكي')
+      setFetchError(t('narratorFetchError'))
     }
   }
 
@@ -362,7 +396,7 @@ export default function AIPage() {
       id: Date.now().toString(),
       role: 'user',
       content: text,
-      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }),
     }
 
     setMessages(prev => {
@@ -391,7 +425,7 @@ export default function AIPage() {
           id: (Date.now() + 1).toString(),
           role: 'ai',
           content: json.data.content,
-          timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date().toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }),
           model: json.data.model,
           confidence: json.data.confidence,
           source: json.data.source,
@@ -406,8 +440,8 @@ export default function AIPage() {
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: 'عذراً، لم أتمكن من معالجة طلبك. يرجى المحاولة مرة أخرى.',
-        timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+        content: t('processingError'),
+        timestamp: new Date().toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }),
         model: 'fallback',
         confidence: 0,
         source: 'error',
@@ -420,28 +454,26 @@ export default function AIPage() {
     } finally {
       setIsTyping(false)
     }
-  }, [isTyping, selectedSymbol])
+  }, [isTyping, selectedSymbol, t, timeLocale])
 
   // ── Smart Recommendation ──
   const handleSmartRecommendation = () => {
-    sendMessage(`أعطني توصية تداول مباشرة لـ ${selectedSymbol} مع تحديد نقطة الدخول ووقف الخسارة والهدف`)
+    sendMessage(t('promptSmartRecommendation', { symbol: selectedSymbol }))
   }
 
   // ── Comprehensive Analysis ──
   const handleComprehensiveAnalysis = () => {
-    sendMessage(`أرجو توليد تحليل شامل لزوج ${selectedSymbol} يشمل التحليل الفني والمشاعر والمخاطر مع التوصية النهائية`)
+    sendMessage(t('promptComprehensiveAnalysis', { symbol: selectedSymbol }))
   }
 
   // ── Clear Chat ──
   const handleClearChat = () => {
-  
-
     const initialMsg: Message = {
       id: '1',
       role: 'ai',
-      content: 'تم مسح المحادثة. كيف يمكنني مساعدتك الآن؟',
-      timestamp: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-      model: 'رؤى AI',
+      content: t('chatCleared'),
+      timestamp: new Date().toLocaleTimeString(timeLocale, { hour: '2-digit', minute: '2-digit' }),
+      model: t('rouaAI'),
       source: 'system',
     }
     setMessages([initialMsg])
@@ -453,18 +485,18 @@ export default function AIPage() {
     : narratorData?.sentiment === 'bearish' ? T.red
     : narratorData?.sentiment === 'volatile' ? T.amber : T.cyan
 
-  const sentimentAr = narratorData?.sentiment === 'bullish' ? 'صاعد'
-    : narratorData?.sentiment === 'bearish' ? 'هابط'
-    : narratorData?.sentiment === 'volatile' ? 'متقلب' : 'حيادي'
+  const sentimentAr = narratorData?.sentiment === 'bullish' ? t('bullish')
+    : narratorData?.sentiment === 'bearish' ? t('bearish')
+    : narratorData?.sentiment === 'volatile' ? t('volatile') : t('neutral')
 
-  const dirAr = techData?.dir === 'buy' ? 'صاعد' : techData?.dir === 'sell' ? 'هابط' : 'محايد'
+  const dirAr = techData?.dir === 'buy' ? t('bullish') : techData?.dir === 'sell' ? t('bearish') : t('neutral')
   const dirColor = techData?.dir === 'buy' ? T.green : techData?.dir === 'sell' ? T.red : T.cyan
   const dirIcon = techData?.dir === 'buy' ? ArrowUpRight : techData?.dir === 'sell' ? ArrowDownRight : Minus
 
   const recColor = councilResult?.recommendation === 'BUY' ? T.green
     : councilResult?.recommendation === 'SELL' ? T.red : T.amber
-  const recAr = councilResult?.recommendation === 'BUY' ? 'شراء'
-    : councilResult?.recommendation === 'SELL' ? 'بيع' : 'انتظار'
+  const recAr = councilResult?.recommendation === 'BUY' ? t('buy')
+    : councilResult?.recommendation === 'SELL' ? t('sell') : t('hold')
 
   // ── Render ──
   return (
@@ -498,9 +530,9 @@ export default function AIPage() {
             <Brain size={18} color={T.cyan} />
           </div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>مركز التحليل الذكي</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: T.text }}>{t('smartAnalysisCenter')}</div>
             <div style={{ fontSize: 10, color: T.text3, marginTop: -2 }}>
-              {nestjsConnected ? 'متصل بنماذج AI الحقيقية' : 'وضع محلي — مفاتيح API غير مفعلة'}
+              {nestjsConnected ? t('connectedToRealAI') : t('localModeApiKeysInactive')}
             </div>
           </div>
         </div>
@@ -589,7 +621,7 @@ export default function AIPage() {
           }}
         >
           <Zap size={13} fill="#000" />
-          توصية ذكية
+          {t('smartRecommendation')}
         </button>
         <button
           onClick={handleComprehensiveAnalysis}
@@ -606,7 +638,7 @@ export default function AIPage() {
           }}
         >
           <Sparkles size={13} />
-          تحليل شامل
+          {t('comprehensiveAnalysis')}
         </button>
       </div>
 
@@ -637,7 +669,7 @@ export default function AIPage() {
           {/* Sentiment Card */}
           <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>مزاج السوق</span>
+              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('marketSentiment')}</span>
               <Activity size={14} color={sentimentColor} />
             </div>
             <div style={{
@@ -655,7 +687,7 @@ export default function AIPage() {
                   fontSize: 10, color: T.text3, marginTop: 6,
                   fontFamily: "'JetBrains Mono', monospace",
                 }}>
-                  ثقة: {narratorData.confidence}% | مخاطرة: {narratorData.risk === 'Low' ? 'منخفضة' : narratorData.risk === 'Medium' ? 'متوسطة' : 'عالية'}
+                  {t('confidence')}: {narratorData.confidence}% | {t('risk')}: {narratorData.risk === 'Low' ? t('riskLow') : narratorData.risk === 'Medium' ? t('riskMedium') : t('riskHigh')}
                 </div>
               )}
             </div>
@@ -673,7 +705,7 @@ export default function AIPage() {
           {/* Technical Indicators */}
           <div style={{ padding: '16px', borderBottom: `1px solid ${T.border}`, flex: 1 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>المؤشرات الفنية ({selectedSymbol})</span>
+              <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('technicalIndicators')} ({selectedSymbol})</span>
               <button
                 onClick={fetchTechIndicators}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
@@ -697,7 +729,7 @@ export default function AIPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {/* Direction */}
                 <IndicatorCard
-                  label="التوجه"
+                  label={t('direction')}
                   value={dirAr}
                   subValue={`${techData.strength}%`}
                   color={dirColor}
@@ -708,23 +740,23 @@ export default function AIPage() {
                 <IndicatorCard
                   label="RSI (14)"
                   value={String(techData.rsi)}
-                  subValue={techData.rsi < 30 ? 'تشبع بيعي' : techData.rsi > 70 ? 'تشبع شرائي' : 'محايد'}
+                  subValue={techData.rsi < 30 ? t('oversold') : techData.rsi > 70 ? t('overbought') : t('neutralRSI')}
                   color={techData.rsi < 30 ? T.green : techData.rsi > 70 ? T.red : T.cyan}
                 />
 
                 {/* EMA Cross */}
                 <IndicatorCard
                   label="EMA (20/50)"
-                  value={techData.ema20 > techData.ema50 ? 'تقاطع صاعد' : 'تقاطع هابط'}
+                  value={techData.ema20 > techData.ema50 ? t('bullishCross') : t('bearishCross')}
                   subValue={`Δ ${Math.abs(techData.ema20 - techData.ema50).toFixed(2)}`}
                   color={techData.ema20 > techData.ema50 ? T.green : T.red}
                 />
 
                 {/* Signal Class */}
                 <IndicatorCard
-                  label="تصنيف الإشارة"
-                  value={techData.signalClass === 'trend' ? 'اتجاهي' : techData.signalClass === 'reversion' ? 'ارتداد' : techData.signalClass === 'breakout' ? 'اختراق' : 'مراقبة'}
-                  subValue={`دخول: ${techData.entryBias === 'follow' ? 'متابعة' : techData.entryBias === 'fade' ? 'عكسي' : 'انتظار'}`}
+                  label={t('signalClassification')}
+                  value={techData.signalClass === 'trend' ? t('trending') : techData.signalClass === 'reversion' ? t('reversion') : techData.signalClass === 'breakout' ? t('breakout') : t('watching')}
+                  subValue={`${t('entry')}: ${techData.entryBias === 'follow' ? t('follow') : techData.entryBias === 'fade' ? t('counter') : t('wait')}`}
                   color={techData.signalClass === 'trend' ? T.green : techData.signalClass === 'breakout' ? T.amber : T.purple}
                 />
 
@@ -735,7 +767,7 @@ export default function AIPage() {
                     background: T.bg, border: `1px solid ${T.border}`,
                     fontSize: 10, color: T.text2, lineHeight: 1.5,
                   }}>
-                    <div style={{ fontSize: 9, color: T.text3, fontWeight: 700, marginBottom: 6 }}>الأسباب</div>
+                    <div style={{ fontSize: 9, color: T.text3, fontWeight: 700, marginBottom: 6 }}>{t('reasons')}</div>
                     {techData.reasons.map((r, i) => (
                       <div key={i} style={{ display: 'flex', gap: 6, alignItems: 'flex-start', marginBottom: 3 }}>
                         <CircleDot size={8} color={T.cyan} style={{ marginTop: 3, flexShrink: 0 }} />
@@ -749,7 +781,7 @@ export default function AIPage() {
               <div style={{
                 padding: '20px', textAlign: 'center', color: T.text3, fontSize: 11,
               }}>
-                لا توجد بيانات فنية متاحة حالياً
+                {t('noTechDataAvailable')}
               </div>
             )}
           </div>
@@ -758,17 +790,17 @@ export default function AIPage() {
           {narratorData && (
             <div style={{ padding: '16px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>رؤى سريعة</span>
+                <span style={{ fontSize: 11, color: T.text3, fontWeight: 700 }}>{t('quickInsights')}</span>
                 <Eye size={12} color={T.purple} />
               </div>
               {narratorData.bullCase && (
-                <InsightBox label="سيناريو صاعد" text={narratorData.bullCase} color={T.green} />
+                <InsightBox label={t('bullScenario')} text={narratorData.bullCase} color={T.green} />
               )}
               {narratorData.bearCase && (
-                <InsightBox label="سيناريو هابط" text={narratorData.bearCase} color={T.red} />
+                <InsightBox label={t('bearScenario')} text={narratorData.bearCase} color={T.red} />
               )}
               {narratorData.keyRisk && (
-                <InsightBox label="المخاطرة الرئيسية" text={narratorData.keyRisk} color={T.amber} />
+                <InsightBox label={t('keyRisk')} text={narratorData.keyRisk} color={T.amber} />
               )}
             </div>
           )}
@@ -790,7 +822,7 @@ export default function AIPage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Cpu size={16} color={T.cyan} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>محادثة التحليل الذكي</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{t('smartAnalysisChat')}</span>
               <span style={{
                 fontSize: 9, padding: '2px 8px', borderRadius: 10,
                 background: nestjsConnected ? `${T.green}12` : `${T.amber}12`,
@@ -798,7 +830,7 @@ export default function AIPage() {
                 color: nestjsConnected ? T.green : T.amber,
                 fontWeight: 700,
               }}>
-                {nestjsConnected ? 'AI حقيقي' : 'وضع محلي'}
+                {nestjsConnected ? t('realAI') : t('localMode')}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -811,7 +843,7 @@ export default function AIPage() {
                   fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                مسح المحادثة
+                {t('clearChat')}
               </button>
             </div>
           </div>
@@ -820,7 +852,7 @@ export default function AIPage() {
           <div style={{
             flex: 1, padding: '20px', overflowY: 'auto',
             display: 'flex', flexDirection: 'column', gap: 16,
-          }} role="log" aria-live="polite" aria-label="سجل المحادثة">
+          }} role="log" aria-live="polite" aria-label={t('chatLog')}>
             {messages.map((msg) => (
               <div key={msg.id} className={msg.role === 'ai' ? 'chat-msg-ai' : ''} style={{
                 display: 'flex',
@@ -908,7 +940,7 @@ export default function AIPage() {
                     animation: 'dot-pulse 1.4s infinite ease-in-out 0.4s',
                   }} />
                   <span style={{ fontSize: 10, color: T.text3, marginInlineStart: 6 }}>
-                    {nestjsConnected ? 'AI يحلل...' : 'تحليل محلي...'}
+                    {nestjsConnected ? t('aiAnalyzing') : t('localAnalyzing')}
                   </span>
                 </div>
               </div>
@@ -925,10 +957,10 @@ export default function AIPage() {
             {/* Quick Prompts */}
             <div className="ai-quick-prompts-row" style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
               {[
-                { label: 'تحليل فني', prompt: `حلل ${selectedSymbol} فنياً مع المؤشرات والمستويات` },
-                { label: 'مستويات الدعم والمقاومة', prompt: `ما هي مستويات الدعم والمقاومة لـ ${selectedSymbol}؟` },
-                { label: 'تحليل مخاطر', prompt: `حلل مخاطر التداول على ${selectedSymbol} الآن` },
-                { label: 'أفضل وقت للدخول', prompt: `ما هو أفضل توقيت للدخول في ${selectedSymbol} حالياً؟` },
+                { label: t('technicalAnalysis'), prompt: t('promptTechAnalysis', { symbol: selectedSymbol }) },
+                { label: t('supportResistanceLevels'), prompt: t('promptSupportResistance', { symbol: selectedSymbol }) },
+                { label: t('riskAnalysis'), prompt: t('promptRiskAnalysis', { symbol: selectedSymbol }) },
+                { label: t('bestEntryTime'), prompt: t('promptBestEntry', { symbol: selectedSymbol }) },
               ].map(qp => (
                 <button
                   key={qp.label}
@@ -956,8 +988,8 @@ export default function AIPage() {
                 value={inputValue}
                 onChange={e => setInputValue(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && sendMessage(inputValue)}
-                placeholder={`اسأل عن ${selectedSymbol} أو أي أصل مالي...`}
-                aria-label="رسالة الدردشة"
+                placeholder={t('askAboutSymbol', { symbol: selectedSymbol })}
+                aria-label={t('chatMessage')}
                 style={{
                   flex: 1, background: T.bg, border: `1px solid ${T.border}`,
                   borderRadius: 10, padding: '12px 16px',
@@ -970,7 +1002,7 @@ export default function AIPage() {
               <button
                 onClick={() => sendMessage(inputValue)}
                 disabled={isTyping || !inputValue.trim()}
-                aria-label="إرسال الرسالة"
+                aria-label={t('sendMessage')}
                 style={{
                   width: 46, borderRadius: 10, border: 'none',
                   background: T.cyan, color: '#000',
@@ -1002,13 +1034,13 @@ export default function AIPage() {
               active={rightTab === 'council'}
               onClick={() => setRightTab('council')}
               icon={<Shield size={14} />}
-              label="مجلس AI"
+              label={t('aiCouncil')}
             />
             <TabButton
               active={rightTab === 'narrator'}
               onClick={() => setRightTab('narrator')}
               icon={<MessageSquare size={14} />}
-              label="السرد الذكي"
+              label={t('smartNarrator')}
             />
           </div>
 
@@ -1022,7 +1054,7 @@ export default function AIPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Flame size={14} color={T.amber} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>مجلس النماذج الذكية</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t('smartModelsCouncil')}</span>
                 </div>
                 <button
                   onClick={fetchCouncil}
@@ -1037,7 +1069,7 @@ export default function AIPage() {
                   }}
                 >
                   <RefreshCw size={10} className={councilLoading ? 'spinning' : ''} />
-                  {councilLoading ? 'جاري...' : 'تفعيل المجلس'}
+                  {councilLoading ? t('loading') : t('activateCouncil')}
                 </button>
               </div>
 
@@ -1049,7 +1081,7 @@ export default function AIPage() {
                   color: T.text3, fontSize: 11,
                 }}>
                   <RefreshCw size={24} color={T.cyan} className="spinning" />
-                  <span>المجلس ي deliberates على {selectedSymbol}...</span>
+                  <span>{t('councilDeliberating', { symbol: selectedSymbol })}</span>
                 </div>
               ) : councilResult ? (
                 <>
@@ -1070,9 +1102,9 @@ export default function AIPage() {
                       fontSize: 12, color: T.text2, marginTop: 4,
                       fontFamily: "'JetBrains Mono', monospace",
                     }}>
-                      إجماع {councilResult.consensusScore}%
+                      {t('consensus')} {councilResult.consensusScore}%
                       {councilResult.source === 'nestjs' && (
-                        <span style={{ color: T.green, marginInlineStart: 6 }}>• AI حقيقي</span>
+                        <span style={{ color: T.green, marginInlineStart: 6 }}>• {t('realAI')}</span>
                       )}
                     </div>
                     {/* Score Bar */}
@@ -1102,7 +1134,7 @@ export default function AIPage() {
                           marginBottom: 4,
                         }}>
                           <span style={{ fontSize: 11, fontWeight: 700, color: T.text }}>
-                            {safeStr(vote.role)}
+                            {translateRoleName(safeStr(vote.role), t)}
                           </span>
                           <span style={{
                             fontSize: 9, padding: '2px 6px', borderRadius: 4,
@@ -1110,7 +1142,7 @@ export default function AIPage() {
                             color: vote.vote === 'BUY' ? T.green : vote.vote === 'SELL' ? T.red : T.amber,
                             fontWeight: 700,
                           }}>
-                            {vote.vote === 'BUY' ? 'شراء' : vote.vote === 'SELL' ? 'بيع' : 'انتظار'} • {vote.confidence}%
+                            {vote.vote === 'BUY' ? t('buy') : vote.vote === 'SELL' ? t('sell') : t('hold')} • {vote.confidence}%
                           </span>
                         </div>
                         <div style={{
@@ -1136,7 +1168,7 @@ export default function AIPage() {
                       background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
                       fontSize: 10, color: T.text2, lineHeight: 1.6,
                     }}>
-                      <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>الاستراتيجية الرئيسية</div>
+                      <div style={{ fontSize: 9, color: T.cyan, fontWeight: 700, marginBottom: 4 }}>{t('mainStrategy')}</div>
                       {safeStr(councilResult.masterStrategy)}
                     </div>
                   )}
@@ -1148,7 +1180,7 @@ export default function AIPage() {
                   color: T.text3, fontSize: 11, textAlign: 'center',
                 }}>
                   <Shield size={28} color={T.text3} style={{ opacity: 0.3 }} />
-                  <span>اضغط "تفعيل المجلس" لبدء تصويت<br />نماذج AI على {selectedSymbol}</span>
+                  <span>{t('pressActivateCouncil', { symbol: selectedSymbol })}</span>
                 </div>
               )}
             </div>
@@ -1163,7 +1195,7 @@ export default function AIPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Brain size={14} color={T.purple} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>السرد الذكي</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.text }}>{t('smartNarrator')}</span>
                 </div>
                 <button
                   onClick={fetchNarrator}
@@ -1174,7 +1206,7 @@ export default function AIPage() {
                     display: 'flex', alignItems: 'center', gap: 4,
                   }}
                 >
-                  <RefreshCw size={10} /> تحديث
+                  <RefreshCw size={10} /> {t('refresh')}
                 </button>
               </div>
 
@@ -1183,17 +1215,17 @@ export default function AIPage() {
                   {/* Sentiment & Risk */}
                   <div style={{ display: 'flex', gap: 8 }}>
                     <NarratorBadge
-                      label="التوجه"
+                      label={t('directionNarrator')}
                       value={sentimentAr}
                       color={sentimentColor}
                     />
                     <NarratorBadge
-                      label="المخاطرة"
-                      value={narratorData.risk === 'Low' ? 'منخفضة' : narratorData.risk === 'Medium' ? 'متوسطة' : 'عالية'}
+                      label={t('riskNarrator')}
+                      value={narratorData.risk === 'Low' ? t('riskLow') : narratorData.risk === 'Medium' ? t('riskMedium') : t('riskHigh')}
                       color={narratorData.risk === 'Low' ? T.green : narratorData.risk === 'Medium' ? T.amber : T.red}
                     />
                     <NarratorBadge
-                      label="الثقة"
+                      label={t('confidenceLabel')}
                       value={`${narratorData.confidence}%`}
                       color={T.cyan}
                     />
@@ -1211,10 +1243,10 @@ export default function AIPage() {
 
                   {/* Bull/Bear Cases */}
                   {narratorData.bullCase && (
-                    <CaseBox label="السيناريو الصاعد" text={narratorData.bullCase} color={T.green} icon={<TrendingUp size={12} />} />
+                    <CaseBox label={t('bullCase')} text={narratorData.bullCase} color={T.green} icon={<TrendingUp size={12} />} />
                   )}
                   {narratorData.bearCase && (
-                    <CaseBox label="السيناريو الهابط" text={narratorData.bearCase} color={T.red} icon={<TrendingDown size={12} />} />
+                    <CaseBox label={t('bearCase')} text={narratorData.bearCase} color={T.red} icon={<TrendingDown size={12} />} />
                   )}
                   {narratorData.nextTrigger && (
                     <div style={{
@@ -1222,7 +1254,7 @@ export default function AIPage() {
                       background: `${T.cyan}05`, border: `1px solid ${T.cyan}20`,
                       fontSize: 10, color: T.text2, lineHeight: 1.6,
                     }}>
-                      <strong style={{ color: T.cyan }}>المحفز التالي:</strong> {narratorData.nextTrigger}
+                      <strong style={{ color: T.cyan }}>{t('nextTrigger')}:</strong> {narratorData.nextTrigger}
                     </div>
                   )}
                 </>
@@ -1231,7 +1263,7 @@ export default function AIPage() {
                   flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   color: T.text3, fontSize: 11,
                 }}>
-                  جاري تحميل السرد الذكي...
+                  {t('loadingNarrator')}
                 </div>
               )}
             </div>

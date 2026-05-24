@@ -1130,7 +1130,15 @@
       "councilVersion": "المجلس v5.0",
       "rolesCount": "{count} أدوار",
       "up": "نشط",
-      "ping": "PING"
+      "ping": "PING",
+      "roleTech": "المحلل الفني",
+      "roleSent": "محلل المشاعر",
+      "roleRisk": "خبير المخاطر",
+      "roleMacro": "خبير الماكرو",
+      "rolePattern": "خبير الأنماط",
+      "roleExec": "استراتيجي التنفيذ",
+      "roleDiverge": "محلل التباين",
+      "roleScenario": "محلل السيناريوهات"
     },
     "execution": {
       "preTradeSummary": "ملخص ما قبل التنفيذ",

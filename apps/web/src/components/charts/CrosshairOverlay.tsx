@@ -7,6 +7,7 @@
 import { useMemo } from 'react';
 import type { CrosshairData, CandleData } from '@/lib/charts/types';
 import { priceDecimals } from '@/lib/price-format';
+import { useLocale } from 'next-intl';
 
 interface CrosshairOverlayProps {
   symbol: string;
@@ -35,6 +36,8 @@ export function CrosshairOverlay({
   candles,
   showCandleTimer = true,
 }: CrosshairOverlayProps) {
+  const locale = useLocale();
+  const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
   // Get current OHLC from last candle when crosshair is not active
   const lastCandle = candles[candles.length - 1];
   const displayData = crosshairData || (lastCandle ? {
@@ -48,7 +51,7 @@ export function CrosshairOverlay({
     changePercent: candles.length > 1 && candles[candles.length - 2].close > 0
       ? ((lastCandle.close - candles[candles.length - 2].close) / candles[candles.length - 2].close) * 100
       : 0,
-    dateStr: new Date(lastCandle.time * 1000).toLocaleDateString('ar-EG', {
+    dateStr: new Date(lastCandle.time * 1000).toLocaleDateString(dateLocale, {
       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
     }),
   } : null);

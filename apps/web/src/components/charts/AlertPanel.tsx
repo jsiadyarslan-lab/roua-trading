@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useLocale } from 'next-intl';
 import { Alert, AlertType, createAlert, ALERT_TYPE_LABELS, ALERT_TYPE_ICONS } from './AlertManager';
 
 interface AlertPanelProps {
@@ -70,9 +71,10 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, active: !a.active } : a));
   }, []);
 
+  const locale = useLocale();
   const formatTime = (ts: number) => {
     const d = new Date(ts);
-    return d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (

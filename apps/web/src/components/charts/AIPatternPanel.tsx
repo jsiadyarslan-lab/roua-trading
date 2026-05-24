@@ -9,6 +9,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { useLocale } from 'next-intl';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 import { runPatternEngine, type DetectedPattern } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
@@ -126,6 +127,8 @@ export function AIPatternPanel({
   chartApiRef,
   lcRef,
 }: AIPatternPanelProps) {
+  const locale = useLocale();
+  const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
@@ -854,7 +857,7 @@ export function AIPatternPanel({
                           fontFamily: "'JetBrains Mono', monospace", lineHeight: 1.4,
                           display: 'flex', alignItems: 'center', gap: 6, marginTop: 1,
                         }}>
-                          <span>{new Date(p.time * 1000).toLocaleDateString('ar-EG', { month: 'short', day: 'numeric' })}</span>
+                          <span>{new Date(p.time * 1000).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}</span>
                           <span style={{ color: C.textMuted }}>•</span>
                           <span style={{ color: dirColor, fontWeight: 700 }}>
                             {Math.round(p.confidence * 100)}%

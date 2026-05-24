@@ -1130,7 +1130,15 @@
       "councilVersion": "Council v5.0",
       "rolesCount": "{count} Roles",
       "up": "UP",
-      "ping": "PING"
+      "ping": "PING",
+      "roleTech": "Technical Analyst",
+      "roleSent": "Sentiment Analyst",
+      "roleRisk": "Risk Expert",
+      "roleMacro": "Macro Expert",
+      "rolePattern": "Pattern Expert",
+      "roleExec": "Execution Strategist",
+      "roleDiverge": "Divergence Analyst",
+      "roleScenario": "Scenario Analyst"
     },
     "execution": {
       "preTradeSummary": "Pre-Trade Summary",

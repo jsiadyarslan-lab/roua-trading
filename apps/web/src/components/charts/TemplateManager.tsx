@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import type { ChartTemplate } from '@/lib/charts/types';
 import { ChartTemplateManager } from '@/lib/charts/ChartTemplate';
+import { useLocale } from 'next-intl';
 
 interface TemplateManagerProps {
   onLoadTemplate: (id: string) => void;
@@ -16,6 +17,8 @@ interface TemplateManagerProps {
 }
 
 export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: TemplateManagerProps) {
+  const locale = useLocale();
+  const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
   const [templates, setTemplates] = useState<ChartTemplate[]>([]);
   const [newName, setNewName] = useState('');
   const [importJson, setImportJson] = useState('');
@@ -157,7 +160,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
                   {tpl.name}
                 </div>
                 <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {tpl.indicators.length} مؤشرات • {new Date(tpl.updatedAt).toLocaleDateString('ar-EG')}
+                  {tpl.indicators.length} {locale === 'ar' ? 'مؤشرات' : 'indicators'} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                 </div>
               </div>
 

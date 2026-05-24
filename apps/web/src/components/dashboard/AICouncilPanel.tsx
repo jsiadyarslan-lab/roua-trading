@@ -60,6 +60,33 @@ function getModelColor(model: string): string {
   return T.text2 // default
 }
 
+/** Map Arabic role name from backend API to i18n translation key */
+const ROLE_NAME_MAP: Record<string, string> = {
+  'المحلل الفني': 'roleTech',
+  'محلل المشاعر': 'roleSent',
+  'خبير المخاطر': 'roleRisk',
+  'خبير الماكرو': 'roleMacro',
+  'خبير الأنماط': 'rolePattern',
+  'استراتيجي التنفيذ': 'roleExec',
+  'محلل التباين': 'roleDiverge',
+  'محلل السيناريوهات': 'roleScenario',
+  // English fallbacks (in case backend switches to English)
+  'Technical Analyst': 'roleTech',
+  'Sentiment Analyst': 'roleSent',
+  'Risk Expert': 'roleRisk',
+  'Macro Expert': 'roleMacro',
+  'Pattern Expert': 'rolePattern',
+  'Execution Strategist': 'roleExec',
+  'Divergence Analyst': 'roleDiverge',
+  'Scenario Analyst': 'roleScenario',
+}
+
+/** Translate a role name from the backend API using i18n keys */
+function translateRoleName(role: string, t: (key: string) => string): string {
+  const key = ROLE_NAME_MAP[role]
+  return key ? t(key) : role
+}
+
 export function AICouncilPanel() {
   const { selectedSymbol } = useSymbolStore()
   const tai = useTranslations('dashboard.ai')
@@ -594,7 +621,7 @@ export function AICouncilPanel() {
                             ? <TrendingDown size={9} color={voteColor} />
                             : <Minus size={9} color={voteColor} />}
                         </div>
-                        <span className="text-[10px] font-bold text-white/90">{safeStr(a.role)}</span>
+                        <span className="text-[10px] font-bold text-white/90">{translateRoleName(safeStr(a.role), tai)}</span>
                         {isAIModel && (
                           <span style={{ fontSize: 6, padding: '1px 4px', borderRadius: 3, background: `${modelColor}20`, color: modelColor, fontFamily: 'monospace', fontWeight: 700, border: `1px solid ${modelColor}30` }}>{modelShortName}</span>
                         )}

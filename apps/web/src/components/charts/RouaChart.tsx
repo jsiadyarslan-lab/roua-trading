@@ -1100,7 +1100,9 @@ export default function RouaChart({
         const el = document.getElementById('__draw_debug') || document.createElement('div');
         el.id = '__draw_debug';
         el.style.cssText = 'position:fixed;bottom:8px;left:8px;background:#00FFA3;color:#000;padding:3px 8px;border-radius:4px;font-size:10px;z-index:99999;font-family:monospace';
-        el.textContent = `✓ ${directLines.length} lines drawn`;
+        // Show actual prices drawn
+        const fvgPrices = (result as any).smcData?.fvgs?.slice(0,2).map((f:any)=>((f.high+f.low)/2).toFixed(0)).join(',');
+        el.textContent = `✓ ${directLines.length} lines drawn | fvg@${fvgPrices}`;
         document.body.appendChild(el);
         setTimeout(() => { try { el.remove(); } catch {} }, 5000);
         return true;

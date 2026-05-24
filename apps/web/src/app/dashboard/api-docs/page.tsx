@@ -10,6 +10,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -28,18 +29,58 @@ const METHOD_COLORS: Record<string, { bg: string; text: string; border: string }
 }
 
 /* ═══════════════════════════════════════════════════════
+   Data Types
+═══════════════════════════════════════════════════════ */
+interface Endpoint {
+  method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH'
+  path: string
+  description: string
+  permission: string
+  requestBody?: string
+  responseExample: string
+}
+
+interface EndpointCategory {
+  id: string
+  title: string
+  icon: React.ReactNode
+  iconColor: string
+  iconBg: string
+  description: string
+  endpoints: Endpoint[]
+}
+
+interface ApiKey {
+  id: string
+  name: string
+  key: string
+  lastUsed: string
+  permissions: ('read')[]
+  status: 'active' | 'revoked'
+  createdAt: string
+}
+
+interface ErrorCode {
+  httpStatus: number
+  code: string
+  description: string
+  solution: string
+}
+
+/* ═══════════════════════════════════════════════════════
    Code Block Component
 ═══════════════════════════════════════════════════════ */
 function CodeBlock({ code, language = 'json' }: { code: string; language?: string }) {
   const [copied, setCopied] = useState(false)
+  const t = useTranslations('dashboard.apiDocs')
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(code).then(() => {
       setCopied(true)
-      toast({ title: 'تم النسخ', description: 'تم نسخ الكود إلى الحافظة' })
+      toast({ title: t('copyToastTitle'), description: t('copyToastDesc') })
       setTimeout(() => setCopied(false), 2000)
     })
-  }, [code])
+  }, [code, t])
 
   return (
     <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', margin: '8px 0' }}>
@@ -65,7 +106,7 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
           }}
         >
           {copied ? <Check size={11} /> : <Copy size={11} />}
-          {copied ? 'تم النسخ' : 'نسخ'}
+          {copied ? t('copied') : t('copy')}
         </button>
       </div>
       <pre style={{
@@ -82,526 +123,11 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
 }
 
 /* ═══════════════════════════════════════════════════════
-   Endpoint Data Types
-═══════════════════════════════════════════════════════ */
-interface Endpoint {
-  method: 'GET' | 'POST' | 'DELETE' | 'PUT' | 'PATCH'
-  path: string
-  description: string
-  permission: string
-  requestBody?: string
-  responseExample: string
-}
-
-interface EndpointCategory {
-  id: string
-  title: string
-  icon: React.ReactNode
-  iconColor: string
-  iconBg: string
-  description: string
-  endpoints: Endpoint[]
-}
-
-/* ═══════════════════════════════════════════════════════
-   Endpoint Categories Data
-═══════════════════════════════════════════════════════ */
-const ENDPOINT_CATEGORIES: EndpointCategory[] = [
-  {
-    id: 'auth',
-    title: 'المصادقة',
-    icon: <Lock size={18} />,
-    iconColor: T.purple,
-    iconBg: `${T.purple}14`,
-    description: 'إدارة المصادقة والجلسات وتحقق OTP',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/auth/otp/send',
-        description: 'إرسال رمز التحقق OTP إلى رقم الهاتف أو البريد الإلكتروني المسجل',
-        permission: 'none',
-        requestBody: JSON.stringify({
-          phone: "+966500000000",
-          channel: "sms"
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            requestId: "req_a1b2c3d4",
-            expiresIn: 300,
-            channel: "sms"
-          }
-        }, null, 2),
-      },
-      {
-        method: 'POST',
-        path: '/auth/otp/verify',
-        description: 'التحقق من رمز OTP وإرجاع رمز الوصول (Access Token)',
-        permission: 'none',
-        requestBody: JSON.stringify({
-          requestId: "req_a1b2c3d4",
-          code: "123456"
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            accessToken: "eyJhbGciOiJIUzI1NiIs...",
-            refreshToken: "rt_f8e7d6c5b4a3",
-            expiresIn: 3600,
-            user: {
-              id: "usr_12345",
-              displayName: "متداول رؤى",
-              tier: "PRO"
-            }
-          }
-        }, null, 2),
-      },
-      {
-        method: 'GET',
-        path: '/auth/me',
-        description: 'استرجاع بيانات المستخدم الحالي مع صلاحياته وخطة الاشتراك',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            id: "usr_12345",
-            displayName: "متداول رؤى",
-            email: "user@roua.io",
-            phone: "+966500000000",
-            tier: "PRO",
-            permissions: ["read"],
-            createdAt: "2025-08-12T10:30:00Z",
-            lastLogin: "2026-03-04T14:22:00Z"
-          }
-        }, null, 2),
-      },
-      {
-        method: 'POST',
-        path: '/auth/refresh',
-        description: 'تجديد جلسة المستخدم باستخدام رمز التحديث (Refresh Token)',
-        permission: 'none',
-        requestBody: JSON.stringify({
-          refreshToken: "rt_f8e7d6c5b4a3"
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            accessToken: "eyJhbGciOiJIUzI1NiIs...",
-            refreshToken: "rt_new_token_here",
-            expiresIn: 3600
-          }
-        }, null, 2),
-      },
-    ],
-  },
-  {
-    id: 'markets',
-    title: 'الأسواق',
-    icon: <BarChart3 size={18} />,
-    iconColor: T.cyan,
-    iconBg: `${T.cyan}14`,
-    description: 'بيانات الأسواق المباشرة والتاريخية',
-    endpoints: [
-      {
-        method: 'GET',
-        path: '/exchange/quote/:symbol',
-        description: 'الحصول على السعر المباشر لزوج تداول محدد مع بيانات السوق الأساسية',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            symbol: "BTC/USDT",
-            price: 97542.50,
-            change24h: 2.34,
-            high24h: 98100.00,
-            low24h: 95200.00,
-            volume24h: 2847563210.50,
-            bid: 97541.00,
-            ask: 97544.00,
-            timestamp: "2026-03-04T14:30:00Z",
-            source: "binance"
-          }
-        }, null, 2),
-      },
-      {
-        method: 'GET',
-        path: '/exchange/history/:symbol',
-        description: 'استرجاع بيانات تاريخية (شموع) لزوج تداول محدد مع إمكانية تحديد الإطار الزمني',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            symbol: "BTC/USDT",
-            interval: "1h",
-            candles: [
-              {
-                time: "2026-03-04T13:00:00Z",
-                open: 97200.00,
-                high: 97650.00,
-                low: 97100.00,
-                close: 97542.50,
-                volume: 15234.78
-              }
-            ],
-            count: 500
-          }
-        }, null, 2),
-      },
-    ],
-  },
-  {
-    id: 'trading',
-    title: 'الحسابات المربوطة',
-    icon: <TrendingUp size={18} />,
-    iconColor: T.green,
-    iconBg: `${T.green}14`,
-    description: 'إدارة الحسابات المربوطة ومتابعة المراكز المفتوحة',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/accounts/link',
-        description: 'ربط حساب بورصة جديد عبر مفاتيح API مع التحقق التلقائي من الاتصال',
-        permission: 'read',
-        requestBody: JSON.stringify({
-          exchange: "binance",
-          apiKey: "xxx",
-          apiSecret: "xxx",
-          permissions: ["read"]
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            accountId: "acc_k1l2m3n4",
-            exchange: "binance",
-            status: "connected",
-            permissions: ["read"],
-            connectedAt: "2026-03-04T14:30:00Z",
-            lastSync: "2026-03-04T14:30:00Z"
-          }
-        }, null, 2),
-      },
-      {
-        method: 'GET',
-        path: '/accounts/positions',
-        description: 'استرجاع جميع المراكز المفتوحة من الحسابات المربوطة مع بيانات الربح/الخسارة',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            positions: [
-              {
-                id: "pos_a1b2c3",
-                symbol: "BTC/USDT",
-                side: "long",
-                entryPrice: 95000.00,
-                currentPrice: 97542.50,
-                quantity: 0.05,
-                pnl: 127.13,
-                pnlPercent: 2.68,
-                stopLoss: 92000.00,
-                takeProfit: 105000.00,
-                openedAt: "2026-03-02T08:00:00Z",
-                sourceAccount: "acc_k1l2m3n4"
-              }
-            ],
-            totalPnl: 127.13,
-            count: 1
-          }
-        }, null, 2),
-      },
-      {
-        method: 'DELETE',
-        path: '/accounts/:id',
-        description: 'إلغاء ربط حساب بورصة مع الحفاظ على البيانات التاريخية',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            accountId: "acc_k1l2m3n4",
-            status: "unlinked",
-            historicalDataPreserved: true,
-            unlinkedAt: "2026-03-04T14:35:00Z"
-          }
-        }, null, 2),
-      },
-    ],
-  },
-  {
-    id: 'ai',
-    title: 'الذكاء الاصطناعي',
-    icon: <Brain size={18} />,
-    iconColor: T.purple,
-    iconBg: `${T.purple}14`,
-    description: 'تحليلات ذكية ونماذج AI ومحادثة',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/ai/analyze',
-        description: 'تحليل ذكي شامل لأصل مالي يجمع بين المؤشرات الفنية وتحليل المشاعر',
-        permission: 'read',
-        requestBody: JSON.stringify({
-          symbol: "BTC/USDT",
-          timeframe: "4h",
-          models: ["gemini", "groq", "glm4"],
-          includeSentiment: true,
-          includePatterns: true
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            symbol: "BTC/USDT",
-            consensus: "bullish",
-            confidence: 78.5,
-            models: [
-              {
-                name: "gemini",
-                recommendation: "buy",
-                confidence: 82,
-                summary: "إشارة شراء قوية مع زخم إيجابي"
-              },
-              {
-                name: "groq",
-                recommendation: "buy",
-                confidence: 75,
-                summary: "اتجاه صاعد مع تأكيد RSI"
-              }
-            ],
-            sentiment: { score: 0.65, label: "إيجابي" },
-            keyLevels: {
-              support: [95000, 93000],
-              resistance: [100000, 105000]
-            }
-          }
-        }, null, 2),
-      },
-      {
-        method: 'GET',
-        path: '/ai/models',
-        description: 'قائمة بجميع نماذج الذكاء الاصطناعي المتاحة وحالتها وحدود الاستخدام',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            models: [
-              {
-                id: "gemini",
-                name: "Gemini Pro",
-                status: "online",
-                latency: 450,
-                dailyLimit: 100,
-                dailyUsed: 23,
-                tier: "PRO"
-              },
-              {
-                id: "groq",
-                name: "Groq Mixtral",
-                status: "online",
-                latency: 120,
-                dailyLimit: 200,
-                dailyUsed: 67,
-                tier: "PRO"
-              },
-              {
-                id: "glm4",
-                name: "GLM-4",
-                status: "online",
-                latency: 380,
-                dailyLimit: 150,
-                dailyUsed: 45,
-                tier: "PREMIUM"
-              }
-            ]
-          }
-        }, null, 2),
-      },
-      {
-        method: 'POST',
-        path: '/ai/chat',
-        description: 'محادثة تفاعلية مع مساعد AI متخصص في التداول والتحليل المالي',
-        permission: 'read',
-        requestBody: JSON.stringify({
-          message: "ما هو أفضل وقت لدخول صفقة شراء على BTC؟",
-          context: {
-            symbol: "BTC/USDT",
-            timeframe: "1h"
-          },
-          conversationId: "conv_abc123"
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            conversationId: "conv_abc123",
-            message: "بناءً على التحليل الفني الحالي، يظهر BTC/USDT نمط تصحيحي عند مستوى 97000. أنصح بالانتظار حتى تأكيد الاختراق فوق 98500 مع حجم تداول مرتفع. وقف الخسارة المقترح تحت 95200.",
-            sources: ["technical_analysis", "pattern_recognition"],
-            confidence: 72,
-            timestamp: "2026-03-04T14:30:00Z"
-          }
-        }, null, 2),
-      },
-    ],
-  },
-  {
-    id: 'signals',
-    title: 'الإشارات',
-    icon: <Radio size={18} />,
-    iconColor: T.amber,
-    iconBg: `${T.amber}14`,
-    description: 'إشارات التداول الذكية والنشطة',
-    endpoints: [
-      {
-        method: 'POST',
-        path: '/signals/generate/:pair',
-        description: 'توليد إشارة تداول ذكية لزوج محدد بناءً على تحليل AI متعدد النماذج',
-        permission: 'read',
-        requestBody: JSON.stringify({
-          timeframe: "4h",
-          strategy: "swing",
-          riskLevel: "moderate"
-        }, null, 2),
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            signalId: "sig_m3n4o5p6",
-            pair: "BTC/USDT",
-            direction: "long",
-            confidence: 85,
-            entry: 97500.00,
-            stopLoss: 95000.00,
-            takeProfit: [
-              { level: 1, price: 101000.00, ratio: 0.5 },
-              { level: 2, price: 105000.00, ratio: 0.5 }
-            ],
-            riskReward: "1:2.8",
-            reasoning: "اختراق مقاومة مع تأكيد RSI وحجم تداول مرتفع",
-            models: ["gemini", "groq", "glm4"],
-            createdAt: "2026-03-04T14:30:00Z",
-            expiresAt: "2026-03-05T02:30:00Z"
-          }
-        }, null, 2),
-      },
-      {
-        method: 'GET',
-        path: '/signals/active',
-        description: 'قائمة بجميع الإشارات النشطة غير المنتهية مع حالتها وأدائها',
-        permission: 'read',
-        requestBody: undefined,
-        responseExample: JSON.stringify({
-          success: true,
-          data: {
-            signals: [
-              {
-                signalId: "sig_m3n4o5p6",
-                pair: "BTC/USDT",
-                direction: "long",
-                confidence: 85,
-                status: "active",
-                entry: 97500.00,
-                currentPrice: 98200.00,
-                pnl: 0.72,
-                createdAt: "2026-03-04T14:30:00Z"
-              },
-              {
-                signalId: "sig_q7r8s9t0",
-                pair: "ETH/USDT",
-                direction: "short",
-                confidence: 72,
-                status: "hit_tp1",
-                entry: 3850.00,
-                currentPrice: 3780.00,
-                pnl: 1.82,
-                createdAt: "2026-03-03T20:00:00Z"
-              }
-            ],
-            count: 2
-          }
-        }, null, 2),
-      },
-    ],
-  },
-]
-
-/* ═══════════════════════════════════════════════════════
-   Mock API Keys Data
-═══════════════════════════════════════════════════════ */
-interface ApiKey {
-  id: string
-  name: string
-  key: string
-  lastUsed: string
-  permissions: ('read')[]
-  status: 'active' | 'revoked'
-  createdAt: string
-}
-
-const INITIAL_API_KEYS: ApiKey[] = [
-  {
-    id: 'key_prod_001',
-    name: 'Production Key',
-    key: 'roua_live_sk_a1b2c3d4e5f6g7h8i9j0',
-    lastUsed: 'منذ 5 دقائق',
-    permissions: ['read'],
-    status: 'active',
-    createdAt: '2025/11/15',
-  },
-  {
-    id: 'key_dev_002',
-    name: 'Development Key',
-    key: 'roua_test_sk_z9y8x7w6v5u4t3s2r1q0',
-    lastUsed: 'منذ 3 ساعات',
-    permissions: ['read'],
-    status: 'active',
-    createdAt: '2026/01/08',
-  },
-]
-
-/* ═══════════════════════════════════════════════════════
-   Error Codes Data
-═══════════════════════════════════════════════════════ */
-interface ErrorCode {
-  httpStatus: number
-  code: string
-  description: string
-  solution: string
-}
-
-const ERROR_CODES: ErrorCode[] = [
-  { httpStatus: 400, code: 'BAD_REQUEST', description: 'طلب غير صالح — بيانات مفقودة أو تنسيق خاطئ', solution: 'تحقق من هيكل الطلب والبيانات المطلوبة' },
-  { httpStatus: 401, code: 'UNAUTHORIZED', description: 'غير مصادق — رمز الوصول مفقود أو منتهي الصلاحية', solution: 'أعد المصادقة أو جدّد رمز الوصول عبر /auth/refresh' },
-  { httpStatus: 403, code: 'FORBIDDEN', description: 'ممنوع — لا تملك الصلاحيات الكافية لهذا الإجراء', solution: 'تحقق من صلاحيات مفتاح API أو رقِّ خطتك' },
-  { httpStatus: 404, code: 'NOT_FOUND', description: 'غير موجود — المسار أو المورد المطلوب غير موجود', solution: 'تحقق من صحة المسار ومعرف المورد' },
-  { httpStatus: 429, code: 'RATE_LIMITED', description: 'تجاوز الحد — عدد الطلبات أعلى من المسموح', solution: 'انتظر حتى انتهاء فترة التبريد أو رقِّ خطتك' },
-  { httpStatus: 500, code: 'INTERNAL_ERROR', description: 'خطأ داخلي — خطأ غير متوقع في الخادم', solution: 'أعد المحاولة لاحقاً أو تواصل مع الدعم الفني' },
-  { httpStatus: 503, code: 'SERVICE_UNAVAILABLE', description: 'الخدمة غير متاحة — صيانة أو حمل زائد', solution: 'انتظر بضع دقائق وأعد المحاولة' },
-  { httpStatus: 400, code: 'INVALID_SYMBOL', description: 'رمز غير صالح — زوج التداول غير مدعوم', solution: 'تحقق من قائمة الأزواج المدعومة عبر /exchange/quote' },
-  { httpStatus: 400, code: 'INVALID_API_KEY', description: 'مفتاح API غير صالح — فشل الاتصال بالبورصة', solution: 'تحقق من صحة مفتاح API والسري لديك' },
-]
-
-/* ═══════════════════════════════════════════════════════
-   Webhook Events Data
-═══════════════════════════════════════════════════════ */
-const WEBHOOK_EVENTS = [
-  { event: 'order.filled', description: 'تم تنفيذ الأمر بالكامل', color: T.green },
-  { event: 'order.partial', description: 'تم تنفيذ الأمر جزئياً', color: T.cyan },
-  { event: 'order.cancelled', description: 'تم إلغاء الأمر', color: T.red },
-  { event: 'position.opened', description: 'تم فتح مركز جديد', color: T.green },
-  { event: 'position.closed', description: 'تم إغلاق مركز', color: T.amber },
-  { event: 'signal.generated', description: 'تم توليد إشارة تداول جديدة', color: T.purple },
-  { event: 'price.alert', description: 'تنبيه سعر — تم الوصول للسعر المستهدف', color: T.cyan },
-  { event: 'ai.analysis_complete', description: 'اكتمل تحليل AI', color: T.purple },
-  { event: 'account.connected', description: 'تم ربط حساب بورصة جديد', color: T.green },
-]
-
-/* ═══════════════════════════════════════════════════════
    Endpoint Accordion Item
 ═══════════════════════════════════════════════════════ */
 function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOpen: boolean; onToggle: () => void }) {
   const mc = METHOD_COLORS[endpoint.method]
+  const t = useTranslations('dashboard.apiDocs')
 
   return (
     <div style={{ borderBottom: `1px solid ${T.border}` }}>
@@ -657,7 +183,7 @@ function EndpointItem({ endpoint, isOpen, onToggle }: { endpoint: Endpoint; isOp
           border: `1px solid ${endpoint.permission === 'none' ? `${T.text4}25` : `${T.green}25`}`,
           flexShrink: 0,
         }}>
-          {endpoint.permission === 'none' ? 'عام' : 'قراءة'}
+          {endpoint.permission === 'none' ? t('permPublic') : t('permRead')}
         </span>
 
         {/* Chevron */}
@@ -826,6 +352,8 @@ function CategorySection({
    Main API Docs Page
 ═══════════════════════════════════════════════════════ */
 export default function ApiDocsPage() {
+  const t = useTranslations('dashboard.apiDocs')
+
   useScopedStyle(`@media (max-width: 767px) {
           .apidocs-grid-2 { grid-template-columns: 1fr !important; }
           .apidocs-grid-3 { grid-template-columns: 1fr !important; }
@@ -855,6 +383,475 @@ export default function ApiDocsPage() {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
         }`)
+
+  /* ── Data: Endpoint Categories ── */
+  const ENDPOINT_CATEGORIES: EndpointCategory[] = [
+    {
+      id: 'auth',
+      title: t('catAuthTitle'),
+      icon: <Lock size={18} />,
+      iconColor: T.purple,
+      iconBg: `${T.purple}14`,
+      description: t('catAuthDesc'),
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/auth/otp/send',
+          description: t('epAuthOtpSendDesc'),
+          permission: 'none',
+          requestBody: JSON.stringify({
+            phone: "+966500000000",
+            channel: "sms"
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              requestId: "req_a1b2c3d4",
+              expiresIn: 300,
+              channel: "sms"
+            }
+          }, null, 2),
+        },
+        {
+          method: 'POST',
+          path: '/auth/otp/verify',
+          description: t('epAuthOtpVerifyDesc'),
+          permission: 'none',
+          requestBody: JSON.stringify({
+            requestId: "req_a1b2c3d4",
+            code: "123456"
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              accessToken: "eyJhbGciOiJIUzI1NiIs...",
+              refreshToken: "rt_f8e7d6c5b4a3",
+              expiresIn: 3600,
+              user: {
+                id: "usr_12345",
+                displayName: "Roua Trader",
+                tier: "PRO"
+              }
+            }
+          }, null, 2),
+        },
+        {
+          method: 'GET',
+          path: '/auth/me',
+          description: t('epAuthMeDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              id: "usr_12345",
+              displayName: "Roua Trader",
+              email: "user@roua.io",
+              phone: "+966500000000",
+              tier: "PRO",
+              permissions: ["read"],
+              createdAt: "2025-08-12T10:30:00Z",
+              lastLogin: "2026-03-04T14:22:00Z"
+            }
+          }, null, 2),
+        },
+        {
+          method: 'POST',
+          path: '/auth/refresh',
+          description: t('epAuthRefreshDesc'),
+          permission: 'none',
+          requestBody: JSON.stringify({
+            refreshToken: "rt_f8e7d6c5b4a3"
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              accessToken: "eyJhbGciOiJIUzI1NiIs...",
+              refreshToken: "rt_new_token_here",
+              expiresIn: 3600
+            }
+          }, null, 2),
+        },
+      ],
+    },
+    {
+      id: 'markets',
+      title: t('catMarketsTitle'),
+      icon: <BarChart3 size={18} />,
+      iconColor: T.cyan,
+      iconBg: `${T.cyan}14`,
+      description: t('catMarketsDesc'),
+      endpoints: [
+        {
+          method: 'GET',
+          path: '/exchange/quote/:symbol',
+          description: t('epMarketsQuoteDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              symbol: "BTC/USDT",
+              price: 97542.50,
+              change24h: 2.34,
+              high24h: 98100.00,
+              low24h: 95200.00,
+              volume24h: 2847563210.50,
+              bid: 97541.00,
+              ask: 97544.00,
+              timestamp: "2026-03-04T14:30:00Z",
+              source: "binance"
+            }
+          }, null, 2),
+        },
+        {
+          method: 'GET',
+          path: '/exchange/history/:symbol',
+          description: t('epMarketsHistoryDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              symbol: "BTC/USDT",
+              interval: "1h",
+              candles: [
+                {
+                  time: "2026-03-04T13:00:00Z",
+                  open: 97200.00,
+                  high: 97650.00,
+                  low: 97100.00,
+                  close: 97542.50,
+                  volume: 15234.78
+                }
+              ],
+              count: 500
+            }
+          }, null, 2),
+        },
+      ],
+    },
+    {
+      id: 'trading',
+      title: t('catTradingTitle'),
+      icon: <TrendingUp size={18} />,
+      iconColor: T.green,
+      iconBg: `${T.green}14`,
+      description: t('catTradingDesc'),
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/accounts/link',
+          description: t('epTradingLinkDesc'),
+          permission: 'read',
+          requestBody: JSON.stringify({
+            exchange: "binance",
+            apiKey: "xxx",
+            apiSecret: "xxx",
+            permissions: ["read"]
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              accountId: "acc_k1l2m3n4",
+              exchange: "binance",
+              status: "connected",
+              permissions: ["read"],
+              connectedAt: "2026-03-04T14:30:00Z",
+              lastSync: "2026-03-04T14:30:00Z"
+            }
+          }, null, 2),
+        },
+        {
+          method: 'GET',
+          path: '/accounts/positions',
+          description: t('epTradingPositionsDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              positions: [
+                {
+                  id: "pos_a1b2c3",
+                  symbol: "BTC/USDT",
+                  side: "long",
+                  entryPrice: 95000.00,
+                  currentPrice: 97542.50,
+                  quantity: 0.05,
+                  pnl: 127.13,
+                  pnlPercent: 2.68,
+                  stopLoss: 92000.00,
+                  takeProfit: 105000.00,
+                  openedAt: "2026-03-02T08:00:00Z",
+                  sourceAccount: "acc_k1l2m3n4"
+                }
+              ],
+              totalPnl: 127.13,
+              count: 1
+            }
+          }, null, 2),
+        },
+        {
+          method: 'DELETE',
+          path: '/accounts/:id',
+          description: t('epTradingUnlinkDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              accountId: "acc_k1l2m3n4",
+              status: "unlinked",
+              historicalDataPreserved: true,
+              unlinkedAt: "2026-03-04T14:35:00Z"
+            }
+          }, null, 2),
+        },
+      ],
+    },
+    {
+      id: 'ai',
+      title: t('catAiTitle'),
+      icon: <Brain size={18} />,
+      iconColor: T.purple,
+      iconBg: `${T.purple}14`,
+      description: t('catAiDesc'),
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/ai/analyze',
+          description: t('epAiAnalyzeDesc'),
+          permission: 'read',
+          requestBody: JSON.stringify({
+            symbol: "BTC/USDT",
+            timeframe: "4h",
+            models: ["gemini", "groq", "glm4"],
+            includeSentiment: true,
+            includePatterns: true
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              symbol: "BTC/USDT",
+              consensus: "bullish",
+              confidence: 78.5,
+              models: [
+                {
+                  name: "gemini",
+                  recommendation: "buy",
+                  confidence: 82,
+                  summary: "Strong buy signal with positive momentum"
+                },
+                {
+                  name: "groq",
+                  recommendation: "buy",
+                  confidence: 75,
+                  summary: "Uptrend with RSI confirmation"
+                }
+              ],
+              sentiment: { score: 0.65, label: "Positive" },
+              keyLevels: {
+                support: [95000, 93000],
+                resistance: [100000, 105000]
+              }
+            }
+          }, null, 2),
+        },
+        {
+          method: 'GET',
+          path: '/ai/models',
+          description: t('epAiModelsDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              models: [
+                {
+                  id: "gemini",
+                  name: "Gemini Pro",
+                  status: "online",
+                  latency: 450,
+                  dailyLimit: 100,
+                  dailyUsed: 23,
+                  tier: "PRO"
+                },
+                {
+                  id: "groq",
+                  name: "Groq Mixtral",
+                  status: "online",
+                  latency: 120,
+                  dailyLimit: 200,
+                  dailyUsed: 67,
+                  tier: "PRO"
+                },
+                {
+                  id: "glm4",
+                  name: "GLM-4",
+                  status: "online",
+                  latency: 380,
+                  dailyLimit: 150,
+                  dailyUsed: 45,
+                  tier: "PREMIUM"
+                }
+              ]
+            }
+          }, null, 2),
+        },
+        {
+          method: 'POST',
+          path: '/ai/chat',
+          description: t('epAiChatDesc'),
+          permission: 'read',
+          requestBody: JSON.stringify({
+            message: "What is the best time to enter a BTC long position?",
+            context: {
+              symbol: "BTC/USDT",
+              timeframe: "1h"
+            },
+            conversationId: "conv_abc123"
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              conversationId: "conv_abc123",
+              message: "Based on the current technical analysis, BTC/USDT shows a corrective pattern at the 97000 level. I advise waiting for confirmation of a breakout above 98500 with high trading volume. The suggested stop loss is below 95200.",
+              sources: ["technical_analysis", "pattern_recognition"],
+              confidence: 72,
+              timestamp: "2026-03-04T14:30:00Z"
+            }
+          }, null, 2),
+        },
+      ],
+    },
+    {
+      id: 'signals',
+      title: t('catSignalsTitle'),
+      icon: <Radio size={18} />,
+      iconColor: T.amber,
+      iconBg: `${T.amber}14`,
+      description: t('catSignalsDesc'),
+      endpoints: [
+        {
+          method: 'POST',
+          path: '/signals/generate/:pair',
+          description: t('epSignalsGenerateDesc'),
+          permission: 'read',
+          requestBody: JSON.stringify({
+            timeframe: "4h",
+            strategy: "swing",
+            riskLevel: "moderate"
+          }, null, 2),
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              signalId: "sig_m3n4o5p6",
+              pair: "BTC/USDT",
+              direction: "long",
+              confidence: 85,
+              entry: 97500.00,
+              stopLoss: 95000.00,
+              takeProfit: [
+                { level: 1, price: 101000.00, ratio: 0.5 },
+                { level: 2, price: 105000.00, ratio: 0.5 }
+              ],
+              riskReward: "1:2.8",
+              reasoning: "Resistance breakout with RSI confirmation and high volume",
+              models: ["gemini", "groq", "glm4"],
+              createdAt: "2026-03-04T14:30:00Z",
+              expiresAt: "2026-03-05T02:30:00Z"
+            }
+          }, null, 2),
+        },
+        {
+          method: 'GET',
+          path: '/signals/active',
+          description: t('epSignalsActiveDesc'),
+          permission: 'read',
+          requestBody: undefined,
+          responseExample: JSON.stringify({
+            success: true,
+            data: {
+              signals: [
+                {
+                  signalId: "sig_m3n4o5p6",
+                  pair: "BTC/USDT",
+                  direction: "long",
+                  confidence: 85,
+                  status: "active",
+                  entry: 97500.00,
+                  currentPrice: 98200.00,
+                  pnl: 0.72,
+                  createdAt: "2026-03-04T14:30:00Z"
+                },
+                {
+                  signalId: "sig_q7r8s9t0",
+                  pair: "ETH/USDT",
+                  direction: "short",
+                  confidence: 72,
+                  status: "hit_tp1",
+                  entry: 3850.00,
+                  currentPrice: 3780.00,
+                  pnl: 1.82,
+                  createdAt: "2026-03-03T20:00:00Z"
+                }
+              ],
+              count: 2
+            }
+          }, null, 2),
+        },
+      ],
+    },
+  ]
+
+  /* ── Data: API Keys ── */
+  const INITIAL_API_KEYS: ApiKey[] = [
+    {
+      id: 'key_prod_001',
+      name: 'Production Key',
+      key: 'roua_live_sk_a1b2c3d4e5f6g7h8i9j0',
+      lastUsed: t('lastUsed5Min'),
+      permissions: ['read'],
+      status: 'active',
+      createdAt: '2025/11/15',
+    },
+    {
+      id: 'key_dev_002',
+      name: 'Development Key',
+      key: 'roua_test_sk_z9y8x7w6v5u4t3s2r1q0',
+      lastUsed: t('lastUsed3Hours'),
+      permissions: ['read'],
+      status: 'active',
+      createdAt: '2026/01/08',
+    },
+  ]
+
+  /* ── Data: Error Codes ── */
+  const ERROR_CODES: ErrorCode[] = [
+    { httpStatus: 400, code: 'BAD_REQUEST', description: t('errBadRequestDesc'), solution: t('errBadRequestSolution') },
+    { httpStatus: 401, code: 'UNAUTHORIZED', description: t('errUnauthorizedDesc'), solution: t('errUnauthorizedSolution') },
+    { httpStatus: 403, code: 'FORBIDDEN', description: t('errForbiddenDesc'), solution: t('errForbiddenSolution') },
+    { httpStatus: 404, code: 'NOT_FOUND', description: t('errNotFoundDesc'), solution: t('errNotFoundSolution') },
+    { httpStatus: 429, code: 'RATE_LIMITED', description: t('errRateLimitedDesc'), solution: t('errRateLimitedSolution') },
+    { httpStatus: 500, code: 'INTERNAL_ERROR', description: t('errInternalErrorDesc'), solution: t('errInternalErrorSolution') },
+    { httpStatus: 503, code: 'SERVICE_UNAVAILABLE', description: t('errServiceUnavailableDesc'), solution: t('errServiceUnavailableSolution') },
+    { httpStatus: 400, code: 'INVALID_SYMBOL', description: t('errInvalidSymbolDesc'), solution: t('errInvalidSymbolSolution') },
+    { httpStatus: 400, code: 'INVALID_API_KEY', description: t('errInvalidApiKeyDesc'), solution: t('errInvalidApiKeySolution') },
+  ]
+
+  /* ── Data: Webhook Events ── */
+  const WEBHOOK_EVENTS = [
+    { event: 'order.filled', description: t('whOrderFilled'), color: T.green },
+    { event: 'order.partial', description: t('whOrderPartial'), color: T.cyan },
+    { event: 'order.cancelled', description: t('whOrderCancelled'), color: T.red },
+    { event: 'position.opened', description: t('whPositionOpened'), color: T.green },
+    { event: 'position.closed', description: t('whPositionClosed'), color: T.amber },
+    { event: 'signal.generated', description: t('whSignalGenerated'), color: T.purple },
+    { event: 'price.alert', description: t('whPriceAlert'), color: T.cyan },
+    { event: 'ai.analysis_complete', description: t('whAiAnalysisComplete'), color: T.purple },
+    { event: 'account.connected', description: t('whAccountConnected'), color: T.green },
+  ]
 
   const [openEndpoints, setOpenEndpoints] = useState<Set<string>>(new Set())
   const [openCategories, setOpenCategories] = useState<Set<string>>(new Set(['auth']))
@@ -891,22 +888,22 @@ export default function ApiDocsPage() {
         id: `key_new_${Date.now()}`,
         name: `New Key ${apiKeys.length + 1}`,
         key: `roua_test_sk_${Math.random().toString(36).slice(2, 22)}`,
-        lastUsed: 'لم يُستخدم بعد',
+        lastUsed: t('lastUsedNever'),
         permissions: ['read'],
         status: 'active',
         createdAt: new Date().toISOString().split('T')[0].replace(/-/g, '/'),
       }
       setApiKeys(prev => [...prev, newKey])
       setGenerating(false)
-      toast({ title: 'تم إنشاء مفتاح جديد', description: 'تأكد من حفظ المفتاح — لن يتم عرضه مرة أخرى' })
+      toast({ title: t('keyGeneratedTitle'), description: t('keyGeneratedDesc') })
     }, 1200)
-  }, [apiKeys.length])
+  }, [apiKeys.length, t])
 
   /* ── Revoke API Key ── */
   const handleRevokeKey = useCallback((keyId: string) => {
     setApiKeys(prev => prev.map(k => k.id === keyId ? { ...k, status: 'revoked' as const } : k))
-    toast({ title: 'تم إلغاء المفتاح', description: 'لم يعد هذا المفتاح صالحاً للاستخدام', variant: 'destructive' })
-  }, [])
+    toast({ title: t('keyRevokedTitle'), description: t('keyRevokedDesc'), variant: 'destructive' })
+  }, [t])
 
   /* ── Toggle Key Visibility ── */
   const toggleKeyVisibility = useCallback((keyId: string) => {
@@ -1018,7 +1015,7 @@ for signal in client.signals.stream():
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif", display: 'flex', alignItems: 'center', gap: 10 }}>
-              توثيق API
+              {t('title')}
               <span style={{
                 fontSize: 10, padding: '3px 10px', borderRadius: 10,
                 background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`,
@@ -1031,7 +1028,7 @@ for signal in client.signals.stream():
               </span>
             </h1>
             <p style={{ margin: 0, fontSize: 12, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              المرجع الشامل لواجهة برمجة تطبيقات منصة رؤى — ابدأ البناء والتكامل في دقائق
+              {t('subtitle')}
             </p>
           </div>
         </div>
@@ -1043,10 +1040,10 @@ for signal in client.signals.stream():
         {/* ═══ Quick Stats ═══ */}
         <div className="apidocs-quick-grid apidocs-fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10 }}>
           {[
-            { icon: <Globe size={16} />, label: 'الرابط الأساسي', value: 'api.roua.io/v1', color: T.cyan, bg: `${T.cyan}14` },
-            { icon: <Shield size={16} />, label: 'المصادقة', value: 'Bearer Token', color: T.green, bg: `${T.green}14` },
-            { icon: <Zap size={16} />, label: 'الحد الأقصى', value: '100 طلب/دقيقة', color: T.amber, bg: `${T.amber}14` },
-            { icon: <Lock size={16} />, label: 'التشفير', value: 'TLS 1.3', color: T.purple, bg: `${T.purple}14` },
+            { icon: <Globe size={16} />, label: t('quickStatBaseUrl'), value: 'api.roua.io/v1', color: T.cyan, bg: `${T.cyan}14` },
+            { icon: <Shield size={16} />, label: t('quickStatAuth'), value: 'Bearer Token', color: T.green, bg: `${T.green}14` },
+            { icon: <Zap size={16} />, label: t('quickStatRateLimit'), value: t('rateLimitValue'), color: T.amber, bg: `${T.amber}14` },
+            { icon: <Lock size={16} />, label: t('quickStatEncryption'), value: 'TLS 1.3', color: T.purple, bg: `${T.purple}14` },
           ].map((stat, i) => (
             <div key={i} style={{
               background: T.card, border: `1px solid ${T.border}`,
@@ -1083,7 +1080,7 @@ for signal in client.signals.stream():
               <BookOpen size={14} color={T.cyan} />
             </div>
             <h2 id="getting-started-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-              البدء السريع
+              {t('gettingStarted')}
             </h2>
           </div>
 
@@ -1096,7 +1093,7 @@ for signal in client.signals.stream():
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Globe size={14} color={T.cyan} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  الرابط الأساسي (Base URL)
+                  {t('baseUrlTitle')}
                 </span>
               </div>
               <div style={{
@@ -1118,7 +1115,7 @@ for signal in client.signals.stream():
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Shield size={14} color={T.green} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  المصادقة (Authentication)
+                  {t('authTitle')}
                 </span>
               </div>
               <div style={{
@@ -1127,8 +1124,7 @@ for signal in client.signals.stream():
                 fontSize: 11.5, color: T.text3, lineHeight: 1.8,
                 fontFamily: "'Cairo', sans-serif", marginBottom: 10,
               }}>
-                جميع الطلبات المحمية تتطلب ترويسة <code style={{ color: T.green, fontFamily: "'JetBrains Mono', monospace", fontSize: 11 }}>Authorization</code> مع رمز Bearer.
-                يمكنك الحصول على رمز الوصول عبر نقطة نهاية المصادقة OTP أو باستخدام مفاتيح API.
+                {t('authDescription', { code: 'Authorization' })}
               </div>
               <CodeBlock
                 language="http"
@@ -1141,14 +1137,14 @@ for signal in client.signals.stream():
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Zap size={14} color={T.amber} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  حدود الطلبات (Rate Limits)
+                  {t('rateLimitsTitle')}
                 </span>
               </div>
               <div className="apidocs-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {[
-                  { plan: 'مجاني', limit: '30', unit: 'طلب/دقيقة', color: T.text4 },
-                  { plan: 'برو', limit: '100', unit: 'طلب/دقيقة', color: T.cyan },
-                  { plan: 'متميز+', limit: '500', unit: 'طلب/دقيقة', color: T.amber },
+                  { plan: t('planFree'), limit: '30', unit: t('requestsPerMinute'), color: T.text4 },
+                  { plan: t('planPro'), limit: '100', unit: t('requestsPerMinute'), color: T.cyan },
+                  { plan: t('planPremiumPlus'), limit: '500', unit: t('requestsPerMinute'), color: T.amber },
                 ].map((r, i) => (
                   <div key={i} style={{
                     padding: '12px 14px', borderRadius: 10,
@@ -1169,7 +1165,7 @@ for signal in client.signals.stream():
                 display: 'flex', alignItems: 'flex-start', gap: 8,
               }}>
                 <AlertTriangle size={12} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
-                عند تجاوز الحد، يُرجع الخادم خطأ 429 مع ترويسة <code style={{ color: T.amber, fontFamily: "'JetBrains Mono', monospace" }}>Retry-After</code> تحدد وقت الانتظار بالثواني.
+                {t('rateLimitWarning', { code: 'Retry-After' })}
               </div>
             </div>
 
@@ -1178,7 +1174,7 @@ for signal in client.signals.stream():
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Terminal size={14} color={T.purple} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  مثال على طلب (curl)
+                  {t('curlExampleTitle')}
                 </span>
               </div>
               <CodeBlock
@@ -1203,7 +1199,7 @@ for signal in client.signals.stream():
               <Key size={14} color={T.green} />
             </div>
             <h2 id="api-keys-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-              إدارة مفاتيح API
+              {t('apiKeysTitle')}
             </h2>
           </div>
 
@@ -1214,9 +1210,9 @@ for signal in client.signals.stream():
             {/* Generate Button */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>مفاتيح API الخاصة بك</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('yourApiKeys')}</div>
                 <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-                  استخدم مفاتيح API للوصول البرمجي إلى المنصة — لا تشاركها مع أي شخص
+                  {t('yourApiKeysDesc')}
                 </div>
               </div>
               <button
@@ -1233,15 +1229,15 @@ for signal in client.signals.stream():
                 }}
               >
                 {generating ? <RefreshCw size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Plus size={13} />}
-                {generating ? 'جاري الإنشاء...' : 'إنشاء مفتاح جديد'}
+                {generating ? t('generating') : t('generateNewKey')}
               </button>
             </div>
 
             {/* Permission Legend */}
             <div style={{ padding: '12px 20px', borderBottom: `1px solid ${T.border}`, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
               {[
-                { perm: 'read', label: 'قراءة', color: T.green, desc: 'قراءة البيانات والمتابعة' },
-                { perm: 'withdraw', label: 'سحب', color: T.red, desc: 'معطل دائماً لحماية أموالك', disabled: true },
+                { perm: 'read', label: t('permReadLabel'), color: T.green, desc: t('permReadDesc') },
+                { perm: 'withdraw', label: t('permWithdraw'), color: T.red, desc: t('permWithdrawDesc'), disabled: true },
               ].map(p => (
                 <div key={p.perm} style={{
                   display: 'flex', alignItems: 'center', gap: 6,
@@ -1297,7 +1293,7 @@ for signal in client.signals.stream():
                         <button
                           onClick={() => toggleKeyVisibility(k.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: T.text4, padding: 0, display: 'flex' }}
-                          aria-label={visibleKeys.has(k.id) ? 'إخفاء المفتاح' : 'عرض المفتاح'}
+                          aria-label={visibleKeys.has(k.id) ? t('hideKey') : t('showKey')}
                         >
                           {visibleKeys.has(k.id) ? <EyeOff size={11} /> : <Eye size={11} />}
                         </button>
@@ -1313,7 +1309,7 @@ for signal in client.signals.stream():
                             color: p === 'read' ? T.green : T.text4,
                             fontSize: 9, fontWeight: 700, fontFamily: "'Cairo', sans-serif",
                           }}>
-                            {p === 'read' ? 'قراءة' : '—'}
+                            {p === 'read' ? t('permRead') : '—'}
                           </span>
                         ))}
                       </div>
@@ -1342,7 +1338,7 @@ for signal in client.signals.stream():
                           onMouseLeave={e => { e.currentTarget.style.background = `${T.red}10`; e.currentTarget.style.borderColor = `${T.red}20` }}
                         >
                           <Trash2 size={10} />
-                          إلغاء
+                          {t('revoke')}
                         </button>
                       ) : (
                         <span style={{
@@ -1351,7 +1347,7 @@ for signal in client.signals.stream():
                           fontFamily: "'Cairo', sans-serif",
                           border: `1px solid ${T.red}25`,
                         }}>
-                          ملغى
+                          {t('revoked')}
                         </span>
                       )}
                     </div>
@@ -1374,7 +1370,7 @@ for signal in client.signals.stream():
                 <Braces size={14} color={T.purple} />
               </div>
               <h2 id="endpoints-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-                نقاط النهاية (Endpoints)
+                {t('endpointsTitle')}
               </h2>
             </div>
             <span style={{
@@ -1383,7 +1379,7 @@ for signal in client.signals.stream():
               padding: '3px 10px', borderRadius: 10, background: T.surface,
               border: `1px solid ${T.border}`,
             }}>
-              {ENDPOINT_CATEGORIES.reduce((s, c) => s + c.endpoints.length, 0)} نقطة نهاية
+              {t('endpointsCount', { count: ENDPOINT_CATEGORIES.reduce((s, c) => s + c.endpoints.length, 0) })}
             </span>
           </div>
 
@@ -1412,7 +1408,7 @@ for signal in client.signals.stream():
               <Terminal size={14} color={T.amber} />
             </div>
             <h2 id="sdks-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-              حزم التطوير (SDKs)
+              {t('sdksTitle')}
             </h2>
           </div>
 
@@ -1449,7 +1445,7 @@ for signal in client.signals.stream():
             {/* Install Command */}
             <div style={{ padding: '14px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
-                التثبيت
+                {t('install')}
               </div>
               <CodeBlock
                 language="bash"
@@ -1460,7 +1456,7 @@ for signal in client.signals.stream():
             {/* Code Snippet */}
             <div style={{ padding: '14px 20px' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
-                مثال شامل
+                {t('fullExample')}
               </div>
               <CodeBlock
                 language={activeTab === 'js' ? 'javascript' : 'python'}
@@ -1494,7 +1490,7 @@ for signal in client.signals.stream():
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <Server size={14} color={T.cyan} />
                 <span style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                  إعداد Webhooks
+                  {t('webhooksSetup')}
                 </span>
               </div>
               <div style={{
@@ -1503,9 +1499,7 @@ for signal in client.signals.stream():
                 fontSize: 11.5, color: T.text3, lineHeight: 1.8,
                 fontFamily: "'Cairo', sans-serif", marginBottom: 12,
               }}>
-                تتيح لك Webhooks استلام إشعارات فورية عند حدوث أحداث معينة في حسابك.
-                قم بتسجيل عنوان URL الخاص بخادمك وسيتم إرسال طلب POST لكل حدث مشترك.
-                جميع الطلبات موقّعة باستخدام HMAC-SHA256 للتحقق من المصدر.
+                {t('webhooksDescription')}
               </div>
               <CodeBlock
                 language="bash"
@@ -1519,7 +1513,7 @@ for signal in client.signals.stream():
             {/* Event Types */}
             <div style={{ padding: '18px 20px', borderBottom: `1px solid ${T.border}` }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 10 }}>
-                أنواع الأحداث
+                {t('eventTypes')}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }} className="apidocs-grid-2">
                 {WEBHOOK_EVENTS.map(ev => (
@@ -1551,7 +1545,7 @@ for signal in client.signals.stream():
             {/* Payload Example */}
             <div style={{ padding: '18px 20px' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif", marginBottom: 8 }}>
-                مثال على الحمولة (Payload)
+                {t('payloadExample')}
               </div>
               <CodeBlock
                 language="json"
@@ -1579,8 +1573,7 @@ for signal in client.signals.stream():
                 display: 'flex', alignItems: 'flex-start', gap: 6,
               }}>
                 <Shield size={11} color={T.green} style={{ flexShrink: 0, marginTop: 2 }} />
-                تحقق دائماً من صحة التوقيع باستخدام المفتاح السري المشترك قبل معالجة أي حمولة.
-                استخدم خوارزمية HMAC-SHA256 مع حقل <code style={{ color: T.green, fontFamily: "'JetBrains Mono', monospace" }}>signature</code> للتحقق.
+                {t('signatureVerification', { code: 'signature' })}
               </div>
             </div>
           </div>
@@ -1597,7 +1590,7 @@ for signal in client.signals.stream():
               <AlertTriangle size={14} color={T.red} />
             </div>
             <h2 id="errors-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, margin: 0, fontFamily: "'Cairo', sans-serif" }}>
-              مرجع رموز الأخطاء
+              {t('errorCodesTitle')}
             </h2>
           </div>
 
@@ -1613,10 +1606,10 @@ for signal in client.signals.stream():
               fontSize: 10, fontWeight: 800, color: T.text4,
               fontFamily: "'Cairo', sans-serif",
             }}>
-              <span>الحالة</span>
-              <span>الرمز</span>
-              <span>الوصف</span>
-              <span>الحل</span>
+              <span>{t('colStatus')}</span>
+              <span>{t('colCode')}</span>
+              <span>{t('colDescription')}</span>
+              <span>{t('colSolution')}</span>
             </div>
             {/* Table Rows */}
             {ERROR_CODES.map((err, i) => (
@@ -1675,13 +1668,13 @@ for signal in client.signals.stream():
           marginTop: 8,
         }}>
           <div style={{ fontSize: 11, color: T.text4, fontFamily: "'Cairo', sans-serif", lineHeight: 1.8 }}>
-            توثيق API لمنصة رؤى — الإصدار 1.0 — آخر تحديث: مارس 2026
+            {t('footerNote')}
           </div>
           <div style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif", marginTop: 4 }}>
-            هل تحتاج مساعدة؟{' '}
-            <span style={{ color: T.cyan, cursor: 'pointer', fontWeight: 700 }}>تواصل مع الدعم الفني</span>
-            {' '}أو{' '}
-            <span style={{ color: T.cyan, cursor: 'pointer', fontWeight: 700 }}>زور مركز المساعدة</span>
+            {t('needHelp')}{' '}
+            <span style={{ color: T.cyan, cursor: 'pointer', fontWeight: 700 }}>{t('contactSupport')}</span>
+            {' '}{t('or')}{' '}
+            <span style={{ color: T.cyan, cursor: 'pointer', fontWeight: 700 }}>{t('visitHelpCenter')}</span>
           </div>
         </div>
       </div>

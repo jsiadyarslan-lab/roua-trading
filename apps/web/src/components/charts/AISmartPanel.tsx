@@ -5,6 +5,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import { useTranslations, useLocale } from 'next-intl';
 import type { AIAnalysisResult, SupportResistanceLevel } from './AIPatternPanel';
 import type { AIPattern, CandleData } from '@/lib/charts/types';
 import { detectLocalPatterns, detectSupportResistance, detectTrendLines } from './AIPatternPanel';
@@ -20,18 +21,30 @@ const C = {
   cyan: '#22d3ee', green: '#10b981', red: '#ef4444', yellow: '#f59e0b',
 };
 
-const NAMES: Record<string, string> = {
-  'Doji':'دوجي','Hammer':'مطرقة','Inverted Hammer':'مطرقة مقلوبة',
-  'Engulfing Bullish':'ابتلاع صعودي','Engulfing Bearish':'ابتلاع هبوطي',
-  'Morning Star':'نجمة الصباح','Evening Star':'نجمة المساء',
-  'Three White Soldiers':'ثلاثة جنود','Three Black Crows':'ثلاثة غربان',
-  'Shooting Star':'نجم ساقط','Harami Bullish':'هارامي صعودي',
-  'Harami Bearish':'هارامي هبوطي','Piercing Line':'اختراق',
-  'Dark Cloud Cover':'غطاء داكن','Double Top':'قمة مزدوجة',
-  'Double Bottom':'قاع مزدوج','Head and Shoulders':'رأس وكتفان',
-  'Ascending Triangle':'مثلث صاعد','Descending Triangle':'مثلث هابط',
-  'Symmetrical Triangle':'مثلث متماثل','Rising Wedge':'إسفين صاعد',
-  'Falling Wedge':'إسفين هابط',
+// Pattern name key mapping for i18n
+const PATTERN_KEYS: Record<string, string> = {
+  'Doji': 'patternDoji',
+  'Hammer': 'patternHammer',
+  'Inverted Hammer': 'patternInvertedHammer',
+  'Engulfing Bullish': 'patternEngulfingBullish',
+  'Engulfing Bearish': 'patternEngulfingBearish',
+  'Morning Star': 'patternMorningStar',
+  'Evening Star': 'patternEveningStar',
+  'Three White Soldiers': 'patternThreeWhiteSoldiers',
+  'Three Black Crows': 'patternThreeBlackCrows',
+  'Shooting Star': 'patternShootingStar',
+  'Harami Bullish': 'patternHaramiBullish',
+  'Harami Bearish': 'patternHaramiBearish',
+  'Piercing Line': 'patternPiercingLine',
+  'Dark Cloud Cover': 'patternDarkCloudCover',
+  'Double Top': 'patternDoubleTop',
+  'Double Bottom': 'patternDoubleBottom',
+  'Head and Shoulders': 'patternHeadAndShoulders',
+  'Ascending Triangle': 'patternAscendingTriangle',
+  'Descending Triangle': 'patternDescendingTriangle',
+  'Symmetrical Triangle': 'patternSymmetricalTriangle',
+  'Rising Wedge': 'patternRisingWedge',
+  'Falling Wedge': 'patternFallingWedge',
 };
 
 type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced';
@@ -47,6 +60,9 @@ interface Props {
 }
 
 export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime }: Props) {
+  const t = useTranslations('aiSmartPanel');
+  const locale = useLocale();
+  const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
   const [tab, setTab] = useState<Tab>('signal');
   const [loading, setLoading] = useState(false);
   const [signal, setSignal] = useState<{ dir: 'BUY' | 'SELL' | 'WAIT'; conf: number; entry: number; sl: number; tp: number; reason: string; ts: number } | null>(null);
@@ -135,7 +151,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             const rec = d.data.recommendation;
             const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
             const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
-            setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf: (d.data.consensusScore || 50) / 100, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: `مجلس ${models} نماذج`, ts: Date.now() });
+            setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf: (d.data.consensusScore || 50) / 100, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: t('councilModels', { count: models }), ts: Date.now() });
             if ((d.data.consensusScore || 0) >= 65 && dir !== 'WAIT') {
               fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: dir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, confidence: (d.data.consensusScore||50)/100 }) }).catch(()=>{});
             }
@@ -155,7 +171,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       const beS = bear + (trend < 0 ? 2 : 0);
       const dir = bS > beS ? 'BUY' : beS > bS ? 'SELL' : 'WAIT';
       const conf = Math.min(0.85, Math.abs(bS - beS) / (bS + beS + 1));
-      setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: `EMA${trend > 0 ? '↑' : '↓'} • ${bull} صعودي ${bear} هبوطي`, ts: Date.now() });
+      setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: trend > 0 ? t('emaBullish', { bull, bear }) : t('emaBearish', { bull, bear }), ts: Date.now() });
     } catch { /* silent */ }
     finally { setLoading(false); runRef.current = false; }
   };
@@ -173,10 +189,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
   // ── UI Helpers ─────────────────────────────────────────────
   const sigColor = signal?.dir === 'BUY' ? C.green : signal?.dir === 'SELL' ? C.red : C.yellow;
-  const sigAr = signal?.dir === 'BUY' ? 'شراء' : signal?.dir === 'SELL' ? 'بيع' : 'انتظار';
+  const sigAr = signal?.dir === 'BUY' ? t('buy') : signal?.dir === 'SELL' ? t('sell') : t('wait');
   const sigIcon = signal?.dir === 'BUY' ? '▲' : signal?.dir === 'SELL' ? '▼' : '◆';
   const pct = Math.round((signal?.conf || 0) * 100);
   const fp = (n: number) => n > 999 ? n.toFixed(2) : n.toFixed(5);
+  const strengthLabel = (s: string) => s === 'strong' ? t('strong') : s === 'medium' ? t('medium') : t('weak');
   const support = levels.filter(l => l.type === 'support').slice(0, 4);
   const resistance = levels.filter(l => l.type === 'resistance').slice(0, 4);
 
@@ -187,20 +204,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span data-drag-handle="true" style={{ fontSize: 16 }}>🧠</span>
           <div data-drag-handle="true">
-            <div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>تحليل ذكي</div>
+            <div style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>{t('title')}</div>
             <div style={{ color: C.mut, fontSize: 8.5, fontFamily: 'monospace' }}>{symbol}</div>
           </div>
           {loading && <div style={{ width: 8, height: 8, border: `1.5px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
         </div>
         <div style={{ display: 'flex', gap: 4 }}>
-          <button onClick={analyze} disabled={loading} title="تحديث" style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: loading ? C.mut : C.cyan, width: 22, height: 22, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>⟳</button>
+          <button onClick={analyze} disabled={loading} title={t('refresh')} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: loading ? C.mut : C.cyan, width: 22, height: 22, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>⟳</button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.mut, fontSize: 16, cursor: 'pointer', outline: 'none', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
       </div>
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', 'الإشارة'], ['patterns', `شموع`], ['levels', 'S/R'], ['smc', 'SMC'], ['advanced', 'متقدم']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -224,7 +241,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       <div style={{ color: sigColor, fontSize: 20, fontWeight: 900 }}>{pct}%</div>
-                      <div style={{ color: C.mut, fontSize: 8 }}>ثقة</div>
+                      <div style={{ color: C.mut, fontSize: 8 }}>{t('confidence')}</div>
                     </div>
                   </div>
                   <div style={{ height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2 }}>
@@ -235,7 +252,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {signal.dir !== 'WAIT' && (
                   <>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 5, marginBottom: 8 }}>
-                      {([['دخول', signal.entry, C.cyan], ['وقف', signal.sl, C.red], ['هدف', signal.tp, C.green]] as [string, number, string][]).map(([l, v, col]) => (
+                      {([[t('entry'), signal.entry, C.cyan], [t('stopLoss'), signal.sl, C.red], [t('target'), signal.tp, C.green]] as [string, number, string][]).map(([l, v, col]) => (
                         <div key={l} style={{ background: `${col}0a`, border: `1px solid ${col}25`, borderRadius: 6, padding: 5, textAlign: 'center' }}>
                           <div style={{ color: C.mut, fontSize: 7.5, marginBottom: 2 }}>{l}</div>
                           <div style={{ color: col, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{fp(v)}</div>
@@ -243,12 +260,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                       ))}
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', background: C.card, borderRadius: 5, marginBottom: 8 }}>
-                      <span style={{ color: C.dim, fontSize: 9 }}>مخاطرة/مكافأة</span>
+                      <span style={{ color: C.dim, fontSize: 9 }}>{t('riskReward')}</span>
                       <span style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>1:{Math.abs((signal.tp - signal.entry) / (signal.sl - signal.entry || 1)).toFixed(2)}</span>
                     </div>
                     {onExecuteTrade && (
                       <button onClick={() => onExecuteTrade(signal.dir === 'BUY' ? 'long' : 'short', signal.entry, signal.sl, signal.tp)} style={{ width: '100%', padding: '7px', borderRadius: 6, border: 'none', background: signal.dir === 'BUY' ? C.green : C.red, color: '#fff', fontSize: 11, fontWeight: 800, cursor: 'pointer', fontFamily: 'inherit', marginBottom: 8 }}>
-                        {signal.dir === 'BUY' ? '▲ تنفيذ شراء' : '▼ تنفيذ بيع'}
+                        {signal.dir === 'BUY' ? `▲ ${t('executeBuy')}` : `▼ ${t('executeSell')}`}
                       </button>
                     )}
                   </>
@@ -256,7 +273,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
                 {(support.length > 0 || resistance.length > 0) && (
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
-                    {([['مقاومة', resistance, C.red], ['دعم', support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
+                    {([[t('resistance'), resistance, C.red], [t('support'), support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
                       <div key={lbl} style={{ background: `${col}07`, border: `1px solid ${col}18`, borderRadius: 6, padding: '5px 7px' }}>
                         <div style={{ color: col, fontSize: 8.5, fontWeight: 700, marginBottom: 3 }}>{lbl}</div>
                         {arr.slice(0, 2).map((l, i) => <div key={i} style={{ color: C.dim, fontSize: 8.5, fontFamily: 'monospace' }}>{fp(l.price)}</div>)}
@@ -264,12 +281,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     ) : null)}
                   </div>
                 )}
-                <div style={{ textAlign: 'center', marginTop: 6, color: C.mut, fontSize: 8 }}>{new Date(signal.ts).toLocaleTimeString('ar')}</div>
+                <div style={{ textAlign: 'center', marginTop: 6, color: C.mut, fontSize: 8 }}>{new Date(signal.ts).toLocaleTimeString(timeLocale)}</div>
               </>
             ) : (
               <div style={{ textAlign: 'center', padding: 24, color: C.dim }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🧠</div>
-                <div style={{ fontSize: 10 }}>اضغط ⟳ لبدء التحليل</div>
+                <div style={{ fontSize: 10 }}>{t('pressToAnalyze')}</div>
               </div>
             )}
           </div>
@@ -278,14 +295,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {/* PATTERNS */}
         {tab === 'patterns' && (
           <div style={{ padding: 8 }}>
-            {patterns.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: C.dim, fontSize: 10 }}>لا أنماط — اضغط ⟳</div>
+            {patterns.length === 0 ? <div style={{ textAlign: 'center', padding: 20, color: C.dim, fontSize: 10 }}>{t('noPatterns')}</div>
               : patterns.map((p, i) => {
                 const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.yellow;
                 return (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: 6, marginBottom: 4, background: C.card, border: `1px solid ${col}18` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ color: col, fontSize: 11 }}>{p.direction === 'bullish' ? '▲' : p.direction === 'bearish' ? '▼' : '◆'}</span>
-                      <span style={{ color: C.text, fontSize: 9.5, fontWeight: 600 }}>{NAMES[p.type] || p.type}</span>
+                      <span style={{ color: C.text, fontSize: 9.5, fontWeight: 600 }}>{PATTERN_KEYS[p.type] ? t(PATTERN_KEYS[p.type]) : p.type}</span>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                       <div style={{ height: 3, width: 36, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
@@ -302,13 +319,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         {/* LEVELS */}
         {tab === 'levels' && (
           <div style={{ padding: 8 }}>
-            {([['مقاومة', resistance, C.red], ['دعم', support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
+            {([[t('resistance'), resistance, C.red], [t('support'), support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
               <div key={lbl} style={{ marginBottom: 10 }}>
                 <div style={{ color: col, fontSize: 9, fontWeight: 700, marginBottom: 4, letterSpacing: 0.5 }}>{lbl} ({arr.length})</div>
                 {arr.map((l, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 8px', borderRadius: 5, background: C.card, marginBottom: 3, border: `1px solid ${col}15` }}>
                     <span style={{ color: col, fontSize: 9.5, fontFamily: 'monospace', fontWeight: 700 }}>{fp(l.price)}</span>
-                    <span style={{ color: l.strength === 'strong' ? col : C.mut, fontSize: 8 }}>{l.strength === 'strong' ? 'قوي' : l.strength === 'medium' ? 'متوسط' : 'ضعيف'}</span>
+                    <span style={{ color: l.strength === 'strong' ? col : C.mut, fontSize: 8 }}>{strengthLabel(l.strength)}</span>
                   </div>
                 ))}
               </div>
@@ -321,15 +338,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <div style={{ padding: 8 }}>
             {wyckoffData && wyckoffData.phase !== 'Unknown' && (
               <div style={{ background: C.card, border: `1px solid ${wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow}30`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
-                <div style={{ color: C.dim, fontSize: 8, marginBottom: 3 }}>وايكوف Wyckoff</div>
+                <div style={{ color: C.dim, fontSize: 8, marginBottom: 3 }}>{t('wyckoff')}</div>
                 <div style={{ color: wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow, fontSize: 13, fontWeight: 800 }}>{wyckoffData.labelAr}</div>
-                <div style={{ color: C.mut, fontSize: 8.5, marginTop: 2 }}>{Math.round((wyckoffData.confidence||0)*100)}% ثقة</div>
+                <div style={{ color: C.mut, fontSize: 8.5, marginTop: 2 }}>{Math.round((wyckoffData.confidence||0)*100)}% {t('confidence')}</div>
               </div>
             )}
             {volProfile && volProfile.poc > 0 && (
               <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
-                <div style={{ color: C.dim, fontSize: 8, marginBottom: 6 }}>Volume Profile</div>
-                {([['POC — نقطة التحكم', volProfile.poc, C.yellow], ['VAH — أعلى القيمة', volProfile.vah, C.cyan], ['VAL — أدنى القيمة', volProfile.val, C.red]] as [string,number,string][]).map(([l,v,col]) => (
+                <div style={{ color: C.dim, fontSize: 8, marginBottom: 6 }}>{t('volumeProfile')}</div>
+                {([[t('poc'), volProfile.poc, C.yellow], [t('vah'), volProfile.vah, C.cyan], [t('val'), volProfile.val, C.red]] as [string,number,string][]).map(([l,v,col]) => (
                   <div key={l} style={{ display:'flex', justifyContent:'space-between', marginBottom:4, padding:'3px 0', borderBottom:`1px solid ${C.border}` }}>
                     <span style={{ color: col, fontSize: 8.5, fontWeight: 700 }}>{l}</span>
                     <span style={{ color: C.text, fontSize: 9, fontFamily:'monospace' }}>{v>999?v.toFixed(2):v.toFixed(5)}</span>
@@ -337,7 +354,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 ))}
               </div>
             )}
-            {!wyckoffData && !volProfile && <div style={{ textAlign:'center', padding: 20, color: C.dim, fontSize: 10 }}>اضغط ⟳ للتحليل</div>}
+            {!wyckoffData && !volProfile && <div style={{ textAlign:'center', padding: 20, color: C.dim, fontSize: 10 }}>{t('pressForAnalysis')}</div>}
           </div>
         )}
 
@@ -346,7 +363,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <div style={{ padding: 8 }}>
             {geoList.length > 0 && (
               <div style={{ marginBottom: 10 }}>
-                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>أنماط هندسية ({geoList.length})</div>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>{t('geometricPatterns')} ({geoList.length})</div>
                 {geoList.map((g: any, i: number) => {
                   const col = g.direction==='bullish'?C.green:g.direction==='bearish'?C.red:C.yellow;
                   return (
@@ -360,19 +377,19 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             )}
             {elliottData && (
               <div style={{ background:C.card, borderRadius:6, padding:'8px 10px', marginBottom:8, border:`1px solid ${elliottData.direction==='bullish'?C.green:C.red}25` }}>
-                <div style={{ color:C.dim, fontSize:8, marginBottom:3 }}>موجات إليوت</div>
+                <div style={{ color:C.dim, fontSize:8, marginBottom:3 }}>{t('elliottWaves')}</div>
                 <div style={{ color:elliottData.direction==='bullish'?C.green:C.red, fontSize:12, fontWeight:700 }}>
-                  {elliottData.type === '5-wave' ? 'موجة 5 دافعة' : 'تصحيح ABC'} — موجة {elliottData.currentWave}
+                  {elliottData.type === '5-wave' ? t('impulse5Wave') : t('abcCorrection')} — {t('wave')} {elliottData.currentWave}
                 </div>
                 <div style={{ display:'flex', gap:4, marginTop:5 }}>
                   {elliottData.waves?.map((w: any) => (
                     <span key={w.waveNumber} style={{ background:`${elliottData.direction==='bullish'?C.green:C.red}20`, color:elliottData.direction==='bullish'?C.green:C.red, padding:'2px 5px', borderRadius:3, fontSize:8, fontWeight:700 }}>{w.waveNumber}</span>
                   ))}
                 </div>
-                {elliottData.nextTarget && <div style={{ color:C.dim, fontSize:8.5, marginTop:4 }}>الهدف: <span style={{ color:C.cyan, fontFamily:'monospace' }}>{elliottData.nextTarget.toFixed(2)}</span></div>}
+                {elliottData.nextTarget && <div style={{ color:C.dim, fontSize:8.5, marginTop:4 }}>{t('nextTarget')}: <span style={{ color:C.cyan, fontFamily:'monospace' }}>{elliottData.nextTarget.toFixed(2)}</span></div>}
               </div>
             )}
-            {geoList.length===0 && !elliottData && <div style={{ textAlign:'center', padding:20, color:C.dim, fontSize:10 }}>اضغط ⟳ للتحليل</div>}
+            {geoList.length===0 && !elliottData && <div style={{ textAlign:'center', padding:20, color:C.dim, fontSize:10 }}>{t('pressForAnalysis')}</div>}
           </div>
         )}
       </div>

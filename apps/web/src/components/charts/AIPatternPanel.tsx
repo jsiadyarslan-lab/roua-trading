@@ -9,7 +9,7 @@
 import React, { useState, useCallback, useRef } from 'react';
 import type { AIPattern, CandleData, AIEntryExit } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
-import { useLocale } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 import { runPatternEngine, type DetectedPattern } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
@@ -60,6 +60,35 @@ interface AIPatternPanelProps {
   onClose: () => void;
 }
 
+const PATTERN_KEYS: Record<string, string> = {
+  'Doji': 'patternDoji',
+  'Hammer': 'patternHammer',
+  'Inverted Hammer': 'patternInvertedHammer',
+  'Engulfing Bullish': 'patternEngulfingBullish',
+  'Engulfing Bearish': 'patternEngulfingBearish',
+  'Morning Star': 'patternMorningStar',
+  'Evening Star': 'patternEveningStar',
+  'Three White Soldiers': 'patternThreeWhiteSoldiers',
+  'Three Black Crows': 'patternThreeBlackCrows',
+  'Harami Bullish': 'patternHaramiBullish',
+  'Harami Bearish': 'patternHaramiBearish',
+  'Piercing Line': 'patternPiercingLine',
+  'Dark Cloud Cover': 'patternDarkCloudCover',
+  'Spinning Top': 'patternSpinningTop',
+  'Marubozu': 'patternMarubozu',
+  'Tweezer Top': 'patternTweezerTop',
+  'Tweezer Bottom': 'patternTweezerBottom',
+  'Rising Three Methods': 'patternRisingThreeMethods',
+  'Falling Three Methods': 'patternFallingThreeMethods',
+  'Abandoned Baby': 'patternAbandonedBaby',
+  'Dragonfly Doji': 'patternDragonflyDoji',
+  'Gravestone Doji': 'patternGravestoneDoji',
+  'Shooting Star': 'patternShootingStar',
+  'Belt Hold Bullish': 'patternBeltHoldBullish',
+  'Belt Hold Bearish': 'patternBeltHoldBearish',
+};
+
+// Fallback Arabic names for use outside the component (e.g., detectLocalPatterns)
 const PATTERN_NAMES_AR: Record<string, string> = {
   'Doji': 'دوجي',
   'Hammer': 'مطرقة',
@@ -127,6 +156,7 @@ export function AIPatternPanel({
   chartApiRef,
   lcRef,
 }: AIPatternPanelProps) {
+  const t = useTranslations('aiPatternPanel');
   const locale = useLocale();
   const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
   const [loading, setLoading] = useState(false);
@@ -165,7 +195,7 @@ export function AIPatternPanel({
     // FIX: Rate limiting — prevent spamming the AI endpoint
     const now = Date.now();
     if (now - lastAnalysisAt.current < COOLDOWN_MS) {
-      setError(`انتظر ${Math.ceil((COOLDOWN_MS - (now - lastAnalysisAt.current)) / 1000)} ثوانٍ قبل التحليل مجدداً`);
+      setError(t('cooldownWait', { seconds: Math.ceil((COOLDOWN_MS - (now - lastAnalysisAt.current)) / 1000) }));
       return;
     }
     lastAnalysisAt.current = now;
@@ -206,7 +236,7 @@ export function AIPatternPanel({
 
       if (!response.ok) {
         // Try to extract error message from API response
-        let apiError = 'فشل في تحليل الأنماط';
+        let apiError = t('patternAnalysisFailed');
         try {
           const errData = await response.json();
           if (errData.error) apiError = errData.error;
@@ -256,7 +286,7 @@ export function AIPatternPanel({
             const shapePoints = buildPatternShape(p.type, candle, last50[idx - 1]);
             detectedPatterns.push({
               type: p.type || 'Unknown',
-              labelAr: PATTERN_NAMES_AR[p.type] || p.type,
+              labelAr: t(PATTERN_KEYS[p.type] || p.type),
               time: candle.time,
               price: candle.close,
               confidence: p.confidence ?? 0.5,
@@ -282,7 +312,7 @@ export function AIPatternPanel({
       setPatterns(detectedPatterns);
 
       if (detectedPatterns.length === 0) {
-        setError('لم يتم اكتشاف أنماط شموع واضحة في البيانات الحالية.');
+        setError(t('noPatternsDetected'));
       }
 
       // Detect levels and trendlines (separate try/catch so they don't block onPatternsDetected)
@@ -320,7 +350,7 @@ export function AIPatternPanel({
       });
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') return;
-      setError(err instanceof Error ? err.message : 'حدث خطأ أثناء التحليل');
+      setError(err instanceof Error ? err.message : t('analysisError'));
       // Fallback: use local detection, each step isolated
       try {
         const last50 = (candles || []).slice(-50);
@@ -350,7 +380,7 @@ export function AIPatternPanel({
     // FIX: Apply same cooldown as analyzePatterns to prevent API spam
     const now = Date.now();
     if (now - lastEntryAnalysisAt.current < COOLDOWN_MS) {
-      setError(`انتظر ${Math.ceil((COOLDOWN_MS - (now - lastEntryAnalysisAt.current)) / 1000)} ثوانٍ قبل تحليل الدخول مجدداً`);
+      setError(t('entryCooldownWait', { seconds: Math.ceil((COOLDOWN_MS - (now - lastEntryAnalysisAt.current)) / 1000) }));
       return;
     }
     lastEntryAnalysisAt.current = now;
@@ -395,7 +425,7 @@ export function AIPatternPanel({
       if (controller.signal.aborted) return;
 
       if (!response.ok) {
-        let apiError = 'فشل في تحليل نقاط الدخول';
+        let apiError = t('entryAnalysisFailed');
         try {
           const errData = await response.json();
           if (errData.error) apiError = errData.error;
@@ -455,7 +485,7 @@ export function AIPatternPanel({
           takeProfit,
           confidence: (isFinite(Number(parsed.confidence)) && Number(parsed.confidence) > 0) 
             ? Math.min(1, Math.max(0, Number(parsed.confidence))) : 0.5,
-          reasonAr: parsed.reasonAr || 'تحليل AI',
+          reasonAr: parsed.reasonAr || t('aiAnalysis'),
           keyLevels: Array.isArray(parsed.keyLevels) ? parsed.keyLevels.map((k: any) => ({
             price: (isFinite(Number(k.price)) && Number(k.price) > 0) ? Number(k.price) : 0,
             label: String(k.label || ''),
@@ -548,11 +578,11 @@ export function AIPatternPanel({
   };
 
   const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
-    { key: 'patterns', label: 'أنماط', icon: '🕯', count: patterns.length },
-    { key: 'sr', label: 'دعم/مقاومة', icon: '⚡', count: srLevels.length },
-    { key: 'trend', label: 'اتجاه', icon: '📉', count: trendLines.length },
-    { key: 'entry', label: 'دخول', icon: '🎯', count: entryExit ? 1 : 0 },
-    { key: 'engine', label: 'هندسية', icon: '📊', count: enginePatterns.length },
+    { key: 'patterns', label: t('tabPatterns'), icon: '🕯', count: patterns.length },
+    { key: 'sr', label: t('tabSupportResistance'), icon: '⚡', count: srLevels.length },
+    { key: 'trend', label: t('tabTrend'), icon: '📉', count: trendLines.length },
+    { key: 'entry', label: t('tabEntry'), icon: '🎯', count: entryExit ? 1 : 0 },
+    { key: 'engine', label: t('tabGeometric'), icon: '📊', count: enginePatterns.length },
   ];
 
   return (
@@ -590,7 +620,7 @@ export function AIPatternPanel({
           </div>
           <div>
             <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
-              تحليل AI
+              {t('aiAnalysis')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
               <span style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600, letterSpacing: 0.4 }}>
@@ -605,7 +635,7 @@ export function AIPatternPanel({
                   color: dataSource === 'ai' ? C.cyan : C.warning,
                   border: `1px solid ${dataSource === 'ai' ? 'rgba(0,212,255,0.25)' : 'rgba(251,191,36,0.2)'}`,
                 }}>
-                  {dataSource === 'ai' ? '🤖 AI' : '📊 محلي'}
+                  {dataSource === 'ai' ? '🤖 AI' : `📊 ${t('localSource')}`}
                 </span>
               )}
             </div>
@@ -659,14 +689,14 @@ export function AIPatternPanel({
           {loading ? (
             <>
               <div style={{ width: 12, height: 12, border: `2px solid rgba(0,212,255,0.2)`, borderTopColor: C.cyan, borderRadius: '50%', animation: 'aiSpin 0.8s linear infinite' }} />
-              جاري التحليل...
+              {t('analyzing')}
             </>
           ) : (
             <>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
               </svg>
-              تحليل الأنماط والمستويات
+              {t('analyzePatternsLevels')}
             </>
           )}
         </button>
@@ -700,14 +730,14 @@ export function AIPatternPanel({
           {entryLoading ? (
             <>
               <div style={{ width: 12, height: 12, border: `2px solid rgba(0,255,163,0.2)`, borderTopColor: C.success, borderRadius: '50%', animation: 'aiSpin 0.8s linear infinite' }} />
-              جاري التحليل...
+              {t('analyzing')}
             </>
           ) : (
             <>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
-              تحليل نقاط الدخول والخروج
+              {t('analyzeEntryExit')}
             </>
           )}
         </button>
@@ -834,7 +864,7 @@ export function AIPatternPanel({
                           fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}>
-                          {p.labelAr}
+                          {t(PATTERN_KEYS[p.type] || p.type) || p.labelAr}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
                             fontFamily: "'JetBrains Mono', monospace",
@@ -848,7 +878,7 @@ export function AIPatternPanel({
                               background: 'rgba(0,212,255,0.1)', padding: '0 4px',
                               borderRadius: 2,
                             }}>
-                              ✓ رسم
+                              ✓ {t('draw')}
                             </span>
                           )}
                         </div>
@@ -884,7 +914,7 @@ export function AIPatternPanel({
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
                 padding: '20px 0', fontFamily: "'Cairo', sans-serif",
               }}>
-                اضغط على زر التحليل للبدء
+                {t('pressAnalyzeToStart')}
               </div>
             )}
           </>
@@ -900,7 +930,7 @@ export function AIPatternPanel({
                   const isSelected = selectedId === id;
                   const isSupport = level.type === 'support';
                   const color = isSupport ? C.success : C.danger;
-                  const strengthLabel = level.strength === 'strong' ? 'قوي' : level.strength === 'medium' ? 'متوسط' : 'ضعيف';
+                  const strengthLabel = level.strength === 'strong' ? t('strong') : level.strength === 'medium' ? t('medium') : t('weak');
                   const strengthBars = level.strength === 'strong' ? 3 : level.strength === 'medium' ? 2 : 1;
 
                   return (
@@ -945,7 +975,7 @@ export function AIPatternPanel({
                           fontSize: 11, color: C.text, fontWeight: 600,
                           fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
                         }}>
-                          {isSupport ? 'دعم' : 'مقاومة'}
+                          {isSupport ? t('support') : t('resistance')}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
                             fontFamily: "'JetBrains Mono', monospace", marginRight: 4,
@@ -977,7 +1007,7 @@ export function AIPatternPanel({
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
                 padding: '20px 0', fontFamily: "'Cairo', sans-serif",
               }}>
-                اضغط على زر التحليل للبدء
+                {t('pressAnalyzeToStart')}
               </div>
             )}
           </>
@@ -991,7 +1021,7 @@ export function AIPatternPanel({
                 {trendLines.map((line, i) => {
                   const isAsc = line.type === 'ascending';
                   const color = isAsc ? C.success : C.danger;
-                  const strengthLabel = line.strength === 'strong' ? 'قوي' : line.strength === 'medium' ? 'متوسط' : 'ضعيف';
+                  const strengthLabel = line.strength === 'strong' ? t('strong') : line.strength === 'medium' ? t('medium') : t('weak');
                   const id = `trend-${i}-${line.type}`;
                   const isSelected = selectedId === id;
 
@@ -1030,7 +1060,7 @@ export function AIPatternPanel({
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 11, color: C.text, fontWeight: 600, fontFamily: "'Cairo', sans-serif" }}>
-                          {isAsc ? 'اتجاه صاعد' : 'اتجاه هابط'}
+                          {isAsc ? t('ascendingTrend') : t('descendingTrend')}
                           <span style={{ fontSize: 8, color: C.textMuted, fontWeight: 400, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>
                             ({strengthLabel})
                           </span>
@@ -1039,7 +1069,7 @@ export function AIPatternPanel({
                             background: 'rgba(0,212,255,0.1)', padding: '0 4px',
                             borderRadius: 2, marginRight: 4,
                           }}>
-                            ✓ رسم
+                            ✓ {t('draw')}
                           </span>
                         </div>
                         <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
@@ -1055,7 +1085,7 @@ export function AIPatternPanel({
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
                 padding: '20px 0', fontFamily: "'Cairo', sans-serif",
               }}>
-                اضغط على زر التحليل للبدء
+                {t('pressAnalyzeToStart')}
               </div>
             )}
           </>
@@ -1079,7 +1109,7 @@ export function AIPatternPanel({
                     fontSize: 14, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
                     letterSpacing: 1,
                   }}>
-                    {entryExit.direction === 'long' ? '▲ شراء LONG' : '▼ بيع SHORT'}
+                    {entryExit.direction === 'long' ? `▲ ${t('buyLong')}` : `▼ ${t('sellShort')}`}
                   </div>
                   <div style={{
                     padding: '3px 8px', borderRadius: 4,
@@ -1093,9 +1123,9 @@ export function AIPatternPanel({
 
                 {/* Price levels */}
                 {[
-                  { label: 'سعر الدخول', value: entryExit.entryPrice, color: C.cyan, icon: '→' },
-                  { label: 'وقف الخسارة', value: entryExit.stopLoss, color: C.danger, icon: '✕' },
-                  { label: 'جني الأرباح', value: entryExit.takeProfit, color: C.success, icon: '★' },
+                  { label: t('entryPrice'), value: entryExit.entryPrice, color: C.cyan, icon: '→' },
+                  { label: t('stopLoss'), value: entryExit.stopLoss, color: C.danger, icon: '✕' },
+                  { label: t('takeProfit'), value: entryExit.takeProfit, color: C.success, icon: '★' },
                 ].map((item, idx) => (
                   <div key={idx} style={{
                     display: 'flex', alignItems: 'center', gap: 8,
@@ -1133,7 +1163,7 @@ export function AIPatternPanel({
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                       padding: '6px 0',
                     }}>
-                      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>نسبة المخاطرة/المكافأة</span>
+                      <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>{t('riskRewardRatio')}</span>
                       <span style={{
                         fontSize: 13, color: rrCalc.ratio >= 2 ? C.success : rrCalc.ratio >= 1 ? C.warning : C.danger,
                         fontWeight: 900, fontFamily: "'JetBrains Mono', monospace",
@@ -1167,7 +1197,7 @@ export function AIPatternPanel({
                 {entryExit.keyLevels && entryExit.keyLevels.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>
-                      المستويات المهمة
+                      {t('keyLevels')}
                     </div>
                     {entryExit.keyLevels.map((kl, idx) => (
                       <div key={idx} style={{
@@ -1213,8 +1243,8 @@ export function AIPatternPanel({
                         source: 'agent',
                         priority: 'high',
                         action: 'BUY',
-                        title: `⚡ تم التنفيذ بذكاء الاصطناعي`,
-                        body: `صفقة ${entryExit.direction === 'long' ? 'شراء' : 'بيع'} ${symbol} من ${entryExit.entryPrice}`,
+                        title: `⚡ ${t('aiExecutionTitle')}`,
+                        body: `${t('tradeExecuted', { direction: entryExit.direction === 'long' ? t('buy') : t('sell'), symbol, price: entryExit.entryPrice })}`,
                         pair: symbol,
                         price: entryExit.entryPrice,
                       });
@@ -1250,13 +1280,13 @@ export function AIPatternPanel({
                       e.currentTarget.style.filter = 'none';
                     }}
                   >
-                    <span>⚡ تنفيذ مباشر (AI)</span>
+                    <span>⚡ {t('executeDirect')}</span>
                     <span style={{ fontSize: 10, opacity: 0.8, fontWeight: 500 }}>
-                      {entryExit.direction === 'long' ? 'شراء' : 'بيع'} @ {entryExit.entryPrice.toFixed(2)}
+                      {entryExit.direction === 'long' ? t('buy') : t('sell')} @ {entryExit.entryPrice.toFixed(2)}
                     </span>
                   </button>
                   <div style={{ textAlign: 'center', fontSize: 9, color: C.textDim, marginTop: 6, fontFamily: "'Cairo', sans-serif" }}>
-                    سيتم التنفيذ كصفقة ورقية في الداشبورد
+                    {t('paperTradeNote')}
                   </div>
                 </div>
               </div>
@@ -1265,7 +1295,7 @@ export function AIPatternPanel({
                 textAlign: 'center', color: C.textMuted, fontSize: 10,
                 padding: '20px 0', fontFamily: "'Cairo', sans-serif",
               }}>
-                اضغط على "تحليل نقاط الدخول" للبدء
+                {t('pressEntryAnalyzeToStart')}
               </div>
             )}
           </>
@@ -1282,7 +1312,7 @@ export function AIPatternPanel({
           fontFamily: "'Cairo', sans-serif",
           textAlign: 'center',
         }}>
-          انقر على أي عنصر لرسمه على الشارت والانتقال إليه
+          {t('clickToDrawHint')}
         </div>
       )}
 
@@ -1300,7 +1330,7 @@ export function AIPatternPanel({
                 color: '#00D4FF', fontWeight: 700, cursor: engineRunning ? 'not-allowed' : 'pointer',
                 fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
-              {engineRunning ? '⏳ جاري الكشف...' : '🔍 كشف الأنماط الهندسية'}
+              {engineRunning ? `⏳ ${t('detectingPatterns')}` : `🔍 ${t('detectGeometricPatterns')}` }
             </button>
             {enginePatterns.length > 0 && (
               <button
@@ -1318,7 +1348,7 @@ export function AIPatternPanel({
                   background: 'rgba(255,71,87,0.08)', color: 'rgba(255,71,87,0.7)',
                   fontSize: 10, cursor: 'pointer',
                 }}>
-                ✕ مسح الأنماط من الشارت
+                ✕ {t('clearPatternsFromChart')}
               </button>
             )}
           </div>
@@ -1327,7 +1357,7 @@ export function AIPatternPanel({
           {enginePatterns.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '24px 16px', color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>
               <div style={{ fontSize: 24, marginBottom: 8 }}>📊</div>
-              اضغط "كشف الأنماط" لتحليل الشارت
+              {t('pressDetectToAnalyze')}
               <div style={{ fontSize: 9, marginTop: 6, color: 'rgba(255,255,255,0.2)' }}>
                 Double Top/Bottom · Triangle · Channel · Wedge · H&S · Harmonic XABCD
               </div>
@@ -1386,13 +1416,13 @@ export function AIPatternPanel({
                     {/* Row 2: forecast */}
                     {p.forecast && (
                       <div style={{ fontSize: 9, display: 'flex', gap: 10, color: 'rgba(255,255,255,0.5)' }}>
-                        <span>هدف: <span style={{ color: col }}>{p.forecast.priceMin.toFixed(2)} – {p.forecast.priceMax.toFixed(2)}</span></span>
-                        <span>احتمال: <span style={{ color: '#FFD700' }}>{p.forecast.probability}%</span></span>
+                        <span>{t('targetLabel')}: <span style={{ color: col }}>{p.forecast.priceMin.toFixed(2)} – {p.forecast.priceMax.toFixed(2)}</span></span>
+                        <span>{t('probability')}: <span style={{ color: '#FFD700' }}>{p.forecast.probability}%</span></span>
                       </div>
                     )}
                     {/* Row 3: status */}
                     <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.3)', marginTop: 2 }}>
-                      {p.status === 'breakout' ? '🚀 اختراق' : p.status === 'forming' ? '⏳ يتشكل' : '✅ مكتمل'}
+                      {p.status === 'breakout' ? `🚀 ${t('breakout')}` : p.status === 'forming' ? `⏳ ${t('forming')}` : `✅ ${t('completed')}`}
                     </div>
                   </div>
                 );

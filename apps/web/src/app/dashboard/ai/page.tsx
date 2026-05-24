@@ -103,14 +103,20 @@ function translateRoleName(role: string, t: (key: string) => string): string {
 
 // ── Local Storage Helpers ──
 const STORAGE_KEY = 'roua-ai-chat-history'
+const LOCALE_KEY = 'roua-ai-chat-locale'
 
 function loadMessages(locale: string, t: (key: string) => string): Message[] {
   if (typeof window === 'undefined') return []
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
-    if (saved) {
+    const savedLocale = localStorage.getItem(LOCALE_KEY)
+    if (saved && savedLocale === locale) {
       const parsed = JSON.parse(saved)
       if (Array.isArray(parsed) && parsed.length > 0) return parsed
+    }
+    // Locale changed or no saved messages — clear stale data
+    if (saved && savedLocale !== locale) {
+      localStorage.removeItem(STORAGE_KEY)
     }
   } catch {}
   const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US'
@@ -125,11 +131,12 @@ function loadMessages(locale: string, t: (key: string) => string): Message[] {
   }]
 }
 
-function saveMessages(messages: Message[]) {
+function saveMessages(messages: Message[], locale?: string) {
   if (typeof window === 'undefined') return
   try {
     // Keep last 50 messages
     localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-50)))
+    if (locale) localStorage.setItem(LOCALE_KEY, locale)
   } catch {}
 }
 
@@ -285,7 +292,7 @@ export default function AIPage() {
   useEffect(() => {
     setMessages(loadMessages(locale, t))
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [locale])
 
   useEffect(() => {
     fetchAIStatus()
@@ -401,7 +408,7 @@ export default function AIPage() {
 
     setMessages(prev => {
       const updated = [...prev, userMsg]
-      saveMessages(updated)
+      saveMessages(updated, locale)
       return updated
     })
     setInputValue('')
@@ -432,7 +439,7 @@ export default function AIPage() {
         }
         setMessages(prev => {
           const updated = [...prev, aiMsg]
-          saveMessages(updated)
+          saveMessages(updated, locale)
           return updated
         })
       }
@@ -448,7 +455,7 @@ export default function AIPage() {
       }
       setMessages(prev => {
         const updated = [...prev, errorMsg]
-        saveMessages(updated)
+        saveMessages(updated, locale)
         return updated
       })
     } finally {
@@ -477,7 +484,7 @@ export default function AIPage() {
       source: 'system',
     }
     setMessages([initialMsg])
-    saveMessages([initialMsg])
+    saveMessages([initialMsg], locale)
   }
 
   // ── Computed values ──
@@ -738,7 +745,7 @@ export default function AIPage() {
 
                 {/* RSI */}
                 <IndicatorCard
-                  label="RSI (14)"
+                  label={t('rsi14')}
                   value={String(techData.rsi)}
                   subValue={techData.rsi < 30 ? t('oversold') : techData.rsi > 70 ? t('overbought') : t('neutralRSI')}
                   color={techData.rsi < 30 ? T.green : techData.rsi > 70 ? T.red : T.cyan}
@@ -746,7 +753,7 @@ export default function AIPage() {
 
                 {/* EMA Cross */}
                 <IndicatorCard
-                  label="EMA (20/50)"
+                  label={t('ema2050')}
                   value={techData.ema20 > techData.ema50 ? t('bullishCross') : t('bearishCross')}
                   subValue={`Δ ${Math.abs(techData.ema20 - techData.ema50).toFixed(2)}`}
                   color={techData.ema20 > techData.ema50 ? T.green : T.red}

@@ -23,10 +23,13 @@ export async function POST(request: NextRequest) {
       headers['Authorization'] = `Bearer ${sessionToken}`;
     }
 
+    // Forward language to NestJS (default to 'ar' if not provided)
+    const forwardedBody = { ...body, language: body.language || 'ar' };
+
     const res = await fetch(`${apiTarget}/api/neural/backtest`, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body),
+      body: JSON.stringify(forwardedBody),
     });
 
     const data = await res.json();

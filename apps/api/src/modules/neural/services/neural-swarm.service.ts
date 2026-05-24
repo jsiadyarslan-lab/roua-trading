@@ -70,16 +70,16 @@ export class NeuralSwarmService {
    * 4. Calculate consensus from all agents
    * 5. Return swarm state
    */
-  async startSwarm(userId: string, request: SwarmStartRequest): Promise<SwarmResult> {
+  async startSwarm(userId: string, request: SwarmStartRequest, language: string = 'ar'): Promise<SwarmResult> {
     this.logger.log(`🐝 Starting swarm with ${request.agents} agents`);
 
     // Step 1: Validate
     if (request.agents < 1 || request.agents > this.MAX_AGENTS) {
-      throw new Error(`عدد الوكلاء يجب أن يكون بين 1 و ${this.MAX_AGENTS}`);
+      throw new Error(language === 'en' ? `Agent count must be between 1 and ${this.MAX_AGENTS}` : `عدد الوكلاء يجب أن يكون بين 1 و ${this.MAX_AGENTS}`);
     }
 
     if (!request.symbols || request.symbols.length === 0) {
-      throw new Error('يجب تحديد رمز واحد على الأقل');
+      throw new Error(language === 'en' ? 'At least one symbol must be specified' : 'يجب تحديد رمز واحد على الأقل');
     }
 
     // Step 2: Create agents (distribute symbols across agents)

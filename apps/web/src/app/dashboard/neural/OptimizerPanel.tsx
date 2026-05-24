@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   BarChart,
   Bar,
@@ -69,6 +69,7 @@ interface OptimizeResult {
 
 export default function OptimizerPanel() {
   const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState(_defaultStart);
@@ -94,6 +95,7 @@ export default function OptimizerPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
+          language: locale,
         }),
       });
 

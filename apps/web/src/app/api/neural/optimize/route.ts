@@ -5,14 +5,75 @@ import { NextRequest, NextResponse } from 'next/server';
  * Strategy Optimizer — finds the best parameters for a given strategy
  * Proxies to NestJS, falls back to local simulation if NestJS is unavailable.
  */
+
+// Bilingual parameter labels
+const PARAM_LABELS: Record<string, Record<string, string>> = {
+  lookback: { ar: 'فترة النظر', en: 'Lookback Period' },
+  threshold: { ar: 'عتبة الزخم', en: 'Momentum Threshold' },
+  stopLoss: { ar: 'وقف الخسارة %', en: 'Stop Loss %' },
+  takeProfit: { ar: 'جني الأرباح %', en: 'Take Profit %' },
+  stdDev: { ar: 'انحراف معياري', en: 'Std Deviation' },
+  volumeMultiplier: { ar: 'مضاعف الحجم', en: 'Volume Multiplier' },
+  emaFast: { ar: 'EMA سريع', en: 'Fast EMA' },
+  emaSlow: { ar: 'EMA بطيء', en: 'Slow EMA' },
+  rsiPeriod: { ar: 'فترة RSI', en: 'RSI Period' },
+  macdFast: { ar: 'MACD سريع', en: 'Fast MACD' },
+  confidenceThreshold: { ar: 'عتبة الثقة %', en: 'Confidence Threshold %' },
+  consensusWeight: { ar: 'وزن التوافق', en: 'Consensus Weight' },
+};
+
+function getParamLabel(key: string, lang: string): string {
+  return PARAM_LABELS[key]?.[lang] || key;
+}
+
+const PARAM_RANGES: Record<string, Record<string, { min: number; max: number; step: number }>> = {
+  MOMENTUM: {
+    lookback: { min: 5, max: 50, step: 5 },
+    threshold: { min: 0.5, max: 3, step: 0.5 },
+    stopLoss: { min: 1, max: 5, step: 0.5 },
+    takeProfit: { min: 2, max: 10, step: 1 },
+  },
+  MEAN_REVERSION: {
+    lookback: { min: 10, max: 100, step: 10 },
+    stdDev: { min: 1, max: 3, step: 0.5 },
+    stopLoss: { min: 1, max: 5, step: 0.5 },
+    takeProfit: { min: 1, max: 8, step: 1 },
+  },
+  BREAKOUT: {
+    lookback: { min: 10, max: 50, step: 5 },
+    volumeMultiplier: { min: 1, max: 3, step: 0.5 },
+    stopLoss: { min: 1, max: 5, step: 0.5 },
+    takeProfit: { min: 3, max: 15, step: 1 },
+  },
+  SCALPING: {
+    emaFast: { min: 3, max: 10, step: 1 },
+    emaSlow: { min: 15, max: 50, step: 5 },
+    stopLoss: { min: 0.3, max: 2, step: 0.1 },
+    takeProfit: { min: 0.5, max: 3, step: 0.5 },
+  },
+  SWING: {
+    rsiPeriod: { min: 7, max: 21, step: 1 },
+    macdFast: { min: 8, max: 15, step: 1 },
+    stopLoss: { min: 2, max: 8, step: 1 },
+    takeProfit: { min: 5, max: 20, step: 2 },
+  },
+  AI_COUNCIL: {
+    confidenceThreshold: { min: 50, max: 90, step: 5 },
+    consensusWeight: { min: 0.5, max: 1, step: 0.1 },
+    stopLoss: { min: 1, max: 5, step: 0.5 },
+    takeProfit: { min: 3, max: 12, step: 1 },
+  },
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { strategy, symbol, periodStart, periodEnd, initialCapital } = body;
+    const lang = body.language || 'ar';
 
     if (!strategy || !symbol) {
       return NextResponse.json(
-        { success: false, error: 'الاستراتيجية والأصل مطلوبان' },
+        { success: false, error: lang === 'en' ? 'Strategy and asset are required' : 'الاستراتيجية والأصل مطلوبان' },
         { status: 400 },
       );
     }
@@ -46,46 +107,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Local optimization simulation
-    const paramRanges: Record<string, Record<string, { min: number; max: number; step: number; label: string }>> = {
-      MOMENTUM: {
-        lookback: { min: 5, max: 50, step: 5, label: 'فترة النظر' },
-        threshold: { min: 0.5, max: 3, step: 0.5, label: 'عتبة الزخم' },
-        stopLoss: { min: 1, max: 5, step: 0.5, label: 'وقف الخسارة %' },
-        takeProfit: { min: 2, max: 10, step: 1, label: 'جني الأرباح %' },
-      },
-      MEAN_REVERSION: {
-        lookback: { min: 10, max: 100, step: 10, label: 'فترة المتوسط' },
-        stdDev: { min: 1, max: 3, step: 0.5, label: 'انحراف معياري' },
-        stopLoss: { min: 1, max: 5, step: 0.5, label: 'وقف الخسارة %' },
-        takeProfit: { min: 1, max: 8, step: 1, label: 'جني الأرباح %' },
-      },
-      BREAKOUT: {
-        lookback: { min: 10, max: 50, step: 5, label: 'فترة الاختراق' },
-        volumeMultiplier: { min: 1, max: 3, step: 0.5, label: 'مضاعف الحجم' },
-        stopLoss: { min: 1, max: 5, step: 0.5, label: 'وقف الخسارة %' },
-        takeProfit: { min: 3, max: 15, step: 1, label: 'جني الأرباح %' },
-      },
-      SCALPING: {
-        emaFast: { min: 3, max: 10, step: 1, label: 'EMA سريع' },
-        emaSlow: { min: 15, max: 50, step: 5, label: 'EMA بطيء' },
-        stopLoss: { min: 0.3, max: 2, step: 0.1, label: 'وقف الخسارة %' },
-        takeProfit: { min: 0.5, max: 3, step: 0.5, label: 'جني الأرباح %' },
-      },
-      SWING: {
-        rsiPeriod: { min: 7, max: 21, step: 1, label: 'فترة RSI' },
-        macdFast: { min: 8, max: 15, step: 1, label: 'MACD سريع' },
-        stopLoss: { min: 2, max: 8, step: 1, label: 'وقف الخسارة %' },
-        takeProfit: { min: 5, max: 20, step: 2, label: 'جني الأرباح %' },
-      },
-      AI_COUNCIL: {
-        confidenceThreshold: { min: 50, max: 90, step: 5, label: 'عتبة الثقة %' },
-        consensusWeight: { min: 0.5, max: 1, step: 0.1, label: 'وزن التوافق' },
-        stopLoss: { min: 1, max: 5, step: 0.5, label: 'وقف الخسارة %' },
-        takeProfit: { min: 3, max: 12, step: 1, label: 'جني الأرباح %' },
-      },
-    };
+    const params = PARAM_RANGES[strategy] || PARAM_RANGES.MOMENTUM;
 
-    const params = paramRanges[strategy] || paramRanges.MOMENTUM;
+    // Build paramRanges with bilingual labels
+    const paramRangesWithLabels: Record<string, { min: number; max: number; step: number; label: string }> = {};
+    for (const [key, range] of Object.entries(params)) {
+      paramRangesWithLabels[key] = { ...range, label: getParamLabel(key, lang) };
+    }
 
     // Simulate optimization iterations
     const iterations = 20;
@@ -127,7 +155,7 @@ export async function POST(request: NextRequest) {
         strategy,
         symbol,
         bestParams: best.params,
-        paramRanges: params,
+        paramRanges: paramRangesWithLabels,
         performance: {
           totalReturn: Number(best.totalReturn.toFixed(2)),
           winRate: Number(best.winRate.toFixed(1)),
@@ -154,8 +182,9 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
+    const lang = 'ar';
     return NextResponse.json(
-      { success: false, error: `خطأ في التحسين: ${error.message}` },
+      { success: false, error: lang === 'en' ? `Optimization error: ${error.message}` : `خطأ في التحسين: ${error.message}` },
       { status: 502 },
     );
   }

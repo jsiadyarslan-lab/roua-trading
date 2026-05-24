@@ -63,6 +63,7 @@ export default function SwarmPanel() {
           symbols: selectedSymbols,
           strategy: 'AI_COUNCIL',
           riskTolerance,
+          language: locale,
         }),
       });
 

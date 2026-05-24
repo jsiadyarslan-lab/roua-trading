@@ -40,7 +40,7 @@ export class NeuralController {
       positionSize: body.positionSize || 0.1,
       stopLoss: body.stopLoss || 0.03,
       takeProfit: body.takeProfit || 0.06,
-    });
+    }, body.language || 'ar');
     return { success: true, data: result };
   }
 
@@ -87,11 +87,15 @@ export class NeuralController {
     return { success: true, data: model };
   }
 
+  private _getLanguage(body: any): string {
+    return body.language || 'ar';
+  }
+
   @Post('predict')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async neuralPredict(@Request() req: any, @Body() body: NeuralPredictRequest) {
     const result = await this.predictor.predict(
-      req.user.id, body.symbol, body.steps || 5, body.horizon || PredictionHorizon.MEDIUM,
+      req.user.id, body.symbol, body.steps || 5, body.horizon || PredictionHorizon.MEDIUM, body.language || 'ar',
     );
     return { success: true, data: result };
   }
@@ -111,7 +115,7 @@ export class NeuralController {
       symbols: body.symbols || ['BTC/USDT'],
       strategy: body.strategy || BacktestStrategy.AI_COUNCIL,
       riskTolerance: body.riskTolerance || 50,
-    });
+    }, body.language || 'ar');
     return { success: true, data: result };
   }
 

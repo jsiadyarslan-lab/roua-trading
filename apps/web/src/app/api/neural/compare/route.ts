@@ -4,14 +4,36 @@ import { NextRequest, NextResponse } from 'next/server';
  * POST /api/neural/compare
  * Compare two strategies on the same asset and period
  */
+
+// Bilingual strategy labels
+const STRATEGY_LABELS: Record<string, Record<string, string>> = {
+  MOMENTUM: { ar: 'زخم', en: 'Momentum' },
+  MEAN_REVERSION: { ar: 'عودة للمتوسط', en: 'Mean Reversion' },
+  BREAKOUT: { ar: 'اختراق', en: 'Breakout' },
+  SCALPING: { ar: 'سكالبينج', en: 'Scalping' },
+  SWING: { ar: 'سوينج', en: 'Swing' },
+  AI_COUNCIL: { ar: 'مجلس الذكاء', en: 'AI Council' },
+};
+
+// Bilingual metric labels
+const METRIC_LABELS: Record<string, Record<string, string>> = {
+  totalReturn: { ar: 'إجمالي العائد %', en: 'Total Return %' },
+  winRate: { ar: 'نسبة الفوز %', en: 'Win Rate %' },
+  totalTrades: { ar: 'عدد الصفقات', en: 'Total Trades' },
+  maxDrawdown: { ar: 'أقصى انخفاض %', en: 'Max Drawdown %' },
+  sharpeRatio: { ar: 'معامل شارب', en: 'Sharpe Ratio' },
+  profitFactor: { ar: 'معامل الربح', en: 'Profit Factor' },
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { strategy1, strategy2, symbol, periodStart, periodEnd, initialCapital } = body;
+    const lang = body.language || 'ar';
 
     if (!strategy1 || !strategy2 || !symbol) {
       return NextResponse.json(
-        { success: false, error: 'الاستراتيجيتان والأصل مطلوبان' },
+        { success: false, error: lang === 'en' ? 'Both strategies and asset are required' : 'الاستراتيجيتان والأصل مطلوبان' },
         { status: 400 },
       );
     }
@@ -51,18 +73,12 @@ export async function POST(request: NextRequest) {
 
     const metrics = ['totalReturn', 'winRate', 'totalTrades', 'maxDrawdown', 'sharpeRatio', 'profitFactor'] as const;
 
-    const strategyLabels: Record<string, string> = {
-      MOMENTUM: 'زخم',
-      MEAN_REVERSION: 'عودة للمتوسط',
-      BREAKOUT: 'اختراق',
-      SCALPING: 'سكالبينج',
-      SWING: 'سوينج',
-      AI_COUNCIL: 'مجلس الذكاء',
-    };
+    const label1 = STRATEGY_LABELS[strategy1]?.[lang] || strategy1;
+    const label2 = STRATEGY_LABELS[strategy2]?.[lang] || strategy2;
 
     const result1 = {
       strategy: strategy1,
-      label: strategyLabels[strategy1] || strategy1,
+      label: label1,
       totalReturn: Number((-15 + rand(seed1, 1) * 55).toFixed(2)),
       winRate: Number((35 + rand(seed1, 2) * 40).toFixed(1)),
       totalTrades: Math.floor(20 + rand(seed1, 3) * 100),
@@ -73,7 +89,7 @@ export async function POST(request: NextRequest) {
 
     const result2 = {
       strategy: strategy2,
-      label: strategyLabels[strategy2] || strategy2,
+      label: label2,
       totalReturn: Number((-15 + rand(seed2, 1) * 55).toFixed(2)),
       winRate: Number((35 + rand(seed2, 2) * 40).toFixed(1)),
       totalTrades: Math.floor(20 + rand(seed2, 3) * 100),
@@ -84,16 +100,8 @@ export async function POST(request: NextRequest) {
 
     // Comparison table data for bar chart
     const comparisonData = metrics.map((metric) => {
-      const labels: Record<string, string> = {
-        totalReturn: 'إجمالي العائد %',
-        winRate: 'نسبة الفوز %',
-        totalTrades: 'عدد الصفقات',
-        maxDrawdown: 'أقصى انخفاض %',
-        sharpeRatio: 'معامل شارب',
-        profitFactor: 'معامل الربح',
-      };
       return {
-        metric: labels[metric],
+        metric: METRIC_LABELS[metric]?.[lang] || metric,
         metricKey: metric,
         [strategy1]: Number(result1[metric]),
         [strategy2]: Number(result2[metric]),
@@ -102,6 +110,15 @@ export async function POST(request: NextRequest) {
 
     // Determine winner
     const winner = result1.sharpeRatio >= result2.sharpeRatio ? strategy1 : strategy2;
+    const winnerLabel = STRATEGY_LABELS[winner]?.[lang] || winner;
+
+    const insight = lang === 'en'
+      ? (winner === strategy1
+          ? `${label1} strategy outperformed with a higher Sharpe ratio (${result1.sharpeRatio} vs ${result2.sharpeRatio})`
+          : `${label2} strategy outperformed with a higher Sharpe ratio (${result2.sharpeRatio} vs ${result1.sharpeRatio})`)
+      : (winner === strategy1
+          ? `استراتيجية ${label1} تفوقت بمعامل شارب أعلى (${result1.sharpeRatio} مقابل ${result2.sharpeRatio})`
+          : `استراتيجية ${label2} تفوقت بمعامل شارب أعلى (${result2.sharpeRatio} مقابل ${result1.sharpeRatio})`);
 
     return NextResponse.json({
       success: true,
@@ -111,10 +128,8 @@ export async function POST(request: NextRequest) {
         strategy2: result2,
         comparisonData,
         winner,
-        winnerLabel: strategyLabels[winner] || winner,
-        insight: winner === strategy1
-          ? `استراتيجية ${strategyLabels[strategy1]} تفوقت بمعامل شارب أعلى (${result1.sharpeRatio} مقابل ${result2.sharpeRatio})`
-          : `استراتيجية ${strategyLabels[strategy2]} تفوقت بمعامل شارب أعلى (${result2.sharpeRatio} مقابل ${result1.sharpeRatio})`,
+        winnerLabel,
+        insight,
       },
     });
   } catch (error: any) {

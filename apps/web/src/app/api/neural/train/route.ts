@@ -10,7 +10,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const apiTarget = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001';
 
-    // Extract session token from cookie to also pass as Bearer header
     const sessionToken = request.cookies.get('roua_session')?.value;
 
     const headers: Record<string, string> = {
@@ -18,7 +17,6 @@ export async function POST(request: NextRequest) {
       cookie: request.headers.get('cookie') || '',
     };
 
-    // Add Authorization header as fallback for NestJS AuthGuard
     if (sessionToken) {
       headers['Authorization'] = `Bearer ${sessionToken}`;
     }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   LineChart,
   Line,
@@ -74,6 +74,7 @@ interface NeuralPredictResult {
 
 export default function NeuralPanel() {
   const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [architecture, setArchitecture] = useState('ENSEMBLE');
   const [horizon, setHorizon] = useState('1d');
@@ -92,7 +93,7 @@ export default function NeuralPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ symbol, architecture, horizon, lookbackDays: 90 }),
+        body: JSON.stringify({ symbol, architecture, horizon, lookbackDays: 90, language: locale }),
       });
       const data = await res.json();
       if (data.success) {
@@ -117,7 +118,7 @@ export default function NeuralPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ symbol, steps, horizon, includeConfidence: true }),
+        body: JSON.stringify({ symbol, steps, horizon, includeConfidence: true, language: locale }),
       });
 
       const data = await res.json();

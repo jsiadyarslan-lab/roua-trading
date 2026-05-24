@@ -9,10 +9,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { recommendation, symbol, periodStart, periodEnd, initialCapital } = body;
+    const lang = body.language || 'ar';
 
     if (!recommendation) {
       return NextResponse.json(
-        { success: false, error: 'التوصية مطلوبة' },
+        { success: false, error: lang === 'en' ? 'Recommendation is required' : 'التوصية مطلوبة' },
         { status: 400 },
       );
     }
@@ -46,7 +47,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Local recommendation interpretation
-    // Parse the AI recommendation text and extract strategy hints
     const recText = typeof recommendation === 'string' ? recommendation : recommendation.text || JSON.stringify(recommendation);
     const recLower = recText.toLowerCase();
 
@@ -89,6 +89,17 @@ export async function POST(request: NextRequest) {
       newParams.emaSlow = 20 + (seed % 20);
     }
 
+    // Bilingual duration text
+    const getDuration = (i: number) => {
+      const days = (i % 5) + 1;
+      return lang === 'en' ? `${days}d` : `${days} أيام`;
+    };
+
+    // Bilingual AI insights
+    const aiInsights = lang === 'en'
+      ? `Recommendation applied automatically — Selected strategy: ${strategy}, Direction: ${side === 'BUY' ? 'Buy' : 'Sell'}. Parameters optimized based on AI Council analysis.`
+      : `تم تطبيق التوصية تلقائياً — الاستراتيجية المختارة: ${strategy}، الاتجاه: ${side === 'BUY' ? 'شراء' : 'بيع'}. تم تحسين البارامترات بناءً على تحليل AI Council.`;
+
     // Simulate auto-backtest with new params
     const backtestResult = {
       symbol: sym,
@@ -115,9 +126,9 @@ export async function POST(request: NextRequest) {
         quantity: 0.01 + i * 0.005,
         pnl: i % 2 === 0 ? 8 + i * 2 : -(3 + i),
         pnlPercent: i % 2 === 0 ? 1.2 + i * 0.3 : -(0.5 + i * 0.2),
-        holdDuration: `${(i % 5) + 1} أيام`,
+        holdDuration: getDuration(i),
       })),
-      aiInsights: `تم تطبيق التوصية تلقائياً — الاستراتيجية المختارة: ${strategy}، الاتجاه: ${side === 'BUY' ? 'شراء' : 'بيع'}. تم تحسين البارامترات بناءً على تحليل AI Council.`,
+      aiInsights,
     };
 
     return NextResponse.json({

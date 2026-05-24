@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   BarChart,
   Bar,
@@ -66,6 +66,7 @@ interface CompareResult {
 
 export default function ComparisonPanel() {
   const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy1, setStrategy1] = useState('MOMENTUM');
   const [strategy2, setStrategy2] = useState('MEAN_REVERSION');
@@ -95,6 +96,7 @@ export default function ComparisonPanel() {
           symbol,
           periodStart,
           periodEnd,
+          language: locale,
         }),
       });
 

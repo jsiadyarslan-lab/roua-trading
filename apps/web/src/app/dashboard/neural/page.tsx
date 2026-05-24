@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 // Loading fallback spinner for dynamic imports
 function PanelLoader() {
@@ -24,6 +24,7 @@ type TabId = 'backtest' | 'optimizer' | 'comparison' | 'neural' | 'swarm';
 
 export default function NeuralLabPage() {
   const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [activeTab, setActiveTab] = useState<TabId>('backtest');
 
   const TABS: { id: TabId; label: string; icon: string; desc: string }[] = [

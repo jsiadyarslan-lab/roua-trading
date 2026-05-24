@@ -62,7 +62,7 @@ export class BacktestRunnerService {
    * 5. Build equity curve
    * 6. Get AI insights on the results
    */
-  async runBacktest(userId: string, request: BacktestRequest): Promise<BacktestResult> {
+  async runBacktest(userId: string, request: BacktestRequest, language: string = 'ar'): Promise<BacktestResult> {
     this.logger.log(`📊 Running ${request.strategy} backtest on ${request.symbol}`);
 
     const capital = request.initialCapital || this.DEFAULT_INITIAL_CAPITAL;
@@ -81,7 +81,7 @@ export class BacktestRunnerService {
     );
 
     if (candles.length < 10) {
-      throw new Error('بيانات تاريخية غير كافية — يجب أن تكون الفترة 10 أيام على الأقل');
+      throw new Error(language === 'en' ? 'Insufficient historical data — period must be at least 10 days' : 'بيانات تاريخية غير كافية — يجب أن تكون الفترة 10 أيام على الأقل');
     }
 
     // Step 2: Run simulation
@@ -190,7 +190,7 @@ export class BacktestRunnerService {
     const metrics = this._calculateMetrics(trades, capital, currentCapital, candles.length, maxDrawdown);
 
     // Step 4: Get AI insights
-    const aiInsights = await this._generateAIInsights(request.symbol, request.strategy, metrics, trades);
+    const aiInsights = await this._generateAIInsights(request.symbol, request.strategy, metrics, trades, language);
 
     // Audit
     await this.auditService.log({
@@ -394,10 +394,11 @@ export class BacktestRunnerService {
     strategy: string,
     metrics: any,
     trades: BacktestTrade[],
+    language: string = 'ar',
   ): Promise<string> {
-    try {
-      const response = await this.orchestrator.analyze({
-        prompt: `أنت محلل استراتيجيات تداول في منصة "رؤى". حلل نتيجة الباك تست التالية باللغة العربية:
+    const isAr = language === 'ar';
+
+    const arPrompt = `أنت محلل استراتيجيات تداول في منصة "رؤى". حلل نتيجة الباك تست التالية باللغة العربية:
 
 📊 الأصل: ${symbol}
 📐 الاستراتيجية: ${strategy}
@@ -414,14 +415,39 @@ export class BacktestRunnerService {
 3. توصيات لتحسين الأداء
 4. هل تنصح باستخدام هذه الاستراتيجية فعلياً؟
 
-أضف دائماً: "النتائج السابقة لا تضمن الأداء المستقبلي."`,
+أضف دائماً: "النتائج السابقة لا تضمن الأداء المستقبلي."`;
+
+    const enPrompt = `You are a trading strategy analyst on the "Roua" platform. Analyze the following backtest results in English:
+
+📊 Asset: ${symbol}
+📐 Strategy: ${strategy}
+📈 Total Return: ${metrics.totalReturn.toFixed(2)}%
+📉 Max Drawdown: ${metrics.maxDrawdown.toFixed(2)}%
+🎯 Win Rate: ${metrics.winRate.toFixed(1)}%
+📋 Total Trades: ${metrics.totalTrades}
+📊 Sharpe Ratio: ${metrics.sharpeRatio.toFixed(2)}
+💪 Profit Factor: ${metrics.profitFactor.toFixed(2)}
+
+Provide:
+1. Overall strategy performance assessment
+2. Strengths and weaknesses
+3. Recommendations for improvement
+4. Would you recommend using this strategy?
+
+Always add: "Past results do not guarantee future performance."`;
+
+    try {
+      const response = await this.orchestrator.analyze({
+        prompt: isAr ? arPrompt : enPrompt,
         type: 'market_analysis',
-        language: 'ar',
+        language,
       });
 
       return response.content;
     } catch {
-      return `استراتيجية ${strategy} على ${symbol}: عائد ${metrics.totalReturn.toFixed(2)}% بنسبة فوز ${metrics.winRate.toFixed(1)}%. النتائج السابقة لا تضمن الأداء المستقبلي.`;
+      return isAr
+        ? `استراتيجية ${strategy} على ${symbol}: عائد ${metrics.totalReturn.toFixed(2)}% بنسبة فوز ${metrics.winRate.toFixed(1)}%. النتائج السابقة لا تضمن الأداء المستقبلي.`
+        : `Strategy ${strategy} on ${symbol}: return ${metrics.totalReturn.toFixed(2)}% with win rate ${metrics.winRate.toFixed(1)}%. Past results do not guarantee future performance.`;
     }
   }
 }

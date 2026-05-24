@@ -80,6 +80,7 @@ export class NeuralPredictorService {
     symbol: string,
     steps: number,
     horizon: PredictionHorizon,
+    language: string = 'ar',
   ): Promise<NeuralPredictResult> {
     this.logger.log(`🧠 Generating ${steps}-step ${horizon} prediction for ${symbol}`);
 
@@ -110,13 +111,14 @@ export class NeuralPredictorService {
       predictions.push(prediction);
     }
 
-    // Step 5: Get detailed AI analysis in Arabic
+    // Step 5: Get detailed AI analysis
     const aiAnalysis = await this._generateAIAnalysis(
       symbol,
       currentPrice,
       predictions,
       consensusDirection,
       consensusScore,
+      language,
     );
 
     // Step 6: Build model info
@@ -309,13 +311,13 @@ export class NeuralPredictorService {
     predictions: PricePrediction[],
     direction: string,
     consensusScore: number,
+    language: string = 'ar',
   ): Promise<string> {
     const lastPrediction = predictions[predictions.length - 1];
     const priceChange = ((lastPrediction.predictedPrice - currentPrice) / currentPrice * 100).toFixed(2);
+    const isAr = language === 'ar';
 
-    try {
-      const response = await this.orchestrator.analyze({
-        prompt: `أنت محلل أسواق مالي متخصص في منصة "رؤى لربط الحسابات". حلل التنبؤ التالي وقدم تحليلاً باللغة العربية.
+    const arPrompt = `أنت محلل أسواق مالي متخصص في منصة "رؤى لربط الحسابات". حلل التنبؤ التالي وقدم تحليلاً باللغة العربية.
 
 📊 الأصل: ${symbol}
 💰 السعر الحالي: $${currentPrice.toFixed(2)}
@@ -331,14 +333,38 @@ export class NeuralPredictorService {
 3. المخاطر المحتملة
 4. توصية واضحة (شراء/بيع/انتظار) مع نسبة الثقة
 
-أضف دائماً: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`,
+أضف دائماً: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`;
+
+    const enPrompt = `You are a financial markets analyst specialized on the "Roua" platform. Analyze the following prediction and provide your analysis in English.
+
+📊 Asset: ${symbol}
+💰 Current Price: $${currentPrice.toFixed(2)}
+📈 Prediction: ${direction === 'BULLISH' ? 'Bullish' : direction === 'BEARISH' ? 'Bearish' : 'Neutral'}
+🎯 Predicted Price: $${lastPrediction.predictedPrice.toFixed(2)} (${priceChange}%)
+📏 Consensus: ${consensusScore}%
+📐 Confidence Range: $${lastPrediction.lowerBound.toFixed(2)} — $${lastPrediction.upperBound.toFixed(2)}
+🔒 Confidence Level: ${lastPrediction.confidence}%
+
+Provide:
+1. Assessment of the prediction and confidence level
+2. Supporting factors for the expected direction
+3. Potential risks
+4. Clear recommendation (buy/sell/wait) with confidence level
+
+Always add: "This analysis is for educational purposes only and is not investment advice."`;
+
+    try {
+      const response = await this.orchestrator.analyze({
+        prompt: isAr ? arPrompt : enPrompt,
         type: 'prediction',
-        language: 'ar',
+        language,
       });
 
       return response.content;
     } catch {
-      return `التنبؤ ${direction === 'BULLISH' ? 'صعودي' : direction === 'BEARISH' ? 'هبوطي' : 'محايد'} لـ ${symbol} بتوافق ${consensusScore}%. هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية.`;
+      return isAr
+        ? `التنبؤ ${direction === 'BULLISH' ? 'صعودي' : direction === 'BEARISH' ? 'هبوطي' : 'محايد'} لـ ${symbol} بتوافق ${consensusScore}%. هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية.`
+        : `${direction === 'BULLISH' ? 'Bullish' : direction === 'BEARISH' ? 'Bearish' : 'Neutral'} prediction for ${symbol} with ${consensusScore}% consensus. This analysis is for educational purposes only and is not investment advice.`;
     }
   }
 }

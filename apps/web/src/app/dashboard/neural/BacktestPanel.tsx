@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 import {
   LineChart,
   Line,
@@ -93,6 +93,7 @@ const defaultStart = oneYearAgo.toISOString().split('T')[0];
 
 export default function BacktestPanel() {
   const t = useTranslations('neuralLab');
+  const locale = useLocale();
   const [symbol, setSymbol] = useState('BTC/USDT');
   const [strategy, setStrategy] = useState('MOMENTUM');
   const [periodStart, setPeriodStart] = useState(defaultStart);
@@ -120,6 +121,7 @@ export default function BacktestPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
+          language: locale,
         }),
       });
 
@@ -150,6 +152,7 @@ export default function BacktestPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
+          language: locale,
         }),
       });
       const data = await res.json();
@@ -176,6 +179,7 @@ export default function BacktestPanel() {
           format,
           reportType: t('backtestReportType'),
           reportData: result,
+          language: locale,
         }),
       });
 

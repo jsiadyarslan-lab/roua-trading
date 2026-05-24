@@ -80,6 +80,10 @@ export class BacktestRequest {
   @IsOptional()
   @Type(() => Number)
   takeProfit?: number;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class NeuralTrainRequest {
@@ -107,6 +111,10 @@ export class NeuralTrainRequest {
   @IsOptional()
   @Type(() => Number)
   epochs?: number;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class NeuralPredictRequest {
@@ -127,6 +135,10 @@ export class NeuralPredictRequest {
   @IsBoolean()
   @IsOptional()
   includeConfidence?: boolean;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 export class SwarmStartRequest {
@@ -152,6 +164,10 @@ export class SwarmStartRequest {
   @IsOptional()
   @Type(() => Number)
   riskTolerance: number;
+
+  @IsString()
+  @IsOptional()
+  language?: string;
 }
 
 // ── Response DTOs ──

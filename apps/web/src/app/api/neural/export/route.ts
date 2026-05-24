@@ -8,10 +8,11 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { format, reportData, reportType } = body;
+    const lang = body.language || 'ar';
 
     if (!format || !reportData) {
       return NextResponse.json(
-        { success: false, error: 'الصيغة وبيانات التقرير مطلوبة' },
+        { success: false, error: lang === 'en' ? 'Format and report data are required' : 'الصيغة وبيانات التقرير مطلوبة' },
         { status: 400 },
       );
     }
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
     const validFormats = ['pdf', 'xlsx', 'csv', 'json'];
     if (!validFormats.includes(format)) {
       return NextResponse.json(
-        { success: false, error: `صيغة غير مدعومة: ${format}` },
+        { success: false, error: lang === 'en' ? `Unsupported format: ${format}` : `صيغة غير مدعومة: ${format}` },
         { status: 400 },
       );
     }
@@ -45,7 +46,6 @@ export async function POST(request: NextRequest) {
         signal: AbortSignal.timeout(30000),
       });
       if (res.ok && res.headers.get('content-type')?.includes('application/octet-stream')) {
-        // NestJS returned a file — forward it
         const buffer = await res.arrayBuffer();
         const filename = res.headers.get('content-disposition')?.match(/filename="?(.+?)"?$/)?.[1] || `report.${format}`;
         return new NextResponse(buffer, {
@@ -59,6 +59,32 @@ export async function POST(request: NextRequest) {
     } catch {
       // NestJS unavailable — generate locally
     }
+
+    // Bilingual labels
+    const L = {
+      reportTitle: lang === 'en' ? 'AI Trading Lab Report — Roua' : 'تقرير مختبر التداول الذكي — رؤى',
+      type: lang === 'en' ? 'Type' : 'النوع',
+      asset: lang === 'en' ? 'Asset' : 'الأصل',
+      strategy: lang === 'en' ? 'Strategy' : 'الاستراتيجية',
+      metric: lang === 'en' ? 'Metric' : 'المقياس',
+      value: lang === 'en' ? 'Value' : 'القيمة',
+      totalReturn: lang === 'en' ? 'Total Return' : 'إجمالي العائد',
+      winRate: lang === 'en' ? 'Win Rate' : 'نسبة الفوز',
+      totalTrades: lang === 'en' ? 'Total Trades' : 'عدد الصفقات',
+      maxDrawdown: lang === 'en' ? 'Max Drawdown' : 'أقصى انخفاض',
+      sharpeRatio: lang === 'en' ? 'Sharpe Ratio' : 'معامل شارب',
+      finalCapital: lang === 'en' ? 'Final Capital' : 'رأس المال النهائي',
+      tradeLog: lang === 'en' ? 'Trade Log' : 'سجل الصفقات',
+      direction: lang === 'en' ? 'Direction' : 'الاتجاه',
+      entryPrice: lang === 'en' ? 'Entry Price' : 'سعر الدخول',
+      exitPrice: lang === 'en' ? 'Exit Price' : 'سعر الخروج',
+      pnl: lang === 'en' ? 'Profit/Loss' : 'الربح/الخسارة',
+      percentage: lang === 'en' ? 'Percentage' : 'النسبة',
+      duration: lang === 'en' ? 'Duration' : 'المدة',
+      buy: lang === 'en' ? 'Buy' : 'شراء',
+      sell: lang === 'en' ? 'Sell' : 'بيع',
+      backtest: lang === 'en' ? 'Backtest' : 'باك تست',
+    };
 
     // ── Local export generation ──
 
@@ -74,37 +100,33 @@ export async function POST(request: NextRequest) {
     }
 
     if (format === 'csv') {
-      // Generate CSV from report data
       const { stringify } = await import('csv-stringify/sync');
       const rows: string[][] = [];
 
-      // Header row
-      rows.push(['تقرير مختبر التداول الذكي - رؤى']);
+      rows.push([L.reportTitle]);
       rows.push([]);
-      rows.push(['النوع', reportType || 'باك تست']);
-      rows.push(['الأصل', reportData.symbol || '']);
-      rows.push(['الاستراتيجية', reportData.strategy || '']);
+      rows.push([L.type, reportType || L.backtest]);
+      rows.push([L.asset, reportData.symbol || '']);
+      rows.push([L.strategy, reportData.strategy || '']);
       rows.push([]);
 
-      // Metrics
       if (reportData.totalReturn !== undefined) {
-        rows.push(['المقياس', 'القيمة']);
-        rows.push(['إجمالي العائد', `${reportData.totalReturn}%`]);
-        rows.push(['نسبة الفوز', `${reportData.winRate}%`]);
-        rows.push(['عدد الصفقات', String(reportData.totalTrades || '')]);
-        rows.push(['أقصى انخفاض', `${reportData.maxDrawdown}%`]);
-        rows.push(['معامل شارب', String(reportData.sharpeRatio || '')]);
-        rows.push(['رأس المال النهائي', `$${reportData.finalCapital || ''}`]);
+        rows.push([L.metric, L.value]);
+        rows.push([L.totalReturn, `${reportData.totalReturn}%`]);
+        rows.push([L.winRate, `${reportData.winRate}%`]);
+        rows.push([L.totalTrades, String(reportData.totalTrades || '')]);
+        rows.push([L.maxDrawdown, `${reportData.maxDrawdown}%`]);
+        rows.push([L.sharpeRatio, String(reportData.sharpeRatio || '')]);
+        rows.push([L.finalCapital, `$${reportData.finalCapital || ''}`]);
         rows.push([]);
       }
 
-      // Trades
       if (reportData.trades && reportData.trades.length > 0) {
-        rows.push(['سجل الصفقات']);
-        rows.push(['الاتجاه', 'سعر الدخول', 'سعر الخروج', 'الربح/الخسارة', 'النسبة', 'المدة']);
+        rows.push([L.tradeLog]);
+        rows.push([L.direction, L.entryPrice, L.exitPrice, L.pnl, L.percentage, L.duration]);
         for (const t of reportData.trades) {
           rows.push([
-            t.side === 'BUY' ? 'شراء' : 'بيع',
+            t.side === 'BUY' ? L.buy : L.sell,
             String(t.entryPrice),
             String(t.exitPrice),
             String(t.pnl),
@@ -130,44 +152,44 @@ export async function POST(request: NextRequest) {
       workbook.creator = 'Roua Trading - AI Lab';
       workbook.created = new Date();
 
-      const sheet = workbook.addWorksheet('التقرير', {
+      const sheet = workbook.addWorksheet(lang === 'en' ? 'Report' : 'التقرير', {
         properties: { tabColor: { argb: '8B5CF6' } },
       });
 
       // Title
       sheet.mergeCells('A1:F1');
       const titleCell = sheet.getCell('A1');
-      titleCell.value = 'تقرير مختبر التداول الذكي — رؤى';
+      titleCell.value = L.reportTitle;
       titleCell.font = { size: 16, bold: true, color: { argb: '8B5CF6' } };
       titleCell.alignment = { horizontal: 'center' };
 
       // Info rows
       sheet.addRow([]);
-      sheet.addRow(['النوع:', reportType || 'باك تست']);
-      sheet.addRow(['الأصل:', reportData.symbol || '']);
-      sheet.addRow(['الاستراتيجية:', reportData.strategy || '']);
+      sheet.addRow([L.type + ':', reportType || L.backtest]);
+      sheet.addRow([L.asset + ':', reportData.symbol || '']);
+      sheet.addRow([L.strategy + ':', reportData.strategy || '']);
       sheet.addRow([]);
 
       // Metrics
       if (reportData.totalReturn !== undefined) {
-        const metricsSheet = sheet.addRow(['المقياس', 'القيمة']);
+        const metricsSheet = sheet.addRow([L.metric, L.value]);
         metricsSheet.font = { bold: true, color: { argb: 'FFFFFF' } };
         metricsSheet.eachCell((cell) => {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '374151' } };
         });
 
-        sheet.addRow(['إجمالي العائد', `${reportData.totalReturn}%`]);
-        sheet.addRow(['نسبة الفوز', `${reportData.winRate}%`]);
-        sheet.addRow(['عدد الصفقات', reportData.totalTrades]);
-        sheet.addRow(['أقصى انخفاض', `${reportData.maxDrawdown}%`]);
-        sheet.addRow(['معامل شارب', reportData.sharpeRatio]);
-        sheet.addRow(['رأس المال النهائي', `$${reportData.finalCapital || ''}`]);
+        sheet.addRow([L.totalReturn, `${reportData.totalReturn}%`]);
+        sheet.addRow([L.winRate, `${reportData.winRate}%`]);
+        sheet.addRow([L.totalTrades, reportData.totalTrades]);
+        sheet.addRow([L.maxDrawdown, `${reportData.maxDrawdown}%`]);
+        sheet.addRow([L.sharpeRatio, reportData.sharpeRatio]);
+        sheet.addRow([L.finalCapital, `$${reportData.finalCapital || ''}`]);
         sheet.addRow([]);
       }
 
       // Trades table
       if (reportData.trades && reportData.trades.length > 0) {
-        const header = sheet.addRow(['الاتجاه', 'سعر الدخول', 'سعر الخروج', 'الربح/الخسارة', 'النسبة', 'المدة']);
+        const header = sheet.addRow([L.direction, L.entryPrice, L.exitPrice, L.pnl, L.percentage, L.duration]);
         header.font = { bold: true, color: { argb: 'FFFFFF' } };
         header.eachCell((cell) => {
           cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '374151' } };
@@ -175,20 +197,18 @@ export async function POST(request: NextRequest) {
 
         for (const t of reportData.trades) {
           const row = sheet.addRow([
-            t.side === 'BUY' ? 'شراء' : 'بيع',
+            t.side === 'BUY' ? L.buy : L.sell,
             t.entryPrice,
             t.exitPrice,
             t.pnl,
             `${t.pnlPercent}%`,
             t.holdDuration || '',
           ]);
-          // Color PnL cells
           const pnlCell = row.getCell(4);
           pnlCell.font = { color: { argb: t.pnl > 0 ? '22C55E' : t.pnl < 0 ? 'EF4444' : '8B92A8' } };
         }
       }
 
-      // Auto-fit columns
       sheet.columns.forEach((col) => {
         col.width = 18;
       });
@@ -204,7 +224,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (format === 'pdf') {
-      // Generate PDF using pdfkit
       const PDFDocument = (await import('pdfkit')).default;
       const chunks: Buffer[] = [];
 
@@ -212,7 +231,7 @@ export async function POST(request: NextRequest) {
         size: 'A4',
         margins: { top: 50, bottom: 50, left: 50, right: 50 },
         info: {
-          Title: 'تقرير مختبر التداول الذكي — رؤى',
+          Title: 'Neural Lab Report — Roua Trading',
           Author: 'Roua Trading',
         },
       });
@@ -224,31 +243,30 @@ export async function POST(request: NextRequest) {
       doc.fontSize(12).fillColor('#9CA3AF').text('Roua Trading - AI Trading Lab', { align: 'center' });
       doc.moveDown(1.5);
 
-      // Separator line
       doc.strokeColor('#374151').lineWidth(1).moveTo(50, doc.y).lineTo(545, doc.y).stroke();
       doc.moveDown(1);
 
       // Info
       doc.fontSize(11).fillColor('#FFFFFF');
-      doc.text(`Report Type: ${reportType || 'Backtest'}`);
-      doc.text(`Symbol: ${reportData.symbol || 'N/A'}`);
-      doc.text(`Strategy: ${reportData.strategy || 'N/A'}`);
+      doc.text(`${L.type}: ${reportType || L.backtest}`);
+      doc.text(`${L.asset}: ${reportData.symbol || 'N/A'}`);
+      doc.text(`${L.strategy}: ${reportData.strategy || 'N/A'}`);
       doc.text(`Date: ${new Date().toLocaleDateString('en-US')}`);
       doc.moveDown(1.5);
 
       // Metrics
       if (reportData.totalReturn !== undefined) {
-        doc.fontSize(14).fillColor('#8B5CF6').text('Performance Metrics', { underline: true });
+        doc.fontSize(14).fillColor('#8B5CF6').text(lang === 'en' ? 'Performance Metrics' : 'مقاييس الأداء', { underline: true });
         doc.moveDown(0.5);
         doc.fontSize(10).fillColor('#D1D5DB');
 
         const metrics = [
-          ['Total Return', `${reportData.totalReturn}%`],
-          ['Win Rate', `${reportData.winRate}%`],
-          ['Total Trades', String(reportData.totalTrades || 'N/A')],
-          ['Max Drawdown', `${reportData.maxDrawdown}%`],
-          ['Sharpe Ratio', String(reportData.sharpeRatio || 'N/A')],
-          ['Final Capital', `$${reportData.finalCapital || 'N/A'}`],
+          [L.totalReturn, `${reportData.totalReturn}%`],
+          [L.winRate, `${reportData.winRate}%`],
+          [L.totalTrades, String(reportData.totalTrades || 'N/A')],
+          [L.maxDrawdown, `${reportData.maxDrawdown}%`],
+          [L.sharpeRatio, String(reportData.sharpeRatio || 'N/A')],
+          [L.finalCapital, `$${reportData.finalCapital || 'N/A'}`],
         ];
 
         for (const [label, value] of metrics) {
@@ -259,7 +277,7 @@ export async function POST(request: NextRequest) {
 
       // Trades
       if (reportData.trades && reportData.trades.length > 0) {
-        doc.fontSize(14).fillColor('#8B5CF6').text('Trade History', { underline: true });
+        doc.fontSize(14).fillColor('#8B5CF6').text(lang === 'en' ? 'Trade History' : 'سجل الصفقات', { underline: true });
         doc.moveDown(0.5);
         doc.fontSize(8).fillColor('#9CA3AF');
 
@@ -290,7 +308,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ success: false, error: 'صيغة غير مدعومة' }, { status: 400 });
+    return NextResponse.json({ success: false, error: lang === 'en' ? 'Unsupported format' : 'صيغة غير مدعومة' }, { status: 400 });
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: `خطأ في التصدير: ${error.message}` },

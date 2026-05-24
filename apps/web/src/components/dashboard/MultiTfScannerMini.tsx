@@ -60,7 +60,7 @@ export function MultiTfScannerMini() {
 
         setSummary({
           alignment: mtData.alignment === 'STRONG_BULLISH' ? tm('strongBullishConsensus') : mtData.alignment === 'BULLISH' ? tm('bullishConsensus') : mtData.alignment === 'STRONG_BEARISH' ? tm('strongBearishConsensus') : mtData.alignment === 'BEARISH' ? tm('bearishConsensus') : tm('mixedSignals'),
-          executionHint: mtData.executionHintAr || mtData.executionHint || '',
+          executionHint: locale === 'ar' ? (mtData.executionHintAr || mtData.executionHint || '') : (mtData.executionHint || mtData.executionHintAr || ''),
         })
 
         // Push alert for strong alignment

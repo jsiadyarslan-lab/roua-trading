@@ -5,6 +5,7 @@ const API_BASE = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
 export async function GET(req: NextRequest) {
   try {
     const symbol = req.nextUrl.searchParams.get('symbol')
+    const lang = req.nextUrl.searchParams.get('lang') || 'ar'
     if (!symbol) {
       return NextResponse.json({ success: false, error: 'Missing symbol parameter' }, { status: 400 })
     }
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest) {
       headers['x-roua-session'] = sessionToken
     }
 
-    const res = await fetch(`${API_BASE}/api/scanner/analysis/${encodeURIComponent(symbol)}`, {
+    const res = await fetch(`${API_BASE}/api/scanner/analysis/${encodeURIComponent(symbol)}?lang=${lang}`, {
       next: { revalidate: 120 },
       headers,
     })

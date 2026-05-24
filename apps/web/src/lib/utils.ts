@@ -1,6 +1,67 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+/**
+ * getLocalizedAssetName — Returns the localized name for a given trading symbol.
+ * Uses the i18n translation function to look up asset names from the
+ * scannerAdvanced.assetNames namespace. Falls back to the backend-provided
+ * name (which is typically Arabic), or the symbol itself.
+ *
+ * @param symbol - Trading symbol (e.g., "BTCUSDT", "EUR/USD", "AAPL")
+ * @param backendName - Name from backend API (usually Arabic)
+ * @param t - next-intl translation function (scoped to scannerAdvanced)
+ * @param locale - Current locale ('ar' | 'en')
+ */
+export function getLocalizedAssetName(
+  symbol: string,
+  backendName: string,
+  t: (key: string) => string,
+  locale: string
+): string {
+  // Always try the i18n lookup first (works for both ar and en)
+  const lookupKey = `assetNames.${symbol}`
+  try {
+    const translated = t(lookupKey)
+    // If the translation returns the key itself (missing), fall through
+    if (translated && !translated.startsWith('assetNames.')) {
+      return translated
+    }
+  } catch {
+    // Key not found, fall through
+  }
+
+  // For Arabic, prefer the backend name if available
+  if (locale === 'ar' && backendName) {
+    return backendName
+  }
+
+  // For English, derive a readable name from the symbol as last resort
+  if (locale === 'en' && symbol) {
+    // Try to format the symbol nicely: BTCUSDT → BTC/USDT, or just return as-is
+    return formatSymbolDisplay(symbol)
+  }
+
+  return backendName || symbol
+}
+
+/**
+ * formatSymbolDisplay — Formats a trading symbol for display.
+ * E.g., "BTCUSDT" → "BTC/USDT", "AAPL" → "AAPL", "XAUUSD" → "XAU/USD"
+ */
+function formatSymbolDisplay(symbol: string): string {
+  const stablecoins = ['USDT', 'USDC', 'BUSD']
+  const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD']
+
+  for (const quote of [...stablecoins, ...fiatCurrencies]) {
+    if (symbol.endsWith(quote) && symbol.length > quote.length) {
+      const base = symbol.slice(0, -quote.length)
+      return `${base}/${quote}`
+    }
+  }
+
+  return symbol
+}
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }

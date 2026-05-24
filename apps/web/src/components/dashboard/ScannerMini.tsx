@@ -72,7 +72,7 @@ export function ScannerMini({ mobile = false, compact = false, selectedSymbol }:
           signalClass: item.signalClass?.toLowerCase() || 'watch',
           entryBias: item.direction === 'STRONG_BUY' || item.direction === 'BUY' ? 'follow' : item.direction === 'STRONG_SELL' || item.direction === 'SELL' ? 'follow' : 'wait',
           price: item.price,
-          reasons: item.reasonsAr || item.reasons || [],
+          reasons: locale === 'ar' ? (item.reasonsAr || item.reasons || []) : (item.reasons || item.reasonsAr || []),
           source: item.source || 'scanner',
           freshness: item.marketOpen ? 'fresh' : 'closed',
           timestamp: item.timestamp,

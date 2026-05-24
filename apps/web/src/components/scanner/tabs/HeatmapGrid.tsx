@@ -5,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { useScannerContext } from '../ScannerProvider'
 import type { HeatmapItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
+import { useLocale } from 'next-intl'
+import { getLocalizedAssetName, safeStr } from '@/lib/utils'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -34,6 +36,7 @@ function scoreDot(score: number): string {
 
 export function HeatmapGrid() {
   const t = useTranslations('scannerAdvanced')
+  const locale = useLocale()
   const ctx = useScannerContext()
   const [catFilter, setCatFilter] = useState<CatFilter>('ALL')
   const [sortMode, setSortMode] = useState<SortMode>('changePercent')
@@ -147,7 +150,7 @@ export function HeatmapGrid() {
                   fontSize: 9, color: T.text3, fontWeight: 600,
                   fontFamily: "'Cairo', sans-serif", marginTop: 2,
                 }}>
-                  {cell.name}
+                  {getLocalizedAssetName(cell.symbol, safeStr(cell.name), t, locale)}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>

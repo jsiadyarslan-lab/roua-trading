@@ -8,7 +8,7 @@ import { ScoreGauge } from '../shared/ScoreGauge'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { MiniHeatmap } from '../shared/MiniHeatmap'
 import type { ScannerItem } from '../hooks/useScannerData'
-import { safeStr } from '@/lib/utils'
+import { safeStr, getLocalizedAssetName } from '@/lib/utils'
 
 const T = {
   bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335', surface: '#1A1D29',
@@ -133,7 +133,7 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
               fontSize: 8, color: T.text3, fontWeight: 600,
               fontFamily: "'Cairo', sans-serif",
             }}>
-              {safeStr(item.name)}
+              {getLocalizedAssetName(item.symbol, safeStr(item.name), t, locale)}
             </div>
           </div>
           <DirectionTag direction={item.direction} signalClass={item.signalClass} size="sm" />

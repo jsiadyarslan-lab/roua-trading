@@ -9,7 +9,7 @@ import { SmartScoreBar } from '../shared/SmartScoreBar'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import type { ScannerItem } from '../hooks/useScannerData'
 import { ScopedStyle } from '@/components/ScopedStyle'
-import { sanitizeDeepAnalysis } from '@/lib/utils'
+import { sanitizeDeepAnalysis, getLocalizedAssetName, safeStr } from '@/lib/utils'
 
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
@@ -88,7 +88,7 @@ export function DeepAnalysisModal() {
     let stale = false
     ;(async () => {
       try {
-        const res = await fetch(`/api/scanner/deep?symbol=${symbol}`)
+        const res = await fetch(`/api/scanner/deep?symbol=${symbol}&lang=${locale}`)
         if (stale) return
         if (!res.ok) throw new Error('Failed')
         const j = await res.json()
@@ -134,6 +134,9 @@ export function DeepAnalysisModal() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <span style={{ fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</span>
                     <DirectionTag direction={item?.direction || 'NEUTRAL'} signalClass={item?.signalClass} size="lg" />
+                    <span style={{ fontSize: 11, fontWeight: 700, color: T.text2, fontFamily: "'Cairo', sans-serif" }}>
+                      {getLocalizedAssetName(symbol, data?.name || item?.name || '', t, locale)}
+                    </span>
                     <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 4, background: `${T.purple}15`, color: T.purple, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
                       {item?.category || data?.category || ''}
                     </span>
@@ -267,9 +270,9 @@ export function DeepAnalysisModal() {
                     <IndicatorBadge label={t('deep.sentiment')} value={data.aiAnalysis.sentiment === 'POSITIVE' ? t('deep.positive') : data.aiAnalysis.sentiment === 'NEGATIVE' ? t('deep.negative') : t('neutral')} status={data.aiAnalysis.sentiment === 'POSITIVE' ? 'bullish' : data.aiAnalysis.sentiment === 'NEGATIVE' ? 'bearish' : 'neutral'} />
                     <IndicatorBadge label={t('deep.risk')} value={data.aiAnalysis.riskLevel === 'LOW' ? t('deep.low') : data.aiAnalysis.riskLevel === 'HIGH' ? t('deep.high') : t('deep.medium')} status={data.aiAnalysis.riskLevel === 'LOW' ? 'bullish' : data.aiAnalysis.riskLevel === 'HIGH' ? 'bearish' : 'warning'} />
                   </div>
-                  <p style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, margin: 0 }}>{data.aiAnalysis.analysisAr}</p>
-                  {/* Note: AI analysis text is generated in Arabic by the backend. 
-                      For full bilingual support, the backend would need a language parameter. */}
+                  <p style={{ fontSize: 10, color: T.text2, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7, margin: 0 }}>
+                    {locale === 'ar' ? data.aiAnalysis.analysisAr : (data.aiAnalysis.analysisEn || data.aiAnalysis.analysisAr)}
+                  </p>
                 </div>
               )}
 

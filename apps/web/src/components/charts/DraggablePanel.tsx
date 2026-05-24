@@ -112,9 +112,11 @@ export function DraggablePanel({
       const newX = Math.max(0, Math.min(window.innerWidth - (panelRef.current.offsetWidth || 340), dragState.current.startLeft + dx));
       const newY = Math.max(0, Math.min(window.innerHeight - 50, dragState.current.startTop + dy));
       // Move DOM directly — no React re-render, no flicker
+      panelRef.current.style.position = 'fixed';
       panelRef.current.style.left = `${newX}px`;
       panelRef.current.style.top = `${newY}px`;
       panelRef.current.style.right = 'auto';
+      panelRef.current.style.bottom = 'auto';
     };
 
     const handleDragEnd = () => {
@@ -181,6 +183,7 @@ export function DraggablePanel({
         top: pos.y,
         right: 'auto',
         bottom: 'auto',
+        transform: 'none',
       };
 
   const sizeStyle: React.CSSProperties = size

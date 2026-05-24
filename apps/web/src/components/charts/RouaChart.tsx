@@ -1104,6 +1104,13 @@ export default function RouaChart({
       return false;
     };
 
+    // Show that we reached this point
+    const dbgEl = document.getElementById('__reach_debug') || document.createElement('div');
+    dbgEl.id = '__reach_debug';
+    dbgEl.style.cssText = 'position:fixed;bottom:30px;left:8px;background:#333;color:#fff;padding:3px 8px;border-radius:4px;font-size:9px;z-index:99999';
+    dbgEl.textContent = `reached: smcData=${!!(result as any).smcData} series=${!!chart.getCandleSeries()}`;
+    document.body.appendChild(dbgEl);
+
     if (!drawDirect()) {
       setTimeout(drawDirect, 800);
       setTimeout(drawDirect, 2000);

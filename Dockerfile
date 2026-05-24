@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v177-complete-analysis-system
+ARG BUILD_CACHE=v178-scanner-i18n-update
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -127,13 +127,15 @@ COPY --from=builder --chown=webuser:roua /app/apps/api/tsconfig.json ./apps/api/
 # Web: Next.js standalone output
 COPY --from=builder --chown=webuser:roua /app/apps/web/.next ./apps/web/.next
 COPY --from=builder --chown=webuser:roua /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=webuser:roua /app/apps/web/messages ./apps/web/messages
+COPY --from=builder --chown=webuser:roua /app/apps/web/i18n ./apps/web/i18n
 COPY --from=builder --chown=webuser:roua /app/apps/web/package.json ./apps/web/
 COPY --from=builder --chown=webuser:roua /app/apps/web/next.config.ts ./apps/web/
 # Shared package
 COPY --from=builder --chown=webuser:roua /app/packages/shared ./packages/shared
 
 # Ensure required directories exist
-RUN mkdir -p apps/web/public apps/api/dist
+RUN mkdir -p apps/web/public apps/web/messages apps/web/i18n apps/api/dist
 
 # Make start.sh executable
 RUN chmod +x start.sh

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   HelpCircle, Search, BookOpen, Brain, ShieldCheck, TrendingUp,
   ChevronDown, Mail, MessageSquare, FileText, Send, Star,
@@ -14,7 +15,7 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 /* ── Design Tokens (canonical + local extensions) ── */
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
-/* ── FAQ Data ── */
+/* ── FAQ Data Types ── */
 interface FAQItem {
   id: string
   question: string
@@ -30,184 +31,8 @@ interface FAQCategory {
   items: FAQItem[]
 }
 
-const faqCategories: FAQCategory[] = [
-  {
-    id: 'basics',
-    title: 'الأساسيات',
-    icon: <BookOpen size={18} />,
-    iconColor: T.cyan,
-    iconBg: `${T.cyan}14`,
-    items: [
-      {
-        id: 'b1',
-        question: 'ما هي منصة رؤى وكيف تعمل؟',
-        answer: 'منصة رؤى هي منصة ربط ومتابعة حسابات تداول ذكية تربط حساباتك في البورصات المختلفة (مثل Binance وAlpaca) عبر مفاتيح API آمنة لمراقبة وتحليل أداء محافظك. المنصة لا تنفّذ الصفقات مباشرة بل تتابع حساباتك المربوطة وتوفر تحليلاً ذكياً اصطناعياً شاملاً باستخدام نماذج AI متعددة مثل Gemini وGroq وGLM-4. توفر المنصة رؤى تحليلية متقدمة، إشارات ذكية، تحليل مخاطر، وتنبيهات فورية على حركة حساباتك كل ذلك في واجهة عربية سهلة الاستخدام.',
-      },
-      {
-        id: 'b2',
-        question: 'كيف أنشئ حساباً على منصة رؤى؟',
-        answer: 'يمكنك إنشاء حساب مجاناً خلال دقائق معدودة عبر زيارة صفحة التسجيل وإدخال بريدك الإلكتروني وكلمة مرور قوية. بعد التسجيل، ستصلك رسالة تأكيد على بريدك الإلكتروني لتفعيل حسابك. يمكنك أيضاً التسجيل بسرعة عبر حساب Google الخاص بك. بعد التفعيل، يمكنك ربط بورصتك المفضلة مثل Binance أو Alpaca عبر مفاتيح API والبدء في متابعة وتحليل أداء محفظتك فوراً.',
-      },
-      {
-        id: 'b3',
-        question: 'ما هي خطط الاشتراك المتاحة والفرق بينها؟',
-        answer: 'نوفر أربع خطط اشتراك: المجانية (FREE) التي تمنحك وصولاً محدوداً للأدوات الأساسية مع إمكانية ربط حساب بورصة واحد ووضع العرض التجريبي، والاحترافية (PRO) التي تتيح ربط حتى 3 حسابات بورصة مع الإشارات الذكية والتحليل المتقدم، والبريميوم (PREMIUM) التي تضيف الذكاء الاصطناعي المتقدم وربط حتى 10 حسابات مع متابعة أداء الحسابات، والمؤسسية (INSTITUTIONAL) المخصصة للمحترفين مع ربط عدد غير محدود من الحسابات ووصول كامل لجميع الميزات. كل خطة تختلف في عدد الحسابات المربوطة، عدد الإشارات اليومية، نماذج AI المتاحة، ومستوى التحليل المقدم.',
-      },
-      {
-        id: 'b4',
-        question: 'هل يمكنني استخدام المنصة دون ربط بورصة؟',
-        answer: 'نعم، بالتأكيد! يمكنك استخدام منصة رؤى دون ربط أي بورصة عبر وضع العرض التجريبي (Demo Mode). يتيح لك هذا الوضع تجربة جميع أدوات التحليل والذكاء الاصطناعي ببيانات سوق افتراضية، مما يساعدك على تعلم المنصة واستكشاف ميزاتها قبل ربط حسابك الحقيقي. عندما تكون مستعداً، يمكنك ربط بورصتك بسهولة عبر صفحة الإعدادات مع الحفاظ على أعلى معايير الأمان.',
-      },
-    ],
-  },
-  {
-    id: 'trading',
-    title: 'متابعة الحسابات',
-    icon: <Link2 size={18} />,
-    iconColor: T.green,
-    iconBg: `${T.green}14`,
-    items: [
-      {
-        id: 't1',
-        question: 'كيف أربط حساب بورصة جديد؟',
-        answer: 'لربط حساب بورصة جديد، انتقل إلى صفحة الإعدادات واختر قسم "الحسابات المربوطة". اضغط على زر "ربط حساب جديد" واختر البورصة التي تريد ربطها (مثل Binance أو Alpaca). ستحتاج إلى إنشاء مفتاح API من حسابك في البورصة مع صلاحيات القراءة والتداول فقط — تأكد من عدم تفعيل صلاحية السحب. أدخل مفتاح API والسر الخاص في المنصة وسيتم التحقق من الاتصال تلقائياً. بعد الربط الناجح، ستبدأ المنصة فوراً في متابعة رصيدك ومراكزك المفتوحة.',
-      },
-      {
-        id: 't2',
-        question: 'كيف أتابع أداء حساباتي المربوطة؟',
-        answer: 'بعد ربط حساباتك، توفر المنصة لوحة متابعة شاملة تعرض جميع حساباتك المربوطة في مكان واحد. يمكنك مشاهدة الرصيد الإجمالي، الربح والخسارة، المراكز المفتوحة، وتوزيع المحفظة عبر جميع البورصات. تتوفر رسوم بيانية تفاعلية لتتبع أداء محفظتك عبر فترات زمنية مختلفة (يومي، أسبوعي، شهري). كما يمكنك مقارنة أداء حساباتك المربوطة في بورصات مختلفة وتحليل توزيع أصولك بشكل مرئي واضح.',
-      },
-      {
-        id: 't3',
-        question: 'ما هي صلاحيات API المطلوبة لربط حسابي؟',
-        answer: 'لربط حسابك نحتاج فقط إلى صلاحية القراءة (Read) لمراقبة رصيدك ومراكزك المفتوحة. صلاحية التداول (Trade/Spot Trading) اختيارية وتُستخدم فقط إذا فعّلت ميزة تنفيذ الإشارات تلقائياً عبر حسابك المربوط. الأهم من ذلك، نحن لا نطلب أبداً صلاحية السحب (Withdraw) — ويرفض النظام تلقائياً أي مفتاح يتضمن هذه الصلاحية. ننصح بإنشاء مفتاح API مخصص لرؤى فقط مع أقل الصلاحيات الممكنة، وتقييد المفتاح بعنوان IP الخاص بنا إذا كانت البورصة تدعم ذلك.',
-      },
-      {
-        id: 't4',
-        question: 'كيف أحصل على تنبيهات عن حركة حساباتي؟',
-        answer: 'توفر المنصة نظام تنبيهات ذكي شامل يمكنك تخصيصه بالكامل. يمكنك إعداد تنبيهات لحركات السعر، تغيرات الرصيد، فتح أو إغلاق مراكز، وتحقيق أهداف ربح أو خسارة محددة. تتوفر التنبيهات عبر عدة قنوات: إشعارات داخل المنصة، بريد إلكتروني، وتنبيهات المتصفح. يمكنك أيضاً تفعيل تنبيهات AI التي تنبهك عند رصد أنماط سوقية غير معتادة أو فرص تداول محتملة على حساباتك المربوطة. إدارة التنبيهات متاحة من صفحة الإعدادات قسم "الإشعارات".',
-      },
-    ],
-  },
-  {
-    id: 'ai',
-    title: 'الذكاء الاصطناعي',
-    icon: <Brain size={18} />,
-    iconColor: T.purple,
-    iconBg: `${T.purple}14`,
-    items: [
-      {
-        id: 'a1',
-        question: 'كيف يعمل مجلس الذكاء الاصطناعي (AI Council)؟',
-        answer: 'مجلس AI هو ميزة فريدة تجمع تحليلات عدة نماذج ذكاء اصطناعي مستقلة مثل Gemini وGroq وGLM-4 وHuggingFace وOllama وBedrock. كل نموذج يحلل الأصل المالي بشكل مستقل ويقدم توصيته (شراء، بيع، انتظار) مع مستوى الثقة والأسباب. ثم تقوم المنصة بحساب توصية إجماعية مبنية على وزن ثقة كل نموذج. هذا النهج المتعدد النماذج يقلل من تحيز أي نموذج واحد ويزيد من دقة التوصيات بشكل ملحوظ مقارنة بالاعتماد على نموذج واحد فقط.',
-      },
-      {
-        id: 'a2',
-        question: 'ما هي الإشارات الذكية وكيف أستخدمها؟',
-        answer: 'الإشارات الذكية هي توصيات تداول مبنية على تحليل AI شامل يجمع بين المؤشرات الفنية (RSI, EMA, MACD) وتحليل المشاعر السوقية والأنماط السعرية. كل إشارة تتضمن اتجاه الصفقة (شراء/بيع)، مستوى الثقة، نقطة الدخول المقترحة، وقف الخسارة، والهدف. يمكنك تفعيل الإشعارات الفورية لتلقي الإشارات فوراً، أو مراجعتها في صفحة الإشارات. الإشارات عالية الثقة (أعلى من 80%) مميزة بشارة خاصة ويمكن تنفيذها مباشرة بنقرة واحدة إذا كنت تملك صلاحية التداول.',
-      },
-      {
-        id: 'a3',
-        question: 'هل يمكنني تفعيل تنفيذ الإشارات تلقائياً؟',
-        answer: 'نعم، يمكنك تفعيل تنفيذ الإشارات تلقائياً من صفحة إعدادات الذكاء الاصطناعي إذا كنت مشتركاً في خطة PRO أو أعلى وفعّلت صلاحية التداول في مفتاح API. يتيح لك ذلك تعيين قواعد محددة مثل مستوى الثقة الأدنى لتنفيذ الصفقات تلقائياً، الحد الأقصى لحجم المركز، وحد الخسارة اليومي. المهم أن الصفقات تُنفذ عبر حساب البورصة المربوط الخاص بك مباشرة — المنصة لا تحتفظ بأموالك أبداً — نحن نربط حساباتك فقط ولا نعمل كوسيط مالي. ننصح بشدة بالبدء بمراقبة توصيات AI أولاً لفهم أسلوبها قبل تفعيل التنفيذ التلقائي.',
-      },
-      {
-        id: 'a4',
-        question: 'كيف يعمل ماسح السوق الذكي (Smart Scanner)؟',
-        answer: 'ماسح السوق الذكي يراقب مئات الأزواج المالية في الوقت الحقيقي ويحللها باستخدام خوارزميات AI لتحديد الفرص الواعدة. يقوم الماسح بتقييم كل زوج بناءً على عدة عوامل تشمل: قوة الاتجاه، حجم التداول، مؤشرات الزخم، أنماط الاختراق، وتحليل المشاعر. ثم يمنح كل زوج درجة ذكاء (Smart Score) من 0 إلى 100 وترتيبها حسب الأهمية. يمكنك تخصيص فلاتر الماسح حسب تفضيلاتك مثل الحد الأدنى للدرجة، الأطر الزمنية، والقطاعات المستهدفة.',
-      },
-    ],
-  },
-  {
-    id: 'security',
-    title: 'الأمان والخصوصية',
-    icon: <ShieldCheck size={18} />,
-    iconColor: T.green,
-    iconBg: `${T.green}14`,
-    items: [
-      {
-        id: 's1',
-        question: 'كيف تحمي منصة رؤى مفاتيح API الخاصة بي؟',
-        answer: 'نأخذ أمان مفاتيح API على محمل الجد القصوى. يتم تشفير جميع المفاتيح باستخدام خوارزمية AES-256-GCM وهي من أقوى خوارزميات التشفير المعتمدة عالمياً. المفاتيح تُخزن مشفرة في قاعدة بيانات معزولة ولا يمكن الوصول إليها إلا من خلال خدمات التنفيذ الموثوقة. نحن نرفض تلقائياً أي مفتاح يملك صلاحيات السحب (Withdraw) لضمان عدم قدرة أي طرف على سحب أموالك. بالإضافة إلى ذلك، يتم تدقيق جميع عمليات الوصول للمفاتيح وتسجيلها في سجلات أمان مراقبة.',
-      },
-      {
-        id: 's2',
-        question: 'هل يمكن للمنصة سحب أموالي من البورصة؟',
-        answer: 'لا، أبداً! منصة رؤى لا تملك ولا تطلب صلاحيات سحب الأموال من حسابك في البورصة. نحن نستخدم فقط مفاتيح API ذات صلاحيات القراءة والتداول المحدودة، ولا نقبل أبداً مفاتيح تتضمن صلاحيات السحب أو التحويل. هذا يعني أن أموالك تبقى آمنة في حسابك على البورصة ولا يمكن لشخص آخر سحبها حتى لو تم اختراق حسابك على رؤى. نوصي دائماً بإنشاء مفاتيح API مخصصة لرؤى فقط مع أقل الصلاحيات الممكنة.',
-      },
-      {
-        id: 's3',
-        question: 'كيف أحمي حسابي من الاختراق؟',
-        answer: 'نوفر عدة طبقات حماية لحسابك: أولاً، المصادقة الثنائية (2FA) عبر تطبيق مصادقة أو رسائل SMS التي تضيف طبقة أمان إضافية عند تسجيل الدخول. ثانياً، نظام اكتشاف تسجيلات الدخول المشبوهة الذي يتنبهك عند محاولة الوصول من جهاز أو موقع جديد. ثالثاً، يمكنك مراقبة وإدارة جلساتك النشطة وإنهاء أي جلسة مشبوهة فوراً. رابعاً، التشفير الشامل للبيانات الحساسة والتحقق من هوية الجلسة بشكل دوري كل 15 دقيقة. ننصح باستخدام كلمة مرور فريدة وقوية وتفعيل 2FA فوراً.',
-      },
-      {
-        id: 's4',
-        question: 'ما هي سياسة الخصوصية وكيف تُستخدم بياناتي؟',
-        answer: 'نلتزم بأعلى معايير الخصوصية وحماية البيانات. بياناتك الشخصية مشفرة ولا تُشارك مع أي طرف ثالث بدون موافقتك الصريحة. نستخدم بيانات التداول المجمعة وغير المحددة هوية لتحسين أداء نماذج AI لدينا فقط، ولا نربطها بحسابك الشخصي أبداً. يمكنك تصدير جميع بياناتك في أي وقت من صفحة الإعدادات، كما يمكنك طلب حذف بياناتك بالكامل. نحن نخضع لمراجعات أمنية دورية ونلتزم بلوائح حماية البيانات الدولية لضمان سلامة معلوماتك.',
-      },
-    ],
-  },
-  {
-    id: 'billing',
-    title: 'الاشتراكات والمدفوعات',
-    icon: <CreditCard size={18} />,
-    iconColor: T.amber,
-    iconBg: `${T.amber}14`,
-    items: [
-      {
-        id: 'p1',
-        question: 'كيف أقوم بترقية خطتي أو تغييرها؟',
-        answer: 'يمكنك ترقية خطتك بسهولة من صفحة الإعدادات قسم الاشتراك. اختر الخطة الجديدة وسيتم احتساب الفرق في السعر بشكل تناسبي بناءً على المدة المتبقية من اشتراكك الحالي. الترقية تتفعل فوراً وتحصل على جميع الميزات الجديدة مباشرة. أما خفض الخطة فيتفعل في نهاية دورة الاشتراك الحالية لضمان استفادتك الكاملة من المدة المدفوعة. نقبل الدفع عبر بطاقات الائتمان والخصم، والتحويل المصرفي، والعملات الرقمية الأساسية.',
-      },
-      {
-        id: 'p2',
-        question: 'هل يمكنني إلغاء اشتراكي في أي وقت؟',
-        answer: 'نعم، يمكنك إلغاء اشتراكك في أي وقت دون أي رسوم إضافية أو عقوبات. عند الإلغاء، يظل حسابك مفاعلاً بميزات الخطة الحالية حتى نهاية دورة الاشتراك المدفوعة. بعد انتهاء الدورة، يتم تحويل حسابك تلقائياً إلى الخطة المجانية مع الاحتفاظ بجميع بياناتك وسجل متابعة حساباتك. يمكنك إعادة تفعيل الاشتراك في أي وقت مستقبلاً واستعادة جميع ميزاتك السابقة. لا نقوم بأي رسوم مخفية أو تجديد تلقائي بدون موافقتك المسبقة.',
-      },
-      {
-        id: 'p3',
-        question: 'ما هي سياسة الاسترداد والاسترجاع؟',
-        answer: 'نوفر ضمان استرداد كامل خلال 14 يوماً من تاريخ الشراء إذا لم تكن راضياً عن الخدمة. يشمل ذلك جميع خطط الاشتراك دون استثناء. لطلب الاسترداد، تواصل مع فريق الدعم عبر البريد الإلكتروني أو الدردشة المباشرة مع ذكر سبب الطلب. يتم معالجة طلبات الاسترداد خلال 3-5 أيام عمل وتُعاد المبالغ عبر نفس طريقة الدفع الأصلية. نحن نؤمن بأن راحتك هي أولويتنا ونريدك أن تكون واثقاً تماماً من استثمارك في منصة رؤى.',
-      },
-    ],
-  },
-]
-
-/* ── Quick Links Data ── */
-const quickLinks = [
-  {
-    id: 'beginner',
-    title: 'دليل المبتدئين',
-    description: 'ابدأ رحلتك مع منصة رؤى خطوة بخطوة من التسجيل حتى ربط أول حساب بورصة',
-    icon: <BookOpen size={22} />,
-    color: T.cyan,
-    bg: `${T.cyan}14`,
-  },
-  {
-    id: 'ai-guide',
-    title: 'دليل AI',
-    description: 'تعرّف على ميزات الذكاء الاصطناعي المتاحة وكيفية الاستفادة القصوى منها',
-    icon: <Brain size={22} />,
-    color: T.purple,
-    bg: `${T.purple}14`,
-  },
-  {
-    id: 'security',
-    title: 'سياسة الأمان',
-    description: 'تعرف على إجراءات الحماية والتشفير التي نطبقها لحماية بياناتك وأموالك',
-    icon: <ShieldCheck size={22} />,
-    color: T.green,
-    bg: `${T.green}14`,
-  },
-  {
-    id: 'account-linking-guide',
-    title: 'دليل ربط الحسابات',
-    description: 'دليل شامل لربط حسابات بورصتك وصلاحيات API وإدارة الحسابات المربوطة',
-    icon: <Link2 size={22} />,
-    color: T.amber,
-    bg: `${T.amber}14`,
-  },
-]
+/* ── Translation function type for prop passing ── */
+type TFunction = (key: string, params?: Record<string, string | number>) => string
 
 /* ── FAQ Accordion Item ── */
 function FAQAccordion({ item, isOpen, onToggle }: { item: FAQItem; isOpen: boolean; onToggle: () => void }) {
@@ -268,10 +93,12 @@ function FAQCategorySection({
   category,
   openItems,
   onToggleItem,
+  t,
 }: {
   category: FAQCategory
   openItems: Set<string>
   onToggleItem: (id: string) => void
+  t: TFunction
 }) {
   return (
     <div style={{
@@ -297,7 +124,7 @@ function FAQCategorySection({
             {category.title}
           </div>
           <div style={{ fontSize: 10, color: T.text4, marginTop: 1, fontFamily: "'Cairo', sans-serif" }}>
-            {category.items.length} أسئلة شائعة
+            {t('faqItemsCount', { count: category.items.length })}
           </div>
         </div>
         <span style={{
@@ -327,6 +154,8 @@ function FAQCategorySection({
    Main Help Center Page
 ══════════════════════════════════════════════════════ */
 export default function HelpCenterPage() {
+  const t = useTranslations('dashboard.help')
+
   useScopedStyle(`@media (max-width: 767px) {
           .help-quick-grid { grid-template-columns: 1fr !important; }
           .help-contact-grid { grid-template-columns: 1fr !important; }
@@ -363,6 +192,110 @@ export default function HelpCenterPage() {
   const [feedbackSubject, setFeedbackSubject] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
 
+  /* ── FAQ Categories Data (inside component for t() access) ── */
+  const faqCategories: FAQCategory[] = useMemo(() => [
+    {
+      id: 'basics',
+      title: t('catBasics'),
+      icon: <BookOpen size={18} />,
+      iconColor: T.cyan,
+      iconBg: `${T.cyan}14`,
+      items: [
+        { id: 'b1', question: t('faqB1Q'), answer: t('faqB1A') },
+        { id: 'b2', question: t('faqB2Q'), answer: t('faqB2A') },
+        { id: 'b3', question: t('faqB3Q'), answer: t('faqB3A') },
+        { id: 'b4', question: t('faqB4Q'), answer: t('faqB4A') },
+      ],
+    },
+    {
+      id: 'trading',
+      title: t('catTrading'),
+      icon: <Link2 size={18} />,
+      iconColor: T.green,
+      iconBg: `${T.green}14`,
+      items: [
+        { id: 't1', question: t('faqT1Q'), answer: t('faqT1A') },
+        { id: 't2', question: t('faqT2Q'), answer: t('faqT2A') },
+        { id: 't3', question: t('faqT3Q'), answer: t('faqT3A') },
+        { id: 't4', question: t('faqT4Q'), answer: t('faqT4A') },
+      ],
+    },
+    {
+      id: 'ai',
+      title: t('catAi'),
+      icon: <Brain size={18} />,
+      iconColor: T.purple,
+      iconBg: `${T.purple}14`,
+      items: [
+        { id: 'a1', question: t('faqA1Q'), answer: t('faqA1A') },
+        { id: 'a2', question: t('faqA2Q'), answer: t('faqA2A') },
+        { id: 'a3', question: t('faqA3Q'), answer: t('faqA3A') },
+        { id: 'a4', question: t('faqA4Q'), answer: t('faqA4A') },
+      ],
+    },
+    {
+      id: 'security',
+      title: t('catSecurity'),
+      icon: <ShieldCheck size={18} />,
+      iconColor: T.green,
+      iconBg: `${T.green}14`,
+      items: [
+        { id: 's1', question: t('faqS1Q'), answer: t('faqS1A') },
+        { id: 's2', question: t('faqS2Q'), answer: t('faqS2A') },
+        { id: 's3', question: t('faqS3Q'), answer: t('faqS3A') },
+        { id: 's4', question: t('faqS4Q'), answer: t('faqS4A') },
+      ],
+    },
+    {
+      id: 'billing',
+      title: t('catBilling'),
+      icon: <CreditCard size={18} />,
+      iconColor: T.amber,
+      iconBg: `${T.amber}14`,
+      items: [
+        { id: 'p1', question: t('faqP1Q'), answer: t('faqP1A') },
+        { id: 'p2', question: t('faqP2Q'), answer: t('faqP2A') },
+        { id: 'p3', question: t('faqP3Q'), answer: t('faqP3A') },
+      ],
+    },
+  ], [t])
+
+  /* ── Quick Links Data (inside component for t() access) ── */
+  const quickLinks = useMemo(() => [
+    {
+      id: 'beginner',
+      title: t('beginnerGuide'),
+      description: t('beginnerGuideDesc'),
+      icon: <BookOpen size={22} />,
+      color: T.cyan,
+      bg: `${T.cyan}14`,
+    },
+    {
+      id: 'ai-guide',
+      title: t('aiGuide'),
+      description: t('aiGuideDesc'),
+      icon: <Brain size={22} />,
+      color: T.purple,
+      bg: `${T.purple}14`,
+    },
+    {
+      id: 'security',
+      title: t('securityPolicy'),
+      description: t('securityPolicyDesc'),
+      icon: <ShieldCheck size={22} />,
+      color: T.green,
+      bg: `${T.green}14`,
+    },
+    {
+      id: 'account-linking-guide',
+      title: t('accountLinkingGuide'),
+      description: t('accountLinkingGuideDesc'),
+      icon: <Link2 size={22} />,
+      color: T.amber,
+      bg: `${T.amber}14`,
+    },
+  ], [t])
+
   /* ── Search Filtering ── */
   const filteredCategories = useMemo(() => {
     if (!searchQuery.trim()) return faqCategories
@@ -377,7 +310,7 @@ export default function HelpCenterPage() {
         ),
       }))
       .filter(cat => cat.items.length > 0)
-  }, [searchQuery])
+  }, [searchQuery, faqCategories])
 
   const totalResults = useMemo(
     () => filteredCategories.reduce((sum, cat) => sum + cat.items.length, 0),
@@ -398,8 +331,8 @@ export default function HelpCenterPage() {
   const handleSubmitFeedback = useCallback(async () => {
     if (!feedbackName.trim() || !feedbackEmail.trim() || !feedbackMessage.trim()) {
       toast({
-        title: 'حقول مطلوبة',
-        description: 'يرجى تعبئة جميع الحقول المطلوبة قبل الإرسال',
+        title: t('feedbackRequired'),
+        description: t('feedbackRequiredDesc'),
         variant: 'destructive',
       })
       return
@@ -409,14 +342,14 @@ export default function HelpCenterPage() {
     await new Promise(resolve => setTimeout(resolve, 1200))
     setIsSubmitting(false)
     toast({
-      title: 'تم إرسال رسالتك',
-      description: 'شكراً لتواصلك معنا! سنرد عليك خلال 24 ساعة',
+      title: t('feedbackSent'),
+      description: t('feedbackSentDesc'),
     })
     setFeedbackName('')
     setFeedbackEmail('')
     setFeedbackMessage('')
     setFeedbackSubject('')
-  }, [feedbackName, feedbackEmail, feedbackMessage, feedbackSubject])
+  }, [feedbackName, feedbackEmail, feedbackMessage, feedbackSubject, t])
 
   return (
     <div
@@ -447,10 +380,10 @@ export default function HelpCenterPage() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-              مركز المساعدة
+              {t('title')}
             </h1>
             <p style={{ margin: 0, fontSize: 12, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
-              كل ما تحتاج معرفته عن منصة رؤى — أدلة، أسئلة شائعة، ودعم فني مباشر
+              {t('subtitle')}
             </p>
           </div>
         </div>
@@ -469,8 +402,8 @@ export default function HelpCenterPage() {
             type="text"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="ابحث في الأسئلة الشائعة..."
-            aria-label="بحث في مركز المساعدة"
+            placeholder={t('searchPlaceholder')}
+            aria-label={t('searchAriaLabel')}
             className="help-search-box"
             style={{
               width: '100%', background: T.surface, border: `1px solid ${T.border}`,
@@ -484,7 +417,7 @@ export default function HelpCenterPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              aria-label="مسح البحث"
+              aria-label={t('clearSearch')}
               style={{
                 position: 'absolute', insetInlineStart: 10, top: '50%', transform: 'translateY(-50%)',
                 background: 'none', border: 'none', cursor: 'pointer',
@@ -498,8 +431,8 @@ export default function HelpCenterPage() {
         {searchQuery.trim() && (
           <div style={{ marginTop: 8, fontSize: 11, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>
             {totalResults > 0
-              ? `تم العثور على ${totalResults} نتيجة لـ "${searchQuery.trim()}"`
-              : `لا توجد نتائج لـ "${searchQuery.trim()}" — جرّب كلمات مختلفة`}
+              ? t('resultsFound', { count: totalResults, query: searchQuery.trim() })
+              : t('noResults', { query: searchQuery.trim() })}
           </div>
         )}
       </div>
@@ -511,7 +444,7 @@ export default function HelpCenterPage() {
         {!searchQuery.trim() && (
           <section aria-labelledby="quick-links-heading" className="help-fade-in">
             <h2 id="quick-links-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 14, fontFamily: "'Cairo', sans-serif" }}>
-              روابط سريعة
+              {t('quickLinks')}
             </h2>
             <div className="help-quick-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
               {quickLinks.map(link => (
@@ -554,7 +487,7 @@ export default function HelpCenterPage() {
                     fontSize: 10, color: link.color, fontWeight: 700,
                     fontFamily: "'Cairo', sans-serif", marginTop: 'auto',
                   }}>
-                    اقرأ المزيد
+                    {t('readMore')}
                     <ExternalLink size={10} />
                   </div>
                 </button>
@@ -567,7 +500,7 @@ export default function HelpCenterPage() {
         <section aria-labelledby="faq-heading" className="help-fade-in">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
             <h2 id="faq-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif", margin: 0 }}>
-              الأسئلة الشائعة
+              {t('faqTitle')}
             </h2>
             {!searchQuery.trim() && (
               <span style={{
@@ -575,7 +508,7 @@ export default function HelpCenterPage() {
                 padding: '3px 10px', borderRadius: 10, background: T.surface,
                 border: `1px solid ${T.border}`,
               }}>
-                {faqCategories.reduce((s, c) => s + c.items.length, 0)} سؤال
+                {t('faqCount', { count: faqCategories.reduce((s, c) => s + c.items.length, 0) })}
               </span>
             )}
           </div>
@@ -588,6 +521,7 @@ export default function HelpCenterPage() {
                   category={cat}
                   openItems={openItems}
                   onToggleItem={toggleItem}
+                  t={t}
                 />
               ))}
             </div>
@@ -598,10 +532,10 @@ export default function HelpCenterPage() {
             }}>
               <AlertCircle size={36} color={T.text4} style={{ margin: '0 auto 12px' }} />
               <div style={{ fontSize: 14, fontWeight: 700, color: T.text2, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>
-                لا توجد نتائج
+                {t('noFaqResults')}
               </div>
               <div style={{ fontSize: 12, color: T.text4, fontFamily: "'Cairo', sans-serif", lineHeight: 1.7 }}>
-                لم نعثر على أسئلة تطابق بحثك. جرّب كلمات مختلفة أو تواصل مع فريق الدعم مباشرة.
+                {t('noFaqResultsDesc')}
               </div>
             </div>
           )}
@@ -610,7 +544,7 @@ export default function HelpCenterPage() {
         {/* ═══ Contact & Support Section ═══ */}
         <section aria-labelledby="contact-heading" className="help-fade-in">
           <h2 id="contact-heading" style={{ fontSize: 15, fontWeight: 800, color: T.text, marginBottom: 14, fontFamily: "'Cairo', sans-serif" }}>
-            التواصل والدعم
+            {t('contactTitle')}
           </h2>
 
           <div className="help-contact-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
@@ -623,9 +557,9 @@ export default function HelpCenterPage() {
               {/* Tab Header */}
               <div style={{ display: 'flex', borderBottom: `1px solid ${T.border}` }}>
                 {[
-                  { id: 'email' as const, label: 'البريد الإلكتروني', icon: <Mail size={14} /> },
-                  { id: 'chat' as const, label: 'الدردشة المباشرة', icon: <MessageSquare size={14} /> },
-                  { id: 'docs' as const, label: 'التوثيق', icon: <FileText size={14} /> },
+                  { id: 'email' as const, label: t('emailTab'), icon: <Mail size={14} /> },
+                  { id: 'chat' as const, label: t('chatTab'), icon: <MessageSquare size={14} /> },
+                  { id: 'docs' as const, label: t('docsTab'), icon: <FileText size={14} /> },
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -661,7 +595,7 @@ export default function HelpCenterPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          البريد الإلكتروني
+                          {t('emailTitle')}
                         </div>
                         <div style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                           support@roua.io
@@ -674,13 +608,13 @@ export default function HelpCenterPage() {
                       fontSize: 11, color: T.text3, lineHeight: 1.8,
                       fontFamily: "'Cairo', sans-serif",
                     }}>
-                      نرد على جميع رسائل البريد الإلكتروني خلال 24 ساعة كحد أقصى. للطلبات العاجلة، استخدم الدردشة المباشرة. يرجى تضمين عنوان بريدك المسجل في المنصة ووصف واضح للمشكلة لتسريع عملية الدعم.
+                      {t('emailDesc')}
                     </div>
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                       {[
-                        { icon: <Clock size={11} />, text: 'رد خلال 24 ساعة' },
-                        { icon: <Globe size={11} />, text: 'دعم عربي وإنجليزي' },
-                        { icon: <CheckCircle2 size={11} />, text: 'تتبع حالة التذكرة' },
+                        { icon: <Clock size={11} />, text: t('emailFeature1') },
+                        { icon: <Globe size={11} />, text: t('emailFeature2') },
+                        { icon: <CheckCircle2 size={11} />, text: t('emailFeature3') },
                       ].map((f, i) => (
                         <span key={i} style={{
                           display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -708,11 +642,11 @@ export default function HelpCenterPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          الدردشة المباشرة
+                          {t('chatTitle')}
                         </div>
                         <div style={{ fontSize: 11, color: T.green, fontFamily: "'Cairo', sans-serif", display: 'flex', alignItems: 'center', gap: 4 }}>
                           <span style={{ width: 6, height: 6, borderRadius: 3, background: T.green, boxShadow: `0 0 6px ${T.green}60` }} />
-                          متاح الآن
+                          {t('availableNow')}
                         </div>
                       </div>
                     </div>
@@ -722,7 +656,7 @@ export default function HelpCenterPage() {
                       fontSize: 11, color: T.text3, lineHeight: 1.8,
                       fontFamily: "'Cairo', sans-serif",
                     }}>
-                      الدردشة المباشرة متاحة لمشتركي الخطة الاحترافية وما فوق خلال ساعات العمل من الأحد إلى الخميس، 9 صباحاً حتى 9 مساءً بتوقيت السعودية. للخطط الأخرى، يمكنك ترك رسالة وسنرد في أقرب وقت.
+                      {t('chatDesc')}
                     </div>
                     <button
                       style={{
@@ -734,7 +668,7 @@ export default function HelpCenterPage() {
                       }}
                     >
                       <MessageSquare size={14} />
-                      ابدأ الدردشة
+                      {t('startChat')}
                     </button>
                   </div>
                 )}
@@ -751,7 +685,7 @@ export default function HelpCenterPage() {
                       </div>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                          التوثيق التقني
+                          {t('docsTitle')}
                         </div>
                         <div style={{ fontSize: 11, color: T.text3, fontFamily: "'Cairo', sans-serif" }}>
                           docs.roua.io
@@ -764,13 +698,13 @@ export default function HelpCenterPage() {
                       fontSize: 11, color: T.text3, lineHeight: 1.8,
                       fontFamily: "'Cairo', sans-serif",
                     }}>
-                      التوثيق التقني يحتوي على أدلة تفصيلية لكل ميزة في المنصة، مراجع API للمطورين، أمثلة على التكامل، ودروس تعليمية تفاعلية. يتم تحديث التوثيق باستمرار مع كل إصدار جديد من المنصة.
+                      {t('docsDesc')}
                     </div>
                     {[
-                      { label: 'مرجع API', icon: <Zap size={12} /> },
-                      { label: 'أدلة التكامل', icon: <RefreshCw size={12} /> },
-                      { label: 'دروس تعليمية', icon: <Star size={12} /> },
-                      { label: 'سجل التغييرات', icon: <FileText size={12} /> },
+                      { label: t('apiReference'), icon: <Zap size={12} /> },
+                      { label: t('integrationGuides'), icon: <RefreshCw size={12} /> },
+                      { label: t('videoTutorials'), icon: <Star size={12} /> },
+                      { label: t('browseDocs'), icon: <FileText size={12} /> },
                     ].map((doc, i) => (
                       <button
                         key={i}
@@ -814,10 +748,10 @@ export default function HelpCenterPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: T.text, fontFamily: "'Cairo', sans-serif" }}>
-                    أرسل ملاحظاتك
+                    {t('feedbackTitle')}
                   </div>
                   <div style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif" }}>
-                    نسعى دائماً لتحسين المنصة بناءً على تجربتك
+                    {t('feedbackDesc')}
                   </div>
                 </div>
               </div>
@@ -828,14 +762,14 @@ export default function HelpCenterPage() {
                 <div style={{ display: 'flex', gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "'Cairo', sans-serif" }}>
-                      الاسم *
+                      {t('feedbackName')}
                     </label>
                     <input
                       type="text"
                       value={feedbackName}
                       onChange={e => setFeedbackName(e.target.value)}
-                      placeholder="اسمك الكامل"
-                      aria-label="الاسم"
+                      placeholder={t('feedbackNamePlaceholder')}
+                      aria-label={t('feedbackName')}
                       style={{
                         width: '100%', background: T.surface, border: `1px solid ${T.border}`,
                         borderRadius: 8, padding: '10px 12px',
@@ -848,15 +782,15 @@ export default function HelpCenterPage() {
                   </div>
                   <div style={{ flex: 1 }}>
                     <label style={{ fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "'Cairo', sans-serif" }}>
-                      البريد الإلكتروني *
+                      {t('feedbackEmail')}
                     </label>
                     <input
                       type="email"
                       value={feedbackEmail}
                       onChange={e => setFeedbackEmail(e.target.value)}
-                      placeholder="email@example.com"
+                      placeholder={t('feedbackEmailPlaceholder')}
                       dir="ltr"
-                      aria-label="البريد الإلكتروني"
+                      aria-label={t('feedbackEmail')}
                       style={{
                         width: '100%', background: T.surface, border: `1px solid ${T.border}`,
                         borderRadius: 8, padding: '10px 12px',
@@ -873,12 +807,12 @@ export default function HelpCenterPage() {
                 {/* Subject */}
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "'Cairo', sans-serif" }}>
-                    الموضوع
+                    {t('feedbackSubject')}
                   </label>
                   <select
                     value={feedbackSubject}
                     onChange={e => setFeedbackSubject(e.target.value)}
-                    aria-label="موضوع الرسالة"
+                    aria-label={t('feedbackSubject')}
                     style={{
                       width: '100%', background: T.surface, border: `1px solid ${T.border}`,
                       borderRadius: 8, padding: '10px 12px',
@@ -887,26 +821,26 @@ export default function HelpCenterPage() {
                       appearance: 'none',
                     }}
                   >
-                    <option value="">اختر الموضوع</option>
-                    <option value="bug">الإبلاغ عن مشكلة تقنية</option>
-                    <option value="feature">اقتراح ميزة جديدة</option>
-                    <option value="account">مشكلة في الحساب</option>
-                    <option value="billing">استفسار عن الاشتراك</option>
-                    <option value="other">موضوع آخر</option>
+                    <option value="">{t('feedbackSubjectPlaceholder')}</option>
+                    <option value="bug">{t('subjectBug')}</option>
+                    <option value="feature">{t('subjectFeature')}</option>
+                    <option value="account">{t('subjectAccount')}</option>
+                    <option value="billing">{t('subjectBilling')}</option>
+                    <option value="other">{t('subjectOther')}</option>
                   </select>
                 </div>
 
                 {/* Message */}
                 <div>
                   <label style={{ fontSize: 10, fontWeight: 700, color: T.text3, marginBottom: 4, display: 'block', fontFamily: "'Cairo', sans-serif" }}>
-                    الرسالة *
+                    {t('feedbackMessage')}
                   </label>
                   <textarea
                     value={feedbackMessage}
                     onChange={e => setFeedbackMessage(e.target.value)}
-                    placeholder="اكتب رسالتك هنا... كلما كانت التفاصيل أكثر، كان الدعم أسرع"
+                    placeholder={t('feedbackMessagePlaceholder')}
                     rows={4}
-                    aria-label="نص الرسالة"
+                    aria-label={t('feedbackMessage')}
                     style={{
                       width: '100%', background: T.surface, border: `1px solid ${T.border}`,
                       borderRadius: 8, padding: '10px 12px',
@@ -936,12 +870,12 @@ export default function HelpCenterPage() {
                   {isSubmitting ? (
                     <>
                       <RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} />
-                      جاري الإرسال...
+                      {t('feedbackSending')}
                     </>
                   ) : (
                     <>
                       <Send size={14} style={{ transform: 'rotate(180deg)' }} />
-                      إرسال الملاحظات
+                      {t('feedbackSend')}
                     </>
                   )}
                 </button>
@@ -954,7 +888,7 @@ export default function HelpCenterPage() {
                 }}>
                   <Lock size={12} color={T.green} />
                   <span style={{ fontSize: 10, color: T.text4, fontFamily: "'Cairo', sans-serif", lineHeight: 1.6 }}>
-                    بياناتك محمية بالكامل ونستخدمها فقط للرد على استفسارك
+                    {t('feedbackInfoSecureDesc')}
                   </span>
                 </div>
               </div>
@@ -968,10 +902,10 @@ export default function HelpCenterPage() {
             display: 'flex', gap: 10, flexWrap: 'wrap',
           }}>
             {[
-              { icon: <Users size={14} />, label: 'أكثر من 10,000 مستخدم نشط', color: T.cyan },
-              { icon: <Clock size={14} />, label: 'متوسط وقت الرد: أقل من 4 ساعات', color: T.green },
-              { icon: <Star size={14} />, label: 'تقييم الدعم: 4.8/5', color: T.amber },
-              { icon: <Globe size={14} />, label: 'دعم باللغتين العربية والإنجليزية', color: T.purple },
+              { icon: <Users size={14} />, label: t('feedbackInfoTitle'), color: T.cyan },
+              { icon: <Clock size={14} />, label: t('feedbackInfoDesc'), color: T.green },
+              { icon: <Star size={14} />, label: t('feedbackInfoSecure'), color: T.amber },
+              { icon: <Globe size={14} />, label: t('emailFeature2'), color: T.purple },
             ].map((stat, i) => (
               <span key={i} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 6,

@@ -10,7 +10,7 @@ import { twMerge } from "tailwind-merge"
  * @param symbol - Trading symbol (e.g., "BTCUSDT", "EUR/USD", "AAPL")
  * @param backendName - Name from backend API (usually Arabic)
  * @param t - next-intl translation function (scoped to scannerAdvanced)
- * @param locale - Current locale ('ar' | 'en')
+ * @param locale - Current locale ('ar' | 'en' | 'fr')
  */
 export function getLocalizedAssetName(
   symbol: string,
@@ -36,7 +36,7 @@ export function getLocalizedAssetName(
   }
 
   // For English, derive a readable name from the symbol as last resort
-  if (locale === 'en' && symbol) {
+  if (locale !== 'ar' && symbol) {
     // Try to format the symbol nicely: BTCUSDT → BTC/USDT, or just return as-is
     return formatSymbolDisplay(symbol)
   }

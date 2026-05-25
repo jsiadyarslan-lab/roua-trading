@@ -66,10 +66,11 @@ const PARAM_RANGES: Record<string, Record<string, { min: number; max: number; st
 };
 
 export async function POST(request: NextRequest) {
+  let lang = 'ar';
   try {
     const body = await request.json();
     const { strategy, symbol, periodStart, periodEnd, initialCapital } = body;
-    const lang = body.language || 'ar';
+    lang = body.language || 'ar';
 
     if (!strategy || !symbol) {
       return NextResponse.json(
@@ -182,7 +183,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error: any) {
-    const lang = 'ar';
     return NextResponse.json(
       { success: false, error: lang === 'en' ? `Optimization error: ${error.message}` : `خطأ في التحسين: ${error.message}` },
       { status: 502 },

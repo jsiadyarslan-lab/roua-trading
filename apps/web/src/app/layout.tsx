@@ -37,12 +37,25 @@ export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('common');
   const locale = await getLocale();
   const isAr = locale === 'ar';
+  const isFr = locale === 'fr';
+
+  // Title & description per locale
+  const title = isAr
+    ? "رؤى | منصة ربط الحسابات الذكية"
+    : isFr
+      ? "Roua | Plateforme intelligente de liaison de comptes"
+      : "Roua | Smart Account Linking Platform";
+  const description = isAr
+    ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform"
+    : isFr
+      ? "Plateforme Roua pour la liaison et le suivi intelligents de comptes — analyses IA, signaux de trading, liaison bourses, et portefeuille intelligent"
+      : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio";
+  const siteName = isAr ? "رؤى — Roua Trading" : "Roua Trading";
+  const ogLocale = isAr ? "ar_SA" : isFr ? "fr_FR" : "en_US";
 
   return {
-    title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
-    description: isAr
-      ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform"
-      : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
+    title,
+    description,
     manifest: "/manifest.json",
     appleWebApp: {
       capable: true,
@@ -66,29 +79,33 @@ export async function generateMetadata(): Promise<Metadata> {
       canonical: "/",
     },
     openGraph: {
-      title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
+      title,
       description: isAr
         ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية"
-        : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
+        : isFr
+          ? "Plateforme Roua pour la liaison et le suivi intelligents de comptes — analyses IA, signaux de trading et portefeuille intelligent"
+          : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
       url: SITE_URL,
-      siteName: isAr ? "رؤى — Roua Trading" : "Roua Trading",
-      locale: isAr ? "ar_SA" : "en_US",
+      siteName,
+      locale: ogLocale,
       type: "website",
       images: [
         {
           url: "/icon-512.png",
           width: 512,
           height: 512,
-          alt: isAr ? "رؤى — Roua Trading" : "Roua Trading",
+          alt: siteName,
         },
       ],
     },
     twitter: {
       card: "summary",
-      title: isAr ? "رؤى | منصة ربط الحسابات الذكية" : "Roua | Smart Account Linking Platform",
+      title,
       description: isAr
         ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات"
-        : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking",
+        : isFr
+          ? "Plateforme Roua — analyses IA, signaux de trading et liaison bourses"
+          : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking",
       images: ["/icon-512.png"],
     },
     robots: {

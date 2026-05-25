@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const sentiment = searchParams.get('sentiment') || '';
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
-    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline
+    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline, 'fr' = French pipeline (uses English content)
 
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     if (integrationKey) {
       try {
-        // Fetch more articles when filtering by language (English articles are a subset)
-        const fetchLimit = lang === 'en' ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
+        // Fetch more articles when filtering by language (English/French articles are a subset)
+        const fetchLimit = (lang === 'en' || lang === 'fr') ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
         const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${fetchLimit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
             // Filter and transform articles based on language pipeline
             let filteredArticles = newsData.articles;
 
-            if (lang === 'en') {
-              // English pipeline: articles where titleAr is empty (produced by English pipeline)
+            if (lang === 'en' || lang === 'fr') {
+              // English/French pipeline: articles where titleAr is empty (produced by English pipeline)
               filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
             } else {
               // Arabic pipeline (default): articles where titleAr exists (produced by Arabic pipeline)
@@ -78,37 +78,40 @@ export async function GET(request: NextRequest) {
               }
 
               // Build article object with language-appropriate field mapping
-              const isEn = lang === 'en';
-              const defaultCategory = isEn ? 'Markets' : 'أسواق';
-              const defaultSource = isEn ? "Ru'aa News" : 'رؤى للأخبار';
+              const isEnOrFr = lang === 'en' || lang === 'fr';
+              const isFr = lang === 'fr';
+              const defaultCategory = isEnOrFr ? 'Markets' : 'أسواق';
+              const defaultSource = isEnOrFr ? "Ru'aa News" : 'رؤى للأخبار';
 
               return {
                 id: article.id,
                 source: article.source || defaultSource,
                 // English original title
                 title: article.title || '',
-                // Display title: Arabic pipeline → Arabic, English pipeline → English
-                translatedTitle: isEn
+                // Display title: Arabic pipeline → Arabic, English/French pipeline → English
+                translatedTitle: isEnOrFr
                   ? (article.title || '')
                   : (article.titleAr || article.title || ''),
                 // English original content/summary
                 content: article.content || article.summary || '',
-                // Display content: Arabic pipeline → Arabic, English pipeline → English
-                translatedContent: isEn
+                // Display content: Arabic pipeline → Arabic, English/French pipeline → English
+                translatedContent: isEnOrFr
                   ? (article.content || article.summary || '')
                   : (article.contentAr || article.summaryAr || ''),
-                // Summary: Arabic pipeline → Arabic, English pipeline → English
-                summary: isEn
+                // Summary: Arabic pipeline → Arabic, English/French pipeline → English
+                summary: isEnOrFr
                   ? (article.summary || article.content || '')
                   : (article.summaryAr || article.summary || ''),
+                // French text: reuse English content (no French content source)
+                textFr: article.title || '',
                 // Full analysis content
                 fullContent: article.fullContent || '',
                 // Key takeaways array
                 keyTakeaways: Array.isArray(article.keyTakeaways) ? article.keyTakeaways : [],
                 // Image URL (resolved to full URL)
                 imageUrl: resolvedImageUrl,
-                // URL to original article (English pipeline → /en/news, Arabic → /news)
-                url: article.url || (article.slug ? `${newsSiteUrl}${isEn ? '/en' : ''}/news/${article.slug}` : null),
+                // URL to original article (English/French pipeline → /en/news, Arabic → /news)
+                url: article.url || (article.slug ? `${newsSiteUrl}${isEnOrFr ? '/en' : ''}/news/${article.slug}` : null),
                 // Sentiment normalized to -1..1
                 sentiment: sentimentNormalized,
                 sentimentLabel: article.sentiment || 'neutral',
@@ -116,11 +119,12 @@ export async function GET(request: NextRequest) {
                 affectedAssets,
                 category: article.category || defaultCategory,
                 categoryAr: article.category || defaultCategory,
+                categoryFr: mapCategoryToFrench(article.category || defaultCategory),
                 publishedAt: article.publishedAt || new Date().toISOString(),
                 newsType: article.newsType || 'live',
                 slug: article.slug || '',
                 // Language indicator for frontend
-                lang: isEn ? 'en' : 'ar',
+                lang: isFr ? 'fr' : (isEnOrFr ? 'en' : 'ar'),
               };
             });
 
@@ -326,6 +330,7 @@ async function fetchLocalNews(
             content: cleanDesc,
             translatedContent: '',
             summary: generateSummary(title, sentimentLabel, affectedAssets),
+            textFr: title || '',
             url: link || null,
             sentiment: sentimentScore,
             sentimentLabel,
@@ -333,6 +338,7 @@ async function fetchLocalNews(
             affectedAssets,
             category,
             categoryAr: mapCategoryToArabic(category),
+            categoryFr: mapCategoryToFrench(category),
             publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           });
         }
@@ -374,6 +380,27 @@ function mapCategoryToArabic(category: string): string {
   if (lower.includes('economy') || lower.includes('macro')) return 'اقتصاد';
   if (lower.includes('etf')) return 'صناديق';
   return 'أسواق';
+}
+
+function mapCategoryToFrench(category: string): string {
+  const lower = category.toLowerCase();
+  if (lower.includes('economy') || lower.includes('macro')) return 'Économie';
+  if (lower.includes('technology') || lower.includes('tech')) return 'Technologie';
+  if (lower.includes('crypto') || lower.includes('bitcoin') || lower.includes('ethereum')) return 'Crypto';
+  if (lower.includes('forex') || lower.includes('currency')) return 'Forex';
+  if (lower.includes('commodit')) return 'Matières premières';
+  if (lower.includes('metal') || lower.includes('gold')) return 'Métaux';
+  if (lower.includes('energy') || lower.includes('oil')) return 'Énergie';
+  if (lower.includes('stock') || lower.includes('market')) return 'Actions';
+  if (lower.includes('politic')) return 'Politique';
+  if (lower.includes('sport')) return 'Sport';
+  if (lower.includes('general')) return 'Général';
+  if (lower.includes('defi')) return 'DeFi';
+  if (lower.includes('regulation') || lower.includes('policy')) return 'Réglementation';
+  if (lower.includes('bond')) return 'Obligations';
+  if (lower.includes('etf') || lower.includes('fund')) return 'ETF';
+  if (lower.includes('fed')) return 'Fed';
+  return 'Général';
 }
 
 function simulateArabicTranslation(title: string, category: string): string {

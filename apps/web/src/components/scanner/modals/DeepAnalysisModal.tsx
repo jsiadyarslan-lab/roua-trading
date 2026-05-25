@@ -89,7 +89,7 @@ export function DeepAnalysisModal() {
     let stale = false
     ;(async () => {
       try {
-        const res = await fetch(`/api/scanner/deep?symbol=${symbol}&lang=${locale}`)
+        const res = await fetch(`/api/scanner/deep?symbol=${symbol}&lang=${locale === 'ar' ? 'ar' : 'en'}`)
         if (stale) return
         if (!res.ok) throw new Error('Failed')
         const j = await res.json()

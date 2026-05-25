@@ -119,7 +119,7 @@ function loadMessages(locale: string, t: (key: string) => string): Message[] {
       localStorage.removeItem(STORAGE_KEY)
     }
   } catch {}
-  const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US'
+  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US'
   return [{
     id: '1',
     role: 'ai',
@@ -283,7 +283,7 @@ export default function AIPage() {
   // ── i18n ──
   const t = useTranslations('dashboard.aiPage')
   const locale = useLocale()
-  const timeLocale = locale === 'ar' ? 'ar-EG' : 'en-US'
+  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US'
 
   // ── Initialize ──
   // FIX: Wrapped fetch functions in useCallback to prevent stale closures
@@ -358,7 +358,7 @@ export default function AIPage() {
   // ── Fetch Narrator ──
   const fetchNarrator = async () => {
     try {
-      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}&lang=${locale === 'en' ? 'en' : 'ar'}`)
+      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}&lang=${locale === 'ar' ? 'ar' : 'en'}`)
       const json = await res.json()
       if (json.success && json.data) {
         setNarratorData(json.data)
@@ -376,7 +376,7 @@ export default function AIPage() {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: selectedSymbol, language: locale === 'en' ? 'en' : 'ar' }),
+        body: JSON.stringify({ symbol: selectedSymbol, language: locale === 'ar' ? 'ar' : 'en' }),
         signal: AbortSignal.timeout(45000),
       })
       const json = await res.json()
@@ -423,7 +423,7 @@ export default function AIPage() {
           symbol: selectedSymbol,
           type: 'market_analysis',
           style: 'professional',
-          language: locale === 'en' ? 'en' : 'ar',
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       })
 

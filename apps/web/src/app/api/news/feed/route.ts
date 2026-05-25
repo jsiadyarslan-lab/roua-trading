@@ -54,7 +54,10 @@ function tryTranslateToArabic(text: string): string {
   return ''
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const lang = searchParams.get('lang') || 'en'
+
   try {
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
@@ -79,9 +82,10 @@ export async function GET() {
               const title = article.title || '';
               const summary = article.summary || '';
 
-              // Ensure both English and Arabic categories
+              // Ensure English, Arabic, and French categories
               const category = /[\u0600-\u06FF]/.test(rawCat) ? mapCategoryToEnglish(rawCat) : rawCat;
               const categoryAr = /[\u0600-\u06FF]/.test(rawCat) ? rawCat : mapCategoryToArabic(rawCat);
+              const categoryFr = mapCategoryToFrench(category);
 
               // Determine English and Arabic text
               const isArabicTitle = /[\u0600-\u06FF]/.test(title);
@@ -98,13 +102,18 @@ export async function GET() {
                 textAr = tryTranslateToArabic(title) || title;
               }
 
+              // French text: use English content since there is no French content source
+              const textFr = text;
+
               return {
                 category,
                 categoryAr,
+                categoryFr,
                 color: mapCategoryColor(category),
                 bgColor: `${mapCategoryColor(category)}12`,
                 text,
                 textAr,
+                textFr,
                 summary: summary || '',
                 link: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
                 publishedAt: article.publishedAt || null,
@@ -117,6 +126,10 @@ export async function GET() {
             .filter((item: any) => !item.isArabicOnly);
 
             if (items.length > 0) {
+              if (lang === 'fr') {
+                // For French, strip the internal isArabicOnly flag from response
+                return NextResponse.json(items.map(({ isArabicOnly, ...rest }: any) => rest))
+              }
               return NextResponse.json(items);
             }
           }
@@ -150,13 +163,19 @@ export async function GET() {
               textAr = tryTranslateToArabic(title)
             }
 
+            // French: category mapped, text reuses English content
+            const categoryFr = mapCategoryToFrench(cat)
+            const textFr = title
+
             return {
               category: cat,
               categoryAr: mapCategoryToArabic(cat),
+              categoryFr,
               color: mapCategoryColor(cat),
               bgColor: `${mapCategoryColor(cat)}12`,
               text: title,
               textAr: textAr,
+              textFr,
               link: article.url || null,
               publishedAt: article.publishedAt || null,
               impact: article.impactLevel || 'medium',
@@ -169,7 +188,13 @@ export async function GET() {
             const fallbackItems = getFallbackNews()
             const finalItems = items.map((item: any, idx: number) => {
               if (!/[\u0600-\u06FF]/.test(item.textAr) && fallbackItems[idx]) {
-                return { ...item, textAr: fallbackItems[idx].textAr, categoryAr: fallbackItems[idx].categoryAr }
+                return {
+                  ...item,
+                  textAr: fallbackItems[idx].textAr,
+                  categoryAr: fallbackItems[idx].categoryAr,
+                  textFr: fallbackItems[idx].textFr,
+                  categoryFr: fallbackItems[idx].categoryFr,
+                }
               }
               return item
             })
@@ -190,21 +215,21 @@ export async function GET() {
 
 function getFallbackNews() {
   return [
-    { category: 'Fed', categoryAr: 'الاحتياطي', color: '#d4af37', bgColor: '#d4af3712', text: 'Federal Reserve signals potential rate cuts in Q3', textAr: 'الاحتياطي الفيدرالي يشير إلى خفض محتمل للفائدة في الربع الثالث', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Forex', categoryAr: 'فوركس', color: '#0d9488', bgColor: '#0d948812', text: 'EUR/USD breaks key resistance at 1.0850', textAr: 'اليورو/دولار يكسر مقاومة مهمة عند 1.0850', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
-    { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin surges past $67K amid ETF inflows', textAr: 'بيتكوين يرتفع بقوة فوق 67 ألف دولار بفعل تدفقات صناديق ETF', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Metals', categoryAr: 'معادن', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold consolidates above $2,340', textAr: 'الذهب يستقر فوق 2,340 دولار', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
-    { category: 'Stocks', categoryAr: 'أسهم', color: '#3b82f6', bgColor: '#3b82f612', text: 'S&P 500 reaches new all-time high', textAr: 'إس آند بي 500 يصل إلى أعلى مستوى تاريخي جديد', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Oil', categoryAr: 'نفط', color: '#6b7280', bgColor: '#6b728012', text: 'Crude oil drops amid demand concerns', textAr: 'النفط الخام ينخفض بفعل مخاوف الطلب', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
-    { category: 'Economy', categoryAr: 'اقتصاد', color: '#8b5cf6', bgColor: '#8b5cf612', text: 'US GDP growth exceeds expectations', textAr: 'نمو الناتج المحلي الأمريكي يفوق التوقعات', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Ethereum network upgrade could boost DeFi adoption', textAr: 'ترقية شبكة إيثيريوم قد تعزز تبني DeFi', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Regulation', categoryAr: 'تنظيم', color: '#8b5cf6', bgColor: '#8b5cf612', text: 'Regulatory crackdown on crypto exchanges intensifies', textAr: 'تشديد الرقابة على منصات تداول العملات المشفرة', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Solana ecosystem growth accelerates with new partnerships', textAr: 'نمو منظومة سولانا يتسارع بشراكات جديدة', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
-    { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'XRP sees 30% surge as traders withdraw 35M tokens from exchanges', textAr: 'XRP يرتفع 30% مع سحب المتداولين 35 مليون توكن من المنصات', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Fed', categoryAr: 'الاحتياطي', color: '#d4af37', bgColor: '#d4af3712', text: 'Fed holds rates steady, hints at future cuts', textAr: 'الاحتياطي الفيدرالي يثبت الفائدة ويلوح بخفض مستقبلي', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Crypto', categoryAr: 'كريبتو', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin spot ETFs see 9-day inflow streak as investors show resilience', textAr: 'صناديق بيتكوين تسجل تدفقات لـ 9 أيام متتالية مع صمود المستثمرين', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Metals', categoryAr: 'معادن', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold hits new record above $2,400 on geopolitical tensions', textAr: 'الذهب يصل لقياسي جديد فوق 2,400 دولار بفعل التوترات الجيوسياسية', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
-    { category: 'Stocks', categoryAr: 'أسهم', color: '#3b82f6', bgColor: '#3b82f612', text: 'NVIDIA surpasses $2T market cap on AI chip demand', textAr: 'NVIDIA تتجاوز 2 تريليون دولار بفعل الطلب على رقائق AI', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Fed', categoryAr: 'الاحتياطي', categoryFr: 'Fed', color: '#d4af37', bgColor: '#d4af3712', text: 'Federal Reserve signals potential rate cuts in Q3', textAr: 'الاحتياطي الفيدرالي يشير إلى خفض محتمل للفائدة في الربع الثالث', textFr: 'Federal Reserve signals potential rate cuts in Q3', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Forex', categoryAr: 'فوركس', categoryFr: 'Forex', color: '#0d9488', bgColor: '#0d948812', text: 'EUR/USD breaks key resistance at 1.0850', textAr: 'اليورو/دولار يكسر مقاومة مهمة عند 1.0850', textFr: 'EUR/USD breaks key resistance at 1.0850', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
+    { category: 'Crypto', categoryAr: 'كريبتو', categoryFr: 'Crypto', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin surges past $67K amid ETF inflows', textAr: 'بيتكوين يرتفع بقوة فوق 67 ألف دولار بفعل تدفقات صناديق ETF', textFr: 'Bitcoin surges past $67K amid ETF inflows', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Metals', categoryAr: 'معادن', categoryFr: 'Matières premières', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold consolidates above $2,340', textAr: 'الذهب يستقر فوق 2,340 دولار', textFr: 'Gold consolidates above $2,340', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
+    { category: 'Stocks', categoryAr: 'أسهم', categoryFr: 'Actions', color: '#3b82f6', bgColor: '#3b82f612', text: 'S&P 500 reaches new all-time high', textAr: 'إس آند بي 500 يصل إلى أعلى مستوى تاريخي جديد', textFr: 'S&P 500 reaches new all-time high', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Oil', categoryAr: 'نفط', categoryFr: 'Matières premières', color: '#6b7280', bgColor: '#6b728012', text: 'Crude oil drops amid demand concerns', textAr: 'النفط الخام ينخفض بفعل مخاوف الطلب', textFr: 'Crude oil drops amid demand concerns', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
+    { category: 'Economy', categoryAr: 'اقتصاد', categoryFr: 'Économie', color: '#8b5cf6', bgColor: '#8b5cf612', text: 'US GDP growth exceeds expectations', textAr: 'نمو الناتج المحلي الأمريكي يفوق التوقعات', textFr: 'US GDP growth exceeds expectations', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Crypto', categoryAr: 'كريبتو', categoryFr: 'Crypto', color: '#f97316', bgColor: '#f9731612', text: 'Ethereum network upgrade could boost DeFi adoption', textAr: 'ترقية شبكة إيثيريوم قد تعزز تبني DeFi', textFr: 'Ethereum network upgrade could boost DeFi adoption', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Regulation', categoryAr: 'تنظيم', categoryFr: 'Réglementation', color: '#8b5cf6', bgColor: '#8b5cf612', text: 'Regulatory crackdown on crypto exchanges intensifies', textAr: 'تشديد الرقابة على منصات تداول العملات المشفرة', textFr: 'Regulatory crackdown on crypto exchanges intensifies', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Crypto', categoryAr: 'كريبتو', categoryFr: 'Crypto', color: '#f97316', bgColor: '#f9731612', text: 'Solana ecosystem growth accelerates with new partnerships', textAr: 'نمو منظومة سولانا يتسارع بشراكات جديدة', textFr: 'Solana ecosystem growth accelerates with new partnerships', link: null, publishedAt: null, impact: 'medium', source: 'Fallback' },
+    { category: 'Crypto', categoryAr: 'كريبتو', categoryFr: 'Crypto', color: '#f97316', bgColor: '#f9731612', text: 'XRP sees 30% surge as traders withdraw 35M tokens from exchanges', textAr: 'XRP يرتفع 30% مع سحب المتداولين 35 مليون توكن من المنصات', textFr: 'XRP sees 30% surge as traders withdraw 35M tokens from exchanges', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Fed', categoryAr: 'الاحتياطي', categoryFr: 'Fed', color: '#d4af37', bgColor: '#d4af3712', text: 'Fed holds rates steady, hints at future cuts', textAr: 'الاحتياطي الفيدرالي يثبت الفائدة ويلوح بخفض مستقبلي', textFr: 'Fed holds rates steady, hints at future cuts', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Crypto', categoryAr: 'كريبتو', categoryFr: 'Crypto', color: '#f97316', bgColor: '#f9731612', text: 'Bitcoin spot ETFs see 9-day inflow streak as investors show resilience', textAr: 'صناديق بيتكوين تسجل تدفقات لـ 9 أيام متتالية مع صمود المستثمرين', textFr: 'Bitcoin spot ETFs see 9-day inflow streak as investors show resilience', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Metals', categoryAr: 'معادن', categoryFr: 'Matières premières', color: '#f59e0b', bgColor: '#f59e0b12', text: 'Gold hits new record above $2,400 on geopolitical tensions', textAr: 'الذهب يصل لقياسي جديد فوق 2,400 دولار بفعل التوترات الجيوسياسية', textFr: 'Gold hits new record above $2,400 on geopolitical tensions', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
+    { category: 'Stocks', categoryAr: 'أسهم', categoryFr: 'Actions', color: '#3b82f6', bgColor: '#3b82f612', text: 'NVIDIA surpasses $2T market cap on AI chip demand', textAr: 'NVIDIA تتجاوز 2 تريليون دولار بفعل الطلب على رقائق AI', textFr: 'NVIDIA surpasses $2T market cap on AI chip demand', link: null, publishedAt: null, impact: 'high', source: 'Fallback' },
   ]
 }
 
@@ -230,9 +255,38 @@ function mapCategoryToEnglish(category: string) {
     'كريبتو': 'Crypto', 'بيتكوين': 'Bitcoin', 'إيثيريوم': 'Ethereum',
     'فوركس': 'Forex', 'أسهم': 'Stocks', 'معادن': 'Metals', 'نفط': 'Oil',
     'اقتصاد': 'Economy', 'تنظيم': 'Regulation', 'الاحتياطي الفيدرالي': 'Fed',
-    'صناديق': 'ETF', 'تقنية': 'Tech', 'أسواق': 'Markets', 'طاقة': 'Energy',
+    'صناديق': 'ETF', 'تقنية': 'Technology', 'أسواق': 'Markets', 'طاقة': 'Energy',
+    'تشفير': 'Crypto', 'سلع': 'Commodities', 'سياسة': 'Politics',
+    'رياضة': 'Sports', 'عام': 'General',
   }
   return arToEn[category] || 'Markets'
+}
+
+function mapCategoryToFrench(category: string) {
+  // Map English or Arabic category to French
+  // First normalize: if Arabic, convert to English first
+  let normalizedCat = category
+  if (/[\u0600-\u06FF]/.test(category)) {
+    normalizedCat = mapCategoryToEnglish(category)
+  }
+
+  const normalized = normalizedCat.toLowerCase()
+
+  if (normalized.includes('economy') || normalized.includes('macro')) return 'Économie'
+  if (normalized.includes('technology') || normalized.includes('tech')) return 'Technologie'
+  if (normalized.includes('crypto') || normalized.includes('bitcoin') || normalized.includes('ethereum')) return 'Crypto'
+  if (normalized.includes('forex') || normalized.includes('currency')) return 'Forex'
+  if (normalized.includes('commodit') || normalized.includes('metal') || normalized.includes('gold') || normalized.includes('oil')) return 'Matières premières'
+  if (normalized.includes('stock') || normalized.includes('market')) return 'Actions'
+  if (normalized.includes('politic')) return 'Politique'
+  if (normalized.includes('sport')) return 'Sport'
+  if (normalized.includes('general')) return 'Général'
+  if (normalized.includes('defi')) return 'DeFi'
+  if (normalized.includes('regulation') || normalized.includes('policy')) return 'Réglementation'
+  if (normalized.includes('etf') || normalized.includes('fund')) return 'ETF'
+  if (normalized.includes('fed')) return 'Fed'
+  if (normalized.includes('energy')) return 'Énergie'
+  return 'Général'
 }
 
 function mapCategoryColor(category: string) {

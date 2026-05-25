@@ -93,7 +93,7 @@ export default function NeuralPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ symbol, architecture, horizon, lookbackDays: 90, language: locale }),
+        body: JSON.stringify({ symbol, architecture, horizon, lookbackDays: 90, language: locale === 'ar' ? 'ar' : 'en' }),
       });
       const data = await res.json();
       if (data.success) {
@@ -118,7 +118,7 @@ export default function NeuralPanel() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ symbol, steps, horizon, includeConfidence: true, language: locale }),
+        body: JSON.stringify({ symbol, steps, horizon, includeConfidence: true, language: locale === 'ar' ? 'ar' : 'en' }),
       });
 
       const data = await res.json();

@@ -232,9 +232,6 @@ function getNestJSStatus() {
  * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
-  // FIX: Declare language BEFORE try block so it's accessible in catch.
-  // Previously, if req.json() failed, `language` was undefined in the catch
-  // block → ReferenceError crash on every malformed request.
   let language: 'ar' | 'en' = 'ar'
   try {
     const body = await req.json()
@@ -254,10 +251,9 @@ export async function POST(req: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     // FIX: Removed self-referencing target (`${origin}/api/health`...) that caused
     // circular calls — Next.js calling itself instead of NestJS backend.
-    // FIX: Removed duplicate 'http://127.0.0.1:3001' entry that caused redundant
-    // connection attempts to the same NestJS backend.
     const apiTargets = [
       process.env.API_INTERNAL_URL,
+      'http://127.0.0.1:3001',
       'http://127.0.0.1:3001',
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
 
@@ -771,9 +767,7 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (error: any) {
-    // FIX: language is now declared before the try block, so it's always available.
-    const errorLang: 'ar' | 'en' = language;
-    const l3e = L3(errorLang)
+    const l3e = L3(language)
     return NextResponse.json(
       {
         success: true,

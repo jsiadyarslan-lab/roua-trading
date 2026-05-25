@@ -7,10 +7,12 @@ import { useTranslations, useLocale } from 'next-intl'
 interface NewsItem {
   category: string
   categoryAr: string
+  categoryFr: string
   color: string
   bgColor: string
   text: string
   textAr: string
+  textFr: string
   impact: 'high' | 'medium'
 }
 
@@ -34,12 +36,19 @@ export default function NewsTicker() {
       if (response.ok) {
         const data = await response.json()
         if (Array.isArray(data) && data.length > 0) {
-          const errorPatterns = [
+          const errorPatternsAr = [
             '⚠️ جميع نماذج الذكاء الاصطناعي غير متاحة',
             'التحليل غير متاح حالياً',
             'يرجى التحقق من مفاتيح API',
             'يرجى المحاولة لاحقاً',
           ];
+          const errorPatternsEn = [
+            'All AI models unavailable',
+            'Analysis currently unavailable',
+            'Please check API keys',
+            'Please try again later',
+          ];
+          const errorPatterns = isAr ? errorPatternsAr : [...errorPatternsAr, ...errorPatternsEn];
           const mapped: NewsItem[] = data.slice(0, 15)
             .filter((item: any) => {
               // Filter out articles with AI error messages
@@ -47,18 +56,21 @@ export default function NewsTicker() {
               const content = (item.translatedContent || '') + (item.content || '');
               return !errorPatterns.some(p => title.includes(p) || content.includes(p));
             })
-            // Filter out Arabic-only articles (no English text)
+            // Filter out Arabic-only articles for non-Arabic locales
             .filter((item: any) => {
+              if (isAr) return true; // Arabic users want Arabic news
               const text = item.text || item.headline || item.title || '';
               return text && !/[\u0600-\u06FF]/.test(text);
             })
             .map((item: any) => ({
             category: item.category || 'General',
             categoryAr: item.categoryAr || item.category || 'Markets',
+            categoryFr: item.categoryFr || item.category || 'Général',
             color: item.color || '#8B92A8',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
             textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
+            textFr: item.textFr || item.translatedTitleFr || item.text || item.headline || item.title || '',
             impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
           }))
           if (mapped.length > 0) setNewsItems(mapped)
@@ -85,15 +97,12 @@ export default function NewsTicker() {
     }
   }, [newsItems])
 
-  const renderNewsItem = (item: NewsItem, index: number) => {
-    const displayText = isAr && item.textAr ? item.textAr : item.text
-    const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
-    return (
+  const renderNewsItem = (item: NewsItem, index: number) => (
     <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
-      <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
-        {displayCat}
+      <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
+        {locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : item.category}
       </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)', fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : undefined }}>{displayText}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : item.text}</span>
       <span className="text-[10px]">
         {item.impact === 'high' ? (
           <span style={{ color: 'var(--loss)' }}>●</span>
@@ -102,8 +111,7 @@ export default function NewsTicker() {
         )}
       </span>
     </div>
-    )
-  }
+  )
 
   return (
     <div style={{ gridArea: 'news' }} className="flex items-center overflow-hidden">

@@ -17,11 +17,14 @@ import { getLocale, getTranslations } from 'next-intl/server'
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
   const isAr = locale === 'ar'
+  const isFr = locale === 'fr'
   return {
-    title: isAr ? 'رؤى | منصة ربط الحسابات الاحترافية' : 'Roua | Professional Account Linking Platform',
+    title: isAr ? 'رؤى | منصة ربط الحسابات الاحترافية' : isFr ? 'Roua | Plateforme professionnelle de liaison de comptes' : 'Roua | Professional Account Linking Platform',
     description: isAr
       ? 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform'
-      : 'Roua platform for linking and monitoring smart accounts - AI analytics and trading signals',
+      : isFr
+        ? 'Plateforme Roua pour la liaison et le suivi intelligents de comptes - analyses IA et signaux de trading'
+        : 'Roua platform for linking and monitoring smart accounts - AI analytics and trading signals',
     manifest: '/manifest.json',
     applicationName: 'Roua Link',
     icons: {

@@ -28,6 +28,18 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
+type Lang = 'ar' | 'en' | 'fr'
+
+function localizedCategory(item: { category?: string; categoryAr?: string; categoryFr?: string }, locale: Lang): string | undefined {
+  if (locale === 'ar') return item.categoryAr || item.category
+  if (locale === 'fr') return item.categoryFr || item.category
+  return item.category
+}
+
+function t(en: string, ar: string, fr: string, lang: Lang): string {
+  return lang === 'ar' ? ar : lang === 'fr' ? fr : en
+}
+
 /**
  * Extracts clean content from a string that might be raw JSON like {"title": "...", "content": "..."}.
  */
@@ -42,7 +54,7 @@ function extractCleanContent(raw: string): string {
       const values = Object.values(parsed).filter(v => typeof v === 'string' && v.length > 20)
       if (values.length > 0) return String(values.sort((a, b) => (b as string).length - (a as string).length)[0]).trim()
     } catch {
-      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/)
       if (contentMatch?.[1]) {
         try { return JSON.parse(`"${contentMatch[1]}"`) } catch { return contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
       }
@@ -69,6 +81,7 @@ type NewsItem = {
   affectedAssets?: string[]
   category?: string
   categoryAr?: string
+  categoryFr?: string
   publishedAt?: string
   slug?: string
   newsType?: string
@@ -88,7 +101,7 @@ export default function NewsArticlePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const slug = params.slug as string
-  const lang = searchParams.get('lang') || 'en' // Default to English matching the news page default
+  const lang = (searchParams.get('lang') || 'en') as Lang // Default to English matching the news page default
 
   const [article, setArticle] = useState<NewsItem | null>(null)
   const [loading, setLoading] = useState(true)
@@ -115,13 +128,13 @@ export default function NewsArticlePage() {
           if (found) {
             setArticle(found)
           } else {
-            setError(lang === 'en' ? 'Article not found' : 'لم يتم العثور على الخبر')
+            setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', lang))
           }
         } else {
-          setError(lang === 'en' ? 'Article not found' : 'لم يتم العثور على الخبر')
+          setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', lang))
         }
       } catch {
-        setError(lang === 'en' ? 'Failed to load article' : 'تعذر تحميل الخبر')
+        setError(t('Failed to load article', 'تعذر تحميل الخبر', 'Impossible de charger l\'article', lang))
       } finally {
         setLoading(false)
       }
@@ -134,7 +147,7 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.text2, fontSize: 14 }}>{lang === 'en' ? 'Loading article...' : 'جارٍ تحميل الخبر...'}</p>
+          <p style={{ color: T.text2, fontSize: 14 }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', lang)}</p>
         </div>
       </div>
     )
@@ -145,8 +158,8 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (lang === 'en' ? 'Article not found' : 'خبر غير موجود')}</h2>
-          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{lang === 'en' ? 'Back' : 'العودة'}</button>
+          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', lang))}</h2>
+          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', lang)}</button>
         </div>
       </div>
     )
@@ -187,20 +200,20 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={15} />
-            {lang === 'en' ? 'Back' : 'العودة'}
+            {t('Back', 'العودة', 'Retour', lang)}
           </button>
 
           {/* Category badge on image */}
           <div style={{ position: 'absolute', bottom: 20, right: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
-            {(lang === 'en' ? article.category : article.categoryAr) && (
+            {(localizedCategory(article, lang)) && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00E5FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
-                {lang === 'en' ? article.category : article.categoryAr}
+                {localizedCategory(article, lang)}
               </span>
             )}
             {article.newsType === 'live' && (
               <span style={{ fontSize: 10, padding: '4px 10px', borderRadius: 8, background: 'rgba(255,69,58,0.25)', color: '#FF453A', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FF453A', animation: 'pulse-glow 2s infinite' }} />
-                {lang === 'en' ? 'LIVE' : 'مباشر'}
+                {t('LIVE', 'مباشر', 'EN DIRECT', lang)}
               </span>
             )}
           </div>
@@ -223,7 +236,7 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={14} />
-            {lang === 'en' ? 'Back to News' : 'العودة للأخبار'}
+            {t('Back to News', 'العودة للأخبار', 'Retour aux actualités', lang)}
           </button>
         )}
 
@@ -231,9 +244,9 @@ export default function NewsArticlePage() {
         <div style={{ animation: 'fade-in 0.4s ease-out', marginBottom: 28 }}>
           {/* Badges row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {!hasImage && (lang === 'en' ? article.category : article.categoryAr) && (
+            {!hasImage && (localizedCategory(article, lang)) && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, border: `0.5px solid ${T.cyan}22` }}>
-                {lang === 'en' ? article.category : article.categoryAr}
+                {localizedCategory(article, lang)}
               </span>
             )}
             <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -242,7 +255,7 @@ export default function NewsArticlePage() {
             </span>
             {article.impactLevel && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
-                {lang === 'en' ? 'Impact' : 'تأثير'} {article.impactLevel === 'high' ? (lang === 'en' ? 'High' : 'عالي') : article.impactLevel === 'low' ? (lang === 'en' ? 'Low' : 'منخفض') : (lang === 'en' ? 'Medium' : 'متوسط')}
+                {t('Impact', 'تأثير', 'Impact', lang)} {article.impactLevel === 'high' ? t('High', 'عالي', 'Élevé', lang) : article.impactLevel === 'low' ? t('Low', 'منخفض', 'Faible', lang) : t('Medium', 'متوسط', 'Moyen', lang)}
               </span>
             )}
           </div>
@@ -266,7 +279,7 @@ export default function NewsArticlePage() {
                 <Globe size={18} color="#00E5FF" />
               </div>
               <div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (lang === 'en' ? "Ru'aa News" : 'رؤى للأخبار')}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", lang))}</span>
                 <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={10} />
                   {formatTime(article.publishedAt, lang)}
@@ -301,7 +314,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Zap size={16} color={T.green} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{lang === 'en' ? 'Key Takeaways' : 'النقاط الرئيسية'}</span>
+              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', lang)}</span>
               <span style={{ fontSize: 11, color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
             </div>
             <div style={{ padding: '16px 20px' }}>
@@ -330,7 +343,7 @@ export default function NewsArticlePage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <SentimentIcon size={16} color={sentiment.color} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{lang === 'en' ? 'Analysis Summary' : 'ملخص التحليل'}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', lang)}</span>
             </div>
             <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
           </div>
@@ -358,7 +371,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <BarChart3 size={16} color={T.amber} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{lang === 'en' ? 'Affected Assets' : 'الأصول المتأثرة'}</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', lang)}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {article.affectedAssets.map((asset, i) => (
@@ -384,7 +397,7 @@ export default function NewsArticlePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <ShieldAlert size={14} color={T.text3} />
-              {lang === 'en' ? 'Sentiment Analysis' : 'تحليل المشاعر'}
+              {t('Sentiment Analysis', 'تحليل المشاعر', 'Analyse de sentiment', lang)}
             </span>
             <span style={{ fontSize: 14, fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
               <SentimentIcon size={14} />
@@ -399,9 +412,9 @@ export default function NewsArticlePage() {
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Negative' : 'سلبي'}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Neutral' : 'محايد'}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Positive' : 'إيجابي'}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', lang)}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', lang)}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', lang)}</span>
           </div>
         </div>
 
@@ -409,7 +422,7 @@ export default function NewsArticlePage() {
         <div style={{ padding: '16px 18px', borderRadius: 14, background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
           <p style={{ fontSize: 11, color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
-            {lang === 'en' ? 'News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.' : 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.'}
+            {t('News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.', 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.', 'Les actualités et analyses sont fournies à des fins éducatives uniquement et ne constituent pas des conseils en investissement. Tradez de manière responsable.', lang)}
           </p>
         </div>
       </div>
@@ -418,19 +431,19 @@ export default function NewsArticlePage() {
 }
 
 /* ─── Helpers ─── */
-function getSentimentConfig(label?: string, lang?: 'ar' | 'en') {
+function getSentimentConfig(label?: string, lang?: 'ar' | 'en' | 'fr') {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: lang === 'en' ? 'Positive' : 'إيجابي', icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: lang === 'en' ? 'Negative' : 'سلبي', icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: lang === 'en' ? 'Neutral' : 'محايد', icon: Minus }
+    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', lang || 'en'), icon: TrendingUp }
+    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', lang || 'en'), icon: TrendingDown }
+    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', lang || 'en'), icon: Minus }
   }
 }
 
-function formatTime(value?: string | null, lang?: 'ar' | 'en') {
+function formatTime(value?: string | null, lang?: 'ar' | 'en' | 'fr') {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString(lang === 'en' ? 'en-US' : 'ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleString(lang === 'ar' ? 'ar-SA' : lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 /**

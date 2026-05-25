@@ -95,7 +95,7 @@ export default function OptimizerPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
-          language: locale,
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       });
 

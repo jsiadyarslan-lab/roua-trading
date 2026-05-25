@@ -156,7 +156,7 @@ const FILTER_TAB_KEYS: { id: FilterTab; labelKey: string }[] = [
    Arabic Time Formatting
    ═══════════════════════════════════════════════════════════ */
 
-function formatTimeAgo(date: Date, t: (key: string) => string): string {
+function formatTimeAgo(date: Date, t: (key: string, vars?: Record<string, string | number>) => string): string {
   const now = new Date()
   const diffMs = now.getTime() - date.getTime()
   const diffSec = Math.floor(diffMs / 1000)

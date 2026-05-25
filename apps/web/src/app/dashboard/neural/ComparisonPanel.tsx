@@ -96,7 +96,7 @@ export default function ComparisonPanel() {
           symbol,
           periodStart,
           periodEnd,
-          language: locale,
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       });
 

@@ -37,7 +37,7 @@ export function CrosshairOverlay({
   showCandleTimer = true,
 }: CrosshairOverlayProps) {
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
   // Get current OHLC from last candle when crosshair is not active
   const lastCandle = candles[candles.length - 1];
   const displayData = crosshairData || (lastCandle ? {

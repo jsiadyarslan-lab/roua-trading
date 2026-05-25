@@ -121,7 +121,7 @@ export default function BacktestPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
-          language: locale,
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       });
 
@@ -152,7 +152,7 @@ export default function BacktestPanel() {
           periodStart,
           periodEnd,
           initialCapital: capital,
-          language: locale,
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       });
       const data = await res.json();
@@ -179,7 +179,7 @@ export default function BacktestPanel() {
           format,
           reportType: t('backtestReportType'),
           reportData: result,
-          language: locale,
+          language: locale === 'ar' ? 'ar' : 'en',
         }),
       });
 

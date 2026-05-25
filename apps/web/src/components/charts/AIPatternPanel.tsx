@@ -159,7 +159,7 @@ export function AIPatternPanel({
 }: AIPatternPanelProps) {
   const t = useTranslations('aiPatternPanel');
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
@@ -577,17 +577,6 @@ export function AIPatternPanel({
       setEngineRunning(false);
     }
   };
-
-  // FIX: Cleanup AbortControllers on unmount to prevent memory leaks and
-  // stale callbacks. Previously, if the user closed the AI panel while an
-  // API request was in-flight, the response would still be processed,
-  // potentially calling onPatternsDetected on an unmounted component.
-  useEffect(() => {
-    return () => {
-      abortRef.current?.abort();
-      entryAbortRef.current?.abort();
-    };
-  }, []);
 
   const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
     { key: 'patterns', label: t('tabPatterns'), icon: '🕯', count: patterns.length },

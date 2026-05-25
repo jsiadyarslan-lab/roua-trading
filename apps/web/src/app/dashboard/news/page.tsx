@@ -43,6 +43,20 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
+type Lang = 'ar' | 'en' | 'fr'
+
+/** Localised category: falls back to English when the translated field is missing */
+function localizedCategory(item: { category?: string; categoryAr?: string; categoryFr?: string }, locale: Lang): string | undefined {
+  if (locale === 'ar') return item.categoryAr || item.category
+  if (locale === 'fr') return item.categoryFr || item.category
+  return item.category
+}
+
+/** Tiny i18n helper – keeps ternaries readable with three languages */
+function t(en: string, ar: string, fr: string, lang: Lang): string {
+  return lang === 'ar' ? ar : lang === 'fr' ? fr : en
+}
+
 /**
  * Extracts clean content from a string that might be raw JSON like {"title": "...", "content": "..."}.
  * The AI sometimes returns JSON that fails to parse on the backend, so the raw JSON ends up in the content field.
@@ -61,11 +75,11 @@ function extractCleanContent(raw: string): string {
       if (values.length > 0) return String(values.sort((a, b) => (b as string).length - (a as string).length)[0]).trim()
     } catch {
       // Try regex extraction for malformed JSON
-      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/)
       if (contentMatch?.[1]) {
         try { return JSON.parse(`"${contentMatch[1]}"`) } catch { return contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
       }
-      const textMatch = trimmed.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      const textMatch = trimmed.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/)
       if (textMatch?.[1]) {
         try { return JSON.parse(`"${textMatch[1]}"`) } catch { return textMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
       }
@@ -85,7 +99,7 @@ function extractCleanTitle(raw: string): string {
       const parsed = JSON.parse(trimmed)
       if (parsed.title) return String(parsed.title).trim()
     } catch {
-      const titleMatch = trimmed.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      const titleMatch = trimmed.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/)
       if (titleMatch?.[1]) {
         try { return JSON.parse(`"${titleMatch[1]}"`) } catch { return titleMatch[1].replace(/\\"/g, '"') }
       }
@@ -112,6 +126,7 @@ type NewsItem = {
   affectedAssets?: string[]
   category?: string
   categoryAr?: string
+  categoryFr?: string
   aiAnalysis?: string
   publishedAt?: string
   newsType?: string
@@ -167,6 +182,7 @@ const CATEGORIES_AR = [
   { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: '#B388FF' },
 ] as const
 
+
 const CATEGORIES_EN = [
   { id: 'all', label: 'All', icon: '📋', color: T.cyan },
   { id: 'Economy', label: 'Economy', icon: '🏛️', color: T.purple },
@@ -175,6 +191,16 @@ const CATEGORIES_EN = [
   { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
   { id: 'Commodities', label: 'Commodities', icon: '🛢️', color: T.amber },
   { id: 'Technology', label: 'Tech', icon: '💻', color: '#B388FF' },
+] as const
+
+const CATEGORIES_FR = [
+  { id: 'all', label: 'Tout', icon: '📋', color: T.cyan },
+  { id: 'Économie', label: 'Économie', icon: '🏛️', color: T.purple },
+  { id: 'Crypto', label: 'Crypto', icon: '₿', color: '#F7931A' },
+  { id: 'Actions', label: 'Actions', icon: '📈', color: T.green },
+  { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
+  { id: 'Matières premières', label: 'Matières', icon: '🛢️', color: T.amber },
+  { id: 'Technologie', label: 'Tech', icon: '💻', color: '#B388FF' },
 ] as const
 
 export default function NewsPage() {
@@ -207,7 +233,7 @@ export default function NewsPage() {
   const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'analysis'>(
     searchParams.get('tab') === 'analysis' ? 'analysis' : initialTab
   )
-  const [newsLang, setNewsLang] = useState<'ar' | 'en'>('en')
+  const [newsLang, setNewsLang] = useState<'ar' | 'en' | 'fr'>('en')
 
   // Analysis tab state
   const [analyses, setAnalyses] = useState<any[]>([])
@@ -226,11 +252,11 @@ export default function NewsPage() {
         setItems(data.data)
       } else {
         setItems([])
-        setFetchError(newsLang === 'en' ? 'No news found' : 'لم يتم العثور على أخبار')
+        setFetchError(t('No news found', 'لم يتم العثور على أخبار', 'Aucune actualité trouvée', newsLang))
       }
     } catch {
       setItems([])
-      setFetchError(newsLang === 'en' ? 'Unable to connect to news server' : 'تعذر الاتصال بخادم الأخبار')
+      setFetchError(t('Unable to connect to news server', 'تعذر الاتصال بخادم الأخبار', 'Impossible de se connecter au serveur', newsLang))
     } finally {
       setLoading(false)
       setRefreshing(false)
@@ -314,7 +340,7 @@ export default function NewsPage() {
   const filteredItems = useMemo(() => {
     let filtered = items
     if (activeCategory !== 'all') {
-      filtered = filtered.filter(i => i.categoryAr === activeCategory || i.category === activeCategory)
+      filtered = filtered.filter(i => i.categoryAr === activeCategory || i.categoryFr === activeCategory || i.category === activeCategory)
     }
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
@@ -351,7 +377,7 @@ export default function NewsPage() {
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{newsLang === 'en' ? 'News Room' : 'غرفة الأخبار'}</h1>
+                <h1 style={{ margin: 0, fontSize: 24, fontWeight: 900, color: T.text }}>{t('News Room', 'غرفة الأخبار', 'Salle de presse', newsLang)}</h1>
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 5,
                   padding: '3px 10px', borderRadius: 20,
@@ -362,7 +388,7 @@ export default function NewsPage() {
                 </div>
               </div>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: T.text3 }}>
-                {newsLang === 'en' ? 'Financial news & analysis from Ru\'aa' : 'أخبار وتحليلات مالية من رؤى'} — {stats.total} {newsLang === 'en' ? 'articles' : 'خبر'}
+                {t("Financial news & analysis from Ru'aa", 'أخبار وتحليلات مالية من رؤى', "Actualités et analyses financières de Ru'aa", newsLang)} — {stats.total} {t('articles', 'خبر', 'articles', newsLang)}
               </p>
             </div>
             <button onClick={handleRefresh} disabled={refreshing} style={{
@@ -373,7 +399,7 @@ export default function NewsPage() {
               fontFamily: FONT_AR, fontWeight: 700,
             }}>
               <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
-              {newsLang === 'en' ? 'Refresh' : 'تحديث'}
+              {t('Refresh', 'تحديث', 'Actualiser', newsLang)}
             </button>
             {/* Language Toggle */}
             <div style={{
@@ -406,6 +432,19 @@ export default function NewsPage() {
               >
                 English
               </button>
+              <button
+                onClick={() => setNewsLang('fr')}
+                style={{
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  fontFamily: FONT_AR, cursor: 'pointer',
+                  border: 'none', borderInlineStart: `1px solid ${T.border}`,
+                  background: newsLang === 'fr' ? `${T.cyan}18` : T.card,
+                  color: newsLang === 'fr' ? T.cyan : T.text3,
+                  transition: 'all 0.2s',
+                }}
+              >
+                Français
+              </button>
             </div>
           </div>
         </div>
@@ -417,9 +456,9 @@ export default function NewsPage() {
           marginBottom: 20,
         }}>
           {[
-            { id: 'news' as const, label: newsLang === 'en' ? 'News' : 'الأخبار', icon: Newspaper, color: T.cyan },
-            { id: 'reports' as const, label: newsLang === 'en' ? 'Reports' : 'التقارير', icon: BarChart2, color: T.amber },
-            { id: 'analysis' as const, label: newsLang === 'en' ? 'Technical Analysis' : 'تحليلات فنية', icon: LineChart, color: T.green },
+            { id: 'news' as const, label: t('News', 'الأخبار', 'Actualités', newsLang), icon: Newspaper, color: T.cyan },
+            { id: 'reports' as const, label: t('Reports', 'التقارير', 'Rapports', newsLang), icon: BarChart2, color: T.amber },
+            { id: 'analysis' as const, label: t('Technical Analysis', 'تحليلات فنية', 'Analyse technique', newsLang), icon: LineChart, color: T.green },
           ].map(tab => (
             <button
               key={tab.id}
@@ -468,7 +507,7 @@ export default function NewsPage() {
               <Search size={16} color={T.text3} />
               <input
                 type="text"
-                placeholder={newsLang === 'en' ? 'Search news...' : 'بحث في الأخبار...'}
+                placeholder={t('Search news...', 'بحث في الأخبار...', 'Rechercher des actualités...', newsLang)}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
@@ -484,9 +523,9 @@ export default function NewsPage() {
               overflowX: 'auto', paddingBottom: 4,
               scrollbarWidth: 'none', msOverflowStyle: 'none',
             }}>
-              {(newsLang === 'en' ? CATEGORIES_EN : CATEGORIES_AR).map(cat => {
+              {(newsLang === 'fr' ? CATEGORIES_FR : newsLang === 'en' ? CATEGORIES_EN : CATEGORIES_AR).map(cat => {
                 const isActive = activeCategory === cat.id
-                const count = cat.id === 'all' ? items.length : items.filter(i => i.categoryAr === cat.id || i.category === cat.id).length
+                const count = cat.id === 'all' ? items.length : items.filter(i => i.categoryAr === cat.id || i.categoryFr === cat.id || i.category === cat.id).length
                 return (
                   <button
                     key={cat.id}
@@ -530,7 +569,7 @@ export default function NewsPage() {
                 borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
               }}>
                 <RefreshCw size={28} color={T.cyan} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Loading news from Ru\'aa...' : 'جارٍ تحميل الأخبار من رؤى...'}</p>
+                <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t("Loading news from Ru'aa...", 'جارٍ تحميل الأخبار من رؤى...', "Chargement des actualités de Ru'aa...", newsLang)}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div style={{
@@ -538,8 +577,8 @@ export default function NewsPage() {
                 borderRadius: 20, padding: '40px 32px', textAlign: 'center',
               }}>
                 <Newspaper size={34} color={T.cyan} style={{ marginBottom: 14 }} />
-                <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{newsLang === 'en' ? 'No matching news' : 'لا توجد أخبار مطابقة'}</h2>
-                <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{newsLang === 'en' ? 'Change the category or search' : 'غيّر التصنيف أو البحث'}</p>
+                <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No matching news', 'لا توجد أخبار مطابقة', 'Aucune actualité correspondante', newsLang)}</h2>
+                <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{t('Change the category or search', 'غيّر التصنيف أو البحث', 'Changez la catégorie ou la recherche', newsLang)}</p>
               </div>
             ) : (
               /* News Grid */
@@ -580,7 +619,7 @@ function HeroSlider({
   currentSlide: number
   setCurrentSlide: (n: number) => void
   onArticleClick: (slug: string, id: string) => void
-  newsLang: 'ar' | 'en'
+  newsLang: 'ar' | 'en' | 'fr'
 }) {
   const item = items[currentSlide]
   if (!item) return null
@@ -606,9 +645,9 @@ function HeroSlider({
       }} onClick={() => onArticleClick(item.slug || '', item.id)}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          {(newsLang === 'en' ? item.category : item.categoryAr) && (
+          {(localizedCategory(item, newsLang)) && (
             <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: `${T.cyan}22`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
-              {newsLang === 'en' ? item.category : item.categoryAr}
+              {localizedCategory(item, newsLang)}
             </span>
           )}
           <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
@@ -683,7 +722,7 @@ function HeroSlider({
 /* ═══════════════════════════════════════════
    News Card Component
    ═══════════════════════════════════════════ */
-function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: number; onClick: () => void; newsLang: 'ar' | 'en' }) {
+function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: number; onClick: () => void; newsLang: 'ar' | 'en' | 'fr' }) {
   const displayTitle = item.translatedTitle || item.title
   const sentiment = getSentimentBadge(item.sentimentLabel, newsLang)
   const SentimentIcon = sentiment.icon
@@ -711,9 +750,9 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
       <div style={{ padding: '16px 18px' }}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
-          {(newsLang === 'en' ? item.category : item.categoryAr) && (
+          {(localizedCategory(item, newsLang)) && (
             <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
-              {newsLang === 'en' ? item.category : item.categoryAr}
+              {localizedCategory(item, newsLang)}
             </span>
           )}
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
@@ -740,16 +779,16 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
         {Array.isArray(item.keyTakeaways) && item.keyTakeaways.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
             <Zap size={10} color={T.green} style={{ flexShrink: 0, marginTop: 2 }} />
-            <span style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {newsLang === 'en' ? 'key points' : 'نقاط رئيسية'}</span>
+            <span style={{ fontSize: 10, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>{item.keyTakeaways.length} {t('key points', 'نقاط رئيسية', 'points clés', newsLang)}</span>
           </div>
         )}
 
         {/* Source */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Globe size={11} color={T.text3} />
-          <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{item.source || (newsLang === 'en' ? "Ru'aa News" : 'رؤى للأخبار')}</span>
+          <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{item.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", newsLang))}</span>
           {item.fullContent && item.fullContent.length > 10 && (
-            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.cyan}10`, color: T.cyan, fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{newsLang === 'en' ? 'Full Analysis' : 'تحليل كامل'}</span>
+            <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.cyan}10`, color: T.cyan, fontWeight: 700, fontFamily: FONT_AR, marginInlineStart: 'auto' }}>{t('Full Analysis', 'تحليل كامل', 'Analyse complète', newsLang)}</span>
           )}
         </div>
       </div>
@@ -760,14 +799,14 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
 /* ═══════════════════════════════════════════
    Reports Tab Component
    ═══════════════════════════════════════════ */
-function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loading: boolean; newsLang: 'ar' | 'en' }) {
+function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loading: boolean; newsLang: 'ar' | 'en' | 'fr' }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   if (loading) {
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
         <RefreshCw size={28} color={T.amber} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Loading reports...' : 'جارٍ تحميل التقارير...'}</p>
+        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t('Loading reports...', 'جارٍ تحميل التقارير...', 'Chargement des rapports...', newsLang)}</p>
       </div>
     )
   }
@@ -776,8 +815,8 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '40px 32px', textAlign: 'center' }}>
         <BarChart2 size={34} color={T.amber} style={{ marginBottom: 14 }} />
-        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{newsLang === 'en' ? 'No reports available' : 'لا توجد تقارير حالياً'}</h2>
-        <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{newsLang === 'en' ? 'Analyzed reports will appear here when available' : 'ستظهر التقارير المحللة هنا عند توفرها'}</p>
+        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No reports available', 'لا توجد تقارير حالياً', 'Aucun rapport disponible', newsLang)}</h2>
+        <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{t('Analyzed reports will appear here when available', 'ستظهر التقارير المحللة هنا عند توفرها', 'Les rapports analysés apparaîtront ici', newsLang)}</p>
       </div>
     )
   }
@@ -795,7 +834,7 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
             <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <FileText size={16} color={T.amber} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{newsLang === 'en' ? 'Strategic Economic Reports' : 'تقارير اقتصادية استراتيجية'}</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{t('Strategic Economic Reports', 'تقارير اقتصادية استراتيجية', 'Rapports économiques stratégiques', newsLang)}</h2>
             <span style={{ fontSize: 11, color: T.text3, fontFamily: FONT_AR }}>({economicReports.length})</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -813,7 +852,7 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
             <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.cyan}14`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <BarChart2 size={16} color={T.cyan} />
             </div>
-            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{newsLang === 'en' ? 'Market Analysis' : 'تحليلات السوق'}</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{t('Market Analysis', 'تحليلات السوق', 'Analyse du marché', newsLang)}</h2>
             <span style={{ fontSize: 11, color: T.text3, fontFamily: FONT_AR }}>({analysisReports.length})</span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
@@ -827,31 +866,31 @@ function ReportsTab({ reports, loading, newsLang }: { reports: ReportItem[]; loa
   )
 }
 
-function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: ReportItem; index: number; expanded: boolean; onToggle: () => void; newsLang: 'ar' | 'en' }) {
+function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: ReportItem; index: number; expanded: boolean; onToggle: () => void; newsLang: 'ar' | 'en' | 'fr' }) {
   const [imgError, setImgError] = useState(false)
   const categoryMap: Record<string, { label: string; color: string; icon: string }> = {
-    'strategic': { label: newsLang === 'en' ? 'Strategic' : 'استراتيجي', color: T.amber, icon: '🎯' },
-    'daily': { label: newsLang === 'en' ? 'Daily' : 'يومي', color: T.cyan, icon: '📅' },
-    'earnings': { label: newsLang === 'en' ? 'Earnings' : 'أرباح', color: T.green, icon: '💰' },
-    'technicalAnalysis': { label: newsLang === 'en' ? 'Technical Analysis' : 'تحليل فني', color: '#B388FF', icon: '📊' },
-    'energy': { label: newsLang === 'en' ? 'Energy' : 'طاقة', color: T.red, icon: '⛽' },
-    'bonds': { label: newsLang === 'en' ? 'Bonds' : 'سندات', color: '#64B5F6', icon: '🏦' },
-    'crypto': { label: newsLang === 'en' ? 'Crypto' : 'كريبتو', color: '#F7931A', icon: '₿' },
-    'forex': { label: newsLang === 'en' ? 'Forex' : 'فوركس', color: T.cyan, icon: '💱' },
-    'commodities': { label: newsLang === 'en' ? 'Commodities' : 'سلع', color: T.amber, icon: '🛢️' },
-    'stocks': { label: newsLang === 'en' ? 'Stocks' : 'أسهم', color: T.green, icon: '📈' },
+    'strategic': { label: t('Strategic', 'استراتيجي', 'Stratégique', newsLang), color: T.amber, icon: '🎯' },
+    'daily': { label: t('Daily', 'يومي', 'Quotidien', newsLang), color: T.cyan, icon: '📅' },
+    'earnings': { label: t('Earnings', 'أرباح', 'Résultats', newsLang), color: T.green, icon: '💰' },
+    'technicalAnalysis': { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', newsLang), color: '#B388FF', icon: '📊' },
+    'energy': { label: t('Energy', 'طاقة', 'Énergie', newsLang), color: T.red, icon: '⛽' },
+    'bonds': { label: t('Bonds', 'سندات', 'Obligations', newsLang), color: '#64B5F6', icon: '🏦' },
+    'crypto': { label: t('Crypto', 'كريبتو', 'Crypto', newsLang), color: '#F7931A', icon: '₿' },
+    'forex': { label: t('Forex', 'فوركس', 'Forex', newsLang), color: T.cyan, icon: '💱' },
+    'commodities': { label: t('Commodities', 'سلع', 'Matières premières', newsLang), color: T.amber, icon: '🛢️' },
+    'stocks': { label: t('Stocks', 'أسهم', 'Actions', newsLang), color: T.green, icon: '📈' },
   }
-  const cat = categoryMap[report.category || ''] || { label: report.category || (newsLang === 'en' ? 'Report' : 'تقرير'), color: T.cyan, icon: '📋' }
+  const cat = categoryMap[report.category || ''] || { label: report.category || (t('Report', 'تقرير', 'Rapport', newsLang)), color: T.cyan, icon: '📋' }
   const riskMap: Record<string, { label: string; color: string }> = {
-    'high': { label: newsLang === 'en' ? 'High Risk' : 'عالي المخاطر', color: T.red },
-    'medium': { label: newsLang === 'en' ? 'Medium Risk' : 'متوسط المخاطر', color: T.amber },
-    'low': { label: newsLang === 'en' ? 'Low Risk' : 'منخفض المخاطر', color: T.green },
+    'high': { label: t('High Risk', 'عالي المخاطر', 'Risque élevé', newsLang), color: T.red },
+    'medium': { label: t('Medium Risk', 'متوسط المخاطر', 'Risque moyen', newsLang), color: T.amber },
+    'low': { label: t('Low Risk', 'منخفض المخاطر', 'Faible risque', newsLang), color: T.green },
   }
   const risk = riskMap[report.riskLevel || ''] || riskMap['medium']
   const sentimentMap: Record<string, { label: string; color: string }> = {
-    'bullish': { label: newsLang === 'en' ? 'Bullish' : 'صعودي', color: T.green },
-    'bearish': { label: newsLang === 'en' ? 'Bearish' : 'هبوطي', color: T.red },
-    'neutral': { label: newsLang === 'en' ? 'Neutral' : 'محايد', color: T.text3 },
+    'bullish': { label: t('Bullish', 'صعودي', 'Haussier', newsLang), color: T.green },
+    'bearish': { label: t('Bearish', 'هبوطي', 'Baissier', newsLang), color: T.red },
+    'neutral': { label: t('Neutral', 'محايد', 'Neutre', newsLang), color: T.text3 },
   }
   const sentimentConf = sentimentMap[report.sentiment || ''] || sentimentMap['neutral']
 
@@ -883,7 +922,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           </span>
           {report.confidenceScore != null && (
             <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${T.green}12`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
-              {newsLang === 'en' ? 'Confidence' : 'ثقة'} {report.confidenceScore}%
+              {t('Confidence', 'ثقة', 'Confiance', newsLang)} {report.confidenceScore}%
             </span>
           )}
           <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: `${risk.color}10`, color: risk.color, fontWeight: 700, fontFamily: FONT_AR }}>
@@ -899,7 +938,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 
         {/* Title */}
         <h3 style={{ color: T.text, fontSize: 14, fontWeight: 800, margin: '0 0 8px', lineHeight: 1.6, fontFamily: FONT_AR }}>
-          {report.titleAr || (newsLang === 'en' ? 'Report' : 'تقرير')}
+          {report.titleAr || (t('Report', 'تقرير', 'Rapport', newsLang))}
         </h3>
 
         {/* Sectors */}
@@ -918,7 +957,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 8 }}>
           <span style={{ fontSize: 10, color: T.text3, display: 'flex', alignItems: 'center', gap: 4, fontFamily: FONT_AR }}>
             {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            {expanded ? (newsLang === 'en' ? 'Close' : 'إغلاق') : (newsLang === 'en' ? 'View Details' : 'عرض التفاصيل')}
+            {expanded ? t('Close', 'إغلاق', 'Fermer', newsLang) : t('View Details', 'عرض التفاصيل', 'Voir les détails', newsLang)}
           </span>
         </div>
       </div>
@@ -931,13 +970,13 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
             <div style={{ padding: 14, background: `${T.cyan}06`, borderRadius: 12, border: `0.5px solid ${T.cyan}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Brain size={12} color={T.cyan} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Key Indicators' : 'المؤشرات الرئيسية'}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: T.cyan, fontFamily: FONT_AR }}>{t('Key Indicators', 'المؤشرات الرئيسية', 'Indicateurs clés', newsLang)}</span>
               </div>
               {report.keyIndicators.topic && (
                 <p style={{ fontSize: 12, color: T.text2, lineHeight: 1.7, margin: '0 0 6px', fontFamily: FONT_AR }}>{report.keyIndicators.topic}</p>
               )}
               {report.keyIndicators.region && (
-                <p style={{ fontSize: 11, color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Region:' : 'المنطقة:'} {report.keyIndicators.region}</p>
+                <p style={{ fontSize: 11, color: T.text3, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Region:', 'المنطقة:', 'Région:', newsLang)} {report.keyIndicators.region}</p>
               )}
               {Array.isArray(report.keyIndicators.scenarios) && report.keyIndicators.scenarios.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>
@@ -954,20 +993,20 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
             <div style={{ padding: 14, background: `${T.green}06`, borderRadius: 12, border: `0.5px solid ${T.green}15`, marginBottom: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <TrendingUp size={12} color={T.green} />
-                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Price Target' : 'السعر المستهدف'}</span>
+                <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_AR }}>{t('Price Target', 'السعر المستهدف', 'Objectif de prix', newsLang)}</span>
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 {report.priceTarget.symbol && (
                   <span style={{ fontSize: 14, fontWeight: 900, color: T.text, fontFamily: FONT_MONO }}>{report.priceTarget.symbol}</span>
                 )}
                 {(report.priceTarget.current ?? 0) > 0 && (
-                  <span style={{ fontSize: 12, color: T.text2 }}>{newsLang === 'en' ? 'Current:' : 'الحالي:'} <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
+                  <span style={{ fontSize: 12, color: T.text2 }}>{t('Current:', 'الحالي:', 'Actuel:', newsLang)} <strong style={{ color: T.text }}>{report.priceTarget.current}</strong></span>
                 )}
                 {report.priceTarget.target != null && (
-                  <span style={{ fontSize: 12, color: T.green }}>{newsLang === 'en' ? 'Target:' : 'المستهدف:'} <strong>{report.priceTarget.target}</strong></span>
+                  <span style={{ fontSize: 12, color: T.green }}>{t('Target:', 'المستهدف:', 'Objectif:', newsLang)} <strong>{report.priceTarget.target}</strong></span>
                 )}
                 {report.priceTarget.stopLoss != null && (
-                  <span style={{ fontSize: 12, color: T.red }}>{newsLang === 'en' ? 'Stop Loss:' : 'وقف الخسارة:'} <strong>{report.priceTarget.stopLoss}</strong></span>
+                  <span style={{ fontSize: 12, color: T.red }}>{t('Stop Loss:', 'وقف الخسارة:', 'Stop Loss:', newsLang)} <strong>{report.priceTarget.stopLoss}</strong></span>
                 )}
               </div>
             </div>
@@ -977,7 +1016,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {(report.scope || (Array.isArray(report.countries) && report.countries.length > 0)) && (
             <div style={{ padding: 14, background: `${T.amber}06`, borderRadius: 12, border: `0.5px solid ${T.amber}15`, marginBottom: 12 }}>
               {report.scope && (
-                <p style={{ fontSize: 12, color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Scope:' : 'النطاق:'} <strong style={{ color: T.text }}>{report.scope === 'arabic' ? (newsLang === 'en' ? 'Arab World' : 'العالم العربي') : report.scope === 'regional' ? (newsLang === 'en' ? 'Regional' : 'إقليمي') : report.scope === 'global' ? (newsLang === 'en' ? 'Global' : 'عالمي') : report.scope}</strong></p>
+                <p style={{ fontSize: 12, color: T.text2, margin: '0 0 6px', fontFamily: FONT_AR }}>{t('Scope:', 'النطاق:', 'Portée:', newsLang)} <strong style={{ color: T.text }}>{report.scope === 'arabic' ? (t('Arab World', 'العالم العربي', 'Monde arabe', newsLang)) : report.scope === 'regional' ? (t('Regional', 'إقليمي', 'Régional', newsLang)) : report.scope === 'global' ? (t('Global', 'عالمي', 'Mondial', newsLang)) : report.scope}</strong></p>
               )}
               {Array.isArray(report.countries) && report.countries.length > 0 && (
                 <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -1002,7 +1041,7 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {report.confidenceScore != null && (
             <div style={{ marginBottom: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Confidence Level' : 'مستوى الثقة'}</span>
+                <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{t('Confidence Level', 'مستوى الثقة', 'Niveau de confiance', newsLang)}</span>
                 <span style={{ fontSize: 11, fontWeight: 800, color: T.green, fontFamily: FONT_MONO }}>{report.confidenceScore}%</span>
               </div>
               <div style={{ height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden' }}>
@@ -1014,15 +1053,15 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
           {/* Market Impact */}
           {report.marketImpact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Market Impact:' : 'تأثير السوق:'}</span>
-              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? (newsLang === 'en' ? 'Neutral' : 'محايد') : report.marketImpact === 'bullish' ? (newsLang === 'en' ? 'Bullish' : 'صعودي') : report.marketImpact === 'bearish' ? (newsLang === 'en' ? 'Bearish' : 'هبوطي') : report.marketImpact}</span>
+              <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR }}>{t('Market Impact:', 'تأثير السوق:', 'Impact marché:', newsLang)}</span>
+              <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 6, background: `${sentimentConf.color}10`, color: sentimentConf.color, fontWeight: 700, fontFamily: FONT_AR }}>{report.marketImpact === 'neutral' ? t('Neutral', 'محايد', 'Neutre', newsLang) : report.marketImpact === 'bullish' ? t('Bullish', 'صعودي', 'Haussier', newsLang) : report.marketImpact === 'bearish' ? t('Bearish', 'هبوطي', 'Baissier', newsLang) : report.marketImpact}</span>
             </div>
           )}
 
           {/* Link to news site */}
           {report.siteUrl && (
             <a href={report.siteUrl} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: T.cyan, fontFamily: FONT_AR, textDecoration: 'none', padding: '8px 16px', borderRadius: 10, background: `${T.cyan}08`, border: `0.5px solid ${T.cyan}18` }}>
-              {newsLang === 'en' ? 'Read Full Report' : 'قراءة التقرير الكامل'} <ExternalLink size={12} />
+              {t('Read Full Report', 'قراءة التقرير الكامل', 'Lire le rapport complet', newsLang)} <ExternalLink size={12} />
             </a>
           )}
         </div>
@@ -1034,26 +1073,26 @@ function ReportCard({ report, index, expanded, onToggle, newsLang }: { report: R
 /* ═══════════════════════════════════════════
    Technical Analysis Tab Component
    ═══════════════════════════════════════════ */
-function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]; loading: boolean; newsLang: 'ar' | 'en' }) {
+function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]; loading: boolean; newsLang: 'ar' | 'en' | 'fr' }) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [filterCat, setFilterCat] = useState('')
 
   const categoryMap: Record<string, { label: string; color: string }> = {
-    CRYPTO: { label: newsLang === 'en' ? 'Crypto' : 'كريبتو', color: '#FFB800' },
-    FOREX: { label: newsLang === 'en' ? 'Forex' : 'فوركس', color: '#00D4FF' },
-    STOCKS: { label: newsLang === 'en' ? 'Stocks' : 'أسهم', color: '#00FFA3' },
-    COMMODITIES: { label: newsLang === 'en' ? 'Commodities' : 'سلع', color: '#FF8C42' },
-    ECONOMY: { label: newsLang === 'en' ? 'Economy' : 'اقتصاد', color: '#B388FF' },
-    TECHNOLOGY: { label: newsLang === 'en' ? 'Technology' : 'تقنية', color: '#00D4FF' },
-    DEFI: { label: newsLang === 'en' ? 'DeFi' : 'ديفاي', color: '#A78BFA' },
-    REGULATION: { label: newsLang === 'en' ? 'Regulation' : 'تشريعات', color: '#FF4757' },
+    CRYPTO: { label: t('Crypto', 'كريبتو', 'Crypto', newsLang), color: '#FFB800' },
+    FOREX: { label: t('Forex', 'فوركس', 'Forex', newsLang), color: '#00D4FF' },
+    STOCKS: { label: t('Stocks', 'أسهم', 'Actions', newsLang), color: '#00FFA3' },
+    COMMODITIES: { label: t('Commodities', 'سلع', 'Matières premières', newsLang), color: '#FF8C42' },
+    ECONOMY: { label: t('Economy', 'اقتصاد', 'Économie', newsLang), color: '#B388FF' },
+    TECHNOLOGY: { label: t('Technology', 'تقنية', 'Technologie', newsLang), color: '#00D4FF' },
+    DEFI: { label: t('DeFi', 'ديفاي', 'DeFi', newsLang), color: '#A78BFA' },
+    REGULATION: { label: t('Regulation', 'تشريعات', 'Réglementation', newsLang), color: '#FF4757' },
   }
   const typeMap: Record<string, { label: string; color: string }> = {
-    ANALYSIS: { label: newsLang === 'en' ? 'Technical Analysis' : 'تحليل فني', color: '#059669' },
-    MARKET_REPORT: { label: newsLang === 'en' ? 'Market Report' : 'تقرير سوق', color: '#00D4FF' },
-    ARTICLE: { label: newsLang === 'en' ? 'Analytical Article' : 'مقال تحليلي', color: '#B388FF' },
-    NEWS_DIGEST: { label: newsLang === 'en' ? 'Market Digest' : 'ملخص سوقي', color: '#FF8C42' },
-    BREAKING: { label: newsLang === 'en' ? 'Breaking' : 'عاجل', color: '#FF4757' },
+    ANALYSIS: { label: t('Technical Analysis', 'تحليل فني', 'Analyse technique', newsLang), color: '#059669' },
+    MARKET_REPORT: { label: t('Market Report', 'تقرير سوق', 'Rapport de marché', newsLang), color: '#00D4FF' },
+    ARTICLE: { label: t('Analytical Article', 'مقال تحليلي', 'Article analytique', newsLang), color: '#B388FF' },
+    NEWS_DIGEST: { label: t('Market Digest', 'ملخص سوقي', 'Résumé du marché', newsLang), color: '#FF8C42' },
+    BREAKING: { label: t('Breaking', 'عاجل', 'Flash', newsLang), color: '#FF4757' },
   }
 
   const filtered = filterCat ? analyses.filter(a => a.category === filterCat) : analyses
@@ -1062,7 +1101,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2 }}>
         <RefreshCw size={28} color={T.green} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Loading technical analysis...' : 'جارٍ تحميل التحليلات الفنية...'}</p>
+        <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{t('Loading technical analysis...', 'جارٍ تحميل التحليلات الفنية...', 'Chargement des analyses techniques...', newsLang)}</p>
       </div>
     )
   }
@@ -1071,8 +1110,8 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
     return (
       <div style={{ background: T.card, border: `1px solid ${T.border}`, borderRadius: 20, padding: '48px 32px', textAlign: 'center' }}>
         <LineChart size={40} color={T.green} style={{ marginBottom: 16, opacity: 0.5 }} />
-        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{newsLang === 'en' ? 'No technical analysis available' : 'لا توجد تحليلات فنية حالياً'}</h2>
-        <p style={{ color: T.text2, fontSize: 13, margin: 0, lineHeight: 1.8 }}>{newsLang === 'en' ? 'Technical analysis will appear here when generated by the content agent' : 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى'}</p>
+        <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{t('No technical analysis available', 'لا توجد تحليلات فنية حالياً', 'Aucune analyse technique disponible', newsLang)}</h2>
+        <p style={{ color: T.text2, fontSize: 13, margin: 0, lineHeight: 1.8 }}>{t('Technical analysis will appear here when generated by the content agent', 'ستظهر التحليلات الفنية هنا عند توليدها من وكيل المحتوى', 'Les analyses techniques apparaîtront ici', newsLang)}</p>
       </div>
     )
   }
@@ -1086,7 +1125,7 @@ function TechnicalAnalysisTab({ analyses, loading, newsLang }: { analyses: any[]
           fontFamily: FONT_AR, border: `1px solid ${filterCat ? T.border : T.green}`,
           background: filterCat ? T.card : `${T.green}14`, color: filterCat ? T.text2 : T.green, cursor: 'pointer',
         }}>
-          {newsLang === 'en' ? 'All' : 'الكل'} ({analyses.length})
+          {t('All', 'الكل', 'Tout', newsLang)} ({analyses.length})
         </button>
         {Object.entries(categoryMap).map(([key, val]) => {
           const count = analyses.filter(a => a.category === key).length
@@ -1140,21 +1179,21 @@ function AnalysisContentCard({
   onToggle: () => void
   categoryMap: Record<string, { label: string; color: string }>
   typeMap: Record<string, { label: string; color: string }>
-  newsLang: 'ar' | 'en'
+  newsLang: 'ar' | 'en' | 'fr'
 }) {
-  const cat = categoryMap[article.category] || { label: article.category || (newsLang === 'en' ? 'Other' : 'أخرى'), color: T.text3 }
-  const typ = typeMap[article.type] || { label: article.type || (newsLang === 'en' ? 'Analysis' : 'تحليل'), color: T.green }
+  const cat = categoryMap[article.category] || { label: article.category || t('Other', 'أخرى', 'Autre', newsLang), color: T.text3 }
+  const typ = typeMap[article.type] || { label: article.type || t('Analysis', 'تحليل', 'Analyse', newsLang), color: T.green }
   const sentimentScore = article.sentimentScore || 0
   const sentimentConf = sentimentScore > 0.3
-    ? { label: newsLang === 'en' ? 'Bullish' : 'صعودي', color: T.green, icon: <ArrowUpRight size={12} /> }
+    ? { label: t('Bullish', 'صعودي', 'Haussier', newsLang), color: T.green, icon: <ArrowUpRight size={12} /> }
     : sentimentScore < -0.3
-      ? { label: newsLang === 'en' ? 'Bearish' : 'هبوطي', color: T.red, icon: <ArrowDownRight size={12} /> }
-      : { label: newsLang === 'en' ? 'Neutral' : 'محايد', color: T.amber, icon: <Minus size={12} /> }
+      ? { label: t('Bearish', 'هبوطي', 'Baissier', newsLang), color: T.red, icon: <ArrowDownRight size={12} /> }
+      : { label: t('Neutral', 'محايد', 'Neutre', newsLang), color: T.amber, icon: <Minus size={12} /> }
   const impactConf = article.impactLevel === 'HIGH'
-    ? { label: newsLang === 'en' ? 'High Impact' : 'تأثير عالي', color: T.red }
+    ? { label: t('High Impact', 'تأثير عالي', 'Impact élevé', newsLang), color: T.red }
     : article.impactLevel === 'LOW'
-      ? { label: newsLang === 'en' ? 'Low Impact' : 'تأثير منخفض', color: T.green }
-      : { label: newsLang === 'en' ? 'Medium Impact' : 'تأثير متوسط', color: T.amber }
+      ? { label: t('Low Impact', 'تأثير منخفض', 'Faible impact', newsLang), color: T.green }
+      : { label: t('Medium Impact', 'تأثير متوسط', 'Impact moyen', newsLang), color: T.amber }
   const qualityScore = article.qualityScore || 0
 
   // Safely parse JSON arrays
@@ -1176,13 +1215,19 @@ function AnalysisContentCard({
     } catch { return [] }
   })()
 
-  const titleText = newsLang === 'en'
+  const titleText = newsLang === 'fr'
+    ? extractCleanTitle(article.titleFr || article.titleEn || article.titleAr || "Analyse technique")
+    : newsLang === 'en'
     ? extractCleanTitle(article.titleEn || article.titleAr || 'Technical Analysis')
     : extractCleanTitle(article.titleAr || article.titleEn || 'تحليل فني')
-  const contentText = newsLang === 'en'
+  const contentText = newsLang === 'fr'
+    ? extractCleanContent(article.contentFr || article.contentEn || article.contentAr || '')
+    : newsLang === 'en'
     ? extractCleanContent(article.contentEn || article.contentAr || '')
     : extractCleanContent(article.contentAr || article.contentEn || '')
-  const summaryText = newsLang === 'en'
+  const summaryText = newsLang === 'fr'
+    ? extractCleanContent(article.summaryFr || article.summaryEn || article.summaryAr || '')
+    : newsLang === 'en'
     ? extractCleanContent(article.summaryEn || article.summaryAr || '')
     : extractCleanContent(article.summaryAr || article.summaryEn || '')
 
@@ -1258,7 +1303,7 @@ function AnalysisContentCard({
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Target size={12} color={qualityScore >= 70 ? T.green : T.amber} />
-            <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>{newsLang === 'en' ? 'Analysis Quality' : 'جودة التحليل'}</span>
+            <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, fontWeight: 600 }}>{t('Analysis Quality', 'جودة التحليل', 'Qualité analytique', newsLang)}</span>
             <div style={{ flex: 1, height: 4, borderRadius: 2, background: T.bg2, overflow: 'hidden', maxWidth: 120 }}>
               <div style={{ height: '100%', width: `${Math.min(qualityScore, 100)}%`, borderRadius: 2, background: qualityScore >= 70 ? `linear-gradient(90deg, ${T.green}60, ${T.green})` : `linear-gradient(90deg, ${T.amber}60, ${T.amber})`, transition: 'width 0.5s' }} />
             </div>
@@ -1266,7 +1311,7 @@ function AnalysisContentCard({
           </div>
           {article.readingTimeMinutes > 0 && (
             <span style={{ fontSize: 9, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 3 }}>
-              <BookOpen size={9} /> {article.readingTimeMinutes} {newsLang === 'en' ? 'min read' : 'دقائق قراءة'}
+              <BookOpen size={9} /> {article.readingTimeMinutes} {t('min read', 'دقائق قراءة', 'min de lecture', newsLang)}
             </span>
           )}
         </div>
@@ -1292,7 +1337,7 @@ function AnalysisContentCard({
           transition: 'all 0.2s',
         }}>
           {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-          {expanded ? (newsLang === 'en' ? 'Close Analysis' : 'إغلاق التحليل') : (newsLang === 'en' ? 'Read Full Analysis' : 'قراءة التحليل الكامل')}
+          {expanded ? t('Close Analysis', 'إغلاق التحليل', 'Fermer', newsLang) : t('Read Full Analysis', 'قراءة التحليل الكامل', 'Lire analyse complète', newsLang)}
         </span>
       </div>
 
@@ -1324,7 +1369,7 @@ function AnalysisContentCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 22px', borderTop: `1px solid ${T.border}`, flexWrap: 'wrap', background: `${T.bg2}40` }}>
             {article.views > 0 && (
               <span style={{ fontSize: 10, color: T.text3, fontFamily: FONT_AR, display: 'flex', alignItems: 'center', gap: 4 }}>
-                <Eye size={10} /> {article.views} {newsLang === 'en' ? 'views' : 'مشاهدة'}
+                <Eye size={10} /> {article.views} {t('views', 'مشاهدة', 'vues', newsLang)}
               </span>
             )}
             {article.generationSource && (
@@ -1333,7 +1378,7 @@ function AnalysisContentCard({
               </span>
             )}
             <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.green}10`, color: T.green, fontWeight: 700, fontFamily: FONT_AR }}>
-              {newsLang === 'en' ? 'Published' : 'منشور'}
+              {t('Published', 'منشور', 'Publié', newsLang)}
             </span>
           </div>
         </div>
@@ -1345,7 +1390,7 @@ function AnalysisContentCard({
 /* ═══════════════════════════════════════════
    Rich Analysis Content — Professional Markdown Renderer
    ═══════════════════════════════════════════ */
-function RichAnalysisContent({ content, catColor, newsLang }: { content: string; catColor: string; newsLang: 'ar' | 'en' }) {
+function RichAnalysisContent({ content, catColor, newsLang }: { content: string; catColor: string; newsLang: 'ar' | 'en' | 'fr' }) {
   // Parse content into structured blocks
   const blocks = useMemo(() => {
     const lines = content.split('\n')
@@ -1695,7 +1740,7 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
                   color: 'rgba(255,184,0,0.7)', fontSize: 11, fontWeight: 500,
                   fontFamily: FONT_AR, lineHeight: 1.7,
                 }}>
-                  {newsLang === 'en' ? 'Content is for educational and analytical purposes only, not financial advice' : 'المحتوى لأغراض تعليمية وتحليلية فقط وليس نصيحة مالية'}
+                  {t('Content is for educational and analytical purposes only, not financial advice', 'المحتوى لأغراض تعليمية وتحليلية فقط وليس نصيحة مالية', 'Contenu à des fins éducatives et analytiques uniquement, non un conseil financier', newsLang)}
                 </span>
               </div>
             </div>
@@ -1721,15 +1766,15 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
 /* ═══════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════ */
-function getSentimentBadge(label?: string, lang?: 'ar' | 'en') {
+function getSentimentBadge(label?: string, lang?: 'ar' | 'en' | 'fr') {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: lang === 'en' ? 'Positive' : 'إيجابي', icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: lang === 'en' ? 'Negative' : 'سلبي', icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: lang === 'en' ? 'Neutral' : 'محايد', icon: Minus }
+    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', lang || 'en'), icon: TrendingUp }
+    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', lang || 'en'), icon: TrendingDown }
+    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', lang || 'en'), icon: Minus }
   }
 }
 
-function timeAgo(value?: string | null, lang?: 'ar' | 'en') {
+function timeAgo(value?: string | null, lang?: 'ar' | 'en' | 'fr') {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''

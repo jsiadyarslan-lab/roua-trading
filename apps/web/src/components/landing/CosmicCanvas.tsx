@@ -41,11 +41,11 @@ export default function CosmicCanvas() {
     ];
 
     const stars: { x: number; y: number; z: number; size: number; opacity: number; twinkleSpeed: number }[] = [];
-    const numStars = 450;
+    const numStars = 200;
     const candles: { theta: number; phi: number; open: number; close: number; color: string; life: number; speed: number }[] = [];
-    const numCandles = 18;
+    const numCandles = 12;
     const particles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
-    const numParticles = 180;
+    const numParticles = 80;
     const mouseTrail: { x: number; y: number; life: number }[] = [];
     const maxTrail = 20;
     const shootingStars: { x: number; y: number; vx: number; vy: number; length: number; life: number; decay: number }[] = [];
@@ -193,8 +193,8 @@ export default function CosmicCanvas() {
 
     function createExplosion(x: number, y: number) {
       const expParticles: { x: number; y: number; vx: number; vy: number; size: number; opacity: number }[] = [];
-      for (let i = 0; i < 30; i++) {
-        const angle = (Math.PI * 2 / 30) * i;
+      for (let i = 0; i < 15; i++) {
+        const angle = (Math.PI * 2 / 15) * i;
         const speed = 2 + Math.random() * 4;
         expParticles.push({
           x, y,
@@ -255,8 +255,8 @@ export default function CosmicCanvas() {
 
       // Wireframe points
       const points: { x: number; y: number; z: number }[] = [];
-      const latitudes = 18;
-      const longitudes = 22;
+      const latitudes = 12;
+      const longitudes = 14;
 
       for (let lat = 0; lat <= latitudes; lat++) {
         const theta = (lat / latitudes) * Math.PI;
@@ -401,8 +401,24 @@ export default function CosmicCanvas() {
     }
 
     let animationId: number;
+    let isPageVisible = !document.hidden;
+    let lastFrameTime = 0;
+    const TARGET_FPS = 30;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
-    function animate() {
+    function animate(currentTime: number) {
+      // Stop rendering when tab is hidden — saves CPU/GPU when user navigates away
+      if (!isPageVisible) {
+        animationId = requestAnimationFrame(animate);
+        return;
+      }
+      // Throttle to TARGET_FPS to reduce CPU/GPU load
+      if (currentTime - lastFrameTime < FRAME_INTERVAL) {
+        animationId = requestAnimationFrame(animate);
+        return;
+      }
+      lastFrameTime = currentTime;
+
       ctx!.clearRect(0, 0, width, height);
       mouseX += (targetMouseX - mouseX) * 0.05;
       mouseY += (targetMouseY - mouseY) * 0.05;
@@ -432,8 +448,14 @@ export default function CosmicCanvas() {
       }
     };
 
+    // Visibility change handler — pause rendering when tab is hidden
+    const handleVisibilityChange = () => {
+      isPageVisible = !document.hidden;
+    };
+
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('visibilitychange', handleVisibilityChange);
     canvas.addEventListener('click', handleClick);
 
     init();
@@ -443,6 +465,7 @@ export default function CosmicCanvas() {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('visibilitychange', handleVisibilityChange);
       canvas.removeEventListener('click', handleClick);
     };
   }, []);

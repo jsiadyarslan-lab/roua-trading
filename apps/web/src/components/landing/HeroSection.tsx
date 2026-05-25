@@ -11,17 +11,23 @@ export default function HeroSection() {
   const statsRef = useRef<HTMLDivElement>(null);
   const fullText = t('fullDescription');
 
-  // Typewriter effect
+  // Typewriter effect — cancelled flag prevents stale setTimeout callbacks
+  // after component unmounts (e.g. user navigates away mid-typewriter)
   useEffect(() => {
     let charIndex = 0;
+    let cancelled = false;
     const timer = setTimeout(function typeWriter() {
+      if (cancelled) return;
       if (charIndex < fullText.length) {
         setTypewriterText(fullText.substring(0, charIndex + 1));
         charIndex++;
         setTimeout(typeWriter, 35);
       }
     }, 800);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [fullText]);
 
   // Animated counters

@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react'
 import { BarChart3, ChevronDown, ArrowUpRight, ArrowDownRight } from 'lucide-react'
-import { useSingleQuote } from '@/hooks/useMarketData'
+// PERF: Replaced useSingleQuote (5s REST poll) with direct useMarketStore read
+// MarketProvider already provides live WS data + 15s REST fallback
+import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness, getStatusLabel, getStatusTone, type DataStatus } from '@/lib/dashboard-live'
 import { useTranslations } from 'next-intl'
@@ -84,7 +86,7 @@ export function OrderBookPanelInner({
   const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const [expanded, setExpanded] = useState(!collapsedByDefault)
   const selectedPair = useSymbolStore(state => state.selectedSymbol)
-  const { quote } = useSingleQuote(selectedPair, 5000)
+  const quote = useMarketStore(state => state.quotes[selectedPair])
 
   const midPrice = quote?.price ?? 0
   const isPositive = quote ? quote.changePercent >= 0 : true

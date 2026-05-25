@@ -155,12 +155,28 @@ const DEFAULT_SETTINGS: NotifSettings = {
 /**
  * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
  * Without userId in the key, user B would see user A's notifications.
+ *
+ * FIX: Reads directly from localStorage cache first (roua_auth_user),
+ * because useAuthStore may not be hydrated yet when Zustand persist
+ * tries to rehydrate the notification store on page load.
+ * This prevents the race condition where notifications disappear on refresh.
  */
 function getStorageKey(): string {
   try {
+    // Priority 1: Read from auth store (fast, but may not be hydrated yet)
     const user = useAuthStore.getState().user
     if (user?.id) return `roua-notifications:${user.id}`
   } catch { /* Auth store not yet initialized */ }
+
+  try {
+    // Priority 2: Read directly from localStorage cache (bypasses store hydration delay)
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) return `roua-notifications:${cached.id}`
+    }
+  } catch { /* Cache not available or invalid */ }
+
   try {
     let sessionId = sessionStorage.getItem('roua-guest-session-id')
     if (!sessionId) {
@@ -336,3 +352,70 @@ export const useNotificationStore = create<NotificationState>()(
     }
   )
 )
+
+/**
+ * FIX: Re-hydrate notification store when auth state changes.
+ *
+ * Problem: On page load, Zustand persist hydrates before the auth store is ready.
+ * Even with the localStorage cache fallback, there's a brief window where
+ * notifications may be loaded under the wrong key.
+ *
+ * Solution: Listen for auth store changes and re-hydrate from the correct
+ * user-scoped key when the user ID becomes available or changes.
+ */
+let _lastKnownUserId: string | null = null
+
+if (typeof window !== 'undefined') {
+  // Subscribe to auth store changes
+  useAuthStore.subscribe((state) => {
+    const currentUserId = state.user?.id || null
+
+    // Only re-hydrate when user ID actually changes (not on every auth state update)
+    if (currentUserId !== _lastKnownUserId) {
+      _lastKnownUserId = currentUserId
+
+      if (currentUserId) {
+        // User just logged in or auth store just hydrated — re-hydrate notifications
+        try {
+          const correctKey = `roua-notifications:${currentUserId}`
+          const raw = localStorage.getItem(correctKey)
+          if (raw) {
+            const parsed = JSON.parse(raw)
+            if (parsed?.state?.notifications) {
+              const migrated = {
+                notifications: Array.isArray(parsed.state.notifications)
+                  ? parsed.state.notifications.slice(0, 50)
+                  : [],
+                settings: {
+                  ...DEFAULT_SETTINGS,
+                  ...(parsed.state.settings ?? {}),
+                },
+              }
+              useNotificationStore.setState({
+                notifications: migrated.notifications,
+                settings: migrated.settings,
+              })
+            }
+          } else {
+            // No saved notifications for this user — clear any guest notifications
+            const currentNotifs = useNotificationStore.getState().notifications
+            if (currentNotifs.length > 0) {
+              useNotificationStore.setState({ notifications: [] })
+            }
+          }
+        } catch {
+          // Re-hydration failed — keep current state
+        }
+      }
+    }
+  })
+
+  // Also set initial userId from cache on first load
+  try {
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) _lastKnownUserId = cached.id
+    }
+  } catch { /* ignore */ }
+}

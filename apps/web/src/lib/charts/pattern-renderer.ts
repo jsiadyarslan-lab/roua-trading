@@ -13,6 +13,21 @@ interface DrawnPattern {
 
 const drawnPatterns = new Map<string, DrawnPattern>();
 
+// FIX: Periodic cleanup of expired pattern entries to prevent memory leak.
+// Pattern series that were auto-removed via setTimeout still have entries
+// in the drawnPatterns map. This interval cleans those stale entries.
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [id, drawn] of drawnPatterns) {
+      if (drawn.removeAt && now > drawn.removeAt + 60000) {
+        // Pattern was scheduled for removal more than 1 minute ago — clean up map entry
+        drawnPatterns.delete(id);
+      }
+    }
+  }, 60_000);
+}
+
 // ── Color palette matching Autochartist's visual style ────
 const COLORS = {
   bullish: {

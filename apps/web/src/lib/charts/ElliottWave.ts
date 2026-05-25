@@ -40,7 +40,11 @@ function findSwings(candles: CandleData[], n = 5): { highs: {time:number;price:n
 
 export function detectElliottWaves(candles: CandleData[]): ElliottPattern | null {
   if (candles.length < 50) return null;
-  const { highs, lows } = findSwings(candles.slice(-100), 5);
+  // FIX: Use last 200 candles instead of 100. Elliott Wave patterns often span
+  // 100+ candles for the full 5-wave structure. Using only 100 candles missed
+  // longer-term wave patterns that are more reliable. Still cap at 200 to avoid
+  // excessive computation on very large datasets.
+  const { highs, lows } = findSwings(candles.slice(-200), 5);
 
   // Try bullish 5-wave: Low-High-Low-High-Low-High
   if (lows.length >= 3 && highs.length >= 3) {

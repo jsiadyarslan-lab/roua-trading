@@ -240,7 +240,17 @@ export default function RouaChart({
   }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine, chart.setCrosshairMode]);
 
   // ── Auto-run Pattern Engine when candles update ──
+  // FIX: Throttled to run at most once every 30 seconds. Previously ran on
+  // every WebSocket tick, causing excessive CPU usage and rapid series
+  // creation/destruction cycles on the chart. Pattern detection is expensive
+  // (ZigZag + 7 detectors) and doesn't need sub-minute updates.
+  const lastPatternRunRef = useRef(0);
+  const PATTERN_RUN_INTERVAL_MS = 30_000;
   const runPatternDetection = useCallback(async () => {
+    const now = Date.now();
+    if (now - lastPatternRunRef.current < PATTERN_RUN_INTERVAL_MS) return;
+    lastPatternRunRef.current = now;
+
     const candles = candlesRef.current;
     if (!candles || candles.length < 30) return;
     const chartApi = chart.chartRef?.current;
@@ -870,7 +880,12 @@ export default function RouaChart({
   }, [showAIPanel]);
 
   // ── Background Pattern Detection (every 5 minutes) ──────
+  // FIX: Added guard — only runs when AI panel is open OR user has previously
+  // interacted with patterns. Previously ran unconditionally on every symbol/
+  // timeframe change, wasting CPU and sending browser notifications for patterns
+  // the user may not care about.
   useEffect(() => {
+    if (!showAIPanel && !showPatternProgress) return; // Don't waste CPU if user isn't interested
     if (!candlesRef.current?.length) return;
     const detect = async () => {
       try {
@@ -900,11 +915,10 @@ export default function RouaChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, timeframe]);
 
-  // FIX: Guard against concurrent execution of handlePatternsDetected.
-  // Since this is async (awaits dynamic import), calling it twice rapidly can cause
-  // the first call's series additions to overlap with the second call's cleanup,
-  // leaving orphaned series on the chart.
-  const aiProcessingRef = useRef(false);
+  // FIX: Removed aiProcessingRef — was declared but never used. The async lock
+  // was previously removed in favor of direct execution, but the ref remained
+  // as dead code. The aiProcessingRef was also referenced in a comment that
+  // said "Direct execution — no lock needed", confirming it's unused.
   const aiPanelDivRef = useRef<HTMLDivElement>(null);
   const [panelPos, setPanelPos] = useState<{left:number;top:number}|null>(null);
   const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws

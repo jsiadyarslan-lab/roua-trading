@@ -250,9 +250,10 @@ export async function POST(req: NextRequest) {
     // ═══════════════════════════════════════════════════════════
     // FIX: Removed self-referencing target (`${origin}/api/health`...) that caused
     // circular calls — Next.js calling itself instead of NestJS backend.
+    // FIX: Removed duplicate 'http://127.0.0.1:3001' entry that caused redundant
+    // connection attempts to the same NestJS backend.
     const apiTargets = [
       process.env.API_INTERNAL_URL,
-      'http://127.0.0.1:3001',
       'http://127.0.0.1:3001',
     ].filter((u, i, arr) => u && arr.indexOf(u) === i) as string[]
 
@@ -766,7 +767,10 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (error: any) {
-    const l3e = L3(language)
+    // FIX: Fallback language to 'ar' since the outer try block may fail before
+    // the language variable is assigned (e.g., JSON parse error on request body).
+    const errorLang: 'ar' | 'en' = language || 'ar';
+    const l3e = L3(errorLang)
     return NextResponse.json(
       {
         success: true,

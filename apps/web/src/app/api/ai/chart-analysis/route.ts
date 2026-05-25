@@ -292,74 +292,15 @@ function detectLocalPatternsServer(candlesData: string): Array<{
         patterns.push({ type: 'Harami Bearish', timeIndex: i, confidence: 0.65, direction: 'bearish' });
       }
     }
-
-    // Dragonfly Doji — open=close=high, long lower wick
-    if (body / range < 0.1 && upperWick < range * 0.1 && lowerWick > range * 0.6) {
-      patterns.push({ type: 'Dragonfly Doji', timeIndex: i, confidence: 0.7, direction: 'bullish' });
-    }
-
-    // Gravestone Doji — open=close=low, long upper wick
-    if (body / range < 0.1 && lowerWick < range * 0.1 && upperWick > range * 0.6) {
-      patterns.push({ type: 'Gravestone Doji', timeIndex: i, confidence: 0.7, direction: 'bearish' });
-    }
   }
 
-  // Three-candle patterns (need at least 3 candles)
-  for (let i = 2; i < candles.length; i++) {
-    const c = candles[i];
-    const prev = candles[i - 1];
-    const prev2 = candles[i - 2];
-
-    // Morning Star — bearish, indecision, bullish
-    if (prev2.c < prev2.o && c.c > c.o) {
-      const prev2Body = Math.abs(prev2.o - prev2.c);
-      const prevBody = Math.abs(prev.o - prev.c);
-      const currBody = Math.abs(c.c - c.o);
-      if (prevBody < prev2Body * 0.3 && currBody > prev2Body * 0.5) {
-        patterns.push({ type: 'Morning Star', timeIndex: i, confidence: 0.8, direction: 'bullish' });
-      }
-    }
-
-    // Evening Star — bullish, indecision, bearish
-    if (prev2.c > prev2.o && c.c < c.o) {
-      const prev2Body = Math.abs(prev2.c - prev2.o);
-      const prevBody = Math.abs(prev.o - prev.c);
-      const currBody = Math.abs(c.o - c.c);
-      if (prevBody < prev2Body * 0.3 && currBody > prev2Body * 0.5) {
-        patterns.push({ type: 'Evening Star', timeIndex: i, confidence: 0.8, direction: 'bearish' });
-      }
-    }
-
-    // Three White Soldiers — three consecutive bullish candles, each opening within prev body and closing higher
-    if (prev2.c > prev2.o && prev.c > prev.o && c.c > c.o) {
-      if (prev.c > prev2.c && c.c > prev.c && prev.o >= prev2.o && c.o >= prev.o) {
-        patterns.push({ type: 'Three White Soldiers', timeIndex: i, confidence: 0.8, direction: 'bullish' });
-      }
-    }
-
-    // Three Black Crows — three consecutive bearish candles
-    if (prev2.c < prev2.o && prev.c < prev.o && c.c < c.o) {
-      if (prev.c < prev2.c && c.c < prev.c && prev.o <= prev2.o && c.o <= prev.o) {
-        patterns.push({ type: 'Three Black Crows', timeIndex: i, confidence: 0.8, direction: 'bearish' });
-      }
-    }
-
-    // Piercing Line — bearish prev, bullish current opens below prev low, closes above prev midpoint
-    if (prev.c < prev.o && c.c > c.o) {
-      const prevMid = (prev.o + prev.c) / 2;
-      if (c.o < prev.c && c.c > prevMid) {
-        patterns.push({ type: 'Piercing Line', timeIndex: i, confidence: 0.7, direction: 'bullish' });
-      }
-    }
-
-    // Dark Cloud Cover — bullish prev, bearish current opens above prev high, closes below prev midpoint
-    if (prev.c > prev.o && c.c < c.o) {
-      const prevMid = (prev.o + prev.c) / 2;
-      if (c.o > prev.c && c.c < prevMid) {
-        patterns.push({ type: 'Dark Cloud Cover', timeIndex: i, confidence: 0.7, direction: 'bearish' });
-      }
-    }
-  }
+  // FIX: Removed duplicate three-candle pattern detection loop.
+  // Morning Star, Evening Star, Three White Soldiers, Three Black Crows,
+  // Piercing Line, and Dark Cloud Cover were already detected in the
+  // single-candle loop above (with proper context checks). The old
+  // second loop created duplicate detections with different confidence
+  // values, which confused the deduplication logic and sometimes
+  // overrode higher-confidence detections with lower ones.
 
   // Deduplicate: keep only the highest-confidence pattern per candle index
   const bestByIndex = new Map<number, { type: string; timeIndex: number; confidence: number; direction: string }>();

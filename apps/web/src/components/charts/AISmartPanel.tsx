@@ -180,12 +180,27 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   };
 
   // ── تشغيل عند وصول البيانات ──────────────────────────────
+  // FIX: Only auto-analyze ONCE when candles first arrive (length crosses 20 threshold).
+  // Previously triggered on EVERY candles.length change, causing runaway re-analysis
+  // as each new WebSocket candle incremented the length. Now we track the last length
+  // we analyzed at and only re-trigger if the candle count increased by at least 10%
+  // (e.g., 50→55 candles) or the symbol changed.
+  const lastAnalyzedLengthRef = useRef(0);
+  const lastAnalyzedSymbolRef = useRef(symbol);
   useEffect(() => {
-    if (candles && candles.length >= 20) {
+    const currentLen = candles?.length || 0;
+    const symbolChanged = symbol !== lastAnalyzedSymbolRef.current;
+    const significantGrowth = currentLen > 0 && (
+      lastAnalyzedLengthRef.current === 0 ||
+      currentLen >= lastAnalyzedLengthRef.current * 1.1
+    );
+    if (currentLen >= 20 && (symbolChanged || significantGrowth)) {
+      lastAnalyzedLengthRef.current = currentLen;
+      lastAnalyzedSymbolRef.current = symbol;
       analyze();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles.length]);
+  }, [candles?.length, symbol]);
 
   // cleanup
   useEffect(() => () => { abortRef.current?.abort(); }, []);

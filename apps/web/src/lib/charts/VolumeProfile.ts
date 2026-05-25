@@ -14,7 +14,15 @@ export function calcVolumeProfile(candles: CandleData[], bins = 20): VolumeProfi
   const prices = candles.map(c => (c.high + c.low) / 2);
   const minP = Math.min(...prices);
   const maxP = Math.max(...prices);
-  const binSize = (maxP - minP) / bins;
+  const priceRange = maxP - minP;
+
+  // FIX: Guard against zero/near-zero price range (e.g., stablecoins or single-price data).
+  // If all prices are identical, there's no meaningful volume profile to compute.
+  if (priceRange < minP * 0.0001) {
+    return { poc: minP, vah: maxP, val: minP, levels: [{ price: minP, volume: candles.reduce((s, c) => s + c.volume, 0), pct: 1 }] };
+  }
+
+  const binSize = priceRange / bins;
 
   const profile = Array.from({ length: bins }, (_, i) => ({
     price: minP + (i + 0.5) * binSize,

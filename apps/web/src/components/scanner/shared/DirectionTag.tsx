@@ -16,6 +16,12 @@ interface DirectionTagProps {
   size?: TagSize
 }
 
+// Normalize direction values: 'Strong Buy', 'strong_buy', 'STRONG BUY' → 'STRONG_BUY'
+function normalizeDirection(dir: string): string {
+  const upper = (dir || '').toUpperCase().replace(/\s+/g, '_')
+  return upper
+}
+
 const DIR_KEYS: Record<string, string> = {
   STRONG_BUY: 'direction.strongBuy',
   BUY: 'direction.buy',
@@ -30,6 +36,11 @@ const DIR_COLORS: Record<string, { color: string; bg: string }> = {
   NEUTRAL:     { color: T.text2,    bg: `${T.text2}10` },
   SELL:        { color: T.redDim,   bg: `${T.redDim}12` },
   STRONG_SELL: { color: T.red,     bg: `${T.red}15` },
+}
+
+// Normalize signalClass values: 'Trend', 'trend', 'REVERSION' → uppercase
+function normalizeSignalClass(sc: string): string {
+  return (sc || '').toUpperCase()
 }
 
 const SIGNAL_KEYS: Record<string, string> = {
@@ -58,9 +69,11 @@ const SIZE_MAP: Record<TagSize, { px: number; py: number; fontSize: number }> = 
 
 export function DirectionTag({ direction, signalClass, size = 'md' }: DirectionTagProps) {
   const t = useTranslations('scannerAdvanced')
-  const dirConf = DIR_COLORS[direction] || DIR_COLORS.NEUTRAL
-  const dirKey = DIR_KEYS[direction] || 'direction.neutral'
-  const sigConf = signalClass ? { color: SIGNAL_COLORS[signalClass] || T.text3, key: SIGNAL_KEYS[signalClass] } : null
+  const normDir = normalizeDirection(direction)
+  const dirConf = DIR_COLORS[normDir] || DIR_COLORS.NEUTRAL
+  const dirKey = DIR_KEYS[normDir] || 'direction.neutral'
+  const normSignal = signalClass ? normalizeSignalClass(signalClass) : null
+  const sigConf = normSignal ? { color: SIGNAL_COLORS[normSignal] || T.text3, key: SIGNAL_KEYS[normSignal] } : null
   const sz = SIZE_MAP[size]
 
   return (

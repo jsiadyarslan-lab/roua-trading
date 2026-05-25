@@ -30,10 +30,20 @@ interface UseScannerFiltersReturn {
 
 export type { SortKey, SortDir, CategoryFilter, DirectionFilter, SignalFilter }
 
+// Normalize direction values to handle mixed-case from API
+function normalizeDirKey(dir: string): string {
+  return (dir || '').toUpperCase().replace(/\s+/g, '_')
+}
+
 const DIRECTION_MAP: Record<string, DirectionFilter> = {
   STRONG_BUY: 'BUY', BUY: 'BUY',
   STRONG_SELL: 'SELL', SELL: 'SELL',
   NEUTRAL: 'NEUTRAL',
+}
+
+// Normalize signal class values to handle lowercase from API
+function normalizeSignalKey(sc: string): string {
+  return (sc || '').toUpperCase()
 }
 
 const SIGNAL_MAP: Record<string, SignalFilter> = {
@@ -87,15 +97,15 @@ export function useScannerFilters(data: ScannerItem[]): UseScannerFiltersReturn 
       result = result.filter(d => d.category === category)
     }
 
-    // Direction filter
+    // Direction filter (normalize direction value before lookup)
     if (directionFilter !== 'ALL') {
-      result = result.filter(d => DIRECTION_MAP[d.direction] === directionFilter)
+      result = result.filter(d => DIRECTION_MAP[normalizeDirKey(d.direction)] === directionFilter)
     }
 
-    // Signal filter
+    // Signal filter (normalize signalClass value before lookup)
     if (signalFilter !== 'ALL') {
       result = result.filter(d => {
-        const mapped = SIGNAL_MAP[d.signalClass]
+        const mapped = SIGNAL_MAP[normalizeSignalKey(d.signalClass)]
         return mapped === signalFilter
       })
     }

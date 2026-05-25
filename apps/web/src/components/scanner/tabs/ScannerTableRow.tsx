@@ -57,6 +57,8 @@ function TinyBar({ value, maxVal, color }: { value: number; maxVal: number; colo
 
 function ActionBadge({ action }: { action: string }) {
   const t = useTranslations('scannerAdvanced')
+  // Normalize action value: 'Strong Buy', 'strong_buy' → 'STRONG_BUY'
+  const normAction = (action || '').toUpperCase().replace(/\s+/g, '_')
   const map: Record<string, { bg: string; color: string; key: string }> = {
     'STRONG_BUY': { bg: `${T.green}15`, color: T.green, key: 'strongBuy' },
     'BUY': { bg: `${T.green}10`, color: T.greenDim, key: 'buy' },
@@ -64,7 +66,7 @@ function ActionBadge({ action }: { action: string }) {
     'SELL': { bg: `${T.red}10`, color: T.redDim, key: 'sell' },
     'STRONG_SELL': { bg: `${T.red}15`, color: T.red, key: 'strongSell' },
   }
-  const cfg = map[action] ?? map['HOLD']
+  const cfg = map[normAction] ?? map['HOLD']
   return (
     <span style={{
       fontSize: 8, fontWeight: 800, padding: '2px 6px', borderRadius: 3,
@@ -80,11 +82,11 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
   const locale = useLocale()
   const [hovered, setHovered] = useState(false)
 
-  // Translate AI opinion based on locale instead of using hardcoded Arabic from backend
+  // Translate AI opinion based on locale — always use i18n, never raw API text
   const aiOpinionText = (() => {
-    if (!item.aiOpinion && !item.smartScore) return null
     const action = item.smartScore?.action
     if (action) {
+      const normAction = action.toUpperCase().replace(/\s+/g, '_')
       const actionLabelMap: Record<string, string> = {
         'STRONG_BUY': t('aiConsensus.strongBuy'),
         'BUY': t('aiConsensus.buy'),
@@ -92,10 +94,21 @@ function ScannerTableRowInner({ item, index, isSelected, onSelect, onBellClick, 
         'SELL': t('aiConsensus.sell'),
         'STRONG_SELL': t('aiConsensus.strongSell'),
       }
-      return `${t('aiConsensus.label')} ${actionLabelMap[action] || t('hold')}`
+      return `${t('aiConsensus.label')} ${actionLabelMap[normAction] || t('aiConsensus.hold')}`
     }
-    // Fallback: if only aiOpinion is available (no smartScore), show as-is
-    return item.aiOpinion
+    // Derive from direction if smartScore is not available
+    if (item.direction) {
+      const normDir = item.direction.toUpperCase().replace(/\s+/g, '_')
+      const dirToAction: Record<string, string> = {
+        'STRONG_BUY': t('aiConsensus.strongBuy'),
+        'BUY': t('aiConsensus.buy'),
+        'NEUTRAL': t('aiConsensus.hold'),
+        'SELL': t('aiConsensus.sell'),
+        'STRONG_SELL': t('aiConsensus.strongSell'),
+      }
+      return `${t('aiConsensus.label')} ${dirToAction[normDir] || t('aiConsensus.hold')}`
+    }
+    return null
   })()
   const dimmed = !item.marketOpen
   const chgColor = item.changePercent >= 0 ? T.green : T.red

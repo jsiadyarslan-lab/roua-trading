@@ -16,6 +16,7 @@ import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns';
 import { detectElliottWaves } from '@/lib/charts/ElliottWave';
 import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
 import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
+import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 // ── Revolutionary Engines ──
 import { getBayesianEngine, extractSignalsFromAnalysis } from '@/lib/charts/BayesianEngine';
 import { getPatternStateMachine } from '@/lib/charts/PatternStateMachine';
@@ -55,6 +56,11 @@ const PATTERN_KEYS: Record<string, string> = {
   'Symmetrical Triangle': 'patternSymmetricalTriangle',
   'Rising Wedge': 'patternRisingWedge',
   'Falling Wedge': 'patternFallingWedge',
+  'Gartley': 'patternGartley',
+  'Butterfly': 'patternButterfly',
+  'Bat': 'patternBat',
+  'Crab': 'patternCrab',
+  'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
 type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced';
@@ -69,9 +75,11 @@ interface Props {
   onScrollToTime?: (time: number) => void;
   /** Revolutionary: Pass heatmap data up to chart for overlay rendering */
   onHeatmapData?: (heatmap: HeatmapResult | null) => void;
+  /** AI Stream mode — shows SSE streaming indicator */
+  streamMode?: boolean;
 }
 
-export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime, onHeatmapData }: Props) {
+export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime, onHeatmapData, streamMode }: Props) {
   const t = useTranslations('aiSmartPanel');
   const locale = useLocale();
   const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -138,8 +146,28 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       const elliottPattern = detectElliottWaves(c);
       const wyckoff = detectWyckoff(c);
       const volumeProfile = calcVolumeProfile(c);
+      const harmonicPatterns = detectHarmonicPatterns(c);
+      const classicPatterns = detectClassicPatterns(c);
 
-      setPatterns(unique);
+      // Merge harmonic + classic patterns into the unique list
+      const allPatterns = [...unique];
+      const harmonicSeen = new Set<string>();
+      for (const hp of harmonicPatterns) {
+        const key = `${hp.type}_${hp.direction}`;
+        if (!harmonicSeen.has(key)) {
+          harmonicSeen.add(key);
+          allPatterns.push(hp);
+        }
+      }
+      for (const cp of classicPatterns) {
+        const key = `${cp.type}_${cp.direction}`;
+        if (!harmonicSeen.has(key)) {
+          harmonicSeen.add(key);
+          allPatterns.push(cp);
+        }
+      }
+
+      setPatterns(allPatterns);
       setLevels(srLevels);
       setGeoList(geoPatterns);
       setElliottData(elliottPattern);
@@ -274,9 +302,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }
 
-      // ── Send patterns to chart ─────────────────────────────
+      // ── Send patterns to chart (including harmonic + classic) ─────
       onPatternsRef.current({
-        patterns: unique,
+        patterns: allPatterns,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
         resistanceLevels: srLevels.filter(l => l.type === 'resistance').slice(0, 4),
         trendLines,
@@ -426,8 +454,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       // ── 10. REVOLUTIONARY: Fallback local signal (only if consensus failed) ──
       if (!consensusSucceeded) {
-        const bull = unique.filter(p => p.direction === 'bullish').length;
-        const bear = unique.filter(p => p.direction === 'bearish').length;
+        const bull = allPatterns.filter(p => p.direction === 'bullish').length;
+        const bear = allPatterns.filter(p => p.direction === 'bearish').length;
         const last20 = c.slice(-20);
         const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / 9;
         const ema20 = last20.reduce((s, x) => s + x.close, 0) / 20;
@@ -535,6 +563,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           {loading && <div style={{ width: 8, height: 8, border: `1.5px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />}
         </div>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+          {/* SSE Stream indicator */}
+          {streamMode && (
+            <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace', background: `${C.cyan}18`, color: C.cyan, border: `1px solid ${C.cyan}30`, display: 'flex', alignItems: 'center', gap: 3 }}>
+              <div style={{ width: 5, height: 5, borderRadius: '50%', background: C.cyan, animation: 'spin 1s linear infinite' }} />
+              SSE
+            </div>
+          )}
           {/* Volatility regime badge */}
           <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace', background: `${regimeColor}18`, color: regimeColor, border: `1px solid ${regimeColor}30` }}>
             ATR {regimeLabelAr}

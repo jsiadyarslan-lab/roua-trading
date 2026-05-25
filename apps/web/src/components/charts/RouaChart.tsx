@@ -189,6 +189,7 @@ export default function RouaChart({
   // ── 3 Revolutionary Feature States ──
   const [showReplay, setShowReplay] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [showAIStream, setShowAIStream] = useState(false);
   // ── Quick Trade Panel State ──
   const [showQuickTrade, setShowQuickTrade] = useState(false);
   // ── Command Palette (Ctrl+K) ──
@@ -960,6 +961,14 @@ export default function RouaChart({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showAIPanel]);
 
+  // ── AI Stream → Open AI Panel automatically ──
+  useEffect(() => {
+    if (showAIStream && !showAIPanel) {
+      setShowAIPanel(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAIStream]);
+
   // ── Background Pattern Detection (every 5 minutes) ──────
   // FIX: Only runs when AI panel is open OR pattern progress is visible.
   // FIX: Added showAIPanel/showPatternProgress to deps so the interval is
@@ -1128,19 +1137,86 @@ export default function RouaChart({
       );
     };
 
-    // ── Draw Trend Lines on chart ──
+    // ── Draw Trend Lines on chart as DIAGONAL lines ──
     try {
-      // Trend lines as price lines — persistent, no LineSeries issues
       result.trendLines.slice(0, 4).forEach((line, i) => {
-        const color = line.type === 'ascending' ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
-        const midPrice = (line.startPoint.price + line.endPoint.price) / 2;
-        if (midPrice > 0 && isFinite(midPrice)) {
-          const label = line.type === 'ascending' ? `خط↑` : `خط↓`;
-          chart.addPriceLine(`trend-${i}`, midPrice, color, label, line.strength === 'strong' ? 2 : 1, 0, true);
-          aiPriceLinesRef.current.push(`trend-${i}`);
+        const isBull = line.type === 'ascending';
+        const color = isBull ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
+        const label = isBull ? 'Trend ↑' : 'Trend ↓';
+        try {
+          const trendSeries = chartApi.addSeries(lc.LineSeries, {
+            color,
+            lineWidth: line.strength === 'strong' ? 2 : 1,
+            lineStyle: 0,
+            priceLineVisible: false,
+            lastValueVisible: false,
+            crosshairMarkerVisible: false,
+            title: label,
+          });
+          trendSeries.setData([
+            { time: line.startPoint.time as any, value: line.startPoint.price },
+            { time: line.endPoint.time as any, value: line.endPoint.price },
+          ]);
+          aiOverlaySeriesRef.current.push(trendSeries);
+          chart.registerExternalSeries(trendSeries);
+        } catch {
+          // Fallback to price line if LineSeries fails
+          const midPrice = (line.startPoint.price + line.endPoint.price) / 2;
+          if (midPrice > 0 && isFinite(midPrice)) {
+            chart.addPriceLine(`trend-${i}`, midPrice, color, label, line.strength === 'strong' ? 2 : 1, 0, true);
+            aiPriceLinesRef.current.push(`trend-${i}`);
+          }
         }
       });
-    } catch (e) { console.warn('[AI Overlay] error:', e); }
+    } catch (e) { console.warn('[AI Overlay] trend lines error:', e); }
+
+    // ── Draw Harmonic Patterns on chart (Gartley, Butterfly, Bat, Crab) ──
+    try {
+      const harmonicPatterns = result.patterns.filter(
+        (p: any) => p.shapeType === 'harmonic' || ['Gartley','Butterfly','Bat','Crab'].includes(p.type)
+      );
+      harmonicPatterns.slice(0, 3).forEach((pattern: any, idx: number) => {
+        const isBull = pattern.direction === 'bullish';
+        const col = isBull ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
+        const colDim = isBull ? 'rgba(0,255,163,0.35)' : 'rgba(255,71,87,0.35)';
+        const shapePoints = pattern.shapePoints || pattern.points;
+        if (!shapePoints || shapePoints.length < 2) return;
+
+        // Draw each leg of the harmonic pattern as a LineSeries
+        for (let pi = 0; pi < shapePoints.length - 1; pi++) {
+          const p1 = shapePoints[pi];
+          const p2 = shapePoints[pi + 1];
+          if (!p1?.time || !p2?.time || !p1?.price || !p2?.price) continue;
+          try {
+            const legSeries = chartApi.addSeries(lc.LineSeries, {
+              color: pi % 2 === 0 ? col : colDim,
+              lineWidth: 1,
+              lineStyle: pi % 2 === 0 ? 0 : 1,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
+              title: `${pattern.type || pattern.labelAr || 'Harmonic'} ${idx + 1}`,
+            });
+            legSeries.setData([
+              { time: p1.time as any, value: p1.price },
+              { time: p2.time as any, value: p2.price },
+            ]);
+            aiOverlaySeriesRef.current.push(legSeries);
+            chart.registerExternalSeries(legSeries);
+          } catch { /* skip leg */ }
+        }
+
+        // Add PRZ (Potential Reversal Zone) marker at the D point
+        const dPoint = shapePoints[shapePoints.length - 1];
+        if (dPoint?.price && dPoint?.time) {
+          chart.addPriceLine(
+            `harmonic-prz-${idx}`, dPoint.price, col,
+            `PRZ ${pattern.type || 'Harmonic'}`, 1, 2, true
+          );
+          aiPriceLinesRef.current.push(`harmonic-prz-${idx}`);
+        }
+      });
+    } catch (e) { console.warn('[AI Overlay] harmonic patterns error:', e); }
 
     // ── SMC + Geo + Elliott via chart.addPriceLine (same as S/R) ──
     const ov = (result as any).overlays || { fvg:true, bos:true, sr:true, geo:true, ew:true, wyckoff:true };
@@ -1482,6 +1558,9 @@ export default function RouaChart({
         onToggleReplay={() => setShowReplay(!showReplay)}
         showHeatmap={showHeatmap}
         onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
+        // ── 4 AI Streaming Toolbar Prop ──
+        showAIStream={showAIStream}
+        onToggleAIStream={() => setShowAIStream(!showAIStream)}
         priceAlertsCount={priceAlertsCount}
       />}
 
@@ -2084,7 +2163,8 @@ export default function RouaChart({
             currentPrice={currentPrice}
             onPatternsDetected={handlePatternsDetected}
             onHeatmapData={handleHeatmapData}
-            onClose={() => setShowAIPanel(false)}
+            onClose={() => { setShowAIPanel(false); setShowAIStream(false); }}
+            streamMode={showAIStream}
             onScrollToTime={(time) => {
               try {
                 const ts = chart.chartRef?.current?.timeScale();

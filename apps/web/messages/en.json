@@ -3405,7 +3405,12 @@
     "patternDescendingTriangle": "Descending Triangle",
     "patternSymmetricalTriangle": "Symmetrical Triangle",
     "patternRisingWedge": "Rising Wedge",
-    "patternFallingWedge": "Falling Wedge"
+    "patternFallingWedge": "Falling Wedge",
+    "patternGartley": "Gartley Harmonic",
+    "patternButterfly": "Butterfly Harmonic",
+    "patternBat": "Bat Harmonic",
+    "patternCrab": "Crab Harmonic",
+    "patternInverseHeadAndShoulders": "Inverse Head & Shoulders"
   },
   "aiPatternPanel": {
     "cooldownWait": "Wait {seconds} seconds before analyzing again",

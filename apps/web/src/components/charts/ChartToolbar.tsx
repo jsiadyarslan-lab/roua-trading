@@ -64,6 +64,9 @@ interface ChartToolbarProps {
   showHeatmap?: boolean;
   onToggleHeatmap?: () => void;
   priceAlertsCount?: number;
+  // ── 4 AI Streaming Toggle Prop ──
+  showAIStream?: boolean;
+  onToggleAIStream?: () => void;
 }
 
 // Chart type keys — labels resolved via i18n in the component
@@ -100,6 +103,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     showPatternProgress, onTogglePatternProgress,
     showReplay, onToggleReplay,
     showHeatmap, onToggleHeatmap,
+    showAIStream, onToggleAIStream,
     priceAlertsCount,
     isFullscreen,
   } = props;
@@ -508,6 +512,19 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
+          {/* AI Stream (SSE) */}
+          {onToggleAIStream && (
+            <button
+              style={toggleBtnStyle(!!showAIStream)}
+              onClick={onToggleAIStream}
+              title="AI Live Stream"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 12h4l3-9 6 18 3-9h4"/>
+              </svg>
+            </button>
+          )}
+
           {/* Chart Trading */}
           {onToggleChartTrading && (
             <button
@@ -780,6 +797,19 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
+        {/* AI Streaming — SSE Consensus War Room */}
+        {onToggleAIStream && (
+          <button
+            style={toggleBtnStyle(!!showAIStream)}
+            onClick={onToggleAIStream}
+            title="AI Live Stream (SSE)"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 12h4l3-9 6 18 3-9h4"/>
+            </svg>
+          </button>
+        )}
+
         {/* Pattern Progress */}
         {onTogglePatternProgress && (
           <button
@@ -847,7 +877,29 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
-        {/* MTF and ChartGrid buttons are in Group 8 above */}
+        {/* MTF — Multi-Timeframe Analysis (same symbol, different timeframes) */}
+        {onToggleMTF && (
+          <button
+            style={toggleBtnStyle(false)}
+            onClick={onToggleMTF}
+            title={t('mtfTooltip')}
+          >
+            MTF
+          </button>
+        )}
+
+        {/* Chart Grid — Multi-symbol grid layout */}
+        {onToggleChartGrid && (
+          <button
+            style={btnStyle}
+            onClick={onToggleChartGrid}
+            title={t('chartGridTooltip')}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+            </svg>
+          </button>
+        )}
 
         {/* Share */}
         {onToggleShare && (

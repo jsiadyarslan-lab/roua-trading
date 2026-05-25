@@ -3406,7 +3406,12 @@
     "patternDescendingTriangle": "مثلث هابط",
     "patternSymmetricalTriangle": "مثلث متماثل",
     "patternRisingWedge": "إسفين صاعد",
-    "patternFallingWedge": "إسفين هابط"
+    "patternFallingWedge": "إسفين هابط",
+    "patternGartley": "نمط جارتلي التوافقي",
+    "patternButterfly": "نمط الفراشة التوافقي",
+    "patternBat": "نمط الخفاش التوافقي",
+    "patternCrab": "نمط السلطعون التوافقي",
+    "patternInverseHeadAndShoulders": "رأس وكتفين معكوس"
   },
   "aiPatternPanel": {
     "cooldownWait": "انتظر {seconds} ثوانٍ قبل التحليل مجدداً",

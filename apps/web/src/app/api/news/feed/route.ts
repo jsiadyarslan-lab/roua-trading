@@ -74,25 +74,29 @@ export async function GET() {
           const newsData = await newsRes.json();
           if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
             const items = newsData.articles.map((article: any) => {
-              const cat = article.category || 'أسواق';
+              const rawCat = article.category || 'Markets';
               const title = article.title || '';
               const summary = article.summary || '';
+
+              // Ensure both English and Arabic categories
+              const category = /[\u0600-\u06FF]/.test(rawCat) ? mapCategoryToEnglish(rawCat) : rawCat;
+              const categoryAr = /[\u0600-\u06FF]/.test(rawCat) ? rawCat : mapCategoryToArabic(rawCat);
 
               // News site already has Arabic content
               const textAr = /[\u0600-\u06FF]/.test(title) ? title : tryTranslateToArabic(title) || title;
 
               return {
-                category: cat,
-                categoryAr: /[\u0600-\u06FF]/.test(cat) ? cat : mapCategoryToArabic(cat),
-                color: mapCategoryColor(cat),
-                bgColor: `${mapCategoryColor(cat)}12`,
+                category,
+                categoryAr,
+                color: mapCategoryColor(category),
+                bgColor: `${mapCategoryColor(category)}12`,
                 text: title,
                 textAr,
                 summary: summary || '',
                 link: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
                 publishedAt: article.publishedAt || null,
-                impact: article.impactLevel || article.sentimentScore > 0.3 ? 'high' : 'medium',
-                source: article.source || 'رؤى للأخبار',
+                impact: article.impactLevel || (article.sentimentScore > 0.3 ? 'high' : 'medium'),
+                source: article.source || 'Rouaa News',
               };
             });
 
@@ -201,6 +205,19 @@ function mapCategoryToArabic(category: string) {
   if (normalized.includes('gold') || normalized.includes('metal')) return 'معادن'
   if (normalized.includes('tech') || normalized.includes('ai')) return 'تقنية'
   return 'أسواق'
+}
+
+function mapCategoryToEnglish(category: string) {
+  // If already English, return as-is
+  if (!/[\u0600-\u06FF]/.test(category)) return category
+  // Map Arabic category back to English
+  const arToEn: Record<string, string> = {
+    'كريبتو': 'Crypto', 'بيتكوين': 'Bitcoin', 'إيثيريوم': 'Ethereum',
+    'فوركس': 'Forex', 'أسهم': 'Stocks', 'معادن': 'Metals', 'نفط': 'Oil',
+    'اقتصاد': 'Economy', 'تنظيم': 'Regulation', 'الاحتياطي الفيدرالي': 'Fed',
+    'صناديق': 'ETF', 'تقنية': 'Tech', 'أسواق': 'Markets', 'طاقة': 'Energy',
+  }
+  return arToEn[category] || 'Markets'
 }
 
 function mapCategoryColor(category: string) {

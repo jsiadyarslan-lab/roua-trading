@@ -248,7 +248,7 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
 /* ══ Strip 1: News Ticker ══ */
 /* ─── Shared news data (single fetch) with TTL ─── */
 // BUG-004 FIX: Added TTL so cache expires after 10 min instead of living forever.
-type NewsItem = { text: string; textAr: string; categoryAr: string; color: string; impact: string }
+type NewsItem = { text: string; textAr: string; category: string; categoryAr: string; color: string; impact: string }
 let _newsCache: NewsItem[] | null = null
 let _newsCacheAt = 0
 const NEWS_TTL_MS = 10 * 60 * 1000 // 10 minutes
@@ -269,7 +269,8 @@ function fetchNewsData(): Promise<NewsItem[]> {
           return {
             text: rawText,
             textAr: hasRealArabic ? rawTextAr : rawText,
-            categoryAr: item.categoryAr || 'عام',
+            category: item.category || 'Markets',
+            categoryAr: item.categoryAr || 'Markets',
             color: item.color || '#8B92A8',
             impact: item.impact || 'medium',
           }
@@ -288,7 +289,7 @@ function fetchNewsData(): Promise<NewsItem[]> {
 function NewsTicker() {
   const t = useTranslations()
   const [items, setItems] = useState<
-    { text: string; textAr: string; categoryAr: string; color: string; impact: string }[]
+    { text: string; textAr: string; category: string; categoryAr: string; color: string; impact: string }[]
   >([])
 
   useEffect(() => {
@@ -313,17 +314,17 @@ function NewsTicker() {
           }}>
             {doubled.map((item, i) => (
               <span key={i} style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 11,
+                fontFamily: "'JetBrains Mono', 'Readex Pro', sans-serif", fontSize: 11,
                 color: item.color || T.text2, flexShrink: 0,
                 display: 'inline-flex', alignItems: 'center', gap: 5,
               }}>
                 <span style={{
                   fontSize: 8, padding: '1px 5px', borderRadius: 3,
                   background: `${item.color}18`, color: item.color,
-                  fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-                }}>{item.categoryAr || t('common.general')}</span>
+                  fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                }}>{item.category || 'News'}</span>
                 {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
-                {item.textAr || item.text}
+                {item.text}
               </span>
             ))}
           </div>
@@ -453,13 +454,13 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 function MobileNewsTicker() {
   const t = useTranslations()
   const [items, setItems] = useState<
-    { textAr: string; categoryAr: string; color: string }[]
+    { text: string; category: string; color: string }[]
   >([])
 
   useEffect(() => {
     fetchNewsData().then(data => {
       if (data.length) {
-        setItems(data.slice(0, 10).map(({ textAr, categoryAr, color }) => ({ textAr, categoryAr, color })))
+        setItems(data.slice(0, 10).map(({ text, category, color }) => ({ text, category, color })))
       }
     })
   }, [])
@@ -473,22 +474,22 @@ function MobileNewsTicker() {
     }}>
       {doubled.map((item, i) => (
         <span key={i} style={{
-          fontFamily: "'Cairo', sans-serif", fontSize: 10,
+          fontFamily: "'JetBrains Mono', 'Readex Pro', sans-serif", fontSize: 10,
           color: item.color || T.text2, flexShrink: 0,
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}>
           <span style={{
             fontSize: 7, padding: '0px 4px', borderRadius: 2,
             background: `${item.color}18`, color: item.color,
-            fontFamily: "'Cairo', sans-serif", fontWeight: 700,
-          }}>{item.categoryAr}</span>
-          {item.textAr}
+            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+          }}>{item.category || 'News'}</span>
+          {item.text}
         </span>
       ))}
     </div>
   ) : (
     <span style={{
-      padding: '0 10px', fontFamily: "'Cairo', sans-serif",
+      padding: '0 10px', fontFamily: "'JetBrains Mono', monospace",
       fontSize: 9, color: T.text3,
     }}>{t('dashboard.news.loading')}</span>
   )

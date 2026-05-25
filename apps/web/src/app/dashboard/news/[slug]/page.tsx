@@ -169,9 +169,9 @@ export default function NewsArticlePage() {
 
           {/* Category badge on image */}
           <div style={{ position: 'absolute', bottom: 20, right: 24, display: 'flex', gap: 8, alignItems: 'center' }}>
-            {article.categoryAr && (
+            {(lang === 'en' ? article.category : article.categoryAr) && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: 'rgba(0,229,255,0.2)', backdropFilter: 'blur(8px)', color: '#00E5FF', fontWeight: 800, border: '0.5px solid rgba(0,229,255,0.3)' }}>
-                {article.categoryAr}
+                {lang === 'en' ? article.category : article.categoryAr}
               </span>
             )}
             {article.newsType === 'live' && (
@@ -208,9 +208,9 @@ export default function NewsArticlePage() {
         <div style={{ animation: 'fade-in 0.4s ease-out', marginBottom: 28 }}>
           {/* Badges row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {!hasImage && article.categoryAr && (
+            {!hasImage && (lang === 'en' ? article.category : article.categoryAr) && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, border: `0.5px solid ${T.cyan}22` }}>
-                {article.categoryAr}
+                {lang === 'en' ? article.category : article.categoryAr}
               </span>
             )}
             <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 5 }}>

@@ -557,9 +557,9 @@ function HeroSlider({
       }} onClick={() => onArticleClick(item.slug || '', item.id)}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
-          {item.categoryAr && (
+          {(newsLang === 'en' ? item.category : item.categoryAr) && (
             <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: `${T.cyan}22`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
-              {item.categoryAr}
+              {newsLang === 'en' ? item.category : item.categoryAr}
             </span>
           )}
           <span style={{ fontSize: 10, padding: '3px 10px', borderRadius: 8, background: sentiment.bg, color: sentiment.color, fontWeight: 800, fontFamily: FONT_AR }}>
@@ -662,9 +662,9 @@ function NewsCard({ item, index, onClick, newsLang }: { item: NewsItem; index: n
       <div style={{ padding: '16px 18px' }}>
         {/* Badges */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 10, flexWrap: 'wrap' }}>
-          {item.categoryAr && (
+          {(newsLang === 'en' ? item.category : item.categoryAr) && (
             <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: `${T.cyan}12`, color: T.cyan, fontWeight: 800, fontFamily: FONT_AR }}>
-              {item.categoryAr}
+              {newsLang === 'en' ? item.category : item.categoryAr}
             </span>
           )}
           <span style={{ fontSize: 9, padding: '2px 8px', borderRadius: 6, background: sentiment.bg, color: sentiment.color, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 2, fontFamily: FONT_AR }}>
@@ -1127,9 +1127,15 @@ function AnalysisContentCard({
     } catch { return [] }
   })()
 
-  const contentText = article.contentAr || article.contentEn || ''
-  const summaryText = article.summaryAr || article.summaryEn || ''
-  const titleText = article.titleAr || article.titleEn || (newsLang === 'en' ? 'Technical Analysis' : 'تحليل فني')
+  const titleText = newsLang === 'en'
+    ? (article.titleEn || article.titleAr || 'Technical Analysis')
+    : (article.titleAr || article.titleEn || 'تحليل فني')
+  const contentText = newsLang === 'en'
+    ? (article.contentEn || article.contentAr || '')
+    : (article.contentAr || article.contentEn || '')
+  const summaryText = newsLang === 'en'
+    ? (article.summaryEn || article.summaryAr || '')
+    : (article.summaryAr || article.summaryEn || '')
 
   return (
     <article

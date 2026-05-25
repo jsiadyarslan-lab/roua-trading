@@ -1,33 +1,44 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { useTranslations } from 'next-intl'
+import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePriceAlertStore } from '@/hooks/usePriceAlertStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 /**
  * PriceAlertEngine — Invisible background component mounted in MarketProvider.
- * Checks all active alerts every time market prices update.
+ * Checks all active alerts every 5 seconds using useVisibleInterval.
+ *
+ * PERF: Previously used useEffect dependent on globalQuotes, which fired on every
+ * WebSocket price update (sub-second). This caused the engine to iterate all active
+ * alerts hundreds of times per minute even with per-alert throttling. Now uses
+ * useVisibleInterval(5s) which:
+ * 1. Only fires every 5 seconds regardless of how fast prices update
+ * 2. Pauses when the tab is hidden (no wasted CPU)
+ * 3. Reads store state imperatively (no reactive re-renders)
  */
 export function PriceAlertEngine() {
   const t = useTranslations('dashboard.priceAlert')
-  const globalQuotes = useMarketStore(state => state.quotes)
-  const { alerts, triggerAlert } = usePriceAlertStore()
-  const { addNotification } = useNotificationStore()
   const lastChecked = useRef<Record<string, number>>({})
 
-  useEffect(() => {
+  useVisibleInterval(() => {
+    const { alerts, triggerAlert } = usePriceAlertStore.getState()
+    const globalQuotes = useMarketStore.getState().quotes
+    const { addNotification } = useNotificationStore.getState()
+
     const activeAlerts = alerts.filter(a => !a.triggered)
     if (activeAlerts.length === 0) return
+
+    const now = Date.now()
 
     for (const alert of activeAlerts) {
       const q = globalQuotes[alert.symbol]
       if (!q || q.price === 0) continue
 
-      // Throttle: only check each alert once per 3 seconds to avoid spam
-      const now = Date.now()
-      if (lastChecked.current[alert.id] && now - lastChecked.current[alert.id] < 3000) continue
+      // Throttle: only check each alert once per 5 seconds
+      if (lastChecked.current[alert.id] && now - lastChecked.current[alert.id] < 5000) continue
       lastChecked.current[alert.id] = now
 
       let shouldTrigger = false
@@ -65,12 +76,9 @@ export function PriceAlertEngine() {
           price: q.price,
           confidence: 100,
         })
-
-        // Mark alert as triggered but keep it in the list so user can review
-        // User can manually dismiss it from the alerts panel
       }
     }
-  }, [globalQuotes, alerts, triggerAlert, addNotification])
+  }, 5000)
 
   return null
 }

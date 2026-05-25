@@ -4262,7 +4262,11 @@
       "appName": "Roua Trading",
       "notificationsEnabled": "Notifications enabled successfully! You will now receive trading alerts.",
       "alertTitle": "Roua Trading Alert",
-      "chartTitle": "Roua — {symbol}"
+      "chartTitle": "Roua — {symbol}",
+      "enableDeviceNotifications": "Enable Device Notifications",
+      "receiveAlertsInstantly": "Receive trading alerts instantly even outside the app",
+      "enable": "Enable",
+      "secureNote": "Secure notifications — we never share your data with third parties"
     }
   },
   "commandPalette": {

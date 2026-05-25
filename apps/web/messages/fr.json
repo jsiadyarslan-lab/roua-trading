@@ -4258,7 +4258,11 @@
       "appName": "Roua Trading",
       "notificationsEnabled": "Notifications activées avec succès ! Vous recevrez maintenant les alertes de trading.",
       "alertTitle": "Alerte Roua Trading",
-      "chartTitle": "Roua — {symbol}"
+      "chartTitle": "Roua — {symbol}",
+      "enableDeviceNotifications": "Activer les notifications de l’appareil",
+      "receiveAlertsInstantly": "Recevez les alertes de trading instantanément même en dehors de l’application",
+      "enable": "Activer",
+      "secureNote": "Notifications sécurisées — nous ne partageons jamais vos données avec des tiers"
     }
   },
   "leaderboardPage": {

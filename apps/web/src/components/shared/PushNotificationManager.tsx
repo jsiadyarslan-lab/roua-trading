@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 /**
@@ -13,6 +13,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
  */
 export default function PushNotificationManager() {
   const tn = useTranslations('notifications.push')
+  const locale = useLocale()
   const settings = useNotificationStore(s => s.settings)
   const updateSettings = useNotificationStore(s => s.updateSettings)
   const [mounted, setMounted] = useState(false)
@@ -64,8 +65,8 @@ export default function PushNotificationManager() {
               body: tn('notificationsEnabled'),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
-              dir: 'rtl',
-              lang: 'ar',
+              dir: locale === 'ar' ? 'rtl' : 'ltr',
+              lang: locale,
               tag: 'roua-welcome',
               vibrate: [100],
             } as NotificationOptions)

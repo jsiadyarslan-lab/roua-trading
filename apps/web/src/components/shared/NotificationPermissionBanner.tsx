@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BellRing, X, Shield } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 /**
  * NotificationPermissionBanner — شعار يطلب إذن الإشعارات من المستخدم
@@ -13,6 +13,7 @@ import { useTranslations } from 'next-intl'
  */
 export default function NotificationPermissionBanner() {
   const tn = useTranslations('notifications.push')
+  const locale = useLocale()
   const [permission, setPermission] = useState<string>('default')
   const [dismissed, setDismissed] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
@@ -43,8 +44,8 @@ export default function NotificationPermissionBanner() {
             body: tn('notificationsEnabled'),
             icon: '/icon-192.png',
             badge: '/icon-192.png',
-            dir: 'rtl',
-            lang: 'ar',
+            dir: locale === 'ar' ? 'rtl' : 'ltr',
+            lang: locale,
             tag: 'roua-permission-test',
             vibrate: [100],
           } as NotificationOptions)
@@ -109,13 +110,13 @@ export default function NotificationPermissionBanner() {
               fontSize: 13, fontWeight: 800, color: '#F0F2F5',
               margin: 0, lineHeight: 1.4,
             }}>
-              فعّل إشعارات الجهاز
+              {tn('enableDeviceNotifications')}
             </p>
             <p style={{
               fontSize: 11, color: 'rgba(235,235,245,0.5)',
               margin: '2px 0 0 0', lineHeight: 1.4,
             }}>
-              استقبل تنبيهات التداول فوراً حتى خارج التطبيق
+              {tn('receiveAlertsInstantly')}
             </p>
           </div>
 
@@ -136,7 +137,7 @@ export default function NotificationPermissionBanner() {
                 transition: 'all 0.2s',
               }}
             >
-              تفعيل
+              {tn('enable')}
             </button>
             <button
               onClick={() => setDismissed(true)}
@@ -162,7 +163,7 @@ export default function NotificationPermissionBanner() {
           <span style={{
             fontSize: 9, color: 'rgba(235,235,245,0.3)',
           }}>
-            إشعارات آمنة — لا نرسل بياناتك لأي طرف ثالث
+            {tn('secureNote')}
           </span>
         </div>
       </motion.div>

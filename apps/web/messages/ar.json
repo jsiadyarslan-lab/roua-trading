@@ -4263,7 +4263,11 @@
       "appName": "رؤى للتداول",
       "notificationsEnabled": "تم تفعيل الإشعارات بنجاح! ستتلقى تنبيهات التداول الآن",
       "alertTitle": "تنبيه رؤى للتداول",
-      "chartTitle": "رؤى — {symbol}"
+      "chartTitle": "رؤى — {symbol}",
+      "enableDeviceNotifications": "فعّل إشعارات الجهاز",
+      "receiveAlertsInstantly": "استقبل تنبيهات التداول فوراً حتى خارج التطبيق",
+      "enable": "تفعيل",
+      "secureNote": "إشعارات آمنة — لا نرسل بياناتك لأي طرف ثالث"
     }
   },
   "commandPalette": {

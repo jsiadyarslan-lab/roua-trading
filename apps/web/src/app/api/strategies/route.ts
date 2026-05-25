@@ -21,10 +21,10 @@ function safeFormatDate(date: Date | null | undefined): string {
     const diffMs = Date.now() - date.getTime()
     const diffHours = Math.floor(diffMs / (1000 * 60 * 60))
 
-    if (diffHours < 24) return 'اليوم'
-    if (diffHours < 48) return 'أمس'
+    if (diffHours < 24) return 'Today'
+    if (diffHours < 48) return 'Yesterday'
 
-    return date.toLocaleDateString('ar-SA', {
+    return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
     })

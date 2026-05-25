@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useMediaQuery } from '@/hooks/useMediaQuery'
+import { useTranslations } from 'next-intl'
 import { 
   Building2, Globe, TrendingUp, TrendingDown, Activity, 
   FileText, Search, ShieldAlert, Cpu, Eye, Filter, Zap, Target, LineChart,
@@ -35,6 +36,7 @@ const Gauge = ({ value, max, label, color }: { value: number, max: number, label
 // Mock data removed — only real strategy reports from the API are displayed
 
 export default function StrategiesPage() {
+  const t = useTranslations('strategies')
   useScopedStyle(`@media (max-width: 767px) {
           .strategies-page-root { height: 100% !important; }
         }
@@ -69,7 +71,7 @@ export default function StrategiesPage() {
         }
         // No fallback to mock data — empty state is shown when no reports exist
       } catch {
-        setError('تعذر تحميل تقارير الاستراتيجيات حالياً.')
+        setError(t('loadError'))
       } finally {
         setLoading(false)
       }
@@ -88,8 +90,15 @@ export default function StrategiesPage() {
 
   const active = data[activeIdx]
 
+  // Translate date strings from API (Today, Yesterday, or date format)
+  const translateDate = (dateStr: string) => {
+    if (dateStr === 'Today') return t('today')
+    if (dateStr === 'Yesterday') return t('yesterday')
+    return dateStr
+  }
+
   if (loading) {
-    return <div style={{ color: T.text, padding: 20 }}>جارٍ تحميل تقارير الاستراتيجيات...</div>
+    return <div style={{ color: T.text, padding: 20 }}>{t('loading')}</div>
   }
 
   if (!active) {
@@ -108,9 +117,9 @@ export default function StrategiesPage() {
           textAlign: 'center',
         }}>
           <FileText size={28} color={T.blue} style={{ marginBottom: 12 }} />
-          <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>لا توجد تقارير استراتيجية منشورة بعد</h2>
+          <h2 style={{ margin: '0 0 8px', fontSize: 18 }}>{t('noReportsTitle')}</h2>
           <p style={{ margin: 0, color: T.text2, fontSize: 13 }}>
-            {error || 'عند توفر تقارير بحثية حقيقية ستظهر هنا بدل أي بيانات تجريبية.'}
+            {error || t('noReportsDesc')}
           </p>
         </div>
       </div>
@@ -132,19 +141,19 @@ export default function StrategiesPage() {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Globe size={13} color={T.blue} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, marginRight: 2 }}>رادار الاقتصاد الكلي</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color: T.text, marginRight: 2 }}>{t('macroRadar')}</span>
           <span style={{ fontSize: 9, background: `${T.blue}10`, color: T.blue, padding: '2px 6px', borderRadius: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", border: `0.5px solid ${T.border}` }}>
-            LIVE INSTI-FEED
+            {t('liveInstiFeed')}
           </span>
-          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>• آخر تحديث: {new Date().toLocaleTimeString('ar-SA')}</span>
+          <span style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace", marginRight: 4 }}>{t('lastUpdate')} {new Date().toLocaleTimeString('ar-SA')}</span>
         </div>
         
         <div style={{ display: 'flex', gap: 20, alignItems: 'center' }}>
           {[
-            { label: 'VIX (Fear)', val: '14.2', chg: '-1.4%', color: T.green },
-            { label: 'US 10Y Yield', val: '4.25%', chg: '+0.03', color: T.amber },
-            { label: 'FED Target', val: '5.25 - 5.50%', chg: 'Unchanged', color: T.text2 },
-            { label: 'Smart Money Index', val: '112.4', chg: '+2.1%', color: T.cyan },
+            { label: t('vixFear'), val: '14.2', chg: '-1.4%', color: T.green },
+            { label: t('us10yYield'), val: '4.25%', chg: '+0.03', color: T.amber },
+            { label: t('fedTarget'), val: '5.25 - 5.50%', chg: t('unchanged'), color: T.text2 },
+            { label: t('smartMoneyIndex'), val: '112.4', chg: '+2.1%', color: T.cyan },
           ].map((id, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, borderInlineStart: i > 0 ? `0.5px solid ${T.border}` : 'none', paddingInlineStart: i > 0 ? 20 : 0 }}>
               <div>
@@ -191,24 +200,24 @@ export default function StrategiesPage() {
           <div style={{ padding: '12px', borderBottom: `0.5px solid ${T.border}`, background: `linear-gradient(180deg, ${T.blue}05, transparent)` }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <h2 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: T.text, display: 'flex', alignItems: 'center', gap: 6 }}>
-                <FileText size={13} color={T.blue} /> الأبحاث (RMS)
+                <FileText size={13} color={T.blue} /> {t('researchRms')}
               </h2>
               <button style={{ background: `linear-gradient(135deg, ${T.cyan}, ${T.blue})`, border: 'none', borderRadius: 4, padding: '3px 8px', color: '#fff', fontSize: 9, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, letterSpacing: 0.5 }}>
-                 تحديث <Zap size={10} />
+                 {t('update')} <Zap size={10} />
               </button>
             </div>
             
             <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
-               {['أسبوعي', 'شهري', 'سنوي', 'مخصص'].map(p => (
-                 <button key={p} style={{ flex: 1, padding: '4px', background: p === 'شهري' ? `${T.blue}15` : T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 4, color: p === 'شهري' ? T.blue : T.text2, fontSize: 9, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
-                   {p === 'شهري' && <Calendar size={8}/>} {p}
+               {['weekly', 'monthly', 'yearly', 'custom'].map(p => (
+                 <button key={p} style={{ flex: 1, padding: '4px', background: p === 'monthly' ? `${T.blue}15` : T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 4, color: p === 'monthly' ? T.blue : T.text2, fontSize: 9, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+                   {p === 'monthly' && <Calendar size={8}/>} {t(p)}
                  </button>
                ))}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 8px', height: 30 }}>
               <Search size={12} color={T.text3} />
-              <input placeholder="البحث في التقارير..." aria-label="البحث في التقارير" style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "'Cairo', sans-serif" }} />
+              <input placeholder={t('searchReports')} aria-label={t('searchReports')} style={{ background: 'transparent', border: 'none', color: T.text, fontSize: 11, outline: 'none', padding: '0 8px', width: '100%', fontFamily: "'Cairo', sans-serif" }} />
             </div>
           </div>
           
@@ -227,7 +236,7 @@ export default function StrategiesPage() {
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                   <span style={{ fontSize: 9, background: T.bg, padding: '2px 6px', borderRadius: 4, color: T.blue, border: `0.5px solid ${T.border}`, fontFamily: "'JetBrains Mono', monospace" }}>{rep.type}</span>
-                  <span style={{ fontSize: 9, color: T.text3 }}>{rep.date}</span>
+                  <span style={{ fontSize: 9, color: T.text3 }}>{translateDate(rep.date)}</span>
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: activeIdx === idx ? T.text : T.text2, lineHeight: 1.5 }}>
                   {rep.title}
@@ -248,11 +257,11 @@ export default function StrategiesPage() {
             {/* Context Actions */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                <button style={{ padding: '6px 12px', background: `linear-gradient(135deg, ${T.cyan}10, transparent)`, border: `0.5px solid ${T.cyan}40`, borderRadius: 6, color: T.cyan, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, fontWeight: 700 }}>
-                 استخراج
+                 {t('extract')}
                </button>
                
                <button style={{ padding: '6px 12px', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.blue, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                 <Globe size={12} /> الأسواق <ChevronDown size={12} />
+                 <Globe size={12} /> {t('markets')} <ChevronDown size={12} />
                </button>
 
                <div style={{ display: 'flex', alignItems: 'center', background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, padding: '0 10px', height: 30, width: 120 }}>
@@ -262,19 +271,19 @@ export default function StrategiesPage() {
 
                <div style={{ width: 1, height: 20, background: T.border, margin: '0 8px' }} />
 
-               <button title="حفظ المستند" style={{ width: 30, height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}>
+               <button title={t('saveDocument')} style={{ width: 30, height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s' }}>
                  <Save size={14} />
                </button>
-               <button title="تصدير (PDF / Excel)" style={{ padding: '0 10px', height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 10 }}>
-                 <Download size={12} color={T.blue} /> تصدير
+               <button title={t('exportPdfExcel')} style={{ padding: '0 10px', height: 30, background: T.bg, border: `0.5px solid ${T.border}`, borderRadius: 6, color: T.text, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontWeight: 600, fontSize: 10 }}>
+                 <Download size={12} color={T.blue} /> {t('export')}
                </button>
             </div>
 
             {/* Branding Title */}
             <div style={{ textAlign: 'left' }}>
-              <h1 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: T.cyan, letterSpacing: 0.5, textShadow: `0 0 10px ${T.cyan}20` }}>تقارير استراتيجية</h1>
+              <h1 style={{ margin: 0, fontSize: 14, fontWeight: 800, color: T.cyan, letterSpacing: 0.5, textShadow: `0 0 10px ${T.cyan}20` }}>{t('strategyReports')}</h1>
               <div style={{ fontSize: 8, color: T.text3, letterSpacing: 1, fontFamily: "'JetBrains Mono', monospace", marginTop: 2, textTransform: 'uppercase' }}>
-                VIP Institutional Intelligence • Quantum Trade v5.0
+                {t('branding')}
               </div>
             </div>
           </div>
@@ -287,7 +296,7 @@ export default function StrategiesPage() {
                <div style={{ flex: 1.2, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                    <Target size={14} color={T.cyan} />
-                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>القرار الاستراتيجي المباشر</h3>
+                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>{t('directDecision')}</h3>
                    <span style={{ fontSize: 9, background: `${T.bg}`, padding: '2px 6px', borderRadius: 4, color: T.text3, marginRight: 'auto', border: `0.5px solid ${T.border}` }}>
                      {active.symbol} - {active.name}
                    </span>
@@ -313,7 +322,7 @@ export default function StrategiesPage() {
                <div style={{ flex: 1, background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20 }}>
                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                    <Activity size={14} color={T.purple} />
-                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.purple }}>المصفوفة الهيكلية</h3>
+                   <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.purple }}>{t('structuralMatrix')}</h3>
                  </div>
                  
                  <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'center' }}>
@@ -331,14 +340,14 @@ export default function StrategiesPage() {
               <div style={{ flex: 1.5, background: T.card, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
                   <Building2 size={14} color={T.blue} />
-                  <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>المقاييس الكمية</h3>
+                  <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.text }}>{t('quantMetrics')}</h3>
                 </div>
                 <div className="strategies-quant-grid">
                   {[
-                    { label: 'VaR (95%)', val: active.risk.var, desc: 'القيمة للخطر', alert: false },
-                    { label: 'Beta (1Y)', val: active.risk.beta, desc: 'تقلب السوق', alert: Number(active.risk.beta) > 2 },
-                    { label: 'Sharpe Ratio', val: active.risk.sharpe, desc: 'عائد المخاطرة', alert: false },
-                    { label: 'P/E Ratio', val: active.risk.pe, desc: 'مكرر الربحية', alert: active.risk.peAlert },
+                    { label: t('var95'), val: active.risk.var, desc: t('valueAtRisk'), alert: false },
+                    { label: t('beta1y'), val: active.risk.beta, desc: t('marketVolatility'), alert: Number(active.risk.beta) > 2 },
+                    { label: t('sharpeRatio'), val: active.risk.sharpe, desc: t('riskReturn'), alert: false },
+                    { label: t('peRatio'), val: active.risk.pe, desc: t('peRatioDesc'), alert: active.risk.peAlert },
                   ].map((m, i) => (
                     <div key={i} style={{ background: T.bg2, border: `0.5px solid ${m.alert ? T.red : T.border}`, padding: 10, borderRadius: 6 }}>
                       <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{m.label}</div>
@@ -352,7 +361,7 @@ export default function StrategiesPage() {
               {/* Fair Value Radar */}
               <div style={{ flex: 1, background: T.bg2, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: T.text }}>تقييم الذكاء (FV)</span>
+                  <span style={{ fontSize: 11, fontWeight: 600, color: T.text }}>{t('intelligenceValuation')}</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: T.blue, fontFamily: "'JetBrains Mono', monospace" }}>${active.risk.fv}</span>
                 </div>
                 <div style={{ height: 4, background: T.bg, borderRadius: 2, overflow: 'hidden', position: 'relative', marginTop: 10, border: `0.5px solid ${T.border}` }}>
@@ -360,8 +369,8 @@ export default function StrategiesPage() {
                   <div style={{ position: 'absolute', top: 0, bottom: 0, left: `${active.risk.ratio}%`, width: 2, background: '#fff', boxShadow: '0 0 6px #fff' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-                  <span>Undervalued</span>
-                  <span>Premium</span>
+                  <span>{t('undervalued')}</span>
+                  <span>{t('premium')}</span>
                 </div>
               </div>
             </div>
@@ -371,7 +380,7 @@ export default function StrategiesPage() {
               <div style={{ background: `${T.amber}05`, border: `0.5px solid ${T.amber}30`, borderInlineEnd: `3px solid ${T.amber}`, borderRadius: 6, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                 <AlertTriangle size={16} color={T.amber} />
                 <div>
-                  <h3 style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 700, color: T.amber }}>البصمة الخفية (Hidden Signature)</h3>
+                  <h3 style={{ margin: '0 0 2px', fontSize: 11, fontWeight: 700, color: T.amber }}>{t('hiddenSignature')}</h3>
                   <p style={{ fontSize: 11, color: T.text, margin: 0, fontWeight: 500 }}>{active.hiddenSignature}</p>
                 </div>
               </div>
@@ -394,7 +403,7 @@ export default function StrategiesPage() {
                 </div>
                 
                 <div style={{ flex: 1, padding: 16, background: `${T.blue}08`, border: `0.5px solid ${T.border}`, borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, marginBottom: 6 }}>إجماع المحافظ الكبرى</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: T.blue, marginBottom: 6 }}>{t('majorWalletsConsensus')}</div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>{active.consensus}</div>
                 </div>
               </div>
@@ -404,7 +413,7 @@ export default function StrategiesPage() {
             <div style={{ background: T.cardHover, border: `0.5px solid ${T.border}`, borderRadius: 8, padding: 20, marginBottom: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
                 <Cpu size={14} color={T.blue} />
-                <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.blue }}>التحليل المؤسسي المعمق</h3>
+                <h3 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: T.blue }}>{t('deepInstitutionalAnalysis')}</h3>
               </div>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>

@@ -7,6 +7,7 @@
 import type { CandleData } from './types';
 import { detectZigZag, type SwingPoint } from './zigzag';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, type IncrementalState } from './IncrementalCalc';
+import { getDynamicThresholds, adjustQualityForVolatility } from './ATRAdapter';
 
 // ── Incremental state for O(1) updates instead of O(n) full recalculation ──
 let _incrementalState: IncrementalState | null = null;
@@ -83,10 +84,12 @@ function trendStrength(candles: CandleData[], fromIndex: number, toIndex: number
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export function detectDoubleTop(
   candles: CandleData[],
-  pivots?: SwingPoint[]
-): DetectedPattern[] {
+  pivots?: SwingPoint[]): DetectedPattern[] {
   const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
+
+  // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
+  const thresholds = getDynamicThresholds(candles);
 
   const highs = swings.filter(p => p.type === 'high');
   const lows = swings.filter(p => p.type === 'low');
@@ -98,9 +101,9 @@ export function detectDoubleTop(
     // h2 must come after h1
     if (h2.index <= h1.index) continue;
 
-    // Price similarity: peaks within 1.5%
+    // Price similarity: peaks within dynamic threshold (was 1.5%)
     const priceDiff = Math.abs(h1.price - h2.price) / h1.price;
-    if (priceDiff > 0.015) continue;
+    if (priceDiff > thresholds.peakSimilarity) continue;
 
     // Find the trough between h1 and h2
     const troughBetween = lows.find(l =>
@@ -108,9 +111,9 @@ export function detectDoubleTop(
     );
     if (!troughBetween) continue;
 
-    // Pullback depth: trough must be at least 3% below the peaks
+    // Pullback depth: trough must be at least dynamic pullback % (was 3%)
     const pullbackPct = (h1.price - troughBetween.price) / h1.price;
-    if (pullbackPct < 0.03) continue;
+    if (pullbackPct < thresholds.pullback) continue;
 
     // Neckline = trough price (approximately)
     const necklinePrice = troughBetween.price;
@@ -136,6 +139,7 @@ export function detectDoubleTop(
     );
 
     const quality = scoreQuality([h1, troughBetween, h2], priceDiff, ts);
+    quality.overall = adjustQualityForVolatility(quality.overall, candles);
     if (quality.overall < 4) continue;
 
     // Check if pattern already broke down
@@ -185,6 +189,9 @@ export function detectDoubleBottom(
   const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
 
+  // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
+  const thresholds = getDynamicThresholds(candles);
+
   const lows = swings.filter(p => p.type === 'low');
   const highs = swings.filter(p => p.type === 'high');
 
@@ -195,7 +202,7 @@ export function detectDoubleBottom(
     if (l2.index <= l1.index) continue;
 
     const priceDiff = Math.abs(l1.price - l2.price) / l1.price;
-    if (priceDiff > 0.015) continue;
+    if (priceDiff > thresholds.peakSimilarity) continue;
 
     const peakBetween = highs.find(h =>
       h.index > l1.index && h.index < l2.index
@@ -203,7 +210,7 @@ export function detectDoubleBottom(
     if (!peakBetween) continue;
 
     const bounceUpPct = (peakBetween.price - l1.price) / l1.price;
-    if (bounceUpPct < 0.03) continue;
+    if (bounceUpPct < thresholds.pullback) continue;
 
     const necklinePrice = peakBetween.price;
     const patternHeight = necklinePrice - l1.price;
@@ -227,6 +234,7 @@ export function detectDoubleBottom(
     );
 
     const quality = scoreQuality([l1, peakBetween, l2], priceDiff, 1 - ts);
+    quality.overall = adjustQualityForVolatility(quality.overall, candles);
     if (quality.overall < 4) continue;
 
     const lastCandle = candles[candles.length - 1];
@@ -575,6 +583,9 @@ export function detectHeadAndShoulders(
   const swings = pivots || detectZigZag(candles);
   const patterns: DetectedPattern[] = [];
 
+  // ── REVOLUTIONARY: ATR-based dynamic thresholds ──
+  const thresholds = getDynamicThresholds(candles);
+
   const highs = swings.filter(p => p.type === 'high');
   const lows  = swings.filter(p => p.type === 'low');
 
@@ -587,9 +598,9 @@ export function detectHeadAndShoulders(
     // Head must be highest
     if (head.price <= ls.price || head.price <= rs.price) continue;
 
-    // Shoulders roughly equal (within 4%)
+    // Shoulders roughly equal (within dynamic threshold, was 4%)
     const shoulderSymmetry = Math.abs(ls.price - rs.price) / ls.price;
-    if (shoulderSymmetry > 0.04) continue;
+    if (shoulderSymmetry > thresholds.shoulderTolerance) continue;
 
     // Find troughs between shoulders
     const t1 = lows.find(l => l.index > ls.index && l.index < head.index);
@@ -611,10 +622,11 @@ export function detectHeadAndShoulders(
       priceMax: necklinePrice - patternHeight * 0.6,
       timeFrom: rs.time + barDuration * 5,
       timeTo:   rs.time + barDuration * patternBars,
-      probability: Math.round(68 + (1 - shoulderSymmetry / 0.04) * 10),
+      probability: Math.round(68 + (1 - shoulderSymmetry / thresholds.shoulderTolerance) * 10),
     };
 
     const quality = scoreQuality([ls, t1, head, t2, rs], shoulderSymmetry, 0.7);
+    quality.overall = adjustQualityForVolatility(quality.overall, candles);
     if (quality.overall < 5) continue;
 
     patterns.push({
@@ -655,14 +667,14 @@ export function detectHeadAndShoulders(
     if (head.price >= ls.price || head.price >= rs.price) continue;
 
     const shoulderSymmetry = Math.abs(ls.price - rs.price) / ls.price;
-    if (shoulderSymmetry > 0.04) continue;
+    if (shoulderSymmetry > thresholds.shoulderTolerance) continue;
 
     const t1 = highs.find(h => h.index > ls.index && h.index < head.index);
     const t2 = highs.find(h => h.index > head.index && h.index < rs.index);
     if (!t1 || !t2) continue;
 
     const necklineSlope = Math.abs((t2.price - t1.price) / t1.price);
-    if (necklineSlope > 0.03) continue;
+    if (necklineSlope > thresholds.pullback) continue;
 
     const necklinePrice = (t1.price + t2.price) / 2;
     const patternHeight = necklinePrice - head.price;
@@ -675,10 +687,11 @@ export function detectHeadAndShoulders(
       priceMax: necklinePrice + patternHeight * 1.1,
       timeFrom: rs.time + barDuration * 5,
       timeTo:   rs.time + barDuration * patternBars,
-      probability: Math.round(68 + (1 - shoulderSymmetry / 0.04) * 10),
+      probability: Math.round(68 + (1 - shoulderSymmetry / thresholds.shoulderTolerance) * 10),
     };
 
     const quality = scoreQuality([ls, t1, head, t2, rs], shoulderSymmetry, 0.3);
+    quality.overall = adjustQualityForVolatility(quality.overall, candles);
     if (quality.overall < 5) continue;
 
     patterns.push({

@@ -26,6 +26,7 @@ import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { ChartTrading } from './ChartTrading';
+import { QuickTradePanel } from './QuickTradePanel';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
@@ -187,6 +188,8 @@ export default function RouaChart({
   // ── 3 Revolutionary Feature States ──
   const [showReplay, setShowReplay] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  // ── Quick Trade Panel State ──
+  const [showQuickTrade, setShowQuickTrade] = useState(false);
   // ── Command Palette (Ctrl+K) ──
   const { isOpen: cmdPaletteOpen, setIsOpen: setCmdPaletteOpen } = useCommandPalette();
   // ── Incremental Calculation State ──
@@ -904,6 +907,7 @@ export default function RouaChart({
   // FIX: Only runs when AI panel is open OR pattern progress is visible.
   // FIX: Added showAIPanel/showPatternProgress to deps so the interval is
   // cleaned up when the user closes both panels, instead of running forever.
+  // REVOLUTIONARY: Also runs audio alerts for high-confidence patterns.
   useEffect(() => {
     if (!showAIPanel && !showPatternProgress) return; // Don't waste CPU if user isn't interested
     if (!candlesRef.current?.length) return;
@@ -929,6 +933,31 @@ export default function RouaChart({
           } else if (Notification.permission === 'default') {
             Notification.requestPermission();
           }
+        }
+        // ── REVOLUTIONARY: Audio alerts for high-confidence patterns ──
+        try {
+          const { getPatternAudioAlerter } = await import('@/lib/charts/AudioAlerts');
+          const alerter = getPatternAudioAlerter();
+          for (const p of highConf) {
+            alerter.announce({
+              patternType: p.type,
+              patternTypeAr: p.labelAr || p.type,
+              symbol: selectedSymbol,
+              direction: p.direction,
+              confidence: p.confidence,
+            });
+          }
+          for (const b of bos) {
+            alerter.announceBreakout({
+              patternType: b.type,
+              patternTypeAr: b.direction === 'bullish' ? 'كسر هيكلي صعودي' : 'كسر هيكلي هبوطي',
+              symbol: selectedSymbol,
+              direction: b.direction,
+              price: b.price,
+            });
+          }
+        } catch (audioErr) {
+          console.warn('[RouaChart] Audio alert error:', audioErr);
         }
       } catch {}
     };
@@ -1682,6 +1711,18 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
+        {/* Quick Trade Panel (draggable) */}
+        {showQuickTrade && (
+          <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={260} minHeight={200}>
+            <QuickTradePanel
+              symbol={selectedSymbol}
+              currentPrice={currentPrice}
+              onPlaceOrder={handlePlaceOrder}
+              onClose={() => setShowQuickTrade(false)}
+            />
+          </DraggablePanel>
+        )}
+
         {/* Template Manager (draggable) */}
         {showTemplateManager && (
           <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={280} minHeight={250}>
@@ -2040,6 +2081,7 @@ export default function RouaChart({
             if (action === 'quick-buy') setShowChartTrading(true);
             if (action === 'quick-sell') setShowChartTrading(true);
             if (action === 'price-alert') setShowAlerts(true);
+            if (action === 'quick-trade') setShowQuickTrade(!showQuickTrade);
           },
         })}
         isOpen={cmdPaletteOpen}

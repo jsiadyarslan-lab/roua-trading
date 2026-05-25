@@ -139,7 +139,8 @@ export function AgentControlMini() {
     agentState, loading, error,
     fetchStatus, fetchCredentials, startAgent, stopAgent,
     selectedCredentialId, positions, performance,
-    fetchPositions, fetchPerformance
+    fetchPositions, fetchPerformance,
+    startAutoRefresh, stopAutoRefresh
   } = useAgentStore()
   
 
@@ -165,15 +166,16 @@ export function AgentControlMini() {
   const [currentEvalSymbol, setCurrentEvalSymbol] = useState('BTC/USDT')
   const EVAL_SYMBOLS = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT']
 
-  // Fetch on mount + periodic refresh
+  // Fetch on mount + start coordinated auto-refresh (deduped by store)
+  // PERF: Removed duplicate useVisibleInterval — was hitting same endpoints as store's startAutoRefresh
   useEffect(() => {
     fetchStatus()
     fetchCredentials()
     fetchPositions()
     fetchPerformance()
+    startAutoRefresh()
+    return () => stopAutoRefresh()
   }, [])
-  // Poll every 15s — pauses when tab hidden
-  useVisibleInterval(() => { fetchStatus(); fetchPositions() }, 15000)
 
   // Visual-only eval symbol animation — pauses when tab hidden
   useVisibleInterval(() => {

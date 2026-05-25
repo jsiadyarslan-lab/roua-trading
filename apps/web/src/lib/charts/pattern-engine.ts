@@ -6,6 +6,12 @@
 
 import type { CandleData } from './types';
 import { detectZigZag, type SwingPoint } from './zigzag';
+import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, type IncrementalState } from './IncrementalCalc';
+
+// ── Incremental state for O(1) updates instead of O(n) full recalculation ──
+let _incrementalState: IncrementalState | null = null;
+let _lastCandleCount = 0;
+let _lastCandleTime = 0;
 
 // ── Pattern types ──────────────────────────────────────────
 export type PatternDirection = 'bullish' | 'bearish';
@@ -915,9 +921,41 @@ export function detectHarmonics(
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 export function runPatternEngine(
   candles: CandleData[],
-  config?: { minQuality?: number }
+  config?: { minQuality?: number; forceFullRecalc?: boolean }
 ): { patterns: DetectedPattern[]; pivots: SwingPoint[] } {
   if (!candles || candles.length < 30) return { patterns: [], pivots: [] };
+
+  // ── REVOLUTIONARY: Incremental calculation ──
+  // Instead of recalculating everything from scratch on every new candle,
+  // maintain state and only update incrementally. Full recalc every ~50 candles
+  // to prevent drift, or when forced.
+  const currentLen = candles.length;
+  const lastCandle = candles[candles.length - 1];
+  const shouldFullRecalc = config?.forceFullRecalc
+    || !_incrementalState
+    || _lastCandleCount === 0
+    || (currentLen - _lastCandleCount > 50)
+    || needsFullRecalc(_incrementalState, currentLen);
+
+  if (!_incrementalState) {
+    _incrementalState = createIncrementalState();
+  }
+
+  if (shouldFullRecalc) {
+    _incrementalState = initializeState(_incrementalState, candles);
+  } else {
+    // Incremental update with just the new candle(s)
+    const newCandlesCount = currentLen - _lastCandleCount;
+    for (let i = 0; i < Math.min(newCandlesCount, 5); i++) {
+      const idx = _lastCandleCount + i;
+      if (idx < currentLen) {
+        const prev = idx > 0 ? candles[idx - 1] : null;
+        _incrementalState = updateIncremental(_incrementalState, candles[idx], prev);
+      }
+    }
+  }
+  _lastCandleCount = currentLen;
+  _lastCandleTime = lastCandle.time;
 
   const pivots = detectZigZag(candles);
   const minQ = config?.minQuality ?? 4;

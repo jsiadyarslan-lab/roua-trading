@@ -4264,5 +4264,13 @@
       "alertTitle": "Roua Trading Alert",
       "chartTitle": "Roua — {symbol}"
     }
+  },
+  "commandPalette": {
+    "title": "Command Palette",
+    "search": "Search commands, indicators, tools...",
+    "noResults": "No results found",
+    "navigate": "Navigate",
+    "execute": "Execute",
+    "close": "Close"
   }
 }

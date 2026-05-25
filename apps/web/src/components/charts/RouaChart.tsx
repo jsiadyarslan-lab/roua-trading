@@ -40,6 +40,9 @@ import { PriceAlertLine } from './PriceAlertLine';
 import { ChartReplay } from './ChartReplay';
 import { MiniHeatmap } from './MiniHeatmap';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
+import { CommandPalette, useCommandPalette, createChartCommands } from './CommandPalette';
+import { startAnimatedPattern, cancelAnimatedPattern } from '@/lib/charts/AnimatedPatterns';
+import { createIncrementalState, initializeState, updateIncremental, getQuickTrend, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
@@ -184,6 +187,10 @@ export default function RouaChart({
   // ── 3 Revolutionary Feature States ──
   const [showReplay, setShowReplay] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  // ── Command Palette (Ctrl+K) ──
+  const { isOpen: cmdPaletteOpen, setIsOpen: setCmdPaletteOpen } = useCommandPalette();
+  // ── Incremental Calculation State ──
+  const incrementalRef = useRef(createIncrementalState());
   const [priceAlertsCount, setPriceAlertsCount] = useState(0);
   const [councilSignal, setCouncilSignal] = useState<{ direction: 'bullish' | 'bearish' | 'neutral'; confidence: number } | null>(null);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
@@ -2003,6 +2010,41 @@ export default function RouaChart({
           />
         </div>
       )}
+
+      {/* ── Command Palette (Ctrl+K) ── */}
+      <CommandPalette
+        commands={createChartCommands({
+          onToggleIndicator: (key) => {
+            const config = INDICATOR_CONFIGS[key as keyof typeof INDICATOR_CONFIGS];
+            if (config) {
+              const existing = chart.settings.indicators.find((i: ActiveIndicator) => i.key === key);
+              if (existing) {
+                chart.removeIndicator(key);
+              } else {
+                chart.addIndicator(key);
+              }
+            }
+          },
+          onToggleTool: (tool) => chart.setTool(tool as DrawingTool),
+          onTogglePattern: (pattern) => {
+            if (pattern === 'ai') setShowAIPanel(!showAIPanel);
+            if (pattern === 'smc') setShowAIPanel(true);
+            if (pattern === 'heatmap') setShowHeatmap(!showHeatmap);
+          },
+          onChartAction: (action) => {
+            if (action === 'screenshot') chart.exportPNG();
+            if (action === 'reset') chart.resetView();
+            if (action === 'fullscreen') chart.toggleFullscreen();
+          },
+          onTradingAction: (action) => {
+            if (action === 'quick-buy') setShowChartTrading(true);
+            if (action === 'quick-sell') setShowChartTrading(true);
+            if (action === 'price-alert') setShowAlerts(true);
+          },
+        })}
+        isOpen={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+      />
     </div>
   );
 }

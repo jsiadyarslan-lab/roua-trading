@@ -4265,5 +4265,13 @@
       "alertTitle": "تنبيه رؤى للتداول",
       "chartTitle": "رؤى — {symbol}"
     }
+  },
+  "commandPalette": {
+    "title": "لوحة الأوامر",
+    "search": "ابحث عن أمر، مؤشر، أو أداة...",
+    "noResults": "لا توجد نتائج",
+    "navigate": "تنقل",
+    "execute": "تنفيذ",
+    "close": "إغلاق"
   }
 }

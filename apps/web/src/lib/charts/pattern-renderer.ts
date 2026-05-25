@@ -4,6 +4,11 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import type { DetectedPattern } from './pattern-engine';
+import { startAnimatedPattern, cancelAnimatedPattern } from './AnimatedPatterns';
+
+// ── Animation toggle (set to true for Autochartist-like progressive drawing) ──
+let animationEnabled = true;
+export function setPatternAnimation(enabled: boolean) { animationEnabled = enabled; }
 
 interface DrawnPattern {
   patternId: string;
@@ -59,9 +64,16 @@ export function drawPattern(
   chartApi: any,
   lc: any,
   pattern: DetectedPattern,
-  autoRemoveMs = 5 * 60 * 1000
+  autoRemoveMs = 5 * 60 * 1000,
+  _skipAnimation = false
 ): void {
   if (!chartApi || !lc?.LineSeries) return;
+
+  // REVOLUTIONARY: Use animated drawing if enabled (Autochartist-like)
+  if (animationEnabled && !_skipAnimation) {
+    startAnimatedPattern(chartApi, lc, pattern, { autoRemoveAfter: autoRemoveMs });
+    return;
+  }
 
   // Remove existing drawing for this pattern
   removePattern(chartApi, pattern.id);

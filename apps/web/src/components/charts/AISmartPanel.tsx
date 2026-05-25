@@ -23,6 +23,7 @@ import { detectElliottSMCFusion } from '@/lib/charts/ElliottSMCFusion';
 import { getPatternAudioAlerter } from '@/lib/charts/AudioAlerts';
 import { getPatternPerformanceTracker } from '@/lib/charts/PatternPerformance';
 import { buildHeatmap } from '@/lib/charts/ConfidenceHeatmap';
+import { useConsensusStream } from '@/hooks/useConsensusStream';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -56,7 +57,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Falling Wedge': 'patternFallingWedge',
 };
 
-type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced' | 'bayesian' | 'fusion' | 'performance';
+type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced' | 'bayesian' | 'fusion' | 'performance' | 'warroom';
 
 interface Props {
   symbol: string;
@@ -89,6 +90,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [fusionResult, setFusionResult] = useState<ElliottSMCFusionResult | null>(null);
   const [patternAlerts, setPatternAlerts] = useState<Array<{ messageAr: string; priority: string; direction: string }>>([]);
   const [audioEnabled, setAudioEnabled] = useState(false);
+  // ── SSE Consensus Stream ──
+  const consensusStream = useConsensusStream();
   // FIX: Keep overlays in a ref so the async `analyze` function always reads
   // the latest state. Previously, overlays was captured stale in the closure,
   // so toggling FVG/BOS/etc. had no effect until the next full re-analysis.
@@ -227,32 +230,28 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         overlays: overlaysRef.current,  // FIX: Use ref instead of stale state
       });
 
-      // ── 3. مجلس الذكاء (8 نماذج) ─────────────────────────
+      // ── 3. مجلس الذكاء (8 نماذج) — SSE Streaming ────────
+      // REVOLUTIONARY: Use SSE streaming instead of blocking fetch
+      // Models appear one by one (“War Room" experience)
       try {
-        abortRef.current?.abort();
-        abortRef.current = new AbortController();
-        const timer = setTimeout(() => abortRef.current?.abort(), 15000);
-        const r = await fetch('/api/ai/consensus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: sym }),
-          signal: abortRef.current.signal,
-        });
-        clearTimeout(timer);
-        if (r.ok) {
-          const d = await r.json();
-          if (d.success && d.data) {
-            const rec = d.data.recommendation;
-            const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
-            const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
-            setSignal({ dir: dir as 'BUY' | 'SELL' | 'WAIT', conf: (d.data.consensusScore || 50) / 100, entry: price, sl: dir === 'BUY' ? price * 0.992 : price * 1.008, tp: dir === 'BUY' ? price * 1.016 : price * 0.984, reason: t('councilModels', { count: models }), ts: Date.now() });
-            if ((d.data.consensusScore || 0) >= 65 && dir !== 'WAIT') {
-              fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: dir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: price, sl: dir==='BUY'?price*0.992:price*1.008, tp: dir==='BUY'?price*1.016:price*0.984, confidence: (d.data.consensusScore||50)/100 }) }).catch(()=>{});
-            }
-            return;
+        consensusStream.startStream(sym, locale === 'ar' ? 'ar' : 'en');
+        // Wait for stream to complete (max 30s) or get partial results
+        const streamTimeout = setTimeout(() => {
+          if (consensusStream.status === 'streaming') {
+            consensusStream.cancelStream();
           }
-        }
-      } catch { /* fallback */ }
+        }, 30000);
+        // Watch for consensus stream results
+        const watchInterval = setInterval(() => {
+          const cs = consensusStream;
+          if (cs.status === 'complete' || (cs.status === 'error' && cs.models.length === 0)) {
+            clearInterval(watchInterval);
+            clearTimeout(streamTimeout);
+          }
+        }, 500);
+        // Return early — signal will be set by the SSE effect below
+        return;
+      } catch { /* fallback below */ }
 
       // ── 4. إشارة محلية من الأنماط + EMA + Bayesian ──────────
       const bull = unique.filter(p => p.direction === 'bullish').length;
@@ -301,6 +300,63 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
   // cleanup
   useEffect(() => () => { abortRef.current?.abort(); }, []);
+
+  // ── SSE Consensus: Update signal when stream results arrive ──
+  useEffect(() => {
+    const cs = consensusStream;
+    if (cs.status === 'complete' && cs.finalResult) {
+      const rec = cs.finalResult.recommendation || (cs.currentConsensus?.recommendation);
+      const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
+      const score = cs.currentConsensus?.consensusScore || cs.finalResult.consensusScore || 50;
+      const modelsCount = cs.models.length;
+      const price = priceRef.current ?? candlesRef.current[candlesRef.current.length - 1]?.close ?? 0;
+
+      // Use ATR-based TP/SL
+      const direction = dir === 'BUY' ? 'long' : 'short';
+      const adaptiveResult = calcAdaptiveTPSL(candlesRef.current, direction, score / 100, price);
+
+      setSignal({
+        dir: dir as 'BUY' | 'SELL' | 'WAIT',
+        conf: score / 100,
+        entry: adaptiveResult.entry,
+        sl: adaptiveResult.stopLoss,
+        tp: adaptiveResult.takeProfit,
+        reason: t('councilModels', { count: modelsCount }),
+        ts: Date.now(),
+      });
+
+      // High-confidence alert
+      if (score >= 65 && dir !== 'WAIT') {
+        fetch('/api/ai/alert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            symbol: symbolRef.current,
+            signal: dir,
+            confidence: score / 100,
+          }),
+        }).catch(() => {});
+      }
+    } else if (cs.status === 'error' && cs.models.length > 0) {
+      // Partial results — use what we have
+      const buyWeight = cs.buyModels.length;
+      const sellWeight = cs.sellModels.length;
+      const dir = buyWeight > sellWeight ? 'BUY' : sellWeight > buyWeight ? 'SELL' : 'WAIT';
+      const price = priceRef.current ?? candlesRef.current[candlesRef.current.length - 1]?.close ?? 0;
+      const conf = Math.max(buyWeight, sellWeight) / cs.models.length;
+      const adaptiveResult = calcAdaptiveTPSL(candlesRef.current, dir === 'BUY' ? 'long' : 'short', conf, price);
+      setSignal({
+        dir: dir as 'BUY' | 'SELL' | 'WAIT',
+        conf,
+        entry: adaptiveResult.entry,
+        sl: adaptiveResult.stopLoss,
+        tp: adaptiveResult.takeProfit,
+        reason: `${cs.models.length}/${cs.currentConsensus?.totalModels || '?'} ${t('councilModels', { count: cs.models.length })}`,
+        ts: Date.now(),
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [consensusStream.status, consensusStream.progress]);
 
   // ── UI Helpers ─────────────────────────────────────────────
   const sigColor = signal?.dir === 'BUY' ? C.green : signal?.dir === 'SELL' ? C.red : C.yellow;
@@ -355,7 +411,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', flexWrap: 'wrap', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', 'إشارة'], ['patterns', 'أنماط'], ['levels', 'مستويات'], ['smc', 'SMC'], ['advanced', 'متقدم'], ['bayesian', 'بايزي'], ['fusion', 'توافق'], ['performance', 'أداء']] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', 'إشارة'], ['patterns', 'أنماط'], ['levels', 'مستويات'], ['smc', 'SMC'], ['advanced', 'متقدم'], ['bayesian', 'بايزي'], ['fusion', 'توافق'], ['performance', 'أداء'], ['warroom', 'غرفة الحرب']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: '1 0 auto', minWidth: 40, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 8.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -790,8 +846,100 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             })()}
           </div>
         )}
+
+        {/* WAR ROOM — SSE Streaming Consensus */}
+        {tab === 'warroom' && (
+          <div style={{ padding: 8 }}>
+            {consensusStream.status === 'idle' && (
+              <div style={{ textAlign: 'center', padding: 20, color: C.dim, fontSize: 10 }}>
+                <div style={{ fontSize: 24, marginBottom: 8 }}>🏛️</div>
+                <div>اضغط تحليل لبدء بث نماذج الذكاء الاصطناعي</div>
+                <div style={{ color: C.mut, fontSize: 8, marginTop: 4 }}>النماذج ستظهر واحدة تلو الأخرى</div>
+              </div>
+            )}
+            {consensusStream.status === 'connecting' && (
+              <div style={{ textAlign: 'center', padding: 20, color: C.cyan, fontSize: 10 }}>
+                <div style={{ width: 20, height: 20, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 8px' }} />
+                <div>جارٍ الاتصال بغرفة الحرب...</div>
+              </div>
+            )}
+            {/* Progress bar */}
+            {(consensusStream.status === 'streaming' || consensusStream.status === 'complete') && (
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
+                  <span style={{ color: C.dim, fontSize: 8 }}>{consensusStream.models.length}/{consensusStream.currentConsensus?.totalModels || '?'} نماذج</span>
+                  <span style={{ color: C.dim, fontSize: 8 }}>{consensusStream.duration.toFixed(1)}s</span>
+                </div>
+                <div style={{ height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 2 }}>
+                  <div style={{ width: `${consensusStream.progress * 100}%`, height: '100%', background: C.cyan, borderRadius: 2, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            )}
+            {/* Model cards — appearing one by one */}
+            {consensusStream.models.map((model, idx) => {
+              const voteColor = model.vote === 'BUY' ? C.green : model.vote === 'SELL' ? C.red : C.yellow;
+              const voteLabel = model.vote === 'BUY' ? '▲ شراء' : model.vote === 'SELL' ? '▼ بيع' : '◆ انتظار';
+              return (
+                <div key={idx} style={{
+                  background: C.card,
+                  border: `1px solid ${voteColor}25`,
+                  borderRadius: 6,
+                  padding: '6px 8px',
+                  marginBottom: 4,
+                  animation: 'fadeIn 0.3s ease-out',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ color: voteColor, fontSize: 10, fontWeight: 800 }}>{voteLabel}</span>
+                      <span style={{ color: C.dim, fontSize: 8 }}>{model.role}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <div style={{ height: 3, width: 30, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+                        <div style={{ height: '100%', width: `${model.confidence * 100}%`, background: voteColor, borderRadius: 2 }} />
+                      </div>
+                      <span style={{ color: C.mut, fontSize: 7.5 }}>{Math.round(model.confidence * 100)}%</span>
+                    </div>
+                  </div>
+                  {model.reason && (
+                    <div style={{ color: C.dim, fontSize: 7.5, marginTop: 3, lineHeight: 1.4 }}>{model.reason.slice(0, 120)}</div>
+                  )}
+                </div>
+              );
+            })}
+            {/* Live consensus */}
+            {consensusStream.currentConsensus && consensusStream.models.length > 0 && (
+              <div style={{
+                marginTop: 6,
+                background: `${consensusStream.currentConsensus.recommendation === 'BUY' ? C.green : consensusStream.currentConsensus.recommendation === 'SELL' ? C.red : C.yellow}12`,
+                border: `1px solid ${consensusStream.currentConsensus.recommendation === 'BUY' ? C.green : consensusStream.currentConsensus.recommendation === 'SELL' ? C.red : C.yellow}30`,
+                borderRadius: 8,
+                padding: '8px 10px',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <span style={{ color: consensusStream.currentConsensus.recommendation === 'BUY' ? C.green : consensusStream.currentConsensus.recommendation === 'SELL' ? C.red : C.yellow, fontSize: 12, fontWeight: 800 }}>
+                      {consensusStream.currentConsensus.recommendation === 'BUY' ? '▲ صعود' : consensusStream.currentConsensus.recommendation === 'SELL' ? '▼ هبوط' : '◆ محايد'}
+                    </span>
+                    <span style={{ color: C.dim, fontSize: 8, marginLeft: 6 }}>إجماع مباشر</span>
+                  </div>
+                  <div style={{ color: C.text, fontSize: 16, fontWeight: 900 }}>{consensusStream.currentConsensus.consensusScore}%</div>
+                </div>
+                <div style={{ display: 'flex', gap: 2, marginTop: 6, height: 4, borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ flex: consensusStream.currentConsensus.buyWeight, background: C.green, borderRadius: 2 }} />
+                  <div style={{ flex: consensusStream.currentConsensus.holdWeight, background: C.yellow, borderRadius: 2 }} />
+                  <div style={{ flex: consensusStream.currentConsensus.sellWeight, background: C.red, borderRadius: 2 }} />
+                </div>
+              </div>
+            )}
+            {consensusStream.status === 'error' && consensusStream.models.length === 0 && (
+              <div style={{ textAlign: 'center', padding: 16, color: C.red, fontSize: 9 }}>
+                خطأ في الاتصال: {consensusStream.error || 'غير معروف'}
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}`}</style>
     </div>
   );
 }

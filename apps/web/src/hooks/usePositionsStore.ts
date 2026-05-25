@@ -67,6 +67,8 @@ interface PositionsState {
   _ownerUserId: string | null
   /** Timestamp-based concurrency guard for fetchPositions */
   _lastFetchStart: number | null
+  /** Debounce timestamp for refreshAfterTrade */
+  _lastRefreshAfterTrade: number
 }
 
 /**
@@ -288,27 +290,40 @@ export const usePositionsStore = create<PositionsState>()(
    *
    * Solution: This method is called from EVERY place a trade is opened/closed.
    * It does:
-   * - Immediate fetch (positions + account)
-   * - Delayed fetch after 2s (exchange settlement)
-   * - Final fetch after 5s (catch slow exchanges)
+   * - Immediate fetch (positions + account) — debounced if called within 3s
+   * - Delayed fetch after 3s (exchange settlement)
+   * - GlobalLogicEngine handles ongoing refreshes (8s active / 20s idle)
+   *
+   * PERF: Reduced from 3 waves (0s+2s+5s = 6 API calls) to 2 waves (0s+3s = 4 API calls).
+   * The 5s wave was redundant — GlobalLogicEngine already polls positions every 8s.
+   * Added debounce: if called within 3s of a previous call, skip the immediate wave
+   * to prevent burst API calls when multiple WebSocket events fire simultaneously
+   * (e.g., POSITION_CLOSED + balance_update + trade_executed all call this).
    *
    * CRITICAL FIX: Each delayed wave resets `loading = false` before fetching
-   * to bypass the concurrency guard in fetchPositions. Previously, if the
-   * first wave took > 2s, the second wave was silently skipped because
-   * `if (get().loading) return` blocked it.
+   * to bypass the concurrency guard in fetchPositions.
    */
   refreshAfterTrade: () => {
-    // Immediate fetch — show the new position/balance ASAP
-    // FIX: Reset the dedup timestamp so this fetch isn't blocked
-    set({ _lastFetchStart: 0 } as any)
-    Promise.all([
-      get().fetchPositions(),
-      get().fetchAccount(),
-    ]).catch((err) => {
-      console.warn('[PositionsStore] refreshAfterTrade immediate failed:', err)
-    })
+    const now = Date.now()
+    const lastRefresh = (get() as any)._lastRefreshAfterTrade || 0
+    const DEBOUNCE_MS = 3000
 
-    // Delayed fetch #1 — exchange settlement (2 seconds)
+    // Update timestamp for debounce tracking
+    set({ _lastRefreshAfterTrade: now } as any)
+
+    // Debounced immediate fetch — skip if called within 3s of previous call
+    if (now - lastRefresh >= DEBOUNCE_MS) {
+      set({ _lastFetchStart: 0 } as any)
+      Promise.all([
+        get().fetchPositions(),
+        get().fetchAccount(),
+      ]).catch((err) => {
+        console.warn('[PositionsStore] refreshAfterTrade immediate failed:', err)
+      })
+    }
+
+    // Delayed fetch — exchange settlement (3 seconds)
+    // This catches positions that take a moment to settle on the exchange
     setTimeout(() => {
       set({ _lastFetchStart: 0, loading: false } as any)
       Promise.all([
@@ -317,18 +332,7 @@ export const usePositionsStore = create<PositionsState>()(
       ]).catch((err) => {
         console.warn('[PositionsStore] refreshAfterTrade wave 2 failed:', err)
       })
-    }, 2000)
-
-    // Delayed fetch #2 — slow exchanges (5 seconds)
-    setTimeout(() => {
-      set({ _lastFetchStart: 0, loading: false } as any)
-      Promise.all([
-        get().fetchPositions(),
-        get().fetchAccount(),
-      ]).catch((err) => {
-        console.warn('[PositionsStore] refreshAfterTrade wave 3 failed:', err)
-      })
-    }, 5000)
+    }, 3000)
   },
 
   /**

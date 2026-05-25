@@ -530,7 +530,7 @@ export function AlpacaPositions() {
           const isLong = position.side === 'long'
           const pnlUp = position.unrealizedPnl >= 0
           const openedAt = position.entryTime
-            ? new Date(position.entryTime).toLocaleString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : 'en-US', {
+            ? new Date(position.entryTime).toLocaleString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US', {
                 month: '2-digit',
                 day: '2-digit',
                 hour: '2-digit',
@@ -805,7 +805,7 @@ export function AlpacaPositions() {
                 const closeReasonBadge = getCloseReasonLabel(cp.closeReason)
                 const duration = cp.openedAt && cp.closedAt ? formatDuration(cp.openedAt, cp.closedAt) : '—'
                 const closedDate = cp.closedAt
-                  ? new Date(cp.closedAt).toLocaleDateString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  ? new Date(cp.closedAt).toLocaleDateString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
                   : ''
 
                 return (

@@ -74,7 +74,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
   const locale = useLocale();
   const formatTime = (ts: number) => {
     const d = new Date(ts);
-    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+    return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
   return (

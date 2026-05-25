@@ -8,11 +8,13 @@ interface NewsItem {
   category: string
   categoryAr: string
   categoryFr: string
+  categoryTr?: string
   color: string
   bgColor: string
   text: string
   textAr: string
   textFr: string
+  textTr?: string
   impact: 'high' | 'medium'
 }
 
@@ -66,11 +68,13 @@ export default function NewsTicker() {
             category: item.category || 'General',
             categoryAr: item.categoryAr || item.category || 'Markets',
             categoryFr: item.categoryFr || item.category || 'Général',
+            categoryTr: item.categoryTr || item.category || 'Genel',
             color: item.color || '#8B92A8',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
             textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
             textFr: item.textFr || item.translatedTitleFr || item.text || item.headline || item.title || '',
+            textTr: item.textTr || item.text || item.headline || item.title || '',
             impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
           }))
           if (mapped.length > 0) setNewsItems(mapped)
@@ -100,9 +104,9 @@ export default function NewsTicker() {
   const renderNewsItem = (item: NewsItem, index: number) => (
     <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
       <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
-        {locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : item.category}
+        {locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : item.category}
       </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : item.text}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : item.text}</span>
       <span className="text-[10px]">
         {item.impact === 'high' ? (
           <span style={{ color: 'var(--loss)' }}>●</span>

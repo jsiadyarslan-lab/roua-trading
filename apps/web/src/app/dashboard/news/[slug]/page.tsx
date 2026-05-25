@@ -28,16 +28,17 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
-type Lang = 'ar' | 'en' | 'fr'
+type Lang = 'ar' | 'en' | 'fr' | 'tr'
 
-function localizedCategory(item: { category?: string; categoryAr?: string; categoryFr?: string }, locale: Lang): string | undefined {
+function localizedCategory(item: { category?: string; categoryAr?: string; categoryFr?: string; categoryTr?: string }, locale: Lang): string | undefined {
   if (locale === 'ar') return item.categoryAr || item.category
   if (locale === 'fr') return item.categoryFr || item.category
+  if (locale === 'tr') return item.categoryTr || item.category
   return item.category
 }
 
-function t(en: string, ar: string, fr: string, lang: Lang): string {
-  return lang === 'ar' ? ar : lang === 'fr' ? fr : en
+function t(en: string, ar: string, fr: string, tr: string, lang: Lang): string {
+  return lang === 'ar' ? ar : lang === 'fr' ? fr : lang === 'tr' ? tr : en
 }
 
 /**
@@ -82,6 +83,7 @@ type NewsItem = {
   category?: string
   categoryAr?: string
   categoryFr?: string
+  categoryTr?: string
   publishedAt?: string
   slug?: string
   newsType?: string
@@ -128,13 +130,13 @@ export default function NewsArticlePage() {
           if (found) {
             setArticle(found)
           } else {
-            setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', lang))
+            setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', 'Makale bulunamadı', lang))
           }
         } else {
-          setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', lang))
+          setError(t('Article not found', 'لم يتم العثور على الخبر', 'Article non trouvé', 'Makale bulunamadı', lang))
         }
       } catch {
-        setError(t('Failed to load article', 'تعذر تحميل الخبر', 'Impossible de charger l\'article', lang))
+        setError(t('Failed to load article', 'تعذر تحميل الخبر', 'Impossible de charger l\'article', 'Makale yüklenemedi', lang))
       } finally {
         setLoading(false)
       }
@@ -147,7 +149,7 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.text2, fontSize: 14 }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', lang)}</p>
+          <p style={{ color: T.text2, fontSize: 14 }}>{t('Loading article...', 'جارٍ تحميل الخبر...', 'Chargement de l\'article...', 'Makale yükleniyor...', lang)}</p>
         </div>
       </div>
     )
@@ -158,8 +160,8 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', lang))}</h2>
-          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', lang)}</button>
+          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (t('Article not found', 'خبر غير موجود', 'Article non trouvé', 'Makale bulunamadı', lang))}</h2>
+          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{t('Back', 'العودة', 'Retour', 'Geri', lang)}</button>
         </div>
       </div>
     )
@@ -200,7 +202,7 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={15} />
-            {t('Back', 'العودة', 'Retour', lang)}
+            {t('Back', 'العودة', 'Retour', 'Geri', lang)}
           </button>
 
           {/* Category badge on image */}
@@ -213,7 +215,7 @@ export default function NewsArticlePage() {
             {article.newsType === 'live' && (
               <span style={{ fontSize: 10, padding: '4px 10px', borderRadius: 8, background: 'rgba(255,69,58,0.25)', color: '#FF453A', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FF453A', animation: 'pulse-glow 2s infinite' }} />
-                {t('LIVE', 'مباشر', 'EN DIRECT', lang)}
+                {t('LIVE', 'مباشر', 'EN DIRECT', 'CANLI', lang)}
               </span>
             )}
           </div>
@@ -236,7 +238,7 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={14} />
-            {t('Back to News', 'العودة للأخبار', 'Retour aux actualités', lang)}
+            {t('Back to News', 'العودة للأخبار', 'Retour aux actualités', 'Haberlere Dön', lang)}
           </button>
         )}
 
@@ -255,7 +257,7 @@ export default function NewsArticlePage() {
             </span>
             {article.impactLevel && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
-                {t('Impact', 'تأثير', 'Impact', lang)} {article.impactLevel === 'high' ? t('High', 'عالي', 'Élevé', lang) : article.impactLevel === 'low' ? t('Low', 'منخفض', 'Faible', lang) : t('Medium', 'متوسط', 'Moyen', lang)}
+                {t('Impact', 'تأثير', 'Impact', 'Etki', lang)} {article.impactLevel === 'high' ? t('High', 'عالي', 'Élevé', 'Yüksek', lang) : article.impactLevel === 'low' ? t('Low', 'منخفض', 'Faible', 'Düşük', lang) : t('Medium', 'متوسط', 'Moyen', 'Orta', lang)}
               </span>
             )}
           </div>
@@ -279,7 +281,7 @@ export default function NewsArticlePage() {
                 <Globe size={18} color="#00E5FF" />
               </div>
               <div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", lang))}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (t("Ru'aa News", 'رؤى للأخبار', "Actualités Ru'aa", "Ru'aa Haberler", lang))}</span>
                 <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={10} />
                   {formatTime(article.publishedAt, lang)}
@@ -314,7 +316,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Zap size={16} color={T.green} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', lang)}</span>
+              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{t('Key Takeaways', 'النقاط الرئيسية', 'Points clés', 'Önemli Noktalar', lang)}</span>
               <span style={{ fontSize: 11, color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
             </div>
             <div style={{ padding: '16px 20px' }}>
@@ -343,7 +345,7 @@ export default function NewsArticlePage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <SentimentIcon size={16} color={sentiment.color} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', lang)}</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{t('Analysis Summary', 'ملخص التحليل', 'Résumé analytique', 'Analiz Özeti', lang)}</span>
             </div>
             <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
           </div>
@@ -371,7 +373,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <BarChart3 size={16} color={T.amber} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', lang)}</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{t('Affected Assets', 'الأصول المتأثرة', 'Actifs concernés', 'Etkilenen Varlıklar', lang)}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {article.affectedAssets.map((asset, i) => (
@@ -397,7 +399,7 @@ export default function NewsArticlePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <ShieldAlert size={14} color={T.text3} />
-              {t('Sentiment Analysis', 'تحليل المشاعر', 'Analyse de sentiment', lang)}
+              {t('Sentiment Analysis', 'تحليل المشاعر', 'Analyse de sentiment', 'Duygu Analizi', lang)}
             </span>
             <span style={{ fontSize: 14, fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
               <SentimentIcon size={14} />
@@ -412,9 +414,9 @@ export default function NewsArticlePage() {
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', lang)}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', lang)}</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', lang)}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang)}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Neutral', 'محايد', 'Neutre', 'Nötr', lang)}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang)}</span>
           </div>
         </div>
 
@@ -422,7 +424,7 @@ export default function NewsArticlePage() {
         <div style={{ padding: '16px 18px', borderRadius: 14, background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
           <p style={{ fontSize: 11, color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
-            {t('News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.', 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.', 'Les actualités et analyses sont fournies à des fins éducatives uniquement et ne constituent pas des conseils en investissement. Tradez de manière responsable.', lang)}
+            {t('News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.', 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.', 'Les actualités et analyses sont fournies à des fins éducatives uniquement et ne constituent pas des conseils en investissement. Tradez de manière responsable.', 'Haberler ve analizler yalnızca eğitim amaçlıdır ve yatırım tavsiyesi değildir. Sorumlu bir şekilde işlem yapın.', lang)}
           </p>
         </div>
       </div>
@@ -431,19 +433,19 @@ export default function NewsArticlePage() {
 }
 
 /* ─── Helpers ─── */
-function getSentimentConfig(label?: string, lang?: 'ar' | 'en' | 'fr') {
+function getSentimentConfig(label?: string, lang?: Lang) {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', lang || 'en'), icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', lang || 'en'), icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', lang || 'en'), icon: Minus }
+    case 'positive': return { bg: `${T.green}14`, color: T.green, text: t('Positive', 'إيجابي', 'Positif', 'Olumlu', lang || 'en'), icon: TrendingUp }
+    case 'negative': return { bg: `${T.red}14`, color: T.red, text: t('Negative', 'سلبي', 'Négatif', 'Olumsuz', lang || 'en'), icon: TrendingDown }
+    default: return { bg: `${T.text3}14`, color: T.text3, text: t('Neutral', 'محايد', 'Neutre', 'Nötr', lang || 'en'), icon: Minus }
   }
 }
 
-function formatTime(value?: string | null, lang?: 'ar' | 'en' | 'fr') {
+function formatTime(value?: string | null, lang?: Lang) {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString(lang === 'ar' ? 'ar-SA' : lang === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleString(lang === 'ar' ? 'ar-SA' : lang === 'fr' ? 'fr-FR' : lang === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 /**

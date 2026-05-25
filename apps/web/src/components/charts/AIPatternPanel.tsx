@@ -172,7 +172,7 @@ export function AIPatternPanel({
 }: AIPatternPanelProps) {
   const t = useTranslations('aiPatternPanel');
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);

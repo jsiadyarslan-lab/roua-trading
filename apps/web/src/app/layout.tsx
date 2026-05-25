@@ -38,20 +38,25 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
   const isAr = locale === 'ar';
   const isFr = locale === 'fr';
+  const isTr = locale === 'tr';
 
   // Title & description per locale
   const title = isAr
     ? "رؤى | منصة ربط الحسابات الذكية"
     : isFr
       ? "Roua | Plateforme intelligente de liaison de comptes"
-      : "Roua | Smart Account Linking Platform";
+      : isTr
+        ? "Roua | Akıllı Hesap Bağlama Platformu"
+        : "Roua | Smart Account Linking Platform";
   const description = isAr
     ? "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform"
     : isFr
       ? "Plateforme Roua pour la liaison et le suivi intelligents de comptes — analyses IA, signaux de trading, liaison bourses, et portefeuille intelligent"
-      : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio";
+      : isTr
+        ? "Roua akıllı hesap bağlama ve izleme platformu — AI analitikleri, işlem sinyalleri, borsa bağlantısı ve akıllı yatırım portföyü"
+        : "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio";
   const siteName = isAr ? "رؤى — Roua Trading" : "Roua Trading";
-  const ogLocale = isAr ? "ar_SA" : isFr ? "fr_FR" : "en_US";
+  const ogLocale = isAr ? "ar_SA" : isFr ? "fr_FR" : isTr ? "tr_TR" : "en_US";
 
   return {
     title,

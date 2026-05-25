@@ -15,6 +15,7 @@ const LOCALE_OPTIONS = [
   { code: 'ar', label: 'العربية', shortLabel: 'عربي' },
   { code: 'en', label: 'English', shortLabel: 'EN' },
   { code: 'fr', label: 'Français', shortLabel: 'FR' },
+  { code: 'tr', label: 'Türkçe', shortLabel: 'TR' },
 ] as const;
 
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {

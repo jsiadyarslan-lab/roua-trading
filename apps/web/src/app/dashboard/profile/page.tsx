@@ -232,6 +232,7 @@ export default function ProfilePage() {
   const user = useAuthStore(state => state.user)
   const authLogout = useAuthStore(state => state.logout)
   const tc = useTranslations('common')
+  const tn = useTranslations('notifications.profile')
 
   // Edit mode
   const [isEditing, setIsEditing] = useState(false)
@@ -259,16 +260,16 @@ export default function ProfilePage() {
   /* ── Save Profile ── */
   const handleSave = useCallback(async () => {
     if (!displayName.trim()) {
-      toast({ title: 'اسم مطلوب', description: 'يرجى إدخال اسم العرض', variant: 'destructive' })
+      toast({ title: tn('nameRequired'), description: tn('nameRequiredDesc'), variant: 'destructive' })
       return
     }
     setIsSaving(true)
     try {
       await new Promise(resolve => setTimeout(resolve, 1000))
-      toast({ title: 'تم حفظ التغييرات', description: 'تم تحديث ملفك الشخصي بنجاح' })
+      toast({ title: tn('changesSaved'), description: tn('changesSavedDesc') })
       setIsEditing(false)
     } catch {
-      toast({ title: 'خطأ في الحفظ', description: 'حدث خطأ أثناء حفظ التغييرات', variant: 'destructive' })
+      toast({ title: tn('saveError'), description: tn('saveErrorDesc'), variant: 'destructive' })
     } finally {
       setIsSaving(false)
     }
@@ -287,15 +288,15 @@ export default function ProfilePage() {
   /* ── Delete Account ── */
   const handleDeleteAccount = useCallback(async () => {
     if (deleteConfirmText !== 'حذف') {
-      toast({ title: 'تأكيد مطلوب', description: 'يرجى كتابة "حذف" للتأكيد', variant: 'destructive' })
+      toast({ title: tn('confirmRequired'), description: tn('confirmRequiredDesc'), variant: 'destructive' })
       return
     }
     try {
       await new Promise(resolve => setTimeout(resolve, 800))
-      toast({ title: 'تم حذف الحساب', description: 'سيتم حذف حسابك خلال 30 يوماً', variant: 'destructive' })
+      toast({ title: tn('accountDeleted'), description: tn('accountDeletedDesc'), variant: 'destructive' })
       authLogout()
     } catch {
-      toast({ title: 'خطأ', description: 'حدث خطأ أثناء حذف الحساب', variant: 'destructive' })
+      toast({ title: tn('deleteError'), description: tn('deleteErrorDesc'), variant: 'destructive' })
     }
   }, [deleteConfirmText, authLogout])
 
@@ -489,7 +490,7 @@ export default function ProfilePage() {
                   />
                   {isEditing && (
                     <button
-                      onClick={() => toast({ title: 'تغيير البريد', description: 'سيتم إرسال رابط تأكيد إلى بريدك الجديد' })}
+                      onClick={() => toast({ title: tn('emailChangeTitle'), description: tn('emailChangeDesc') })}
                       style={{
                         position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)',
                         background: 'none', border: 'none', cursor: 'pointer',

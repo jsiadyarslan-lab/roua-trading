@@ -6,6 +6,8 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+import { toast } from '@/hooks/use-toast';
 
 interface ChartTradingProps {
   symbol: string;
@@ -24,6 +26,7 @@ interface ChartOrderData {
 }
 
 export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: ChartTradingProps) {
+  const tn = useTranslations('notifications.trading');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
   const [quantity, setQuantity] = useState('0.01');
@@ -63,23 +66,23 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
     // Arabic error message instead of a generic 403.
     const slVal = parseFloat(sl);
     if (!slVal || slVal <= 0) {
-      alert('⛔ وقف الخسارة إجباري! لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.');
+      toast({ title: '⛔ ' + tn('stopLossRequired'), variant: 'destructive' });
       return;
     }
 
     // Validate SL direction relative to entry price and side
     if (side === 'buy' && slVal >= currentPrice) {
-      alert('⛔ وقف الخسارة للشراء يجب أن يكون أقل من سعر الدخول الحالي.');
+      toast({ title: '⛔ ' + tn('slMustBeBelowEntry'), variant: 'destructive' });
       return;
     }
     if (side === 'sell' && slVal <= currentPrice) {
-      alert('⛔ وقف الخسارة للبيع يجب أن يكون أعلى من سعر الدخول الحالي.');
+      toast({ title: '⛔ ' + tn('slMustBeAboveEntry'), variant: 'destructive' });
       return;
     }
 
     const qty = parseFloat(quantity);
     if (!qty || qty <= 0) {
-      alert('⛔ الكمية يجب أن تكون أكبر من صفر.');
+      toast({ title: '⛔ ' + tn('qtyMustBePositive'), variant: 'destructive' });
       return;
     }
 

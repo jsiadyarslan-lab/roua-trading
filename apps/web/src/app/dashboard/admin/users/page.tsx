@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Users,
   Search,
@@ -67,6 +68,7 @@ function getTierStyle(tier: string) {
 }
 
 export default function AdminUsersPage() {
+  const tn = useTranslations('notifications.admin')
   const [users, setUsers] = useState<AdminUser[]>([])
   const [total, setTotal] = useState(0)
   const [totalPages, setTotalPages] = useState(1)
@@ -100,10 +102,10 @@ export default function AdminUsersPage() {
         setTotalPages(data.totalPages || 1)
         setError(null)
       } else {
-        setError('فشل في جلب البيانات من الخادم')
+        setError(tn('fetchFailed'))
       }
     } catch {
-      setError('فشل في جلب البيانات من الخادم')
+      setError(tn('fetchFailed'))
     } finally {
       setLoading(false)
     }
@@ -159,7 +161,7 @@ export default function AdminUsersPage() {
       setCleanupResult({ deletedCount: totalDeleted, errorCount: totalErrors })
       fetchUsers()
     } catch {
-      setError('فشل في تنظيف الحسابات الوهمية')
+      setError(tn('cleanDummyFailed'))
     } finally {
       setCleanupLoading(false)
     }

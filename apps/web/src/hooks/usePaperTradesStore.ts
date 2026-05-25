@@ -2,6 +2,20 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { useAuthStore } from '@/lib/auth-store'
 
+/**
+ * i18n helper for notification strings in non-component contexts.
+ * Set by the nearest component via setNotificationTranslator().
+ */
+let _tn: ((key: string, vars?: Record<string, any>) => string) | null = null
+
+export function setNotificationTranslator(tn: (key: string, vars?: Record<string, any>) => string) {
+  _tn = tn
+}
+
+function tn(key: string, vars?: Record<string, any>): string {
+  return _tn ? _tn(key, vars) : key
+}
+
 export interface PaperTrade {
   id: string
   symbol: string
@@ -200,16 +214,16 @@ export const usePaperTradesStore = create<PaperTradesState>()(
             const isProfit = realizedPnl >= 0
             // Map source to correct Arabic label
             const sourceLabel = trade.source === 'bot' || trade.source === 'executor'
-              ? '⚔️ المنفذ'
+              ? '⚔️ ' + tn('sourceExecutor')
               : trade.source === 'agent'
-              ? '🧠 الوكيل'
-              : '📊 المركز'
+              ? '🧠 ' + tn('sourceAgent')
+              : '📊 ' + tn('sourcePosition')
             useNotificationStore.getState().addNotification({
               source: trade.source === 'bot' || trade.source === 'executor' ? 'bot' : 'trade',
               priority: isProfit ? 'high' : 'urgent',
               action: isProfit ? 'CLOSE' : 'WARN',
-              title: `${sourceLabel}: ${isProfit ? 'إغلاق بربح' : 'إغلاق بخسارة'} ${trade.symbol}`,
-              body: `${trade.side === 'long' ? 'شراء' : 'بيع'} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
+              title: `${sourceLabel}: ${isProfit ? tn('closeProfit') : tn('closeLoss')} ${trade.symbol}`,
+              body: `${trade.side === 'long' ? tn('sourceExecutor') : tn('sourceAgent')} ${trade.qty} ${trade.symbol} @ $${exitPrice.toFixed(2)} — ${isProfit ? '+' : ''}$${realizedPnl.toFixed(2)} (${isProfit ? '+' : ''}${realizedPct.toFixed(1)}%)`,
               pair: trade.symbol,
               price: exitPrice,
             })

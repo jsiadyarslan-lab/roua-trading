@@ -3,6 +3,8 @@
 // Manages alert state and detection logic
 // ═══════════════════════════════════════════════════════════
 
+'use client'
+
 export type AlertType = 'price' | 'indicator' | 'pattern' | 'whale' | 'prediction' | 'news';
 
 export interface Alert {
@@ -65,6 +67,16 @@ function getAlertAudioContext(): AudioContext | null {
   return _alertAudioCtx;
 }
 
+/**
+ * i18n helper for alert notification strings in non-component contexts.
+ * Set by the nearest component via setAlertTranslator().
+ */
+let _alertTn: ((key: string, vars?: Record<string, any>) => string) | null = null
+
+export function setAlertTranslator(tn: (key: string, vars?: Record<string, any>) => string) {
+  _alertTn = tn
+}
+
 export function createAlert(params: {
   type: AlertType;
   symbol: string;
@@ -103,7 +115,8 @@ export function checkAlert(alert: Alert, currentPrice: number): boolean {
   if (triggered) {
     if (alert.notifyBrowser && typeof window !== 'undefined' && 'Notification' in window) {
       try {
-        new Notification('تنبيه Roua Trading', {
+        const alertTitle = _alertTn ? _alertTn('alertTitle') : 'تنبيه Roua Trading';
+        new Notification(alertTitle, {
           body: `${alert.symbol}: ${alert.labelAr}`,
           icon: '/favicon.ico',
         });

@@ -19,6 +19,7 @@ import {
   Loader2,
   Save,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
@@ -120,6 +121,8 @@ export default function AdminMonitorPage() {
     }, 4000)
   }, [])
 
+  const tn = useTranslations('notifications.admin')
+
   const fetchStatus = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/monitor/status')
@@ -193,17 +196,17 @@ export default function AdminMonitorPage() {
       const data = await res.json()
 
       if (data.agentDeployed === false) {
-        addToast('وكيل المراقبة غير منشور — قم بتعيين MONITOR_AGENT_URL أولاً', 'error')
+        addToast(tn('monitorNotPublished'), 'error')
         setAgentDeployed(false)
       } else if (data.success) {
-        addToast(data.message || (action === 'start' ? 'تم تشغيل الوكيل' : 'تم إيقاف الوكيل'), 'success')
+        addToast(data.message || (action === 'start' ? tn('agentStarted') : tn('agentStopped')), 'success')
         // Refresh status after a short delay
         setTimeout(() => fetchStatus(), 2000)
       } else {
-        addToast(data.error || 'فشل في تنفيذ الأمر', 'error')
+        addToast(data.error || tn('commandFailed'), 'error')
       }
     } catch {
-      addToast('خطأ في الاتصال بالخادم', 'error')
+      addToast(tn('serverError'), 'error')
     } finally {
       setAgentActionLoading(null)
     }
@@ -225,15 +228,15 @@ export default function AdminMonitorPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setSettingsMessage('تم حفظ الإعدادات بنجاح ✓')
-        addToast('تم حفظ إعدادات المراقبة', 'success')
+        setSettingsMessage(tn('settingsSavedSuccess'))
+        addToast(tn('settingsSaved'), 'success')
       } else {
-        setSettingsMessage(data.error || 'فشل في حفظ الإعدادات')
-        addToast(data.error || 'فشل في حفظ الإعدادات', 'error')
+        setSettingsMessage(data.error || tn('settingsSaveFailed'))
+        addToast(data.error || tn('settingsSaveFailed'), 'error')
       }
     } catch {
-      setSettingsMessage('خطأ في الاتصال بالخادم')
-      addToast('خطأ في الاتصال بالخادم', 'error')
+      setSettingsMessage(tn('serverError'))
+      addToast(tn('serverError'), 'error')
     } finally {
       setSettingsSaving(false)
       setTimeout(() => setSettingsMessage(''), 3000)

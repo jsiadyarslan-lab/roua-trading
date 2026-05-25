@@ -9,6 +9,7 @@ import {
 import { toast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
 const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
@@ -282,6 +283,8 @@ export default function LeaderboardPage() {
     })
   }, [categoryFilter, traders])
 
+  const tn = useTranslations('notifications.leaderboard')
+
   const top3 = sortedTraders.slice(0, 3)
   const restTraders = sortedTraders.slice(3)
 
@@ -292,10 +295,10 @@ export default function LeaderboardPage() {
       const next = new Set(prev)
       if (next.has(traderId)) {
         next.delete(traderId)
-        toast({ title: `تم إيقاف متابعة ${traderName}`, description: 'لن يتم متابعة أداء هذا الحساب بعد الآن' })
+        toast({ title: tn('unfollowed', { name: traderName }), description: tn('unfollowedDesc') })
       } else {
         next.add(traderId)
-        toast({ title: `تم بدء متابعة ${traderName} ✅`, description: 'سيتم متابعة أداء هذا الحساب وعرض إحصائياته' })
+        toast({ title: tn('followed', { name: traderName }) + ' ✅', description: tn('followedDesc') })
       }
       return next
     })

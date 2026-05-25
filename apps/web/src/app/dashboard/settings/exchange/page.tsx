@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslations } from 'next-intl'
 import {
   Key,
   Plus,
@@ -49,6 +50,7 @@ const SUPPORTED_EXCHANGES = [
 ]
 
 export default function ExchangeSettingsPage() {
+  const tn = useTranslations('notifications.exchange')
   const router = useRouter()
   const { loading: authLoading, isGuest } = useAuth()
   const [credentials, setCredentials] = useState<Credential[]>([])
@@ -175,11 +177,11 @@ export default function ExchangeSettingsPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        const errorMsg = data.error || data.message || 'فشل في إضافة المفتاح'
+        const errorMsg = data.error || data.message || tn('addKeyFailed')
         throw new Error(errorMsg)
       }
 
-      setSuccess('تم إضافة المفتاح بنجاح! ✅')
+      setSuccess(tn('addKeySuccess'))
       setLabel('')
       setApiKey('')
       setApiSecret('')

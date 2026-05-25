@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Bell,
   RefreshCw,
@@ -46,6 +47,7 @@ interface NotifConfig {
 }
 
 export default function AdminNotificationsPage() {
+  const tn = useTranslations('notifications.admin')
   useScopedStyle(`@keyframes fadeInSlideUp {
           from { opacity: 0; transform: translateY(14px); }
           to { opacity: 1; transform: translateY(0); }
@@ -93,7 +95,7 @@ export default function AdminNotificationsPage() {
 
       // Check for auth errors
       if (res.status === 401) {
-        setSaveMessage('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setSaveMessage(tn('sessionExpired'))
         setTimeout(() => {
           window.location.href = '/dashboard/admin/login'
         }, 2000)
@@ -208,14 +210,14 @@ export default function AdminNotificationsPage() {
       const allOk = errors.length === 0
 
       if (allOk) {
-        setSaveMessage('تم حفظ الإعدادات بنجاح')
+        setSaveMessage(tn('settingsSavedSuccess'))
         // إعادة تحميل البيانات من الخادم بعد الحفظ
         await fetchConfigs()
       } else {
-        setSaveMessage(`فشل الحفظ: ${errors.join(' | ')}`)
+        setSaveMessage(tn('saveFailedErrors', { errors: errors.join(' | ') }))
       }
     } catch (err: unknown) {
-      setSaveMessage(`خطأ في الاتصال: ${err instanceof Error ? err.message : 'غير معروف'}`)
+      setSaveMessage(tn('connectionErrorDetail', { error: err instanceof Error ? err.message : '' }))
     } finally {
       setSaving(false)
     }
@@ -248,7 +250,7 @@ export default function AdminNotificationsPage() {
       // Check for auth errors
       if (res.status === 401) {
         setTelegramStatus('disconnected')
-        setTelegramTestResult('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setTelegramTestResult(tn('sessionExpired'))
         setTimeout(() => {
           window.location.href = '/dashboard/admin/login'
         }, 2000)
@@ -258,14 +260,14 @@ export default function AdminNotificationsPage() {
       if (data.ok) {
         setTelegramStatus('connected')
         setTelegramBotName(data.botName || '')
-        setTelegramTestResult(data.message || 'تم إرسال رسالة تجريبية — تحقق من Telegram')
+        setTelegramTestResult(data.message || tn('telegramTestSent'))
       } else {
         setTelegramStatus('disconnected')
-        setTelegramTestResult(data.error || 'فشل الاتصال')
+        setTelegramTestResult(data.error || tn('connectionFailed'))
       }
     } catch {
       setTelegramStatus('disconnected')
-      setTelegramTestResult('فشل الاتصال بالخادم')
+      setTelegramTestResult(tn('serverConnectionFailed'))
     } finally {
       setTelegramTesting(false)
     }

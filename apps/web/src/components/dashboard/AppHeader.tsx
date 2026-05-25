@@ -303,48 +303,73 @@ function NewsTicker() {
 
   return (
     <div style={{
-      height: H_NEWS, background: T.bg,
-      borderBottom: `0.5px solid ${T.border}`,
+      height: H_NEWS,
+      background: 'linear-gradient(90deg, #FFFFFF, #F8FAFC, #FFFFFF)',
+      borderBottom: '1px solid rgba(0,0,0,0.06)',
       display: 'flex', alignItems: 'center',
       overflow: 'hidden',
       borderStartStartRadius: ORB_D / 2,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
     }}>
+      {/* NEWS label */}
+      <div style={{
+        flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4,
+        padding: '0 10px 0 12px', height: '100%',
+        borderInlineEnd: '1px solid rgba(0,0,0,0.06)',
+        background: 'rgba(0,0,0,0.02)',
+      }}>
+        <span style={{
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 800,
+          color: '#0EA5E9', letterSpacing: '0.12em',
+        }}>NEWS</span>
+        <span style={{
+          width: 5, height: 5, borderRadius: '50%', background: '#10B981',
+          boxShadow: '0 0 4px #10B981',
+          animation: 'star-blink 2s ease-in-out infinite',
+        }} />
+      </div>
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
         {doubled.length > 0 ? (
           <div style={{
-            display: 'flex', gap: 52, whiteSpace: 'nowrap',
+            display: 'flex', gap: 40, whiteSpace: 'nowrap',
             animation: `news-scroll ${Math.max(doubled.length * 2.5, 18)}s linear infinite`,
           }}>
             {doubled.map((item, i) => (
               <span key={i} style={{
-                fontFamily: "'JetBrains Mono', 'Readex Pro', sans-serif", fontSize: 11,
-                color: item.color || T.text2, flexShrink: 0,
-                display: 'inline-flex', alignItems: 'center', gap: 5,
+                fontFamily: "'Inter', 'Readex Pro', sans-serif", fontSize: 11.5,
+                color: '#1E293B', flexShrink: 0, fontWeight: 500,
+                display: 'inline-flex', alignItems: 'center', gap: 6,
               }}>
                 <span style={{
-                  fontSize: 8, padding: '1px 5px', borderRadius: 3,
-                  background: `${item.color}18`, color: item.color,
+                  fontSize: 8, padding: '2px 6px', borderRadius: 4,
+                  background: `${item.color}15`, color: item.color,
                   fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+                  border: `1px solid ${item.color}25`,
                 }}>{item.category || 'News'}</span>
-                {item.impact === 'high' && <span style={{ color: T.amber, fontSize: 7 }}>●</span>}
-                {item.text}
+                {item.impact === 'high' && <span style={{ color: '#EF4444', fontSize: 7, fontWeight: 900 }}>●</span>}
+                <span style={{ color: '#334155' }}>{item.text}</span>
               </span>
             ))}
           </div>
         ) : (
           <span style={{
-            padding: '0 14px', fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9, color: T.text3,
+            padding: '0 14px', fontFamily: "'Inter', sans-serif",
+            fontSize: 10, color: '#94A3B8', fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
-        {/* RTL: fade edge on the inline-start side (right in RTL) */}
+        {/* Fade edges */}
         <div style={{
-          position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 36,
-          background: `linear-gradient(270deg, transparent, ${T.bg})`,
+          position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 40,
+          background: 'linear-gradient(90deg, #FFFFFF, transparent)',
+          pointerEvents: 'none',
+        }} />
+        <div style={{
+          position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: 40,
+          background: 'linear-gradient(270deg, #FFFFFF, transparent)',
           pointerEvents: 'none',
         }} />
       </div>
-      <div style={{ flexShrink: 0, padding: '0 10px', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ flexShrink: 0, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6, borderInlineStart: '1px solid rgba(0,0,0,0.06)' }}>
         <LocaleSwitcher variant="header" />
         <NotificationCenter />
       </div>
@@ -472,28 +497,29 @@ function MobileNewsTicker() {
 
   return doubled.length > 0 ? (
     <div style={{
-      display: 'flex', gap: 36, whiteSpace: 'nowrap',
+      display: 'flex', gap: 32, whiteSpace: 'nowrap',
       animation: `news-scroll ${Math.max(doubled.length * 2, 14)}s linear infinite`,
     }}>
       {doubled.map((item, i) => (
         <span key={i} style={{
-          fontFamily: "'JetBrains Mono', 'Readex Pro', sans-serif", fontSize: 10,
-          color: item.color || T.text2, flexShrink: 0,
+          fontFamily: "'Inter', 'Readex Pro', sans-serif", fontSize: 10,
+          color: '#1E293B', flexShrink: 0, fontWeight: 500,
           display: 'inline-flex', alignItems: 'center', gap: 4,
         }}>
           <span style={{
-            fontSize: 7, padding: '0px 4px', borderRadius: 2,
-            background: `${item.color}18`, color: item.color,
+            fontSize: 7, padding: '1px 5px', borderRadius: 3,
+            background: `${item.color}15`, color: item.color,
             fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
+            border: `1px solid ${item.color}20`,
           }}>{item.category || 'News'}</span>
-          {item.text}
+          <span style={{ color: '#334155' }}>{item.text}</span>
         </span>
       ))}
     </div>
   ) : (
     <span style={{
-      padding: '0 10px', fontFamily: "'JetBrains Mono', monospace",
-      fontSize: 9, color: T.text3,
+      padding: '0 10px', fontFamily: "'Inter', sans-serif",
+      fontSize: 9, color: '#94A3B8', fontWeight: 500,
     }}>{t('dashboard.news.loading')}</span>
   )
 }
@@ -1562,8 +1588,9 @@ export function AppHeader() {
         </div>
         {/* Mobile news ticker (hidden on very small screens via CSS) */}
         <div className="mobile-news-ticker" style={{
-          height: 24, overflow: 'hidden', background: T.bg,
-          borderBottom: `0.5px solid ${T.border}`, display: 'flex', alignItems: 'center',
+          height: 24, overflow: 'hidden',
+          background: 'linear-gradient(90deg, #FFFFFF, #F8FAFC, #FFFFFF)',
+          borderBottom: '1px solid rgba(0,0,0,0.06)', display: 'flex', alignItems: 'center',
         }}>
           <MobileNewsTicker />
         </div>

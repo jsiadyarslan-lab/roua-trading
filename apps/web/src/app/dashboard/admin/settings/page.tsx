@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { useTranslations } from 'next-intl'
 import {
   Settings,
   Key,
@@ -103,6 +104,7 @@ const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
 }
 
 export default function AdminSettingsPage() {
+  const tn = useTranslations('notifications.admin')
   useScopedStyle(`@keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -144,7 +146,7 @@ export default function AdminSettingsPage() {
 
       // Check for auth errors
       if (res.status === 401) {
-        setLoadError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+        setLoadError(tn('sessionExpired'))
         setTimeout(() => {
           window.location.href = '/dashboard/admin/login'
         }, 2000)
@@ -175,10 +177,10 @@ export default function AdminSettingsPage() {
         }
       } else {
         const data = await res.json().catch(() => ({}))
-        setLoadError(data.error || 'فشل في جلب الإعدادات من الخادم')
+        setLoadError(data.error || tn('fetchFailed'))
       }
     } catch {
-      setLoadError('⚠️ فشل الاتصال بالخادم')
+      setLoadError(tn('serverConnectionFailed'))
     }
     setLoading(false)
   }, [])
@@ -190,7 +192,7 @@ export default function AdminSettingsPage() {
   // Helper: check if response is auth error and redirect to login
   const handleAuthError = (res: Response) => {
     if (res.status === 401) {
-      setSaveError('انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً')
+      setSaveError(tn('sessionExpired'))
       setTimeout(() => {
         window.location.href = '/dashboard/admin/login'
       }, 2000)
@@ -235,14 +237,14 @@ export default function AdminSettingsPage() {
           setSaved(true)
           setTimeout(() => setSaved(false), 3000)
         } else {
-          setSaveError(data.error || 'فشل في حفظ الإعدادات')
+          setSaveError(data.error || tn('settingsSaveFailed'))
         }
       } else {
         const data = await res.json().catch(() => ({}))
-        setSaveError(data.error || `فشل في حفظ الإعدادات (HTTP ${res.status})`)
+        setSaveError(data.error || tn('settingsSaveFailed'))
       }
     } catch (err: unknown) {
-      setSaveError(`⚠️ فشل الاتصال بالخادم أثناء الحفظ: ${err instanceof Error ? err.message : 'خطأ شبكة'}`)
+      setSaveError(tn('connectionErrorDetail', { error: err instanceof Error ? err.message : '' }))
     }
     setSaving(false)
   }

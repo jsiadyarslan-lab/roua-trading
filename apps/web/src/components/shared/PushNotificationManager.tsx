@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 
 /**
@@ -11,6 +12,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
  * - يُضاف في الـ layout لكل من النسختين
  */
 export default function PushNotificationManager() {
+  const tn = useTranslations('notifications.push')
   const settings = useNotificationStore(s => s.settings)
   const updateSettings = useNotificationStore(s => s.updateSettings)
   const [mounted, setMounted] = useState(false)
@@ -58,8 +60,8 @@ export default function PushNotificationManager() {
         if (result === 'granted') {
           // Show welcome notification
           try {
-            new Notification('رؤى للتداول', {
-              body: 'تم تفعيل الإشعارات بنجاح! ستتلقى تنبيهات التداول الآن',
+            new Notification(tn('appName'), {
+              body: tn('notificationsEnabled'),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
               dir: 'rtl',

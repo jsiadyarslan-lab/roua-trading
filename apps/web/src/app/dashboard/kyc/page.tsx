@@ -12,6 +12,7 @@ import {
 import { useToast } from '@/hooks/use-toast'
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 /* ═══════════════════════════════════════════════════════
    Design Tokens (canonical + local extensions)
@@ -294,6 +295,7 @@ export default function AccountLinkingPage() {
         }`)
 
   const { toast } = useToast()
+  const tn = useTranslations('notifications.kyc')
   const [currentStep, setCurrentStep] = useState<StepId>(1)
   const [linkingStatus, setLinkingStatus] = useState<LinkingStatus>('not_started')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -351,9 +353,9 @@ export default function AccountLinkingPage() {
       }
     } else {
       if (currentStep === 3 && connectionTestResult !== 'success') {
-        toast({ title: 'اختبار الاتصال مطلوب', description: 'يرجى إجراء اختبار الاتصال بنجاح قبل المتابعة' })
+        toast({ title: tn('connectionTestRequired'), description: tn('connectionTestRequiredDesc') })
       } else {
-        toast({ title: 'حقول مطلوبة', description: 'يرجى ملء جميع الحقول المطلوبة قبل المتابعة' })
+        toast({ title: tn('requiredFields'), description: tn('requiredFieldsDesc') })
       }
     }
   }
@@ -374,8 +376,8 @@ export default function AccountLinkingPage() {
     setConnectionTestResult('success')
     setLinkingStatus('in_progress')
     toast({
-      title: 'تم الاتصال بنجاح',
-      description: `تم التحقق من اتصال ${getSelectedExchange()?.name || 'البورصة'} بنجاح`,
+      title: tn('connectionSuccess'),
+      description: tn('connectionSuccessDesc', { exchange: getSelectedExchange()?.name || 'البورصة' }),
     })
   }
 
@@ -385,8 +387,8 @@ export default function AccountLinkingPage() {
     setLinkingStatus('connected')
     setIsSubmitting(false)
     toast({
-      title: 'تم ربط الحساب بنجاح',
-      description: `تم ربط حساب ${getSelectedExchange()?.name || 'البورصة'} بنجاح. يمكنك الآن متابعة محفظتك واستقبال توصيات AI.`,
+      title: tn('accountLinkedSuccess'),
+      description: tn('accountLinkedSuccessDesc', { exchange: getSelectedExchange()?.name || 'البورصة' }),
     })
   }
 

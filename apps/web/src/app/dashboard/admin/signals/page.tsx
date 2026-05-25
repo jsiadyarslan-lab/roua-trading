@@ -13,6 +13,7 @@ import {
   Sparkles,
   AlertTriangle,
 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
@@ -77,6 +78,7 @@ interface SignalStats {
 }
 
 export default function AdminSignalsPage() {
+  const tn = useTranslations('notifications.admin')
   useScopedStyle(`.custom-scrollbar::-webkit-scrollbar { width: 3px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,229,255,0.15); border-radius: 2px; }
@@ -116,10 +118,10 @@ export default function AdminSignalsPage() {
           })))
         }
       } else {
-        setSignalsError('فشل في جلب الإشارات الذكية من الخادم')
+        setSignalsError(tn('fetchSignalsFailed'))
       }
     } catch {
-      setSignalsError('⚠️ بيانات غير متاحة — فشل الاتصال بالخادم')
+      setSignalsError(tn('dataUnavailable'))
       setSignals([])
     }
 
@@ -142,14 +144,14 @@ export default function AdminSignalsPage() {
         }
         // If the API itself reports a fallback source, show warning
         if (data.meta?.source === 'fallback' || data.meta?.error) {
-          setScannerError('⚠️ بيانات تجريبية — فشل الاتصال بخادم التحليل')
+          setScannerError(tn('demoDataWarning'))
         }
       } else {
-        setScannerError('فشل في جلب نتائج الماسح من الخادم')
+        setScannerError(tn('scannerFailed'))
         setScannerResults([])
       }
     } catch {
-      setScannerError('⚠️ بيانات غير متاحة — فشل الاتصال بالخادم')
+      setScannerError(tn('dataUnavailable'))
       setScannerResults([])
     }
 

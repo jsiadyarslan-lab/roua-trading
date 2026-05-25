@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
@@ -92,6 +93,8 @@ export interface OpenOrder {
 }
 
 export function useExecutionEngine() {
+  const tn = useTranslations('notifications.execution')
+  const tc = useTranslations('common')
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const globalQuotes = useMarketStore(state => state.quotes)
   const { addTrade: addPaperTrade } = usePaperTradesStore()
@@ -201,8 +204,8 @@ export function useExecutionEngine() {
           source: 'trade',
           priority: 'medium',
           action: 'CANCEL',
-          title: 'تم إلغاء الأمر',
-          body: `تم إلغاء الأمر ${orderId.slice(0, 8)}...`,
+          title: tn('orderCancelled'),
+          body: tn('orderCancelledDesc', { orderId: orderId.slice(0, 8) }),
           pair: '',
           price: 0,
         })
@@ -230,7 +233,7 @@ export function useExecutionEngine() {
 
     if (!localSymbol) {
       setExecutionState('rejected')
-      setStatus({ msg: 'يرجى إدخال رمز الأصل', type: 'error' })
+      setStatus({ msg: tn('symbolRequired'), type: 'error' })
       clearStatusAfter(3000)
       return false
     }
@@ -238,14 +241,14 @@ export function useExecutionEngine() {
     const qtyNum = parseFloat(quantity)
     if (isNaN(qtyNum) || qtyNum <= 0) {
       setExecutionState('rejected')
-      setStatus({ msg: 'الكمية غير صالحة', type: 'error' })
+      setStatus({ msg: tn('invalidQty'), type: 'error' })
       clearStatusAfter(3000)
       return false
     }
 
     if (orderType === 'limit' && (!limitPrice || parseFloat(limitPrice) <= 0)) {
       setExecutionState('rejected')
-      setStatus({ msg: 'يرجى إدخال سعر الأمر المعلق', type: 'error' })
+      setStatus({ msg: tn('limitPriceRequired'), type: 'error' })
       clearStatusAfter(3000)
       return false
     }
@@ -264,26 +267,26 @@ export function useExecutionEngine() {
       if (side === 'buy') {
         if (slNum > 0 && slNum >= price) {
           setExecutionState('rejected')
-          setStatus({ msg: 'وقف الخسارة يجب أن يكون أقل من سعر الشراء', type: 'error' })
+          setStatus({ msg: tn('slBelowBuyPrice'), type: 'error' })
           clearStatusAfter(3000)
           return false
         }
         if (tpNum > 0 && tpNum <= price) {
           setExecutionState('rejected')
-          setStatus({ msg: 'جني الأرباح يجب أن يكون أعلى من سعر الشراء', type: 'error' })
+          setStatus({ msg: tn('tpAboveBuyPrice'), type: 'error' })
           clearStatusAfter(3000)
           return false
         }
       } else {
         if (slNum > 0 && slNum <= price) {
           setExecutionState('rejected')
-          setStatus({ msg: 'وقف الخسارة يجب أن يكون أعلى من سعر البيع', type: 'error' })
+          setStatus({ msg: tn('slAboveSellPrice'), type: 'error' })
           clearStatusAfter(3000)
           return false
         }
         if (tpNum > 0 && tpNum >= price) {
           setExecutionState('rejected')
-          setStatus({ msg: 'جني الأرباح يجب أن يكون أقل من سعر البيع', type: 'error' })
+          setStatus({ msg: tn('tpBelowSellPrice'), type: 'error' })
           clearStatusAfter(3000)
           return false
         }
@@ -293,10 +296,10 @@ export function useExecutionEngine() {
     setPendingAction(side)
     setExecutionState('ready')
 
-    const typeLabel = orderType === 'limit' ? 'معلق' : 'سوقي'
-    const limitLabel = orderType === 'limit' && limitPrice ? ` بسعر ${limitPrice}` : ''
+    const typeLabel = orderType === 'limit' ? tn('pendingType') : tn('marketType')
+    const limitLabel = orderType === 'limit' && limitPrice ? tn('atPrice', { price: limitPrice }) : ''
     setStatus({
-      msg: `تأكيد أمر ${typeLabel} ${side === 'buy' ? 'شراء' : 'بيع'} ${quantity} من ${localSymbol}${limitLabel}؟`,
+      msg: tn('confirmOrder', { type: typeLabel, side: side === 'buy' ? tc('buy') : tc('sell'), qty: quantity, symbol: localSymbol, limit: limitLabel }),
       type: 'confirm'
     })
     return true
@@ -316,7 +319,7 @@ export function useExecutionEngine() {
     if (totalOpenPositions >= MAX_OPEN_POSITIONS) {
       setExecutionState('rejected')
       setStatus({
-        msg: `لديك ${totalOpenPositions} مركز مفتوح بالفعل (الحد الأقصى: ${MAX_OPEN_POSITIONS}). أغلق بعض المراكز أولاً.`,
+        msg: tn('maxPositions', { count: totalOpenPositions, max: MAX_OPEN_POSITIONS }),
         type: 'error'
       })
       clearStatusAfter(5000)
@@ -325,7 +328,7 @@ export function useExecutionEngine() {
 
     setLoading(true)
     setExecutionState('submitting')
-    setStatus({ msg: `جارٍ إرسال الأمر...`, type: 'loading' })
+    setStatus({ msg: tn('submittingOrder'), type: 'loading' })
 
     const body: Record<string, any> = {
       symbol: localSymbol,
@@ -475,7 +478,7 @@ export function useExecutionEngine() {
           result = {
             success: false,
             source: 'nestjs',
-            error: j.message || 'تم رفض الأمر من حارس المخاطر',
+            error: j.message || tn('riskRejected'),
             riskReason: j.message,
           }
         } else if (res.status === 409) {
@@ -483,7 +486,7 @@ export function useExecutionEngine() {
           result = {
             success: false,
             source: 'nestjs',
-            error: 'تم استلام هذا الطلب مسبقاً. يرجى الانتظار.',
+            error: tn('duplicateOrder'),
           }
         } else {
           // NestJS v2 failed — fallback to Alpaca
@@ -521,7 +524,7 @@ export function useExecutionEngine() {
             result = {
               success: false,
               source: 'alpaca',
-              error: 'لم يتم استلام رقم الأمر من المزود',
+              error: tn('orderIdMissing'),
             }
           } else {
           result = {
@@ -538,14 +541,14 @@ export function useExecutionEngine() {
           result = {
             success: false,
             source: 'alpaca',
-            error: j.error || 'فشل التنفيذ',
+            error: j.error || tn('executionFailed', { error: '' }).replace(': ', ''),
           }
         }
       } catch (e: any) {
         result = {
           success: false,
           source: 'alpaca',
-          error: `خطأ في الشبكة — تعذّر الوصول للمزود`,
+          error: tn('networkError'),
         }
       }
       } // end else (Alpaca fallback)
@@ -557,12 +560,12 @@ export function useExecutionEngine() {
     const finalResult = result || {
       success: false,
       source: 'alpaca' as const,
-      error: 'فشل في إرسال الأمر — يرجى المحاولة مرة أخرى',
+      error: tn('submitFailed'),
     }
 
     if (finalResult.success) {
       const filled = finalResult.filledAvgPrice ? ` بسعر $${finalResult.filledAvgPrice.toFixed(2)}` : ''
-      const sourceLabel = finalResult.source === 'nestjs' ? '🛡️ آمن' : '⚡ مباشر'
+      const sourceLabel = finalResult.source === 'nestjs' ? '🛡️ ' + tn('safeLabel') : '⚡ ' + tn('directLabel')
 
       // Track in paper store
       addPaperTrade({
@@ -579,7 +582,7 @@ export function useExecutionEngine() {
 
       setExecutionState(finalResult.filledAvgPrice ? 'filled' : 'accepted')
       setStatus({
-        msg: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${finalResult.qty} ${finalResult.symbol}${filled}\n${sourceLabel} — رقم الأمر: ${finalResult.orderId?.slice(0, 8)}...`,
+        msg: tn('orderSuccessStatus', { side: side === 'buy' ? tc('buy') : tc('sell'), qty: finalResult.qty, symbol: finalResult.symbol, filled, source: sourceLabel, orderId: finalResult.orderId?.slice(0, 8) || '' }),
         type: 'success',
       })
 
@@ -587,8 +590,8 @@ export function useExecutionEngine() {
         source: 'trade',
         priority: 'high',
         action: side === 'buy' ? 'BUY' : 'SELL',
-        title: `تم ${side === 'buy' ? 'شراء' : 'بيع'} ${finalResult.symbol}`,
-        body: `تم تنفيذ ${finalResult.qty} ${finalResult.symbol}${filled} [${sourceLabel}]`,
+        title: tn('orderFillTitle', { side: side === 'buy' ? tc('buy') : tc('sell'), symbol: finalResult.symbol }),
+        body: tn('orderFillDesc', { qty: finalResult.qty, symbol: finalResult.symbol, filled, source: sourceLabel }),
         pair: finalResult.symbol || localSymbol,
         price: finalResult.filledAvgPrice || currentPrice,
       })
@@ -601,8 +604,8 @@ export function useExecutionEngine() {
       setExecutionState('rejected')
       setStatus({
         msg: finalResult.riskReason
-          ? `تم رفض الأمر: ${finalResult.riskReason}`
-          : `${finalResult.error || 'فشل التنفيذ'}`,
+          ? tn('orderRejected', { reason: finalResult.riskReason })
+          : finalResult.error || tn('executionFailed', { error: '' }).replace(': ', ''),
         type: 'error'
       })
     }
@@ -610,7 +613,7 @@ export function useExecutionEngine() {
     setLoading(false)
     setPendingAction(null)
     clearStatusAfter(4000) // 4 seconds — enough to read details
-  }, [pendingAction, localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, timeInForce, currentPrice, addPaperTrade, addNotification, fetchAccount, fetchPositions, loadAccount, loadOpenOrders, clearStatusAfter])
+  }, [pendingAction, localSymbol, quantity, orderType, limitPrice, stopLoss, takeProfit, timeInForce, currentPrice, addPaperTrade, addNotification, fetchAccount, fetchPositions, loadAccount, loadOpenOrders, clearStatusAfter, tn, tc])
 
   // Auto-calculate TP/SL/Qty
   const autoCalculate = useCallback(() => {

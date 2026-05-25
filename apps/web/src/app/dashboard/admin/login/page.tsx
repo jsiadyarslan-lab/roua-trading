@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Shield, Lock, Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { useTranslations } from 'next-intl'
 
 const COLORS = {
   bg: '#0B0E14',
@@ -17,7 +18,7 @@ const COLORS = {
 
 export default function AdminLoginPage() {
   useScopedStyle(`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`)
-
+  const tn = useTranslations('notifications.admin')
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -45,13 +46,13 @@ export default function AdminLoginPage() {
       } catch {
         // Server returned non-JSON (likely HTML error page) — show status-based error
         if (res.status === 403) {
-          setError('تسجيل الدخول معطل — لم يتم تعيين كلمة مرور المسؤول في متغيرات البيئة')
+          setError(tn('loginDisabled'))
         } else if (res.status === 503) {
-          setError('قاعدة البيانات غير متاحة حالياً — حاول لاحقاً')
+          setError(tn('dbUnavailable'))
         } else if (res.status >= 500) {
-          setError('خطأ في الخادم — حاول مرة أخرى لاحقاً')
+          setError(tn('serverErrorRetry'))
         } else {
-          setError('حدث خطأ في الاتصال بالخادم')
+          setError(tn('connectionError'))
         }
         return
       }
@@ -59,14 +60,14 @@ export default function AdminLoginPage() {
       if (res.ok) {
         router.push('/dashboard/admin')
       } else {
-        setError(data.error || 'كلمة المرور غير صحيحة')
+        setError(data.error || tn('incorrectPassword'))
       }
     } catch (err: unknown) {
       // Network error (server unreachable, timeout, etc.)
       if (err instanceof DOMException && err.name === 'AbortError') {
-        setError('انتهت مهلة الاتصال — الخادم لا يستجيب')
+        setError(tn('connectionTimeout'))
       } else {
-        setError('لا يمكن الاتصال بالخادم — تحقق من اتصال الإنترنت')
+        setError(tn('noInternetConnection'))
       }
     } finally {
       setLoading(false)

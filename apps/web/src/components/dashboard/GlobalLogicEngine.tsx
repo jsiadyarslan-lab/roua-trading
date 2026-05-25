@@ -7,6 +7,8 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAgentStore } from '@/hooks/useAgentStore'
+import { setNotificationTranslator } from '@/hooks/usePaperTradesStore'
+import { setAlertTranslator } from '@/components/charts/AlertManager'
 
 /**
  * GlobalLogicEngine
@@ -27,6 +29,15 @@ import { useAgentStore } from '@/hooks/useAgentStore'
 export function GlobalLogicEngine() {
   const t = useTranslations('dashboard.globalLogic')
   const tc = useTranslations('common')
+  const tne = useTranslations('notifications.execution')
+  const tnp = useTranslations('notifications.push')
+
+  // Initialize notification translator for usePaperTradesStore (non-component context)
+  useEffect(() => {
+    setNotificationTranslator((key: string, vars?: Record<string, any>) => tne(key, vars))
+    setAlertTranslator((key: string, vars?: Record<string, any>) => tnp(key, vars))
+  }, [tne, tnp])
+
   const updatePositionPrice = usePositionsStore(s => s.updatePositionPrice)
   const fetchRealPositions = usePositionsStore(s => s.fetchPositions)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BellRing, X, Shield } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { useTranslations } from 'next-intl'
 
 /**
  * NotificationPermissionBanner — شعار يطلب إذن الإشعارات من المستخدم
@@ -11,6 +12,7 @@ import { useNotificationStore } from '@/hooks/useNotificationStore'
  * يعمل على الجوال والدسكتوب
  */
 export default function NotificationPermissionBanner() {
+  const tn = useTranslations('notifications.push')
   const [permission, setPermission] = useState<string>('default')
   const [dismissed, setDismissed] = useState(false)
   const [isSupported, setIsSupported] = useState(false)
@@ -37,8 +39,8 @@ export default function NotificationPermissionBanner() {
       if (result === 'granted') {
         // Show a test notification
         try {
-          new Notification('رؤى للتداول', {
-            body: 'تم تفعيل الإشعارات بنجاح! ستتلقى تنبيهات التداول الآن',
+          new Notification(tn('appName'), {
+            body: tn('notificationsEnabled'),
             icon: '/icon-192.png',
             badge: '/icon-192.png',
             dir: 'rtl',

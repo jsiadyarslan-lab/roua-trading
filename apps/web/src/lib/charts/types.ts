@@ -343,3 +343,132 @@ export interface SeriesHandle {
   series: ISeriesApi<SeriesType>;
   type: 'main' | 'overlay' | 'oscillator' | 'volume';
 }
+
+// ═══════════════════════════════════════════════════════════
+// REVOLUTIONARY FEATURE TYPES — v2.0
+// ═══════════════════════════════════════════════════════════
+
+// ── ATR Adaptive TP/SL ──────────────────────────────────
+export interface AdaptiveTPSLResult {
+  entry: number;
+  stopLoss: number;
+  takeProfit: number;
+  riskRewardRatio: number;
+  slPercent: number;
+  tpPercent: number;
+  atrUsed: number;
+  regime: 'low' | 'normal' | 'high' | 'extreme';
+}
+
+// ── Pattern State Machine ───────────────────────────────
+export type PatternLifecycleState =
+  | 'inactive' | 'forming' | 'near-completion'
+  | 'completed' | 'breakout' | 'failed';
+
+export interface PatternStateInfo {
+  id: string;
+  type: string;
+  state: PatternLifecycleState;
+  completionPct: number;
+  confidence: number;
+  keyLevel: number;
+  alert?: string;
+  alertAr?: string;
+}
+
+// ── Bayesian Consensus ──────────────────────────────────
+export interface BayesianConsensusResult {
+  direction: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+  reinforcingSignals: Array<{
+    sources: string[];
+    direction: 'bullish' | 'bearish';
+    descriptionAr: string;
+    strength: number;
+  }>;
+  conflictingSignals: Array<{
+    sources: string[];
+    descriptionAr: string;
+  }>;
+  keyLevels: Array<{
+    price: number;
+    type: string;
+    source: string;
+    strength: number;
+    label: string;
+  }>;
+}
+
+// ── Elliott + SMC Fusion ────────────────────────────────
+export interface ElliottSMCFusionResult {
+  direction: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;
+  confluenceScore: number;
+  waveLabelAr: string;
+  smcConfirmation: {
+    orderBlockConfirms: boolean;
+    bosConfirms: boolean;
+    fvgConfirms: boolean;
+  };
+  ewoSignal: 'bullish' | 'bearish' | 'neutral';
+  wyckoffAligns: boolean;
+  interpretationAr: string;
+}
+
+// ── Signal Confidence Heatmap ───────────────────────────
+export interface HeatmapOverlay {
+  points: Array<{
+    time: number;
+    netDirection: 'bullish' | 'bearish' | 'neutral' | 'conflicted';
+    intensity: number;
+    signalCount: number;
+  }>;
+  dominantDirection: 'bullish' | 'bearish' | 'neutral';
+}
+
+// ── Pattern Performance ─────────────────────────────────
+export interface PatternPerformanceInfo {
+  patternType: string;
+  winRate: number;
+  totalTrades: number;
+  adjustedConfidence: number;
+}
+
+// ── Enhanced AIAnalysisResult (extends existing) ─────────
+export interface EnhancedAIResult {
+  // Original fields
+  patterns: AIPattern[];
+  supportLevels: SupportResistanceLevel[];
+  resistanceLevels: SupportResistanceLevel[];
+  trendLines: TrendLine[];
+  entryExit?: AIEntryExit | null;
+  smcData?: any;
+  geoPatterns?: any;
+  elliottPattern?: any;
+  wyckoff?: any;
+  volumeProfile?: any;
+  overlays?: any;
+
+  // Revolutionary additions
+  adaptiveTPSL?: AdaptiveTPSLResult;
+  patternStates?: PatternStateInfo[];
+  bayesianConsensus?: BayesianConsensusResult;
+  elliottSMCFusion?: ElliottSMCFusionResult;
+  heatmap?: HeatmapOverlay;
+  patternPerformance?: PatternPerformanceInfo[];
+}
+
+// ── Support/Resistance (re-export for convenience) ──────
+export interface SupportResistanceLevel {
+  price: number;
+  type: 'support' | 'resistance';
+  strength: 'weak' | 'medium' | 'strong';
+  touches: number;
+}
+
+export interface TrendLine {
+  type: 'ascending' | 'descending';
+  startPoint: { time: number; price: number };
+  endPoint: { time: number; price: number };
+  strength: 'weak' | 'medium' | 'strong';
+}

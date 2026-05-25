@@ -73,7 +73,8 @@ export async function GET() {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
-            const items = newsData.articles.map((article: any) => {
+            const items = newsData.articles
+              .map((article: any) => {
               const rawCat = article.category || 'Markets';
               const title = article.title || '';
               const summary = article.summary || '';
@@ -82,26 +83,40 @@ export async function GET() {
               const category = /[\u0600-\u06FF]/.test(rawCat) ? mapCategoryToEnglish(rawCat) : rawCat;
               const categoryAr = /[\u0600-\u06FF]/.test(rawCat) ? rawCat : mapCategoryToArabic(rawCat);
 
-              // News site already has Arabic content
-              const textAr = /[\u0600-\u06FF]/.test(title) ? title : tryTranslateToArabic(title) || title;
+              // Determine English and Arabic text
+              const isArabicTitle = /[\u0600-\u06FF]/.test(title);
+              let text = title;
+              let textAr = '';
+
+              if (isArabicTitle) {
+                // Title is Arabic — use summary as English text if available and not Arabic
+                const summaryIsEnglish = summary && !/[\u0600-\u06FF]/.test(summary.substring(0, 50));
+                text = summaryIsEnglish ? summary : title;
+                textAr = title;
+              } else {
+                // Title is English — translate to Arabic for textAr
+                textAr = tryTranslateToArabic(title) || title;
+              }
 
               return {
                 category,
                 categoryAr,
                 color: mapCategoryColor(category),
                 bgColor: `${mapCategoryColor(category)}12`,
-                text: title,
+                text,
                 textAr,
                 summary: summary || '',
                 link: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
                 publishedAt: article.publishedAt || null,
                 impact: article.impactLevel || (article.sentimentScore > 0.3 ? 'high' : 'medium'),
                 source: article.source || 'Rouaa News',
+                isArabicOnly: isArabicTitle,
               };
-            });
+            })
+            // Filter out Arabic-only articles (no English content available)
+            .filter((item: any) => !item.isArabicOnly);
 
-            const hasArabic = items.some((item: any) => /[\u0600-\u06FF]/.test(item.textAr));
-            if (hasArabic) {
+            if (items.length > 0) {
               return NextResponse.json(items);
             }
           }

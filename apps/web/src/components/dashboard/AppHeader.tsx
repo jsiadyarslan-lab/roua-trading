@@ -262,19 +262,22 @@ function fetchNewsData(): Promise<NewsItem[]> {
     .then(r => r.ok ? r.json() : [])
     .then((d: unknown) => {
       if (Array.isArray(d) && d.length) {
-        _newsCache = d.map((item: any) => {
-          const rawTextAr = item.textAr || item.translatedTitle || ''
-          const rawText = item.text || item.headline || item.title || ''
-          const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
-          return {
-            text: rawText,
-            textAr: hasRealArabic ? rawTextAr : rawText,
-            category: item.category || 'Markets',
-            categoryAr: item.categoryAr || 'Markets',
-            color: item.color || '#8B92A8',
-            impact: item.impact || 'medium',
-          }
-        })
+        _newsCache = d
+          .map((item: any) => {
+            const rawTextAr = item.textAr || item.translatedTitle || ''
+            const rawText = item.text || item.headline || item.title || ''
+            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
+            return {
+              text: rawText,
+              textAr: hasRealArabic ? rawTextAr : rawText,
+              category: item.category || 'Markets',
+              categoryAr: item.categoryAr || 'Markets',
+              color: item.color || '#8B92A8',
+              impact: item.impact || 'medium',
+            }
+          })
+          // Safety: filter out any items where text is Arabic (no English available)
+          .filter((item) => !/[\u0600-\u06FF]/.test(item.text))
       } else {
         _newsCache = []
       }

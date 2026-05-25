@@ -45,9 +45,14 @@ export default function NewsTicker() {
               const content = (item.translatedContent || '') + (item.content || '');
               return !errorPatterns.some(p => title.includes(p) || content.includes(p));
             })
+            // Filter out Arabic-only articles (no English text)
+            .filter((item: any) => {
+              const text = item.text || item.headline || item.title || '';
+              return text && !/[\u0600-\u06FF]/.test(text);
+            })
             .map((item: any) => ({
             category: item.category || 'General',
-            categoryAr: item.categoryAr || item.category || 'عام',
+            categoryAr: item.categoryAr || item.category || 'Markets',
             color: item.color || '#8B92A8',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
@@ -79,11 +84,11 @@ export default function NewsTicker() {
   }, [newsItems])
 
   const renderNewsItem = (item: NewsItem, index: number) => (
-    <div key={`${item.textAr?.slice(0, 30) || item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
+    <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
       <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
-        {item.categoryAr}
+        {item.category}
       </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.textAr || item.text}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.text}</span>
       <span className="text-[10px]">
         {item.impact === 'high' ? (
           <span style={{ color: 'var(--loss)' }}>●</span>

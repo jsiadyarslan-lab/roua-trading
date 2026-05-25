@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowRight,
   Clock,
@@ -63,7 +63,9 @@ const SECTION_CONFIG: Record<string, { icon: any; gradient: string; borderColor:
 export default function NewsArticlePage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
+  const lang = searchParams.get('lang') || 'en' // Default to English matching the news page default
 
   const [article, setArticle] = useState<NewsItem | null>(null)
   const [loading, setLoading] = useState(true)
@@ -83,7 +85,7 @@ export default function NewsArticlePage() {
       setLoading(true)
       setError('')
       try {
-        const res = await fetch('/api/news/latest?limit=50', { cache: 'no-store' })
+        const res = await fetch(`/api/news/latest?limit=50&lang=${lang}`, { cache: 'no-store' })
         const data = await res.json()
         if (data.success && Array.isArray(data.data)) {
           const found = data.data.find((a: NewsItem) => a.slug === slug || a.id === slug)
@@ -102,7 +104,7 @@ export default function NewsArticlePage() {
       }
     }
     if (slug) fetchArticle()
-  }, [slug])
+  }, [slug, lang])
 
   if (loading) {
     return (

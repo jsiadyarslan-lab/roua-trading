@@ -158,7 +158,7 @@ export default function NewsPage() {
   const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'analysis'>(
     searchParams.get('tab') === 'analysis' ? 'analysis' : initialTab
   )
-  const [newsLang, setNewsLang] = useState<'ar' | 'en'>('ar')
+  const [newsLang, setNewsLang] = useState<'ar' | 'en'>('en')
 
   // Analysis tab state
   const [analyses, setAnalyses] = useState<any[]>([])
@@ -405,7 +405,7 @@ export default function NewsPage() {
                 items={heroItems}
                 currentSlide={currentSlide}
                 setCurrentSlide={setCurrentSlide}
-                onArticleClick={(slug, id) => router.push(`/dashboard/news/${slug || id}`)}
+                onArticleClick={(slug, id) => router.push(`/dashboard/news/${slug || id}?lang=${newsLang}`)}
               />
             )}
 
@@ -503,7 +503,7 @@ export default function NewsPage() {
                     key={item.id || index}
                     item={item}
                     index={index}
-                    onClick={() => router.push(`/dashboard/news/${item.slug || item.id}`)}
+                    onClick={() => router.push(`/dashboard/news/${item.slug || item.id}?lang=${newsLang}`)}
                   />
                 ))}
               </div>

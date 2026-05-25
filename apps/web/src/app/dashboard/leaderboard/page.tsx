@@ -14,9 +14,9 @@ import { useTranslations } from 'next-intl'
 /* ──────────────── Design Tokens (canonical + local extensions) ──────────────── */
 const T = { ...SharedT, silver: '#8B92A8', bronze: '#CD7F32' }
 
-/* ──────────────── Types ──────────────── */
-type TimePeriod = 'أسبوعي' | 'شهري' | 'سنوي' | 'كلي'
-type CategoryFilter = 'العائد' | 'نسبة الفوز' | 'الاتساق' | 'متابعة الحسابات'
+/* ──────────────── Types (locale-independent string keys) ──────────────── */
+type TimePeriod = 'weekly' | 'monthly' | 'yearly' | 'all'
+type CategoryFilter = 'return' | 'winRate' | 'consistency' | 'copyTrading'
 
 interface Trader {
   id: string
@@ -64,6 +64,7 @@ const drawdownColor = (val: number) => {
 
 /* ──────────────── Podium Card Component ──────────────── */
 function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
+  const t = useTranslations('leaderboardPage')
   const isFirst = rank === 1
   const colors = {
     1: { main: T.gold, bg: `${T.gold}08`, border: `${T.gold}25`, glow: `${T.gold}15` },
@@ -143,7 +144,7 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
         background: `${returnTypeColor(trader.returnPct)}10`,
         border: `1px solid ${returnTypeColor(trader.returnPct)}20`,
       }}>
-        <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>العائد</div>
+        <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{t('returnLabel')}</div>
         <div style={{
           fontSize: isFirst ? 20 : 17, fontWeight: 900,
           color: returnTypeColor(trader.returnPct),
@@ -156,13 +157,13 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
       {/* Win Rate & Followers */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <div style={{ background: T.surface, borderRadius: 8, padding: '8px 4px', textAlign: 'center' }}>
-          <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>معدل الفوز</div>
+          <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{t('winRateLabel')}</div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
             {trader.winRate.toFixed(1)}%
           </div>
         </div>
         <div style={{ background: T.surface, borderRadius: 8, padding: '8px 4px', textAlign: 'center' }}>
-          <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>المتابعون</div>
+          <div style={{ fontSize: 9, color: T.text3, marginBottom: 2 }}>{t('followers')}</div>
           <div style={{ fontSize: 13, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
             {formatNumber(trader.followers)}
           </div>
@@ -229,8 +230,8 @@ function BadgeCard({ badge }: { badge: Badge }) {
 export default function LeaderboardPage() {
   useScopedStyle(`@keyframes spin { to { transform: rotate(360deg); } }`)
 
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>('شهري')
-  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('العائد')
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('monthly')
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('return')
   const [followingTraders, setCopyingTraders] = useState<Set<string>>(new Set())
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
@@ -242,12 +243,21 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const timePeriods: TimePeriod[] = ['أسبوعي', 'شهري', 'سنوي', 'كلي']
-  const categoryTabs: { key: CategoryFilter; icon: typeof TrendingUp }[] = [
-    { key: 'العائد', icon: TrendingUp },
-    { key: 'نسبة الفوز', icon: Target },
-    { key: 'الاتساق', icon: BarChart3 },
-    { key: 'متابعة الحسابات', icon: Shield },
+  const t = useTranslations('leaderboardPage')
+  const tn = useTranslations('notifications.leaderboard')
+  const tc = useTranslations('common')
+
+  const timePeriods: { key: TimePeriod; label: string }[] = [
+    { key: 'weekly', label: t('timeWeekly') },
+    { key: 'monthly', label: t('timeMonthly') },
+    { key: 'yearly', label: t('timeYearly') },
+    { key: 'all', label: t('timeAll') },
+  ]
+  const categoryTabs: { key: CategoryFilter; icon: typeof TrendingUp; label: string }[] = [
+    { key: 'return', icon: TrendingUp, label: t('catReturn') },
+    { key: 'winRate', icon: Target, label: t('catWinRate') },
+    { key: 'consistency', icon: BarChart3, label: t('catConsistency') },
+    { key: 'copyTrading', icon: Shield, label: t('catCopyTrading') },
   ]
 
   /* Fetch leaderboard data from API */
@@ -263,7 +273,7 @@ export default function LeaderboardPage() {
           setCurrentUserRank(data.currentUserRank ?? null)
         }
       } catch {
-        setError('تعذر تحميل بيانات لوحة الصدارة حالياً.')
+        setError(t('loadError'))
       } finally {
         setLoading(false)
       }
@@ -275,24 +285,19 @@ export default function LeaderboardPage() {
   const sortedTraders = useMemo(() => {
     return [...traders].sort((a, b) => {
       switch (categoryFilter) {
-        case 'العائد': return b.returnPct - a.returnPct
-        case 'نسبة الفوز': return b.winRate - a.winRate
-        case 'الاتساق': return b.consistency - a.consistency
-        case 'متابعة الحسابات': return a.consistency - b.consistency
+        case 'return': return b.returnPct - a.returnPct
+        case 'winRate': return b.winRate - a.winRate
+        case 'consistency': return b.consistency - a.consistency
+        case 'copyTrading': return a.consistency - b.consistency
         default: return b.returnPct - a.returnPct
       }
     })
   }, [categoryFilter, traders])
 
-  const tn = useTranslations('notifications.leaderboard')
-  const tc = useTranslations('common')
-
   const top3 = sortedTraders.slice(0, 3)
   const restTraders = sortedTraders.slice(3)
 
   const toggleFollow = (traderId: string, traderName: string) => {
-  
-
     setCopyingTraders(prev => {
       const next = new Set(prev)
       if (next.has(traderId)) {
@@ -308,8 +313,8 @@ export default function LeaderboardPage() {
 
   /* Stats summary */
   const totalActiveTraders = traders.length
-  const totalReturns = traders.length > 0 ? `${(traders.reduce((s, t) => s + t.returnPct, 0) / traders.length).toFixed(1)}%` : '--'
-  const avgWinRate = traders.length > 0 ? `${(traders.reduce((s, t) => s + t.winRate, 0) / traders.length).toFixed(1)}%` : '--'
+  const totalReturns = traders.length > 0 ? `${(traders.reduce((s, t2) => s + t2.returnPct, 0) / traders.length).toFixed(1)}%` : '--'
+  const avgWinRate = traders.length > 0 ? `${(traders.reduce((s, t2) => s + t2.winRate, 0) / traders.length).toFixed(1)}%` : '--'
 
   /* Loading state */
   if (loading) {
@@ -326,7 +331,7 @@ export default function LeaderboardPage() {
             borderRadius: '50%', animation: 'spin 0.8s linear infinite',
             margin: '0 auto 12px',
           }} />
-          {/* Scoped styles via useScopedStyle */}<div style={{ fontSize: 13 }}>جارٍ تحميل لوحة الصدارة...</div>
+          <div style={{ fontSize: 13 }}>{t('loading')}</div>
         </div>
       </div>
     )
@@ -351,10 +356,10 @@ export default function LeaderboardPage() {
               }}>
                 <Trophy size={20} color={T.amber} />
               </div>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>لوحة الصدارة</h1>
+              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{t('title')}</h1>
             </div>
             <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-              تابع أفضل الحسابات المربوطة على منصة رؤى حسب الأداء والاتساق وجودة المتابعة
+              {t('subtitle')}
             </p>
           </div>
         </div>
@@ -366,10 +371,10 @@ export default function LeaderboardPage() {
         }}>
           <Trophy size={36} style={{ color: T.amber, marginBottom: 12, opacity: 0.5 }} />
           <p style={{ fontSize: 14, fontWeight: 700, color: T.text, margin: '0 0 8px' }}>
-            {error ? 'تعذر تحميل لوحة الصدارة' : 'لا توجد بيانات لوحة الصدارة بعد'}
+            {error ? t('errorTitle') : t('emptyTitle')}
           </p>
           <p style={{ fontSize: 12, color: T.text2, margin: 0 }}>
-            {error || 'عند توفر بيانات المتداولين الحقيقية ستظهر هنا بدل أي بيانات تجريبية.'}
+            {error || t('emptyDesc')}
           </p>
         </div>
       </div>
@@ -393,10 +398,10 @@ export default function LeaderboardPage() {
             }}>
               <Trophy size={20} color={T.amber} />
             </div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>لوحة الصدارة</h1>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 900, color: T.text }}>{t('title')}</h1>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: T.text2 }}>
-            تابع أفضل الحسابات المربوطة على منصة رؤى حسب الأداء والاتساق وجودة المتابعة
+            {t('subtitle')}
           </p>
         </div>
       </div>
@@ -404,9 +409,9 @@ export default function LeaderboardPage() {
       {/* ──── Stats Summary Row ──── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
-          { icon: Users, label: 'إجمالي الحسابات المربوطة النشطة', val: formatNumber(totalActiveTraders), color: T.cyan },
-          { icon: TrendingUp, label: 'متوسط العائد', val: totalReturns, color: T.green },
-          { icon: Target, label: 'متوسط معدل الفوز', val: avgWinRate, color: T.amber },
+          { icon: Users, label: t('totalActiveAccounts'), val: formatNumber(totalActiveTraders), color: T.cyan },
+          { icon: TrendingUp, label: t('avgReturn'), val: totalReturns, color: T.green },
+          { icon: Target, label: t('avgWinRate'), val: avgWinRate, color: T.amber },
         ].map((s, i) => (
           <div key={i} style={{
             background: T.card, border: `0.5px solid ${T.border}`,
@@ -427,16 +432,16 @@ export default function LeaderboardPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', gap: 6 }}>
           {timePeriods.map(period => (
-            <button key={period} onClick={() => setTimePeriod(period)} style={{
+            <button key={period.key} onClick={() => setTimePeriod(period.key)} style={{
               padding: '7px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700,
               cursor: 'pointer', transition: 'all 0.2s',
               display: 'flex', alignItems: 'center', gap: 5,
-              background: timePeriod === period ? `${T.cyan}15` : T.surface,
-              border: `1px solid ${timePeriod === period ? `${T.cyan}40` : T.border}`,
-              color: timePeriod === period ? T.cyan : T.text2,
+              background: timePeriod === period.key ? `${T.cyan}15` : T.surface,
+              border: `1px solid ${timePeriod === period.key ? `${T.cyan}40` : T.border}`,
+              color: timePeriod === period.key ? T.cyan : T.text2,
               fontFamily: "'Cairo', sans-serif",
             }}>
-              <Clock size={12} /> {period}
+              <Clock size={12} /> {period.label}
             </button>
           ))}
         </div>
@@ -453,7 +458,7 @@ export default function LeaderboardPage() {
               color: categoryFilter === tab.key ? T.cyan : T.text2,
               fontFamily: "'Cairo', sans-serif",
             }}>
-              <tab.icon size={13} /> {tab.key}
+              <tab.icon size={13} /> {tab.label}
             </button>
           ))}
         </div>
@@ -482,10 +487,10 @@ export default function LeaderboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <BarChart3 size={16} color={T.cyan} />
-            الترتيب الكامل
+            {t('fullRanking')}
           </h2>
           <span style={{ fontSize: 11, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
-            {sortedTraders.length} حساب مربوط
+            {sortedTraders.length} {sortedTraders.length === 1 ? t('linkedAccount') : t('linkedAccounts')}
           </span>
         </div>
 
@@ -504,14 +509,14 @@ export default function LeaderboardPage() {
               <thead>
                 <tr style={{ borderBottom: `1px solid ${T.border}` }}>
                   {[
-                    { label: '#', width: 50 },
-                    { label: 'الحساب', width: 'auto' },
-                    { label: 'العائد', width: 100 },
-                    { label: 'معدل الفوز', width: 95 },
-                    { label: 'السحب الأقصى', width: 105 },
-                    { label: 'الأصول المدارة', width: 110 },
-                    { label: 'المتابعون', width: 90 },
-                    { label: 'متاح للمتابعة', width: 110 },
+                    { label: t('colRank'), width: 50 },
+                    { label: t('colAccount'), width: 'auto' },
+                    { label: t('colReturn'), width: 100 },
+                    { label: t('colWinRate'), width: 95 },
+                    { label: t('colMaxDrawdown'), width: 105 },
+                    { label: t('colAum'), width: 110 },
+                    { label: t('colFollowers'), width: 90 },
+                    { label: t('colCopyAvailable'), width: 110 },
                   ].map((col, i) => (
                     <th key={i} style={{
                       padding: '12px 14px', fontSize: 11, fontWeight: 800,
@@ -575,7 +580,7 @@ export default function LeaderboardPage() {
                             <span style={{
                               fontSize: 8, padding: '1px 6px', borderRadius: 10,
                               background: `${T.cyan}18`, color: T.cyan, fontWeight: 800,
-                            }}>أنت</span>
+                            }}>{t('you')}</span>
                           )}
                         </div>
                         <div style={{ fontSize: 10, color: T.text3 }}>{trader.type}</div>
@@ -652,7 +657,7 @@ export default function LeaderboardPage() {
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        {followingTraders.has(trader.id) ? 'إيقاف المتابعة' : 'متابعة'}
+                        {followingTraders.has(trader.id) ? t('unfollow') : t('follow')}
                         <Eye size={11} />
                       </button>
                     ) : (
@@ -662,7 +667,7 @@ export default function LeaderboardPage() {
                         padding: '4px 10px', borderRadius: 20,
                         background: T.surface, border: `1px solid ${T.border}`,
                       }}>
-                        <Lock size={9} /> غير متاح
+                        <Lock size={9} /> {t('notAvailable')}
                       </span>
                     )}
                   </td>
@@ -703,7 +708,7 @@ export default function LeaderboardPage() {
           </div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 900, color: T.text, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
-              ترتيبك الحالي
+              {t('yourRanking')}
               <span style={{
                 fontSize: 11, padding: '2px 10px', borderRadius: 10,
                 background: `${T.cyan}15`, color: T.cyan,
@@ -713,28 +718,28 @@ export default function LeaderboardPage() {
               </span>
             </div>
             <div style={{ fontSize: 12, color: T.text2 }}>
-              {currentUser.name} — عائد +{currentUser.returnPct.toFixed(1)}% | معدل الفوز {currentUser.winRate.toFixed(1)}%
+              {currentUser.name} — {t('returnLabel')} +{currentUser.returnPct.toFixed(1)}% | {t('winRateLabel')} {currentUser.winRate.toFixed(1)}%
             </div>
           </div>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>الاتساق</div>
+            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>{t('consistency')}</div>
             <div style={{ fontSize: 15, fontWeight: 800, color: T.amber, fontFamily: "'JetBrains Mono', monospace" }}>
               {currentUser.consistency}%
             </div>
           </div>
           <div style={{ width: 1, height: 32, background: T.border }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>السحب الأقصى</div>
+            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>{t('maxDrawdown')}</div>
             <div style={{ fontSize: 15, fontWeight: 800, color: drawdownColor(currentUser.maxDrawdown), fontFamily: "'JetBrains Mono', monospace" }}>
               {currentUser.maxDrawdown.toFixed(1)}%
             </div>
           </div>
           <div style={{ width: 1, height: 32, background: T.border }} />
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>المتابعون</div>
+            <div style={{ fontSize: 9, color: T.text3, marginBottom: 3 }}>{t('followers')}</div>
             <div style={{ fontSize: 15, fontWeight: 800, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>
               {formatNumber(currentUser.followers)}
             </div>
@@ -748,7 +753,7 @@ export default function LeaderboardPage() {
       <div style={{ marginBottom: 32 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
           <Award size={16} color={T.purple} />
-          <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>شارات الإنجاز</h2>
+          <h2 style={{ fontSize: 16, fontWeight: 800, color: T.text, margin: 0 }}>{t('achievementBadges')}</h2>
           <span style={{
             fontSize: 10, padding: '2px 8px', borderRadius: 20,
             background: `${T.purple}15`, color: T.purple,

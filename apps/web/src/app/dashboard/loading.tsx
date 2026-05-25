@@ -4,6 +4,9 @@ import { useTranslations } from 'next-intl'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 
 export default function Loading() {
+  const tc = useTranslations('common')
+  const td = useTranslations('dashboard')
+
   useScopedStyle(`@keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
@@ -40,7 +43,7 @@ export default function Loading() {
             backgroundClip: 'text',
           }}
         >
-          {useTranslations('common')('brand')}
+          {tc('brand')}
         </h2>
 
         <p
@@ -50,7 +53,7 @@ export default function Loading() {
             color: '#64748B',
           }}
         >
-          {useTranslations('dashboard')('loading')}
+          {td('loading')}
         </p>
       </div>
 

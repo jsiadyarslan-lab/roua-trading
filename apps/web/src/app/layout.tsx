@@ -4,7 +4,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages, getTranslations } from 'next-intl/server';
+import { getLocale, getMessages } from 'next-intl/server';
 
 /* ── Font Loading via next/font/google ──
  * Loads only the glyphs needed (Arabic subset) with zero layout shift.
@@ -34,7 +34,6 @@ const fontVars = [
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations('common');
   const locale = await getLocale();
   const isAr = locale === 'ar';
   const isFr = locale === 'fr';

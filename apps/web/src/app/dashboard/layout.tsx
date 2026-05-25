@@ -12,7 +12,7 @@ import NotificationPermissionBanner from '@/components/shared/NotificationPermis
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
 import { Metadata, Viewport } from 'next'
 import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
-import { getLocale, getTranslations } from 'next-intl/server'
+import { getLocale } from 'next-intl/server'
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()

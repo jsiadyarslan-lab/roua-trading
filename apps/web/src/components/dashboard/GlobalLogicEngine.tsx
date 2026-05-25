@@ -28,7 +28,6 @@ import { setAlertTranslator } from '@/components/charts/AlertManager'
  */
 export function GlobalLogicEngine() {
   const t = useTranslations('dashboard.globalLogic')
-  const tc = useTranslations('common')
   const tne = useTranslations('notifications.execution')
   const tnp = useTranslations('notifications.push')
 

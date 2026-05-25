@@ -278,59 +278,140 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         overlays,
       } as AIAnalysisResult);
 
-      // ── 9. AI Consensus (council of 8 models) ────────────────
+      // ── 9. REVOLUTIONARY: AI Consensus via SSE Streaming ─────
+      // Try SSE first for progressive "War Room" experience, fallback to POST
+      let consensusSucceeded = false;
       try {
         abortRef.current?.abort();
-        abortRef.current = new AbortController();
-        const timer = setTimeout(() => abortRef.current?.abort(), 15000);
-        const r = await fetch('/api/ai/consensus', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: sym }),
-          signal: abortRef.current.signal,
+        const controller = new AbortController();
+        abortRef.current = controller;
+        const timer = setTimeout(() => controller.abort(), 20000);
+
+        // SSE streaming — models appear one by one
+        const sseParams = new URLSearchParams({ symbol: sym, language: locale === 'en' ? 'en' : 'ar' });
+        const eventSource = new EventSource(`/api/ai/consensus-stream?${sseParams}`);
+
+        const sseResult = await new Promise<any>((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            eventSource.close();
+            reject(new Error('SSE timeout'));
+          }, 20000);
+
+          eventSource.onmessage = (event) => {
+            try {
+              const sseEvent = JSON.parse(event.data);
+              if (sseEvent.type === 'complete') {
+                clearTimeout(timeout);
+                clearTimeout(timer);
+                eventSource.close();
+                resolve(sseEvent.data);
+              } else if (sseEvent.type === 'error') {
+                clearTimeout(timeout);
+                clearTimeout(timer);
+                eventSource.close();
+                reject(new Error(sseEvent.data?.message || 'SSE error'));
+              }
+            } catch {}
+          };
+          eventSource.onerror = () => {
+            clearTimeout(timeout);
+            clearTimeout(timer);
+            eventSource.close();
+            reject(new Error('SSE connection error'));
+          };
         });
-        clearTimeout(timer);
-        if (r.ok) {
-          const d = await r.json();
-          if (d.success && d.data) {
-            const rec = d.data.recommendation;
-            const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
-            const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
-            const councilConf = (d.data.consensusScore || 50) / 100;
 
-            // REVOLUTIONARY: Merge council + Bayesian for enhanced signal
-            const mergedDir = bayesianConf > 0.55
-              ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
-              : dir;
-            const mergedConf = dir === mergedDir
-              ? Math.min(0.95, councilConf + (bayesianConf - 0.33) * 0.3)
-              : councilConf * 0.7;
+        if (sseResult) {
+          const rec = sseResult.recommendation;
+          const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
+          const models = sseResult.analyses?.length || sseResult.meta?.modelsResponded || 0;
+          const councilConf = (sseResult.consensusScore || 50) / 100;
 
-            // REVOLUTIONARY: ATR-adaptive TP/SL instead of hardcoded percentages
-            const direction = mergedDir === 'BUY' ? 'long' : 'short';
-            const adaptiveTPSL = calcAdaptiveTPSL(c, direction, mergedConf, price);
+          // Merge council + Bayesian for enhanced signal
+          const mergedDir = bayesianConf > 0.55
+            ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
+            : dir;
+          const mergedConf = dir === mergedDir
+            ? Math.min(0.95, councilConf + (bayesianConf - 0.33) * 0.3)
+            : councilConf * 0.7;
 
-            setSignal({
-              dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
-              conf: mergedConf,
-              entry: adaptiveTPSL.entry,
-              sl: adaptiveTPSL.stopLoss,
-              tp: adaptiveTPSL.takeProfit,
-              reason: t('councilModels', { count: models }),
-              ts: Date.now(),
-              regime,
-              bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
-              bayesianConf,
-              fusionScore,
-            });
+          const direction = mergedDir === 'BUY' ? 'long' : 'short';
+          const adaptiveTPSL = calcAdaptiveTPSL(c, direction, mergedConf, price);
 
-            if ((d.data.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
-              fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
-            }
-            return;
+          setSignal({
+            dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
+            conf: mergedConf,
+            entry: adaptiveTPSL.entry,
+            sl: adaptiveTPSL.stopLoss,
+            tp: adaptiveTPSL.takeProfit,
+            reason: t('councilModels', { count: models }),
+            ts: Date.now(),
+            regime,
+            bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+            bayesianConf,
+            fusionScore,
+          });
+
+          if ((sseResult.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
+            fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
           }
+          consensusSucceeded = true;
         }
-      } catch { /* fallback to local signal */ }
+      } catch { /* SSE failed, try POST fallback */ }
+
+      // Fallback: one-shot POST if SSE failed
+      if (!consensusSucceeded) {
+        try {
+          abortRef.current?.abort();
+          abortRef.current = new AbortController();
+          const timer = setTimeout(() => abortRef.current?.abort(), 15000);
+          const r = await fetch('/api/ai/consensus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symbol: sym }),
+            signal: abortRef.current.signal,
+          });
+          clearTimeout(timer);
+          if (r.ok) {
+            const d = await r.json();
+            if (d.success && d.data) {
+              const rec = d.data.recommendation;
+              const dir = rec === 'BUY' ? 'BUY' : rec === 'SELL' ? 'SELL' : 'WAIT';
+              const models = d.data.meta?.modelsResponded || d.data.analyses?.length || 0;
+              const councilConf = (d.data.consensusScore || 50) / 100;
+
+              const mergedDir = bayesianConf > 0.55
+                ? (bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : dir)
+                : dir;
+              const mergedConf = dir === mergedDir
+                ? Math.min(0.95, councilConf + (bayesianConf - 0.33) * 0.3)
+                : councilConf * 0.7;
+
+              const direction = mergedDir === 'BUY' ? 'long' : 'short';
+              const adaptiveTPSL = calcAdaptiveTPSL(c, direction, mergedConf, price);
+
+              setSignal({
+                dir: mergedDir as 'BUY' | 'SELL' | 'WAIT',
+                conf: mergedConf,
+                entry: adaptiveTPSL.entry,
+                sl: adaptiveTPSL.stopLoss,
+                tp: adaptiveTPSL.takeProfit,
+                reason: t('councilModels', { count: models }),
+                ts: Date.now(),
+                regime,
+                bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+                bayesianConf,
+                fusionScore,
+              });
+
+              if ((d.data.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
+                fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
+              }
+              consensusSucceeded = true;
+            }
+          }
+        } catch { /* fallback to local signal */ }
+      }
 
       // ── 10. REVOLUTIONARY: Enhanced local signal (Bayesian + EMA) ──
       const bull = unique.filter(p => p.direction === 'bullish').length;

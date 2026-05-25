@@ -60,7 +60,7 @@ export function rejectGuest(request: NextRequest): NextResponse | null {
     return NextResponse.json(
       {
         error: 'GUEST_ACCESS_DENIED',
-        message: 'هذا الإجراء يتطلب تسجيل الدخول. أنت حالياً في وضع المشاهدة فقط.',
+        message: 'This action requires login. You are currently in view-only mode.',
       },
       { status: 403 },
     )

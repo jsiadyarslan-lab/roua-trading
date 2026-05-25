@@ -18,7 +18,7 @@ export async function verifyAdminAuth(req: NextRequest): Promise<NextResponse | 
 
   if (!token) {
     return NextResponse.json(
-      { error: 'غير مصرح — يرجى تسجيل الدخول' },
+      { error: 'Unauthorized — please log in' },
       { status: 401 }
     )
   }
@@ -27,7 +27,7 @@ export async function verifyAdminAuth(req: NextRequest): Promise<NextResponse | 
     const dbReady = await ensureDbReady()
     if (!dbReady) {
       return NextResponse.json(
-        { error: 'قاعدة البيانات غير متاحة' },
+        { error: 'Database unavailable' },
         { status: 503 }
       )
     }
@@ -42,7 +42,7 @@ export async function verifyAdminAuth(req: NextRequest): Promise<NextResponse | 
         await db.adminSession.delete({ where: { token } }).catch(() => {})
       }
       return NextResponse.json(
-        { error: 'انتهت صلاحية الجلسة — يرجى تسجيل الدخول مجدداً' },
+        { error: 'Session expired — please log in again' },
         { status: 401 }
       )
     }
@@ -52,7 +52,7 @@ export async function verifyAdminAuth(req: NextRequest): Promise<NextResponse | 
   } catch (error: any) {
     console.error('[admin-auth] Session verification error:', error?.message || error)
     return NextResponse.json(
-      { error: 'فشل في التحقق من الهوية' },
+      { error: 'Authentication verification failed' },
       { status: 500 }
     )
   }

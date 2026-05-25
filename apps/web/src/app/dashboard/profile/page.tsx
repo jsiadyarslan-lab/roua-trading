@@ -287,7 +287,7 @@ export default function ProfilePage() {
 
   /* ── Delete Account ── */
   const handleDeleteAccount = useCallback(async () => {
-    if (deleteConfirmText !== 'حذف') {
+    if (deleteConfirmText !== tc('deleteConfirmWord')) {
       toast({ title: tn('confirmRequired'), description: tn('confirmRequiredDesc'), variant: 'destructive' })
       return
     }

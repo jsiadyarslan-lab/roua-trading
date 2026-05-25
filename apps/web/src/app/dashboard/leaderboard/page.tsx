@@ -174,6 +174,7 @@ function PodiumCard({ trader, rank }: { trader: Trader; rank: 1 | 2 | 3 }) {
 
 /* ──────────────── Badge Card Component ──────────────── */
 function BadgeCard({ badge }: { badge: Badge }) {
+  const tc = useTranslations('common')
   return (
     <div style={{
       background: badge.unlocked ? `${badge.color}08` : T.card,
@@ -212,12 +213,12 @@ function BadgeCard({ badge }: { badge: Badge }) {
       </div>
       {!badge.unlocked && (
         <div style={{ fontSize: 9, color: T.text3, display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Lock size={8} /> مقفل
+          <Lock size={8} /> {tc('locked')}
         </div>
       )}
       {badge.unlocked && (
         <div style={{ fontSize: 9, color: badge.color, display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Unlock size={8} /> مفتوح
+          <Unlock size={8} /> {tc('unlocked')}
         </div>
       )}
     </div>
@@ -284,6 +285,7 @@ export default function LeaderboardPage() {
   }, [categoryFilter, traders])
 
   const tn = useTranslations('notifications.leaderboard')
+  const tc = useTranslations('common')
 
   const top3 = sortedTraders.slice(0, 3)
   const restTraders = sortedTraders.slice(3)

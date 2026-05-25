@@ -296,6 +296,7 @@ export default function AccountLinkingPage() {
 
   const { toast } = useToast()
   const tn = useTranslations('notifications.kyc')
+  const tc = useTranslations('common')
   const [currentStep, setCurrentStep] = useState<StepId>(1)
   const [linkingStatus, setLinkingStatus] = useState<LinkingStatus>('not_started')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -377,7 +378,7 @@ export default function AccountLinkingPage() {
     setLinkingStatus('in_progress')
     toast({
       title: tn('connectionSuccess'),
-      description: tn('connectionSuccessDesc', { exchange: getSelectedExchange()?.name || 'البورصة' }),
+      description: tn('connectionSuccessDesc', { exchange: getSelectedExchange()?.name || tc('exchange') }),
     })
   }
 
@@ -388,7 +389,7 @@ export default function AccountLinkingPage() {
     setIsSubmitting(false)
     toast({
       title: tn('accountLinkedSuccess'),
-      description: tn('accountLinkedSuccessDesc', { exchange: getSelectedExchange()?.name || 'البورصة' }),
+      description: tn('accountLinkedSuccessDesc', { exchange: getSelectedExchange()?.name || tc('exchange') }),
     })
   }
 

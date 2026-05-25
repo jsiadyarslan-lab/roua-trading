@@ -1,15 +1,15 @@
 /**
- * notification-dispatcher.ts — خدمة إرسال التنبيهات
+ * notification-dispatcher.ts — Notification Dispatch Service
  *
- * تقرأ إعدادات التنبيهات من قاعدة البيانات (NotificationConfig)
- * وتُرسل الإشعارات عبر Telegram و Browser Push
+ * Reads notification settings from the database (NotificationConfig)
+ * and sends notifications via Telegram and Browser Push
  *
- * هذا هو الرابط المفقود: لوحة الإدارة تحفظ الإعدادات ← هذا الملف يقرأها ويرسل فعلياً
+ * This is the missing link: Admin panel saves settings ← this file reads and sends
  */
 
 import { db, ensureDbReady } from '@/lib/db'
 
-// ── أنواع التنبيهات ──
+// ── Notification types ──
 
 export interface NotificationEvent {
   type: 'new_user' | 'subscription_upgrade' | 'system_error' | 'performance_alert' | 'large_trade' | 'system_update' | 'new_report'
@@ -39,13 +39,13 @@ interface AllNotificationConfig {
   events: EventsConfig | null
 }
 
-// ── جلب الإعدادات من قاعدة البيانات ──
+// ── Load config from database ──
 
 async function loadConfig(): Promise<AllNotificationConfig> {
   try {
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      console.warn('[notification-dispatcher] قاعدة البيانات غير متاحة')
+      console.warn('[notification-dispatcher] Database unavailable')
       return { telegram: null, browser: null, events: null }
     }
 
@@ -80,19 +80,19 @@ async function loadConfig(): Promise<AllNotificationConfig> {
 
     return { telegram, browser, events }
   } catch (error: any) {
-    console.error('[notification-dispatcher] خطأ في جلب الإعدادات:', error?.message)
+    console.error('[notification-dispatcher] Error loading config:', error?.message)
     return { telegram: null, browser: null, events: null }
   }
 }
 
-// ── إرسال عبر Telegram ──
+// ── Send via Telegram ──
 
 async function sendTelegram(
   config: TelegramConfig,
   event: NotificationEvent
 ): Promise<boolean> {
   if (!config.botToken || !config.chatId) {
-    console.warn('[notification-dispatcher] إعدادات Telegram غير مكتملة')
+    console.warn('[notification-dispatcher] Telegram config incomplete')
     return false
   }
 
@@ -135,24 +135,24 @@ async function sendTelegram(
     clearTimeout(timeout)
 
     if (res.ok) {
-      console.log(`[notification-dispatcher] تم إرسال تنبيه Telegram: ${event.type}`)
+      console.log(`[notification-dispatcher] Telegram alert sent: ${event.type}`)
 
-      // تحديث عداد التنبيهات
+      // Update alert counter
       await updateTriggerCount('telegram')
 
       return true
     } else {
       const errorData = await res.json().catch(() => ({}))
-      console.error(`[notification-dispatcher] فشل إرسال Telegram:`, errorData)
+      console.error(`[notification-dispatcher] Telegram send failed:`, errorData)
       return false
     }
   } catch (error: any) {
-    console.error(`[notification-dispatcher] خطأ في إرسال Telegram:`, error?.message)
+    console.error(`[notification-dispatcher] Telegram send error:`, error?.message)
     return false
   }
 }
 
-// ── تحديث عداد التنبيهات ──
+// ── Update alert counter ──
 
 async function updateTriggerCount(type: string): Promise<void> {
   try {
@@ -168,7 +168,7 @@ async function updateTriggerCount(type: string): Promise<void> {
   }
 }
 
-// ── الدالة الرئيسية: إرسال تنبيه ──
+// ── Main dispatch function ──
 
 export async function dispatchNotification(event: NotificationEvent): Promise<{
   telegram: boolean
@@ -178,19 +178,19 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
   const config = await loadConfig()
   const results = { telegram: false, browser: false, skipped: false }
 
-  // فحص هل الحدث مفعّل
+  // Check if event is enabled
   if (config.events && !config.events.enabledEvents.includes(event.type)) {
     results.skipped = true
-    console.log(`[notification-dispatcher] الحدث ${event.type} غير مفعّل — تخطي`)
+    console.log(`[notification-dispatcher] Event ${event.type} not enabled — skipping`)
     return results
   }
 
-  // إرسال عبر Telegram
+  // Send via Telegram
   if (config.telegram) {
     results.telegram = await sendTelegram(config.telegram, event)
   }
 
-  // إرسال عبر المتصفح — يتم عبر تسجيل الإشعار في DB ليقرأه العميل
+  // Send via browser — store in DB for client pickup
   if (config.browser) {
     try {
       // Store for browser push pickup
@@ -214,26 +214,25 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
       await updateTriggerCount('browser')
       results.browser = true
     } catch (error: any) {
-      console.error('[notification-dispatcher] خطأ في تسجيل إشعار المتصفح:', error?.message)
+      console.error('[notification-dispatcher] Error storing browser notification:', error?.message)
     }
   }
 
-  // تسجيل الحدث
+  // Log result
   console.log(
-    `[notification-dispatcher] تنبيه ${event.type}: ` +
-    `Telegram=${results.telegram}, Browser=${results.browser}, Skipped=${results.skipped}`
+    `[notification-dispatcher] Alert ${event.type}: Telegram=${results.telegram}, Browser=${results.browser}, Skipped=${results.skipped}`
   )
 
   return results
 }
 
-// ── دوال مساعدة سريعة للأحداث الشائعة ──
+// ── Helper functions for common events ──
 
 export async function notifyNewUser(userEmail: string, displayName?: string) {
   return dispatchNotification({
     type: 'new_user',
-    title: 'مستخدم جديد',
-    body: `تم تسجيل مستخدم جديد: ${displayName || userEmail}\nالبريد: ${userEmail}`,
+    title: 'New User',
+    body: `New user registered: ${displayName || userEmail}\nEmail: ${userEmail}`,
     severity: 'info',
     data: { email: userEmail, displayName },
   })
@@ -242,8 +241,8 @@ export async function notifyNewUser(userEmail: string, displayName?: string) {
 export async function notifySubscriptionUpgrade(userEmail: string, fromTier: string, toTier: string) {
   return dispatchNotification({
     type: 'subscription_upgrade',
-    title: 'ترقية اشتراك',
-    body: `المستخدم ${userEmail} رقّى اشتراكه من ${fromTier} إلى ${toTier}`,
+    title: 'Subscription Upgrade',
+    body: `User ${userEmail} upgraded from ${fromTier} to ${toTier}`,
     severity: 'success',
     data: { email: userEmail, fromTier, toTier },
   })
@@ -252,7 +251,7 @@ export async function notifySubscriptionUpgrade(userEmail: string, fromTier: str
 export async function notifySystemError(error: string, context?: string) {
   return dispatchNotification({
     type: 'system_error',
-    title: 'خطأ في النظام',
+    title: 'System Error',
     body: `${context ? `[${context}] ` : ''}${error.slice(0, 300)}`,
     severity: 'error',
     data: { error, context },
@@ -262,8 +261,8 @@ export async function notifySystemError(error: string, context?: string) {
 export async function notifyPerformanceAlert(metric: string, value: number, threshold: number) {
   return dispatchNotification({
     type: 'performance_alert',
-    title: 'تنبيه أداء',
-    body: `${metric} = ${value} (الحد: ${threshold})`,
+    title: 'Performance Alert',
+    body: `${metric} = ${value} (Threshold: ${threshold})`,
     severity: 'warning',
     data: { metric, value, threshold },
   })
@@ -272,8 +271,8 @@ export async function notifyPerformanceAlert(metric: string, value: number, thre
 export async function notifyLargeTrade(symbol: string, amount: number, userId: string) {
   return dispatchNotification({
     type: 'large_trade',
-    title: 'صفقة كبيرة',
-    body: `صفقة كبيرة على ${symbol} بمبلغ ${amount}\nالمستخدم: ${userId}`,
+    title: 'Large Trade',
+    body: `Large trade on ${symbol} for ${amount}\nUser: ${userId}`,
     severity: 'warning',
     data: { symbol, amount, userId },
   })
@@ -282,7 +281,7 @@ export async function notifyLargeTrade(symbol: string, amount: number, userId: s
 export async function notifySystemUpdate(message: string) {
   return dispatchNotification({
     type: 'system_update',
-    title: 'تحديث النظام',
+    title: 'System Update',
     body: message,
     severity: 'info',
   })
@@ -306,8 +305,8 @@ export async function notifyNewReport(titleAr: string, type: string, category: s
 
   return dispatchNotification({
     type: 'new_report',
-    title: `${emoji} تقرير جديد`,
-    body: `📌 ${titleAr}\n📂 التصنيف: ${category}\n🏷️ الأصول: ${symbolsStr}\n\n⚠️ هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية`,
+    title: `${emoji} New Report`,
+    body: `📌 ${titleAr}\n📂 Category: ${category}\n🏷️ Assets: ${symbolsStr}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice`,
     severity: 'info',
     data: { titleAr, type, category, symbols },
   })

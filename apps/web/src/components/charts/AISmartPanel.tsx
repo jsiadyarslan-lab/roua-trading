@@ -179,7 +179,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         const fusion = detectElliottSMCFusion({
           candles: c,
           elliott: elliottPattern,
-          smc: smcData,
+          orderBlocks: smcData?.orderBlocks ?? [],
+          fvgs: smcData?.fvgs ?? [],
+          structureBreaks: smcData?.structureBreaks ?? [],
           wyckoff,
           volumeProfile,
         });
@@ -190,10 +192,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       // ── 6. REVOLUTIONARY: Pattern State Machine ──────────────
       try {
         const sm = getPatternStateMachine();
-        unique.forEach(p => {
-          sm.track(p.type, p.direction, p.confidence, p.time, c, p);
-        });
-        const smResult = sm.getResult();
+        // Convert AIPattern[] to the format PatternStateMachine.update() expects
+        const smPatterns = unique.map(p => ({
+          id: `${p.type}_${p.direction}_${Math.round(p.time || Date.now() / 1000)}`,
+          type: p.type,
+          direction: p.direction as 'bullish' | 'bearish',
+          points: p.points || [{ time: p.time || Date.now() / 1000, price }],
+          breakoutPrice: p.breakoutPrice || price * (p.direction === 'bullish' ? 1.02 : 0.98),
+          quality: { overall: Math.round(p.confidence * 10) },
+        }));
+        const smResult = sm.update(c, smPatterns);
         setStateMachineResult(smResult);
 
         // Audio alerts for state transitions (only NEW transitions)
@@ -202,15 +210,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             const { getPatternAudioAlerter } = await import('@/lib/charts/AudioAlerts');
             const alerter = getPatternAudioAlerter();
             for (const alert of smResult.alerts) {
-              const alertKey = `${alert.patternType}-${alert.newState}`;
+              const alertKey = `${alert.patternType}-${alert.state}`;
               if (!lastAnnouncedRef.current.has(alertKey)) {
                 lastAnnouncedRef.current.add(alertKey);
                 // Clear old entries after 60s
                 setTimeout(() => lastAnnouncedRef.current.delete(alertKey), 60000);
-                if (alert.newState === 'breakout') {
+                if (alert.state === 'breakout') {
                   alerter.announceBreakout({
                     patternType: alert.patternType,
-                    patternTypeAr: alert.patternType,
+                    patternTypeAr: alert.messageAr || alert.patternType,
                     symbol: sym,
                     direction: alert.direction === 'bullish' ? 'bullish' : 'bearish',
                     price,
@@ -218,10 +226,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 } else if (alert.priority === 'critical') {
                   alerter.announce({
                     patternType: alert.patternType,
-                    patternTypeAr: alert.patternType,
+                    patternTypeAr: alert.messageAr || alert.patternType,
                     symbol: sym,
                     direction: alert.direction === 'bullish' ? 'bullish' : 'bearish',
-                    confidence: 0.85,
+                    confidence: alert.confidence,
                   });
                 }
               }
@@ -235,13 +243,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         const tracker = getPatternPerformanceTracker();
         // Record detected patterns for performance tracking
         unique.forEach(p => {
-          tracker.record({
+          tracker.recordDetection({
             patternType: p.type,
-            direction: p.direction === 'bullish' ? 'long' : 'short',
-            entryPrice: price,
-            confidence: p.confidence,
             symbol: sym,
-            time: p.time || Date.now() / 1000,
+            direction: p.direction as 'bullish' | 'bearish',
+            entryPrice: price,
+            stopLoss: price * (p.direction === 'bullish' ? 0.97 : 1.03),
+            takeProfit: price * (p.direction === 'bullish' ? 1.05 : 0.95),
+            confidence: p.confidence,
+            timeframe: 'auto',
+            detectorSource: 'local',
           });
         });
         const stats = tracker.getSummary();
@@ -413,51 +424,53 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         } catch { /* fallback to local signal */ }
       }
 
-      // ── 10. REVOLUTIONARY: Enhanced local signal (Bayesian + EMA) ──
-      const bull = unique.filter(p => p.direction === 'bullish').length;
-      const bear = unique.filter(p => p.direction === 'bearish').length;
-      const last20 = c.slice(-20);
-      const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / 9;
-      const ema20 = last20.reduce((s, x) => s + x.close, 0) / 20;
-      const emaTrend = ema9 > ema20 ? 1 : -1;
+      // ── 10. REVOLUTIONARY: Fallback local signal (only if consensus failed) ──
+      if (!consensusSucceeded) {
+        const bull = unique.filter(p => p.direction === 'bullish').length;
+        const bear = unique.filter(p => p.direction === 'bearish').length;
+        const last20 = c.slice(-20);
+        const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / 9;
+        const ema20 = last20.reduce((s, x) => s + x.close, 0) / 20;
+        const emaTrend = ema9 > ema20 ? 1 : -1;
 
-      // Merge EMA trend with Bayesian for better direction
-      let dir: 'BUY' | 'SELL' | 'WAIT';
-      let conf: number;
-      if (bayesianConf > 0.5) {
-        // Bayesian has a clear signal — trust it
-        dir = bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT';
-        conf = Math.min(0.85, bayesianConf + Math.abs(bull - bear) * 0.05);
-      } else {
-        // Bayesian uncertain — fall back to EMA + pattern count
-        const bS = bull + (emaTrend > 0 ? 2 : 0);
-        const beS = bear + (emaTrend < 0 ? 2 : 0);
-        dir = bS > beS ? 'BUY' : beS > bS ? 'SELL' : 'WAIT';
-        conf = Math.min(0.85, Math.abs(bS - beS) / (bS + beS + 1));
+        // Merge EMA trend with Bayesian for better direction
+        let dir: 'BUY' | 'SELL' | 'WAIT';
+        let conf: number;
+        if (bayesianConf > 0.5) {
+          // Bayesian has a clear signal — trust it
+          dir = bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT';
+          conf = Math.min(0.85, bayesianConf + Math.abs(bull - bear) * 0.05);
+        } else {
+          // Bayesian uncertain — fall back to EMA + pattern count
+          const bS = bull + (emaTrend > 0 ? 2 : 0);
+          const beS = bear + (emaTrend < 0 ? 2 : 0);
+          dir = bS > beS ? 'BUY' : beS > bS ? 'SELL' : 'WAIT';
+          conf = Math.min(0.85, Math.abs(bS - beS) / (bS + beS + 1));
+        }
+
+        // REVOLUTIONARY: ATR-adaptive TP/SL for local signal too
+        const direction = dir === 'BUY' ? 'long' : 'short';
+        const adaptiveTPSL = calcAdaptiveTPSL(c, direction, conf, price);
+
+        // Boost confidence with fusion score if available
+        const adjustedConf = fusionScore > 50
+          ? Math.min(0.95, conf + (fusionScore / 100) * 0.15)
+          : conf;
+
+        setSignal({
+          dir,
+          conf: adjustedConf,
+          entry: adaptiveTPSL.entry,
+          sl: adaptiveTPSL.stopLoss,
+          tp: adaptiveTPSL.takeProfit,
+          reason: emaTrend > 0 ? t('emaBullish', { bull, bear }) : t('emaBearish', { bull, bear }),
+          ts: Date.now(),
+          regime,
+          bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
+          bayesianConf,
+          fusionScore,
+        });
       }
-
-      // REVOLUTIONARY: ATR-adaptive TP/SL for local signal too
-      const direction = dir === 'BUY' ? 'long' : 'short';
-      const adaptiveTPSL = calcAdaptiveTPSL(c, direction, conf, price);
-
-      // Boost confidence with fusion score if available
-      const adjustedConf = fusionScore > 50
-        ? Math.min(0.95, conf + (fusionScore / 100) * 0.15)
-        : conf;
-
-      setSignal({
-        dir,
-        conf: adjustedConf,
-        entry: adaptiveTPSL.entry,
-        sl: adaptiveTPSL.stopLoss,
-        tp: adaptiveTPSL.takeProfit,
-        reason: emaTrend > 0 ? t('emaBullish', { bull, bear }) : t('emaBearish', { bull, bear }),
-        ts: Date.now(),
-        regime,
-        bayesianDir: bayesianDir === 'bullish' ? 'BUY' : bayesianDir === 'bearish' ? 'SELL' : 'WAIT',
-        bayesianConf,
-        fusionScore,
-      });
     } catch { /* silent */ }
     finally { setLoading(false); runRef.current = false; }
   };
@@ -488,7 +501,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     const tracker = getPatternPerformanceTracker();
     const interval = setInterval(() => {
       try {
-        tracker.evaluatePending(currentPrice);
+        tracker.autoEvaluate(currentPrice, symbol);
       } catch {}
     }, 60000);
     return () => clearInterval(interval);
@@ -691,14 +704,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               <div style={{ background: `${C.purple}0a`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '7px 9px', marginBottom: 8 }}>
                 <div style={{ color: C.purple, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>إجماع بايزي</div>
                 <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
-                  <div style={{ width: `${Math.round(bayesianResult.bullish * 100)}%`, background: C.green, borderRadius: '3px 0 0 3px' }} />
-                  <div style={{ width: `${Math.round(bayesianResult.neutral * 100)}%`, background: C.yellow }} />
-                  <div style={{ width: `${Math.round(bayesianResult.bearish * 100)}%`, background: C.red, borderRadius: '0 3px 3px 0' }} />
+                  <div style={{ width: `${Math.round((bayesianResult.posteriorBullish ?? bayesianResult.bullish ?? 0) * 100)}%`, background: C.green, borderRadius: '3px 0 0 3px' }} />
+                  <div style={{ width: `${Math.round((bayesianResult.posteriorNeutral ?? bayesianResult.neutral ?? 0) * 100)}%`, background: C.yellow }} />
+                  <div style={{ width: `${Math.round((bayesianResult.posteriorBearish ?? bayesianResult.bearish ?? 0) * 100)}%`, background: C.red, borderRadius: '0 3px 3px 0' }} />
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 3 }}>
-                  <span style={{ color: C.green, fontSize: 7 }}>{Math.round(bayesianResult.bullish * 100)}%</span>
-                  <span style={{ color: C.yellow, fontSize: 7 }}>{Math.round(bayesianResult.neutral * 100)}%</span>
-                  <span style={{ color: C.red, fontSize: 7 }}>{Math.round(bayesianResult.bearish * 100)}%</span>
+                  <span style={{ color: C.green, fontSize: 7 }}>{Math.round((bayesianResult.posteriorBullish ?? bayesianResult.bullish ?? 0) * 100)}%</span>
+                  <span style={{ color: C.yellow, fontSize: 7 }}>{Math.round((bayesianResult.posteriorNeutral ?? bayesianResult.neutral ?? 0) * 100)}%</span>
+                  <span style={{ color: C.red, fontSize: 7 }}>{Math.round((bayesianResult.posteriorBearish ?? bayesianResult.bearish ?? 0) * 100)}%</span>
                 </div>
               </div>
             )}
@@ -810,28 +823,28 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
             {/* REVOLUTIONARY: Performance Stats section */}
-            {performanceStats && performanceStats.totalTrades > 0 && (
+            {performanceStats && performanceStats.totalPatterns > 0 && (
               <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
                 <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>أداء الأنماط التاريخي</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 7 }}>الصفقات</div>
-                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{performanceStats.totalTrades}</div>
+                    <div style={{ color: C.mut, fontSize: 7 }}>الأنماط</div>
+                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{performanceStats.totalPatterns}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                     <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
-                    <div style={{ color: performanceStats.winRate > 50 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{Math.round(performanceStats.winRate)}%</div>
+                    <div style={{ color: (performanceStats.overallWinRate ?? 0) > 0.5 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{Math.round((performanceStats.overallWinRate ?? 0) * 100)}%</div>
                   </div>
-                  {performanceStats.avgReturn !== undefined && (
-                    <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                      <div style={{ color: C.mut, fontSize: 7 }}>متوسط العائد</div>
-                      <div style={{ color: performanceStats.avgReturn > 0 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{performanceStats.avgReturn > 0 ? '+' : ''}{performanceStats.avgReturn.toFixed(2)}%</div>
-                    </div>
-                  )}
                   {performanceStats.bestPattern && (
                     <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                       <div style={{ color: C.mut, fontSize: 7 }}>أفضل نمط</div>
                       <div style={{ color: C.green, fontSize: 9, fontWeight: 600 }}>{performanceStats.bestPattern}</div>
+                    </div>
+                  )}
+                  {performanceStats.worstPattern && (
+                    <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                      <div style={{ color: C.mut, fontSize: 7 }}>أسوأ نمط</div>
+                      <div style={{ color: C.red, fontSize: 9, fontWeight: 600 }}>{performanceStats.worstPattern}</div>
                     </div>
                   )}
                 </div>

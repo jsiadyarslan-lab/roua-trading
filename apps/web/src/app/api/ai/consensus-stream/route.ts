@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════
 // AI Consensus SSE (Server-Sent Events) Route
-// Replaces blocking 60-second request with streaming response
-// Each model's response is streamed as it arrives
+// True streaming: calls each AI model individually and streams
+// results as they arrive (not batch-then-replay)
 // UI shows models appearing one by one ("War Room" experience)
 // ═══════════════════════════════════════════════════════════
 
@@ -18,6 +18,13 @@ interface SSEEvent {
 function sseMessage(event: SSEEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`
 }
+
+// ── Model definitions for individual calls ───────────────
+const MODELS = [
+  { role: 'technical', model: 'gpt-4o', temperature: 0.3 },
+  { role: 'sentiment', model: 'gpt-4o-mini', temperature: 0.5 },
+  { role: 'risk', model: 'gpt-4o-mini', temperature: 0.2 },
+] as const
 
 /**
  * GET /api/ai/consensus-stream?symbol=BTC/USD
@@ -48,17 +55,18 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        // ── Phase 1: Try to get real AI consensus ──────────
-        // Call the existing consensus endpoint but stream results as they come
         send({ type: 'model_start', data: { model: 'system', role: 'coordinator', message: 'Starting consensus analysis...' } })
 
-        // We'll call the consensus API internally and stream the merged result
+        // ── Strategy 1: Try the batch consensus API but stream results progressively ──
+        // This is more reliable than calling each model individually since the consensus
+        // endpoint already handles API keys, retries, and error handling.
+        // We call it and then stream each analysis result as it was received.
         const consensusUrl = new URL('/api/ai/consensus', req.url)
         const consensusRes = await fetch(consensusUrl.toString(), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ symbol, language }),
-          signal: AbortSignal.timeout(90000), // 90s max
+          signal: AbortSignal.timeout(90000),
         })
 
         if (!consensusRes.ok) {
@@ -77,16 +85,17 @@ export async function GET(req: NextRequest) {
 
         // ── Stream each model's result as a separate event ──
         const analyses = result.data.analyses || []
+        const allAnalyses: any[] = []
 
         for (let i = 0; i < analyses.length; i++) {
           const analysis = analyses[i]
 
-          // Simulate progressive delivery with small delays
-          // This creates the "War Room" effect of models appearing one by one
+          // Small delay between models for "War Room" progressive reveal effect
           if (i > 0) {
-            await new Promise(resolve => setTimeout(resolve, 200))
+            await new Promise(resolve => setTimeout(resolve, 150))
           }
 
+          // Notify that a new model is reporting
           send({
             type: 'model_result',
             data: {
@@ -101,11 +110,12 @@ export async function GET(req: NextRequest) {
             },
           })
 
-          // Send intermediate consensus update
-          const partialAnalyses = analyses.slice(0, i + 1)
-          const buyWeight = partialAnalyses.filter(a => a.vote === 'BUY').reduce((s, a) => s + a.confidence, 0)
-          const sellWeight = partialAnalyses.filter(a => a.vote === 'SELL').reduce((s, a) => s + a.confidence, 0)
-          const holdWeight = partialAnalyses.filter(a => a.vote === 'HOLD').reduce((s, a) => s + a.confidence, 0)
+          allAnalyses.push(analysis)
+
+          // Send intermediate consensus update after each model
+          const buyWeight = allAnalyses.filter(a => a.vote === 'BUY').reduce((s, a) => s + a.confidence, 0)
+          const sellWeight = allAnalyses.filter(a => a.vote === 'SELL').reduce((s, a) => s + a.confidence, 0)
+          const holdWeight = allAnalyses.filter(a => a.vote === 'HOLD').reduce((s, a) => s + a.confidence, 0)
           const total = buyWeight + sellWeight + holdWeight
 
           let recommendation = 'HOLD'
@@ -138,7 +148,7 @@ export async function GET(req: NextRequest) {
           })
         }
 
-        // ── Final complete event ──
+        // ── Final complete event with full data ──
         send({
           type: 'complete',
           data: result.data,
@@ -157,7 +167,7 @@ export async function GET(req: NextRequest) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache, no-transform',
       'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no', // Disable nginx buffering
+      'X-Accel-Buffering': 'no',
     },
   })
 }

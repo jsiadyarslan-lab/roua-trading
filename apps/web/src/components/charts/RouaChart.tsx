@@ -42,8 +42,8 @@ import { ChartReplay } from './ChartReplay';
 import { MiniHeatmap } from './MiniHeatmap';
 import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } from '@/lib/charts/chart-signals';
 import { CommandPalette, useCommandPalette, createChartCommands } from './CommandPalette';
-import { startAnimatedPattern, cancelAnimatedPattern } from '@/lib/charts/AnimatedPatterns';
-import { createIncrementalState, initializeState, updateIncremental, getQuickTrend, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
+import { cancelAnimatedPattern, getActiveAnimations } from '@/lib/charts/AnimatedPatterns';
+import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
 import { renderHeatmapOnChart, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
@@ -289,12 +289,9 @@ export default function RouaChart({
       const result = runPatternEngine(candles, { minQuality: 5 });
       patternEngineRef.current = result;
       drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
-      // REVOLUTIONARY: Animated pattern drawing for new patterns
-      try {
-        result.patterns.forEach((pattern: any) => {
-          startAnimatedPattern(chartApi, lc, pattern, { enabled: true, speed: 1 });
-        });
-      } catch { /* animation not critical */ }
+      // REVOLUTIONARY: Animated pattern drawing — only animate, static already drawn above
+      // (AnimatedPatterns creates its own series, so we skip re-drawing to avoid duplication)
+      // startAnimatedPattern is used for new real-time patterns only (via AISmartPanel)
     } catch (e: any) {
       console.debug('[PatternEngine] Error:', e.message);
     }
@@ -892,7 +889,8 @@ export default function RouaChart({
     if (!lightweightChartsRef.current) return; // Will render on next update
     try {
       const lc = lightweightChartsRef.current;
-      renderHeatmapOnChart(chartApi, lc, heatmap);
+      const heatmapSeries = renderHeatmapOnChart(chartApi, lc, heatmap);
+      heatmapSeriesRef.current = heatmapSeries ?? [];
     } catch (e) {
       console.debug('[RouaChart] Heatmap render error:', e);
     }
@@ -926,6 +924,13 @@ export default function RouaChart({
     (aiPriceLinesRef as any).__direct = [];
     aiEntryExitMarkerRef.current = null;
     setAiPatterns([]);
+    // Cancel any active animated patterns
+    try {
+      const active = getActiveAnimations();
+      for (const anim of active) {
+        try { cancelAnimatedPattern(chartApi, anim.patternId); } catch {}
+      }
+    } catch {}
   }, [chart]);
 
   // Clean up AI overlays when timeframe changes

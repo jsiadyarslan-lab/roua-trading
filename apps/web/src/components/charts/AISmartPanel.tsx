@@ -73,6 +73,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [wyckoffData, setWyckoffData] = useState<any>(null);
   const [volProfile, setVolProfile] = useState<any>(null);
   const [overlays, setOverlays] = useState({ fvg: false, bos: false, sr: true, geo: false, ew: false, wyckoff: false });
+  // FIX: Keep overlays in a ref so the async `analyze` function always reads
+  // the latest state. Previously, overlays was captured stale in the closure,
+  // so toggling FVG/BOS/etc. had no effect until the next full re-analysis.
+  const overlaysRef = useRef(overlays);
+  overlaysRef.current = overlays;
   const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
 
   // ── Refs to avoid stale closure ─────────────────────────────
@@ -101,6 +106,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     setLoading(true);
 
     try {
+      // FIX: Yield to main thread before heavy synchronous computation.
+      // Previously, detectLocalPatterns, detectSMC, detectGeometricPatterns,
+      // detectElliottWaves, detectWyckoff, and calcVolumeProfile all ran
+      // synchronously on the main thread, blocking UI for 50-200ms.
+      // Using setTimeout(0) allows React to process pending renders first.
+      await new Promise(resolve => setTimeout(resolve, 0));
+
       // ── 1. كشف تلقائي فوري من البيانات المحلية ────────────
       const raw = detectLocalPatterns(c.slice(-50));
       const seen = new Set<string>();
@@ -133,7 +145,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         elliottPattern,
         wyckoff,
         volumeProfile,
-        overlays,
+        overlays: overlaysRef.current,  // FIX: Use ref instead of stale state
       });
 
       // ── 3. مجلس الذكاء (8 نماذج) ─────────────────────────

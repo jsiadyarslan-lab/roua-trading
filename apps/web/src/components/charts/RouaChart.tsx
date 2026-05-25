@@ -199,11 +199,18 @@ export default function RouaChart({
   // When timeframe changes, WebSocket may still deliver candles from the
   // old timeframe before reconnecting. This ref lets us filter those out.
   const timeframeRef = useRef(timeframe);
+  // FIX: Track when candlesRef was last cleared (timeframe change) so we can
+  // timeout the "reject all WebSocket updates" guard. Previously, if the
+  // historical fetch failed, the chart would stay empty forever because
+  // candlesRef.current.length === 0 and all WebSocket updates were dropped.
+  const candlesClearedAtRef = useRef(0);
+  const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
   useEffect(() => {
     timeframeRef.current = timeframe;
     // Clear RouaChart's candlesRef immediately on timeframe change
     // to prevent stale WebSocket onCandleUpdate from pushing old data
     candlesRef.current = [];
+    candlesClearedAtRef.current = Date.now();
   }, [timeframe]);
 
   // ── Chart Hook ─────────────────────────────────────────
@@ -312,7 +319,14 @@ export default function RouaChart({
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.
-      if (candlesRef.current.length === 0) return;
+      // FIX: After CANDLES_CLEAR_TIMEOUT_MS (10s), allow WebSocket updates
+      // even if candlesRef is still empty. This prevents the chart from
+      // staying blank forever if the historical fetch fails.
+      if (candlesRef.current.length === 0) {
+        const timeSinceClear = Date.now() - candlesClearedAtRef.current;
+        if (timeSinceClear < CANDLES_CLEAR_TIMEOUT_MS) return;
+        // Timeout reached — allow WebSocket to populate the chart
+      }
       // Guard: don't update if chart hook is not ready
       if (!chart.setCandles) return;
 
@@ -880,14 +894,15 @@ export default function RouaChart({
   }, [showAIPanel]);
 
   // ── Background Pattern Detection (every 5 minutes) ──────
-  // FIX: Added guard — only runs when AI panel is open OR user has previously
-  // interacted with patterns. Previously ran unconditionally on every symbol/
-  // timeframe change, wasting CPU and sending browser notifications for patterns
-  // the user may not care about.
+  // FIX: Only runs when AI panel is open OR pattern progress is visible.
+  // FIX: Added showAIPanel/showPatternProgress to deps so the interval is
+  // cleaned up when the user closes both panels, instead of running forever.
   useEffect(() => {
     if (!showAIPanel && !showPatternProgress) return; // Don't waste CPU if user isn't interested
     if (!candlesRef.current?.length) return;
+    let cancelled = false;
     const detect = async () => {
+      if (cancelled) return;
       try {
         const c = candlesRef.current;
         if (!c?.length || c.length < 30) return;
@@ -897,6 +912,7 @@ export default function RouaChart({
         const smc = detectSMC(c);
         const highConf = patterns.filter(p => (p.confidence||0) >= 0.75);
         const bos = smc.structureBreaks;
+        if (cancelled) return; // Check again after async imports
         if ((highConf.length > 0 || bos.length > 0) && 'Notification' in window) {
           if (Notification.permission === 'granted') {
             const names = highConf.map(p => p.labelAr||p.type).join('، ');
@@ -911,9 +927,8 @@ export default function RouaChart({
     };
     detect();
     const timer = setInterval(detect, 5 * 60 * 1000);
-    return () => clearInterval(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedSymbol, timeframe]);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [selectedSymbol, timeframe, showAIPanel, showPatternProgress]);
 
   // FIX: Removed aiProcessingRef — was declared but never used. The async lock
   // was previously removed in favor of direct execution, but the ref remained
@@ -1129,9 +1144,8 @@ export default function RouaChart({
       // No entry/exit — clear the marker ref
       aiEntryExitMarkerRef.current = null;
     }
-    } finally {
-      // FIX: Always release the processing lock, even if an error occurred
-      aiProcessingRef.current = false;
+    } catch (e) {
+      console.warn('[AI Overlay] handlePatternsDetected error:', e);
     }
   // FIX: Removed aiPatterns, newsMarkers, signalMarkers from deps — they were causing
   // unnecessary re-creation of this callback and potential stale closure issues.

@@ -16,7 +16,15 @@ const drawnPatterns = new Map<string, DrawnPattern>();
 // FIX: Periodic cleanup of expired pattern entries to prevent memory leak.
 // Pattern series that were auto-removed via setTimeout still have entries
 // in the drawnPatterns map. This interval cleans those stale entries.
+// Also clears on HMR (module reload) since the map persists across reloads.
 if (typeof setInterval !== 'undefined') {
+  // Clear stale entries on module load (handles HMR)
+  const now = Date.now();
+  for (const [id, drawn] of drawnPatterns) {
+    if (drawn.removeAt && now > drawn.removeAt + 60000) {
+      drawnPatterns.delete(id);
+    }
+  }
   setInterval(() => {
     const now = Date.now();
     for (const [id, drawn] of drawnPatterns) {

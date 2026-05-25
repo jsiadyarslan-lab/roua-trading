@@ -578,6 +578,17 @@ export function AIPatternPanel({
     }
   };
 
+  // FIX: Cleanup AbortControllers on unmount to prevent memory leaks and
+  // stale callbacks. Previously, if the user closed the AI panel while an
+  // API request was in-flight, the response would still be processed,
+  // potentially calling onPatternsDetected on an unmounted component.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      entryAbortRef.current?.abort();
+    };
+  }, []);
+
   const tabs: { key: TabKey; label: string; icon: string; count: number }[] = [
     { key: 'patterns', label: t('tabPatterns'), icon: '🕯', count: patterns.length },
     { key: 'sr', label: t('tabSupportResistance'), icon: '⚡', count: srLevels.length },

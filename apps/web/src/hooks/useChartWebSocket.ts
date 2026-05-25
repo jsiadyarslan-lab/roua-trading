@@ -270,7 +270,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
         const delay = Math.min(BASE_DELAY * Math.pow(2, reconnectAttemptsRef.current), MAX_DELAY);
         reconnectAttemptsRef.current++;
-        reconnectTimerRef.current = setTimeout(connect, delay + Math.random() * 1000);
+        reconnectTimerRef.current = setTimeout(connectBinanceFallback, delay + Math.random() * 1000);
       };
 
       // Keepalive ping

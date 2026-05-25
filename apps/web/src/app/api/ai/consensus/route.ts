@@ -232,10 +232,14 @@ function getNestJSStatus() {
  * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
+  // FIX: Declare language BEFORE try block so it's accessible in catch.
+  // Previously, if req.json() failed, `language` was undefined in the catch
+  // block → ReferenceError crash on every malformed request.
+  let language: 'ar' | 'en' = 'ar'
   try {
     const body = await req.json()
     const symbol = body.symbol || 'BTC/USD'
-    const language: 'ar' | 'en' = body.language === 'en' ? 'en' : 'ar'
+    language = body.language === 'en' ? 'en' : 'ar'
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
@@ -767,9 +771,8 @@ export async function POST(req: NextRequest) {
       },
     })
   } catch (error: any) {
-    // FIX: Fallback language to 'ar' since the outer try block may fail before
-    // the language variable is assigned (e.g., JSON parse error on request body).
-    const errorLang: 'ar' | 'en' = language || 'ar';
+    // FIX: language is now declared before the try block, so it's always available.
+    const errorLang: 'ar' | 'en' = language;
     const l3e = L3(errorLang)
     return NextResponse.json(
       {

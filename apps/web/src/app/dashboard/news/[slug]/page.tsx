@@ -92,13 +92,13 @@ export default function NewsArticlePage() {
           if (found) {
             setArticle(found)
           } else {
-            setError('لم يتم العثور على الخبر')
+            setError(lang === 'en' ? 'Article not found' : 'لم يتم العثور على الخبر')
           }
         } else {
-          setError('لم يتم العثور على الخبر')
+          setError(lang === 'en' ? 'Article not found' : 'لم يتم العثور على الخبر')
         }
       } catch {
-        setError('تعذر تحميل الخبر')
+        setError(lang === 'en' ? 'Failed to load article' : 'تعذر تحميل الخبر')
       } finally {
         setLoading(false)
       }
@@ -111,7 +111,7 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 44, height: 44, border: `3px solid ${T.border}`, borderTopColor: T.cyan, borderRadius: '50%', animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
-          <p style={{ color: T.text2, fontSize: 14 }}>جارٍ تحميل الخبر...</p>
+          <p style={{ color: T.text2, fontSize: 14 }}>{lang === 'en' ? 'Loading article...' : 'جارٍ تحميل الخبر...'}</p>
         </div>
       </div>
     )
@@ -122,15 +122,15 @@ export default function NewsArticlePage() {
       <div style={{ direction: 'inherit', fontFamily: FONT_AR, minHeight: '100dvh', background: T.bg, color: T.text, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{ textAlign: 'center', maxWidth: 400, padding: 24 }}>
           <AlertTriangle size={40} color={T.red} style={{ marginBottom: 16 }} />
-          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || 'خبر غير موجود'}</h2>
-          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>العودة</button>
+          <h2 style={{ fontSize: 18, fontWeight: 800, marginBottom: 8 }}>{error || (lang === 'en' ? 'Article not found' : 'خبر غير موجود')}</h2>
+          <button onClick={() => router.back()} style={{ padding: '10px 24px', borderRadius: 12, background: T.cyan, color: '#000', border: 'none', fontWeight: 800, fontFamily: FONT_AR, cursor: 'pointer' }}>{lang === 'en' ? 'Back' : 'العودة'}</button>
         </div>
       </div>
     )
   }
 
   const displayTitle = article.translatedTitle || article.title
-  const sentiment = getSentimentConfig(article.sentimentLabel)
+  const sentiment = getSentimentConfig(article.sentimentLabel, lang)
   const SentimentIcon = sentiment.icon
   const hasImage = article.imageUrl && !imageError
 
@@ -164,7 +164,7 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={15} />
-            العودة
+            {lang === 'en' ? 'Back' : 'العودة'}
           </button>
 
           {/* Category badge on image */}
@@ -177,7 +177,7 @@ export default function NewsArticlePage() {
             {article.newsType === 'live' && (
               <span style={{ fontSize: 10, padding: '4px 10px', borderRadius: 8, background: 'rgba(255,69,58,0.25)', color: '#FF453A', fontWeight: 800, display: 'flex', alignItems: 'center', gap: 4 }}>
                 <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#FF453A', animation: 'pulse-glow 2s infinite' }} />
-                مباشر
+                {lang === 'en' ? 'LIVE' : 'مباشر'}
               </span>
             )}
           </div>
@@ -200,7 +200,7 @@ export default function NewsArticlePage() {
             }}
           >
             <ArrowRight size={14} />
-            العودة للأخبار
+            {lang === 'en' ? 'Back to News' : 'العودة للأخبار'}
           </button>
         )}
 
@@ -219,7 +219,7 @@ export default function NewsArticlePage() {
             </span>
             {article.impactLevel && (
               <span style={{ fontSize: 11, padding: '5px 14px', borderRadius: 10, background: `${T.amber}12`, color: T.amber, fontWeight: 800 }}>
-                تأثير {article.impactLevel === 'high' ? 'عالي' : article.impactLevel === 'low' ? 'منخفض' : 'متوسط'}
+                {lang === 'en' ? 'Impact' : 'تأثير'} {article.impactLevel === 'high' ? (lang === 'en' ? 'High' : 'عالي') : article.impactLevel === 'low' ? (lang === 'en' ? 'Low' : 'منخفض') : (lang === 'en' ? 'Medium' : 'متوسط')}
               </span>
             )}
           </div>
@@ -243,10 +243,10 @@ export default function NewsArticlePage() {
                 <Globe size={18} color="#00E5FF" />
               </div>
               <div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || 'رؤى للأخبار'}</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: T.text, display: 'block' }}>{article.source || (lang === 'en' ? "Ru'aa News" : 'رؤى للأخبار')}</span>
                 <span style={{ fontSize: 11, color: T.text3, display: 'flex', alignItems: 'center', gap: 4 }}>
                   <Clock size={10} />
-                  {formatTime(article.publishedAt)}
+                  {formatTime(article.publishedAt, lang)}
                 </span>
               </div>
             </div>
@@ -278,7 +278,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.green}15`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Zap size={16} color={T.green} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>النقاط الرئيسية</span>
+              <span style={{ fontSize: 14, fontWeight: 900, color: T.green }}>{lang === 'en' ? 'Key Takeaways' : 'النقاط الرئيسية'}</span>
               <span style={{ fontSize: 11, color: `${T.green}80`, fontFamily: FONT_MONO, marginRight: 4 }}>({article.keyTakeaways.length})</span>
             </div>
             <div style={{ padding: '16px 20px' }}>
@@ -307,7 +307,7 @@ export default function NewsArticlePage() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
               <SentimentIcon size={16} color={sentiment.color} />
-              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>ملخص التحليل</span>
+              <span style={{ fontSize: 12, fontWeight: 800, color: sentiment.color }}>{lang === 'en' ? 'Analysis Summary' : 'ملخص التحليل'}</span>
             </div>
             <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0 }}>{article.summary}</p>
           </div>
@@ -337,7 +337,7 @@ export default function NewsArticlePage() {
               <div style={{ width: 32, height: 32, borderRadius: 10, background: `${T.amber}12`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <BarChart3 size={16} color={T.amber} />
               </div>
-              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>الأصول المتأثرة</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: T.amber }}>{lang === 'en' ? 'Affected Assets' : 'الأصول المتأثرة'}</span>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {article.affectedAssets.map((asset, i) => (
@@ -363,7 +363,7 @@ export default function NewsArticlePage() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: T.text2, display: 'flex', alignItems: 'center', gap: 6 }}>
               <ShieldAlert size={14} color={T.text3} />
-              تحليل المشاعر
+              {lang === 'en' ? 'Sentiment Analysis' : 'تحليل المشاعر'}
             </span>
             <span style={{ fontSize: 14, fontWeight: 800, color: sentiment.color, display: 'flex', alignItems: 'center', gap: 5 }}>
               <SentimentIcon size={14} />
@@ -378,9 +378,9 @@ export default function NewsArticlePage() {
             }} />
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-            <span style={{ fontSize: 10, color: T.text3 }}>سلبي</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>محايد</span>
-            <span style={{ fontSize: 10, color: T.text3 }}>إيجابي</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Negative' : 'سلبي'}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Neutral' : 'محايد'}</span>
+            <span style={{ fontSize: 10, color: T.text3 }}>{lang === 'en' ? 'Positive' : 'إيجابي'}</span>
           </div>
         </div>
 
@@ -388,7 +388,7 @@ export default function NewsArticlePage() {
         <div style={{ padding: '16px 18px', borderRadius: 14, background: `${T.amber}04`, border: `1px solid ${T.amber}10`, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
           <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
           <p style={{ fontSize: 11, color: `${T.amber}88`, lineHeight: 1.7, margin: 0 }}>
-            الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.
+            {lang === 'en' ? 'News and analysis are provided for educational purposes only and are not investment advice. Trade responsibly.' : 'الأخبار والتحليلات مقدمة لأغراض تعليمية فقط وليست نصيحة استثمارية. تداول بمسؤولية.'}
           </p>
         </div>
       </div>
@@ -397,19 +397,19 @@ export default function NewsArticlePage() {
 }
 
 /* ─── Helpers ─── */
-function getSentimentConfig(label?: string) {
+function getSentimentConfig(label?: string, lang?: 'ar' | 'en') {
   switch (label) {
-    case 'positive': return { bg: `${T.green}14`, color: T.green, text: 'إيجابي', icon: TrendingUp }
-    case 'negative': return { bg: `${T.red}14`, color: T.red, text: 'سلبي', icon: TrendingDown }
-    default: return { bg: `${T.text3}14`, color: T.text3, text: 'محايد', icon: Minus }
+    case 'positive': return { bg: `${T.green}14`, color: T.green, text: lang === 'en' ? 'Positive' : 'إيجابي', icon: TrendingUp }
+    case 'negative': return { bg: `${T.red}14`, color: T.red, text: lang === 'en' ? 'Negative' : 'سلبي', icon: TrendingDown }
+    default: return { bg: `${T.text3}14`, color: T.text3, text: lang === 'en' ? 'Neutral' : 'محايد', icon: Minus }
   }
 }
 
-function formatTime(value?: string | null) {
+function formatTime(value?: string | null, lang?: 'ar' | 'en') {
   if (!value) return ''
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return date.toLocaleString('ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleString(lang === 'en' ? 'en-US' : 'ar-SA', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 }
 
 /**

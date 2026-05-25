@@ -104,7 +104,7 @@ type ReportItem = {
 }
 
 /* ─── Category Config ─── */
-const CATEGORIES = [
+const CATEGORIES_AR = [
   { id: 'all', label: 'الكل', icon: '📋', color: T.cyan },
   { id: 'أسهم', label: 'أسهم', icon: '📈', color: T.green },
   { id: 'أرباح شركات', label: 'أرباح', icon: '💰', color: T.amber },
@@ -116,6 +116,16 @@ const CATEGORIES = [
   { id: 'القطاع التكنولوجي', label: 'تكنولوجيا', icon: '💻', color: '#B388FF' },
   { id: 'القطاع الصحي', label: 'صحة', icon: '🏥', color: T.green },
   { id: 'قطاع التكنولوجيا', label: 'تقنية', icon: '🔌', color: '#B388FF' },
+] as const
+
+const CATEGORIES_EN = [
+  { id: 'all', label: 'All', icon: '📋', color: T.cyan },
+  { id: 'Economy', label: 'Economy', icon: '🏛️', color: T.purple },
+  { id: 'Crypto', label: 'Crypto', icon: '₿', color: '#F7931A' },
+  { id: 'Stocks', label: 'Stocks', icon: '📈', color: T.green },
+  { id: 'Forex', label: 'Forex', icon: '💱', color: T.cyan },
+  { id: 'Commodities', label: 'Commodities', icon: '🛢️', color: T.amber },
+  { id: 'Technology', label: 'Tech', icon: '💻', color: '#B388FF' },
 ] as const
 
 export default function NewsPage() {
@@ -148,6 +158,7 @@ export default function NewsPage() {
   const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'analysis'>(
     searchParams.get('tab') === 'analysis' ? 'analysis' : initialTab
   )
+  const [newsLang, setNewsLang] = useState<'ar' | 'en'>('ar')
 
   // Analysis tab state
   const [analyses, setAnalyses] = useState<any[]>([])
@@ -160,22 +171,22 @@ export default function NewsPage() {
   const fetchNews = useCallback(async () => {
     setFetchError(null)
     try {
-      const res = await fetch('/api/news/latest?limit=50', { cache: 'no-store' })
+      const res = await fetch(`/api/news/latest?limit=50&lang=${newsLang}`, { cache: 'no-store' })
       const data = await res.json()
       if (data.success && Array.isArray(data.data)) {
         setItems(data.data)
       } else {
         setItems([])
-        setFetchError('لم يتم العثور على أخبار')
+        setFetchError(newsLang === 'en' ? 'No news found' : 'لم يتم العثور على أخبار')
       }
     } catch {
       setItems([])
-      setFetchError('تعذر الاتصال بخادم الأخبار')
+      setFetchError(newsLang === 'en' ? 'Unable to connect to news server' : 'تعذر الاتصال بخادم الأخبار')
     } finally {
       setLoading(false)
       setRefreshing(false)
     }
-  }, [])
+  }, [newsLang])
 
   const fetchReports = useCallback(async () => {
     try {
@@ -219,6 +230,13 @@ export default function NewsPage() {
     const interval = setInterval(fetchNews, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [fetchNews, fetchReports, fetchAnalyses])
+
+  // Re-fetch when language changes
+  useEffect(() => {
+    setActiveCategory('all') // Reset category when language changes
+    if (!loading) fetchNews()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newsLang])
 
   // Auto-advance slider
   useEffect(() => {
@@ -295,7 +313,7 @@ export default function NewsPage() {
                 </div>
               </div>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: T.text3 }}>
-                أخبار وتحليلات مالية من رؤى — {stats.total} خبر
+                {newsLang === 'en' ? 'Financial news & analysis from Ru\'aa' : 'أخبار وتحليلات مالية من رؤى'} — {stats.total} {newsLang === 'en' ? 'articles' : 'خبر'}
               </p>
             </div>
             <button onClick={handleRefresh} disabled={refreshing} style={{
@@ -308,6 +326,38 @@ export default function NewsPage() {
               <RefreshCw size={14} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
               تحديث
             </button>
+            {/* Language Toggle */}
+            <div style={{
+              display: 'flex', borderRadius: 10,
+              border: `1px solid ${T.border}`, overflow: 'hidden',
+            }}>
+              <button
+                onClick={() => setNewsLang('ar')}
+                style={{
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  fontFamily: FONT_AR, cursor: 'pointer',
+                  border: 'none',
+                  background: newsLang === 'ar' ? `${T.cyan}18` : T.card,
+                  color: newsLang === 'ar' ? T.cyan : T.text3,
+                  transition: 'all 0.2s',
+                }}
+              >
+                العربية
+              </button>
+              <button
+                onClick={() => setNewsLang('en')}
+                style={{
+                  padding: '6px 14px', fontSize: 11, fontWeight: 800,
+                  fontFamily: FONT_AR, cursor: 'pointer',
+                  border: 'none', borderInlineStart: `1px solid ${T.border}`,
+                  background: newsLang === 'en' ? `${T.cyan}18` : T.card,
+                  color: newsLang === 'en' ? T.cyan : T.text3,
+                  transition: 'all 0.2s',
+                }}
+              >
+                English
+              </button>
+            </div>
           </div>
         </div>
 
@@ -368,7 +418,7 @@ export default function NewsPage() {
               <Search size={16} color={T.text3} />
               <input
                 type="text"
-                placeholder="بحث في الأخبار..."
+                placeholder={newsLang === 'en' ? 'Search news...' : 'بحث في الأخبار...'}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 style={{
@@ -384,7 +434,7 @@ export default function NewsPage() {
               overflowX: 'auto', paddingBottom: 4,
               scrollbarWidth: 'none', msOverflowStyle: 'none',
             }}>
-              {CATEGORIES.map(cat => {
+              {(newsLang === 'en' ? CATEGORIES_EN : CATEGORIES_AR).map(cat => {
                 const isActive = activeCategory === cat.id
                 const count = cat.id === 'all' ? items.length : items.filter(i => i.categoryAr === cat.id || i.category === cat.id).length
                 return (
@@ -430,7 +480,7 @@ export default function NewsPage() {
                 borderRadius: 20, padding: '32px', textAlign: 'center', color: T.text2,
               }}>
                 <RefreshCw size={28} color={T.cyan} style={{ marginBottom: 14, animation: 'spin 1s linear infinite' }} />
-                <p style={{ fontSize: 14, fontFamily: FONT_AR }}>جارٍ تحميل الأخبار من رؤى...</p>
+                <p style={{ fontSize: 14, fontFamily: FONT_AR }}>{newsLang === 'en' ? 'Loading news from Ru\'aa...' : 'جارٍ تحميل الأخبار من رؤى...'}</p>
               </div>
             ) : filteredItems.length === 0 ? (
               <div style={{
@@ -438,8 +488,8 @@ export default function NewsPage() {
                 borderRadius: 20, padding: '40px 32px', textAlign: 'center',
               }}>
                 <Newspaper size={34} color={T.cyan} style={{ marginBottom: 14 }} />
-                <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>لا توجد أخبار مطابقة</h2>
-                <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>غيّر التصنيف أو البحث</p>
+                <h2 style={{ color: T.text, fontSize: 18, fontWeight: 800, margin: '0 0 8px' }}>{newsLang === 'en' ? 'No matching news' : 'لا توجد أخبار مطابقة'}</h2>
+                <p style={{ color: T.text2, fontSize: 13, margin: 0 }}>{newsLang === 'en' ? 'Change the category or search' : 'غيّر التصنيف أو البحث'}</p>
               </div>
             ) : (
               /* News Grid */

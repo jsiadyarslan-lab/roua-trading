@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
     const sentiment = searchParams.get('sentiment') || '';
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
+    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline
 
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
@@ -19,7 +20,9 @@ export async function GET(request: NextRequest) {
 
     if (integrationKey) {
       try {
-        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${limit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
+        // Fetch more articles when filtering by language (English articles are a subset)
+        const fetchLimit = lang === 'en' ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
+        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${fetchLimit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
           headers: {
             'Content-Type': 'application/json',
             'X-Integration-Key': integrationKey,
@@ -30,9 +33,18 @@ export async function GET(request: NextRequest) {
         if (newsRes.ok) {
           const newsData = await newsRes.json();
           if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
-            // Transform news site data to the format expected by the trading platform
-            // Priority: Arabic fields (titleAr, summaryAr, contentAr) over English
-            const articles = newsData.articles.map((article: any) => {
+            // Filter and transform articles based on language pipeline
+            let filteredArticles = newsData.articles;
+
+            if (lang === 'en') {
+              // English pipeline: articles where titleAr is empty (produced by English pipeline)
+              filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
+            } else {
+              // Arabic pipeline (default): articles where titleAr exists (produced by Arabic pipeline)
+              filteredArticles = filteredArticles.filter((article: any) => article.titleAr);
+            }
+
+            const articles = filteredArticles.map((article: any) => {
               // Parse affectedAssets from string if needed
               let affectedAssets: any[] = [];
               if (typeof article.affectedAssets === 'string') {
@@ -65,45 +77,59 @@ export async function GET(request: NextRequest) {
                 }
               }
 
+              // Build article object with language-appropriate field mapping
+              const isEn = lang === 'en';
+              const defaultCategory = isEn ? 'Markets' : 'أسواق';
+              const defaultSource = isEn ? "Ru'aa News" : 'رؤى للأخبار';
+
               return {
                 id: article.id,
-                source: article.source || 'رؤى للأخبار',
+                source: article.source || defaultSource,
                 // English original title
                 title: article.title || '',
-                // Arabic title (primary display)
-                translatedTitle: article.titleAr || article.title || '',
+                // Display title: Arabic pipeline → Arabic, English pipeline → English
+                translatedTitle: isEn
+                  ? (article.title || '')
+                  : (article.titleAr || article.title || ''),
                 // English original content/summary
                 content: article.content || article.summary || '',
-                // Arabic content (primary display)
-                translatedContent: article.contentAr || article.summaryAr || '',
-                // Arabic summary (prefer Arabic)
-                summary: article.summaryAr || article.summary || '',
-                // Full Arabic analysis content
+                // Display content: Arabic pipeline → Arabic, English pipeline → English
+                translatedContent: isEn
+                  ? (article.content || article.summary || '')
+                  : (article.contentAr || article.summaryAr || ''),
+                // Summary: Arabic pipeline → Arabic, English pipeline → English
+                summary: isEn
+                  ? (article.summary || article.content || '')
+                  : (article.summaryAr || article.summary || ''),
+                // Full analysis content
                 fullContent: article.fullContent || '',
                 // Key takeaways array
                 keyTakeaways: Array.isArray(article.keyTakeaways) ? article.keyTakeaways : [],
                 // Image URL (resolved to full URL)
                 imageUrl: resolvedImageUrl,
-                // URL to original article
-                url: article.url || (article.slug ? `${newsSiteUrl}/news/${article.slug}` : null),
+                // URL to original article (English pipeline → /en/news, Arabic → /news)
+                url: article.url || (article.slug ? `${newsSiteUrl}${isEn ? '/en' : ''}/news/${article.slug}` : null),
                 // Sentiment normalized to -1..1
                 sentiment: sentimentNormalized,
                 sentimentLabel: article.sentiment || 'neutral',
                 impactLevel: article.impactLevel || 'medium',
                 affectedAssets,
-                category: article.category || 'أسواق',
-                categoryAr: article.category || 'أسواق',
+                category: article.category || defaultCategory,
+                categoryAr: article.category || defaultCategory,
                 publishedAt: article.publishedAt || new Date().toISOString(),
                 newsType: article.newsType || 'live',
                 slug: article.slug || '',
+                // Language indicator for frontend
+                lang: isEn ? 'en' : 'ar',
               };
             });
 
             return NextResponse.json({
               success: true,
-              data: articles,
+              data: articles.slice(0, parseInt(limit)),
               count: articles.length,
               source: 'roua-news',
+              lang,
             });
           }
         }

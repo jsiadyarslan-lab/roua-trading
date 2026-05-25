@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 interface NewsItem {
   category: string
@@ -18,6 +18,8 @@ const emptyNewsItems: NewsItem[] = []
 
 export default function NewsTicker() {
   const tn = useTranslations('dashboard.news')
+  const locale = useLocale()
+  const isAr = locale === 'ar'
   const tickerRef = useRef<HTMLDivElement>(null)
   const [newsItems, setNewsItems] = useState<NewsItem[]>(emptyNewsItems)
   const [isLoading, setIsLoading] = useState(true)
@@ -83,12 +85,15 @@ export default function NewsTicker() {
     }
   }, [newsItems])
 
-  const renderNewsItem = (item: NewsItem, index: number) => (
+  const renderNewsItem = (item: NewsItem, index: number) => {
+    const displayText = isAr && item.textAr ? item.textAr : item.text
+    const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
+    return (
     <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
-      <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
-        {item.category}
+      <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor, fontFamily: isAr ? "'Cairo', sans-serif" : undefined }}>
+        {displayCat}
       </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{item.text}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)', fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : undefined }}>{displayText}</span>
       <span className="text-[10px]">
         {item.impact === 'high' ? (
           <span style={{ color: 'var(--loss)' }}>●</span>
@@ -97,7 +102,8 @@ export default function NewsTicker() {
         )}
       </span>
     </div>
-  )
+    )
+  }
 
   return (
     <div style={{ gridArea: 'news' }} className="flex items-center overflow-hidden">

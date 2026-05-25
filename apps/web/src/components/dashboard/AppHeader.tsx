@@ -6,7 +6,7 @@ import { getPortalRoot } from '@/lib/portal-root'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useShallow } from 'zustand/react/shallow'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 
 /**
  * SafeLink — Navigation wrapper that guarantees page transitions work.
@@ -291,6 +291,8 @@ function fetchNewsData(): Promise<NewsItem[]> {
 
 function NewsTicker() {
   const t = useTranslations()
+  const locale = useLocale()
+  const isAr = locale === 'ar'
   const [items, setItems] = useState<
     { text: string; textAr: string; category: string; categoryAr: string; color: string; impact: string }[]
   >([])
@@ -304,27 +306,27 @@ function NewsTicker() {
   return (
     <div style={{
       height: H_NEWS,
-      background: 'linear-gradient(90deg, #FFFFFF, #F8FAFC, #FFFFFF)',
-      borderBottom: '1px solid rgba(0,0,0,0.06)',
+      background: 'linear-gradient(90deg, #0D1117, #111827, #0D1117)',
+      borderBottom: '1px solid rgba(255,255,255,0.06)',
       display: 'flex', alignItems: 'center',
       overflow: 'hidden',
       borderStartStartRadius: ORB_D / 2,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+      boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
     }}>
       {/* NEWS label */}
       <div style={{
         flexShrink: 0, display: 'flex', alignItems: 'center', gap: 4,
         padding: '0 10px 0 12px', height: '100%',
-        borderInlineEnd: '1px solid rgba(0,0,0,0.06)',
-        background: 'rgba(0,0,0,0.02)',
+        borderInlineEnd: '1px solid rgba(255,255,255,0.08)',
+        background: 'rgba(0,212,255,0.04)',
       }}>
         <span style={{
           fontFamily: "'JetBrains Mono', monospace", fontSize: 8, fontWeight: 800,
-          color: '#0EA5E9', letterSpacing: '0.12em',
+          color: '#00D4FF', letterSpacing: '0.12em',
         }}>NEWS</span>
         <span style={{
           width: 5, height: 5, borderRadius: '50%', background: '#10B981',
-          boxShadow: '0 0 4px #10B981',
+          boxShadow: '0 0 6px #10B981',
           animation: 'star-blink 2s ease-in-out infinite',
         }} />
       </div>
@@ -334,42 +336,48 @@ function NewsTicker() {
             display: 'flex', gap: 40, whiteSpace: 'nowrap',
             animation: `news-scroll ${Math.max(doubled.length * 2.5, 18)}s linear infinite`,
           }}>
-            {doubled.map((item, i) => (
-              <span key={i} style={{
-                fontFamily: "'Inter', 'Readex Pro', sans-serif", fontSize: 11.5,
-                color: '#1E293B', flexShrink: 0, fontWeight: 500,
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{
-                  fontSize: 8, padding: '2px 6px', borderRadius: 4,
-                  background: `${item.color}15`, color: item.color,
-                  fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-                  border: `1px solid ${item.color}25`,
-                }}>{item.category || 'News'}</span>
-                {item.impact === 'high' && <span style={{ color: '#EF4444', fontSize: 7, fontWeight: 900 }}>●</span>}
-                <span style={{ color: '#334155' }}>{item.text}</span>
-              </span>
-            ))}
+            {doubled.map((item, i) => {
+              const displayText = isAr && item.textAr ? item.textAr : item.text
+              const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
+              return (
+                <span key={i} style={{
+                  fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 11.5,
+                  color: '#FFFFFF', flexShrink: 0, fontWeight: 500,
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  textShadow: '0 0 8px rgba(255,255,255,0.15)',
+                }}>
+                  <span style={{
+                    fontSize: 8, padding: '2px 6px', borderRadius: 4,
+                    background: `${item.color}20`, color: item.color,
+                    fontFamily: isAr ? "'Cairo', sans-serif" : "'JetBrains Mono', monospace", fontWeight: 700,
+                    border: `1px solid ${item.color}40`,
+                    textShadow: 'none',
+                  }}>{displayCat || 'News'}</span>
+                  {item.impact === 'high' && <span style={{ color: '#FF4757', fontSize: 7, fontWeight: 900, textShadow: '0 0 4px rgba(255,71,87,0.5)' }}>●</span>}
+                  <span style={{ color: 'rgba(255,255,255,0.92)' }}>{displayText}</span>
+                </span>
+              )
+            })}
           </div>
         ) : (
           <span style={{
             padding: '0 14px', fontFamily: "'Inter', sans-serif",
-            fontSize: 10, color: '#94A3B8', fontWeight: 500,
+            fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: 500,
           }}>{t('dashboard.news.loading')}</span>
         )}
         {/* Fade edges */}
         <div style={{
           position: 'absolute', insetInlineStart: 0, top: 0, bottom: 0, width: 40,
-          background: 'linear-gradient(90deg, #FFFFFF, transparent)',
+          background: 'linear-gradient(90deg, #0D1117, transparent)',
           pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', insetInlineEnd: 0, top: 0, bottom: 0, width: 40,
-          background: 'linear-gradient(270deg, #FFFFFF, transparent)',
+          background: 'linear-gradient(270deg, #0D1117, transparent)',
           pointerEvents: 'none',
         }} />
       </div>
-      <div style={{ flexShrink: 0, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6, borderInlineStart: '1px solid rgba(0,0,0,0.06)' }}>
+      <div style={{ flexShrink: 0, padding: '0 8px', display: 'flex', alignItems: 'center', gap: 6, borderInlineStart: '1px solid rgba(255,255,255,0.08)' }}>
         <LocaleSwitcher variant="header" />
         <NotificationCenter />
       </div>
@@ -481,14 +489,16 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
 /* ══ Mobile News Ticker (compact) ══ */
 function MobileNewsTicker() {
   const t = useTranslations()
+  const locale = useLocale()
+  const isAr = locale === 'ar'
   const [items, setItems] = useState<
-    { text: string; category: string; color: string }[]
+    { text: string; textAr: string; category: string; categoryAr: string; color: string }[]
   >([])
 
   useEffect(() => {
     fetchNewsData().then(data => {
       if (data.length) {
-        setItems(data.slice(0, 10).map(({ text, category, color }) => ({ text, category, color })))
+        setItems(data.slice(0, 10).map(({ text, textAr, category, categoryAr, color }) => ({ text, textAr, category, categoryAr, color })))
       }
     })
   }, [])
@@ -500,26 +510,32 @@ function MobileNewsTicker() {
       display: 'flex', gap: 32, whiteSpace: 'nowrap',
       animation: `news-scroll ${Math.max(doubled.length * 2, 14)}s linear infinite`,
     }}>
-      {doubled.map((item, i) => (
-        <span key={i} style={{
-          fontFamily: "'Inter', 'Readex Pro', sans-serif", fontSize: 10,
-          color: '#1E293B', flexShrink: 0, fontWeight: 500,
-          display: 'inline-flex', alignItems: 'center', gap: 4,
-        }}>
-          <span style={{
-            fontSize: 7, padding: '1px 5px', borderRadius: 3,
-            background: `${item.color}15`, color: item.color,
-            fontFamily: "'JetBrains Mono', monospace", fontWeight: 700,
-            border: `1px solid ${item.color}20`,
-          }}>{item.category || 'News'}</span>
-          <span style={{ color: '#334155' }}>{item.text}</span>
-        </span>
-      ))}
+      {doubled.map((item, i) => {
+        const displayText = isAr && item.textAr ? item.textAr : item.text
+        const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
+        return (
+          <span key={i} style={{
+            fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 10,
+            color: '#FFFFFF', flexShrink: 0, fontWeight: 500,
+            display: 'inline-flex', alignItems: 'center', gap: 4,
+            textShadow: '0 0 6px rgba(255,255,255,0.12)',
+          }}>
+            <span style={{
+              fontSize: 7, padding: '1px 5px', borderRadius: 3,
+              background: `${item.color}20`, color: item.color,
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'JetBrains Mono', monospace", fontWeight: 700,
+              border: `1px solid ${item.color}40`,
+              textShadow: 'none',
+            }}>{displayCat || 'News'}</span>
+            <span style={{ color: 'rgba(255,255,255,0.9)' }}>{displayText}</span>
+          </span>
+        )
+      })}
     </div>
   ) : (
     <span style={{
       padding: '0 10px', fontFamily: "'Inter', sans-serif",
-      fontSize: 9, color: '#94A3B8', fontWeight: 500,
+      fontSize: 9, color: 'rgba(255,255,255,0.5)', fontWeight: 500,
     }}>{t('dashboard.news.loading')}</span>
   )
 }

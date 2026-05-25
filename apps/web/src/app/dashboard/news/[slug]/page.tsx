@@ -318,11 +318,9 @@ export default function NewsArticlePage() {
           <ArticleFullContent content={article.fullContent} />
         )}
 
-        {/* ─── Arabic Content fallback ─── */}
+        {/* ─── Content fallback (no fullContent, use translatedContent) ─── */}
         {!article.fullContent && article.translatedContent && (
-          <div style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, marginBottom: 28, whiteSpace: 'pre-wrap' }}>
-            {article.translatedContent}
-          </div>
+          <PlainArticleContent content={article.translatedContent} />
         )}
 
         {/* ─── Affected Assets Panel ─── */}
@@ -414,6 +412,7 @@ function formatTime(value?: string | null, lang?: 'ar' | 'en') {
 
 /**
  * Renders full content with [N] Section Title format — styled like rouatradingnews
+ * Also handles plain text content without section markers by auto-detecting section titles
  */
 function ArticleFullContent({ content }: { content: string }) {
   const sectionRegex = /\[(\d+)\]\s*([^\[]+)/g
@@ -428,8 +427,9 @@ function ArticleFullContent({ content }: { content: string }) {
     sections.push({ num: match[1], title: match[2].trim(), body: bodyText })
   }
 
+  // If no [N] sections found, parse plain text content into structured sections
   if (sections.length === 0) {
-    return <div style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, marginBottom: 28, whiteSpace: 'pre-wrap' }}>{content}</div>
+    return <PlainArticleContent content={content} />
   }
 
   return (
@@ -481,6 +481,182 @@ function ArticleFullContent({ content }: { content: string }) {
               <p style={{ fontSize: 15, color: T.text2, lineHeight: 1.9, margin: 0, whiteSpace: 'pre-wrap' }}>
                 {section.body}
               </p>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Renders plain text content by auto-detecting section titles and formatting them properly.
+ * Used when content doesn't have [N] section markers.
+ */
+function PlainArticleContent({ content }: { content: string }) {
+  // Section title patterns for financial content
+  const isSectionTitle = (text: string): boolean => {
+    if (text.length > 80) return false
+    if (/\d+[.%]$/.test(text)) return false
+    if (/^[\d,.$€£¥]+$/.test(text.replace(/\s/g, ''))) return false
+    if (/[.!?;:]$/.test(text)) return false
+    // Known financial section patterns
+    if (/^(Market |Stock |Company |Economic |Industry |Sector |Global |Technical |Price |Trading |Investment |Crypto |Forex |Commodity |Energy |Bond |Financial |Portfolio |Risk |AI |Digital |Weekly |Daily |Monthly |Quarterly |Annual )?(Overview|Summary|Analysis|Update|Outlook|Report|Review|Trend|Forecast|Perspective|Introduction|Key Points|Highlights|Insights|Takeaways|Performance|Breakdown|Deep Dive|Snapshot|Assessment|Evaluation|Observation|Conclusion|Bottom Line|Data|Statistics|Indicators|Metrics|Fundamentals|Technicals|Sentiment|News|Events|Movers|Volume|Momentum|Breakout|Reversal|Pattern|Chart|Setup|Strategy|Recommendation|مقدمة|ملخص|تحليل|نظرة عامة|بيانات السوق|المؤشرات|النقاط الرئيسية|الخلاصة|توصيات|تحديث ساعي)(s)?(\s+(Overview|Summary|Analysis|Update|Outlook|Report|Review|Trend|Forecast|Perspective|Introduction|Key Points|Highlights|Insights|Takeaways|Performance|Breakdown|Deep Dive|Snapshot|Assessment|Conclusion|Recommendation))?$/i.test(text)) return true
+    // Title Case heuristic
+    const words = text.split(/\s+/).filter(w => w.length > 0)
+    if (words.length >= 2 && words.length <= 8) {
+      const titleCaseCount = words.filter(w => /^[A-Z؀-ۿ]/.test(w)).length
+      if (titleCaseCount / words.length >= 0.6) return true
+    }
+    // Stock symbol pattern like "AAPL Stock Analysis"
+    if (/^[A-Z]{2,5}\s/.test(text) && /Analysis|Overview|Update|Report|Review|Stock|Outlook/i.test(text)) return true
+    return false
+  }
+
+  // Risk/disclaimer detection
+  const isDisclaimer = (text: string): boolean => {
+    return /تنبيه المخاطر|تحذير المخاطر|لأغراض تعليمية|إخلاء مسؤولية|risk warning|disclaimer|educational purposes|not financial advice|does not constitute investment advice|not financial advice/i.test(text)
+  }
+
+  // Parse into blocks
+  const blocks: Array<{ type: 'heading' | 'paragraph' | 'bullet' | 'disclaimer'; text: string }> = []
+  const lines = content.split('\n')
+
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (!trimmed) continue
+
+    // Strip any leftover markdown headers
+    const cleaned = trimmed.replace(/^#{1,6}\s*/, '')
+
+    if (isDisclaimer(cleaned)) {
+      blocks.push({ type: 'disclaimer', text: cleaned })
+    } else if (/^[-*]\s/.test(cleaned)) {
+      blocks.push({ type: 'bullet', text: cleaned.replace(/^[-*]\s*/, '') })
+    } else if (isSectionTitle(cleaned)) {
+      blocks.push({ type: 'heading', text: cleaned })
+    } else {
+      blocks.push({ type: 'paragraph', text: cleaned })
+    }
+  }
+
+  // Color cycle for sections
+  const sectionColors = [
+    { border: '#00E5FF40', bg: '#00E5FF08', iconBg: '#00E5FF18', color: '#00E5FF' },
+    { border: '#FFB80040', bg: '#FFB80008', iconBg: '#FFB80018', color: '#FFB800' },
+    { border: '#32D74B40', bg: '#32D74B08', iconBg: '#32D74B18', color: '#32D74B' },
+    { border: '#B388FF40', bg: '#B388FF08', iconBg: '#B388FF18', color: '#B388FF' },
+    { border: '#FF453A40', bg: '#FF453A08', iconBg: '#FF453A18', color: '#FF453A' },
+  ]
+
+  // Group consecutive paragraphs after headings into sections
+  const groupedSections: Array<{ type: 'section' | 'disclaimer'; title?: string; body: string; colorIdx: number }> = []
+  let currentTitle: string | null = null
+  let currentParagraphs: string[] = []
+  let sectionIdx = 0
+
+  const flushSection = () => {
+    if (currentTitle || currentParagraphs.length > 0) {
+      groupedSections.push({
+        type: 'section',
+        title: currentTitle || undefined,
+        body: currentParagraphs.join('\n\n'),
+        colorIdx: sectionIdx % sectionColors.length,
+      })
+      currentTitle = null
+      currentParagraphs = []
+      sectionIdx++
+    }
+  }
+
+  for (const block of blocks) {
+    if (block.type === 'disclaimer') {
+      flushSection()
+      groupedSections.push({ type: 'disclaimer', body: block.text, colorIdx: sectionIdx % sectionColors.length })
+    } else if (block.type === 'heading') {
+      flushSection()
+      currentTitle = block.text
+    } else if (block.type === 'bullet') {
+      currentParagraphs.push('• ' + block.text)
+    } else {
+      currentParagraphs.push(block.text)
+    }
+  }
+  flushSection()
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
+      {groupedSections.map((section, index) => {
+        if (section.type === 'disclaimer') {
+          return (
+            <div
+              key={index}
+              style={{
+                animation: `slide-up 0.5s ease-out ${0.2 + index * 0.06}s both`,
+                padding: '16px 20px',
+                borderRadius: 14,
+                background: 'linear-gradient(135deg, rgba(255,184,0,0.08), rgba(255,107,53,0.04))',
+                border: '1px solid rgba(255,184,0,0.2)',
+                borderRight: '3.5px solid rgba(255,184,0,0.6)',
+                display: 'flex',
+                gap: 10,
+                alignItems: 'flex-start',
+              }}
+            >
+              <AlertTriangle size={14} color={T.amber} style={{ flexShrink: 0, marginTop: 2 }} />
+              <p style={{ fontSize: 12, color: `${T.amber}cc`, lineHeight: 1.7, margin: 0 }}>
+                {section.body}
+              </p>
+            </div>
+          )
+        }
+
+        const colors = sectionColors[section.colorIdx]
+        const hasTitle = !!section.title
+
+        return (
+          <div
+            key={index}
+            className="section-card"
+            style={{
+              animation: `slide-up 0.5s ease-out ${0.2 + index * 0.06}s both`,
+              borderRadius: 18, overflow: 'hidden',
+              border: `1px solid ${colors.border}`,
+              background: colors.bg,
+            }}
+          >
+            {/* Section Header */}
+            {hasTitle && (
+              <div style={{
+                padding: '14px 20px',
+                display: 'flex', alignItems: 'center', gap: 12,
+                borderBottom: `1px solid ${colors.border}`,
+                background: `${colors.border}08`,
+              }}>
+                <div style={{
+                  width: 36, height: 36, borderRadius: 11,
+                  background: colors.iconBg,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: `1px solid ${colors.border}`,
+                }}>
+                  <Newspaper size={17} color={colors.color} />
+                </div>
+                <span style={{ fontSize: 14, fontWeight: 900, color: colors.color }}>
+                  {section.title}
+                </span>
+              </div>
+            )}
+
+            {/* Section Body */}
+            <div style={{ padding: '18px 20px' }}>
+              {section.body.split('\n\n').map((paragraph, pIdx) => (
+                <p key={pIdx} style={{
+                  fontSize: 15, color: T.text2, lineHeight: 1.9, margin: pIdx > 0 ? '12px 0 0' : 0,
+                  whiteSpace: 'pre-wrap',
+                }}>
+                  {paragraph}
+                </p>
+              ))}
             </div>
           </div>
         )

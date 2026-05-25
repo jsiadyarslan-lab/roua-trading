@@ -1306,6 +1306,36 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       raw: string
     }> = []
 
+    // Common financial section title patterns (for plain text detection)
+    const sectionTitlePatterns = /^((Market |Stock |Company |Economic |Industry |Sector |Global |Technical |Price |Trading |Investment |Crypto |Forex |Commodity |Energy |Bond |Financial |Portfolio |Risk |AI |Digital |Weekly |Daily |Monthly |Quarterly |Annual )?(Overview|Summary|Analysis|Update|Outlook|Report|Review|Trend|Forecast|Perspective|Introduction|Key Points|Highlights|Insights|Takeaways|Performance|Breakdown|Deep Dive|Snapshot|Assessment|Evaluation|Observation|Monitor|Watch|Alert|Signal|Setup|Strategy|Recommendation|Conclusion|Bottom Line|Action|Position|Entry|Exit|Target|Support|Resistance|Levels|Data|Statistics|Indicators|Metrics|Fundamentals|Technicals|Sentiment|News|Events|Calendar|Schedule|Movers|Gainers|Losers|Volume|Momentum|Breakout|Reversal|Pattern|Chart|Candlestick|Moving Average|RSI|MACD|Bollinger|Fibonacci|Pivot|Divergence|Volume Profile|Order Flow|Market Structure|Price Action|Trend Line|Channel|Range|Consolidation|Breakout|Pullback|Rally|Decline|Correction|Recovery|Bull|Bear|Neutral|Long|Short|Hedge)(s)?(\s+(Overview|Summary|Analysis|Update|Outlook|Report|Review|Trend|Forecast|Perspective|Introduction|Key Points|Highlights|Insights|Takeaways|Performance|Breakdown|Deep Dive|Snapshot|Assessment|Evaluation|Observation|Monitor|Watch|Alert|Signal|Setup|Strategy|Recommendation))?|(Market |Stock |Company |Economic |Industry |Sector |Global |Technical |Price |Trading |Investment |Crypto |Forex |Commodity |Energy |Bond |Financial )?(Data|Numbers|Figures|Facts|Details|Basics|Fundamentals|Technicals|Sentiment|Overview|Summary|Analysis|Introduction|Conclusion|Disclaimer|Warning|Risk Warning|Important|Note|Key Points|Highlights|Key Takeaways|Executive Summary|Quick Summary|Main Points|Core Findings|What You Need to Know|Bottom Line|Takeaway|Action Plan|Next Steps|Recommendations|Final Thoughts|Closing Remarks|The Big Picture|At a Glance|In Brief|TL;DR|مقدمة|ملخص|تحليل|نظرة عامة|بيانات السوق|المؤشرات|النقاط الرئيسية|الخلاصة|توصيات|تحديث ساعي|إخلاء مسؤولية|تنبيه المخاطر))$/i
+
+    // Heuristic: detect standalone section titles in plain text
+    // A line is considered a section title if:
+    // 1. It's short (≤80 chars)
+    // 2. It doesn't end with typical sentence punctuation (. ! ? ; :)
+    // 3. It's not primarily a number/datum
+    // 4. It matches known financial section patterns OR looks title-like (Title Case, contains keyword)
+    const isPlainTextSectionTitle = (text: string): boolean => {
+      if (text.length > 80) return false
+      if (/\d+[.%]$/.test(text)) return false // Ends with number+percent
+      if (/^[\d,.$€£¥]+$/.test(text.replace(/\s/g, ''))) return false // Pure numbers
+      // Ends with typical sentence punctuation → likely a sentence, not a title
+      if (/[.!?;:]$/.test(text)) return false
+      // Match known financial section title patterns
+      if (sectionTitlePatterns.test(text)) return true
+      // Title Case heuristic: at least 2 words, most words start with uppercase
+      const words = text.split(/\s+/).filter(w => w.length > 0)
+      if (words.length >= 2 && words.length <= 8) {
+        const titleCaseCount = words.filter(w => /^[A-Z؀-ۿ]/.test(w)).length
+        if (titleCaseCount / words.length >= 0.6) return true
+      }
+      // Single keyword that's a known term (like "Introduction", "Conclusion", etc.)
+      if (words.length === 1 && /^(Introduction|Conclusion|Overview|Summary|Analysis|Disclaimer|Warning|Highlights|Takeaways|Fundamentals|Technicals|Sentiment|Data|Statistics|مقدمة|ملخص|تحليل|خلاصة|توصيات)$/i.test(text)) return true
+      // Contains stock/crypto symbol pattern like "AAPL Stock Analysis"
+      if (/^[A-Z]{2,5}\s/.test(text) && /Analysis|Overview|Update|Report|Review|Stock|Outlook/i.test(text)) return true
+      return false
+    }
+
     for (const line of lines) {
       const trimmed = line.trim()
       if (!trimmed) continue
@@ -1349,6 +1379,15 @@ function RichAnalysisContent({ content, catColor, newsLang }: { content: string;
       // Section title: standalone bold line like **text** or all-caps keyword
       if (/^\*\*.+\*\*$/.test(trimmed)) {
         result.push({ type: 'section-title', text: trimmed.replace(/^\*\*/, '').replace(/\*\*$/, ''), raw: trimmed })
+        continue
+      }
+
+      // Plain text section title detection (no markdown prefix)
+      // This handles content from the API that doesn't use ## headers
+      if (isPlainTextSectionTitle(trimmed)) {
+        // Determine heading level based on content significance
+        const isMajor = /^(Market |Stock |Economic |Global |Technical |Industry )?(Overview|Summary|Introduction|Conclusion|Analysis|Report|Review|Outlook|مقدمة|ملخص|تحليل|نظرة عامة|خلاصة)/i.test(trimmed)
+        result.push({ type: isMajor ? 'h3' : 'section-title', text: trimmed, raw: trimmed })
         continue
       }
 

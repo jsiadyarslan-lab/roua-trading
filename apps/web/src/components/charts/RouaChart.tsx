@@ -45,6 +45,7 @@ import { CommandPalette, useCommandPalette, createChartCommands } from './Comman
 import { cancelAnimatedPattern, getActiveAnimations } from '@/lib/charts/AnimatedPatterns';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
 import { renderHeatmapOnChart, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
+import { detectTrendLines } from './AIPatternPanel';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
@@ -268,6 +269,9 @@ export default function RouaChart({
   // (ZigZag + 7 detectors) and doesn't need sub-minute updates.
   const lastPatternRunRef = useRef(0);
   const PATTERN_RUN_INTERVAL_MS = 30_000;
+  // ── Ref for auto-drawn trend line series (cleared on re-run) ──
+  const autoTrendSeriesRef = useRef<any[]>([]);
+
   const runPatternDetection = useCallback(async () => {
     const now = Date.now();
     if (now - lastPatternRunRef.current < PATTERN_RUN_INTERVAL_MS) return;
@@ -290,9 +294,38 @@ export default function RouaChart({
       const result = runPatternEngine(candles, { minQuality: 5 });
       patternEngineRef.current = result;
       drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
-      // REVOLUTIONARY: Animated pattern drawing — only animate, static already drawn above
-      // (AnimatedPatterns creates its own series, so we skip re-drawing to avoid duplication)
-      // startAnimatedPattern is used for new real-time patterns only (via AISmartPanel)
+
+      // ── AUTO-DRAW TREND LINES on chart ──
+      // Remove previous auto-drawn trend lines
+      autoTrendSeriesRef.current.forEach(s => {
+        try { chartApi.removeSeries(s); } catch {}
+      });
+      autoTrendSeriesRef.current = [];
+
+      try {
+        const trendLines = detectTrendLines(candles);
+        trendLines.slice(0, 4).forEach((line, i) => {
+          const isBull = line.type === 'ascending';
+          const color = isBull ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
+          const label = isBull ? 'Trend ↑' : 'Trend ↓';
+          try {
+            const trendSeries = chartApi.addSeries(lc.LineSeries, {
+              color,
+              lineWidth: line.strength === 'strong' ? 2 : 1,
+              lineStyle: line.strength === 'weak' ? 2 : 0,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: false,
+              title: label,
+            });
+            trendSeries.setData([
+              { time: line.startPoint.time as any, value: line.startPoint.price },
+              { time: line.endPoint.time as any, value: line.endPoint.price },
+            ]);
+            autoTrendSeriesRef.current.push(trendSeries);
+          } catch { /* skip trend line */ }
+        });
+      } catch { /* trend lines not critical */ }
     } catch (e: any) {
       console.debug('[PatternEngine] Error:', e.message);
     }
@@ -446,6 +479,12 @@ export default function RouaChart({
           requestAnimationFrame(() => {
             if (!cancelled) resetViewRef.current();
           });
+          // FIX: Auto-run pattern detection after historical candles load
+          // This ensures patterns, trend lines, and harmonic overlays
+          // are drawn on the chart automatically without requiring AI panel
+          setTimeout(() => {
+            if (!cancelled) runPatternDetection();
+          }, 1500);
         } else {
           if (cancelled) return;
           setFeedState('fallback');
@@ -944,9 +983,16 @@ export default function RouaChart({
         try { chartApi.removeSeries(s); } catch {}
       });
       heatmapSeriesRef.current = [];
+      // Also clean up auto-drawn trend lines
+      autoTrendSeriesRef.current.forEach(s => {
+        try { chartApi.removeSeries(s); } catch {}
+      });
+      autoTrendSeriesRef.current = [];
     }
     // Reset incremental state on timeframe change
     incrementalInitializedRef.current = false;
+    // Reset pattern throttle so it runs immediately on new timeframe data
+    lastPatternRunRef.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 

@@ -551,7 +551,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const regimeLabelAr = volRegime === 'extreme' ? 'شديد' : volRegime === 'high' ? 'مرتفع' : volRegime === 'low' ? 'منخفض' : 'طبيعي';
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 360, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 360, maxHeight: 560, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit', willChange: 'transform' }}>
       {/* Header */}
       <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.025)', cursor: 'grab', userSelect: 'none', flexShrink: 0 }}>
         <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -582,7 +582,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       {/* Overlay Toggles */}
       <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap' }}>
         {([['S/R','sr','#4ade80'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['هندسي','geo','#a78bfa'],['إليوت','ew','#93c5fd']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
-          <button key={key} onClick={()=>{ toggleOverlay(key); setTimeout(()=>{ runRef.current=false; analyze(); },50); }}
+          <button key={key} onClick={()=>{ toggleOverlay(key); }}
             style={{ padding:'2px 7px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               border:`1px solid ${overlays[key]?col:'#333'}`,
               background:overlays[key]?col+'22':'transparent',
@@ -605,7 +605,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         {/* SIGNAL */}
         {tab === 'signal' && (
-          <div style={{ padding: 10 }}>
+          <div style={{ padding: 10, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {signal ? (
               <>
                 <div style={{ background: `${sigColor}12`, border: `1px solid ${sigColor}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
@@ -733,7 +733,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         {/* PATTERNS */}
         {tab === 'patterns' && (
-          <div style={{ padding: 8 }}>
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {/* REVOLUTIONARY: Bayesian consensus bar */}
             {bayesianResult && (
               <div style={{ background: `${C.purple}0a`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '7px 9px', marginBottom: 8 }}>
@@ -773,7 +773,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         {/* LEVELS */}
         {tab === 'levels' && (
-          <div style={{ padding: 8 }}>
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {([[t('resistance'), resistance, C.red], [t('support'), support, C.green]] as [string, SupportResistanceLevel[], string][]).map(([lbl, arr, col]) => arr.length > 0 ? (
               <div key={lbl} style={{ marginBottom: 10 }}>
                 <div style={{ color: col, fontSize: 9, fontWeight: 700, marginBottom: 4, letterSpacing: 0.5 }}>{lbl} ({arr.length})</div>
@@ -790,7 +790,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         {/* SMC — Wyckoff + Volume Profile + Elliott+SMC Fusion */}
         {tab === 'smc' && (
-          <div style={{ padding: 8 }}>
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {/* REVOLUTIONARY: Elliott+SMC Fusion card */}
             {fusionResult && (
               <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}25`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
@@ -828,7 +828,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
         {/* ADVANCED — Geometric + Elliott + Performance */}
         {tab === 'advanced' && (
-          <div style={{ padding: 8 }}>
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
             {geoList.length > 0 && (
               <div style={{ marginBottom: 10 }}>
                 <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>{t('geometricPatterns')} ({geoList.length})</div>
@@ -886,6 +886,49 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
             {geoList.length===0 && !elliottData && !performanceStats && <div style={{ textAlign:'center', padding:20, color:C.dim, fontSize:10 }}>{t('pressForAnalysis')}</div>}
+
+            {/* ATR Dynamic Thresholds */}
+            {candles.length > 20 && (() => {
+              try {
+                const thresholds = getDynamicThresholds(candles);
+                const atrPct = thresholds.atrValue / (candles[candles.length - 1]?.close || 1) * 100;
+                return (
+                  <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
+                    <div style={{ color: C.blue, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>عتبات ATR الديناميكية</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>ATR</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{thresholds.atrValue.toFixed(2)}</div>
+                      </div>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>ATR %</div>
+                        <div style={{ color: regimeColor, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{atrPct.toFixed(2)}%</div>
+                      </div>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>الارتداد</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.pullback * 100).toFixed(1)}%</div>
+                      </div>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>تشابه القمم</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.peakSimilarity * 100).toFixed(1)}%</div>
+                      </div>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>تفاوت الأكتاف</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.shoulderTolerance * 100).toFixed(1)}%</div>
+                      </div>
+                      <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                        <div style={{ color: C.mut, fontSize: 7 }}>تأكيد الاختراق</div>
+                        <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.breakoutConfirm * 100).toFixed(1)}%</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, padding: '3px 6px', background: C.card, borderRadius: 4 }}>
+                      <span style={{ color: C.mut, fontSize: 7 }}>نظام التقلب</span>
+                      <span style={{ color: regimeColor, fontSize: 8, fontWeight: 700 }}>{regimeLabelAr} ({thresholds.atrMultiplier}x)</span>
+                    </div>
+                  </div>
+                );
+              } catch { return null; }
+            })()}
           </div>
         )}
       </div>

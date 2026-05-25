@@ -31,10 +31,12 @@
     "@types/react-dom": "18.3.7",
     "csv-stringify": "^6.7.0",
     "exceljs": "^4.4.0",
+    "lightweight-charts": "^5.2.0",
     "pdfkit": "^0.18.0",
     "pg": "^8.20.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "socket.io-client": "^4.8.3",
     "technicalindicators": "^3.1.0"
   },
   "optionalDependencies": {

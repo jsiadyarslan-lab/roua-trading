@@ -554,7 +554,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
           {/* MTF — نفس الزوج، أطر زمنية مختلفة */}
           {onToggleMTF && (
             <button
-              style={btnStyle}
+              style={toggleBtnStyle(false)}
               onClick={onToggleMTF}
               title={t('mtfTooltip')}
             >
@@ -807,6 +807,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M2 12h4l3-9 6 18 3-9h4"/>
             </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>SSE</span>
           </button>
         )}
 
@@ -884,7 +885,10 @@ export function ChartToolbar(props: ChartToolbarProps) {
             onClick={onToggleMTF}
             title={t('mtfTooltip')}
           >
-            MTF
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/>
+            </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>MTF</span>
           </button>
         )}
 

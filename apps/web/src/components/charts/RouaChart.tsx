@@ -485,14 +485,18 @@ export default function RouaChart({
     };
 
     tick();
-    const interval = setInterval(tick, 1000);
-    // Pause when tab hidden to save CPU
+    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 1000);
+    // Pause when tab hidden to save CPU — FIX: store new interval ID on restore
     const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') clearInterval(interval);
-      else { tick(); setInterval(tick, 1000); }
+      if (document.visibilityState === 'hidden') {
+        clearInterval(intervalId);
+      } else {
+        tick();
+        intervalId = setInterval(tick, 1000);
+      }
     };
     document.addEventListener('visibilitychange', handleVisibility);
-    return () => { clearInterval(interval); document.removeEventListener('visibilitychange', handleVisibility); };
+    return () => { clearInterval(intervalId); document.removeEventListener('visibilitychange', handleVisibility); };
   }, [timeframe]);
 
 

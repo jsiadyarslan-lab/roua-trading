@@ -50,10 +50,11 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: [
       'recharts',
-      '@mdxeditor/editor',
-      'react-syntax-highlighter',
-      'date-fns',
       'framer-motion',
+      'lucide-react',
+      'lightweight-charts',
+      'technicalindicators',
+      'socket.io-client',
     ],
   },
 

@@ -228,19 +228,55 @@ export class ContentGeneratorService {
 
       // Try to parse the AI response as JSON
       try {
-        // Attempt to extract JSON from the response (may be wrapped in markdown code blocks)
-        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          if (parsed.title && parsed.content) {
-            return {
-              title: String(parsed.title).trim(),
-              content: String(parsed.content).trim(),
-              summary: parsed.summary
-                ? String(parsed.summary).trim()
-                : String(parsed.content).substring(0, 200).trim() + '...',
-            };
+        // Strip markdown code fences if present
+        let cleanResponse = rawContent.replace(/^```(?:json)?\s*\n?/i, '').replace(/\n?```\s*$/i, '').trim();
+        
+        // Attempt to extract JSON from the response
+        // Use a more careful approach: try direct parse first, then regex match
+        let parsed: any = null;
+        
+        // Strategy 1: Try parsing the entire cleaned response as JSON
+        try {
+          parsed = JSON.parse(cleanResponse);
+        } catch {
+          // Strategy 2: Find the outermost JSON object using balanced brace counting
+          const firstBrace = cleanResponse.indexOf('{');
+          if (firstBrace !== -1) {
+            let depth = 0;
+            let lastValidEnd = -1;
+            for (let i = firstBrace; i < cleanResponse.length; i++) {
+              if (cleanResponse[i] === '{') depth++;
+              else if (cleanResponse[i] === '}') {
+                depth--;
+                if (depth === 0) {
+                  lastValidEnd = i;
+                  break;
+                }
+              }
+            }
+            if (lastValidEnd !== -1) {
+              const jsonCandidate = cleanResponse.substring(firstBrace, lastValidEnd + 1);
+              try {
+                parsed = JSON.parse(jsonCandidate);
+              } catch {
+                // Strategy 3: Greedy regex as last resort
+                const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+                if (jsonMatch) {
+                  parsed = JSON.parse(jsonMatch[0]);
+                }
+              }
+            }
           }
+        }
+        
+        if (parsed && parsed.title && parsed.content) {
+          return {
+            title: String(parsed.title).trim(),
+            content: String(parsed.content).trim(),
+            summary: parsed.summary
+              ? String(parsed.summary).trim()
+              : String(parsed.content).substring(0, 200).trim() + '...',
+          };
         }
       } catch {
         // JSON parsing failed — fall through to plain text extraction

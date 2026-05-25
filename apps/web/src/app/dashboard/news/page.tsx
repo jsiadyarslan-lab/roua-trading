@@ -43,7 +43,56 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
+/**
+ * Extracts clean content from a string that might be raw JSON like {"title": "...", "content": "..."}.
+ * The AI sometimes returns JSON that fails to parse on the backend, so the raw JSON ends up in the content field.
+ */
+function extractCleanContent(raw: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  // Check if it looks like a JSON object
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.content) return String(parsed.content).trim()
+      if (parsed.text) return String(parsed.text).trim()
+      // If JSON but no content/text key, try to extract the longest string value
+      const values = Object.values(parsed).filter(v => typeof v === 'string' && v.length > 20)
+      if (values.length > 0) return String(values.sort((a, b) => (b as string).length - (a as string).length)[0]).trim()
+    } catch {
+      // Try regex extraction for malformed JSON
+      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      if (contentMatch?.[1]) {
+        try { return JSON.parse(`"${contentMatch[1]}"`) } catch { return contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
+      }
+      const textMatch = trimmed.match(/"text"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      if (textMatch?.[1]) {
+        try { return JSON.parse(`"${textMatch[1]}"`) } catch { return textMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
+      }
+    }
+  }
+  return trimmed
+}
 
+/**
+ * Extracts clean title from a string that might be raw JSON.
+ */
+function extractCleanTitle(raw: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.title) return String(parsed.title).trim()
+    } catch {
+      const titleMatch = trimmed.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      if (titleMatch?.[1]) {
+        try { return JSON.parse(`"${titleMatch[1]}"`) } catch { return titleMatch[1].replace(/\\"/g, '"') }
+      }
+    }
+  }
+  return trimmed
+}
 
 type NewsItem = {
   id: string
@@ -1128,14 +1177,14 @@ function AnalysisContentCard({
   })()
 
   const titleText = newsLang === 'en'
-    ? (article.titleEn || article.titleAr || 'Technical Analysis')
-    : (article.titleAr || article.titleEn || 'تحليل فني')
+    ? extractCleanTitle(article.titleEn || article.titleAr || 'Technical Analysis')
+    : extractCleanTitle(article.titleAr || article.titleEn || 'تحليل فني')
   const contentText = newsLang === 'en'
-    ? (article.contentEn || article.contentAr || '')
-    : (article.contentAr || article.contentEn || '')
+    ? extractCleanContent(article.contentEn || article.contentAr || '')
+    : extractCleanContent(article.contentAr || article.contentEn || '')
   const summaryText = newsLang === 'en'
-    ? (article.summaryEn || article.summaryAr || '')
-    : (article.summaryAr || article.summaryEn || '')
+    ? extractCleanContent(article.summaryEn || article.summaryAr || '')
+    : extractCleanContent(article.summaryAr || article.summaryEn || '')
 
   return (
     <article

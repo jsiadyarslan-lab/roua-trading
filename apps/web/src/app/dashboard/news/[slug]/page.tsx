@@ -28,6 +28,29 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 const FONT_AR = 'var(--font-ar)'
 const FONT_MONO = 'var(--font-mono)'
 
+/**
+ * Extracts clean content from a string that might be raw JSON like {"title": "...", "content": "..."}.
+ */
+function extractCleanContent(raw: string): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (parsed.content) return String(parsed.content).trim()
+      if (parsed.text) return String(parsed.text).trim()
+      const values = Object.values(parsed).filter(v => typeof v === 'string' && v.length > 20)
+      if (values.length > 0) return String(values.sort((a, b) => (b as string).length - (a as string).length)[0]).trim()
+    } catch {
+      const contentMatch = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/s)
+      if (contentMatch?.[1]) {
+        try { return JSON.parse(`"${contentMatch[1]}"`) } catch { return contentMatch[1].replace(/\\"/g, '"').replace(/\\n/g, '\n') }
+      }
+    }
+  }
+  return trimmed
+}
+
 type NewsItem = {
   id: string
   source: string
@@ -415,21 +438,24 @@ function formatTime(value?: string | null, lang?: 'ar' | 'en') {
  * Also handles plain text content without section markers by auto-detecting section titles
  */
 function ArticleFullContent({ content }: { content: string }) {
+  // First, extract clean content from potential JSON wrapper
+  const cleanContent = extractCleanContent(content)
+  
   const sectionRegex = /\[(\d+)\]\s*([^\[]+)/g
   const sections: { num: string; title: string; body: string }[] = []
   let match
 
-  while ((match = sectionRegex.exec(content)) !== null) {
-    const sectionEnd = content.indexOf('[', match.index + match[0].length)
+  while ((match = sectionRegex.exec(cleanContent)) !== null) {
+    const sectionEnd = cleanContent.indexOf('[', match.index + match[0].length)
     const bodyText = sectionEnd > -1
-      ? content.slice(match.index + match[0].length, sectionEnd).trim()
-      : content.slice(match.index + match[0].length).trim()
+      ? cleanContent.slice(match.index + match[0].length, sectionEnd).trim()
+      : cleanContent.slice(match.index + match[0].length).trim()
     sections.push({ num: match[1], title: match[2].trim(), body: bodyText })
   }
 
   // If no [N] sections found, parse plain text content into structured sections
   if (sections.length === 0) {
-    return <PlainArticleContent content={content} />
+    return <PlainArticleContent content={cleanContent} />
   }
 
   return (
@@ -494,6 +520,9 @@ function ArticleFullContent({ content }: { content: string }) {
  * Used when content doesn't have [N] section markers.
  */
 function PlainArticleContent({ content }: { content: string }) {
+  // Extract clean content from potential JSON wrapper
+  const cleanContent = extractCleanContent(content)
+  
   // Section title patterns for financial content
   const isSectionTitle = (text: string): boolean => {
     if (text.length > 80) return false
@@ -520,7 +549,7 @@ function PlainArticleContent({ content }: { content: string }) {
 
   // Parse into blocks
   const blocks: Array<{ type: 'heading' | 'paragraph' | 'bullet' | 'disclaimer'; text: string }> = []
-  const lines = content.split('\n')
+  const lines = cleanContent.split('\n')
 
   for (const line of lines) {
     const trimmed = line.trim()

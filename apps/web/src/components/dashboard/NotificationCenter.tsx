@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { X as XIcon, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import {
   useNotificationStore,
   Notification,
@@ -637,13 +637,43 @@ function NotifSettingsPanel() {
 export function NotificationCenter() {
   const { notifications, markRead, markAllRead, dismiss, clearAll } = useNotificationStore()
   const tn = useTranslations('dashboard.notifications')
+  const locale = useLocale()
+  const isRtl = locale === 'ar'
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'settings'>('all')
   const unread = notifications.filter((n) => !n.read).length
+  const bellRef = useRef<HTMLButtonElement>(null)
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+
+  const updatePanelPos = useCallback(() => {
+    if (bellRef.current) {
+      const rect = bellRef.current.getBoundingClientRect()
+      const panelWidth = 360
+      const padding = 8
+      // Position panel aligned to the bell button's side
+      // In RTL: bell is on left, panel opens from left edge of bell
+      // In LTR: bell is on right, panel opens from right edge of bell
+      const right = window.innerWidth - rect.right
+      setPanelPos({ top: rect.bottom + padding, right })
+    }
+  }, [])
+
+  useEffect(() => {
+    if (open) {
+      updatePanelPos()
+      window.addEventListener('resize', updatePanelPos)
+      window.addEventListener('scroll', updatePanelPos, true)
+      return () => {
+        window.removeEventListener('resize', updatePanelPos)
+        window.removeEventListener('scroll', updatePanelPos, true)
+      }
+    }
+  }, [open, updatePanelPos])
 
   return (
     <div style={{ position: 'relative' }}>
       <button
+        ref={bellRef}
         onClick={() => setOpen((o) => !o)}
         style={{
           position: 'relative',
@@ -679,7 +709,7 @@ export function NotificationCenter() {
             style={{
               position: 'absolute',
               top: -4,
-              left: -4,
+              insetInlineStart: -4,
               minWidth: 16,
               height: 16,
               borderRadius: 8,
@@ -706,8 +736,8 @@ export function NotificationCenter() {
           <div
             style={{
               position: 'fixed',
-              top: 40,
-              left: 16,
+              top: panelPos.top,
+              right: panelPos.right,
               zIndex: 9999,
               width: 360,
               background: 'rgba(11,14,20,0.98)',

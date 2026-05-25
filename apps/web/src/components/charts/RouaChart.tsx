@@ -44,6 +44,7 @@ import { fetchSignalsForChart, fetchStrategicBriefs, convertToChartMarkers } fro
 import { CommandPalette, useCommandPalette, createChartCommands } from './CommandPalette';
 import { startAnimatedPattern, cancelAnimatedPattern } from '@/lib/charts/AnimatedPatterns';
 import { createIncrementalState, initializeState, updateIncremental, getQuickTrend, needsFullRecalc } from '@/lib/charts/IncrementalCalc';
+import { renderHeatmapOnChart, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
@@ -194,6 +195,9 @@ export default function RouaChart({
   const { isOpen: cmdPaletteOpen, setIsOpen: setCmdPaletteOpen } = useCommandPalette();
   // ── Incremental Calculation State ──
   const incrementalRef = useRef(createIncrementalState());
+  const incrementalInitializedRef = useRef(false);
+  // ── Heatmap Overlay State ──
+  const heatmapSeriesRef = useRef<any[]>([]);
   const [priceAlertsCount, setPriceAlertsCount] = useState(0);
   const [councilSignal, setCouncilSignal] = useState<{ direction: 'bullish' | 'bearish' | 'neutral'; confidence: number } | null>(null);
   const [aiPatterns, setAiPatterns] = useState<AIPattern[]>([]);
@@ -285,6 +289,12 @@ export default function RouaChart({
       const result = runPatternEngine(candles, { minQuality: 5 });
       patternEngineRef.current = result;
       drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
+      // REVOLUTIONARY: Animated pattern drawing for new patterns
+      try {
+        result.patterns.forEach((pattern: any) => {
+          startAnimatedPattern(chartApi, lc, pattern, { enabled: true, speed: 1 });
+        });
+      } catch { /* animation not critical */ }
     } catch (e: any) {
       console.debug('[PatternEngine] Error:', e.message);
     }
@@ -363,6 +373,12 @@ export default function RouaChart({
         candlesRef.current.push(alignedCandle);
       }
       setCandlesRef.current(candlesRef.current);
+      // REVOLUTIONARY: Incremental computation update (O(1) per candle)
+      try {
+        if (incrementalInitializedRef.current) {
+          updateIncremental(incrementalRef.current, alignedCandle, candlesRef.current[candlesRef.current.length - 2]);
+        }
+      } catch { /* incremental update not critical */ }
     },
     onPriceUpdate: (price) => {
       chart.updateLastCandle(price);
@@ -420,6 +436,12 @@ export default function RouaChart({
           // Run pattern engine after candles are updated
           // FIX: Use ref to avoid stale closure over chart.setCandles
           setCandlesRef.current(unique);
+          // REVOLUTIONARY: Initialize incremental computation state
+          try {
+            const incState = incrementalRef.current;
+            initializeState(incState, unique);
+            incrementalInitializedRef.current = true;
+          } catch { /* incremental calc not critical */ }
           // FIX: Auto-fit chart to show new timeframe data range.
           // Without this, the chart may keep the old scroll position and the
           // user sees blank or unchanged data even though new data was loaded.
@@ -856,6 +878,26 @@ export default function RouaChart({
   // Previously this was declared at line ~1007, after handlePatternsDetected already used it
   const aiEntryExitMarkerRef = useRef<any>(null);
 
+  // ── REVOLUTIONARY: Heatmap Overlay Handler ──────────────
+  const handleHeatmapData = useCallback((heatmap: HeatmapResult | null) => {
+    const chartApi = chart.chartRef?.current;
+    if (!chartApi) return;
+    // Remove previous heatmap series
+    heatmapSeriesRef.current.forEach(s => {
+      try { chartApi.removeSeries(s); } catch {}
+    });
+    heatmapSeriesRef.current = [];
+    if (!heatmap || !heatmap.points.length) return;
+    // Load lightweight-charts if needed
+    if (!lightweightChartsRef.current) return; // Will render on next update
+    try {
+      const lc = lightweightChartsRef.current;
+      renderHeatmapOnChart(chartApi, lc, heatmap);
+    } catch (e) {
+      console.debug('[RouaChart] Heatmap render error:', e);
+    }
+  }, [chart]);
+
   // FIX: Cleanup function for AI overlays — reusable across multiple call sites
   const cleanupAIOverlays = useCallback(() => {
     const chartApi = chart.chartRef?.current;
@@ -889,6 +931,16 @@ export default function RouaChart({
   // Clean up AI overlays when timeframe changes
   useEffect(() => {
     cleanupAIOverlays();
+    // REVOLUTIONARY: Also clean up heatmap overlay on timeframe change
+    const chartApi = chart.chartRef?.current;
+    if (chartApi) {
+      heatmapSeriesRef.current.forEach(s => {
+        try { chartApi.removeSeries(s); } catch {}
+      });
+      heatmapSeriesRef.current = [];
+    }
+    // Reset incremental state on timeframe change
+    incrementalInitializedRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [timeframe]);
 
@@ -2026,6 +2078,7 @@ export default function RouaChart({
             candles={aiPanelCandles}
             currentPrice={currentPrice}
             onPatternsDetected={handlePatternsDetected}
+            onHeatmapData={handleHeatmapData}
             onClose={() => setShowAIPanel(false)}
             onScrollToTime={(time) => {
               try {

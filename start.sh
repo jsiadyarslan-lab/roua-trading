@@ -40,7 +40,7 @@ fi
 USE_BUN=0
 if command -v bun >/dev/null 2>&1; then USE_BUN=1; fi
 
-run_prisma() { [ "$USE_BUN" -eq 1 ] && bunx prisma "$@" || npx --yes prisma "$@"; }
+run_prisma() { "$PROJECT_ROOT/node_modules/.bin/prisma" "$@"; }
 run_api_build() { [ "$USE_BUN" -eq 1 ] && bun run build || (rm -rf dist tsconfig.tsbuildinfo && tsc); }
 run_web_start() { [ "$USE_BUN" -eq 1 ] && bunx next start -H 0.0.0.0 || npx next start -H 0.0.0.0; }
 

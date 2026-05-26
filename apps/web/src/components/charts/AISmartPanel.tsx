@@ -516,12 +516,28 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // DISABLED: Auto-analyze when candles arrive.
+  // This caused patterns to draw automatically whenever the user enters the
+  // platform, even before opening the AI panel. Now analysis only runs when
+  // the user clicks the refresh button or when overlay toggles change.
+  // useEffect(() => {
+  //   if (candles && candles.length >= 20) {
+  //     analyzeThrottled();
+  //   }
+  // // eslint-disable-next-line react-hooks/exhaustive-deps
+  // }, [candles.length]);
+
+  // ── Run analysis once when panel first receives valid candles ──
+  // This replaces the auto-analyze on every candle change.
+  // Now it only runs when the panel is actually open and has data.
+  const hasRunInitialRef = useRef(false);
   useEffect(() => {
-    if (candles && candles.length >= 20) {
-      analyzeThrottled();
+    if (candles && candles.length >= 20 && !hasRunInitialRef.current && !runRef.current) {
+      hasRunInitialRef.current = true;
+      analyze();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [candles.length]);
+  }, [candles?.length]);
 
   // cleanup
   useEffect(() => () => { abortRef.current?.abort(); }, []);

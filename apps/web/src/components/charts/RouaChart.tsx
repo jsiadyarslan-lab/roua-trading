@@ -274,63 +274,14 @@ export default function RouaChart({
   // ── Ref for auto-drawn trend line series (cleared on re-run) ──
   const autoTrendSeriesRef = useRef<any[]>([]);
 
+  // DISABLED: runPatternDetection auto-draws ALL patterns on chart without
+  // any toggle control. This was the PRIMARY source of unwanted scribbles.
+  // Pattern rendering is now exclusively controlled by overlay toggles
+  // inside handlePatternsDetected — which respects user choices.
+  // The function is kept as a stub in case we need it later for manual trigger.
   const runPatternDetection = useCallback(async () => {
-    const now = Date.now();
-    if (now - lastPatternRunRef.current < PATTERN_RUN_INTERVAL_MS) return;
-    lastPatternRunRef.current = now;
-
-    const candles = candlesRef.current;
-    if (!candles || candles.length < 30) return;
-    const chartApi = chart.chartRef?.current;
-    if (!chartApi) return;
-
-    // FIX: Load lightweight-charts if not already cached
-    // Previously returned early if lc was null — now loads it on demand
-    if (!lightweightChartsRef.current) {
-      try {
-        lightweightChartsRef.current = await import('lightweight-charts');
-      } catch { return; }
-    }
-    const lc = lightweightChartsRef.current;
-    try {
-      const result = runPatternEngine(candles, { minQuality: 5 });
-      patternEngineRef.current = result;
-      drawAllPatterns(chartApi, lc, result.patterns, true, 15 * 60 * 1000);
-
-      // ── AUTO-DRAW TREND LINES on chart ──
-      // Remove previous auto-drawn trend lines
-      autoTrendSeriesRef.current.forEach(s => {
-        try { chartApi.removeSeries(s); } catch {}
-      });
-      autoTrendSeriesRef.current = [];
-
-      try {
-        const trendLines = detectTrendLines(candles);
-        trendLines.slice(0, 4).forEach((line, i) => {
-          const isBull = line.type === 'ascending';
-          const color = isBull ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
-          const label = isBull ? 'Trend ↑' : 'Trend ↓';
-          try {
-            const trendSeries = chartApi.addSeries(lc.LineSeries, {
-              color,
-              lineWidth: line.strength === 'strong' ? 2 : 1,
-              lineStyle: line.strength === 'weak' ? 2 : 0,
-              priceLineVisible: false,
-              lastValueVisible: true,
-              crosshairMarkerVisible: false,
-              title: label,
-            });
-            trendSeries.setData([
-              { time: line.startPoint.time as any, value: line.startPoint.price },
-              { time: line.endPoint.time as any, value: line.endPoint.price },
-            ]);
-            autoTrendSeriesRef.current.push(trendSeries);
-          } catch { /* skip trend line */ }
-        });
-      } catch { /* trend lines not critical */ }
-    } catch (e: any) {
-      console.debug('[PatternEngine] Error:', e.message);
-    }
+    // No-op: patterns are only drawn via handlePatternsDetected with overlay toggles
+    // This function is intentionally disabled to prevent auto-drawing.
   }, [chart.chartRef]);
 
   // ── Ref to always have the latest setCandles without stale closures ──
@@ -481,12 +432,10 @@ export default function RouaChart({
           requestAnimationFrame(() => {
             if (!cancelled) resetViewRef.current();
           });
-          // FIX: Auto-run pattern detection after historical candles load
-          // This ensures patterns, trend lines, and harmonic overlays
-          // are drawn on the chart automatically without requiring AI panel
-          setTimeout(() => {
-            if (!cancelled) runPatternDetection();
-          }, 1500);
+          // DISABLED: Auto-run pattern detection removed.
+          // Patterns are ONLY drawn when the user explicitly enables overlay
+          // toggles in the AI Smart Panel. Previously this auto-drew all
+          // patterns on chart load, filling the chart with scribbles.
         } else {
           if (cancelled) return;
           setFeedState('fallback');
@@ -919,6 +868,18 @@ export default function RouaChart({
 
   // ── REVOLUTIONARY: Heatmap Overlay Handler ──────────────
   const handleHeatmapData = useCallback((heatmap: HeatmapResult | null) => {
+    // Only render heatmap if user explicitly enabled it
+    if (!showHeatmap) {
+      // If heatmap is disabled, remove any existing heatmap series
+      const chartApi = chart.chartRef?.current;
+      if (chartApi) {
+        heatmapSeriesRef.current.forEach(s => {
+          try { chartApi.removeSeries(s); } catch {}
+        });
+        heatmapSeriesRef.current = [];
+      }
+      return;
+    }
     const chartApi = chart.chartRef?.current;
     if (!chartApi) return;
     // Remove previous heatmap series
@@ -936,7 +897,7 @@ export default function RouaChart({
     } catch (e) {
       console.debug('[RouaChart] Heatmap render error:', e);
     }
-  }, [chart]);
+  }, [chart, showHeatmap]);
 
   // FIX: Cleanup function for AI overlays — reusable across multiple call sites
   const cleanupAIOverlays = useCallback(() => {
@@ -1091,16 +1052,53 @@ export default function RouaChart({
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     // Direct execution — no lock needed
     try {
-    setAiPatterns(result.patterns);
+    // ── Overlay filters: only draw what the user explicitly enabled ──
+    const ov = (result as any).overlays || {};
+    const showSR = ov.sr === true;
+    const showTrend = ov.trend === true;
+    const showHarmonic = ov.harmonic === true;
+    const showFVG = ov.fvg === true;
+    const showBOS = ov.bos === true;
+    const showGeo = ov.geo === true;
+    const showEW = ov.ew === true;
+    const showWyckoff = ov.wyckoff === true;
+    const showVP = ov.vp === true;
+    const showEntry = ov.entry === true;
+
+    // Check if ANY overlay toggle is enabled — if none, skip ALL markers too
+    const anyOverlayEnabled = showSR || showTrend || showHarmonic || showFVG || showBOS || showGeo || showEW || showWyckoff || showVP || showEntry;
+
+    // Only store patterns if at least one overlay is enabled
+    // This prevents the combined-markers useEffect from adding unfiltered markers
+    if (anyOverlayEnabled) {
+      setAiPatterns(result.patterns);
+    } else {
+      setAiPatterns([]); // Clear patterns when no overlay is enabled
+    }
     lastAnalysisResultRef.current = result; // save for retry
 
     // DIRECT: بناء markers مباشرة من result.patterns وتطبيقها فوراً
-    // لا ننتظر useEffect لأن aiPatterns قد يكون فارغاً في ذلك الوقت
-    if (result.patterns.length > 0) {
+    // فقط إذا كان هناك على الأقل overlay واحد مُفعل
+    if (anyOverlayEnabled && result.patterns.length > 0) {
       const candleTimes = (candlesRef.current || []).map((cd: any) => cd.time as number);
       const usedT = new Set<number>();
       const directMarkers: any[] = [];
       result.patterns.forEach((p: any) => {
+        // Filter markers by overlay type — only show markers for enabled overlay categories
+        const isHarmonicType = p.shapeType === 'harmonic' || ['Gartley','Butterfly','Bat','Crab'].includes(p.type);
+        const isSMCType = p.shapeType === 'smc' || ['FVG','BOS','OB','CHoCH'].includes(p.type);
+        const isTrendType = p.shapeType === 'trend' || ['ascending','descending'].includes(p.type);
+        const isElliottType = p.shapeType === 'elliott' || p.type?.includes('Wave') || p.type?.includes('Elliott');
+        const isWyckoffType = p.shapeType === 'wyckoff' || p.type?.includes('Wyckoff');
+        const isGeoType = p.shapeType === 'geometric';
+        // Skip markers for disabled overlay types
+        if (isHarmonicType && !showHarmonic) return;
+        if (isSMCType && !showFVG && !showBOS) return;
+        if (isTrendType && !showTrend) return;
+        if (isElliottType && !showEW) return;
+        if (isWyckoffType && !showWyckoff) return;
+        if (isGeoType && !showGeo) return;
+
         let t = p.time as number;
         if (candleTimes.length > 0) {
           t = candleTimes.reduce((a: number, b: number) => Math.abs(b-t) < Math.abs(a-t) ? b : a);
@@ -1116,9 +1114,9 @@ export default function RouaChart({
           text: label.length > 6 ? label.slice(0, 6) : label,
         });
       });
-      // استدعاء مباشر مع دمج signalMarkers الموجودة
-      // حفظ في state — يُطلق useEffect لدمجها مع بقية الـ markers
       setAiDirectMarkers(directMarkers);
+    } else {
+      setAiDirectMarkers([]); // Clear markers when no overlay is enabled
     }
 
     // FIX: Improved cleanup — also unregister from useChart's external series tracking
@@ -1144,19 +1142,7 @@ export default function RouaChart({
     }
     const lc = lightweightChartsRef.current;
 
-    // ── Overlay filters: only draw what the user explicitly enabled ──
-    const ov = (result as any).overlays || {};
-    // Default: everything OFF unless explicitly enabled
-    const showSR = ov.sr === true;
-    const showTrend = ov.trend === true;
-    const showHarmonic = ov.harmonic === true;
-    const showFVG = ov.fvg === true;
-    const showBOS = ov.bos === true;
-    const showGeo = ov.geo === true;
-    const showEW = ov.ew === true;
-    const showWyckoff = ov.wyckoff === true;
-    const showVP = ov.vp === true;
-    const showEntry = ov.entry === true;
+    // (overlay variables already declared above near the top of this function)
 
     // Add support/resistance levels as price lines — only if user enabled S/R
     if (showSR) {

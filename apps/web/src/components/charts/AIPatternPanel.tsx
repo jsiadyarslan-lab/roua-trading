@@ -58,7 +58,7 @@ export interface AIAnalysisResult {
   elliottPattern?: import('@/lib/charts/ElliottWave').ElliottPattern | null;
   wyckoff?: import('@/lib/charts/WyckoffAnalysis').WyckoffResult;
   volumeProfile?: import('@/lib/charts/VolumeProfile').VolumeProfileResult;
-  overlays?: { fvg: boolean; bos: boolean; sr: boolean; geo: boolean; ew: boolean; wyckoff: boolean };
+  overlays?: { sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean; bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean; vp: boolean; entry: boolean };
 }
 
 interface AIPatternPanelProps {

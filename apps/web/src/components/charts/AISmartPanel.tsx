@@ -92,7 +92,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [elliottData, setElliottData] = useState<any>(null);
   const [wyckoffData, setWyckoffData] = useState<any>(null);
   const [volProfile, setVolProfile] = useState<any>(null);
-  const [overlays, setOverlays] = useState({ fvg: false, bos: false, sr: true, geo: false, ew: false, wyckoff: false });
+  const [overlays, setOverlays] = useState({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false });
   const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
 
   // ── Revolutionary State ─────────────────────────────────
@@ -107,6 +107,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const runRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const lastAnnouncedRef = useRef<Set<string>>(new Set()); // Track announced patterns to avoid re-announce
+  const lastAnalysisResultRef = useRef<AIAnalysisResult | null>(null); // Store last result for overlay re-emit
   // Always fresh references — never stale
   const candlesRef = useRef<CandleData[]>(candles);
   const symbolRef = useRef(symbol);
@@ -303,7 +304,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       } catch { /* Heatmap fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
-      onPatternsRef.current({
+      const analysisResult: AIAnalysisResult = {
         patterns: allPatterns,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
         resistanceLevels: srLevels.filter(l => l.type === 'resistance').slice(0, 4),
@@ -315,7 +316,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         wyckoff,
         volumeProfile,
         overlays,
-      } as AIAnalysisResult);
+      } as AIAnalysisResult;
+      lastAnalysisResultRef.current = analysisResult;
+      onPatternsRef.current(analysisResult);
 
       // ── 9. REVOLUTIONARY: AI Consensus via SSE Streaming ─────
       // Try SSE first for progressive "War Room" experience, fallback to POST
@@ -523,6 +526,19 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // cleanup
   useEffect(() => () => { abortRef.current?.abort(); }, []);
 
+  // ── Re-emit patterns when overlay toggles change ──
+  // This redraws only the overlays the user wants without re-analyzing
+  useEffect(() => {
+    const lastResult = lastAnalysisResultRef.current;
+    if (!lastResult || !candles?.length) return;
+    // Re-emit with updated overlays so chart only draws what's enabled
+    onPatternsRef.current({
+      ...lastResult,
+      overlays: overlays as any,
+    } as AIAnalysisResult);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [overlays]);
+
   // ── Performance auto-evaluation ──────────────────────────
   useEffect(() => {
     if (!currentPrice || !performanceStats) return;
@@ -581,7 +597,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Overlay Toggles */}
       <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap' }}>
-        {([['S/R','sr','#4ade80'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['هندسي','geo','#a78bfa'],['إليوت','ew','#93c5fd']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+        {([['S/R','sr','#4ade80'],['ترند','trend','#facc15'],['هرمونيك','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['هندسي','geo','#a78bfa'],['إليوت','ew','#93c5fd'],['وايكوف','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['دخول','entry','#00D4FF']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
           <button key={key} onClick={()=>{ toggleOverlay(key); }}
             style={{ padding:'2px 7px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               border:`1px solid ${overlays[key]?col:'#333'}`,

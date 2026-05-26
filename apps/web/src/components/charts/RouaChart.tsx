@@ -1142,7 +1142,22 @@ export default function RouaChart({
     }
     const lc = lightweightChartsRef.current;
 
-    // Add support/resistance levels as price lines — limit to 3 each to avoid clutter
+    // ── Overlay filters: only draw what the user explicitly enabled ──
+    const ov = (result as any).overlays || {};
+    // Default: everything OFF unless explicitly enabled
+    const showSR = ov.sr === true;
+    const showTrend = ov.trend === true;
+    const showHarmonic = ov.harmonic === true;
+    const showFVG = ov.fvg === true;
+    const showBOS = ov.bos === true;
+    const showGeo = ov.geo === true;
+    const showEW = ov.ew === true;
+    const showWyckoff = ov.wyckoff === true;
+    const showVP = ov.vp === true;
+    const showEntry = ov.entry === true;
+
+    // Add support/resistance levels as price lines — only if user enabled S/R
+    if (showSR) {
     result.supportLevels.slice(0, 3).forEach((level, i) => {
       const opacity = level.strength === 'strong' ? 0.7 : level.strength === 'medium' ? 0.5 : 0.3;
       chart.addPriceLine(
@@ -1170,6 +1185,7 @@ export default function RouaChart({
       );
       aiPriceLinesRef.current.push(`ai-resistance-${i}`);
     });
+    } // end showSR
 
     // FIX: Helper to filter out null/NaN values from data points
     // Prevents "Value is null" crashes from lightweight-charts
@@ -1182,7 +1198,8 @@ export default function RouaChart({
       );
     };
 
-    // ── Draw Trend Lines on chart as DIAGONAL lines ──
+    // ── Draw Trend Lines on chart as DIAGONAL lines — only if user enabled ──
+    if (showTrend) {
     try {
       result.trendLines.slice(0, 4).forEach((line, i) => {
         const isBull = line.type === 'ascending';
@@ -1214,8 +1231,10 @@ export default function RouaChart({
         }
       });
     } catch (e) { console.warn('[AI Overlay] trend lines error:', e); }
+    } // end showTrend
 
-    // ── Draw Harmonic Patterns on chart (Gartley, Butterfly, Bat, Crab) ──
+    // ── Draw Harmonic Patterns on chart — only if user enabled ──
+    if (showHarmonic) {
     try {
       const harmonicPatterns = result.patterns.filter(
         (p: any) => p.shapeType === 'harmonic' || ['Gartley','Butterfly','Bat','Crab'].includes(p.type)
@@ -1262,10 +1281,10 @@ export default function RouaChart({
         }
       });
     } catch (e) { console.warn('[AI Overlay] harmonic patterns error:', e); }
+    } // end showHarmonic
 
-    // ── SMC + Geo + Elliott via chart.addPriceLine (same as S/R) ──
-    const ov = (result as any).overlays || { fvg:true, bos:true, sr:true, geo:true, ew:true, wyckoff:true };
-    if (ov.fvg && (result as any).smcData) {
+    // ── SMC (FVG) — only if user enabled ──
+    if (showFVG && (result as any).smcData) {
       const smc = (result as any).smcData;
       smc.fvgs?.slice(0,4).forEach((fvg: any, i: number) => {
         const col = fvg.type === 'bullish' ? '#00ff88' : '#ff4444';
@@ -1274,14 +1293,18 @@ export default function RouaChart({
         aiPriceLinesRef.current.push(`fvg-hi-${i}`, `fvg-lo-${i}`);
       });
     }
-    if (ov.bos && (result as any).smcData) {
+
+    // ── SMC (BOS) — only if user enabled ──
+    if (showBOS && (result as any).smcData) {
       (result as any).smcData.structureBreaks?.slice(0,2).forEach((br: any, i: number) => {
         const col = br.direction === 'bullish' ? '#3b82f6' : '#f97316';
         chart.addPriceLine(`bos-${i}`, br.price, col, `${br.type}${br.direction==='bullish'?'↑':'↓'}`, 2, 0, true);
         aiPriceLinesRef.current.push(`bos-${i}`);
       });
     }
-    if (ov.geo) {
+
+    // ── Geometric patterns — only if user enabled ──
+    if (showGeo) {
       (result as any).geoPatterns?.slice(0,3).forEach((pat: any, i: number) => {
         if (!pat.target) return;
         const col = pat.direction === 'bullish' ? '#00FFA3' : '#FF4757';
@@ -1289,23 +1312,24 @@ export default function RouaChart({
         aiPriceLinesRef.current.push(`geo-${i}`);
       });
     }
-    if (ov.ew && (result as any).elliottPattern?.nextTarget) {
+
+    // ── Elliott Wave — only if user enabled ──
+    if (showEW && (result as any).elliottPattern?.nextTarget) {
       const ew = (result as any).elliottPattern;
       chart.addPriceLine('ew-t', ew.nextTarget, '#93c5fd', `إليوت ${ew.currentWave}🌊`, 2, 0, true);
       aiPriceLinesRef.current.push('ew-t');
     }
 
-        // ── Pattern markers ──
+    // ── Pattern markers ──
     // Patterns are shown as arrow markers on candles (set in aiPatterns state above,
     // applied by the combined-markers useEffect). No AreaSeries per pattern —
     // that caused chart rescaling chaos when 10+ patterns loaded simultaneously.
 
-    // ── Wyckoff Phase label ──
-    if (result.wyckoff && result.wyckoff.phase !== 'Unknown') {
+    // ── Wyckoff Phase label — only if user enabled ──
+    if (showWyckoff && result.wyckoff && result.wyckoff.phase !== 'Unknown') {
       try {
         const w = result.wyckoff;
         const col = w.bias === 'bullish' ? 'rgba(0,255,163,0.7)' : w.bias === 'bearish' ? 'rgba(255,71,87,0.7)' : 'rgba(251,191,36,0.7)';
-        // Show current Wyckoff phase on chart
         w.events.forEach((ev, i) => {
           chart.addPriceLine(`wyckoff-ev-${i}`, ev.price, col, `وايكوف: ${w.labelAr} (${ev.labelAr})`, 1, 1, false);
           aiPriceLinesRef.current.push(`wyckoff-ev-${i}`);
@@ -1313,8 +1337,8 @@ export default function RouaChart({
       } catch {}
     }
 
-    // ── Volume Profile — POC, VAH, VAL ──
-    if (result.volumeProfile && result.volumeProfile.poc > 0) {
+    // ── Volume Profile (POC, VAH, VAL) — only if user enabled ──
+    if (showVP && result.volumeProfile && result.volumeProfile.poc > 0) {
       try {
         const vp = result.volumeProfile;
         chart.addPriceLine('vp-poc', vp.poc, 'rgba(251,191,36,0.9)', 'POC', 2, 0, true);
@@ -1324,8 +1348,8 @@ export default function RouaChart({
       } catch {}
     }
 
-    // ── Draw Entry/Exit lines on chart ──
-    if (result.entryExit) {
+    // ── Draw Entry/Exit lines on chart — only if user enabled ──
+    if (showEntry && result.entryExit) {
       const ee = result.entryExit;
       if (ee.entryPrice > 0) {
         chart.addPriceLine('ai-entry', ee.entryPrice, ee.direction === 'long' ? '#00D4FF' : '#00D4FF', '', 2, 0, false);

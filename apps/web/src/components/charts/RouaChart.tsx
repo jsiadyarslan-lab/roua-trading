@@ -425,6 +425,10 @@ export default function RouaChart({
           // old AI overlay series have timestamps from the previous timeframe
           // and would cause "Value is null" crash if left on the chart.
           setCandlesRef.current(unique, { clearExternal: true });
+          // Update AI panel candles if panel is open so overlays can redraw
+          if (showAIPanel) {
+            setAiPanelCandles([...unique]);
+          }
           // REVOLUTIONARY: Initialize incremental computation state
           try {
             const incState = incrementalRef.current;
@@ -493,6 +497,10 @@ export default function RouaChart({
       // Pass clearExternal:true because this is a timeframe/symbol change —
       // simulated data means the timeframe changed.
       setCandlesRef.current(candles, { clearExternal: true });
+      // Update AI panel candles if panel is open so overlays can redraw
+      if (showAIPanel) {
+        setAiPanelCandles([...candles]);
+      }
       // FIX: Auto-fit after simulated data too
       requestAnimationFrame(() => {
         if (!cancelled) resetViewRef.current();

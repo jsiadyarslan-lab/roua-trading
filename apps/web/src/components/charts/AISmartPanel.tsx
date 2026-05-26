@@ -586,6 +586,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
   // ── Re-emit patterns when overlay toggles change ──
   // This redraws only the overlays the user wants without re-analyzing
+  const overlaysRef = useRef(overlays);
+  overlaysRef.current = overlays;
+  const signalRef = useRef(signal);
+  signalRef.current = signal;
+
   useEffect(() => {
     const lastResult = lastAnalysisResultRef.current;
     if (!lastResult || !candles?.length) return;
@@ -598,6 +603,47 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays]);
+
+  // ── Re-emit overlays when candles are replaced (timeframe/symbol change) ──
+  // When the timeframe changes, RouaChart clears all overlays and sends new candles.
+  // If the user has any overlay toggles active, we must re-emit so the chart
+  // redraws overlays with the new candle data. Without this, overlays disappear
+  // after timeframe change and the user must toggle OFF then ON to get them back.
+  // This applies to ALL overlay buttons (trend, SR, harmonic, FVG, BOS, geo, EW, etc.)
+  const candleSignatureRef = useRef<string>('');
+  useEffect(() => {
+    if (!candles?.length || candles.length < 20) return;
+    const sig = `${candles[0]?.time}_${candles[candles.length - 1]?.time}_${candles.length}`;
+    if (sig === candleSignatureRef.current) return; // Same data, skip
+    candleSignatureRef.current = sig;
+
+    // Check if any overlay is currently active
+    const anyActive = Object.values(overlaysRef.current).some(v => v === true);
+    if (!anyActive) return;
+
+    // Candles were replaced — immediately re-emit overlays so chart redraws
+    // (renderOverlays does its own detection from the new candles, so overlays
+    // will be based on the correct new timeframe data even with old analysisResult)
+    const lastResult = lastAnalysisResultRef.current;
+    if (lastResult) {
+      const sig2 = signalRef.current;
+      onPatternsRef.current({
+        ...lastResult,
+        overlays: overlaysRef.current as any,
+        signal: sig2 ? { dir: sig2.dir, entry: sig2.entry, sl: sig2.sl, tp: sig2.tp } : undefined,
+      } as AIAnalysisResult);
+    }
+
+    // Also schedule a fresh analysis for fully accurate data on new timeframe
+    // (e.g., Wyckoff phase, Volume Profile, Elliott waves may differ per timeframe)
+    // Small delay to avoid blocking the immediate re-emit above
+    setTimeout(() => {
+      runRef.current = false; // Reset guard to allow re-analysis
+      lastAnalyzeTimeRef.current = 0; // Reset throttle
+      analyze();
+    }, 300);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candles]);
 
   // ── Performance auto-evaluation ──────────────────────────
   useEffect(() => {

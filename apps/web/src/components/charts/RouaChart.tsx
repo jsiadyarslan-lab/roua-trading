@@ -1082,8 +1082,7 @@ export default function RouaChart({
   // was previously removed in favor of direct execution, but the ref remained
   // as dead code. The aiProcessingRef was also referenced in a comment that
   // said "Direct execution — no lock needed", confirming it's unused.
-  const aiPanelDivRef = useRef<HTMLDivElement>(null);
-  const [panelPos, setPanelPos] = useState<{left:number;top:number}|null>(null);
+
   const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
@@ -2166,43 +2165,9 @@ export default function RouaChart({
         </div>
       )}
 
-      {/* AI Smart Panel — simple position:fixed with inline drag */}
+      {/* AI Smart Panel — uses DraggablePanel (same as all other panels) */}
       {showAIPanel && (
-        <div
-          ref={(el) => { (aiPanelDivRef as any).current = el; }}
-          style={{
-            position: 'fixed',
-            top: panelPos?.top ?? 130,
-            left: panelPos?.left ?? 350,
-            width: 340,
-            minHeight: 360,
-            zIndex: 9999,
-          }}
-          onMouseDown={(e) => {
-            const handle = (e.target as HTMLElement).closest('[data-drag-handle]');
-            if (!handle) return;
-            e.preventDefault();
-            const el = aiPanelDivRef.current;
-            if (!el) return;
-            const rect = el.getBoundingClientRect();
-            const sx = e.clientX, sy = e.clientY;
-            const sl = rect.left, st = rect.top;
-            const onMove = (me: MouseEvent) => {
-              const nl = Math.max(0, Math.min(window.innerWidth - 340, sl + me.clientX - sx));
-              const nt = Math.max(0, Math.min(window.innerHeight - 50, st + me.clientY - sy));
-              if (el) { el.style.left = nl + 'px'; el.style.top = nt + 'px'; }
-            };
-            const onUp = (me: MouseEvent) => {
-              const nl = Math.max(0, Math.min(window.innerWidth - 340, sl + me.clientX - sx));
-              const nt = Math.max(0, Math.min(window.innerHeight - 50, st + me.clientY - sy));
-              setPanelPos({ left: nl, top: nt });
-              document.removeEventListener('mousemove', onMove);
-              document.removeEventListener('mouseup', onUp);
-            };
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('mouseup', onUp);
-          }}
-        >
+        <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={340} minHeight={360} resizable={false}>
           <AISmartPanel
             symbol={selectedSymbol}
             candles={aiPanelCandles}
@@ -2233,7 +2198,7 @@ export default function RouaChart({
               });
             }}
           />
-        </div>
+        </DraggablePanel>
       )}
 
       {/* ── Command Palette (Ctrl+K) ── */}

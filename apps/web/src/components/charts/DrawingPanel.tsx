@@ -5,6 +5,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DrawingTool } from '@/lib/charts/types';
 import { DRAWING_CATEGORIES } from '@/lib/charts/types';
 import { DrawingManager } from '@/lib/charts/DrawingManager';
@@ -17,6 +18,7 @@ interface DrawingPanelProps {
 }
 
 export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: DrawingPanelProps) {
+  const tc = useTranslations('dashboard.chart');
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
@@ -110,7 +112,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
           fontWeight: 700,
           fontFamily: "'Cairo', sans-serif",
         }}>
-          أدوات الرسم ({allTools.length})
+          {tc('drawingTools')} ({allTools.length})
         </span>
         <button
           onClick={onClose}
@@ -132,7 +134,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         type="text"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="بحث..."
+        placeholder={tc('search')}
         style={{
           width: '100%',
           padding: '5px 8px',
@@ -174,7 +176,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
               transition: 'all 0.12s',
             }}
           >
-            ↖ مؤشر
+            ↖ {tc('cursor')}
           </button>
 
           {/* Category Tabs */}
@@ -276,7 +278,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
         onMouseEnter={e => e.currentTarget.style.background = 'rgba(248,81,73,0.2)'}
         onMouseLeave={e => e.currentTarget.style.background = 'rgba(248,81,73,0.1)'}
       >
-        مسح جميع الرسومات
+        {tc('clearAllDrawings')}
       </button>
     </div>
   );

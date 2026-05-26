@@ -27,12 +27,12 @@ export interface Alert {
 }
 
 const ALERT_TYPE_LABELS: Record<AlertType, string> = {
-  price: 'سعر',
-  indicator: 'مؤشر',
-  pattern: 'نمط',
-  whale: 'حوت',
-  prediction: 'تنبؤ',
-  news: 'أخبار',
+  price: 'price',
+  indicator: 'indicatorType',
+  pattern: 'patternType',
+  whale: 'whale',
+  prediction: 'prediction',
+  news: 'newsType',
 };
 
 const ALERT_TYPE_ICONS: Record<AlertType, string> = {
@@ -96,7 +96,7 @@ export function createAlert(params: {
     active: true,
     triggered: false,
     createdAt: Date.now(),
-    labelAr: params.labelAr || `${ALERT_TYPE_LABELS[params.type]} ${params.direction === 'above' ? 'فوق' : params.direction === 'below' ? 'تحت' : 'تقاطع'} ${params.value}`,
+    labelAr: params.labelAr || `${ALERT_TYPE_LABELS[params.type]} ${params.direction === 'above' ? 'above' : params.direction === 'below' ? 'below' : 'cross'} ${params.value}`,
     notifySound: true,
     notifyBrowser: true,
     notifyTelegram: false,
@@ -115,7 +115,7 @@ export function checkAlert(alert: Alert, currentPrice: number): boolean {
   if (triggered) {
     if (alert.notifyBrowser && typeof window !== 'undefined' && 'Notification' in window) {
       try {
-        const alertTitle = _alertTn ? _alertTn('alertTitle') : 'تنبيه Roua Trading';
+        const alertTitle = _alertTn ? _alertTn('alertTitle') : 'Roua Trading Alert';
         new Notification(alertTitle, {
           body: `${alert.symbol}: ${alert.labelAr}`,
           icon: '/favicon.ico',

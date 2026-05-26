@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface QuickTradePanelProps {
   symbol: string;
@@ -33,6 +34,7 @@ const POPULAR_PAIRS = [
 ];
 
 export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }: QuickTradePanelProps) {
+  const tc = useTranslations('dashboard.chart');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [selectedSymbol, setSelectedSymbol] = useState(symbol);
   const [quantity, setQuantity] = useState('');
@@ -107,7 +109,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 11 }}>⚡</span>
           <span style={{ fontSize: 11, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            تداول سريع
+            {tc('quickTrade')}
           </span>
         </div>
         {onClose && (
@@ -150,7 +152,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
         background: 'rgba(0,0,0,0.2)', borderRadius: 6,
       }}>
         <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 2 }}>
-          السعر الحالي
+          {tc('currentPrice')}
         </div>
         <div style={{
           fontSize: 20, fontWeight: 900, color: C.text,
@@ -175,7 +177,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             transition: 'all 0.15s ease',
           }}
         >
-          BUY
+          {tc('buy')}
         </button>
         <button
           onClick={handleSell}
@@ -189,14 +191,14 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
             transition: 'all 0.15s ease',
           }}
         >
-          SELL
+          {tc('sell')}
         </button>
       </div>
 
       {/* Quantity */}
       <div style={{ marginBottom: 6 }}>
         <label style={{ fontSize: 8, color: C.textMuted, fontFamily: "'Cairo', sans-serif", display: 'block', marginBottom: 2 }}>
-          الكمية
+          {tc('quantity')}
         </label>
         <input
           type="number"
@@ -218,7 +220,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 8, color: C.danger, fontFamily: "'JetBrains Mono', monospace", display: 'block', marginBottom: 2 }}>
-            Stop Loss
+            {tc('stopLoss')}
           </label>
           <input
             type="number"
@@ -236,7 +238,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
         </div>
         <div style={{ flex: 1 }}>
           <label style={{ fontSize: 8, color: C.success, fontFamily: "'JetBrains Mono', monospace", display: 'block', marginBottom: 2 }}>
-            Take Profit
+            {tc('takeProfit')}
           </label>
           <input
             type="number"
@@ -261,7 +263,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
           background: 'rgba(0,0,0,0.2)', borderRadius: 5,
         }}>
           <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'Cairo', sans-serif" }}>
-            نسبة المخاطرة/المكافأة
+            {tc('riskRewardRatio')}
           </span>
           <span style={{
             fontSize: 14, fontWeight: 900,
@@ -290,7 +292,7 @@ export function QuickTradePanel({ symbol, currentPrice, onPlaceOrder, onClose }:
           transition: 'all 0.15s ease',
         }}
       >
-        {side === 'buy' ? '▲ شراء' : '▼ بيع'} {selectedSymbol}
+        {side === 'buy' ? tc('buyArrow') : tc('sellArrow')} {selectedSymbol}
       </button>
     </div>
   );

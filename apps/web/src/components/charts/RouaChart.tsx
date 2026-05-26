@@ -50,6 +50,7 @@ import type { AIAnalysisResult } from './AIPatternPanel';
 import { T } from '@/lib/unified-tokens';
 import { fmtPrice as unifiedFmtPrice } from '@/lib/price-format';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { useTranslations } from 'next-intl';
 
 interface RouaChartProps {
   currentPrice?: number | null;
@@ -159,6 +160,7 @@ export default function RouaChart({
   chartActions,
   onCrosshairDataChange,
 }: RouaChartProps) {
+  const tc = useTranslations('dashboard.chart');
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
@@ -1041,7 +1043,7 @@ export default function RouaChart({
             const names = highConf.map(p => p.labelAr||p.type).join('، ');
             const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join('، ');
             const body = [names, bosNames].filter(Boolean).join(' | ');
-            new Notification(`رؤى — ${selectedSymbol}`, { body, icon: '/favicon.ico' });
+            new Notification(tc('notificationTitle', { symbol: selectedSymbol }), { body, icon: '/favicon.ico' });
           } else if (Notification.permission === 'default') {
             Notification.requestPermission();
           }
@@ -1062,7 +1064,7 @@ export default function RouaChart({
           for (const b of bos) {
             alerter.announceBreakout({
               patternType: b.type,
-              patternTypeAr: b.direction === 'bullish' ? 'كسر هيكلي صعودي' : 'كسر هيكلي هبوطي',
+              patternTypeAr: b.direction === 'bullish' ? tc('bullishBreakout') : tc('bearishBreakout'),
               symbol: selectedSymbol,
               direction: b.direction,
               price: b.price,
@@ -1372,7 +1374,7 @@ export default function RouaChart({
           position: (ee.direction === 'long' ? 'belowBar' : 'aboveBar') as 'belowBar' | 'aboveBar',
           color: '#00D4FF',
           shape: (ee.direction === 'long' ? 'arrowUp' : 'arrowDown') as 'arrowUp' | 'arrowDown',
-          text: ee.direction === 'long' ? 'شراء' : 'بيع',
+          text: ee.direction === 'long' ? tc('buy') : tc('sell'),
         };
       }
       // FIX: Update aiPatterns in state so the useEffect marker combiner picks them up
@@ -1402,23 +1404,23 @@ export default function RouaChart({
     // Validate SL/TP placement
     if (order.side === 'buy') {
       if (order.sl && order.sl >= order.entryPrice) {
-        setOrderError('يجب أن يكون وقف الخسارة أقل من سعر الدخول للشراء');
+        setOrderError(tc('slMustBeBelowBuyEntry'));
         setTimeout(() => setOrderError(null), 3500);
         return;
       }
       if (order.tp && order.tp <= order.entryPrice) {
-        setOrderError('يجب أن يكون جني الأرباح أعلى من سعر الدخول للشراء');
+        setOrderError(tc('tpMustBeAboveBuyEntry'));
         setTimeout(() => setOrderError(null), 3500);
         return;
       }
     } else {
       if (order.sl && order.sl <= order.entryPrice) {
-        setOrderError('يجب أن يكون وقف الخسارة أعلى من سعر الدخول للبيع');
+        setOrderError(tc('slMustBeAboveSellEntry'));
         setTimeout(() => setOrderError(null), 3500);
         return;
       }
       if (order.tp && order.tp >= order.entryPrice) {
-        setOrderError('يجب أن يكون جني الأرباح أقل من سعر الدخول للبيع');
+        setOrderError(tc('tpMustBeBelowSellEntry'));
         setTimeout(() => setOrderError(null), 3500);
         return;
       }
@@ -1783,7 +1785,7 @@ export default function RouaChart({
                     onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                     onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
-                    ▲ شراء
+                    {tc('buyArrow')}
                   </button>
 
                   {/* LOT */}
@@ -1830,7 +1832,7 @@ export default function RouaChart({
                     onMouseEnter={e => (e.currentTarget.style.opacity = '0.85')}
                     onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
                   >
-                    ▼ بيع
+                    {tc('sellArrow')}
                   </button>
                 </div>
               )}

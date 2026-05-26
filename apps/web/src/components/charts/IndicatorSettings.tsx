@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useTranslations } from 'next-intl';
 import type { ActiveIndicator } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 
@@ -16,6 +17,7 @@ interface IndicatorSettingsProps {
 }
 
 export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSettingsProps) {
+  const tc = useTranslations('dashboard.chart');
   const [params, setParams] = useState<Record<string, number>>({ ...indicator.params });
   const [color, setColor] = useState(indicator.color);
   const [opacity, setOpacity] = useState(indicator.opacity);
@@ -66,19 +68,19 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
   };
 
   const paramLabels: Record<string, string> = {
-    period: 'الفترة',
-    stdDev: 'الانحراف المعياري',
-    step: 'الخطوة',
-    max: 'الحد الأقصى',
-    conversion: 'التحويل',
-    base: 'القاعدة',
-    spanB: 'امتداد B',
-    multiplier: 'المضاعف',
-    fast: 'سريع',
-    slow: 'بطيء',
-    signal: 'الإشارة',
-    kPeriod: 'فترة K',
-    dPeriod: 'فترة D',
+    period: tc('period'),
+    stdDev: tc('stdDev'),
+    step: tc('step'),
+    max: tc('max'),
+    conversion: tc('conversion'),
+    base: tc('base'),
+    spanB: tc('spanB'),
+    multiplier: tc('multiplier'),
+    fast: tc('fast'),
+    slow: tc('slow'),
+    signal: tc('signal'),
+    kPeriod: tc('kPeriod'),
+    dPeriod: tc('dPeriod'),
   };
 
   return (
@@ -106,7 +108,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           fontWeight: 700,
           fontFamily: "'Cairo', sans-serif",
         }}>
-          إعدادات {config?.label || indicator.key}
+          {tc('settings')} {config?.label || indicator.key}
         </span>
         <button
           onClick={onClose}
@@ -158,7 +160,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           marginBottom: 3,
           fontFamily: "'Cairo', sans-serif",
         }}>
-          اللون
+          {tc('color')}
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <input
@@ -182,7 +184,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           marginBottom: 3,
           fontFamily: "'Cairo', sans-serif",
         }}>
-          الشفافية: {Math.round(opacity * 100)}%
+          {tc('opacity')}: {Math.round(opacity * 100)}%
         </label>
         <input
           type="range"
@@ -212,7 +214,7 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
           transition: 'all 0.15s',
         }}
       >
-        حفظ الإعدادات
+        {tc('saveSettings')}
       </button>
     </div>
   );

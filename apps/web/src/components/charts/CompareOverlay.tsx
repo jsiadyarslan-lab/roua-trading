@@ -7,6 +7,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface CompareOverlayProps {
   chart: any; // IChartApi from lightweight-charts
@@ -15,6 +16,7 @@ interface CompareOverlayProps {
 }
 
 export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) {
+  const tc = useTranslations('dashboard.chart');
   const seriesRef = useRef<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
       const j = await res.json();
 
       if (!j.success || !j.data || j.data.length === 0) {
-        setError('لا توجد بيانات');
+        setError(tc('noDataCompare'));
         setLoading(false);
         return;
       }
@@ -59,7 +61,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
       unique.sort((a, b) => a.time - b.time);
 
       if (unique.length === 0) {
-        setError('لا توجد بيانات صالحة');
+        setError(tc('noValidDataCompare'));
         setLoading(false);
         return;
       }
@@ -101,10 +103,10 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
       setCurrentPrice(unique[unique.length - 1]?.value ?? null);
       setLoading(false);
     } catch (err) {
-      setError('فشل تحميل البيانات');
+      setError(tc('loadFailedCompare'));
       setLoading(false);
     }
-  }, [chart, symbol]);
+  }, [chart, symbol, tc]);
 
   // ── Load on mount / when symbol changes ──────────────────
   useEffect(() => {
@@ -203,7 +205,7 @@ export function CompareOverlay({ chart, symbol, onClose }: CompareOverlayProps) 
         onMouseLeave={(e) => {
           e.currentTarget.style.background = 'rgba(212,175,55,0.15)';
         }}
-        title="إزالة المقارنة"
+        title={tc('removeComparison')}
       >
         ✕
       </button>

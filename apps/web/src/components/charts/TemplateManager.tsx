@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import type { ChartTemplate } from '@/lib/charts/types';
 import { ChartTemplateManager } from '@/lib/charts/ChartTemplate';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface TemplateManagerProps {
   onLoadTemplate: (id: string) => void;
@@ -18,6 +18,7 @@ interface TemplateManagerProps {
 
 export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: TemplateManagerProps) {
   const locale = useLocale();
+  const tc = useTranslations('dashboard.chart');
   const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const [templates, setTemplates] = useState<ChartTemplate[]>([]);
   const [newName, setNewName] = useState('');
@@ -92,7 +93,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
       {/* Header */}
       <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
         <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          💾 إدارة القوالب
+          💾 {tc('templateManager')}
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
       </div>
@@ -103,7 +104,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
           type="text"
           value={newName}
           onChange={e => setNewName(e.target.value)}
-          placeholder="اسم القالب..."
+          placeholder={tc('templateName')}
           onKeyDown={e => e.key === 'Enter' && handleSave()}
           style={{
             flex: 1,
@@ -133,7 +134,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
             opacity: newName.trim() ? 1 : 0.5,
           }}
         >
-          حفظ
+          {tc('save')}
         </button>
       </div>
 
@@ -141,7 +142,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
       <div style={{ maxHeight: 200, overflowY: 'auto', marginBottom: 8 }}>
         {templates.length === 0 ? (
           <div style={{ textAlign: 'center', color: COLORS.textMuted, fontSize: 9, padding: '10px 0', fontFamily: "'Cairo', sans-serif" }}>
-            لا توجد قوالب محفوظة
+            {tc('noTemplates')}
           </div>
         ) : (
           templates.map(tpl => (
@@ -160,7 +161,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
                   {tpl.name}
                 </div>
                 <div style={{ fontSize: 8, color: COLORS.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
-                  {tpl.indicators.length} {locale === 'ar' ? 'مؤشرات' : 'indicators'} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
+                  {tpl.indicators.length} {tc('indicatorsCount')} • {new Date(tpl.updatedAt).toLocaleDateString(dateLocale)}
                 </div>
               </div>
 
@@ -178,14 +179,14 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
                   fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                تحميل
+                {tc('load')}
               </button>
 
               {/* Export */}
               <button
                 onClick={() => handleExport(tpl.id)}
                 style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 10 }}
-                title="تصدير"
+                title={tc('export')}
               >
                 📤
               </button>
@@ -194,7 +195,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
               <button
                 onClick={() => handleDelete(tpl.id)}
                 style={{ background: 'none', border: 'none', color: COLORS.danger, cursor: 'pointer', fontSize: 10 }}
-                title="حذف"
+                title={tc('delete')}
               >
                 🗑
               </button>
@@ -219,14 +220,14 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
             fontFamily: "'Cairo', sans-serif",
           }}
         >
-          📥 استيراد قالب
+          📥 {tc('importTemplate')}
         </button>
       ) : (
         <div>
           <textarea
             value={importJson}
             onChange={e => setImportJson(e.target.value)}
-            placeholder="الصق JSON القالب هنا..."
+            placeholder={tc('pasteJson')}
             rows={3}
             style={{
               width: '100%',
@@ -257,7 +258,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
-              استيراد
+              {tc('import')}
             </button>
             <button
               onClick={() => { setShowImport(false); setImportJson(''); }}
@@ -273,7 +274,7 @@ export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: Tem
                 fontFamily: "'Cairo', sans-serif",
               }}
             >
-              إلغاء
+              {tc('cancel')}
             </button>
           </div>
         </div>

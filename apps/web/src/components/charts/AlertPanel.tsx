@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Alert, AlertType, createAlert, ALERT_TYPE_LABELS, ALERT_TYPE_ICONS } from './AlertManager';
 
 interface AlertPanelProps {
@@ -72,6 +72,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
   }, []);
 
   const locale = useLocale();
+  const tc = useTranslations('dashboard.chart');
   const formatTime = (ts: number) => {
     const d = new Date(ts);
     return d.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US', { hour: '2-digit', minute: '2-digit' });
@@ -109,10 +110,10 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
           </div>
           <div>
             <div style={{ fontSize: 12, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-              التنبيهات
+              {tc('alerts')}
             </div>
             <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>
-              {symbol} • {alerts.filter(a => a.active).length} نشط
+              {symbol} • {alerts.filter(a => a.active).length} {tc('active')}
             </div>
           </div>
         </div>
@@ -144,7 +145,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
             onMouseLeave={e => { e.currentTarget.style.background = 'rgba(0,212,255,0.1)'; }}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            تنبيه جديد
+            {tc('newAlert')}
           </button>
         ) : (
           <div style={{
@@ -165,7 +166,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                     fontFamily: "'Cairo', sans-serif",
                   }}
                 >
-                  {ALERT_TYPE_ICONS[t]} {ALERT_TYPE_LABELS[t]}
+                  {ALERT_TYPE_ICONS[t]} {tc(ALERT_TYPE_LABELS[t])}
                 </button>
               ))}
             </div>
@@ -173,7 +174,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
             {/* Direction */}
             <div style={{ display: 'flex', gap: 3 }}>
               {(['above', 'below', 'cross'] as const).map(d => {
-                const label = d === 'above' ? 'فوق' : d === 'below' ? 'تحت' : 'تقاطع';
+                const label = d === 'above' ? tc('above') : d === 'below' ? tc('below') : tc('cross');
                 return (
                   <button key={d} onClick={() => setNewDirection(d)} style={{
                     flex: 1, padding: '4px 0',
@@ -193,7 +194,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
               type="number"
               value={newValue}
               onChange={e => setNewValue(e.target.value)}
-              placeholder={currentPrice ? `السعر الحالي: ${currentPrice.toFixed(2)}` : 'القيمة'}
+              placeholder={currentPrice ? tc('currentPriceValue', { price: currentPrice.toFixed(2) }) : tc('value')}
               style={{
                 width: '100%', padding: '6px 8px',
                 background: 'rgba(0,0,0,0.3)', border: `1px solid ${C.border}`,
@@ -216,7 +217,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                إنشاء
+                {tc('create')}
               </button>
               <button
                 onClick={() => { setShowCreate(false); setNewValue(''); }}
@@ -229,7 +230,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                   fontFamily: "'Cairo', sans-serif",
                 }}
               >
-                إلغاء
+                {tc('cancel')}
               </button>
             </div>
           </div>
@@ -264,7 +265,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
                       {alert.labelAr}
                     </div>
                     <div style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
-                      {formatTime(alert.createdAt)} • {ALERT_TYPE_LABELS[alert.type]}
+                      {formatTime(alert.createdAt)} • {tc(ALERT_TYPE_LABELS[alert.type])}
                     </div>
                   </div>
                   <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
@@ -303,7 +304,7 @@ export function AlertPanel({ symbol, currentPrice, onClose }: AlertPanelProps) {
             textAlign: 'center', color: C.textMuted, fontSize: 10,
             padding: '24px 0', fontFamily: "'Cairo', sans-serif",
           }}>
-            لا توجد تنبيهات حالياً
+            {tc('noAlerts')}
           </div>
         )}
       </div>

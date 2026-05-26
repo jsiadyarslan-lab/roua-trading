@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface SessionStatsProps {
   symbol: string;
@@ -36,6 +37,7 @@ const C = {
 };
 
 export function SessionStats({ symbol, onClose }: SessionStatsProps) {
+  const tc = useTranslations('dashboard.chart');
   const [stats, setStats] = useState<SessionData>({
     pnl: 0,
     trades: 0,
@@ -128,13 +130,13 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>⏱️</span>
           <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            إحصائيات الجلسة
+            {tc('sessionStats')}
           </span>
         </div>
         <div style={{ display: 'flex', gap: 3 }}>
           <button
             onClick={handleReset}
-            title="إعادة تعيين"
+            title={tc('reset')}
             style={{
               background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 3,
               color: C.textMuted, width: 16, height: 16, cursor: 'pointer',
@@ -173,11 +175,11 @@ export function SessionStats({ symbol, onClose }: SessionStatsProps) {
         </span>
       </div>
 
-      <StatItem label="الصفقات" value={`${stats.trades}`} />
-      <StatItem label="نسبة النجاح" value={`${winRate}%`} color={Number(winRate) >= 50 ? C.success : C.danger} />
-      <StatItem label="أفضل صفقة" value={`${stats.bestTrade >= 0 ? '+' : ''}${stats.bestTrade.toFixed(2)}`} color={C.success} />
-      <StatItem label="أسوأ صفقة" value={`${stats.worstTrade.toFixed(2)}`} color={C.danger} />
-      <StatItem label="المدة" value={elapsed} color={C.cyan} />
+      <StatItem label={tc('trades')} value={`${stats.trades}`} />
+      <StatItem label={tc('winRate')} value={`${winRate}%`} color={Number(winRate) >= 50 ? C.success : C.danger} />
+      <StatItem label={tc('bestTrade')} value={`${stats.bestTrade >= 0 ? '+' : ''}${stats.bestTrade.toFixed(2)}`} color={C.success} />
+      <StatItem label={tc('worstTrade')} value={`${stats.worstTrade.toFixed(2)}`} color={C.danger} />
+      <StatItem label={tc('duration')} value={elapsed} color={C.cyan} />
     </div>
   );
 }

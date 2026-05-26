@@ -14,9 +14,10 @@
  * Commodities (XAU, XAG): Mon-Fri, 23:00 Sun - 22:00 Fri UTC
  */
 
+import { CRYPTO_BASES as _CRYPTO_BASES } from '@/lib/charts/config'
+
 export type MarketType = 'crypto' | 'forex' | 'stock' | 'commodity' | 'unknown'
 
-const CRYPTO_SYMBOLS = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 const FOREX_SYMBOLS = ['EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'NZD', 'USD']
 const COMMODITY_SYMBOLS = ['XAU', 'XAG', 'XPT', 'XPD']
 const US_STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'AMZN', 'META']
@@ -27,7 +28,7 @@ const US_STOCK_SYMBOLS = ['AAPL', 'TSLA', 'NVDA', 'MSFT', 'GOOGL', 'AMZN', 'META
 export function detectMarketType(symbol: string): MarketType {
   const base = symbol.split('/')[0].toUpperCase().replace('USDT', '').replace('USD', '')
 
-  if (CRYPTO_SYMBOLS.includes(base)) return 'crypto'
+  if (_CRYPTO_BASES.has(base)) return 'crypto'
   if (COMMODITY_SYMBOLS.includes(base)) return 'commodity'
 
   // Forex pairs look like EUR/USD, GBP/USD, USD/JPY

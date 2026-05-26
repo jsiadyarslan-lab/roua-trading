@@ -119,7 +119,7 @@ function generateFallbackQuote(symbol: string) {
   return {
     symbol,
     name: symbol.replace('/', ' / '),
-    exchange: CRYPTO_BASE_CURRENCIES_INTERNAL.includes(base) ? 'Binance' : 'Fallback',
+    exchange: _CRYPTO_BASES.has(base) ? 'Binance' : 'Fallback',
     currency: 'USD',
     price: Number(price.toFixed(price > 100 ? 2 : 6)),
     change: Number(variation.toFixed(2)),
@@ -136,8 +136,6 @@ function generateFallbackQuote(symbol: string) {
     source: 'Live-Fallback',
   }
 }
-
-const CRYPTO_BASE_CURRENCIES_INTERNAL = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 
 function generateFallbackCloses(symbol: string, count = 80): number[] {
   const base = symbol.split('/')[0]

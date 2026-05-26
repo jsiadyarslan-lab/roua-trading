@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdminAuth } from '@/lib/admin-auth'
+import { BINANCE_URLS } from '@/lib/charts/config'
 
 /**
  * GET /api/exchange/diagnostics
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   // ── Binance Status ──
   try {
-    const url = 'https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT'
+    const url = `${BINANCE_URLS.tickerRest}?symbol=BTCUSDT`
     const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) })
     const data = await res.json()
     results.binance = {

@@ -1,6 +1,8 @@
 export type ScannerDirection = 'buy' | 'sell' | 'neutral'
 export type ScannerSignalClass = 'trend' | 'reversion' | 'breakout' | 'watch'
 
+import { CRYPTO_BASES as _CRYPTO_BASES } from '@/lib/charts/config'
+
 export interface MarketContext {
   symbol: string
   timeframe: string
@@ -254,8 +256,7 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
   // Crypto (24/7) is always allowed.
   // ═══════════════════════════════════════════════════
   const base = context.symbol.split('/')[0].toUpperCase()
-  const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
-  const isCrypto = CRYPTO_BASES.includes(base)
+  const isCrypto = _CRYPTO_BASES.has(base)
 
   // ═══════════════════════════════════════════════════
   // DATA QUALITY GATE: For ALL markets (including crypto),

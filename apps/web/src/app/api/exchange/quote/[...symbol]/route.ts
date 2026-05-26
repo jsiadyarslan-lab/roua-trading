@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { CRYPTO_BASES, BINANCE_URLS } from '../../../../../lib/charts/config'
 
 /**
  * GET /api/exchange/quote/[symbol]
@@ -50,8 +51,7 @@ function toNum(v: any): number {
   return isNaN(n) ? 0 : n
 }
 
-// ── Known crypto base currencies (used for symbol normalization) ──
-const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+// ── Known crypto base currencies — imported from centralized config ──
 
 function normalizeRouteSymbol(parts: string[] | string) {
   const joined = Array.isArray(parts) ? parts.join('/') : parts
@@ -496,14 +496,14 @@ async function fetchBinance(symbol: string) {
   let normalizedSymbol = symbol
   if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
     const base = symbol.split('/')[0]
-    if (CRYPTO_BASE_CURRENCIES.includes(base)) {
+    if (CRYPTO_BASES.has(base)) {
       normalizedSymbol = `${base}/USDT`
     }
   }
   // Convert BTC/USDT to BTCUSDT for Binance API
   const binanceSymbol = normalizedSymbol.replace('/', '')
 
-  const url = `https://api.binance.com/api/v3/ticker/24hr?symbol=${encodeURIComponent(binanceSymbol)}`
+  const url = `${BINANCE_URLS.tickerRest}?symbol=${encodeURIComponent(binanceSymbol)}`
   const res = await fetch(url, { next: { revalidate: 5 }, signal: AbortSignal.timeout(8000) })
 
   if (!res.ok) {
@@ -634,7 +634,7 @@ export async function GET(
     const isCrypto = symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency)
     // Also detect well-known crypto pairs specifically
     const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
-    const isCryptoPair = isCrypto || CRYPTO_BASE_CURRENCIES.includes(baseCurrency)
+    const isCryptoPair = isCrypto || CRYPTO_BASES.has(baseCurrency)
 
     let quote: any = null
 

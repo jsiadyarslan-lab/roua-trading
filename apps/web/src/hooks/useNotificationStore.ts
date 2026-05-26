@@ -3,6 +3,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { useAuthStore } from '@/lib/auth-store'
+import { AUDIO_TONES } from '@/lib/charts/config'
 
 /* ══════════════════════════════════════════════════════
    AudioContext Manager — Respects browser autoplay policy
@@ -74,23 +75,23 @@ function playNotifSound(action: string) {
   gain.connect(ctx.destination)
 
   if (action === 'BUY') {
-    osc.frequency.value = 523.25
+    osc.frequency.value = AUDIO_TONES.buy.freq1
     osc.type = 'sine'
     osc.start()
     setTimeout(() => {
-      osc.frequency.value = 659.25
+      osc.frequency.value = AUDIO_TONES.buy.freq2
       setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
     }, 150)
   } else if (action === 'SELL') {
-    osc.frequency.value = 392
+    osc.frequency.value = AUDIO_TONES.sell.freq1
     osc.type = 'sine'
     osc.start()
     setTimeout(() => {
-      osc.frequency.value = 329.63
+      osc.frequency.value = AUDIO_TONES.sell.freq2
       setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
     }, 150)
   } else {
-    osc.frequency.value = 440
+    osc.frequency.value = AUDIO_TONES.default.frequency
     osc.type = 'sine'
     osc.start()
     setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 200)

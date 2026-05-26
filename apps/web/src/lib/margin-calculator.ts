@@ -58,13 +58,8 @@ const FOREX_BASES = new Set([
   'TRY', 'ZAR', 'MXN', 'BRL', 'RUB', 'CNY', 'INR', 'KRW', 'THB',
 ])
 
-// Known crypto base currencies
-const CRYPTO_BASES = new Set([
-  'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT',
-  'AVAX', 'LINK', 'MATIC', 'UNI', 'ATOM', 'LTC', 'SHIB', 'APE',
-  'ARB', 'OP', 'FIL', 'NEAR', 'FTM', 'ALGO', 'VET', 'SAND',
-  'MANA', 'AXS', 'CRV', 'SUI', 'APT', 'SEI', 'TIA', 'JUP',
-])
+// Known crypto base currencies — import from centralized config
+import { CRYPTO_BASES as _CRYPTO_BASES } from '@/lib/charts/config'
 
 /**
  * Detect the asset class of a symbol (forex, gold/silver, or crypto).
@@ -80,7 +75,7 @@ export function getAssetClass(symbol: string): 'forex' | 'gold' | 'crypto' {
 
   // Direct crypto detection
   const baseCurrency = noSlash.replace(/USDT?$/, '').replace(/BUSD$/, '').replace(/USDC$/, '')
-  if (CRYPTO_BASES.has(baseCurrency)) return 'crypto'
+  if (_CRYPTO_BASES.has(baseCurrency)) return 'crypto'
 
   // Normalize USDT → USD for forex lookup
   const usdSymbol = upper.replace(/\/USDT$/, '/USD').replace(/USDT$/, '/USD')

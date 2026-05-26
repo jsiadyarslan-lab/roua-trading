@@ -19,6 +19,8 @@
  * - DeepSeek V3          (DEEPSEEK_API_KEY)       → محلل السيناريوهات (8th model)
  */
 
+import { BINANCE_URLS } from '@/lib/charts/config'
+
 // ─── Types ───────────────────────────────────────────────────────
 
 interface DirectAIResponse {
@@ -225,7 +227,7 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
   const pricePromise = Promise.any([
     // Source 1: Binance (most accurate, but often blocked on Railway)
     (async () => {
-      const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, {
+      const res = await fetch(`${BINANCE_URLS.tickerRest}?symbol=${binanceSymbol}`, {
         signal: AbortSignal.timeout(4000),
       })
       if (!res.ok) throw new Error(`Binance ${res.status}`)
@@ -290,7 +292,7 @@ async function fetchQuickMarketData(symbol: string): Promise<{ price: number; rs
   let rsi = 50
   let macd = 'غير متوفر'
   try {
-    const klinesRes = await fetch(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
+    const klinesRes = await fetch(`${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, {
       signal: AbortSignal.timeout(4000),
     })
     if (klinesRes.ok) {

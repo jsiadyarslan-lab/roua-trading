@@ -26,17 +26,21 @@ export const GLOBAL_SYMBOLS = [
   'AAPL', 'MSFT', 'TSLA', 'NVDA', 'AMZN', 'META',
 ]
 
-const CRYPTO_BASES = ['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX']
+const CRYPTO_BASES_SET = (() => {
+  // Import at module level — avoid circular deps
+  const { CRYPTO_BASES } = require('@/lib/charts/config')
+  return CRYPTO_BASES
+})()
 
 const WS_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
   const base = s.split('/')[0]
   const quote = s.split('/')[1]
-  return CRYPTO_BASES.includes(base) && ['USD','USDT','BUSD'].includes(quote)
+  return CRYPTO_BASES_SET.has(base) && ['USD','USDT','BUSD'].includes(quote)
 })
 
 const NON_CRYPTO_SYMBOLS = GLOBAL_SYMBOLS.filter(s => {
   const base = s.split('/')[0]
-  return !CRYPTO_BASES.includes(base)
+  return !CRYPTO_BASES_SET.has(base)
 })
 
 async function fetchAndStore(symbol: string) {

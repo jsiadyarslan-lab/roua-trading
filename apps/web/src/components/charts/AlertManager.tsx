@@ -5,6 +5,8 @@
 
 'use client'
 
+import { AUDIO_TONES, AUDIO_ALERT_CONFIG } from '@/lib/charts/config'
+
 export type AlertType = 'price' | 'indicator' | 'pattern' | 'whale' | 'prediction' | 'news';
 
 export interface Alert {
@@ -130,7 +132,7 @@ export function checkAlert(alert: Alert, currentPrice: number): boolean {
           const gain = ac.createGain();
           osc.connect(gain);
           gain.connect(ac.destination);
-          osc.frequency.value = alert.type === 'whale' ? 220 : 880;
+          osc.frequency.value = alert.type === 'whale' ? AUDIO_TONES.whale.frequency : AUDIO_ALERT_CONFIG.breakout.frequency;
           gain.gain.value = 0.1;
           osc.start();
           setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect(); }, 200);

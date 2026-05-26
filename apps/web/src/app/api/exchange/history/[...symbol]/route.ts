@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-
-// ── Known crypto base currencies (used for symbol normalization) ──
-const CRYPTO_BASE_CURRENCIES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
+import { CRYPTO_BASES, BINANCE_URLS, BINANCE_INTERVALS, BINANCE_US_REST } from '../../../../../lib/charts/config'
 
 function normalizeRouteSymbol(parts: string[] | string) {
   const joined = Array.isArray(parts) ? parts.join('/') : parts
@@ -205,14 +203,9 @@ export async function GET(
     const quoteCurrency = symbol.includes('/') ? symbol.split('/')[1] : ''
     const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'USD'] // Crypto can use USD too
     const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
-    const isCryptoPair = (symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) && CRYPTO_BASE_CURRENCIES.includes(baseCurrency)) || (!symbol.includes('/') && CRYPTO_BASE_CURRENCIES.includes(symbol))
+    const isCryptoPair = (symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) && CRYPTO_BASES.has(baseCurrency)) || (!symbol.includes('/') && CRYPTO_BASES.has(symbol))
 
-    const intervalMap: Record<string, string> = {
-      '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
-      '1min': '1m', '5min': '5m', '15min': '15m', '30min': '30m',
-      '1h': '1h', '2h': '2h', '4h': '4h', '1day': '1d', '1week': '1w', '1month': '1M', '3month': '3M',
-      '15m': '15m', '1d': '1d'
-    }
+    const intervalMap = BINANCE_INTERVALS
 
     if (isCryptoPair) {
       // ── Crypto History: NestJS ExchangeService → Binance → CoinGecko → Yahoo Finance ──
@@ -245,7 +238,7 @@ export async function GET(
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
           const base = symbol.split('/')[0]
-          if (CRYPTO_BASE_CURRENCIES.includes(base)) {
+          if (CRYPTO_BASES.has(base)) {
             normalizedSymbol = `${base}/USDT`
           }
         }
@@ -255,8 +248,8 @@ export async function GET(
 
         // Try Binance.com first, then Binance.us as fallback
         const binanceEndpoints = [
-          `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
-          `https://api.binance.us/api/v3/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+          `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+          `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
         ]
 
         for (const bUrl of binanceEndpoints) {

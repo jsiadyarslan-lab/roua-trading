@@ -7,6 +7,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ScopedStyle } from '@/components/ScopedStyle';
+import { AUDIO_TONES } from '@/lib/charts/config';
 
 // ── Types ─────────────────────────────────────────────────
 export type PriceAlertDirection = 'above' | 'below';
@@ -108,13 +109,13 @@ function playAlertSound(direction: PriceAlertDirection) {
     osc.connect(gain);
     gain.connect(ac.destination);
     // Higher pitch for "above" alerts, lower for "below"
-    osc.frequency.value = direction === 'above' ? 880 : 440;
+    osc.frequency.value = direction === 'above' ? AUDIO_TONES.above.freq1 : AUDIO_TONES.below.freq1;
     osc.type = 'sine';
     gain.gain.value = 0.12;
     osc.start();
     // Two-tone beep
     setTimeout(() => {
-      osc.frequency.value = direction === 'above' ? 1100 : 330;
+      osc.frequency.value = direction === 'above' ? AUDIO_TONES.above.freq2 : AUDIO_TONES.below.freq2;
     }, 100);
     setTimeout(() => {
       osc.stop();

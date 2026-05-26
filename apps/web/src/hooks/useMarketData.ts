@@ -3,15 +3,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useMarketStore } from './useMarketStore'
 import type { QuoteData } from './useMarketStore'
+import { CRYPTO_BASES } from '../lib/charts/config'
 
 export type { QuoteData } from './useMarketStore'
-
-const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']
 
 function isCryptoPair(symbol: string) {
   const base = symbol.split('/')[0]
   const quote = symbol.split('/')[1]
-  return CRYPTO_BASES.includes(base) || ['USDT', 'BUSD', 'USDC'].includes(quote)
+  return CRYPTO_BASES.has(base) || ['USDT', 'BUSD', 'USDC'].includes(quote)
 }
 
 function normalizeBinanceSymbol(symbol: string) {

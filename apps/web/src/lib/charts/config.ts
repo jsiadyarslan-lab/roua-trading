@@ -36,14 +36,18 @@ export const BINANCE_URLS = {
 
 // ── Binance Interval Mapping ──
 export const BINANCE_INTERVALS: Record<string, string> = {
+  '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
   '1min': '1m', '3min': '3m', '5min': '5m', '15min': '15m', '30min': '30m',
   '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
   '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M', '3month': '3M',
+  '15m': '15m', '1d': '1d', // shorthand aliases
 } as const;
 
 // ── Known Crypto Bases ──
 export const CRYPTO_BASES = new Set([
   'BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI',
+  'ATOM', 'LTC', 'SHIB', 'APE', 'ARB', 'OP', 'FIL', 'NEAR', 'FTM', 'ALGO', 'VET', 'SAND',
+  'MANA', 'AXS', 'CRV', 'SUI', 'APT', 'SEI', 'TIA', 'JUP',
 ]);
 
 // ── FVG Config ──
@@ -99,6 +103,19 @@ export const AUDIO_ALERT_CONFIG = {
   warning: { frequency: 440, duration: 300, repeats: 1 },
   critical: { frequency: 1000, duration: 100, repeats: 5 },
 } as const;
+
+// ── Audio Tones (for trade alerts and price alerts) ──
+export const AUDIO_TONES = {
+  buy: { freq1: 523.25, freq2: 659.25 },
+  sell: { freq1: 392, freq2: 329.63 },
+  default: { frequency: 440 },
+  whale: { frequency: 220 },
+  above: { freq1: 880, freq2: 1100 },
+  below: { freq1: 440, freq2: 330 },
+} as const;
+
+// ── Binance US Fallback URL ──
+export const BINANCE_US_REST = 'https://api.binance.us/api/v3';
 
 // ── Margin Warning Thresholds ──
 export const MARGIN_THRESHOLDS = {

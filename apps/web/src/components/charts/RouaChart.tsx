@@ -2167,7 +2167,7 @@ export default function RouaChart({
 
       {/* AI Smart Panel — uses DraggablePanel (same as all other panels) */}
       {showAIPanel && (
-        <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={340} minHeight={360} resizable={false}>
+        <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={255} minHeight={360} resizable={false}>
           <AISmartPanel
             symbol={selectedSymbol}
             candles={aiPanelCandles}

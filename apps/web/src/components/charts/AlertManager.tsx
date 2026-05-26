@@ -96,7 +96,7 @@ export function createAlert(params: {
     active: true,
     triggered: false,
     createdAt: Date.now(),
-    labelAr: params.labelAr || `${ALERT_TYPE_LABELS[params.type]} ${params.direction === 'above' ? 'above' : params.direction === 'below' ? 'below' : 'cross'} ${params.value}`,
+    labelAr: `${ALERT_TYPE_LABELS[params.type]} ${params.direction === 'above' ? 'above' : params.direction === 'below' ? 'below' : 'cross'} ${params.value}`,
     notifySound: true,
     notifyBrowser: true,
     notifyTelegram: false,

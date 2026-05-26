@@ -1006,7 +1006,7 @@ export default function RouaChart({
         if (cancelled) return; // Check again after async imports
         if ((highConf.length > 0 || bos.length > 0) && 'Notification' in window) {
           if (Notification.permission === 'granted') {
-            const names = highConf.map(p => p.labelAr||p.type).join('، ');
+            const names = highConf.map(p => p.type).join(', ');
             const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join('، ');
             const body = [names, bosNames].filter(Boolean).join(' | ');
             new Notification(tc('notificationTitle', { symbol: selectedSymbol }), { body, icon: '/favicon.ico' });
@@ -1021,7 +1021,7 @@ export default function RouaChart({
           for (const p of highConf) {
             alerter.announce({
               patternType: p.type,
-              patternTypeAr: p.labelAr || p.type,
+              patternTypeAr: p.type,
               symbol: selectedSymbol,
               direction: p.direction,
               confidence: p.confidence,
@@ -1087,8 +1087,9 @@ export default function RouaChart({
       // Harmonic + classic pattern markers (only when harmonic toggle is ON)
       if (showHarmonic) {
         result.patterns.filter((p: any) => p.shapeType === 'harmonic' || p.shapeType === 'classic' || ['Gartley','Butterfly','Bat','Crab'].includes(p.type)).forEach((p: any) => {
-          const t = snapTime(p.time as number);
-          if (!usedT.has(t)) { usedT.add(t); directMarkers.push({ time: t as any, position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as any, color: p.shapeType === 'harmonic' ? '#c084fc' : p.direction === 'bullish' ? '#00FFA3' : '#FF4757', shape: 'circle' as any, text: (p.labelAr||p.type).slice(0,6) }); }
+          let t = p.time as number;
+          if (candleTimes.length > 0) t = candleTimes.reduce((a: number, b: number) => Math.abs(b-t) < Math.abs(a-t) ? b : a);
+          if (!usedT.has(t)) { usedT.add(t); directMarkers.push({ time: t as any, position: (p.direction === 'bullish' ? 'belowBar' : 'aboveBar') as any, color: p.shapeType === 'harmonic' ? '#c084fc' : p.direction === 'bullish' ? '#00FFA3' : '#FF4757', shape: 'circle' as any, text: p.type.slice(0,6) }); }
         });
       }
     }
@@ -1505,13 +1506,13 @@ export default function RouaChart({
               addOverlayLine(lineData, {
                 color: col, lineWidth: 2, lineStyle: 0,
                 priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-                title: pat.labelAr || pat.type,
+                title: pat.type,
               });
             }
           }
           // Target line (with dashed style)
           if (pat.target && pat.target > 0) {
-            chart.addPriceLine(`geo-tgt-${i}`, pat.target, col, `هدف ${pat.labelAr||pat.type}`, 2, 2, true);
+            chart.addPriceLine(`geo-tgt-${i}`, pat.target, col, `TGT ${pat.type}`, 2, 2, true);
             aiPriceLinesRef.current.push(`geo-tgt-${i}`);
           }
           // Stop loss line
@@ -1524,7 +1525,7 @@ export default function RouaChart({
             const t = snapTime(pat.endTime);
             if (!usedT.has(t)) {
               usedT.add(t);
-              directMarkers.push({ time: t as any, position: (isBull ? 'belowBar' : 'aboveBar') as any, color: isBull ? '#00FFA3' : '#FF4757', shape: 'circle' as any, text: (pat.labelAr || pat.type || '').slice(0, 6) });
+              directMarkers.push({ time: t as any, position: (isBull ? 'belowBar' : 'aboveBar') as any, color: isBull ? '#00FFA3' : '#FF4757', shape: 'circle' as any, text: (pat.type || '').slice(0, 6) });
             }
           }
         });
@@ -1641,12 +1642,12 @@ export default function RouaChart({
 
           w.events.forEach((ev: any, i: number) => {
             if (ev.price > 0) {
-              chart.addPriceLine(`wy-ev-${i}`, ev.price, colLine, `وايكوف: ${ev.labelAr}`, 2, 0, true);
+              chart.addPriceLine(`wy-ev-${i}`, ev.price, colLine, `Wyckoff: ${ev.type}`, 2, 0, true);
               aiPriceLinesRef.current.push(`wy-ev-${i}`);
             }
             if (ev.time && !usedT.has(ev.time)) {
               usedT.add(ev.time);
-              directMarkers.push({ time: ev.time as any, position: (w.bias === 'bullish' ? 'belowBar' : 'aboveBar') as any, color: colLine, shape: 'square' as any, text: ev.labelAr?.slice(0, 4) || w.labelAr?.slice(0, 4) || 'W' });
+              directMarkers.push({ time: ev.time as any, position: (w.bias === 'bullish' ? 'belowBar' : 'aboveBar') as any, color: colLine, shape: 'square' as any, text: ev.type?.slice(0, 4) || w.phase?.slice(0, 4) || 'W' });
             }
           });
 
@@ -1874,7 +1875,7 @@ export default function RouaChart({
         }
         if (usedTimes.has(t)) return;
         usedTimes.add(t);
-        const label = p.labelAr || p.type;
+        const label = p.type;
         const shortLabel = label.length > 6 ? label.slice(0, 6) : label;
         combinedMarkers.push({
           time: t as any,

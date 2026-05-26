@@ -299,15 +299,15 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
     score += 1.2
     signalClass = 'trend'
     entryBias = 'follow'
-    reasons.push('زخم صعودي قوي')
+    reasons.push('Strong bullish momentum')
   } else if (change < -1.25) {
     score -= 1.2
     signalClass = 'trend'
     entryBias = 'follow'
-    reasons.push('زخم هبوطي قوي')
+    reasons.push('Strong bearish momentum')
   } else if (Math.abs(change) > 0.45) {
     score += change > 0 ? 0.45 : -0.45
-    reasons.push(change > 0 ? 'ميل صعودي قصير' : 'ميل هبوطي قصير')
+    reasons.push(change > 0 ? 'Short-term bullish lean' : 'Short-term bearish lean')
   }
 
   if (closes.length >= 20) {
@@ -315,47 +315,47 @@ export function buildScannerResult(context: MarketContext): ScannerResult | null
       score += 2.2
       signalClass = 'reversion'
       entryBias = 'fade'
-      reasons.push(`تشبع بيعي (RSI ${Math.round(rsi)})`)
+      reasons.push(`Oversold (RSI ${Math.round(rsi)})`)
     } else if (rsi > 70) {
       score -= 2.2
       signalClass = 'reversion'
       entryBias = 'fade'
-      reasons.push(`تشبع شرائي (RSI ${Math.round(rsi)})`)
+      reasons.push(`Overbought (RSI ${Math.round(rsi)})`)
     } else if (rsi < 45) {
       score += 0.65
-      reasons.push('ميل صعودي')
+      reasons.push('Bullish lean')
     } else if (rsi > 55) {
       score -= 0.65
-      reasons.push('ميل هبوطي')
+      reasons.push('Bearish lean')
     }
 
     if (ema20 > ema50) {
       score += 0.5
-      reasons.push('EMA20 أعلى من EMA50')
+      reasons.push('EMA20 above EMA50')
     } else if (ema20 < ema50) {
       score -= 0.5
-      reasons.push('EMA20 أسفل EMA50')
+      reasons.push('EMA20 below EMA50')
     }
 
     if (Math.abs(slope20) > 0.08) {
       score += slope20 > 0 ? 0.4 : -0.4
-      reasons.push(slope20 > 0 ? 'المتوسط يتسارع صعودًا' : 'المتوسط يتسارع هبوطًا')
+      reasons.push(slope20 > 0 ? 'MA accelerating upward' : 'MA accelerating downward')
     }
 
     if (rangeExpansion > 2.2) {
       signalClass = signalClass === 'watch' ? 'breakout' : signalClass
       score += change > 0 ? 0.55 : change < 0 ? -0.55 : 0
-      reasons.push('اتساع نطاق الحركة')
+      reasons.push('Range expansion')
     }
   } else if (Math.abs(change) > 0.8) {
     score += change > 0 ? 0.75 : -0.75
-    reasons.push('إشارة مبنية على الزخم السعري فقط')
+    reasons.push('Signal based on price momentum only')
   }
 
   // Note: 'degraded' freshness is already blocked above (returns null)
   // so this only handles 'fresh' and 'stale'
-  if (isStaleNonCrypto) reasons.push('بيانات قديمة — السوق قد يكون مغلقاً')
-  else reasons.push(`المصدر: ${context.source}`)
+  if (isStaleNonCrypto) reasons.push('Stale data — market may be closed')
+  else reasons.push(`Source: ${context.source}`)
 
   const dir: ScannerDirection = score > 0.45 ? 'buy' : score < -0.45 ? 'sell' : 'neutral'
   const strength = Math.min(98, Math.max(50, Math.round(50 + Math.abs(score) * 15)))
@@ -456,10 +456,10 @@ export async function buildMultiTimeframeSnapshot(origin: string, symbol: string
 
   const executionHint =
     alignment === 'strong'
-      ? (biasScore > 0 ? 'مسموح دخول مع الاتجاه' : 'مسموح دخول بيعي مع الاتجاه')
+      ? (biasScore > 0 ? 'Entry allowed with trend' : 'Short entry allowed with trend')
       : alignment === 'mixed'
-        ? 'انتظار تأكيد من إطار أدنى'
-        : 'ممنوع دخول ضد الإطار الأعلى'
+        ? 'Wait for confirmation from lower timeframe'
+        : 'No counter-trend entry against higher timeframe'
 
   return {
     results,

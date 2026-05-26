@@ -32,6 +32,27 @@ const C = {
   purple: '#a78bfa', gold: '#d4af37', blue: '#3b82f6',
 };
 
+// ── Map Geometric type → aiSmartPanel i18n key ──
+const GEO_TYPE_TO_I18N: Record<string, string> = {
+  'Double Top': 'patternDoubleTop',
+  'Double Bottom': 'patternDoubleBottom',
+  'Head and Shoulders': 'patternHeadAndShoulders',
+  'Ascending Triangle': 'patternAscendingTriangle',
+  'Descending Triangle': 'patternDescendingTriangle',
+  'Rising Wedge': 'patternRisingWedge',
+  'Falling Wedge': 'patternFallingWedge',
+  'Symmetrical Triangle': 'patternSymmetricalTriangle',
+};
+
+// ── Map Wyckoff phase → aiSmartPanel i18n key ──
+const WYCKOFF_PHASE_TO_I18N: Record<string, string> = {
+  'Accumulation': 'overlayWyckoff',
+  'Markup': 'bullish',
+  'Distribution': 'bearish',
+  'Markdown': 'bearish',
+  'Unknown': 'neutral',
+};
+
 // Pattern name key mapping for i18n
 const PATTERN_KEYS: Record<string, string> = {
   'Doji': 'patternDoji',
@@ -330,7 +351,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         const timer = setTimeout(() => controller.abort(), 20000);
 
         // SSE streaming — models appear one by one
-        const sseParams = new URLSearchParams({ symbol: sym, language: locale === 'en' ? 'en' : 'ar' });
+        const sseParams = new URLSearchParams({ symbol: sym, language: locale });
         const eventSource = new EventSource(`/api/ai/consensus-stream?${sseParams}`);
 
         const sseResult = await new Promise<any>((resolve, reject) => {
@@ -395,7 +416,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           });
 
           if ((sseResult.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
-            fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
+            fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
           }
           consensusSucceeded = true;
         }
@@ -410,7 +431,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const r = await fetch('/api/ai/consensus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: sym }),
+            body: JSON.stringify({ symbol: sym, language: locale }),
             signal: abortRef.current.signal,
           });
           clearTimeout(timer);
@@ -447,7 +468,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               });
 
               if ((d.data.consensusScore || 0) >= 65 && mergedDir !== 'WAIT') {
-                fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.labelAr||p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
+                fetch('/api/ai/alert', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: sym, signal: mergedDir, patterns: unique.slice(0,3).map((p:any)=>p.type), smcBreaks: smcData.structureBreaks.map((b:any)=>b.type+' '+(b.direction==='bullish'?'↑':'↓')), entry: adaptiveTPSL.entry, sl: adaptiveTPSL.stopLoss, tp: adaptiveTPSL.takeProfit, confidence: mergedConf }) }).catch(()=>{});
               }
               consensusSucceeded = true;
             }
@@ -839,7 +860,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {wyckoffData && wyckoffData.phase !== 'Unknown' && (
               <div style={{ background: C.card, border: `1px solid ${wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow}30`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
                 <div style={{ color: C.dim, fontSize: 8, marginBottom: 3 }}>{t('wyckoff')}</div>
-                <div style={{ color: wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow, fontSize: 13, fontWeight: 800 }}>{wyckoffData.labelAr}</div>
+                <div style={{ color: wyckoffData.bias==='bullish'?C.green:wyckoffData.bias==='bearish'?C.red:C.yellow, fontSize: 13, fontWeight: 800 }}>{t(WYCKOFF_PHASE_TO_I18N[wyckoffData.phase] || 'overlayWyckoff')}</div>
                 <div style={{ color: C.mut, fontSize: 8.5, marginTop: 2 }}>{Math.round((wyckoffData.confidence||0)*100)}% {t('confidence')}</div>
               </div>
             )}
@@ -868,7 +889,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   const col = g.direction==='bullish'?C.green:g.direction==='bearish'?C.red:C.yellow;
                   return (
                     <div key={i} style={{ display:'flex', justifyContent:'space-between', padding:'5px 8px', borderRadius:5, background:C.card, marginBottom:3, border:`1px solid ${col}18` }}>
-                      <span style={{ color:col, fontSize:9.5, fontWeight:600 }}>{g.direction==='bullish'?'▲':'▼'} {g.labelAr}</span>
+                      <span style={{ color:col, fontSize:9.5, fontWeight:600 }}>{g.direction==='bullish'?'▲':'▼'} {t(GEO_TYPE_TO_I18N[g.type] || g.type)}</span>
                       <span style={{ color:C.mut, fontSize:8 }}>{Math.round(g.confidence*100)}%</span>
                     </div>
                   );

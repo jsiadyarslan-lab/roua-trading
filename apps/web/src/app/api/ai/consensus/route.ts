@@ -270,11 +270,12 @@ function getNestJSStatus() {
  * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
-  let language: 'ar' | 'en' = 'ar'
+  let language: 'ar' | 'en' | 'fr' | 'tr' = 'en'
   try {
     const body = await req.json()
     const symbol = body.symbol || 'BTC/USD'
-    language = body.language === 'en' ? 'en' : 'ar'
+    const rawLang = body.language || 'en'
+    language = (['ar', 'en', 'fr', 'tr'].includes(rawLang) ? rawLang : 'en') as 'ar' | 'en' | 'fr' | 'tr'
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 

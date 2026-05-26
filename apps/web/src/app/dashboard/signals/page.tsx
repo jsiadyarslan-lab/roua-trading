@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Zap,
@@ -82,9 +83,9 @@ const QUICK_PAIRS = [
 ]
 
 // ── Signal type config ──
-function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT') {
+function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT', t: (key: string) => string) {
   if (action === 'BUY') return {
-    label: 'شراء',
+    label: t('buy'),
     Icon: TrendingUp,
     color: 'var(--profit)',
     bgColor: 'var(--profit-bg)',
@@ -93,7 +94,7 @@ function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT') {
     glowColor: 'rgba(0, 255, 198, 0.15)',
   }
   if (action === 'SELL') return {
-    label: 'بيع',
+    label: t('sell'),
     Icon: TrendingDown,
     color: 'var(--loss)',
     bgColor: 'var(--loss-bg)',
@@ -102,7 +103,7 @@ function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT') {
     glowColor: 'rgba(255, 77, 77, 0.15)',
   }
   return {
-    label: 'انتظار',
+    label: t('hold'),
     Icon: Minus,
     color: 'var(--warning)',
     bgColor: 'var(--warning-bg)',
@@ -114,7 +115,8 @@ function getSignalConfig(action: 'BUY' | 'SELL' | 'WAIT') {
 
 // ── Signal Card Component ──
 function SignalCard({ signal, index, onRefresh, onCancel, onExecute }: { signal: Signal; index: number; onRefresh: (pair: string) => void; onCancel: (id: string) => void; onExecute: (signal: Signal) => void }) {
-  const config = getSignalConfig(signal.action)
+  const t = useTranslations('common')
+  const config = getSignalConfig(signal.action, t)
   const { Icon } = config
 
   const formatPrice = (p: number | null) =>

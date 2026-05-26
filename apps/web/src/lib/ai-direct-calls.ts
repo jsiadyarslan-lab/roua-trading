@@ -1781,15 +1781,15 @@ export async function runDirectCouncilConsensus(symbol: string, language: 'ar' |
   const uniqueModels = [...new Set(analyses.map(a => a.model))]
   const modelsRespondedCount = uniqueModels.length
 
-  const recLabel = recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار'
-  const recStrength = consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل'
-  const masterStrategy = `إجماع مجلس الذكاء الاصطناعي (${filledRoles} أدوار من ${modelsRespondedCount} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`
+  const recLabel = recommendation === 'BUY' ? 'Buy' : recommendation === 'SELL' ? 'Sell' : 'Hold'
+  const recStrength = consensusScore >= 80 ? 'Strong' : consensusScore >= 60 ? 'Clear' : 'Probable'
+  const masterStrategy = `AI Council Consensus (${filledRoles} roles from ${modelsRespondedCount} models): ${recLabel} ${recStrength} with ${consensusScore}% confidence.`
 
   const conflictExplanation = filledRoles < 4
-    ? `بعض النماذج لم تستجب — النماذج المتاحة (${uniqueModels.join('، ')}) توصلت لإجماع.`
+    ? `Some models did not respond — available models (${uniqueModels.join(', ')}) reached consensus.`
     : filledRoles >= 5
-      ? 'الأدوار متوافقة نسبياً مع تغطية واسعة.'
-      : 'الأدوار الأساسية متوافقة نسبياً.'
+      ? 'Roles are relatively aligned with broad coverage.'
+      : 'Core roles are relatively aligned.'
 
   // Source determination: real-ai if 3+ roles filled, partial-ai if 1-2
   const source = analyses.length >= 3 ? 'real-ai' : 'partial-ai'

@@ -52,7 +52,7 @@ function mapUnifiedSignal(result: ScannerResult) {
     tp: signal.tp,
     sl: signal.sl,
     conf: signal.confidence,
-    reason: result.reasons.slice(0, 2).join('، ') || 'إشارة مبنية على المسح الفني',
+    reason: result.reasons.slice(0, 2).join(', ') || 'Signal based on technical scan',
     time: formatTime(signal.createdAt),
     timeframe: signal.timeframe,
     sourceEngine: signal.sourceEngine,

@@ -439,7 +439,7 @@ export function AIPatternPanel({
           for (const p of detectedPatterns) {
             audioAlerterRef.current.announce({
               patternType: p.type,
-              patternTypeAr: p.labelAr || p.type,
+              patternTypeAr: p.type,
               symbol,
               direction: p.direction,
               confidence: p.confidence,
@@ -990,7 +990,7 @@ export function AIPatternPanel({
                           fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}>
-                          {t(PATTERN_KEYS[p.type] || p.type) || p.labelAr}
+                          {t(PATTERN_KEYS[p.type] || p.type)}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
                             fontFamily: "'JetBrains Mono', monospace",

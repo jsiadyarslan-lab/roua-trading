@@ -49,3 +49,4 @@ PROGRESS.md
 
 # Docker
 docker-compose*.yml
+apps/api/node_modules/

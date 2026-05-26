@@ -1,84 +1,55 @@
-'use client'
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Root not-found.tsx — Minimal, no i18n
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// This page is rendered when a URL doesn't match any route BEFORE
+// the [locale] segment is matched (e.g., truly invalid paths).
+// It's outside the NextIntlClientProvider, so it can't use translations.
+// The locale-aware version at [locale]/not-found.tsx handles most 404s.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Link } from '@/i18n/navigation'
-import { Home, ArrowLeft } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import Link from 'next/link'
 
-export default function NotFound() {
-  const t = useTranslations('notFound')
-
+export default function RootNotFound() {
   return (
-    <div
-      className="min-h-screen flex items-center justify-center px-4"
-      style={{
-        background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 50%), #06090f',
-      }}
-    >
-      <div className="text-center max-w-md">
-        {/* 404 Number */}
+    <html lang="ar" dir="rtl">
+      <body>
         <div
-          className="text-[120px] sm:text-[160px] font-bold leading-none mb-2"
+          className="min-h-screen flex items-center justify-center px-4"
           style={{
-            fontFamily: 'var(--font-brand)',
-            background: 'linear-gradient(135deg, #10B981 0%, #3B82F6 50%, #8B5CF6 100%)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
+            background: 'radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.06) 0%, transparent 50%), #06090f',
           }}
         >
-          404
+          <div className="text-center max-w-md">
+            <div
+              className="text-[120px] sm:text-[160px] font-bold leading-none mb-2"
+              style={{
+                background: 'linear-gradient(135deg, #10B981 0%, #3B82F6 50%, #8B5CF6 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              404
+            </div>
+            <h1 className="text-2xl font-bold mb-3" style={{ color: '#E2E8F0' }}>
+              الصفحة غير موجودة
+            </h1>
+            <p className="text-sm mb-8" style={{ color: '#64748B' }}>
+              عذراً، الصفحة التي تبحث عنها غير موجودة أو تم نقلها
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300"
+              style={{
+                background: 'linear-gradient(135deg, #059669, #10B981)',
+                color: '#fff',
+              }}
+            >
+              العودة للرئيسية
+            </Link>
+          </div>
         </div>
-
-        {/* Arabic message */}
-        <h1
-          className="text-2xl font-bold mb-3"
-          style={{
-            fontFamily: 'var(--font-ar)',
-            color: '#E2E8F0',
-          }}
-        >
-          {t('title')}
-        </h1>
-
-        <p
-          className="text-sm mb-8"
-          style={{
-            fontFamily: 'var(--font-ar)',
-            color: '#64748B',
-          }}
-        >
-          {t('description')}
-        </p>
-
-        {/* Action Buttons */}
-        <div className="flex items-center justify-center gap-4">
-          <Link
-            href="/dashboard"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-bold transition-all duration-300 hover:shadow-[0_0_30px_rgba(16,185,129,0.25)]"
-            style={{
-              background: 'linear-gradient(135deg, #059669, #10B981)',
-              color: '#fff',
-              fontFamily: 'var(--font-ar)',
-            }}
-          >
-            <Home className="w-4 h-4" />
-            {t('dashboard')}
-          </Link>
-
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-medium transition-all duration-300 hover:bg-white/5"
-            style={{
-              border: '1px solid rgba(148,163,184,0.15)',
-              color: '#94A3B8',
-              fontFamily: 'var(--font-ar)',
-            }}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {t('home')}
-          </Link>
-        </div>
-      </div>
-    </div>
+      </body>
+    </html>
   )
 }

@@ -113,6 +113,10 @@ export interface Notification {
   confidence?: number
   timestamp: number
   read: boolean
+  /** i18n key — maps to notificationTypes.{notificationType}.title/body */
+  notificationType?: string
+  /** Parameters for i18n interpolation */
+  params?: Record<string, string | number>
 }
 
 interface NotifSettings {

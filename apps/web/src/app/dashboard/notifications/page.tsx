@@ -32,6 +32,25 @@ import { useNotificationStore, Notification as StoreNotification } from '@/hooks
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 
+/* ══ Notification i18n Helper ══════════════════════════════ */
+function getLocalizedNotifText(
+  n: StoreNotification,
+  tnt: (key: string, params?: Record<string, string | number>) => string,
+): { title: string; description: string } {
+  if (n.notificationType) {
+    try {
+      const params = (n.params || {}) as Record<string, string | number>
+      return {
+        title: tnt(`${n.notificationType}.title`, params),
+        description: tnt(`${n.notificationType}.body`, params),
+      }
+    } catch {
+      // Fallback to raw text if translation key missing
+    }
+  }
+  return { title: n.title, description: n.body }
+}
+
 /* ═══════════════════════════════════════════════════════════
    Types
    ═══════════════════════════════════════════════════════════ */
@@ -618,6 +637,7 @@ export default function NotificationsPage() {
 
   const t = useTranslations('dashboard.notifications')
   const tc = useTranslations('common')
+  const tnt = useTranslations('notificationTypes')
   const CATEGORY_CONFIG = getCategoryConfig(t)
 
   // Use REAL notification store data instead of mock
@@ -636,8 +656,7 @@ export default function NotificationsPage() {
     return {
       id: n.id,
       category: categoryMap[n.source] || 'system',
-      title: n.title,
-      description: n.body,
+      ...getLocalizedNotifText(n, tnt),
       timestamp: new Date(n.timestamp),
       read: n.read,
       signalDirection: n.action === 'BUY' ? 'BUY' : n.action === 'SELL' ? 'SELL' : undefined,
@@ -646,7 +665,7 @@ export default function NotificationsPage() {
       priceSymbol: n.pair,
       priceCurrent: n.price,
     }
-  }), [storeNotifications])
+  }), [storeNotifications, tnt])
 
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())

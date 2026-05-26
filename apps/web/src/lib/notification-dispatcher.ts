@@ -5,18 +5,46 @@
  * and sends notifications via Telegram and Browser Push
  *
  * This is the missing link: Admin panel saves settings ← this file reads and sends
+ *
+ * i18n Strategy:
+ * - Telegram messages use Arabic (admin audience is primarily Arabic)
+ * - Browser push notifications store the notificationType + params in data
+ *   so the frontend can translate them using the user's locale
+ * - The title/body fields are kept as Arabic fallback for legacy clients
+ *   that don't support the new translation system
  */
 
 import { db, ensureDbReady } from '@/lib/db'
 
 // ── Notification types ──
 
+export type NotificationTypeKey =
+  | 'new_user'
+  | 'subscription_upgrade'
+  | 'system_error'
+  | 'performance_alert'
+  | 'large_trade'
+  | 'system_update'
+  | 'new_report'
+  | 'signal_generated'
+  | 'order_filled'
+  | 'order_rejected'
+  | 'risk_warning'
+  | 'position_closed'
+  | 'position_opened'
+  | 'execution_failed'
+  | 'price_alert'
+
 export interface NotificationEvent {
-  type: 'new_user' | 'subscription_upgrade' | 'system_error' | 'performance_alert' | 'large_trade' | 'system_update' | 'new_report'
+  type: NotificationTypeKey
   title: string
   body: string
   severity?: 'info' | 'warning' | 'error' | 'success'
   data?: Record<string, any>
+  /** i18n translation key — maps to notificationTypes.{key}.title/body */
+  notificationType?: string
+  /** Parameters for i18n translation interpolation */
+  params?: Record<string, string | number>
 }
 
 interface TelegramConfig {
@@ -185,12 +213,13 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
     return results
   }
 
-  // Send via Telegram
+  // Send via Telegram (Arabic text — admin audience)
   if (config.telegram) {
     results.telegram = await sendTelegram(config.telegram, event)
   }
 
   // Send via browser — store in DB for client pickup
+  // Include notificationType + params so frontend can translate to user's locale
   if (config.browser) {
     try {
       // Store for browser push pickup
@@ -204,6 +233,9 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
             body: event.body,
             severity: event.severity,
             source: event.type,
+            // i18n translation data — frontend uses these to translate
+            notificationType: event.notificationType || event.type,
+            params: event.params || {},
             data: event.data || {},
             read: false,
             createdAt: new Date().toISOString(),
@@ -227,6 +259,8 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
 }
 
 // ── Helper functions for common events ──
+// Each sends both Arabic title/body (for Telegram) AND
+// notificationType + params (for frontend i18n translation)
 
 export async function notifyNewUser(userEmail: string, displayName?: string) {
   return dispatchNotification({
@@ -234,6 +268,8 @@ export async function notifyNewUser(userEmail: string, displayName?: string) {
     title: 'مستخدم جديد',
     body: `تم تسجيل مستخدم جديد: ${displayName || userEmail}\nالبريد: ${userEmail}`,
     severity: 'info',
+    notificationType: 'newUser',
+    params: { name: displayName || userEmail, email: userEmail },
     data: { email: userEmail, displayName },
   })
 }
@@ -244,6 +280,8 @@ export async function notifySubscriptionUpgrade(userEmail: string, fromTier: str
     title: 'ترقية الاشتراك',
     body: `المستخدم ${userEmail} قام بالترقية من ${fromTier} إلى ${toTier}`,
     severity: 'success',
+    notificationType: 'subscriptionUpgrade',
+    params: { email: userEmail, fromTier, toTier },
     data: { email: userEmail, fromTier, toTier },
   })
 }
@@ -254,6 +292,8 @@ export async function notifySystemError(error: string, context?: string) {
     title: 'خطأ في النظام',
     body: `${context ? `[${context}] ` : ''}${error.slice(0, 300)}`,
     severity: 'error',
+    notificationType: 'systemError',
+    params: { context: context ? `[${context}] ` : '', error: error.slice(0, 300) },
     data: { error, context },
   })
 }
@@ -264,6 +304,8 @@ export async function notifyPerformanceAlert(metric: string, value: number, thre
     title: 'تنبيه أداء',
     body: `${metric} = ${value} (الحد: ${threshold})`,
     severity: 'warning',
+    notificationType: 'performanceAlert',
+    params: { metric, value, threshold },
     data: { metric, value, threshold },
   })
 }
@@ -274,6 +316,8 @@ export async function notifyLargeTrade(symbol: string, amount: number, userId: s
     title: 'صفقة كبيرة',
     body: `صفقة كبيرة على ${symbol} بمبلغ ${amount}\nالمستخدم: ${userId}`,
     severity: 'warning',
+    notificationType: 'largeTrade',
+    params: { symbol, amount, userId },
     data: { symbol, amount, userId },
   })
 }
@@ -284,6 +328,8 @@ export async function notifySystemUpdate(message: string) {
     title: 'تحديث النظام',
     body: message,
     severity: 'info',
+    notificationType: 'systemUpdate',
+    params: { message },
   })
 }
 
@@ -308,6 +354,8 @@ export async function notifyNewReport(titleAr: string, type: string, category: s
     title: `${emoji} تقرير جديد`,
     body: `📌 ${titleAr}\n📂 التصنيف: ${category}\n🏷️ الأصول: ${symbolsStr}\n\n⚠️ هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية`,
     severity: 'info',
+    notificationType: 'newReport',
+    params: { emoji, title: titleAr, category, symbols: symbolsStr },
     data: { titleAr, type, category, symbols },
   })
 }

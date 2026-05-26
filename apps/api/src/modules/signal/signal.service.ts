@@ -249,6 +249,14 @@ ${newsContext ? `📰 أخبار ذات صلة:\n${newsContext}` : ''}
           stopLoss: parsed.stopLoss,
           takeProfit: parsed.takeProfit,
           signalBoost: Math.round(signalBoost * 100) / 100,
+          // i18n data for frontend translation
+          notificationType: 'signalGenerated',
+          params: {
+            direction: parsed.action === 'BUY' ? 'Buy' : parsed.action === 'SELL' ? 'Sell' : 'Wait',
+            pair,
+            confidence: parsed.confidence,
+            reason: parsed.reason.substring(0, 100),
+          },
         },
         source: parsed.action === 'WAIT' ? 'ai' : 'scanner',
         action: parsed.action === 'BUY' ? 'BUY' : parsed.action === 'SELL' ? 'SELL' : 'INFO',

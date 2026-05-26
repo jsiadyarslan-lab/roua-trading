@@ -54,6 +54,13 @@ def send_push_notification(
             "symbol": symbol,
             "condition": condition,
             "targetPrice": target_price,
+            # i18n data for frontend translation
+            "notificationType": "priceAlert",
+            "params": {
+                "symbol": symbol,
+                "condition": condition_text,
+                "targetPrice": str(target_price),
+            },
         },
     }
 

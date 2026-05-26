@@ -4407,5 +4407,67 @@
     "chatEmpty": "اسأل مدرب الذكاء الاصطناعي أي شيء عن أداء التداول الخاص بك...",
     "coachThinking": "جاري التحليل...",
     "chatPlaceholder": "اسأل عن أدائك..."
+  },
+  "notificationTypes": {
+    "newUser": {
+      "title": "مستخدم جديد",
+      "body": "تم تسجيل مستخدم جديد: {name}\nالبريد: {email}"
+    },
+    "subscriptionUpgrade": {
+      "title": "ترقية الاشتراك",
+      "body": "المستخدم {email} قام بالترقية من {fromTier} إلى {toTier}"
+    },
+    "systemError": {
+      "title": "خطأ في النظام",
+      "body": "{context}{error}"
+    },
+    "performanceAlert": {
+      "title": "تنبيه أداء",
+      "body": "{metric} = {value} (الحد: {threshold})"
+    },
+    "largeTrade": {
+      "title": "صفقة كبيرة",
+      "body": "صفقة كبيرة على {symbol} بمبلغ {amount}\nالمستخدم: {userId}"
+    },
+    "systemUpdate": {
+      "title": "تحديث النظام",
+      "body": "{message}"
+    },
+    "newReport": {
+      "title": "{emoji} تقرير جديد",
+      "body": "📌 {title}\n📂 التصنيف: {category}\n🏷️ الأصول: {symbols}\n\n⚠️ هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية"
+    },
+    "signalGenerated": {
+      "title": "إشارة {direction} {pair}",
+      "body": "ثقة: {confidence}% — {reason}"
+    },
+    "orderFilled": {
+      "title": "تم تنفيذ أمر {direction} {symbol}",
+      "body": "تم تنفيذ {quantity} {symbol} بسعر {price}"
+    },
+    "orderRejected": {
+      "title": "تم رفض أمر {direction} {symbol}",
+      "body": "السبب: {reason}"
+    },
+    "riskWarning": {
+      "title": "تم إيقاف التداول — حد الخسارة اليومي",
+      "body": "خسارة اليوم بلغت {lossAmount} ({lossPercent}% من المحفظة). تم إيقاف المنفذ الذكي تلقائياً حتى الغد."
+    },
+    "positionClosed": {
+      "title": "إغلاق تلقائي: {symbol}",
+      "body": "تم إغلاق مركز {direction} {symbol} تلقائياً | الربح: {pnl} | سعر الإغلاق: {price}"
+    },
+    "positionOpened": {
+      "title": "المنفذ الذكي: {direction} {pair}",
+      "body": "تم تنفيذ {direction} {pair} @ {price} | ثقة {confidence}% | وضع {mode} | وقف خسارة: {stopLoss} | هدف: {takeProfit}"
+    },
+    "executionFailed": {
+      "title": "فشل تنفيذ {pair}",
+      "body": "لم يتم تنفيذ {direction} {pair}: {reason}"
+    },
+    "priceAlert": {
+      "title": "تنبيه سعر: {symbol}",
+      "body": "{symbol} أصبح {condition} {targetPrice}"
+    }
   }
 }

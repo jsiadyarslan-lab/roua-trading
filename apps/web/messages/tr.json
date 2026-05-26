@@ -4401,5 +4401,67 @@
     "chatEmpty": "Yapay zeka koçunuza işlem performansınız hakkında herhangi bir şey sorun...",
     "coachThinking": "Analiz ediliyor...",
     "chatPlaceholder": "Performansınız hakkında soru sorun..."
+  },
+  "notificationTypes": {
+    "newUser": {
+      "title": "Yeni Kullanıcı",
+      "body": "Yeni kullanıcı kaydoldu: {name}\nE-posta: {email}"
+    },
+    "subscriptionUpgrade": {
+      "title": "Abonelik Yükseltme",
+      "body": "Kullanıcı {email}, {fromTier}tan {toTier}e yükseltti"
+    },
+    "systemError": {
+      "title": "Sistem Hatası",
+      "body": "{context}{error}"
+    },
+    "performanceAlert": {
+      "title": "Performans Uyarısı",
+      "body": "{metric} = {value} (Eşik: {threshold})"
+    },
+    "largeTrade": {
+      "title": "Büyük İşlem",
+      "body": "{symbol} üzerinde büyük işlem: {amount}\nKullanıcı: {userId}"
+    },
+    "systemUpdate": {
+      "title": "Sistem Güncellemesi",
+      "body": "{message}"
+    },
+    "newReport": {
+      "title": "{emoji} Yeni Rapor",
+      "body": "📌 {title}\n📂 Kategori: {category}\n🏷️ Varlıklar: {symbols}\n\n⚠️ Bu içerik yalnızca eğitim amaçlıdır ve yatırım tavsiyesi teşkil etmez"
+    },
+    "signalGenerated": {
+      "title": "{direction} Sinyali: {pair}",
+      "body": "Güven: {confidence}% — {reason}"
+    },
+    "orderFilled": {
+      "title": "{direction} Emir Gerçekleştirildi: {symbol}",
+      "body": "{quantity} {symbol} {price} fiyatından gerçekleştirildi"
+    },
+    "orderRejected": {
+      "title": "{direction} Emir Reddedildi: {symbol}",
+      "body": "Sebep: {reason}"
+    },
+    "riskWarning": {
+      "title": "İşlem Durduruldu — Günlük Kayıp Limiti",
+      "body": "Bugünkü kayıp {lossAmount}a ulaştı (portföyün %{lossPercent}i). Akıllı Yürütücü yarına kadar otomatik olarak durduruldu."
+    },
+    "positionClosed": {
+      "title": "Otomatik Kapatma: {symbol}",
+      "body": "{direction} {symbol} pozisyonu otomatik olarak kapatıldı | Kar/Zarar: {pnl} | Kapanış fiyatı: {price}"
+    },
+    "positionOpened": {
+      "title": "Akıllı Yürütücü: {direction} {pair}",
+      "body": "{direction} {pair} @ {price} gerçekleştirildi | Güven %{confidence} | Mod {mode} | Zarar Durdur: {stopLoss} | Hedef: {takeProfit}"
+    },
+    "executionFailed": {
+      "title": "Yürütme Başarısız: {pair}",
+      "body": "{direction} {pair} yürütülemedi: {reason}"
+    },
+    "priceAlert": {
+      "title": "Fiyat Uyarısı: {symbol}",
+      "body": "{symbol} artık {condition} {targetPrice}"
+    }
   }
 }

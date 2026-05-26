@@ -14,6 +14,29 @@ import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /* ══ Helpers ══════════════════════════════════════════════ */
+
+/**
+ * Resolve the localized title/body for a notification.
+ * If the notification has a `notificationType`, use the i18n `notificationTypes` namespace
+ * to translate it. Otherwise, fall back to the raw title/body (already i18n from NotificationEngine,
+ * or Arabic fallback from backend).
+ */
+function useLocalizedNotif(notif: Notification): { title: string; body: string } {
+  const tnt = useTranslations('notificationTypes')
+  if (notif.notificationType) {
+    try {
+      const params = (notif.params || {}) as Record<string, string | number>
+      return {
+        title: tnt(`${notif.notificationType}.title`, params),
+        body: tnt(`${notif.notificationType}.body`, params),
+      }
+    } catch {
+      // Fallback to raw text if translation key missing
+    }
+  }
+  return { title: notif.title, body: notif.body }
+}
+
 const SRC_ICON: Record<NotifSource, React.ReactNode> = {
   bot: <Bot size={13} />,
   ai: <Brain size={13} />,
@@ -65,6 +88,7 @@ function ToastCard({
   const dismissCallbackRef = useRef(onDismiss)
   const tc = useTranslations('common')
   const tn = useTranslations('dashboard.notifications')
+  const { title: localizedTitle, body: localizedBody } = useLocalizedNotif(notif)
 
   useEffect(() => {
     dismissCallbackRef.current = onDismiss
@@ -241,7 +265,7 @@ function ToastCard({
             margin: '0 0 3px 0',
           }}
         >
-          {notif.title}
+          {localizedTitle}
         </h4>
         <p
           style={{
@@ -251,7 +275,7 @@ function ToastCard({
             lineHeight: 1.4,
           }}
         >
-          {notif.body}
+          {localizedBody}
         </p>
 
         {notif.pair && (
@@ -393,6 +417,7 @@ function NotificationItem({
   onDismiss: () => void
 }) {
   const tc = useTranslations('common')
+  const { title: localizedTitle, body: localizedBody } = useLocalizedNotif(notif)
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
   const { setSelectedSymbol } = useSymbolStore()
@@ -447,10 +472,10 @@ function NotificationItem({
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 3 }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{notif.title}</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#F0F2F5' }}>{localizedTitle}</span>
           <span style={{ fontSize: 9, color: '#8B92A8', flexShrink: 0, marginInlineEnd: 8 }}>{timeAgo(notif.timestamp)}</span>
         </div>
-        <p style={{ fontSize: 10, color: '#8B92A8', margin: 0, lineHeight: 1.5 }}>{notif.body}</p>
+        <p style={{ fontSize: 10, color: '#8B92A8', margin: 0, lineHeight: 1.5 }}>{localizedBody}</p>
         {notif.pair && (
           <div style={{ marginTop: 4, display: 'flex', gap: 6, alignItems: 'center' }}>
             <span style={{ fontSize: 9, fontFamily: 'monospace', color: '#fff', fontWeight: 700 }}>{notif.pair}</span>

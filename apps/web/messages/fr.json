@@ -4401,5 +4401,67 @@
     "execute": "Exécuter",
     "close": "Fermer",
     "noResults": "Aucun résultat trouvé"
+  },
+  "notificationTypes": {
+    "newUser": {
+      "title": "Nouvel utilisateur",
+      "body": "Nouvel utilisateur inscrit : {name}\nE-mail : {email}"
+    },
+    "subscriptionUpgrade": {
+      "title": "Mise à niveau d'abonnement",
+      "body": "L'utilisateur {email} a passé de {fromTier} à {toTier}"
+    },
+    "systemError": {
+      "title": "Erreur système",
+      "body": "{context}{error}"
+    },
+    "performanceAlert": {
+      "title": "Alerte de performance",
+      "body": "{metric} = {value} (Seuil : {threshold})"
+    },
+    "largeTrade": {
+      "title": "Grand trade",
+      "body": "Grand trade sur {symbol} pour {amount}\nUtilisateur : {userId}"
+    },
+    "systemUpdate": {
+      "title": "Mise à jour système",
+      "body": "{message}"
+    },
+    "newReport": {
+      "title": "{emoji} Nouveau rapport",
+      "body": "📌 {title}\n📂 Catégorie : {category}\n🏷️ Actifs : {symbols}\n\n⚠️ Ce contenu est à des fins éducatives uniquement et ne constitue pas un conseil en investissement"
+    },
+    "signalGenerated": {
+      "title": "Signal {direction} : {pair}",
+      "body": "Confiance : {confidence}% — {reason}"
+    },
+    "orderFilled": {
+      "title": "Ordre {direction} exécuté : {symbol}",
+      "body": "Exécuté {quantity} {symbol} à {price}"
+    },
+    "orderRejected": {
+      "title": "Ordre {direction} rejeté : {symbol}",
+      "body": "Raison : {reason}"
+    },
+    "riskWarning": {
+      "title": "Trading arrêté — Limite de perte quotidienne",
+      "body": "La perte d'aujourd'hui a atteint {lossAmount} ({lossPercent}% du portefeuille). L'exécuteur intelligent a été automatiquement arrêté jusqu'à demain."
+    },
+    "positionClosed": {
+      "title": "Fermeture automatique : {symbol}",
+      "body": "Position {direction} {symbol} fermée automatiquement | PnL : {pnl} | Prix de clôture : {price}"
+    },
+    "positionOpened": {
+      "title": "Exécuteur intelligent : {direction} {pair}",
+      "body": "Exécuté {direction} {pair} @ {price} | Confiance {confidence}% | Mode {mode} | Stop Loss : {stopLoss} | Objectif : {takeProfit}"
+    },
+    "executionFailed": {
+      "title": "Échec d'exécution : {pair}",
+      "body": "Impossible d'exécuter {direction} {pair} : {reason}"
+    },
+    "priceAlert": {
+      "title": "Alerte de prix : {symbol}",
+      "body": "{symbol} est maintenant {condition} {targetPrice}"
+    }
   }
 }

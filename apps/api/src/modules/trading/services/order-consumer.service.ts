@@ -258,6 +258,14 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               quantity: filledQuantity,
               averagePrice,
               exchangeOrderId: result?.id,
+              // i18n data for frontend translation
+              notificationType: 'orderFilled',
+              params: {
+                direction: message.side === 'BUY' ? 'Buy' : 'Sell',
+                symbol: message.symbol,
+                quantity: filledQuantity,
+                price: averagePrice,
+              },
             },
             source: 'trade',
             action: message.side === 'BUY' ? 'BUY' : 'SELL',
@@ -293,6 +301,13 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
               symbol: message.symbol,
               side: message.side,
               reason: errorMessage,
+              // i18n data for frontend translation
+              notificationType: 'orderRejected',
+              params: {
+                direction: message.side === 'BUY' ? 'Buy' : 'Sell',
+                symbol: message.symbol,
+                reason: errorMessage.substring(0, 150),
+              },
             },
             source: 'trade',
             action: 'WARN',

@@ -1785,6 +1785,13 @@ export class SmartExecutorService implements OnModuleDestroy {
             title: '🛑 تم إيقاف التداول — حد الخسارة اليومي',
             body: `خسارة اليوم بلغت $${Math.abs(userState.dailyPnL).toFixed(2)} (${userMaxDailyLossPercent}% من المحفظة). تم إيقاف المنفذ الذكي تلقائياً حتى الغد.`,
             source: 'smart-executor',
+            data: {
+              notificationType: 'riskWarning',
+              params: {
+                lossAmount: `$${Math.abs(userState.dailyPnL).toFixed(2)}`,
+                lossPercent: userMaxDailyLossPercent,
+              },
+            },
           });
         } catch { /* non-fatal */ }
 
@@ -1932,6 +1939,14 @@ export class SmartExecutorService implements OnModuleDestroy {
                   pnl,
                   reason: 'auto_close_stale',
                   isSimulated: isSimulated,
+                  // i18n data for frontend translation
+                  notificationType: 'positionClosed',
+                  params: {
+                    symbol: oldestPosition.symbol,
+                    direction: oldestPosition.side === 'BUY' ? 'Buy' : 'Sell',
+                    pnl: `$${pnlLabel}`,
+                    price: `$${closePrice.toFixed(2)}`,
+                  },
                 },
                 source: 'executor',
                 action: 'CLOSE',
@@ -2367,6 +2382,17 @@ export class SmartExecutorService implements OnModuleDestroy {
               takeProfit: brief.takeProfit,
               confidence: brief.confidence,
               isSimulated: isSimulated,
+              // i18n data for frontend translation
+              notificationType: 'positionOpened',
+              params: {
+                direction: brief.direction === 'BUY' ? 'Buy' : 'Sell',
+                pair: brief.pair,
+                price: `$${currentPrice.toFixed(2)}`,
+                confidence: brief.confidence,
+                mode: isSimulated ? 'Paper' : 'Live',
+                stopLoss: brief.stopLoss ? `$${brief.stopLoss.toFixed(2)}` : '—',
+                takeProfit: brief.takeProfit ? `$${brief.takeProfit.toFixed(2)}` : '—',
+              },
             },
             source: 'executor',
             action: brief.direction === 'BUY' ? 'BUY' : 'SELL',
@@ -2461,6 +2487,13 @@ export class SmartExecutorService implements OnModuleDestroy {
               pair: brief.pair,
               direction: brief.direction,
               error: result.error,
+              // i18n data for frontend translation
+              notificationType: 'executionFailed',
+              params: {
+                pair: brief.pair,
+                direction: brief.direction === 'BUY' ? 'Buy' : 'Sell',
+                reason: result.error || 'Unknown reason',
+              },
             },
             source: 'executor',
             action: 'WARN',

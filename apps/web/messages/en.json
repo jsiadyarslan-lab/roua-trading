@@ -4406,5 +4406,67 @@
     "chatEmpty": "Ask your AI coach anything about your trading performance...",
     "coachThinking": "Analyzing...",
     "chatPlaceholder": "Ask about your performance..."
+  },
+  "notificationTypes": {
+    "newUser": {
+      "title": "New User",
+      "body": "New user registered: {name}\nEmail: {email}"
+    },
+    "subscriptionUpgrade": {
+      "title": "Subscription Upgrade",
+      "body": "User {email} upgraded from {fromTier} to {toTier}"
+    },
+    "systemError": {
+      "title": "System Error",
+      "body": "{context}{error}"
+    },
+    "performanceAlert": {
+      "title": "Performance Alert",
+      "body": "{metric} = {value} (Threshold: {threshold})"
+    },
+    "largeTrade": {
+      "title": "Large Trade",
+      "body": "Large trade on {symbol} for {amount}\nUser: {userId}"
+    },
+    "systemUpdate": {
+      "title": "System Update",
+      "body": "{message}"
+    },
+    "newReport": {
+      "title": "{emoji} New Report",
+      "body": "📌 {title}\n📂 Category: {category}\n🏷️ Assets: {symbols}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice"
+    },
+    "signalGenerated": {
+      "title": "{direction} Signal: {pair}",
+      "body": "Confidence: {confidence}% — {reason}"
+    },
+    "orderFilled": {
+      "title": "{direction} Order Filled: {symbol}",
+      "body": "Filled {quantity} {symbol} at {price}"
+    },
+    "orderRejected": {
+      "title": "{direction} Order Rejected: {symbol}",
+      "body": "Reason: {reason}"
+    },
+    "riskWarning": {
+      "title": "Trading Halted — Daily Loss Limit",
+      "body": "Today's loss reached {lossAmount} ({lossPercent}% of portfolio). Smart Executor has been automatically halted until tomorrow."
+    },
+    "positionClosed": {
+      "title": "Auto Close: {symbol}",
+      "body": "Closed {direction} {symbol} position automatically | PnL: {pnl} | Close price: {price}"
+    },
+    "positionOpened": {
+      "title": "Smart Executor: {direction} {pair}",
+      "body": "Executed {direction} {pair} @ {price} | Confidence {confidence}% | Mode {mode} | Stop Loss: {stopLoss} | Target: {takeProfit}"
+    },
+    "executionFailed": {
+      "title": "Execution Failed: {pair}",
+      "body": "Failed to execute {direction} {pair}: {reason}"
+    },
+    "priceAlert": {
+      "title": "Price Alert: {symbol}",
+      "body": "{symbol} is now {condition} {targetPrice}"
+    }
   }
 }

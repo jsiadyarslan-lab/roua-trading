@@ -111,6 +111,9 @@ export function useNotificationSocket() {
           pair: data.pair,
           price: data.data?.averagePrice || data.data?.entryPrice || data.data?.price,
           confidence: data.data?.confidence,
+          // i18n data for frontend translation
+          notificationType: data.data?.notificationType,
+          params: data.data?.params,
         })
 
         // FIX: If the notification is about a trade execution, refresh positions + balance

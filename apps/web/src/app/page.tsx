@@ -1,9 +1,8 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // Root Page — Redirect to default locale
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// With next-intl localePrefix:'as-needed', the middleware should
-// rewrite / → /ar internally. But if middleware is missing or
-// fails, this page provides a safe fallback redirect.
+// Safety net: middleware should handle / → /ar redirect,
+// but this page catches the case where middleware doesn't run.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 import { redirect } from 'next/navigation';

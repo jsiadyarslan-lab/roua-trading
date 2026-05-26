@@ -327,12 +327,31 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       } catch { /* Heatmap fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
+      // FIX: Calculate entry/exit from ATR-adaptive levels for the Entry overlay
+      const entryDirection = allPatterns.filter(p => p.direction === 'bullish').length > allPatterns.filter(p => p.direction === 'bearish').length ? 'long' : 'short';
+      const entryPrice = price;
+      const entryATR = c.length >= 14 ? (() => {
+        const sl2 = c.slice(-14);
+        const trs = sl2.map((c2: any, i: number) => i === 0 ? c2.high - c2.low : Math.max(c2.high - c2.close, Math.abs(c2.low - c2.close), c2.high - c2.low));
+        return trs.reduce((s: number, v: number) => s + v, 0) / trs.length;
+      })() : price * 0.01;
+      const entrySL = entryDirection === 'long' ? entryPrice - entryATR * 1.5 : entryPrice + entryATR * 1.5;
+      const entryTP = entryDirection === 'long' ? entryPrice + entryATR * 2.5 : entryPrice - entryATR * 2.5;
+
       const analysisResult: AIAnalysisResult = {
         patterns: allPatterns,
         supportLevels: srLevels.filter(l => l.type === 'support').slice(0, 4),
         resistanceLevels: srLevels.filter(l => l.type === 'resistance').slice(0, 4),
         trendLines,
-        entryExit: null,
+        entryExit: {
+          direction: entryDirection,
+          entryPrice,
+          stopLoss: entrySL,
+          takeProfit: entryTP,
+          confidence: 0.5,
+          reasonAr: 'تحليل ATR تكيفي',
+          keyLevels: [],
+        },
         smcData,
         geoPatterns,
         elliottPattern,
@@ -571,9 +590,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     const lastResult = lastAnalysisResultRef.current;
     if (!lastResult || !candles?.length) return;
     // Re-emit with updated overlays so chart only draws what's enabled
+    // FIX: Also include signal data for the Entry overlay
     onPatternsRef.current({
       ...lastResult,
       overlays: overlays as any,
+      signal: signal ? { dir: signal.dir, entry: signal.entry, sl: signal.sl, tp: signal.tp } : undefined,
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays]);

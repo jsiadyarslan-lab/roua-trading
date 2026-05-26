@@ -343,7 +343,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         high: safeNum(candleData.high, candleData.value ?? 0),
         low: safeNum(candleData.low, candleData.value ?? 0),
         close: safeNum(candleData.close, candleData.value ?? 0),
-        volume: safeNum(candleData.volume, 0),
+        // FIX: lightweight-charts v5 CandlestickData has no 'volume' field —
+        // volume lives in a separate HistogramSeries. Read from original
+        // CandleData[] (which always has volume) instead of seriesData.
+        volume: candleIdx >= 0 ? safeNum(candles[candleIdx].volume, 0) : 0,
         change,
         changePercent,
         dateStr,
@@ -1187,9 +1190,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
       }));
 
+    // FIX: Hide volume histogram when all values are zero (e.g. forex/commodity
+    // sources don't provide volume). Showing an empty zero-height histogram
+    // wastes chart space and confuses users.
+    const hasVolume = volumeData.some(v => v.value > 0);
+
     try {
       candleSeriesRef.current.setData(chartData as any);
       volumeSeriesRef.current.setData(volumeData as any);
+      volumeSeriesRef.current.applyOptions({
+        visible: hasVolume && (settings?.showVolume !== false),
+      });
     } catch (e) {
       console.error('[useChart] setCandles setData error:', e);
     }

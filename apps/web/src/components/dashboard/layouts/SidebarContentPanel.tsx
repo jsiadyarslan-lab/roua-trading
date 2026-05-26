@@ -47,11 +47,10 @@ export function SidebarContentPanel({
       `)
   const selectedSymbol = useSymbolStore((s) => s.selectedSymbol)
   const tc = useTranslations('common')
-  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   // Only subscribe to the selected symbol's quote — prevents re-renders from other symbol updates
   const activeQuote = useMarketStore((s) => selectedSymbol ? s.quotes[selectedSymbol] : null)
   const quoteStatus = getDataStatus(activeQuote)
-  const sourceLabel = getSourceLabel(activeQuote?.source, tcRef)
+  const sourceLabel = getSourceLabel(activeQuote?.source, tc)
 
   return (
     <section

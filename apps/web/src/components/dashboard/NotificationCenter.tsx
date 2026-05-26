@@ -392,6 +392,7 @@ function NotificationItem({
   onRead: () => void
   onDismiss: () => void
 }) {
+  const tc = useTranslations('common')
   const color = SRC_COLOR[notif.source]
   const actionColor = ACTION_COLOR[notif.action]
   const { setSelectedSymbol } = useSymbolStore()
@@ -498,6 +499,7 @@ function NotificationItem({
 function NotifSettingsPanel() {
   const tn = useTranslations('dashboard.notifications')
   const tc = useTranslations('common')
+  const { settings, updateSettings } = useNotificationStore()
 
   const rows: { key: keyof typeof settings; label: string }[] = [
     { key: 'enabled', label: tn('enableAlerts') },

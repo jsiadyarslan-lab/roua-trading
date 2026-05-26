@@ -1045,6 +1045,8 @@ export default function NotificationsPage() {
                 onSelect={toggleSelect}
                 onAction={handleAction}
                 onDelete={deleteNotification}
+                t={t}
+                tc={tc}
               />
             ))}
           </AnimatePresence>

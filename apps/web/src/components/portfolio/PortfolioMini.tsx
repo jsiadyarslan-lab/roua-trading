@@ -208,7 +208,6 @@ export function PortfolioMini({
   const { data } = usePortfolioSummary()
   const tp = useTranslations('portfolio')
   const tc = useTranslations('common')
-  const tcRef = useCallback((key: string, params?: Record<string, any>) => tc(key, params), [tc])
   const positions = usePositionsStore(s => s.positions)
   const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
   // V164: Read the exchangeUnavailable flag to show warning when real exchange fails
@@ -269,14 +268,14 @@ export function PortfolioMini({
               fontFamily: "'JetBrains Mono', monospace",
             }}>
               <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
-              {getStatusLabel(dataStatus, tcRef)}
+              {getStatusLabel(dataStatus, tc)}
             </span>
             {selectedSymbol && <span style={{ fontSize: 9, color: T.text2, fontFamily: "'JetBrains Mono', monospace" }}>{selectedSymbol}</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right', flexShrink: 0 }}>
           <div style={{ fontSize: 8.5, color: T.text3 }}>{sourceLabel}</div>
-          <div style={{ fontSize: 9, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{formatFreshness(lastUpdatedAt, tcRef)}</div>
+          <div style={{ fontSize: 9, color: T.text, fontFamily: "'JetBrains Mono', monospace" }}>{formatFreshness(lastUpdatedAt, tc)}</div>
         </div>
       </div>
 

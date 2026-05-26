@@ -79,7 +79,6 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
   const quotes = new Map(ALL_SYMBOLS.map(s => globalQuotes[s] ? [s, globalQuotes[s]] : [s, null]).filter(([,v]) => v !== null) as [string, any][])
   const tw = useTranslations('dashboard.watchlist')
   const tc = useTranslations('common')
-  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
   const [sparklineData, setSparklineData] = useState<Record<string, number[]>>({})
   const fetchedRef = useRef<Set<string>>(new Set())
@@ -177,7 +176,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
         </div>
         {hotMover?.quote && (
           <div style={{ fontSize: 9, color: getStatusTone(getDataStatus(hotMover.quote)), fontFamily: 'var(--mono)' }}>
-            {getStatusLabel(getDataStatus(hotMover.quote), tcRef)}
+            {getStatusLabel(getDataStatus(hotMover.quote), tc)}
           </div>
         )}
       </div>
@@ -222,7 +221,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                     <span style={{ fontSize: 13, fontWeight: 900, color: 'var(--foreground)', fontFamily: 'var(--mono)' }}>{sym}</span>
-                    <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{formatFreshness(q?.timestamp ?? null, tcRef)} · {getStatusLabel(dataStatus, tcRef)}</span>
+                    <span style={{ fontSize: 9, color: 'var(--muted)', fontWeight: 600 }}>{formatFreshness(q?.timestamp ?? null, tc)} · {getStatusLabel(dataStatus, tc)}</span>
                   </div>
                   {q ? (
                     <div style={{

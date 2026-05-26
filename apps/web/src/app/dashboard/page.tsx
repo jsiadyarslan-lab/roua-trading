@@ -534,7 +534,6 @@ function OrderPanel({ selectedSymbol, currentPrice, isMobile, onClose }: {
 export default function DashboardPage() {
   const t = useTranslations('dashboard.home')
   const tc = useTranslations('common')
-  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const { collapsed: sidebarCollapsed } = useSidebarState()
   useScopedStyle(`.dashboard-shell {
           min-height: calc(100dvh - ${HEADER_H}px);
@@ -1146,7 +1145,7 @@ export default function DashboardPage() {
   ]
 
   const quoteStatus = getDataStatus(activeQuote)
-  const sourceLabel = getSourceLabel(activeQuote?.source, tcRef)
+  const sourceLabel = getSourceLabel(activeQuote?.source, tc)
 
   // Derive account data status
   const dataSource = usePositionsStore(state => state.dataSource)
@@ -1434,7 +1433,7 @@ export default function DashboardPage() {
                       {formatQuotePrice(quote?.price)}
                     </div>
                     <div style={{ fontSize: 7, color: getStatusTone(getDataStatus(quote)), marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {getStatusLabel(getDataStatus(quote), tcRef)}
+                      {getStatusLabel(getDataStatus(quote), tc)}
                     </div>
                   </button>
                 )

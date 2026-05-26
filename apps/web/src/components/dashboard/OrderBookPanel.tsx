@@ -83,7 +83,6 @@ export function OrderBookPanelInner({
 }: OrderBookPanelProps = {}) {
   const te = useTranslations('dashboard.execution')
   const tc = useTranslations('common')
-  const tcRef = (key: string, params?: Record<string, any>) => tc(key, params)
   const [expanded, setExpanded] = useState(!collapsedByDefault)
   const selectedPair = useSymbolStore(state => state.selectedSymbol)
   const quote = useMarketStore(state => state.quotes[selectedPair])
@@ -196,10 +195,10 @@ export function OrderBookPanelInner({
                 fontFamily: 'var(--font-mono)',
               }}>
                 <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusTone }} />
-                {getStatusLabel(dataStatus, tcRef)}
+                {getStatusLabel(dataStatus, tc)}
               </span>
               <span style={{ fontSize: '9px', color: 'var(--text-faint)', fontFamily: 'var(--font-mono)' }}>
-                {formatFreshness(lastUpdatedAt, tcRef)}
+                {formatFreshness(lastUpdatedAt, tc)}
               </span>
             </div>
             <span style={{ fontSize: '9px', color: buyPressure >= 50 ? 'var(--profit)' : 'var(--loss)', fontFamily: 'var(--font-mono)' }}>

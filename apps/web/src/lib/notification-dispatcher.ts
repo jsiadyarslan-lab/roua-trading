@@ -231,8 +231,8 @@ export async function dispatchNotification(event: NotificationEvent): Promise<{
 export async function notifyNewUser(userEmail: string, displayName?: string) {
   return dispatchNotification({
     type: 'new_user',
-    title: 'New User',
-    body: `New user registered: ${displayName || userEmail}\nEmail: ${userEmail}`,
+    title: 'مستخدم جديد',
+    body: `تم تسجيل مستخدم جديد: ${displayName || userEmail}\nالبريد: ${userEmail}`,
     severity: 'info',
     data: { email: userEmail, displayName },
   })
@@ -241,8 +241,8 @@ export async function notifyNewUser(userEmail: string, displayName?: string) {
 export async function notifySubscriptionUpgrade(userEmail: string, fromTier: string, toTier: string) {
   return dispatchNotification({
     type: 'subscription_upgrade',
-    title: 'Subscription Upgrade',
-    body: `User ${userEmail} upgraded from ${fromTier} to ${toTier}`,
+    title: 'ترقية الاشتراك',
+    body: `المستخدم ${userEmail} قام بالترقية من ${fromTier} إلى ${toTier}`,
     severity: 'success',
     data: { email: userEmail, fromTier, toTier },
   })
@@ -251,7 +251,7 @@ export async function notifySubscriptionUpgrade(userEmail: string, fromTier: str
 export async function notifySystemError(error: string, context?: string) {
   return dispatchNotification({
     type: 'system_error',
-    title: 'System Error',
+    title: 'خطأ في النظام',
     body: `${context ? `[${context}] ` : ''}${error.slice(0, 300)}`,
     severity: 'error',
     data: { error, context },
@@ -261,8 +261,8 @@ export async function notifySystemError(error: string, context?: string) {
 export async function notifyPerformanceAlert(metric: string, value: number, threshold: number) {
   return dispatchNotification({
     type: 'performance_alert',
-    title: 'Performance Alert',
-    body: `${metric} = ${value} (Threshold: ${threshold})`,
+    title: 'تنبيه أداء',
+    body: `${metric} = ${value} (الحد: ${threshold})`,
     severity: 'warning',
     data: { metric, value, threshold },
   })
@@ -271,8 +271,8 @@ export async function notifyPerformanceAlert(metric: string, value: number, thre
 export async function notifyLargeTrade(symbol: string, amount: number, userId: string) {
   return dispatchNotification({
     type: 'large_trade',
-    title: 'Large Trade',
-    body: `Large trade on ${symbol} for ${amount}\nUser: ${userId}`,
+    title: 'صفقة كبيرة',
+    body: `صفقة كبيرة على ${symbol} بمبلغ ${amount}\nالمستخدم: ${userId}`,
     severity: 'warning',
     data: { symbol, amount, userId },
   })
@@ -281,7 +281,7 @@ export async function notifyLargeTrade(symbol: string, amount: number, userId: s
 export async function notifySystemUpdate(message: string) {
   return dispatchNotification({
     type: 'system_update',
-    title: 'System Update',
+    title: 'تحديث النظام',
     body: message,
     severity: 'info',
   })
@@ -305,8 +305,8 @@ export async function notifyNewReport(titleAr: string, type: string, category: s
 
   return dispatchNotification({
     type: 'new_report',
-    title: `${emoji} New Report`,
-    body: `📌 ${titleAr}\n📂 Category: ${category}\n🏷️ Assets: ${symbolsStr}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice`,
+    title: `${emoji} تقرير جديد`,
+    body: `📌 ${titleAr}\n📂 التصنيف: ${category}\n🏷️ الأصول: ${symbolsStr}\n\n⚠️ هذا المحتوى لأغراض تعليمية فقط ولا يُعد نصيحة استثمارية`,
     severity: 'info',
     data: { titleAr, type, category, symbols },
   })

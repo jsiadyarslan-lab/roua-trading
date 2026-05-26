@@ -108,8 +108,13 @@ export function renderOverlays(
   if (showSR) {
     registry.prepareRedraw('sr');
     const levels = detectSRLevels(candles);
-    levels.forEach((level, i) => {
-      const color = level.type === 'support' ? OVERLAY_COLORS.srStrong : OVERLAY_COLORS.srStrong;
+    // ── CLEANUP: Only show top 4 strongest levels to avoid chart clutter ──
+    // Filter to only levels within 3% of current price (relevant zone)
+    const lastPrice = candles[candles.length - 1].close;
+    const nearbyLevels = levels.filter(l => Math.abs(l.price - lastPrice) / lastPrice < 0.03);
+    const displayLevels = (nearbyLevels.length >= 2 ? nearbyLevels : levels).slice(0, 4);
+
+    displayLevels.forEach((level, i) => {
       const opacity = level.strength > 0.6 ? 0.8 : level.strength > 0.3 ? 0.5 : 0.3;
 
       // Use HorizontalLinePrimitive for S/R
@@ -120,7 +125,7 @@ export function renderOverlays(
           : `rgba(255, 71, 87, ${opacity})`,
         lineWidth: level.strength > 0.6 ? 2 : 1,
         lineStyle: 2,
-        label: `${level.type === 'support' ? 'S' : 'R'}${i + 1} ${level.price.toFixed(level.price > 1000 ? 2 : 5)}`,
+        label: `${level.type === 'support' ? 'S' : 'R'}${i + 1}`,
       }));
 
       // Also add price line for axis label
@@ -129,28 +134,28 @@ export function renderOverlays(
         `${level.type === 'support' ? 'S' : 'R'}${i + 1}`, level.strength > 0.6 ? 2 : 1, 2, true, 'sr');
     });
 
-    // Also include levels from AI panel
-    (input.supportLevels || []).slice(0, 4).forEach((level, i) => {
-      if (!levels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
+    // Also include levels from AI panel (max 2 extra each)
+    (input.supportLevels || []).slice(0, 2).forEach((level, i) => {
+      if (!displayLevels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
         const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
         registry.add('sr', new HorizontalLinePrimitive({
           price: level.price,
           color: `rgba(0, 255, 163, ${opacity})`,
           lineWidth: level.strength === 'strong' ? 2 : 1,
           lineStyle: 2,
-          label: `S${i + 1}`,
+          label: `S${displayLevels.filter(l => l.type === 'support').length + i + 1}`,
         }));
       }
     });
-    (input.resistanceLevels || []).slice(0, 4).forEach((level, i) => {
-      if (!levels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
+    (input.resistanceLevels || []).slice(0, 2).forEach((level, i) => {
+      if (!displayLevels.some(l => Math.abs(l.price - level.price) / level.price < 0.005)) {
         const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
         registry.add('sr', new HorizontalLinePrimitive({
           price: level.price,
           color: `rgba(255, 71, 87, ${opacity})`,
           lineWidth: level.strength === 'strong' ? 2 : 1,
           lineStyle: 2,
-          label: `R${i + 1}`,
+          label: `R${displayLevels.filter(l => l.type === 'resistance').length + i + 1}`,
         }));
       }
     });
@@ -186,8 +191,8 @@ export function renderOverlays(
       }));
     });
 
-    // Add labels at swing points
-    swings.slice(-8).forEach((sw) => {
+    // Add labels at swing points — only last 5 to avoid clutter
+    swings.slice(-5).forEach((sw) => {
       if (sw.structureLabel) {
         registry.add('trend', new LabelPrimitive({
           time: sw.time as any,

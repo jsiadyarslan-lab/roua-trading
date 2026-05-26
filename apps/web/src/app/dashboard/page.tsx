@@ -965,6 +965,11 @@ export default function DashboardPage() {
         @keyframes fadeIn {
           from { opacity: 0; }
           to { opacity: 1; }
+        }
+
+        @keyframes marginPulse {
+          0%, 100% { background: rgba(239,68,68,0.12); }
+          50% { background: rgba(239,68,68,0.25); }
         }`)
 
   const globalQuotes = useMarketStore(state => state.quotes) as Record<string, QuoteData | undefined>
@@ -1317,18 +1322,45 @@ export default function DashboardPage() {
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('margin')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(initialMargin)}</span>
                 </div>
-                {/* نسبة الهامش */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
-                  <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('marginLevel')}</span>
-                  <span dir="ltr" style={{
-                    fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
-                    color: equityValue > 0 && (initialMargin / equityValue) > 0.8 ? T.danger
-                      : equityValue > 0 && (initialMargin / equityValue) > 0.5 ? '#f59e0b'
-                      : T.cyan,
-                  }}>
-                    {equityValue > 0 ? ((initialMargin / equityValue) * 100).toFixed(1) : '0.0'}%
-                  </span>
-                </div>
+                {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
+                {(() => {
+                  const mlPct = equityValue > 0 ? (initialMargin / equityValue) * 100 : 0;
+                  const isCritical = mlPct > 0 && mlPct <= 30;
+                  const isWarning = mlPct > 30 && mlPct <= 50;
+                  const mlColor = isCritical ? T.danger : isWarning ? '#f59e0b' : T.cyan;
+                  return (
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      padding: isCritical ? '4px 10px' : '4px 10px',
+                      borderInlineEnd: '1px solid rgba(255,255,255,0.06)',
+                      flexShrink: 0,
+                      background: isCritical ? 'rgba(239,68,68,0.12)' : isWarning ? 'rgba(245,158,11,0.08)' : 'transparent',
+                      borderRadius: isCritical || isWarning ? 4 : 0,
+                      border: isCritical ? '1px solid rgba(239,68,68,0.4)' : isWarning ? '1px solid rgba(245,158,11,0.25)' : 'none',
+                      animation: isCritical ? 'marginPulse 1.2s ease-in-out infinite' : 'none',
+                    }}>
+                      {isCritical && (
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={T.danger} strokeWidth="2.5" style={{ flexShrink: 0 }}>
+                          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                          <line x1="12" y1="9" x2="12" y2="13"/>
+                          <line x1="12" y1="17" x2="12.01" y2="17"/>
+                        </svg>
+                      )}
+                      <span style={{ fontSize: 9, color: isCritical ? T.danger : isWarning ? '#f59e0b' : T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('marginLevel')}</span>
+                      <span dir="ltr" style={{
+                        fontSize: isCritical ? 13 : 12, fontWeight: isCritical ? 900 : 700,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        color: mlColor,
+                        textShadow: isCritical ? '0 0 8px rgba(239,68,68,0.6)' : 'none',
+                      }}>
+                        {equityValue > 0 ? mlPct.toFixed(1) : '0.0'}%
+                      </span>
+                      {isCritical && (
+                        <span style={{ fontSize: 7, color: T.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>⚠</span>
+                      )}
+                    </div>
+                  );
+                })()}
                 {/* P&L */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', flexShrink: 0 }}>
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>P/L</span>

@@ -859,6 +859,23 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     )}
                   </div>
                 )}
+                {/* Contraction Warning: Bayesian high but Confluence low */}
+                {signal.bayesianDir && signal.fusionScore !== undefined &&
+                  (signal.bayesianConf || 0) > 0.7 && signal.fusionScore < 35 && (
+                  <div style={{
+                    background: 'rgba(245,158,11,0.08)',
+                    border: '1px solid rgba(245,158,11,0.3)',
+                    borderRadius: 5, padding: '4px 7px', marginBottom: 6,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{ fontSize: 10 }}>⚡</span>
+                    <span style={{ color: '#f59e0b', fontSize: 7.5, fontWeight: 600, lineHeight: 1.4 }}>
+                      {locale === 'ar'
+                        ? 'تناقض: Bayesian مرتفع لكن Confluence منخفض — الإشارة تعتمد على احتمالية إحصائية عالية مع اتفاق محدود بين المؤشرات'
+                        : 'Contradiction: Bayesian high but Confluence low — Signal relies on statistical probability with limited indicator agreement'}
+                    </span>
+                  </div>
+                )}
 
                 {signal.dir !== 'WAIT' && (
                   <>
@@ -870,10 +887,43 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </div>
                       ))}
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', background: C.card, borderRadius: 5, marginBottom: 4 }}>
-                      <span style={{ color: C.dim, fontSize: 9 }}>{t('riskReward')}</span>
-                      <span style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>1:{Math.abs((signal.tp - signal.entry) / (signal.sl - signal.entry || 1)).toFixed(2)}</span>
-                    </div>
+                    {(() => {
+                      const rr = Math.abs((signal.tp - signal.entry) / (signal.sl - signal.entry || 1));
+                      const isWeak = rr < 1.5;
+                      const isCritical = rr < 1.2;
+                      return (
+                        <>
+                          <div style={{
+                            display: 'flex', justifyContent: 'space-between',
+                            padding: '3px 8px',
+                            background: isCritical ? 'rgba(239,68,68,0.08)' : isWeak ? 'rgba(245,158,11,0.06)' : C.card,
+                            border: isCritical ? '1px solid rgba(239,68,68,0.25)' : isWeak ? '1px solid rgba(245,158,11,0.2)' : 'none',
+                            borderRadius: 5, marginBottom: 4,
+                          }}>
+                            <span style={{ color: C.dim, fontSize: 9 }}>{t('riskReward')}</span>
+                            <span style={{
+                              color: isCritical ? C.red : isWeak ? '#f59e0b' : C.text,
+                              fontSize: 9, fontWeight: 700, fontFamily: 'monospace',
+                            }}>1:{rr.toFixed(2)}</span>
+                          </div>
+                          {(isWeak) && (
+                            <div style={{
+                              background: isCritical ? 'rgba(239,68,68,0.06)' : 'rgba(245,158,11,0.05)',
+                              border: `1px solid ${isCritical ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.15)'}`,
+                              borderRadius: 4, padding: '3px 7px', marginBottom: 4,
+                              display: 'flex', alignItems: 'center', gap: 4,
+                            }}>
+                              <span style={{ fontSize: 8, color: isCritical ? C.red : '#f59e0b' }}>⚠</span>
+                              <span style={{ fontSize: 7, color: isCritical ? C.red : '#f59e0b', fontWeight: 600, lineHeight: 1.3 }}>
+                                {locale === 'ar'
+                                  ? (isCritical ? 'نسبة ربح/خطر ضعيفة جداً — يُنصح بعدم الدخول' : 'نسبة ربح/خطر أقل من المثالي — الحد الأدنى الموصى به 1:1.5')
+                                  : (isCritical ? 'Very weak R/R — entry not recommended' : 'Suboptimal R/R — minimum recommended is 1:1.5')}
+                              </span>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {/* ATR regime indicator */}
                     {signal.regime && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', background: C.card, borderRadius: 5, marginBottom: 8 }}>
@@ -918,6 +968,30 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         </span>
                       </div>
                     ))}
+                    {/* Pattern-Signal Contradiction Warning */}
+                    {(() => {
+                      if (!signal || signal.dir === 'WAIT') return null;
+                      const bullishAlerts = stateMachineResult.alerts.filter((a: any) => a.direction === 'bullish');
+                      const bearishAlerts = stateMachineResult.alerts.filter((a: any) => a.direction === 'bearish');
+                      const sigDir = signal.dir === 'BUY' ? 'bullish' : signal.dir === 'SELL' ? 'bearish' : 'neutral';
+                      const contradicting = sigDir === 'bullish' ? bearishAlerts : sigDir === 'bearish' ? bullishAlerts : [];
+                      if (contradicting.length === 0) return null;
+                      const patternNames = contradicting.map((a: any) => a.patternType).join(', ');
+                      return (
+                        <div style={{
+                          marginTop: 4, padding: '3px 6px',
+                          background: 'rgba(245,158,11,0.06)',
+                          border: '1px solid rgba(245,158,11,0.2)',
+                          borderRadius: 4,
+                        }}>
+                          <span style={{ color: '#f59e0b', fontSize: 7, fontWeight: 600, lineHeight: 1.3 }}>
+                            {locale === 'ar'
+                              ? `⚠ أنماط معاكسة للإشارة: ${patternNames} — الإشارة من Bayesian/الإجماع قد تتجاوز هذه الأنماط الفردية`
+                              : `⚠ Contradicting patterns: ${patternNames} — Signal from Bayesian/consensus may override these individual patterns`}
+                          </span>
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
 

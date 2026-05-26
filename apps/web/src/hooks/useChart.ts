@@ -33,7 +33,7 @@ interface UseChartReturn {
   containerRef: React.RefObject<HTMLDivElement | null>;
   settings: ChartSettings;
   updateSettings: (updates: Partial<ChartSettings>) => void;
-  setCandles: (candles: CandleData[]) => void;
+  setCandles: (candles: CandleData[], options?: { clearExternal?: boolean }) => void;
   updateLastCandle: (price: number) => void;
   addIndicator: (indicator: ActiveIndicator) => void;
   removeIndicator: (key: string) => void;
@@ -1112,7 +1112,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   // ── Set Candles ────────────────────────────────────────
-  const setCandles = useCallback((candles: CandleData[]) => {
+  const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean }) => {
     // Store candles regardless of chart readiness
     candlesRef.current = candles;
 
@@ -1128,13 +1128,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Apply Heikin-Ashi if needed
     const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(sorted) : sorted;
 
-    // FIX: Remove ALL overlay/oscillator series BEFORE calling setData.
-    // Previously, setData was called first, which triggered a chart re-render
-    // that tried to render existing Area/Line overlay series with timestamps
-    // from the previous timeframe. Since those timestamps didn't exist in the
-    // new candle data, lightweight-charts threw "Value is null" and the
-    // candle data was never actually set — making timeframe switching appear
-    // broken even though the data was fetched correctly.
+    // FIX: Remove overlay/oscillator series BEFORE calling setData.
+    // These are indicator series (MA, RSI, etc.) whose data depends on
+    // candle values, so they must be removed and re-applied after setData.
+    // They are re-created later in this function.
     const chart = chartInstanceRef.current;
     if (chart) {
       overlaySeriesRef.current.forEach((series) => {
@@ -1146,14 +1143,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       });
       oscillatorSeriesRef.current.clear();
 
-      // CRITICAL FIX: Also remove external series registered by
-      // RouaChart.tsx (AI overlay Area/Line series, etc.).
-      // These are NOT in overlaySeriesRef/oscillatorSeriesRef and
-      // contain timestamps from the old timeframe → "Value is null" crash.
-      externalSeriesRef.current.forEach((series) => {
-        try { chart.removeSeries(series); } catch {}
-      });
-      externalSeriesRef.current.clear();
+      // FIX: Only remove external series (AI overlays) when explicitly
+      // requested via clearExternal option. This should ONLY be true when
+      // the timeframe/symbol changes, NOT on regular WebSocket updates.
+      // Previously, external series were removed on EVERY setCandles call,
+      // causing ALL AI overlays (trend lines, harmonic, geometric, Elliott,
+      // BOS, etc.) to disappear after every WebSocket candle update.
+      // Regular data updates use the same timeframe → timestamps are valid
+      // → no "Value is null" crash → no need to remove external series.
+      if (options?.clearExternal) {
+        externalSeriesRef.current.forEach((series) => {
+          try { chart.removeSeries(series); } catch {}
+        });
+        externalSeriesRef.current.clear();
+      }
     }
 
     // Cancel any previously scheduled indicator re-apply

@@ -4,44 +4,59 @@ import type { NextRequest } from 'next/server'
 /**
  * Proxy for route protection + security headers + i18n locale — Next.js 16
  *
- * Protects all /dashboard/* routes (except /dashboard/admin/login).
- * - /dashboard/* routes: require roua_session cookie (non-guest)
- * - /dashboard/admin/* routes: require roua_admin_session cookie
- * - All other routes: pass through
- *
- * Also handles i18n locale detection:
- * - Reads NEXT_LOCALE cookie (user's explicit choice, highest priority)
- * - Falls back to Accept-Language header for auto-detection
- * - Sets x-next-intl-locale header for next-intl's getRequestConfig
- *
- * Also adds security headers to ALL responses:
- * - HSTS, X-Content-Type-Options, X-Frame-Options, CSP, etc.
- * - These complement the NestJS Helmet headers for /api/* routes
- * - Fills the gap for HTML pages that had no security headers before
+ * Handles THREE concerns:
+ * 1. i18n locale detection & redirect — ensures all paths have a locale prefix
+ *    (e.g., /login → /ar/login, /dashboard → /en/dashboard)
+ * 2. Route protection — /dashboard/* and /mobile/* require session cookie
+ * 3. Security headers — HSTS, CSP, X-Frame-Options, cache control, etc.
  *
  * Migrated from middleware.ts to proxy.ts for Next.js 16 compatibility.
  * See: https://nextjs.org/docs/messages/middleware-to-proxy
  */
 
-const SUPPORTED_LOCALES = ['ar', 'en']
+// ── i18n Configuration ──
+const SUPPORTED_LOCALES = ['ar', 'en', 'fr', 'tr', 'es']
 const DEFAULT_LOCALE = 'ar'
+
+// Smart locale proximity — maps unsupported browser locales to closest supported one
+const LOCALE_PROXIMITY: Record<string, string> = {
+  pt: 'es', it: 'es', ca: 'es', gl: 'es',
+  ro: 'fr',
+  nl: 'en', de: 'en', sv: 'en', no: 'en', da: 'en', fi: 'en',
+  ru: 'en', uk: 'en', pl: 'en', cs: 'en',
+  zh: 'en', ja: 'en', ko: 'en', hi: 'en', th: 'en', vi: 'en', id: 'en', ms: 'en',
+  az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr',
+  ku: 'ar', fa: 'ar', he: 'ar', ur: 'ar',
+}
 
 /**
  * Detect locale from cookie or Accept-Language header.
- * Priority: NEXT_LOCALE cookie > Accept-Language header > default (ar)
+ * Priority: NEXT_LOCALE cookie > Accept-Language proximity mapping > default (ar)
  */
 function detectLocale(request: NextRequest): string {
-  // 1. Cookie (highest priority - user's explicit choice)
+  // 1. Cookie (highest priority — user's explicit choice)
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
   if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
     return cookieLocale
   }
 
-  // 2. Browser Accept-Language header
+  // 2. Browser Accept-Language header with proximity mapping
   const acceptLanguage = request.headers.get('accept-language') || ''
-  const browserLocale = acceptLanguage.split(',')[0]?.split('-')[0]
-  if (browserLocale && SUPPORTED_LOCALES.includes(browserLocale)) {
-    return browserLocale
+  const languages = acceptLanguage.split(',').map(lang => {
+    const [code, qStr] = lang.trim().split(';')
+    const q = qStr ? parseFloat(qStr.split('=')[1]) : 1
+    return { code: code.trim(), q }
+  })
+  languages.sort((a, b) => b.q - a.q)
+
+  for (const { code } of languages) {
+    const baseLang = code.split('-')[0].toLowerCase()
+    // Exact match
+    if (SUPPORTED_LOCALES.includes(code.toLowerCase())) return code.toLowerCase()
+    // Base language match
+    if (SUPPORTED_LOCALES.includes(baseLang)) return baseLang
+    // Proximity mapping
+    if (LOCALE_PROXIMITY[baseLang]) return LOCALE_PROXIMITY[baseLang]
   }
 
   // 3. Default
@@ -49,20 +64,36 @@ function detectLocale(request: NextRequest): string {
 }
 
 /**
+ * Check if a pathname already has a locale prefix.
+ * Returns the locale if found, null otherwise.
+ */
+function extractLocaleFromPath(pathname: string): string | null {
+  for (const locale of SUPPORTED_LOCALES) {
+    if (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)) {
+      return locale
+    }
+  }
+  return null
+}
+
+/**
+ * Strip the locale prefix from a pathname.
+ * e.g., /ar/login → /login, /en/dashboard → /dashboard
+ */
+function stripLocalePrefix(pathname: string): string {
+  for (const locale of SUPPORTED_LOCALES) {
+    if (pathname === `/${locale}`) return '/'
+    if (pathname.startsWith(`/${locale}/`)) return pathname.slice(locale.length + 1)
+  }
+  return pathname
+}
+
+/**
  * Add security headers to a response.
- * These headers protect against XSS, clickjacking, MIME sniffing, etc.
- *
- * CRITICAL FIX: Also adds Cache-Control headers to prevent Railway CDN
- * from caching pages for 1 YEAR. Next.js static pages default to
- * s-maxage=31536000, which means code changes NEVER reach users.
  */
 function addSecurityHeaders(response: NextResponse, request: NextRequest): NextResponse {
-  // ── Remove X-Powered-By header (information disclosure) ──
   response.headers.delete('x-powered-by')
 
-  // ── CRITICAL: Override CDN cache headers ──
-  // Without this, Railway CDN serves stale pages for 1 year
-  // because Next.js sets s-maxage=31536000 by default.
   const { pathname } = request.nextUrl
   const isStaticAsset =
     pathname.startsWith('/_next/static/') ||
@@ -70,69 +101,41 @@ function addSecurityHeaders(response: NextResponse, request: NextRequest): NextR
     pathname.match(/\.(ico|png|jpg|jpeg|svg|woff2?|ttf|eot|css|js|map)$/i)
 
   if (isStaticAsset) {
-    // Static assets have content hashes → safe to cache for 1 day
     response.headers.set('Cache-Control', 'public, max-age=86400, immutable')
   } else if (pathname.startsWith('/api/')) {
-    // API routes: NEVER cache — live trading data
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate')
     response.headers.set('Pragma', 'no-cache')
     response.headers.set('Expires', '0')
   } else {
-    // HTML pages: re-validate every request with origin
-    // s-maxage=0 tells CDN to always check; must-revalidate ensures
-    // no stale content is served even during revalidation
     response.headers.set('Cache-Control', 'public, s-maxage=0, must-revalidate')
   }
 
-  // ── HSTS — Force HTTPS (1 year, include subdomains, preload) ──
   if (request.nextUrl.protocol === 'https:' || request.headers.get('x-forwarded-proto') === 'https') {
-    response.headers.set(
-      'Strict-Transport-Security',
-      'max-age=31536000; includeSubDomains; preload'
-    )
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload')
   }
 
-  // ── X-Content-Type-Options — Prevent MIME-type sniffing ──
   response.headers.set('X-Content-Type-Options', 'nosniff')
-
-  // ── X-Frame-Options — Prevent clickjacking ──
   response.headers.set('X-Frame-Options', 'DENY')
-
-  // ── Referrer-Policy — Limit referrer information ──
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
-
-  // ── X-XSS-Protection — Disabled (modern approach, CSP is better) ──
   response.headers.set('X-XSS-Protection', '0')
-
-  // ── Permissions-Policy — Restrict browser features ──
-  response.headers.set(
-    'Permissions-Policy',
-    'camera=(), microphone=(), geolocation=(), interest-cohort=()'
-  )
-
-  // ── Cross-Origin policies ──
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), interest-cohort=()')
   response.headers.set('Cross-Origin-Opener-Policy', 'same-origin')
   response.headers.set('Cross-Origin-Resource-Policy', 'same-origin')
 
-  // ── CSP for HTML pages (complements NestJS CSP for API routes) ──
-  // Only set CSP if not already set by NestJS (avoid double CSP on /api/*)
   if (!response.headers.get('Content-Security-Policy')) {
-    response.headers.set(
-      'Content-Security-Policy',
-      [
-        "default-src 'self'",
-        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",  // unsafe-eval required by Next.js 16 runtime
-        "style-src 'self' 'unsafe-inline'",
-        "img-src 'self' data: https: blob:",
-        "font-src 'self' https: data:",
-        "connect-src 'self' wss: https: ws:",  // WebSocket + API connections
-        "frame-src https://challenges.cloudflare.com",  // Cloudflare Turnstile for CAPTCHA
-        "object-src 'none'",
-        "base-uri 'self'",
-        "form-action 'self'",
-        "frame-ancestors 'none'",
-      ].join('; ')
-    )
+    response.headers.set('Content-Security-Policy', [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https: blob:",
+      "font-src 'self' https: data:",
+      "connect-src 'self' wss: https: ws:",
+      "frame-src https://challenges.cloudflare.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; '))
   }
 
   return response
@@ -142,11 +145,6 @@ export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // ── CRITICAL: RSC payload requests MUST pass through immediately ──
-  // These are the fetch requests Next.js App Router makes when navigating
-  // between pages (client-side routing). They carry the RSC header or
-  // _rsc= query param. ANY interception — redirects, auth checks, header
-  // injection — breaks the navigation and causes "Node cannot be found"
-  // errors and page freeze. This bypass MUST be the very first check.
   const isRSC =
     request.headers.get('rsc') === '1' ||
     request.nextUrl.searchParams.has('_rsc') ||
@@ -163,20 +161,6 @@ export function proxy(request: NextRequest) {
   }
 
   // ── Socket.IO: rewrite to NestJS backend ──
-  // FIX: Socket.IO runs on NestJS (port 3001). Next.js has no /socket.io route,
-  // so we must forward all /socket.io requests to NestJS.
-  //
-  // PROBLEM: Next.js applies a trailing-slash redirect (308) BEFORE proxy.ts
-  // rewrites take effect. So /socket.io/ (with slash) gets redirected to
-  // /socket.io (without slash). After the redirect, the client makes a new
-  // request to /socket.io which goes through proxy.ts again, but by then
-  // the Socket.IO handshake may fail because the path changed.
-  //
-  // SOLUTION: We use NextResponse.rewrite() which transparently forwards the
-  // request to NestJS WITHOUT a client-side redirect. This works for both
-  // /socket.io and /socket.io/ paths. Socket.IO will use HTTP long-polling
-  // through the rewrite, and automatically falls back from WebSocket if
-  // WS upgrade fails (WebSocket upgrades can't go through middleware rewrites).
   if (pathname.startsWith('/socket.io')) {
     const apiInternalUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
     const targetUrl = new URL(request.url)
@@ -186,7 +170,6 @@ export function proxy(request: NextRequest) {
       targetUrl.hostname = apiParsed.hostname
       targetUrl.port = apiParsed.port || '3001'
     } catch {
-      // Fallback: construct URL manually
       targetUrl.protocol = 'http:'
       targetUrl.hostname = '127.0.0.1'
       targetUrl.port = '3001'
@@ -195,49 +178,61 @@ export function proxy(request: NextRequest) {
   }
 
   // ── API routes: pass through with security headers ──
-  // NestJS Helmet adds its own headers for /api/* routes
   if (pathname.startsWith('/api/')) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
-  // NOTE: Mobile/desktop auto-redirect is intentionally removed.
-  // User-agent-based redirects in the proxy intercept RSC navigation fetch
-  // requests and send 308 redirects instead of RSC payloads, breaking
-  // client-side navigation completely. Both /mobile and /dashboard routes
-  // work independently without this redirect.
+  // ── i18n: Locale detection & redirect ──
+  // With localePrefix:'always', ALL paths must have a locale prefix.
+  // If the path doesn't have one, detect the best locale and redirect.
+  const pathLocale = extractLocaleFromPath(pathname)
 
-  // ── Admin API routes: pass through (auth handled by route handlers) ──
-  if (pathname.startsWith('/dashboard/admin/api/')) {
+  if (!pathLocale) {
+    // No locale prefix in URL — detect and redirect
+    const targetLocale = detectLocale(request)
+    const url = request.nextUrl.clone()
+    url.pathname = `/${targetLocale}${pathname}`
+    const response = NextResponse.redirect(url)
+    // Set cookie so we don't re-detect on every request
+    if (!request.cookies.get('NEXT_LOCALE')?.value) {
+      response.cookies.set('NEXT_LOCALE', targetLocale, {
+        path: '/',
+        maxAge: 31536000,
+        sameSite: 'lax',
+      })
+    }
+    return response
+  }
+
+  // ── Path HAS a locale prefix — apply route protection ──
+  // Strip locale prefix to check the actual route
+  const barePath = stripLocalePrefix(pathname)
+
+  // ── Admin API routes: pass through ──
+  if (barePath.startsWith('/dashboard/admin/api/')) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
   // ── Admin routes: check roua_admin_session ──
-  if (pathname.startsWith('/dashboard/admin')) {
-    // Admin login page is always accessible
-    if (pathname === '/dashboard/admin/login') {
+  if (barePath.startsWith('/dashboard/admin')) {
+    if (barePath === '/dashboard/admin/login') {
       return addSecurityHeaders(NextResponse.next(), request)
     }
-
     const adminSession = request.cookies.get('roua_admin_session')?.value
     if (!adminSession) {
-      return addSecurityHeaders(NextResponse.redirect(new URL('/dashboard/admin/login', request.url)), request)
+      return addSecurityHeaders(NextResponse.redirect(new URL(`/${pathLocale}/dashboard/admin/login`, request.url)), request)
     }
-
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
   // ── Dashboard routes: require roua_session cookie ──
-  // Guest access is now handled via /api/auth/guest which creates a proper
-  // session + cookie. No more SKIP_LANDING env var dependency.
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/mobile')) {
+  if (barePath.startsWith('/dashboard') || barePath.startsWith('/mobile')) {
     const sessionToken = request.cookies.get('roua_session')?.value
-
     if (!sessionToken) {
-      const loginUrl = new URL('/login', request.url)
+      const loginUrl = new URL(`/${pathLocale}/login`, request.url)
       loginUrl.searchParams.set('callbackUrl', pathname)
       return addSecurityHeaders(NextResponse.redirect(loginUrl), request)
     }
-
     return addSecurityHeaders(NextResponse.next(), request)
   }
 
@@ -247,12 +242,6 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all request paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, logos, sw.js, manifest.json, robots.txt
-     */
     '/((?!_next/static|_next/image|favicon\\.ico|favicon\\.svg|logo\\.svg|logo-.*\\.png|sw\\.js|manifest\\.json|robots\\.txt).*)',
   ],
 }

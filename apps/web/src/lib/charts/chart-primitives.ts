@@ -716,3 +716,165 @@ export class ZonePrimitive implements ISeriesPrimitive {
     };
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// 7. ALERT MARKER PRIMITIVE — Visual alert badges on the chart
+// Shows a colored pin/badge at the detection point with pattern name
+// and direction arrow. Pulses briefly when first drawn.
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface AlertMarkerData {
+  time: Time;
+  price: number;
+  label: string;           // e.g. "BOS↑", "FVG↓", "H&S"
+  direction: 'bullish' | 'bearish' | 'neutral';
+  confidence: number;      // 0-1
+  type: string;            // Pattern type for coloring
+}
+
+class AlertMarkerRenderer implements IPrimitivePaneRenderer {
+  constructor(
+    private _x: number | null,
+    private _y: number | null,
+    private _label: string,
+    private _direction: 'bullish' | 'bearish' | 'neutral',
+    private _confidence: number,
+    private _type: string,
+    private _timestamp: number, // For pulse animation
+  ) {}
+
+  draw(target: CanvasRenderingTarget2D): void {
+    if (this._x === null || this._y === null) return;
+
+    target.useMediaCoordinateSpace(scope => {
+      const ctx = scope.context;
+      ctx.save();
+      try {
+        const x = this._x!;
+        const y = this._y!;
+
+        // Color based on direction
+        const isBull = this._direction === 'bullish';
+        const isBear = this._direction === 'bearish';
+        const pinColor = isBull ? '#10b981' : isBear ? '#ef4444' : '#f59e0b';
+        const bgColor = isBull ? 'rgba(16, 185, 129, 0.15)' : isBear ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)';
+        const borderColor = isBull ? 'rgba(16, 185, 129, 0.6)' : isBear ? 'rgba(239, 68, 68, 0.6)' : 'rgba(245, 158, 11, 0.6)';
+
+        // Pulse effect: expand and fade for 2 seconds after creation
+        const age = Date.now() - this._timestamp;
+        if (age < 2000) {
+          const progress = age / 2000;
+          const pulseRadius = 12 + progress * 18;
+          const pulseAlpha = (1 - progress) * 0.4;
+          ctx.beginPath();
+          ctx.arc(x, y - 14, pulseRadius, 0, Math.PI * 2);
+          ctx.fillStyle = isBull ? `rgba(16,185,129,${pulseAlpha})` : isBear ? `rgba(239,68,68,${pulseAlpha})` : `rgba(245,158,11,${pulseAlpha})`;
+          ctx.fill();
+        }
+
+        // Pin circle (filled)
+        const pinY = y - 14;
+        const pinRadius = 8;
+        ctx.beginPath();
+        ctx.arc(x, pinY, pinRadius, 0, Math.PI * 2);
+        ctx.fillStyle = pinColor;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Direction arrow inside pin
+        ctx.font = 'bold 9px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#fff';
+        if (isBull) ctx.fillText('▲', x, pinY);
+        else if (isBear) ctx.fillText('▼', x, pinY);
+        else ctx.fillText('◆', x, pinY);
+
+        // Pin stem (small triangle pointing down to the price)
+        ctx.beginPath();
+        ctx.moveTo(x - 3, pinY + pinRadius - 1);
+        ctx.lineTo(x + 3, pinY + pinRadius - 1);
+        ctx.lineTo(x, y - 2);
+        ctx.closePath();
+        ctx.fillStyle = pinColor;
+        ctx.fill();
+
+        // Label badge next to pin
+        if (this._label) {
+          ctx.font = 'bold 8px sans-serif';
+          const metrics = ctx.measureText(this._label);
+          const badgeW = metrics.width + 8;
+          const badgeH = 14;
+          const badgeX = x + pinRadius + 3;
+          const badgeY = pinY - badgeH / 2;
+
+          // Badge background
+          ctx.fillStyle = bgColor;
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+          ctx.fill();
+          ctx.strokeStyle = borderColor;
+          ctx.lineWidth = 0.5;
+          ctx.stroke();
+
+          // Badge text
+          ctx.fillStyle = pinColor;
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(this._label, badgeX + 4, badgeY + badgeH / 2);
+        }
+
+        // Confidence bar under pin
+        const barW = 16;
+        const barH = 2;
+        const barX = x - barW / 2;
+        const barY = pinY + pinRadius + 4;
+        ctx.fillStyle = 'rgba(255,255,255,0.1)';
+        ctx.fillRect(barX, barY, barW, barH);
+        ctx.fillStyle = pinColor;
+        ctx.fillRect(barX, barY, barW * this._confidence, barH);
+      } finally {
+        ctx.restore();
+      }
+    });
+  }
+}
+
+class AlertMarkerPaneView implements IPrimitivePaneView {
+  constructor(private _primitive: AlertMarkerPrimitive) {}
+  zOrder(): 'top' { return 'top'; }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    const param = this._primitive._param;
+    if (!param) return null;
+    const { series, chart } = param;
+    const d = this._primitive._data;
+
+    const x = chart.timeScale().timeToCoordinate(d.time);
+    const y = series.priceToCoordinate(d.price);
+    if (x === null || y === null) return null;
+
+    return new AlertMarkerRenderer(
+      x, y, d.label, d.direction, d.confidence, d.type,
+      this._primitive._createdAt,
+    );
+  }
+}
+
+export class AlertMarkerPrimitive implements ISeriesPrimitive {
+  private _paneView: AlertMarkerPaneView;
+  _param: SeriesAttachedParameter | null = null;
+  _createdAt: number = Date.now();
+
+  constructor(public _data: AlertMarkerData) {
+    this._paneView = new AlertMarkerPaneView(this);
+  }
+
+  attached(param: SeriesAttachedParameter): void { this._param = param; }
+  detached(): void { this._param = null; }
+  updateAllViews(): void {}
+  paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
+}

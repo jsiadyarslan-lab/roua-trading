@@ -840,40 +840,54 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
   if (candles.length < 3) return fvgs;
 
   // Only scan the last 30 candles — FVGs from 100+ candles ago are irrelevant
-  // and would clutter the chart with dozens of lines on a small area
   const lookback = Math.min(30, candles.length);
   const startIdx = candles.length - lookback;
 
+  // Calculate ATR for minimum gap filter — tiny gaps are noise, not real FVGs
+  const atr = computeATR(candles, 14);
+  const recentATR = atr[atr.length - 1] || (candles[candles.length - 1].high - candles[candles.length - 1].low);
+  // Minimum gap size = 0.3x ATR — filters out micro-gaps that clutter the chart
+  const minGapSize = recentATR * 0.3;
+
   for (let i = startIdx + 2; i < candles.length; i++) {
     const prev = candles[i - 2];
+    const mid = candles[i - 1]; // Middle candle — must confirm impulse direction
     const curr = candles[i];
 
     // Bullish FVG: gap between prev high and curr low
-    if (curr.low > prev.high) {
-      fvgs.push({
-        type: 'bullish',
-        highPrice: curr.low,
-        lowPrice: prev.high,
-        startIndex: i - 2,
-        startTime: prev.time,
-        endIndex: i,
-        endTime: curr.time,
-        filled: false,
-      });
+    // REQUIRE: middle candle must be bullish (close > open) to confirm upward impulse
+    if (curr.low > prev.high && mid.close > mid.open) {
+      const gapSize = curr.low - prev.high;
+      if (gapSize >= minGapSize) {
+        fvgs.push({
+          type: 'bullish',
+          highPrice: curr.low,
+          lowPrice: prev.high,
+          startIndex: i - 2,
+          startTime: prev.time,
+          endIndex: i,
+          endTime: curr.time,
+          filled: false,
+        });
+      }
     }
 
     // Bearish FVG: gap between prev low and curr high
-    if (curr.high < prev.low) {
-      fvgs.push({
-        type: 'bearish',
-        highPrice: prev.low,
-        lowPrice: curr.high,
-        startIndex: i - 2,
-        startTime: prev.time,
-        endIndex: i,
-        endTime: curr.time,
-        filled: false,
-      });
+    // REQUIRE: middle candle must be bearish (close < open) to confirm downward impulse
+    if (curr.high < prev.low && mid.close < mid.open) {
+      const gapSize = prev.low - curr.high;
+      if (gapSize >= minGapSize) {
+        fvgs.push({
+          type: 'bearish',
+          highPrice: prev.low,
+          lowPrice: curr.high,
+          startIndex: i - 2,
+          startTime: prev.time,
+          endIndex: i,
+          endTime: curr.time,
+          filled: false,
+        });
+      }
     }
   }
 

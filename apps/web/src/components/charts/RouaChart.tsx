@@ -1009,12 +1009,10 @@ export default function RouaChart({
   }, [showAIStream]);
 
   // ── Background Pattern Detection (every 5 minutes) ──────
-  // FIX: Only runs when AI panel is open OR pattern progress is visible.
-  // FIX: Added showAIPanel/showPatternProgress to deps so the interval is
-  // cleaned up when the user closes both panels, instead of running forever.
-  // REVOLUTIONARY: Also runs audio alerts for high-confidence patterns.
+  // Runs always when candles are available — generates browser notifications
+  // and audio alerts for high-confidence patterns detected in background.
+  // When AI panel is open, the AISmartPanel handles more detailed detection.
   useEffect(() => {
-    if (!showAIPanel && !showPatternProgress) return; // Don't waste CPU if user isn't interested
     if (!candlesRef.current?.length) return;
     let cancelled = false;
     const detect = async () => {
@@ -1032,14 +1030,14 @@ export default function RouaChart({
         if ((highConf.length > 0 || bos.length > 0) && 'Notification' in window) {
           if (Notification.permission === 'granted') {
             const names = highConf.map(p => p.type).join(', ');
-            const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join('، ');
+            const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join(', ');
             const body = [names, bosNames].filter(Boolean).join(' | ');
             new Notification(tc('notificationTitle', { symbol: selectedSymbol }), { body, icon: '/favicon.ico' });
           } else if (Notification.permission === 'default') {
             Notification.requestPermission();
           }
         }
-        // ── REVOLUTIONARY: Audio alerts for high-confidence patterns ──
+        // Audio alerts for high-confidence patterns
         try {
           const { getPatternAudioAlerter } = await import('@/lib/charts/AudioAlerts');
           const alerter = getPatternAudioAlerter();
@@ -1069,7 +1067,7 @@ export default function RouaChart({
     detect();
     const timer = setInterval(detect, 5 * 60 * 1000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [selectedSymbol, timeframe, showAIPanel, showPatternProgress]);
+  }, [selectedSymbol, timeframe]);
 
   // FIX: Removed aiProcessingRef — was declared but never used. The async lock
   // was previously removed in favor of direct execution, but the ref remained
@@ -1127,6 +1125,7 @@ export default function RouaChart({
       entryExit: (result as any).entryExit,
       signal: (result as any).signal,
       patterns: result.patterns,
+      alerts: (result as any).alerts,
     }, chart.addPriceLine, chart.removePriceLine);
 
     // Old OverlayManager LineSeries code removed — now uses ISeriesPrimitive

@@ -18,6 +18,7 @@ import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
 import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 import { detectHarmonicPatternsPro, detectClassicPatternsPro } from '@/lib/charts/ProfessionalHarmonicPatterns';
+import type { AlertMarkerData } from '@/lib/charts/chart-primitives';
 // ── Revolutionary Engines ──
 import { getBayesianEngine, extractSignalsFromAnalysis } from '@/lib/charts/BayesianEngine';
 import { getPatternStateMachine } from '@/lib/charts/PatternStateMachine';
@@ -116,6 +117,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [volProfile, setVolProfile] = useState<any>(null);
   const [overlays, setOverlays] = useState({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false });
   const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
+
+  // ── Alert markers state ── Visual pins on chart for auto-detected patterns
+  const [chartAlerts, setChartAlerts] = useState<AlertMarkerData[]>([]);
+  const alertsDedupRef = useRef<Set<string>>(new Set()); // Prevent duplicate alerts
 
   // ── Revolutionary State ─────────────────────────────────
   const [bayesianResult, setBayesianResult] = useState<any>(null);
@@ -362,6 +367,86 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       lastAnalysisResultRef.current = analysisResult;
       onPatternsRef.current(analysisResult);
 
+      // ── 8.5 ALERT GENERATION: Create visual alert markers for high-confidence patterns ──
+      // Generate alert pins on the chart for patterns with confidence >= 0.6
+      try {
+        const newAlerts: AlertMarkerData[] = [];
+
+        // Local candlestick patterns (high confidence only)
+        for (const p of unique.filter(p => (p.confidence || 0) >= 0.6)) {
+          const alertKey = `pat-${p.type}-${p.direction}-${Math.round(p.time || 0)}`;
+          if (!alertsDedupRef.current.has(alertKey)) {
+            alertsDedupRef.current.add(alertKey);
+            // Clear old dedup entries after 5 minutes
+            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            newAlerts.push({
+              time: (p.time || c[c.length - 1].time) as any,
+              price: p.price || price,
+              label: `${p.type.substring(0, 6)}${p.direction === 'bullish' ? '↑' : p.direction === 'bearish' ? '↓' : ''}`,
+              direction: p.direction as 'bullish' | 'bearish' | 'neutral',
+              confidence: p.confidence || 0.5,
+              type: 'pattern',
+            });
+          }
+        }
+
+        // SMC structure breaks (BOS/CHoCH) — always alert-worthy
+        for (const br of smcData.structureBreaks || []) {
+          const alertKey = `smc-${br.type}-${br.direction}-${Math.round(br.time || 0)}`;
+          if (!alertsDedupRef.current.has(alertKey)) {
+            alertsDedupRef.current.add(alertKey);
+            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            newAlerts.push({
+              time: (br.time || c[c.length - 1].time) as any,
+              price: br.price || price,
+              label: `${br.type}${br.direction === 'bullish' ? '↑' : '↓'}`,
+              direction: br.direction as 'bullish' | 'bearish',
+              confidence: 0.75,
+              type: 'smc',
+            });
+          }
+        }
+
+        // FVG detections — moderate confidence alerts
+        for (const fvg of smcData.fvgs || []) {
+          const alertKey = `fvg-${fvg.type}-${Math.round(fvg.time || 0)}`;
+          if (!alertsDedupRef.current.has(alertKey) && !fvg.filled) {
+            alertsDedupRef.current.add(alertKey);
+            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            newAlerts.push({
+              time: (fvg.time || c[c.length - 1].time) as any,
+              price: (fvg.high + fvg.low) / 2,
+              label: `FVG${fvg.type === 'bullish' ? '↑' : '↓'}`,
+              direction: fvg.type as 'bullish' | 'bearish',
+              confidence: 0.65,
+              type: 'fvg',
+            });
+          }
+        }
+
+        // Harmonic patterns — very important alerts
+        for (const hp of harmonicPatterns.slice(0, 2)) {
+          const alertKey = `harm-${hp.type}-${hp.direction}`;
+          if (!alertsDedupRef.current.has(alertKey)) {
+            alertsDedupRef.current.add(alertKey);
+            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            newAlerts.push({
+              time: (hp.points?.D?.time || c[c.length - 1].time) as any,
+              price: hp.przLevel || hp.points?.D?.price || price,
+              label: `${hp.type}${hp.direction === 'bullish' ? '↑' : '↓'}`,
+              direction: hp.direction as 'bullish' | 'bearish',
+              confidence: hp.confidence || 0.6,
+              type: 'harmonic',
+            });
+          }
+        }
+
+        // Keep last 12 alerts (sliding window)
+        if (newAlerts.length > 0) {
+          setChartAlerts(prev => [...prev, ...newAlerts].slice(-12));
+        }
+      } catch { /* Alert generation fallback */ }
+
       // ── 9. REVOLUTIONARY: AI Consensus via SSE Streaming ─────
       // Try SSE first for progressive "War Room" experience, fallback to POST
       let consensusSucceeded = false;
@@ -550,6 +635,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
   // ── Auto-analyze when candles arrive (debounced) ─────────
   const lastAnalyzeTimeRef = useRef(0);
+  const lastCandleCountRef = useRef(0);
   const analyzeThrottled = useCallback(() => {
     const now = Date.now();
     if (now - lastAnalyzeTimeRef.current < 10000) return; // Min 10s between auto-runs
@@ -558,16 +644,17 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // DISABLED: Auto-analyze when candles arrive.
-  // This caused patterns to draw automatically whenever the user enters the
-  // platform, even before opening the AI panel. Now analysis only runs when
-  // the user clicks the refresh button or when overlay toggles change.
-  // useEffect(() => {
-  //   if (candles && candles.length >= 20) {
-  //     analyzeThrottled();
-  //   }
-  // // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, [candles.length]);
+  // ── AUTO-DETECTION: Re-enabled with smart throttling ──────
+  // Only auto-analyzes when a NEW candle is added (candle count increases),
+  // not on every re-render. Also generates alerts for high-confidence patterns.
+  useEffect(() => {
+    if (!candles || candles.length < 20) return;
+    // Only trigger when candle count actually increases (new candle from WebSocket)
+    if (candles.length <= lastCandleCountRef.current) return;
+    lastCandleCountRef.current = candles.length;
+    analyzeThrottled();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [candles?.length]);
 
   // ── Run analysis once when panel first receives valid candles ──
   // This replaces the auto-analyze on every candle change.
@@ -600,9 +687,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       ...lastResult,
       overlays: overlays as any,
       signal: signal ? { dir: signal.dir, entry: signal.entry, sl: signal.sl, tp: signal.tp } : undefined,
+      alerts: chartAlerts,
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [overlays]);
+  }, [overlays, chartAlerts]);
 
   // ── Re-emit overlays when candles are replaced (timeframe/symbol change) ──
   // When the timeframe changes, RouaChart clears all overlays and sends new candles.
@@ -631,6 +719,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         ...lastResult,
         overlays: overlaysRef.current as any,
         signal: sig2 ? { dir: sig2.dir, entry: sig2.entry, sl: sig2.sl, tp: sig2.tp } : undefined,
+        alerts: chartAlerts,
       } as AIAnalysisResult);
     }
 

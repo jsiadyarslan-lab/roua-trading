@@ -17,10 +17,10 @@ import type { OverlayType } from './OverlayRegistry';
 import { getOverlayRegistry, OverlayRegistry } from './OverlayRegistry';
 import {
   TrendLinePrimitive, HorizontalLinePrimitive, ShapePrimitive,
-  FibonacciPrimitive, LabelPrimitive, ZonePrimitive,
+  FibonacciPrimitive, LabelPrimitive, ZonePrimitive, AlertMarkerPrimitive,
   OVERLAY_COLORS,
   type TrendLineData, type HorizontalLineData, type ShapeData,
-  type FibonacciData, type LabelData, type ZoneData, type Point,
+  type FibonacciData, type LabelData, type ZoneData, type Point, type AlertMarkerData,
 } from './chart-primitives';
 import {
   computeZigZag, detectTrendLines, detectClassicPatterns,
@@ -46,6 +46,8 @@ export interface OverlayInput {
   entryExit?: { direction: string; entryPrice: number; stopLoss: number; takeProfit: number } | null;
   signal?: { dir: string; entry: number; sl: number; tp: number } | null;
   patterns?: any[];
+  /** Alert markers from auto-detection — visual pins on chart */
+  alerts?: AlertMarkerData[];
 }
 
 /**
@@ -295,6 +297,9 @@ export function renderOverlays(
   // ═══════════════════════════════════════════════════════════════
   if (showFVG) {
     registry.prepareRedraw('fvg');
+    // Use ONLY the ATR-filtered detectFVGs — no SMC duplicates.
+    // The SMCDetector FVGs caused dozens of lines on few candles
+    // because they lacked ATR filtering and middle-candle validation.
     const fvgs = detectFVGs(candles);
 
     fvgs.forEach((fvg, i) => {
@@ -304,33 +309,11 @@ export function renderOverlays(
         endTime: fvg.endTime as any,
         highPrice: fvg.highPrice,
         lowPrice: fvg.lowPrice,
-        fillColor: isBull ? 'rgba(34, 211, 238, 0.10)' : 'rgba(239, 68, 68, 0.10)',
+        fillColor: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(239, 68, 68, 0.12)',
         borderColor: isBull ? OVERLAY_COLORS.fvg : '#ef4444',
         label: `FVG${isBull ? '↑' : '↓'}`,
       }));
     });
-
-    // Only add SMC-based FVGs if they don't overlap with detected ones
-    // (limit to 2 extra max to avoid clutter)
-    if (input.smcData?.fvgs) {
-      let extraCount = 0;
-      input.smcData.fvgs.slice(0, 4).forEach((fvg: any, i: number) => {
-        if (extraCount >= 2) return;
-        if (!fvgs.some(f => Math.abs(f.highPrice - fvg.high) < 0.001)) {
-          const isBull = fvg.type === 'bullish';
-          registry.add('fvg', new ZonePrimitive({
-            startTime: fvg.time as any,
-            endTime: (fvg.time + 3600) as any, // ~1h width for SMC FVGs
-            highPrice: fvg.high,
-            lowPrice: fvg.low,
-            fillColor: isBull ? 'rgba(34, 211, 238, 0.06)' : 'rgba(239, 68, 68, 0.06)',
-            borderColor: isBull ? OVERLAY_COLORS.fvg : '#ef4444',
-            label: `FVG${isBull ? '↑' : '↓'}`,
-          }));
-          extraCount++;
-        }
-      });
-    }
   } else {
     registry.clearType('fvg');
   }
@@ -685,5 +668,27 @@ export function renderOverlays(
     if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', `TP`, 2, 2, true, 'entry');
   } else {
     registry.clearType('entry');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ALERT MARKERS — Visual alert pins on chart for auto-detected
+  // high-confidence patterns. These are always visible regardless
+  // of overlay toggles — they represent real-time detections.
+  // ═══════════════════════════════════════════════════════════════
+  if (input.alerts && input.alerts.length > 0) {
+    registry.prepareRedraw('alerts');
+    // Show max 8 most recent alert markers to avoid clutter
+    input.alerts.slice(-8).forEach((alert) => {
+      registry.add('alerts', new AlertMarkerPrimitive({
+        time: alert.time,
+        price: alert.price,
+        label: alert.label,
+        direction: alert.direction,
+        confidence: alert.confidence,
+        type: alert.type,
+      }));
+    });
+  } else {
+    registry.clearType('alerts');
   }
 }

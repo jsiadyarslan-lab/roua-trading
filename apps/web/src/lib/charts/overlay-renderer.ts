@@ -179,7 +179,7 @@ export function renderOverlays(
           : `rgba(239, 68, 68, ${strengthOpacity})`,
         lineWidth: line.strength > 0.6 ? 2 : 1,
         lineStyle: 0,
-        extendRight: true,
+        extendRight: false,
         label: isBull ? `▲ S${line.touchCount}` : `▼ R${line.touchCount}`,
       }));
     });

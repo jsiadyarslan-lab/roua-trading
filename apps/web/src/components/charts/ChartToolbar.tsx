@@ -121,28 +121,45 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const exportPanelRef = useRef<HTMLDivElement>(null);
 
   // ── Fixed-position dropdown placement (avoids overflow clipping) ──
-  const [tfPanelPos, setTfPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [tfPanelPos, setTfPanelPos] = useState<{ top: number; right: number; left: number } | null>(null);
   const [ctPanelPos, setCtPanelPos] = useState<{ top: number; left: number } | null>(null);
-  const [exportPanelPos, setExportPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [exportPanelPos, setExportPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   const updateTfPos = useCallback(() => {
     if (tfRef.current && showTimeframePanel) {
       const rect = tfRef.current.getBoundingClientRect();
-      setTfPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      // Use left instead of right to avoid RTL positioning issues
+      // Ensure panel stays within viewport bounds
+      const panelWidth = mobile ? 200 : 240;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setTfPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right, left });
     }
   }, [showTimeframePanel]);
 
   const updateCtPos = useCallback(() => {
     if (chartTypeRef.current && showChartTypePanel) {
       const rect = chartTypeRef.current.getBoundingClientRect();
-      setCtPanelPos({ top: rect.bottom + 4, left: rect.left });
+      const panelWidth = mobile ? 130 : 150;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setCtPanelPos({ top: rect.bottom + 4, left });
     }
   }, [showChartTypePanel]);
 
   const updateExportPos = useCallback(() => {
     if (exportRef.current && showExportPanel) {
       const rect = exportRef.current.getBoundingClientRect();
-      setExportPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      const panelWidth = mobile ? 160 : 120;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setExportPanelPos({ top: rect.bottom + 4, left });
     }
   }, [showExportPanel]);
 
@@ -301,7 +318,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
-    <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, right: tfPanelPos.right, minWidth: mobile ? 200 : 240 }}>
+    <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, left: tfPanelPos.left, right: 'auto', minWidth: mobile ? 200 : 240 }}>
       <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('timeframe')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
@@ -359,7 +376,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   ) : null;
 
   const exportPanelPortal = showExportPanel && exportPanelPos ? createPortal(
-    <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, right: exportPanelPos.right, minWidth: mobile ? 160 : 120 }}>
+    <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, left: exportPanelPos.left, right: 'auto', minWidth: mobile ? 160 : 120 }}>
       {mobile ? [
         { label: `📐 ${t('drawings')}`, action: onToggleDrawings },
         { label: `🗑️ ${t('clearDrawings')}`, action: onClearDrawings },

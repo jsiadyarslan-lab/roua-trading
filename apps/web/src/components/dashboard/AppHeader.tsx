@@ -1165,17 +1165,33 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
             onMouseLeave={() => { if (hasChildren) handleSubNavLeave() }}
           >
             <SafeLink href={href} style={{ textDecoration: 'none' }}>
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: hasChildren ? 4 : 6,
-                padding: '0 12px', borderRadius: 8, cursor: 'pointer',
-                height: 46,
-                background: active ? 'rgba(0,212,255,0.10)' : 'transparent',
-                borderBottom: active ? `2px solid var(--accent)` : '2px solid transparent',
-                color: active ? 'var(--accent)' : T.text2,
-                fontFamily: "'Cairo', sans-serif",
-                fontSize: 12, fontWeight: active ? 800 : 500,
-                whiteSpace: 'nowrap', transition: 'all 0.15s',
-              }}>
+              <div
+                onMouseEnter={e => {
+                  if (!active) {
+                    e.currentTarget.style.background = 'rgba(0,212,255,0.08)'
+                    e.currentTarget.style.border = '1px solid rgba(0,212,255,0.15)'
+                    e.currentTarget.style.color = T.text
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!active) {
+                    e.currentTarget.style.background = 'transparent'
+                    e.currentTarget.style.border = '1px solid transparent'
+                    e.currentTarget.style.color = T.text2
+                  }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: hasChildren ? 3 : 4,
+                  padding: '0 8px', borderRadius: 6, cursor: 'pointer',
+                  height: 32,
+                  background: active ? 'rgba(0,212,255,0.12)' : 'transparent',
+                  border: active ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
+                  color: active ? 'var(--accent)' : T.text2,
+                  fontFamily: "'Cairo', sans-serif",
+                  fontSize: 11, fontWeight: active ? 800 : 500,
+                  whiteSpace: 'nowrap', transition: 'all 0.18s',
+                }}
+              >
                 <Icon size={14} strokeWidth={active ? 2.5 : 2} />
                 {t('dashboard.nav.' + label)}
                 {hasChildren && (
@@ -1211,15 +1227,29 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       <div ref={moreRef} style={{ position: 'relative', flexShrink: 0 }}>
         <button
           onClick={() => setMoreOpen(!moreOpen)}
+          onMouseEnter={e => {
+            if (!moreOpen) {
+              e.currentTarget.style.background = 'rgba(0,212,255,0.08)'
+              e.currentTarget.style.border = '1px solid rgba(0,212,255,0.15)'
+              e.currentTarget.style.color = T.text
+            }
+          }}
+          onMouseLeave={e => {
+            if (!moreOpen) {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.border = '1px solid transparent'
+              e.currentTarget.style.color = T.text2
+            }
+          }}
           style={{
-            display: 'flex', alignItems: 'center', gap: 6,
-            padding: '0 12px', cursor: 'pointer', height: 46,
-            background: moreOpen ? 'rgba(0,212,255,0.08)' : 'transparent',
-            border: 'none',
-            borderBottom: moreOpen ? `2px solid var(--accent)` : '2px solid transparent',
+            display: 'flex', alignItems: 'center', gap: 3,
+            padding: '0 8px', cursor: 'pointer', height: 32,
+            background: moreOpen ? 'rgba(0,212,255,0.12)' : 'transparent',
+            border: moreOpen ? '1px solid rgba(0,212,255,0.25)' : '1px solid transparent',
+            borderRadius: 6,
             color: moreOpen ? 'var(--accent)' : T.text2,
-            fontFamily: "'Cairo', sans-serif", fontSize: 12,
-            transition: 'all 0.15s',
+            fontFamily: "'Cairo', sans-serif", fontSize: 11,
+            transition: 'all 0.18s',
           }}
         >
           <MoreHorizontal size={14} />
@@ -1241,7 +1271,7 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
       {/* Mode Switcher (Trader / Investor / AI) */}
       <div style={{
          display: 'flex', background: 'rgba(255,255,255,0.04)', padding: 2, borderRadius: 8,
-         border: '1px solid var(--card-border)', marginInlineStart: 12
+         border: '1px solid var(--card-border)', marginInlineStart: 6
       }}>
          {([['trader', t('common.trader')], ['investor', t('common.investor')], ['ai', 'AI']] as [TradingMode, string][]).map(([m, label]) => {
            const cfg = modeConfig[m]
@@ -1265,24 +1295,35 @@ function MainNav({ mode, onModeChange }: { mode: TradingMode, onModeChange: (m: 
          })}
       </div>
 
-      {/* LED Connection Indicator — dynamic based on market data */}
-      <HeaderStatusLED />
+      {/* LED Connection Indicator — REMOVED to save navbar space ("مباشر" / "Live" label) */}
 
       <div ref={accountRef} style={{ position: 'relative', flexShrink: 0 }}>
         <div
           onClick={() => setAccountOpen(!accountOpen)}
+          onMouseEnter={e => {
+            if (!accountOpen) {
+              e.currentTarget.style.background = 'rgba(0,212,255,0.08)'
+              e.currentTarget.style.border = '1px solid rgba(0,212,255,0.20)'
+            }
+          }}
+          onMouseLeave={e => {
+            if (!accountOpen) {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.04)'
+              e.currentTarget.style.border = '1px solid rgba(255,255,255,0.10)'
+            }
+          }}
           style={{
             display: 'flex', alignItems: 'center',
-            gap: 8, cursor: 'pointer',
-            padding: '0 16px', borderRadius: 22, height: 46,
-            background: accountOpen ? 'rgba(0,212,255,0.08)' : 'rgba(255,255,255,0.05)',
-            border: accountOpen ? '1px solid rgba(0,212,255,0.20)' : '1px solid var(--card-border)',
-            marginInlineStart: 8,
+            gap: 6, cursor: 'pointer',
+            padding: '0 10px', borderRadius: 16, height: 32,
+            background: accountOpen ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
+            border: accountOpen ? '1px solid rgba(0,212,255,0.30)' : '1px solid rgba(255,255,255,0.10)',
+            marginInlineStart: 6,
             transition: 'all 0.2s',
           }}
         >
-          <User size={16} color="var(--accent)" />
-          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 12, color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
+          <User size={14} color="var(--accent)" />
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 11, color: 'var(--foreground)', fontWeight: 800 }}>{t('common.myAccount')}</span>
           <ChevronDown size={12} style={{
             transform: accountOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 0.2s', color: T.text3,

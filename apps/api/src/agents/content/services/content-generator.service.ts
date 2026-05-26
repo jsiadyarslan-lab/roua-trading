@@ -201,13 +201,15 @@ export class ContentGeneratorService {
   private async _generateWithAI(
     systemPrompt: string,
     userPrompt: string,
-    language: 'ar' | 'en',
+    language: 'ar' | 'en' | 'es',
     config: AiGenerationConfig,
   ): Promise<{ title: string; content: string; summary: string }> {
     // Build the language-specific prompt
     const langPrompt = language === 'ar'
       ? 'اكتب المحتوى باللغة العربية بشكل احترافي ومفصل.'
-      : 'Write the content in English in a professional and detailed manner.';
+      : language === 'es'
+        ? 'Escribe el contenido en español de manera profesional y detallada.'
+        : 'Write the content in English in a professional and detailed manner.';
 
     // Combine system context + user prompt + format instruction into a single prompt
     const fullPrompt = `[السياق/الدور]: ${systemPrompt}\n\n${userPrompt}\n\n${langPrompt}\n\nRespond in the following JSON format only:\n{\n  "title": "...",\n  "content": "...",\n  "summary": "..."\n}`;
@@ -217,7 +219,7 @@ export class ContentGeneratorService {
       const aiResponse = await this.glmService.analyze({
         prompt: fullPrompt,
         type: 'general',
-        language: language === 'ar' ? 'ar' : 'en',
+        language: language === 'ar' ? 'ar' : language === 'es' ? 'es' : 'en',
       });
 
       // FIX: Reject error messages that GLM returns as content
@@ -285,7 +287,7 @@ export class ContentGeneratorService {
 
       // Plain text fallback: first line as title, rest as content
       const lines = rawContent.split('\n').filter(l => l.trim().length > 0);
-      const title = lines[0]?.replace(/^#+\s*/, '').trim() || (language === 'ar' ? 'تقرير' : 'Report');
+      const title = lines[0]?.replace(/^#+\s*/, '').trim() || (language === 'ar' ? 'تقرير' : language === 'es' ? 'Informe' : 'Report');
       const content = lines.slice(1).join('\n').trim() || rawContent;
       const summary = content.substring(0, 200).trim() + (content.length > 200 ? '...' : '');
 

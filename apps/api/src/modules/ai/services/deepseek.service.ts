@@ -64,7 +64,9 @@ export class DeepSeekService {
                       content:
                         request.language === 'ar'
                           ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"'
-                          : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"',
+                          : request.language === 'es'
+                            ? 'Eres un analista financiero inteligente. Responde en español de forma concisa. Termina con: "DECISION: BUY" o "DECISION: SELL" o "DECISION: HOLD"'
+                            : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"',
                     },
                     { role: 'user', content: request.prompt },
                   ],
@@ -163,7 +165,7 @@ export class DeepSeekService {
             {
               model: 'deepseek/deepseek-chat-v3-0324:free',
               messages: [
-                { role: 'system', content: request.language === 'ar' ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
+                { role: 'system', content: request.language === 'ar' ? 'أنت محلل مالي ذكي. أجب بالعربية باختصار. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' : request.language === 'es' ? 'Eres un analista financiero inteligente. Responde en español de forma concisa. Termina con: "DECISION: BUY" o "DECISION: SELL" o "DECISION: HOLD"' : 'You are a smart financial analyst. Be concise. End with: "DECISION: BUY" or "DECISION: SELL" or "DECISION: HOLD"' },
                 { role: 'user', content: request.prompt },
               ],
               temperature: 0.3,

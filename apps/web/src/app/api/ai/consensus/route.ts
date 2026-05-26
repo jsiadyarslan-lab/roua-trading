@@ -10,7 +10,45 @@ import { db, ensureDbReady } from '@/lib/db'
 type Vote = 'BUY' | 'SELL' | 'HOLD'
 
 // ── Bilingual text helper for Layer 3 scanner-rules ──
-function L3(lang: 'ar' | 'en' | 'fr' | 'tr') {
+function L3(lang: 'ar' | 'en' | 'fr' | 'tr' | 'es') {
+  if (lang === 'es') return {
+    council: 'Consejo',
+    techAnalyst: 'Analista Técnico',
+    sentAnalyst: 'Analista de Sentimiento',
+    riskExpert: 'Experto en Riesgo',
+    macroExpert: 'Experto Macro',
+    patternExpert: 'Experto en Patrones',
+    execStrategist: 'Estratega de Ejecución',
+    noContextReason: 'No se puede construir un contexto de mercado fiable en este momento, por lo que la recomendación se redujo a esperar hasta que regresen los datos.',
+    councilProtection: 'El consejo entró en modo de protección porque los datos de mercado eran insuficientes o no fiables en este momento.',
+    waitUntilAI: `Espere en este símbolo hasta que los modelos de IA vuelvan a estar en línea, luego reevalúe antes de cualquier decisión.`,
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) =>
+      `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) =>
+      `Cambio en 24h ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, con contexto ${dir} en el marco temporal ${tf}.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) =>
+      `Nivel de riesgo ${spreadRisk}. Estado de datos: ${freshness}. ${!isFresh ? 'La confianza solo se redujo, la señal no se canceló completamente.' : 'El riesgo calculado es aceptable.'}`,
+    macroReason: (daily: string, h4: string, hint: string) =>
+      `Marco temporal diario ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) =>
+      `Clasificación de oportunidad actual ${signalClass} con sesgo ${entryBias}. Expansión del rango ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) =>
+      `Régimen: Diario ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Alto', medium: 'Medio', low: 'Bajo',
+    recBuy: 'Comprar', recSell: 'Vender', recHold: 'Mantener',
+    recStrong: 'Fuerte', recClear: 'Claro', recProbable: 'Probable',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) =>
+      `Consenso del consejo (${totalModels} modelos): ${recLabel} ${recStrength} con ${consensusScore}% de confianza.`,
+    conflictCounterTrend: 'Hay un conflicto entre el marco temporal superior y el desencadenante a corto plazo, pero el momentum actual es suficiente para mantener al consejo cauteloso en lugar de cancelar la recomendación completamente.',
+    conflictRiskVsTech: 'El análisis técnico ve una oportunidad, pero la capa de riesgo redujo la agresividad debido a la calidad de los datos o la volatilidad.',
+    conflictBalanced: 'Los roles principales están equilibrados, por lo que el consejo se conforma con monitorear el mercado hasta que emerja una brecha más clara.',
+    conflictAligned: 'Los roles principales están relativamente alineados y no hay conflicto fundamental en la decisión actual.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) =>
+      `${recLabel} en ${symbol} con ${score}% de consenso, clasificado como ${signalClass} con sesgo ${entryBias}. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Fallo interno del motor de consenso, modo de espera preventivo activado.',
+    errorConflict: 'El modo de respaldo del consejo se activó debido a un error interno, por lo que no se permite ninguna recomendación agresiva en este momento.',
+    errorMasterStrategy: 'Espere hasta que el análisis se complete y el motor del consejo vuelva a la operación normal.',
+  }
   if (lang === 'tr') return {
     council: 'Konsey',
     techAnalyst: 'Teknik Analist',
@@ -152,8 +190,9 @@ function toVote(dir: 'buy' | 'sell' | 'neutral'): Vote {
   return dir === 'buy' ? 'BUY' : dir === 'sell' ? 'SELL' : 'HOLD'
 }
 
-function directionLabel(dir: 'buy' | 'sell' | 'neutral', language: 'ar' | 'en' = 'ar') {
+function directionLabel(dir: 'buy' | 'sell' | 'neutral', language: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar') {
   if (language === 'en') return dir === 'buy' ? 'Bullish' : dir === 'sell' ? 'Bearish' : 'Neutral'
+  if (language === 'es') return dir === 'buy' ? 'Alcista' : dir === 'sell' ? 'Bajista' : 'Neutral'
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
@@ -270,12 +309,12 @@ function getNestJSStatus() {
  * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
-  let language: 'ar' | 'en' | 'fr' | 'tr' = 'en'
+  let language: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'en'
   try {
     const body = await req.json()
     const symbol = body.symbol || 'BTC/USD'
     const rawLang = body.language || 'en'
-    language = (['ar', 'en', 'fr', 'tr'].includes(rawLang) ? rawLang : 'en') as 'ar' | 'en' | 'fr' | 'tr'
+    language = (['ar', 'en', 'fr', 'tr', 'es'].includes(rawLang) ? rawLang : 'en') as 'ar' | 'en' | 'fr' | 'tr' | 'es'
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 

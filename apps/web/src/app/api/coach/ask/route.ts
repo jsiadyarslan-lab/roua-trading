@@ -8,9 +8,12 @@ import { db } from '@/lib/db'
  * Body: { question, context? }
  */
 export async function POST(req: NextRequest) {
+  let locale: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar'
   try {
     const body = await req.json()
     const { question, context = '' } = body
+    const rawLocale = body.locale || 'ar'
+    locale = (['ar', 'en', 'fr', 'tr', 'es'].includes(rawLocale) ? rawLocale : 'ar') as 'ar' | 'en' | 'fr' | 'tr' | 'es'
 
     if (!question || !question.trim()) {
       return NextResponse.json({ success: false, error: 'Question is required' }, { status: 400 })
@@ -34,7 +37,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Fetch user's recent trades for context via direct DB query
-    let statsSummary = 'لا توجد بيانات أداء متاحة.'
+    let statsSummary = locale === 'es' ? 'No hay datos de rendimiento disponibles.' : 'لا توجد بيانات أداء متاحة.'
     try {
       const trades = userId
         ? await db.trade.findMany({
@@ -51,14 +54,26 @@ export async function POST(req: NextRequest) {
         const winRate = allPnl.length > 0 ? Math.round((winningTrades.length / allPnl.length) * 100) : 0
         const totalPnl = allPnl.reduce((s, v) => s + v, 0)
 
-        statsSummary = `إجمالي الصفقات: ${allPnl.length} | نسبة الفوز: ${winRate}% | إجمالي ربح/خسارة: $${Math.round(totalPnl * 100) / 100}`
+        statsSummary = locale === 'es'
+          ? `Total de operaciones: ${allPnl.length} | Tasa de victoria: ${winRate}% | Beneficio/Pérdida total: $${Math.round(totalPnl * 100) / 100}`
+          : `إجمالي الصفقات: ${allPnl.length} | نسبة الفوز: ${winRate}% | إجمالي ربح/خسارة: $${Math.round(totalPnl * 100) / 100}`
       }
     } catch (dbError: any) {
       console.warn('[coach/ask] DB query failed, proceeding without trades:', dbError?.message || dbError)
     }
 
     // Try NestJS AI orchestrator
-    const aiPrompt = `أنت مُدرّب تداول خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر. قدم خطوات عملية واضحة.
+    const aiPrompt = locale === 'es'
+      ? `Eres un entrenador de trading experto en la plataforma "Roua". El trader te hace una pregunta sobre su rendimiento. Responde en español de forma profesional, útil y directa. Proporciona pasos prácticos claros.
+
+Estadísticas del trader:
+${statsSummary}
+${context ? `\nContexto adicional:\n${context}` : ''}
+
+Pregunta del trader: ${question}
+
+Responde de forma detallada y práctica. Proporciona pasos claros si es necesario.`
+      : `أنت مُدرّب تداول خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر. قدم خطوات عملية واضحة.
 
 إحصائيات المتداول:
 ${statsSummary}
@@ -75,7 +90,7 @@ ${context ? `\nسياق إضافي:\n${context}` : ''}
         body: JSON.stringify({
           prompt: aiPrompt,
           type: 'general',
-          language: 'ar',
+          language: locale === 'es' ? 'es' : 'ar',
         }),
         signal: AbortSignal.timeout(30000),
       })
@@ -103,7 +118,7 @@ ${context ? `\nسياق إضافي:\n${context}` : ''}
       success: true,
       data: {
         question,
-        answer: generateFallbackAnswer(question, statsSummary),
+        answer: generateFallbackAnswer(question, statsSummary, locale),
         model: 'rule-based',
         source: 'local-fallback',
       },
@@ -112,12 +127,24 @@ ${context ? `\nسياق إضافي:\n${context}` : ''}
     console.error('[coach/ask] Error:', error?.message || error)
     return NextResponse.json({
       success: false,
-      error: 'فشل في معالجة السؤال. يرجى المحاولة لاحقاً.',
+      error: locale === 'es' ? 'Error al procesar la pregunta. Por favor, inténtelo más tarde.' : 'فشل في معالجة السؤال. يرجى المحاولة لاحقاً.',
     }, { status: 500 })
   }
 }
 
-function generateFallbackAnswer(question: string, stats: string): string {
+function generateFallbackAnswer(question: string, stats: string, locale: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar'): string {
+  if (locale === 'es') {
+    if (question.toLowerCase().includes('stop loss') || question.toLowerCase().includes('stop loss') || question.includes('pérdida')) {
+      return 'El Stop Loss es una herramienta esencial para proteger el capital. Debes determinar el nivel de Stop Loss antes de abrir la operación basándote en los niveles de Soporte y Resistencia, no de forma aleatoria. La regla general: no arriesgues más del 1-2% del capital en una sola operación. Si el Stop Loss está muy lejos del punto de Entrada, reduce el tamaño de la posición en lugar de ampliar el Stop Loss.'
+    }
+    if (question.toLowerCase().includes('tamaño') || question.toLowerCase().includes('position size') || question.includes('posición')) {
+      return 'El tamaño de la posición debe ser proporcional al capital y al nivel de riesgo. Usa la regla del 1%: no arriesgues más del 1% del capital en ninguna operación. Calcula el tamaño de la posición basándote en la distancia entre el punto de Entrada y el Stop Loss. Si la distancia es grande, reduce el tamaño de la posición.'
+    }
+    if (question.toLowerCase().includes('psicología') || question.toLowerCase().includes('psychology') || question.includes('miedo') || question.includes('codicia')) {
+      return 'El control psicológico es lo que separa al trader exitoso del perdedor. Las reglas más importantes: no operes bajo estado emocional, no persigas al mercado para recuperar pérdidas, cumple tu plan independientemente de las emociones, y lleva un diario de trading para rastrear tu estado psicológico en cada operación.'
+    }
+    return `Basándote en tus datos (${stats}). Te aconsejo enfocarte en mejorar los puntos de Entrada y salida, usar siempre Stop Loss, y no arriesgar más del 2% del capital en una sola operación. Revisa tus operaciones perdedoras para identificar patrones recurrentes y evitarlos. Sé más específico en tu pregunta para darte un consejo más preciso.`
+  }
   if (question.includes('وقفة') || question.includes('وقف') || question.includes('stop loss') || question.includes('وقف خسارة')) {
     return 'وقف الخسارة أداة أساسية لحماية رأس المال. يجب تحديد مستوى وقف الخسارة قبل فتح الصفقة بناءً على مستويات الدعم والمقاومة، وليس بشكل عشوائي. القاعدة العامة: لا تخاطر بأكثر من 1-2% من رأس المال في الصفقة الواحدة. إذا كان وقف الخسارة بعيداً جداً عن نقطة الدخول، قلل حجم الصفقة بدلاً من توسيع وقف الخسارة.'
   }

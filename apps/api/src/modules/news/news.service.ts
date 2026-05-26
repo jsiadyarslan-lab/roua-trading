@@ -271,6 +271,9 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
           // Map category to Arabic
           const categoryAr = this._mapCategoryToArabic(item.category || 'General');
 
+          // Map category to Spanish
+          const categoryEs = this._mapCategoryToSpanish(item.category || 'General');
+
           // Store in database
           await this.prisma.newsArticle.create({
             data: {
@@ -287,6 +290,7 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
               affectedAssets: JSON.stringify(combinedResult.affectedAssets || []),
               category: item.category || 'General',
               categoryAr,
+              categoryEs,
               aiAnalysis: combinedResult.fullAnalysis || '',
               imageUrl: item.imageUrl || null,
               publishedAt: item.publishedAt
@@ -628,6 +632,23 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       affectedAssets: assets,
       summary: '',
     };
+  }
+
+  /**
+   * Map English category to Spanish
+   */
+  private _mapCategoryToSpanish(category: string): string {
+    const lower = category.toLowerCase();
+    if (lower.includes('bitcoin') || lower.includes('crypto')) return 'Criptomonedas';
+    if (lower.includes('market') || lower.includes('stock')) return 'Acciones';
+    if (lower.includes('regulation') || lower.includes('policy')) return 'Regulación';
+    if (lower.includes('economy') || lower.includes('macro')) return 'Economía';
+    if (lower.includes('etf') || lower.includes('fund')) return 'Fondos';
+    if (lower.includes('forex') || lower.includes('currency')) return 'Forex';
+    if (lower.includes('oil') || lower.includes('energy')) return 'Energía';
+    if (lower.includes('gold') || lower.includes('metal')) return 'Metales';
+    if (lower.includes('tech') || lower.includes('ai')) return 'Tecnología';
+    return 'Mercados';
   }
 
   /**

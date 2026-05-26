@@ -36,7 +36,7 @@ export class CoachService {
   /**
    * Get performance advice based on user's trading history
    */
-  async getPerformanceAdvice(userId: string) {
+  async getPerformanceAdvice(userId: string, locale: 'ar' | 'en' | 'es' = 'ar') {
     this.logger.log(`Generating performance advice for user ${userId}`);
 
     // 1. Fetch last 50 trades
@@ -71,7 +71,10 @@ export class CoachService {
     const contextSummary = this.buildContextSummary(stats, trades.slice(0, 20), closedPositions.slice(0, 20));
 
     // 6. Call AI orchestrator for analysis
-    const aiPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية وسجل الصفقات. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
+    const isAr = locale === 'ar';
+    const isEs = locale === 'es';
+
+    const arPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية وسجل الصفقات. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
 
 الإحصائيات:
 ${contextSummary}
@@ -87,6 +90,40 @@ ${contextSummary}
 نقاط_الضعف: [نقاط الضعف]
 خطة_تحسين: [خطة التحسين الموصى بها]`;
 
+    const esPrompt = `Eres un entrenador de trading experto en la plataforma "Roua". Analiza el rendimiento del trader basándote en las siguientes estadísticas y registro de operaciones. Proporciona 3-5 consejos específicos y accionables para mejorar el rendimiento. Enfócate en gestión de riesgos, disciplina, tamaño de posiciones y selección de activos. Menciona puntos fuertes y débiles. Haz los consejos en español de forma directa.
+
+Estadísticas:
+${contextSummary}
+
+Responde en el siguiente formato:
+evaluación_general: [excelente/bueno/necesita_mejora]
+---
+1. [tipo de consejo: advertencia/oportunidad/educación] texto del primer consejo
+2. [tipo de consejo: advertencia/oportunidad/educación] texto del segundo consejo
+3. [tipo de consejo: advertencia/oportunidad/educación] texto del tercer consejo
+---
+puntos_fuertes: [puntos fuertes]
+puntos_débiles: [puntos débiles]
+plan_mejora: [plan de mejora recomendado]`;
+
+    const enPrompt = `You are an expert trading coach on the "Roua" platform. Analyze the trader's performance based on the following statistics and trade log. Provide 3-5 specific, actionable tips to improve performance. Focus on risk management, discipline, position sizing, and asset selection. Mention strengths and weaknesses. Keep advice direct and professional.
+
+Statistics:
+${contextSummary}
+
+Respond in the following format:
+overall_rating: [excellent/good/needs_improvement]
+---
+1. [advice type: warning/opportunity/education] first advice text
+2. [advice type: warning/opportunity/education] second advice text
+3. [advice type: warning/opportunity/education] third advice text
+---
+strengths: [strengths]
+weaknesses: [weaknesses]
+improvement_plan: [recommended improvement plan]`;
+
+    const aiPrompt = isAr ? arPrompt : isEs ? esPrompt : enPrompt;
+
     let adviceText = '';
     let adviceItems: { type: string; icon: string; text: string }[] = [];
 
@@ -94,7 +131,7 @@ ${contextSummary}
       const result = await this.orchestrator.analyze({
         prompt: aiPrompt,
         type: 'risk_analysis',
-        language: 'ar',
+        language: isAr ? 'ar' : isEs ? 'es' : 'en',
       });
       adviceText = result.content;
 
@@ -102,7 +139,7 @@ ${contextSummary}
       adviceItems = this.parseAdviceItems(result.content);
     } catch (error: any) {
       this.logger.warn(`AI analysis failed, using rule-based fallback: ${error.message}`);
-      const fallback = this.generateRuleBasedAdvice(stats);
+      const fallback = this.generateRuleBasedAdvice(stats, locale);
       adviceText = fallback.text;
       adviceItems = fallback.items;
     }
@@ -134,7 +171,7 @@ ${contextSummary}
   /**
    * Ask the coach a specific question
    */
-  async askCoach(userId: string, question: string, contextAdviceId?: string) {
+  async askCoach(userId: string, question: string, contextAdviceId?: string, locale: 'ar' | 'en' | 'es' = 'ar') {
     this.logger.log(`Coach question from user ${userId}: ${question}`);
 
     // Get user's recent stats for context
@@ -171,7 +208,10 @@ ${contextSummary}
       }
     }
 
-    const aiPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر.
+    const isAr = locale === 'ar';
+    const isEs = locale === 'es';
+
+    const arPrompt = `أنت مُدرّب ربط حسابات خبير في منصة "رؤى". المتداول يسألك سؤالاً حول أدائه. أجب بالعربية بشكل مهني ومفيد ومباشر.
 
 إحصائيات المتداول:
 ${contextSummary}
@@ -181,17 +221,39 @@ ${previousAdvice}
 
 أجب بشكل مبدد وعملي. قدم خطوات واضحة إن لزم الأمر.`;
 
+    const esPrompt = `Eres un entrenador de trading experto en la plataforma "Roua". El trader te hace una pregunta sobre su rendimiento. Responde en español de forma profesional, útil y directa.
+
+Estadísticas del trader:
+${contextSummary}
+${previousAdvice}
+
+Pregunta del trader: ${question}
+
+Responde de forma práctica. Proporciona pasos claros si es necesario.`;
+
+    const enPrompt = `You are an expert trading coach on the "Roua" platform. The trader is asking you a question about their performance. Answer in English in a professional, helpful, and direct manner.
+
+Trader statistics:
+${contextSummary}
+${previousAdvice}
+
+Trader's question: ${question}
+
+Answer practically. Provide clear steps if needed.`;
+
+    const aiPrompt = isAr ? arPrompt : isEs ? esPrompt : enPrompt;
+
     let answer = '';
     try {
       const result = await this.orchestrator.analyze({
         prompt: aiPrompt,
         type: 'general',
-        language: 'ar',
+        language: isAr ? 'ar' : isEs ? 'es' : 'en',
       });
       answer = result.content;
     } catch (error: any) {
       this.logger.warn(`AI question answer failed: ${error.message}`);
-      answer = this.generateFallbackAnswer(question, stats);
+      answer = this.generateFallbackAnswer(question, stats, locale);
     }
 
     return {
@@ -398,49 +460,57 @@ ${tradeSummary}`;
   }
 
   // ── Private: Rule-based fallback advice ──
-  private generateRuleBasedAdvice(stats: TradeStats): { text: string; items: { type: string; icon: string; text: string }[] } {
+  private generateRuleBasedAdvice(stats: TradeStats, locale: 'ar' | 'en' | 'es' = 'ar'): { text: string; items: { type: string; icon: string; text: string }[] } {
     const items: { type: string; icon: string; text: string }[] = [];
+    const isAr = locale === 'ar';
+    const isEs = locale === 'es';
 
     if (stats.winRate < 40) {
-      items.push({ type: 'warning', icon: 'alert', text: 'نسبة فوزك أقل من 40%. راجع استراتيجية الدخول وتأكد من استخدام التحليل المتعدد الأطر الزمنية قبل فتح أي صفقة.' });
+      items.push({ type: 'warning', icon: 'alert', text: isAr ? 'نسبة فوزك أقل من 40%. راجع استراتيجية الدخول وتأكد من استخدام التحليل المتعدد الأطر الزمنية قبل فتح أي صفقة.' : isEs ? 'Tu tasa de acierto es inferior al 40%. Revisa tu estrategia de entrada y asegúrate de usar análisis multitemporal antes de abrir cualquier operación.' : 'Your win rate is below 40%. Review your entry strategy and ensure you use multi-timeframe analysis before opening any trade.' });
     }
     if (stats.profitFactor < 1 && stats.profitFactor > 0) {
-      items.push({ type: 'warning', icon: 'alert', text: 'عامل الربح أقل من 1.0 مما يعني أن خسائرك تتجاوز أرباحك. قلل حجم الصفقات وحدد وقف خسارة صارم لكل صفقة.' });
+      items.push({ type: 'warning', icon: 'alert', text: isAr ? 'عامل الربح أقل من 1.0 مما يعني أن خسائرك تتجاوز أرباحك. قلل حجم الصفقات وحدد وقف خسارة صارم لكل صفقة.' : isEs ? 'El factor de beneficio es menor a 1.0, lo que significa que tus pérdidas superan tus ganancias. Reduce el tamaño de las posiciones y establece un stop loss estricto para cada operación.' : 'Profit factor is below 1.0, meaning your losses exceed your gains. Reduce position sizes and set a strict stop loss for each trade.' });
     }
     if (stats.consecutiveLosses >= 3) {
-      items.push({ type: 'warning', icon: 'alert', text: `سلسلة خسائر متتالية (${stats.consecutiveLosses}). توقف عن التداول لفترة، راجع الصفقات الخاسرة، ولا تلاحق السوق بالتعويض.` });
+      items.push({ type: 'warning', icon: 'alert', text: isAr ? `سلسلة خسائر متتالية (${stats.consecutiveLosses}). توقف عن التداول لفترة، راجع الصفقات الخاسرة، ولا تلاحق السوق بالتعويض.` : isEs ? `Racha de pérdidas consecutivas (${stats.consecutiveLosses}). Deja de operar por un tiempo, revisa las operaciones perdedoras y no persigas al mercado para compensar.` : `Consecutive losing streak (${stats.consecutiveLosses}). Stop trading for a while, review losing trades, and don't chase the market to compensate.` });
     }
     if (stats.maxDrawdown > 1000) {
-      items.push({ type: 'warning', icon: 'alert', text: `أقصى تراجع مرتفع ($${stats.maxDrawdown}). استخدم وقف خسارة لكل صفقة ولا تخاطر بأكثر من 2% من رأس المال في الصفقة الواحدة.` });
+      items.push({ type: 'warning', icon: 'alert', text: isAr ? `أقصى تراجع مرتفع ($${stats.maxDrawdown}). استخدم وقف خسارة لكل صفقة ولا تخاطر بأكثر من 2% من رأس المال في الصفقة الواحدة.` : isEs ? `Drawdown máximo elevado ($${stats.maxDrawdown}). Usa stop loss en cada operación y no arriesgues más del 2% del capital en una sola operación.` : `High max drawdown ($${stats.maxDrawdown}). Use stop loss for each trade and don't risk more than 2% of capital per trade.` });
     }
     if (stats.longWinRate > stats.shortWinRate + 20) {
-      items.push({ type: 'opportunity', icon: 'trending-up', text: `أداء الشراء أفضل بكثير من البيع (${stats.longWinRate}% مقابل ${stats.shortWinRate}%). ركز على صفقات الشراء حتى تحسن استراتيجية البيع.` });
+      items.push({ type: 'opportunity', icon: 'trending-up', text: isAr ? `أداء الشراء أفضل بكثير من البيع (${stats.longWinRate}% مقابل ${stats.shortWinRate}%). ركز على صفقات الشراء حتى تحسن استراتيجية البيع.` : isEs ? `El rendimiento de compra es mucho mejor que el de venta (${stats.longWinRate}% vs ${stats.shortWinRate}%). Enfócate en operaciones de compra hasta mejorar tu estrategia de venta.` : `Buy performance is much better than sell (${stats.longWinRate}% vs ${stats.shortWinRate}%). Focus on buy trades until you improve your sell strategy.` });
     }
     if (stats.riskCompliance === 'غير محدد' || stats.riskCompliance === '0%') {
-      items.push({ type: 'education', icon: 'book', text: 'لا تستخدم وقف الخسارة بشكل منتظم. وقف الخسارة ضروري لحماية رأس المال. حدد وقف خسارة قبل فتح أي صفقة.' });
+      items.push({ type: 'education', icon: 'book', text: isAr ? 'لا تستخدم وقف الخسارة بشكل منتظم. وقف الخسارة ضروري لحماية رأس المال. حدد وقف خسارة قبل فتح أي صفقة.' : isEs ? 'No usas stop loss de forma regular. El stop loss es esencial para proteger el capital. Establece un stop loss antes de abrir cualquier operación.' : 'You don\'t use stop loss regularly. Stop loss is essential for capital protection. Set a stop loss before opening any trade.' });
     }
     if (stats.winRate >= 55 && stats.profitFactor >= 1.5) {
-      items.push({ type: 'opportunity', icon: 'trending-up', text: 'أداؤك جيد! حافظ على الانضباط وزِد حجم الصفقات تدريجياً مع الحفاظ على إدارة المخاطر.' });
+      items.push({ type: 'opportunity', icon: 'trending-up', text: isAr ? 'أداؤك جيد! حافظ على الانضباط وزِد حجم الصفقات تدريجياً مع الحفاظ على إدارة المخاطر.' : isEs ? '¡Tu rendimiento es bueno! Mantén la disciplina y aumenta el tamaño de las posiciones gradualmente manteniendo la gestión de riesgos.' : 'Your performance is good! Maintain discipline and gradually increase position sizes while keeping risk management.' });
     }
 
     if (items.length === 0) {
-      items.push({ type: 'education', icon: 'book', text: 'استمر في التداول مع الالتزام بخطة واضحة. سجل كل صفقة وراجع أداءك أسبوعياً لتحديد الأنماط.' });
+      items.push({ type: 'education', icon: 'book', text: isAr ? 'استمر في التداول مع الالتزام بخطة واضحة. سجل كل صفقة وراجع أداءك أسبوعياً لتحديد الأنماط.' : isEs ? 'Continúa operando con un plan claro. Registra cada operación y revisa tu rendimiento semanalmente para identificar patrones.' : 'Continue trading with a clear plan. Log every trade and review your performance weekly to identify patterns.' });
     }
 
-    const text = items.map((item, i) => `${i + 1}. [${item.type === 'warning' ? 'تحذير' : item.type === 'opportunity' ? 'فرصة' : 'تعليم'}] ${item.text}`).join('\n');
+    const text = items.map((item, i) => {
+      const typeLabel = item.type === 'warning' ? (isAr ? 'تحذير' : isEs ? 'advertencia' : 'warning') : item.type === 'opportunity' ? (isAr ? 'فرصة' : isEs ? 'oportunidad' : 'opportunity') : (isAr ? 'تعليم' : isEs ? 'educación' : 'education');
+      return `${i + 1}. [${typeLabel}] ${item.text}`;
+    }).join('\n');
 
     return { text, items };
   }
 
   // ── Private: Fallback answer ──
-  private generateFallbackAnswer(question: string, stats: TradeStats): string {
-    if (question.includes('وقفة') || question.includes('وقف') || question.includes('stop loss')) {
-      return 'وقف الخسارة أداة أساسية لحماية رأس المال. يجب تحديد مستوى وقف الخسارة قبل فتح الصفقة بناءً على مستويات الدعم والمقاومة، وليس بشكل عشوائي. القاعدة العامة: لا تخاطر بأكثر من 1-2% من رأس المال في الصفقة الواحدة.';
+  private generateFallbackAnswer(question: string, stats: TradeStats, locale: 'ar' | 'en' | 'es' = 'ar'): string {
+    const isAr = locale === 'ar';
+    const isEs = locale === 'es';
+
+    if (question.includes('وقفة') || question.includes('وقف') || question.includes('stop loss') || (isEs && (question.includes('pérdida') || question.includes('stop')))) {
+      return isAr ? 'وقف الخسارة أداة أساسية لحماية رأس المال. يجب تحديد مستوى وقف الخسارة قبل فتح الصفقة بناءً على مستويات الدعم والمقاومة، وليس بشكل عشوائي. القاعدة العامة: لا تخاطر بأكثر من 1-2% من رأس المال في الصفقة الواحدة.' : isEs ? 'El stop loss es una herramienta esencial para proteger el capital. Debe establecerse antes de abrir la operación basándose en niveles de soporte y resistencia, no de forma aleatoria. Regla general: no arriesgues más del 1-2% del capital en una sola operación.' : 'Stop loss is an essential tool for capital protection. It should be set before opening a trade based on support and resistance levels, not randomly. General rule: don\'t risk more than 1-2% of capital per trade.';
     }
-    if (question.includes('حجم') || question.includes('position size')) {
-      return `بناءً على أدائك الحالي (نسبة فوز ${stats.winRate}%)، أنصحك بحجم صفقات صغير ومتسق. استخدم قاعدة 1%: لا تخاطر بأكثر من 1% من رأس المال في أي صفقة. هذا يحميك من الخسائر الكبيرة ويسمح لك بالبقاء في السوق لفترة أطول.`;
+    if (question.includes('حجم') || question.includes('position size') || (isEs && (question.includes('tamaño') || question.includes('posición')))) {
+      return isAr ? `بناءً على أدائك الحالي (نسبة فوز ${stats.winRate}%)، أنصحك بحجم صفقات صغير ومتسق. استخدم قاعدة 1%: لا تخاطر بأكثر من 1% من رأس المال في أي صفقة. هذا يحميك من الخسائر الكبيرة ويسمح لك بالبقاء في السوق لفترة أطول.` : isEs ? `Basándote en tu rendimiento actual (tasa de acierto ${stats.winRate}%), te aconsejo un tamaño de posición pequeño y consistente. Usa la regla del 1%: no arriesgues más del 1% del capital en ninguna operación. Esto te protege de pérdidas grandes y te permite permanecer más tiempo en el mercado.` : `Based on your current performance (win rate ${stats.winRate}%), I advise small, consistent position sizes. Use the 1% rule: don\'t risk more than 1% of capital in any trade. This protects you from large losses and allows you to stay in the market longer.`;
     }
-    return `بناءً على تحليل أدائك: نسبة الفوز ${stats.winRate}%، عامل الربح ${stats.profitFactor}، أقصى تراجع $${stats.maxDrawdown}. أنصحك بالتركيز على تحسين نقاط الدخول والخروج، واستخدام وقف الخسارة دائماً، وعدم المخاطرة بأكثر من 2% من رأس المال في الصفقة الواحدة. الرجاء كن أكثر تحديداً في سؤالك لأعطيك نصيحة أدق.`;
+    return isAr ? `بناءً على تحليل أدائك: نسبة الفوز ${stats.winRate}%، عامل الربح ${stats.profitFactor}، أقصى تراجع $${stats.maxDrawdown}. أنصحك بالتركيز على تحسين نقاط الدخول والخروج، واستخدام وقف الخسارة دائماً، وعدم المخاطرة بأكثر من 2% من رأس المال في الصفقة الواحدة. الرجاء كن أكثر تحديداً في سؤالك لأعطيك نصيحة أدق.` : isEs ? `Basándote en el análisis de tu rendimiento: tasa de acierto ${stats.winRate}%, factor de beneficio ${stats.profitFactor}, drawdown máximo $${stats.maxDrawdown}. Te aconsejo enfocarte en mejorar los puntos de entrada y salida, usar siempre stop loss y no arriesgar más del 2% del capital por operación. Por favor, sé más específico en tu pregunta para darte un consejo más preciso.` : `Based on your performance analysis: win rate ${stats.winRate}%, profit factor ${stats.profitFactor}, max drawdown $${stats.maxDrawdown}. I advise focusing on improving entry and exit points, always using stop loss, and not risking more than 2% of capital per trade. Please be more specific in your question for a more precise advice.`;
   }
 
   /**

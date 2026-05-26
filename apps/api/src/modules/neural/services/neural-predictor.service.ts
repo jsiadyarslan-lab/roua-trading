@@ -316,6 +316,7 @@ export class NeuralPredictorService {
     const lastPrediction = predictions[predictions.length - 1];
     const priceChange = ((lastPrediction.predictedPrice - currentPrice) / currentPrice * 100).toFixed(2);
     const isAr = language === 'ar';
+    const isEs = language === 'es';
 
     const arPrompt = `أنت محلل أسواق مالي متخصص في منصة "رؤى لربط الحسابات". حلل التنبؤ التالي وقدم تحليلاً باللغة العربية.
 
@@ -334,6 +335,24 @@ export class NeuralPredictorService {
 4. توصية واضحة (شراء/بيع/انتظار) مع نسبة الثقة
 
 أضف دائماً: "هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية."`;
+
+    const esPrompt = `Eres un analista de mercados financieros especializado en la plataforma "Roua". Analiza la siguiente predicción y proporciona tu análisis en español.
+
+📊 Activo: ${symbol}
+💰 Precio actual: $${currentPrice.toFixed(2)}
+📈 Predicción: ${direction === 'BULLISH' ? 'alcista' : direction === 'BEARISH' ? 'bajista' : 'neutral'}
+🎯 Precio previsto: $${lastPrediction.predictedPrice.toFixed(2)} (${priceChange}%)
+📏 Consenso: ${consensusScore}%
+📐 Rango de confianza: $${lastPrediction.lowerBound.toFixed(2)} — $${lastPrediction.upperBound.toFixed(2)}
+🔒 Nivel de confianza: ${lastPrediction.confidence}%
+
+Proporciona:
+1. Evaluación de la predicción y nivel de confianza
+2. Factores que apoyan la dirección esperada
+3. Riesgos potenciales
+4. Recomendación clara (comprar/vender/esperar) con nivel de confianza
+
+Siempre añada: "Este análisis es solo con fines educativos y no constituye asesoramiento de inversión."`;
 
     const enPrompt = `You are a financial markets analyst specialized on the "Roua" platform. Analyze the following prediction and provide your analysis in English.
 
@@ -355,7 +374,7 @@ Always add: "This analysis is for educational purposes only and is not investmen
 
     try {
       const response = await this.orchestrator.analyze({
-        prompt: isAr ? arPrompt : enPrompt,
+        prompt: isAr ? arPrompt : isEs ? esPrompt : enPrompt,
         type: 'prediction',
         language,
       });
@@ -364,7 +383,9 @@ Always add: "This analysis is for educational purposes only and is not investmen
     } catch {
       return isAr
         ? `التنبؤ ${direction === 'BULLISH' ? 'صعودي' : direction === 'BEARISH' ? 'هبوطي' : 'محايد'} لـ ${symbol} بتوافق ${consensusScore}%. هذا التحليل لأغراض تعليمية فقط وليس نصيحة استثمارية.`
-        : `${direction === 'BULLISH' ? 'Bullish' : direction === 'BEARISH' ? 'Bearish' : 'Neutral'} prediction for ${symbol} with ${consensusScore}% consensus. This analysis is for educational purposes only and is not investment advice.`;
+        : isEs
+          ? `Predicción ${direction === 'BULLISH' ? 'alcista' : direction === 'BEARISH' ? 'bajista' : 'neutral'} para ${symbol} con consenso del ${consensusScore}%. Este análisis es solo con fines educativos y no constituye asesoramiento de inversión.`
+          : `${direction === 'BULLISH' ? 'Bullish' : direction === 'BEARISH' ? 'Bearish' : 'Neutral'} prediction for ${symbol} with ${consensusScore}% consensus. This analysis is for educational purposes only and is not investment advice.`;
     }
   }
 }

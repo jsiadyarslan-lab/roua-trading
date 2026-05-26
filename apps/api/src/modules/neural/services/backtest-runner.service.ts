@@ -397,6 +397,7 @@ export class BacktestRunnerService {
     language: string = 'ar',
   ): Promise<string> {
     const isAr = language === 'ar';
+    const isEs = language === 'es';
 
     const arPrompt = `أنت محلل استراتيجيات تداول في منصة "رؤى". حلل نتيجة الباك تست التالية باللغة العربية:
 
@@ -416,6 +417,25 @@ export class BacktestRunnerService {
 4. هل تنصح باستخدام هذه الاستراتيجية فعلياً؟
 
 أضف دائماً: "النتائج السابقة لا تضمن الأداء المستقبلي."`;
+
+    const esPrompt = `Eres un analista de estrategias de trading en la plataforma "Roua". Analiza el siguiente resultado de backtest en español:
+
+📊 Activo: ${symbol}
+📐 Estrategia: ${strategy}
+📈 Retorno total: ${metrics.totalReturn.toFixed(2)}%
+📉 Máximo drawdown: ${metrics.maxDrawdown.toFixed(2)}%
+🎯 Tasa de acierto: ${metrics.winRate.toFixed(1)}%
+📋 Total de operaciones: ${metrics.totalTrades}
+📊 Ratio de Sharpe: ${metrics.sharpeRatio.toFixed(2)}
+💪 Factor de beneficio: ${metrics.profitFactor.toFixed(2)}
+
+Proporciona:
+1. Evaluación general del rendimiento de la estrategia
+2. Puntos fuertes y débiles
+3. Recomendaciones para mejorar el rendimiento
+4. ¿Recomendaría usar esta estrategia?
+
+Siempre añada: "Los resultados pasados no garantizan el rendimiento futuro."`;
 
     const enPrompt = `You are a trading strategy analyst on the "Roua" platform. Analyze the following backtest results in English:
 
@@ -438,7 +458,7 @@ Always add: "Past results do not guarantee future performance."`;
 
     try {
       const response = await this.orchestrator.analyze({
-        prompt: isAr ? arPrompt : enPrompt,
+        prompt: isAr ? arPrompt : isEs ? esPrompt : enPrompt,
         type: 'market_analysis',
         language,
       });
@@ -447,7 +467,9 @@ Always add: "Past results do not guarantee future performance."`;
     } catch {
       return isAr
         ? `استراتيجية ${strategy} على ${symbol}: عائد ${metrics.totalReturn.toFixed(2)}% بنسبة فوز ${metrics.winRate.toFixed(1)}%. النتائج السابقة لا تضمن الأداء المستقبلي.`
-        : `Strategy ${strategy} on ${symbol}: return ${metrics.totalReturn.toFixed(2)}% with win rate ${metrics.winRate.toFixed(1)}%. Past results do not guarantee future performance.`;
+        : isEs
+          ? `Estrategia ${strategy} en ${symbol}: rendimiento ${metrics.totalReturn.toFixed(2)}% con tasa de acierto ${metrics.winRate.toFixed(1)}%. Los resultados pasados no garantizan el rendimiento futuro.`
+          : `Strategy ${strategy} on ${symbol}: return ${metrics.totalReturn.toFixed(2)}% with win rate ${metrics.winRate.toFixed(1)}%. Past results do not guarantee future performance.`;
     }
   }
 }

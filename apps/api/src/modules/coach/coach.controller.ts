@@ -28,10 +28,10 @@ export class CoachController {
    */
   @Post('ask')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
-  async askCoach(@Req() req: any, @Body() body: { question: string; contextAdviceId?: string }) {
+  async askCoach(@Req() req: any, @Body() body: { question: string; contextAdviceId?: string; locale?: 'ar' | 'en' | 'es' }) {
     const userId = req.user.id;
     this.logger.log(`Coach question from user ${userId}`);
-    return this.coachService.askCoach(userId, body.question, body.contextAdviceId);
+    return this.coachService.askCoach(userId, body.question, body.contextAdviceId, body.locale || 'ar');
   }
 
   /**

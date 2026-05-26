@@ -11,9 +11,12 @@ import { db } from '@/lib/db'
  * 4. Falling back to rule-based advice if AI unavailable
  */
 export async function POST(req: NextRequest) {
+  let locale: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar'
   try {
     const body = await req.json()
     const { userId: bodyUserId, closedPaperTrades = [], openPaperTrades = [] } = body
+    const rawLocale = body.locale || 'ar'
+    locale = (['ar', 'en', 'fr', 'tr', 'es'].includes(rawLocale) ? rawLocale : 'ar') as 'ar' | 'en' | 'fr' | 'tr' | 'es'
 
     // DATA ISOLATION: Always resolve userId from session cookie.
     // Never trust bodyUserId from the request body — it allows user spoofing.
@@ -172,7 +175,19 @@ export async function POST(req: NextRequest) {
     }
 
     // 4. Try NestJS AI orchestrator
-    const contextSummary = `إجمالي الصفقات: ${totalTrades}
+    const contextSummary = locale === 'es'
+      ? `Total de operaciones: ${totalTrades}
+Operaciones ganadoras: ${winningTrades.length} | Perdedoras: ${losingTrades.length}
+Tasa de victoria: ${winRate}%
+Ganancia promedio: $${avgWin} | Pérdida promedio: $${avgLoss}
+Factor de beneficio: ${profitFactor === -1 ? '∞' : profitFactor}
+Beneficio/Pérdida total: $${totalPnl}
+Retracción máxima: $${Math.round(maxDrawdown * 100) / 100}
+Mayor ganancia: $${Math.round(biggestWin * 100) / 100} | Mayor pérdida: $${Math.round(biggestLoss * 100) / 100}
+Racha de ganancias: ${consecutiveWins} | Racha de pérdidas: ${consecutiveLosses}
+Tasa de victoria en compra: ${longWinRate}% | En venta: ${shortWinRate}%
+Más operado: ${mostTradedSymbol}`
+      : `إجمالي الصفقات: ${totalTrades}
 صفقات رابحة: ${winningTrades.length} | خاسرة: ${losingTrades.length}
 نسبة الفوز: ${winRate}%
 متوسط الربح: $${avgWin} | متوسط الخسارة: $${avgLoss}
@@ -184,7 +199,22 @@ export async function POST(req: NextRequest) {
 نسبة فوز الشراء: ${longWinRate}% | البيع: ${shortWinRate}%
 الأكثر تداولاً: ${mostTradedSymbol}`
 
-    const aiPrompt = `أنت مُدرّب تداول خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
+    const aiPrompt = locale === 'es'
+      ? `Eres un entrenador de trading experto en la plataforma "Roua". Analiza el rendimiento del trader basándote en las siguientes estadísticas. Proporciona 3-5 consejos específicos y accionables para mejorar el rendimiento. Enfócate en gestión de riesgos, disciplina, tamaño de posiciones y selección de activos. Menciona puntos fuertes y débiles. Haz los consejos en español y directos.
+
+Estadísticas:
+${contextSummary}
+
+Responde exactamente en este formato:
+Evaluación_general: [Excelente/Bueno/Necesita_mejora]
+---
+1. [Advertencia/Oportunidad/Educación] Texto del primer consejo
+2. [Advertencia/Oportunidad/Educación] Texto del segundo consejo
+3. [Advertencia/Oportunidad/Educación] Texto del tercer consejo
+---
+Puntos_fuertes: [Puntos fuertes]
+Puntos_débiles: [Puntos débiles]`
+      : `أنت مُدرّب تداول خبير في منصة "رؤى". حلل أداء المتداول بناءً على الإحصائيات التالية. قدم 3-5 نصائح محددة وقابلة للتنفيذ لتحسين الأداء. ركز على إدارة المخاطر، الانضباط، حجم الصفقات، واختيار الأصول. اذكر نقاط القوة والضعف. اجعل النصائح بالعربية ومباشرة.
 
 الإحصائيات:
 ${contextSummary}
@@ -209,7 +239,7 @@ ${contextSummary}
         body: JSON.stringify({
           prompt: aiPrompt,
           type: 'risk_analysis',
-          language: 'ar',
+          language: locale === 'es' ? 'es' : 'ar',
         }),
         signal: AbortSignal.timeout(30000),
       })
@@ -218,7 +248,7 @@ ${contextSummary}
         const aiData = await aiRes.json()
         if (aiData.success && aiData.data?.confidence > 0) {
           adviceText = aiData.data.content
-          adviceItems = parseAdviceItems(aiData.data.content)
+          adviceItems = parseAdviceItems(aiData.data.content, locale)
         }
       }
     } catch (e: any) {
@@ -227,7 +257,7 @@ ${contextSummary}
 
     // Fallback to rule-based advice
     if (!adviceText || adviceItems.length === 0) {
-      const fallback = generateRuleBasedAdvice(stats)
+      const fallback = generateRuleBasedAdvice(stats, locale)
       adviceText = fallback.text
       adviceItems = fallback.items
     }
@@ -247,24 +277,26 @@ ${contextSummary}
     console.error('[coach/performance] Error:', error?.message || error)
     return NextResponse.json({
       success: false,
-      error: 'فشل في تحليل الأداء. يرجى المحاولة لاحقاً.',
+      error: locale === 'es' ? 'Error al analizar el rendimiento. Por favor, inténtelo más tarde.' : 'فشل في تحليل الأداء. يرجى المحاولة لاحقاً.',
     }, { status: 500 })
   }
 }
 
 // ── Helper: Parse advice items from AI text ──
-function parseAdviceItems(text: string): { type: string; icon: string; text: string }[] {
+function parseAdviceItems(text: string, locale: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar'): { type: string; icon: string; text: string }[] {
   const items: { type: string; icon: string; text: string }[] = []
   const lines = text.split('\n').filter(l => l.trim())
 
   for (const line of lines) {
-    const match = line.match(/^\d+\.\s*\[?(تحذير|فرصة|تعليم|خطر)\]?\s*(.+)/)
+    const match = locale === 'es'
+      ? line.match(/^\d+\.\s*\[?(Advertencia|Oportunidad|Educación)\]?\s*(.+)/)
+      : line.match(/^\d+\.\s*\[?(تحذير|فرصة|تعليم|خطر)\]?\s*(.+)/)
     if (match) {
       const rawType = match[1]
       const content = match[2].trim()
       let type = 'education', icon = 'book'
-      if (rawType === 'تحذير' || rawType === 'خطر') { type = 'warning'; icon = 'alert' }
-      else if (rawType === 'فرصة') { type = 'opportunity'; icon = 'trending-up' }
+      if (rawType === 'تحذير' || rawType === 'خطر' || rawType === 'Advertencia') { type = 'warning'; icon = 'alert' }
+      else if (rawType === 'فرصة' || rawType === 'Oportunidad') { type = 'opportunity'; icon = 'trending-up' }
       items.push({ type, icon, text: content })
     }
   }
@@ -280,8 +312,40 @@ function parseAdviceItems(text: string): { type: string; icon: string; text: str
 }
 
 // ── Helper: Rule-based fallback advice ──
-function generateRuleBasedAdvice(stats: any): { text: string; items: { type: string; icon: string; text: string }[] } {
+function generateRuleBasedAdvice(stats: any, locale: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar'): { text: string; items: { type: string; icon: string; text: string }[] } {
   const items: { type: string; icon: string; text: string }[] = []
+
+  if (locale === 'es') {
+    if (stats.totalTrades < 10) {
+      items.push({ type: 'education', icon: 'book', text: 'Necesitas al menos 10 operaciones para que el entrenador proporcione un análisis preciso. Sigue operando con un plan claro.' })
+      return { text: items.map((item, i) => `${i + 1}. [Educación] ${item.text}`).join('\n'), items }
+    }
+
+    if (stats.winRate < 40) {
+      items.push({ type: 'warning', icon: 'alert', text: 'Tu tasa de victoria es inferior al 40%. Revisa tu estrategia de entrada y asegúrate de usar análisis multitemporal antes de abrir cualquier operación.' })
+    }
+    if (stats.profitFactor < 1 && stats.profitFactor > 0) {
+      items.push({ type: 'warning', icon: 'alert', text: 'El factor de beneficio es menor a 1.0, lo que significa que tus pérdidas superan tus ganancias. Reduce el tamaño de las posiciones y establece un Stop Loss estricto.' })
+    }
+    if (stats.consecutiveLosses >= 3) {
+      items.push({ type: 'warning', icon: 'alert', text: `Racha de pérdidas consecutivas (${stats.consecutiveLosses}). Deja de operar por un tiempo, revisa las operaciones perdedoras y no persigas al mercado.` })
+    }
+    if (stats.maxDrawdown > 1000) {
+      items.push({ type: 'warning', icon: 'alert', text: `Retracción máxima elevada ($${stats.maxDrawdown}). Usa Stop Loss en cada operación y no arriesgues más del 2% del capital.` })
+    }
+    if (stats.longWinRate > stats.shortWinRate + 20) {
+      items.push({ type: 'opportunity', icon: 'trending-up', text: `El rendimiento de compra es mucho mejor que el de venta (${stats.longWinRate}% vs ${stats.shortWinRate}%). Enfócate en operaciones de compra hasta que mejores tu estrategia de venta.` })
+    }
+    if (stats.winRate >= 55 && stats.profitFactor >= 1.5) {
+      items.push({ type: 'opportunity', icon: 'trending-up', text: '¡Tu rendimiento es bueno! Mantén la disciplina y aumenta el tamaño de las posiciones gradualmente preservando la gestión de riesgos.' })
+    }
+    if (items.length === 0) {
+      items.push({ type: 'education', icon: 'book', text: 'Sigue operando con un plan claro. Registra cada operación y revisa tu rendimiento semanalmente para identificar patrones.' })
+    }
+
+    const text = items.map((item, i) => `${i + 1}. [${item.type === 'warning' ? 'Advertencia' : item.type === 'opportunity' ? 'Oportunidad' : 'Educación'}] ${item.text}`).join('\n')
+    return { text, items }
+  }
 
   if (stats.totalTrades < 10) {
     items.push({ type: 'education', icon: 'book', text: 'أنت بحاجة إلى 10 صفقات على الأقل ليقدم المُدرّب تحليلاً دقيقاً. استمر في التداول مع الالتزام بخطة واضحة.' })

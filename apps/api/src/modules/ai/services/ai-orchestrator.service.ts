@@ -516,7 +516,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     if (!result) {
       result = {
         model: 'Orchestrator/Fallback',
-        content: enrichedRequest.language === 'en' ? 'Analysis currently unavailable. Please try again later.' : 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
+        content: enrichedRequest.language === 'en' ? 'Analysis currently unavailable. Please try again later.' : enrichedRequest.language === 'es' ? 'Análisis no disponible actualmente. Por favor, intente más tarde.' : 'التحليل غير متاح حالياً. يرجى المحاولة لاحقاً.',
         confidence: 0,
         processingTimeMs: 0,
         language: enrichedRequest.language || 'ar',
@@ -544,7 +544,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
    * dashboard generates 72 API calls/minute (6 models × 12 polls/min).
    * With caching, it's at most 6 calls per 5 minutes per symbol.
    */
-  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<{
+  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' | 'es' }): Promise<{
     consensusScore: number;
     recommendation: 'BUY' | 'SELL' | 'HOLD';
     analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];

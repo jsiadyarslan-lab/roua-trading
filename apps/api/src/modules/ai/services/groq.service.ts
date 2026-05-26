@@ -7,7 +7,7 @@ export interface AIAnalysisRequest {
   symbol?: string;
   prompt: string;
   type: 'market_analysis' | 'sentiment' | 'prediction' | 'general' | 'signal_generation' | 'risk_analysis';
-  language?: string; // 'ar' | 'en'
+  language?: string; // 'ar' | 'en' | 'es'
 }
 
 export interface AIAnalysisResponse {

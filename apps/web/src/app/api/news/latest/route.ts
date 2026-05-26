@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const sentiment = searchParams.get('sentiment') || '';
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
-    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline, 'fr' = French pipeline, 'tr' = Turkish pipeline (uses English content)
+    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline, 'fr' = French pipeline, 'tr' = Turkish pipeline, 'es' = Spanish pipeline (uses English content)
 
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (integrationKey) {
       try {
         // Fetch more articles when filtering by language (English/French articles are a subset)
-        const fetchLimit = (lang === 'en' || lang === 'fr' || lang === 'tr') ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
+        const fetchLimit = (lang === 'en' || lang === 'fr' || lang === 'tr' || lang === 'es') ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
         const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${fetchLimit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
             // Filter and transform articles based on language pipeline
             let filteredArticles = newsData.articles;
 
-            if (lang === 'en' || lang === 'fr' || lang === 'tr') {
-              // English/French/Turkish pipeline: articles where titleAr is empty (produced by English pipeline)
+            if (lang === 'en' || lang === 'fr' || lang === 'tr' || lang === 'es') {
+              // English/French/Turkish/Spanish pipeline: articles where titleAr is empty (produced by English pipeline)
               filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
             } else {
               // Arabic pipeline (default): articles where titleAr exists (produced by Arabic pipeline)
@@ -78,9 +78,10 @@ export async function GET(request: NextRequest) {
               }
 
               // Build article object with language-appropriate field mapping
-              const isNonArabic = lang === 'en' || lang === 'fr' || lang === 'tr';
+              const isNonArabic = lang === 'en' || lang === 'fr' || lang === 'tr' || lang === 'es';
               const isFr = lang === 'fr';
               const isTr = lang === 'tr';
+              const isEs = lang === 'es';
               const defaultCategory = isNonArabic ? 'Markets' : 'أسواق';
               const defaultSource = isNonArabic ? "Ru'aa News" : 'رؤى للأخبار';
 
@@ -107,6 +108,8 @@ export async function GET(request: NextRequest) {
                 textFr: article.title || '',
                 // Turkish text: reuse English content (no Turkish content source)
                 textTr: article.title || '',
+                // Spanish text: reuse English content (no Spanish content source)
+                textEs: article.title || '',
                 // Full analysis content
                 fullContent: article.fullContent || '',
                 // Key takeaways array
@@ -124,11 +127,12 @@ export async function GET(request: NextRequest) {
                 categoryAr: article.category || defaultCategory,
                 categoryFr: mapCategoryToFrench(article.category || defaultCategory),
                 categoryTr: mapCategoryToTurkish(article.category || defaultCategory),
+                categoryEs: mapCategoryToSpanish(article.category || defaultCategory),
                 publishedAt: article.publishedAt || new Date().toISOString(),
                 newsType: article.newsType || 'live',
                 slug: article.slug || '',
                 // Language indicator for frontend
-                lang: isTr ? 'tr' : isFr ? 'fr' : (isNonArabic ? 'en' : 'ar'),
+                lang: isEs ? 'es' : isTr ? 'tr' : isFr ? 'fr' : (isNonArabic ? 'en' : 'ar'),
               };
             });
 
@@ -336,6 +340,7 @@ async function fetchLocalNews(
             summary: generateSummary(title, sentimentLabel, affectedAssets),
             textFr: title || '',
             textTr: title || '',
+            textEs: title || '',
             url: link || null,
             sentiment: sentimentScore,
             sentimentLabel,
@@ -345,6 +350,7 @@ async function fetchLocalNews(
             categoryAr: mapCategoryToArabic(category),
             categoryFr: mapCategoryToFrench(category),
             categoryTr: mapCategoryToTurkish(category),
+            categoryEs: mapCategoryToSpanish(category),
             publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           });
         }
@@ -430,6 +436,39 @@ function mapCategoryToTurkish(category: string): string {
   if (lower.includes('energy')) return 'Enerji';
   if (lower.includes('general')) return 'Genel';
   return category;
+}
+
+function mapCategoryToSpanish(category: string): string {
+  const lower = category.toLowerCase();
+  if (lower.includes('monetary policy')) return 'Política Monetaria';
+  if (lower.includes('interest rate')) return 'Tasa de Interés';
+  if (lower.includes('fed')) return 'Reserva Federal';
+  if (lower.includes('ecb')) return 'BCE';
+  if (lower.includes('bank of japan') || lower.includes('boj')) return 'Banco de Japón';
+  if (lower.includes('inflation') || lower.includes('cpi')) return 'Inflación';
+  if (lower.includes('employment') || lower.includes('jobs') || lower.includes('labor')) return 'Empleo';
+  if (lower.includes('gdp')) return 'PIB';
+  if (lower.includes('geopolit')) return 'Geopolítica';
+  if (lower.includes('politic')) return 'Política';
+  if (lower.includes('trade')) return 'Comercio';
+  if (lower.includes('housing') || lower.includes('real estate')) return 'Vivienda';
+  if (lower.includes('manufactur')) return 'Manufactura';
+  if (lower.includes('retail')) return 'Minorista';
+  if (lower.includes('crypto') || lower.includes('bitcoin') || lower.includes('ethereum')) return 'Criptomonedas';
+  if (lower.includes('forex') || lower.includes('currency')) return 'Forex';
+  if (lower.includes('commodit')) return 'Materias Primas';
+  if (lower.includes('metal') || lower.includes('gold')) return 'Materias Primas';
+  if (lower.includes('energy') || lower.includes('oil')) return 'Energía';
+  if (lower.includes('stock')) return 'Acciones';
+  if (lower.includes('market')) return 'Acciones';
+  if (lower.includes('technology') || lower.includes('tech')) return 'Tecnología';
+  if (lower.includes('economy') || lower.includes('macro')) return 'Economía';
+  if (lower.includes('regulation') || lower.includes('policy')) return 'Regulación';
+  if (lower.includes('etf') || lower.includes('fund')) return 'ETF';
+  if (lower.includes('defi')) return 'DeFi';
+  if (lower.includes('bond')) return 'Bonos';
+  if (lower.includes('general')) return 'General';
+  return 'General';
 }
 
 function simulateArabicTranslation(title: string, category: string): string {

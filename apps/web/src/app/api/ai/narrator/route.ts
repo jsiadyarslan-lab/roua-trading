@@ -134,6 +134,28 @@ const T: Record<string, LangTemplates> = {
     keywordPartialData: 'Kısmi Veri',
     keywordLiveContext: 'Canlı Bağlam',
   },
+  es: {
+    summaryBuy: (symbol: string, tf: string) => `${symbol} está en momentum alcista en ${tf}.`,
+    summarySell: (symbol: string, tf: string) => `${symbol} está bajo presión vendedora en ${tf}.`,
+    summaryNeutral: (symbol: string, tf: string) => `${symbol} está en modo de espera en ${tf}.`,
+    summaryNoData: (symbol: string) => `No hay lectura completa disponible para ${symbol} en este momento.`,
+    bullCaseSupported: (reasons: string) => `El caso alcista está respaldado por ${reasons}.`,
+    bullCaseNeedsRecovery: 'El caso alcista requiere una recuperación del precio por encima de las zonas de retroceso actuales con confirmación del marco temporal superior.',
+    bearCaseSupported: (reasons: string) => `El caso bajista está respaldado por ${reasons}.`,
+    bearCaseMomentumLoss: 'El caso bajista emerge si el precio no mantiene el momentum actual o la calidad de los datos se deteriora.',
+    riskDegraded: 'El riesgo principal aquí es operar con datos parciales o retrasados.',
+    riskStaleFeed: 'La calidad del flujo de datos no es óptima, y las señales pueden retrasarse respecto al mercado en vivo.',
+    riskHighVolatility: 'La volatilidad es alta, por lo que cualquier entrada requiere un tamaño de posición conservador.',
+    riskMedium: 'El riesgo actual es moderado y depende de un momentum sostenido.',
+    triggerBuy: (price: string) => `El próximo desencadenante es que el precio se mantenga por encima de ${price} con la confianza por encima de 60.`,
+    triggerSell: (price: string) => `El próximo desencadenante es la presión continuada por debajo de ${price} con débiles intentos de rebote.`,
+    triggerNeutral: 'El próximo desencadenante es un sesgo direccional más claro del escáner o un catalizador que cambie el régimen.',
+    narrativeReason: (reason: string) => `La razón más fuerte ahora: ${reason}.`,
+    narrativeNewsConsidered: 'Las noticias recientes se han incorporado a la narrativa.',
+    narrativeNoNews: 'No hay noticias recientes suficientes, por lo que la narrativa se centra en el precio y la estructura técnica.',
+    keywordPartialData: 'Datos parciales',
+    keywordLiveContext: 'Contexto en vivo',
+  },
 }
 
 function buildNarrativeFromContext(
@@ -141,7 +163,7 @@ function buildNarrativeFromContext(
   scan: any,
   recentNews: any[] = [],
   degraded = false,
-  lang: 'ar' | 'en' | 'fr' | 'tr' = 'ar',
+  lang: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar',
 ): NarratorPayload {
   const l = T[lang] || T.ar
   const newsSentiment =
@@ -224,7 +246,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const symbol = searchParams.get('symbol') || 'BTC/USD'
   const langParam = searchParams.get('lang') || 'ar'
-  const lang = ['ar', 'en', 'fr', 'tr'].includes(langParam) ? langParam as 'ar' | 'en' | 'fr' | 'tr' : 'ar'
+  const lang = ['ar', 'en', 'fr', 'tr', 'es'].includes(langParam) ? langParam as 'ar' | 'en' | 'fr' | 'tr' | 'es' : 'ar'
   const origin = req.nextUrl.origin
   let dbReady = false
   let recentNews: any[] = []

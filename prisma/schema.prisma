@@ -224,6 +224,7 @@ model NewsArticle {
   aiAnalysis        String? // Full AI analysis from 6 models (JSON)
   category          String? // News category: Crypto, Forex, Economy, etc.
   categoryAr        String? // Arabic category name
+  categoryEs        String? // Spanish category name
   embedding         String? // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
   imageUrl          String? // Optional article image
   publishedAt       DateTime
@@ -858,6 +859,7 @@ model PredictionEvent {
   descriptionAr     String? // Arabic translation
   category          String? // "politics", "economics", "crypto", "geopolitics", etc.
   categoryAr        String? // Arabic category name
+  categoryEs        String? // Spanish category name
   relatedSymbols    String                @default("[]") // JSON: ["BTC", "ETH", "SPY"]
   marketProbability Decimal               @db.Decimal(7, 6) // Current market probability (0.0–1.0)
   aiProbability     Decimal?              @db.Decimal(7, 6) // AI-estimated probability (0.0–1.0)
@@ -1115,6 +1117,7 @@ model ContentArticle {
   // Categorization
   category       String // CRYPTO, FOREX, STOCKS, COMMODITIES, ECONOMY, etc.
   categoryAr     String? // Arabic category name
+  categoryEs     String? // Spanish category name
   tags           String  @default("[]") // JSON array of tags
   relatedSymbols String  @default("[]") // JSON: ["BTC/USDT", "ETH/USDT"]
 

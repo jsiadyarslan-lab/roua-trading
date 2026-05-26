@@ -441,7 +441,7 @@ function EventCard({ event, index, onAnalyze, analyzing, t }: {
               <Clock size={10} style={{ color: 'var(--text-faint)' }} />
               <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontFamily: 'var(--font-ar), Inter, sans-serif' }}>{t('endDateLabel')}</span>
               <span style={{ fontSize: '10px', fontWeight: 600, fontFamily: 'var(--font-mono)', color: 'var(--text-secondary)' }} dir="ltr">
-                {new Date(event.endDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : 'en-US', { month: 'short', day: 'numeric' })}
+                {new Date(event.endDate).toLocaleDateString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US', { month: 'short', day: 'numeric' })}
               </span>
             </div>
           )}

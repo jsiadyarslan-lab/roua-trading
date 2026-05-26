@@ -3,7 +3,9 @@
 import { useLocale } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { Globe2, Check, ChevronDown } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { getPortalRoot } from '@/lib/portal-root';
 
 interface LocaleSwitcherProps {
   variant?: 'default' | 'navbar' | 'header';
@@ -14,26 +16,73 @@ const LOCALE_OPTIONS = [
   { code: 'ar', label: 'العربية', shortLabel: 'عربي' },
   { code: 'en', label: 'English', shortLabel: 'EN' },
   { code: 'fr', label: 'Français', shortLabel: 'FR' },
+  { code: 'tr', label: 'Türkçe', shortLabel: 'TR' },
 ] as const;
 
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right?: number; left?: number }>({ top: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Calculate menu position based on button position
+  const updatePosition = useCallback(() => {
+    if (!buttonRef.current) return;
+    const rect = buttonRef.current.getBoundingClientRect();
+    const isRtl = document.documentElement.dir === 'rtl' || locale === 'ar';
+    if (isRtl) {
+      setMenuPos({
+        top: rect.bottom + 4,
+        left: rect.left,
+      });
+    } else {
+      setMenuPos({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    }
+  }, [locale]);
+
+  // Update position when opening
+  useEffect(() => {
+    if (open) {
+      updatePosition();
+    }
+  }, [open, updatePosition]);
+
+  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        menuRef.current && !menuRef.current.contains(e.target as Node) &&
+        buttonRef.current && !buttonRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     };
-    if (open) document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    if (open) {
+      document.addEventListener('mousedown', handler);
+      // Close on scroll
+      window.addEventListener('scroll', handler, true);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      window.removeEventListener('scroll', handler, true);
+    };
   }, [open]);
 
-  const switchLocale = async (newLocale: string) => {
+  // Close on Escape
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    if (open) document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [open]);
+
+  const switchLocale = (newLocale: string) => {
     if (newLocale === locale) {
       setOpen(false);
       return;
@@ -46,72 +95,76 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
   const currentOption = LOCALE_OPTIONS.find(o => o.code === locale) || LOCALE_OPTIONS[0];
   const isAr = locale === 'ar';
 
-  // Shared dropdown menu
-  const dropdownMenu = (
-    <div
-      style={{
-        position: 'absolute',
-        top: '100%',
-        insetInlineEnd: 0,
-        marginTop: 4,
-        minWidth: 140,
-        background: '#1A1D27',
-        border: '1px solid rgba(255,255,255,0.12)',
-        borderRadius: 8,
-        padding: '4px 0',
-        zIndex: 9999,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-        opacity: open ? 1 : 0,
-        transform: open ? 'translateY(0)' : 'translateY(-4px)',
-        transition: 'opacity 0.15s, transform 0.15s',
-        pointerEvents: open ? 'auto' : 'none',
-      }}
-    >
-      {LOCALE_OPTIONS.map(opt => (
-        <button
-          key={opt.code}
-          onClick={() => switchLocale(opt.code)}
+  // Dropdown menu rendered via Portal to body — escapes overflow:hidden parents
+  const dropdownMenu = typeof window !== 'undefined' && open
+    ? createPortal(
+        <div
+          ref={menuRef}
           style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            width: '100%',
-            padding: '8px 14px',
-            border: 'none',
-            background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
-            color: opt.code === locale ? '#00D4FF' : '#8B92A8',
-            cursor: 'pointer',
-            fontSize: 13,
-            fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-            fontWeight: opt.code === locale ? 600 : 400,
-            textAlign: 'start',
-            transition: 'all 0.1s',
-          }}
-          onMouseEnter={(e) => {
-            if (opt.code !== locale) {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-              e.currentTarget.style.color = '#F0F2F5';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (opt.code !== locale) {
-              e.currentTarget.style.background = 'transparent';
-              e.currentTarget.style.color = '#8B92A8';
-            }
+            position: 'fixed',
+            top: menuPos.top,
+            ...(menuPos.right !== undefined ? { right: menuPos.right } : {}),
+            ...(menuPos.left !== undefined ? { left: menuPos.left } : {}),
+            minWidth: 160,
+            background: '#1A1D27',
+            border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 8,
+            padding: '4px 0',
+            zIndex: 99999,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.06)',
+            opacity: 1,
+            transform: 'translateY(0)',
+            animation: 'localeMenuIn 0.15s ease-out',
           }}
         >
-          <span>{opt.label}</span>
-          {opt.code === locale && <Check size={14} color="#00D4FF" />}
-        </button>
-      ))}
-    </div>
-  );
+          {LOCALE_OPTIONS.map(opt => (
+            <button
+              key={opt.code}
+              onClick={() => switchLocale(opt.code)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                width: '100%',
+                padding: '9px 14px',
+                border: 'none',
+                background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
+                color: opt.code === locale ? '#00D4FF' : '#8B92A8',
+                cursor: 'pointer',
+                fontSize: 13,
+                fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
+                fontWeight: opt.code === locale ? 600 : 400,
+                textAlign: 'start',
+                transition: 'all 0.1s',
+              }}
+              onMouseEnter={(e) => {
+                if (opt.code !== locale) {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                  e.currentTarget.style.color = '#F0F2F5';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (opt.code !== locale) {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.color = '#8B92A8';
+                }
+              }}
+            >
+              <span>{opt.label}</span>
+              {opt.code === locale && <Check size={14} color="#00D4FF" />}
+            </button>
+          ))}
+        </div>,
+        getPortalRoot()
+      )
+    : null;
 
-  // Navbar variant (landing page) - matches landing page styling
+  // Navbar variant (landing page)
   if (variant === 'navbar') {
     return (
-      <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <>
         <button
+          ref={buttonRef}
           onClick={() => setOpen(!open)}
           className={`btn btn-outline ${className}`}
           style={{
@@ -124,21 +177,23 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             fontWeight: 600,
           }}
           aria-label="Switch language"
+          aria-expanded={open}
         >
           <Globe2 size={14} />
           {currentOption.shortLabel}
           <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
         </button>
         {dropdownMenu}
-      </div>
+      </>
     );
   }
 
-  // Header variant (dashboard) - matches AppHeader styling
+  // Header variant (dashboard)
   if (variant === 'header') {
     return (
-      <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-flex' }}>
+      <>
         <button
+          ref={buttonRef}
           onClick={() => setOpen(!open)}
           className={className}
           style={{
@@ -168,20 +223,22 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
           }}
           aria-label="Switch language"
+          aria-expanded={open}
         >
           <Globe2 size={12} />
           {currentOption.shortLabel}
           <ChevronDown size={10} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
         </button>
         {dropdownMenu}
-      </div>
+      </>
     );
   }
 
   // Default variant
   return (
-    <div ref={dropdownRef} style={{ position: 'relative', display: 'inline-flex' }}>
+    <>
       <button
+        ref={buttonRef}
         onClick={() => setOpen(!open)}
         className={className}
         style={{
@@ -200,12 +257,13 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
           transition: 'all 0.15s',
         }}
         aria-label="Switch language"
+        aria-expanded={open}
       >
         <Globe2 size={14} />
         {currentOption.label}
         <ChevronDown size={12} style={{ transition: 'transform 0.15s', transform: open ? 'rotate(180deg)' : 'rotate(0)' }} />
       </button>
       {dropdownMenu}
-    </div>
+    </>
   );
 }

@@ -10,7 +10,45 @@ import { db, ensureDbReady } from '@/lib/db'
 type Vote = 'BUY' | 'SELL' | 'HOLD'
 
 // ── Bilingual text helper for Layer 3 scanner-rules ──
-function L3(lang: 'ar' | 'en') {
+function L3(lang: 'ar' | 'en' | 'fr' | 'tr') {
+  if (lang === 'tr') return {
+    council: 'Konsey',
+    techAnalyst: 'Teknik Analist',
+    sentAnalyst: 'Duygu Analisti',
+    riskExpert: 'Risk Uzmanı',
+    macroExpert: 'Makro Uzmanı',
+    patternExpert: 'Formasyon Uzmanı',
+    execStrategist: 'İşlem Stratejisti',
+    noContextReason: 'Şu anda güvenilir piyasa bağlamı oluşturulamıyor, bu nedenle öneri veriler dönene kadar bekleme durumuna düşürüldü.',
+    councilProtection: 'Konsey, piyasa verilerinin bu anda yetersiz veya güvenilir olmaması nedeniyle koruma moduna girdi.',
+    waitUntilAI: `AI modelleri çevrimiçi olana kadar bu sembolü bekleyin, ardından herhangi bir karar öncesi yeniden değerlendirin.`,
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) =>
+      `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) =>
+      `24 saatlik değişim ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, ${tf} zaman diliminde ${dir} bağlamıyla.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) =>
+      `Risk seviyesi ${spreadRisk}. Veri durumu: ${freshness}. ${!isFresh ? 'Güven yalnızca düşürüldü, sinyal tamamen iptal edilmedi.' : 'Hesaplanan risk kabul edilebilir.'}`,
+    macroReason: (daily: string, h4: string, hint: string) =>
+      `Günlük zaman dilimi ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) =>
+      `Mevcut fırsat sınıflandırması ${signalClass}, ${entryBias} eğilimiyle. Aralık genişlemesi ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) =>
+      `Rejim: Günlük ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Yüksek', medium: 'Orta', low: 'Düşük',
+    recBuy: 'Al', recSell: 'Sat', recHold: 'Bekle',
+    recStrong: 'Güçlü', recClear: 'Net', recProbable: 'Olası',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) =>
+      `Konsey uzlaşısı (${totalModels} model): ${recLabel} ${recStrength}, %${consensusScore} güvenle.`,
+    conflictCounterTrend: 'Yüksek zaman dilimi ile kısa tetikleyici arasında çelişki var, ancak mevcut momentum konseyin öneriyi tamamen iptal etmek yerine temkinli kalmasını sağlayacak kadar.',
+    conflictRiskVsTech: 'Teknik analiz bir fırsat görüyor, ancak risk katmanı veri kalitesi veya volatilite nedeniyle saldırganlığı düşürdü.',
+    conflictBalanced: 'Temel roller dengeli, bu nedenle konsey daha net bir boşluk ortaya çıkana kadar piyasayı izlemekten memnun.',
+    conflictAligned: 'Temel roller nispeten uyumlu ve mevcut kararda temel bir çelişki yok.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) =>
+      `${symbol} üzerinde ${recLabel}, %${score} uzlaşı ile, ${signalClass} sınıflandırması ve ${entryBias} eğilimi. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Uzlaşı motorunda iç hata, önleyici bekleme modu etkinleştirildi.',
+    errorConflict: 'İç hata nedeniyle konsey yedek modu etkinleştirildi, şu anda saldırgan bir öneriye izin verilmiyor.',
+    errorMasterStrategy: 'Analizin tamamlanmasını ve konsey motorunun normal işleyişe dönmesini bekleyin.',
+  }
   if (lang === 'en') return {
     council: 'Council',
     techAnalyst: 'Technical Analyst',

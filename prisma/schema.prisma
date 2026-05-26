@@ -1,0 +1,1252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id                  String                       @id @default(cuid())
+  email               String                       @unique
+  displayName         String?
+  avatar              String?
+  passkeyId           String?
+  passkeyPub          String?
+  passkeyCounter      Int                          @default(0)
+  tier                Tier                         @default(FREE)
+  maxPositionSize     Decimal?                     @db.Decimal(19, 4)
+  maxDailyLoss        Decimal?                     @db.Decimal(19, 4)
+  riskTolerance       String?                      @default("moderate")
+  createdAt           DateTime                     @default(now())
+  updatedAt           DateTime                     @updatedAt
+  apiKeys             ApiKey[]
+  portfolios          Portfolio[]
+  signals             SignalUsage[]
+  rouaSignals         Signal[]
+  sessions            Session[]
+  accounts            Account[]
+  exchangeCredentials ExchangeCredential[]
+  orders              Order[]
+  positions           Position[]
+  trades              Trade[]
+  tradingBots         TradingBot[]
+  chartPreferences    ChartPreference[]
+  paperOrders         PaperOrder[]
+  coachAdvices        CoachAdvice[]
+  auditLogs           AuditLog[]
+  autonomousTrades    AutonomousTrade[]
+  agentSessions       AgentSession[]
+  agentSettings       AgentSettings?
+  contentArticles     ContentArticle[]
+  tradingBriefs       TradingBrief[]
+  telegramChatId      String? // معرّف محادثة Telegram للمستخدم
+  userNotifications   UserNotification[]
+  notificationPrefs   UserNotificationPreferences?
+}
+
+enum Tier {
+  FREE
+  PRO
+  PLUS
+  PREMIUM
+  INSTITUTIONAL
+}
+
+model ApiKey {
+  id              String    @id @default(cuid())
+  userId          String
+  exchange        String
+  encryptedKey    String
+  encryptedSecret String
+  permissions     String
+  iv              String
+  isActive        Boolean   @default(true)
+  lastValidated   DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Portfolio {
+  id          String           @id @default(cuid())
+  userId      String
+  name        String
+  description String?
+  totalValue  Decimal          @default(0) @db.Decimal(18, 4)
+  currency    String           @default("USD")
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  assets      PortfolioAsset[]
+
+  @@index([userId])
+}
+
+model PortfolioAsset {
+  id           String    @id @default(cuid())
+  portfolioId  String
+  symbol       String
+  name         String
+  quantity     Decimal   @default(0) @db.Decimal(18, 8)
+  avgPrice     Decimal   @default(0) @db.Decimal(18, 8)
+  currentPrice Decimal?  @db.Decimal(18, 8)
+  exchange     String?
+  assetType    AssetType
+  addedAt      DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  portfolio    Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([portfolioId, symbol])
+  @@index([portfolioId])
+}
+
+enum AssetType {
+  STOCK
+  FOREX
+  CRYPTO
+  COMMODITY
+  INDEX
+}
+
+// ── Signal System (Phase 4) ──
+enum SignalAction {
+  BUY
+  SELL
+  WAIT
+}
+
+enum SignalStatus {
+  ACTIVE
+  EXPIRED
+  EXECUTED
+  CANCELLED
+}
+
+model Signal {
+  id         String       @id @default(cuid())
+  userId     String
+  pair       String
+  action     SignalAction
+  confidence Int
+  reason     String
+  entryPrice Decimal?     @db.Decimal(19, 4)
+  stopLoss   Decimal?     @db.Decimal(19, 4)
+  takeProfit Decimal?     @db.Decimal(19, 4)
+  status     SignalStatus @default(ACTIVE)
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@index([userId])
+  @@index([pair])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([userId, status, expiresAt])
+}
+
+model SignalUsage {
+  id         String   @id @default(cuid())
+  userId     String
+  signalType String
+  asset      String
+  confidence Decimal  @default(0)
+  analysis   String
+  signedHash String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  token        String   @unique
+  refreshToken String?  @unique
+  deviceInfo   String? // JSON: { browser, os, device, type }
+  ipAddress    String?
+  userAgent    String?
+  isActive     Boolean  @default(true)
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([refreshToken])
+  @@index([userId, isActive])
+  @@index([expiresAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String
+  details   String?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([action, createdAt])
+}
+
+// ── News Article for RAG (Phase 4) ──
+model NewsArticle {
+  id                String   @id @default(cuid())
+  source            String
+  title             String // Original title (source language)
+  translatedTitle   String? // Arabic translation
+  content           String // Original content/description
+  translatedContent String? // Arabic translation of content
+  summary           String? // AI-generated summary in Arabic
+  url               String?
+  sentiment         Decimal? @db.Decimal(5, 4) // -1.0 (very negative) to 1.0 (very positive)
+  sentimentLabel    String? // "positive", "negative", "neutral"
+  impactLevel       String? // "high", "medium", "low"
+  affectedAssets    String? // JSON array of affected symbols: ["BTC", "ETH"]
+  entities          String? // JSON: named entities extracted
+  aiAnalysis        String? // Full AI analysis from 6 models (JSON)
+  category          String? // News category: Crypto, Forex, Economy, etc.
+  categoryAr        String? // Arabic category name
+  embedding         String? // JSON-encoded 384-dim vector (upgrade to pgvector for Postgres)
+  imageUrl          String? // Optional article image
+  publishedAt       DateTime
+  fetchedAt         DateTime @default(now())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([url])
+  @@index([source])
+  @@index([publishedAt])
+  @@index([sentimentLabel])
+  @@index([category])
+}
+
+// ── Exchange Credential model (encrypted API keys) ──
+model ExchangeCredential {
+  id                  String     @id @default(cuid())
+  userId              String
+  exchange            String
+  label               String
+  encryptedApiKey     String
+  encryptedSecret     String
+  iv                  String
+  authTag             String
+  secretIv            String?
+  secretAuthTag       String?
+  encryptedPassphrase String?
+  passphraseIv        String?
+  passphraseAuthTag   String?
+  permissions         String     @default("read")
+  isValid             Boolean    @default(true)
+  lastValidatedAt     DateTime?
+  testnet             Boolean    @default(false) // FIX: Testnet mode — when true, connects to exchange sandbox/testnet
+  keyType             String     @default("hmac") // V170: Key type — 'hmac', 'ed25519', or 'rsa' — needed for CCXT Ed25519 signing
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orders              Order[]
+  positions           Position[]
+
+  @@index([userId])
+  @@index([exchange])
+  @@index([userId, isValid])
+}
+
+// ── Trading Engine (Phase 5) ──
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  MARKET
+  LIMIT
+}
+
+enum OrderStatus {
+  PENDING
+  ACCEPTED
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+  REJECTED
+}
+
+enum OrderEventType {
+  CREATED
+  ACCEPTED
+  RISK_REJECTED
+  SENT_TO_EXCHANGE
+  FILLED
+  CANCELLED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+enum TradeType {
+  ENTRY
+  EXIT
+  PARTIAL_EXIT
+}
+
+model Order {
+  id                   String             @id @default(cuid())
+  userId               String
+  exchangeCredentialId String
+  exchange             String
+  symbol               String
+  side                 OrderSide
+  type                 OrderType
+  timeInForce          String? // GTC, IOC, FOK
+  quantity             Decimal            @db.Decimal(19, 8)
+  price                Decimal?           @db.Decimal(19, 4)
+  stopLoss             Decimal?           @db.Decimal(19, 4)
+  takeProfit           Decimal?           @db.Decimal(19, 4)
+  status               OrderStatus        @default(PENDING)
+  filledQuantity       Decimal            @default(0) @db.Decimal(19, 8)
+  averagePrice         Decimal?           @db.Decimal(19, 4)
+  fee                  Decimal?           @db.Decimal(19, 4)
+  feeCurrency          String?
+  exchangeOrderId      String?
+  rejectReason         String?
+  signalId             String?
+  idempotencyKey       String             @unique
+  clientOrderId        String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchangeCredential   ExchangeCredential @relation(fields: [exchangeCredentialId], references: [id], onDelete: Cascade)
+  signal               Signal?            @relation(fields: [signalId], references: [id], onDelete: SetNull)
+  events               OrderEvent[]
+  trades               Trade[]
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([exchange])
+  @@index([createdAt])
+  @@index([userId, status, createdAt])
+}
+
+model OrderEvent {
+  id        String         @id @default(cuid())
+  orderId   String
+  eventType OrderEventType
+  payload   String?
+  timestamp DateTime       @default(now())
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+  @@index([eventType])
+  @@index([timestamp])
+}
+
+model Position {
+  id             String             @id @default(cuid())
+  userId         String
+  credentialId   String
+  exchange       String
+  symbol         String
+  side           OrderSide
+  status         PositionStatus     @default(OPEN)
+  quantity       Decimal            @default(0) @db.Decimal(18, 8)
+  entryPrice     Decimal            @default(0) @db.Decimal(18, 8)
+  currentPrice   Decimal?           @db.Decimal(18, 8)
+  exitPrice      Decimal?           @db.Decimal(18, 8) // V140: Actual close price when position is closed
+  closeReason    String?             // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, EXCHANGE_SYNC, LIQUIDATED)
+  unrealizedPnl  Decimal            @default(0) @db.Decimal(18, 4)
+  realizedPnl    Decimal            @default(0) @db.Decimal(18, 4)
+  stopLoss       Decimal?           @db.Decimal(18, 8)
+  takeProfit     Decimal?           @db.Decimal(18, 8)
+  highestPrice   Decimal?           @db.Decimal(18, 8)
+  lowestPrice    Decimal?           @db.Decimal(18, 8)
+  openedAt       DateTime           @default(now())
+  closedAt       DateTime?
+  updatedAt      DateTime           @updatedAt
+  source         String?            @default("user_manual")
+  version        Int                @default(0) // FIX: Optimistic locking — prevents concurrent close race condition
+  exchangeSymbol String? // FIX: Exchange-specific symbol (e.g. BTCUSD for Alpaca) for reconciliation
+  user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  trades         Trade[]
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([exchange])
+  @@index([userId, status])
+  @@index([userId, symbol, status])
+  @@index([userId, symbol, side, status])
+}
+
+model Trade {
+  id              String    @id @default(cuid())
+  userId          String
+  orderId         String?
+  positionId      String?
+  exchange        String
+  symbol          String
+  side            OrderSide
+  type            TradeType
+  quantity        Decimal   @default(0) @db.Decimal(18, 8)
+  price           Decimal   @default(0) @db.Decimal(18, 8)
+  fee             Decimal   @default(0) @db.Decimal(18, 4)
+  feeCurrency     String?
+  pnl             Decimal?  @db.Decimal(18, 4)
+  exchangeTradeId String?
+  executedAt      DateTime  @default(now())
+  source          String?   @default("user_manual")
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([positionId])
+  @@index([executedAt])
+  @@index([userId, type, executedAt])
+}
+
+// ── Position Reconciliation Queue ──
+// FIX: When a position update transaction fails after an order has been executed
+// on the exchange, the user has an open exchange position but no database record.
+// This table stores failed position updates for automatic retry by a background job.
+// Without this, positions are "lost" — the user has exposure on the exchange but
+// no way to see or manage it in the platform.
+model PositionReconciliation {
+  id                   String    @id @default(cuid())
+  orderId              String    @unique
+  userId               String
+  exchangeCredentialId String
+  symbol               String
+  side                 String
+  filledQuantity       Decimal   @db.Decimal(18, 8)
+  fillPrice            Decimal   @db.Decimal(18, 8)
+  stopLoss             Decimal?  @db.Decimal(18, 8)
+  takeProfit           Decimal?  @db.Decimal(18, 8)
+  status               String    @default("PENDING") // PENDING | RETRYING | RESOLVED | FAILED
+  attempts             Int       @default(0)
+  lastAttemptAt        DateTime?
+  lastError            String?
+  createdAt            DateTime  @default(now())
+  resolvedAt           DateTime?
+
+  @@index([status])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ── Paper Trading Orders (Execution Engine) ──
+model PaperOrder {
+  id              String      @id @default(cuid())
+  userId          String
+  symbol          String
+  side            OrderSide
+  type            OrderType
+  quantity        Decimal     @db.Decimal(19, 8)
+  price           Decimal?    @db.Decimal(19, 4)
+  stopLoss        Decimal?    @db.Decimal(19, 4)
+  takeProfit      Decimal?    @db.Decimal(19, 4)
+  status          OrderStatus @default(PENDING)
+  filledQuantity  Decimal     @default(0) @db.Decimal(19, 8)
+  averagePrice    Decimal?    @db.Decimal(19, 4)
+  fee             Decimal?    @db.Decimal(19, 4)
+  feeCurrency     String?
+  slippage        Decimal?    @db.Decimal(19, 4)
+  idempotencyKey  String      @unique
+  clientOrderId   String?
+  exchangeOrderId String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── WebAuthn Challenge store ──
+model Challenge {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  challenge String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([key])
+  @@index([expiresAt])
+}
+
+// ── OAuth Account model (NextAuth) ──
+// TODO: [SECURITY] OAuth tokens (access_token, refresh_token, id_token) are stored as
+// plaintext String fields. These should be encrypted at rest using AES-256-GCM (same as
+// ExchangeCredential) via the CredentialsService encryption methods. Plan:
+//   1. Add encrypted_access_token, encrypted_refresh_token, encrypted_id_token fields
+//      along with corresponding iv and authTag fields (per CredentialsService pattern).
+//   2. In the NextAuth callback where tokens are persisted, encrypt before saving.
+//   3. When reading tokens, decrypt using CredentialsService._decrypt().
+//   4. Migrate existing plaintext tokens to encrypted form in a DB migration.
+// See: apps/api/src/modules/portfolio/credentials/credentials.service.ts for encryption pattern.
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // TODO: Encrypt at rest — see comment above
+  access_token      String? // TODO: Encrypt at rest — see comment above
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // TODO: Encrypt at rest — see comment above
+  session_state     String?
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+// ── Strategy Reports ──
+model StrategyReport {
+  id              String   @id @default(cuid())
+  symbol          String
+  assetName       String
+  title           String
+  type            String
+  severity        String
+  price           Decimal  @db.Decimal(19, 4)
+  change          Decimal  @db.Decimal(10, 4)
+  isUp            Boolean
+  tag             String?
+  decision        String // JSON stringified { title, color, desc }
+  matrix          String // JSON stringified array of matrices
+  risk            String // JSON stringified risk metrics
+  flow            String // JSON stringified dark pool flows
+  consensus       String
+  hiddenSignature String
+  deepAnalysis    String // JSON stringified string[]
+  publishedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([symbol])
+  @@index([type])
+  @@index([publishedAt])
+}
+
+// ── Trading Bot (Automation Engine) ──
+model TradingBot {
+  id            String   @id @default(cuid())
+  userId        String
+  name          String   @default("New Bot")
+  strategy      String   @default("Auto")
+  isActive      Boolean  @default(false)
+  winRate       Decimal  @default(0) @db.Decimal(5, 4)
+  totalTrades   Int      @default(0)
+  dailyPnl      Decimal  @default(0) @db.Decimal(19, 4)
+  statusMessage String   @default("SYSTEM_IDLE")
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── AI Coach Advice ──
+model CoachAdvice {
+  id                 String   @id @default(cuid())
+  userId             String
+  rating             String   @default("needs_improvement") // excellent, good, needs_improvement
+  statisticsSnapshot String   @default("{}") // JSON: win rate, avg win/loss, max DD, etc.
+  adviceText         String // Full advice text from AI
+  adviceItems        String   @default("[]") // JSON array of { type, icon, text }
+  isRead             Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ── Chart Preferences (Drawings & Settings) ──
+model ChartPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String // e.g. "BTC/USD" or "global"
+  settings  String   @default("{}") // JSON for colors, indicators, timeframes
+  drawings  String   @default("[]") // JSON for lines, rects, fibs, etc.
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, symbol])
+  @@index([userId])
+  @@index([symbol])
+}
+
+// ── Subscription Tracking ──
+model Subscription {
+  id            String    @id @default(cuid())
+  userId        String
+  tier          Tier      @default(FREE)
+  previousTier  Tier?
+  startDate     DateTime  @default(now())
+  endDate       DateTime?
+  status        String    @default("active") // active, expired, cancelled
+  paymentMethod String?
+  amount        Decimal?  @db.Decimal(19, 4)
+  currency      String    @default("USD")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([userId])
+  @@index([tier])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// ── AI Usage & Cost Tracking ──
+model AiUsageLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  model        String // e.g. "gpt-4", "claude-3-opus", "glm-5"
+  provider     String // e.g. "openai", "anthropic", "zhipu"
+  endpoint     String // e.g. "chat", "consensus", "narrator"
+  inputTokens  Int      @default(0)
+  outputTokens Int      @default(0)
+  costUsd      Decimal  @default(0) @db.Decimal(10, 6)
+  latencyMs    Int      @default(0)
+  cached       Boolean  @default(false)
+  success      Boolean  @default(true)
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([model])
+  @@index([provider])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([cached])
+}
+
+// ── Notification Configuration ──
+model NotificationConfig {
+  id              String    @id @default(cuid())
+  type            String // telegram, browser, email
+  enabled         Boolean   @default(false)
+  config          String    @default("{}") // JSON: botToken, chatId, etc.
+  description     String?
+  lastTriggeredAt DateTime?
+  triggerCount    Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([type])
+  @@index([type])
+  @@index([enabled])
+}
+
+// ── User Notifications (Persisted + Real-time via Socket.IO) ──
+enum NotificationType {
+  SIGNAL_GENERATED
+  ORDER_FILLED
+  ORDER_REJECTED
+  ORDER_ACCEPTED
+  POSITION_OPENED
+  POSITION_CLOSED
+  RISK_WARNING
+  PRICE_ALERT
+  AI_INSIGHT
+  SYSTEM
+}
+
+enum NotificationPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+model UserNotification {
+  id        String               @id @default(cuid())
+  userId    String
+  type      NotificationType
+  priority  NotificationPriority @default(MEDIUM)
+  title     String
+  body      String
+  // Context data (JSON) — varies by type:
+  // SIGNAL_GENERATED: { signalId, pair, action, confidence, entryPrice, stopLoss, takeProfit }
+  // ORDER_FILLED: { orderId, symbol, side, quantity, averagePrice, source }
+  // RISK_WARNING: { reason, metric, threshold, currentValue }
+  // AI_INSIGHT: { symbol, sentiment, confidence, narrative }
+  data      String               @default("{}")
+  isRead    Boolean              @default(false)
+  // Which source triggered this notification
+  source    String               @default("system") // bot, ai, scanner, trade, system
+  // Action tag for UI (BUY, SELL, INFO, WARN, CLOSE, CANCEL)
+  action    String               @default("INFO")
+  // Related pair/symbol for quick navigation
+  pair      String?
+  createdAt DateTime             @default(now())
+  readAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([priority])
+  @@index([isRead])
+  @@index([createdAt])
+  @@index([userId, isRead, createdAt])
+}
+
+// ── Per-User Notification Preferences ──
+model UserNotificationPreferences {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Master toggle
+  enabled Boolean @default(true)
+
+  // Channel toggles
+  pushEnabled     Boolean @default(true) // Socket.IO real-time push
+  soundEnabled    Boolean @default(true) // Audio feedback
+  browserEnabled  Boolean @default(true) // Native browser notifications
+  telegramEnabled Boolean @default(false) // Telegram bot notifications
+
+  // Source toggles
+  signalAlerts  Boolean @default(true) // New signals
+  tradeAlerts   Boolean @default(true) // Order fills, position changes
+  aiAlerts      Boolean @default(true) // AI insights, narrator
+  scannerAlerts Boolean @default(true) // Scanner discoveries
+  riskAlerts    Boolean @default(true) // Risk warnings
+  systemAlerts  Boolean @default(true) // System notifications
+
+  // Auto-execution settings
+  autoExecuteEnabled         Boolean @default(false) // Auto-execute qualifying signals
+  autoExecuteMinConfidence   Int     @default(75) // Minimum confidence to auto-execute
+  autoExecuteMaxPositionSize Decimal @default(0.02) @db.Decimal(5, 4) // Max position size as % of portfolio
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Price Alert (Alert Agent) ──
+enum AlertCondition {
+  ABOVE
+  BELOW
+  CROSSES_UP
+  CROSSES_DOWN
+}
+
+model Alert {
+  id          String         @id @default(cuid())
+  userId      String
+  symbol      String // e.g. "BTC/USDT", "AAPL"
+  condition   AlertCondition
+  targetPrice Decimal        @db.Decimal(19, 4)
+  isActive    Boolean        @default(true)
+  isTriggered Boolean        @default(false)
+  triggeredAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([isActive, isTriggered])
+  @@index([userId, isActive, isTriggered])
+}
+
+// ── Admin Session (Password Auth) ──
+model AdminSession {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([expiresAt])
+}
+
+// ── System Settings (Key-Value) ──
+model Setting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String   @default("{}") // JSON-encoded value
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@index([key])
+}
+
+// ── Verification Token (OTP, etc.) ──
+model VerificationToken {
+  id         String   @id @default(cuid())
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@index([identifier])
+  @@index([expires])
+}
+
+// ── Prediction Market Events (Phase 7 — Polymarket Integration) ──
+
+enum PredictionEventStatus {
+  ACTIVE
+  RESOLVED
+  EXPIRED
+  CANCELLED
+}
+
+enum PredictionDirection {
+  UP
+  DOWN
+  VOLATILE
+  NEUTRAL
+}
+
+enum HedgeComplexity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TimeHorizon {
+  IMMEDIATE
+  SHORT
+  MEDIUM
+  LONG
+}
+
+model PredictionEvent {
+  id                String                @id @default(cuid())
+  sourceId          String // External ID from Polymarket (slug or conditionId)
+  source            String                @default("polymarket") // "polymarket", "kalshi", etc.
+  title             String
+  titleAr           String? // Arabic translation
+  description       String?
+  descriptionAr     String? // Arabic translation
+  category          String? // "politics", "economics", "crypto", "geopolitics", etc.
+  categoryAr        String? // Arabic category name
+  relatedSymbols    String                @default("[]") // JSON: ["BTC", "ETH", "SPY"]
+  marketProbability Decimal               @db.Decimal(7, 6) // Current market probability (0.0–1.0)
+  aiProbability     Decimal?              @db.Decimal(7, 6) // AI-estimated probability (0.0–1.0)
+  predictionGap     Decimal?              @db.Decimal(7, 6) // |marketProbability - aiProbability|
+  gapDirection      String? // "market_higher", "ai_higher", "aligned"
+  volume24h         Decimal?              @db.Decimal(19, 4) // 24h trading volume
+  liquidity         Decimal?              @db.Decimal(19, 4) // Total liquidity in the market
+  endDate           DateTime? // When the event resolves
+  resolution        String? // JSON: resolution details when event settles
+  status            PredictionEventStatus @default(ACTIVE)
+  impactAssessment  String? // JSON: structured impact analysis (ImpactAssessment interface)
+  signalBoost       Decimal?              @default(0) @db.Decimal(5, 4) // +0.05 for alignment, -0.08 for conflict
+  lastSyncedAt      DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([status])
+  @@index([category])
+  @@index([endDate])
+  @@index([status, endDate])
+  @@index([predictionGap])
+  @@index([lastSyncedAt])
+  @@index([source])
+}
+
+// ── Autonomous Trader Agent (Phase 8) ──
+
+enum AgentStrategy {
+  AUTO
+  SCALPING
+  SWING
+  GRID
+  MEAN_REVERSION
+  MOMENTUM_BREAKOUT
+  DCA
+  VWAP_RSI
+}
+
+enum AgentTradeStatus {
+  PENDING
+  FILLED
+  PARTIALLY_FILLED
+  CANCELLED
+  FAILED
+  REJECTED
+  CLOSED
+  EXPIRED
+}
+
+enum AgentExitReason {
+  TAKE_PROFIT
+  STOP_LOSS
+  MANUAL
+  TRAILING_STOP
+  STRATEGY_EXIT
+  TIMEOUT
+  SIGNAL_REVERSAL
+}
+
+model AutonomousTrade {
+  id         String @id @default(cuid())
+  userId     String
+  agentRunId String // Groups trades within a single agent session
+
+  // Trade Details
+  symbol    String
+  side      OrderSide
+  orderType OrderType
+  strategy  AgentStrategy
+  status    AgentTradeStatus @default(PENDING)
+
+  // Pricing
+  entryPrice   Decimal  @db.Decimal(19, 8)
+  currentPrice Decimal? @db.Decimal(19, 8)
+  exitPrice    Decimal? @db.Decimal(19, 8)
+  stopLoss     Decimal  @db.Decimal(19, 8) // MANDATORY — no trade without SL
+  takeProfit   Decimal  @db.Decimal(19, 8)
+
+  // Quantity & P&L
+  quantity       Decimal  @db.Decimal(19, 8)
+  filledQuantity Decimal  @default(0) @db.Decimal(19, 8)
+  pnl            Decimal? @db.Decimal(19, 4)
+  fee            Decimal  @default(0) @db.Decimal(19, 4)
+  feeCurrency    String   @default("USD")
+
+  // Risk & Confidence
+  riskScore       Int     @default(0) // 0-100
+  confidence      Int     @default(0) // 0-100
+  riskRewardRatio Decimal @db.Decimal(10, 4)
+
+  // Strategy Context
+  reasoning  String // AI reasoning for the trade
+  signalData String @default("{}") // JSON: evaluated signal
+  metadata   String @default("{}") // JSON: strategy-specific data
+
+  // Audit Trail
+  decisions String @default("[]") // JSON array of AgentDecision
+
+  // Execution Details
+  execution String? // JSON: TradeExecution result
+
+  // Timing
+  openedAt          DateTime  @default(now())
+  closedAt          DateTime?
+  holdingDurationMs Int?
+
+  // Exchange
+  credentialId    String
+  exchangeOrderId String?
+
+  // Performance Categorization
+  isWinning  Boolean?
+  exitReason AgentExitReason?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([strategy])
+  @@index([status])
+  @@index([agentRunId])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, strategy, createdAt])
+}
+
+// ── Agent Session (Persistence for Autonomous Trader) ──
+
+model AgentSession {
+  id         String @id @default(cuid())
+  userId     String
+  agentRunId String @unique // Unique session identifier
+
+  // Status
+  status   String @default("PENDING") // RUNNING, STOPPED, PAUSED, EMERGENCY_STOP, DAILY_LIMIT_REACHED
+  strategy String @default("AUTO") // SCALPING, SWING, GRID
+
+  // Configuration (JSON)
+  config String @default("{}") // JSON: AgentConfig
+
+  // Stats
+  dailyPnL          Decimal @default(0) @db.Decimal(19, 4)
+  dailyTradesCount  Int     @default(0)
+  totalCycles       Int     @default(0)
+  consecutiveLosses Int     @default(0)
+  lastError         String?
+
+  // Credential
+  credentialId String
+
+  // Timing
+  startedAt    DateTime  @default(now())
+  stoppedAt    DateTime?
+  lastCycleAt  DateTime?
+  lastSignalAt DateTime?
+  dailyResetAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([userId, status])
+  @@index([startedAt])
+}
+
+// ── Agent Settings (Per-User Persistent Config) ──
+
+model AgentSettings {
+  id     String @id @default(cuid())
+  userId String @unique
+
+  // Trading Mode
+  autoTradingEnabled Boolean @default(true)
+  paperBalance       Decimal @default(10000) @db.Decimal(19, 4)
+
+  // Paper Trading Leverage (V153: user-configurable, NOT hardcoded)
+  // The platform only CONNECTS accounts — leverage is set by the broker/exchange.
+  // These settings are for paper trading simulation only.
+  paperForexLeverage Int @default(50)    // Default 1:50, user can change to 500 etc.
+  paperGoldLeverage  Int @default(20)    // Default 1:20 for XAU/XAG
+  paperCryptoLeverage Int @default(1)    // Default 1:1 (spot, no leverage)
+
+  // Risk Parameters
+  maxPositionSizePercent Decimal @default(2) @db.Decimal(5, 2)
+  maxDailyLossPercent    Decimal @default(5) @db.Decimal(5, 2)
+  maxOpenPositions       Int     @default(5)
+  riskPerTradePercent    Decimal @default(1.5) @db.Decimal(5, 2)
+
+  // Default Strategy
+  defaultStrategy String @default("AUTO")
+
+  // Scalping Params
+  scalpingTimeframe      String @default("5m")
+  scalpingTakeProfitPips Int    @default(15)
+  scalpingStopLossPips   Int    @default(10)
+  scalpingMaxSpread      Int    @default(3)
+
+  // Swing Params
+  swingTimeframe          String @default("1h")
+  swingHoldingPeriodHours Int    @default(48)
+  swingTrendLookback      Int    @default(50)
+
+  // Grid Params
+  gridLevels           Int      @default(5)
+  gridSpacingPercent   Decimal  @default(0.5) @db.Decimal(5, 2)
+  gridQuantityPerLevel Decimal? @db.Decimal(19, 8)
+
+  // Default Symbols (comma-separated)
+  defaultSymbols String @default("BTC/USDT,ETH/USDT,SOL/USDT,BNB/USDT,XRP/USDT")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Content Agent (Phase 9) ──
+
+enum ContentArticleStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  PUBLISHED
+  SCHEDULED
+  ARCHIVED
+  REJECTED
+}
+
+model ContentArticle {
+  id     String @id @default(cuid())
+  userId String
+
+  // Content Identity
+  type        String // AI_GENERATED, AI_CURATED, HUMAN_WRITTEN, AI_ASSISTED, RSS_FEED, API_FEED
+  contentType String // ARTICLE, ANALYSIS, NEWS_DIGEST, MARKET_REPORT, EDUCATIONAL, OPINION, BREAKING
+
+  // Bilingual Content
+  titleAr   String
+  titleEn   String
+  contentAr String  @db.Text
+  contentEn String  @db.Text
+  summaryAr String  @db.Text
+  summaryEn String  @db.Text
+  excerpt   String? // Short excerpt for cards/lists
+
+  // Categorization
+  category       String // CRYPTO, FOREX, STOCKS, COMMODITIES, ECONOMY, etc.
+  categoryAr     String? // Arabic category name
+  tags           String  @default("[]") // JSON array of tags
+  relatedSymbols String  @default("[]") // JSON: ["BTC/USDT", "ETH/USDT"]
+
+  // SEO
+  seo String @default("{}") // JSON: SeoMetadata
+
+  // AI Generation Info
+  aiModel          String? // e.g., "glm-5", "gpt-4"
+  generationSource String? // AI_GENERATED, AI_CURATED, etc.
+  confidence       Int     @default(0) // 0-100
+  qualityScore     Int     @default(0) // 0-100
+  sentimentScore   Decimal @default(0) @db.Decimal(5, 4) // -1.0 to 1.0
+  impactLevel      String? // HIGH, MEDIUM, LOW
+
+  // Safety
+  riskWarnings String @default("[]") // JSON array of risk warnings
+  sources      String @default("[]") // JSON array of source URLs
+
+  // Metrics
+  readingTimeMinutes Int @default(0)
+  wordCountAr        Int @default(0)
+  wordCountEn        Int @default(0)
+  views              Int @default(0)
+  shares             Int @default(0)
+  likes              Int @default(0)
+
+  // Publishing
+  status      ContentArticleStatus @default(DRAFT)
+  publishedAt DateTime?
+  scheduledAt DateTime?
+  imageUrl    String?
+
+  // Timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([category])
+  @@index([contentType])
+  @@index([status])
+  @@index([publishedAt])
+  @@index([createdAt])
+  @@index([userId, status])
+  @@index([userId, contentType, createdAt])
+}
+
+model ContentSchedule {
+  id          String    @id @default(cuid())
+  contentId   String
+  scheduledAt DateTime
+  publishedAt DateTime?
+  status      String    @default("PENDING") // PENDING, PUBLISHED, FAILED, CANCELLED
+  platform    String    @default("WEBSITE") // WEBSITE, TELEGRAM, TWITTER, ALL
+  retryCount  Int       @default(0)
+  lastError   String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([contentId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([status, scheduledAt])
+}
+
+// ── AI Council Restructuring: Strategic Council & Smart Executor (Phase 10) ──
+
+enum BriefTimeframe {
+  M1
+  M5
+  M15
+  M30
+  H1
+  H4
+  D1
+  W1
+}
+
+enum BriefReviewStatus {
+  ACTIVE
+  MODIFIED
+  CANCELLED
+  EXECUTED
+}
+
+enum BriefDirection {
+  BUY
+  SELL
+}
+
+model TradingBrief {
+  id     String  @id @default(cuid())
+  userId String? // null = system-generated (global brief)
+
+  // Trading Details
+  pair       String // e.g. "BTC/USDT", "EUR/USD", "AAPL"
+  direction  BriefDirection // BUY or SELL
+  entryPrice Decimal        @db.Decimal(19, 8)
+  stopLoss   Decimal        @db.Decimal(19, 8) // MANDATORY
+  takeProfit Decimal        @db.Decimal(19, 8)
+  confidence Int            @default(0) // 0-100
+  timeframe  BriefTimeframe
+
+  // Timing
+  issuedAt  DateTime @default(now())
+  expiresAt DateTime
+  isActive  Boolean  @default(true)
+
+  // Strict Rules (JSON)
+  strictRules String @default("{}") // { maxEntryPrice, minEntryPrice, maxSlippage }
+
+  // Review Tracking
+  lastReviewedAt DateTime          @default(now())
+  reviewStatus   BriefReviewStatus @default(ACTIVE)
+
+  // Analysis Context
+  analysisSummary String? // AI reasoning / context for this brief
+
+  // Audit
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([pair])
+  @@index([timeframe])
+  @@index([isActive])
+  @@index([reviewStatus])
+  @@index([expiresAt])
+  @@index([isActive, expiresAt])
+  @@index([pair, timeframe, isActive])
+  @@index([userId, isActive, reviewStatus])
+}

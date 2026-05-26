@@ -1,0 +1,50 @@
+{
+  "name": "roua-trading",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "start": "bash start.sh",
+    "lint": "turbo lint",
+    "dev:web": "turbo dev --filter=@roua/web",
+    "dev:api": "turbo dev --filter=@roua/api",
+    "db:push": "turbo db:push --filter=@roua/web",
+    "db:generate": "turbo db:generate --filter=@roua/web",
+    "seed:reports": "npx ts-node -P apps/api/tsconfig.json scripts/seed-reports.ts"
+  },
+  "devDependencies": {
+    "prisma": "^6.19.3",
+    "terser-webpack-plugin": "^5.5.0",
+    "turbo": "^2.5.0",
+    "typescript": "^5"
+  },
+  "packageManager": "npm@10.5.0",
+  "dependencies": {
+    "@aws-sdk/client-bedrock-runtime": "^3.1040.0",
+    "@prisma/client": "^6.19.3",
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "csv-stringify": "^6.7.0",
+    "exceljs": "^4.4.0",
+    "pdfkit": "^0.18.0",
+    "pg": "^8.20.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "technicalindicators": "^3.1.0"
+  },
+  "optionalDependencies": {
+    "@tailwindcss/oxide-darwin-x64": "^4.2.4",
+    "lightningcss-darwin-x64": "^1.32.0"
+  },
+  "overrides": {
+    "@types/react": "18.3.28",
+    "@types/react-dom": "18.3.7",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

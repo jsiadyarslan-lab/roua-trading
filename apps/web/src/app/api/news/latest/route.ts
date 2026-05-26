@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     const sentiment = searchParams.get('sentiment') || '';
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
-    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline, 'fr' = French pipeline (uses English content)
+    const lang = searchParams.get('lang') || 'ar'; // 'ar' = Arabic pipeline (default), 'en' = English pipeline, 'fr' = French pipeline, 'tr' = Turkish pipeline (uses English content)
 
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     if (integrationKey) {
       try {
         // Fetch more articles when filtering by language (English/French articles are a subset)
-        const fetchLimit = (lang === 'en' || lang === 'fr') ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
+        const fetchLimit = (lang === 'en' || lang === 'fr' || lang === 'tr') ? String(Math.min(parseInt(limit) * 3, 100)) : limit;
         const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${fetchLimit}${symbol ? `&symbol=${encodeURIComponent(symbol)}` : ''}${category ? `&category=${encodeURIComponent(category)}` : ''}`, {
           headers: {
             'Content-Type': 'application/json',
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
             // Filter and transform articles based on language pipeline
             let filteredArticles = newsData.articles;
 
-            if (lang === 'en' || lang === 'fr') {
-              // English/French pipeline: articles where titleAr is empty (produced by English pipeline)
+            if (lang === 'en' || lang === 'fr' || lang === 'tr') {
+              // English/French/Turkish pipeline: articles where titleAr is empty (produced by English pipeline)
               filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
             } else {
               // Arabic pipeline (default): articles where titleAr exists (produced by Arabic pipeline)
@@ -78,10 +78,11 @@ export async function GET(request: NextRequest) {
               }
 
               // Build article object with language-appropriate field mapping
-              const isEnOrFr = lang === 'en' || lang === 'fr';
+              const isNonArabic = lang === 'en' || lang === 'fr' || lang === 'tr';
               const isFr = lang === 'fr';
-              const defaultCategory = isEnOrFr ? 'Markets' : 'أسواق';
-              const defaultSource = isEnOrFr ? "Ru'aa News" : 'رؤى للأخبار';
+              const isTr = lang === 'tr';
+              const defaultCategory = isNonArabic ? 'Markets' : 'أسواق';
+              const defaultSource = isNonArabic ? "Ru'aa News" : 'رؤى للأخبار';
 
               return {
                 id: article.id,
@@ -89,21 +90,23 @@ export async function GET(request: NextRequest) {
                 // English original title
                 title: article.title || '',
                 // Display title: Arabic pipeline → Arabic, English/French pipeline → English
-                translatedTitle: isEnOrFr
+                translatedTitle: isNonArabic
                   ? (article.title || '')
                   : (article.titleAr || article.title || ''),
                 // English original content/summary
                 content: article.content || article.summary || '',
                 // Display content: Arabic pipeline → Arabic, English/French pipeline → English
-                translatedContent: isEnOrFr
+                translatedContent: isNonArabic
                   ? (article.content || article.summary || '')
                   : (article.contentAr || article.summaryAr || ''),
                 // Summary: Arabic pipeline → Arabic, English/French pipeline → English
-                summary: isEnOrFr
+                summary: isNonArabic
                   ? (article.summary || article.content || '')
                   : (article.summaryAr || article.summary || ''),
                 // French text: reuse English content (no French content source)
                 textFr: article.title || '',
+                // Turkish text: reuse English content (no Turkish content source)
+                textTr: article.title || '',
                 // Full analysis content
                 fullContent: article.fullContent || '',
                 // Key takeaways array
@@ -111,7 +114,7 @@ export async function GET(request: NextRequest) {
                 // Image URL (resolved to full URL)
                 imageUrl: resolvedImageUrl,
                 // URL to original article (English/French pipeline → /en/news, Arabic → /news)
-                url: article.url || (article.slug ? `${newsSiteUrl}${isEnOrFr ? '/en' : ''}/news/${article.slug}` : null),
+                url: article.url || (article.slug ? `${newsSiteUrl}${isNonArabic ? '/en' : ''}/news/${article.slug}` : null),
                 // Sentiment normalized to -1..1
                 sentiment: sentimentNormalized,
                 sentimentLabel: article.sentiment || 'neutral',
@@ -120,11 +123,12 @@ export async function GET(request: NextRequest) {
                 category: article.category || defaultCategory,
                 categoryAr: article.category || defaultCategory,
                 categoryFr: mapCategoryToFrench(article.category || defaultCategory),
+                categoryTr: mapCategoryToTurkish(article.category || defaultCategory),
                 publishedAt: article.publishedAt || new Date().toISOString(),
                 newsType: article.newsType || 'live',
                 slug: article.slug || '',
                 // Language indicator for frontend
-                lang: isFr ? 'fr' : (isEnOrFr ? 'en' : 'ar'),
+                lang: isTr ? 'tr' : isFr ? 'fr' : (isNonArabic ? 'en' : 'ar'),
               };
             });
 
@@ -331,6 +335,7 @@ async function fetchLocalNews(
             translatedContent: '',
             summary: generateSummary(title, sentimentLabel, affectedAssets),
             textFr: title || '',
+            textTr: title || '',
             url: link || null,
             sentiment: sentimentScore,
             sentimentLabel,
@@ -339,6 +344,7 @@ async function fetchLocalNews(
             category,
             categoryAr: mapCategoryToArabic(category),
             categoryFr: mapCategoryToFrench(category),
+            categoryTr: mapCategoryToTurkish(category),
             publishedAt: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),
           });
         }
@@ -401,6 +407,29 @@ function mapCategoryToFrench(category: string): string {
   if (lower.includes('etf') || lower.includes('fund')) return 'ETF';
   if (lower.includes('fed')) return 'Fed';
   return 'Général';
+}
+
+function mapCategoryToTurkish(category: string): string {
+  const lower = category.toLowerCase();
+  if (lower.includes('forex') || lower.includes('currency')) return 'Döviz';
+  if (lower.includes('crypto') || lower.includes('bitcoin') || lower.includes('ethereum')) return 'Kripto';
+  if (lower.includes('stock')) return 'Hisse Senetleri';
+  if (lower.includes('commodit') || lower.includes('metal') || lower.includes('gold') || lower.includes('oil')) return 'Emtialar';
+  if (lower.includes('indices') || lower.includes('index')) return 'Endeksler';
+  if (lower.includes('economy') || lower.includes('macro')) return 'Ekonomi';
+  if (lower.includes('analysis')) return 'Analiz';
+  if (lower.includes('education') || lower.includes('learn')) return 'Eğitim';
+  if (lower.includes('opinion') || lower.includes('editorial')) return 'Görüş';
+  if (lower.includes('breaking')) return 'Son Dakika';
+  if (lower.includes('market')) return 'Piyasa';
+  if (lower.includes('technology') || lower.includes('tech')) return 'Teknoloji';
+  if (lower.includes('regulation') || lower.includes('policy')) return 'Düzenleme';
+  if (lower.includes('etf') || lower.includes('fund')) return 'ETF';
+  if (lower.includes('fed')) return 'Fed';
+  if (lower.includes('defi')) return 'DeFi';
+  if (lower.includes('energy')) return 'Enerji';
+  if (lower.includes('general')) return 'Genel';
+  return category;
 }
 
 function simulateArabicTranslation(title: string, category: string): string {

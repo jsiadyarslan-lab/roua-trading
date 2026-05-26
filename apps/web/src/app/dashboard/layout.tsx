@@ -18,13 +18,16 @@ export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale()
   const isAr = locale === 'ar'
   const isFr = locale === 'fr'
+  const isTr = locale === 'tr'
   return {
-    title: isAr ? 'رؤى | منصة ربط الحسابات الاحترافية' : isFr ? 'Roua | Plateforme professionnelle de liaison de comptes' : 'Roua | Professional Account Linking Platform',
+    title: isAr ? 'رؤى | منصة ربط الحسابات الاحترافية' : isFr ? 'Roua | Plateforme professionnelle de liaison de comptes' : isTr ? 'Roua | Profesyonel Hesap Bağlama Platformu' : 'Roua | Professional Account Linking Platform',
     description: isAr
       ? 'منصة رؤى لربط ومتابعة الحسابات الذكية - Roua Account Linking Platform'
       : isFr
         ? 'Plateforme Roua pour la liaison et le suivi intelligents de comptes - analyses IA et signaux de trading'
-        : 'Roua platform for linking and monitoring smart accounts - AI analytics and trading signals',
+        : isTr
+          ? 'Roua akıllı hesap bağlama ve izleme platformu - AI analitikleri ve işlem sinyalleri'
+          : 'Roua platform for linking and monitoring smart accounts - AI analytics and trading signals',
     manifest: '/manifest.json',
     applicationName: 'Roua Link',
     icons: {

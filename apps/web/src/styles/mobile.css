@@ -1,0 +1,86 @@
+/* ═══════════════════════════════════════════
+   رؤى — تصميم الجوال
+   ملف واحد. لا ملفات أخرى.
+   ═══════════════════════════════════════════ */
+
+:root {
+  /* ألوان */
+  --bg: #0B0E14;
+  --card: #1A1D29;
+  --accent: #00D4FF;
+  --green: #00FFA3;
+  --red: #FF4757;
+  --amber: #FFB800;
+  --text: #F0F2F5;
+  --text2: #8B92A8;
+  --text3: rgba(255,255,255,0.4);
+  --border: rgba(255,255,255,0.06);
+
+  /* مسافات */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 20px; --s6: 24px;
+
+  /* خطوط */
+  --cairo: 'Cairo', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+
+  /* نافبار */
+  --nav-h: 50px;
+
+  /*
+    سبب فجوة 1cm السابقة:
+    env(safe-area-inset-bottom, 16px) كان يعطي 16px كقيمة افتراضية
+    على أجهزة لا تدعم safe-area. الحل: القيمة الافتراضية 0px
+  */
+  --safe-b: env(safe-area-inset-bottom, 0px);
+}
+
+/* ═══ إعادة تعيين ═══ */
+html { overflow: hidden; overscroll-behavior: none; }
+body { position: fixed; width: 100%; height: 100dvh; overflow: hidden; }
+button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
+/* ═══ الهيكل ═══ */
+.m-shell {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  background: var(--bg); color: var(--text);
+  overflow: hidden;
+}
+.m-main {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--nav-h) + var(--safe-b) + 8px);
+}
+
+/* ═══ النافبار السفلي ═══ */
+.m-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: calc(var(--nav-h) + var(--safe-b));
+  padding-bottom: var(--safe-b);
+  display: flex; align-items: flex-start; justify-content: space-around;
+  background: rgba(11,14,20,0.95);
+  backdrop-filter: blur(20px);
+  border-top: 0.5px solid rgba(0,212,255,0.1);
+  z-index: 10;
+  box-sizing: border-box;
+}
+.m-nav-btn {
+  width: 56px; height: var(--nav-h);
+  background: none; border: none; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; color: var(--text3);
+  transition: color 150ms;
+}
+.m-nav-btn:active { transform: scale(0.9); }
+.m-nav-btn--active { color: var(--accent); }
+.m-nav-label { font-size: 9px; font-weight: 700; font-family: var(--cairo); }
+
+/* ═══ صفحة ═══ */
+.m-page { padding: var(--s3) var(--s4) var(--s6); min-height: 100%; }
+
+/* ═══ بطاقة ═══ */
+.m-card {
+  background: var(--card); border-radius: 14px;
+  padding: var(--s3); margin: 0 0 var(--s3);
+  border: 0.5px solid var(--border);
+}

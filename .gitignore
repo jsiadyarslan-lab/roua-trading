@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Build outputs
+.next/
+**/.next/
+dist/
+**/dist/
+.turbo/
+**/.turbo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Duplicate directory
+roua-trading/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Cache
+.cache/
+tmp/
+
+# Agent context
+agent-ctx/
+.zscripts/
+.sixth/
+skills/
+download/
+worklog.md
+PROGRESS.md
+
+# Prisma
+**/.prisma/
+
+# Docker
+docker-compose*.yml

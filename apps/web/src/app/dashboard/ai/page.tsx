@@ -119,7 +119,7 @@ function loadMessages(locale: string, t: (key: string) => string): Message[] {
       localStorage.removeItem(STORAGE_KEY)
     }
   } catch {}
-  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US'
+  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US'
   return [{
     id: '1',
     role: 'ai',
@@ -283,7 +283,7 @@ export default function AIPage() {
   // ── i18n ──
   const t = useTranslations('dashboard.aiPage')
   const locale = useLocale()
-  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US'
+  const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US'
 
   // ── Initialize ──
   // FIX: Wrapped fetch functions in useCallback to prevent stale closures

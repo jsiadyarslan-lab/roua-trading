@@ -1,0 +1,338 @@
+'use client'
+
+import { create } from 'zustand'
+import { persist, createJSONStorage } from 'zustand/middleware'
+import { useAuthStore } from '@/lib/auth-store'
+
+/* ══════════════════════════════════════════════════════
+   AudioContext Manager — Respects browser autoplay policy
+   AudioContext is only created after user gesture (click/keydown)
+   to prevent "AudioContext was not allowed to start" errors.
+   
+   NOTE: All browser APIs are lazily initialized to ensure
+   SSR compatibility — no module-level side effects.
+══════════════════════════════════════════════════════ */
+let _audioCtx: AudioContext | null = null
+let _audioResumed = false
+let _audioListenersAttached = false
+
+function getAudioContext(): AudioContext | null {
+  if (typeof window === 'undefined') return null
+  if (!_audioCtx && _audioResumed) {
+    try {
+      _audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    } catch {
+      return null
+    }
+  }
+  return _audioCtx
+}
+
+// Lazily attach AudioContext resume listeners on first user interaction.
+// This avoids module-level side effects that break SSR.
+function ensureAudioListeners() {
+  if (typeof window === 'undefined' || _audioListenersAttached) return
+  _audioListenersAttached = true
+
+  const resumeAudio = () => {
+    const ctx = getAudioContext()
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => {})
+    }
+    _audioResumed = true
+    // Re-attach listeners so that if Chrome suspends the context again
+    // after a period of inactivity, the next interaction will resume it
+    window.addEventListener('click', resumeAudio, { once: true })
+    window.addEventListener('keydown', resumeAudio, { once: true })
+    window.addEventListener('touchstart', resumeAudio, { once: true })
+  }
+  // Initial listeners — will re-attach after each resume
+  window.addEventListener('click', resumeAudio, { once: true })
+  window.addEventListener('keydown', resumeAudio, { once: true })
+  window.addEventListener('touchstart', resumeAudio, { once: true })
+}
+
+// Attach listeners when module is loaded on the client
+if (typeof window !== 'undefined') {
+  // Use queueMicrotask to defer execution past SSR hydration
+  queueMicrotask(ensureAudioListeners)
+}
+
+function playNotifSound(action: string) {
+  const ctx = getAudioContext()
+  if (!ctx) return
+
+  // Try to resume if suspended (after user gesture)
+  if (ctx.state === 'suspended') {
+    ctx.resume().catch(() => {})
+  }
+
+  const osc = ctx.createOscillator()
+  const gain = ctx.createGain()
+  gain.gain.value = 0.15
+  osc.connect(gain)
+  gain.connect(ctx.destination)
+
+  if (action === 'BUY') {
+    osc.frequency.value = 523.25
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => {
+      osc.frequency.value = 659.25
+      setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
+    }, 150)
+  } else if (action === 'SELL') {
+    osc.frequency.value = 392
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => {
+      osc.frequency.value = 329.63
+      setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 150)
+    }, 150)
+  } else {
+    osc.frequency.value = 440
+    osc.type = 'sine'
+    osc.start()
+    setTimeout(() => { osc.stop(); osc.disconnect(); gain.disconnect() }, 200)
+  }
+}
+
+export type NotifSource = 'bot' | 'ai' | 'scanner' | 'trade' | 'system' | 'agent'
+export type NotifPriority = 'urgent' | 'high' | 'medium' | 'low'
+export type NotifAction = 'BUY' | 'SELL' | 'INFO' | 'WARN' | 'CLOSE' | 'CANCEL'
+
+export interface Notification {
+  id: string
+  source: NotifSource
+  priority: NotifPriority
+  action: NotifAction
+  title: string
+  body: string
+  pair?: string
+  price?: number
+  confidence?: number
+  timestamp: number
+  read: boolean
+}
+
+interface NotifSettings {
+  enabled: boolean
+  soundEnabled: boolean
+  browserNotifications: boolean
+  botAlerts: boolean
+  aiAlerts: boolean
+  scannerAlerts: boolean
+  tradeAlerts: boolean
+  minConfidence: number
+  autoExecute: boolean
+}
+
+interface NotificationState {
+  notifications: Notification[]
+  settings: NotifSettings
+  toasts: Notification[]     // ephemeral – not persisted
+  addNotification: (n: Omit<Notification, 'id' | 'timestamp' | 'read'>) => void
+  markRead: (id: string) => void
+  markAllRead: () => void
+  dismiss: (id: string) => void
+  clearAll: () => void
+  dismissToast: (id: string) => void
+  updateSettings: (s: Partial<NotifSettings>) => void
+}
+
+const DEFAULT_SETTINGS: NotifSettings = {
+  enabled: true,
+  soundEnabled: true,
+  browserNotifications: true,
+  botAlerts: true,
+  aiAlerts: true,
+  scannerAlerts: true,
+  tradeAlerts: true,
+  minConfidence: 45,
+  autoExecute: false,
+}
+
+/**
+ * SECURITY: Get a user-scoped localStorage key to prevent data leakage.
+ * Without userId in the key, user B would see user A's notifications.
+ */
+function getStorageKey(): string {
+  try {
+    const user = useAuthStore.getState().user
+    if (user?.id) return `roua-notifications:${user.id}`
+  } catch { /* Auth store not yet initialized */ }
+  try {
+    let sessionId = sessionStorage.getItem('roua-guest-session-id')
+    if (!sessionId) {
+      sessionId = `guest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      sessionStorage.setItem('roua-guest-session-id', sessionId)
+    }
+    return `roua-notifications:${sessionId}`
+  } catch {
+    return 'roua-notifications:guest'
+  }
+}
+
+export const useNotificationStore = create<NotificationState>()(
+  persist(
+    (set, get) => ({
+      notifications: [],
+      settings: DEFAULT_SETTINGS,
+      toasts: [],
+
+      addNotification: (n) => {
+        const { settings, notifications } = get()
+        if (!settings.enabled) return
+        if (n.source === 'bot' && !settings.botAlerts) return
+        if (n.source === 'ai' && !settings.aiAlerts) return
+        if (n.source === 'scanner' && !settings.scannerAlerts) return
+        if (n.source === 'trade' && !settings.tradeAlerts) return
+        if (n.confidence !== undefined && n.confidence < settings.minConfidence) return
+
+        // ── Deduplication: skip if same source + action + pair within last 10 minutes ──
+        const DEDUP_WINDOW = 10 * 60 * 1000 // 10 minutes
+        const isDuplicate = notifications.some(
+          (existing) =>
+            existing.source === n.source &&
+            existing.action === n.action &&
+            existing.pair === n.pair &&
+            (Date.now() - existing.timestamp) < DEDUP_WINDOW
+        )
+        if (isDuplicate) return
+
+        const notif: Notification = {
+          ...n,
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          timestamp: Date.now(),
+          read: false,
+        }
+
+        set((state) => ({
+          notifications: [notif, ...state.notifications].slice(0, 100),
+          toasts: [notif, ...state.toasts].slice(0, 10),
+        }))
+
+        // Play sound for urgent/high priority
+        if (
+          settings.soundEnabled &&
+          (n.priority === 'urgent' || n.priority === 'high') &&
+          typeof window !== 'undefined'
+        ) {
+          try {
+            playNotifSound(n.action)
+          } catch {
+            // AudioContext not available — silent fallback
+          }
+        }
+
+        // ── Fire native browser notification (appears outside app on mobile + desktop) ──
+        if (
+          settings.browserNotifications &&
+          typeof window !== 'undefined' &&
+          'Notification' in window &&
+          Notification.permission === 'granted'
+        ) {
+          try {
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+            const actionEmoji = n.action === 'BUY' ? '📈' : n.action === 'SELL' ? '📉' : n.action === 'WARN' ? '⚠️' : 'ℹ️'
+
+            const browserNotif = new Notification(`${actionEmoji} ${n.title}`, {
+              body: n.body + (n.pair ? ` — ${n.pair}` : ''),
+              icon: '/icon-192.png',
+              badge: '/icon-192.png',
+              tag: notif.id,
+              dir: 'rtl',
+              lang: 'ar',
+              vibrate: n.priority === 'urgent' ? [200, 100, 200] : [100],
+              requireInteraction: n.priority === 'urgent' && !isMobile,
+              silent: false,
+              data: {
+                source: n.source,
+                action: n.action,
+                pair: n.pair,
+                price: n.price,
+                url: n.pair
+                  ? (isMobile ? `/mobile/chart?symbol=${n.pair}` : `/trading?symbol=${n.pair}`)
+                  : (isMobile ? '/mobile' : '/dashboard'),
+              },
+            } as NotificationOptions)
+
+            // Focus window and navigate on click
+            browserNotif.onclick = () => {
+              window.focus()
+              const url = browserNotif.data?.url || '/dashboard'
+              window.location.href = url
+              browserNotif.close()
+            }
+          } catch {
+            // Notification API not available — fallback silently
+          }
+        }
+      },
+
+      markRead: (id) => set((state) => ({
+        notifications: state.notifications.map(n => n.id === id ? { ...n, read: true } : n)
+      })),
+
+      markAllRead: () => set((state) => ({
+        notifications: state.notifications.map(n => ({ ...n, read: true }))
+      })),
+
+      dismiss: (id) => set((state) => ({
+        notifications: state.notifications.filter(n => n.id !== id)
+      })),
+
+      clearAll: () => set({ notifications: [] }),
+
+      dismissToast: (id) => set((state) => ({
+        toasts: state.toasts.filter(n => n.id !== id)
+      })),
+
+      updateSettings: (s) => set((state) => ({
+        settings: { ...state.settings, ...s }
+      })),
+    }),
+    {
+      name: 'roua-notifications', // Base name — actual key is resolved dynamically
+      storage: (() => {
+        const bs = createJSONStorage(() => localStorage)
+        const baseStorage = bs as any
+        return {
+          getItem: (name: string): any => {
+            const dynamicKey = getStorageKey()
+            return baseStorage.getItem(dynamicKey)
+          },
+          setItem: (name: string, value: any) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.setItem(dynamicKey, value as string)
+          },
+          removeItem: (name: string) => {
+            const dynamicKey = getStorageKey()
+            baseStorage.removeItem(dynamicKey)
+          },
+        }
+      })(),
+      version: 3,
+      migrate: (persistedState: any) => ({
+        notifications: Array.isArray(persistedState?.notifications) ? persistedState.notifications.slice(0, 50) : [],
+        settings: {
+          ...DEFAULT_SETTINGS,
+          ...(persistedState?.settings ?? {}),
+          minConfidence: typeof persistedState?.settings?.minConfidence === 'number'
+              ? persistedState.settings.minConfidence
+              : DEFAULT_SETTINGS.minConfidence,
+          browserNotifications: typeof persistedState?.settings?.browserNotifications === 'boolean'
+              ? persistedState.settings.browserNotifications
+              : DEFAULT_SETTINGS.browserNotifications,
+          autoExecute: typeof persistedState?.settings?.autoExecute === 'boolean'
+              ? persistedState.settings.autoExecute
+              : DEFAULT_SETTINGS.autoExecute,
+        },
+      }),
+      partialize: (state) => ({
+        notifications: state.notifications.slice(0, 50),
+        settings: state.settings,
+      }),
+    }
+  )
+)

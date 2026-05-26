@@ -18,7 +18,7 @@ interface TemplateManagerProps {
 
 export function TemplateManager({ onLoadTemplate, onSaveTemplate, onClose }: TemplateManagerProps) {
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const [templates, setTemplates] = useState<ChartTemplate[]>([]);
   const [newName, setNewName] = useState('');
   const [importJson, setImportJson] = useState('');

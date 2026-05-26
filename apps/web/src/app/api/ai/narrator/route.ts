@@ -21,8 +21,31 @@ type NarratorPayload = {
   degraded?: boolean
 }
 
-// ── Bilingual text templates ──
-const T = {
+// ── Multilingual text templates ──
+type LangTemplates = {
+  summaryBuy: (symbol: string, tf: string) => string
+  summarySell: (symbol: string, tf: string) => string
+  summaryNeutral: (symbol: string, tf: string) => string
+  summaryNoData: (symbol: string) => string
+  bullCaseSupported: (reasons: string) => string
+  bullCaseNeedsRecovery: string
+  bearCaseSupported: (reasons: string) => string
+  bearCaseMomentumLoss: string
+  riskDegraded: string
+  riskStaleFeed: string
+  riskHighVolatility: string
+  riskMedium: string
+  triggerBuy: (price: string) => string
+  triggerSell: (price: string) => string
+  triggerNeutral: string
+  narrativeReason: (reason: string) => string
+  narrativeNewsConsidered: string
+  narrativeNoNews: string
+  keywordPartialData: string
+  keywordLiveContext: string
+}
+
+const T: Record<string, LangTemplates> = {
   ar: {
     summaryBuy: (symbol: string, tf: string) => `${symbol} في حالة زخم صاعد على ${tf}.`,
     summarySell: (symbol: string, tf: string) => `${symbol} في حالة ضغط بيعي على ${tf}.`,
@@ -67,6 +90,50 @@ const T = {
     keywordPartialData: 'Partial Data',
     keywordLiveContext: 'Live Context',
   },
+  fr: {
+    summaryBuy: (symbol: string, tf: string) => `${symbol} est en momentum haussier sur ${tf}.`,
+    summarySell: (symbol: string, tf: string) => `${symbol} est sous pression vendeuse sur ${tf}.`,
+    summaryNeutral: (symbol: string, tf: string) => `${symbol} est en mode attentiste sur ${tf}.`,
+    summaryNoData: (symbol: string) => `Aucune lecture complète disponible pour ${symbol} pour le moment.`,
+    bullCaseSupported: (reasons: string) => `Le scénario haussier est soutenu par ${reasons}.`,
+    bullCaseNeedsRecovery: 'Le scénario haussier nécessite une récupération du prix au-dessus des zones de repli actuelles avec confirmation du timeframe supérieur.',
+    bearCaseSupported: (reasons: string) => `Le scénario baissier est soutenu par ${reasons}.`,
+    bearCaseMomentumLoss: 'Le scénario baissier émerge si le prix ne parvient pas à maintenir le momentum actuel ou si la qualité des données se détériore.',
+    riskDegraded: 'Le risque principal ici est de se baser sur des données partielles ou retardées.',
+    riskStaleFeed: 'La qualité du flux n\'est pas optimale, et les signaux peuvent être en retard sur le marché réel.',
+    riskHighVolatility: 'La volatilité est élevée, donc toute entrée nécessite une taille de position conservatrice.',
+    riskMedium: 'Le risque actuel est modéré et dépend du momentum soutenu.',
+    triggerBuy: (price: string) => `Le prochain déclencheur est le maintien du prix au-dessus de ${price} avec une confiance supérieure à 60.`,
+    triggerSell: (price: string) => `Le prochain déclencheur est la pression continue sous ${price} avec de faibles tentatives de rebond.`,
+    triggerNeutral: 'Le prochain déclencheur est un biais directionnel plus clair du scanner ou un catalyseur qui change le régime.',
+    narrativeReason: (reason: string) => `La raison la plus forte maintenant : ${reason}.`,
+    narrativeNewsConsidered: 'Les actualités récentes ont été prises en compte dans le récit.',
+    narrativeNoNews: 'Actualités récentes insuffisantes, le récit se concentre donc sur le prix et la structure technique.',
+    keywordPartialData: 'Données partielles',
+    keywordLiveContext: 'Contexte en direct',
+  },
+  tr: {
+    summaryBuy: (symbol: string, tf: string) => `${symbol} ${tf} üzerinde yükseliş momentumunda.`,
+    summarySell: (symbol: string, tf: string) => `${symbol} ${tf} üzerinde satış baskısı altında.`,
+    summaryNeutral: (symbol: string, tf: string) => `${symbol} ${tf} üzerinde bekleme modunda.`,
+    summaryNoData: (symbol: string) => `${symbol} için şu anda tam bir okuma mevcut değil.`,
+    bullCaseSupported: (reasons: string) => `Yükseliş senaryosu ${reasons} tarafından destekleniyor.`,
+    bullCaseNeedsRecovery: 'Yükseliş senaryosu, fiyatın mevcut geri çekilme bölgelerinin üzerine dönmesi ve daha yüksek zaman diliminden onay almasını gerektiriyor.',
+    bearCaseSupported: (reasons: string) => `Düşüş senaryosu ${reasons} tarafından destekleniyor.`,
+    bearCaseMomentumLoss: 'Düşüş senaryosu, fiyat mevcut momentumu koruyamazsa veya veri kalitesi bozulursa ortaya çıkar.',
+    riskDegraded: 'Buradaki temel risk, kısmi veya gecikmeli verilere dayanarak işlem yapmaktır.',
+    riskStaleFeed: 'Veri akışı kalitesi optimum değil ve sinyaller canlı piyasadan gecikmeli olabilir.',
+    riskHighVolatility: 'Volatilite yüksek, bu nedenle her giriş için muhafazakar bir pozisyon boyutu gereklidir.',
+    riskMedium: 'Mevcut risk orta düzeyde ve sürekli momentuma bağlıdır.',
+    triggerBuy: (price: string) => `Sonraki tetikleyici, fiyatın ${price} üzerinde kalması ve güvenin 60 üzerinde kalmasıdır.`,
+    triggerSell: (price: string) => `Sonraki tetikleyici, ${price} altında devam eden baskı ve zayıf geri dönüş denemeleridir.`,
+    triggerNeutral: 'Sonraki tetikleyici, tarayıcıdan daha net bir yönsel önyargı veya rejimi değiştirecek bir katalizördür.',
+    narrativeReason: (reason: string) => `Şu anki en güçlü neden: ${reason}.`,
+    narrativeNewsConsidered: 'Son haberler anlatıma dahil edilmiştir.',
+    narrativeNoNews: 'Yeterli son haber yok, bu nedenle anlatım fiyat ve teknik yapıya odaklanıyor.',
+    keywordPartialData: 'Kısmi Veri',
+    keywordLiveContext: 'Canlı Bağlam',
+  },
 }
 
 function buildNarrativeFromContext(
@@ -74,7 +141,7 @@ function buildNarrativeFromContext(
   scan: any,
   recentNews: any[] = [],
   degraded = false,
-  lang: 'ar' | 'en' = 'ar',
+  lang: 'ar' | 'en' | 'fr' | 'tr' = 'ar',
 ): NarratorPayload {
   const l = T[lang] || T.ar
   const newsSentiment =
@@ -156,7 +223,8 @@ function buildNarrativeFromContext(
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const symbol = searchParams.get('symbol') || 'BTC/USD'
-  const lang = searchParams.get('lang') === 'en' ? 'en' : 'ar'
+  const langParam = searchParams.get('lang') || 'ar'
+  const lang = ['ar', 'en', 'fr', 'tr'].includes(langParam) ? langParam as 'ar' | 'en' | 'fr' | 'tr' : 'ar'
   const origin = req.nextUrl.origin
   let dbReady = false
   let recentNews: any[] = []
@@ -189,9 +257,11 @@ export async function GET(req: NextRequest) {
     })
   } catch (error: any) {
     console.error('[ai/narrator] Error:', error?.message || error)
+    // Return success: false for degraded data — prevents phantom notifications
     return NextResponse.json({
-      success: true,
-      data: buildNarrativeFromContext(symbol, null, [], true, lang),
+      success: false,
+      error: 'Market data unavailable',
+      data: null,
     })
   }
 }

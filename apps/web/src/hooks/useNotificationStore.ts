@@ -152,7 +152,7 @@ const DEFAULT_SETTINGS: NotifSettings = {
   aiAlerts: true,
   scannerAlerts: true,
   tradeAlerts: true,
-  minConfidence: 45,
+  minConfidence: 60,
   autoExecute: false,
 }
 

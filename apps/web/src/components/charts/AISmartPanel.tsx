@@ -580,7 +580,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
   // Regime color
   const regimeColor = volRegime === 'extreme' ? C.red : volRegime === 'high' ? C.yellow : volRegime === 'low' ? C.blue : C.green;
-  const regimeLabelAr = volRegime === 'extreme' ? 'شديد' : volRegime === 'high' ? 'مرتفع' : volRegime === 'low' ? 'منخفض' : 'طبيعي';
+  const regimeLabelAr = volRegime === 'extreme' ? t('extreme') : volRegime === 'high' ? t('high') : volRegime === 'low' ? t('low') : t('normal');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 360, maxHeight: 560, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
@@ -613,7 +613,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Overlay Toggles */}
       <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap' }}>
-        {([['S/R','sr','#4ade80'],['ترند','trend','#facc15'],['هرمونيك','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['هندسي','geo','#a78bfa'],['إليوت','ew','#93c5fd'],['وايكوف','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['دخول','entry','#00D4FF']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+        {([[t('overlaySR'),'sr','#4ade80'],[t('overlayTrend'),'trend','#facc15'],[t('overlayHarmonic'),'harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],[t('overlayGeometric'),'geo','#a78bfa'],[t('overlayElliott'),'ew','#93c5fd'],[t('overlayWyckoff'),'wyckoff','#fb923c'],['VP','vp','#fbbf24'],[t('overlayEntry'),'entry','#00D4FF']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
           <button key={key} onClick={()=>{ toggleOverlay(key); }}
             style={{ padding:'2px 7px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               border:`1px solid ${overlays[key]?col:'#333'}`,
@@ -664,7 +664,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   <div style={{ display: 'grid', gridTemplateColumns: signal.fusionScore !== undefined ? '1fr 1fr' : '1fr', gap: 4, marginBottom: 6 }}>
                     {signal.bayesianDir && (
                       <div style={{ background: `${C.purple}0a`, border: `1px solid ${C.purple}25`, borderRadius: 5, padding: '4px 7px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: C.purple, fontSize: 8, fontWeight: 700 }}>بايزي</span>
+                        <span style={{ color: C.purple, fontSize: 8, fontWeight: 700 }}>{t('bayesian')}</span>
                         <span style={{ color: signal.bayesianDir === 'BUY' ? C.green : signal.bayesianDir === 'SELL' ? C.red : C.yellow, fontSize: 9, fontWeight: 700 }}>
                           {signal.bayesianDir === 'BUY' ? '▲' : signal.bayesianDir === 'SELL' ? '▼' : '◆'} {Math.round((signal.bayesianConf || 0) * 100)}%
                         </span>
@@ -672,7 +672,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     )}
                     {signal.fusionScore !== undefined && (
                       <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}25`, borderRadius: 5, padding: '4px 7px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ color: C.gold, fontSize: 8, fontWeight: 700 }}>تلاقي</span>
+                        <span style={{ color: C.gold, fontSize: 8, fontWeight: 700 }}>{t('confluence')}</span>
                         <span style={{ color: signal.fusionScore > 50 ? C.green : signal.fusionScore > 25 ? C.yellow : C.dim, fontSize: 9, fontWeight: 700 }}>
                           {signal.fusionScore}%
                         </span>
@@ -698,7 +698,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     {/* ATR regime indicator */}
                     {signal.regime && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', background: C.card, borderRadius: 5, marginBottom: 8 }}>
-                        <span style={{ color: C.dim, fontSize: 8 }}>نظام التقلب</span>
+                        <span style={{ color: C.dim, fontSize: 8 }}>{t('volatilityRegime')}</span>
                         <span style={{ color: regimeColor, fontSize: 8, fontWeight: 700 }}>{regimeLabelAr} (ATR)</span>
                       </div>
                     )}
@@ -713,14 +713,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* REVOLUTIONARY: Pattern Performance Stats */}
                 {performanceStats && performanceStats.totalTrades > 0 && (
                   <div style={{ background: C.card, borderRadius: 6, padding: '7px 9px', marginBottom: 6, border: `1px solid ${C.border}` }}>
-                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>أداء الأنماط السابقة</div>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>{t('previousPatternPerformance')}</div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                      <span style={{ color: C.dim, fontSize: 8 }}>نسبة النجاح</span>
+                      <span style={{ color: C.dim, fontSize: 8 }}>{t('winRate')}</span>
                       <span style={{ color: performanceStats.winRate > 50 ? C.green : C.red, fontSize: 9, fontWeight: 700 }}>{Math.round(performanceStats.winRate)}% ({performanceStats.totalTrades})</span>
                     </div>
                     {performanceStats.bestPattern && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                        <span style={{ color: C.dim, fontSize: 8 }}>أفضل نمط</span>
+                        <span style={{ color: C.dim, fontSize: 8 }}>{t('bestPattern')}</span>
                         <span style={{ color: C.green, fontSize: 8, fontWeight: 600 }}>{performanceStats.bestPattern}</span>
                       </div>
                     )}
@@ -730,12 +730,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 {/* REVOLUTIONARY: State Machine Alerts */}
                 {stateMachineResult && stateMachineResult.alerts.length > 0 && (
                   <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '6px 8px', marginBottom: 6 }}>
-                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>تنبيهات دورة حياة الأنماط</div>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>{t('patternLifecycleAlerts')}</div>
                     {stateMachineResult.alerts.slice(0, 3).map((a: any, i: number) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
                         <span style={{ color: C.dim, fontSize: 8 }}>{a.patternType}</span>
                         <span style={{ color: a.priority === 'critical' ? C.red : a.priority === 'warning' ? C.yellow : C.cyan, fontSize: 8, fontWeight: 600 }}>
-                          {a.newState === 'breakout' ? 'اختراق' : a.newState === 'completed' ? 'مكتمل' : a.newState === 'near-completion' ? 'قريب الإكمال' : a.newState === 'failed' ? 'فاشل' : a.newState}
+                          {a.newState === 'breakout' ? t('breakout') : a.newState === 'completed' ? t('completed') : a.newState === 'near-completion' ? t('nearCompletion') : a.newState === 'failed' ? t('failed') : a.newState}
                         </span>
                       </div>
                     ))}
@@ -769,7 +769,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* REVOLUTIONARY: Bayesian consensus bar */}
             {bayesianResult && (
               <div style={{ background: `${C.purple}0a`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '7px 9px', marginBottom: 8 }}>
-                <div style={{ color: C.purple, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>إجماع بايزي</div>
+                <div style={{ color: C.purple, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>{t('bayesianConsensus')}</div>
                 <div style={{ display: 'flex', gap: 2, height: 6, borderRadius: 3, overflow: 'hidden', background: 'rgba(255,255,255,0.05)' }}>
                   <div style={{ width: `${Math.round((bayesianResult.posteriorBullish ?? bayesianResult.bullish ?? 0) * 100)}%`, background: C.green, borderRadius: '3px 0 0 3px' }} />
                   <div style={{ width: `${Math.round((bayesianResult.posteriorNeutral ?? bayesianResult.neutral ?? 0) * 100)}%`, background: C.yellow }} />
@@ -826,10 +826,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* REVOLUTIONARY: Elliott+SMC Fusion card */}
             {fusionResult && (
               <div style={{ background: `${C.gold}0a`, border: `1px solid ${C.gold}25`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
-                <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>تلاقي إليوت + SMC</div>
+                <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>{t('elliottSmcConfluence')}</div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ color: fusionResult.direction === 'bullish' ? C.green : fusionResult.direction === 'bearish' ? C.red : C.yellow, fontSize: 12, fontWeight: 800 }}>
-                    {fusionResult.direction === 'bullish' ? '▲ صعودي' : fusionResult.direction === 'bearish' ? '▼ هبوطي' : '◆ محايد'}
+                    {fusionResult.direction === 'bullish' ? `▲ ${t('bullish')}` : fusionResult.direction === 'bearish' ? `▼ ${t('bearish')}` : `◆ ${t('neutral')}`}
                   </span>
                   <span style={{ color: C.gold, fontSize: 11, fontWeight: 700 }}>{fusionResult.confluenceScore}%</span>
                 </div>
@@ -892,25 +892,25 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
             {/* REVOLUTIONARY: Performance Stats section */}
             {performanceStats && performanceStats.totalPatterns > 0 && (
               <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
-                <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>أداء الأنماط التاريخي</div>
+                <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>{t('historicalPatternPerformance')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 7 }}>الأنماط</div>
+                    <div style={{ color: C.mut, fontSize: 7 }}>{t('patterns')}</div>
                     <div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{performanceStats.totalPatterns}</div>
                   </div>
                   <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                    <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
+                    <div style={{ color: C.mut, fontSize: 7 }}>{t('winRate')}</div>
                     <div style={{ color: (performanceStats.overallWinRate ?? 0) > 0.5 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{Math.round((performanceStats.overallWinRate ?? 0) * 100)}%</div>
                   </div>
                   {performanceStats.bestPattern && (
                     <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                      <div style={{ color: C.mut, fontSize: 7 }}>أفضل نمط</div>
+                      <div style={{ color: C.mut, fontSize: 7 }}>{t('bestPattern')}</div>
                       <div style={{ color: C.green, fontSize: 9, fontWeight: 600 }}>{performanceStats.bestPattern}</div>
                     </div>
                   )}
                   {performanceStats.worstPattern && (
                     <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                      <div style={{ color: C.mut, fontSize: 7 }}>أسوأ نمط</div>
+                      <div style={{ color: C.mut, fontSize: 7 }}>{t('worstPattern')}</div>
                       <div style={{ color: C.red, fontSize: 9, fontWeight: 600 }}>{performanceStats.worstPattern}</div>
                     </div>
                   )}
@@ -926,7 +926,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 const atrPct = thresholds.atrValue / (candles[candles.length - 1]?.close || 1) * 100;
                 return (
                   <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 8 }}>
-                    <div style={{ color: C.blue, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>عتبات ATR الديناميكية</div>
+                    <div style={{ color: C.blue, fontSize: 8, fontWeight: 700, marginBottom: 5 }}>{t('dynamicATRThresholds')}</div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
                         <div style={{ color: C.mut, fontSize: 7 }}>ATR</div>
@@ -937,24 +937,24 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                         <div style={{ color: regimeColor, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{atrPct.toFixed(2)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                        <div style={{ color: C.mut, fontSize: 7 }}>الارتداد</div>
+                        <div style={{ color: C.mut, fontSize: 7 }}>{t('retracement')}</div>
                         <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.pullback * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                        <div style={{ color: C.mut, fontSize: 7 }}>تشابه القمم</div>
+                        <div style={{ color: C.mut, fontSize: 7 }}>{t('peakSimilarity')}</div>
                         <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.peakSimilarity * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                        <div style={{ color: C.mut, fontSize: 7 }}>تفاوت الأكتاف</div>
+                        <div style={{ color: C.mut, fontSize: 7 }}>{t('shoulderDivergence')}</div>
                         <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.shoulderTolerance * 100).toFixed(1)}%</div>
                       </div>
                       <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
-                        <div style={{ color: C.mut, fontSize: 7 }}>تأكيد الاختراق</div>
+                        <div style={{ color: C.mut, fontSize: 7 }}>{t('breakoutConfirmation')}</div>
                         <div style={{ color: C.text, fontSize: 9, fontWeight: 700, fontFamily: 'monospace' }}>{(thresholds.breakoutConfirm * 100).toFixed(1)}%</div>
                       </div>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 5, padding: '3px 6px', background: C.card, borderRadius: 4 }}>
-                      <span style={{ color: C.mut, fontSize: 7 }}>نظام التقلب</span>
+                      <span style={{ color: C.mut, fontSize: 7 }}>{t('volatilityRegime')}</span>
                       <span style={{ color: regimeColor, fontSize: 8, fontWeight: 700 }}>{regimeLabelAr} ({thresholds.atrMultiplier}x)</span>
                     </div>
                   </div>

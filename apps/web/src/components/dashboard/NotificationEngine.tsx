@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useBotStore } from '@/hooks/useBotStore'
@@ -28,6 +28,7 @@ import { ensureAuth } from '@/lib/api-fetch'
 export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
   const t = useTranslations('dashboard.notificationEngine')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const { addNotification, settings } = useNotificationStore()
   const { isOn: botOn, logs: botLogs } = useBotStore()
   const { selectedSymbol } = useSymbolStore()
@@ -213,9 +214,11 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     lastAiCheckRef.current = now
 
     try {
-      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`)
+      const res = await fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}&lang=${locale}`)
       const data = await res.json()
       if (!data.success) return
+      // Block degraded/fake data from creating phantom notifications
+      if (data.data?.degraded) return
       const { narrative, sentiment, confidence } = data.data
       if (!narrative || (confidence ?? 0) < settings.minConfidence) return
 
@@ -235,7 +238,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
         params: { sentiment: sentimentLabel, summary },
       })
     } catch {}
-  }, [hydrated, settings.aiAlerts, settings.minConfidence, selectedSymbol, addNotification])
+  }, [hydrated, settings.aiAlerts, settings.minConfidence, selectedSymbol, addNotification, locale])
 
   useEffect(() => { fetchAiAlert() }, [fetchAiAlert])
   // Poll AI alerts every 60s — pauses when tab hidden

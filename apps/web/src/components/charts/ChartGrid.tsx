@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { ChartType } from '@/lib/charts/types';
 import { ScopedStyle } from '@/components/ScopedStyle';
 
@@ -150,6 +151,7 @@ function GridIcon({ cols, rows, size = 16, active = false }: { cols: number; row
 // Main Component
 // ═══════════════════════════════════════════════════════════
 export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGridProps) {
+  const t = useTranslations('dashboard.chartGrid');
   // ── State ──
   const [activeConfig, setActiveConfig] = useState<GridConfig>(GRID_CONFIGS[3]); // default 2×2
   const [cells, setCells] = useState<GridCell[]>(() =>
@@ -202,7 +204,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
       const j = await res.json();
 
       if (!j.success || !j.data || j.data.length === 0) {
-        updateCellState(cell.id, { loading: false, error: 'No data', candleCount: 0 });
+        updateCellState(cell.id, { loading: false, error: t('noData'), candleCount: 0 });
         return;
       }
 
@@ -227,7 +229,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
       unique.sort((a: any, b: any) => a.time - b.time);
 
       if (unique.length === 0) {
-        updateCellState(cell.id, { loading: false, error: 'No valid data', candleCount: 0 });
+        updateCellState(cell.id, { loading: false, error: t('noValidData'), candleCount: 0 });
         return;
       }
 
@@ -350,7 +352,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         candleCount: unique.length, changePercent,
       });
     } catch {
-      updateCellState(cell.id, { loading: false, error: 'Failed to load', candleCount: 0 });
+      updateCellState(cell.id, { loading: false, error: t('loadFailed'), candleCount: 0 });
     }
   }, [updateCellState]);
 
@@ -763,7 +765,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 padding: 0,
                 transition: 'all 0.15s ease',
               }}
-              title={fullscreenCellId === cell.id ? 'Exit fullscreen' : 'Fullscreen'}
+              title={fullscreenCellId === cell.id ? t('exitFullscreen') : t('fullscreen')}
             >
               {fullscreenCellId === cell.id ? (
                 <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -825,7 +827,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
           </div>
           <div>
             <div style={{ color: C.text, fontWeight: 700, fontSize: 13, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
-              Multi-Chart Grid
+              {t('multiChartGrid')}
             </div>
             <div style={{ color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 600, letterSpacing: 0.5 }}>
               {activeConfig.label} · {activeConfig.cols * activeConfig.rows} charts
@@ -884,7 +886,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 fontFamily: "'Cairo', sans-serif",
                 textAlign: 'center',
               }}>
-                Grid Layout
+                {t('gridLayout')}
               </div>
               <div style={{
                 display: 'grid',
@@ -953,7 +955,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
               fontFamily: "'JetBrains Mono', monospace",
               transition: 'all 0.15s ease',
             }}
-            title={syncMode ? 'Sync ON: changes apply to all charts' : 'Sync OFF: charts are independent'}
+            title={syncMode ? t('syncOn') : t('syncOff')}
           >
             {syncMode ? (
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -965,7 +967,7 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
                 <line x1="1" y1="1" x2="23" y2="23" />
               </svg>
             )}
-            {syncMode ? 'SYNC' : 'FREE'}
+            {syncMode ? t('sync') : t('free')}
           </button>
 
           {/* Close button */}
@@ -1037,13 +1039,13 @@ export function ChartGrid({ onClose, defaultSymbol, defaultTimeframe }: ChartGri
         direction: 'ltr',
       }}>
         <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
-          ESC {fullscreenCellId ? 'Exit fullscreen' : 'Close'}
+          ESC {fullscreenCellId ? t('exitFullscreen') : t('close')}
         </span>
         <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
-          Double-click → Fullscreen
+          Double-click → {t('fullscreen')}
         </span>
         <span style={{ color: C.textMuted, fontSize: 9, fontFamily: "'JetBrains Mono', monospace" }}>
-          {syncMode ? '🔄 Sync ON' : '🔗 Independent'}
+          {syncMode ? `🔄 ${t('syncOn')}` : `🔗 ${t('independent')}`}
         </span>
       </div>
 

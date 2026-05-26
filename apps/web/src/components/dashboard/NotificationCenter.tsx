@@ -21,14 +21,20 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
  * to translate it. Otherwise, fall back to the raw title/body (already i18n from NotificationEngine,
  * or Arabic fallback from backend).
  */
+/** Convert snake_case notificationType to camelCase for i18n key lookup */
+function toCamelCase(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+}
+
 function useLocalizedNotif(notif: Notification): { title: string; body: string } {
   const tnt = useTranslations('notificationTypes')
   if (notif.notificationType) {
     try {
       const params = (notif.params || {}) as Record<string, string | number>
+      const key = toCamelCase(notif.notificationType)
       return {
-        title: tnt(`${notif.notificationType}.title`, params),
-        body: tnt(`${notif.notificationType}.body`, params),
+        title: tnt(`${key}.title`, params),
+        body: tnt(`${key}.body`, params),
       }
     } catch {
       // Fallback to raw text if translation key missing
@@ -382,13 +388,16 @@ export function NotificationToasts() {
   const tc = useTranslations('common')
   const tn = useTranslations('dashboard.notifications')
 
+  const locale = useLocale()
+  const isRtl = locale === 'ar'
+
   return (
     <>
       <div
         style={{
           position: 'fixed',
           bottom: 20,
-          right: 20,
+          ...(isRtl ? { left: 20 } : { right: 20 }),
           zIndex: 99999,
           display: 'flex',
           flexDirection: 'column',
@@ -670,20 +679,21 @@ export function NotificationCenter() {
   const [tab, setTab] = useState<'all' | 'settings'>('all')
   const unread = notifications.filter((n) => !n.read).length
   const bellRef = useRef<HTMLButtonElement>(null)
-  const [panelPos, setPanelPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const [panelPos, setPanelPos] = useState<{ top: number; right: number; left: number }>({ top: 0, right: 0, left: -1 })
 
   const updatePanelPos = useCallback(() => {
     if (bellRef.current) {
       const rect = bellRef.current.getBoundingClientRect()
-      const panelWidth = 360
       const padding = 8
-      // Position panel aligned to the bell button's side
-      // In RTL: bell is on left, panel opens from left edge of bell
-      // In LTR: bell is on right, panel opens from right edge of bell
-      const right = window.innerWidth - rect.right
-      setPanelPos({ top: rect.bottom + padding, right })
+      if (isRtl) {
+        // RTL: bell is on the left, align panel to bell's left edge
+        setPanelPos({ top: rect.bottom + padding, right: -1, left: rect.left })
+      } else {
+        // LTR: bell is on the right, align panel to bell's right edge
+        setPanelPos({ top: rect.bottom + padding, right: window.innerWidth - rect.right, left: -1 })
+      }
     }
-  }, [])
+  }, [isRtl])
 
   useEffect(() => {
     if (open) {
@@ -764,7 +774,9 @@ export function NotificationCenter() {
             style={{
               position: 'fixed',
               top: panelPos.top,
-              right: panelPos.right,
+              ...(isRtl
+                ? { left: Math.max(8, panelPos.left) }
+                : { right: Math.max(8, panelPos.right) }),
               zIndex: 9999,
               width: 360,
               background: 'rgba(11,14,20,0.98)',

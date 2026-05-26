@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'قاعدة البيانات غير متاحة' }, { status: 503 })
     }
 
-    const { userId, type, title, body: notificationBody, data } = body
+    const { userId, type, title, body: notificationBody, data, notificationType, params } = body
 
     if (!userId || !title) {
       return NextResponse.json(
@@ -73,6 +73,9 @@ export async function POST(req: NextRequest) {
           read: false,
           source: type || 'push',
           createdAt: new Date().toISOString(),
+          // i18n translation data — frontend uses these to translate to user's locale
+          notificationType: notificationType || undefined,
+          params: params || undefined,
         }),
       },
     })

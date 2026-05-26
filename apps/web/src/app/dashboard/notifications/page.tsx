@@ -33,6 +33,11 @@ import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
 
 /* ══ Notification i18n Helper ══════════════════════════════ */
+/** Convert snake_case notificationType to camelCase for i18n key lookup */
+function toCamelCase(s: string): string {
+  return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
+}
+
 function getLocalizedNotifText(
   n: StoreNotification,
   tnt: (key: string, params?: Record<string, string | number>) => string,
@@ -40,9 +45,10 @@ function getLocalizedNotifText(
   if (n.notificationType) {
     try {
       const params = (n.params || {}) as Record<string, string | number>
+      const key = toCamelCase(n.notificationType)
       return {
-        title: tnt(`${n.notificationType}.title`, params),
-        description: tnt(`${n.notificationType}.body`, params),
+        title: tnt(`${key}.title`, params),
+        description: tnt(`${key}.body`, params),
       }
     } catch {
       // Fallback to raw text if translation key missing

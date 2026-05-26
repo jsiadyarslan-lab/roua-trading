@@ -256,13 +256,19 @@ export const useNotificationStore = create<NotificationState>()(
             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
             const actionEmoji = n.action === 'BUY' ? '📈' : n.action === 'SELL' ? '📉' : n.action === 'WARN' ? '⚠️' : 'ℹ️'
 
+            // Detect current locale for direction and language
+            const currentPath = window.location.pathname
+            const localeMatch = currentPath.match(/^\/(ar|en|fr|tr)\//)
+            const currentLocale = localeMatch ? localeMatch[1] : 'ar'
+            const isRtl = currentLocale === 'ar'
+
             const browserNotif = new Notification(`${actionEmoji} ${n.title}`, {
               body: n.body + (n.pair ? ` — ${n.pair}` : ''),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
               tag: notif.id,
-              dir: 'rtl',
-              lang: 'ar',
+              dir: isRtl ? 'rtl' : 'ltr',
+              lang: currentLocale,
               vibrate: n.priority === 'urgent' ? [200, 100, 200] : [100],
               requireInteraction: n.priority === 'urgent' && !isMobile,
               silent: false,

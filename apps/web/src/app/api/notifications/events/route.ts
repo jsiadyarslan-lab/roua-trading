@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json()
-    const { type, title, body: messageBody, severity, data } = body
+    const reqBody = await req.json()
+    const { type, title, body: messageBody, severity, data, notificationType, params } = reqBody
 
     if (!type || !title) {
       return NextResponse.json(
@@ -53,6 +53,9 @@ export async function POST(req: NextRequest) {
       body: messageBody || '',
       severity: severity || 'info',
       data: data || {},
+      // i18n translation data — frontend uses these to translate to user's locale
+      notificationType: notificationType || undefined,
+      params: params || undefined,
     }
 
     const results = await dispatchNotification(event)
@@ -132,6 +135,9 @@ export async function GET(req: NextRequest) {
             confidence: details.data?.confidence,
             timestamp: new Date(log.createdAt).getTime(),
             read: details.read ?? false,
+            // i18n translation data — frontend uses these to translate to user's locale
+            notificationType: details.notificationType || undefined,
+            params: details.params || undefined,
           }
         } catch {
           return null

@@ -48,6 +48,21 @@ export function getDynamicThresholds(candles: CandleData[]) {
   };
 }
 
+export function calcATR(candles: CandleData[], period: number = 14): number {
+  if (!candles || candles.length < 2) return 0;
+  const recent = candles.slice(-(period + 1));
+  let atrSum = 0;
+  for (let i = 1; i < recent.length; i++) {
+    const tr = Math.max(
+      recent[i].high - recent[i].low,
+      Math.abs(recent[i].high - recent[i - 1].close),
+      Math.abs(recent[i].low - recent[i - 1].close)
+    );
+    atrSum += tr;
+  }
+  return recent.length > 1 ? atrSum / (recent.length - 1) : 0;
+}
+
 export function adjustQualityForVolatility(quality: number, candles: CandleData[]): number {
   const thresholds = getDynamicThresholds(candles);
   if (thresholds.volatilityFactor > 0.03) return quality * 0.8;

@@ -289,7 +289,7 @@ export default function NewsPage() {
     } catch {
       // Reports unavailable silently
     }
-  }, [])
+  }, [newsLang])
 
   const fetchAnalyses = useCallback(async () => {
     setAnalysesLoading(true)

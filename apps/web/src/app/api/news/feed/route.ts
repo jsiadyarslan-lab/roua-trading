@@ -63,6 +63,59 @@ export async function GET(request: Request) {
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
     const integrationKey = process.env.INTEGRATION_API_KEY;
 
+    // ── French pipeline: use dedicated /api/fr/news endpoint ──
+    if (lang === 'fr') {
+      try {
+        const frRes = await fetch(`${newsSiteUrl}/api/fr/news?limit=15`, {
+          headers: {},
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (frRes.ok) {
+          const frData = await frRes.json();
+          const frArticles = frData.news || frData.articles || [];
+
+          if (frArticles.length > 0) {
+            const items = frArticles.map((article: any) => {
+              const category = article.category || article.categoryId || 'Général';
+              const categoryAr = mapCategoryToArabic(category);
+              const categoryFr = mapCategoryToFrench(category);
+              const categoryTr = mapCategoryToTurkish(category);
+              const categoryEs = mapCategoryToSpanish(category);
+              const title = article.title || '';
+              const summary = article.summary || '';
+
+              return {
+                category,
+                categoryAr,
+                categoryFr,
+                categoryTr,
+                categoryEs,
+                color: mapCategoryColor(category),
+                bgColor: `${mapCategoryColor(category)}12`,
+                text: title,
+                textAr: title,
+                textFr: title,
+                textTr: title,
+                textEs: title,
+                summary: summary || '',
+                link: article.url || (article.slug ? `${newsSiteUrl}/fr/news/${article.slug}` : null),
+                publishedAt: article.publishedAt || null,
+                impact: article.impactLevel || (article.sentimentScore > 50 ? 'high' : 'medium'),
+                source: article.source || "Ru'aa News FR",
+                isFrench: true,
+              };
+            });
+
+            return NextResponse.json(items.map(({ isFrench, ...rest }: any) => rest));
+          }
+        }
+      } catch (frErr: any) {
+        console.error('[news/feed] French pipeline error:', frErr?.message || frErr);
+      }
+      // French pipeline failed — fall through to standard pipeline
+    }
+
     if (integrationKey) {
       try {
         const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=15`, {
@@ -70,7 +123,7 @@ export async function GET(request: Request) {
             'Content-Type': 'application/json',
             'X-Integration-Key': integrationKey,
           },
-          signal: AbortSignal.timeout(8000),
+          signal: AbortSignal.timeout(15000),
         });
 
         if (newsRes.ok) {

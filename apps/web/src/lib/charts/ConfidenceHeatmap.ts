@@ -37,3 +37,8 @@ export function buildHeatmap(candles: CandleData[], signals: any[]): HeatmapResu
   const avgConfidence = points.length > 0 ? points.reduce((s, p) => s + p.confidence, 0) / points.length : 0;
   return { points, dominantDirection, coverage, avgConfidence };
 }
+
+/** Alias for buildHeatmap — used by RouaChart component */
+export function renderHeatmapOnChart(candles: CandleData[], signals: any[]): HeatmapResult {
+  return buildHeatmap(candles, signals);
+}

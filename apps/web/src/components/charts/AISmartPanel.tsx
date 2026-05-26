@@ -17,6 +17,7 @@ import { detectElliottWaves } from '@/lib/charts/ElliottWave';
 import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
 import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
+import { detectHarmonicPatternsPro, detectClassicPatternsPro } from '@/lib/charts/ProfessionalHarmonicPatterns';
 // ── Revolutionary Engines ──
 import { getBayesianEngine, extractSignalsFromAnalysis } from '@/lib/charts/BayesianEngine';
 import { getPatternStateMachine } from '@/lib/charts/PatternStateMachine';
@@ -168,8 +169,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       const elliottPattern = detectElliottWaves(c);
       const wyckoff = detectWyckoff(c);
       const volumeProfile = calcVolumeProfile(c);
-      const harmonicPatterns = detectHarmonicPatterns(c);
-      const classicPatterns = detectClassicPatterns(c);
+      // Use professional harmonic pattern engine (ATR-based, clean XABCD format)
+      const harmonicPatterns = detectHarmonicPatternsPro(c);
+      const classicPatterns = detectClassicPatternsPro(c);
 
       // Merge harmonic + classic patterns into the unique list
       const allPatterns = [...unique];

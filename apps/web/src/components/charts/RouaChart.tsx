@@ -25,6 +25,8 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
+import { getOverlayManager, resetOverlayManager, type OverlayType } from '@/lib/charts/OverlayManager';
+import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/ProfessionalTrendLines';
 import { ChartTrading } from './ChartTrading';
 import { QuickTradePanel } from './QuickTradePanel';
 import { TemplateManager } from './TemplateManager';
@@ -729,6 +731,8 @@ export default function RouaChart({
     return () => {
       isMountedRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
+      // Clean up OverlayManager on unmount
+      resetOverlayManager();
     };
   }, []);
 
@@ -920,30 +924,13 @@ export default function RouaChart({
   }, [chart, showHeatmap]);
 
   // FIX: Cleanup function for AI overlays — reusable across multiple call sites
-  // Now also cleans up type-tracked overlays (overlaySeriesByTypeRef, priceLinesByTypeRef)
+  // Uses OverlayManager for proper lifecycle management — ONLY removes overlay
+  // series, NEVER touches the candle series.
   const cleanupAIOverlays = useCallback(() => {
-    const chartApi = chart.chartRef?.current;
-    if (chartApi) {
-      aiOverlaySeriesRef.current.forEach(s => {
-        try { chartApi.removeSeries(s); } catch {}
-      });
-      aiOverlaySeriesRef.current = [];
-      // Also clean up type-tracked overlay series
-      Object.values(overlaySeriesByTypeRef.current).flat().forEach(s => {
-        try { chartApi.removeSeries(s); } catch {}
-      });
-      overlaySeriesByTypeRef.current = {};
-    }
-    chart.clearExternalSeries();
-    aiPriceLinesRef.current.forEach(id => {
-      try { chart.removePriceLine(id); } catch {}
-    });
-    aiPriceLinesRef.current = [];
-    // Also clean up type-tracked price lines
-    Object.values(priceLinesByTypeRef.current).flat().forEach(id => {
-      try { chart.removePriceLine(id); } catch {}
-    });
-    priceLinesByTypeRef.current = {};
+    // Use OverlayManager to clear ALL overlay types
+    // This is SAFE because OverlayManager only tracks overlay series,
+    // NOT the candle/volume/indicator series
+    getOverlayManager().clearAll();
     // Clean up direct price lines (createPriceLine on mainSeries)
     const lines = (aiPriceLinesRef as any).__lines || [];
     lines.forEach(({ series, line }: any) => {
@@ -960,6 +947,7 @@ export default function RouaChart({
     setAiPatterns([]);
     // Cancel any active animated patterns
     try {
+      const chartApi = chart.chartRef?.current;
       const active = getActiveAnimations();
       for (const anim of active) {
         try { cancelAnimatedPattern(chartApi, anim.patternId); } catch {}
@@ -1096,9 +1084,7 @@ export default function RouaChart({
     const showEntry = ov.entry === true;
     const anyOverlayEnabled = showSR || showTrend || showHarmonic || showFVG || showBOS || showGeo || showEW || showWyckoff || showVP || showEntry;
 
-    // ── MARKERS: only for overlay-specific patterns, NOT candle patterns ──
-    // Candle patterns (Doji, Hammer, Engulfing…) clutter the chart — they
-    // are shown only in the AI panel's pattern list, not as chart markers.
+    // ── MARKERS: only for overlay-specific patterns ──
     const directMarkers: any[] = [];
     const candleTimes = (candlesRef.current || []).map((cd: any) => cd.time as number);
     const usedT = new Set<number>();
@@ -1123,36 +1109,20 @@ export default function RouaChart({
     lastAnalysisResultRef.current = result;
     setAiDirectMarkers(directMarkers);
 
-    // ── INCREMENTAL OVERLAY MANAGEMENT ──
-    // Instead of clearing ALL overlays, only clear/redraw specific types
+    // ── SUSTAINABLE OVERLAY MANAGEMENT via OverlayManager ──
+    // OverlayManager tracks each overlay type independently.
+    // We ONLY clear/redraw the specific types that changed.
     const chartApi = chart.chartRef?.current;
     if (!chartApi) return;
 
-    // Use pre-loaded lightweight-charts module (no async gap)
+    // Initialize OverlayManager with chart API and price line removal function
     if (!lightweightChartsRef.current) {
       console.warn('[AI Overlay] lightweight-charts not yet loaded, skipping overlay draw');
       return;
     }
     const lc = lightweightChartsRef.current;
-
-    // Helper: clear only one overlay type's series and price lines
-    const clearOverlayType = (type: string) => {
-      (overlaySeriesByTypeRef.current[type] || []).forEach(s => {
-        try { chartApi.removeSeries(s); } catch {}
-        chart.unregisterExternalSeries(s);
-      });
-      overlaySeriesByTypeRef.current[type] = [];
-      aiOverlaySeriesRef.current = aiOverlaySeriesRef.current.filter(
-        s => !(overlaySeriesByTypeRef.current[type] || []).includes(s)
-      );
-      (priceLinesByTypeRef.current[type] || []).forEach(id => {
-        try { chart.removePriceLine(id); } catch {}
-      });
-      priceLinesByTypeRef.current[type] = [];
-      aiPriceLinesRef.current = aiPriceLinesRef.current.filter(
-        id => !(priceLinesByTypeRef.current[type] || []).includes(id)
-      );
-    };
+    const mgr = getOverlayManager();
+    mgr.init(chartApi, lc, chart.removePriceLine);
 
     // If NO overlay is enabled, clear ALL overlays
     if (!anyOverlayEnabled) {
@@ -1160,78 +1130,27 @@ export default function RouaChart({
       return;
     }
 
-    // Clear only the overlay types we're about to redraw or that are disabled but still on chart
-    const allOverlayTypes = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry'] as const;
-    const enabledTypes = new Set<string>();
-    if (showSR) enabledTypes.add('sr');
-    if (showTrend) enabledTypes.add('trend');
-    if (showHarmonic) enabledTypes.add('harmonic');
-    if (showFVG) enabledTypes.add('fvg');
-    if (showBOS) enabledTypes.add('bos');
-    if (showGeo) enabledTypes.add('geo');
-    if (showEW) enabledTypes.add('ew');
-    if (showWyckoff) enabledTypes.add('wyckoff');
-    if (showVP) enabledTypes.add('vp');
-    if (showEntry) enabledTypes.add('entry');
-
-    for (const type of allOverlayTypes) {
-      if (enabledTypes.has(type) || overlaySeriesByTypeRef.current[type]?.length || priceLinesByTypeRef.current[type]?.length) {
-        clearOverlayType(type);
-      }
-    }
-
-    // ── Utility: Sort time-series data (lightweight-charts v5 requires ascending time) ──
-    const sortOverlayData = (data: { time: any; value: number }[]) => {
-      return [...data].sort((a, b) => (a.time as number) - (b.time as number));
-    };
-
-    // ── Helper: safely add a line series with sorted data and type tracking ──
-    const addOverlayLine = (data: { time: any; value: number }[], opts: any, overlayType: string) => {
-      try {
-        // CRITICAL: Sort by time ascending — lightweight-charts v5 requires this
-        const sorted = sortOverlayData(data);
-        const s = chartApi.addSeries(lc.LineSeries, {
-          ...opts,
-          autoscaleInfoProvider: () => null,
-        });
-        s.setData(sorted);
-        if (!overlaySeriesByTypeRef.current[overlayType]) overlaySeriesByTypeRef.current[overlayType] = [];
-        overlaySeriesByTypeRef.current[overlayType].push(s);
-        aiOverlaySeriesRef.current.push(s);
-        chart.registerExternalSeries(s);
-        return s;
-      } catch (e) {
-        console.warn('[Overlay] addOverlayLine error:', e);
-        return null;
-      }
-    };
-
-    // ── Helper: safely add a price line with range validation ──
-    // Prevents autoScale distortion when target/SL prices are far from candle range
-    const safeAddPriceLine = (id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean, overlayType: string) => {
+    // Helper: safely add a price line with range validation
+    const safeAddPriceLine = (id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean, overlayType: OverlayType) => {
       const candles = candlesRef.current;
       if (candles.length > 0) {
         const range = candles.slice(-30);
         const high = Math.max(...range.map(c => c.high));
         const low = Math.min(...range.map(c => c.low));
         const priceRange = high - low;
-        const maxDistance = priceRange * 3; // Allow 3x the recent range
+        const maxDistance = priceRange * 3;
         const lastPrice = candles[candles.length - 1].close;
-        if (Math.abs(price - lastPrice) > maxDistance) {
-          // Price too far — skip price line to prevent autoScale distortion
-          return;
-        }
+        if (Math.abs(price - lastPrice) > maxDistance) return;
       }
       chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
-      if (!priceLinesByTypeRef.current[overlayType]) priceLinesByTypeRef.current[overlayType] = [];
-      priceLinesByTypeRef.current[overlayType].push(id);
-      aiPriceLinesRef.current.push(id);
+      mgr.addPriceLineId(overlayType, id);
     };
 
     // ═══════════════════════════════════════════════════════
     // S/R — support/resistance price lines (range-validated)
     // ═══════════════════════════════════════════════════════
     if (showSR) {
+      mgr.prepareRedraw('sr');
       result.supportLevels.slice(0, 4).forEach((level, i) => {
         const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
         safeAddPriceLine(`ai-s-${i}`, level.price, `rgba(0,255,163,${opacity})`, `S${i+1} ${level.price.toFixed(level.price>1000?2:5)}`, level.strength==='strong'?2:1, 2, true, 'sr');
@@ -1240,124 +1159,91 @@ export default function RouaChart({
         const opacity = level.strength === 'strong' ? 0.8 : level.strength === 'medium' ? 0.5 : 0.3;
         safeAddPriceLine(`ai-r-${i}`, level.price, `rgba(255,71,87,${opacity})`, `R${i+1} ${level.price.toFixed(level.price>1000?2:5)}`, level.strength==='strong'?2:1, 2, true, 'sr');
       });
+    } else {
+      mgr.clearType('sr');
     }
 
     // ═══════════════════════════════════════════════════════
-    // TREND — Improved: lookback=1, max 8 lines, tolerance 0.003
+    // TREND — Professional ZigZag-based trend lines
+    // Uses ProfessionalTrendLines engine with proper
+    // ATR-based deviation, touch validation, and extension
     // ═══════════════════════════════════════════════════════
     if (showTrend) {
+      mgr.prepareRedraw('trend');
       try {
         const candles = candlesRef.current;
-        if (candles.length >= 10) {
-          // FIX: Use lookback=1 for more sensitive swing detection (was lookback=2)
-          const swingLows: {time:number;price:number;idx:number}[] = [];
-          const swingHighs: {time:number;price:number;idx:number}[] = [];
+        if (candles.length >= 20) {
+          // Use professional trend line detection
+          const trendLines = detectProfessionalTrendLines(candles);
 
-          for (let i = 1; i < candles.length - 1; i++) {
-            const c = candles[i];
-            // Swing low: lower than immediate neighbors (lookback=1)
-            if (c.low <= candles[i-1].low && c.low <= candles[i+1].low) {
-              swingLows.push({ time: c.time, price: c.low, idx: i });
+          trendLines.forEach((line: TrendLine) => {
+            const isBull = line.type === 'ascending';
+            const color = isBull
+              ? (line.strength === 'strong' ? 'rgba(0,255,163,0.9)' : line.strength === 'medium' ? 'rgba(0,255,163,0.6)' : 'rgba(0,255,163,0.35)')
+              : (line.strength === 'strong' ? 'rgba(255,71,87,0.9)' : line.strength === 'medium' ? 'rgba(255,71,87,0.6)' : 'rgba(255,71,87,0.35)');
+            const lineWidth = line.strength === 'strong' ? 2 : 1;
+
+            // Draw main trend line + extension
+            const lineData: { time: any; value: number }[] = [
+              { time: line.startPoint.time as any, value: line.startPoint.price },
+              { time: line.endPoint.time as any, value: line.endPoint.price },
+            ];
+            // Add extension point if it extends beyond end point
+            if (line.extensionPoint.time > line.endPoint.time) {
+              lineData.push({ time: line.extensionPoint.time as any, value: line.extensionPoint.price });
             }
-            // Swing high: higher than immediate neighbors (lookback=1)
-            if (c.high >= candles[i-1].high && c.high >= candles[i+1].high) {
-              swingHighs.push({ time: c.time, price: c.high, idx: i });
-            }
-          }
 
-          const drawnTrendKeys = new Set<string>();
-          const addTrendLine = (startP: {time:number;price:number;idx:number}, endP: {time:number;price:number;idx:number}, type: 'ascending' | 'descending', strength: 'strong' | 'medium' | 'weak') => {
-            const key = `${startP.idx}-${endP.idx}`;
-            if (drawnTrendKeys.has(key)) return;
-            drawnTrendKeys.add(key);
-
-            const isBull = type === 'ascending';
-            const color = isBull ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
-            const lastCandleTime = candles[candles.length - 1].time;
-            const timeDiff = endP.time - startP.time;
-            const priceDiff = endP.price - startP.price;
-            const extensionTime = lastCandleTime;
-            const extensionPrice = endP.price + (priceDiff / (timeDiff || 1)) * (extensionTime - endP.time);
-
-            addOverlayLine([
-              { time: startP.time as any, value: startP.price },
-              { time: endP.time as any, value: endP.price },
-              ...(extensionTime > endP.time ? [{ time: extensionTime as any, value: extensionPrice }] : []),
-            ], {
-              color, lineWidth: strength === 'strong' ? 2 : 1, lineStyle: 0,
-              priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
+            mgr.addLineSeries('trend', lineData, {
+              color,
+              lineWidth,
+              lineStyle: 0,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
               title: isBull ? 'ترند صعودي' : 'ترند هبوطي',
-            }, 'trend');
+            });
 
-            const st = snapTime(startP.time);
-            if (!usedT.has(st)) { usedT.add(st); directMarkers.push({ time: st as any, position: (isBull ? 'belowBar' : 'aboveBar') as any, color: isBull ? '#00FFA3' : '#FF4757', shape: 'circle' as any, text: isBull ? '▲' : '▼' }); }
-          };
-
-          // Ascending: connect rising swing lows (max 8 lines — was 6)
-          let ascCount = 0;
-          for (let i = 0; i < swingLows.length - 1 && ascCount < 8; i++) {
-            for (let j = i + 1; j < swingLows.length && ascCount < 8; j++) {
-              if (swingLows[j].price > swingLows[i].price) {
-                // FIX: Relaxed tolerance from 0.001 (0.1%) to 0.003 (0.3%)
-                const slope = (swingLows[j].price - swingLows[i].price) / (swingLows[j].time - swingLows[i].time || 1);
-                let valid = true;
-                for (let k = swingLows[i].idx + 1; k < swingLows[j].idx; k++) {
-                  const linePrice = swingLows[i].price + slope * (candles[k].time - swingLows[i].time);
-                  if (candles[k].low < linePrice - (linePrice * 0.003)) { valid = false; break; }
-                }
-                if (valid) {
-                  addTrendLine(swingLows[i], swingLows[j], 'ascending', swingLows.length >= 5 ? 'strong' : 'medium');
-                  ascCount++;
-                }
-              }
+            // Add touch count markers at start and end points
+            const startT = snapTime(line.startPoint.time);
+            if (!usedT.has(startT)) {
+              usedT.add(startT);
+              directMarkers.push({
+                time: startT as any,
+                position: (isBull ? 'belowBar' : 'aboveBar') as any,
+                color: isBull ? '#00FFA3' : '#FF4757',
+                shape: 'circle' as any,
+                text: isBull ? '▲' : '▼',
+              });
             }
-          }
+          });
 
-          // Descending: connect falling swing highs (max 8 lines — was 6)
-          let descCount = 0;
-          for (let i = 0; i < swingHighs.length - 1 && descCount < 8; i++) {
-            for (let j = i + 1; j < swingHighs.length && descCount < 8; j++) {
-              if (swingHighs[j].price < swingHighs[i].price) {
-                // FIX: Relaxed tolerance from 0.001 (0.1%) to 0.003 (0.3%)
-                const slope = (swingHighs[j].price - swingHighs[i].price) / (swingHighs[j].time - swingHighs[i].time || 1);
-                let valid = true;
-                for (let k = swingHighs[i].idx + 1; k < swingHighs[j].idx; k++) {
-                  const linePrice = swingHighs[i].price + slope * (candles[k].time - swingHighs[i].time);
-                  if (candles[k].high > linePrice + (linePrice * 0.003)) { valid = false; break; }
-                }
-                if (valid) {
-                  addTrendLine(swingHighs[i], swingHighs[j], 'descending', swingHighs.length >= 5 ? 'strong' : 'medium');
-                  descCount++;
-                }
-              }
-            }
-          }
-
-          // Also include trend lines from the analysis result
+          // Also include trend lines from the analysis result (from AI panel)
           (result.trendLines || []).slice(0, 4).forEach((line: any) => {
             const isBull = line.type === 'ascending';
-            const color = isBull ? 'rgba(0,255,163,0.8)' : 'rgba(255,71,87,0.8)';
-            addOverlayLine([
+            const color = isBull ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
+            mgr.addLineSeries('trend', [
               { time: line.startPoint.time as any, value: line.startPoint.price },
               { time: line.endPoint.time as any, value: line.endPoint.price },
             ], {
               color, lineWidth: line.strength==='strong'?2:1, lineStyle: 0,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
               title: isBull ? 'ترند صعودي' : 'ترند هبوطي',
-            }, 'trend');
+            });
           });
 
           setAiDirectMarkers([...directMarkers]);
         }
       } catch (e) { console.warn('[AI Overlay] trend error:', e); }
+    } else {
+      mgr.clearType('trend');
     }
 
     // ═══════════════════════════════════════════════════════
-    // HARMONIC — XABCD pattern legs (4 legs: XA, AB, BC, CD)
-    // shapePoints format from detector: [X, A, B, X, B, C, D, B]
-    // We extract: X=sp[0], A=sp[1], B=sp[2], C=sp[5], D=sp[6]
+    // HARMONIC — XABCD pattern legs
+    // Now uses clean [X, A, B, C, D] point format
     // ═══════════════════════════════════════════════════════
     if (showHarmonic) {
+      mgr.prepareRedraw('harmonic');
       try {
         const harmonicPatterns = result.patterns.filter(
           (p: any) => p.shapeType === 'harmonic' || ['Gartley','Butterfly','Bat','Crab'].includes(p.type)
@@ -1367,17 +1253,18 @@ export default function RouaChart({
           const col = isBull ? 'rgba(0,255,163,0.9)' : 'rgba(255,71,87,0.9)';
           const colDim = isBull ? 'rgba(0,255,163,0.5)' : 'rgba(255,71,87,0.5)';
           const sp = pattern.shapePoints || pattern.points;
-          if (!sp || sp.length < 5) return;
+          if (!sp || sp.length < 2) return;
 
-          // Extract the 5 key XABCD points from the shapePoints array
-          // shapePoints format: [X, A, B, X, B, C, D, B] (8 elements)
-          // But some patterns may have simpler format: just consecutive pivots
+          // Extract XABCD points from the clean format
+          // New format: [X, A, B, C, D] (5 points)
+          // Old format: [X, A, B, X, B, C, D, B] (8 points)
           let X: any, A: any, B: any, C: any, D: any;
-          if (sp.length >= 8) {
-            X = sp[0]; A = sp[1]; B = sp[2]; C = sp[5]; D = sp[6];
-          } else {
-            // Fallback: treat as sequential points
+          if (sp.length >= 5) {
+            // Try 5-point format first (from ProfessionalHarmonicPatterns)
             X = sp[0]; A = sp[1]; B = sp[2]; C = sp[3]; D = sp[4];
+          } else {
+            // Not enough points
+            return;
           }
 
           // Validate points have required fields
@@ -1392,7 +1279,7 @@ export default function RouaChart({
             { from: C, to: D, label: 'CD', primary: false },
           ];
           legs.forEach((leg) => {
-            addOverlayLine([
+            mgr.addLineSeries('harmonic', [
               { time: leg.from.time as any, value: leg.from.price },
               { time: leg.to.time as any, value: leg.to.price },
             ], {
@@ -1400,10 +1287,10 @@ export default function RouaChart({
               lineWidth: leg.primary ? 2 : 1, lineStyle: leg.primary ? 0 : 1,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
               title: `${pattern.type||'Harmonic'} ${leg.label}`,
-            }, 'harmonic');
+            });
           });
 
-          // PRZ zone at D point — range-validated price line
+          // PRZ zone at D point
           if (D.price > 0) {
             safeAddPriceLine(`h-prz-${idx}`, D.price, isBull ? '#00FFA3' : '#FF4757', `PRZ ${pattern.type||''}`, 2, 2, true, 'harmonic');
           }
@@ -1432,18 +1319,16 @@ export default function RouaChart({
           const col = isBull ? 'rgba(0,255,163,0.7)' : 'rgba(255,71,87,0.7)';
           const sp = pattern.shapePoints || pattern.points;
           if (!sp || sp.length < 2) return;
-          // Draw connected shape as a single polyline
           const lineData = sp
             .filter((p: any) => p?.time && p?.price)
             .map((p: any) => ({ time: p.time as any, value: p.price }));
           if (lineData.length >= 2) {
-            addOverlayLine(lineData, {
+            mgr.addLineSeries('harmonic', lineData, {
               color: col, lineWidth: 2, lineStyle: 0,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
               title: pattern.type || pattern.labelAr || 'Classic',
-            }, 'harmonic');
+            });
           }
-          // Add pattern label marker
           const lastPt = sp[sp.length - 1];
           if (lastPt?.time) {
             const t = snapTime(lastPt.time);
@@ -1461,24 +1346,30 @@ export default function RouaChart({
         });
         setAiDirectMarkers([...directMarkers]);
       } catch (e) { console.warn('[AI Overlay] harmonic error:', e); }
+    } else {
+      mgr.clearType('harmonic');
     }
 
     // ═══════════════════════════════════════════════════════
     // FVG — Fair Value Gap price line pairs (range-validated)
     // ═══════════════════════════════════════════════════════
     if (showFVG && (result as any).smcData) {
+      mgr.prepareRedraw('fvg');
       const smc = (result as any).smcData;
       smc.fvgs?.slice(0, 4).forEach((fvg: any, i: number) => {
         const col = fvg.type === 'bullish' ? '#00ff88' : '#ff4444';
         safeAddPriceLine(`fvg-hi-${i}`, fvg.high, col, `FVG${fvg.type==='bullish'?'↑':'↓'}`, 2, 0, true, 'fvg');
         safeAddPriceLine(`fvg-lo-${i}`, fvg.low, col, '', 1, 1, false, 'fvg');
       });
+    } else if (!showFVG) {
+      mgr.clearType('fvg');
     }
 
     // ═══════════════════════════════════════════════════════
-    // BOS — Break of Structure (improved: lookback=2, more BOS + CHoCH)
+    // BOS — Break of Structure
     // ═══════════════════════════════════════════════════════
     if (showBOS) {
+      mgr.prepareRedraw('bos');
       try {
         const smc = (result as any).smcData;
         let breaks: any[] = smc?.structureBreaks || [];
@@ -1486,7 +1377,7 @@ export default function RouaChart({
         if (breaks.length === 0) {
           const candles = candlesRef.current;
           if (candles.length >= 20) {
-            // FIX: Use lookback=2 (was lookback=3 with strict 2-neighbor check) for more swings
+            // Use lookback=2 for more forgiving swing detection
             const swingHighs: {time:number;price:number}[] = [];
             const swingLows: {time:number;price:number}[] = [];
             for (let i = 2; i < candles.length - 2; i++) {
@@ -1505,7 +1396,7 @@ export default function RouaChart({
             const lastCandle = candles[candles.length - 1];
             const prevCandle = candles[candles.length - 2];
 
-            // FIX: Check more swing points for BOS (not just the last one)
+            // Check more swing points for BOS
             for (let si = swingHighs.length - 1; si >= Math.max(0, swingHighs.length - 4); si--) {
               if (lastCandle.close > swingHighs[si].price && prevCandle.close <= swingHighs[si].price) {
                 breaks.push({ type: 'BOS', direction: 'bullish', time: lastCandle.time, price: swingHighs[si].price, prevSwingTime: swingHighs[si].time, prevSwingPrice: swingHighs[si].price });
@@ -1537,16 +1428,18 @@ export default function RouaChart({
 
         breaks.slice(0, 8).forEach((br: any, i: number) => {
           const isBull = br.direction === 'bullish';
-          const col = isBull ? '#059669' : '#d4af37'; // Platform palette
+          const col = isBull ? '#059669' : '#d4af37';
           safeAddPriceLine(`bos-${i}`, br.price, col, `${br.type||'BOS'}${isBull?'↑':'↓'}`, 2, 0, true, 'bos');
+          // Draw the structural break line connecting previous swing to break point
           if (br.prevSwingTime && br.prevSwingPrice) {
-            addOverlayLine([
+            mgr.addLineSeries('bos', [
               { time: br.prevSwingTime as any, value: br.prevSwingPrice },
               { time: br.time as any, value: br.price },
             ], {
               color: col, lineWidth: 1, lineStyle: 2,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
-            }, 'bos');
+              title: `${br.type || 'BOS'} ${isBull ? '↑' : '↓'}`,
+            });
           }
           const t = snapTime(br.time);
           if (!usedT.has(t)) {
@@ -1556,12 +1449,16 @@ export default function RouaChart({
         });
         if (breaks.length > 0) setAiDirectMarkers([...directMarkers]);
       } catch (e) { console.warn('[AI Overlay] BOS error:', e); }
+    } else {
+      mgr.clearType('bos');
     }
 
     // ═══════════════════════════════════════════════════════
     // GEOMETRIC — pattern shape + target/SL (range-validated)
+    // CRITICAL FIX: This NEVER clears candle series — only its own overlays
     // ═══════════════════════════════════════════════════════
     if (showGeo) {
+      mgr.prepareRedraw('geo');
       try {
         const geoPatterns: any[] = (result as any).geoPatterns || [];
         geoPatterns.slice(0, 4).forEach((pat: any, i: number) => {
@@ -1575,14 +1472,13 @@ export default function RouaChart({
               .filter((p: any) => p?.time && p?.price && isFinite(p.price) && p.price > 0)
               .map((p: any) => ({ time: p.time as any, value: p.price }));
             if (lineData.length >= 2) {
-              addOverlayLine(lineData, {
+              mgr.addLineSeries('geo', lineData, {
                 color: col, lineWidth: 2, lineStyle: 0,
                 priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
                 title: pat.labelAr || pat.type,
-              }, 'geo');
+              });
             }
           }
-          // FIX: Range-validated target/SL to prevent autoScale distortion
           if (pat.target && pat.target > 0) {
             safeAddPriceLine(`geo-tgt-${i}`, pat.target, col, `هدف ${pat.labelAr||pat.type}`, 2, 2, true, 'geo');
           }
@@ -1599,19 +1495,22 @@ export default function RouaChart({
         });
         setAiDirectMarkers([...directMarkers]);
       } catch (e) { console.warn('[AI Overlay] geo error:', e); }
+    } else {
+      mgr.clearType('geo');
     }
 
     // ═══════════════════════════════════════════════════════
-    // ELLIOTT WAVE — improved: lookback=3, ABC fallback
+    // ELLIOTT WAVE — with proper visualization
     // ═══════════════════════════════════════════════════════
     if (showEW) {
+      mgr.prepareRedraw('ew');
       try {
         let ew = (result as any).elliottPattern;
 
         if (!ew || !ew.waves || ew.waves.length < 2) {
           const candles = candlesRef.current;
           if (candles.length >= 20) {
-            // FIX: Use lookback=3 for more forgiving swing detection (was lookback=2)
+            // Use lookback=3 for more forgiving swing detection
             const swings: {time:number;price:number;type:'high'|'low'}[] = [];
             for (let i = 3; i < candles.length - 3; i++) {
               const c = candles[i];
@@ -1653,7 +1552,7 @@ export default function RouaChart({
                   : last5[last5.length - 1].price - (last5[last5.length - 3].price - last5[last5.length - 1].price) * 0.618,
               };
             }
-            // FIX: Fallback to 3-wave (ABC) pattern if no 5-wave found
+            // Fallback to 3-wave (ABC) pattern
             if (!ew && alternating.length >= 3) {
               const last3 = alternating.slice(-3);
               const isBullish = last3[0].type === 'low';
@@ -1680,15 +1579,34 @@ export default function RouaChart({
           const isBull = ew.direction === 'bullish';
           const col = isBull ? '#93c5fd' : '#fca5a5';
 
-          // FIX: Sort wave data by time ascending before setData
+          // Sort wave data by time ascending before setData
           const sortedWaves = [...ew.waves].sort((a: any, b: any) => a.time - b.time);
           const waveData = sortedWaves.map((w: any) => ({ time: w.time as any, value: w.price }));
           if (waveData.length >= 2) {
-            addOverlayLine(waveData, {
+            mgr.addLineSeries('ew', waveData, {
               color: col, lineWidth: 2, lineStyle: 0,
               priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
               title: `إليوت ${ew.type || ''}`,
-            }, 'ew');
+            });
+          }
+
+          // Draw individual wave segments with different colors for impulse vs corrective
+          for (let wi = 0; wi < sortedWaves.length - 1; wi++) {
+            const from = sortedWaves[wi];
+            const to = sortedWaves[wi + 1];
+            const isImpulse = from.type === 'impulse';
+            mgr.addLineSeries('ew', [
+              { time: from.time as any, value: from.price },
+              { time: to.time as any, value: to.price },
+            ], {
+              color: isImpulse ? col : '#fbbf24',
+              lineWidth: isImpulse ? 2 : 1,
+              lineStyle: isImpulse ? 0 : 2,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible: false,
+              title: `W${from.waveNumber || wi+1}`,
+            });
           }
 
           sortedWaves.forEach((w: any) => {
@@ -1712,12 +1630,15 @@ export default function RouaChart({
           setAiDirectMarkers([...directMarkers]);
         }
       } catch (e) { console.warn('[AI Overlay] elliott error:', e); }
+    } else {
+      mgr.clearType('ew');
     }
 
     // ═══════════════════════════════════════════════════════
     // WYCKOFF — phase events + S/R lines (range-validated)
     // ═══════════════════════════════════════════════════════
     if (showWyckoff) {
+      mgr.prepareRedraw('wyckoff');
       try {
         const w = result.wyckoff;
         if (w && w.phase !== 'Unknown') {
@@ -1749,24 +1670,30 @@ export default function RouaChart({
           setAiDirectMarkers([...directMarkers]);
         }
       } catch (e) { console.warn('[AI Overlay] wyckoff error:', e); }
+    } else {
+      mgr.clearType('wyckoff');
     }
 
     // ═══════════════════════════════════════════════════════
     // VOLUME PROFILE — POC, VAH, VAL (range-validated)
     // ═══════════════════════════════════════════════════════
     if (showVP && result.volumeProfile && result.volumeProfile.poc > 0) {
+      mgr.prepareRedraw('vp');
       try {
         const vp = result.volumeProfile;
         safeAddPriceLine('vp-poc', vp.poc, 'rgba(251,191,36,0.9)', 'POC', 2, 0, true, 'vp');
         safeAddPriceLine('vp-vah', vp.vah, 'rgba(0,200,255,0.6)', 'VAH', 1, 2, false, 'vp');
         safeAddPriceLine('vp-val', vp.val, 'rgba(255,100,100,0.6)', 'VAL', 1, 2, false, 'vp');
       } catch {}
+    } else if (!showVP) {
+      mgr.clearType('vp');
     }
 
     // ═══════════════════════════════════════════════════════
     // ENTRY — entry/SL/TP (range-validated)
     // ═══════════════════════════════════════════════════════
     if (showEntry) {
+      mgr.prepareRedraw('entry');
       const ee = result.entryExit;
       const candles = candlesRef.current;
       const lastPrice = candles.length > 0 ? candles[candles.length - 1].close : 0;
@@ -1794,6 +1721,7 @@ export default function RouaChart({
       }
       setAiPatterns(prev => [...prev]);
     } else {
+      mgr.clearType('entry');
       aiEntryExitMarkerRef.current = null;
     }
 

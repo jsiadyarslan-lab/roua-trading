@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v192-prisma-pin-i18n-fix
+ARG BUILD_CACHE=v193-fix-lockfile-npm-ci
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -39,7 +39,12 @@ COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
 # Install all workspace dependencies
-RUN npm ci --install-strategy=hoisted
+# FIX v193: Removed --install-strategy=hoisted because the lockfile was
+# generated with default (nested) strategy. Using a mismatched install
+# strategy caused npm ci to skip most packages, resulting in 188
+# "Module not found" errors during the Next.js build.
+# --legacy-peer-deps matches how the lockfile was generated.
+RUN npm ci --legacy-peer-deps
 
 # ─────────────────────────────────────────────────────────────
 # Stage 2: Build BOTH applications

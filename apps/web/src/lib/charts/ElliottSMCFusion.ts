@@ -1,259 +1,79 @@
 // ═══════════════════════════════════════════════════════════
-// Elliott + SMC Consensus Detection
-// Fusion indicator: Elliott Wave with SMC confirmation
-// EWO integration, confluence scoring, multi-timeframe alignment
-// Inspired by TradingView "SMC + Elliott Wave Fusion" indicator
+// Elliott + SMC Fusion — Stub
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
-import { calcATR } from './ATRAdapter';
-import type { ElliottPattern } from './ElliottWave';
-import type { OrderBlock, FairValueGap, StructureBreak } from './SMCDetector';
-import type { WyckoffResult } from './WyckoffAnalysis';
-import type { VolumeProfileResult } from './VolumeProfile';
 
-// ── Elliott Wave Oscillator (EWO) ────────────────────────
-export function calcEWO(candles: CandleData[]): number {
-  if (candles.length < 50) return 0;
-  const closes = candles.map(c => c.close);
-
-  // EWO = SMA(5) - SMA(35)
-  const sma5 = closes.slice(-5).reduce((s, c) => s + c, 0) / 5;
-  const sma35 = closes.slice(-35).reduce((s, c) => s + c, 0) / Math.min(35, closes.length);
-
-  return sma5 - sma35;
-}
-
-// ── Fusion result ────────────────────────────────────────
 export interface ElliottSMCFusion {
   direction: 'bullish' | 'bearish' | 'neutral';
-  confidence: number;         // 0-1
-  confluenceScore: number;    // 0-100
-
-  // Elliott Wave info
-  wave: ElliottPattern | null;
-  waveLabel: string;
-  waveLabelAr: string;
-
-  // SMC confirmations
-  smcConfirmation: {
-    orderBlockConfirms: boolean;
-    bosConfirms: boolean;
-    fvgConfirms: boolean;
-    details: string[];
-  };
-
-  // EWO
-  ewo: number;
-  ewoSignal: 'bullish' | 'bearish' | 'neutral';
-
-  // Wyckoff alignment
-  wyckoffAligns: boolean;
-  wyckoffPhase?: string;
-
-  // Volume profile alignment
-  volumeAligns: boolean;
-  volumeHint?: string;
-
-  // Overall interpretation
-  interpretation: string;
+  confluenceScore: number;
   interpretationAr: string;
-
-  // Confluence breakdown
-  confluenceBreakdown: {
-    factor: string;
-    factorAr: string;
-    score: number;  // 0-25 per factor
-  }[];
+  confluenceBreakdown: ConfluenceFactor[];
+  timestamp: number;
 }
 
-// ── Fusion Engine ────────────────────────────────────────
-export function detectElliottSMCFusion(params: {
+export interface ConfluenceFactor {
+  factorAr: string;
+  score: number;
+  direction: 'bullish' | 'bearish' | 'neutral';
+}
+
+export function detectElliottSMCFusion(opts: {
   candles: CandleData[];
-  elliott: ElliottPattern | null;
-  orderBlocks: OrderBlock[];
-  fvgs: FairValueGap[];
-  structureBreaks: StructureBreak[];
-  wyckoff?: WyckoffResult | null;
-  volumeProfile?: VolumeProfileResult | null;
+  elliott: any;
+  orderBlocks: any[];
+  fvgs: any[];
+  structureBreaks: any[];
+  wyckoff?: any;
+  volumeProfile?: any;
   currentPrice?: number;
 }): ElliottSMCFusion {
-  const {
-    candles, elliott, orderBlocks, fvgs, structureBreaks,
-    wyckoff, volumeProfile, currentPrice,
-  } = params;
-
-  const price = currentPrice || candles[candles.length - 1]?.close || 0;
-  const ewo = calcEWO(candles);
-  const ewoSignal: 'bullish' | 'bearish' | 'neutral' = ewo > 0 ? 'bullish' : ewo < 0 ? 'bearish' : 'neutral';
-
-  const confluenceBreakdown: ElliottSMCFusion['confluenceBreakdown'] = [];
+  const { elliott, orderBlocks, fvgs, structureBreaks, currentPrice } = opts;
+  const breakdown: ConfluenceFactor[] = [];
   let totalScore = 0;
+  let bullishPoints = 0;
+  let bearishPoints = 0;
 
-  // ── Factor 1: Elliott Wave (0-25) ──
-  let elliottScore = 0;
-  let waveLabel = 'No Pattern';
-  let waveLabelAr = 'لا يوجد نمط';
-
-  if (elliott) {
-    const isImpulse = elliott.type === '5-wave';
-    const waveBonus = isImpulse ? 15 : 8;
-    elliottScore = waveBonus + Math.round(elliott.confidence * 10);
-    waveLabel = `${elliott.type} Wave ${elliott.currentWave} (${elliott.direction})`;
-    waveLabelAr = `موجة ${elliott.type === '5-wave' ? 'دافعة' : 'تصحيحية'} ${elliott.currentWave} (${elliott.direction === 'bullish' ? 'صعودي' : 'هبوطي'})`;
-  }
-  elliottScore = Math.min(25, elliottScore);
-  totalScore += elliottScore;
-  confluenceBreakdown.push({
-    factor: 'Elliott Wave',
-    factorAr: 'موجة إليوت',
-    score: elliottScore,
-  });
-
-  // ── Factor 2: SMC Confirmation (0-25) ──
-  let smcScore = 0;
-  const smcDetails: string[] = [];
-  const smcConfirmation = {
-    orderBlockConfirms: false,
-    bosConfirms: false,
-    fvgConfirms: false,
-    details: smcDetails,
-  };
-
-  const elliottDir = elliott?.direction || 'neutral';
-
-  // Check order blocks
-  const confirmingOBs = orderBlocks.filter(ob =>
-    ob.type === (elliottDir === 'bullish' ? 'bullish' : 'bearish') && !ob.broken
-  );
-  if (confirmingOBs.length > 0) {
-    smcConfirmation.orderBlockConfirms = true;
-    smcScore += 8;
-    smcDetails.push(`${confirmingOBs.length} confirming OB`);
+  // Elliott wave direction
+  if (elliott?.waveLabel) {
+    const isImpulse = elliott.waveLabel.startsWith('1') || elliott.waveLabel.startsWith('3') || elliott.waveLabel.startsWith('5');
+    const dir: 'bullish' | 'bearish' | 'neutral' = isImpulse ? 'bullish' : 'neutral';
+    breakdown.push({ factorAr: 'موجة إليوت', score: 60, direction: dir });
+    if (dir === 'bullish') bullishPoints += 60; else bearishPoints += 30;
+    totalScore += 60;
   }
 
-  // Check BOS/CHoCH
-  const confirmingBreaks = structureBreaks.filter(brk =>
-    brk.direction === elliottDir
-  );
-  if (confirmingBreaks.length > 0) {
-    smcConfirmation.bosConfirms = true;
-    smcScore += 9;
-    smcDetails.push(`BOS/CHoCH ${elliottDir}`);
+  // Order block confluence
+  if (orderBlocks?.length) {
+    const lastOB = orderBlocks[orderBlocks.length - 1];
+    const dir: 'bullish' | 'bearish' | 'neutral' = lastOB?.type === 'bullish' ? 'bullish' : lastOB?.type === 'bearish' ? 'bearish' : 'neutral';
+    breakdown.push({ factorAr: 'بلوك الأوامر', score: 50, direction: dir });
+    if (dir === 'bullish') bullishPoints += 50; else bearishPoints += 50;
+    totalScore += 50;
   }
 
-  // Check FVGs
-  const confirmingFVGs = fvgs.filter(fvg =>
-    fvg.type === (elliottDir === 'bullish' ? 'bullish' : 'bearish') && !fvg.filled
-  );
-  if (confirmingFVGs.length > 0) {
-    smcConfirmation.fvgConfirms = true;
-    smcScore += 8;
-    smcDetails.push(`${confirmingFVGs.length} confirming FVG`);
+  // Structure breaks
+  if (structureBreaks?.length) {
+    const lastBreak = structureBreaks[structureBreaks.length - 1];
+    const dir: 'bullish' | 'bearish' | 'neutral' = lastBreak?.type === 'bos-bullish' ? 'bullish' : lastBreak?.type === 'bos-bearish' ? 'bearish' : 'neutral';
+    breakdown.push({ factorAr: 'كسر الهيكل', score: 70, direction: dir });
+    if (dir === 'bullish') bullishPoints += 70; else bearishPoints += 70;
+    totalScore += 70;
   }
 
-  smcScore = Math.min(25, smcScore);
-  totalScore += smcScore;
-  confluenceBreakdown.push({
-    factor: 'SMC Confirmation',
-    factorAr: 'تأكيد SMC',
-    score: smcScore,
-  });
-
-  // ── Factor 3: EWO Alignment (0-25) ──
-  let ewoScore = 0;
-  if (elliott && ewoSignal === elliott.direction) {
-    ewoScore = 18 + Math.min(7, Math.round(Math.abs(ewo) / price * 500));
-  } else if (ewoSignal !== 'neutral' && !elliott) {
-    ewoScore = 8;
-  }
-  ewoScore = Math.min(25, ewoScore);
-  totalScore += ewoScore;
-  confluenceBreakdown.push({
-    factor: 'EWO Alignment',
-    factorAr: 'توافق EWO',
-    score: ewoScore,
-  });
-
-  // ── Factor 4: Higher Timeframe Confluence (0-25) ──
-  let htfScore = 0;
-  let wyckoffAligns = false;
-  let volumeAligns = false;
-
-  if (wyckoff && wyckoff.phase !== 'Unknown') {
-    const wyckoffDir = wyckoff.bias === 'bullish' ? 'bullish' : wyckoff.bias === 'bearish' ? 'bearish' : 'neutral';
-    if (wyckoffDir === elliottDir || (wyckoffDir !== 'neutral' && !elliott)) {
-      wyckoffAligns = true;
-      htfScore += 12;
-    }
+  // FVG confluence
+  if (fvgs?.length) {
+    breakdown.push({ factorAr: 'فجوة القيمة العادلة', score: 40, direction: 'neutral' });
+    totalScore += 40;
   }
 
-  if (volumeProfile && volumeProfile.poc > 0) {
-    // If price is above POC, it supports bullish; below POC supports bearish
-    const volDir = price > volumeProfile.poc ? 'bullish' : price < volumeProfile.poc ? 'bearish' : 'neutral';
-    if (volDir === elliottDir || (volDir !== 'neutral' && !elliott)) {
-      volumeAligns = true;
-      htfScore += 10;
-    }
-  }
+  const direction = bullishPoints > bearishPoints ? 'bullish' : bearishPoints > bullishPoints ? 'bearish' : 'neutral';
+  const confluenceScore = totalScore > 0 ? Math.min(100, Math.round((Math.max(bullishPoints, bearishPoints) / totalScore) * 100)) : 0;
+  const interpretationAr = direction === 'bullish'
+    ? 'تقارب إيجابي بين إليوت وSMC يشير إلى صعود محتمل'
+    : direction === 'bearish'
+    ? 'تقارب سلبي بين إليوت وSMC يشير إلى هبوط محتمل'
+    : 'لا يوجد تقارب واضح بين إليوت وSMC';
 
-  htfScore = Math.min(25, htfScore);
-  totalScore += htfScore;
-  confluenceBreakdown.push({
-    factor: 'HTF Confluence',
-    factorAr: 'توافق الإطار الأعلى',
-    score: htfScore,
-  });
-
-  // ── Final determination ──
-  let direction: 'bullish' | 'bearish' | 'neutral';
-  if (elliott) {
-    direction = elliott.direction;
-  } else if (smcConfirmation.bosConfirms) {
-    direction = structureBreaks[0]?.direction === 'bullish' ? 'bullish' : 'bearish';
-  } else if (ewoSignal !== 'neutral') {
-    direction = ewoSignal;
-  } else {
-    direction = 'neutral';
-  }
-
-  const confidence = totalScore / 100;
-
-  // Interpretation
-  let interpretation: string;
-  let interpretationAr: string;
-
-  if (totalScore >= 75) {
-    interpretation = `Strong ${direction} confluence: Elliott + SMC + EWO + HTF all aligned`;
-    interpretationAr = `توافق ${direction === 'bullish' ? 'صعودي' : 'هبوطي'} قوي: إليوت + SMC + EWO + الإطار الأعلى متوافقون`;
-  } else if (totalScore >= 50) {
-    interpretation = `Moderate ${direction} bias with partial confirmation`;
-    interpretationAr = `انحياز ${direction === 'bullish' ? 'صعودي' : 'هبوطي'} متوسط مع تأكيد جزئي`;
-  } else if (totalScore >= 25) {
-    interpretation = `Weak ${direction} signal, insufficient confirmation`;
-    interpretationAr = `إشارة ${direction === 'bullish' ? 'صعودية' : 'هبوطية'} ضعيفة، تأكيد غير كافٍ`;
-  } else {
-    interpretation = 'No clear directional confluence';
-    interpretationAr = 'لا يوجد توافق اتجاهي واضح';
-    direction = 'neutral';
-  }
-
-  return {
-    direction,
-    confidence: Math.min(0.95, confidence),
-    confluenceScore: totalScore,
-    wave: elliott,
-    waveLabel,
-    waveLabelAr,
-    smcConfirmation,
-    ewo,
-    ewoSignal,
-    wyckoffAligns,
-    wyckoffPhase: wyckoff?.phase,
-    volumeAligns,
-    volumeHint: volumeProfile ? `POC ${volumeProfile.poc > price ? 'above' : 'below'}` : undefined,
-    interpretation,
-    interpretationAr,
-    confluenceBreakdown,
-  };
+  return { direction, confluenceScore, interpretationAr, confluenceBreakdown: breakdown, timestamp: Date.now() };
 }

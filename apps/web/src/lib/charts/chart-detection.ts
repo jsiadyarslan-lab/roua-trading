@@ -839,7 +839,12 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
   const fvgs: FVGZone[] = [];
   if (candles.length < 3) return fvgs;
 
-  for (let i = 2; i < candles.length; i++) {
+  // Only scan the last 30 candles — FVGs from 100+ candles ago are irrelevant
+  // and would clutter the chart with dozens of lines on a small area
+  const lookback = Math.min(30, candles.length);
+  const startIdx = candles.length - lookback;
+
+  for (let i = startIdx + 2; i < candles.length; i++) {
     const prev = candles[i - 2];
     const curr = candles[i];
 
@@ -880,6 +885,6 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
     }
   }
 
-  // Return unfilled FVGs (most recent)
-  return fvgs.filter(f => !f.filled).slice(-5);
+  // Return only 3 most recent unfilled FVGs — no chart clutter
+  return fvgs.filter(f => !f.filled).slice(-3);
 }

@@ -304,22 +304,30 @@ export function renderOverlays(
         endTime: fvg.endTime as any,
         highPrice: fvg.highPrice,
         lowPrice: fvg.lowPrice,
-        fillColor: isBull ? 'rgba(34, 211, 238, 0.08)' : 'rgba(239, 68, 68, 0.08)',
+        fillColor: isBull ? 'rgba(34, 211, 238, 0.10)' : 'rgba(239, 68, 68, 0.10)',
         borderColor: isBull ? OVERLAY_COLORS.fvg : '#ef4444',
         label: `FVG${isBull ? '↑' : '↓'}`,
       }));
-
-      // Price lines for boundaries
-      safeAddPriceLine(`fvg-hi-${i}`, fvg.highPrice, isBull ? '#00ff88' : '#ff4444', `FVG${isBull ? '↑' : '↓'}`, 1, 2, false, 'fvg');
-      safeAddPriceLine(`fvg-lo-${i}`, fvg.lowPrice, isBull ? '#00ff88' : '#ff4444', '', 1, 2, false, 'fvg');
     });
 
-    // Also include SMC-based FVGs from AI panel
+    // Only add SMC-based FVGs if they don't overlap with detected ones
+    // (limit to 2 extra max to avoid clutter)
     if (input.smcData?.fvgs) {
+      let extraCount = 0;
       input.smcData.fvgs.slice(0, 4).forEach((fvg: any, i: number) => {
+        if (extraCount >= 2) return;
         if (!fvgs.some(f => Math.abs(f.highPrice - fvg.high) < 0.001)) {
-          const col = fvg.type === 'bullish' ? '#00ff88' : '#ff4444';
-          safeAddPriceLine(`fvg-smc-hi-${i}`, fvg.high, col, `FVG${fvg.type === 'bullish' ? '↑' : '↓'}`, 1, 2, false, 'fvg');
+          const isBull = fvg.type === 'bullish';
+          registry.add('fvg', new ZonePrimitive({
+            startTime: fvg.time as any,
+            endTime: (fvg.time + 3600) as any, // ~1h width for SMC FVGs
+            highPrice: fvg.high,
+            lowPrice: fvg.low,
+            fillColor: isBull ? 'rgba(34, 211, 238, 0.06)' : 'rgba(239, 68, 68, 0.06)',
+            borderColor: isBull ? OVERLAY_COLORS.fvg : '#ef4444',
+            label: `FVG${isBull ? '↑' : '↓'}`,
+          }));
+          extraCount++;
         }
       });
     }

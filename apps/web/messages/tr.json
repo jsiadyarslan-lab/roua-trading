@@ -4462,6 +4462,38 @@
     "priceAlert": {
       "title": "Fiyat Uyarısı: {symbol}",
       "body": "{symbol} artık {condition} {targetPrice}"
+    },
+    "botSignal": {
+      "title": "Bot: {side} Sinyali",
+      "body": "{message}"
+    },
+    "aiAnalysis": {
+      "title": "Yapay Zeka Analizi: {sentiment}",
+      "body": "{summary}"
+    },
+    "scannerSignal": {
+      "title": "Tarayıcı: {symbol} — {direction}",
+      "body": "Sinyal gücü {confidence}% | {reasons}"
+    },
+    "sharpMove": {
+      "title": "Keskin Hareket: {symbol}",
+      "body": "Fiyat %{change} değişti — bir ticaret fırsatı olabilir"
+    },
+    "autoExecuteSuccess": {
+      "title": "Otomatik yürütme: {side} {pair}",
+      "body": "Sinyal otomatik yürütüldü (güven: %{confidence}) — Emir: {orderId}..."
+    },
+    "autoExecuteFailed": {
+      "title": "Otomatik Yürütme Başarısız",
+      "body": "Bağlı borsa kimlik bilgisi yok. Lütfen önce hesabınızı bağlayın."
+    },
+    "autoExecuteRejected": {
+      "title": "Otomatik Yürütme Reddedildi",
+      "body": "{pair} için otomatik yürütme yapılmadı: {reason}"
+    },
+    "autoExecuteError": {
+      "title": "Otomatik Yürütme Hatası",
+      "body": "Bağlantı başarısız: {error}"
     }
   }
 }

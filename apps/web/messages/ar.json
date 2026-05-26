@@ -4468,6 +4468,38 @@
     "priceAlert": {
       "title": "تنبيه سعر: {symbol}",
       "body": "{symbol} أصبح {condition} {targetPrice}"
+    },
+    "botSignal": {
+      "title": "البوت: إشارة {side}",
+      "body": "{message}"
+    },
+    "aiAnalysis": {
+      "title": "تحليل الذكاء: {sentiment}",
+      "body": "{summary}"
+    },
+    "scannerSignal": {
+      "title": "الماسح: {symbol} — {direction}",
+      "body": "قوة الإشارة {confidence}% | {reasons}"
+    },
+    "sharpMove": {
+      "title": "حركة حادة: {symbol}",
+      "body": "تغير السعر بنسبة {change}% — قد تكون فرصة تداول"
+    },
+    "autoExecuteSuccess": {
+      "title": "تنفيذ تلقائي: {side} {pair}",
+      "body": "تم تنفيذ الإشارة تلقائياً (ثقة: {confidence}%) — أمر: {orderId}..."
+    },
+    "autoExecuteFailed": {
+      "title": "فشل التنفيذ التلقائي",
+      "body": "لا توجد بيانات ربط للمنصة. يرجى ربط حسابك أولاً."
+    },
+    "autoExecuteRejected": {
+      "title": "رفض التنفيذ التلقائي",
+      "body": "لم يتم تنفيذ {pair}: {reason}"
+    },
+    "autoExecuteError": {
+      "title": "خطأ في التنفيذ التلقائي",
+      "body": "فشل الاتصال: {error}"
     }
   }
 }

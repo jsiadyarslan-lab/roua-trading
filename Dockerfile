@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v187-rtl-notif-panel-fix
+ARG BUILD_CACHE=v188-notif-i18n-deep-fix
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.

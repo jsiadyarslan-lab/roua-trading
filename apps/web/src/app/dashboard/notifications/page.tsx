@@ -38,20 +38,49 @@ function toCamelCase(s: string): string {
   return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
+/** Human-readable label for notification types when i18n fails */
+const NOTIF_TYPE_LABELS: Record<string, string> = {
+  newUser: 'New User',
+  subscriptionUpgrade: 'Subscription Upgrade',
+  systemError: 'System Error',
+  performanceAlert: 'Performance Alert',
+  largeTrade: 'Large Trade',
+  systemUpdate: 'System Update',
+  newReport: 'New Report',
+  signalGenerated: 'Signal',
+  orderFilled: 'Order Filled',
+  orderRejected: 'Order Rejected',
+  riskWarning: 'Risk Warning',
+  positionClosed: 'Position Closed',
+  positionOpened: 'Position Opened',
+  executionFailed: 'Execution Failed',
+  priceAlert: 'Price Alert',
+  botSignal: 'Bot Signal',
+  aiAnalysis: 'AI Analysis',
+  scannerSignal: 'Scanner Signal',
+  sharpMove: 'Sharp Move',
+  autoExecuteSuccess: 'Auto-Execute',
+  autoExecuteFailed: 'Auto-Execute Failed',
+  autoExecuteRejected: 'Auto-Execute Rejected',
+  autoExecuteError: 'Auto-Execute Error',
+}
+
 function getLocalizedNotifText(
   n: StoreNotification,
   tnt: (key: string, params?: Record<string, string | number>) => string,
 ): { title: string; description: string } {
   if (n.notificationType) {
+    const key = toCamelCase(n.notificationType)
     try {
       const params = (n.params || {}) as Record<string, string | number>
-      const key = toCamelCase(n.notificationType)
       return {
         title: tnt(`${key}.title`, params),
         description: tnt(`${key}.body`, params),
       }
     } catch {
-      // Fallback to raw text if translation key missing
+      // i18n translation failed — use English label instead of Arabic fallback
+      const label = NOTIF_TYPE_LABELS[key] || key
+      return { title: label, description: n.body || '' }
     }
   }
   return { title: n.title, description: n.body }

@@ -4462,6 +4462,38 @@
     "priceAlert": {
       "title": "Alerte de prix : {symbol}",
       "body": "{symbol} est maintenant {condition} {targetPrice}"
+    },
+    "botSignal": {
+      "title": "Bot : Signal {side}",
+      "body": "{message}"
+    },
+    "aiAnalysis": {
+      "title": "Analyse IA : {sentiment}",
+      "body": "{summary}"
+    },
+    "scannerSignal": {
+      "title": "Scanner : {symbol} — {direction}",
+      "body": "Force du signal {confidence}% | {reasons}"
+    },
+    "sharpMove": {
+      "title": "Mouvement brusque : {symbol}",
+      "body": "Le prix a changé de {change}% — peut être une opportunité de trading"
+    },
+    "autoExecuteSuccess": {
+      "title": "Auto-exécution : {side} {pair}",
+      "body": "Signal auto-exécuté (confiance : {confidence}%) — Ordre : {orderId}..."
+    },
+    "autoExecuteFailed": {
+      "title": "Échec de l'auto-exécution",
+      "body": "Aucun identifiant d'échange lié. Veuillez d'abord lier votre compte."
+    },
+    "autoExecuteRejected": {
+      "title": "Auto-exécution rejetée",
+      "body": "Auto-exécution non effectuée pour {pair} : {reason}"
+    },
+    "autoExecuteError": {
+      "title": "Erreur d'auto-exécution",
+      "body": "Échec de connexion : {error}"
     }
   }
 }

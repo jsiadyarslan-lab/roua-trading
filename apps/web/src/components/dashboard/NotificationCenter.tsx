@@ -17,27 +17,64 @@ import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
 
 /**
  * Resolve the localized title/body for a notification.
- * If the notification has a `notificationType`, use the i18n `notificationTypes` namespace
- * to translate it. Otherwise, fall back to the raw title/body (already i18n from NotificationEngine,
- * or Arabic fallback from backend).
+ * ALL notifications created by NotificationEngine now include notificationType + params,
+ * and NestJS backend notifications also include them. This ensures correct translation
+ * at DISPLAY time regardless of when the notification was created.
+ *
+ * Fallback chain:
+ * 1. Try notificationType + params via i18n (preferred — always correct locale)
+ * 2. If translation fails, use notificationType as a display key (better than Arabic)
+ * 3. Last resort: raw title/body (may be Arabic from backend)
  */
+
 /** Convert snake_case notificationType to camelCase for i18n key lookup */
 function toCamelCase(s: string): string {
   return s.replace(/_([a-z])/g, (_, c) => c.toUpperCase())
 }
 
+/** Human-readable label for notification types when i18n fails */
+const NOTIF_TYPE_LABELS: Record<string, string> = {
+  newUser: 'New User',
+  subscriptionUpgrade: 'Subscription Upgrade',
+  systemError: 'System Error',
+  performanceAlert: 'Performance Alert',
+  largeTrade: 'Large Trade',
+  systemUpdate: 'System Update',
+  newReport: 'New Report',
+  signalGenerated: 'Signal',
+  orderFilled: 'Order Filled',
+  orderRejected: 'Order Rejected',
+  riskWarning: 'Risk Warning',
+  positionClosed: 'Position Closed',
+  positionOpened: 'Position Opened',
+  executionFailed: 'Execution Failed',
+  priceAlert: 'Price Alert',
+  botSignal: 'Bot Signal',
+  aiAnalysis: 'AI Analysis',
+  scannerSignal: 'Scanner Signal',
+  sharpMove: 'Sharp Move',
+  autoExecuteSuccess: 'Auto-Execute',
+  autoExecuteFailed: 'Auto-Execute Failed',
+  autoExecuteRejected: 'Auto-Execute Rejected',
+  autoExecuteError: 'Auto-Execute Error',
+}
+
 function useLocalizedNotif(notif: Notification): { title: string; body: string } {
   const tnt = useTranslations('notificationTypes')
   if (notif.notificationType) {
+    const key = toCamelCase(notif.notificationType)
     try {
       const params = (notif.params || {}) as Record<string, string | number>
-      const key = toCamelCase(notif.notificationType)
-      return {
-        title: tnt(`${key}.title`, params),
-        body: tnt(`${key}.body`, params),
+      const title = tnt(`${key}.title`, params)
+      const body = tnt(`${key}.body`, params)
+      return { title, body }
+    } catch (err) {
+      // i18n translation failed — use English label instead of Arabic fallback
+      const label = NOTIF_TYPE_LABELS[key] || key
+      if (process.env.NODE_ENV === 'development') {
+        console.warn(`[i18n] Failed to translate notificationType="${key}":`, err)
       }
-    } catch {
-      // Fallback to raw text if translation key missing
+      return { title: label, body: notif.body || '' }
     }
   }
   return { title: notif.title, body: notif.body }

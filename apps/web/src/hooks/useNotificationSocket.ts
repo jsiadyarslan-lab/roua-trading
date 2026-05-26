@@ -102,6 +102,20 @@ export function useNotificationSocket() {
           LOW: 'low',
         }
 
+        // Resolve notificationType: prefer explicit value, fallback to converting type field
+        const socketTypeToNotifType: Record<string, string> = {
+          SIGNAL_GENERATED: 'signalGenerated',
+          ORDER_FILLED: 'orderFilled',
+          ORDER_REJECTED: 'orderRejected',
+          ORDER_ACCEPTED: 'orderFilled',
+          POSITION_OPENED: 'positionOpened',
+          POSITION_CLOSED: 'positionClosed',
+          RISK_WARNING: 'riskWarning',
+          PRICE_ALERT: 'priceAlert',
+          AI_INSIGHT: 'aiAnalysis',
+          SYSTEM: 'systemUpdate',
+        }
+
         addNotification({
           source: (data.source || 'system') as any,
           priority: priorityMap[data.priority] || 'medium',
@@ -111,9 +125,9 @@ export function useNotificationSocket() {
           pair: data.pair,
           price: data.data?.averagePrice || data.data?.entryPrice || data.data?.price,
           confidence: data.data?.confidence,
-          // i18n data for frontend translation
-          notificationType: data.data?.notificationType,
-          params: data.data?.params,
+          // i18n data for frontend translation — always set notificationType
+          notificationType: data.data?.notificationType || socketTypeToNotifType[data.type] || undefined,
+          params: data.data?.params || {},
         })
 
         // FIX: If the notification is about a trade execution, refresh positions + balance

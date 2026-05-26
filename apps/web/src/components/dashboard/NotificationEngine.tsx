@@ -17,6 +17,12 @@ import { ensureAuth } from '@/lib/api-fetch'
    - Real-time Socket.IO push (instant notifications)
    - Auto-execute signals when enabled
    - Real order execution from toast cards (not just paper trading)
+
+   i18n Strategy (v3):
+   - ALL notifications include notificationType + params
+   - useLocalizedNotif translates at DISPLAY time
+   - This ensures correct language regardless of when the
+     notification was created or which locale was active
 ══════════════════════════════════════════════════════ */
 
 export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string, any> }) {
@@ -60,6 +66,10 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     if (autoExecuting.has(data.signalId)) return
     setAutoExecuting(prev => new Set(prev).add(data.signalId))
 
+    const side = data.action === 'BUY' ? 'BUY' : 'SELL'
+    const sideLabel = side === 'BUY' ? tc('buy') : tc('sell')
+    const entryPrice = data.entryPrice || 0
+
     try {
       await ensureAuth()
 
@@ -77,14 +87,15 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           title: t('autoExecuteFailed'),
           body: t('noExchangeCredentials'),
           pair: data.pair,
+          // i18n translation data — frontend uses these to translate to user's locale
+          notificationType: 'autoExecuteFailed',
+          params: { pair: data.pair },
         })
         return
       }
 
       // Execute signal via v2 pipeline
       const idempotencyKey = crypto.randomUUID()
-      const side = data.action === 'BUY' ? 'BUY' : 'SELL'
-      const entryPrice = data.entryPrice || 0
       const sl = data.stopLoss || (entryPrice > 0 ? (side === 'BUY' ? entryPrice * 0.98 : entryPrice * 1.02) : undefined)
 
       const res = await fetch('/api/trading/v2/orders', {
@@ -111,30 +122,41 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
           source: 'trade',
           priority: 'urgent',
           action: side === 'BUY' ? 'BUY' : 'SELL',
-          title: t('autoExecuteSuccess', { side: side === 'BUY' ? tc('buy') : tc('sell'), pair: data.pair }),
+          title: t('autoExecuteSuccess', { side: sideLabel, pair: data.pair }),
           body: t('autoExecuteSuccessBody', { confidence: data.confidence, orderId: j.data?.orderId?.slice(0, 8) || '' }),
           pair: data.pair,
           price: entryPrice,
           confidence: data.confidence,
+          // i18n translation data
+          notificationType: 'autoExecuteSuccess',
+          params: { side: sideLabel, pair: data.pair, confidence: data.confidence, orderId: j.data?.orderId?.slice(0, 8) || '' },
         })
       } else {
+        const reason = j.message || t('rejectedByRiskGuard')
         addNotification({
           source: 'system',
           priority: 'high',
           action: 'WARN',
           title: t('autoExecuteRejected'),
-          body: t('autoExecuteRejectedBody', { pair: data.pair, reason: j.message || t('rejectedByRiskGuard') }),
+          body: t('autoExecuteRejectedBody', { pair: data.pair, reason }),
           pair: data.pair,
+          // i18n translation data
+          notificationType: 'autoExecuteRejected',
+          params: { pair: data.pair, reason },
         })
       }
     } catch (error: any) {
+      const errorMsg = error.message || tc('error')
       addNotification({
         source: 'system',
         priority: 'medium',
         action: 'WARN',
         title: t('autoExecuteError'),
-        body: t('connectionFailed', { error: error.message || tc('error') }),
+        body: t('connectionFailed', { error: errorMsg }),
         pair: data.pair,
+        // i18n translation data
+        notificationType: 'autoExecuteError',
+        params: { error: errorMsg },
       })
     } finally {
       // Clean up after 30 seconds to prevent memory leak
@@ -166,13 +188,17 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
 
     for (const log of newLogs) {
       if (log.type === 'buy' || log.type === 'sell') {
+        const sideLabel = log.type === 'buy' ? tc('buy') : tc('sell')
         addNotification({
           source: 'bot',
           priority: 'urgent',
           action: log.type === 'buy' ? 'BUY' : 'SELL',
-          title: `🤖 ${t('botSignal', { side: log.type === 'buy' ? tc('buy') : tc('sell') })}`,
+          title: `🤖 ${t('botSignal', { side: sideLabel })}`,
           body: log.msg,
           pair: selectedSymbol,
+          // i18n translation data
+          notificationType: 'botSignal',
+          params: { side: sideLabel, message: log.msg || '' },
         })
       }
     }
@@ -193,14 +219,20 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       const { narrative, sentiment, confidence } = data.data
       if (!narrative || (confidence ?? 0) < settings.minConfidence) return
 
+      const sentimentLabel = sentiment === 'bullish' ? t('bullishPrediction') : sentiment === 'bearish' ? t('bearishPrediction') : t('neutralAnalysis')
+      const summary = narrative.slice(0, 120) + (narrative.length > 120 ? '...' : '')
+
       addNotification({
         source: 'ai',
         priority: confidence >= 85 ? 'high' : 'medium',
         action: sentiment === 'bullish' ? 'BUY' : sentiment === 'bearish' ? 'SELL' : 'INFO',
-        title: `🧠 ${t('aiAnalysis', { sentiment: sentiment === 'bullish' ? t('bullishPrediction') : sentiment === 'bearish' ? t('bearishPrediction') : t('neutralAnalysis') })}`,
-        body: narrative.slice(0, 120) + (narrative.length > 120 ? '...' : ''),
+        title: `🧠 ${t('aiAnalysis', { sentiment: sentimentLabel })}`,
+        body: summary,
         confidence: confidence ?? 70,
         pair: selectedSymbol,
+        // i18n translation data
+        notificationType: 'aiAnalysis',
+        params: { sentiment: sentimentLabel, summary },
       })
     } catch {}
   }, [hydrated, settings.aiAlerts, settings.minConfidence, selectedSymbol, addNotification])
@@ -224,15 +256,21 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       const top = data.items[0]
       if (top.confidence < settings.minConfidence) return
 
+      const directionLabel = top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? tc('buySignal') : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? tc('sellSignal') : t('monitoring')
+      const reasons = (top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ')
+
       addNotification({
         source: 'scanner',
         priority: top.confidence >= 80 ? 'high' : 'medium',
         action: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? 'BUY' : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? 'SELL' : 'INFO',
-        title: `📡 ${t('scannerSignal', { symbol: top.symbol, direction: top.direction === 'STRONG_BUY' || top.direction === 'BUY' ? tc('buySignal') : top.direction === 'STRONG_SELL' || top.direction === 'SELL' ? tc('sellSignal') : t('monitoring') })}`,
-        body: t('signalStrength', { confidence: top.confidence, reasons: (top.reasonsAr || top.reasons || []).slice(0, 2).join(' · ') }),
+        title: `📡 ${t('scannerSignal', { symbol: top.symbol, direction: directionLabel })}`,
+        body: t('signalStrength', { confidence: top.confidence, reasons }),
         pair: top.symbol,
         price: top.price,
         confidence: top.confidence,
+        // i18n translation data
+        notificationType: 'scannerSignal',
+        params: { symbol: top.symbol, direction: directionLabel, confidence: top.confidence, reasons },
       })
     } catch {}
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
@@ -251,14 +289,18 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
       const change = Math.abs(q.changePercent || 0)
       if (change > 4 && (!lastTradeAlertsRef.current[symbol] || now - lastTradeAlertsRef.current[symbol] > 300_000)) {
         lastTradeAlertsRef.current[symbol] = now
+        const changeStr = q.changePercent?.toFixed(2) || '0'
         addNotification({
           source: 'trade',
           priority: change > 8 ? 'urgent' : 'high',
           action: (q.changePercent || 0) > 0 ? 'BUY' : 'SELL',
           title: `⚡ ${t('sharpMove', { symbol })}`,
-          body: t('priceChangeOpportunity', { change: q.changePercent?.toFixed(2) }),
+          body: t('priceChangeOpportunity', { change: changeStr }),
           pair: symbol,
           price: q.price,
+          // i18n translation data
+          notificationType: 'sharpMove',
+          params: { symbol, change: changeStr },
         })
       }
     })

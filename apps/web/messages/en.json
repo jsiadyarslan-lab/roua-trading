@@ -4467,6 +4467,38 @@
     "priceAlert": {
       "title": "Price Alert: {symbol}",
       "body": "{symbol} is now {condition} {targetPrice}"
+    },
+    "botSignal": {
+      "title": "Bot: {side} Signal",
+      "body": "{message}"
+    },
+    "aiAnalysis": {
+      "title": "AI Analysis: {sentiment}",
+      "body": "{summary}"
+    },
+    "scannerSignal": {
+      "title": "Scanner: {symbol} — {direction}",
+      "body": "Signal strength {confidence}% | {reasons}"
+    },
+    "sharpMove": {
+      "title": "Sharp Move: {symbol}",
+      "body": "Price changed by {change}% — may be a trading opportunity"
+    },
+    "autoExecuteSuccess": {
+      "title": "Auto-execute: {side} {pair}",
+      "body": "Signal auto-executed (confidence: {confidence}%) — Order: {orderId}..."
+    },
+    "autoExecuteFailed": {
+      "title": "Auto-execute Failed",
+      "body": "No exchange credentials linked. Please link your account first."
+    },
+    "autoExecuteRejected": {
+      "title": "Auto-execute Rejected",
+      "body": "Auto-execute not performed for {pair}: {reason}"
+    },
+    "autoExecuteError": {
+      "title": "Auto-execute Error",
+      "body": "Connection failed: {error}"
     }
   }
 }

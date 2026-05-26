@@ -338,23 +338,38 @@ export const useNotificationStore = create<NotificationState>()(
           },
         }
       })(),
-      version: 3,
-      migrate: (persistedState: any) => ({
-        notifications: Array.isArray(persistedState?.notifications) ? persistedState.notifications.slice(0, 50) : [],
-        settings: {
-          ...DEFAULT_SETTINGS,
-          ...(persistedState?.settings ?? {}),
-          minConfidence: typeof persistedState?.settings?.minConfidence === 'number'
-              ? persistedState.settings.minConfidence
-              : DEFAULT_SETTINGS.minConfidence,
-          browserNotifications: typeof persistedState?.settings?.browserNotifications === 'boolean'
-              ? persistedState.settings.browserNotifications
-              : DEFAULT_SETTINGS.browserNotifications,
-          autoExecute: typeof persistedState?.settings?.autoExecute === 'boolean'
-              ? persistedState.settings.autoExecute
-              : DEFAULT_SETTINGS.autoExecute,
-        },
-      }),
+      version: 4,
+      migrate: (persistedState: any) => {
+        // V4 migration: Clear notifications that lack notificationType (Arabic-only text)
+        // These old notifications cannot be translated and will show in Arabic forever.
+        // Better to clear them so only new i18n-aware notifications remain.
+        const rawNotifs = Array.isArray(persistedState?.notifications) ? persistedState.notifications : []
+        const migratedNotifs = rawNotifs
+          .slice(0, 50)
+          .filter((n: any) => n.notificationType) // Keep only i18n-aware notifications
+          .map((n: any) => ({
+            ...n,
+            // Ensure params is always an object
+            params: n.params && typeof n.params === 'object' ? n.params : {},
+          }))
+
+        return {
+          notifications: migratedNotifs,
+          settings: {
+            ...DEFAULT_SETTINGS,
+            ...(persistedState?.settings ?? {}),
+            minConfidence: typeof persistedState?.settings?.minConfidence === 'number'
+                ? persistedState.settings.minConfidence
+                : DEFAULT_SETTINGS.minConfidence,
+            browserNotifications: typeof persistedState?.settings?.browserNotifications === 'boolean'
+                ? persistedState.settings.browserNotifications
+                : DEFAULT_SETTINGS.browserNotifications,
+            autoExecute: typeof persistedState?.settings?.autoExecute === 'boolean'
+                ? persistedState.settings.autoExecute
+                : DEFAULT_SETTINGS.autoExecute,
+          },
+        }
+      },
       partialize: (state) => ({
         notifications: state.notifications.slice(0, 50),
         settings: state.settings,

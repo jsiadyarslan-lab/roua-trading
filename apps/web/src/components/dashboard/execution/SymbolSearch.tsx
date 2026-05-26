@@ -6,6 +6,8 @@ import { useMarketStore } from '@/hooks/useMarketStore'
 import { T } from '@/lib/theme-tokens'
 import { useTranslations } from 'next-intl'
 
+import { CRYPTO_BASES } from '@/lib/charts/config'
+
 interface SymbolSearchProps {
   value: string
   onChange: (symbol: string) => void
@@ -13,7 +15,7 @@ interface SymbolSearchProps {
   currentPrice?: number
 }
 
-const CRYPTO_SYMBOLS = ['BTC/USD', 'ETH/USD', 'SOL/USD', 'BNB/USD', 'XRP/USD', 'ADA/USD', 'DOGE/USD', 'AVAX/USD', 'DOT/USD', 'MATIC/USD', 'LINK/USD', 'UNI/USD']
+const CRYPTO_SYMBOLS = [...CRYPTO_BASES].map(b => `${b}/USD`)
 const FOREX_SYMBOLS = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD', 'NZD/USD']
 const STOCK_SYMBOLS = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'TSLA', 'NVDA', 'META']
 

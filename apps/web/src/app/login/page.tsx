@@ -1,8 +1,8 @@
 'use client'
 
 import { Suspense, useState, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, Link } from '@/i18n/navigation'
 import { Fingerprint, TrendingUp, ArrowRight, Mail, Shield, KeyRound, Timer } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { motion, AnimatePresence } from 'framer-motion'

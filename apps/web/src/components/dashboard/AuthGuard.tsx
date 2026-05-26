@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
 import { useAuthStore } from '@/lib/auth-store'
 import { T } from '@/lib/unified-tokens'
 import { useTranslations } from 'next-intl'

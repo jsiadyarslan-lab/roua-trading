@@ -1,7 +1,7 @@
 'use client';
 
 import { useLocale } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from '@/i18n/navigation';
 import { Globe2, Check, ChevronDown } from 'lucide-react';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -22,6 +22,7 @@ const LOCALE_OPTIONS = [
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState<{ top: number; right?: number; left?: number }>({ top: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -87,9 +88,12 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
       setOpen(false);
       return;
     }
+    // Set cookie for persistence
     document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
+    // Use next-intl router.replace to switch locale in the URL path
+    // This automatically handles adding/removing the locale prefix
+    router.replace(pathname, { locale: newLocale });
     setOpen(false);
-    router.refresh();
   };
 
   const currentOption = LOCALE_OPTIONS.find(o => o.code === locale) || LOCALE_OPTIONS[0];

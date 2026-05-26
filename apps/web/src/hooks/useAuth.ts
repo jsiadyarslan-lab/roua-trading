@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter } from '@/i18n/navigation'
 import { useAuthStore, type AuthUser } from '@/lib/auth-store'
 
 // Re-export the User type for backward compatibility

@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { getPortalRoot } from '@/lib/portal-root'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { useShallow } from 'zustand/react/shallow'
 import { useTranslations, useLocale } from 'next-intl'
 

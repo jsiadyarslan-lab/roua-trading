@@ -20,6 +20,7 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { CandleData } from '../lib/charts/types';
+import { WS_CONFIG, BINANCE_URLS, BINANCE_INTERVALS, CRYPTO_BASES } from '../lib/charts/config';
 
 interface UseChartWebSocketOptions {
   symbol: string;
@@ -34,15 +35,7 @@ interface UseChartWebSocketReturn {
   reconnect: () => void;
 }
 
-// Binance stream interval mapping
-const BINANCE_INTERVALS: Record<string, string> = {
-  '1min': '1m', '3min': '3m', '5min': '5m', '15min': '15m', '30min': '30m',
-  '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
-  '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M', '3month': '3M',
-};
-
-// Known crypto pairs
-const CRYPTO_BASES = new Set(['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'DOT', 'MATIC', 'AVAX', 'LINK', 'UNI']);
+// BINANCE_INTERVALS, CRYPTO_BASES imported from config.ts
 
 function isCryptoPair(symbol: string): boolean {
   const base = symbol.split('/')[0];
@@ -82,10 +75,8 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const isClosingRef = useRef(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'fallback'>('disconnected');
 
-  const MAX_RECONNECT_ATTEMPTS = 15;
-  const BASE_DELAY = 1000;
-  const MAX_DELAY = 30000;
-  const POLLING_INTERVAL = 5000; // 5s REST fallback
+  // WS/Reconnection config from config.ts
+  const { reconnectMaxAttempts: MAX_RECONNECT_ATTEMPTS, reconnectBaseDelay: BASE_DELAY, reconnectMaxDelay: MAX_DELAY, pollingInterval: POLLING_INTERVAL, pingInterval: PING_INTERVAL } = WS_CONFIG;
 
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
@@ -161,7 +152,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       if (isCryptoPair(symbol)) {
         const binanceSymbol = normalizeBinanceSymbol(symbol);
         const interval = BINANCE_INTERVALS[timeframe] || '1m';
-        const url = `https://api.binance.com/api/v3/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
+        const url = `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol.toUpperCase()}&interval=${interval}&limit=2`;
 
         const binanceRes = await fetch(url);
         if (!binanceRes.ok) return;
@@ -206,7 +197,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
     const binanceSymbol = normalizeBinanceSymbol(symbol);
     const interval = BINANCE_INTERVALS[timeframe] || '1m';
-    const wsUrl = `wss://stream.binance.com:9443/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@ticker`;
+    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@ticker`;
 
     try {
       const ws = new WebSocket(wsUrl);
@@ -284,7 +275,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             pingIntervalRef.current = null;
           }
         }
-      }, 20000);
+      }, PING_INTERVAL);
 
     } catch {
       startPolling();

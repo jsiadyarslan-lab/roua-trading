@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { BINANCE_URLS, CRYPTO_BASES } from '../lib/charts/config'
 
 export interface QuoteData {
   symbol: string
@@ -56,7 +57,7 @@ export const useMarketStore = create<MarketStore>((set) => ({
 }))
 
 // Only these base currencies are available on Binance
-const BINANCE_CRYPTO_BASES = new Set(['BTC','ETH','SOL','BNB','XRP','ADA','DOGE','AVAX','DOT','MATIC','LINK','UNI'])
+// CRYPTO_BASES imported from config.ts (was BINANCE_CRYPTO_BASES)
 
 /**
  * Singleton WebSocket Manager for Binance combined stream.
@@ -97,7 +98,7 @@ class BinanceWSManager {
   private isBinancePair(symbol: string): boolean {
     const base = symbol.split('/')[0]
     const quote = symbol.split('/')[1]
-    return BINANCE_CRYPTO_BASES.has(base) && ['USD','USDT','BUSD'].includes(quote)
+    return CRYPTO_BASES.has(base) && ['USD','USDT','BUSD'].includes(quote)
   }
 
   subscribe(symbol: string) {
@@ -280,7 +281,7 @@ class BinanceWSManager {
     }
 
     this.currentStreams = streams
-    const wsUrl = `wss://stream.binance.com:9443/stream?streams=${streams}`
+    const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${streams}`
 
     try {
       this.ws = new WebSocket(wsUrl)

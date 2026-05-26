@@ -5,6 +5,7 @@ import { ArrowUp, ArrowDown } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
+import { BINANCE_URLS, CRYPTO_BASES } from '@/lib/charts/config'
 import { useTranslations } from 'next-intl'
 
 interface OrderRow {
@@ -20,9 +21,8 @@ interface DepthData {
 
 // Normalize symbol for Binance: BTC/USD → btcusdt
 function toBinanceStream(symbol: string): string | null {
-  const CRYPTO_BASES = ['BTC', 'ETH', 'SOL', 'BNB', 'XRP', 'ADA', 'DOGE', 'AVAX', 'LINK']
   const base = symbol.split('/')[0]
-  if (!CRYPTO_BASES.includes(base)) return null
+  if (!CRYPTO_BASES.has(base)) return null
   // BTC/USD → btcusdt, ETH/USDT → ethusdt
   const normalized = symbol.replace('/', '').replace(/USD$/, 'USDT').toLowerCase()
   return normalized
@@ -83,7 +83,7 @@ export function OrderBookMini() {
     }
 
     setIsCrypto(true)
-    const wsUrl = `wss://stream.binance.com:9443/ws/${streamId}@depth20@1000ms`
+    const wsUrl = `${BINANCE_URLS.ws}/ws/${streamId}@depth20@1000ms`
 
     // Small delay to ensure old connection is fully closed before opening new one
     setTimeout(() => {

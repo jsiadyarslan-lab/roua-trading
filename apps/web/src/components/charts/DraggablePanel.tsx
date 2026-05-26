@@ -1,9 +1,11 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading Chart — Draggable Panel
 // Uses DOM manipulation during drag — no React re-render flicker
+// FIX: Tracks current position in a ref so React re-renders
+// don't reset the panel back to its initial position.
 // ═══════════════════════════════════════════════════════════
 
-import React, { useState, useRef, useCallback, useMemo, type ReactNode } from 'react';
+import React, { useRef, useCallback, useMemo, type ReactNode } from 'react';
 
 interface DraggablePanelProps {
   children: ReactNode;
@@ -39,6 +41,10 @@ export function DraggablePanel({
     return { top: p.top ?? 120, left: p.left ?? 20 };
   }, []); // eslint-disable-line
 
+  // FIX: Track current position in a ref so React re-renders don't reset
+  // the panel back to its initial position. Updated during drag AND on mount.
+  const posRef = useRef({ left: initPos.left, top: initPos.top });
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     if (!target.closest('[data-drag-handle]')) return;
@@ -59,6 +65,8 @@ export function DraggablePanel({
       const newTop = Math.max(0, Math.min(window.innerHeight - 60, dragRef.current.startTop + dy));
       panelRef.current.style.left = `${newLeft}px`;
       panelRef.current.style.top = `${newTop}px`;
+      // FIX: Keep posRef in sync so React re-renders use the latest position
+      posRef.current = { left: newLeft, top: newTop };
     };
 
     const onUp = () => {
@@ -79,8 +87,8 @@ export function DraggablePanel({
       onMouseDown={handleMouseDown}
       style={{
         position: 'fixed',
-        left: initPos.left,
-        top: initPos.top,
+        left: posRef.current.left,
+        top: posRef.current.top,
         width: defaultWidth,
         minHeight,
         zIndex: 9999,

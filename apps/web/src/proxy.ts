@@ -15,21 +15,27 @@ import type { NextRequest } from 'next/server'
  */
 
 // ── i18n Configuration ──
-const SUPPORTED_LOCALES = ['ar', 'en', 'fr', 'tr', 'es', 'zh', 'ru', 'hi', 'pt', 'de', 'ja']
+const SUPPORTED_LOCALES = ['ar', 'en', 'fr', 'tr', 'es', 'zh', 'ru', 'hi', 'pt', 'de', 'ja', 'ko', 'id', 'vi', 'th', 'it', 'pl']
 const DEFAULT_LOCALE = 'ar'
 
 // Smart locale proximity — maps unsupported browser locales to closest supported one
 const LOCALE_PROXIMITY: Record<string, string> = {
-  it: 'es', ca: 'es', gl: 'es',
+  ca: 'es', gl: 'es',
   ro: 'fr',
   nl: 'de', sv: 'de', no: 'de', da: 'de', fi: 'de',
-  uk: 'ru', pl: 'ru', cs: 'ru', bg: 'ru',
+  uk: 'ru', cs: 'ru', bg: 'ru',
   zh_CN: 'zh', zh_TW: 'zh', zh_HK: 'zh', zh_SG: 'zh',
-  ko: 'zh', th: 'zh', vi: 'zh', id: 'zh', ms: 'zh',
+  ms: 'id',
   az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr',
   ku: 'ar', fa: 'ar', he: 'ar', ur: 'hi',
   pt_BR: 'pt', pt_PT: 'pt',
   hi_IN: 'hi',
+  ko_KR: 'ko',
+  id_ID: 'id',
+  vi_VN: 'vi',
+  th_TH: 'th',
+  it_IT: 'it', it_CH: 'it',
+  pl_PL: 'pl',
 }
 
 /**

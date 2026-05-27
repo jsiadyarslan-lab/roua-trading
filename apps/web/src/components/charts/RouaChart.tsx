@@ -25,7 +25,7 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
-import { getOverlayManager, resetOverlayManager, type OverlayType } from '@/lib/charts/OverlayManager';
+import { resetOverlayManager } from '@/lib/charts/OverlayManager';
 import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/ProfessionalTrendLines';
 import { ChartTrading } from './ChartTrading';
 import { QuickTradePanel } from './QuickTradePanel';
@@ -931,23 +931,23 @@ export default function RouaChart({
     }
   }, [chart, showHeatmap]);
 
-  // FIX: Cleanup function for AI overlays — reusable across multiple call sites
-  // Uses OverlayManager for proper lifecycle management — ONLY removes overlay
-  // series, NEVER touches the candle series.
+  // Cleanup function for AI overlays — reusable across multiple call sites.
+  // Uses OverlayRegistry for primitive-based lifecycle management.
+  // IMPORTANT: Only resets the registry on timeframe change (when the series
+  // will be recreated). Does NOT destroy the singleton when simply toggling
+  // overlays off — that would lose tracking state and cause orphaned primitives.
   const cleanupAIOverlays = useCallback(() => {
-    // FIX: Use OverlayRegistry directly (not resetOverlayRegistry helper)
-    // so we can initialize with removePriceLine first, ensuring price lines
-    // are properly cleaned up before destroying the registry.
     try {
       const { getOverlayRegistry, resetOverlayRegistry } = require('@/lib/charts/OverlayRegistry');
       const reg = getOverlayRegistry();
-      // Set up removePriceLine callback so clearAll() can remove price lines
+      // Set removePriceLine callback so clearAll() can remove price lines
       reg.setRemovePriceLine(chart.removePriceLine);
       reg.clearAll();
+      // Destroy the singleton only on timeframe change — the chart will be
+      // recreated, so all primitives and price lines must go. The next
+      // renderOverlays call will create a fresh registry.
       resetOverlayRegistry();
     } catch {}
-    // Also clear old OverlayManager for backward compat
-    getOverlayManager().clearAll();
     // Clean up direct price lines (createPriceLine on mainSeries)
     const lines = (aiPriceLinesRef as any).__lines || [];
     lines.forEach(({ series, line }: any) => {
@@ -1084,10 +1084,26 @@ export default function RouaChart({
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
   // ═══════════════════════════════════════════════════════════════════
-  // NEW: Primitive-based overlay rendering
+  // Primitive-based overlay rendering
   // Uses ISeriesPrimitive (NOT LineSeries!) for ALL chart drawings.
   // Based on research: TradingView lightweight-charts v5 official API.
+  //
+  // CRITICAL FIX: This function was previously async with `await import()`
+  // calls that created race conditions — during the async gap, a timeframe
+  // change could destroy the registry and invalidate the series reference,
+  // causing overlays to appear "broken". Now uses cached module references
+  // (overlayRendererRef, overlayRegistryRef) to avoid async gaps entirely.
   // ═══════════════════════════════════════════════════════════════════
+  // Cache the overlay modules at component mount to eliminate async gaps
+  const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
+  const overlayRegistryRef = useRef<typeof import('@/lib/charts/OverlayRegistry') | null>(null);
+
+  // Pre-load overlay modules on mount
+  useEffect(() => {
+    import('@/lib/charts/overlay-renderer').then(mod => { overlayRendererRef.current = mod; }).catch(() => {});
+    import('@/lib/charts/OverlayRegistry').then(mod => { overlayRegistryRef.current = mod; }).catch(() => {});
+  }, []);
+
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     try {
     // ── Overlay filters: only draw what the user explicitly enabled ──
@@ -1105,26 +1121,36 @@ export default function RouaChart({
       return;
     }
 
-    // ── Use new Primitive-based renderer ──
-    // Import dynamically to avoid circular deps
-    const { renderOverlays } = await import('@/lib/charts/overlay-renderer');
-    const { resetOverlayRegistry } = await import('@/lib/charts/OverlayRegistry');
+    // ── Use cached modules (no async gap!) ──
+    // FALLBACK: if modules aren't cached yet, import them dynamically.
+    // But the pre-load useEffect should have them ready by now.
+    const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
+    const registryMod = overlayRegistryRef.current || await import('@/lib/charts/OverlayRegistry');
 
     if (!anyOverlayEnabled) {
-      // FIX: Initialize registry with removePriceLine before clearing,
-      // so price lines are properly cleaned up when all overlays are toggled off.
-      const { getOverlayRegistry } = await import('@/lib/charts/OverlayRegistry');
-      const reg = getOverlayRegistry();
+      // All overlays toggled off — clear everything from the chart.
+      // IMPORTANT: Do NOT call resetOverlayRegistry() here! That destroys
+      // the singleton and loses tracking state. Instead, just clearAll()
+      // which detaches all primitives and removes all price lines, but
+      // keeps the registry alive for the next toggle-ON.
+      const reg = registryMod.getOverlayRegistry();
       reg.init(series, chart.removePriceLine);
       reg.clearAll();
-      resetOverlayRegistry();
-      // Also clean up price lines from old overlay system
-      const mgr = getOverlayManager();
-      mgr.clearAll();
+      // DO NOT: resetOverlayRegistry() — would destroy tracking state
       return;
     }
 
-    renderOverlays(series, {
+    // Re-validate series after potential async import (race condition guard)
+    const currentSeries = chart.candleSeriesRef?.current;
+    if (currentSeries !== series) {
+      // Series changed during our execution (timeframe change) — abort.
+      // The timeframe change useEffect will re-trigger overlay rendering
+      // with the correct new series.
+      console.warn('[AI Overlay] Series changed during render, aborting');
+      return;
+    }
+
+    overlayMod.renderOverlays(series, {
       candles: candlesRef.current,
       overlays: ov,
       supportLevels: result.supportLevels,
@@ -1140,9 +1166,6 @@ export default function RouaChart({
       alerts: (result as any).alerts,
     }, chart.addPriceLine, chart.removePriceLine);
 
-    // Old OverlayManager LineSeries code removed — now uses ISeriesPrimitive
-    // via overlay-renderer.ts (renderOverlays function above)
-    // All overlay rendering is now handled by renderOverlays() above
     } catch (e) {
       console.warn('[AI Overlay] handlePatternsDetected error:', e);
     }

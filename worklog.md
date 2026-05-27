@@ -786,3 +786,24 @@ Stage Summary:
 - Keys added: pageTitle, pageSubtitle, heroTitle, heroDesc, inDevelopment, upcomingFeatures, featureFollowTitle/Desc, featureShareTitle/Desc, featureRankingTitle/Desc, featureDiscussionsTitle/Desc, signupTitle, signupDesc, emailPlaceholder, notifyBtn, registeredSuccess, toastSignupTitle, toastSignupDesc
 - Arabic text in ar.json preserved exactly as original
 - Build passed, pushed to main branch
+
+---
+Task ID: overlay-fix
+Agent: Main Agent
+Task: Fix overlay toggle broken — price lines persist after turning off overlay
+
+Work Log:
+- Investigated user report: overlay buttons don't remove drawings when toggled off
+- Traced the code flow: AISmartPanel toggleOverlay → useEffect → handlePatternsDetected → renderOverlays → OverlayRegistry.clearType
+- Found ROOT CAUSE: When an overlay is toggled off, OverlayRegistry.clearType() only detaches ISeriesPrimitive objects but does NOT remove chart price lines (S1, R1, POC, Entry, SL, TP, etc.) that were created via createPriceLine()
+- Found SECONDARY BUG: 'alerts' OverlayType was missing from OverlayRegistry, causing alert markers to be attached to series but never tracked or removable
+- Modified OverlayRegistry.ts: Added priceLineIds tracking per overlay type, addPriceLineId() method, and removePriceLineFn callback that's called during clearType()
+- Modified overlay-renderer.ts: safeAddPriceLine now registers each price line ID with registry.addPriceLineId(), registry.init() receives removePriceLine callback
+- Modified RouaChart.tsx: cleanupAIOverlays() and handlePatternsDetected() now properly set removePriceLine callback before clearing
+- Added 'alerts' to OverlayType definition and clearAll() types array
+- Build passed successfully, pushed to GitHub as commit 2369e588
+
+Stage Summary:
+- Fixed: Overlay toggle OFF now properly removes both primitives AND price lines
+- Fixed: Alert markers are now tracked and can be properly cleaned up
+- No previous fixes (Fix 1, 2, 3) caused this regression — it was a pre-existing bug

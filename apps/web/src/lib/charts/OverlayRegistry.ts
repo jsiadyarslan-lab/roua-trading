@@ -18,7 +18,7 @@ export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 
 interface OverlayGroup {
   primitives: ISeriesPrimitive[];
   active: boolean;
-  priceLineIds: string[]; // FIX: Track price line IDs added by this overlay type
+  priceLineIds: string[]; // Track price line IDs added by this overlay type
 }
 
 /**
@@ -35,7 +35,7 @@ export class OverlayRegistry {
   private series: ISeriesApi<SeriesType> | null = null;
   private groups: Map<OverlayType, OverlayGroup> = new Map();
 
-  // FIX: Callback to remove a price line from the chart.
+  // Callback to remove a price line from the chart.
   // Set by renderOverlays() so the registry can clean up price lines
   // when an overlay type is cleared.
   private removePriceLineFn: ((id: string) => void) | null = null;
@@ -45,12 +45,47 @@ export class OverlayRegistry {
     for (const type of types) {
       this.groups.set(type, { primitives: [], active: false, priceLineIds: [] });
     }
-    // FIX: Also add 'alerts' group for alert markers
+    // Also add 'alerts' group for alert markers
     this.groups.set('alerts', { primitives: [], active: false, priceLineIds: [] });
   }
 
   /** Initialize with the candle series and optional price line remover */
   init(series: ISeriesApi<SeriesType>, removePriceLine?: (id: string) => void): void {
+    // CRITICAL FIX: If the series reference changed (e.g., timeframe change,
+    // chart recreation), we MUST detach all old primitives from the OLD series
+    // before switching to the new one. Otherwise, old primitives become
+    // "orphaned" — still rendered on the old series but no longer tracked.
+    if (this.series && this.series !== series) {
+      // Detach all primitives from the OLD series
+      this.groups.forEach((group) => {
+        for (const primitive of group.primitives) {
+          try {
+            this.series!.detachPrimitive(primitive);
+          } catch {
+            // Primitive may already be detached
+          }
+        }
+      });
+      // Remove all tracked price lines
+      if (this.removePriceLineFn) {
+        this.groups.forEach((group) => {
+          for (const id of group.priceLineIds) {
+            try {
+              this.removePriceLineFn!(id);
+            } catch {
+              // Price line may already be removed
+            }
+          }
+        });
+      }
+      // Reset all groups (primitives are detached, price lines are removed)
+      this.groups.forEach((group) => {
+        group.primitives = [];
+        group.priceLineIds = [];
+        group.active = false;
+      });
+    }
+
     this.series = series;
     if (removePriceLine) this.removePriceLineFn = removePriceLine;
   }
@@ -117,8 +152,8 @@ export class OverlayRegistry {
       }
     }
 
-    // FIX: Also remove price lines that belong to this overlay type.
-    // Previously, price lines (S1, R1, POC, Entry, SL, TP, etc.) persisted
+    // Remove price lines that belong to this overlay type.
+    // Price lines (S1, R1, POC, Entry, SL, TP, etc.) would persist
     // on the chart even after the overlay was toggled off, because only
     // primitives were detached but price lines were never removed.
     if (this.removePriceLineFn) {
@@ -136,7 +171,7 @@ export class OverlayRegistry {
     group.active = false;
   }
 
-  /** Clear all overlay primitives */
+  /** Clear all overlay primitives and price lines */
   clearAll(): void {
     const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts'];
     for (const type of types) {
@@ -174,14 +209,16 @@ export class OverlayRegistry {
     return group ? group.primitives.length : 0;
   }
 
-  /** Destroy the registry */
+  /** Destroy the registry — clears everything and nulls references */
   destroy(): void {
     this.clearAll();
     this.series = null;
   }
 }
 
-// Singleton instance
+// Singleton instance — persists across React re-renders but is NOT destroyed
+// when all overlays are toggled off. Only destroyed on component unmount or
+// timeframe change (via resetOverlayRegistry).
 let _instance: OverlayRegistry | null = null;
 
 export function getOverlayRegistry(): OverlayRegistry {

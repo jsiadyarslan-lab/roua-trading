@@ -238,6 +238,10 @@ export default function RouaChart({
   }>({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false, mtf: false, liq: false, trade: false });
   const lastOverlayRerenderRef = useRef(0);
   const OVERLAY_RERENDER_INTERVAL_MS = 15_000;
+  // CRITICAL FIX: Periodic overlay refresh interval.
+  // A separate timer that re-renders overlays periodically, ensuring trend
+  // lines and other overlays stay current even if the WebSocket path fails.
+  const PERIODIC_OVERLAY_REFRESH_MS = 30_000;
   // FIX: Track when candlesRef was last cleared (timeframe change) so we can
   // timeout the "reject all WebSocket updates" guard. Previously, if the
   // historical fetch failed, the chart would stay empty forever because
@@ -400,24 +404,46 @@ export default function RouaChart({
       // candle data. This is throttled to OVERLAY_RERENDER_INTERVAL_MS
       // (15 seconds) because ZigZag + clustering is CPU-intensive.
       // ═══════════════════════════════════════════════════════════════════
+      // ═══════════════════════════════════════════════════════════════════
+      // CRITICAL FIX: Re-render overlays when candle data changes.
+      //
+      // This is the KEY fix for: "trend lines not drawn as new candles arrive."
+      // Previous code only rendered inside a throttle check, and had no
+      // fallback imports — so if overlayRendererRef was null, overlays were
+      // silently skipped forever.
+      //
+      // Now: We ALWAYS update aiPanelCandles on new candle arrival (not
+      // gated by throttle), and we use fallback imports like
+      // handleOverlayChange does.
+      // ═══════════════════════════════════════════════════════════════════
       if (isNewCandle) {
+        // ALWAYS update aiPanelCandles when a new candle arrives —
+        // don't gate this on throttle. The AISmartPanel needs fresh data
+        // to trigger its own overlay change callback.
+        if (showAIPanelRef.current) {
+          setAiPanelCandles([...candlesRef.current]);
+        }
+
         const currentOverlays = currentOverlaysRef.current;
         const anyActive = Object.values(currentOverlays).some(v => v === true);
         if (anyActive) {
           const now = Date.now();
           if (now - lastOverlayRerenderRef.current >= OVERLAY_RERENDER_INTERVAL_MS) {
             lastOverlayRerenderRef.current = now;
-            // Update aiPanelCandles so AISmartPanel can re-analyze with new data
-            if (showAIPanelRef.current) {
-              setAiPanelCandles([...candlesRef.current]);
-            }
             // Use requestAnimationFrame to avoid blocking the render cycle
-            requestAnimationFrame(() => {
+            requestAnimationFrame(async () => {
               try {
-                const overlayMod = overlayRendererRef.current;
-                const registryMod = overlayRegistryRef.current;
+                // CRITICAL FIX: Use fallback imports (same as handleOverlayChange)
+                // Previously these were direct ref reads with no fallback,
+                // so if the pre-load failed, overlays were NEVER re-rendered.
+                const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
+                const registryMod = overlayRegistryRef.current || await import('@/lib/charts/OverlayRegistry');
                 const series = chart.candleSeriesRef?.current;
-                if (!overlayMod || !registryMod || !series) return;
+                if (!series) return;
+
+                // Re-validate series after potential async import
+                const currentSeries = chart.candleSeriesRef?.current;
+                if (currentSeries !== series) return;
 
                 const reg = registryMod.getOverlayRegistry();
                 reg.init(series, chart.removePriceLine);
@@ -469,6 +495,88 @@ export default function RouaChart({
     },
     enabled: !chart.isPaused,
   });
+
+  // ═══════════════════════════════════════════════════════════════════
+  // CRITICAL FIX: Periodic overlay refresh timer.
+  //
+  // This is the SAFETY NET for the "trend lines not drawn as new candles
+  // arrive" bug. Even if the WebSocket path fails (null refs, race
+  // conditions, throttle misses), this timer ensures overlays are
+  // re-rendered every PERIODIC_OVERLAY_REFRESH_MS (30 seconds).
+  //
+  // How it works:
+  // 1. Every 30 seconds, checks if any overlay is active
+  // 2. If so, imports overlay-renderer (with fallback) and calls
+  //    renderOverlays with current candle data
+  // 3. Also updates aiPanelCandles so AISmartPanel's candleSignatureRef
+  //    effect can trigger overlay changes
+  //
+  // This is the MOST RELIABLE path because it doesn't depend on:
+  // - WebSocket events (may not fire isNewCandle correctly)
+  // - AISmartPanel analysis (only calls renderAnalysisOverlays)
+  // - Throttle timing (may miss the window)
+  // ═══════════════════════════════════════════════════════════════════
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const currentOverlays = currentOverlaysRef.current;
+        const anyActive = Object.values(currentOverlays).some(v => v === true);
+        if (!anyActive) return;
+
+        // Need candles to render overlays
+        if (!candlesRef.current || candlesRef.current.length < 20) return;
+
+        const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
+        const registryMod = overlayRegistryRef.current || await import('@/lib/charts/OverlayRegistry');
+        const series = chart.candleSeriesRef?.current;
+        if (!series) return;
+
+        const reg = registryMod.getOverlayRegistry();
+        reg.init(series, chart.removePriceLine);
+
+        const cached = lastAnalysisResultRef.current;
+        overlayMod.renderOverlays(series, {
+          candles: candlesRef.current,
+          overlays: currentOverlays,
+          supportLevels: cached?.supportLevels || [],
+          resistanceLevels: cached?.resistanceLevels || [],
+          smcData: (cached as any)?.smcData,
+          geoPatterns: (cached as any)?.geoPatterns,
+          elliottPattern: (cached as any)?.elliottPattern,
+          wyckoff: (cached as any)?.wyckoff,
+          volumeProfile: (cached as any)?.volumeProfile,
+          entryExit: (cached as any)?.entryExit,
+          signal: (cached as any)?.signal,
+          patterns: cached?.patterns || [],
+          alerts: (cached as any)?.alerts,
+          fusionResult: (cached as any)?.fusionResult,
+          bayesianResult: (cached as any)?.bayesianResult,
+          mtfResult: (cached as any)?.mtfResult,
+          tradeProposals: (cached as any)?.tradeProposals,
+          liquidityResult: (cached as any)?.liquidityResult,
+        }, chart.addPriceLine, chart.removePriceLine);
+
+        // Also update aiPanelCandles so AISmartPanel's candleSignatureRef
+        // effect triggers onOverlayChange for the next cycle
+        if (showAIPanelRef.current) {
+          setAiPanelCandles(prev => {
+            const next = candlesRef.current;
+            // Only update if candle data actually changed (avoid infinite loop)
+            if (prev.length === next.length && prev.length > 0 &&
+                prev[prev.length - 1]?.time === next[next.length - 1]?.time) {
+              return prev;
+            }
+            return [...next];
+          });
+        }
+      } catch (e) {
+        // Silent fail — periodic refresh is a best-effort safety net
+      }
+    }, PERIODIC_OVERLAY_REFRESH_MS);
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Fetch Historical Candles ───────────────────────────
   useEffect(() => {

@@ -1053,11 +1053,16 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // after timeframe change and the user must toggle OFF then ON to get them back.
   // This applies to ALL overlay buttons (trend, SR, harmonic, FVG, BOS, geo, EW, etc.)
   //
-  // FIX: Clear lastAnalysisResultRef when candles change (timeframe switch).
-  // Previously, re-emitting with old lastResult caused overlays from the
-  // previous timeframe to be drawn alongside new ones, creating accumulation.
-  // Now we ONLY trigger a fresh analyze() — no stale data re-emit.
+  // CRITICAL FIX: Distinguish between timeframe changes and WebSocket updates.
+  // - Timeframe/symbol change: First candle time changes → clear cache, re-analyze
+  // - WebSocket update: Only last candle changes → keep cache, just re-render overlays
+  //
+  // Previously, EVERY candle change cleared lastAnalysisResultRef, causing:
+  //   1. Unnecessary re-analysis on every new WebSocket candle
+  //   2. Lost analysis data (Fusion, Bayesian, etc.) on each candle
+  //   3. Flicker as overlays are cleared and re-drawn
   const candleSignatureRef = useRef<string>('');
+  const firstCandleTimeRef = useRef<number>(0);
   useEffect(() => {
     if (!candles?.length || candles.length < 20) return;
     const sig = `${candles[0]?.time}_${candles[candles.length - 1]?.time}_${candles.length}`;
@@ -1068,34 +1073,41 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     const anyActive = Object.values(overlaysRef.current).some(v => v === true);
     if (!anyActive) return;
 
-    // FIX: Invalidate stale analysis data from previous timeframe.
-    // The old lastResult contained overlays/metadata with timestamps from
-    // the previous timeframe — re-emitting it would draw those old patterns
-    // on the new chart, causing accumulation across timeframes.
-    lastAnalysisResultRef.current = null;
-    // Clear stale alerts from previous timeframe (they have wrong timestamps)
-    setChartAlerts([]);
-    alertsDedupRef.current.clear();
+    // CRITICAL FIX: Detect if this is a timeframe/symbol change or just
+    // a WebSocket update. A timeframe change means the FIRST candle time
+    // is different (new historical data). A WebSocket update only changes
+    // the last candle or adds one at the end.
+    const firstTime = candles[0]?.time || 0;
+    const isTimeframeChange = firstCandleTimeRef.current !== 0 && firstTime !== firstCandleTimeRef.current;
+    firstCandleTimeRef.current = firstTime;
 
-    // Schedule a fresh analysis for the new timeframe data.
-    // renderOverlays will do its own local detection from the new candles,
-    // so harmonic/BOS/FVG/Elliott/Wyckoff overlays will be correct.
-    // We don't re-emit old lastResult — only the fresh analyze() result
-    // will be sent to the chart.
+    if (isTimeframeChange) {
+      // Timeframe/symbol change: clear stale analysis data
+      lastAnalysisResultRef.current = null;
+      setChartAlerts([]);
+      alertsDedupRef.current.clear();
+    }
 
-    // Sustainable: Also notify chart of current overlays immediately
-    // so candle-only overlays (trend, SR) render on the new timeframe
-    // without waiting for the full analyze() to complete.
+    // ALWAYS notify chart of current overlays immediately so candle-only
+    // overlays (trend, SR) render without waiting for full analyze().
+    // On WebSocket updates, the cached analysis data is preserved so
+    // analysis-dependent overlays (VP, Entry, Fusion, etc.) also work.
     if (onOverlayChangeRef.current) {
       onOverlayChangeRef.current(overlaysRef.current);
     }
 
-    const timer = safeTimeout(() => {
-      runRef.current = false; // Reset guard to allow re-analysis
-      lastAnalyzeTimeRef.current = 0; // Reset throttle
-      analyze();
-    }, 300);
-    return () => clearTimeout(timer);
+    // Only schedule a fresh analysis on timeframe changes.
+    // On WebSocket updates, the periodic refresh timer in RouaChart.tsx
+    // handles overlay re-rendering, and the auto-analyze throttle handles
+    // analysis updates. No need to force a re-analysis here.
+    if (isTimeframeChange) {
+      const timer = safeTimeout(() => {
+        runRef.current = false; // Reset guard to allow re-analysis
+        lastAnalyzeTimeRef.current = 0; // Reset throttle
+        analyze();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles]);
 

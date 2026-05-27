@@ -88,6 +88,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // These series must be cleaned up before setData() to prevent "Value is null" crashes.
   const externalSeriesRef = useRef<Set<ISeriesApi<SeriesType>>>(new Set());
   const candlesRef = useRef<CandleData[]>([]);
+  // FIX: Track whether volume data has any non-zero values.
+  // Used to hide the volume histogram when all values are zero
+  // (e.g., forex/commodity sources don't provide volume).
+  const hasVolumeRef = useRef(true);
   const drawingManagerRef = useRef<DrawingManager | null>(null);
   const drawingRendererRef = useRef<DrawingRenderer | null>(null);
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
@@ -611,6 +615,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         value: last.volume,
         color: updated.close >= updated.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
       } as any);
+      // FIX: If volume was previously all-zero (histogram hidden) but this tick
+      // has non-zero volume, make the histogram visible again.
+      if (last.volume > 0 && !hasVolumeRef.current) {
+        hasVolumeRef.current = true;
+        volumeSeriesRef.current.applyOptions({
+          visible: settings.showVolume,
+        });
+      }
     }
   }, [isPaused, settings.type]);
 
@@ -1194,6 +1206,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // sources don't provide volume). Showing an empty zero-height histogram
     // wastes chart space and confuses users.
     const hasVolume = volumeData.some(v => v.value > 0);
+    hasVolumeRef.current = hasVolume;
 
     try {
       candleSeriesRef.current.setData(chartData as any);
@@ -1389,7 +1402,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         value: c.volume,
         color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
       }));
+      const hasVol = volumeData.some(v => v.value > 0);
+      hasVolumeRef.current = hasVol;
       volumeSeriesRef.current.setData(volumeData as any);
+      volumeSeriesRef.current.applyOptions({
+        visible: hasVol && settings.showVolume,
+      });
     }
 
     // Re-apply indicators
@@ -1519,10 +1537,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       });
     }
 
-    // Apply volume visibility
+    // Apply volume visibility — respect hasVolume guard
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.applyOptions({
-        visible: settings.showVolume,
+        visible: hasVolumeRef.current && settings.showVolume,
       });
     }
 
@@ -1781,7 +1799,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
       if (updates.showVolume !== undefined) {
         volumeSeriesRef.current?.applyOptions({
-          visible: updates.showVolume,
+          visible: hasVolumeRef.current && updates.showVolume,
         });
       }
       if (updates.bgColor !== undefined) {

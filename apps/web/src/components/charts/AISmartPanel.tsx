@@ -15,6 +15,10 @@ import { detectSMC } from '@/lib/charts/SMCDetector';
 import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns';
 import { detectElliottWaves } from '@/lib/charts/ElliottWave';
 import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
+// Phase 2: Professional Engines (10 Harmonic types, A-E Wyckoff, ABC+Fib Elliott)
+import { detectElliottAdvanced, elliottToAIPatterns, type ElliottResult, type WaveCount } from '@/lib/charts/ElliottEngine';
+import { detectWyckoffAdvanced, wyckoffToAIPatterns, type WyckoffResult, type WyckoffEvent } from '@/lib/charts/WyckoffEngine';
+import { runUnifiedAnalysis, type UnifiedAnalysisResult } from '@/lib/charts/unified-analysis';
 import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
 import { detectHarmonicPatterns, detectClassicPatterns } from '@/lib/charts/HarmonicPatterns';
 import { detectHarmonicPatternsPro, detectClassicPatternsPro } from '@/lib/charts/ProfessionalHarmonicPatterns';
@@ -87,7 +91,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'levels' | 'smc' | 'advanced';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced';
 
 interface Props {
   symbol: string;
@@ -115,6 +119,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [geoList, setGeoList] = useState<any[]>([]);
   const [elliottData, setElliottData] = useState<any>(null);
   const [wyckoffData, setWyckoffData] = useState<any>(null);
+  // Phase 2: Professional engine results
+  const [elliottAdvanced, setElliottAdvanced] = useState<ElliottResult | null>(null);
+  const [wyckoffAdvanced, setWyckoffAdvanced] = useState<WyckoffResult | null>(null);
+  const [unifiedResult, setUnifiedResult] = useState<UnifiedAnalysisResult | null>(null);
   const [volProfile, setVolProfile] = useState<any>(null);
   const [overlays, setOverlays] = useState({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false });
   const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
@@ -205,6 +213,47 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       setElliottData(elliottPattern);
       setWyckoffData(wyckoff);
       setVolProfile(volumeProfile);
+
+      // ── 2.5 PHASE 2: Professional Engines ──────────────────────
+      // Advanced Wyckoff (A-E phases with events: SC, AR, ST, Spring, SOS, etc.)
+      try {
+        const wyckoffAdv = detectWyckoffAdvanced(c);
+        setWyckoffAdvanced(wyckoffAdv);
+        // Merge Wyckoff advanced patterns into allPatterns
+        if (wyckoffAdv.scheme !== 'none') {
+          const wyckoffPatterns = wyckoffToAIPatterns(wyckoffAdv);
+          for (const wp of wyckoffPatterns) {
+            const key = `${wp.type}_${wp.direction}`;
+            if (!harmonicSeen.has(key)) {
+              harmonicSeen.add(key);
+              allPatterns.push(wp);
+            }
+          }
+        }
+      } catch (e) { /* Wyckoff advanced fallback */ }
+
+      // Advanced Elliott (ABC corrections + Fibonacci ratio verification)
+      try {
+        const elliottAdv = detectElliottAdvanced(c);
+        setElliottAdvanced(elliottAdv);
+        // Merge Elliott advanced patterns into allPatterns
+        if (elliottAdv.counts.length > 0) {
+          const elliottPatterns = elliottToAIPatterns(elliottAdv);
+          for (const ep of elliottPatterns) {
+            const key = `${ep.type}_${ep.direction}`;
+            if (!harmonicSeen.has(key)) {
+              harmonicSeen.add(key);
+              allPatterns.push(ep);
+            }
+          }
+        }
+      } catch (e) { /* Elliott advanced fallback */ }
+
+      // Unified Analysis Layer (aggregates all engine results)
+      try {
+        const unified = runUnifiedAnalysis(c);
+        setUnifiedResult(unified);
+      } catch (e) { /* Unified analysis fallback */ }
 
       // ── 3. REVOLUTIONARY: ATR Dynamic Thresholds + Volatility Regime ──
       let regime = 'normal';
@@ -834,7 +883,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -1186,6 +1235,155 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               </div>
             )}
             {!wyckoffData && !volProfile && !fusionResult && <div style={{ textAlign:'center', padding: 20, color: C.dim, fontSize: 10 }}>{t('pressForAnalysis')}</div>}
+          </div>
+        )}
+
+        {/* WYCKOFF — Phase 2: Full A-E Phase Analysis */}
+        {tab === 'wyckoff' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {!wyckoffAdvanced || wyckoffAdvanced.scheme === 'none' ? (
+              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>لا يوجد هيكل وايكوف — No Wyckoff structure detected</div>
+            ) : (
+              <>
+                {/* Scheme Header */}
+                <div style={{ padding: 8, borderRadius: 6, marginBottom: 8, background: wyckoffAdvanced.direction === 'bullish' ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${wyckoffAdvanced.direction === 'bullish' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 14 }}>{wyckoffAdvanced.direction === 'bullish' ? '📈' : '📉'}</span>
+                      <span style={{ color: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, fontWeight: 700, fontSize: 12 }}>
+                        {wyckoffAdvanced.scheme === 'accumulation' ? 'تراكم وايكوف — Accumulation' : 'توزيع وايكوف — Distribution'}
+                      </span>
+                    </div>
+                    <div style={{ padding: '2px 8px', borderRadius: 4, fontSize: 9, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: C.yellow, border: '1px solid rgba(245,158,11,0.2)' }}>
+                      المرحلة {wyckoffAdvanced.currentPhase}
+                    </div>
+                  </div>
+                  <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', borderRadius: 2, width: `${wyckoffAdvanced.confidence * 100}%`, background: wyckoffAdvanced.direction === 'bullish' ? C.green : C.red, transition: 'width 0.5s' }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginTop: 8, fontSize: 9 }}>
+                    <div><span style={{ color: C.dim }}>أعلى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{wyckoffAdvanced.range.high.toFixed(2)}</span></div>
+                    <div><span style={{ color: C.dim }}>أدنى النطاق:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{wyckoffAdvanced.range.low.toFixed(2)}</span></div>
+                    <div><span style={{ color: C.dim }}>الدعم:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{wyckoffAdvanced.support.toFixed(2)}</span></div>
+                    <div><span style={{ color: C.dim }}>المقاومة:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{wyckoffAdvanced.resistance.toFixed(2)}</span></div>
+                  </div>
+                </div>
+
+                {/* Events Timeline */}
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ color: C.dim, fontSize: 9, marginBottom: 4, fontWeight: 600 }}>الأحداث — Events Timeline</div>
+                  {wyckoffAdvanced.events.length === 0 ? (
+                    <div style={{ color: C.mut, textAlign: 'center', padding: 8 }}>لا أحداث بعد</div>
+                  ) : (
+                    wyckoffAdvanced.events.map((evt: WyckoffEvent, i: number) => (
+                      <div key={i} style={{ display: 'flex', gap: 6, padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 3, alignItems: 'flex-start' }}>
+                        <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: 'monospace', background: evt.phase === 'A' ? 'rgba(59,130,246,0.12)' : evt.phase === 'B' ? 'rgba(168,85,247,0.12)' : evt.phase === 'C' ? 'rgba(245,158,11,0.12)' : evt.phase === 'D' ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: evt.phase === 'A' ? C.blue : evt.phase === 'B' ? C.purple : evt.phase === 'C' ? C.yellow : evt.phase === 'D' ? C.green : C.red, border: `1px solid ${evt.phase === 'A' ? 'rgba(59,130,246,0.2)' : evt.phase === 'B' ? 'rgba(168,85,247,0.2)' : evt.phase === 'C' ? 'rgba(245,158,11,0.2)' : evt.phase === 'D' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}`, flexShrink: 0 }}>
+                          {evt.type}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <span style={{ color: C.dim, fontSize: 8 }}>المرحلة {evt.phase}</span>
+                            <span style={{ color: C.text, fontFamily: 'monospace', fontSize: 9 }}>{evt.price.toFixed(2)}</span>
+                          </div>
+                          <div style={{ color: C.mut, fontSize: 8 }}>{evt.description}</div>
+                        </div>
+                        <span style={{ color: C.mut, fontFamily: 'monospace', fontSize: 8 }}>V:{(evt.volume / 1000).toFixed(0)}K</span>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Phase Progress */}
+                <div>
+                  <div style={{ color: C.dim, fontSize: 9, marginBottom: 4, fontWeight: 600 }}>تقدم المراحل — Phase Progress</div>
+                  <div style={{ display: 'flex', gap: 3 }}>
+                    {(['A', 'B', 'C', 'D', 'E'] as const).map(phase => {
+                      const isActive = phase === wyckoffAdvanced.currentPhase;
+                      const isComplete = wyckoffAdvanced.events.some(e => e.phase === phase);
+                      return (
+                        <div key={phase} style={{ flex: 1, height: 24, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontFamily: 'monospace', background: isActive ? 'rgba(245,158,11,0.12)' : isComplete ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.02)', color: isActive ? C.yellow : isComplete ? C.dim : C.mut, border: isActive ? '1px solid rgba(245,158,11,0.2)' : 'none' }}>
+                          {phase}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ELLIOTT — Phase 2: ABC Corrections + Fibonacci */}
+        {tab === 'elliott' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {!elliottAdvanced || elliottAdvanced.counts.length === 0 ? (
+              <div style={{ color: C.mut, textAlign: 'center', padding: 24 }}>لا أنماط إليوت — No Elliott patterns detected</div>
+            ) : (
+              <>
+                {/* Dominant Count */}
+                {elliottAdvanced.dominantCount && (
+                  <div style={{ padding: 8, borderRadius: 6, marginBottom: 8, background: elliottAdvanced.dominantCount.direction === 'bullish' ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)', border: `1px solid ${elliottAdvanced.dominantCount.direction === 'bullish' ? 'rgba(16,185,129,0.2)' : 'rgba(239,68,68,0.2)'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontSize: 14 }}>〰️</span>
+                        <span style={{ color: elliottAdvanced.dominantCount.direction === 'bullish' ? C.green : C.red, fontWeight: 700, fontSize: 12 }}>
+                          {elliottAdvanced.dominantCount.type === 'impulse' ? 'نبضة' : elliottAdvanced.dominantCount.type === 'zigzag' ? 'زيگزاج' : elliottAdvanced.dominantCount.type === 'flat' ? 'مسطح' : elliottAdvanced.dominantCount.type === 'triangle' ? 'مثلث' : 'مركب'} {elliottAdvanced.dominantCount.direction === 'bullish' ? '↑' : '↓'}
+                        </span>
+                      </div>
+                      <div style={{ padding: '1px 6px', borderRadius: 3, fontSize: 8, fontWeight: 700, background: 'rgba(245,158,11,0.12)', color: C.yellow, border: '1px solid rgba(245,158,11,0.2)' }}>
+                        {(elliottAdvanced.dominantCount.probability * 100).toFixed(0)}%
+                      </div>
+                    </div>
+                    <div style={{ width: '100%', height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.06)', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', borderRadius: 2, width: `${elliottAdvanced.dominantCount.confidence * 100}%`, background: elliottAdvanced.dominantCount.direction === 'bullish' ? C.green : C.red, transition: 'width 0.5s' }} />
+                    </div>
+                    <div style={{ color: C.dim, fontSize: 9, marginTop: 4 }}>{elliottAdvanced.dominantCount.label}</div>
+                    {elliottAdvanced.dominantCount.targetPrice !== null && (
+                      <div style={{ color: C.dim, fontSize: 9, marginTop: 2 }}>الهدف: <span style={{ color: C.text, fontFamily: 'monospace' }}>{elliottAdvanced.dominantCount.targetPrice.toFixed(2)}</span></div>
+                    )}
+                  </div>
+                )}
+
+                {/* Fibonacci Ratios (impulse only) */}
+                {elliottAdvanced.dominantCount && elliottAdvanced.dominantCount.type === 'impulse' && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ color: C.dim, fontSize: 9, marginBottom: 4, fontWeight: 600 }}>نسب فيبوناتشي — Fibonacci Ratios</div>
+                    {[
+                      { label: 'W2/W1', val: elliottAdvanced.dominantCount.ratios.wave2Retrace, target: 0.618 },
+                      { label: 'W3/W1', val: elliottAdvanced.dominantCount.ratios.wave3Extend, target: 1.618 },
+                      { label: 'W4/W3', val: elliottAdvanced.dominantCount.ratios.wave4Retrace, target: 0.382 },
+                      { label: 'W5/W1', val: elliottAdvanced.dominantCount.ratios.wave5Extend, target: 1.0 },
+                    ].map(({ label, val, target }) => (
+                      <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 2 }}>
+                        <span style={{ color: C.dim, fontSize: 9 }}>{label}</span>
+                        <span style={{ fontFamily: 'monospace', fontSize: 9, color: Math.abs(val - target) / target < 0.08 ? C.green : C.yellow }}>
+                          {val.toFixed(3)}{Math.abs(val - target) / target < 0.08 ? ` ≈ ${target}` : ''}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Alternate Counts */}
+                {elliottAdvanced.counts.length > 1 && (
+                  <div>
+                    <div style={{ color: C.dim, fontSize: 9, marginBottom: 4, fontWeight: 600 }}>العدادات البديلة — Alternate Counts</div>
+                    {elliottAdvanced.counts.slice(1).map((count: WaveCount, i: number) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 6px', background: 'rgba(255,255,255,0.02)', borderRadius: 4, marginBottom: 3 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ color: count.direction === 'bullish' ? C.green : C.red, fontSize: 10 }}>{count.direction === 'bullish' ? '↑' : '↓'}</span>
+                          <span style={{ color: C.dim, textTransform: 'capitalize', fontSize: 9 }}>{count.type}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <span style={{ color: C.mut, fontSize: 8 }}>{count.label}</span>
+                          <span style={{ padding: '1px 4px', borderRadius: 3, fontSize: 8, fontFamily: 'monospace', background: 'rgba(255,255,255,0.04)', color: C.dim }}>{(count.probability * 100).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 

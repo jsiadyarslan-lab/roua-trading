@@ -39,32 +39,41 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  const isAr = locale === 'ar';
-  const isFr = locale === 'fr';
-  const isTr = locale === 'tr';
-  const isEs = locale === 'es';
-
   // Title & description per locale
-  const title = isAr
-    ? "\u0631\u0624\u0649 | \u0645\u0646\u0635\u0629 \u0631\u0628\u0637 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0627\u0644\u0630\u0643\u064a\u0629"
-    : isFr
-      ? "Roua | Plateforme intelligente de liaison de comptes"
-      : isTr
-        ? "Roua | Ak\u0131ll\u0131 Hesap Ba\u011flama Platformu"
-        : isEs
-          ? "Roua | Plataforma inteligente de vinculaci\u00f3n de cuentas"
-          : "Roua | Smart Account Linking Platform";
-  const description = isAr
-    ? "\u0645\u0646\u0635\u0629 \u0631\u0624\u0649 \u0644\u0631\u0628\u0637 \u0648\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0627\u0644\u0630\u0643\u064a\u0629 \u2014 \u062a\u062d\u0644\u064a\u0644\u0627\u062a AI\u060c \u0625\u0634\u0627\u0631\u0627\u062a \u062a\u062f\u0627\u0648\u0644\u060c \u0631\u0628\u0637 \u0628\u0648\u0631\u0635\u0627\u062a\u060c \u0648\u0645\u062d\u0641\u0638\u0629 \u0627\u0633\u062a\u062b\u0645\u0627\u0631\u064a\u0629 \u0630\u0643\u064a\u0629. Roua Trading Platform"
-    : isFr
-      ? "Plateforme Roua pour la liaison et le suivi intelligents de comptes \u2014 analyses IA, signaux de trading, liaison bourses, et portefeuille intelligent"
-      : isTr
-        ? "Roua ak\u0131ll\u0131 hesap ba\u011flama ve izleme platformu \u2014 AI analitikleri, i\u015flem sinyalleri, borsa ba\u011flant\u0131s\u0131 ve ak\u0131ll\u0131 yat\u0131r\u0131m portf\u00f6y\u00fc"
-        : isEs
-          ? "Plataforma Roua para vinculaci\u00f3n y seguimiento inteligente de cuentas \u2014 an\u00e1lisis IA, se\u00f1ales de trading, vinculaci\u00f3n de exchanges y cartera de inversi\u00f3n inteligente"
-          : "Roua platform for linking and monitoring smart accounts \u2014 AI analytics, trading signals, exchange linking, and smart investment portfolio";
-  const siteName = isAr ? "\u0631\u0624\u0649 \u2014 Roua Trading" : "Roua Trading";
-  const ogLocale = isAr ? "ar_SA" : isFr ? "fr_FR" : isTr ? "tr_TR" : isEs ? "es_ES" : "en_US";
+  const titles: Record<string, string> = {
+    ar: "رؤى | منصة ربط الحسابات الذكية",
+    en: "Roua | Smart Account Linking Platform",
+    fr: "Roua | Plateforme intelligente de liaison de comptes",
+    tr: "Roua | Akıllı Hesap Bağlama Platformu",
+    es: "Roua | Plataforma inteligente de vinculación de cuentas",
+    zh: "Roua | 智能账户关联平台",
+    ru: "Roua | Платформа интеллектуального связывания счетов",
+    hi: "Roua | स्मार्ट खाता लिंकिंग प्लेटफ़ॉर्म",
+    pt: "Roua | Plataforma inteligente de vinculação de contas",
+    de: "Roua | Intelligente Kontoverknüpfungsplattform",
+    ja: "Roua | スマートアカウント連携プラットフォーム",
+  };
+  const descriptions: Record<string, string> = {
+    ar: "منصة رؤى لربط ومتابعة الحسابات الذكية — تحليلات AI، إشارات تداول، ربط بورصات، ومحفظة استثمارية ذكية. Roua Trading Platform",
+    en: "Roua platform for linking and monitoring smart accounts — AI analytics, trading signals, exchange linking, and smart investment portfolio",
+    fr: "Plateforme Roua pour la liaison et le suivi intelligents de comptes — analyses IA, signaux de trading, liaison bourses, et portefeuille intelligent",
+    tr: "Roua akıllı hesap bağlama ve izleme platformu — AI analitikleri, işlem sinyalleri, borsa bağlantısı ve akıllı yatırım portföyü",
+    es: "Plataforma Roua para vinculación y seguimiento inteligente de cuentas — análisis IA, señales de trading, vinculación de exchanges y cartera de inversión inteligente",
+    zh: "Roua智能账户关联与监控平台 — AI分析、交易信号、交易所关联及智能投资组合",
+    ru: "Платформа Roua для интеллектуального связывания и мониторинга счетов — ИИ-аналитика, торговые сигналы, подключение бирж и умный инвестиционный портфель",
+    hi: "Roua स्मार्ट खाता लिंकिंग और मॉनिटरिंग प्लेटफ़ॉर्म — AI एनालिटिक्स, ट्रेडिंग सिग्नल, एक्सचेंज लिंकिंग और स्मार्ट निवेश पोर्टफोलियो",
+    pt: "Plataforma Roua para vinculação e monitoramento inteligente de contas — análises de IA, sinais de trading, vinculação de exchanges e carteira de investimento inteligente",
+    de: "Roua-Plattform für intelligente Kontoverknüpfung und Überwachung — KI-Analysen, Handelssignale, Börsenverknüpfung und intelligentes Anlageportfolio",
+    ja: "Rouaスマートアカウント連携・監視プラットフォーム — AI分析、トレードシグナル、取引所連携、スマート投資ポートフォリオ",
+  };
+  const ogLocales: Record<string, string> = {
+    ar: "ar_SA", en: "en_US", fr: "fr_FR", tr: "tr_TR", es: "es_ES",
+    zh: "zh_CN", ru: "ru_RU", hi: "hi_IN", pt: "pt_BR", de: "de_DE", ja: "ja_JP",
+  };
+  const title = titles[locale] || titles.en;
+  const description = descriptions[locale] || descriptions.en;
+  const siteName = locale === 'ar' ? "رؤى — Roua Trading" : "Roua Trading";
+  const ogLocale = ogLocales[locale] || "en_US";
 
   return {
     title,
@@ -83,17 +92,17 @@ export async function generateMetadata({
         'fr': '/fr',
         'tr': '/tr',
         'es': '/es',
+        'zh': '/zh',
+        'ru': '/ru',
+        'hi': '/hi',
+        'pt': '/pt',
+        'de': '/de',
+        'ja': '/ja',
       },
     },
     openGraph: {
       title,
-      description: isAr
-        ? "\u0645\u0646\u0635\u0629 \u0631\u0624\u0649 \u0644\u0631\u0628\u0637 \u0648\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0627\u0644\u0630\u0643\u064a\u0629 \u2014 \u062a\u062d\u0644\u064a\u0644\u0627\u062a AI\u060c \u0625\u0634\u0627\u0631\u0627\u062a \u062a\u062f\u0627\u0648\u0644\u060c \u0631\u0628\u0637 \u0628\u0648\u0631\u0635\u0627\u062a"
-        : isFr
-          ? "Plateforme Roua \u2014 analyses IA, signaux de trading et liaison bourses"
-          : isEs
-            ? "Plataforma Roua \u2014 an\u00e1lisis IA, se\u00f1ales de trading y vinculaci\u00f3n de exchanges"
-            : "Roua platform for linking and monitoring smart accounts \u2014 AI analytics, trading signals, exchange linking",
+      description: description,
       url: SITE_URL,
       siteName,
       locale: ogLocale,
@@ -110,13 +119,7 @@ export async function generateMetadata({
     twitter: {
       card: "summary",
       title,
-      description: isAr
-        ? "\u0645\u0646\u0635\u0629 \u0631\u0624\u0649 \u0644\u0631\u0628\u0637 \u0648\u0645\u062a\u0627\u0628\u0639\u0629 \u0627\u0644\u062d\u0633\u0627\u0628\u0627\u062a \u0627\u0644\u0630\u0643\u064a\u0629 \u2014 \u062a\u062d\u0644\u064a\u0644\u0627\u062a AI\u060c \u0625\u0634\u0627\u0631\u0627\u062a \u062a\u062f\u0627\u0648\u0644\u060c \u0631\u0628\u0637 \u0628\u0648\u0631\u0635\u0627\u062a"
-        : isFr
-          ? "Plateforme Roua \u2014 analyses IA, signaux de trading et liaison bourses"
-          : isEs
-            ? "Plataforma Roua \u2014 an\u00e1lisis IA, se\u00f1ales de trading y vinculaci\u00f3n de exchanges"
-            : "Roua platform for linking and monitoring smart accounts \u2014 AI analytics, trading signals, exchange linking",
+      description: description,
       images: ["/icon-512.png"],
     },
   };

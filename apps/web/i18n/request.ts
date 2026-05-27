@@ -3,13 +3,16 @@ import { routing } from './routing';
 
 // ── Smart locale proximity mapping (must match middleware.ts) ──
 const LOCALE_PROXIMITY: Record<string, string> = {
-  pt: 'es', it: 'es', ca: 'es', gl: 'es',
+  it: 'es', ca: 'es', gl: 'es',
   ro: 'fr',
-  nl: 'en', de: 'en', sv: 'en', no: 'en', da: 'en', fi: 'en',
-  ru: 'en', uk: 'en', pl: 'en', cs: 'en',
-  zh: 'en', ja: 'en', ko: 'en', hi: 'en', th: 'en', vi: 'en', id: 'en', ms: 'en',
+  nl: 'de', sv: 'de', no: 'de', da: 'de', fi: 'de',
+  uk: 'ru', pl: 'ru', cs: 'ru', bg: 'ru',
+  zh_CN: 'zh', zh_TW: 'zh', zh_HK: 'zh', zh_SG: 'zh',
+  ko: 'zh', th: 'zh', vi: 'zh', id: 'zh', ms: 'zh',
   az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr',
-  ku: 'ar', fa: 'ar', he: 'ar', ur: 'ar',
+  ku: 'ar', fa: 'ar', he: 'ar', ur: 'hi',
+  pt_BR: 'pt', pt_PT: 'pt',
+  hi_IN: 'hi',
 };
 
 function resolveLocale(acceptLanguage: string): string | null {

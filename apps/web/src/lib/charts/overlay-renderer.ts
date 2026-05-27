@@ -67,7 +67,9 @@ export function renderOverlays(
   if (!candles.length || candles.length < 20) return;
 
   const registry = getOverlayRegistry();
-  registry.init(series);
+  // FIX: Pass removePriceLine to registry so it can clean up price lines
+  // when an overlay type is cleared (toggled off).
+  registry.init(series, removePriceLine ?? undefined);
 
   const ov = overlays || {};
   const showSR = ov.sr === true;
@@ -91,6 +93,8 @@ export function renderOverlays(
   const swings = computeZigZag(candles);
 
   // ── Helper: safe price line ──
+  // FIX: Also register the price line ID with the OverlayRegistry so
+  // it gets removed when the overlay type is cleared (toggled off).
   const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
     if (!addPriceLine) return;
     const range = candles.slice(-30);
@@ -100,6 +104,8 @@ export function renderOverlays(
     const lastPrice = candles[candles.length - 1].close;
     if (Math.abs(price - lastPrice) > maxDist) return;
     addPriceLine(id, price, color, label, lw, ls, axisVisible);
+    // Register this price line ID with the overlay type so it's cleaned up on toggle off
+    registry.addPriceLineId(_type, id);
   };
 
   // ═══════════════════════════════════════════════════════════════

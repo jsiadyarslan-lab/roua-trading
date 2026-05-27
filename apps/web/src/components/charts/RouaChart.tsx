@@ -935,9 +935,15 @@ export default function RouaChart({
   // Uses OverlayManager for proper lifecycle management — ONLY removes overlay
   // series, NEVER touches the candle series.
   const cleanupAIOverlays = useCallback(() => {
-    // Use OverlayRegistry to clear ALL primitives
+    // FIX: Use OverlayRegistry directly (not resetOverlayRegistry helper)
+    // so we can initialize with removePriceLine first, ensuring price lines
+    // are properly cleaned up before destroying the registry.
     try {
-      const { resetOverlayRegistry } = require('@/lib/charts/OverlayRegistry');
+      const { getOverlayRegistry, resetOverlayRegistry } = require('@/lib/charts/OverlayRegistry');
+      const reg = getOverlayRegistry();
+      // Set up removePriceLine callback so clearAll() can remove price lines
+      reg.setRemovePriceLine(chart.removePriceLine);
+      reg.clearAll();
       resetOverlayRegistry();
     } catch {}
     // Also clear old OverlayManager for backward compat
@@ -1105,6 +1111,12 @@ export default function RouaChart({
     const { resetOverlayRegistry } = await import('@/lib/charts/OverlayRegistry');
 
     if (!anyOverlayEnabled) {
+      // FIX: Initialize registry with removePriceLine before clearing,
+      // so price lines are properly cleaned up when all overlays are toggled off.
+      const { getOverlayRegistry } = await import('@/lib/charts/OverlayRegistry');
+      const reg = getOverlayRegistry();
+      reg.init(series, chart.removePriceLine);
+      reg.clearAll();
       resetOverlayRegistry();
       // Also clean up price lines from old overlay system
       const mgr = getOverlayManager();

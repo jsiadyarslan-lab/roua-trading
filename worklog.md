@@ -21,3 +21,29 @@ Stage Summary:
 - Build passes ✅
 - Push succeeded ✅ (normal push, no force)
 - Files modified: config.ts, trading-intelligence.ts, margin-calculator.ts, useMarketData.ts, MarketProvider.tsx, exchange/history/route.ts, exchange/quote/route.ts, diagnostics/route.ts, ai-direct-calls.ts, useNotificationStore.ts, AlertManager.tsx, PriceAlertLine.tsx
+
+---
+Task ID: overlay-fix
+Agent: main
+Task: Fix 4 critical overlay toggle bugs causing drawings to persist and buttons to break
+
+Work Log:
+- Investigated the full overlay toggle flow (AISmartPanel → RouaChart → OverlayRegistry → renderOverlays)
+- Identified 4 critical bugs in the overlay system:
+  1. BUG #5: registry.init() didn't detach primitives from old series → orphaned drawings
+  2. BUG #1: resetOverlayRegistry() destroyed singleton on all-off path → lost tracking state
+  3. BUG #3: Race condition with await import() in handlePatternsDetected → stale series refs
+  4. BUG #4: OverlayManager never initialized → clearAll() was dead code
+- Fixed OverlayRegistry.ts: init() now detects series changes and cleans up before switching
+- Fixed RouaChart.tsx: removed resetOverlayRegistry() from toggle-off path, only use clearAll()
+- Fixed RouaChart.tsx: pre-load overlay modules to eliminate async gaps
+- Fixed RouaChart.tsx: added race condition guard for series reference changes
+- Fixed RouaChart.tsx: removed dead OverlayManager.clearAll() calls
+- Build successful, pushed to main
+
+Stage Summary:
+- 4 critical overlay bugs fixed and pushed
+- The overlay toggle should now work correctly: press → draw, press again → disappear
+- The singleton registry is preserved between toggle operations (only destroyed on timeframe change)
+- Orphaned primitives are properly cleaned up when the series changes
+- Race conditions eliminated by pre-loading modules

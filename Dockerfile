@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v199-fix-oom-32-locales-dynamic-render
+ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -51,9 +51,17 @@ RUN npm ci --legacy-peer-deps
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS builder
 
+# Re-declare global ARGs so they're accessible in this build stage
+ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
+ARG GIT_COMMIT=unknown
+
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
+
+# Cache bust: reference BUILD_CACHE so changing its value invalidates
+# the Docker layer cache for all subsequent layers (COPY, RUN, etc.)
+RUN echo "BUILD_CACHE=${BUILD_CACHE} GIT_COMMIT=${GIT_COMMIT}"
 
 # Copy installed node_modules from deps stage
 COPY --from=deps /app/node_modules ./node_modules
@@ -94,6 +102,12 @@ RUN cd apps/web && next build --webpack
 # Stage 3: Production image with API + Web (optimized)
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
+
+# Re-declare global ARGs so they're accessible in this build stage
+# Without this, the ENV vars below would be empty because global ARGs
+# (defined before the first FROM) are NOT accessible inside build stages.
+ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
+ARG GIT_COMMIT=unknown
 
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # procps: Provides pgrep/pkill for process management in start.sh

@@ -1108,73 +1108,67 @@ export default function RouaChart({
     import('@/lib/charts/OverlayRegistry').then(mod => { overlayRegistryRef.current = mod; }).catch(() => {});
   }, []);
 
+  // ── SUSTAINABLE: handlePatternsDetected ──────────────────────────
+  // When analysis completes, this handler fires. It does TWO things:
+  //   1. Update the cached analysis data (lastAnalysisResultRef)
+  //   2. Render ONLY analysis-dependent overlays (VP, Entry, Fusion,
+  //      Bayesian, Alerts, MTF, Trade, Liquidity)
+  //
+  // It does NOT re-render candle-only overlays (SR, Trend, Harmonic,
+  // FVG, BOS, Geo, Elliott, Wyckoff). Those are handled exclusively
+  // by handleOverlayChange when the user toggles buttons.
+  //
+  // This eliminates:
+  //   - Double emission (analysis overlay vs toggle overlay)
+  //   - Flicker (clearAll destroys candle-only overlays)
+  //   - Race conditions (independent rendering pipelines)
+  // ═══════════════════════════════════════════════════════════════════
   const handlePatternsDetected = useCallback(async (result: AIAnalysisResult) => {
     try {
-    // ── Overlay filters: only draw what the user explicitly enabled ──
     const ov = (result as any).overlays || {};
     const anyOverlayEnabled = Object.values(ov).some(v => v === true);
 
-    // FIX: Do NOT set aiPatterns (candlestick markers like Doji, Hammer)
-    // when overlay buttons are toggled. Previously, pressing ANY overlay
-    // button (Harmonic, FVG, BOS, etc.) would dump ALL detected candlestick
-    // patterns as markers on the chart, causing "circles on every candle".
-    // Overlays (lines, zones, labels) and pattern markers are separate.
-    // Only clear markers when ALL overlays are off.
     if (!anyOverlayEnabled) {
       setAiPatterns([]);
     }
-    // Note: aiPatterns is NOT set to result.patterns here anymore.
-    // Pattern markers should come from the AISmartPanel Candles tab,
-    // not from overlay toggle events.
+
+    // STEP 1: Update cached analysis data — this is the single source
+    // of truth for analysis-dependent overlay rendering.
     lastAnalysisResultRef.current = result;
 
-    // ── Get the candle series for primitives ──
+    // STEP 2: Get chart series for rendering
     const series = chart.candleSeriesRef?.current;
     if (!series) {
       console.warn('[AI Overlay] No candle series, skipping');
       return;
     }
 
-    // ── Use cached modules (no async gap!) ──
-    // FALLBACK: if modules aren't cached yet, import them dynamically.
-    // But the pre-load useEffect should have them ready by now.
+    // STEP 3: Use cached overlay modules
     const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
     const registryMod = overlayRegistryRef.current || await import('@/lib/charts/OverlayRegistry');
 
     if (!anyOverlayEnabled) {
-      // All overlays toggled off — clear everything from the chart.
-      // IMPORTANT: Do NOT call resetOverlayRegistry() here! That destroys
-      // the singleton and loses tracking state. Instead, just clearAll()
-      // which detaches all primitives and removes all price lines, but
-      // keeps the registry alive for the next toggle-ON.
+      // All overlays off — clear everything
       const reg = registryMod.getOverlayRegistry();
       reg.init(series, chart.removePriceLine);
       reg.clearAll();
-      // DO NOT: resetOverlayRegistry() — would destroy tracking state
       return;
     }
 
-    // Re-validate series after potential async import (race condition guard)
+    // Re-validate series after potential async import
     const currentSeries = chart.candleSeriesRef?.current;
     if (currentSeries !== series) {
-      // Series changed during our execution (timeframe change) — abort.
-      // The timeframe change useEffect will re-trigger overlay rendering
-      // with the correct new series.
       console.warn('[AI Overlay] Series changed during render, aborting');
       return;
     }
 
-    // FIX: Clear all existing overlays before rendering new ones.
-    // This prevents accumulation when handlePatternsDetected is called
-    // multiple times (e.g., overlay toggle re-emit + fresh analyze result).
-    // Without this, primitives from a previous call remain on the chart
-    // because prepareRedraw only clears one overlay type at a time,
-    // and concurrent calls can add primitives between clear+add cycles.
-    const reg = registryMod.getOverlayRegistry();
-    reg.init(series, chart.removePriceLine);
-    reg.clearAll();
-
-    overlayMod.renderOverlays(series, {
+    // STEP 4: Render ONLY analysis-dependent overlays.
+    // This is the KEY difference from the old code:
+    // - Old: reg.clearAll() → renderOverlays() → destroys candle-only overlays
+    // - New: renderAnalysisOverlays() → only touches VP/Entry/Fusion/Bayesian/MTF/Trade/Liq
+    // Candle-only overlays (SR, Trend, Harmonic, FVG, BOS, Geo, EW, Wyckoff)
+    // remain untouched on the chart.
+    overlayMod.renderAnalysisOverlays(series, {
       candles: candlesRef.current,
       overlays: ov,
       supportLevels: result.supportLevels,
@@ -1203,18 +1197,23 @@ export default function RouaChart({
   // ═══════════════════════════════════════════════════════════════════
   // Sustainable: Direct overlay change handler
   // Called when user toggles overlay buttons in AISmartPanel.
-  // Uses CACHED lastAnalysisResultRef — no need for re-emitting through
-  // onPatternsDetected. Eliminates double-emission and flicker.
   //
-  // Architecture:
-  //   Toggle button → onOverlayChange(overlays) → this handler
-  //   Uses: lastAnalysisResultRef.current (cached analysis data) + new overlays
-  //   Result: renderOverlays() with cached data + new overlay flags
+  // Architecture (SUSTAINABLE — two independent pipelines):
+  //   Pipeline 1 (THIS): User toggle → onOverlayChange → renderOverlays
+  //     Renders ALL overlay types (candle-only + analysis-dependent)
+  //     using cached analysis data. Candle-only overlays (trend, SR,
+  //     FVG, BOS, harmonic, geo, EW, Wyckoff) work immediately from
+  //     candles alone. Analysis-dependent overlays (VP, Entry, MTF,
+  //     Trade, Liq) use cached data if available.
   //
-  // Candle-only overlays (trend, SR, FVG, BOS, harmonic, geo, Elliott, Wyckoff)
-  // work IMMEDIATELY — overlay-renderer detects them from candles independently.
-  // Analysis-dependent overlays (VP, Fusion, Bayesian, MTF, Trade, Liq) render
-  // once the first analyze() completes and populates the cache.
+  //   Pipeline 2: Analysis complete → handlePatternsDetected → renderAnalysisOverlays
+  //     Renders ONLY analysis-dependent overlays (VP, Entry, Fusion,
+  //     Bayesian, Alerts, MTF, Trade, Liq). Does NOT touch candle-only
+  //     overlays, preventing flicker.
+  //
+  // KEY: renderOverlays uses per-type prepareRedraw/clearType internally,
+  // so we do NOT need clearAll() here. Each overlay type is independently
+  // cleared and re-rendered, leaving other types untouched.
   // ═══════════════════════════════════════════════════════════════════
   const handleOverlayChange = useCallback(async (overlays: {
     sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean;
@@ -1241,13 +1240,17 @@ export default function RouaChart({
       const currentSeries = chart.candleSeriesRef?.current;
       if (currentSeries !== series) return;
 
+      // SUSTAINABLE: Do NOT call reg.clearAll() here.
+      // renderOverlays() uses per-type prepareRedraw/clearType internally,
+      // which only clears and re-renders the specific overlay type being
+      // updated. This means:
+      //   - Toggling trend ON doesn't touch SR overlays
+      //   - Toggling SR OFF doesn't touch trend overlays
+      //   - No flicker from clearing everything and re-drawing
       const reg = registryMod.getOverlayRegistry();
       reg.init(series, chart.removePriceLine);
-      reg.clearAll();
 
       // Use cached analysis data if available, empty otherwise.
-      // Candle-only overlays (trend, SR, FVG, BOS, harmonic, geo) work
-      // without any analysis data — overlay-renderer detects from candles.
       const cached = lastAnalysisResultRef.current;
 
       overlayMod.renderOverlays(series, {

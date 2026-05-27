@@ -1258,6 +1258,260 @@ export function renderOverlays(
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// SUSTAINABLE: renderAnalysisOverlays — Independent pipeline for
+// analysis-dependent overlays only.
+//
+// This function is the KEY to the sustainable overlay architecture.
+// It renders ONLY overlays that depend on AI analysis data:
+//   VP, Entry, Fusion, Bayesian, Alerts, MTF, Trade, Liquidity
+//
+// It does NOT touch candle-only overlays:
+//   SR, Trend, Harmonic, FVG, BOS, Geo, Elliott, Wyckoff
+//
+// When handlePatternsDetected fires (analysis completes), it calls this
+// function instead of renderOverlays. This means:
+// 1. No flicker — candle-only overlays stay rendered
+// 2. No double emission — each pipeline renders its own types
+// 3. No race condition — analysis overlay data is independent
+// ═══════════════════════════════════════════════════════════════════════
+export function renderAnalysisOverlays(
+  series: ISeriesApi<SeriesType>,
+  input: OverlayInput,
+  addPriceLine?: (id: string, price: number, color: string, label: string, lineWidth: number, lineStyle: number, axisLabelVisible: boolean) => void,
+  removePriceLine?: (id: string) => void,
+): void {
+  const { candles, overlays } = input;
+  if (!candles.length || candles.length < 20) return;
+
+  const registry = getOverlayRegistry();
+  registry.init(series, removePriceLine ?? undefined);
+
+  const ov = overlays || {};
+  const showVP = ov.vp === true;
+  const showEntry = ov.entry === true;
+  const showMTF = ov.mtf === true;
+  const showLiq = ov.liq === true;
+  const showTrade = ov.trade === true;
+
+  // ── Helper: safe price line ──
+  const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
+    if (!addPriceLine) return;
+    const range = candles.slice(-30);
+    const high = Math.max(...range.map(c => c.high));
+    const low = Math.min(...range.map(c => c.low));
+    const maxDist = (high - low) * 3;
+    const lastPrice = candles[candles.length - 1].close;
+    if (Math.abs(price - lastPrice) > maxDist) return;
+    addPriceLine(id, price, color, label, lw, ls, axisVisible);
+    registry.addPriceLineId(_type, id);
+  };
+
+  // ── VP: Volume Profile (analysis-dependent) ──
+  if (showVP) {
+    registry.prepareRedraw('vp');
+    const vp = input.volumeProfile;
+    if (vp && vp.poc > 0) {
+      registry.add('vp', new HorizontalLinePrimitive({
+        price: vp.poc, color: OVERLAY_COLORS.vp, lineWidth: 2, lineStyle: 0, label: 'POC',
+      }));
+      registry.add('vp', new HorizontalLinePrimitive({
+        price: vp.vah, color: 'rgba(0, 200, 255, 0.6)', lineWidth: 1, lineStyle: 2, label: 'VAH',
+      }));
+      registry.add('vp', new HorizontalLinePrimitive({
+        price: vp.val, color: 'rgba(255, 100, 100, 0.6)', lineWidth: 1, lineStyle: 2, label: 'VAL',
+      }));
+      safeAddPriceLine('vp-poc', vp.poc, 'rgba(251,191,36,0.9)', 'POC', 2, 0, true, 'vp');
+      safeAddPriceLine('vp-vah', vp.vah, 'rgba(0,200,255,0.6)', 'VAH', 1, 2, false, 'vp');
+      safeAddPriceLine('vp-val', vp.val, 'rgba(255,100,100,0.6)', 'VAL', 1, 2, false, 'vp');
+    }
+  } else {
+    registry.clearType('vp');
+  }
+
+  // ── ENTRY: Entry/SL/TP (analysis-dependent) ──
+  if (showEntry) {
+    registry.prepareRedraw('entry');
+    const signal = input.signal;
+    const entryExit = input.entryExit;
+    const lastPrice = candles[candles.length - 1].close;
+    let entry: number, sl: number, tp: number, dir: string;
+    if (entryExit && entryExit.entryPrice > 0) {
+      entry = entryExit.entryPrice; sl = entryExit.stopLoss; tp = entryExit.takeProfit; dir = entryExit.direction;
+    } else if (signal && signal.entry > 0) {
+      entry = signal.entry; sl = signal.sl; tp = signal.tp; dir = signal.dir === 'BUY' ? 'long' : 'short';
+    } else {
+      const last20 = candles.slice(-20);
+      const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
+      const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
+      dir = ema9 > ema20 ? 'long' : 'short';
+      const atr = candles.length >= 14 ? (() => {
+        const sl2 = candles.slice(-14);
+        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+        return trs.reduce((s, v) => s + v, 0) / trs.length;
+      })() : lastPrice * 0.01;
+      entry = lastPrice; sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5; tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+    }
+    registry.add('entry', new HorizontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? 'BUY' : 'SELL'}` }));
+    if (sl > 0) registry.add('entry', new HorizontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL' }));
+    if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP' }));
+    if (sl > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, sl), lowPrice: Math.min(entry, sl), fillColor: 'rgba(239, 68, 68, 0.04)', borderColor: undefined }));
+    if (tp > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, tp), lowPrice: Math.min(entry, tp), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
+    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
+    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', 'SL', 2, 2, true, 'entry');
+    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', 'TP', 2, 2, true, 'entry');
+  } else {
+    registry.clearType('entry');
+  }
+
+  // ── FUSION: Confluence (analysis-dependent) ──
+  if (input.fusionResult && input.fusionResult.confluenceScore > 40) {
+    registry.prepareRedraw('fusion');
+    const fusion = input.fusionResult;
+    const lastPrice = candles[candles.length - 1].close;
+    const lastTime = candles[candles.length - 1].time;
+    if (fusion.direction !== 'neutral') {
+      const isBull = fusion.direction === 'bullish';
+      const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+      const arrowLabel = isBull ? '▲' : '▼';
+      registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
+      const recentCandles = candles.slice(-5);
+      const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
+      registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? Math.min(...recentCandles.map(c => c.low)) * 0.9995 : Math.max(...recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 8, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
+    }
+  } else {
+    registry.clearType('fusion');
+  }
+
+  // ── BAYESIAN: Consensus direction (analysis-dependent) ──
+  if (input.bayesianResult && input.bayesianResult.confidence > 0.4) {
+    registry.prepareRedraw('bayesian');
+    const bayes = input.bayesianResult;
+    const lastPrice = candles[candles.length - 1].close;
+    const lastTime = candles[candles.length - 1].time;
+    if (bayes.direction !== 'neutral') {
+      const isBull = bayes.direction === 'bullish';
+      const bayesColor = isBull ? '#22d3ee' : '#f97316';
+      const confPct = Math.round(bayes.confidence * 100);
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 9, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
+      const bullPct = Math.round(bayes.posteriorBullish * 100);
+      const bearPct = Math.round(bayes.posteriorBearish * 100);
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? Math.min(...candles.slice(-10).map(c => c.low)) : Math.max(...candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 7, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
+    }
+  } else {
+    registry.clearType('bayesian');
+  }
+
+  // ── ALERTS: Visual pins (analysis-dependent) ──
+  if (input.alerts && input.alerts.length > 0) {
+    registry.prepareRedraw('alerts');
+    const filteredAlerts = input.alerts.filter((alert) => {
+      switch (alert.type) {
+        case 'smc':      return ov.bos === true;
+        case 'fvg':      return ov.fvg === true;
+        case 'harmonic': return ov.harmonic === true;
+        case 'pattern':  return false;
+        default:         return false;
+      }
+    });
+    filteredAlerts.slice(-8).forEach((alert) => {
+      registry.add('alerts', new AlertMarkerPrimitive({ time: alert.time, price: alert.price, label: alert.label, direction: alert.direction, confidence: alert.confidence, type: alert.type }));
+    });
+    if (filteredAlerts.length === 0) registry.clearType('alerts');
+  } else {
+    registry.clearType('alerts');
+  }
+
+  // ── MTF: Multi-Timeframe (analysis-dependent) ──
+  if (showMTF && input.mtfResult && input.mtfResult.confluenceScore > 30) {
+    registry.prepareRedraw('mtf');
+    const mtf = input.mtfResult;
+    const lastPrice = candles[candles.length - 1].close;
+    const lastTime = candles[candles.length - 1].time;
+    if (mtf.confluenceDirection !== 'neutral') {
+      const isBull = mtf.confluenceDirection === 'bullish';
+      const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
+      const arrow = isBull ? '▲' : '▼';
+      registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? Math.min(...candles.slice(-10).map(c => c.low)) * 0.999 : Math.max(...candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 10, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
+    }
+    for (const sr of mtf.srConfluences.slice(0, 3)) {
+      const opacity = Math.min(0.8, sr.combinedStrength);
+      const srColor = sr.type === 'support' ? `rgba(0, 255, 163, ${opacity})` : `rgba(255, 71, 87, ${opacity})`;
+      registry.add('mtf', new HorizontalLinePrimitive({ price: sr.price, color: srColor, lineWidth: sr.combinedStrength > 0.7 ? 2 : 1, lineStyle: 1, label: `${sr.labelAr} (${sr.timeframes.length}TF)` }));
+      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
+    }
+    for (const fib of mtf.fibConfluences.slice(0, 3)) {
+      const fibColor = 'rgba(212, 175, 55, 0.3)';
+      registry.add('mtf', new HorizontalLinePrimitive({ price: fib.price, color: fibColor, lineWidth: 1, lineStyle: 2, label: `Fib MTF (${fib.ratios.length})` }));
+      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${fib.ratios.map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
+    }
+    for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
+      registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 8, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
+    }
+  } else {
+    registry.clearType('mtf');
+  }
+
+  // ── TRADE: Proposals (analysis-dependent) ──
+  if (showTrade && input.tradeProposals && input.tradeProposals.length > 0) {
+    registry.prepareRedraw('trade');
+    const proposal = input.tradeProposals.find(p => p.status === 'pending' || p.status === 'active' || p.status === 'breakeven') || input.tradeProposals[0];
+    if (proposal) {
+      const isBull = proposal.direction === 'bullish';
+      const dirAr = isBull ? 'شراء' : 'بيع';
+      registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#22d3ee' : '#f97316', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})` }));
+      const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
+      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL' }));
+      const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
+      const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
+      for (let i = 0; i < proposal.takeProfits.length; i++) {
+        registry.add('trade', new HorizontalLinePrimitive({ price: proposal.takeProfits[i], color: tpColors[i] || tpColors[2], lineWidth: i === 0 ? 2 : 1, lineStyle: i === 0 ? 0 : i === 1 ? 1 : 2, label: tpLabels[i] || `TP${i + 1}` }));
+      }
+      registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, effectiveSL), lowPrice: Math.min(proposal.entryPrice, effectiveSL), fillColor: 'rgba(239, 68, 68, 0.05)', borderColor: undefined }));
+      if (proposal.takeProfits[2]) {
+        registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]), lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
+      }
+      const entryCol = isBull ? '#22d3ee' : '#f97316';
+      safeAddPriceLine('trade-entry', proposal.entryPrice, entryCol, `Entry ${dirAr}`, 2, 0, true, 'trade');
+      safeAddPriceLine('trade-sl', effectiveSL, proposal.currentTrailSL ? '#fbbf24' : '#ef4444', proposal.currentTrailSL ? 'Trail SL' : 'SL', 2, 2, true, 'trade');
+      for (let i = 0; i < proposal.takeProfits.length; i++) {
+        safeAddPriceLine(`trade-tp${i}`, proposal.takeProfits[i], tpColors[i] || '#10b981', tpLabels[i] || `TP${i+1}`, i === 0 ? 2 : 1, 2, i === 0, 'trade');
+      }
+      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? Math.max(...candles.slice(-5).map(c => c.high)) * 1.002 : Math.min(...candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
+    }
+    if (!proposal) registry.clearType('trade');
+  } else {
+    registry.clearType('trade');
+  }
+
+  // ── LIQUIDITY: Zones (analysis-dependent) ──
+  if (showLiq) {
+    registry.prepareRedraw('liq');
+    const liqData = input.liquidityResult;
+    if (liqData && liqData.zones.length > 0) {
+      const lastTime = candles[candles.length - 1].time;
+      for (const zone of liqData.zones) {
+        registry.add('liq', new ZonePrimitive({ startTime: zone.startTime as any, endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any, highPrice: zone.high, lowPrice: zone.low, fillColor: zone.swept ? 'rgba(156, 163, 175, 0.06)' : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', borderColor: zone.swept ? undefined : zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.3)' : 'rgba(255, 71, 87, 0.3)' }));
+        if (!zone.swept && zone.strength >= 2) {
+          const labelColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.8)' : 'rgba(255, 71, 87, 0.8)';
+          registry.add('liq', new LabelPrimitive({ time: zone.startTime as any, price: zone.type === 'equal_highs' || zone.type === 'previous_high' ? zone.high : zone.low, text: zone.labelAr, color: labelColor, fontSize: 7, align: 'left', bg: zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)', position: zone.type === 'equal_highs' || zone.type === 'previous_high' ? 'above' : 'below' }));
+        }
+        if (!zone.swept && zone.strength >= 3) {
+          const lineColor = zone.sweepDirection === 'bullish' ? 'rgba(0, 255, 163, 0.5)' : 'rgba(255, 71, 87, 0.5)';
+          registry.add('liq', new HorizontalLinePrimitive({ price: zone.price, color: lineColor, lineWidth: 1, lineStyle: 2, label: `${zone.labelAr} ×${zone.strength}` }));
+          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${zone.labelAr} ×${zone.strength}`, 1, 2, false, 'liq');
+        }
+      }
+      if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
+        const isBull = liqData.dominantSweepDirection === 'bullish';
+        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? Math.min(...candles.slice(-5).map(c => c.low)) * 0.998 : Math.max(...candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 9, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
+      }
+    }
+  } else {
+    registry.clearType('liq');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // LOCAL WYCKOFF DETECTION — Fallback when AI data is unavailable
 //
 // Uses price/volume analysis to determine the current Wyckoff phase:

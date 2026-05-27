@@ -994,20 +994,31 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // even without cached analysis data — overlay-renderer detects from candles.
   // Analysis-dependent overlays (VP, Fusion, Bayesian, MTF, etc.) render once
   // the first analyze() completes and populates the cache.
+  //
+  // ARCHITECTURE: Two independent rendering pipelines:
+  //   Pipeline 1: User toggle → onOverlayChange → renderOverlays (ALL types)
+  //   Pipeline 2: Analysis complete → onPatternsDetected → renderAnalysisOverlays (analysis-only)
+  // Pipeline 2 never touches candle-only overlays, so no flicker.
   const overlaysRef = useRef(overlays);
   overlaysRef.current = overlays;
   const signalRef = useRef(signal);
   signalRef.current = signal;
 
   useEffect(() => {
-    // If the chart supports onOverlayChange, use the sustainable path.
-    // Otherwise fall back to the legacy re-emit through onPatternsDetected.
+    // SUSTAINABLE PATH: If the chart supports onOverlayChange, use it.
+    // This is the ONLY path that should execute on overlay toggle.
+    // The legacy re-emit through onPatternsDetected is removed because:
+    //   1. It caused double emission (toggle + analysis completion)
+    //   2. It caused flicker (clearAll destroys candle-only overlays)
+    //   3. It was a band-aid that didn't address the root cause
     if (onOverlayChangeRef.current) {
       onOverlayChangeRef.current(overlays);
       return;
     }
 
-    // ── Legacy fallback: re-emit through onPatternsDetected ──
+    // ── Fallback for charts without onOverlayChange ──
+    // This path is only used if the parent doesn't pass onOverlayChange.
+    // In that case, we fall back to the old re-emit pattern.
     if (!candles?.length) return;
     const lastResult = lastAnalysisResultRef.current;
     if (!lastResult) {

@@ -28,10 +28,17 @@ const fontVars = [
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
-// Generate static params for all supported locales
-export function generateStaticParams() {
-  return routing.locales.map((locale) => ({ locale }));
-}
+// REMOVED: generateStaticParams() — was causing OOM on Railway during build.
+// With 32 locales and 60+ pages, static generation required rendering
+// 1,920+ pages at build time, exceeding Railway's memory limits.
+// Pages are now dynamically rendered (first request → cached by CDN).
+// This has zero impact on user experience — Next.js streams the page
+// on first visit and subsequent visits are served from the route cache.
+//
+// If static generation is needed for SEO on specific pages, add
+// generateStaticParams() to individual page.tsx files with a limited
+// set of locales (e.g., ['ar', 'en', 'fr']).
+export const dynamic = 'force-dynamic';
 
 export async function generateMetadata({
   params,

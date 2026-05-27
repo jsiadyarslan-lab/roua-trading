@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v198-32-locales-global-coverage
+ARG BUILD_CACHE=v199-fix-oom-32-locales-dynamic-render
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.

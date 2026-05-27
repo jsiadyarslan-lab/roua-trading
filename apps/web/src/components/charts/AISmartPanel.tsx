@@ -698,6 +698,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // redraws overlays with the new candle data. Without this, overlays disappear
   // after timeframe change and the user must toggle OFF then ON to get them back.
   // This applies to ALL overlay buttons (trend, SR, harmonic, FVG, BOS, geo, EW, etc.)
+  //
+  // FIX: Clear lastAnalysisResultRef when candles change (timeframe switch).
+  // Previously, re-emitting with old lastResult caused overlays from the
+  // previous timeframe to be drawn alongside new ones, creating accumulation.
+  // Now we ONLY trigger a fresh analyze() — no stale data re-emit.
   const candleSignatureRef = useRef<string>('');
   useEffect(() => {
     if (!candles?.length || candles.length < 20) return;
@@ -709,23 +714,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     const anyActive = Object.values(overlaysRef.current).some(v => v === true);
     if (!anyActive) return;
 
-    // Candles were replaced — immediately re-emit overlays so chart redraws
-    // (renderOverlays does its own detection from the new candles, so overlays
-    // will be based on the correct new timeframe data even with old analysisResult)
-    const lastResult = lastAnalysisResultRef.current;
-    if (lastResult) {
-      const sig2 = signalRef.current;
-      onPatternsRef.current({
-        ...lastResult,
-        overlays: overlaysRef.current as any,
-        signal: sig2 ? { dir: sig2.dir, entry: sig2.entry, sl: sig2.sl, tp: sig2.tp } : undefined,
-        alerts: chartAlerts,
-      } as AIAnalysisResult);
-    }
+    // FIX: Invalidate stale analysis data from previous timeframe.
+    // The old lastResult contained overlays/metadata with timestamps from
+    // the previous timeframe — re-emitting it would draw those old patterns
+    // on the new chart, causing accumulation across timeframes.
+    lastAnalysisResultRef.current = null;
+    // Clear stale alerts from previous timeframe (they have wrong timestamps)
+    setChartAlerts([]);
+    alertsDedupRef.current.clear();
 
-    // Also schedule a fresh analysis for fully accurate data on new timeframe
-    // (e.g., Wyckoff phase, Volume Profile, Elliott waves may differ per timeframe)
-    // Small delay to avoid blocking the immediate re-emit above
+    // Schedule a fresh analysis for the new timeframe data.
+    // renderOverlays will do its own local detection from the new candles,
+    // so harmonic/BOS/FVG/Elliott/Wyckoff overlays will be correct.
+    // We don't re-emit old lastResult — only the fresh analyze() result
+    // will be sent to the chart.
     setTimeout(() => {
       runRef.current = false; // Reset guard to allow re-analysis
       lastAnalyzeTimeRef.current = 0; // Reset throttle

@@ -975,6 +975,10 @@ export default function RouaChart({
   // Clean up AI overlays when timeframe changes
   useEffect(() => {
     cleanupAIOverlays();
+    // FIX: Clear lastAnalysisResultRef so stale overlay data from the
+    // previous timeframe doesn't get re-used by handlePatternsDetected.
+    // Without this, overlays from old timeframes accumulate on the chart.
+    lastAnalysisResultRef.current = null;
     // REVOLUTIONARY: Also clean up heatmap overlay on timeframe change
     const chartApi = chart.chartRef?.current;
     if (chartApi) {
@@ -1159,6 +1163,16 @@ export default function RouaChart({
       console.warn('[AI Overlay] Series changed during render, aborting');
       return;
     }
+
+    // FIX: Clear all existing overlays before rendering new ones.
+    // This prevents accumulation when handlePatternsDetected is called
+    // multiple times (e.g., overlay toggle re-emit + fresh analyze result).
+    // Without this, primitives from a previous call remain on the chart
+    // because prepareRedraw only clears one overlay type at a time,
+    // and concurrent calls can add primitives between clear+add cycles.
+    const reg = registryMod.getOverlayRegistry();
+    reg.init(series, chart.removePriceLine);
+    reg.clearAll();
 
     overlayMod.renderOverlays(series, {
       candles: candlesRef.current,

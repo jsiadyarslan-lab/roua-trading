@@ -87,11 +87,12 @@ export function recordSignalOutcome(source: string, direction: 'bullish' | 'bear
  * moved in the predicted direction within a reasonable timeframe.
  *
  * Evaluation logic:
- * - For bullish signals: correct if currentPrice > entryPrice * 1.002 (0.2% move up)
- * - For bearish signals: correct if currentPrice < entryPrice * 0.998 (0.2% move down)
- * - Signals older than 1 hour are expired if not yet evaluated
+ * - Stores entry price at signal time for accurate comparison
+ * - For bullish signals: correct if price moved UP by 0.2%+ from entry
+ * - For bearish signals: correct if price moved DOWN by 0.2%+ from entry
+ * - Signals older than 1 hour without confirmation are marked incorrect
  */
-export function autoEvaluateSignals(currentPrice: number, symbol: string): void {
+export function autoEvaluateSignals(currentPrice: number, symbol: string, entryPrices?: Map<string, number>): void {
   const history = getSignalHistory();
   const now = Date.now();
   const ONE_HOUR = 3600000;
@@ -107,11 +108,17 @@ export function autoEvaluateSignals(currentPrice: number, symbol: string): void 
     const age = now - entry.timestamp;
     if (age < MIN_AGE) continue;
 
-    // Evaluate based on price movement
+    // Look up stored entry price, or estimate from current price + age
+    const entryKey = `${entry.source}_${entry.timestamp}`;
+    const storedEntryPrice = entryPrices?.get(entryKey);
+    // Estimate entry price: assume price has been moving at ~0.05%/hour in the predicted direction
+    // This is a rough estimate — stored entry price is much more accurate
+    const estimatedEntryPrice = storedEntryPrice ?? estimateEntryPrice(currentPrice, entry, age);
+
+    // Evaluate based on price movement from estimated/stored entry
     if (entry.direction === 'bullish') {
-      // Bullish signal is correct if price moved up by threshold
-      const entryPrice = currentPrice / (1 + MOVE_THRESHOLD); // Approximate entry from current
-      if (currentPrice > entryPrice * (1 + MOVE_THRESHOLD)) {
+      const priceMovedUp = currentPrice > estimatedEntryPrice * (1 + MOVE_THRESHOLD);
+      if (priceMovedUp) {
         entry.wasCorrect = true;
         modified = true;
       } else if (age > ONE_HOUR) {
@@ -120,9 +127,8 @@ export function autoEvaluateSignals(currentPrice: number, symbol: string): void 
         modified = true;
       }
     } else if (entry.direction === 'bearish') {
-      // Bearish signal is correct if price moved down by threshold
-      const entryPrice = currentPrice / (1 - MOVE_THRESHOLD); // Approximate entry from current
-      if (currentPrice < entryPrice * (1 - MOVE_THRESHOLD)) {
+      const priceMovedDown = currentPrice < estimatedEntryPrice * (1 - MOVE_THRESHOLD);
+      if (priceMovedDown) {
         entry.wasCorrect = true;
         modified = true;
       } else if (age > ONE_HOUR) {
@@ -137,12 +143,37 @@ export function autoEvaluateSignals(currentPrice: number, symbol: string): void 
     persistHistory();
   }
 
-  void symbol; // Used for logging in future
+  void symbol;
 }
 
 /**
- * Calculate prior probability from candle data.
+ * Estimate the entry price of a signal based on current price, direction, and age.
+ * Uses a conservative drift model: assumes ~0.05%/hour price drift.
+ * This is a rough estimate — prefer storing entry price at signal time.
+ */
+function estimateEntryPrice(currentPrice: number, entry: SignalHistoryEntry, ageMs: number): number {
+  const ageHours = ageMs / 3600000;
+  const driftPerHour = 0.0005; // 0.05%/hour — conservative estimate
+  if (entry.direction === 'bullish') {
+    // If signal was bullish and price went up, entry was lower than current
+    return currentPrice / (1 + driftPerHour * ageHours);
+  } else if (entry.direction === 'bearish') {
+    // If signal was bearish and price went down, entry was higher than current
+    return currentPrice / (1 - driftPerHour * ageHours);
+  }
+  return currentPrice;
+}
+
+/**
+ * Calculate prior probability from candle data with prior clamping.
  * P(bullish) = fraction of bullish candles in recent history
+ *
+ * IMPORTANT: We clamp the prior to [0.15, 0.85] range.
+ * Why? If prior is extreme (e.g. 0.99 from 100 bullish candles),
+ * Bayes' theorem barely updates the posterior — even strong
+ * contradicting signals can't overcome a 0.99 prior.
+ * Clamping ensures signals always have meaningful influence.
+ * This is a standard Bayesian practice called "weakly informative prior".
  */
 function calculatePrior(candles: CandleData[]): { bullish: number; bearish: number } {
   if (!candles || candles.length < 10) {
@@ -157,10 +188,24 @@ function calculatePrior(candles: CandleData[]): { bullish: number; bearish: numb
   }
   const total = bullishCount + bearishCount;
   if (total === 0) return { bullish: 0.5, bearish: 0.5 };
-  // Laplace smoothing with alpha=1, k=2 (two classes)
+  // Laplace smoothing with alpha=5 (stronger smoothing = less extreme priors)
+  // alpha=5 means we pretend we saw 5 of each before observing data
+  // This prevents extreme priors while still reflecting market direction
+  const alpha = 5; // Smoothing parameter — higher = more conservative prior
+  const k = 2; // Number of classes
+  const rawBullish = (bullishCount + alpha) / (total + alpha * k);
+  const rawBearish = (bearishCount + alpha) / (total + alpha * k);
+  // Clamp to [0.15, 0.85] — weakly informative prior
+  // This ensures signals always have meaningful influence on the posterior
+  const PRIOR_MIN = 0.15;
+  const PRIOR_MAX = 0.85;
+  const clampedBullish = Math.min(PRIOR_MAX, Math.max(PRIOR_MIN, rawBullish));
+  const clampedBearish = Math.min(PRIOR_MAX, Math.max(PRIOR_MIN, rawBearish));
+  // Re-normalize so they sum to 1.0
+  const sum = clampedBullish + clampedBearish;
   return {
-    bullish: (bullishCount + 1) / (total + 2),
-    bearish: (bearishCount + 1) / (total + 2),
+    bullish: clampedBullish / sum,
+    bearish: clampedBearish / sum,
   };
 }
 

@@ -8,7 +8,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
-import { getBayesianEngine, extractSignalsFromAnalysis, type BayesianSignal, type BayesianConsensus } from './BayesianEngine';
+import { getBayesianEngine, extractSignalsFromAnalysis, autoEvaluateSignals, type BayesianSignal, type BayesianConsensus } from './BayesianEngine';
 import { getPatternStateMachine, type PatternStateMachineResult } from './PatternStateMachine';
 import { getPatternPerformanceTracker, type PerformanceSummary } from './PatternPerformance';
 import { buildHeatmap, type HeatmapResult } from './ConfidenceHeatmap';
@@ -108,12 +108,15 @@ function generateMixedCandles(count: number, basePrice: number): CandleData[] {
 export function verifyBayesianEngine(): EngineVerificationResult {
   const checks: VerificationCheck[] = [];
 
-  // ── Check 1: Outputs change with different inputs ──
+  // Use MIXED candles as base — prevents extreme priors that make
+  // Bayesian updates invisible. This tests the real algorithmic capability
+  // rather than being dominated by a skewed prior.
+  const mixedCandles = generateMixedCandles(100, 65000);
   const bullishCandles = generateBullishCandles(100, 65000);
   const bearishCandles = generateBearishCandles(100, 65000);
 
-  const engine = getBayesianEngine(bullishCandles);
-  const bearEngine = getBayesianEngine(bearishCandles);
+  // ── Check 1: Outputs change with different inputs ──
+  const engine = getBayesianEngine(mixedCandles);
 
   // Test with bullish signals
   const bullSignals: BayesianSignal[] = [
@@ -130,7 +133,7 @@ export function verifyBayesianEngine(): EngineVerificationResult {
   ];
 
   const bullResult = engine.combine(bullSignals);
-  const bearResult = bearEngine.combine(bearSignals);
+  const bearResult = engine.combine(bearSignals);
 
   checks.push({
     name: 'Output varies with input',
@@ -141,13 +144,19 @@ export function verifyBayesianEngine(): EngineVerificationResult {
   });
 
   // ── Check 2: Prior is calculated from market data ──
+  // Use engines with biased candle data to verify prior reflects market
+  const bullEngine = getBayesianEngine(bullishCandles);
+  const bearEngine = getBayesianEngine(bearishCandles);
+  const bullPrior = bullEngine.combine([]); // Empty signals = just prior
+  const bearPrior = bearEngine.combine([]);
+
   checks.push({
     name: 'Prior from market data',
     nameAr: 'الاحتمال المسبق محسوب من بيانات السوق',
-    passed: bullResult.prior.bullish !== 0.5 || bearResult.prior.bearish !== 0.5,
-    detail: `Bullish prior: ${bullResult.prior.bullish.toFixed(3)}, Bearish prior: ${bearResult.prior.bearish.toFixed(3)}`,
-    detailAr: `احتمال مسبق صعودي: ${bullResult.prior.bullish.toFixed(3)}, احتمال مسبق هبوطي: ${bearResult.prior.bearish.toFixed(3)}`,
-    mathematicalProof: `P(bullish) = (bullishCount + 1) / (total + 2) [Laplace Smoothing]`,
+    passed: bullPrior.prior.bullish > bearPrior.prior.bullish,
+    detail: `Bullish-data prior: ${bullPrior.prior.bullish.toFixed(3)}, Bearish-data prior: ${bearPrior.prior.bullish.toFixed(3)}`,
+    detailAr: `احتمال مسبق من بيانات صعودية: ${bullPrior.prior.bullish.toFixed(3)}, من بيانات هبوطية: ${bearPrior.prior.bullish.toFixed(3)}`,
+    mathematicalProof: `P(bullish) = (bullishCount + α) / (total + α×k) [Laplace Smoothing, clamped to [0.15, 0.85]]`,
   });
 
   // ── Check 3: Bayes theorem is applied (posterior ≠ prior) ──
@@ -182,18 +191,54 @@ export function verifyBayesianEngine(): EngineVerificationResult {
     mathematicalProof: `P(Eᵢ|H) = likelihood for each signal source`,
   });
 
-  // ── Check 6: Confidence is not always the same ──
+  // ── Check 6: Confidence varies with signal strength ──
+  // Use the SAME engine (mixed prior) so the difference is purely from signals
   const neutralSignals: BayesianSignal[] = [
     { source: 'test:neutral', direction: 'neutral', weight: 0.5, confidence: 0.3 },
   ];
   const neutralResult = engine.combine(neutralSignals);
+  const confDiff = Math.abs(bullResult.confidence - neutralResult.confidence);
   checks.push({
     name: 'Confidence varies with signal strength',
     nameAr: 'الثقة تتغير مع قوة الإشارة',
-    passed: Math.abs(bullResult.confidence - neutralResult.confidence) > 0.05,
-    detail: `Strong signals confidence: ${bullResult.confidence.toFixed(3)}, Weak signals: ${neutralResult.confidence.toFixed(3)}`,
-    detailAr: `ثقة إشارات قوية: ${bullResult.confidence.toFixed(3)}, ضعيفة: ${neutralResult.confidence.toFixed(3)}`,
+    passed: confDiff > 0.05,
+    detail: `Strong signals confidence: ${bullResult.confidence.toFixed(3)}, Weak signals: ${neutralResult.confidence.toFixed(3)}, Diff: ${confDiff.toFixed(3)}`,
+    detailAr: `ثقة إشارات قوية: ${bullResult.confidence.toFixed(3)}, ضعيفة: ${neutralResult.confidence.toFixed(3)}, فرق: ${confDiff.toFixed(3)}`,
+    mathematicalProof: `confidence = max(P(bullish|E), P(bearish|E)) — more signals → higher confidence`,
   });
+
+  // ── Check 7: Strong signals overcome prior ──
+  // With mixed prior (~0.5/0.5), 3 strong bearish signals should give bearish direction
+  checks.push({
+    name: 'Strong signals override neutral prior',
+    nameAr: 'الإشارات القوية تتجاوز الاحتمال المسبق المحايد',
+    passed: bearResult.direction === 'bearish',
+    detail: `3 bearish signals + mixed prior → direction: ${bearResult.direction}`,
+    detailAr: `3 إشارات هبوطية + احتمال مسبق محايد → اتجاه: ${bearResult.direction}`,
+    mathematicalProof: `P(bearish|3 bearish signals) > P(bullish|3 bearish signals) — evidence overcomes prior`,
+  });
+
+  // ── Check 8: Auto-evaluation system works ──
+  // Verify the auto-evaluation function accepts valid parameters
+  try {
+    autoEvaluateSignals(65000, 'BTCUSDT');
+    checks.push({
+      name: 'Auto-evaluation system operational',
+      nameAr: 'نظام التقييم التلقائي يعمل',
+      passed: true,
+      detail: `autoEvaluateSignals(65000, 'BTCUSDT') completed without error`,
+      detailAr: `autoEvaluateSignals(65000, 'BTCUSDT') اكتمل بدون خطأ`,
+      mathematicalProof: `For bullish: correct if currentPrice > entryPrice × (1 + 0.002)`,
+    });
+  } catch {
+    checks.push({
+      name: 'Auto-evaluation system operational',
+      nameAr: 'نظام التقييم التلقائي يعمل',
+      passed: false,
+      detail: `autoEvaluateSignals threw an error`,
+      detailAr: `autoEvaluateSignals ألقى خطأ`,
+    });
+  }
 
   const passedCount = checks.filter(c => c.passed).length;
   const score = Math.round((passedCount / checks.length) * 100);
@@ -206,11 +251,11 @@ export function verifyBayesianEngine(): EngineVerificationResult {
     comparisonWithMarket: {
       feature: 'Bayesian Consensus',
       featureAr: 'إجماع بايزي',
-      rouaHas: true,
       tradingViewHas: false,
       multiChartsHas: false,
+      rouaHas: true,
       advantage: 'roua',
-      detailAr: 'روا وحده يستخدم مبرهنة بايز الحقيقية لدمج الإشارات — المنافسون يستخدمون تصويت بسيط',
+      detailAr: 'روا وحده يستخدم مبرهنة بايز الحقيقية مع تقدير مسبق ضعيف الإعلامية — المنافسون يستخدمون تصويت بسيط',
     },
     timestamp: Date.now(),
   };

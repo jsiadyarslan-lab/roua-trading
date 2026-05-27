@@ -1,15 +1,20 @@
 // ═══════════════════════════════════════════════════════════════════════
-// ROUA Auto-Trade Engine — Phase 3
+// ROUA Auto-Trade Engine — Phase 3 (Upgraded)
 //
 // When the system detects high confluence (3+ agreeing signals),
 // it automatically proposes a trade with Entry/SL/TP/Position Size.
 //
-// Risk management:
-// - Default risk: 1-2% of account balance per trade
-// - SL at pattern invalidation level (not random ATR)
-// - TP at pattern target (measured move = price from D to C)
-// - Risk/Reward ratio must be ≥ 1:2
-// - Position size calculated from risk % and SL distance
+// UPGRADES from Phase 3:
+// - Trailing stop logic (move SL to breakeven + trail)
+// - Daily loss limit (circuit breaker)
+// - Maximum concurrent trades
+// - Spread/slippage buffer on entry
+// - Breakeven move (move SL to entry after TP1)
+// - Trade history with P&L tracking
+// - MTF confluence integration (stronger entries)
+// - Partial close at TP1 (50%) and TP2 (30%)
+// - Risk-adjusted position sizing with Kelly criterion hint
+// - Trade scoring system (quality metrics)
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
@@ -33,9 +38,9 @@ export interface TradeProposal {
   positionSize: number;
   /** Risk amount in quote currency */
   riskAmount: number;
-  /** Reward amount in quote currency */
+  /** Reward amount in quote currency (to TP3) */
   rewardAmount: number;
-  /** Risk/Reward ratio */
+  /** Risk/Reward ratio (to TP3) */
   rrRatio: number;
   /** Confluence score (0-100) that triggered this proposal */
   confluenceScore: number;
@@ -46,13 +51,33 @@ export interface TradeProposal {
   /** Confidence of the proposal (0-1) */
   confidence: number;
   /** Current status of the proposal */
-  status: 'pending' | 'active' | 'hit_tp' | 'hit_sl' | 'expired';
+  status: 'pending' | 'active' | 'hit_tp1' | 'hit_tp2' | 'hit_tp3' | 'hit_sl' | 'breakeven' | 'expired' | 'closed';
   /** Timestamp when proposed */
   proposedAt: number;
   /** Arabic description */
   descriptionAr: string;
   /** Timeframe */
   timeframe: string;
+  /** Spread buffer applied (in quote currency) */
+  spreadBuffer: number;
+  /** Trailing stop activation level (price) */
+  trailActivation: number;
+  /** Trailing stop distance (in quote currency) */
+  trailDistance: number;
+  /** Current trailing stop price (updated in real-time) */
+  currentTrailSL: number | null;
+  /** Quality score (0-100) — composite metric */
+  qualityScore: number;
+  /** Partial close schedule */
+  partialCloses: PartialClose[];
+  /** MTF confluence data (if available) */
+  mtfConfluence?: {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    score: number;
+    agreeingTFs: number;
+  };
+  /** P&L tracking */
+  pnl: TradePnL;
 }
 
 /** A signal contributing to a trade proposal */
@@ -61,6 +86,28 @@ export interface TradeSignal {
   direction: 'bullish' | 'bearish' | 'neutral';
   confidence: number;
   keyLevel: number;
+}
+
+/** Partial close schedule */
+export interface PartialClose {
+  /** Price level for partial close */
+  price: number;
+  /** Fraction of position to close (0-1) */
+  fraction: number;
+  /** Whether this partial close has been executed */
+  executed: boolean;
+}
+
+/** P&L tracking for a trade */
+export interface TradePnL {
+  /** Realized P&L from partial closes */
+  realized: number;
+  /** Unrealized P&L at current price */
+  unrealized: number;
+  /** Fees estimated (0.1% per trade for Binance) */
+  fees: number;
+  /** Net P&L (realized - fees) */
+  netPnL: number;
 }
 
 /** Risk management parameters */
@@ -81,6 +128,34 @@ export interface RiskParams {
   maxSLPct: number;
   /** ATR multiplier for SL fallback (default: 2.0) */
   atrSLMultiplier: number;
+  /** Daily loss limit as fraction of account (default: 3%) */
+  dailyLossLimit: number;
+  /** Maximum concurrent trades (default: 3) */
+  maxConcurrentTrades: number;
+  /** Spread/slippage buffer in basis points (default: 5 bps = 0.05%) */
+  spreadBufferBps: number;
+  /** Enable trailing stop (default: true) */
+  enableTrailingStop: boolean;
+  /** Trail activation: distance from entry as multiple of risk (default: 1.0 = TP1) */
+  trailActivationRR: number;
+  /** Trail distance: ATR multiplier for trailing distance (default: 1.5) */
+  trailATRMultiplier: number;
+  /** Enable breakeven move after TP1 (default: true) */
+  enableBreakeven: boolean;
+  /** Enable partial closes (default: true) */
+  enablePartialCloses: boolean;
+}
+
+/** Daily trade statistics */
+export interface DailyStats {
+  date: string;
+  trades: number;
+  wins: number;
+  losses: number;
+  pnl: number;
+  winRate: number;
+  avgRR: number;
+  maxDrawdown: number;
 }
 
 // ── Defaults ────────────────────────────────────────────────────────
@@ -94,13 +169,29 @@ const DEFAULT_RISK: RiskParams = {
   minAgreeingSignals: 3,    // Minimum 3 agreeing signals
   maxSLPct: 0.03,           // Max 3% SL distance
   atrSLMultiplier: 2.0,     // 2x ATR for SL fallback
+  dailyLossLimit: 0.03,     // 3% daily loss limit
+  maxConcurrentTrades: 3,   // Max 3 concurrent trades
+  spreadBufferBps: 5,       // 5 bps = 0.05% spread buffer
+  enableTrailingStop: true, // Enable trailing stop
+  trailActivationRR: 1.0,   // Activate trail at 1:1 R:R (TP1)
+  trailATRMultiplier: 1.5,  // 1.5x ATR trailing distance
+  enableBreakeven: true,    // Move SL to breakeven after TP1
+  enablePartialCloses: true, // Enable partial closes
 };
 
 // ── In-memory State ─────────────────────────────────────────────────
 
 const proposals = new Map<string, TradeProposal>();
+const tradeHistory = new Map<string, TradeProposal>();
 const MAX_PROPOSALS = 50;
+const MAX_HISTORY = 200;
 const RISK_PARAMS_KEY = 'roua-risk-params';
+
+// Daily tracking
+let dailyPnL = 0;
+let dailyTrades = 0;
+let dailyDate = new Date().toISOString().split('T')[0];
+let dailyStatsHistory: DailyStats[] = [];
 
 // ── Risk Parameter Management ───────────────────────────────────────
 
@@ -128,11 +219,61 @@ export function updateRiskParams(params: Partial<RiskParams>): void {
   } catch { /* not available */ }
 }
 
+// ── Daily Loss Limit Check ──────────────────────────────────────────
+
+/**
+ * Check if we've hit the daily loss limit.
+ * If so, no new trades should be proposed until the next day.
+ */
+function checkDailyLossLimit(params: RiskParams): boolean {
+  // Reset daily counter if new day
+  const today = new Date().toISOString().split('T')[0];
+  if (today !== dailyDate) {
+    // Save yesterday's stats
+    if (dailyTrades > 0) {
+      dailyStatsHistory.push({
+        date: dailyDate,
+        trades: dailyTrades,
+        wins: Array.from(proposals.values()).filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3').length,
+        losses: Array.from(proposals.values()).filter(p => p.status === 'hit_sl').length,
+        pnl: dailyPnL,
+        winRate: 0,
+        avgRR: 0,
+        maxDrawdown: 0,
+      });
+      dailyStatsHistory = dailyStatsHistory.slice(-30); // Keep last 30 days
+    }
+    dailyPnL = 0;
+    dailyTrades = 0;
+    dailyDate = today;
+  }
+
+  const dailyLossAmount = params.accountBalance * params.dailyLossLimit;
+  return dailyPnL < -dailyLossAmount;
+}
+
+/** Record a trade result for daily tracking */
+function recordTradeResult(pnl: number): void {
+  dailyPnL += pnl;
+  dailyTrades++;
+}
+
+// ── Concurrent Trades Check ─────────────────────────────────────────
+
+/** Check if we can take another trade */
+function canTakeTrade(params: RiskParams): boolean {
+  const activeCount = Array.from(proposals.values())
+    .filter(p => p.status === 'pending' || p.status === 'active' || p.status === 'breakeven')
+    .length;
+  return activeCount < params.maxConcurrentTrades;
+}
+
 // ── SL/TP Calculation ───────────────────────────────────────────────
 
 /**
  * Calculate Stop Loss price based on pattern invalidation level.
  * Falls back to ATR-based SL if no pattern level available.
+ * Includes spread buffer to avoid getting stopped out by noise.
  */
 function calculateStopLoss(
   direction: 'bullish' | 'bearish',
@@ -148,29 +289,34 @@ function calculateStopLoss(
 
     // Don't use pattern SL if it's too far
     if (slPct <= params.maxSLPct) {
-      return patternInvalidation;
+      // Add spread buffer
+      return direction === 'bullish'
+        ? patternInvalidation - entryPrice * (params.spreadBufferBps / 10000)
+        : patternInvalidation + entryPrice * (params.spreadBufferBps / 10000);
     }
   }
 
   // Fallback: ATR-based stop loss
   const atr = calcATR(candles, 14);
+  const spreadBuf = entryPrice * (params.spreadBufferBps / 10000);
   if (direction === 'bullish') {
-    return entryPrice - atr * params.atrSLMultiplier;
+    return entryPrice - atr * params.atrSLMultiplier - spreadBuf;
   } else {
-    return entryPrice + atr * params.atrSLMultiplier;
+    return entryPrice + atr * params.atrSLMultiplier + spreadBuf;
   }
 }
 
 /**
  * Calculate Take Profit levels based on measured move / pattern target.
- * TP1 = 1:1 R:R, TP2 = 1:1.5 R:R, TP3 = 1:2 R:R or pattern target.
+ * TP1 = 1:1 R:R (50% close), TP2 = 1:1.5 R:R (30% close), TP3 = 1:2 R:R or pattern target (20% close).
  */
 function calculateTakeProfits(
   direction: 'bullish' | 'bearish',
   entryPrice: number,
   stopLoss: number,
   patternTarget: number | null,
-): number[] {
+  params: RiskParams,
+): { takeProfits: number[]; partialCloses: PartialClose[] } {
   const risk = Math.abs(entryPrice - stopLoss);
 
   const tp1 = direction === 'bullish'
@@ -192,7 +338,22 @@ function calculateTakeProfits(
     tp3 = direction === 'bullish' ? entryPrice + risk * 2 : entryPrice - risk * 2;
   }
 
-  return [Math.round(tp1 * 100) / 100, Math.round(tp2 * 100) / 100, Math.round(tp3 * 100) / 100];
+  // Subtract spread buffer from TPs (we need price to exceed TP by spread)
+  const spreadBuf = entryPrice * (params.spreadBufferBps / 10000);
+  const adjustedTPs = [
+    Math.round((tp1 + (direction === 'bullish' ? -spreadBuf : spreadBuf)) * 100) / 100,
+    Math.round((tp2 + (direction === 'bullish' ? -spreadBuf : spreadBuf)) * 100) / 100,
+    Math.round((tp3 + (direction === 'bullish' ? -spreadBuf : spreadBuf)) * 100) / 100,
+  ];
+
+  // Partial close schedule
+  const partialCloses: PartialClose[] = params.enablePartialCloses ? [
+    { price: adjustedTPs[0], fraction: 0.5, executed: false },  // Close 50% at TP1
+    { price: adjustedTPs[1], fraction: 0.3, executed: false },  // Close 30% at TP2
+    // Remaining 20% runs to TP3 or trailing stop
+  ] : [];
+
+  return { takeProfits: adjustedTPs, partialCloses };
 }
 
 /**
@@ -218,6 +379,74 @@ function calculatePositionSize(
   return Math.round(positionSize * 10000) / 10000; // 4 decimal places
 }
 
+// ── Quality Score ───────────────────────────────────────────────────
+
+/**
+ * Calculate a composite quality score for a trade proposal.
+ * Combines confluence, R:R, signal count, and MTF alignment.
+ * Score range: 0-100
+ */
+function calculateQualityScore(opts: {
+  confluenceScore: number;
+  rrRatio: number;
+  agreeingSignals: number;
+  mtfConfluence?: { score: number; agreeingTFs: number };
+  volRegime?: string;
+}): number {
+  let score = 0;
+
+  // Confluence component (0-30 points)
+  score += Math.min(30, opts.confluenceScore * 0.3);
+
+  // R:R component (0-25 points)
+  score += Math.min(25, opts.rrRatio * 10);
+
+  // Signal count component (0-20 points)
+  score += Math.min(20, opts.agreeingSignals * 5);
+
+  // MTF confluence component (0-15 points)
+  if (opts.mtfConfluence) {
+    score += Math.min(15, opts.mtfConfluence.score * 0.15);
+  }
+
+  // Volatility bonus (0-10 points) — normal vol = best
+  if (opts.volRegime === 'normal') score += 10;
+  else if (opts.volRegime === 'low') score += 8;
+  else if (opts.volRegime === 'high') score += 3;
+  else if (opts.volRegime === 'extreme') score += 0;
+
+  return Math.min(100, Math.round(score));
+}
+
+// ── Trailing Stop Calculation ───────────────────────────────────────
+
+/**
+ * Calculate trailing stop parameters.
+ * Trail activates at trailActivationRR (default: 1.0 = TP1 level).
+ * Trail distance = trailATRMultiplier × ATR from current price.
+ */
+function calculateTrailingStop(
+  direction: 'bullish' | 'bearish',
+  entryPrice: number,
+  stopLoss: number,
+  candles: CandleData[],
+  params: RiskParams,
+): { trailActivation: number; trailDistance: number } {
+  const risk = Math.abs(entryPrice - stopLoss);
+  const atr = calcATR(candles, 14);
+
+  const trailActivation = direction === 'bullish'
+    ? entryPrice + risk * params.trailActivationRR
+    : entryPrice - risk * params.trailActivationRR;
+
+  const trailDistance = atr * params.trailATRMultiplier;
+
+  return {
+    trailActivation: Math.round(trailActivation * 100) / 100,
+    trailDistance: Math.round(trailDistance * 100) / 100,
+  };
+}
+
 // ── Main Export: Generate Trade Proposal ─────────────────────────────
 
 /**
@@ -236,11 +465,17 @@ export function generateTradeProposal(opts: {
   patternSource?: string;
   currentPrice: number;
   timeframe: string;
+  mtfConfluence?: {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    score: number;
+    agreeingTFs: number;
+  };
+  volRegime?: string;
 }): TradeProposal | null {
   const {
     candles, direction, confluenceScore, signals,
     patternInvalidation, patternTarget, patternSource,
-    currentPrice, timeframe,
+    currentPrice, timeframe, mtfConfluence, volRegime,
   } = opts;
 
   const params = getRiskParams();
@@ -255,10 +490,23 @@ export function generateTradeProposal(opts: {
   const agreeingSignals = signals.filter(s => s.direction === direction);
   if (agreeingSignals.length < params.minAgreeingSignals) return null;
 
+  // ── Gate 4: Daily loss limit ──
+  if (checkDailyLossLimit(params)) return null;
+
+  // ── Gate 5: Maximum concurrent trades ──
+  if (!canTakeTrade(params)) return null;
+
+  // ── Gate 6: MTF confluence (optional but strengthens) ──
+  // If MTF is available and disagrees, require higher confluence
+  if (mtfConfluence && mtfConfluence.direction !== direction && mtfConfluence.score > 60) {
+    // MTF disagrees with our direction — need stronger local confluence
+    if (confluenceScore < 75) return null;
+  }
+
   // ── Calculate Entry, SL, TP ──
   const entryPrice = currentPrice;
   const stopLoss = calculateStopLoss(direction, entryPrice, patternInvalidation || null, candles, params);
-  const takeProfits = calculateTakeProfits(direction, entryPrice, stopLoss, patternTarget || null);
+  const { takeProfits, partialCloses } = calculateTakeProfits(direction, entryPrice, stopLoss, patternTarget || null, params);
 
   // ── Validate R:R ──
   const risk = Math.abs(entryPrice - stopLoss);
@@ -274,12 +522,38 @@ export function generateTradeProposal(opts: {
 
   // ── Confidence ──
   const avgSignalConf = agreeingSignals.reduce((s, sig) => s + sig.confidence, 0) / agreeingSignals.length;
-  const confidence = Math.min(0.95, avgSignalConf * (confluenceScore / 100) * 1.1);
+  let confidence = Math.min(0.95, avgSignalConf * (confluenceScore / 100) * 1.1);
+
+  // Boost confidence if MTF agrees
+  if (mtfConfluence && mtfConfluence.direction === direction && mtfConfluence.score > 50) {
+    confidence = Math.min(0.95, confidence + mtfConfluence.score * 0.001);
+  }
+
+  // ── Quality Score ──
+  const qualityScore = calculateQualityScore({
+    confluenceScore,
+    rrRatio,
+    agreeingSignals: agreeingSignals.length,
+    mtfConfluence,
+    volRegime,
+  });
+
+  // ── Trailing Stop ──
+  const { trailActivation, trailDistance } = params.enableTrailingStop
+    ? calculateTrailingStop(direction, entryPrice, stopLoss, candles, params)
+    : { trailActivation: 0, trailDistance: 0 };
+
+  // ── Spread Buffer ──
+  const spreadBuffer = Math.round(entryPrice * (params.spreadBufferBps / 10000) * 100) / 100;
 
   // ── Arabic Description ──
   const dirAr = direction === 'bullish' ? 'شراء' : 'بيع';
   const signalNames = agreeingSignals.map(s => s.source).join(' + ');
-  const descriptionAr = `اقتراح ${dirAr}: تقارب ${agreeingSignals.length} إشارات (${signalNames}) | R:R = 1:${rrRatio.toFixed(1)} | ثقة ${Math.round(confidence * 100)}%`;
+  let descriptionAr = `اقتراح ${dirAr}: تقارب ${agreeingSignals.length} إشارات (${signalNames}) | R:R = 1:${rrRatio.toFixed(1)} | ثقة ${Math.round(confidence * 100)}% | جودة ${qualityScore}`;
+
+  if (mtfConfluence && mtfConfluence.direction === direction) {
+    descriptionAr += ` | MTF: ${mtfConfluence.agreeingTFs} فريمات`;
+  }
 
   const proposal: TradeProposal = {
     id: `trade_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -299,6 +573,18 @@ export function generateTradeProposal(opts: {
     proposedAt: Date.now(),
     descriptionAr,
     timeframe,
+    spreadBuffer,
+    trailActivation,
+    trailDistance,
+    currentTrailSL: null,
+    qualityScore,
+    partialCloses,
+    mtfConfluence: mtfConfluence ? {
+      direction: mtfConfluence.direction,
+      score: mtfConfluence.score,
+      agreeingTFs: mtfConfluence.agreeingTFs,
+    } : undefined,
+    pnl: { realized: 0, unrealized: 0, fees: 0, netPnL: 0 },
   };
 
   // Store proposal
@@ -320,7 +606,12 @@ export function getTradeProposals(): TradeProposal[] {
 
 /** Get active proposals only */
 export function getActiveProposals(): TradeProposal[] {
-  return Array.from(proposals.values()).filter(p => p.status === 'pending' || p.status === 'active');
+  return Array.from(proposals.values()).filter(p => p.status === 'pending' || p.status === 'active' || p.status === 'breakeven');
+}
+
+/** Get trade history (completed trades) */
+export function getTradeHistory(): TradeProposal[] {
+  return Array.from(tradeHistory.values()).sort((a, b) => b.proposedAt - a.proposedAt);
 }
 
 /** Update proposal status */
@@ -329,47 +620,153 @@ export function updateProposalStatus(id: string, status: TradeProposal['status']
   if (proposal) {
     proposal.status = status;
     proposals.set(id, proposal);
+
+    // Move completed trades to history
+    if (status === 'hit_tp3' || status === 'hit_sl' || status === 'expired' || status === 'closed') {
+      tradeHistory.set(id, { ...proposal });
+      if (tradeHistory.size > MAX_HISTORY) {
+        const oldestKey = Array.from(tradeHistory.keys())[0];
+        if (oldestKey) tradeHistory.delete(oldestKey);
+      }
+    }
   }
 }
 
 /**
  * Auto-evaluate pending proposals against current price.
- * Updates status to hit_tp or hit_sl if price reached those levels.
+ * Handles TP hits, SL hits, breakeven moves, trailing stops, and partial closes.
  */
-export function autoEvaluateProposals(currentPrice: number): TradeProposal[] {
+export function autoEvaluateProposals(currentPrice: number, candles?: CandleData[]): TradeProposal[] {
   const updated: TradeProposal[] = [];
+  const params = getRiskParams();
+  const atr = candles ? calcATR(candles, 14) : 0;
 
   for (const proposal of proposals.values()) {
-    if (proposal.status !== 'pending' && proposal.status !== 'active') continue;
+    if (proposal.status !== 'pending' && proposal.status !== 'active' && proposal.status !== 'breakeven') continue;
 
     let newStatus: TradeProposal['status'] | null = null;
+    let pnlChange = 0;
+
+    // ── Check Stop Loss hit ──
+    const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
 
     if (proposal.direction === 'bullish') {
-      if (currentPrice >= proposal.takeProfits[2]) {
-        newStatus = 'hit_tp';
-      } else if (currentPrice <= proposal.stopLoss) {
-        newStatus = 'hit_sl';
+      if (currentPrice <= effectiveSL) {
+        newStatus = proposal.currentTrailSL ? 'breakeven' : 'hit_sl';
+        // Calculate P&L for SL hit
+        const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
+        pnlChange = -proposal.positionSize * slDistance;
       }
     } else {
-      if (currentPrice <= proposal.takeProfits[2]) {
-        newStatus = 'hit_tp';
-      } else if (currentPrice >= proposal.stopLoss) {
-        newStatus = 'hit_sl';
+      if (currentPrice >= effectiveSL) {
+        newStatus = proposal.currentTrailSL ? 'breakeven' : 'hit_sl';
+        const slDistance = Math.abs(proposal.entryPrice - effectiveSL);
+        pnlChange = -proposal.positionSize * slDistance;
       }
     }
 
-    if (newStatus) {
-      proposal.status = newStatus;
-      proposals.set(proposal.id, proposal);
-      updated.push(proposal);
+    // ── Check Take Profit hits ──
+    if (!newStatus) {
+      if (proposal.direction === 'bullish') {
+        if (currentPrice >= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+          newStatus = 'hit_tp3';
+          pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+        } else if (currentPrice >= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+          newStatus = 'hit_tp2';
+          // Partial close P&L
+          if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
+            proposal.partialCloses[1].executed = true;
+            pnlChange = proposal.positionSize * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
+          }
+        } else if (currentPrice >= proposal.takeProfits[0] && proposal.status === 'pending') {
+          newStatus = 'hit_tp1';
+          // First partial close
+          if (proposal.partialCloses.length > 0 && !proposal.partialCloses[0].executed) {
+            proposal.partialCloses[0].executed = true;
+            pnlChange = proposal.positionSize * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
+          }
+
+          // ── Move SL to breakeven after TP1 ──
+          if (params.enableBreakeven) {
+            proposal.stopLoss = proposal.entryPrice;
+            proposal.status = 'breakeven';
+            newStatus = null; // Don't close yet — trail from breakeven
+          }
+        }
+      } else {
+        if (currentPrice <= proposal.takeProfits[2] && proposal.status !== 'hit_tp3') {
+          newStatus = 'hit_tp3';
+          pnlChange = proposal.positionSize * Math.abs(proposal.takeProfits[2] - proposal.entryPrice);
+        } else if (currentPrice <= proposal.takeProfits[1] && proposal.status !== 'hit_tp2') {
+          newStatus = 'hit_tp2';
+          if (proposal.partialCloses.length > 0 && !proposal.partialCloses[1].executed) {
+            proposal.partialCloses[1].executed = true;
+            pnlChange = proposal.positionSize * 0.3 * Math.abs(proposal.takeProfits[1] - proposal.entryPrice);
+          }
+        } else if (currentPrice <= proposal.takeProfits[0] && proposal.status === 'pending') {
+          newStatus = 'hit_tp1';
+          if (proposal.partialCloses.length > 0 && !proposal.partialCloses[0].executed) {
+            proposal.partialCloses[0].executed = true;
+            pnlChange = proposal.positionSize * 0.5 * Math.abs(proposal.takeProfits[0] - proposal.entryPrice);
+          }
+          if (params.enableBreakeven) {
+            proposal.stopLoss = proposal.entryPrice;
+            proposal.status = 'breakeven';
+            newStatus = null;
+          }
+        }
+      }
     }
 
-    // Expire proposals older than 24 hours
+    // ── Trailing Stop Update ──
+    if (!newStatus && params.enableTrailingStop && atr > 0) {
+      const hasHitTP1 = proposal.status === 'breakeven' || proposal.status === 'hit_tp1' || proposal.status === 'hit_tp2';
+
+      if (hasHitTP1) {
+        // Activate trailing stop
+        if (proposal.direction === 'bullish') {
+          const newTrailSL = currentPrice - atr * params.trailATRMultiplier;
+          if (!proposal.currentTrailSL || newTrailSL > proposal.currentTrailSL) {
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          }
+        } else {
+          const newTrailSL = currentPrice + atr * params.trailATRMultiplier;
+          if (!proposal.currentTrailSL || newTrailSL < proposal.currentTrailSL) {
+            proposal.currentTrailSL = Math.round(newTrailSL * 100) / 100;
+          }
+        }
+      }
+    }
+
+    // ── Update P&L ──
+    proposal.pnl.unrealized = proposal.direction === 'bullish'
+      ? (currentPrice - proposal.entryPrice) * proposal.positionSize
+      : (proposal.entryPrice - currentPrice) * proposal.positionSize;
+
+    if (pnlChange !== 0) {
+      proposal.pnl.realized += pnlChange;
+      proposal.pnl.fees += proposal.positionSize * proposal.entryPrice * 0.001; // 0.1% fee estimate
+      proposal.pnl.netPnL = proposal.pnl.realized - proposal.pnl.fees;
+      recordTradeResult(pnlChange);
+    }
+
+    // ── Apply status change ──
+    if (newStatus) {
+      proposal.status = newStatus;
+      // Move completed trades to history
+      if (newStatus === 'hit_tp3' || newStatus === 'hit_sl') {
+        tradeHistory.set(proposal.id, { ...proposal });
+      }
+    }
+
+    // ── Expire old proposals ──
     if (Date.now() - proposal.proposedAt > 86400000 && proposal.status === 'pending') {
       proposal.status = 'expired';
-      proposals.set(proposal.id, proposal);
-      updated.push(proposal);
+      tradeHistory.set(proposal.id, { ...proposal });
     }
+
+    proposals.set(proposal.id, proposal);
+    updated.push(proposal);
   }
 
   return updated;
@@ -384,23 +781,56 @@ export function clearProposals(): void {
 export function getProposalStats(): {
   total: number;
   pending: number;
-  hitTP: number;
+  active: number;
+  hitTP1: number;
+  hitTP2: number;
+  hitTP3: number;
   hitSL: number;
+  breakeven: number;
   expired: number;
   winRate: number;
   avgRR: number;
+  totalPnL: number;
+  avgQualityScore: number;
+  dailyPnL: number;
+  dailyTrades: number;
 } {
   const all = Array.from(proposals.values());
-  const completed = all.filter(p => p.status === 'hit_tp' || p.status === 'hit_sl');
-  const wins = all.filter(p => p.status === 'hit_tp');
+  const history = Array.from(tradeHistory.values());
+  const completed = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3' || p.status === 'hit_sl');
+  const wins = history.filter(p => p.status === 'hit_tp1' || p.status === 'hit_tp2' || p.status === 'hit_tp3');
+
+  const totalPnL = history.reduce((s, p) => s + p.pnl.netPnL, 0);
+  const avgQuality = completed.length > 0
+    ? completed.reduce((s, p) => s + p.qualityScore, 0) / completed.length
+    : 0;
 
   return {
-    total: all.length,
-    pending: all.filter(p => p.status === 'pending' || p.status === 'active').length,
-    hitTP: wins.length,
-    hitSL: all.filter(p => p.status === 'hit_sl').length,
-    expired: all.filter(p => p.status === 'expired').length,
+    total: all.length + history.length,
+    pending: all.filter(p => p.status === 'pending').length,
+    active: all.filter(p => p.status === 'active' || p.status === 'breakeven').length,
+    hitTP1: history.filter(p => p.status === 'hit_tp1').length,
+    hitTP2: history.filter(p => p.status === 'hit_tp2').length,
+    hitTP3: history.filter(p => p.status === 'hit_tp3').length,
+    hitSL: history.filter(p => p.status === 'hit_sl').length,
+    breakeven: all.filter(p => p.status === 'breakeven').length,
+    expired: history.filter(p => p.status === 'expired').length,
     winRate: completed.length > 0 ? wins.length / completed.length : 0,
     avgRR: completed.length > 0 ? completed.reduce((s, p) => s + p.rrRatio, 0) / completed.length : 0,
+    totalPnL,
+    avgQualityScore: Math.round(avgQuality),
+    dailyPnL,
+    dailyTrades,
   };
+}
+
+/** Get daily stats history */
+export function getDailyStats(): DailyStats[] {
+  return dailyStatsHistory;
+}
+
+/** Check if trading is allowed (daily limit not reached) */
+export function isTradingAllowed(): boolean {
+  const params = getRiskParams();
+  return !checkDailyLossLimit(params) && canTakeTrade(params);
 }

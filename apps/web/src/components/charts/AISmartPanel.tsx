@@ -33,7 +33,8 @@ import { buildHeatmap, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap
 import { runFullVerification, type FullVerificationReport, type EngineVerificationResult } from '@/lib/charts/EngineVerification';
 import { evaluateSmartAlerts, buildAlertSnapshot, fireBrowserNotification, type TriggeredAlert, type AlertRule } from '@/lib/charts/SmartAlertEngine';
 import { detectLiquidityZones, liquidityToAIPatterns, type LiquidityResult, type LiquidityZone } from '@/lib/charts/LiquidityZones';
-import { generateTradeProposal, getTradeProposals, getProposalStats, autoEvaluateProposals, type TradeProposal, type RiskParams } from '@/lib/charts/AutoTradeEngine';
+import { generateTradeProposal, getTradeProposals, getProposalStats, getActiveProposals, autoEvaluateProposals, type TradeProposal, type RiskParams } from '@/lib/charts/AutoTradeEngine';
+import { runQuickMTFAnalysis, detectTradingStyle, type MTFResult, type MTFTimeframe, TF_LABELS_AR } from '@/lib/charts/MTFEngine';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -94,7 +95,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf';
 
 interface Props {
   symbol: string;
@@ -145,6 +146,9 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [liquidityResult, setLiquidityResult] = useState<LiquidityResult | null>(null);
   const [tradeProposals, setTradeProposals] = useState<TradeProposal[]>([]);
   const [proposalStats, setProposalStats] = useState<ReturnType<typeof getProposalStats> | null>(null);
+  // Phase 3: MTF Analysis
+  const [mtfResult, setMtfResult] = useState<MTFResult | null>(null);
+  const [mtfLoading, setMtfLoading] = useState(false);
   const [volRegime, setVolRegime] = useState<string>('normal');
   const [verificationReport, setVerificationReport] = useState<FullVerificationReport | null>(null);
   const [showVerification, setShowVerification] = useState(false);
@@ -396,6 +400,15 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }
 
+      // ── Phase 3: MTF Multi-Timeframe Analysis ────────────────────
+      try {
+        setMtfLoading(true);
+        // Quick MTF analysis using current chart data (simulated higher TFs)
+        const mtf = runQuickMTFAnalysis(c, '1h');
+        setMtfResult(mtf);
+      } catch { /* MTF fallback */ }
+      finally { setMtfLoading(false); }
+
       // ── Phase 3: Liquidity Zones ────────────────────────────────
       try {
         const liqResult = detectLiquidityZones(c);
@@ -450,6 +463,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           patternSource: tradeSignals[0]?.source || 'confluence',
           currentPrice: price,
           timeframe: 'auto',
+          mtfConfluence: mtfResult ? {
+            direction: mtfResult.confluenceDirection,
+            score: mtfResult.confluenceScore,
+            agreeingTFs: mtfResult.agreeingTFs,
+          } : undefined,
+          volRegime,
         });
 
         if (proposal) {
@@ -492,6 +511,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         overlays,
         fusionResult: fusionResult,
         bayesianResult: bayesianResult,
+        mtfResult: mtfResult,
+        tradeProposals: getActiveProposals(),
       } as AIAnalysisResult;
       lastAnalysisResultRef.current = analysisResult;
       onPatternsRef.current(analysisResult);
@@ -819,6 +840,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       alerts: chartAlerts,
       fusionResult: fusionResult,
       bayesianResult: bayesianResult,
+      mtfResult: mtfResult,
+      tradeProposals: getActiveProposals(),
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays, chartAlerts]);
@@ -953,7 +976,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -1560,6 +1583,107 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 );
               } catch { return null; }
             })()}
+          </div>
+        )}
+
+        {/* MTF — Multi-Timeframe Analysis (Phase 3) */}
+        {tab === 'mtf' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {mtfLoading && (
+              <div style={{ textAlign: 'center', padding: 12 }}>
+                <div style={{ width: 16, height: 16, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto' }} />
+                <div style={{ color: C.dim, fontSize: 8, marginTop: 6 }}>جاري تحليل الفريمات...</div>
+              </div>
+            )}
+            {mtfResult && !mtfLoading && (
+              <>
+                {/* Confluence Score */}
+                <div style={{ background: mtfResult.confluenceDirection === 'bullish' ? `${C.green}12` : mtfResult.confluenceDirection === 'bearish' ? `${C.red}12` : `${C.yellow}08`, border: `1px solid ${mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow}30`, borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 20 }}>{mtfResult.confluenceDirection === 'bullish' ? '▲' : mtfResult.confluenceDirection === 'bearish' ? '▼' : '◆'}</span>
+                      <div>
+                        <div style={{ color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontSize: 13, fontWeight: 800 }}>
+                          تقارب MTF: {mtfResult.confluenceDirection === 'bullish' ? 'صعودي' : mtfResult.confluenceDirection === 'bearish' ? 'هبوطي' : 'محايد'}
+                        </div>
+                        <div style={{ color: C.dim, fontSize: 8 }}>{mtfResult.agreeingTFs} من {mtfResult.totalTFs} فريمات تتفق</div>
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 900, color: mtfResult.confluenceDirection === 'bullish' ? C.green : mtfResult.confluenceDirection === 'bearish' ? C.red : C.yellow, fontFamily: 'monospace' }}>{mtfResult.confluenceScore}%</div>
+                      <div style={{ color: C.mut, fontSize: 7 }}>مجموع التقارب</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Per-Timeframe Breakdown */}
+                <div style={{ marginBottom: 8 }}>
+                  <div style={{ color: C.cyan, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>تحليل كل فريم</div>
+                  {mtfResult.timeframes.map((tf) => {
+                    const tfCol = tf.direction === 'bullish' ? C.green : tf.direction === 'bearish' ? C.red : C.yellow;
+                    return (
+                      <div key={tf.timeframe} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: 5, marginBottom: 3, background: C.card, border: `1px solid ${tfCol}15` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ color: tfCol, fontSize: 10 }}>{tf.direction === 'bullish' ? '▲' : tf.direction === 'bearish' ? '▼' : '◆'}</span>
+                          <div>
+                            <div style={{ color: C.text, fontSize: 9, fontWeight: 600 }}>{TF_LABELS_AR[tf.timeframe] || tf.timeframe}</div>
+                            <div style={{ color: C.mut, fontSize: 7 }}>{tf.trendState === 'uptrend' ? 'صاعد' : tf.trendState === 'downtrend' ? 'هابط' : tf.trendState === 'ranging' ? 'عرضي' : tf.trendState === 'counter-uptrend' ? 'ارتداد صاعد' : 'ارتداد هابط'} | زخم: {tf.momentum === 'accelerating' ? 'تسارع' : tf.momentum === 'decelerating' ? 'تباطؤ' : tf.momentum === 'diverging' ? 'تباعد' : 'عادي'}</div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <div style={{ height: 3, width: 40, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
+                            <div style={{ height: '100%', width: `${Math.round(tf.strength * 100)}%`, background: tfCol, borderRadius: 2 }} />
+                          </div>
+                          <span style={{ color: C.mut, fontSize: 8 }}>{Math.round(tf.strength * 100)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Entry Recommendation */}
+                {mtfResult.entryRecommendation && mtfResult.entryRecommendation.direction !== 'neutral' && (
+                  <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 6, padding: '6px 8px', marginBottom: 8 }}>
+                    <div style={{ color: C.cyan, fontSize: 8, fontWeight: 700, marginBottom: 3 }}>🎯 توصية الدخول</div>
+                    <div style={{ color: C.dim, fontSize: 8, lineHeight: 1.5 }}>{mtfResult.entryRecommendation.reasonAr}</div>
+                  </div>
+                )}
+
+                {/* S/R Confluence */}
+                {mtfResult.srConfluences.length > 0 && (
+                  <div style={{ marginBottom: 8 }}>
+                    <div style={{ color: C.gold, fontSize: 8, fontWeight: 700, marginBottom: 4 }}>📋 مستويات متعددة الفريمات</div>
+                    {mtfResult.srConfluences.map((sr, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 4, marginBottom: 2, background: C.card }}>
+                        <span style={{ color: sr.type === 'support' ? C.green : C.red, fontSize: 8 }}>{sr.labelAr}</span>
+                        <span style={{ color: C.text, fontSize: 8, fontFamily: 'monospace' }}>{sr.price} ({sr.timeframes.length}TF)</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Divergences */}
+                {mtfResult.divergences.length > 0 && (
+                  <div style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)', borderRadius: 6, padding: '6px 8px', marginBottom: 8 }}>
+                    <div style={{ color: '#f59e0b', fontSize: 8, fontWeight: 700, marginBottom: 3 }}>⚠️ تباعدات بين الفريمات</div>
+                    {mtfResult.divergences.map((div, i) => (
+                      <div key={i} style={{ color: C.dim, fontSize: 7.5, marginBottom: 3, lineHeight: 1.4 }}>{div.descriptionAr}</div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Interpretation */}
+                <div style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginTop: 6 }}>
+                  <div style={{ color: C.dim, fontSize: 7.5, lineHeight: 1.6 }}>{mtfResult.interpretationAr}</div>
+                </div>
+              </>
+            )}
+            {!mtfResult && !mtfLoading && (
+              <div style={{ textAlign: 'center', padding: 24, color: C.dim }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>📊</div>
+                <div style={{ fontSize: 10 }}>اضغط تحليل لعرض تحليل الفريمات</div>
+              </div>
+            )}
           </div>
         )}
 

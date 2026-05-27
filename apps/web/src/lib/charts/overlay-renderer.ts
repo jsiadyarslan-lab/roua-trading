@@ -74,6 +74,31 @@ export interface OverlayInput {
     posteriorBearish: number;
     likelihoods: Array<{ source: string; likelihoodBull: number; likelihoodBear: number }>;
   } | null;
+  /** MTF confluence result — shows multi-timeframe alignment */
+  mtfResult?: {
+    confluenceDirection: 'bullish' | 'bearish' | 'neutral';
+    confluenceScore: number;
+    agreeingTFs: number;
+    totalTFs: number;
+    interpretationAr: string;
+    fibConfluences: Array<{ price: number; strength: number; direction: 'bullish' | 'bearish' | 'neutral' }>;
+    srConfluences: Array<{ price: number; type: 'support' | 'resistance'; combinedStrength: number; labelAr: string }>;
+    divergences: Array<{ type: string; descriptionAr: string; significance: number }>;
+  } | null;
+  /** Active trade proposals — shows Entry/SL/TP1/TP2/TP3 on chart */
+  tradeProposals?: Array<{
+    id: string;
+    direction: 'bullish' | 'bearish';
+    entryPrice: number;
+    stopLoss: number;
+    takeProfits: number[];
+    rrRatio: number;
+    confidence: number;
+    status: string;
+    qualityScore: number;
+    descriptionAr: string;
+    currentTrailSL?: number | null;
+  }>;
 }
 
 /**
@@ -911,6 +936,188 @@ export function renderOverlays(
     }
   } else {
     registry.clearType('alerts');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // MTF CONFLUENCE — Multi-Timeframe alignment visualization
+  // Shows confluence direction label, S/R confluence levels,
+  // and Fibonacci confluence zones across timeframes.
+  // ═══════════════════════════════════════════════════════════════
+  if (input.mtfResult && input.mtfResult.confluenceScore > 30) {
+    const mtf = input.mtfResult;
+    registry.prepareRedraw('mtf');
+
+    const lastPrice = candles[candles.length - 1].close;
+    const lastTime = candles[candles.length - 1].time;
+
+    if (mtf.confluenceDirection !== 'neutral') {
+      const isBull = mtf.confluenceDirection === 'bullish';
+      const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
+      const arrow = isBull ? '▲' : '▼';
+
+      // MTF confluence label
+      registry.add('mtf', new LabelPrimitive({
+        time: lastTime as any,
+        price: isBull
+          ? Math.min(...candles.slice(-10).map(c => c.low)) * 0.999
+          : Math.max(...candles.slice(-10).map(c => c.high)) * 1.001,
+        text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`,
+        color: mtfColor,
+        fontSize: 10,
+        align: 'right',
+        bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)',
+        position: isBull ? 'below' : 'above',
+      }));
+    }
+
+    // S/R confluence levels (shared across timeframes)
+    for (const sr of mtf.srConfluences.slice(0, 3)) {
+      const opacity = Math.min(0.8, sr.combinedStrength);
+      const srColor = sr.type === 'support'
+        ? `rgba(0, 255, 163, ${opacity})`
+        : `rgba(255, 71, 87, ${opacity})`;
+      registry.add('mtf', new HorizontalLinePrimitive({
+        price: sr.price,
+        color: srColor,
+        lineWidth: sr.combinedStrength > 0.7 ? 2 : 1,
+        lineStyle: 1,
+        label: `${sr.labelAr} (${sr.timeframes.length}TF)`,
+      }));
+      safeAddPriceLine(`mtf-sr-${sr.price}`, sr.price, srColor, sr.labelAr, sr.combinedStrength > 0.7 ? 2 : 1, 1, true, 'mtf');
+    }
+
+    // Fibonacci confluence zones
+    for (const fib of mtf.fibConfluences.slice(0, 3)) {
+      const fibColor = fib.direction === 'bullish'
+        ? 'rgba(212, 175, 55, 0.3)'
+        : 'rgba(212, 175, 55, 0.3)';
+      registry.add('mtf', new HorizontalLinePrimitive({
+        price: fib.price,
+        color: fibColor,
+        lineWidth: 1,
+        lineStyle: 2,
+        label: `Fib MTF (${fib.ratios.length})`,
+      }));
+      safeAddPriceLine(`mtf-fib-${fib.price}`, fib.price, fibColor, `Fib MTF ${fib.ratios.map(r => r.label).join('+')}`, 1, 2, false, 'mtf');
+    }
+
+    // Divergence warnings
+    for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
+      registry.add('mtf', new LabelPrimitive({
+        time: (lastTime - 3600) as any,
+        price: lastPrice,
+        text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`,
+        color: 'rgba(245, 158, 11, 0.7)',
+        fontSize: 8,
+        align: 'right',
+        bg: 'rgba(245, 158, 11, 0.08)',
+        position: 'above',
+      }));
+    }
+  } else {
+    registry.clearType('mtf');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // TRADE PROPOSALS — Show active trade Entry/SL/TP1/TP2/TP3
+  // Renders lines for each price level with zones showing
+  // risk (red) and reward (green) areas.
+  // ═══════════════════════════════════════════════════════════════
+  if (input.tradeProposals && input.tradeProposals.length > 0) {
+    registry.prepareRedraw('trade');
+
+    // Show the most recent active trade proposal
+    const proposal = input.tradeProposals.find(p =>
+      p.status === 'pending' || p.status === 'active' || p.status === 'breakeven'
+    ) || input.tradeProposals[0];
+
+    if (proposal) {
+      const isBull = proposal.direction === 'bullish';
+      const dirAr = isBull ? 'شراء' : 'بيع';
+
+      // Entry line
+      registry.add('trade', new HorizontalLinePrimitive({
+        price: proposal.entryPrice,
+        color: isBull ? '#22d3ee' : '#f97316',
+        lineWidth: 2,
+        lineStyle: 0,
+        label: `Entry ${dirAr} (Q:${proposal.qualityScore})`,
+      }));
+
+      // Stop Loss line (use trail SL if active)
+      const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
+      registry.add('trade', new HorizontalLinePrimitive({
+        price: effectiveSL,
+        color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444',
+        lineWidth: 2,
+        lineStyle: proposal.currentTrailSL ? 0 : 2,
+        label: proposal.currentTrailSL ? 'Trail SL' : 'SL',
+      }));
+
+      // Take Profit levels (TP1, TP2, TP3)
+      const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
+      const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
+      const tpLineStyles = [0, 1, 2];
+
+      for (let i = 0; i < proposal.takeProfits.length; i++) {
+        registry.add('trade', new HorizontalLinePrimitive({
+          price: proposal.takeProfits[i],
+          color: tpColors[i] || tpColors[2],
+          lineWidth: i === 0 ? 2 : 1,
+          lineStyle: tpLineStyles[i] ?? 2,
+          label: tpLabels[i] || `TP${i + 1}`,
+        }));
+      }
+
+      // Risk zone (Entry → SL)
+      registry.add('trade', new ZonePrimitive({
+        startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
+        endTime: candles[candles.length - 1].time as any,
+        highPrice: Math.max(proposal.entryPrice, effectiveSL),
+        lowPrice: Math.min(proposal.entryPrice, effectiveSL),
+        fillColor: 'rgba(239, 68, 68, 0.05)',
+        borderColor: undefined,
+      }));
+
+      // Reward zone (Entry → TP3)
+      registry.add('trade', new ZonePrimitive({
+        startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
+        endTime: candles[candles.length - 1].time as any,
+        highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]),
+        lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]),
+        fillColor: 'rgba(16, 185, 129, 0.04)',
+        borderColor: undefined,
+      }));
+
+      // Price lines for axis labels
+      const entryCol = isBull ? '#22d3ee' : '#f97316';
+      safeAddPriceLine('trade-entry', proposal.entryPrice, entryCol, `Entry ${dirAr}`, 2, 0, true, 'trade');
+      safeAddPriceLine('trade-sl', effectiveSL, proposal.currentTrailSL ? '#fbbf24' : '#ef4444', proposal.currentTrailSL ? 'Trail SL' : 'SL', 2, 2, true, 'trade');
+      for (let i = 0; i < proposal.takeProfits.length; i++) {
+        safeAddPriceLine(`trade-tp${i}`, proposal.takeProfits[i], tpColors[i] || '#10b981', tpLabels[i] || `TP${i+1}`, i === 0 ? 2 : 1, 2, i === 0, 'trade');
+      }
+
+      // R:R and quality label
+      registry.add('trade', new LabelPrimitive({
+        time: candles[candles.length - 1].time as any,
+        price: isBull
+          ? Math.max(...candles.slice(-5).map(c => c.high)) * 1.002
+          : Math.min(...candles.slice(-5).map(c => c.low)) * 0.998,
+        text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`,
+        color: 'rgba(255,255,255,0.5)',
+        fontSize: 8,
+        align: 'right',
+        bg: 'rgba(11,14,20,0.7)',
+        position: isBull ? 'above' : 'below',
+      }));
+    }
+
+    // If no active proposal, clear
+    if (!proposal) {
+      registry.clearType('trade');
+    }
+  } else {
+    registry.clearType('trade');
   }
 }
 

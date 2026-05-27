@@ -13,7 +13,7 @@
 import type { ISeriesApi, SeriesType } from 'lightweight-charts';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 
-export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts';
+export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts' | 'mtf' | 'trade';
 
 interface OverlayGroup {
   primitives: ISeriesPrimitive[];
@@ -41,12 +41,10 @@ export class OverlayRegistry {
   private removePriceLineFn: ((id: string) => void) | null = null;
 
   constructor() {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade'];
     for (const type of types) {
       this.groups.set(type, { primitives: [], active: false, priceLineIds: [] });
     }
-    // Also add 'alerts' group for alert markers
-    this.groups.set('alerts', { primitives: [], active: false, priceLineIds: [] });
   }
 
   /** Initialize with the candle series and optional price line remover */
@@ -173,7 +171,7 @@ export class OverlayRegistry {
 
   /** Clear all overlay primitives and price lines */
   clearAll(): void {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade'];
     for (const type of types) {
       this.clearType(type);
     }

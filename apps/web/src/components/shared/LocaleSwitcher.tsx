@@ -29,6 +29,21 @@ const LOCALE_OPTIONS = [
   { code: 'th', label: 'ไทย', shortLabel: 'TH' },
   { code: 'it', label: 'Italiano', shortLabel: 'IT' },
   { code: 'pl', label: 'Polski', shortLabel: 'PL' },
+  { code: 'nl', label: 'Nederlands', shortLabel: 'NL' },
+  { code: 'ms', label: 'Bahasa Melayu', shortLabel: 'MS' },
+  { code: 'he', label: 'עברית', shortLabel: 'עברית' },
+  { code: 'sv', label: 'Svenska', shortLabel: 'SV' },
+  { code: 'uk', label: 'Українська', shortLabel: 'UK' },
+  { code: 'fa', label: 'فارسی', shortLabel: 'فارسی' },
+  { code: 'ur', label: 'اردو', shortLabel: 'اردو' },
+  { code: 'fil', label: 'Filipino', shortLabel: 'FIL' },
+  { code: 'da', label: 'Dansk', shortLabel: 'DA' },
+  { code: 'no', label: 'Norsk', shortLabel: 'NO' },
+  { code: 'fi', label: 'Suomi', shortLabel: 'FI' },
+  { code: 'cs', label: 'Čeština', shortLabel: 'CS' },
+  { code: 'hu', label: 'Magyar', shortLabel: 'HU' },
+  { code: 'ro', label: 'Română', shortLabel: 'RO' },
+  { code: 'bn', label: 'বাংলা', shortLabel: 'বাংলা' },
 ] as const;
 
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {

@@ -15,27 +15,66 @@ import type { NextRequest } from 'next/server'
  */
 
 // ── i18n Configuration ──
-const SUPPORTED_LOCALES = ['ar', 'en', 'fr', 'tr', 'es', 'zh', 'ru', 'hi', 'pt', 'de', 'ja', 'ko', 'id', 'vi', 'th', 'it', 'pl']
+const SUPPORTED_LOCALES = ['ar', 'en', 'fr', 'tr', 'es', 'zh', 'ru', 'hi', 'pt', 'de', 'ja', 'ko', 'id', 'vi', 'th', 'it', 'pl', 'nl', 'ms', 'he', 'sv', 'uk', 'fa', 'ur', 'fil', 'da', 'no', 'fi', 'cs', 'hu', 'ro', 'bn']
 const DEFAULT_LOCALE = 'ar'
 
 // Smart locale proximity — maps unsupported browser locales to closest supported one
 const LOCALE_PROXIMITY: Record<string, string> = {
+  // Spanish family
   ca: 'es', gl: 'es',
-  ro: 'fr',
-  nl: 'de', sv: 'de', no: 'de', da: 'de', fi: 'de',
-  uk: 'ru', cs: 'ru', bg: 'ru',
+  // Chinese family
   zh_CN: 'zh', zh_TW: 'zh', zh_HK: 'zh', zh_SG: 'zh',
-  ms: 'id',
-  az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr',
-  ku: 'ar', fa: 'ar', he: 'ar', ur: 'hi',
+  // Portuguese family
   pt_BR: 'pt', pt_PT: 'pt',
+  // Hindi family
   hi_IN: 'hi',
+  // Korean
   ko_KR: 'ko',
+  // Indonesian family
   id_ID: 'id',
+  // Vietnamese
   vi_VN: 'vi',
+  // Thai
   th_TH: 'th',
+  // Italian
   it_IT: 'it', it_CH: 'it',
+  // Polish
   pl_PL: 'pl',
+  // Dutch family
+  nl_BE: 'nl', nl_NL: 'nl', af: 'nl',
+  // Malay family
+  ms_MY: 'ms', ms_BN: 'ms',
+  // Hebrew
+  he_IL: 'he',
+  // Swedish family
+  sv_SE: 'sv', sv_FI: 'sv',
+  // Ukrainian
+  uk_UA: 'uk',
+  // Persian family
+  fa_IR: 'fa', fa_AF: 'fa', tg: 'fa',
+  // Urdu
+  ur_PK: 'ur', ur_IN: 'ur',
+  // Filipino
+  fil_PH: 'fil',
+  // Danish
+  da_DK: 'da', da_GL: 'da',
+  // Norwegian
+  no_NO: 'no', nb: 'no', nn: 'no', nb_NO: 'no', nn_NO: 'no',
+  // Finnish
+  fi_FI: 'fi',
+  // Czech
+  cs_CZ: 'cs', cs_SK: 'cs',
+  // Hungarian
+  hu_HU: 'hu',
+  // Romanian
+  ro_RO: 'ro', ro_MD: 'ro', mo: 'ro',
+  // Bengali
+  bn_BD: 'bn', bn_IN: 'bn',
+  // Remaining proximity mappings (no dedicated locale yet)
+  bg: 'ru', mk: 'ru', sr: 'ru', hr: 'ru', sl: 'ru', bs: 'ru',
+  az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr', tk: 'tr',
+  ku: 'ar',
+  eo: 'en',
 }
 
 /**

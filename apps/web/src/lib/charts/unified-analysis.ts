@@ -99,6 +99,11 @@ export interface UnifiedAnalysisResult {
   signals: DetectorSignal[];
   /** All patterns merged and sorted by confidence */
   allPatterns: AIPattern[];
+  /** Weighted consensus result from all detector signals */
+  consensus: {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    confidence: number;
+  };
   /** Engine version identifier */
   engineVersion: string;
   /** Unix timestamp of when the analysis was run */
@@ -560,6 +565,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
       wyckoffPatterns: [],
       elliottPatterns: [],
       signals: [],
+      consensus: { direction: 'neutral', confidence: 0 },
       allPatterns: [],
       engineVersion: ENGINE_VERSION,
       detectionTimestamp: timestamp,
@@ -614,8 +620,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
   ];
 
   // ── 13. Compute weighted consensus ──
-  // (Stored in signals for external use; direction available via consensus)
-  computeConsensus(signals);
+  const consensus = computeConsensus(signals);
 
   // ── 14. Merge all patterns ──
   const mergedPatterns: AIPattern[] = [
@@ -646,6 +651,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
     wyckoffPatterns,
     elliottPatterns,
     signals,
+    consensus,
     allPatterns,
     engineVersion: ENGINE_VERSION,
     detectionTimestamp: timestamp,

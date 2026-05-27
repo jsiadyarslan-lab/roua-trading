@@ -54,30 +54,29 @@ Stage Summary:
 
 ---
 Task ID: 4
-Agent: Main Agent
-Task: Phase 4 — Quality & Reliability + Overlay Integration
+Agent: Super Z (main)
+Task: Add 6 new languages (ko, id, vi, th, it, pl) — 17 languages total
 
 Work Log:
-- Fixed 6 memory leak sources in AISmartPanel.tsx (EventSource, 8 setTimeout calls)
-- Added eventSourceRef, pendingTimersRef, safeTimeout() helper for managed cleanup
-- Integrated IncrementalCalc.ts into AISmartPanel for O(1) per-candle updates
-- Created AnalysisValidator.ts (validateAnalysis, validateFibRatio, validateTradeSetup)
-- Created AnalysisLogger.ts (logError/Warn/Info/Debug, safeEngineCall, safeEngineCallAsync)
-- Wrapped all 11 engine calls in unified-analysis.ts with safeEngineCall()
-- Added validation step (step 15) in runUnifiedAnalysis to filter impossible values
-- Added 3 new overlay toggle buttons: MTF (#06b6d4), LIQ (#f472b6), TRADE (#a3e635)
-- Added Liquidity Zones overlay rendering (pools, sweeps, voids, labels, price lines)
-- Made MTF and Trade overlays user-toggleable (was auto-render only)
-- Added liquidityResult to OverlayInput interface and data pipeline
-- Updated OverlayRegistry with 'liq' and 'heatmap' types
-- Updated AIAnalysisResult interface with new overlay types and data fields
-- Passed fusionResult, bayesianResult, mtfResult, tradeProposals, liquidityResult through RouaChart
-- Build succeeded, pushed to GitHub, production returns HTTP 200
+- Created 6 new translation files: ko.json, id.json, vi.json, th.json, it.json, pl.json
+- Translated common.* section (122+ keys per language): UI labels, trading terms, time expressions
+- Translated dashboard.nav (20 navigation items), dashboard.trading (30+ trading panel keys)
+- Translated dashboard.kyc (account linking), dashboard.newsPage, dashboard.help sections
+- Translated auth.* section (10+ keys), notFound, errors, tiers sections
+- Updated i18n/routing.ts: 17 locales registered
+- Updated i18n/request.ts: Fixed proximity mapping (ko/id/vi/th/it/pl now independent, ms→id)
+- Updated LocaleSwitcher.tsx: All 17 languages with native labels
+- FIXED CRITICAL BUG: proxy.ts was missing the 6 new locales in SUPPORTED_LOCALES — caused 404s
+- Pushed to GitHub (2 commits: feature + proxy fix)
+- Verified Railway deployment: buildId changed to 3_OKQprq41U_g2IzWkPiZ
+- All 17 locale routes return HTTP 200 on production
+- Verified translated content appears correctly:
+  - Korean: 매수, 매도, 뉴스, 로그인, 포트폴리오
+  - Indonesian: Masuk, Jual, Berita, Beli, Portofolio
 
 Stage Summary:
-- Phase 4 complete: 8 files changed, 704 insertions, 40 deletions
-- 2 new files: AnalysisValidator.ts, AnalysisLogger.ts
-- Memory leaks fixed: EventSource, setTimeout, state-after-unmount
-- Incremental O(1) updates: ATR/EMA/Pivots updated incrementally
-- 3 new overlay buttons (MTF, LIQ, TRADE) bringing total to 13 overlay types
-- Production deployed: https://roua-trading-production.up.railway.app/
+- Platform now supports 17 languages (up from 11)
+- All routes work on production
+- New languages show translated UI elements
+- Remaining untranslated keys fall back to English (acceptable for first release)
+- Key files modified: routing.ts, request.ts, proxy.ts, LocaleSwitcher.tsx, 6 new JSON files

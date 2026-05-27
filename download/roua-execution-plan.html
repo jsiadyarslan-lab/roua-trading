@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>خطة تنفيذية - منصة رواء تريدينغ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 20mm 18mm 20mm 18mm;
+  }
+
+  :root {
+    --bg-primary: #0a0e17;
+    --bg-secondary: #111827;
+    --bg-card: rgba(255,255,255,0.04);
+    --bg-card-alt: rgba(255,255,255,0.07);
+    --border: rgba(255,255,255,0.09);
+    --text: #e8eaf0;
+    --text-dim: rgba(255,255,255,0.6);
+    --text-muted: rgba(255,255,255,0.35);
+    --cyan: #22d3ee;
+    --green: #10b981;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --purple: #a78bfa;
+    --orange: #f97316;
+    --blue: #3b82f6;
+    --gold: #d4af37;
+  }
+
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 210mm;
+    background: var(--bg-primary);
+    color: var(--text);
+    font-family: 'Cairo', 'IBM Plex Sans Arabic', sans-serif;
+    font-size: 11pt;
+    line-height: 1.7;
+    direction: rtl;
+  }
+
+  .page {
+    width: 100%;
+    min-height: 257mm;
+    padding: 0;
+    page-break-after: always;
+    position: relative;
+  }
+
+  .page:last-child {
+    page-break-after: auto;
+  }
+
+  /* Cover Page */
+  .cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 257mm;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cover::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -30%;
+    width: 80%;
+    height: 80%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(34,211,238,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover::after {
+    content: '';
+    position: absolute;
+    bottom: -40%;
+    left: -20%;
+    width: 60%;
+    height: 60%;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(167,139,250,0.05) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .cover-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 14px;
+    border-radius: 20px;
+    background: rgba(34,211,238,0.1);
+    border: 1px solid rgba(34,211,238,0.25);
+    color: var(--cyan);
+    font-size: 9pt;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 30px;
+  }
+
+  .cover-title {
+    font-size: 36pt;
+    font-weight: 900;
+    line-height: 1.25;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, var(--cyan), var(--purple));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .cover-subtitle {
+    font-size: 16pt;
+    font-weight: 400;
+    color: var(--text-dim);
+    margin-bottom: 40px;
+    max-width: 75%;
+    line-height: 1.6;
+  }
+
+  .cover-meta {
+    display: flex;
+    gap: 30px;
+    font-size: 9.5pt;
+    color: var(--text-muted);
+    margin-top: 20px;
+  }
+
+  .cover-meta span {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .cover-line {
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, var(--cyan), var(--purple));
+    margin: 24px auto;
+    border-radius: 2px;
+  }
+
+  /* Section Headers */
+  h1 {
+    font-size: 20pt;
+    font-weight: 800;
+    color: var(--cyan);
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid rgba(34,211,238,0.2);
+  }
+
+  h2 {
+    font-size: 15pt;
+    font-weight: 700;
+    color: var(--text);
+    margin-top: 22px;
+    margin-bottom: 10px;
+  }
+
+  h3 {
+    font-size: 12pt;
+    font-weight: 600;
+    color: var(--purple);
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  h4 {
+    font-size: 11pt;
+    font-weight: 600;
+    color: var(--yellow);
+    margin-top: 10px;
+    margin-bottom: 4px;
+  }
+
+  p {
+    margin-bottom: 10px;
+    line-height: 1.75;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+
+  .card-danger {
+    border-right: 3px solid var(--red);
+    background: rgba(239,68,68,0.05);
+  }
+
+  .card-warning {
+    border-right: 3px solid var(--yellow);
+    background: rgba(245,158,11,0.05);
+  }
+
+  .card-success {
+    border-right: 3px solid var(--green);
+    background: rgba(16,185,129,0.05);
+  }
+
+  .card-info {
+    border-right: 3px solid var(--cyan);
+    background: rgba(34,211,238,0.05);
+  }
+
+  .card-purple {
+    border-right: 3px solid var(--purple);
+    background: rgba(167,139,250,0.05);
+  }
+
+  .card-title {
+    font-weight: 700;
+    font-size: 11.5pt;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-body {
+    font-size: 10pt;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0;
+    font-size: 9.5pt;
+  }
+
+  table th {
+    background: rgba(34,211,238,0.1);
+    color: var(--cyan);
+    padding: 7px 10px;
+    text-align: right;
+    font-weight: 700;
+    font-size: 9pt;
+    border-bottom: 1px solid var(--border);
+  }
+
+  table td {
+    padding: 6px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--text-dim);
+    vertical-align: top;
+  }
+
+  table tr:hover td {
+    background: rgba(255,255,255,0.02);
+  }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 8pt;
+    font-weight: 700;
+  }
+
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge-cyan { background: rgba(34,211,238,0.15); color: var(--cyan); }
+  .badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+
+  /* Lists */
+  ul, ol {
+    margin: 8px 18px 12px 0;
+    padding-right: 18px;
+  }
+
+  li {
+    margin-bottom: 4px;
+    line-height: 1.65;
+  }
+
+  /* Phase indicators */
+  .phase-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    background: rgba(34,211,238,0.06);
+    border: 1px solid rgba(34,211,238,0.12);
+  }
+
+  .phase-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16pt;
+    font-weight: 900;
+    flex-shrink: 0;
+  }
+
+  .phase-1 .phase-number { background: rgba(239,68,68,0.2); color: var(--red); }
+  .phase-2 .phase-number { background: rgba(245,158,11,0.2); color: var(--yellow); }
+  .phase-3 .phase-number { background: rgba(167,139,250,0.2); color: var(--purple); }
+  .phase-4 .phase-number { background: rgba(16,185,129,0.2); color: var(--green); }
+  .phase-5 .phase-number { background: rgba(34,211,238,0.2); color: var(--cyan); }
+
+  .phase-title {
+    font-size: 16pt;
+    font-weight: 800;
+  }
+
+  .phase-meta {
+    font-size: 9pt;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Code blocks */
+  code {
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-family: 'SFMono-Regular', 'Consolas', monospace;
+    font-size: 9pt;
+    color: var(--orange);
+    direction: ltr;
+    unicode-bidi: embed;
+  }
+
+  /* Priority Matrix */
+  .priority-high { color: var(--red); font-weight: 700; }
+  .priority-medium { color: var(--yellow); font-weight: 600; }
+  .priority-low { color: var(--green); font-weight: 600; }
+
+  /* Timeline */
+  .timeline-item {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+
+  .timeline-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+
+  .timeline-content {
+    flex: 1;
+  }
+
+  /* Footer */
+  .page-footer {
+    position: relative;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--text-muted);
+    font-size: 8pt;
+    margin-top: 30px;
+  }
+
+  /* Checklist */
+  .checklist {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0;
+  }
+
+  .checklist li {
+    padding: 4px 0;
+    padding-right: 22px;
+    position: relative;
+  }
+
+  .checklist li::before {
+    content: '☐';
+    position: absolute;
+    right: 0;
+    color: var(--cyan);
+  }
+
+  /* Divider */
+  .divider {
+    border: none;
+    height: 1px;
+    background: var(--border);
+    margin: 16px 0;
+  }
+
+  /* Summary grid */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin: 12px 0;
+  }
+
+  .summary-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: center;
+  }
+
+  .summary-value {
+    font-size: 22pt;
+    font-weight: 900;
+  }
+
+  .summary-label {
+    font-size: 8.5pt;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  /* Flow steps */
+  .flow-steps {
+    display: flex;
+    gap: 8px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+
+  .flow-step {
+    flex: 1;
+    min-width: 120px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px;
+    text-align: center;
+    font-size: 9pt;
+  }
+
+  .flow-step-num {
+    font-size: 14pt;
+    font-weight: 900;
+    color: var(--cyan);
+  }
+
+  .flow-step-label {
+    color: var(--text-dim);
+    margin-top: 3px;
+    font-size: 8.5pt;
+  }
+
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    color: var(--text-muted);
+    font-size: 16pt;
+  }
+
+  @media print {
+    .page { page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════ COVER PAGE ═══════════════════ -->
+<div class="page cover">
+  <div class="cover-badge">ROUA TRADING — EXECUTION PLAN</div>
+  <div class="cover-title">الخطة التنفيذية<br>الشاملة</div>
+  <div class="cover-line"></div>
+  <div class="cover-subtitle">
+    إصلاح المحركات المزيفة، استكمال النواقص، وإضافة الميزات المفقودة — خارطة طريق مفصلة لتحويل لوحة التحليل الذكي إلى منافس حقيقي في السوق العالمي
+  </div>
+  <div class="cover-meta">
+    <span>مايو 2026</span>
+    <span>الإصدار 1.0</span>
+    <span>سري وخاص</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ TABLE OF CONTENTS ═══════════════════ -->
+<div class="page">
+  <h1>فهرس المحتويات</h1>
+
+  <table>
+    <tr><td style="font-weight:700; color:var(--cyan);">1</td><td>ملخص تنفيذي</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">2</td><td>تشخيص الوضع الحالي — المحركات المزيفة</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">3</td><td>المرحلة الأولى: استبدال المحركات المزيفة (أولوية حرجة)</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">4</td><td>المرحلة الثانية: توحيد أنظمة الكشف (أولوية عالية)</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">5</td><td>المرحلة الثالثة: إضافة ميزات السوق العالمي (أولوية متوسطة)</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">6</td><td>المرحلة الرابعة: تحسينات الجودة والموثوقية</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">7</td><td>المرحلة الخامسة: ميزات متقدمة تميّز المنصة</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">8</td><td>مصفوفة الأولويات والجدول الزمني</td></tr>
+    <tr><td style="font-weight:700; color:var(--cyan);">9</td><td>مؤشرات النجاح والتحقق</td></tr>
+  </table>
+
+  <div style="margin-top: 30px;">
+    <h2>ملخص الأرقام الرئيسية</h2>
+    <div class="summary-grid">
+      <div class="summary-item">
+        <div class="summary-value" style="color:var(--red);">5</div>
+        <div class="summary-label">محركات مزيفة يجب استبدالها</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" style="color:var(--yellow);">4</div>
+        <div class="summary-label">محركات مكررة يجب توحيدها</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" style="color:var(--purple);">8</div>
+        <div class="summary-label">ميزات غائبة عن السوق العالمي</div>
+      </div>
+      <div class="summary-item">
+        <div class="summary-value" style="color:var(--green);">5</div>
+        <div class="summary-label">مراحل تنفيذ كاملة</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SECTION 1: EXECUTIVE SUMMARY ═══════════════════ -->
+<div class="page">
+  <h1>1. ملخص تنفيذي</h1>
+
+  <p>
+    كشف التدقيق المعمّق لمنصة رواء تريدينغ عن مشكلة جوهرية: خمسة من المحركات التحليلية الأساسية في اللوحة الذكية هي <strong>أغلفة فارغة (Stubs)</strong> تحمل أسماء ثورية لكنها لا تنفذ الخوارزميات الحقيقية. هذه المحركات تُظهر للمستخدم نتائج تبدو مهنية لكنها في الواقع إما ثابتة أو تافهة حسابياً. إلى جانب ذلك، توجد أربعة أنظمة كشف مكررة — حيث يستخدم AISmartPanel المحركات الضعيفة بينما توجد محركات أقوى غير مستخدمة. كما تفتقر المنصة لثماني ميزات أساسية متوفرة في منصات التداول العالمية مثل TradingView وAutoChartist وTickeron.
+  </p>
+
+  <p>
+    هذه الخطة التنفيذية مقسّمة إلى خمس مراحل متتابعة، تبدأ بإصلاح المحركات المزيفة (أولوية حرجة) وتنتهي بميزات تمييزية تجعل رواء منافساً حقيقياً. كل مرحلة تحتوي على مهام محددة مع ملفات مفصّلة، خوارزميات مقترحة، ومعايير تحقق واضحة.
+  </p>
+
+  <h2>الوضع الحالي بالمختصر</h2>
+  <table>
+    <tr>
+      <th>المحرك</th>
+      <th>الملف</th>
+      <th>الحالة</th>
+      <th>التأثير</th>
+    </tr>
+    <tr>
+      <td>Bayesian Consensus</td>
+      <td><code>BayesianEngine.ts</code></td>
+      <td><span class="badge badge-red">مزيف — Stub</span></td>
+      <td>تصويت مرجح وليس بايزي</td>
+    </tr>
+    <tr>
+      <td>Pattern State Machine</td>
+      <td><code>PatternStateMachine.ts</code></td>
+      <td><span class="badge badge-red">مزيف — Stub</span></td>
+      <td>لا يتتبع حالة أي نمط</td>
+    </tr>
+    <tr>
+      <td>Pattern Performance</td>
+      <td><code>PatternPerformance.ts</code></td>
+      <td><span class="badge badge-red">مزيف — Stub</span></td>
+      <td>record() لا تفعل شيئاً</td>
+    </tr>
+    <tr>
+      <td>Confidence Heatmap</td>
+      <td><code>ConfidenceHeatmap.ts</code></td>
+      <td><span class="badge badge-red">مزيف — Stub</span></td>
+      <td>ثقة ثابتة 0.3 لكل شمعة</td>
+    </tr>
+    <tr>
+      <td>Elliott+SMC Fusion</td>
+      <td><code>ElliottSMCFusion.ts</code></td>
+      <td><span class="badge badge-red">مزيف — Stub</span></td>
+      <td>نقاط ثابتة بدون تحليل</td>
+    </tr>
+    <tr>
+      <td>Elliott (مستقل)</td>
+      <td><code>ElliottWave.ts</code></td>
+      <td><span class="badge badge-yellow">ضعيف</span></td>
+      <td>نمط واحد، ثقة ثابتة</td>
+    </tr>
+    <tr>
+      <td>Geometric Patterns</td>
+      <td><code>GeometricPatterns.ts</code></td>
+      <td><span class="badge badge-yellow">ضعيف</span></td>
+      <td>نمط واحد فقط لكل نوع</td>
+    </tr>
+    <tr>
+      <td>Wyckoff Analysis</td>
+      <td><code>WyckoffAnalysis.ts</code></td>
+      <td><span class="badge badge-yellow">ضعيف</span></td>
+      <td>طور واحد فقط، أحداث خاطئة</td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ SECTION 2: DIAGNOSIS ═══════════════════ -->
+<div class="page">
+  <h1>2. تشخيص الوضع الحالي — تفصيل المحركات المزيفة</h1>
+
+  <div class="card card-danger">
+    <div class="card-title"><span style="color:var(--red);">●</span> BayesianEngine.ts — إجماع بايزي مزيف</div>
+    <div class="card-body">
+      <p><strong>ما يزعمه:</strong> محرك إجماع بايزي يجمع إشارات من عدة مناهج ويحسب الاحتمال البَعدي باستخدام مبرهنة بايز.</p>
+      <p><strong>ما يفعله فعلياً:</strong> تصويت مرجح بسيط — يجمع <code>weight × confidence</code> للإشارات الصاعدة والهابطة ويعطي الأعلى. لا يوجد أي بايز على الإطلاق: لا توزيع قبلي (Prior)، لا مبرهنة بايز، لا تحديث بَعدي (Posterior). إشارة Wyckoff دائماً تعيد <code>neutral</code> بثقة <code>0.4</code> مهما كانت البيانات.</p>
+      <p><strong>الملف يقول حرفياً:</strong> <code>// Bayesian Consensus Engine — Stub</code></p>
+    </div>
+  </div>
+
+  <div class="card card-danger">
+    <div class="card-title"><span style="color:var(--red);">●</span> PatternStateMachine.ts — آلة حالة مزيفة</div>
+    <div class="card-body">
+      <p><strong>ما يزعمه:</strong> آلة حالة تتتبع دورة حياة كل نمط: تشكّل ← اقتراب من الاكتمال ← اكتمال ← اختراق ← فشل، مع توليد تنبيهات عند كل انتقال.</p>
+      <p><strong>ما يفعله فعلياً:</strong> تصنيف بسيط بحدود ثابتة على جودة النمط فقط. لا يتتبع حالة أي نمط عبر الزمن، لا يكتشف الانتقالات، <code>breakout</code> و <code>failed</code> دائماً صفر، و <code>alerts</code> دائماً مصفوفة فارغة.</p>
+    </div>
+  </div>
+
+  <div class="card card-danger">
+    <div class="card-title"><span style="color:var(--red);">●</span> PatternPerformance.ts — تتبع أداء مزيف</div>
+    <div class="card-body">
+      <p><strong>ما يزعمه:</strong> يتتبع أداء كل نمط تاريخياً — معدل النجاح، متوسط العائد، إحصائيات حسب النوع.</p>
+      <p><strong>ما يفعله فعلياً:</strong> <code>record()</code> لا تفعل شيئاً (no-op)، <code>getSummary()</code> تُرجع دائماً خريطة فارغة. والأسوأ أن AISmartPanel تستدعي <code>tracker.recordDetection()</code> وهي دالة لا توجد أصلاً في الواجهة.</p>
+    </div>
+  </div>
+
+  <div class="card card-danger">
+    <div class="card-title"><span style="color:var(--red);">●</span> ConfidenceHeatmap.ts — خريطة حرارية مزيفة</div>
+    <div class="card-body">
+      <p><strong>ما يزعمه:</strong> خريطة حرارية تُظهر مناطق الثقة على الشارت بناءً على تقاطع الإشارات.</p>
+      <p><strong>ما يفعله فعلياً:</strong> تعيين ثابت <code>0.3</code> لكل شمعة بناءً على لونها فقط (أخضر/أحمر). لا يستخدم أي إشارة فعلية من التحليل. ليس خريطة حرارية بأي مقياس مهني.</p>
+    </div>
+  </div>
+
+  <div class="card card-danger">
+    <div class="card-title"><span style="color:var(--red);">●</span> ElliottSMCFusion.ts — اندماج مزيف</div>
+    <div class="card-body">
+      <p><strong>ما يزعمه:</strong> محرك اندماج يدمج إليوت مع SMC مع Wyckoff لتوليد تقارب قوي.</p>
+      <p><strong>ما يفعله فعلياً:</strong> جمع نقاط ثابتة: إليوت +60، بلوك الأوامر +50، كسر الهيكل +70، فجوة القيمة +40 (ودائماً neutral). الأوزان ثابتة بغض النظر عن قوة الإشارة. لا يستخدم بيانات الشموع الفعلية — فقط يتحقق إن كانت المصفوفات غير فارغة.</p>
+    </div>
+  </div>
+
+  <div class="card card-warning">
+    <div class="card-title"><span style="color:var(--yellow);">●</span> مشكلة إضافية: محركان مكرران ضعيفان</div>
+    <div class="card-body">
+      <p>المحرك الأقوى في المشروع <code>pattern-engine.ts</code> لا يُستخدم إطلاقاً! وهو يمتلك: تحديثات تزايدية O(1)، 10 أنماط هارمونيك، تقييم جودة شامل، ومناطق توقّع مع احتمالات. كذلك <code>chart-detection.ts</code> (الأكثر شمولية) يُستخدم فقط من overlay-renderer وليس من AISmartPanel.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PHASE 1 ═══════════════════ -->
+<div class="page">
+  <div class="phase-header phase-1">
+    <div class="phase-number">1</div>
+    <div>
+      <div class="phase-title" style="color:var(--red);">استبدال المحركات المزيفة</div>
+      <div class="phase-meta">أولوية حرجة — المدة المتوقعة: 3-4 أسابيع</div>
+    </div>
+  </div>
+
+  <h2>1.1 استبدال BayesianEngine بمحرك بايزي حقيقي</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>BayesianEngine.ts</code></div>
+    <div class="card-body">
+      <p><strong>الخوارزمية المطلوبة:</strong> Naive Bayes Classifier مع تحديث بَعدي حقيقي:</p>
+      <ul>
+        <li><strong>التوزيع القبلي (Prior):</strong> حساب <code>P(bullish)</code> و <code>P(bearish)</code> من آخر 100 شمعة (نسبة الشموع الصاعدة/الهابطة)</li>
+        <li><strong>الاحتمال الشرطي (Likelihood):</strong> لكل إشارة، حساب <code>P(signal|bullish)</code> و <code>P(signal|bearish)</code> بناءً على أداء الإشارة تاريخياً (يستخدم بيانات من PatternPerformance)</li>
+        <li><strong>التحديث البَعدي:</strong> تطبيق مبرهنة بايز: <code>P(bullish|signals) = P(signals|bullish) × P(bullish) / P(signals)</code></li>
+        <li><strong>الاستقلالية الشرطية:</strong> افتراض Naive Bayes (استقلال الإشارات) مع تصحيح Laplace Smoothing لتجنب الاحتمال الصفري</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>التنفيذ خطوة بخطوة:</h3>
+  <ol>
+    <li>إضافة واجهة <code>SignalHistory</code> لتتبع أداء كل نوع إشارة (متى كانت صحيحة/خاطئة)</li>
+    <li>تخزين سجل الإشارات في <code>localStorage</code> أو Zustand store للاستمرارية</li>
+    <li>حساب التوزيع القبلي من بيانات السوق الحالية (ليس ثابتاً)</li>
+    <li>حساب الاحتمالات الشرطية من السجل التاريخي لكل إشارة</li>
+    <li>تطبيق Bayes مع تصحيح Laplace (alpha=1)</li>
+    <li>إرجاع نتيجة مع: <code>posterior_bullish</code>, <code>posterior_bearish</code>, <code>prior</code>, <code>likelihood_per_signal</code></li>
+    <li>تحديث السجل عند كل شمعة جديدة (verified against price movement)</li>
+  </ol>
+
+  <h4>معايير التحقق:</h4>
+  <ul class="checklist">
+    <li>النتيجة تتغير فعلياً بناءً على البيانات (ليست ثابتة)</li>
+    <li>الاحتمال البعدي يتوافق مع مبرهنة بايز رياضياً</li>
+    <li>السجل التاريخي يتتبع أداء كل إشارة على الأقل 200 شمعة</li>
+    <li>Wyckoff لم تعد تعيد دائماً neutral</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>1.2 استبدال PatternStateMachine بآلة حالة حقيقية</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>PatternStateMachine.ts</code></div>
+    <div class="card-body">
+      <p><strong>الخوارزمية المطلوبة:</strong> Finite State Machine مع 5 حالات وانتقالات مشروطة:</p>
+      <ul>
+        <li><strong>Forming:</strong> النمط في طور التشكّل — لم تكتمل كل نقاطه بعد</li>
+        <li><strong>Validating:</strong> اكتملت النقاط — يتم التحقق من نسب فيبوناتشي/الهندسة</li>
+        <li><strong>Active:</strong> نمط مؤكد — السعر ضمن منطقة PRZ</li>
+        <li><strong>Triggered:</strong> السعر بدأ يتحرك من PRZ — إشارة دخول محتملة</li>
+        <li><strong>Expired/Failed:</strong> السعر اخترق مستوى الإلغاء أو انتهت صلاحية النمط</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>الانتقالات المطلوبة:</h3>
+  <table>
+    <tr><th>من</th><th>إلى</th><th>الشرط</th></tr>
+    <tr><td>Forming</td><td>Validating</td><td>اكتمال كل نقاط XABCD</td></tr>
+    <tr><td>Validating</td><td>Active</td><td>النسب ضمن التسامح المقبول</td></tr>
+    <tr><td>Validating</td><td>Failed</td><td>النسب خارج التسامح</td></tr>
+    <tr><td>Active</td><td>Triggered</td><td>السعر يغادر PRZ باتجاه متوقع</td></tr>
+    <tr><td>Active</td><td>Failed</td><td>السعر يخترق مستوى الإلغاء</td></tr>
+    <tr><td>Triggered</td><td>Confirmed</td><td>السعر يصل إلى الهدف الأول</td></tr>
+    <tr><td>Triggered</td><td>Failed</td><td>السعر يعود داخل PRZ ثم يخترق الإلغاء</td></tr>
+  </table>
+
+  <h4>معايير التحقق:</h4>
+  <ul class="checklist">
+    <li>كل نمط يتم تتبعه عبر الزمن وليس مجرد لحظة واحدة</li>
+    <li>breakout و failed لم يعودا صفراً دائماً</li>
+    <li>alerts تُولَّد فعلياً عند الانتقالات</li>
+    <li>كل نمط له معرّف فريد يتتبع عبر التحديثات</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════ PHASE 1 CONTINUED ═══════════════════ -->
+<div class="page">
+  <h2>1.3 استبدال PatternPerformance بنظام تتبع أداء حقيقي</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>PatternPerformance.ts</code></div>
+    <div class="card-body">
+      <p><strong>الخوارزمية المطلوبة:</strong> نظام تقييم تلقائي يقارن توقعات النمط بالحركة الفعلية:</p>
+      <ul>
+        <li><strong>عند الاكتشاف:</strong> تسجيل: نمط، سعر الدخول، وقف الخسارة، الهدف، الاتجاه، الثقة، الوقت</li>
+        <li><strong>بعد N شموع:</strong> مقارنة السعر الحالي بالتوقّع:
+          <ul>
+            <li>إذا وصل السعر للهدف ← <span class="badge badge-green">نجاح</span></li>
+            <li>إذا وصل لوقف الخسارة ← <span class="badge badge-red">فشل</span></li>
+            <li>إذا لم يصل لأي منهما بعد ← <span class="badge badge-yellow">قيد الانتظار</span></li>
+          </ul>
+        </li>
+        <li><strong>الإحصائيات:</strong> معدل نجاح لكل نوع نمط، متوسط العائد، أفضل/أسوأ فريم زمني</li>
+        <li><strong>التخزين:</strong> localStorage أو IndexedDB للاستمرارية بين الجلسات</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>الإصلاح العاجل:</h3>
+  <div class="card card-danger">
+    <div class="card-body">
+      <code>AISmartPanel</code> تستدعي <code>tracker.recordDetection()</code> وهذه الدالة <strong>لا توجد</strong> في واجهة <code>PatternPerformanceTracker</code>. يجب إما إضافة الدالة للواجهة أو تصحيح الاستدعاء ليستخدم <code>tracker.record()</code> الموجودة.
+    </div>
+  </div>
+
+  <h4>معايير التحقق:</h4>
+  <ul class="checklist">
+    <li>record() تسجّل فعلياً في بنية بيانات دائمة</li>
+    <li>getSummary() تُرجع إحصائيات حقيقية وليست فارغة</li>
+    <li>التقييم التلقائي يعمل كل دقيقة (موجود فعلاً لكن لا يعمل)</li>
+    <li>الإحصائيات تتحدث عبر الجلسات (localStorage)</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>1.4 استبدال ConfidenceHeatmap بخريطة ثقة حقيقية</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>ConfidenceHeatmap.ts</code></div>
+    <div class="card-body">
+      <p><strong>الخوارزمية المطلوبة:</strong> خريطة ثقة مبنية على تقاطع الإشارات:</p>
+      <ul>
+        <li><strong>لكل شمعة:</strong> جمع كل الإشارات النشطة (SMC، هارمونيك، إليوت، ويكوف) التي تغطي هذه الشمعة</li>
+        <li><strong>حساب الثقة:</strong> إذا كانت 3+ إشارات تتفق على الاتجاه ← ثقة عالية (0.7-0.9). إذا اختلفت ← ثقة منخفضة (0.2-0.4). إذا لم تكن إشارات ← 0</li>
+        <li><strong>التلوين:</strong> تدرج لوني: أخضر غامق (ثقة صاعدة عالية) ← أصفر (محايد) ← أحمر غامق (ثقة هابطة عالية)</li>
+        <li><strong>التغطية:</strong> كل إشارة تغطي نطاق شموع (من نقطة البداية للنمط حتى PRZ)، وليس شمعة واحدة</li>
+      </ul>
+    </div>
+  </div>
+
+  <h4>معايير التحقق:</h4>
+  <ul class="checklist">
+    <li>الثقة ليست ثابتة 0.3 — تتغير بناءً على تقاطع الإشارات</li>
+    <li>مناطق تقاطع الإشارات (confluence zones) تظهر بوضوح</li>
+    <li>الخريطة تتحدث عند كل تحليل جديد</li>
+  </ul>
+
+  <hr class="divider">
+
+  <h2>1.5 استبدال ElliottSMCFusion بمحرك اندماج حقيقي</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>ElliottSMCFusion.ts</code></div>
+    <div class="card-body">
+      <p><strong>الخوارزمية المطلوبة:</strong> نظام تقارب متعدد الطبقات:</p>
+      <ol>
+        <li><strong>الطبقة الأولى — توافق الاتجاه:</strong> هل إليوت وSMC وويكوف تتفق على الاتجاه؟ (وليس مجرد "هل المصفوفة غير فارغة")</li>
+        <li><strong>الطبقة الثانية — التقارب المكاني:</strong> هل منطقة PRZ للهارمونيك تتقاطع مع Order Block؟ هل نقطة BOS قريبة من موجة إليوت؟</li>
+        <li><strong>الطبقة الثالثة — تأكيد الحجم:</strong> هل حجم التداول يدعم الاتجاه؟ (يستخدم Volume Profile)</li>
+        <li><strong>الطبقة الرابعة — السياق الزمني:</strong> هل الفريم الأعلى يؤكد الاتجاه؟</li>
+      </ol>
+      <p>كل طبقة تضيف أو تطرح من درجة التقارب بناءً على قوة الإشارة الفعلية (وليس وزن ثابت).</p>
+    </div>
+  </div>
+
+  <h4>معايير التحقق:</h4>
+  <ul class="checklist">
+    <li>الأوزان ديناميكية بناءً على قوة الإشارة (ليست ثابتة)</li>
+    <li>FVG تعطي اتجاهاً حقيقياً (ليس دائماً neutral)</li>
+    <li>التقارب المكاني يُحسب فعلياً (مسافة بين مستويات)</li>
+    <li>النتيجة تتغير مع تغير البيانات</li>
+  </ul>
+</div>
+
+<!-- ═══════════════════ PHASE 2 ═══════════════════ -->
+<div class="page">
+  <div class="phase-header phase-2">
+    <div class="phase-number">2</div>
+    <div>
+      <div class="phase-title" style="color:var(--yellow);">توحيد أنظمة الكشف</div>
+      <div class="phase-meta">أولوية عالية — المدة المتوقعة: 2-3 أسابيع</div>
+    </div>
+  </div>
+
+  <h2>2.1 توحيد AISmartPanel لاستخدام المحركات الأقوى</h2>
+
+  <p>المشكلة: AISmartPanel تستخدم المحركات الضعيفة المستقلة بينما المحركات الأقوى موجودة لكنها غير مستخدمة:</p>
+
+  <table>
+    <tr>
+      <th>المحرك المستخدم حالياً</th>
+      <th>جودته</th>
+      <th>البديل الأقوى</th>
+      <th>جودته</th>
+      <th>الإجراء</th>
+    </tr>
+    <tr>
+      <td><code>ElliottWave.ts</code></td>
+      <td><span class="badge badge-yellow">ضعيف-متوسط</span></td>
+      <td><code>chart-detection.ts</code></td>
+      <td><span class="badge badge-green">متوسط</span></td>
+      <td>استبدال</td>
+    </tr>
+    <tr>
+      <td><code>GeometricPatterns.ts</code></td>
+      <td><span class="badge badge-yellow">ضعيف</span></td>
+      <td><code>pattern-engine.ts</code></td>
+      <td><span class="badge badge-green">عالي جداً</span></td>
+      <td>استبدال</td>
+    </tr>
+    <tr>
+      <td><code>SMCDetector.ts</code></td>
+      <td><span class="badge badge-yellow">متوسط</span></td>
+      <td><code>chart-detection.ts</code></td>
+      <td><span class="badge badge-green">عالي</span></td>
+      <td>استبدال</td>
+    </tr>
+    <tr>
+      <td><code>HarmonicPatterns.ts</code></td>
+      <td><span class="badge badge-yellow">متوسط</span></td>
+      <td><code>ProfessionalHarmonicPatterns.ts</code></td>
+      <td><span class="badge badge-green">عالي</span></td>
+      <td>مستخدم بالفعل ✓</td>
+    </tr>
+  </table>
+
+  <h3>خطة التوحيد:</h3>
+  <ol>
+    <li><strong>إنشاء <code>unified-analysis.ts</code>:</strong> طبقة تجميع واحدة تستدعي <code>pattern-engine.ts</code> و <code>chart-detection.ts</code> بدلاً من المحركات الضعيفة</li>
+    <li><strong>تعديل AISmartPanel:</strong> استبدال الاستدعاءات الـ 7 المنفصلة باستدعاء واحد لـ <code>unified-analysis.ts</code></li>
+    <li><strong>حفظ التوافق:</strong> التأكد من أن النتائج تحتفظ بنفس الواجهة (interface) حتى لا تتكسر الأزرار</li>
+    <li><strong>إزالة المكررات:</strong> بعد التحقق، حذف <code>ElliottWave.ts</code> و <code>GeometricPatterns.ts</code> المستقلين</li>
+  </ol>
+
+  <div class="card card-success">
+    <div class="card-title">✓ الفائدة: pattern-engine.ts يوفّر:</div>
+    <div class="card-body">
+      <ul>
+        <li>تحديثات تزايدية O(1) بدل إعادة الحساب الكامل</li>
+        <li>10 أنماط هارمونيك (بدل 4) — تشمل Cypher, Shark, Deep Crab, Alternate Bat, 5-0</li>
+        <li>تقييم جودة شامل: الوضوح + التجانس + الاتجاه الأولي</li>
+        <li>مناطق توقّع مع نطاق سعر + نطاق زمني + احتمال</li>
+        <li>إزالة التكرار: الاحتفاظ بأعلى جودة لكل نافذة زمنية</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2.2 تحسين كاشف Wyckoff</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الملف: <code>WyckoffAnalysis.ts</code></div>
+    <div class="card-body">
+      <p><strong>النواقص الحالية:</strong></p>
+      <ul>
+        <li>يكتشف طوراً واحداً فقط (ليس مخطط تراكم/توزيع كامل)</li>
+        <li>الأحداث (SC, SOS, BC) توضع عند آخر شمعة وليس عند النقاط الهيكلية الفعلية</li>
+        <li>لا يُميّز بين Phases A-E في مخطط ويكوف</li>
+      </ul>
+      <p><strong>التحسينات المطلوبة:</strong></p>
+      <ol>
+        <li>تنفيذ مخطط التراكم الكامل: Phase A (PS, SC, AR, ST) ← Phase B (secondary tests) ← Phase C (spring/LPS) ← Phase D (SOS, LPS, backup)</li>
+        <li>وضع الأحداث عند النقاط الهيكلية الفعلية (أدنى/أعلى حجم عند القيعان/القمم)</li>
+        <li>تحليل تدفق الأموال (Money Flow) مع حجم التداول: CM يتراكم ← حجم عند القاع يزداد</li>
+        <li>تحديد مستويات الدعم/المقاومة ضمن النطاق التراكمي</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2>2.3 تحسين كاشف Elliott Wave</h2>
+
+  <div class="card card-info">
+    <div class="card-title">📁 الاستفادة من <code>chart-detection.ts</code></div>
+    <div class="card-body">
+      <p><strong>التحسينات المطلوبة:</strong></p>
+      <ol>
+        <li>إضافة كشف أنماط التصحيح ABC (Zigzag, Flat, Triangle, Complex)</li>
+        <li>التحقق من نسب فيبوناتشي بين الموجات (Wave 2 = 0.618 × Wave 1, Wave 4 = 0.382 × Wave 3)</li>
+        <li>حساب الثقة ديناميكياً بناءً على دقة النسب</li>
+        <li>إضافة قواعد التمديد (Extension): Wave 3 = 1.618 × Wave 1, Wave 5 = 1.0 × Wave 1</li>
+        <li>تتبع عدة تعدادات محتملة (alternate counts) مع احتمال لكل واحدة</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PHASE 3 ═══════════════════ -->
+<div class="page">
+  <div class="phase-header phase-3">
+    <div class="phase-number">3</div>
+    <div>
+      <div class="phase-title" style="color:var(--purple);">إضافة ميزات السوق العالمي</div>
+      <div class="phase-meta">أولوية متوسطة — المدة المتوقعة: 4-6 أسابيع</div>
+    </div>
+  </div>
+
+  <p>مقارنة بمنصات مثل TradingView (AutoChartist)، Tickeron، و TrendSpider، تفتقر رواء للميزات التالية:</p>
+
+  <h2>3.1 نظام التنبيهات الذكية (Smart Alerts)</h2>
+  <div class="card card-purple">
+    <div class="card-body">
+      <p><strong>الميزة:</strong> تنبيهات مشروطة مبنية على تقاطع الأحداث، وليس مجرد تنبيهات سعرية.</p>
+      <p><strong>أمثلة:</strong></p>
+      <ul>
+        <li>"تنبيه عندما يكتمل نمط Gartley صاعد ويكون هناك Order Block صاعد ضمن PRZ"</li>
+        <li>"تنبيه عند BOS صاعد على فريم 4 ساعات + FVG غير مغلّى على فريم الساعة"</li>
+        <li>"تنبيه عندما يتقاطع خط اتجاه مع مستوى فيبوناتشي 0.618"</li>
+      </ul>
+      <p><strong>التنفيذ:</strong> إنشاء <code>SmartAlertEngine.ts</code> مع لغة تعبيرات بسيطة (DSL) تسمح بإنشاء شروط مركبة. التنبيهات عبر إشعار المتصفح + صوت + مؤشر بصري على الشارت.</p>
+    </div>
+  </div>
+
+  <h2>3.2 التحليل متعدد الأطر الزمنية (Multi-Timeframe Analysis)</h2>
+  <div class="card card-purple">
+    <div class="card-body">
+      <p><strong>الميزة:</strong> تحليل تلقائي لـ 3-4 فريمات زمنية في وقت واحد وتوليد إشارة تقارب.</p>
+      <p><strong>مثال:</strong> "فريم الأسبوع: اتجاه صاعد. فريم 4 ساعات: BOS صاعد. فريم الساعة: FVG صاعد غير مغلّى ← تقارب قوي صاعد"</p>
+      <p><strong>التنفيذ:</strong></p>
+      <ol>
+        <li>جلب بيانات 3-4 فريمات من Binance API بشكل متوازٍ</li>
+        <li>تشغيل التحليل على كل فريم بشكل مستقل</li>
+        <li>طبقة اندماج <code>MTFEngine.ts</code> تُرجّح الإشارات: الفريم الأعلى يحدد الاتجاه العام، الفريم الأدنى يحدد نقطة الدخول</li>
+        <li>عرض مصفوفة الفريمات في اللوحة مع ألوان إشارة كل فريم</li>
+      </ol>
+    </div>
+  </div>
+
+  <h2>3.3 نمط التداول التلقائي (Auto-Trade Pattern)</h2>
+  <div class="card card-purple">
+    <div class="card-body">
+      <p><strong>الميزة:</strong> عندما يكتشف النظام تقارب عالي (3+ إشارات متفقة)، يقترح تلقائياً صفقة مع Entry/SL/TP/Position Size.</p>
+      <p><strong>التنفيذ:</strong></p>
+      <ul>
+        <li>حساب حجم الموقف بناءً على نسبة المخاطرة (مثلاً 1-2% من رأس المال)</li>
+        <li>تحديد SL عند مستوى إلغاء النمط (ليس ATR عشوائي)</li>
+        <li>تحديد TP عند هدف النمط (قياس الحركة = السعر من النقطة D إلى C)</li>
+        <li>نسبة المخاطرة/العائد ≥ 1:2 كشرط إضافي</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3.4 لوحة الأداء (Performance Dashboard)</h2>
+  <div class="card card-purple">
+    <div class="card-body">
+      <p><strong>الميزة:</strong> عرض إحصائيات أداء النظام بدلاً من إحصائيات فارغة:</p>
+      <ul>
+        <li>معدل نجاح كل نوع نمط (هارمونيك: 72%، BOS: 65%، إلخ)</li>
+        <li>أفضل/أسوأ فريم زمني لكل نمط</li>
+        <li>متوسط العائد لكل صفقة حسب المنهجية</li>
+        <li>مخطط زمني لأداء النظام (Win Rate عبر الوقت)</li>
+        <li>إحصائيات السحب الأقصى (Max Drawdown)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>3.5 ميزات إضافية مفقودة</h2>
+  <table>
+    <tr><th>الميزة</th><th>المنصات التي تملكها</th><th>الأولوية</th></tr>
+    <tr>
+      <td>Backtesting بسيط — اختبار الإشارات على بيانات تاريخية</td>
+      <td>TradingView, TrendSpider</td>
+      <td><span class="priority-high">عالية</span></td>
+    </tr>
+    <tr>
+      <td>تصدير التقارير (PDF/صورة) — حفظ لقطة التحليل</td>
+      <td>TradingView, AutoChartist</td>
+      <td><span class="priority-medium">متوسطة</span></td>
+    </tr>
+    <tr>
+      <td>مقارنة الأصل مع مؤشر القطاع (Relative Strength)</td>
+      <td>TradingView, Finviz</td>
+      <td><span class="priority-low">منخفضة</span></td>
+    </tr>
+    <tr>
+      <td>رسم مناطق السيولة (Liquidity Zones/Sweep)</td>
+      <td>ICT/SMC Platforms</td>
+      <td><span class="priority-medium">متوسطة</span></td>
+    </tr>
+  </table>
+</div>
+
+<!-- ═══════════════════ PHASE 4 ═══════════════════ -->
+<div class="page">
+  <div class="phase-header phase-4">
+    <div class="phase-number">4</div>
+    <div>
+      <div class="phase-title" style="color:var(--green);">تحسينات الجودة والموثوقية</div>
+      <div class="phase-meta">أولوية متوسطة-عالية — المدة المتوقعة: 2-3 أسابيع</div>
+    </div>
+  </div>
+
+  <h2>4.1 إصلاح تسرب الذاكرة (Memory Leak)</h2>
+  <div class="card card-warning">
+    <div class="card-title">📁 الملف: <code>useNotifications.ts</code> و <code>AISmartPanel.tsx</code></div>
+    <div class="card-body">
+      <p><strong>المشكلة:</strong> عدة مصادر لتسرب الذاكرة:</p>
+      <ul>
+        <li><code>setTimeout</code> في `alertsDedupRef` لا يُلغى عند إغلاق اللوحة</li>
+        <li><code>EventSource</code> للـ SSE لا يُغلق دائماً عند فك المكون</li>
+        <li><code>setInterval</code> في تقييم الأداء التلقائي لا يُنظَّف بشكل صحيح</li>
+        <li>مراجع <code>AbortController</code> قد لا تُلغى في بعض المسارات</li>
+      </ul>
+      <p><strong>الإصلاح:</strong> تجميع كل الـ timers والـ subscriptions في useRef واحد، وتنظيفها جميعاً في useEffect cleanup.</p>
+    </div>
+  </div>
+
+  <h2>4.2 تحسين أداء التحديثات</h2>
+  <div class="card card-info">
+    <div class="card-title">الاستفادة من IncrementalCalc.ts</div>
+    <div class="card-body">
+      <p><strong>المشكلة:</strong> كل تحليل جديد يعيد حساب كل شيء من الصفر — حتى لو لم تتغير إلا شمعة واحدة.</p>
+      <p><strong>الحل:</strong> استخدام <code>IncrementalCalc.ts</code> (الموجود فعلاً لكنه غير مستخدم في AISmartPanel):</p>
+      <ul>
+        <li>تحديث ATR بـ O(1) بدل إعادة الحساب الكامل</li>
+        <li>تحديث EMA بـ O(1) (circular buffer)</li>
+        <li>تحديث نقاط الارتكاز (Pivot Points) بتزايدي</li>
+        <li>إعادة حساب كاملة كل 50 شمعة فقط</li>
+      </ul>
+      <p><strong>النتيجة المتوقعة:</strong> تقليل وقت التحليل من ~200ms إلى ~20ms عند وصول شمعة جديدة.</p>
+    </div>
+  </div>
+
+  <h2>4.3 إضافة تحقق صارم للنتائج</h2>
+  <div class="card card-info">
+    <div class="card-title">ضمان جودة مخرجات المحركات</div>
+    <div class="card-body">
+      <p><strong>المشكلة:</strong> لا يوجد أي تحقق من صحة مخرجات المحركات قبل عرضها للمستخدم.</p>
+      <p><strong>الحل:</strong> إضافة طبقة <code>AnalysisValidator.ts</code>:</p>
+      <ul>
+        <li>التحقق من أن الأسعار ضمن نطاق الشموع (لا خط هارمونيك خارج النطاق)</li>
+        <li>التحقق من أن الأوقات ضمن نطاق البيانات المتاحة</li>
+        <li>التحقق من أن مستويات الدعم أقل من السعر الحالي والمقاومة أعلى</li>
+        <li>التحقق من أن نسب فيبوناتشي ضمن التسامح المقبول</li>
+        <li>فلترة النتائج بثقة أقل من حد معين (مثلاً 0.4)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>4.4 معالجة الأخطاء المتسامحة</h2>
+  <div class="card card-info">
+    <div class="card-title">📁 كل ملفات التحليل</div>
+    <div class="card-body">
+      <p><strong>المشكلة:</strong> حالياً كل كتلة try/catch في AISmartPanel تعتبر <code>catch { /* fallback */ }</code> — الأخطاء تُبتلع بصمت بدون أي تسجيل.</p>
+      <p><strong>الحل:</strong></p>
+      <ul>
+        <li>إضافة نظام تسجيل أخطاء مركزي <code>AnalysisLogger.ts</code></li>
+        <li>تسجيل كل خطأ مع السياق (أي محرك، أي زر، كم شمعة)</li>
+        <li>عرض مؤشر أخطاء في اللوحة (أيقونة تحذير مع عدد الأخطاء)</li>
+        <li>Fallback ذكي: إذا فشل محرك، استخدام نتيجة سابقة صالحة بدل تجاهل كامل</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PHASE 5 ═══════════════════ -->
+<div class="page">
+  <div class="phase-header phase-5">
+    <div class="phase-number">5</div>
+    <div>
+      <div class="phase-title" style="color:var(--cyan);">ميزات تمييزية متقدمة</div>
+      <div class="phase-meta">أولوية منخفضة-متوسطة — المدة المتوقعة: 4-8 أسابيع</div>
+    </div>
+  </div>
+
+  <p>هذه الميزات ستميّز رواء عن أي منصة أخرى في السوق:</p>
+
+  <h2>5.1 محرك بايزي متعلم (Adaptive Bayesian Engine)</h2>
+  <div class="card card-success">
+    <div class="card-body">
+      <p>تطوير المحرك البايزي من المرحلة 1 إلى نظام يتعلّم من أدائه:</p>
+      <ul>
+        <li><strong>تحديث Priors:</strong> إذا كانت إشارات SMC ناجحة بنسبة 70%، تزداد أوزانها تلقائياً</li>
+        <li><strong>نسيان تفضيلي:</strong> الأداء الحديث يُرجّح أكثر من القديم (exponential decay)</li>
+        <li><strong>تكيّف حسب السوق:</strong> أوضاع مختلفة لأسواق الاتجاه والنطاق والتذبذب</li>
+        <li><strong>تخصيص المستخدم:</strong> يمكن للمتداول ضبط أوزان المنهجيات حسب تفضيله</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>5.2 نظام القواعد المرئي (Visual Rule Builder)</h2>
+  <div class="card card-success">
+    <div class="card-body">
+      <p>بدل كتابة شروط التنبيهات ككود، واجهة سحب وإفلات:</p>
+      <ul>
+        <li>كتل (Blocks) لكل نوع إشارة: "BOS صاعد"، "FVG هابط"، "نمط Bat صاعد"</li>
+        <li>موصلات منطقية: AND، OR، NOT</li>
+        <li>معاينة حية: عند بناء القاعدة، يُظهر الشارت متى كانت القاعدة ستُفعَّل</li>
+        <li>مشاركة القواعد: يمكن تصدير/استيراد القواعد كنص مشفر</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>5.3 وضع المحاكاة (Paper Trading Mode)</h2>
+  <div class="card card-success">
+    <div class="card-body">
+      <p>تنفيذ صفقات وهمية بناءً على إشارات النظام:</p>
+      <ul>
+        <li>رأس مال افتراضي (مثلاً 10,000 USDT)</li>
+        <li>فتح صفقة تلقائياً عند تقارب عالي (أو يدوياً)</li>
+        <li>تتبع الأداء: الربح/الخسارة، Win Rate، Sharpe Ratio</li>
+        <li>مقارنة أداء النظام مع "شراء واحتفاظ" (Buy & Hold)</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>5.4 دعم الأصول المتعددة (Multi-Asset)</h2>
+  <div class="card card-success">
+    <div class="card-body">
+      <p>تحليل عدة أزواج/أصول في وقت واحد:</p>
+      <ul>
+        <li>مصفوفة تقارب: أي الأصول لديها أقوى إشارة حالياً</li>
+        <li>فحص السوق (Market Scanner): فحص 50+ أزواج وترتيبها حسب قوة الإشارة</li>
+        <li>الارتباطات (Correlations): كشف الأصول المتحركة معاً</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>5.5 دمج حقيقي مع AI Council</h2>
+  <div class="card card-success">
+    <div class="card-body">
+      <p>تحسين واجهة AI Council الحالية:</p>
+      <ul>
+        <li>تمرير بيانات التحليل المحلي الفعلية إلى AI (وليس مجرد اسم الأصل)</li>
+        <li>السماح لكل نموذج AI بالوصول إلى نتائج المحركات المحددة</li>
+        <li>مقارنة توقعات AI مع نتائج التحليل الخالزيمي وعرض الاختلافات</li>
+        <li>تعلّم من اختلافات AI: إذا كان AI أصح دائماً في سيناريو معين، زيادة وزنه</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SECTION 8: PRIORITY MATRIX ═══════════════════ -->
+<div class="page">
+  <h1>8. مصفوفة الأولويات والجدول الزمني</h1>
+
+  <h2>مصفوفة الأولويات</h2>
+  <table>
+    <tr>
+      <th>المهمة</th>
+      <th>الأولوية</th>
+      <th>الجهد</th>
+      <th>التأثير</th>
+      <th>المرحلة</th>
+    </tr>
+    <tr>
+      <td>استبدال BayesianEngine</td>
+      <td><span class="priority-high">حرجة</span></td>
+      <td>3-4 أيام</td>
+      <td>نتائج إجماع دقيقة</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>استبدال PatternStateMachine</td>
+      <td><span class="priority-high">حرجة</span></td>
+      <td>3-4 أيام</td>
+      <td>تتبع حقيقي للأنماط</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>استبدال PatternPerformance</td>
+      <td><span class="priority-high">حرجة</span></td>
+      <td>2-3 أيام</td>
+      <td>إحصائيات أداء حقيقية</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>استبدال ConfidenceHeatmap</td>
+      <td><span class="priority-high">حرجة</span></td>
+      <td>2-3 أيام</td>
+      <td>خريطة ثقة ذات معنى</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>استبدال ElliottSMCFusion</td>
+      <td><span class="priority-high">حرجة</span></td>
+      <td>3-4 أيام</td>
+      <td>تقارب حقيقي متعدد الطبقات</td>
+      <td>1</td>
+    </tr>
+    <tr>
+      <td>توحيد أنظمة الكشف (pattern-engine.ts)</td>
+      <td><span class="priority-medium">عالية</span></td>
+      <td>3-5 أيام</td>
+      <td>10 أنماط هارمونيك، جودة أعلى</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>تحسين Wyckoff</td>
+      <td><span class="priority-medium">عالية</span></td>
+      <td>3-4 أيام</td>
+      <td>مخططات تراكم/توزيع كاملة</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>تحسين Elliott</td>
+      <td><span class="priority-medium">عالية</span></td>
+      <td>3-4 أيام</td>
+      <td>تصحيحات ABC + فيبوناتشي</td>
+      <td>2</td>
+    </tr>
+    <tr>
+      <td>إصلاح تسرب الذاكرة</td>
+      <td><span class="priority-medium">عالية</span></td>
+      <td>1-2 يوم</td>
+      <td>استقرار التطبيق</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>تحديثات تزايدية</td>
+      <td><span class="priority-medium">عالية</span></td>
+      <td>2-3 أيام</td>
+      <td>أداء 10× أسرع</td>
+      <td>4</td>
+    </tr>
+    <tr>
+      <td>نظام التنبيهات الذكية</td>
+      <td><span class="priority-medium">متوسطة</span></td>
+      <td>5-7 أيام</td>
+      <td>تنبيهات مشروطة مركبة</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>تحليل متعدد الأطر الزمنية</td>
+      <td><span class="priority-medium">متوسطة</span></td>
+      <td>5-7 أيام</td>
+      <td>إشارات MTF متوافقة</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>نمط التداول التلقائي</td>
+      <td><span class="priority-low">متوسطة</span></td>
+      <td>3-5 أيام</td>
+      <td>اقتراح صفقات تلقائي</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>لوحة الأداء</td>
+      <td><span class="priority-low">متوسطة</span></td>
+      <td>3-4 أيام</td>
+      <td>إحصائيات مهنية</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>Backtesting بسيط</td>
+      <td><span class="priority-low">متوسطة</span></td>
+      <td>5-7 أيام</td>
+      <td>اختبار استراتيجيات</td>
+      <td>3</td>
+    </tr>
+    <tr>
+      <td>محرك بايزي متعلم</td>
+      <td><span class="priority-low">منخفضة</span></td>
+      <td>7-10 أيام</td>
+      <td>نظام يتعلّم من أدائه</td>
+      <td>5</td>
+    </tr>
+    <tr>
+      <td>نظام القواعد المرئي</td>
+      <td><span class="priority-low">منخفضة</span></td>
+      <td>10-14 يوم</td>
+      <td>واجهة سحب وإفلات</td>
+      <td>5</td>
+    </tr>
+    <tr>
+      <td>وضع المحاكاة</td>
+      <td><span class="priority-low">منخفضة</span></td>
+      <td>7-10 أيام</td>
+      <td>تداول وهمي</td>
+      <td>5</td>
+    </tr>
+  </table>
+
+  <h2>الجدول الزمني المقترح</h2>
+  <div class="flow-steps">
+    <div class="flow-step">
+      <div class="flow-step-num">1</div>
+      <div style="font-weight:700;">الأسابيع 1-4</div>
+      <div class="flow-step-label">استبدال المحركات المزيفة<br>(حرجة)</div>
+    </div>
+    <div class="flow-arrow">←</div>
+    <div class="flow-step">
+      <div class="flow-step-num">2</div>
+      <div style="font-weight:700;">الأسابيع 5-7</div>
+      <div class="flow-step-label">توحيد الكشف<br>+ تحسين Wyckoff/Elliott</div>
+    </div>
+    <div class="flow-arrow">←</div>
+    <div class="flow-step">
+      <div class="flow-step-num">3</div>
+      <div style="font-weight:700;">الأسابيع 8-11</div>
+      <div class="flow-step-label">إصلاح الجودة<br>+ تحديثات تزايدية</div>
+    </div>
+    <div class="flow-arrow">←</div>
+    <div class="flow-step">
+      <div class="flow-step-num">4</div>
+      <div style="font-weight:700;">الأسابيع 12-17</div>
+      <div class="flow-step-label">ميزات السوق العالمي<br>(تنبيهات، MTF، أداء)</div>
+    </div>
+    <div class="flow-arrow">←</div>
+    <div class="flow-step">
+      <div class="flow-step-num">5</div>
+      <div style="font-weight:700;">الأسابيع 18-25</div>
+      <div class="flow-step-label">ميزات تمييزية<br>(بايزي متعلم، محاكاة)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ SECTION 9: KPIs ═══════════════════ -->
+<div class="page">
+  <h1>9. مؤشرات النجاح والتحقق</h1>
+
+  <h2>مؤشرات المرحلة 1 (حرجة)</h2>
+  <table>
+    <tr><th>المؤشر</th><th>القيمة الحالية</th><th>الهدف</th><th>طريقة القياس</th></tr>
+    <tr>
+      <td>عدد المحركات المزيفة</td>
+      <td style="color:var(--red); font-weight:700;">5</td>
+      <td style="color:var(--green); font-weight:700;">0</td>
+      <td>فحص رأس كل ملف — لا يوجد "Stub"</td>
+    </tr>
+    <tr>
+      <td>ثقة Heatmap ديناميكية</td>
+      <td style="color:var(--red);">ثابتة 0.3</td>
+      <td style="color:var(--green);">0.1 - 0.9 متغيرة</td>
+      <td>فحص القيم عبر 10 تحليلات مختلفة</td>
+    </tr>
+    <tr>
+      <td>PatternPerformance يعمل</td>
+      <td style="color:var(--red);">فارغ دائماً</td>
+      <td style="color:var(--green);">إحصائيات حقيقية</td>
+      <td>getSummary() يُرجع بيانات بعد 100+ شمعة</td>
+    </tr>
+    <tr>
+      <td>آلة الحالة تولّد تنبيهات</td>
+      <td style="color:var(--red);">0 دائماً</td>
+      <td style="color:var(--green);">breakout و failed > 0</td>
+      <td>تشغيل 50 تحليل والتحقق</td>
+    </tr>
+    <tr>
+      <td>Bayesian حقيقي</td>
+      <td style="color:var(--red);">تصويت مرجح</td>
+      <td style="color:var(--green);">Posterior يتبع Bayes</td>
+      <td>التحقق الرياضي: P(A|B) = P(B|A)P(A)/P(B)</td>
+    </tr>
+  </table>
+
+  <h2>مؤشرات المرحلة 2 (عالية)</h2>
+  <table>
+    <tr><th>المؤشر</th><th>القيمة الحالية</th><th>الهدف</th><th>طريقة القياس</th></tr>
+    <tr>
+      <td>أنماط هارمونيك مدعومة</td>
+      <td>4</td>
+      <td>10</td>
+      <td>عدد الأنماط في مخرجات pattern-engine</td>
+    </tr>
+    <tr>
+      <td>أنماط تصحيح Elliott</td>
+      <td>0</td>
+      <td>4+</td>
+      <td>كشف ABC, Flat, Triangle, Complex</td>
+    </tr>
+    <tr>
+      <td>أطوار Wyckoff</td>
+      <td>1 طور فقط</td>
+      <td>Phases A-D</td>
+      <td>كشف مراحل التراكم/التوزيع الكاملة</td>
+    </tr>
+    <tr>
+      <td>زمن التحليل (شمعة جديدة)</td>
+      <td>~200ms</td>
+      <td>~20ms</td>
+      <td>أداء IncrementalCalc</td>
+    </tr>
+  </table>
+
+  <h2>مؤشرات المرحلة 3-4 (متوسطة)</h2>
+  <table>
+    <tr><th>المؤشر</th><th>الهدف</th></tr>
+    <tr><td>تنبيهات مشروطة تعمل</td><td>إنشاء 3+ شروط مركبة وتحقيقها فعلياً</td></tr>
+    <tr><td>تحليل MTF</td><td>تحليل 3 فريمات متوازية مع إشارة تقارب</td></tr>
+    <tr><td>اقتراح صفقات تلقائي</td><td>Entry/SL/TP بناءً على منطقة النمط (ليس ATR عشوائي)</td></tr>
+    <tr><td>إحصائيات أداء حقيقية</td><td>Win Rate, Sharpe Ratio, Max Drawdown</td></tr>
+    <tr><td>تسرب الذاكرة = 0</td><td>فحص Chrome DevTools — لا نمو في الكومة</td></tr>
+  </table>
+
+  <hr class="divider">
+
+  <div class="card card-success">
+    <div class="card-title">ملاحظة مهمة حول التنفيذ</div>
+    <div class="card-body">
+      <p>يُنصح بشدة بتطبيق كل مرحلة بالكامل قبل الانتقال للتالية، مع commit بعد كل مهمة فرعية ناجحة. كل تعديل يجب أن يمر بعملية:</p>
+      <ol>
+        <li><strong>التطبيق:</strong> كتابة الكود الجديد</li>
+        <li><strong>البناء:</strong> <code>npm run build</code> بدون أخطاء</li>
+        <li><strong>التحقق:</strong> فحص يدوي أو تلقائي أن المحرك يعمل</li>
+        <li><strong>الالتزام:</strong> commit مع رسالة واضحة + pull --rebase + push</li>
+        <li><strong>النشر:</strong> التحقق من Railway deployment</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="page-footer">
+    الخطة التنفيذية الشاملة — منصة رواء تريدينغ — مايو 2026 — الإصدار 1.0
+  </div>
+</div>
+
+</body>
+</html>

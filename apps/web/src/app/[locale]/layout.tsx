@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { routing } from '@/i18n/routing';
+import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 
@@ -150,7 +151,7 @@ export default async function LocaleLayout({
   setRequestLocale(locale);
 
   const messages = await getMessages();
-  const dir = locale === 'ar' ? 'rtl' : 'ltr';
+  const dir = getDirection(locale);
 
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>

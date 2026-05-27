@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslations, useLocale } from 'next-intl'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { isRtlLocale } from '@/lib/i18n-utils'
 
 /**
  * PushNotificationManager — مكون خفي يدير إشعارات الجهاز
@@ -65,7 +66,7 @@ export default function PushNotificationManager() {
               body: tn('notificationsEnabled'),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
-              dir: locale === 'ar' ? 'rtl' : 'ltr',
+              dir: isRtlLocale(locale) ? 'rtl' : 'ltr',
               lang: locale,
               tag: 'roua-welcome',
               vibrate: [100],

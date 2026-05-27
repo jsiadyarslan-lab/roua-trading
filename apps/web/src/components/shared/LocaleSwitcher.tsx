@@ -3,6 +3,7 @@
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/navigation';
 import { Globe2, Check, ChevronDown } from 'lucide-react';
+import { isRtlLocale } from '@/lib/i18n-utils';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -59,7 +60,7 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
-    const isRtl = document.documentElement.dir === 'rtl' || locale === 'ar';
+    const isRtl = document.documentElement.dir === 'rtl' || isRtlLocale(locale);
     if (isRtl) {
       setMenuPos({
         top: rect.bottom + 4,

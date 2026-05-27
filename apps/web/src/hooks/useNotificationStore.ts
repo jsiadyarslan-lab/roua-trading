@@ -4,6 +4,7 @@ import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { useAuthStore } from '@/lib/auth-store'
 import { AUDIO_TONES } from '@/lib/charts/config'
+import { isRtlLocale } from '@/lib/i18n-utils'
 
 /* ══════════════════════════════════════════════════════
    AudioContext Manager — Respects browser autoplay policy
@@ -271,9 +272,9 @@ export const useNotificationStore = create<NotificationState>()(
 
             // Detect current locale for direction and language
             const currentPath = window.location.pathname
-            const localeMatch = currentPath.match(/^\/(ar|en|fr|tr)\//)
+            const localeMatch = currentPath.match(/^\/([a-z]{2,3})\//)
             const currentLocale = localeMatch ? localeMatch[1] : 'ar'
-            const isRtl = currentLocale === 'ar'
+            const isRtl = isRtlLocale(currentLocale)
 
             const browserNotif = new Notification(`${actionEmoji} ${n.title}`, {
               body: n.body + (n.pair ? ` — ${n.pair}` : ''),

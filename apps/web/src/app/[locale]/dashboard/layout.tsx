@@ -13,6 +13,7 @@ import PushNotificationManager from '@/components/shared/PushNotificationManager
 import { Metadata, Viewport } from 'next'
 import { DashboardLayoutStyles } from '@/components/dashboard/DashboardLayoutStyles'
 import { setRequestLocale } from 'next-intl/server'
+import { getDirection } from '@/lib/i18n-utils'
 
 export async function generateMetadata({
   params,
@@ -70,7 +71,7 @@ export default async function DashboardLayout({
 }) {
   const { locale } = await params
   setRequestLocale(locale)
-  const dir = locale === 'ar' ? 'rtl' : 'ltr'
+  const dir = getDirection(locale)
 
   return (
     <MarketProvider>

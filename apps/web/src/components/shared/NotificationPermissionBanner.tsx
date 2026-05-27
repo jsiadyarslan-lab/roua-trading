@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { BellRing, X, Shield } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { isRtlLocale } from '@/lib/i18n-utils'
 import { useTranslations, useLocale } from 'next-intl'
 
 /**
@@ -44,7 +45,7 @@ export default function NotificationPermissionBanner() {
             body: tn('notificationsEnabled'),
             icon: '/icon-192.png',
             badge: '/icon-192.png',
-            dir: locale === 'ar' ? 'rtl' : 'ltr',
+            dir: isRtlLocale(locale) ? 'rtl' : 'ltr',
             lang: locale,
             tag: 'roua-permission-test',
             vibrate: [100],

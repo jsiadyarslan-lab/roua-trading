@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { getTranslations, setRequestLocale } from 'next-intl/server'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
+import { getDirection } from '@/lib/i18n-utils'
 import BottomNav from './BottomNav'
 import '@/styles/mobile.css'
 
@@ -29,7 +30,7 @@ export default async function MobileLayout({
 }) {
   const { locale } = await params
   setRequestLocale(locale)
-  const dir = locale === 'ar' ? 'rtl' : 'ltr'
+  const dir = getDirection(locale)
 
   return (
     <MarketProvider>

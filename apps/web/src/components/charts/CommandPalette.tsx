@@ -7,6 +7,7 @@
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useTranslations } from 'next-intl';
+import { isRtlLocale } from '@/lib/i18n-utils';
 
 // ── Command Definition ───────────────────────────────────
 export interface Command {
@@ -45,7 +46,7 @@ const C = {
 export function CommandPalette({ commands, isOpen, onClose, onExecute }: CommandPaletteProps) {
   const t = useTranslations('commandPalette');
   const locale = typeof window !== 'undefined' ? document.documentElement.lang : 'ar';
-  const isAr = locale === 'ar';
+  const isAr = isRtlLocale(locale);
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);

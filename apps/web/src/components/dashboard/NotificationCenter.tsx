@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { X as XIcon, Bot, Brain, ScanSearch, Zap } from 'lucide-react'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations, useLocale } from 'next-intl'
+import { isRtlLocale } from '@/lib/i18n-utils'
 import {
   useNotificationStore,
   Notification,
@@ -426,7 +427,7 @@ export function NotificationToasts() {
   const tn = useTranslations('dashboard.notifications')
 
   const locale = useLocale()
-  const isRtl = locale === 'ar'
+  const isRtl = isRtlLocale(locale)
 
   return (
     <>
@@ -711,7 +712,7 @@ export function NotificationCenter() {
   const { notifications, markRead, markAllRead, dismiss, clearAll } = useNotificationStore()
   const tn = useTranslations('dashboard.notifications')
   const locale = useLocale()
-  const isRtl = locale === 'ar'
+  const isRtl = isRtlLocale(locale)
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<'all' | 'settings'>('all')
   const unread = notifications.filter((n) => !n.read).length

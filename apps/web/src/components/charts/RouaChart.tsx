@@ -1188,6 +1188,11 @@ export default function RouaChart({
       signal: (result as any).signal,
       patterns: result.patterns,
       alerts: (result as any).alerts,
+      fusionResult: (result as any).fusionResult,
+      bayesianResult: (result as any).bayesianResult,
+      mtfResult: (result as any).mtfResult,
+      tradeProposals: (result as any).tradeProposals,
+      liquidityResult: (result as any).liquidityResult,
     }, chart.addPriceLine, chart.removePriceLine);
 
     } catch (e) {

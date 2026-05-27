@@ -15,6 +15,8 @@
 
 import type { CandleData, AIPattern } from './types';
 import type { SwingPoint } from './chart-detection';
+import { validateAnalysis, validateTradeSetup } from './AnalysisValidator';
+import { safeEngineCall, logWarn, logError } from './AnalysisLogger';
 
 // Engine imports
 import { computeZigZag, detectClassicPatterns, detectSRLevels } from './chart-detection';
@@ -565,45 +567,41 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
   }
 
   // ── 1. Compute ZigZag (foundation for many engines) ──
-  const swings = computeZigZag(candles);
+  const swings = safeEngineCall('zigzag', 'computeZigZag', () => computeZigZag(candles), []);
 
   // ── 2. Support / Resistance ──
-  const srLevels = detectSRLevels(candles);
+  const srLevels = safeEngineCall('sr', 'detectSRLevels', () => detectSRLevels(candles), []);
 
   // ── 3. Local / Classic Patterns ──
-  const localPatterns = classicPatternsToAIPatterns(candles, swings);
+  const localPatterns = safeEngineCall('classic', 'classicPatternsToAIPatterns', () => classicPatternsToAIPatterns(candles, swings), []);
 
   // ── 4. SMC Detection ──
-  const smcData = detectSMC(candles);
+  const smcData = safeEngineCall('smc', 'detectSMC', () => detectSMC(candles), { orderBlocks: [], fvgs: [], structureBreaks: [] });
 
   // ── 5. Harmonic Patterns (Professional Engine) ──
-  const harmonicResults = detectHarmonicPatternsPro(candles);
+  const harmonicResults = safeEngineCall('harmonic', 'detectHarmonicPatternsPro', () => detectHarmonicPatternsPro(candles), []);
 
   // ── 6. Pattern Engine (full pipeline) ──
-  // runPatternEngine also detects patterns including harmonics
-  // We use it primarily for its quality scoring and forecasting
-  try {
-    runPatternEngine(candles);
-  } catch {
-    // Pattern engine may fail gracefully; don't block other engines
-  }
+  safeEngineCall('pattern-engine', 'runPatternEngine', () => { runPatternEngine(candles); return null; }, null);
 
   // ── 7. Advanced Wyckoff Engine ──
-  const wyckoffResult = detectWyckoffAdvanced(candles);
-  const wyckoffPatterns = wyckoffToAIPatterns(wyckoffResult);
+  const emptyWyckoffLocal: WyckoffResult = { scheme: 'none', currentPhase: 'none', events: [], range: { high: 0, low: 0, mid: 0, atrBand: 0 }, support: 0, resistance: 0, confidence: 0, direction: 'neutral' };
+  const wyckoffResult = safeEngineCall('wyckoff', 'detectWyckoffAdvanced', () => detectWyckoffAdvanced(candles), emptyWyckoffLocal);
+  const wyckoffPatterns = safeEngineCall('wyckoff', 'wyckoffToAIPatterns', () => wyckoffToAIPatterns(wyckoffResult), []);
 
   // ── 8. Advanced Elliott Wave Engine ──
-  const elliottResult = detectElliottAdvanced(candles);
-  const elliottPatterns = elliottToAIPatterns(elliottResult);
+  const emptyElliottLocal: ElliottResult = { counts: [], dominantCount: null, allPatterns: [] };
+  const elliottResult = safeEngineCall('elliott', 'detectElliottAdvanced', () => detectElliottAdvanced(candles), emptyElliottLocal);
+  const elliottPatterns = safeEngineCall('elliott', 'elliottToAIPatterns', () => elliottToAIPatterns(elliottResult), []);
 
   // ── 9. Geometric Patterns ──
-  const geoAIPatterns = geometricPatternsToAIPatterns(candles);
+  const geoAIPatterns = safeEngineCall('geometric', 'geometricPatternsToAIPatterns', () => geometricPatternsToAIPatterns(candles), []);
 
   // ── 10. Convert SMC data to AIPatterns ──
-  const smcPatterns = smcToAIPatterns(smcData);
+  const smcPatterns = safeEngineCall('smc', 'smcToAIPatterns', () => smcToAIPatterns(smcData), []);
 
   // ── 11. Convert SR levels to AIPatterns ──
-  const srPatterns = srLevelsToAIPatterns(srLevels);
+  const srPatterns = safeEngineCall('sr', 'srLevelsToAIPatterns', () => srLevelsToAIPatterns(srLevels), []);
 
   // ── 12. Extract signals from all engines ──
   const signals: DetectorSignal[] = [
@@ -620,7 +618,7 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
   computeConsensus(signals);
 
   // ── 14. Merge all patterns ──
-  const allPatterns: AIPattern[] = [
+  const mergedPatterns: AIPattern[] = [
     ...harmonicResults,
     ...elliottPatterns,
     ...wyckoffPatterns,
@@ -630,8 +628,16 @@ export function runUnifiedAnalysis(candles: CandleData[]): UnifiedAnalysisResult
     ...srPatterns,
   ].sort((a, b) => b.confidence - a.confidence);
 
+  // ── 15. Validate results ──
+  const validation = validateAnalysis(candles, mergedPatterns, srLevels);
+  if (validation.warningCount > 0) {
+    logWarn('validator', 'validateAnalysis', `${validation.warningCount} patterns filtered, ${validation.errorCount} errors`);
+  }
+  const allPatterns = validation.filteredPatterns;
+  const validatedSRLevels = validation.filteredSRLevels as typeof srLevels;
+
   return {
-    srLevels,
+    srLevels: validatedSRLevels,
     localPatterns,
     smcData,
     harmonicResults,

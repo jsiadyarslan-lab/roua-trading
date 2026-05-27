@@ -35,6 +35,9 @@ import { evaluateSmartAlerts, buildAlertSnapshot, fireBrowserNotification, type 
 import { detectLiquidityZones, liquidityToAIPatterns, type LiquidityResult, type LiquidityZone } from '@/lib/charts/LiquidityZones';
 import { generateTradeProposal, getTradeProposals, getProposalStats, getActiveProposals, autoEvaluateProposals, type TradeProposal, type RiskParams } from '@/lib/charts/AutoTradeEngine';
 import { runQuickMTFAnalysis, detectTradingStyle, type MTFResult, type MTFTimeframe, TF_LABELS_AR } from '@/lib/charts/MTFEngine';
+import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
+import { logError, logWarn, logInfo, getErrorCount, getRecentErrors } from '@/lib/charts/AnalysisLogger';
+import { validateAnalysis, validateTradeSetup } from '@/lib/charts/AnalysisValidator';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -128,7 +131,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [wyckoffAdvanced, setWyckoffAdvanced] = useState<WyckoffResult | null>(null);
   const [unifiedResult, setUnifiedResult] = useState<UnifiedAnalysisResult | null>(null);
   const [volProfile, setVolProfile] = useState<any>(null);
-  const [overlays, setOverlays] = useState({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false });
+  const [overlays, setOverlays] = useState({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false, mtf: false, liq: false, trade: false });
   const toggleOverlay = (key: keyof typeof overlays) => setOverlays(prev => ({...prev, [key]: !prev[key]}));
 
   // ── Alert markers state ── Visual pins on chart for auto-detected patterns
@@ -156,8 +159,21 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const pendingTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const lastAnnouncedRef = useRef<Set<string>>(new Set()); // Track announced patterns to avoid re-announce
   const lastAnalysisResultRef = useRef<AIAnalysisResult | null>(null); // Store last result for overlay re-emit
+  const incrementalStateRef = useRef<IncrementalState>(createIncrementalState()); // Phase 4: Incremental O(1) updates
+
+  // ── Safe timeout helper — tracks timers for cleanup on unmount ──
+  const safeTimeout = (fn: () => void, ms: number): ReturnType<typeof setTimeout> => {
+    const id = setTimeout(() => {
+      pendingTimersRef.current.delete(id);
+      fn();
+    }, ms);
+    pendingTimersRef.current.add(id);
+    return id;
+  };
   // Always fresh references — never stale
   const candlesRef = useRef<CandleData[]>(candles);
   const symbolRef = useRef(symbol);
@@ -181,6 +197,23 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     if (runRef.current || !c?.length || c.length < 20) return;
     runRef.current = true;
     setLoading(true);
+
+    // Phase 4: Incremental O(1) updates — initialize or update state
+    const incState = incrementalStateRef.current;
+    if (!incState.initialized || needsFullRecalc(incState, c.length)) {
+      initializeState(incState, c);
+    } else if (c.length > incState.lastCandleCount) {
+      // Incremental update: only process new candles
+      const newCandleCount = c.length - incState.lastCandleCount;
+      for (let i = c.length - newCandleCount; i < c.length; i++) {
+        updateIncremental(incState, c[i], i > 0 ? c[i - 1] : null);
+      }
+    }
+
+    // Use quick trend and volatility from incremental state
+    const quickTrend = getQuickTrend(incState);
+    const quickVolRegime = getQuickVolatilityRegime(incState, price);
+    setVolRegime(quickVolRegime);
 
     try {
       // ── 1. Local pattern detection ────────────────────────────
@@ -340,7 +373,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               if (!lastAnnouncedRef.current.has(alertKey)) {
                 lastAnnouncedRef.current.add(alertKey);
                 // Clear old entries after 60s
-                setTimeout(() => lastAnnouncedRef.current.delete(alertKey), 60000);
+                safeTimeout(() => lastAnnouncedRef.current.delete(alertKey), 60000);
                 if (alert.state === 'triggered') {
                   alerter.announceBreakout({
                     patternType: alert.patternType,
@@ -513,6 +546,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         bayesianResult: bayesianResult,
         mtfResult: mtfResult,
         tradeProposals: getActiveProposals(),
+        liquidityResult: liquidityResult,
       } as AIAnalysisResult;
       lastAnalysisResultRef.current = analysisResult;
       onPatternsRef.current(analysisResult);
@@ -528,7 +562,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           if (!alertsDedupRef.current.has(alertKey)) {
             alertsDedupRef.current.add(alertKey);
             // Clear old dedup entries after 5 minutes
-            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
               time: (p.time || c[c.length - 1].time) as any,
               price: p.price || price,
@@ -545,7 +579,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const alertKey = `smc-${br.type}-${br.direction}-${Math.round(br.time || 0)}`;
           if (!alertsDedupRef.current.has(alertKey)) {
             alertsDedupRef.current.add(alertKey);
-            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
               time: (br.time || c[c.length - 1].time) as any,
               price: br.price || price,
@@ -562,7 +596,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const alertKey = `fvg-${fvg.type}-${Math.round(fvg.time || 0)}`;
           if (!alertsDedupRef.current.has(alertKey) && !fvg.filled) {
             alertsDedupRef.current.add(alertKey);
-            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
               time: (fvg.time || c[c.length - 1].time) as any,
               price: (fvg.high + fvg.low) / 2,
@@ -579,7 +613,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           const alertKey = `harm-${hp.type}-${hp.direction}`;
           if (!alertsDedupRef.current.has(alertKey)) {
             alertsDedupRef.current.add(alertKey);
-            setTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
+            safeTimeout(() => alertsDedupRef.current.delete(alertKey), 300000);
             newAlerts.push({
               time: (hp.points?.D?.time || c[c.length - 1].time) as any,
               price: hp.przLevel || hp.points?.D?.price || price,
@@ -602,17 +636,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       let consensusSucceeded = false;
       try {
         abortRef.current?.abort();
+        eventSourceRef.current?.close();
         const controller = new AbortController();
         abortRef.current = controller;
-        const timer = setTimeout(() => controller.abort(), 20000);
+        const timer = safeTimeout(() => controller.abort(), 20000);
 
         // SSE streaming — models appear one by one
         const sseParams = new URLSearchParams({ symbol: sym, language: locale });
         const eventSource = new EventSource(`/api/ai/consensus-stream?${sseParams}`);
+        eventSourceRef.current = eventSource;
 
         const sseResult = await new Promise<any>((resolve, reject) => {
-          const timeout = setTimeout(() => {
+          const timeout = safeTimeout(() => {
             eventSource.close();
+            eventSourceRef.current = null;
             reject(new Error('SSE timeout'));
           }, 20000);
 
@@ -622,12 +659,18 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
               if (sseEvent.type === 'complete') {
                 clearTimeout(timeout);
                 clearTimeout(timer);
+                pendingTimersRef.current.delete(timeout);
+                pendingTimersRef.current.delete(timer);
                 eventSource.close();
+                eventSourceRef.current = null;
                 resolve(sseEvent.data);
               } else if (sseEvent.type === 'error') {
                 clearTimeout(timeout);
                 clearTimeout(timer);
+                pendingTimersRef.current.delete(timeout);
+                pendingTimersRef.current.delete(timer);
                 eventSource.close();
+                eventSourceRef.current = null;
                 reject(new Error(sseEvent.data?.message || 'SSE error'));
               }
             } catch {}
@@ -635,7 +678,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           eventSource.onerror = () => {
             clearTimeout(timeout);
             clearTimeout(timer);
+            pendingTimersRef.current.delete(timeout);
+            pendingTimersRef.current.delete(timer);
             eventSource.close();
+            eventSourceRef.current = null;
             reject(new Error('SSE connection error'));
           };
         });
@@ -818,8 +864,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles?.length]);
 
-  // cleanup
-  useEffect(() => () => { abortRef.current?.abort(); }, []);
+  // cleanup — abort pending requests, close EventSource, clear all tracked timers
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    eventSourceRef.current?.close();
+    eventSourceRef.current = null;
+    pendingTimersRef.current.forEach(id => clearTimeout(id));
+    pendingTimersRef.current.clear();
+  }, []);
 
   // ── Re-emit patterns when overlay toggles change ──
   // This redraws only the overlays the user wants without re-analyzing
@@ -842,6 +894,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       bayesianResult: bayesianResult,
       mtfResult: mtfResult,
       tradeProposals: getActiveProposals(),
+      liquidityResult: liquidityResult,
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays, chartAlerts]);
@@ -882,11 +935,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     // so harmonic/BOS/FVG/Elliott/Wyckoff overlays will be correct.
     // We don't re-emit old lastResult — only the fresh analyze() result
     // will be sent to the chart.
-    setTimeout(() => {
+    const timer = safeTimeout(() => {
       runRef.current = false; // Reset guard to allow re-analysis
       lastAnalyzeTimeRef.current = 0; // Reset throttle
       analyze();
     }, 300);
+    return () => clearTimeout(timer);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candles]);
 
@@ -962,7 +1016,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Overlay Toggles */}
       <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap' }}>
-        {([[t('overlaySR'),'sr','#4ade80'],[t('overlayTrend'),'trend','#facc15'],[t('overlayHarmonic'),'harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],[t('overlayGeometric'),'geo','#a78bfa'],[t('overlayElliott'),'ew','#93c5fd'],[t('overlayWyckoff'),'wyckoff','#fb923c'],['VP','vp','#fbbf24'],[t('overlayEntry'),'entry','#00D4FF']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+        {([[t('overlaySR'),'sr','#4ade80'],[t('overlayTrend'),'trend','#facc15'],[t('overlayHarmonic'),'harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],[t('overlayGeometric'),'geo','#a78bfa'],[t('overlayElliott'),'ew','#93c5fd'],[t('overlayWyckoff'),'wyckoff','#fb923c'],['VP','vp','#fbbf24'],[t('overlayEntry'),'entry','#00D4FF'],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRADE','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
           <button key={key} onClick={()=>{ toggleOverlay(key); }}
             style={{ padding:'2px 7px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
               border:`1px solid ${overlays[key]?col:'#333'}`,

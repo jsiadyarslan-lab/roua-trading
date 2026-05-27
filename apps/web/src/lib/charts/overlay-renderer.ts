@@ -99,6 +99,27 @@ export interface OverlayInput {
     descriptionAr: string;
     currentTrailSL?: number | null;
   }>;
+  /** Liquidity zones — shows pools, sweeps, and voids */
+  liquidityResult?: {
+    zones: Array<{
+      type: string;
+      price: number;
+      high: number;
+      low: number;
+      startTime: number;
+      endTime: number;
+      strength: number;
+      sweepDirection: 'bullish' | 'bearish';
+      swept: boolean;
+      sweepTime?: number;
+      confidence: number;
+      labelAr: string;
+    }>;
+    activeZones: number;
+    sweptZones: number;
+    dominantSweepDirection: 'bullish' | 'bearish' | 'neutral';
+    interpretationAr: string;
+  } | null;
 }
 
 /**
@@ -133,9 +154,12 @@ export function renderOverlays(
   const showWyckoff = ov.wyckoff === true;
   const showVP = ov.vp === true;
   const showEntry = ov.entry === true;
+  const showMTF = ov.mtf === true;
+  const showLiq = ov.liq === true;
+  const showTrade = ov.trade === true;
 
   // If nothing is enabled, clear all
-  if (!showSR && !showTrend && !showHarmonic && !showFVG && !showBOS && !showGeo && !showEW && !showWyckoff && !showVP && !showEntry) {
+  if (!showSR && !showTrend && !showHarmonic && !showFVG && !showBOS && !showGeo && !showEW && !showWyckoff && !showVP && !showEntry && !showMTF && !showLiq && !showTrade) {
     registry.clearAll();
     return;
   }
@@ -943,7 +967,7 @@ export function renderOverlays(
   // Shows confluence direction label, S/R confluence levels,
   // and Fibonacci confluence zones across timeframes.
   // ═══════════════════════════════════════════════════════════════
-  if (input.mtfResult && input.mtfResult.confluenceScore > 30) {
+  if (showMTF && input.mtfResult && input.mtfResult.confluenceScore > 30) {
     const mtf = input.mtfResult;
     registry.prepareRedraw('mtf');
 
@@ -1023,7 +1047,7 @@ export function renderOverlays(
   // Renders lines for each price level with zones showing
   // risk (red) and reward (green) areas.
   // ═══════════════════════════════════════════════════════════════
-  if (input.tradeProposals && input.tradeProposals.length > 0) {
+  if (showTrade && input.tradeProposals && input.tradeProposals.length > 0) {
     registry.prepareRedraw('trade');
 
     // Show the most recent active trade proposal
@@ -1117,6 +1141,118 @@ export function renderOverlays(
       registry.clearType('trade');
     }
   } else {
+    registry.clearType('trade');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // LIQUIDITY ZONES — Show liquidity pools, sweeps, and voids
+  // Uses LiquidityZones engine for ICT/SMC liquidity analysis.
+  // ═══════════════════════════════════════════════════════════════
+  if (showLiq) {
+    registry.prepareRedraw('liq');
+
+    // Use provided liquidity data or detect locally
+    const liqData = input.liquidityResult;
+    if (liqData && liqData.zones.length > 0) {
+      const lastTime = candles[candles.length - 1].time;
+      const lastPrice = candles[candles.length - 1].close;
+
+      for (const zone of liqData.zones) {
+        // Draw zone rectangle
+        registry.add('liq', new ZonePrimitive({
+          startTime: zone.startTime as any,
+          endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any,
+          highPrice: zone.high,
+          lowPrice: zone.low,
+          fillColor: zone.swept
+            ? 'rgba(156, 163, 175, 0.06)'  // Grayed out if swept
+            : zone.sweepDirection === 'bullish'
+              ? 'rgba(0, 255, 163, 0.08)'   // Green for bullish sweep zones
+              : 'rgba(255, 71, 87, 0.08)',   // Red for bearish sweep zones
+          borderColor: zone.swept
+            ? undefined
+            : zone.sweepDirection === 'bullish'
+              ? 'rgba(0, 255, 163, 0.3)'
+              : 'rgba(255, 71, 87, 0.3)',
+        }));
+
+        // Label for significant zones (strength >= 3 or unswept)
+        if (!zone.swept && zone.strength >= 2) {
+          const labelColor = zone.sweepDirection === 'bullish'
+            ? 'rgba(0, 255, 163, 0.8)'
+            : 'rgba(255, 71, 87, 0.8)';
+          registry.add('liq', new LabelPrimitive({
+            time: zone.startTime as any,
+            price: zone.type === 'equal_highs' || zone.type === 'previous_high'
+              ? zone.high
+              : zone.low,
+            text: zone.labelAr,
+            color: labelColor,
+            fontSize: 7,
+            align: 'left',
+            bg: zone.sweepDirection === 'bullish'
+              ? 'rgba(0, 255, 163, 0.08)'
+              : 'rgba(255, 71, 87, 0.08)',
+            position: zone.type === 'equal_highs' || zone.type === 'previous_high'
+              ? 'above'
+              : 'below',
+          }));
+        }
+
+        // Horizontal line at the pool price level (for active zones)
+        if (!zone.swept && zone.strength >= 3) {
+          const lineColor = zone.sweepDirection === 'bullish'
+            ? 'rgba(0, 255, 163, 0.5)'
+            : 'rgba(255, 71, 87, 0.5)';
+          registry.add('liq', new HorizontalLinePrimitive({
+            price: zone.price,
+            color: lineColor,
+            lineWidth: 1,
+            lineStyle: 2,
+            label: `${zone.labelAr} ×${zone.strength}`,
+          }));
+          safeAddPriceLine(`liq-${zone.type}-${zone.price}`, zone.price, lineColor, `${zone.labelAr} ×${zone.strength}`, 1, 2, false, 'liq');
+        }
+      }
+
+      // Dominant sweep direction indicator
+      if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
+        const isBull = liqData.dominantSweepDirection === 'bullish';
+        registry.add('liq', new LabelPrimitive({
+          time: lastTime as any,
+          price: isBull
+            ? Math.min(...candles.slice(-5).map(c => c.low)) * 0.998
+            : Math.max(...candles.slice(-5).map(c => c.high)) * 1.002,
+          text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`,
+          color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)',
+          fontSize: 9,
+          align: 'right',
+          bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)',
+          position: isBull ? 'below' : 'above',
+        }));
+      }
+    }
+  } else {
+    registry.clearType('liq');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // HEATMAP — Show confidence heatmap colored lines on chart
+  // Uses ConfidenceHeatmap engine data when available.
+  // ═══════════════════════════════════════════════════════════════
+  if (showEntry) {
+    // Heatmap is rendered as part of the entry overlay data
+    // (confidence heatmap colors are shown on the Entry price axis)
+    // The actual heatmap rendering is handled by the ConfidenceHeatmap
+    // engine via buildHeatmap() → renderHeatmapOnChart()
+  }
+  if (!showLiq) {
+    registry.clearType('liq');
+  }
+  if (!showMTF) {
+    registry.clearType('mtf');
+  }
+  if (!showTrade) {
     registry.clearType('trade');
   }
 }

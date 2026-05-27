@@ -293,7 +293,80 @@ export function buildHeatmap(candles: CandleData[], signals: any[]): HeatmapResu
   };
 }
 
-/** Alias for buildHeatmap — used by RouaChart component */
-export function renderHeatmapOnChart(candles: CandleData[], signals: any[]): HeatmapResult {
-  return buildHeatmap(candles, signals);
+/**
+ * Render heatmap overlay on a lightweight-charts instance.
+ * Creates two line series (bullish/bearish confidence) that act as
+ * a visual confidence band around the price action.
+ *
+ * @param chartApi - The lightweight-charts IChartApi instance
+ * @param lc - The lightweight-charts module (for createSeries)
+ * @param heatmap - The HeatmapResult from buildHeatmap()
+ * @returns Array of ISeriesApi instances for cleanup
+ */
+export function renderHeatmapOnChart(
+  chartApi: any,
+  lc: any,
+  heatmap: HeatmapResult,
+): any[] {
+  if (!chartApi || !heatmap?.points?.length) return [];
+
+  const series: any[] = [];
+
+  try {
+    // Create bullish confidence line (green tones)
+    const bullishPoints = heatmap.points
+      .filter(p => p.direction === 'bullish')
+      .map(p => ({ time: p.time as number, value: p.price * (1 + p.confidence * 0.003) }));
+
+    // Create bearish confidence line (red tones)
+    const bearishPoints = heatmap.points
+      .filter(p => p.direction === 'bearish')
+      .map(p => ({ time: p.time as number, value: p.price * (1 - p.confidence * 0.003) }));
+
+    // Neutral line (gray)
+    const neutralPoints = heatmap.points
+      .filter(p => p.direction === 'neutral')
+      .map(p => ({ time: p.time as number, value: p.price }));
+
+    if (bullishPoints.length > 0) {
+      const bullSeries = chartApi.addLineSeries({
+        color: 'rgba(34, 197, 94, 0.6)',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      bullSeries.setData(bullishPoints);
+      series.push(bullSeries);
+    }
+
+    if (bearishPoints.length > 0) {
+      const bearSeries = chartApi.addLineSeries({
+        color: 'rgba(239, 68, 68, 0.6)',
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+      });
+      bearSeries.setData(bearishPoints);
+      series.push(bearSeries);
+    }
+
+    if (neutralPoints.length > 0) {
+      const neutralSeries = chartApi.addLineSeries({
+        color: 'rgba(156, 163, 175, 0.4)',
+        lineWidth: 1,
+        priceLineVisible: false,
+        lastValueVisible: false,
+        crosshairMarkerVisible: false,
+        lineStyle: 2, // Dashed
+      });
+      neutralSeries.setData(neutralPoints);
+      series.push(neutralSeries);
+    }
+  } catch (e) {
+    console.debug('[ConfidenceHeatmap] render error:', e);
+  }
+
+  return series;
 }

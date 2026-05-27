@@ -47,3 +47,25 @@ Stage Summary:
 - The singleton registry is preserved between toggle operations (only destroyed on timeframe change)
 - Orphaned primitives are properly cleaned up when the series changes
 - Race conditions eliminated by pre-loading modules
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix overlay buttons broken — circles on candles, Harmonic/FVG/BOS/Elliott/Wyckoff not working
+
+Work Log:
+- Analyzed screenshot and git diff to identify regression causes
+- Read and analyzed overlay-renderer.ts, OverlayRegistry.ts, chart-detection.ts, RouaChart.tsx, AISmartPanel.tsx
+- Identified 6 root causes for broken overlay buttons
+- Fixed circles on candles: Removed setAiPatterns() from overlay toggle handler
+- Fixed Harmonic detection: Increased tolerance from 0.15 to 0.25, check all swings
+- Fixed FVG detection: Lowered ATR threshold from 0.3x to 0.15x, removed middle candle requirement
+- Fixed BOS cumulative lines: Added deduplication by price level
+- Fixed Elliott detection: Relaxed wave ratio requirements, fixed 3-wave fallback
+- Fixed Wyckoff: Added local Wyckoff phase detection as fallback when AI data unavailable
+- Build succeeded, pushed commit caab58e0
+
+Stage Summary:
+- 3 files modified: RouaChart.tsx, chart-detection.ts, overlay-renderer.ts
+- All 6 overlay button issues addressed
+- Build passes, deployed to Railway via git push

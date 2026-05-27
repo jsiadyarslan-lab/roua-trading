@@ -107,7 +107,7 @@ export interface UnifiedAnalysisResult {
 
 // ── Engine Version ───────────────────────────────────────────────────
 
-const ENGINE_VERSION = '2.0.0-phase3';
+const ENGINE_VERSION = '2.0.0-phase5';
 
 // ── Minimum Candles ──────────────────────────────────────────────────
 

@@ -51,3 +51,33 @@ Stage Summary:
 - Before/After quality improvement verified
 - Build succeeded, deployment reached production
 - Total improvements: ~8,000+ translation keys fixed across 6 languages
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Phase 4 — Quality & Reliability + Overlay Integration
+
+Work Log:
+- Fixed 6 memory leak sources in AISmartPanel.tsx (EventSource, 8 setTimeout calls)
+- Added eventSourceRef, pendingTimersRef, safeTimeout() helper for managed cleanup
+- Integrated IncrementalCalc.ts into AISmartPanel for O(1) per-candle updates
+- Created AnalysisValidator.ts (validateAnalysis, validateFibRatio, validateTradeSetup)
+- Created AnalysisLogger.ts (logError/Warn/Info/Debug, safeEngineCall, safeEngineCallAsync)
+- Wrapped all 11 engine calls in unified-analysis.ts with safeEngineCall()
+- Added validation step (step 15) in runUnifiedAnalysis to filter impossible values
+- Added 3 new overlay toggle buttons: MTF (#06b6d4), LIQ (#f472b6), TRADE (#a3e635)
+- Added Liquidity Zones overlay rendering (pools, sweeps, voids, labels, price lines)
+- Made MTF and Trade overlays user-toggleable (was auto-render only)
+- Added liquidityResult to OverlayInput interface and data pipeline
+- Updated OverlayRegistry with 'liq' and 'heatmap' types
+- Updated AIAnalysisResult interface with new overlay types and data fields
+- Passed fusionResult, bayesianResult, mtfResult, tradeProposals, liquidityResult through RouaChart
+- Build succeeded, pushed to GitHub, production returns HTTP 200
+
+Stage Summary:
+- Phase 4 complete: 8 files changed, 704 insertions, 40 deletions
+- 2 new files: AnalysisValidator.ts, AnalysisLogger.ts
+- Memory leaks fixed: EventSource, setTimeout, state-after-unmount
+- Incremental O(1) updates: ATR/EMA/Pivots updated incrementally
+- 3 new overlay buttons (MTF, LIQ, TRADE) bringing total to 13 overlay types
+- Production deployed: https://roua-trading-production.up.railway.app/

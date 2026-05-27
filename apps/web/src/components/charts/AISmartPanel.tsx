@@ -35,6 +35,12 @@ import { evaluateSmartAlerts, buildAlertSnapshot, fireBrowserNotification, type 
 import { detectLiquidityZones, liquidityToAIPatterns, type LiquidityResult, type LiquidityZone } from '@/lib/charts/LiquidityZones';
 import { generateTradeProposal, getTradeProposals, getProposalStats, getActiveProposals, autoEvaluateProposals, type TradeProposal, type RiskParams } from '@/lib/charts/AutoTradeEngine';
 import { runQuickMTFAnalysis, detectTradingStyle, type MTFResult, type MTFTimeframe, TF_LABELS_AR } from '@/lib/charts/MTFEngine';
+// Phase 5: Advanced Differentiating Features
+import { runAdaptiveBayesian, detectMarketRegime, recordAdaptiveOutcome, getSourcePerformances, getAdaptiveSummary, setUserWeightOverride, getUserWeightOverrides, type AdaptiveBayesianResult, type AdaptiveSignalSource, type MarketRegime } from '@/lib/charts/AdaptiveBayesianEngine';
+import { evaluateAllVisualRules, getVisualRules, type VisualRule, type RuleEvaluationResult, type RuleAnalysisData, SIGNAL_BLOCK_LIBRARY, CONNECTOR_LABELS_AR, CATEGORY_LABELS_AR } from '@/lib/charts/VisualRuleBuilder';
+import { getPaperAccount, openPaperTrade, closePaperTrade, autoEvaluatePaperTrades, getPaperTrades, getOpenPaperTrades, getPerformanceComparison, type PaperTrade, type PaperAccount } from '@/lib/charts/PaperTradingEngine';
+import { runMarketScan, runSingleAssetScan, getScanUniverse, type MarketScanResult, type AssetScanResult, SECTOR_LABELS_AR } from '@/lib/charts/MarketScannerEngine';
+import { buildAICouncilPrompt, buildAIAnalysisPayload, compareAIWithAlgorithm, recordPrediction, verifyPredictions, getAIvsAlgoStats, getModelPerformances, type AIAnalysisPayload, type AICouncilBridgeResult, type AIModel } from '@/lib/charts/AICouncilBridge';
 import { createIncrementalState, initializeState, updateIncremental, needsFullRecalc, getQuickTrend, getQuickVolatilityRegime, type IncrementalState } from '@/lib/charts/IncrementalCalc';
 import { logError, logWarn, logInfo, getErrorCount, getRecentErrors } from '@/lib/charts/AnalysisLogger';
 import { validateAnalysis, validateTradeSetup } from '@/lib/charts/AnalysisValidator';
@@ -98,7 +104,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades' | 'mtf' | 'adaptive' | 'rules' | 'paper' | 'scanner' | 'council';
 
 interface Props {
   symbol: string;
@@ -155,6 +161,18 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [volRegime, setVolRegime] = useState<string>('normal');
   const [verificationReport, setVerificationReport] = useState<FullVerificationReport | null>(null);
   const [showVerification, setShowVerification] = useState(false);
+  // Phase 5: Adaptive Bayesian, Visual Rules, Paper Trading, Scanner, AI Council
+  const [adaptiveResult, setAdaptiveResult] = useState<AdaptiveBayesianResult | null>(null);
+  const [marketRegime, setMarketRegime] = useState<MarketRegime>('quiet');
+  const [adaptiveSummary, setAdaptiveSummary] = useState<ReturnType<typeof getAdaptiveSummary> | null>(null);
+  const [visualRuleResults, setVisualRuleResults] = useState<Array<{ rule: VisualRule; result: RuleEvaluationResult }>>([]);
+  const [paperAccountState, setPaperAccountState] = useState<PaperAccount | null>(null);
+  const [paperTradesList, setPaperTradesList] = useState<PaperTrade[]>([]);
+  const [paperComparison, setPaperComparison] = useState<ReturnType<typeof getPerformanceComparison> | null>(null);
+  const [scanResult, setScanResult] = useState<MarketScanResult | null>(null);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [aiBridgePayload, setAiBridgePayload] = useState<AIAnalysisPayload | null>(null);
+  const [aiVsAlgoStats, setAiVsAlgoStats] = useState<ReturnType<typeof getAIvsAlgoStats> | null>(null);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -456,8 +474,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         const alertSnapshot = buildAlertSnapshot({
           patterns: allPatterns,
           smcData,
-          elliottResult,
-          wyckoffResult: wyckoffAdv,
+          elliottResult: elliottAdvanced,
+          wyckoffResult: wyckoffAdvanced,
           currentPrice: price,
           timeframe: 'auto',
         });
@@ -509,6 +527,87 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         }
         setProposalStats(getProposalStats());
       } catch { /* Auto-Trade fallback */ }
+
+      // ── Phase 5: Adaptive Bayesian Engine ──────────────────────────
+      try {
+        const regime = detectMarketRegime(c);
+        setMarketRegime(regime);
+
+        const adaptiveSignals: AdaptiveSignalSource[] = extractSignalsFromAnalysis({
+          patterns: unique,
+          smcData,
+          elliottPattern,
+          wyckoff,
+          volumeProfile,
+          geoPatterns,
+        }).map(s => ({
+          source: s.source,
+          direction: s.direction,
+          baseConfidence: s.confidence,
+          adaptiveWeight: s.weight,
+          timestamp: Date.now(),
+        }));
+
+        const adaptive = runAdaptiveBayesian(adaptiveSignals, c);
+        setAdaptiveResult(adaptive);
+        setAdaptiveSummary(getAdaptiveSummary());
+      } catch { /* Adaptive Bayesian fallback */ }
+
+      // ── Phase 5: Visual Rule Builder Evaluation ────────────────────
+      try {
+        const ruleAnalysisData: RuleAnalysisData = {
+          harmonicPatterns: harmonicPatterns.filter(p => p.direction !== 'neutral').map(p => ({
+            type: p.type, direction: p.direction as 'bullish' | 'bearish', confidence: p.confidence, przLevel: (p as any).przLevel || p.price || price,
+          })),
+          orderBlocks: (smcData?.orderBlocks || []).map((ob: any) => ({
+            type: ob.type, strength: ob.strength, price: (ob.high + ob.low) / 2, broken: ob.broken,
+          })),
+          fvgs: (smcData?.fvgs || []).map((fvg: any) => ({
+            type: fvg.type, filled: fvg.filled, midPrice: (fvg.high + fvg.low) / 2,
+          })),
+          structureBreaks: (smcData?.structureBreaks || []).map((brk: any) => ({
+            type: brk.type, direction: brk.direction, price: brk.price,
+          })),
+          elliottResult: elliottAdvanced?.dominantCount ? {
+            direction: elliottAdvanced.dominantCount.direction, confidence: elliottAdvanced.dominantCount.confidence, waveType: elliottAdvanced.dominantCount.type,
+          } : null,
+          wyckoffResult: wyckoffAdvanced && wyckoffAdvanced.scheme !== 'none' ? {
+            scheme: wyckoffAdvanced.scheme, direction: wyckoffAdvanced.direction, confidence: wyckoffAdvanced.confidence,
+            events: wyckoffAdvanced.events.map((e: any) => e.type),
+          } : null,
+          candlestickPatterns: unique.filter(p => p.direction !== 'neutral').map(p => ({ type: p.type, direction: p.direction as 'bullish' | 'bearish', confidence: p.confidence, price: p.price || price })),
+          volumeAnomalies: [],
+          fibonacciLevels: [],
+          trendlineEvents: [],
+          currentPrice: price,
+        };
+
+        const ruleResults = evaluateAllVisualRules(ruleAnalysisData);
+        setVisualRuleResults(ruleResults);
+      } catch { /* Visual Rule Builder fallback */ }
+
+      // ── Phase 5: Paper Trading Evaluation ──────────────────────────
+      try {
+        autoEvaluatePaperTrades(price, c);
+        setPaperAccountState(getPaperAccount());
+        setPaperTradesList(getPaperTrades().slice(0, 10));
+        setPaperComparison(getPerformanceComparison());
+      } catch { /* Paper Trading fallback */ }
+
+      // ── Phase 5: AI Council Bridge ─────────────────────────────────
+      try {
+        const bridgePayload = buildAIAnalysisPayload({
+          symbol: sym, currentPrice: price, timeframe: 'auto', regime: volRegime,
+          bayesianResult: bayesianResult,
+          patterns: allPatterns,
+          smcData, wyckoffResult: wyckoffAdvanced ? { scheme: wyckoffAdvanced.scheme, currentPhase: wyckoffAdvanced.currentPhase, direction: wyckoffAdvanced.direction, events: wyckoffAdvanced.events } : undefined, elliottResult: elliottAdvanced?.dominantCount ? { dominantCount: { direction: elliottAdvanced.dominantCount.direction, type: elliottAdvanced.dominantCount.type, confidence: elliottAdvanced.dominantCount.confidence } } : undefined,
+          mtfResult: mtfResult ? { confluenceDirection: mtfResult.confluenceDirection, confluenceScore: mtfResult.confluenceScore, agreeingTFs: mtfResult.agreeingTFs } : undefined,
+          srLevels: srLevels.map(l => ({ price: l.price, type: l.type as string, strength: typeof l.strength === 'number' ? l.strength : l.strength === 'strong' ? 0.9 : l.strength === 'medium' ? 0.6 : 0.3 })), volumeProfile,
+        });
+        setAiBridgePayload(bridgePayload);
+        setAiVsAlgoStats(getAIvsAlgoStats());
+        verifyPredictions(bayesianDir === 'bullish' ? 'bullish' : bayesianDir === 'bearish' ? 'bearish' : 'neutral');
+      } catch { /* AI Council Bridge fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
       // FIX: Calculate entry/exit from ATR-adaptive levels for the Entry overlay
@@ -1030,7 +1129,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -1849,6 +1948,356 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                   </div>
                 );
               })
+            )}
+          </div>
+        )}
+
+        {/* ADAPTIVE — Adaptive Bayesian Engine (Phase 5) */}
+        {tab === 'adaptive' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {/* Market Regime */}
+            <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🧠 النظام التكيفي — Adaptive Bayesian</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>نظام السوق</div>
+                  <div style={{ color: marketRegime === 'trending' ? C.green : marketRegime === 'volatile' ? C.red : marketRegime === 'ranging' ? C.yellow : C.dim, fontSize: 10, fontWeight: 700 }}>
+                    {marketRegime === 'trending' ? 'اتجاهي' : marketRegime === 'volatile' ? 'متقلب' : marketRegime === 'ranging' ? 'عرضي' : 'هادئ'}
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>اتجاه تكيفي</div>
+                  <div style={{ color: adaptiveResult?.direction === 'bullish' ? C.green : adaptiveResult?.direction === 'bearish' ? C.red : C.dim, fontSize: 10, fontWeight: 700 }}>
+                    {adaptiveResult ? (adaptiveResult.direction === 'bullish' ? 'صاعد' : adaptiveResult.direction === 'bearish' ? 'هابط' : 'محايد') : '—'}
+                  </div>
+                </div>
+                <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                  <div style={{ color: C.mut, fontSize: 7 }}>ثقة تكيفية</div>
+                  <div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>{adaptiveResult ? `${Math.round(adaptiveResult.confidence * 100)}%` : '—'}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Adaptive Insights */}
+            {adaptiveResult && adaptiveResult.insights.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>رؤى التعلم</div>
+                {adaptiveResult.insights.map((insight, i) => (
+                  <div key={i} style={{ background: C.card, borderRadius: 4, padding: '4px 8px', marginBottom: 3, fontSize: 8.5, color: C.dim }}>{insight}</div>
+                ))}
+              </div>
+            )}
+
+            {/* Source Contributions */}
+            {adaptiveResult && adaptiveResult.sourceContributions.length > 0 && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>مساهمة المصادر (أوزان تكيفية)</div>
+                {adaptiveResult.sourceContributions.slice(0, 8).map((sc, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
+                    <span style={{ fontSize: 8.5, color: C.text }}>{sc.source} {sc.isUserOverride ? '👤' : ''}</span>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span style={{ fontSize: 7.5, color: C.mut }}>وزن: <b style={{ color: sc.adaptiveWeight > 1.2 ? C.green : sc.adaptiveWeight < 0.8 ? C.red : C.dim }}>{sc.adaptiveWeight.toFixed(2)}</b></span>
+                      <span style={{ fontSize: 7.5, color: C.mut }}>نجاح: <b style={{ color: sc.winRate > 0.6 ? C.green : sc.winRate < 0.4 ? C.red : C.dim }}>{Math.round(sc.winRate * 100)}%</b></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Adaptive Summary */}
+            {adaptiveSummary && (
+              <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px' }}>
+                <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>ملخص التعلم</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8 }}>
+                  <div><span style={{ color: C.mut }}>مصادر كلية:</span> <span style={{ color: C.text }}>{adaptiveSummary.totalSources}</span></div>
+                  <div><span style={{ color: C.mut }}>مصادر متكيفة:</span> <span style={{ color: C.text }}>{adaptiveSummary.adaptedSources}</span></div>
+                  <div><span style={{ color: C.mut }}>أفضل مصدر:</span> <span style={{ color: C.green }}>{adaptiveSummary.bestSource || '—'}</span></div>
+                  <div><span style={{ color: C.mut }}>أضعف مصدر:</span> <span style={{ color: C.red }}>{adaptiveSummary.worstSource || '—'}</span></div>
+                  <div><span style={{ color: C.mut }}>متوسط النجاح:</span> <span style={{ color: C.text }}>{Math.round(adaptiveSummary.avgWinRate * 100)}%</span></div>
+                  <div><span style={{ color: C.mut }}>النظام السائد:</span> <span style={{ color: C.text }}>{adaptiveSummary.dominantRegime === 'trending' ? 'اتجاهي' : adaptiveSummary.dominantRegime === 'volatile' ? 'متقلب' : adaptiveSummary.dominantRegime === 'ranging' ? 'عرضي' : 'هادئ'}</span></div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* RULES — Visual Rule Builder (Phase 5) */}
+        {tab === 'rules' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.blue}08`, border: `1px solid ${C.blue}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.blue, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📐 نظام القواعد المرئي — Visual Rule Builder</div>
+              <div style={{ fontSize: 8, color: C.dim }}>أنشئ قواعد تنبيه مركبة بسهولة. اسحب كتل الإشارات وصلها بـ AND/OR/NOT.</div>
+            </div>
+
+            {/* Triggered Rules */}
+            {visualRuleResults.length > 0 ? (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>القواعد المفعّلة ({visualRuleResults.length})</div>
+                {visualRuleResults.map((rr, i) => {
+                  const dirColor = rr.result.direction === 'bullish' ? C.green : rr.result.direction === 'bearish' ? C.red : C.dim;
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 5, padding: '6px 8px', marginBottom: 4, border: `1px solid ${dirColor}20` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 9, fontWeight: 600, color: dirColor }}>{rr.result.direction === 'bullish' ? '▲' : '▼'} {rr.rule.nameAr}</span>
+                        <span style={{ fontSize: 8, color: C.mut }}>ثقة {Math.round(rr.result.confidence * 100)}%</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+                        {rr.result.trace.filter(t => t.matched).map((t, j) => (
+                          <span key={j} style={{ background: `${dirColor}10`, color: dirColor, fontSize: 7, padding: '1px 4px', borderRadius: 2 }}>{t.signalType}</span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>لا قواعد مفعّلة حالياً — أنشئ قاعدة من مكتبة الكتل</div>
+            )}
+
+            {/* Signal Block Library */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>مكتبة كتل الإشارات</div>
+              {(['harmonic', 'smc', 'elliott', 'wyckoff', 'candlestick', 'volume'] as const).map(category => (
+                <div key={category} style={{ marginBottom: 6 }}>
+                  <div style={{ fontSize: 8, color: C.mut, fontWeight: 600, marginBottom: 2 }}>{CATEGORY_LABELS_AR[category]}</div>
+                  <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
+                    {SIGNAL_BLOCK_LIBRARY.filter(b => b.category === category).map(block => (
+                      <span key={block.signalType} style={{ background: `${block.color}15`, color: block.color, fontSize: 7.5, padding: '2px 5px', borderRadius: 3, fontWeight: 500, border: `1px solid ${block.color}30` }}>{block.labelAr}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PAPER — Paper Trading Mode (Phase 5) */}
+        {tab === 'paper' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {/* Account Summary */}
+            {paperAccountState && (
+              <div style={{ background: `${C.green}08`, border: `1px solid ${C.green}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📝 تداول وهمي — Paper Trading</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>الرصيد</div>
+                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700, fontFamily: 'monospace' }}>${paperAccountState.currentBalance.toFixed(2)}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>معدل النجاح</div>
+                    <div style={{ color: paperAccountState.winRate > 0.5 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{Math.round(paperAccountState.winRate * 100)}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>أقصى سحب</div>
+                    <div style={{ color: C.red, fontSize: 10, fontWeight: 700 }}>{paperAccountState.maxDrawdownPct.toFixed(1)}%</div>
+                  </div>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4, marginTop: 4 }}>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 5px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>صفقات</div>
+                    <div style={{ color: C.text, fontSize: 9 }}>{paperAccountState.totalTrades}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 5px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>ربح</div>
+                    <div style={{ color: C.green, fontSize: 9 }}>{paperAccountState.wins}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 5px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>خسارة</div>
+                    <div style={{ color: C.red, fontSize: 9 }}>{paperAccountState.losses}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 5px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 6.5 }}>شارب</div>
+                    <div style={{ color: C.cyan, fontSize: 9 }}>{paperAccountState.sharpeRatio.toFixed(2)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Performance Comparison */}
+            {paperComparison && (
+              <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>مقارنة مع "اشترِ واحتفظ"</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4, fontSize: 8 }}>
+                  <div><span style={{ color: C.mut }}>تداول وهمي:</span> <span style={{ color: paperComparison.paperReturnPct > 0 ? C.green : C.red }}>{paperComparison.paperReturnPct.toFixed(2)}%</span></div>
+                  <div><span style={{ color: C.mut }}>شراء واحتفاظ:</span> <span style={{ color: C.text }}>{paperComparison.buyAndHoldReturnPct.toFixed(2)}%</span></div>
+                  <div><span style={{ color: C.mut }}>تفوق:</span> <span style={{ color: paperComparison.outperformance > 0 ? C.green : C.red }}>{paperComparison.outperformance > 0 ? '+' : ''}{paperComparison.outperformance.toFixed(2)}%</span></div>
+                </div>
+              </div>
+            )}
+
+            {/* Recent Trades */}
+            {paperTradesList.length > 0 && (
+              <div>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>آخر الصفقات</div>
+                {paperTradesList.slice(0, 5).map((trade, i) => {
+                  const dirColor = trade.direction === 'long' ? C.green : C.red;
+                  const pnlColor = trade.netPnl > 0 ? C.green : trade.netPnl < 0 ? C.red : C.dim;
+                  return (
+                    <div key={i} style={{ background: C.card, borderRadius: 4, padding: '4px 8px', marginBottom: 3, border: `1px solid ${dirColor}10` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 8.5, color: dirColor, fontWeight: 600 }}>{trade.direction === 'long' ? '▲ شراء' : '▼ بيع'} {trade.symbol}</span>
+                        <span style={{ fontSize: 8.5, color: pnlColor, fontWeight: 600, fontFamily: 'monospace' }}>{trade.netPnl > 0 ? '+' : ''}{trade.netPnl.toFixed(2)}</span>
+                      </div>
+                      <div style={{ fontSize: 7, color: C.mut, marginTop: 2 }}>{trade.entryReasonAr}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!paperAccountState && (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>لم تبدأ التداول الوهمي بعد. سيتم فتح صفقات تلقائياً عند التقارب العالي.</div>
+            )}
+          </div>
+        )}
+
+        {/* SCANNER — Market Scanner (Phase 5) */}
+        {tab === 'scanner' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.cyan}08`, border: `1px solid ${C.cyan}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700 }}>🔍 فحص السوق — Market Scanner</div>
+                <button onClick={async () => { setScanLoading(true); try { const result = await runMarketScan(50, '1h'); setScanResult(result); } catch {} finally { setScanLoading(false); } }} style={{ background: `${C.cyan}20`, border: `1px solid ${C.cyan}40`, color: C.cyan, fontSize: 8, padding: '3px 8px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }} disabled={scanLoading}>
+                  {scanLoading ? '⏳ جارٍ الفحص...' : 'فحص الآن'}
+                </button>
+              </div>
+            </div>
+
+            {scanResult ? (
+              <>
+                {/* Market Overview */}
+                <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 4 }}>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>صاعد</div><div style={{ color: C.green, fontSize: 10, fontWeight: 700 }}>{scanResult.marketOverview.bullishPct}%</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>هابط</div><div style={{ color: C.red, fontSize: 10, fontWeight: 700 }}>{scanResult.marketOverview.bearishPct}%</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>متوسط</div><div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>{scanResult.marketOverview.avgStrength}</div></div>
+                    <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>مفحوص</div><div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{scanResult.totalScanned}</div></div>
+                  </div>
+                </div>
+
+                {/* Top Bullish */}
+                {scanResult.topBullish.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>أقوى الإشارات الصاعدة</div>
+                    {scanResult.topBullish.slice(0, 5).map((asset, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8, color: C.green, fontWeight: 700 }}>▲</span>
+                          <span style={{ fontSize: 8.5, color: C.text, fontWeight: 600 }}>{asset.symbol.replace('USDT', '')}</span>
+                          <span style={{ fontSize: 7, color: C.mut }}>{asset.keyPatternAr}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8, color: C.green, fontWeight: 600 }}>{asset.strength}%</span>
+                          <span style={{ fontSize: 7.5, color: asset.change24h > 0 ? C.green : C.red }}>{asset.change24h > 0 ? '+' : ''}{asset.change24h.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Top Bearish */}
+                {scanResult.topBearish.length > 0 && (
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ color: C.red, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>أقوى الإشارات الهابطة</div>
+                    {scanResult.topBearish.slice(0, 5).map((asset, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
+                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8, color: C.red, fontWeight: 700 }}>▼</span>
+                          <span style={{ fontSize: 8.5, color: C.text, fontWeight: 600 }}>{asset.symbol.replace('USDT', '')}</span>
+                          <span style={{ fontSize: 7, color: C.mut }}>{asset.keyPatternAr}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span style={{ fontSize: 8, color: C.red, fontWeight: 600 }}>{asset.strength}%</span>
+                          <span style={{ fontSize: 7.5, color: asset.change24h > 0 ? C.green : C.red }}>{asset.change24h > 0 ? '+' : ''}{asset.change24h.toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Sector Summary */}
+                {scanResult.sectorSummary.length > 0 && (
+                  <div>
+                    <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>ملخص القطاعات</div>
+                    {scanResult.sectorSummary.slice(0, 6).map((sector, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
+                        <span style={{ fontSize: 8, color: C.text }}>{sector.labelAr.split('—')[0].trim()}</span>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          <span style={{ fontSize: 7.5, color: C.green }}>{sector.bullishCount}▲</span>
+                          <span style={{ fontSize: 7.5, color: C.red }}>{sector.bearishCount}▼</span>
+                          <span style={{ fontSize: 7.5, color: C.cyan }}>{Math.round(sector.avgStrength)}%</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>اضغط "فحص الآن" لفحص 50+ زوج تداول</div>
+            )}
+          </div>
+        )}
+
+        {/* COUNCIL — AI Council Bridge (Phase 5) */}
+        {tab === 'council' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+              <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🤖 جسر AI Council — مقارنة الذكاء الاصطناعي مع الخوارزميات</div>
+              <div style={{ fontSize: 8, color: C.dim }}>يمرر بيانات التحليل الفعلية إلى نماذج الذكاء الاصطناعي ويقارن توقعاتها مع المحركات الخوارزمية.</div>
+            </div>
+
+            {/* AI vs Algorithm Stats */}
+            {aiVsAlgoStats && (
+              <div style={{ background: C.card, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>إحصائيات المقارنة</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                  <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>نجاح AI</div><div style={{ color: C.purple, fontSize: 10, fontWeight: 700 }}>{Math.round(aiVsAlgoStats.aiWinRate * 100)}%</div></div>
+                  <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>نجاح الخوارزمية</div><div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>{Math.round(aiVsAlgoStats.algoWinRate * 100)}%</div></div>
+                  <div style={{ textAlign: 'center' }}><div style={{ color: C.mut, fontSize: 7 }}>نسبة الاتفاق</div><div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{Math.round(aiVsAlgoStats.agreementRate * 100)}%</div></div>
+                </div>
+                {aiVsAlgoStats.totalVerified > 0 && (
+                  <div style={{ marginTop: 6, fontSize: 8, color: aiVsAlgoStats.aiBetter ? C.purple : C.cyan, textAlign: 'center' }}>
+                    {aiVsAlgoStats.aiBetter ? 'الذكاء الاصطناعي يتفوق حالياً' : 'الخوارزميات تتفوق حالياً'} ({aiVsAlgoStats.totalVerified} توقعات مُتحقق منها)
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Bridge Payload Preview */}
+            {aiBridgePayload && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>البيانات المُمررة للذكاء الاصطناعي</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, fontSize: 8 }}>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>الرمز:</span> <span style={{ color: C.text }}>{aiBridgePayload.symbol}</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>السعر:</span> <span style={{ color: C.text }}>{aiBridgePayload.currentPrice.toFixed(2)}</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>النظام:</span> <span style={{ color: C.text }}>{aiBridgePayload.regime}</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>بايزي:</span> <span style={{ color: aiBridgePayload.bayesian.direction === 'bullish' ? C.green : aiBridgePayload.bayesian.direction === 'bearish' ? C.red : C.dim }}>{aiBridgePayload.bayesian.direction} ({Math.round(aiBridgePayload.bayesian.confidence * 100)}%)</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>SMC OBs:</span> <span style={{ color: C.text }}>{aiBridgePayload.smcSummary.orderBlocks}</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>MTF:</span> <span style={{ color: C.text }}>{aiBridgePayload.mtfConfluence.score}%</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>ويكوف:</span> <span style={{ color: C.text }}>{aiBridgePayload.wyckoffSummary.scheme}</span></div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '3px 6px' }}><span style={{ color: C.mut }}>إليوت:</span> <span style={{ color: C.text }}>{aiBridgePayload.elliottSummary.dominantDirection}</span></div>
+                </div>
+              </div>
+            )}
+
+            {/* Key Patterns sent to AI */}
+            {aiBridgePayload && aiBridgePayload.keyPatterns.length > 0 && (
+              <div>
+                <div style={{ color: C.green, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>الأنماط الرئيسية للذكاء الاصطناعي</div>
+                {aiBridgePayload.keyPatterns.map((p, i) => {
+                  const col = p.direction === 'bullish' ? C.green : p.direction === 'bearish' ? C.red : C.dim;
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 8px', borderRadius: 4, background: C.card, marginBottom: 2 }}>
+                      <span style={{ fontSize: 8.5, color: col }}>{p.direction === 'bullish' ? '▲' : '▼'} {p.labelAr}</span>
+                      <span style={{ fontSize: 8, color: C.mut }}>{Math.round(p.confidence * 100)}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {!aiBridgePayload && (
+              <div style={{ color: C.mut, fontSize: 8, textAlign: 'center', padding: 20 }}>شغّل التحليل أولاً لرؤية بيانات الجسر</div>
             )}
           </div>
         )}

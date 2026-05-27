@@ -39,7 +39,10 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
   const lastTradeAlertsRef = useRef<Record<string, number>>({})
   const quotesRef = useRef(quotes)
   const [hydrated, setHydrated] = useState(false)
-  const [autoExecuting, setAutoExecuting] = useState<Set<string>>(new Set())
+  // FIX: Use ref instead of state for autoExecuting — it doesn't need to
+  // trigger re-renders. State caused: (1) new Set() on every update,
+  // (2) handleAutoExecute recreation, (3) useEffect re-registration churn.
+  const autoExecutingRef = useRef<Set<string>>(new Set())
 
   // On hydration, skip all existing logs — only process NEW ones after mount
   useEffect(() => {
@@ -64,8 +67,8 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     maxPositionSizePercent?: number
   }) => {
     // Prevent double-execution
-    if (autoExecuting.has(data.signalId)) return
-    setAutoExecuting(prev => new Set(prev).add(data.signalId))
+    if (autoExecutingRef.current.has(data.signalId)) return
+    autoExecutingRef.current.add(data.signalId)
 
     const side = data.action === 'BUY' ? 'BUY' : 'SELL'
     const sideLabel = side === 'BUY' ? tc('buy') : tc('sell')
@@ -162,14 +165,10 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     } finally {
       // Clean up after 30 seconds to prevent memory leak
       setTimeout(() => {
-        setAutoExecuting(prev => {
-          const next = new Set(prev)
-          next.delete(data.signalId)
-          return next
-        })
+        autoExecutingRef.current.delete(data.signalId)
       }, 30000)
     }
-  }, [addNotification, autoExecuting])
+  }, [addNotification])
 
   // Register auto-execute handler with socket hook
   useEffect(() => {
@@ -288,6 +287,13 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     if (!hydrated || !settings.tradeAlerts) return
     const currentQuotes = quotesRef.current
     const now = Date.now()
+    // FIX: Prune stale entries from lastTradeAlertsRef to prevent unbounded growth.
+    // Remove entries older than the 5-minute cooldown window.
+    for (const sym of Object.keys(lastTradeAlertsRef.current)) {
+      if (now - lastTradeAlertsRef.current[sym] > 300_000) {
+        delete lastTradeAlertsRef.current[sym]
+      }
+    }
     currentQuotes.forEach((q, symbol) => {
       const change = Math.abs(q.changePercent || 0)
       if (change > 4 && (!lastTradeAlertsRef.current[symbol] || now - lastTradeAlertsRef.current[symbol] > 300_000)) {

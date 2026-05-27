@@ -12,10 +12,10 @@ import { AUDIO_TONES } from '@/lib/charts/config'
    
    NOTE: All browser APIs are lazily initialized to ensure
    SSR compatibility — no module-level side effects.
-══════════════════════════════════════════════════════ */
+   ═════════════════════════════════════════════════════ */
 let _audioCtx: AudioContext | null = null
 let _audioResumed = false
-let _audioListenersAttached = false
+let _audioCleanup: (() => void) | null = null
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
@@ -32,8 +32,7 @@ function getAudioContext(): AudioContext | null {
 // Lazily attach AudioContext resume listeners on first user interaction.
 // This avoids module-level side effects that break SSR.
 function ensureAudioListeners() {
-  if (typeof window === 'undefined' || _audioListenersAttached) return
-  _audioListenersAttached = true
+  if (typeof window === 'undefined' || _audioCleanup) return
 
   const resumeAudio = () => {
     const ctx = getAudioContext()
@@ -41,22 +40,35 @@ function ensureAudioListeners() {
       ctx.resume().catch(() => {})
     }
     _audioResumed = true
-    // Re-attach listeners so that if Chrome suspends the context again
-    // after a period of inactivity, the next interaction will resume it
-    window.addEventListener('click', resumeAudio, { once: true })
-    window.addEventListener('keydown', resumeAudio, { once: true })
-    window.addEventListener('touchstart', resumeAudio, { once: true })
   }
-  // Initial listeners — will re-attach after each resume
-  window.addEventListener('click', resumeAudio, { once: true })
-  window.addEventListener('keydown', resumeAudio, { once: true })
-  window.addEventListener('touchstart', resumeAudio, { once: true })
+
+  // FIX: Use persistent listeners instead of { once: true } re-attach cycle.
+  // The previous pattern re-added listeners after each resume, creating a
+  // self-perpetuating cycle that was never cleaned up — a memory leak.
+  window.addEventListener('click', resumeAudio)
+  window.addEventListener('keydown', resumeAudio)
+  window.addEventListener('touchstart', resumeAudio)
+
+  _audioCleanup = () => {
+    window.removeEventListener('click', resumeAudio)
+    window.removeEventListener('keydown', resumeAudio)
+    window.removeEventListener('touchstart', resumeAudio)
+    if (_audioCtx) {
+      try { _audioCtx.close() } catch {}
+      _audioCtx = null
+    }
+  }
 }
 
 // Attach listeners when module is loaded on the client
 if (typeof window !== 'undefined') {
   // Use queueMicrotask to defer execution past SSR hydration
   queueMicrotask(ensureAudioListeners)
+  // Clean up on page unload to free AudioContext resources
+  window.addEventListener('beforeunload', () => {
+    _audioCleanup?.()
+    _audioCleanup = null
+  })
 }
 
 function playNotifSound(action: string) {
@@ -267,7 +279,9 @@ export const useNotificationStore = create<NotificationState>()(
               body: n.body + (n.pair ? ` — ${n.pair}` : ''),
               icon: '/icon-192.png',
               badge: '/icon-192.png',
-              tag: notif.id,
+              // FIX: Use source-based tag so new notifications REPLACE old ones
+              // of the same source, instead of accumulating infinitely.
+              tag: `roua-${n.source}`,
               dir: isRtl ? 'rtl' : 'ltr',
               lang: currentLocale,
               vibrate: n.priority === 'urgent' ? [200, 100, 200] : [100],
@@ -291,6 +305,10 @@ export const useNotificationStore = create<NotificationState>()(
               window.location.href = url
               browserNotif.close()
             }
+
+            // FIX: Auto-close browser notification after 10 seconds to free
+            // the onclick closure and prevent accumulation in OS notification center.
+            setTimeout(() => { try { browserNotif.close() } catch {} }, 10000)
           } catch {
             // Notification API not available — fallback silently
           }
@@ -390,10 +408,11 @@ export const useNotificationStore = create<NotificationState>()(
  * user-scoped key when the user ID becomes available or changes.
  */
 let _lastKnownUserId: string | null = null
+let _authUnsubscribe: (() => void) | null = null
 
 if (typeof window !== 'undefined') {
-  // Subscribe to auth store changes
-  useAuthStore.subscribe((state) => {
+  // Subscribe to auth store changes — capture unsubscribe for cleanup
+  _authUnsubscribe = useAuthStore.subscribe((state) => {
     const currentUserId = state.user?.id || null
 
     // Only re-hydrate when user ID actually changes (not on every auth state update)
@@ -444,4 +463,10 @@ if (typeof window !== 'undefined') {
       if (cached?.id) _lastKnownUserId = cached.id
     }
   } catch { /* ignore */ }
+
+  // Clean up auth subscription on page unload to prevent memory leak
+  window.addEventListener('beforeunload', () => {
+    _authUnsubscribe?.()
+    _authUnsubscribe = null
+  })
 }

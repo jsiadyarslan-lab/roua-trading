@@ -192,3 +192,26 @@ Stage Summary:
 - File modified: apps/web/src/components/charts/RouaChart.tsx (+91 lines, -15 lines)
 - Commit: 67726f32 pushed to origin/main
 - Railway: Site is up, new deployment should pick up changes automatically
+---
+Task ID: 1
+Agent: Main Agent
+Task: CRITICAL FIX - Trend lines not drawn as new candles arrive
+
+Work Log:
+- Deep-read overlay-renderer.ts (1,621 lines), RouaChart.tsx (2,232 lines), AISmartPanel.tsx (2,364 lines)
+- Identified 5 critical gaps between reported fixes and actual code
+- Fixed RouaChart.tsx: Added fallback imports to WebSocket overlay re-render path
+- Fixed RouaChart.tsx: Always update aiPanelCandles on new candle (not gated by throttle)
+- Fixed RouaChart.tsx: Added periodic overlay refresh timer (30s) as safety net
+- Fixed RouaChart.tsx: Added series re-validation after async import
+- Fixed AISmartPanel.tsx: Distinguish timeframe changes from WebSocket updates
+- Fixed AISmartPanel.tsx: Only clear analysis cache on actual timeframe changes
+- Fixed AISmartPanel.tsx: Always call onOverlayChange on candle change
+- Built successfully with `npx next build` (no errors)
+- Committed as 501e160d and pushed to GitHub
+
+Stage Summary:
+- Root cause: 5 gaps in the overlay re-render pipeline (no fallback imports, throttle-gated updates, no periodic refresh, indiscriminate cache clearing, missing series validation)
+- Commit: 501e160d "CRITICAL FIX: Trend lines not drawn as new candles arrive"
+- 2 files changed, 156 insertions, 36 deletions
+- Railway deployment live at https://roua-trading-production.up.railway.app/

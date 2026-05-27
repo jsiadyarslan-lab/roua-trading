@@ -3542,7 +3542,8 @@
     "current": "Current",
     "setStopLoss": "Set Stop Loss",
     "setTakeProfit": "Set Take Profit",
-    "closePosition": "Close Position"
+    "closePosition": "Close Position",
+    "quickActions": "Quick Actions"
   },
   "aiSmartPanel": {
     "title": "Smart Analysis",

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import {
   ArrowRight,
@@ -104,7 +105,9 @@ export default function NewsArticlePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const slug = params.slug as string
-  const lang = (searchParams.get('lang') || 'en') as Lang // Default to English matching the news page default
+  const locale = useLocale()
+  const defaultLang = locale === 'fr' ? 'fr' : locale === 'tr' ? 'tr' : locale === 'en' ? 'en' : 'ar'
+  const lang = (searchParams.get('lang') || defaultLang) as Lang
 
   const [article, setArticle] = useState<NewsItem | null>(null)
   const [loading, setLoading] = useState(true)

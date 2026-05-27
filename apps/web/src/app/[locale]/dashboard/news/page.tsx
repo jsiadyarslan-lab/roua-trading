@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useLocale } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import {
   Newspaper,
@@ -249,7 +250,13 @@ export default function NewsPage() {
   const [activeTab, setActiveTab] = useState<'news' | 'reports' | 'analysis'>(
     searchParams.get('tab') === 'analysis' ? 'analysis' : initialTab
   )
-  const [newsLang, setNewsLang] = useState<'ar' | 'en' | 'fr' | 'tr'>('en')
+  const locale = useLocale()
+  const [newsLang, setNewsLang] = useState<'ar' | 'en' | 'fr' | 'tr'>(() => {
+    if (locale === 'fr') return 'fr'
+    if (locale === 'tr') return 'tr'
+    if (locale === 'en') return 'en'
+    return 'ar'
+  })
 
   // Analysis tab state
   const [analyses, setAnalyses] = useState<any[]>([])

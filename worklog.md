@@ -117,3 +117,28 @@ Stage Summary:
 - Build: ✅ success
 - Push: ✅ success  
 - Production: ✅ live at https://roua-trading-production.up.railway.app/
+
+---
+Task ID: phase3
+Agent: Main Agent
+Task: Phase 3 - Upgrade MTFEngine + AutoTradeEngine + chart overlays + MTF tab
+
+Work Log:
+- Analyzed existing MTFEngine.ts (357 lines, basic confluence only) and AutoTradeEngine.ts (407 lines, basic trade proposals)
+- Upgraded MTFEngine.ts from 357→1001 lines with: trend alignment, Fibonacci confluence, S/R confluence, momentum divergence, auto trading style detection, MTF signal extraction, quick analysis fallback
+- Upgraded AutoTradeEngine.ts from 407→836 lines with: trailing stop, daily loss limit, max concurrent trades, spread buffer, breakeven move, partial closes, quality scoring, MTF integration, P&L tracking
+- Added 'mtf' and 'trade' overlay types to OverlayRegistry
+- Added MTF confluence overlay rendering (direction label + S/R levels + Fib zones + divergence warnings)
+- Added Trade proposal overlay rendering (Entry/SL/TP1/TP2/TP3 + risk/reward zones + quality label)
+- Integrated MTFEngine into AISmartPanel: new MTF tab, MTF analysis in pipeline, MTF data passed to chart
+- Connected AutoTradeEngine to MTF confluence for stronger entry decisions
+- Updated unified-analysis.ts version to 2.0.0-phase3
+- Build succeeded, committed as 68b99e5a, pushed to production, site returns HTTP 200
+
+Stage Summary:
+- MTFEngine: 357→1001 lines (+644 lines of real algorithm)
+- AutoTradeEngine: 407→836 lines (+429 lines of real algorithm)
+- overlay-renderer.ts: +194 lines (MTF + Trade overlay sections)
+- AISmartPanel.tsx: +130 lines (MTF tab + MTF integration)
+- Total Phase 3 additions: ~1,400 lines of production code
+- 6 files modified, build succeeds, production live

@@ -736,13 +736,29 @@ export function renderOverlays(
 
   // ═══════════════════════════════════════════════════════════════
   // ALERT MARKERS — Visual alert pins on chart for auto-detected
-  // high-confidence patterns. These are always visible regardless
-  // of overlay toggles — they represent real-time detections.
+  // high-confidence patterns.
+  //
+  // FIX: Only show alerts when their DEDICATED overlay button is
+  // active. Previously, ALL alerts were shown whenever ANY overlay
+  // was toggled on, causing red/green circles on almost every candle.
+  // Now: 'smc' alerts only with BOS, 'fvg' alerts only with FVG,
+  // 'harmonic' alerts only with Harmonic, 'pattern' alerts are
+  // suppressed (too many — they clutter the chart).
   // ═══════════════════════════════════════════════════════════════
   if (input.alerts && input.alerts.length > 0) {
     registry.prepareRedraw('alerts');
-    // Show max 8 most recent alert markers to avoid clutter
-    input.alerts.slice(-8).forEach((alert) => {
+    // Filter alerts: only show alerts whose overlay is currently active
+    const filteredAlerts = input.alerts.filter((alert) => {
+      switch (alert.type) {
+        case 'smc':      return showBOS;       // BOS/CHoCH alerts → BOS button
+        case 'fvg':      return showFVG;       // FVG alerts → FVG button
+        case 'harmonic': return showHarmonic;  // Harmonic alerts → Harmonic button
+        case 'pattern':  return false;         // Candlestick pattern alerts suppressed (too many, clutter chart)
+        default:         return false;         // Unknown alert types suppressed
+      }
+    });
+    // Show max 8 most recent filtered alert markers to avoid clutter
+    filteredAlerts.slice(-8).forEach((alert) => {
       registry.add('alerts', new AlertMarkerPrimitive({
         time: alert.time,
         price: alert.price,
@@ -752,6 +768,10 @@ export function renderOverlays(
         type: alert.type,
       }));
     });
+    // If no alerts pass the filter, clear the type so stale pins don't remain
+    if (filteredAlerts.length === 0) {
+      registry.clearType('alerts');
+    }
   } else {
     registry.clearType('alerts');
   }

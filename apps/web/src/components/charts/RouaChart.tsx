@@ -177,6 +177,8 @@ export default function RouaChart({
   // ── New Panel States ──
   const [showVolumeProfile, setShowVolumeProfile] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
+  const showAIPanelRef = useRef(showAIPanel);
+  useEffect(() => { showAIPanelRef.current = showAIPanel; }, [showAIPanel]);
   const [aiPanelCandles, setAiPanelCandles] = useState<CandleData[]>([]);
   const [showChartTrading, setShowChartTrading] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
@@ -219,6 +221,23 @@ export default function RouaChart({
   // When timeframe changes, WebSocket may still deliver candles from the
   // old timeframe before reconnecting. This ref lets us filter those out.
   const timeframeRef = useRef(timeframe);
+
+  // ── Pre-load overlay renderer modules (needed for WebSocket overlay re-render) ──
+  const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
+  const overlayRegistryRef = useRef<typeof import('@/lib/charts/OverlayRegistry') | null>(null);
+  useEffect(() => {
+    import('@/lib/charts/overlay-renderer').then(mod => { overlayRendererRef.current = mod; }).catch(() => {});
+    import('@/lib/charts/OverlayRegistry').then(mod => { overlayRegistryRef.current = mod; }).catch(() => {});
+  }, []);
+
+  // ── Track current overlay flags for WebSocket-triggered re-render ──
+  const currentOverlaysRef = useRef<{
+    sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean;
+    bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean;
+    vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean;
+  }>({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false, mtf: false, liq: false, trade: false });
+  const lastOverlayRerenderRef = useRef(0);
+  const OVERLAY_RERENDER_INTERVAL_MS = 15_000;
   // FIX: Track when candlesRef was last cleared (timeframe change) so we can
   // timeout the "reject all WebSocket updates" guard. Previously, if the
   // historical fetch failed, the chart would stay empty forever because
@@ -344,6 +363,7 @@ export default function RouaChart({
       const alignedCandle = { ...candle, time: alignedTime };
 
       // Update or add candle
+      const isNewCandle = !candlesRef.current.some(c => c.time === alignedTime);
       const idx = candlesRef.current.findIndex(c => c.time === alignedTime);
       if (idx >= 0) {
         // Merge: keep the widest high/low, latest close
@@ -365,6 +385,71 @@ export default function RouaChart({
           updateIncremental(incrementalRef.current, alignedCandle, candlesRef.current[candlesRef.current.length - 2]);
         }
       } catch { /* incremental update not critical */ }
+
+      // ═══════════════════════════════════════════════════════════════════
+      // FIX: Re-render candle-only overlays when a NEW candle arrives.
+      //
+      // Previously, overlays (trend lines, SR, FVG, BOS, etc.) were only
+      // drawn when the user toggled them ON or changed the timeframe.
+      // As new candles arrived via WebSocket, the overlays became stale —
+      // the trend lines still reflected the market structure from when they
+      // were first drawn, not the current structure.
+      //
+      // Now: when a new candle is added (not just an update to an existing
+      // one), we re-render ALL currently active overlays using the latest
+      // candle data. This is throttled to OVERLAY_RERENDER_INTERVAL_MS
+      // (15 seconds) because ZigZag + clustering is CPU-intensive.
+      // ═══════════════════════════════════════════════════════════════════
+      if (isNewCandle) {
+        const currentOverlays = currentOverlaysRef.current;
+        const anyActive = Object.values(currentOverlays).some(v => v === true);
+        if (anyActive) {
+          const now = Date.now();
+          if (now - lastOverlayRerenderRef.current >= OVERLAY_RERENDER_INTERVAL_MS) {
+            lastOverlayRerenderRef.current = now;
+            // Update aiPanelCandles so AISmartPanel can re-analyze with new data
+            if (showAIPanelRef.current) {
+              setAiPanelCandles([...candlesRef.current]);
+            }
+            // Use requestAnimationFrame to avoid blocking the render cycle
+            requestAnimationFrame(() => {
+              try {
+                const overlayMod = overlayRendererRef.current;
+                const registryMod = overlayRegistryRef.current;
+                const series = chart.candleSeriesRef?.current;
+                if (!overlayMod || !registryMod || !series) return;
+
+                const reg = registryMod.getOverlayRegistry();
+                reg.init(series, chart.removePriceLine);
+
+                const cached = lastAnalysisResultRef.current;
+                overlayMod.renderOverlays(series, {
+                  candles: candlesRef.current,
+                  overlays: currentOverlays,
+                  supportLevels: cached?.supportLevels || [],
+                  resistanceLevels: cached?.resistanceLevels || [],
+                  smcData: (cached as any)?.smcData,
+                  geoPatterns: (cached as any)?.geoPatterns,
+                  elliottPattern: (cached as any)?.elliottPattern,
+                  wyckoff: (cached as any)?.wyckoff,
+                  volumeProfile: (cached as any)?.volumeProfile,
+                  entryExit: (cached as any)?.entryExit,
+                  signal: (cached as any)?.signal,
+                  patterns: cached?.patterns || [],
+                  alerts: (cached as any)?.alerts,
+                  fusionResult: (cached as any)?.fusionResult,
+                  bayesianResult: (cached as any)?.bayesianResult,
+                  mtfResult: (cached as any)?.mtfResult,
+                  tradeProposals: (cached as any)?.tradeProposals,
+                  liquidityResult: (cached as any)?.liquidityResult,
+                }, chart.addPriceLine, chart.removePriceLine);
+              } catch (e) {
+                console.warn('[RouaChart] Overlay re-render on new candle error:', e);
+              }
+            });
+          }
+        }
+      }
     },
     onPriceUpdate: (price) => {
       chart.updateLastCandle(price);
@@ -1091,22 +1176,10 @@ export default function RouaChart({
   // Primitive-based overlay rendering
   // Uses ISeriesPrimitive (NOT LineSeries!) for ALL chart drawings.
   // Based on research: TradingView lightweight-charts v5 official API.
-  //
-  // CRITICAL FIX: This function was previously async with `await import()`
-  // calls that created race conditions — during the async gap, a timeframe
-  // change could destroy the registry and invalidate the series reference,
-  // causing overlays to appear "broken". Now uses cached module references
-  // (overlayRendererRef, overlayRegistryRef) to avoid async gaps entirely.
   // ═══════════════════════════════════════════════════════════════════
-  // Cache the overlay modules at component mount to eliminate async gaps
-  const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
-  const overlayRegistryRef = useRef<typeof import('@/lib/charts/OverlayRegistry') | null>(null);
-
-  // Pre-load overlay modules on mount
-  useEffect(() => {
-    import('@/lib/charts/overlay-renderer').then(mod => { overlayRendererRef.current = mod; }).catch(() => {});
-    import('@/lib/charts/OverlayRegistry').then(mod => { overlayRegistryRef.current = mod; }).catch(() => {});
-  }, []);
+  // NOTE: overlayRendererRef, overlayRegistryRef, currentOverlaysRef,
+  // lastOverlayRerenderRef, and OVERLAY_RERENDER_INTERVAL_MS are
+  // declared earlier (before WebSocket handler) to avoid TDZ errors.
 
   // ── SUSTAINABLE: handlePatternsDetected ──────────────────────────
   // When analysis completes, this handler fires. It does TWO things:
@@ -1220,6 +1293,9 @@ export default function RouaChart({
     bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean;
     vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean;
   }) => {
+    // FIX: Store current overlay flags so WebSocket handler can re-render
+    currentOverlaysRef.current = { ...overlays };
+
     try {
       const series = chart.candleSeriesRef?.current;
       if (!series) return;

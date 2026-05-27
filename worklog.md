@@ -142,3 +142,27 @@ Stage Summary:
 - AISmartPanel.tsx: +130 lines (MTF tab + MTF integration)
 - Total Phase 3 additions: ~1,400 lines of production code
 - 6 files modified, build succeeds, production live
+
+---
+Task ID: phase5
+Agent: Main Agent
+Task: Phase 5 — Advanced Differentiating Features (5 new engines + UI integration)
+
+Work Log:
+- Created AdaptiveBayesianEngine.ts (418 lines) — adaptive learning Bayesian engine with market regime detection, dynamic weight adaptation, preferential forgetting, user weight overrides, per-regime performance tracking, exponential decay
+- Created VisualRuleBuilder.ts (531 lines) — visual rule builder with signal block library (30+ blocks across 6 categories), logic connectors (AND/OR/NOT/XOR/NAND), tree-based rule evaluation, rule export/import, pre-built templates
+- Created PaperTradingEngine.ts (344 lines) — virtual trading mode with USDT 10,000 default balance, auto/manual trades, Win Rate / Sharpe Ratio / Max Drawdown tracking, Buy & Hold comparison, equity curve, daily stats
+- Created MarketScannerEngine.ts (465 lines) — multi-asset market scanner for 50+ Binance pairs, parallel fetching, sector analysis (DeFi/L1/L2/Meme/AI/Gaming/RWA), quick RSI/EMA/Volume/SR analysis, correlation detection
+- Created AICouncilBridge.ts (388 lines) — AI Council integration bridge, builds structured analysis payload for AI models, compares AI vs algorithmic predictions, tracks model performance with adaptive weights, verification feedback loop
+- Integrated all 5 engines into AISmartPanel.tsx: 5 new tabs (🧠 Adaptive, 📐 Rules, 📝 Paper, 🔵 Scanner, 🤖 Council), state management, engine calls in analyze() pipeline
+- Updated unified-analysis.ts version to 2.0.0-phase5
+- Fixed all Phase 5-specific TypeScript errors (variable name mismatches, type narrowing, interface alignment)
+- Build succeeded with Next.js
+
+Stage Summary:
+- 5 new engine files: ~2,146 lines of production code
+- AISmartPanel.tsx: +340 lines (5 new tabs + engine integrations + UI sections)
+- Total Phase 5 additions: ~2,500 lines
+- Build: ✅ success
+- All engines use localStorage for persistence across sessions
+- Arabic labels throughout all new UI sections

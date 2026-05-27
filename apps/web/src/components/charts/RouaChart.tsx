@@ -1200,6 +1200,82 @@ export default function RouaChart({
     }
   }, [chart]);
 
+  // ═══════════════════════════════════════════════════════════════════
+  // Sustainable: Direct overlay change handler
+  // Called when user toggles overlay buttons in AISmartPanel.
+  // Uses CACHED lastAnalysisResultRef — no need for re-emitting through
+  // onPatternsDetected. Eliminates double-emission and flicker.
+  //
+  // Architecture:
+  //   Toggle button → onOverlayChange(overlays) → this handler
+  //   Uses: lastAnalysisResultRef.current (cached analysis data) + new overlays
+  //   Result: renderOverlays() with cached data + new overlay flags
+  //
+  // Candle-only overlays (trend, SR, FVG, BOS, harmonic, geo, Elliott, Wyckoff)
+  // work IMMEDIATELY — overlay-renderer detects them from candles independently.
+  // Analysis-dependent overlays (VP, Fusion, Bayesian, MTF, Trade, Liq) render
+  // once the first analyze() completes and populates the cache.
+  // ═══════════════════════════════════════════════════════════════════
+  const handleOverlayChange = useCallback(async (overlays: {
+    sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean;
+    bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean;
+    vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean;
+  }) => {
+    try {
+      const series = chart.candleSeriesRef?.current;
+      if (!series) return;
+
+      const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
+      const registryMod = overlayRegistryRef.current || await import('@/lib/charts/OverlayRegistry');
+      const anyOverlayEnabled = Object.values(overlays).some(v => v === true);
+
+      if (!anyOverlayEnabled) {
+        setAiPatterns([]);
+        const reg = registryMod.getOverlayRegistry();
+        reg.init(series, chart.removePriceLine);
+        reg.clearAll();
+        return;
+      }
+
+      // Re-validate series after potential async import
+      const currentSeries = chart.candleSeriesRef?.current;
+      if (currentSeries !== series) return;
+
+      const reg = registryMod.getOverlayRegistry();
+      reg.init(series, chart.removePriceLine);
+      reg.clearAll();
+
+      // Use cached analysis data if available, empty otherwise.
+      // Candle-only overlays (trend, SR, FVG, BOS, harmonic, geo) work
+      // without any analysis data — overlay-renderer detects from candles.
+      const cached = lastAnalysisResultRef.current;
+
+      overlayMod.renderOverlays(series, {
+        candles: candlesRef.current,
+        overlays,
+        supportLevels: cached?.supportLevels || [],
+        resistanceLevels: cached?.resistanceLevels || [],
+        smcData: (cached as any)?.smcData,
+        geoPatterns: (cached as any)?.geoPatterns,
+        elliottPattern: (cached as any)?.elliottPattern,
+        wyckoff: (cached as any)?.wyckoff,
+        volumeProfile: (cached as any)?.volumeProfile,
+        entryExit: (cached as any)?.entryExit,
+        signal: (cached as any)?.signal,
+        patterns: cached?.patterns || [],
+        alerts: (cached as any)?.alerts,
+        fusionResult: (cached as any)?.fusionResult,
+        bayesianResult: (cached as any)?.bayesianResult,
+        mtfResult: (cached as any)?.mtfResult,
+        tradeProposals: (cached as any)?.tradeProposals,
+        liquidityResult: (cached as any)?.liquidityResult,
+      }, chart.addPriceLine, chart.removePriceLine);
+
+    } catch (e) {
+      console.warn('[AI Overlay] handleOverlayChange error:', e);
+    }
+  }, [chart]);
+
 
   // ── News Markers Handler ───────────────────────────────
   const handleNewsUpdate = useCallback((markers: NewsMarker[]) => {
@@ -2008,6 +2084,7 @@ export default function RouaChart({
             candles={aiPanelCandles}
             currentPrice={currentPrice}
             onPatternsDetected={handlePatternsDetected}
+            onOverlayChange={handleOverlayChange}
             onHeatmapData={handleHeatmapData}
             onClose={() => { setShowAIPanel(false); setShowAIStream(false); }}
             streamMode={showAIStream}

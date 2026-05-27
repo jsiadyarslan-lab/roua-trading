@@ -118,9 +118,19 @@ interface Props {
   onHeatmapData?: (heatmap: HeatmapResult | null) => void;
   /** AI Stream mode — shows SSE streaming indicator */
   streamMode?: boolean;
+  /** Sustainable: Direct overlay change callback — bypasses onPatternsDetected
+   *  Called when user toggles any overlay button. The chart uses its cached
+   *  analysis data + the new overlay flags to render instantly, without
+   *  needing a full re-emit through onPatternsDetected. This eliminates
+   *  double-emission, flicker, and the need for analyze() to complete first. */
+  onOverlayChange?: (overlays: {
+    sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean;
+    bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean;
+    vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean;
+  }) => void;
 }
 
-export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime, onHeatmapData, streamMode }: Props) {
+export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected, onClose, onExecuteTrade, onScrollToTime, onHeatmapData, streamMode, onOverlayChange }: Props) {
   const t = useTranslations('aiSmartPanel');
   const locale = useLocale();
   const timeLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
@@ -205,6 +215,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   useEffect(() => { priceRef.current = currentPrice; }, [currentPrice]);
   useEffect(() => { onPatternsRef.current = onPatternsDetected; }, [onPatternsDetected]);
   useEffect(() => { onHeatmapRef.current = onHeatmapData; }, [onHeatmapData]);
+  const onOverlayChangeRef = useRef(onOverlayChange);
+  useEffect(() => { onOverlayChangeRef.current = onOverlayChange; }, [onOverlayChange]);
 
   // ── Core analyze — uses refs, never stale ──────────────────
   const analyze = async () => {
@@ -972,25 +984,33 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     pendingTimersRef.current.clear();
   }, []);
 
-  // ── Re-emit patterns when overlay toggles change ──
-  // This redraws only the overlays the user wants without re-analyzing
+  // ── Sustainable: Direct overlay change path ──
+  // When the user toggles an overlay button, we call onOverlayChange directly.
+  // This bypasses onPatternsDetected entirely — the chart uses its cached
+  // analysis data + the new overlay flags to render instantly. No double-emission,
+  // no flicker, no dependency on analyze() having completed.
+  //
+  // Candle-only overlays (trend, SR, FVG, BOS, harmonic, geo) work immediately
+  // even without cached analysis data — overlay-renderer detects from candles.
+  // Analysis-dependent overlays (VP, Fusion, Bayesian, MTF, etc.) render once
+  // the first analyze() completes and populates the cache.
   const overlaysRef = useRef(overlays);
   overlaysRef.current = overlays;
   const signalRef = useRef(signal);
   signalRef.current = signal;
 
   useEffect(() => {
+    // If the chart supports onOverlayChange, use the sustainable path.
+    // Otherwise fall back to the legacy re-emit through onPatternsDetected.
+    if (onOverlayChangeRef.current) {
+      onOverlayChangeRef.current(overlays);
+      return;
+    }
+
+    // ── Legacy fallback: re-emit through onPatternsDetected ──
     if (!candles?.length) return;
-
     const lastResult = lastAnalysisResultRef.current;
-
-    // FIX: Even if analyze() hasn't completed yet (lastResult is null),
-    // we still need to emit the overlay flags so the chart's overlay-renderer
-    // can detect and draw trend lines, SR levels, etc. independently.
-    // The overlay-renderer.ts does its own detection from candles — it doesn't
-    // rely on result.trendLines or result.supportLevels.
     if (!lastResult) {
-      // Minimal result with just overlays — overlay-renderer will detect from candles
       onPatternsRef.current({
         patterns: [],
         supportLevels: [],
@@ -1001,9 +1021,6 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       } as AIAnalysisResult);
       return;
     }
-
-    // Re-emit with updated overlays so chart only draws what's enabled
-    // FIX: Also include signal data for the Entry overlay
     onPatternsRef.current({
       ...lastResult,
       overlays: overlays as any,
@@ -1054,6 +1071,14 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
     // so harmonic/BOS/FVG/Elliott/Wyckoff overlays will be correct.
     // We don't re-emit old lastResult — only the fresh analyze() result
     // will be sent to the chart.
+
+    // Sustainable: Also notify chart of current overlays immediately
+    // so candle-only overlays (trend, SR) render on the new timeframe
+    // without waiting for the full analyze() to complete.
+    if (onOverlayChangeRef.current) {
+      onOverlayChangeRef.current(overlaysRef.current);
+    }
+
     const timer = safeTimeout(() => {
       runRef.current = false; // Reset guard to allow re-analysis
       lastAnalyzeTimeRef.current = 0; // Reset throttle

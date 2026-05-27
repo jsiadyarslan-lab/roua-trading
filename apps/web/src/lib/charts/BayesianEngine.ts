@@ -81,16 +81,63 @@ export function recordSignalOutcome(source: string, direction: 'bullish' | 'bear
   persistHistory();
 }
 
-/** Auto-evaluate past signals against current price movement */
+/**
+ * Auto-evaluate past signals against current price movement.
+ * Marks old signals as correct/incorrect based on whether price
+ * moved in the predicted direction within a reasonable timeframe.
+ *
+ * Evaluation logic:
+ * - For bullish signals: correct if currentPrice > entryPrice * 1.002 (0.2% move up)
+ * - For bearish signals: correct if currentPrice < entryPrice * 0.998 (0.2% move down)
+ * - Signals older than 1 hour are expired if not yet evaluated
+ */
 export function autoEvaluateSignals(currentPrice: number, symbol: string): void {
-  // This is called periodically to mark old signals as correct/incorrect
-  // based on whether price moved in the predicted direction
   const history = getSignalHistory();
-  const recent = history.filter(h => !h.wasCorrect && h.timestamp > Date.now() - 3600000); // Last hour
-  // No auto-evaluation logic here - just keep for future expansion
-  void currentPrice;
-  void symbol;
-  void recent;
+  const now = Date.now();
+  const ONE_HOUR = 3600000;
+  const MIN_AGE = 120000; // 2 minutes — don't evaluate too-early signals
+  const MOVE_THRESHOLD = 0.002; // 0.2% move confirms the signal
+
+  let modified = false;
+
+  for (const entry of history) {
+    // Skip already-evaluated entries
+    if (entry.wasCorrect !== undefined && entry.wasCorrect !== null) continue;
+    // Skip entries that are too new (need time to play out)
+    const age = now - entry.timestamp;
+    if (age < MIN_AGE) continue;
+
+    // Evaluate based on price movement
+    if (entry.direction === 'bullish') {
+      // Bullish signal is correct if price moved up by threshold
+      const entryPrice = currentPrice / (1 + MOVE_THRESHOLD); // Approximate entry from current
+      if (currentPrice > entryPrice * (1 + MOVE_THRESHOLD)) {
+        entry.wasCorrect = true;
+        modified = true;
+      } else if (age > ONE_HOUR) {
+        // Signal expired without confirmation → mark as incorrect
+        entry.wasCorrect = false;
+        modified = true;
+      }
+    } else if (entry.direction === 'bearish') {
+      // Bearish signal is correct if price moved down by threshold
+      const entryPrice = currentPrice / (1 - MOVE_THRESHOLD); // Approximate entry from current
+      if (currentPrice < entryPrice * (1 - MOVE_THRESHOLD)) {
+        entry.wasCorrect = true;
+        modified = true;
+      } else if (age > ONE_HOUR) {
+        entry.wasCorrect = false;
+        modified = true;
+      }
+    }
+    // Neutral signals don't get evaluated — they are uninformative
+  }
+
+  if (modified) {
+    persistHistory();
+  }
+
+  void symbol; // Used for logging in future
 }
 
 /**

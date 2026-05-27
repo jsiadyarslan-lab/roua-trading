@@ -26,6 +26,7 @@ import { detectElliottSMCFusion } from '@/lib/charts/ElliottSMCFusion';
 import { calcAdaptiveTPSL, getDynamicThresholds } from '@/lib/charts/ATRAdapter';
 import { getPatternPerformanceTracker } from '@/lib/charts/PatternPerformance';
 import { buildHeatmap, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
+import { runFullVerification, type FullVerificationReport, type EngineVerificationResult } from '@/lib/charts/EngineVerification';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -129,6 +130,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [performanceStats, setPerformanceStats] = useState<any>(null);
   const [heatmapResult, setHeatmapResult] = useState<HeatmapResult | null>(null);
   const [volRegime, setVolRegime] = useState<string>('normal');
+  const [verificationReport, setVerificationReport] = useState<FullVerificationReport | null>(null);
+  const [showVerification, setShowVerification] = useState(false);
 
   // ── Refs to avoid stale closure ─────────────────────────────
   const runRef = useRef(false);
@@ -792,6 +795,20 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <div style={{ padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace', background: `${regimeColor}18`, color: regimeColor, border: `1px solid ${regimeColor}30` }}>
             ATR {regimeLabelAr}
           </div>
+          {/* Engine verification badge — click to verify engines are real */}
+          <button
+            onClick={() => { const report = runFullVerification(); setVerificationReport(report); setShowVerification(true); }}
+            title="تحقق من المحركات | Verify Engines"
+            style={{
+              padding: '1px 5px', borderRadius: 3, fontSize: 7, fontWeight: 700, fontFamily: 'monospace',
+              background: verificationReport?.allReal ? `${C.green}18` : `${C.gold}18`,
+              color: verificationReport?.allReal ? C.green : C.gold,
+              border: `1px solid ${verificationReport?.allReal ? C.green : C.gold}30`,
+              cursor: 'pointer', outline: 'none',
+            }}
+          >
+            {verificationReport?.allReal ? '✓ REAL' : '🔍 VRFY'}
+          </button>
           <button onClick={() => { runRef.current = false; abortRef.current?.abort(); analyze(); }} disabled={loading} title={t('refresh')} style={{ background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, color: loading ? C.mut : C.cyan, width: 22, height: 22, cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', outline: 'none' }}>⟳</button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: C.mut, fontSize: 16, cursor: 'pointer', outline: 'none', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
@@ -817,6 +834,56 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
+
+      {/* Engine Verification Modal */}
+      {showVerification && verificationReport && (
+        <div style={{ position: 'absolute', inset: 0, zIndex: 100, background: 'rgba(0,0,0,0.85)', display: 'flex', flexDirection: 'column', padding: 10, overflow: 'auto', borderRadius: 10 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 14 }}>🔬</span>
+              <span style={{ color: C.text, fontSize: 11, fontWeight: 700 }}>التحقق من المحركات — Engine Verification</span>
+            </div>
+            <button onClick={() => setShowVerification(false)} style={{ background: 'none', border: 'none', color: C.mut, fontSize: 14, cursor: 'pointer', outline: 'none' }}>×</button>
+          </div>
+
+          {/* Overall Score */}
+          <div style={{ textAlign: 'center', padding: '8px 0', marginBottom: 8, borderRadius: 6, background: verificationReport.allReal ? `${C.green}10` : `${C.gold}10`, border: `1px solid ${verificationReport.allReal ? C.green : C.gold}30` }}>
+            <div style={{ fontSize: 28, fontWeight: 800, color: verificationReport.allReal ? C.green : C.gold, fontFamily: 'monospace' }}>
+              {verificationReport.overallScore}%
+            </div>
+            <div style={{ fontSize: 9, color: C.dim, marginTop: 2 }}>
+              {verificationReport.allReal ? '✓ جميع المحركات حقيقية — All engines are REAL' : '⚠ بعض المحركات تحتاج مراجعة — Some engines need review'}
+            </div>
+          </div>
+
+          {/* Per-Engine Results */}
+          {verificationReport.engines.map((eng: EngineVerificationResult) => (
+            <div key={eng.engine} style={{ marginBottom: 6, borderRadius: 5, border: `1px solid ${eng.isReal ? C.green : C.red}30`, background: `${eng.isReal ? C.green : C.red}08`, padding: '6px 8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: C.text }}>{eng.engine}</span>
+                <span style={{ fontSize: 9, fontFamily: 'monospace', color: eng.isReal ? C.green : C.red, fontWeight: 700 }}>
+                  {eng.score}% {eng.isReal ? '✓' : '✗'}
+                </span>
+              </div>
+              {eng.checks.map((chk, i) => (
+                <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 2, fontSize: 8, color: chk.passed ? C.dim : C.red }}>
+                  <span>{chk.passed ? '✓' : '✗'}</span>
+                  <span style={{ flex: 1 }}>{chk.nameAr}</span>
+                </div>
+              ))}
+              {/* Market comparison */}
+              <div style={{ marginTop: 4, padding: '3px 6px', borderRadius: 3, background: 'rgba(0,212,255,0.06)', border: '1px solid rgba(0,212,255,0.1)' }}>
+                <div style={{ fontSize: 7.5, color: C.cyan, fontWeight: 700 }}>
+                  🏆 {eng.comparisonWithMarket.featureAr}: {eng.comparisonWithMarket.advantage === 'roua' ? 'روا متفوق' : 'تعادل'}
+                </div>
+                <div style={{ fontSize: 7, color: C.dim, marginTop: 1 }}>
+                  روا: {eng.comparisonWithMarket.rouaHas ? '✓' : '✗'} | TradingView: {eng.comparisonWithMarket.tradingViewHas ? '✓' : '✗'} | MultiCharts: {eng.comparisonWithMarket.multiChartsHas ? '✓' : '✗'}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Content */}
       <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>

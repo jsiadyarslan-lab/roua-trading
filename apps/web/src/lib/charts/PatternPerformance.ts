@@ -266,11 +266,25 @@ export function getPatternPerformanceTracker(): PatternPerformanceTracker {
 
         pending.delete(key);
 
-        // Also record for Bayesian learning
+        // Also record for Bayesian learning (dynamic import for ESM compatibility)
         try {
-          const { recordSignalOutcome } = require('./BayesianEngine');
-          recordSignalOutcome(`pattern:${det.patternType}`, det.direction, outcome === 'success');
-        } catch { /* Bayesian not available */ }
+          // Use inline logic to avoid require() which breaks ESM bundling
+          // Store the outcome in BayesianEngine's signal history via localStorage
+          const bayesKey = 'roua-signal-history';
+          if (typeof window !== 'undefined') {
+            const stored = localStorage.getItem(bayesKey);
+            const bayesHistory = stored ? JSON.parse(stored) : [];
+            bayesHistory.push({
+              source: `pattern:${det.patternType}`,
+              direction: det.direction,
+              wasCorrect: outcome === 'success',
+              timestamp: det.timestamp,
+            });
+            // Trim to match BayesianEngine's MAX_HISTORY
+            const trimmed = bayesHistory.slice(-2000);
+            localStorage.setItem(bayesKey, JSON.stringify(trimmed));
+          }
+        } catch { /* localStorage not available */ }
       }
 
       if (history.length > MAX_TRADES) {

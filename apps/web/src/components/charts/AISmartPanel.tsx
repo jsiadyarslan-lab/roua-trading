@@ -371,6 +371,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         wyckoff,
         volumeProfile,
         overlays,
+        fusionResult: fusionResult,
+        bayesianResult: bayesianResult,
       } as AIAnalysisResult;
       lastAnalysisResultRef.current = analysisResult;
       onPatternsRef.current(analysisResult);
@@ -696,6 +698,8 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
       overlays: overlays as any,
       signal: signal ? { dir: signal.dir, entry: signal.entry, sl: signal.sl, tp: signal.tp } : undefined,
       alerts: chartAlerts,
+      fusionResult: fusionResult,
+      bayesianResult: bayesianResult,
     } as AIAnalysisResult);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [overlays, chartAlerts]);

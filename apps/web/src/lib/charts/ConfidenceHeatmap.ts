@@ -167,20 +167,36 @@ export function buildHeatmap(candles: CandleData[], signals: any[]): HeatmapResu
     }
   }
 
-  // If still no signals, return low-confidence candle-based result
+  // If still no signals, return candle-based result with momentum analysis
   if (signalRanges.length === 0) {
-    const recent = candles.slice(-20);
-    const points: HeatmapPoint[] = recent.map(c => ({
-      time: c.time,
-      price: c.close,
-      confidence: 0.15,
-      direction: c.close > c.open ? 'bullish' : c.close < c.open ? 'bearish' : 'neutral' as const,
-    }));
+    const recent = candles.slice(-30);
+    // Analyze momentum from candle structure even without explicit signals
+    const points: HeatmapPoint[] = recent.map((c, i) => {
+      // Simple momentum-based confidence: consecutive candles in same direction
+      let momentum = 0;
+      const lookback = Math.min(i, 5);
+      for (let j = i - lookback; j < i; j++) {
+        if (j < 0) continue;
+        if (recent[j].close > recent[j].open) momentum++;
+        else momentum--;
+      }
+      const direction = c.close > c.open ? 'bullish' : c.close < c.open ? 'bearish' : 'neutral' as const;
+      // Confidence from momentum alignment (not just candle color)
+      const alignment = Math.abs(momentum) / lookback;
+      const confidence = 0.1 + alignment * 0.2; // 0.1-0.3 range for no-signal case
+      return {
+        time: c.time,
+        price: c.close,
+        confidence,
+        direction: momentum > 0 ? 'bullish' : momentum < 0 ? 'bearish' : direction,
+      };
+    });
     return {
       points,
-      dominantDirection: 'neutral',
+      dominantDirection: points.filter(p => p.direction === 'bullish').length > points.filter(p => p.direction === 'bearish').length * 1.3 ? 'bullish'
+        : points.filter(p => p.direction === 'bearish').length > points.filter(p => p.direction === 'bullish').length * 1.3 ? 'bearish' : 'neutral',
       coverage: recent.length / Math.max(candles.length, 1),
-      avgConfidence: 0.15,
+      avgConfidence: points.reduce((s, p) => s + p.confidence, 0) / points.length,
       confluenceZones: 0,
     };
   }
@@ -224,15 +240,26 @@ export function buildHeatmap(candles: CandleData[], signals: any[]): HeatmapResu
     // Calculate confidence:
     // More agreeing signals = higher confidence
     // Conflicting signals = lower confidence
+    // Proximity-weighted: signals closer to this candle's price get more weight
     const agreementCount = Math.max(bullishSignals.length, bearishSignals.length);
     const conflictCount = Math.min(bullishSignals.length, bearishSignals.length);
     const agreementBonus = Math.min(0.3, agreementCount * 0.1);
     const conflictPenalty = conflictCount * 0.1;
+    
+    // Proximity weighting: signals whose keyPrice is closer to this candle get boosted
+    const proximityWeight = coveringSignals.reduce((sum, sig) => {
+      if (sig.keyPrice > 0 && candle.close > 0) {
+        const dist = Math.abs(sig.keyPrice - candle.close) / candle.close;
+        return sum + Math.max(0, 1 - dist * 20); // Closer = higher weight
+      }
+      return sum + 0.5;
+    }, 0) / coveringSignals.length;
+    
     const baseConfidence = totalStrength > 0
       ? Math.max(bullishStrength, bearishStrength) / totalStrength
       : 0.3;
 
-    let confidence = Math.min(0.95, baseConfidence + agreementBonus - conflictPenalty);
+    let confidence = Math.min(0.95, baseConfidence + agreementBonus - conflictPenalty + (proximityWeight - 0.5) * 0.1);
     confidence = Math.max(0.1, confidence); // Floor at 0.1
 
     // Track confluence zones (3+ signals agreeing)

@@ -48,6 +48,32 @@ export interface OverlayInput {
   patterns?: any[];
   /** Alert markers from auto-detection — visual pins on chart */
   alerts?: AlertMarkerData[];
+  /** Elliott+SMC Fusion result — shows confluence zones on chart */
+  fusionResult?: {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    confluenceScore: number;
+    confluenceBreakdown: Array<{
+      factorAr: string;
+      score: number;
+      direction: 'bullish' | 'bearish' | 'neutral';
+      weight: number;
+      proximity?: number;
+    }>;
+    layerScores: {
+      directionalAgreement: number;
+      spatialConfluence: number;
+      volumeConfirmation: number;
+      patternStrength: number;
+    };
+  } | null;
+  /** Bayesian consensus result — shows direction arrow on chart */
+  bayesianResult?: {
+    direction: 'bullish' | 'bearish' | 'neutral';
+    confidence: number;
+    posteriorBullish: number;
+    posteriorBearish: number;
+    likelihoods: Array<{ source: string; likelihoodBull: number; likelihoodBear: number }>;
+  } | null;
 }
 
 /**
@@ -732,6 +758,117 @@ export function renderOverlays(
     if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', `TP`, 2, 2, true, 'entry');
   } else {
     registry.clearType('entry');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // FUSION CONFLUENCE — Show Elliott+SMC Fusion confluence zones
+  // Renders a colored zone at the bottom of the chart showing
+  // the confluence strength and direction from all methods combined.
+  // ═══════════════════════════════════════════════════════════════
+  if (input.fusionResult && input.fusionResult.confluenceScore > 40) {
+    const fusion = input.fusionResult;
+    registry.prepareRedraw('fusion');
+
+    const lastPrice = candles[candles.length - 1].close;
+    const recentCandles = candles.slice(-5);
+    const lastTime = candles[candles.length - 1].time;
+
+    // Show confluence direction label on chart
+    if (fusion.direction !== 'neutral') {
+      const isBull = fusion.direction === 'bullish';
+      const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
+      const arrowLabel = isBull ? '▲' : '▼';
+
+      // Confluence label near current price
+      registry.add('fusion', new LabelPrimitive({
+        time: lastTime as any,
+        price: lastPrice,
+        text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`,
+        color: confluenceColor,
+        fontSize: 11,
+        align: 'right',
+        bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
+        position: isBull ? 'above' : 'below',
+      }));
+
+      // Show layer scores breakdown as a mini-label
+      const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
+      registry.add('fusion', new LabelPrimitive({
+        time: recentCandles[0]?.time as any || lastTime as any,
+        price: isBull
+          ? Math.min(...recentCandles.map(c => c.low)) * 0.9995
+          : Math.max(...recentCandles.map(c => c.high)) * 1.0005,
+        text: layerText,
+        color: 'rgba(255,255,255,0.4)',
+        fontSize: 8,
+        align: 'left',
+        bg: 'rgba(11,14,20,0.6)',
+        position: isBull ? 'below' : 'above',
+      }));
+    }
+
+    // Show key levels from fusion breakdown factors with proximity
+    for (const factor of fusion.confluenceBreakdown) {
+      if (factor.proximity && factor.proximity > 0.6 && factor.score > 50) {
+        // High-proximity, high-score factor → important level
+        const factorColor = factor.direction === 'bullish'
+          ? 'rgba(16, 185, 129, 0.3)'
+          : factor.direction === 'bearish'
+          ? 'rgba(239, 68, 68, 0.3)'
+          : 'rgba(255, 255, 255, 0.15)';
+        // We already have labels — skip extra lines to avoid clutter
+      }
+    }
+  } else {
+    registry.clearType('fusion');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // BAYESIAN CONSENSUS — Show Bayesian direction on chart
+  // Renders a directional arrow and confidence bar near price
+  // ═══════════════════════════════════════════════════════════════
+  if (input.bayesianResult && input.bayesianResult.confidence > 0.4) {
+    const bayes = input.bayesianResult;
+    registry.prepareRedraw('bayesian');
+
+    const lastPrice = candles[candles.length - 1].close;
+    const lastTime = candles[candles.length - 1].time;
+
+    if (bayes.direction !== 'neutral') {
+      const isBull = bayes.direction === 'bullish';
+      const bayesColor = isBull ? '#22d3ee' : '#f97316';
+      const confPct = Math.round(bayes.confidence * 100);
+
+      // Bayesian direction label
+      registry.add('bayesian', new LabelPrimitive({
+        time: (lastTime - 3600) as any, // Slightly left of current candle
+        price: lastPrice,
+        text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`,
+        color: bayesColor,
+        fontSize: 9,
+        align: 'right',
+        bg: `${bayesColor}15`,
+        position: isBull ? 'below' : 'above',
+      }));
+
+      // Posterior probability bar — show as text label
+      const bullPct = Math.round(bayes.posteriorBullish * 100);
+      const bearPct = Math.round(bayes.posteriorBearish * 100);
+      registry.add('bayesian', new LabelPrimitive({
+        time: (lastTime - 7200) as any,
+        price: isBull
+          ? Math.min(...candles.slice(-10).map(c => c.low))
+          : Math.max(...candles.slice(-10).map(c => c.high)),
+        text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`,
+        color: 'rgba(255,255,255,0.35)',
+        fontSize: 7,
+        align: 'left',
+        bg: 'rgba(11,14,20,0.5)',
+        position: isBull ? 'below' : 'above',
+      }));
+    }
+  } else {
+    registry.clearType('bayesian');
   }
 
   // ═══════════════════════════════════════════════════════════════

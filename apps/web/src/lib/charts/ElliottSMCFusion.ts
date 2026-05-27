@@ -255,8 +255,24 @@ export function detectElliottSMCFusion(opts: {
      layer4_score * layerWeights.l4) * 100
   );
 
-  const direction = bullishStrength > bearishStrength * 1.3 ? 'bullish'
-    : bearishStrength > bullishStrength * 1.3 ? 'bearish' : 'neutral';
+  // Enhanced direction detection with confidence-weighted strength
+  const bullishWeighted = dirSignals
+    .filter(s => s.direction === 'bullish')
+    .reduce((sum, s) => sum + s.strength * (s.level ? calcProximity(s.level, currentPrice) : 0.7), 0);
+  const bearishWeighted = dirSignals
+    .filter(s => s.direction === 'bearish')
+    .reduce((sum, s) => sum + s.strength * (s.level ? calcProximity(s.level, currentPrice) : 0.7), 0);
+  const totalWeighted = bullishWeighted + bearishWeighted;
+
+  let direction: 'bullish' | 'bearish' | 'neutral';
+  if (totalWeighted > 0) {
+    const bullPct = bullishWeighted / totalWeighted;
+    if (bullPct > 0.6) direction = 'bullish';
+    else if (bullPct < 0.4) direction = 'bearish';
+    else direction = 'neutral';
+  } else {
+    direction = 'neutral';
+  }
 
   // Generate interpretation based on actual analysis
   const agreeingCount = direction === 'bullish'

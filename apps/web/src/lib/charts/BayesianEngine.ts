@@ -365,23 +365,69 @@ export function extractSignalsFromAnalysis(analysis: Record<string, any>): Bayes
       }
     }
 
-    // Wyckoff phase — NOW WITH ACTUAL DIRECTIONAL SIGNAL
+    // Wyckoff phase — Enhanced with volume analysis and phase strength
     if (analysis.wyckoff?.phase) {
       const phase = analysis.wyckoff.phase;
-      // Accumulation → bullish (buyers stepping in)
-      // Markup → bullish (trend established)
-      // Distribution → bearish (sellers stepping in)
-      // Markdown → bearish (trend established)
       let dir: 'bullish' | 'bearish' | 'neutral' = 'neutral';
       let conf = 0.4;
-      if (phase === 'Accumulation' || phase === 'Markup') {
+      let weight = 0.5;
+
+      if (phase === 'Accumulation') {
         dir = 'bullish';
-        conf = phase === 'Markup' ? 0.6 : 0.5;
-      } else if (phase === 'Distribution' || phase === 'Markdown') {
+        conf = 0.5;
+        weight = 0.6; // Accumulation is a strong bullish setup
+      } else if (phase === 'Markup') {
+        dir = 'bullish';
+        conf = 0.65; // Markup is the strongest bullish signal
+        weight = 0.7;
+      } else if (phase === 'Distribution') {
         dir = 'bearish';
-        conf = phase === 'Markdown' ? 0.6 : 0.5;
+        conf = 0.5;
+        weight = 0.6;
+      } else if (phase === 'Markdown') {
+        dir = 'bearish';
+        conf = 0.65;
+        weight = 0.7;
       }
-      signals.push({ source: 'wyckoff', direction: dir, weight: 0.5, confidence: conf });
+
+      // Boost confidence if Wyckoff events confirm the phase
+      if (analysis.wyckoff.events?.length >= 2) {
+        conf = Math.min(0.8, conf + 0.1);
+      }
+      // Boost if bias matches phase
+      if (analysis.wyckoff.bias === dir) {
+        conf = Math.min(0.8, conf + 0.05);
+      }
+
+      signals.push({ source: 'wyckoff', direction: dir, weight, confidence: conf });
+    }
+
+    // Geometric patterns — classic chart patterns (triangles, H&S, etc.)
+    if (analysis.geoPatterns?.length) {
+      for (const geo of analysis.geoPatterns.slice(-2)) {
+        if (!geo?.type) continue;
+        const geoDir: 'bullish' | 'bearish' = geo.direction === 'bullish' ? 'bullish' : 'bearish';
+        const geoConf = geo.confidence || 0.5;
+        signals.push({
+          source: `geo:${geo.type}`,
+          direction: geoDir,
+          weight: 0.5 + geoConf * 0.3,
+          confidence: geoConf,
+        });
+      }
+    }
+
+    // RSI-like momentum signal from recent candle data
+    // Simple RSI(14) approximation: if available from patterns
+    const bullCount = (analysis.patterns || []).filter((p: any) => p.direction === 'bullish').length;
+    const bearCount = (analysis.patterns || []).filter((p: any) => p.direction === 'bearish').length;
+    if (bullCount + bearCount >= 3) {
+      const ratio = bullCount / (bullCount + bearCount);
+      if (ratio > 0.65) {
+        signals.push({ source: 'momentum:patternRatio', direction: 'bullish', weight: 0.4, confidence: ratio });
+      } else if (ratio < 0.35) {
+        signals.push({ source: 'momentum:patternRatio', direction: 'bearish', weight: 0.4, confidence: 1 - ratio });
+      }
     }
 
     // Elliott Wave
@@ -396,14 +442,42 @@ export function extractSignalsFromAnalysis(analysis: Record<string, any>): Bayes
       });
     }
 
-    // Volume Profile — if POC is above current price → bearish pressure, below → bullish
+    // Volume Profile — POC (Point of Control) direction based on price position
+    // If POC is below current price → bullish (support from high-volume zone below)
+    // If POC is above current price → bearish (resistance from high-volume zone above)
+    // If price is within Value Area → neutral (consolidation)
     if (analysis.volumeProfile?.poc) {
-      // This is context-dependent; neutral for now unless we have current price
+      const poc = analysis.volumeProfile.poc;
+      const vah = analysis.volumeProfile.vah || poc * 1.01;
+      const val = analysis.volumeProfile.val || poc * 0.99;
+      // Estimate current price from latest candle data
+      const estimatedPrice = analysis.elliottPattern?.keyLevel
+        || analysis.smcData?.orderBlocks?.slice(-1)[0]?.high
+        || analysis.smcData?.structureBreaks?.slice(-1)[0]?.price
+        || poc; // fallback to POC if no price available
+
+      let vpDir: 'bullish' | 'bearish' | 'neutral' = 'neutral';
+      let vpConf = 0.4;
+
+      if (estimatedPrice > poc) {
+        // Price above POC → bullish bias (high volume supports below)
+        vpDir = 'bullish';
+        // Stronger signal if price is between POC and VAH (acceptance)
+        vpConf = estimatedPrice < vah ? 0.55 : 0.45;
+      } else if (estimatedPrice < poc) {
+        // Price below POC → bearish bias (high volume resists above)
+        vpDir = 'bearish';
+        vpConf = estimatedPrice > val ? 0.55 : 0.45;
+      } else {
+        // Price at POC → neutral/consolidation
+        vpConf = 0.35;
+      }
+
       signals.push({
         source: 'volumeProfile:poc',
-        direction: 'neutral',
-        weight: 0.3,
-        confidence: 0.35,
+        direction: vpDir,
+        weight: 0.4 + vpConf * 0.2,
+        confidence: vpConf,
       });
     }
 

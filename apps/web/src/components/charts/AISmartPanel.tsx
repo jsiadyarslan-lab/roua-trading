@@ -980,8 +980,28 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   signalRef.current = signal;
 
   useEffect(() => {
+    if (!candles?.length) return;
+
     const lastResult = lastAnalysisResultRef.current;
-    if (!lastResult || !candles?.length) return;
+
+    // FIX: Even if analyze() hasn't completed yet (lastResult is null),
+    // we still need to emit the overlay flags so the chart's overlay-renderer
+    // can detect and draw trend lines, SR levels, etc. independently.
+    // The overlay-renderer.ts does its own detection from candles — it doesn't
+    // rely on result.trendLines or result.supportLevels.
+    if (!lastResult) {
+      // Minimal result with just overlays — overlay-renderer will detect from candles
+      onPatternsRef.current({
+        patterns: [],
+        supportLevels: [],
+        resistanceLevels: [],
+        trendLines: [],
+        overlays: overlays as any,
+        alerts: chartAlerts,
+      } as AIAnalysisResult);
+      return;
+    }
+
     // Re-emit with updated overlays so chart only draws what's enabled
     // FIX: Also include signal data for the Entry overlay
     onPatternsRef.current({

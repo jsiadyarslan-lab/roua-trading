@@ -23,6 +23,12 @@ const LOCALE_OPTIONS = [
   { code: 'pt', label: 'Português', shortLabel: 'PT' },
   { code: 'de', label: 'Deutsch', shortLabel: 'DE' },
   { code: 'ja', label: '日本語', shortLabel: 'JA' },
+  { code: 'ko', label: '한국어', shortLabel: '한국어' },
+  { code: 'id', label: 'Bahasa Indonesia', shortLabel: 'ID' },
+  { code: 'vi', label: 'Tiếng Việt', shortLabel: 'VI' },
+  { code: 'th', label: 'ไทย', shortLabel: 'TH' },
+  { code: 'it', label: 'Italiano', shortLabel: 'IT' },
+  { code: 'pl', label: 'Polski', shortLabel: 'PL' },
 ] as const;
 
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {

@@ -518,31 +518,84 @@ export function renderOverlays(
 
   // ═══════════════════════════════════════════════════════════════
   // WYCKOFF — Phase labels + S/R
+  // FIX: Added local Wyckoff phase detection as fallback when AI
+  // data is not available. Uses volume/price analysis to determine
+  // the current market phase (Accumulation, Markup, Distribution, Markdown).
   // ═══════════════════════════════════════════════════════════════
   if (showWyckoff) {
     registry.prepareRedraw('wyckoff');
     const w = input.wyckoff;
-    if (w && w.phase !== 'Unknown') {
-      const col = w.bias === 'bullish' ? OVERLAY_COLORS.trendUp : w.bias === 'bearish' ? OVERLAY_COLORS.trendDown : '#fbbf24';
+
+    // Try AI data first, then local detection
+    let phase = w?.phase || 'Unknown';
+    let bias: 'bullish' | 'bearish' | 'neutral' = w?.bias || 'neutral';
+    let events = w?.events || [];
+
+    // FIX: Local Wyckoff detection when AI data is unavailable
+    if (phase === 'Unknown' || !w) {
+      const localWyckoff = detectLocalWyckoff(candles, swings);
+      phase = localWyckoff.phase;
+      bias = localWyckoff.bias;
+      events = localWyckoff.events;
+    }
+
+    if (phase !== 'Unknown') {
+      const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : '#fbbf24';
 
       // Phase label at latest candle
       registry.add('wyckoff', new LabelPrimitive({
         time: candles[candles.length - 1].time as any,
-        price: w.bias === 'bullish' ? Math.min(...candles.slice(-20).map(c => c.low)) : Math.max(...candles.slice(-20).map(c => c.high)),
-        text: w.phase,
+        price: bias === 'bullish' ? Math.min(...candles.slice(-20).map(c => c.low)) : Math.max(...candles.slice(-20).map(c => c.high)),
+        text: phase,
         color: col,
         fontSize: 12,
         align: 'right',
         bg: 'rgba(11, 14, 20, 0.85)',
-        position: w.bias === 'bullish' ? 'below' : 'above',
+        position: bias === 'bullish' ? 'below' : 'above',
       }));
 
       // Event price lines
-      (w.events || []).forEach((ev: any, i: number) => {
+      (events || []).forEach((ev: any, i: number) => {
         if (ev.price > 0) {
           safeAddPriceLine(`wy-ev-${i}`, ev.price, col, `Wyckoff: ${ev.labelAr || ev.type}`, 1, 0, true, 'wyckoff');
         }
       });
+
+      // FIX: Add key S/R levels as horizontal lines for Wyckoff context
+      // even when there are no events from AI data
+      if (events.length === 0) {
+        const recentHigh = Math.max(...candles.slice(-30).map(c => c.high));
+        const recentLow = Math.min(...candles.slice(-30).map(c => c.low));
+        const midRange = (recentHigh + recentLow) / 2;
+
+        // Resistance level
+        registry.add('wyckoff', new HorizontalLinePrimitive({
+          price: recentHigh,
+          color: 'rgba(255, 71, 87, 0.5)',
+          lineWidth: 1,
+          lineStyle: 2,
+          label: 'Resistance',
+        }));
+        // Support level
+        registry.add('wyckoff', new HorizontalLinePrimitive({
+          price: recentLow,
+          color: 'rgba(0, 255, 163, 0.5)',
+          lineWidth: 1,
+          lineStyle: 2,
+          label: 'Support',
+        }));
+        // Mid-range (potential equilibrium)
+        registry.add('wyckoff', new HorizontalLinePrimitive({
+          price: midRange,
+          color: 'rgba(251, 191, 36, 0.3)',
+          lineWidth: 1,
+          lineStyle: 1,
+          label: 'Equilibrium',
+        }));
+
+        safeAddPriceLine('wy-res', recentHigh, 'rgba(255,71,87,0.5)', 'Resistance', 1, 2, true, 'wyckoff');
+        safeAddPriceLine('wy-sup', recentLow, 'rgba(0,255,163,0.5)', 'Support', 1, 2, true, 'wyckoff');
+      }
     }
   } else {
     registry.clearType('wyckoff');
@@ -702,4 +755,112 @@ export function renderOverlays(
   } else {
     registry.clearType('alerts');
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// LOCAL WYCKOFF DETECTION — Fallback when AI data is unavailable
+//
+// Uses price/volume analysis to determine the current Wyckoff phase:
+// - Accumulation: Price ranging after decline, volume drying up
+// - Markup: Price rising with increasing volume
+// - Distribution: Price ranging after advance, volume increasing on declines
+// - Markdown: Price falling with increasing volume
+// ═══════════════════════════════════════════════════════════════════════
+
+function detectLocalWyckoff(
+  candles: CandleData[],
+  swings: SwingPoint[],
+): { phase: string; bias: 'bullish' | 'bearish' | 'neutral'; events: any[] } {
+  if (candles.length < 20) {
+    return { phase: 'Unknown', bias: 'neutral', events: [] };
+  }
+
+  const recent = candles.slice(-30);
+  const firstHalf = recent.slice(0, 15);
+  const secondHalf = recent.slice(15);
+
+  // Price change
+  const firstClose = firstHalf[firstHalf.length - 1].close;
+  const lastClose = recent[recent.length - 1].close;
+  const priceChange = (lastClose - firstClose) / firstClose;
+
+  // Volume analysis
+  const avgVol1 = firstHalf.reduce((s, c) => s + (c.volume || 0), 0) / firstHalf.length;
+  const avgVol2 = secondHalf.reduce((s, c) => (s + c.volume || 0), 0) / secondHalf.length;
+  const volumeIncreasing = avgVol2 > avgVol1 * 1.1;
+  const volumeDecreasing = avgVol2 < avgVol1 * 0.9;
+
+  // Range analysis
+  const recentHigh = Math.max(...recent.map(c => c.high));
+  const recentLow = Math.min(...recent.map(c => c.low));
+  const range = recentHigh - recentLow;
+  const rangeRatio = range / recentLow;
+
+  // Trend from swings
+  const lastSwings = swings.slice(-4);
+  const higherHighs = lastSwings.filter((s, i) => i > 0 && s.type === 'HIGH' && s.price > lastSwings[i - 1].price).length;
+  const higherLows = lastSwings.filter((s, i) => i > 0 && s.type === 'LOW' && s.price > lastSwings[i - 1].price).length;
+  const isUptrend = higherHighs >= 1 && higherLows >= 1;
+  const isDowntrend = higherHighs === 0 && higherLows === 0;
+
+  let phase: string;
+  let bias: 'bullish' | 'bearish' | 'neutral';
+
+  if (Math.abs(priceChange) < 0.02 && rangeRatio < 0.05) {
+    // Price is ranging — Accumulation or Distribution
+    if (isUptrend || priceChange > 0) {
+      phase = 'Accumulation';
+      bias = 'bullish';
+    } else {
+      phase = 'Distribution';
+      bias = 'bearish';
+    }
+  } else if (priceChange > 0.02) {
+    if (volumeIncreasing) {
+      phase = 'Markup';
+      bias = 'bullish';
+    } else if (volumeDecreasing) {
+      phase = 'Accumulation';
+      bias = 'bullish';
+    } else {
+      phase = 'Markup';
+      bias = 'bullish';
+    }
+  } else if (priceChange < -0.02) {
+    if (volumeIncreasing) {
+      phase = 'Markdown';
+      bias = 'bearish';
+    } else if (volumeDecreasing) {
+      phase = 'Distribution';
+      bias = 'bearish';
+    } else {
+      phase = 'Markdown';
+      bias = 'bearish';
+    }
+  } else {
+    // Small change — determine by swing structure
+    if (isUptrend) {
+      phase = 'Markup';
+      bias = 'bullish';
+    } else if (isDowntrend) {
+      phase = 'Markdown';
+      bias = 'bearish';
+    } else {
+      phase = 'Accumulation';
+      bias = 'neutral';
+    }
+  }
+
+  // Generate events from swing points
+  const events: any[] = [];
+  swings.slice(-6).forEach((sw) => {
+    events.push({
+      type: sw.type === 'HIGH' ? 'Peak' : 'Trough',
+      price: sw.price,
+      time: sw.time,
+      labelAr: sw.type === 'HIGH' ? 'قمة' : 'قاع',
+    });
+  });
+
+  return { phase, bias, events };
 }

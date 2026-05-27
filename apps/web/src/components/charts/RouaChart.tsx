@@ -1110,9 +1110,19 @@ export default function RouaChart({
     const ov = (result as any).overlays || {};
     const anyOverlayEnabled = Object.values(ov).some(v => v === true);
 
-    setAiPatterns(anyOverlayEnabled ? result.patterns : []);
+    // FIX: Do NOT set aiPatterns (candlestick markers like Doji, Hammer)
+    // when overlay buttons are toggled. Previously, pressing ANY overlay
+    // button (Harmonic, FVG, BOS, etc.) would dump ALL detected candlestick
+    // patterns as markers on the chart, causing "circles on every candle".
+    // Overlays (lines, zones, labels) and pattern markers are separate.
+    // Only clear markers when ALL overlays are off.
+    if (!anyOverlayEnabled) {
+      setAiPatterns([]);
+    }
+    // Note: aiPatterns is NOT set to result.patterns here anymore.
+    // Pattern markers should come from the AISmartPanel Candles tab,
+    // not from overlay toggle events.
     lastAnalysisResultRef.current = result;
-    setAiDirectMarkers([]);
 
     // ── Get the candle series for primitives ──
     const series = chart.candleSeriesRef?.current;

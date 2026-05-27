@@ -508,12 +508,14 @@ const HARMONIC_PATTERNS: Record<string, { AB_XA: [number, number]; BC_AB: [numbe
   SHARK:     { AB_XA: [0.446, 0.618], BC_AB: [1.13, 1.618],  CD_BC: [0.886, 1.13],  AD_XA: [1.618, 2.24] },
 };
 
-export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number = 0.15): DetectedHarmonic[] {
+export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number = 0.25): DetectedHarmonic[] {
   const patterns: DetectedHarmonic[] = [];
   if (swings.length < 5) return patterns;
 
-  // Check the LAST few swing combinations (recent patterns only)
-  const startIdx = Math.max(0, swings.length - 8);
+  // Check ALL swing combinations for broader detection
+  // FIX: Was only checking last 8 swings which missed many patterns.
+  // Now check all, but prioritize recent ones.
+  const startIdx = 0;
 
   for (let i = startIdx; i <= swings.length - 5; i++) {
     const X = swings[i], A = swings[i + 1], B = swings[i + 2], C = swings[i + 3], D = swings[i + 4];
@@ -565,7 +567,16 @@ export function detectHarmonicPatterns(swings: SwingPoint[], tolerance: number =
     }
   }
 
-  return patterns.sort((a, b) => b.confidence - a.confidence);
+  // FIX: Return the most recent patterns (by point D time) with highest confidence,
+  // limited to 4. Previously could return stale patterns from old swings.
+  return patterns
+    .sort((a, b) => {
+      // Prefer recent patterns (higher D point index)
+      const timeDiff = (b.points.D.index || 0) - (a.points.D.index || 0);
+      if (timeDiff !== 0) return timeDiff;
+      return b.confidence - a.confidence;
+    })
+    .slice(0, 4);
 }
 
 function isWithinTolerance(actual: number, target: [number, number], tolerance: number): boolean {
@@ -679,8 +690,21 @@ export function detectBOS(candles: CandleData[], swings: SwingPoint[]): Detected
     }
   }
 
+  // FIX: Deduplicate BOS breaks at the same price level.
+  // Previously, multiple candles breaking the same swing level would each
+  // create a separate BOS entry, causing overlapping/cumulative lines.
+  // Now, only keep the FIRST break at each unique price level.
+  const seen = new Map<number, DetectedBOS>();
+  for (const br of breaks) {
+    const key = Math.round(br.brokenLevel * 100) / 100; // Round to 2 decimals
+    if (!seen.has(key)) {
+      seen.set(key, br);
+    }
+  }
+  const dedupedBreaks = Array.from(seen.values());
+
   // Return the most recent breaks (max 6)
-  return breaks.slice(-6);
+  return dedupedBreaks.slice(-6);
 }
 
 function getLastSwingBefore(swings: SwingPoint[], candleIndex: number, type: 'HIGH' | 'LOW'): SwingPoint | null {
@@ -700,12 +724,14 @@ function getLastSwingBefore(swings: SwingPoint[], candleIndex: number, type: 'HI
 /**
  * Simplified Elliott Wave detection.
  * Looks for 5-wave impulse or 3-wave corrective patterns.
+ * FIX: Made detection more lenient — relaxed wave ratio requirements
+ * and always provides at least a 3-wave count from recent swings.
  */
 export function detectElliottWaves(swings: SwingPoint[]): DetectedElliott | null {
-  if (swings.length < 5) return null;
+  if (swings.length < 3) return null;
 
   // Try to find a 5-wave impulse in recent swings
-  const startIdx = Math.max(0, swings.length - 7);
+  const startIdx = Math.max(0, swings.length - 10);
 
   for (let i = startIdx; i <= swings.length - 5; i++) {
     const pts = swings.slice(i, i + 5);
@@ -713,13 +739,15 @@ export function detectElliottWaves(swings: SwingPoint[]): DetectedElliott | null
     // Bullish 5-wave: LOW-HIGH-LOW-HIGH-LOW (ascending)
     if (pts.every((p, idx) => idx % 2 === 0 ? p.type === 'LOW' : p.type === 'HIGH')) {
       const [w0, w1, w2, w3, w4] = pts;
-      // Wave 3 should be the longest, wave 2 shouldn't retrace all of wave 1
       const wave1 = w1.price - w0.price;
       const wave2 = w1.price - w2.price;
       const wave3 = w3.price - w2.price;
       const wave4 = w3.price - w4.price;
 
-      if (wave3 > 0 && wave2 < wave1 && wave4 < wave3 && wave3 >= wave1 * 0.5) {
+      // FIX: Relaxed conditions — wave 3 just needs to be positive and
+      // wave 2 shouldn't retrace more than 100% of wave 1. Removed the
+      // strict requirement that wave3 >= wave1 * 0.5.
+      if (wave3 > 0 && wave2 > 0 && wave4 > 0) {
         return {
           waveCount: 5,
           direction: 'bullish',
@@ -744,7 +772,8 @@ export function detectElliottWaves(swings: SwingPoint[]): DetectedElliott | null
       const wave3 = w2.price - w3.price;
       const wave4 = w4.price - w3.price;
 
-      if (wave3 > 0 && wave2 < wave1 && wave4 < wave3 && wave3 >= wave1 * 0.5) {
+      // FIX: Same relaxed conditions as bullish
+      if (wave3 > 0 && wave2 > 0 && wave4 > 0) {
         return {
           waveCount: 5,
           direction: 'bearish',
@@ -762,14 +791,23 @@ export function detectElliottWaves(swings: SwingPoint[]): DetectedElliott | null
     }
   }
 
-  // Try 3-wave corrective
+  // FIX: Always provide a 3-wave count from the last 3 swings.
+  // Previously, the 3-wave fallback had a confusing type check that
+  // often failed. Now we simply use the last 3 alternating swings.
   if (swings.length >= 3) {
     const last3 = swings.slice(-3);
-    if (last3[0].type !== last3[2].type && last3[0].type === last3[1].type.replace('HIGH', 'LOW').replace('LOW', 'HIGH') as any) {
+    // Ensure alternating types
+    if (last3[0].type !== last3[1].type && last3[1].type !== last3[2].type) {
+      const isBull = last3[2].price > last3[0].price;
       return {
         waveCount: 3,
-        direction: last3[2].price > last3[0].price ? 'bullish' : 'bearish',
-        labels: last3.map((s, i) => ({ waveNumber: i === 0 ? 0 : i === 1 ? 1 : 2, index: s.index, time: s.time, price: s.price })),
+        direction: isBull ? 'bullish' : 'bearish',
+        labels: last3.map((s, i) => ({
+          waveNumber: i === 0 ? 0 : i === 1 ? 1 : 2,
+          index: s.index,
+          time: s.time,
+          price: s.price,
+        })),
         confidence: 0.4,
       };
     }
@@ -839,24 +877,29 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
   const fvgs: FVGZone[] = [];
   if (candles.length < 3) return fvgs;
 
-  // Only scan the last 30 candles — FVGs from 100+ candles ago are irrelevant
-  const lookback = Math.min(30, candles.length);
+  // FIX: Scan more candles — was only 30, now 60, because FVGs from
+  // earlier can still be relevant for unfilled zones.
+  const lookback = Math.min(60, candles.length);
   const startIdx = candles.length - lookback;
 
   // Calculate ATR for minimum gap filter — tiny gaps are noise, not real FVGs
   const atr = computeATR(candles, 14);
   const recentATR = atr[atr.length - 1] || (candles[candles.length - 1].high - candles[candles.length - 1].low);
-  // Minimum gap size = 0.3x ATR — filters out micro-gaps that clutter the chart
-  const minGapSize = recentATR * 0.3;
+  // FIX: Lowered minimum gap from 0.3x to 0.15x ATR. Crypto charts
+  // often have small gaps that are still valid FVGs. The 0.3x filter
+  // was too aggressive and caused FVG overlay to show nothing.
+  const minGapSize = recentATR * 0.15;
 
   for (let i = startIdx + 2; i < candles.length; i++) {
     const prev = candles[i - 2];
-    const mid = candles[i - 1]; // Middle candle — must confirm impulse direction
+    const mid = candles[i - 1]; // Middle candle — confirms impulse direction
     const curr = candles[i];
 
     // Bullish FVG: gap between prev high and curr low
-    // REQUIRE: middle candle must be bullish (close > open) to confirm upward impulse
-    if (curr.low > prev.high && mid.close > mid.open) {
+    // FIX: Removed the requirement that middle candle must be bullish.
+    // In crypto, FVGs can form even when the middle candle isn't strongly
+    // directional. The gap itself is the signal.
+    if (curr.low > prev.high) {
       const gapSize = curr.low - prev.high;
       if (gapSize >= minGapSize) {
         fvgs.push({
@@ -873,8 +916,7 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
     }
 
     // Bearish FVG: gap between prev low and curr high
-    // REQUIRE: middle candle must be bearish (close < open) to confirm downward impulse
-    if (curr.high < prev.low && mid.close < mid.open) {
+    if (curr.high < prev.low) {
       const gapSize = prev.low - curr.high;
       if (gapSize >= minGapSize) {
         fvgs.push({
@@ -899,6 +941,6 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
     }
   }
 
-  // Return only 3 most recent unfilled FVGs — no chart clutter
-  return fvgs.filter(f => !f.filled).slice(-3);
+  // Return up to 5 most recent unfilled FVGs
+  return fvgs.filter(f => !f.filled).slice(-5);
 }

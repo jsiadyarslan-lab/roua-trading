@@ -31,6 +31,9 @@ import { calcAdaptiveTPSL, getDynamicThresholds } from '@/lib/charts/ATRAdapter'
 import { getPatternPerformanceTracker } from '@/lib/charts/PatternPerformance';
 import { buildHeatmap, type HeatmapResult } from '@/lib/charts/ConfidenceHeatmap';
 import { runFullVerification, type FullVerificationReport, type EngineVerificationResult } from '@/lib/charts/EngineVerification';
+import { evaluateSmartAlerts, buildAlertSnapshot, fireBrowserNotification, type TriggeredAlert, type AlertRule } from '@/lib/charts/SmartAlertEngine';
+import { detectLiquidityZones, liquidityToAIPatterns, type LiquidityResult, type LiquidityZone } from '@/lib/charts/LiquidityZones';
+import { generateTradeProposal, getTradeProposals, getProposalStats, autoEvaluateProposals, type TradeProposal, type RiskParams } from '@/lib/charts/AutoTradeEngine';
 
 const C = {
   bg: '#0a0e17', card: 'rgba(255,255,255,0.04)', border: 'rgba(255,255,255,0.09)',
@@ -91,7 +94,7 @@ const PATTERN_KEYS: Record<string, string> = {
   'Inverse Head and Shoulders': 'patternInverseHeadAndShoulders',
 };
 
-type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced';
+type Tab = 'signal' | 'patterns' | 'wyckoff' | 'elliott' | 'levels' | 'smc' | 'advanced' | 'alerts' | 'trades';
 
 interface Props {
   symbol: string;
@@ -137,6 +140,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const [fusionResult, setFusionResult] = useState<any>(null);
   const [performanceStats, setPerformanceStats] = useState<any>(null);
   const [heatmapResult, setHeatmapResult] = useState<HeatmapResult | null>(null);
+  // Phase 3 states
+  const [smartAlerts, setSmartAlerts] = useState<TriggeredAlert[]>([]);
+  const [liquidityResult, setLiquidityResult] = useState<LiquidityResult | null>(null);
+  const [tradeProposals, setTradeProposals] = useState<TradeProposal[]>([]);
+  const [proposalStats, setProposalStats] = useState<ReturnType<typeof getProposalStats> | null>(null);
   const [volRegime, setVolRegime] = useState<string>('normal');
   const [verificationReport, setVerificationReport] = useState<FullVerificationReport | null>(null);
   const [showVerification, setShowVerification] = useState(false);
@@ -387,6 +395,68 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         setHeatmapResult(heatmap);
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }
+
+      // ── Phase 3: Liquidity Zones ────────────────────────────────
+      try {
+        const liqResult = detectLiquidityZones(c);
+        setLiquidityResult(liqResult);
+        // Add liquidity zone patterns to the chart
+        const liqPatterns = liquidityToAIPatterns(liqResult);
+        allPatterns.push(...liqPatterns);
+      } catch { /* Liquidity fallback */ }
+
+      // ── Phase 3: Smart Alerts ───────────────────────────────────
+      try {
+        const alertSnapshot = buildAlertSnapshot({
+          patterns: allPatterns,
+          smcData,
+          elliottResult,
+          wyckoffResult: wyckoffAdv,
+          currentPrice: price,
+          timeframe: 'auto',
+        });
+        const alerts = evaluateSmartAlerts(alertSnapshot);
+        setSmartAlerts(alerts);
+        // Fire browser notifications for critical alerts
+        for (const alert of alerts.filter(a => a.priority === 'critical')) {
+          try { fireBrowserNotification(alert); } catch {}
+        }
+      } catch { /* Smart Alerts fallback */ }
+
+      // ── Phase 3: Auto-Trade Proposal ────────────────────────────
+      try {
+        const tradeSignals = allPatterns
+          .filter(p => p.direction !== 'neutral' && p.confidence >= 0.4)
+          .map(p => ({
+            source: p.type || 'unknown',
+            direction: p.direction,
+            confidence: p.confidence,
+            keyLevel: p.price || price,
+          }));
+
+        const confluenceDir = tradeSignals.filter(s => s.direction === 'bullish').length >
+          tradeSignals.filter(s => s.direction === 'bearish').length ? 'bullish' : 'bearish';
+
+        const confluenceScore = Math.round(
+          (tradeSignals.filter(s => s.direction === confluenceDir).reduce((sum, s) => sum + s.confidence, 0) /
+            (tradeSignals.length || 1)) * 100
+        );
+
+        const proposal = generateTradeProposal({
+          candles: c,
+          direction: confluenceDir,
+          confluenceScore,
+          signals: tradeSignals,
+          patternSource: tradeSignals[0]?.source || 'confluence',
+          currentPrice: price,
+          timeframe: 'auto',
+        });
+
+        if (proposal) {
+          setTradeProposals(prev => [proposal, ...prev.slice(0, 9)]);
+        }
+        setProposalStats(getProposalStats());
+      } catch { /* Auto-Trade fallback */ }
 
       // ── Send patterns to chart (including harmonic + classic) ─────
       // FIX: Calculate entry/exit from ATR-adaptive levels for the Entry overlay
@@ -883,7 +953,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
 
       {/* Tabs */}
       <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')]] as [Tab, string][]).map(([k, l]) => (
           <button key={k} onClick={() => setTab(k)} style={{ flex: 1, padding: '4px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400 }}>{l}</button>
         ))}
       </div>
@@ -1490,6 +1560,118 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 );
               } catch { return null; }
             })()}
+          </div>
+        )}
+
+        {/* ALERTS — Smart Alert Engine (Phase 3) */}
+        {tab === 'alerts' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {/* Active Alerts */}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>🚨 التنبيهات الذكية ({smartAlerts.length})</div>
+              {smartAlerts.length === 0 ? (
+                <div style={{ color: C.mut, fontSize: 9, padding: '8px', textAlign: 'center', background: C.card, borderRadius: 5 }}>
+                  لا توجد تنبيهات حالياً — يُفعّل عند تقارب 3+ إشارات
+                </div>
+              ) : (
+                smartAlerts.slice(0, 10).map((alert, i) => {
+                  const pColor = alert.priority === 'critical' ? C.red : alert.priority === 'high' ? C.yellow : C.green;
+                  return (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', borderRadius: 5, background: C.card, marginBottom: 3, border: `1px solid ${pColor}25` }}>
+                      <div>
+                        <span style={{ color: alert.direction === 'bullish' ? C.green : alert.direction === 'bearish' ? C.red : C.mut, fontSize: 9.5, fontWeight: 600 }}>
+                          {alert.direction === 'bullish' ? '▲' : '▼'} {alert.nameAr}
+                        </span>
+                        <div style={{ color: C.mut, fontSize: 7.5, marginTop: 2 }}>
+                          ثقة: {Math.round(alert.confidence * 100)}% | مستوى: {alert.keyLevel.toFixed(2)}
+                        </div>
+                      </div>
+                      <span style={{ background: `${pColor}20`, color: pColor, fontSize: 7, fontWeight: 700, padding: '2px 5px', borderRadius: 3 }}>
+                        {alert.priority === 'critical' ? 'حرج' : alert.priority === 'high' ? 'عالي' : 'متوسط'}
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+            {/* Liquidity Zones */}
+            {liquidityResult && (
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ color: C.purple, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>💧 مناطق السيولة ({liquidityResult.activeZones} نشطة / {liquidityResult.sweptZones} مسحوبة)</div>
+                <div style={{ background: `${C.purple}08`, border: `1px solid ${C.purple}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 5 }}>
+                  <div style={{ color: C.dim, fontSize: 8.5, lineHeight: 1.6 }}>{liquidityResult.interpretationAr}</div>
+                </div>
+                {liquidityResult.zones.slice(0, 8).map((zone, i) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 8px', borderRadius: 4, background: C.card, marginBottom: 2, border: `1px solid ${zone.sweepDirection === 'bullish' ? C.green : C.red}15`, opacity: zone.swept ? 0.5 : 1 }}>
+                    <span style={{ color: zone.sweepDirection === 'bullish' ? C.green : C.red, fontSize: 8.5, fontWeight: 600 }}>
+                      {zone.sweepDirection === 'bullish' ? '▲' : '▼'} {zone.labelAr}
+                    </span>
+                    <span style={{ color: C.mut, fontSize: 8, fontFamily: 'monospace' }}>{zone.price.toFixed(2)} {zone.swept ? '(مسحوبة)' : ''}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TRADES — Auto-Trade Proposals (Phase 3) */}
+        {tab === 'trades' && (
+          <div style={{ padding: 8, overflowY: 'auto', flex: 1, minHeight: 0 }}>
+            {/* Proposal Stats */}
+            {proposalStats && (
+              <div style={{ background: `${C.gold}08`, border: `1px solid ${C.gold}20`, borderRadius: 6, padding: '8px 10px', marginBottom: 10 }}>
+                <div style={{ color: C.gold, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>💰 إحصائيات الاقتراحات</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>الكل</div>
+                    <div style={{ color: C.text, fontSize: 10, fontWeight: 700 }}>{proposalStats.total}</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>نسبة النجاح</div>
+                    <div style={{ color: proposalStats.winRate > 0.5 ? C.green : C.red, fontSize: 10, fontWeight: 700 }}>{Math.round(proposalStats.winRate * 100)}%</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: 4, padding: '4px 6px', textAlign: 'center' }}>
+                    <div style={{ color: C.mut, fontSize: 7 }}>متوسط R:R</div>
+                    <div style={{ color: C.cyan, fontSize: 10, fontWeight: 700 }}>1:{proposalStats.avgRR.toFixed(1)}</div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Trade Proposals */}
+            <div style={{ color: C.cyan, fontSize: 9, fontWeight: 700, marginBottom: 5 }}>📋 اقتراحات الصفقات ({tradeProposals.length})</div>
+            {tradeProposals.length === 0 ? (
+              <div style={{ color: C.mut, fontSize: 9, padding: '8px', textAlign: 'center', background: C.card, borderRadius: 5 }}>
+                لا توجد اقتراحات حالياً — يُفعّل عند تقارب 3+ إشارات وثقة ≥ 60%
+              </div>
+            ) : (
+              tradeProposals.slice(0, 5).map((proposal, i) => {
+                const dirColor = proposal.direction === 'bullish' ? C.green : C.red;
+                return (
+                  <div key={proposal.id} style={{ background: C.card, border: `1px solid ${dirColor}25`, borderRadius: 6, padding: '8px 10px', marginBottom: 6 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ color: dirColor, fontSize: 10, fontWeight: 700 }}>
+                        {proposal.direction === 'bullish' ? '▲ شراء' : '▼ بيع'}
+                      </span>
+                      <span style={{ background: `${dirColor}20`, color: dirColor, fontSize: 7.5, fontWeight: 700, padding: '2px 5px', borderRadius: 3 }}>
+                        R:R 1:{proposal.rrRatio}
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 3, fontSize: 8 }}>
+                      <div><span style={{ color: C.mut }}>دخول:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{proposal.entryPrice.toFixed(2)}</span></div>
+                      <div><span style={{ color: C.mut }}>وقف:</span> <span style={{ color: C.red, fontFamily: 'monospace' }}>{proposal.stopLoss.toFixed(2)}</span></div>
+                      <div><span style={{ color: C.mut }}>هدف:</span> <span style={{ color: C.green, fontFamily: 'monospace' }}>{proposal.takeProfits[2].toFixed(2)}</span></div>
+                      <div><span style={{ color: C.mut }}>حجم:</span> <span style={{ color: C.text, fontFamily: 'monospace' }}>{proposal.positionSize.toFixed(4)}</span></div>
+                    </div>
+                    <div style={{ color: C.mut, fontSize: 7.5, marginTop: 3 }}>{proposal.descriptionAr}</div>
+                    <div style={{ display: 'flex', gap: 3, marginTop: 3, flexWrap: 'wrap' }}>
+                      {proposal.agreeingSignals.slice(0, 4).map((sig, j) => (
+                        <span key={j} style={{ background: `${dirColor}10`, color: dirColor, fontSize: 7, padding: '1px 4px', borderRadius: 2, fontWeight: 600 }}>{sig.source}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>

@@ -1629,8 +1629,8 @@ export function AIPatternPanel({
                 </div>
               </div>
 
-              {/* Reinforcing Signals */}
-              {bayesianConsensus.reinforcingSignals.length > 0 && (
+              {/* Signal Likelihoods — real Bayesian contributions */}
+              {bayesianConsensus.likelihoods && bayesianConsensus.likelihoods.length > 0 && (
                 <div style={{
                   padding: '6px 8px',
                   background: 'rgba(0,255,163,0.04)',
@@ -1640,16 +1640,16 @@ export function AIPatternPanel({
                   <div style={{ fontSize: 9, color: C.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
                     {`🔗 ${t('enhancedSignals')}`}
                   </div>
-                  {bayesianConsensus.reinforcingSignals.map((rs, i) => (
+                  {bayesianConsensus.likelihoods.filter(l => l.likelihoodBull > l.likelihoodBear).map((l, i) => (
                     <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", marginBottom: 2, lineHeight: 1.4 }}>
-                      • {rs.descriptionAr} <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(rs.strength * 100).toFixed(0)}%</span>
+                      • {l.source} <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBull * 100).toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Conflicting Signals */}
-              {bayesianConsensus.conflictingSignals.length > 0 && (
+              {/* Conflicting Signals — bearish likelihoods dominate */}
+              {bayesianConsensus.likelihoods && bayesianConsensus.likelihoods.some(l => l.likelihoodBear > l.likelihoodBull) && (
                 <div style={{
                   padding: '6px 8px',
                   background: 'rgba(255,71,87,0.04)',
@@ -1659,16 +1659,16 @@ export function AIPatternPanel({
                   <div style={{ fontSize: 9, color: C.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
                     {`⚠️ ${t('conflictingSignals')}`}
                   </div>
-                  {bayesianConsensus.conflictingSignals.map((cs, i) => (
+                  {bayesianConsensus.likelihoods.filter(l => l.likelihoodBear > l.likelihoodBull).map((l, i) => (
                     <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", lineHeight: 1.4 }}>
-                      • {cs.descriptionAr}
+                      • {l.source} <span style={{ color: C.danger, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBear * 100).toFixed(0)}%</span>
                     </div>
                   ))}
                 </div>
               )}
 
-              {/* Key Levels */}
-              {bayesianConsensus.keyLevels.length > 0 && (
+              {/* Key Levels — from Bayesian signal sources */}
+              {bayesianConsensus.keyLevels && bayesianConsensus.keyLevels.length > 0 && (
                 <div style={{
                   padding: '6px 8px',
                   background: 'rgba(0,0,0,0.2)',
@@ -1677,7 +1677,7 @@ export function AIPatternPanel({
                   <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
                     {`📍 ${t('keyLevels')}`}
                   </div>
-                  {bayesianConsensus.keyLevels.slice(0, 5).map((kl, i) => (
+                  {bayesianConsensus.keyLevels.slice(0, 5).map((kl: any, i: number) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
                       <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{kl.label}</span>
                       <span style={{ fontSize: 9, color: kl.type === 'support' ? C.success : kl.type === 'resistance' ? C.danger : C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>

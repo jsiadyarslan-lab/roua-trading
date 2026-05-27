@@ -211,11 +211,11 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         setVolRegime(regime);
       } catch { /* fallback */ }
 
-      // ── 4. REVOLUTIONARY: Bayesian Consensus Engine ───────────
+      // ── 4. REVOLUTIONARY: Bayesian Consensus Engine (Real Naive Bayes) ──
       let bayesianDir = 'neutral';
       let bayesianConf = 0.33;
       try {
-        const bayesian = getBayesianEngine();
+        const bayesian = getBayesianEngine(c); // Pass candles for prior calculation
         const signals = extractSignalsFromAnalysis({
           patterns: unique,
           smcData,
@@ -246,17 +246,22 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         fusionScore = fusion.confluenceScore;
       } catch { /* Fusion fallback */ }
 
-      // ── 6. REVOLUTIONARY: Pattern State Machine ──────────────
+      // ── 6. REVOLUTIONARY: Pattern State Machine (Real FSM) ──────
       try {
         const sm = getPatternStateMachine();
-        // Convert AIPattern[] to the format PatternStateMachine.update() expects
-        const smPatterns = unique.map(p => ({
+        // Convert all patterns (including harmonic/classic) for state tracking
+        const smPatterns = allPatterns.map(p => ({
           id: `${p.type}_${p.direction}_${Math.round(p.time || Date.now() / 1000)}`,
           type: p.type,
           direction: p.direction as 'bullish' | 'bearish',
-          points: p.points || [{ time: p.time || Date.now() / 1000, price }],
+          confidence: p.confidence || 0.5,
+          points: p.points || p.shapePoints || [{ time: p.time || Date.now() / 1000, price }],
           breakoutPrice: p.breakoutPrice || price * (p.direction === 'bullish' ? 1.02 : 0.98),
-          quality: { overall: Math.round(p.confidence * 10) },
+          quality: { overall: Math.round((p.confidence || 0.5) * 100) },
+          time: p.time,
+          przLevel: p.przLevel || p.price,
+          stopLoss: p.stopLoss,
+          takeProfit: p.takeProfit || p.target,
         }));
         const smResult = sm.update(c, smPatterns);
         setStateMachineResult(smResult);
@@ -272,7 +277,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                 lastAnnouncedRef.current.add(alertKey);
                 // Clear old entries after 60s
                 setTimeout(() => lastAnnouncedRef.current.delete(alertKey), 60000);
-                if (alert.state === 'breakout') {
+                if (alert.state === 'triggered') {
                   alerter.announceBreakout({
                     patternType: alert.patternType,
                     patternTypeAr: alert.messageAr || alert.patternType,
@@ -280,13 +285,13 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
                     direction: alert.direction === 'bullish' ? 'bullish' : 'bearish',
                     price,
                   });
-                } else if (alert.priority === 'critical') {
+                } else if (alert.priority === 'critical' || alert.state === 'confirmed') {
                   alerter.announce({
                     patternType: alert.patternType,
                     patternTypeAr: alert.messageAr || alert.patternType,
                     symbol: sym,
                     direction: alert.direction === 'bullish' ? 'bullish' : 'bearish',
-                    confidence: alert.confidence,
+                    confidence: alert.state === 'confirmed' ? 0.95 : 0.7,
                   });
                 }
               }
@@ -316,17 +321,17 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         setPerformanceStats(stats);
       } catch { /* Performance tracking fallback */ }
 
-      // ── 8. REVOLUTIONARY: Confidence Heatmap ─────────────────
+      // ── 8. REVOLUTIONARY: Confidence Heatmap (Real Signal-Based) ──
       try {
-        const signals = extractSignalsFromAnalysis({
-          patterns: unique,
+        // Pass full analysis data for signal-range extraction
+        const heatmap = buildHeatmap(c, {
+          patterns: allPatterns,
           smcData,
           elliottPattern,
           wyckoff,
           volumeProfile,
           geoPatterns,
         });
-        const heatmap = buildHeatmap(c, signals);
         setHeatmapResult(heatmap);
         onHeatmapRef.current?.(heatmap);
       } catch { /* Heatmap fallback */ }

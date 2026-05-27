@@ -166,3 +166,29 @@ Stage Summary:
 - Build: ✅ success
 - All engines use localStorage for persistence across sessions
 - Arabic labels throughout all new UI sections
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix auto re-render overlays when new candle arrives via WebSocket
+
+Work Log:
+- Analyzed the full overlay rendering pipeline in RouaChart.tsx and AISmartPanel.tsx
+- Identified ROOT CAUSE: overlays (trend lines, SR, FVG, etc.) only re-rendered on toggle or timeframe change, NOT on new WebSocket candles
+- Found that candlesRef was updated in onCandleUpdate but aiPanelCandles was not, so AISmartPanel never re-analyzed
+- Added currentOverlaysRef to track active overlay flags in RouaChart
+- Added isNewCandle detection in WebSocket onCandleUpdate handler
+- When new candle arrives and overlays are active, re-render ALL overlays via renderOverlays() with latest candles data
+- Throttled to 15 seconds to avoid excessive CPU usage (ZigZag + clustering)
+- Also update aiPanelCandles so AISmartPanel can re-analyze with new data
+- Moved overlayRendererRef/overlayRegistryRef before WebSocket handler to avoid TDZ errors
+- Added showAIPanelRef to prevent stale closure in WebSocket callback
+- Updated handleOverlayChange to store current overlays in currentOverlaysRef
+- TypeScript verification passed (no errors)
+- Committed and pushed to GitHub: 67726f32
+
+Stage Summary:
+- Fix: Auto re-render overlays when new candle arrives via WebSocket
+- File modified: apps/web/src/components/charts/RouaChart.tsx (+91 lines, -15 lines)
+- Commit: 67726f32 pushed to origin/main
+- Railway: Site is up, new deployment should pick up changes automatically

@@ -411,12 +411,12 @@
     },
     "galaxyOrchestra": {
       "closeTooltip": "Click to close",
-      "groqDesc": "Ultra-fast processing for instant inference and real-time market analysis",
-      "glm4Desc": "Multilingual model for understanding Arabic and global financial context",
-      "geminiDesc": "Advanced chart and technical pattern analysis with high precision",
-      "bedrockDesc": "Secure and reliable infrastructure for foundational models with data protection",
-      "ollamaDesc": "Private local models for sensitive analysis away from the cloud",
-      "twelveDataDesc": "Comprehensive live market data from global markets and indicators"
+      "groqDesc": "দ্রুত প্রক্রিয়াকরণ তাৎক্ষণিক ইনফারেন্স এবং রিয়েল-টাইম মার্কেট বিশ্লেষণের জন্য",
+      "glm4Desc": "আরবি এবং গ্লোবাল ফাইন্যান্সিয়াল কনটেক্সট বোঝার জন্য মাল্টিলিংগুয়াল মডেল",
+      "geminiDesc": "উচ্চ নির্ভুলতার সাথে উন্নত চার্ট এবং টেকনিক্যাল প্যাটার্ন বিশ্লেষণ",
+      "bedrockDesc": "ডেটা সুরক্ষাসহ মৌলিক মডেলগুলির জন্য নিরাপদ এবং নির্ভরযোগ্য অবকাঠামো",
+      "ollamaDesc": "ক্লাউড থেকে দূরে সংবেদনশীল বিশ্লেষণের জন্য প্রাইভেট লোকাল মডেল",
+      "twelveDataDesc": "গ্লোবাল মার্কেট এবং ইন্ডিকেটর থেকে সম্পূর্ণ লাইভ মার্কেট ডেটা"
     }
   },
   "auth": {

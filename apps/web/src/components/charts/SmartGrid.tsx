@@ -1486,6 +1486,13 @@ export function SmartGrid({
         <button style={tbBtn} onClick={handleFitContent}>&lt;-&gt;</button>
         <button style={tbBtn} onClick={handleZoomIn}>+</button>
 
+        {/* Fullscreen toggle */}
+        <button style={{ ...tbBtn, background: isFullscreen ? 'rgba(0,212,255,0.15)' : undefined, color: isFullscreen ? C.cyan : undefined, border: isFullscreen ? '1px solid rgba(0,212,255,0.3)' : undefined }} onClick={() => setFullscreenCellId(prev => prev ? null : (activeCellId || cells[0]?.id || null))}
+          onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}
+          title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen grid'}>
+          {isFullscreen ? '⤓' : '⤢'}
+        </button>
+
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
 
         {/* Grid config */}
@@ -1581,16 +1588,7 @@ export function SmartGrid({
                   </span>
                 )}
 
-                {state?.currentPrice != null && state.currentPrice > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
-                    {state?.changePercent != null && (
-                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 7, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
-                        {isPositive ? '+' : ''}{state.changePercent.toFixed(2)}%
-                      </span>
-                    )}
-                  </div>
-                )}
+
 
                 <select value={cell.chartType} onClick={e => e.stopPropagation()} onChange={e => handleChangeChartType(cell.id, e.target.value as any)}
                   style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.cardBorder}`, borderRadius: 3, color: C.textDim, fontSize: 7.5, padding: '0px 2px', cursor: 'pointer', outline: 'none' }}>
@@ -1607,6 +1605,17 @@ export function SmartGrid({
 
               {/* Chart container */}
               <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: cellToolOpen.has(cell.id) ? 'visible' : 'hidden', position: 'relative' }}>
+                {/* Price overlay — positioned at top-right under chart type button */}
+                {state?.currentPrice != null && state.currentPrice > 0 && (
+                  <div style={{ position: 'absolute', top: 2, right: 4, zIndex: 10, display: 'flex', alignItems: 'center', gap: 2, background: 'rgba(11,14,20,0.75)', borderRadius: 3, padding: '1px 4px', backdropFilter: 'blur(4px)' }}>
+                    <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 8, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
+                    {state?.changePercent != null && (
+                      <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 6.5, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
+                        {isPositive ? '+' : ''}{state.changePercent.toFixed(2)}%
+                      </span>
+                    )}
+                  </div>
+                )}
                 {/* Unavailable overlay */}
                 {isUnavailable && (
                   <div style={{
@@ -1681,30 +1690,13 @@ export function SmartGrid({
                 </div>
               )}
 
-              {/* Bottom status bar */}
-              {state?.lastUpdated && !state.loading && state.dataSource !== 'unavailable' && (
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 5px', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
-                  <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
-                    {state.candleCount} candles
-                  </span>
-                  <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
-                    {formatLastUpdated(state.lastUpdated)}
-                  </span>
-                </div>
-              )}
+              {/* Bottom status bar — removed candle count to save space */}
             </div>
           );
         })}
       </div>
 
-      {/* Hints */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '3px 10px', background: 'rgba(11,14,20,0.8)', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>Double-click = Focus</span>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>ESC = Close</span>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>{cells.length} charts</span>
-        {(positions.length + paperTrades.length) > 0 && <span style={{ color: C.success, fontSize: 7 }}>{positions.length + paperTrades.length} active trades</span>}
-        <span style={{ color: C.cyan, fontSize: 7 }}>Auto-sync 15s</span>
-      </div>
+      {/* Hints — removed auto-sync row to save space */}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }

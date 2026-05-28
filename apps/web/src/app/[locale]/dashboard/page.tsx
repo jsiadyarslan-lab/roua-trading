@@ -1238,45 +1238,7 @@ export default function DashboardPage() {
 
           {/* Center Column: Mode Banner + Chart + Balance + Positions */}
           <div className="dash-col dash-col-center animate-in-2" style={{ display: 'flex', flexDirection: 'column', gap: 0, minWidth: 0, minHeight: 0, height: '100%', overflow: 'hidden' }}>
-            {/* Mode Banner */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '6px 14px', borderRadius: 10,
-              background: modeConfig.glowBg,
-              border: `1px solid ${modeConfig.accent}20`,
-              flexShrink: 0,
-            }}>
-              <div style={{
-                width: 6, height: 6, borderRadius: '50%',
-                background: modeConfig.accent,
-                boxShadow: `0 0 8px ${modeConfig.accent}60`,
-                animation: 'ledPulse 2s ease-in-out infinite',
-              }} />
-              <span style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 11, fontWeight: 800,
-                color: modeConfig.accent, letterSpacing: '0.02em',
-              }}>{({ trader: t('modeTraderLabel'), investor: t('modeInvestorLabel'), ai: t('modeAiLabel') })[mode]}</span>
-              <span style={{
-                fontFamily: "'Cairo', sans-serif", fontSize: 10,
-                color: T.text3, marginInlineEnd: 8,
-              }}>— {({ trader: t('modeTraderDesc'), investor: t('modeInvestorDesc'), ai: t('modeAiDesc') })[mode]}</span>
-              <div style={{ flex: 1 }} />
-              {mode === 'trader' && (
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: T.text3, fontWeight: 600 }}>
-                  READY
-                </span>
-              )}
-              {mode === 'investor' && (
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#10b981', fontWeight: 600 }}>
-                  LONG-TERM
-                </span>
-              )}
-              {mode === 'ai' && (
-                <span style={{ fontSize: 9, fontFamily: "'JetBrains Mono', monospace", color: '#a78bfa', fontWeight: 600 }}>
-                  AI-ACTIVE
-                </span>
-              )}
-            </div>
+            {/* Mode Banner — removed to save space */}
             {/* Chart Panel — flex:1 fills remaining space after banner + balance panel */}
             <div ref={chartPanelRef} className="panel" style={{ flex: '1 1 0%', minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative', border: 'none', background: 'transparent', boxShadow: 'none' }}>
               <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: 'relative', overflow: 'hidden', borderRadius: 14, border: '1px solid rgba(255,255,255,0.06)', background: 'rgba(26, 29, 41, 0.65)' }}>

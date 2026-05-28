@@ -1157,10 +1157,22 @@ export function SmartGrid({
   }, [defaultSymbol]);
 
   // ── Open tool: show inline overlay within the cell ──
-  // When user clicks AI/Draw/Ind/Trade on a small chart,
-  // the tool overlay appears INSIDE that cell — NOT on the main chart.
-  // SmartGrid stays full-screen. Only "Focus" switches to main chart.
+  // When user clicks AI/Trade on a small chart,
+  // the tool overlay appears INSIDE that cell.
+  // When user clicks Draw/Ind, we switch directly to the main chart
+  // with the tool open — because drawing and indicators need the full
+  // chart experience (DrawingPanel, IndicatorPanel, etc.)
   const handleOpenTool = useCallback((cell: GridCell, openTool: string) => {
+    // For drawing and indicators: switch to main chart directly with the tool open
+    if (openTool === 'drawing' || openTool === 'indicators') {
+      if (onSwitchToChart) {
+        onSwitchToChart(cell.symbol, cell.timeframe, openTool);
+      }
+      onClose();
+      return;
+    }
+
+    // For AI and trading: show inline overlay within the cell
     setCellToolOpen(prev => {
       const next = new Map(prev);
       // Toggle: if same tool is open on this cell, close it
@@ -1171,7 +1183,7 @@ export function SmartGrid({
       }
       return next;
     });
-  }, []);
+  }, [onSwitchToChart, onClose]);
 
   const handleCloseTool = useCallback((cellId: string) => {
     setCellToolOpen(prev => {

@@ -6,6 +6,8 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { getPortalRoot } from '@/lib/portal-root';
 import { useChart } from '@/hooks/useChart';
 import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
@@ -1938,8 +1940,8 @@ export default function RouaChart({
           </div>{/* ── Overlay Layer close ── */}
         </div>{/* ── Chart Wrapper close ── */}
 
-        {/* Drawing Panel (draggable) */}
-        {showDrawingPanel && (
+        {/* Drawing Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
+        {showDrawingPanel && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={280} minHeight={200}>
             <DrawingPanel
               activeTool={chart.activeTool}
@@ -1947,11 +1949,12 @@ export default function RouaChart({
               onClose={() => setShowDrawingPanel(false)}
               onClearAll={chart.clearDrawings}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Indicator Panel (draggable) */}
-        {showIndicatorPanel && (
+        {/* Indicator Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
+        {showIndicatorPanel && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, right: 80 }} defaultWidth={230} minHeight={200}>
             <IndicatorPanel
               activeIndicators={chart.getActiveIndicators().map(i => i.key)}
@@ -1959,22 +1962,24 @@ export default function RouaChart({
               onOpenSettings={handleOpenSettings}
               onClose={() => setShowIndicatorPanel(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Indicator Settings Panel (draggable) */}
-        {showSettingsPanel && settingsIndicator && (
+        {/* Indicator Settings Panel (draggable) — rendered via Portal */}
+        {showSettingsPanel && settingsIndicator && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, right: 300 }} defaultWidth={220} minHeight={180} resizable={false}>
             <IndicatorSettings
               indicator={settingsIndicator}
               onSave={handleSaveSettings}
               onClose={() => { setShowSettingsPanel(false); setSettingsIndicator(null); }}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Volume Profile (draggable) */}
-        {showVolumeProfile && (
+        {/* Volume Profile (draggable) — rendered via Portal */}
+        {showVolumeProfile && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
             <VolumeProfile
               candles={candlesRef.current}
@@ -1982,14 +1987,15 @@ export default function RouaChart({
               rows={24}
               visible={showVolumeProfile}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
 
 
 
-        {/* Chart Trading Panel (draggable) */}
-        {showChartTrading && currentPrice && (
+        {/* Chart Trading Panel (draggable) — rendered via Portal */}
+        {showChartTrading && currentPrice && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={240} minHeight={300}>
             <ChartTrading
               symbol={selectedSymbol}
@@ -1997,11 +2003,12 @@ export default function RouaChart({
               onClose={() => setShowChartTrading(false)}
               onPlaceOrder={handlePlaceOrder}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Quick Trade Panel (draggable) */}
-        {showQuickTrade && (
+        {/* Quick Trade Panel (draggable) — rendered via Portal */}
+        {showQuickTrade && createPortal(
           <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={260} minHeight={200}>
             <QuickTradePanel
               symbol={selectedSymbol}
@@ -2009,40 +2016,44 @@ export default function RouaChart({
               onPlaceOrder={handlePlaceOrder}
               onClose={() => setShowQuickTrade(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Template Manager (draggable) */}
-        {showTemplateManager && (
+        {/* Template Manager (draggable) — rendered via Portal */}
+        {showTemplateManager && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={280} minHeight={250}>
             <TemplateManager
               onLoadTemplate={chart.loadTemplate}
               onSaveTemplate={chart.saveTemplate}
               onClose={() => setShowTemplateManager(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Chart Settings Panel (draggable) */}
-        {showChartSettings && (
+        {/* Chart Settings Panel (draggable) — rendered via Portal */}
+        {showChartSettings && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={260} minHeight={200}>
             <ChartSettingsPanel
               settings={chart.settings}
               onUpdateSettings={chart.updateSettings}
               onClose={() => setShowChartSettings(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
-        {/* Compare Overlay (draggable) */}
-        {showCompare && chart.chartRef?.current && (
+        {/* Compare Overlay (draggable) — rendered via Portal */}
+        {showCompare && chart.chartRef?.current && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
             <CompareOverlay
               chart={chart.chartRef.current}
               symbol={compareSymbol || 'ETH/USDT'}
               onClose={() => setShowCompare(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
         {/* Smart Grid — unified multi-chart + MTF */}
@@ -2068,8 +2079,8 @@ export default function RouaChart({
           />
         )}
 
-        {/* Share Chart (draggable) */}
-        {showShare && (
+        {/* Share Chart (draggable) — rendered via Portal */}
+        {showShare && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
             <ShareChart
               symbol={selectedSymbol}
@@ -2078,38 +2089,41 @@ export default function RouaChart({
               chartType={chart.settings.type}
               onClose={() => setShowShare(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
         {/* ── 5 New Feature Components ── */}
 
-        {/* Footprint Chart (draggable) */}
-        {showFootprint && (
+        {/* Footprint Chart (draggable) — rendered via Portal */}
+        {showFootprint && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={300} minHeight={250}>
             <FootprintChart
               symbol={selectedSymbol}
               onClose={() => setShowFootprint(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
         {/* Alert Panel replaced by PriceAlertLine below */}
 
-        {/* Pattern Progress (draggable) */}
-        {showPatternProgress && (
+        {/* Pattern Progress (draggable) — rendered via Portal */}
+        {showPatternProgress && createPortal(
           <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={280} minHeight={220}>
             <PatternProgress
               symbol={selectedSymbol}
               candles={candlesRef.current}
               onClose={() => setShowPatternProgress(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
         {/* ── 3 Revolutionary Feature Components ── */}
 
-        {/* Price Alert Line (draggable) */}
-        {showAlerts && (
+        {/* Price Alert Line (draggable) — rendered via Portal */}
+        {showAlerts && createPortal(
           <DraggablePanel defaultPosition={{ top: 0, right: 0 }} defaultWidth={300} minHeight={250}>
             <PriceAlertLine
               symbol={selectedSymbol}
@@ -2118,7 +2132,8 @@ export default function RouaChart({
               onClose={() => setShowAlerts(false)}
               onAlertsCountChange={setPriceAlertsCount}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
         {/* Chart Replay (floating at bottom) */}
@@ -2134,8 +2149,8 @@ export default function RouaChart({
           />
         )}
 
-        {/* Mini Heatmap (draggable) */}
-        {showHeatmap && (
+        {/* Mini Heatmap (draggable) — rendered via Portal */}
+        {showHeatmap && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={340} minHeight={300}>
             <MiniHeatmap
               selectedSymbol={selectedSymbol}
@@ -2145,13 +2160,14 @@ export default function RouaChart({
               }}
               onClose={() => setShowHeatmap(false)}
             />
-          </DraggablePanel>
+          </DraggablePanel>,
+          getPortalRoot()
         )}
 
       </div>{/* ── Chart Area close ── */}
 
-      {/* ── Watchlist Overlay (draggable) ── */}
-      {showWatchlist && (
+      {/* ── Watchlist Overlay (draggable) — rendered via Portal ── */}
+      {showWatchlist && createPortal(
         <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
           <WatchlistOverlay
             selectedSymbol={selectedSymbol}
@@ -2162,7 +2178,8 @@ export default function RouaChart({
             }}
             visible={showWatchlist}
           />
-        </DraggablePanel>
+        </DraggablePanel>,
+        getPortalRoot()
       )}
 
       {/* ── News Markers (data provider — invisible) ── */}

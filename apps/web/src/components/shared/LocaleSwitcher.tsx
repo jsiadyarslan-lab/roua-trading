@@ -2,7 +2,7 @@
 
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from '@/i18n/navigation';
-import { Globe2, Check, ChevronDown } from 'lucide-react';
+import { Globe2, Check, ChevronDown, Search } from 'lucide-react';
 import { isRtlLocale } from '@/lib/i18n-utils';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
@@ -47,39 +47,84 @@ const LOCALE_OPTIONS = [
   { code: 'bn', label: 'বাংলা', shortLabel: 'বাংলা' },
 ] as const;
 
+const MAX_VISIBLE_HEIGHT = 320; // max dropdown height in px
+
 export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSwitcherProps) {
   const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [menuPos, setMenuPos] = useState<{ top: number; right?: number; left?: number }>({ top: 0 });
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Filter languages based on search query
+  const filteredOptions = LOCALE_OPTIONS.filter(opt => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      opt.code.toLowerCase().includes(q) ||
+      opt.label.toLowerCase().includes(q) ||
+      opt.shortLabel.toLowerCase().includes(q)
+    );
+  });
 
   // Calculate menu position based on button position
   const updatePosition = useCallback(() => {
     if (!buttonRef.current) return;
     const rect = buttonRef.current.getBoundingClientRect();
     const isRtl = document.documentElement.dir === 'rtl' || isRtlLocale(locale);
-    if (isRtl) {
-      setMenuPos({
-        top: rect.bottom + 4,
-        left: rect.left,
-      });
+    
+    // Calculate available space below the button
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    
+    // If not enough space below, show above
+    const showAbove = spaceBelow < MAX_VISIBLE_HEIGHT && spaceAbove > spaceBelow;
+    
+    if (showAbove) {
+      if (isRtl) {
+        setMenuPos({
+          top: rect.top - MAX_VISIBLE_HEIGHT - 4,
+          left: rect.left,
+        });
+      } else {
+        setMenuPos({
+          top: rect.top - MAX_VISIBLE_HEIGHT - 4,
+          right: window.innerWidth - rect.right,
+        });
+      }
     } else {
-      setMenuPos({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
-      });
+      if (isRtl) {
+        setMenuPos({
+          top: rect.bottom + 4,
+          left: rect.left,
+        });
+      } else {
+        setMenuPos({
+          top: rect.bottom + 4,
+          right: window.innerWidth - rect.right,
+        });
+      }
     }
   }, [locale]);
 
   // Update position when opening
   useEffect(() => {
     if (open) {
+      setSearchQuery('');
       updatePosition();
     }
   }, [open, updatePosition]);
+
+  // Focus search input when menu opens
+  useEffect(() => {
+    if (open && searchRef.current) {
+      setTimeout(() => searchRef.current?.focus(), 50);
+    }
+  }, [open]);
 
   // Close on outside click
   useEffect(() => {
@@ -119,7 +164,6 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
     // Set cookie for persistence
     document.cookie = `NEXT_LOCALE=${newLocale};path=/;max-age=31536000;SameSite=Lax`;
     // Use next-intl router.replace to switch locale in the URL path
-    // This automatically handles adding/removing the locale prefix
     router.replace(pathname, { locale: newLocale });
     setOpen(false);
   };
@@ -137,55 +181,143 @@ export function LocaleSwitcher({ variant = 'default', className = '' }: LocaleSw
             top: menuPos.top,
             ...(menuPos.right !== undefined ? { right: menuPos.right } : {}),
             ...(menuPos.left !== undefined ? { left: menuPos.left } : {}),
-            minWidth: 160,
+            width: 220,
             background: '#1A1D27',
             border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 8,
-            padding: '4px 0',
+            borderRadius: 10,
+            padding: 0,
             zIndex: 99999,
             boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,212,255,0.06)',
-            opacity: 1,
-            transform: 'translateY(0)',
             animation: 'localeMenuIn 0.15s ease-out',
+            overflow: 'hidden',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {LOCALE_OPTIONS.map(opt => (
-            <button
-              key={opt.code}
-              onClick={() => switchLocale(opt.code)}
+          {/* Search input */}
+          <div
+            style={{
+              padding: '8px 10px',
+              borderBottom: '1px solid rgba(255,255,255,0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Search size={13} color="#8B92A8" style={{ flexShrink: 0 }} />
+            <input
+              ref={searchRef}
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={isAr ? 'ابحث عن لغة...' : 'Search language...'}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
                 width: '100%',
-                padding: '9px 14px',
+                background: 'transparent',
                 border: 'none',
-                background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
-                color: opt.code === locale ? '#00D4FF' : '#8B92A8',
-                cursor: 'pointer',
-                fontSize: 13,
-                fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
-                fontWeight: opt.code === locale ? 600 : 400,
-                textAlign: 'start',
-                transition: 'all 0.1s',
+                outline: 'none',
+                color: '#F0F2F5',
+                fontSize: 12,
+                fontFamily: "'Inter', 'Cairo', sans-serif",
               }}
-              onMouseEnter={(e) => {
-                if (opt.code !== locale) {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
-                  e.currentTarget.style.color = '#F0F2F5';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (opt.code !== locale) {
-                  e.currentTarget.style.background = 'transparent';
-                  e.currentTarget.style.color = '#8B92A8';
-                }
-              }}
-            >
-              <span>{opt.label}</span>
-              {opt.code === locale && <Check size={14} color="#00D4FF" />}
-            </button>
-          ))}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#8B92A8',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontSize: 14,
+                  lineHeight: 1,
+                  flexShrink: 0,
+                }}
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Scrollable language list */}
+          <div
+            style={{
+              maxHeight: MAX_VISIBLE_HEIGHT - 44, // subtract search bar height
+              overflowY: 'auto',
+              overflowX: 'hidden',
+              padding: '4px 0',
+            }}
+          >
+            {/* Custom scrollbar styles */}
+            <style>{`
+              div::-webkit-scrollbar { width: 4px; }
+              div::-webkit-scrollbar-track { background: transparent; }
+              div::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+              div::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+            `}</style>
+            {filteredOptions.length === 0 ? (
+              <div
+                style={{
+                  padding: '16px 14px',
+                  color: '#8B92A8',
+                  fontSize: 12,
+                  textAlign: 'center',
+                  fontFamily: "'Inter', 'Cairo', sans-serif",
+                }}
+              >
+                {isAr ? 'لا توجد نتائج' : 'No results'}
+              </div>
+            ) : (
+              filteredOptions.map(opt => (
+                <button
+                  key={opt.code}
+                  onClick={() => switchLocale(opt.code)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    padding: '8px 14px',
+                    border: 'none',
+                    background: opt.code === locale ? 'rgba(0,212,255,0.08)' : 'transparent',
+                    color: opt.code === locale ? '#00D4FF' : '#8B92A8',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                    fontFamily: opt.code === 'ar' ? "'Cairo', sans-serif" : "'Inter', sans-serif",
+                    fontWeight: opt.code === locale ? 600 : 400,
+                    textAlign: 'start',
+                    transition: 'all 0.1s',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (opt.code !== locale) {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+                      e.currentTarget.style.color = '#F0F2F5';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (opt.code !== locale) {
+                      e.currentTarget.style.background = 'transparent';
+                      e.currentTarget.style.color = '#8B92A8';
+                    }
+                  }}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ 
+                      color: '#555C70', 
+                      fontSize: 10, 
+                      fontWeight: 600,
+                      width: 22,
+                      fontFamily: "'Inter', sans-serif",
+                    }}>
+                      {opt.shortLabel}
+                    </span>
+                    <span>{opt.label}</span>
+                  </span>
+                  {opt.code === locale && <Check size={14} color="#00D4FF" />}
+                </button>
+              ))
+            )}
+          </div>
         </div>,
         document.body
       )

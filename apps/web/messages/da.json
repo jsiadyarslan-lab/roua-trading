@@ -494,7 +494,7 @@
       "predictionMarket": "Forudsigelsesmarkeder",
       "leaderboard": "Leaderboard",
       "copyTrading": "Kopihandel",
-      "social": "Social",
+      "social": "Socialt",
       "calendar": "Økonomisk kalender",
       "apiDocs": "API-dokumenter",
       "twoFactor": "To-faktor Auth",
@@ -1816,27 +1816,27 @@
       "signalExplanationSell2": "Sell signal from scanner"
     },
     "watchlist": {
-      "title": "Watchlist",
-      "loading": "Loading...",
-      "crypto": "Crypto",
+      "title": "Overvågningsliste",
+      "loading": "Indlæser...",
+      "crypto": "Krypto",
       "forex": "Forex",
-      "stocks": "Stocks",
+      "stocks": "Aktier",
       "hotMover": "Hot mover"
     },
     "news": {
-      "loading": "Loading news...",
-      "unavailable": "No news available",
-      "allModelsUnavailable": "All AI models are unavailable",
-      "analysisUnavailable": "Analysis currently unavailable",
-      "loadingFeed": "Loading news feed...",
-      "unavailableBrief": "No news currently available.",
-      "title": "News",
-      "newsSummary": "Market summary related to current context — {symbol}"
+      "loading": "Indlæser nyheder...",
+      "unavailable": "Ingen tilgængelige nyheder",
+      "allModelsUnavailable": "Alle AI-modeller er utilgængelige",
+      "analysisUnavailable": "Analyse er i øjeblikket ikke tilgængelig",
+      "loadingFeed": "Indlæser nyhedsfeed...",
+      "unavailableBrief": "Ingen nyheder tilgængelige i øjeblikket.",
+      "title": "Nyheder",
+      "newsSummary": "Markedsoversigt relateret til den aktuelle kontekst — XPH0X"
     },
     "positions": {
-      "noOpenPositions": "No open positions",
-      "notOpen": "Not Open",
-      "notFound": "Not Found"
+      "noOpenPositions": "Ingen åbne positioner",
+      "notOpen": "Ikke åben",
+      "notFound": "Ikke fundet"
     },
     "calendar": {
       "title": "Economic Calendar",
@@ -2048,35 +2048,35 @@
       "maxDrawdown": "Max Drawdown",
       "noDrawdown": "No drawdown",
       "weak": "Weak",
-      "openRisk": "Open Risk",
-      "withoutStopLoss": "without stop loss",
-      "riskAnalysisTitle": "Detailed Risk Analysis",
-      "winLossRatio": "Win/Loss Ratio",
-      "wins": "wins",
-      "losses": "losses",
-      "avgProfitVsLoss": "Avg Profit vs Avg Loss",
-      "openExposure": "Open Exposure",
-      "openPositionCount": "open position(s)",
-      "stopLossCoverage": "Stop Loss Coverage",
-      "warningNoStopLoss": "position(s) without stop loss!",
+      "openRisk": "Åben risiko",
+      "withoutStopLoss": "uden stop loss",
+      "riskAnalysisTitle": "Detaljeret risikoanalyse",
+      "winLossRatio": "Gevinst/tab-forhold",
+      "wins": "sejre",
+      "losses": "tab",
+      "avgProfitVsLoss": "Gennemsnitlig profit vs. gns. tab",
+      "openExposure": "Åben eksponering",
+      "openPositionCount": "åbne position(er)",
+      "stopLossCoverage": "Stop Loss-dækning",
+      "warningNoStopLoss": "position(er) uden stop loss!",
       "riskManagementAlert": "Risk Management Alert",
-      "riskDisclaimer": "Trading involves high risk. Past performance does not guarantee future results.",
-      "riskDisclaimerLine2": "Always use stop loss and proper position sizing.",
-      "riskDisclaimerLine3": "Roua never touches your funds — we only monitor your linked accounts via encrypted API keys.",
-      "warning": "Warning",
-      "quantityLabel": "Quantity",
-      "closePositionSymbolFailed": "Failed to close position {symbol}"
+      "riskDisclaimer": "Handel involverer høj risiko. Tidligere resultater garanterer ikke fremtidige resultater.",
+      "riskDisclaimerLine2": "Brug altid stop loss og korrekt positionsstørrelse.",
+      "riskDisclaimerLine3": "Roua rører aldrig dine penge - vi overvåger kun dine tilknyttede konti via krypterede API-nøgler.",
+      "warning": "Advarsel",
+      "quantityLabel": "Mængde",
+      "closePositionSymbolFailed": "Kunne ikke lukke position XPH0X"
     },
     "marketHours": {
-      "cryptoAlwaysOpen": "Crypto market is open 24/7",
-      "forexClosed": "Forex market closed — Weekend",
-      "usStocksOpen": "US Stock market is open",
-      "usStocksClosed": "US Stock market is closed",
-      "commoditiesOpen": "Commodities market is open",
-      "commoditiesClosed": "Commodities market is closed",
-      "open247": "Open 24/7",
-      "marketOpen": "Market Open",
-      "marketClosed": "Market Closed"
+      "cryptoAlwaysOpen": "Kryptomarkedet er åbent 24/7",
+      "forexClosed": "Forex-markedet er lukket — Weekend",
+      "usStocksOpen": "Det amerikanske aktiemarked er åbent",
+      "usStocksClosed": "Det amerikanske aktiemarked er lukket",
+      "commoditiesOpen": "Råvaremarkedet er åbent",
+      "commoditiesClosed": "Råvaremarkedet er lukket",
+      "open247": "Åbent 24/7",
+      "marketOpen": "Markedet er åbent",
+      "marketClosed": "Markedet er lukket"
     },
     "settings": {
       "title": "Settings",
@@ -2415,8 +2415,8 @@
       "disclaimerFull": "Prediction markets are an educational and analytical tool only. They do not constitute investment advice. Trading in prediction markets may be prohibited in some jurisdictions."
     },
     "globalLogic": {
-      "balanceUpdate": "Balance Update: {delta}",
-      "balanceChanged": "Balance changed from {from} to {to}"
+      "balanceUpdate": "Saldoopdatering: XPH0X",
+      "balanceChanged": "Saldo ændret fra{from}til XPH1X"
     },
     "priceAlert": {
       "priceAlert": "🔔 Price Alert: {symbol}",
@@ -2735,10 +2735,10 @@
       "collapseAria": "Collapse sidebar"
     },
     "sidebar": {
-      "title": "Sidebar",
+      "title": "Sidebjælke",
       "pin": "Pin",
-      "unpin": "Unpin",
-      "closeBtn": "Close"
+      "unpin": "Frigør",
+      "closeBtn": "Luk"
     },
     "rightPanel": {
       "decisionCenter": "Decision Center",
@@ -2751,18 +2751,18 @@
       "tabCouncil": "Council",
       "subtitleCouncil": "AI Council",
       "tabScanner": "Scanner",
-      "subtitleScanner": "Advanced Scan",
-      "tabSignals": "Signals",
-      "subtitleSignals": "Trading Signals",
+      "subtitleScanner": "Avanceret scanning",
+      "tabSignals": "Signaler",
+      "subtitleSignals": "Handelssignaler",
       "headlineExecutor": "Smart Executor",
-      "headlineStrategic": "Strategic Council",
-      "headlineCouncil": "Recommendation: {recommendation}",
+      "headlineStrategic": "Smart Executor Council",
+      "headlineCouncil": "XP",
       "headlineCouncilDefault": "AI Council",
-      "headlineScanner": "Scanning {symbol}",
-      "headlineScannerDefault": "Advanced Scanner",
-      "headlineSignals": "Trading Signals",
-      "headlineTrader": "Autonomous Trader",
-      "headlineDefault": "Decision Center"
+      "headlineScanner": "Scanning XPH0X",
+      "headlineScannerDefault": "Avanceret scanner",
+      "headlineSignals": "Handelssignaler",
+      "headlineTrader": "Autonom Trader",
+      "headlineDefault": "Beslutningscenter"
     },
     "scannerSidebar": {
       "scanTable": "Scan Table",
@@ -2866,10 +2866,10 @@
     },
     "orderBook": {
       "live": "LIVE",
-      "connecting": "CONNECTING",
+      "connecting": "FORBINDELSE",
       "sim": "SIM",
       "liveDepth": "LIVE DEPTH",
-      "lastPrice": "LAST PRICE"
+      "lastPrice": "SIDSTE PRIS"
     },
     "security2fa": {
       "title": "Two-Factor Authentication (2FA)",
@@ -2992,12 +2992,12 @@
       "toastOneDayAgo": "1 day ago",
       "sessionLocation1": "Riyadh, Saudi Arabia",
       "sessionLocation2": "Riyadh, Saudi Arabia",
-      "sessionLocation3": "Jeddah, Saudi Arabia",
+      "sessionLocation3": "Jeddah, Saudi-Arabien",
       "sessionLocation4": "Dubai, UAE",
-      "sessionLastActive1": "Now",
-      "sessionLastActive2": "3 hours ago",
-      "sessionLastActive3": "2 days ago",
-      "sessionLastActive4": "1 week ago"
+      "sessionLastActive1": "Nu",
+      "sessionLastActive2": "3 timer siden",
+      "sessionLastActive3": "2 dage siden",
+      "sessionLastActive4": "1 uge siden"
     },
     "chart": {
       "buy": "Buy",

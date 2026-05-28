@@ -968,7 +968,7 @@
       "accountDeletedDesc": "החשבון שלך יימחק בעוד 30 יום",
       "deleteError": "שגיאה",
       "deleteErrorDesc": "אירעה שגיאה בעת מחיקת חשבון",
-      "rouaUser": "Roua User"
+      "rouaUser": "משתמש Roua"
     },
     "apiDocs": {
       "title": "API Documentation",

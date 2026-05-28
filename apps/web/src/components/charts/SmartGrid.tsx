@@ -12,9 +12,10 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
+import type { CandleData } from '@/lib/charts/types';
 
 // ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
 class RequestQueue {
@@ -226,6 +227,348 @@ function normalizeSymbol(s: string): string {
   return s.toUpperCase().replace(/[/\-_]/g, '');
 }
 
+// ═══════════════════════════════════════════════════════════
+// CellToolOverlay — Inline overlay that appears WITHIN a cell
+// when AI/Draw/Ind/Trade is clicked. Each cell is independent.
+// ═══════════════════════════════════════════════════════════
+interface CellToolOverlayProps {
+  cellId: string;
+  cell: GridCell;
+  toolType: string;
+  candles: CandleData[];
+  currentPrice: number | null;
+  onClose: () => void;
+  onFocus: () => void;
+  onExecuteTrade?: (side: 'long' | 'short', entry: number, sl: number, tp: number) => void;
+}
+
+// AI Consensus result type
+interface AIConsensus {
+  signal: 'BUY' | 'SELL' | 'WAIT' | string;
+  confidence: number;
+  entry?: number;
+  sl?: number;
+  tp?: number;
+  reasoning?: string;
+  engines?: { name: string; signal: string; confidence: number }[];
+}
+
+function CellToolOverlay({
+  cellId, cell, toolType, candles, currentPrice, onClose, onFocus, onExecuteTrade,
+}: CellToolOverlayProps) {
+  const [aiData, setAiData] = useState<AIConsensus | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+
+  // Fetch AI consensus when tool is AI
+  useEffect(() => {
+    if (toolType !== 'ai') return;
+    let cancelled = false;
+    setAiLoading(true);
+    setAiError(null);
+
+    const fetchConsensus = async () => {
+      try {
+        const res = await fetch(`/api/ai/consensus?symbol=${encodeURIComponent(cell.symbol)}&timeframe=${cell.timeframe}`);
+        if (cancelled) return;
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const j = await res.json();
+        if (cancelled) return;
+        if (j.success && j.data) {
+          setAiData(j.data);
+        } else {
+          setAiError(j.error || 'لا توجد بيانات');
+        }
+      } catch (err: any) {
+        if (cancelled) return;
+        setAiError(err.message || 'خطأ في الاتصال');
+      } finally {
+        if (!cancelled) setAiLoading(false);
+      }
+    };
+
+    fetchConsensus();
+    return () => { cancelled = true; };
+  }, [toolType, cell.symbol, cell.timeframe]);
+
+  const signalColor = aiData?.signal === 'BUY' ? C.upColor : aiData?.signal === 'SELL' ? C.downColor : C.warning;
+
+  // ── AI Panel ──
+  if (toolType === 'ai') {
+    return (
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        maxHeight: '75%', zIndex: 20,
+        background: 'rgba(11,14,20,0.95)',
+        backdropFilter: 'blur(8px)',
+        borderTop: `2px solid ${signalColor}`,
+        borderRadius: '8px 8px 0 0',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'slideUp 0.2s ease-out',
+      }}
+      onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px',
+          background: `linear-gradient(90deg, ${signalColor}15, transparent)`,
+          borderBottom: `1px solid ${C.cardBorder}`,
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: signalColor, fontFamily: "'JetBrains Mono',monospace" }}>
+            AI
+          </span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+            {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
+          </span>
+          <div style={{ flex: 1 }} />
+          {/* Focus button — opens on main chart */}
+          <button onClick={onFocus} style={{
+            background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+          }}>
+            Focus
+          </button>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
+            fontSize: 10, lineHeight: 1, padding: '0 2px',
+          }}>x</button>
+        </div>
+
+        {/* Content */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '4px 8px', fontSize: 7.5 }}>
+          {aiLoading && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, padding: '8px 0' }}>
+              <div style={{ width: 16, height: 16, border: `2px solid ${C.cyan}`, borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+              <span style={{ color: C.textDim, fontSize: 7 }}>جاري التحليل...</span>
+            </div>
+          )}
+
+          {aiError && (
+            <div style={{ color: C.danger, fontSize: 7, textAlign: 'center', padding: 4 }}>
+              {aiError}
+            </div>
+          )}
+
+          {aiData && !aiLoading && (
+            <>
+              {/* Signal Badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                <span style={{
+                  padding: '2px 8px', borderRadius: 4, fontSize: 10, fontWeight: 900,
+                  fontFamily: "'JetBrains Mono',monospace",
+                  background: `${signalColor}20`, color: signalColor,
+                  border: `1px solid ${signalColor}40`,
+                }}>
+                  {aiData.signal}
+                </span>
+                {aiData.confidence != null && (
+                  <span style={{ fontSize: 8, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+                    {aiData.confidence.toFixed(0)}% conf
+                  </span>
+                )}
+              </div>
+
+              {/* Entry/SL/TP */}
+              {(aiData.entry || aiData.sl || aiData.tp) && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
+                  {aiData.entry && (
+                    <div style={{ background: 'rgba(0,212,255,0.08)', borderRadius: 3, padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 6 }}>Entry </span>
+                      <span style={{ color: C.cyan, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                        {aiData.entry.toFixed(aiData.entry > 100 ? 1 : 5)}
+                      </span>
+                    </div>
+                  )}
+                  {aiData.sl && (
+                    <div style={{ background: 'rgba(255,71,87,0.08)', borderRadius: 3, padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 6 }}>SL </span>
+                      <span style={{ color: C.danger, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                        {aiData.sl.toFixed(aiData.sl > 100 ? 1 : 5)}
+                      </span>
+                    </div>
+                  )}
+                  {aiData.tp && (
+                    <div style={{ background: 'rgba(0,255,163,0.08)', borderRadius: 3, padding: '2px 5px' }}>
+                      <span style={{ color: C.textMuted, fontSize: 6 }}>TP </span>
+                      <span style={{ color: C.success, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+                        {aiData.tp.toFixed(aiData.tp > 100 ? 1 : 5)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Execute Trade */}
+              {aiData.signal !== 'WAIT' && aiData.entry && onExecuteTrade && (
+                <button
+                  onClick={() => onExecuteTrade(
+                    aiData.signal === 'BUY' ? 'long' : 'short',
+                    aiData.entry!,
+                    aiData.sl || aiData.entry * (aiData.signal === 'BUY' ? 0.98 : 1.02),
+                    aiData.tp || aiData.entry * (aiData.signal === 'BUY' ? 1.02 : 0.98),
+                  )}
+                  style={{
+                    width: '100%', padding: '3px 0', borderRadius: 4,
+                    background: `${signalColor}20`, border: `1px solid ${signalColor}40`,
+                    color: signalColor, fontSize: 8, fontWeight: 800, cursor: 'pointer',
+                    fontFamily: "'Cairo',sans-serif", marginBottom: 4,
+                  }}
+                >
+                  تنفيذ {aiData.signal === 'BUY' ? 'شراء' : 'بيع'}
+                </button>
+              )}
+
+              {/* Reasoning */}
+              {aiData.reasoning && (
+                <div style={{ color: C.textDim, fontSize: 7, lineHeight: 1.4, marginBottom: 4, maxHeight: 60, overflow: 'auto' }}>
+                  {aiData.reasoning}
+                </div>
+              )}
+
+              {/* Engine breakdown */}
+              {aiData.engines && aiData.engines.length > 0 && (
+                <div style={{ borderTop: `1px solid ${C.cardBorder}`, paddingTop: 3, marginTop: 2 }}>
+                  <span style={{ color: C.textMuted, fontSize: 6, fontWeight: 700 }}>ENGINES</span>
+                  {aiData.engines.map((eng, i) => {
+                    const engColor = eng.signal === 'BUY' ? C.upColor : eng.signal === 'SELL' ? C.downColor : C.warning;
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '1px 0' }}>
+                        <span style={{ fontSize: 6.5, color: C.textDim, flex: 1 }}>{eng.name}</span>
+                        <span style={{ fontSize: 6.5, color: engColor, fontWeight: 700 }}>{eng.signal}</span>
+                        <span style={{ fontSize: 6, color: C.textMuted }}>{eng.confidence?.toFixed(0)}%</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Trading Panel ──
+  if (toolType === 'trading') {
+    return (
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        maxHeight: '60%', zIndex: 20,
+        background: 'rgba(11,14,20,0.95)',
+        backdropFilter: 'blur(8px)',
+        borderTop: `2px solid ${C.gold}`,
+        borderRadius: '8px 8px 0 0',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'slideUp 0.2s ease-out',
+      }}
+      onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px',
+          background: `linear-gradient(90deg, ${C.gold}15, transparent)`,
+          borderBottom: `1px solid ${C.cardBorder}`,
+        }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: C.gold }}>Trade</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={onFocus} style={{
+            background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+          }}>Focus</button>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
+          }}>x</button>
+        </div>
+        <div style={{ padding: '6px 8px', display: 'flex', gap: 6 }}>
+          <button onClick={() => {
+            if (currentPrice && onExecuteTrade) {
+              onExecuteTrade('long', currentPrice, currentPrice * 0.98, currentPrice * 1.02);
+              onClose();
+            }
+          }} style={{
+            flex: 1, padding: '6px 0', borderRadius: 5,
+            background: `${C.upColor}20`, border: `1px solid ${C.upColor}40`,
+            color: C.upColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
+            fontFamily: "'Cairo',sans-serif",
+          }}>
+            شراء / Long
+          </button>
+          <button onClick={() => {
+            if (currentPrice && onExecuteTrade) {
+              onExecuteTrade('short', currentPrice, currentPrice * 1.02, currentPrice * 0.98);
+              onClose();
+            }
+          }} style={{
+            flex: 1, padding: '6px 0', borderRadius: 5,
+            background: `${C.downColor}20`, border: `1px solid ${C.downColor}40`,
+            color: C.downColor, fontSize: 9, fontWeight: 800, cursor: 'pointer',
+            fontFamily: "'Cairo',sans-serif",
+          }}>
+            بيع / Short
+          </button>
+        </div>
+        {currentPrice && (
+          <div style={{ padding: '0 8px 6px', textAlign: 'center' }}>
+            <span style={{ color: C.textDim, fontSize: 7 }}>السعر الحالي: </span>
+            <span style={{ color: C.text, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace" }}>
+              {currentPrice.toFixed(currentPrice > 100 ? 1 : 5)}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── Drawing / Indicators placeholder ──
+  return (
+    <div style={{
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      maxHeight: '50%', zIndex: 20,
+      background: 'rgba(11,14,20,0.95)',
+      backdropFilter: 'blur(8px)',
+      borderTop: `2px solid ${C.cyan}`,
+      borderRadius: '8px 8px 0 0',
+      display: 'flex', flexDirection: 'column',
+      overflow: 'hidden',
+      animation: 'slideUp 0.2s ease-out',
+    }}
+    onClick={e => e.stopPropagation()}
+    >
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 4,
+        padding: '4px 8px',
+        background: `linear-gradient(90deg, ${C.cyan}15, transparent)`,
+        borderBottom: `1px solid ${C.cardBorder}`,
+      }}>
+        <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan }}>
+          {toolType === 'drawing' ? 'Draw' : 'Indicators'}
+        </span>
+        <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
+        <div style={{ flex: 1 }} />
+        <button onClick={onFocus} style={{
+          background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
+          borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+        }}>Focus</button>
+        <button onClick={onClose} style={{
+          background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
+        }}>x</button>
+      </div>
+      <div style={{ padding: '8px', textAlign: 'center' }}>
+        <span style={{ color: C.textDim, fontSize: 8, fontFamily: "'Cairo',sans-serif" }}>
+          {toolType === 'drawing'
+            ? 'للرسم على الشارت، اضغط Focus لفتح الشارت الرئيسي'
+            : 'لإضافة مؤشرات، اضغط Focus لفتح الشارت الرئيسي'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export function SmartGrid({
   onClose,
   defaultSymbol,
@@ -313,6 +656,10 @@ export function SmartGrid({
   const [fullscreenCellId, setFullscreenCellId] = useState<string | null>(null);
   const [showGridSelector, setShowGridSelector] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
+  // Track which cell has a tool overlay open (cellId → tool type)
+  const [cellToolOpen, setCellToolOpen] = useState<Map<string, string>>(new Map());
+  // Store candle data per cell for AI panel
+  const cellCandleDataRef = useRef<Map<string, CandleData[]>>(new Map());
 
   // Set active cell on first render
   useEffect(() => {
@@ -440,6 +787,9 @@ export function SmartGrid({
       }
 
       console.log('[SmartGrid] Loaded', candleData.length, 'candles for', cell.symbol, cell.timeframe);
+
+      // Store candle data for AI panel overlay
+      cellCandleDataRef.current.set(cell.id, candleData as any);
 
       const currentPrice = candleData[candleData.length - 1].close;
       const prevPrice = candleData.length > 1 ? candleData[candleData.length - 2].close : null;
@@ -754,16 +1104,30 @@ export function SmartGrid({
     setShowGridSelector(false);
   }, [defaultSymbol]);
 
-  // ── Open tool: enter compact mode instead of closing SmartGrid ──
-  // When user clicks AI/Draw/Ind/Trade, SmartGrid shrinks to the left
-  // so the main chart + tool panel become visible on the right.
-  // Only "Focus" and double-click close SmartGrid entirely.
+  // ── Open tool: show inline overlay within the cell ──
+  // When user clicks AI/Draw/Ind/Trade on a small chart,
+  // the tool overlay appears INSIDE that cell — NOT on the main chart.
+  // SmartGrid stays full-screen. Only "Focus" switches to main chart.
   const handleOpenTool = useCallback((cell: GridCell, openTool: string) => {
-    if (onSwitchToChart) {
-      onSwitchToChart(cell.symbol, cell.timeframe, openTool);
-    }
-    setCompactMode(true);
-  }, [onSwitchToChart]);
+    setCellToolOpen(prev => {
+      const next = new Map(prev);
+      // Toggle: if same tool is open on this cell, close it
+      if (next.get(cell.id) === openTool) {
+        next.delete(cell.id);
+      } else {
+        next.set(cell.id, openTool);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleCloseTool = useCallback((cellId: string) => {
+    setCellToolOpen(prev => {
+      const next = new Map(prev);
+      next.delete(cellId);
+      return next;
+    });
+  }, []);
 
   // ── Focus chart: close SmartGrid entirely and switch main chart ──
   const handleFocusChart = useCallback((cell: GridCell) => {
@@ -1006,24 +1370,40 @@ export function SmartGrid({
           </button>
         )}
 
-        {/* Focus */}
+        {/* Focus — switches to main chart and closes SmartGrid */}
         {activeCell && onSwitchToChart && (
-          <button style={{ ...tbBtn, background: compactMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,212,255,0.12)', color: compactMode ? C.textDim : C.cyan, border: compactMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,212,255,0.25)' }}
+          <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
             onClick={() => handleFocusChart(activeCell)}>
             Focus
           </button>
         )}
 
-        {/* Quick tools */}
-        {activeCell && onSwitchToChart && (
+        {/* Quick tools — open inline overlay on active cell */}
+        {activeCell && (
           <>
-            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'drawing')}
+            <button style={{
+              ...tbBtn,
+              background: cellToolOpen.get(activeCell.id) === 'drawing' ? 'rgba(0,212,255,0.2)' : undefined,
+              color: cellToolOpen.get(activeCell.id) === 'drawing' ? C.cyan : undefined,
+            }} onClick={() => handleOpenTool(activeCell, 'drawing')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Draw</button>
-            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'indicators')}
+            <button style={{
+              ...tbBtn,
+              background: cellToolOpen.get(activeCell.id) === 'indicators' ? 'rgba(0,212,255,0.2)' : undefined,
+              color: cellToolOpen.get(activeCell.id) === 'indicators' ? C.cyan : undefined,
+            }} onClick={() => handleOpenTool(activeCell, 'indicators')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Ind</button>
-            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'ai')}
+            <button style={{
+              ...tbBtn,
+              background: cellToolOpen.get(activeCell.id) === 'ai' ? 'rgba(0,212,255,0.2)' : undefined,
+              color: cellToolOpen.get(activeCell.id) === 'ai' ? C.cyan : undefined,
+            }} onClick={() => handleOpenTool(activeCell, 'ai')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>AI</button>
-            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'trading')}
+            <button style={{
+              ...tbBtn,
+              background: cellToolOpen.get(activeCell.id) === 'trading' ? 'rgba(0,212,255,0.2)' : undefined,
+              color: cellToolOpen.get(activeCell.id) === 'trading' ? C.cyan : undefined,
+            }} onClick={() => handleOpenTool(activeCell, 'trading')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Trade</button>
           </>
         )}
@@ -1162,7 +1542,7 @@ export function SmartGrid({
               </div>
 
               {/* Chart container */}
-              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: cellToolOpen.has(cell.id) ? 'visible' : 'hidden', position: 'relative' }}>
                 {/* Unavailable overlay */}
                 {isUnavailable && (
                   <div style={{
@@ -1187,6 +1567,36 @@ export function SmartGrid({
                       إعادة المحاولة
                     </button>
                   </div>
+                )}
+
+                {/* ═══ INLINE TOOL OVERLAY ═══ */}
+                {/* When AI/Draw/Ind/Trade is clicked on a cell, show an overlay
+                    WITHIN that cell — not on the main chart. Each cell is independent. */}
+                {cellToolOpen.has(cell.id) && (
+                  <CellToolOverlay
+                    cellId={cell.id}
+                    cell={cell}
+                    toolType={cellToolOpen.get(cell.id)!}
+                    candles={cellCandleDataRef.current.get(cell.id) || []}
+                    currentPrice={state?.currentPrice ?? null}
+                    onClose={() => handleCloseTool(cell.id)}
+                    onFocus={() => handleFocusChart(cell)}
+                    onExecuteTrade={(side, entry, sl, tp) => {
+                      const { addTrade } = usePaperTradesStore.getState();
+                      addTrade({
+                        symbol: cell.symbol,
+                        side,
+                        qty: 0.01,
+                        entryPrice: entry,
+                        currentPrice: entry,
+                        entryTime: Date.now(),
+                        strategy: 'ai',
+                        source: 'manual',
+                        sl,
+                        tp,
+                      });
+                    }}
+                  />
                 )}
               </div>
 
@@ -1232,7 +1642,10 @@ export function SmartGrid({
         <span style={{ color: C.cyan, fontSize: 7 }}>Auto-sync 15s</span>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes slideUp { from { transform: translateY(100%); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+      `}</style>
     </div>
   );
 }

@@ -210,6 +210,8 @@ export function SmartGrid({
   const crosshairSubsRef = useRef<Array<() => void>>([]);
   const initializedCellsRef = useRef<Set<string>>(new Set());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // AbortControllers per cell — cancel stale fetch requests when cell is destroyed
+  const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
 
   // ═══ CRITICAL FIX: Read positions/trades directly from stores ═══
   // Previous version accepted openPositions as a prop with = [] default,
@@ -307,6 +309,12 @@ export function SmartGrid({
       return;
     }
 
+    // Cancel any previous request for this cell
+    const prevController = abortControllersRef.current.get(cell.id);
+    if (prevController) { try { prevController.abort(); } catch {} }
+    const controller = new AbortController();
+    abortControllersRef.current.set(cell.id, controller);
+
     if (pendingLoadsRef.current.has(cell.id)) return;
     pendingLoadsRef.current.add(cell.id);
 
@@ -320,10 +328,10 @@ export function SmartGrid({
     let detectedSource: DataSource = 'unavailable';
 
     try {
-      // Fetch real data from API
+      // Fetch real data from API (with abort signal)
       const url = `/api/exchange/history/${encodeURIComponent(cell.symbol)}?interval=${cell.timeframe}`;
       console.log('[SmartGrid] Fetching:', url);
-      const res = await fetch(url);
+      const res = await fetch(url, { signal: controller.signal });
       const j = await res.json();
       console.log('[SmartGrid] Response for', cell.symbol, cell.timeframe, ':', j.success, j.data?.length, 'candles, source:', j.source || j.data?.[0]?.source);
 
@@ -366,6 +374,12 @@ export function SmartGrid({
       const prevPrice = candleData.length > 1 ? candleData[candleData.length - 2].close : null;
       const changePercent = prevPrice && prevPrice !== 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
 
+      // Guard: skip if cell was destroyed during fetch
+      if (!container.isConnected || controller.signal.aborted) {
+        pendingLoadsRef.current.delete(cell.id);
+        return;
+      }
+
       const existingChart = chartInstancesRef.current.get(cell.id);
       const existingSeries = seriesRefs.current.get(cell.id);
 
@@ -400,6 +414,12 @@ export function SmartGrid({
           candleCount: candleData.length, dataSource: detectedSource,
           lastUpdated: Date.now(), retryCount: 0,
         });
+        pendingLoadsRef.current.delete(cell.id);
+        return;
+      }
+
+      // Guard: skip if cell was destroyed during fetch
+      if (!container.isConnected || controller.signal.aborted) {
         pendingLoadsRef.current.delete(cell.id);
         return;
       }
@@ -464,6 +484,11 @@ export function SmartGrid({
         lastUpdated: Date.now(), retryCount: 0,
       });
     } catch (err: any) {
+      // Don't show error for aborted requests (cell was destroyed)
+      if (err?.name === 'AbortError' || controller.signal.aborted) {
+        pendingLoadsRef.current.delete(cell.id);
+        return;
+      }
       console.error('[SmartGrid] loadDataForCell ERROR:', err);
       updateCellState(cell.id, {
         loading: false,
@@ -474,6 +499,7 @@ export function SmartGrid({
       });
     } finally {
       pendingLoadsRef.current.delete(cell.id);
+      abortControllersRef.current.delete(cell.id);
     }
   }, [updateCellState, getTradesForSymbol]); // ← STABLE: both have [] or [stable] deps
 
@@ -583,7 +609,7 @@ export function SmartGrid({
 
   // ── Crosshair time sync (ALWAYS ON) ──
   useEffect(() => {
-    crosshairSubsRef.current.forEach(unsub => unsub());
+    crosshairSubsRef.current.forEach(unsub => { try { unsub(); } catch {} });
     crosshairSubsRef.current = [];
 
     const charts = Array.from(chartInstancesRef.current.entries());
@@ -595,21 +621,30 @@ export function SmartGrid({
           if (!range) return;
           charts.forEach(([otherId, otherChart]) => {
             if (otherId === id) return;
+            // Guard: chart may have been destroyed
+            if (!chartInstancesRef.current.has(otherId)) return;
             try { otherChart.timeScale().setVisibleRange(range); } catch {}
           });
         });
-        crosshairSubsRef.current.push(unsub);
+        if (typeof unsub === 'function') {
+          crosshairSubsRef.current.push(unsub);
+        }
       } catch {}
     });
 
     return () => {
-      crosshairSubsRef.current.forEach(unsub => unsub());
+      crosshairSubsRef.current.forEach(unsub => { try { unsub(); } catch {} });
       crosshairSubsRef.current = [];
     };
   }, [cells]);
 
   // ── Cell Management ──
   const destroyCellChart = useCallback((cellId: string) => {
+    // Cancel any in-flight fetch request for this cell
+    const controller = abortControllersRef.current.get(cellId);
+    if (controller) { try { controller.abort(); } catch {} }
+    abortControllersRef.current.delete(cellId);
+
     const chart = chartInstancesRef.current.get(cellId);
     if (chart) { try { chart.remove(); } catch {} }
     chartInstancesRef.current.delete(cellId);
@@ -617,6 +652,7 @@ export function SmartGrid({
     volumeSeriesRefs.current.delete(cellId);
     initializedCellsRef.current.delete(cellId);
     priceLineIdsRef.current.delete(cellId);
+    pendingLoadsRef.current.delete(cellId);
   }, []);
 
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {

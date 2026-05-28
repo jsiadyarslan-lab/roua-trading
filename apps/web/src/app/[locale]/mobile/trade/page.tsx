@@ -1,70 +1,95 @@
 'use client'
-import { useRouter } from '@/i18n/navigation'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { useAgentStore, AgentStatus, StrategyType } from '@/hooks/useAgentStore'
-import { useEffect, useCallback } from 'react'
-import { Cpu, DollarSign, Activity, Shield, ChevronLeft } from 'lucide-react'
+import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { usePositionsStore } from '@/hooks/usePositionsStore'
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+
+const T = { bg:'#060A14',card:'#0D1425',border:'rgba(255,255,255,0.06)',cyan:'#00B4FF',green:'#00FFA3',red:'#FF3B5C',text:'#F0F2F5',muted:'rgba(255,255,255,0.4)' }
+const SYMS = ['BTC/USD','ETH/USD','SOL/USD','XAU/USD','EUR/USD','BNB/USD','XRP/USD','ADA/USD']
+const fmt = (n:number,d=2)=>Number.isFinite(n)&&n?n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'
 
 export default function TradePage() {
-  const router = useRouter()
-  const t = useTranslations('mobile.trade')
   const tc = useTranslations('common')
-  const { agentState, loading, fetchStatus, startAgent, stopAgent, startAutoRefresh, stopAutoRefresh } = useAgentStore()
-  const status = agentState?.status ?? null
-  const isRunning = status === AgentStatus.RUNNING
-  const strategy = agentState?.config?.strategy ?? StrategyType.AUTO
-  const dailyPnL = Number(agentState?.dailyPnL ?? 0)
-  const dailyTrades = Number(agentState?.dailyTradesCount ?? 0)
-  const consecutiveLosses = Number(agentState?.consecutiveLosses ?? 0)
-  const isPaper = agentState?.config?.isPaperTrading ?? false
+  const { selectedSymbol, setSelectedSymbol } = useSymbolStore()
+  const quotes = useMarketStore(s=>s.quotes)
+  const { refreshAfterTrade } = usePositionsStore()
+  const { addTrade } = usePaperTradesStore()
+  const { addNotification } = useNotificationStore()
 
-  useEffect(() => { fetchStatus(); startAutoRefresh(); return () => stopAutoRefresh() }, [fetchStatus, startAutoRefresh, stopAutoRefresh])
+  const [side, setSide] = useState<'buy'|'sell'>('buy')
+  const [qty, setQty] = useState('0.01')
+  const [sl, setSl] = useState('')
+  const [tp, setTp] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState<{t:string;ok:boolean}|null>(null)
 
-  const statusColor = isRunning ? '#00FFA3' : status === AgentStatus.EMERGENCY_STOP ? '#FF4757' : status === AgentStatus.DAILY_LIMIT_REACHED ? '#FFB800' : '#8B92A8'
-  const statusLabel = isRunning ? t('statusRunning') : status === AgentStatus.EMERGENCY_STOP ? t('statusEmergencyStop') : status === AgentStatus.DAILY_LIMIT_REACHED ? t('statusLossLimit') : t('statusWaiting')
+  const q = quotes[selectedSymbol]
+  const price = q?.price||0
+  const chg = q?.changePercent||0
 
-  const STRAT: Record<string, string> = {
-    AUTO: t('strategyAuto'),
-    SWING: t('strategySwing'),
-    GRID: t('strategyGrid'),
-    MEAN_REVERSION: t('strategyMeanRevert'),
-    MOMENTUM_BREAKOUT: t('strategyBreakout'),
-    DCA: t('strategyDCA'),
-    VWAP_RSI: t('strategyVwapRsi'),
+  const autoCalc = ()=>{ if(!price) return; setSl((side==='buy'?price*0.985:price*1.015).toFixed(2)); setTp((side==='buy'?price*1.02:price*0.98).toFixed(2)) }
+
+  const execute = async()=>{
+    const qv = parseFloat(qty)
+    if(!qv||qv<=0){ setMsg({t:'كمية غير صالحة',ok:false}); return }
+    setLoading(true); setMsg(null)
+    try {
+      const body:any = {symbol:selectedSymbol,side,qty:qv,type:'market'}
+      if(sl) body.stop_loss=parseFloat(sl)
+      if(tp) body.take_profit=parseFloat(tp)
+      const r = await fetch('/api/alpaca/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+      const j = await r.json()
+      if(j.success){
+        addTrade({symbol:selectedSymbol,side:side==='buy'?'long':'short',qty:qv,entryPrice:j.filledAvgPrice||price,currentPrice:price,sl:sl?parseFloat(sl):undefined,tp:tp?parseFloat(tp):undefined,source:'manual',entryTime:Date.now()})
+        addNotification({source:'trade',priority:'high',action:side.toUpperCase() as any,title:`${side==='buy'?tc('buy'):tc('sell')} ${selectedSymbol}`,body:`تم @ $${fmt(j.filledAvgPrice||price)}`,pair:selectedSymbol,price:j.filledAvgPrice||price})
+        refreshAfterTrade()
+        setMsg({t:`✅ تم التنفيذ @ $${fmt(j.filledAvgPrice||price)}`,ok:true})
+      } else { setMsg({t:`❌ ${j.error||'فشل التنفيذ'}`,ok:false}) }
+    } catch { setMsg({t:'❌ خطأ في الاتصال',ok:false}) }
+    finally { setLoading(false); setTimeout(()=>setMsg(null),4000) }
   }
 
-  const handleToggle = useCallback(async () => { if (isRunning) await stopAgent(false); else await startAgent(strategy) }, [isRunning, strategy, startAgent, stopAgent])
-
   return (
-    <div className="m-page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => router.back()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><ChevronLeft size={18} color="rgba(255,255,255,0.6)" /></button>
-        <span style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>{t('agentTitle')}</span>
+    <div style={{minHeight:'100%',background:T.bg}}>
+      <div style={{padding:'14px 18px 10px',borderBottom:`1px solid ${T.border}`,background:'rgba(6,10,20,0.9)'}}>
+        <div style={{fontSize:11,color:T.muted,fontFamily:"'Cairo',sans-serif",marginBottom:2}}>تداول سريع</div>
+        <div style={{fontSize:20,fontWeight:900,color:T.text,fontFamily:'monospace'}}>{selectedSymbol}</div>
+        <div style={{fontSize:24,fontWeight:900,color:T.cyan,fontFamily:'monospace',marginTop:2}}>${fmt(price)}</div>
       </div>
-
-      <div className="m-card">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 12, background: isRunning ? 'linear-gradient(135deg, #FF9F43, #A259FF)' : 'rgba(139,146,168,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Cpu size={20} color={isRunning ? '#FFF' : '#8B92A8'} /></div>
-            <div><div style={{ fontSize: 15, fontWeight: 800, color: '#FFF', fontFamily: 'var(--cairo)' }}>{t('agentTitle')}</div><div style={{ fontSize: 10, color: '#FF9F43', fontFamily: 'var(--cairo)', fontWeight: 700 }}>{t('agentDesc')}</div></div>
-          </div>
+      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:12}}>
+        {/* Symbol */}
+        <div style={{display:'flex',gap:6,overflow:'auto',paddingBottom:2}}>
+          {SYMS.map(s=><button key={s} onClick={()=>setSelectedSymbol(s)} style={{flexShrink:0,padding:'5px 12px',borderRadius:10,border:'none',cursor:'pointer',background:s===selectedSymbol?'rgba(0,180,255,0.15)':'rgba(255,255,255,0.04)',color:s===selectedSymbol?T.cyan:T.muted,fontSize:11,fontWeight:700,fontFamily:'monospace',WebkitTapHighlightColor:'transparent'}}>{s.split('/')[0]}</button>)}
         </div>
-        <div style={{ padding: '8px 12px', borderRadius: 12, background: `${statusColor}08`, border: `0.5px solid ${statusColor}18`, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 6, height: 6, borderRadius: 3, background: statusColor }} />
-            <span style={{ fontSize: 11, fontWeight: 700, color: statusColor, fontFamily: 'var(--cairo)' }}>{statusLabel}</span>
-            {isPaper && isRunning && <span style={{ fontSize: 7, fontWeight: 700, padding: '1px 5px', borderRadius: 5, background: 'rgba(0,212,255,0.1)', color: '#00D4FF', border: '0.5px solid rgba(0,212,255,0.2)', fontFamily: 'var(--cairo)' }}>{tc('paper')}</span>}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 9, color: '#8B92A8', fontFamily: 'var(--cairo)' }}>{STRAT[strategy] || strategy}</span>
-            <button onClick={handleToggle} disabled={loading} style={{ padding: '4px 12px', borderRadius: 8, background: isRunning ? 'rgba(255,71,87,0.1)' : 'linear-gradient(135deg, #00FFC6, #0A84FF)', border: isRunning ? '0.5px solid rgba(255,71,87,0.2)' : 'none', color: isRunning ? '#FF4757' : '#000', fontSize: 9, fontWeight: 800, fontFamily: 'var(--cairo)', cursor: 'pointer' }}>{isRunning ? tc('off') : tc('on')}</button>
-          </div>
+        {/* Side */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,background:'rgba(255,255,255,0.03)',padding:4,borderRadius:16}}>
+          {(['buy','sell'] as const).map(s=><button key={s} onClick={()=>setSide(s)} style={{padding:'16px 0',borderRadius:12,border:'none',cursor:'pointer',background:side===s?(s==='buy'?'linear-gradient(135deg,#00FFA3,#10B981)':'linear-gradient(135deg,#FF3B5C,#EF4444)'):'transparent',color:side===s?'#fff':(s==='buy'?T.green:T.red),fontSize:16,fontWeight:900,fontFamily:"'Cairo',sans-serif",transition:'all 0.2s',WebkitTapHighlightColor:'transparent'}}>{s==='buy'?'▲ شراء':'▼ بيع'}</button>)}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6 }}>
-          <div style={{ padding: '8px 6px', borderRadius: 12, textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}><DollarSign size={11} color={dailyPnL >= 0 ? '#00FFA3' : '#FF4757'} style={{ margin: '0 auto 3px' }} /><div style={{ fontSize: 13, fontWeight: 800, color: dailyPnL >= 0 ? '#00FFA3' : '#FF4757', fontFamily: 'var(--mono)' }}>{dailyPnL >= 0 ? '+' : ''}{dailyPnL.toFixed(2)}</div><div style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--cairo)' }}>{t('dailyProfit')}</div></div>
-          <div style={{ padding: '8px 6px', borderRadius: 12, textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}><Activity size={11} color="#00D4FF" style={{ margin: '0 auto 3px' }} /><div style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'var(--mono)' }}>{dailyTrades}</div><div style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--cairo)' }}>{t('trades')}</div></div>
-          <div style={{ padding: '8px 6px', borderRadius: 12, textAlign: 'center', background: 'rgba(255,255,255,0.02)' }}><Shield size={11} color={consecutiveLosses >= 3 ? '#FF4757' : '#B388FF'} style={{ margin: '0 auto 3px' }} /><div style={{ fontSize: 13, fontWeight: 800, color: consecutiveLosses >= 3 ? '#FF4757' : '#FFF', fontFamily: 'var(--mono)' }}>{consecutiveLosses}</div><div style={{ fontSize: 8, color: '#8B92A8', fontFamily: 'var(--cairo)' }}>{t('consecutiveLosses')}</div></div>
+        {/* Qty */}
+        <div>
+          <label style={{fontSize:11,color:T.muted,fontWeight:700,fontFamily:"'Cairo',sans-serif",display:'block',marginBottom:4}}>الكمية</label>
+          <input value={qty} onChange={e=>setQty(e.target.value)} type="number" step="0.01" style={{width:'100%',background:'rgba(255,255,255,0.03)',border:`1px solid ${T.border}`,borderRadius:10,color:T.text,fontSize:18,padding:'14px',fontFamily:'monospace',fontWeight:800,outline:'none',boxSizing:'border-box'}}/>
         </div>
+        {/* SL/TP */}
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+          {[{l:'وقف الخسارة SL',v:sl,set:setSl,c:T.red},{l:'جني الأرباح TP',v:tp,set:setTp,c:T.green}].map(f=>(
+            <div key={f.l}>
+              <label style={{fontSize:10,color:f.c,fontWeight:700,fontFamily:"'Cairo',sans-serif",display:'block',marginBottom:4}}>{f.l}</label>
+              <input value={f.v} onChange={e=>f.set(e.target.value)} type="number" placeholder="0.00" style={{width:'100%',background:`${f.c}08`,border:`1px solid ${f.c}25`,borderRadius:10,color:f.c,fontSize:14,padding:'12px',fontFamily:'monospace',fontWeight:800,outline:'none',boxSizing:'border-box'}}/>
+            </div>
+          ))}
+        </div>
+        {/* Auto */}
+        <button onClick={autoCalc} style={{width:'100%',background:'rgba(0,180,255,0.06)',border:'1px solid rgba(0,180,255,0.15)',borderRadius:10,color:T.cyan,fontSize:12,fontWeight:700,padding:'10px 0',cursor:'pointer',fontFamily:"'Cairo',sans-serif",WebkitTapHighlightColor:'transparent'}}>⚡ حساب SL/TP تلقائياً (1.5% / 2%)</button>
+        {/* Msg */}
+        {msg&&<div style={{padding:'12px',borderRadius:10,background:msg.ok?'rgba(0,255,163,0.1)':'rgba(255,59,92,0.1)',border:`1px solid ${msg.ok?'rgba(0,255,163,0.25)':'rgba(255,59,92,0.25)'}`,color:msg.ok?T.green:T.red,fontSize:13,fontWeight:700,fontFamily:"'Cairo',sans-serif",textAlign:'center'}}>{msg.t}</div>}
+        {/* Execute */}
+        <button onClick={execute} disabled={loading} style={{width:'100%',padding:'18px 0',borderRadius:16,border:'none',cursor:loading?'not-allowed':'pointer',background:side==='buy'?'linear-gradient(135deg,#00FFA3,#10B981)':'linear-gradient(135deg,#FF3B5C,#EF4444)',color:'#fff',fontSize:18,fontWeight:900,fontFamily:"'Cairo',sans-serif",opacity:loading?0.7:1,boxShadow:side==='buy'?'0 0 24px rgba(0,255,163,0.25)':'0 0 24px rgba(255,59,92,0.25)',WebkitTapHighlightColor:'transparent'}}>
+          {loading?'جاري التنفيذ...':`${side==='buy'?'▲ شراء':'▼ بيع'} ${selectedSymbol}`}
+        </button>
       </div>
     </div>
   )

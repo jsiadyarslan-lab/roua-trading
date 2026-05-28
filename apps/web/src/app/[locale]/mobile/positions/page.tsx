@@ -1,40 +1,97 @@
 'use client'
-import { useRouter } from '@/i18n/navigation'
+import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
-import { useEffect, useMemo } from 'react'
-import { Activity, ChevronLeft } from 'lucide-react'
+import { useMarketStore } from '@/hooks/useMarketStore'
+import { useNotificationStore } from '@/hooks/useNotificationStore'
+import { RefreshCw, X } from 'lucide-react'
+
+const T = { bg:'#060A14',card:'#0D1425',border:'rgba(255,255,255,0.06)',cyan:'#00B4FF',green:'#00FFA3',red:'#FF3B5C',amber:'#FFB800',text:'#F0F2F5',muted:'rgba(255,255,255,0.4)' }
+const fmt = (n:number,d=2)=>Number.isFinite(n)&&n?n.toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d}):'—'
 
 export default function PositionsPage() {
-  const router = useRouter()
-  const t = useTranslations('mobile.positions')
   const tc = useTranslations('common')
-  const { positions, fetchPositions } = usePositionsStore()
-  useEffect(() => { fetchPositions() }, [fetchPositions])
-  const openPositions = useMemo(() => positions.filter(p => p.status === 'open'), [positions])
+  const positions = usePositionsStore(s=>s.positions)
+  const account = usePositionsStore(s=>s.account)
+  const fetchPositions = usePositionsStore(s=>s.fetchPositions)
+  const fetchAccount = usePositionsStore(s=>s.fetchAccount)
+  const refreshAfterTrade = usePositionsStore(s=>s.refreshAfterTrade)
+  const addNotif = useNotificationStore(s=>s.addNotification)
+  const quotes = useMarketStore(s=>s.quotes)
+  const [closing, setClosing] = useState<string|null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  useEffect(()=>{ fetchPositions(); fetchAccount() },[fetchPositions,fetchAccount])
+
+  const totalPnl = positions.reduce((s,p)=>s+(p.unrealizedPnl||0),0)
+  const equity = Number(account?.equity)||0
+
+  const refresh = async()=>{ setRefreshing(true); await Promise.all([fetchPositions(),fetchAccount()]); setRefreshing(false) }
+
+  const closePos = async(pos:any)=>{
+    const id = pos.dbId||pos.id; if(!id) return
+    setClosing(id)
+    try {
+      const url = /^[0-9a-f-]{36}$/i.test(id)?`/api/positions/${id}/close`:`/api/alpaca/positions/${(pos.rawSymbol||pos.symbol).replace('/','')}/close`
+      const r = await fetch(url,{method:'DELETE'})
+      if(r.ok){ addNotif({source:'trade',priority:'high',action:'CLOSE' as any,title:`إغلاق ${pos.symbol}`,body:'تم إغلاق الصفقة',pair:pos.symbol,price:pos.currentPrice}); refreshAfterTrade() }
+    } catch {} finally { setClosing(null) }
+  }
 
   return (
-    <div className="m-page">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => router.back()} style={{ width: 36, height: 36, borderRadius: 8, background: 'rgba(255,255,255,0.05)', border: '0.5px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><ChevronLeft size={18} color="rgba(255,255,255,0.6)" /></button>
-        <span style={{ fontSize: 20, fontWeight: 900, color: '#FFF', fontFamily: 'var(--cairo)' }}>{t('title')}</span>
-      </div>
-      {openPositions.length === 0 ? (
-        <div className="m-card" style={{ textAlign: 'center', padding: 40 }}>
-          <Activity size={32} color="rgba(255,255,255,0.2)" style={{ margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#8B92A8', fontFamily: 'var(--cairo)' }}>{t('none')}</div>
-        </div>
-      ) : (
-        openPositions.map(p => (
-          <div key={p.id} className="m-card" onClick={() => router.push('/mobile/chart?symbol=' + p.symbol)} style={{ cursor: 'pointer' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#FFF', fontFamily: 'var(--mono)' }}>{p.symbol}</span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: p.side === 'long' ? '#00FFA3' : '#FF4757', fontFamily: 'var(--cairo)' }}>{p.side === 'long' ? tc('buy') : tc('sell')}</span>
-            </div>
-            <div style={{ fontSize: 11, color: '#8B92A8', fontFamily: 'var(--mono)' }}>{tc('quantity')}: {p.qty} | {tc('entry')}: ${typeof p.entryPrice === 'number' ? p.entryPrice.toFixed(2) : '—'}</div>
+    <div style={{minHeight:'100%',background:T.bg}}>
+      <div style={{padding:'14px 18px 10px',display:'flex',alignItems:'center',justifyContent:'space-between',borderBottom:`1px solid ${T.border}`,background:'rgba(6,10,20,0.9)'}}>
+        <div>
+          <div style={{fontSize:18,fontWeight:900,color:T.text,fontFamily:"'Cairo',sans-serif"}}>صفقاتي المفتوحة</div>
+          <div style={{fontSize:12,color:T.muted,fontFamily:'monospace',marginTop:2}}>
+            {positions.length} صفقة · P&L: <span style={{color:totalPnl>=0?T.green:T.red,fontWeight:700}}>{totalPnl>=0?'+':''}{fmt(totalPnl)}</span>
           </div>
-        ))
-      )}
+        </div>
+        <button onClick={refresh} style={{background:'rgba(255,255,255,0.05)',border:`1px solid ${T.border}`,borderRadius:10,padding:8,cursor:'pointer',color:T.muted,display:'flex',alignItems:'center',justifyContent:'center'}}>
+          <RefreshCw size={16} style={{animation:refreshing?'spin 1s linear infinite':undefined}}/>
+        </button>
+      </div>
+      <div style={{padding:'12px 16px',display:'flex',flexDirection:'column',gap:10}}>
+        {positions.length===0?(
+          <div style={{textAlign:'center',padding:'60px 20px',color:T.muted}}>
+            <div style={{fontSize:40,marginBottom:12}}>📭</div>
+            <div style={{fontSize:14,fontFamily:"'Cairo',sans-serif"}}>لا توجد صفقات مفتوحة</div>
+          </div>
+        ):positions.map(pos=>{
+          const pnl = pos.unrealizedPnl||0
+          const pnlPct = pos.unrealizedPnlPct||0
+          const isLong = pos.side?.toUpperCase()==='BUY'||pos.side?.toLowerCase()==='long'
+          const livePrice = quotes[pos.symbol]?.price||pos.currentPrice
+          const id = pos.dbId||pos.id||''
+          return (
+            <div key={id||pos.symbol} style={{background:T.card,borderRadius:16,border:`1px solid ${T.border}`,overflow:'hidden'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px 8px'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{width:8,height:8,borderRadius:'50%',background:isLong?T.green:T.red,boxShadow:`0 0 6px ${isLong?T.green:T.red}`}}/>
+                  <div style={{fontSize:15,fontWeight:900,color:T.text,fontFamily:'monospace'}}>{pos.symbol}</div>
+                  <div style={{fontSize:10,fontWeight:700,padding:'2px 7px',borderRadius:6,background:isLong?'rgba(0,255,163,0.12)':'rgba(255,59,92,0.12)',color:isLong?T.green:T.red}}>{isLong?tc('buy'):tc('sell')}</div>
+                </div>
+                <button onClick={()=>closePos(pos)} disabled={closing===id} style={{background:'rgba(255,59,92,0.1)',border:'1px solid rgba(255,59,92,0.2)',borderRadius:8,padding:6,cursor:'pointer',color:T.red,display:'flex',alignItems:'center'}}>
+                  {closing===id?<RefreshCw size={12} style={{animation:'spin 1s linear infinite'}}/>:<X size={12}/>}
+                </button>
+              </div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:0,padding:'0 14px 12px'}}>
+                {[{l:'دخول',v:fmt(pos.avgEntryPrice||Number((pos as any).entryPrice)||0),c:T.muted},{l:'حالي',v:fmt(livePrice),c:T.cyan},{l:'كمية',v:fmt(Math.abs(pos.qty||0),4),c:T.muted}].map(f=>(
+                  <div key={f.l}>
+                    <div style={{fontSize:9,color:T.muted,fontFamily:"'Cairo',sans-serif"}}>{f.l}</div>
+                    <div style={{fontSize:12,fontWeight:700,fontFamily:'monospace',color:f.c,marginTop:1}}>{f.v}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{margin:'0 14px 12px',padding:'8px 12px',borderRadius:10,background:pnl>=0?'rgba(0,255,163,0.06)':'rgba(255,59,92,0.06)',border:`1px solid ${pnl>=0?'rgba(0,255,163,0.15)':'rgba(255,59,92,0.15)'}`,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontSize:11,color:T.muted,fontFamily:"'Cairo',sans-serif"}}>P&L</span>
+                <span style={{fontSize:16,fontWeight:900,fontFamily:'monospace',color:pnl>=0?T.green:T.red}}>{pnl>=0?'+':''}{fmt(pnl)} ({pnlPct>=0?'+':''}{fmt(pnlPct,2)}%)</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+      <style>{`@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

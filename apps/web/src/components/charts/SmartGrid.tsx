@@ -620,9 +620,9 @@ export function SmartGrid({
   }, []);
 
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {
-    cells.forEach(c => destroyCellChart(c.id));
-    setCells(prev => prev.map(c => ({ ...c, symbol: newSymbol })));
-  }, [cells, destroyCellChart]);
+    destroyCellChart(cellId);
+    setCells(prev => prev.map(c => c.id === cellId ? { ...c, symbol: newSymbol } : c));
+  }, [destroyCellChart]);
 
   const handleChangeTimeframe = useCallback((cellId: string, tf: string) => {
     const tfOption = TIMEFRAME_OPTIONS.find(t => t.value === tf);

@@ -1661,7 +1661,7 @@
       "assetPlaceholder": "Aktiv symbol",
       "quantityPlaceholder": "Mængde",
       "pendingPricePlaceholder": "Afventende ordrepris",
-      "cryptoLocalSLTP": "Crypto Local SL/TP",
+      "cryptoLocalSLTP": "Krypto lokal SL/TP",
       "autoCalc": "Auto",
       "marketOrderDesc": "Øjeblikkelig udførelse",
       "limitOrderDesc": "Specificeret pris",
@@ -1673,17 +1673,17 @@
       "searchAsset": "Søg efter et aktiv... (Ctrl+K)",
       "searchAssetAria": "Søg efter aktiv",
       "noOrders": "Ingen ordrer",
-      "activeCount": "{count} Active",
+      "activeCount": "XPH0X Aktiv",
       "buyShort": "B",
       "sellShort": "S",
-      "dealQuality": "Deal Quality",
-      "excellent": "Excellent",
-      "acceptable": "Acceptable",
-      "weak": "Weak",
-      "orderBook": "Order Book",
-      "spreadMove": "Spread move",
-      "redirecting": "Redirecting...",
-      "riskGuard": "Risk Guard"
+      "dealQuality": "Aftalekvalitet",
+      "excellent": "Fremragende",
+      "acceptable": "Acceptabel",
+      "weak": "Svag",
+      "orderBook": "Ordrebog",
+      "spreadMove": "Spredningsflytning",
+      "redirecting": "Omdirigerer...",
+      "riskGuard": "Risikovagt"
     },
     "bot": {
       "armed": "Engine Armed",
@@ -1746,12 +1746,12 @@
       "closeLoss": "Loss",
       "securePosition": "🛡️ Secured {symbol}",
       "paperTrading": "Paper Trading 📄",
-      "liveTrading": "Live Trading ⚡",
-      "aiConsensus": "AI Consensus 🧠",
-      "technicalOnly": "Technical Only 📊",
+      "liveTrading": "Live handel ⚡",
+      "aiConsensus": "AI-konsensus 🧠",
+      "technicalOnly": "Kun teknisk 📊",
       "autoStrategy": "Auto",
-      "trendFollowing": "Trend Following",
-      "meanReversion": "Mean Reversion",
+      "trendFollowing": "Trendfølgende",
+      "meanReversion": "Gennemsnitlig tilbagevenden",
       "breakout": "Breakout",
       "momentum": "Momentum"
     },
@@ -1920,12 +1920,12 @@
       "lossBadge": "Loss ✗"
     },
     "correlation": {
-      "title": "Correlation Matrix",
-      "subtitle": "How {symbol} moves against other assets",
-      "loading": "Building matrix...",
-      "noData": "Not enough data for correlation.",
-      "positiveCorrelation": "Positive correlation: may move in the same direction.",
-      "negativeCorrelation": "Inverse correlation: one may offset the other."
+      "title": "Korrelationsmatrix",
+      "subtitle": "Hvordan{symbol}bevæger sig mod andre aktiver",
+      "loading": "Opbygning af matrix...",
+      "noData": "Ikke nok data til korrelation.",
+      "positiveCorrelation": "Positiv korrelation: kan bevæge sig i samme retning.",
+      "negativeCorrelation": "Omvendt korrelation: den ene kan udligne den anden."
     },
     "portfolio": {
       "accountStatus": "Account Status",
@@ -2657,16 +2657,16 @@
       "emergencyBtn": "Emergency",
       "strategyLabel": "Strategy:",
       "lastSignalLabel": "Last Signal:",
-      "morePositions": "+{count} more",
-      "fullDashboard": "Full Dashboard",
-      "agentReady": "Agent Ready to Start",
-      "agentReadyDesc": "Press \"Start\" to begin automated paper trading with adaptive strategy",
-      "paperTooltip": "No trading account selected from settings — paper trading automatically. Choose your account from settings to switch to live.",
-      "testnetTooltip": "Connected to {exchange} via testnet environment — virtual funds on real exchange",
-      "liveTooltip": "Live trading on {exchange} — real funds",
-      "timeAgoMinutes": "{n} min ago",
-      "timeAgoHours": "{n} hr ago",
-      "timeAgoDays": "{n} day(s) ago"
+      "morePositions": "+{count}mere",
+      "fullDashboard": "Fuldt Dashboard",
+      "agentReady": "Agent klar til at starte",
+      "agentReadyDesc": "Tryk på \"Start\" for at begynde automatiseret papirhandel med adaptiv strategi",
+      "paperTooltip": "Ingen handelskonto valgt fra indstillingerne — papirhandel automatisk. Vælg din konto fra indstillingerne for at skifte til live.",
+      "testnetTooltip": "Forbundet til{exchange}via testnet-miljøet — virtuelle midler på reel børs",
+      "liveTooltip": "Live handel på{exchange}— rigtige midler",
+      "timeAgoMinutes": "XPH0X min siden",
+      "timeAgoHours": "XPH0X time siden",
+      "timeAgoDays": "XPH0X dag(e) siden"
     },
     "alpacaPositions": {
       "sourceExecutor": "Executor",
@@ -2699,11 +2699,11 @@
       "closedTrades": "Closed Trades",
       "closedPositionsCount": "Closed {count} position(s)",
       "closeFailedPositions": "Failed to close {count} position(s)",
-      "closeAndRemoveAll": "Close & Remove All",
-      "updating": "Updating...",
-      "update": "Update",
-      "clearLocal": "Clear Local",
-      "exit": "Exit",
+      "closeAndRemoveAll": "Luk og fjern alt",
+      "updating": "Opdaterer...",
+      "update": "Opdater",
+      "clearLocal": "Ryd lokalt",
+      "exit": "Afslut",
       "tp": "TP",
       "sl": "SL",
       "pnl": "P&L"
@@ -3166,19 +3166,19 @@
     },
     "chartFootprint": {
       "footprint": "Footprint",
-      "bidAsk": "Bid×Ask",
+      "bidAsk": "Bud×Spørg",
       "delta": "Delta",
       "vol": "Vol",
       "imbalance": "IMB"
     },
     "chartReplay": {
-      "replay": "REPLAY",
-      "previousBar": "Previous bar (←)",
-      "play": "Play (Space)",
-      "pause": "Pause (Space)",
-      "nextBar": "Next bar (→)",
-      "stopShowAll": "Stop & show all data",
-      "closeReplay": "Close replay mode"
+      "replay": "GENSPIL",
+      "previousBar": "Forrige bjælke (←)",
+      "play": "Afspil (mellemrum)",
+      "pause": "Pause (mellemrum)",
+      "nextBar": "Næste bjælke (→)",
+      "stopShowAll": "Stop og vis alle data",
+      "closeReplay": "Luk genafspilningstilstand"
     },
     "chartGrid": {
       "multiChartGrid": "Multi-Chart Grid",
@@ -3196,8 +3196,8 @@
       "loadFailed": "Failed to load"
     },
     "chartCrosshair": {
-      "fallbackData": "Fallback data",
-      "usingFallbackData": "Using fallback data",
+      "fallbackData": "Reservedata",
+      "usingFallbackData": "Brug af fallback data",
       "tokyo": "Tokyo",
       "london": "London",
       "newYork": "New York"
@@ -4338,16 +4338,16 @@
       "valueArea": "Value Area",
       "riskReward": "R:R",
       "strong": "Strong",
-      "moderate": "Moderate",
-      "weak": "Weak",
-      "rsiOverboughtAlert": "RSI Overbought Alert - {symbol}"
+      "moderate": "Moderat",
+      "weak": "Svag",
+      "rsiOverboughtAlert": "RSI-overkøbsadvarsel - XPH0X"
     },
     "aiOpinion": {
-      "consensus": "AI Consensus",
-      "strongBuy": "Strong Buy",
-      "strongSell": "Strong Sell",
-      "buy": "Buy",
-      "sell": "Sell",
+      "consensus": "AI-konsensus",
+      "strongBuy": "Stærkt køb",
+      "strongSell": "Stærkt salg",
+      "buy": "Køb",
+      "sell": "Sælg",
       "hold": "Hold",
       "neutral": "Neutral"
     }

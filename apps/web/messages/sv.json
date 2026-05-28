@@ -1677,7 +1677,7 @@
       "buyShort": "B",
       "sellShort": "S",
       "dealQuality": "Affärskvalitet",
-      "excellent": "Excellent",
+      "excellent": "Utmärkt",
       "acceptable": "Godtagbar",
       "weak": "Svag",
       "orderBook": "Orderbok",
@@ -3166,19 +3166,19 @@
     },
     "chartFootprint": {
       "footprint": "Footprint",
-      "bidAsk": "Bid×Ask",
+      "bidAsk": "Bud×Ask",
       "delta": "Delta",
       "vol": "Vol",
       "imbalance": "IMB"
     },
     "chartReplay": {
       "replay": "REPLAY",
-      "previousBar": "Previous bar (←)",
-      "play": "Play (Space)",
-      "pause": "Pause (Space)",
-      "nextBar": "Next bar (→)",
-      "stopShowAll": "Stop & show all data",
-      "closeReplay": "Close replay mode"
+      "previousBar": "Föregående stapel (←)",
+      "play": "Spela upp (mellanslag)",
+      "pause": "Paus (mellanslag)",
+      "nextBar": "Nästa stapel (→)",
+      "stopShowAll": "Stoppa och visa all data",
+      "closeReplay": "Stäng uppspelningsläge"
     },
     "chartGrid": {
       "multiChartGrid": "Multi-Chart Grid",
@@ -3196,8 +3196,8 @@
       "loadFailed": "Failed to load"
     },
     "chartCrosshair": {
-      "fallbackData": "Fallback data",
-      "usingFallbackData": "Using fallback data",
+      "fallbackData": "Reservdata",
+      "usingFallbackData": "Använda reservdata",
       "tokyo": "Tokyo",
       "london": "London",
       "newYork": "New York"
@@ -4338,17 +4338,17 @@
       "valueArea": "Value Area",
       "riskReward": "R:R",
       "strong": "Strong",
-      "moderate": "Moderate",
-      "weak": "Weak",
-      "rsiOverboughtAlert": "RSI Overbought Alert - {symbol}"
+      "moderate": "Måttlig",
+      "weak": "Svag",
+      "rsiOverboughtAlert": "RSI Overbought Alert - XPH0X"
     },
     "aiOpinion": {
       "consensus": "AI Consensus",
-      "strongBuy": "Strong Buy",
-      "strongSell": "Strong Sell",
-      "buy": "Buy",
-      "sell": "Sell",
-      "hold": "Hold",
+      "strongBuy": "Starkt köp",
+      "strongSell": "Starkt sälj",
+      "buy": "Köp",
+      "sell": "Sälj",
+      "hold": "Håll",
       "neutral": "Neutral"
     }
   },

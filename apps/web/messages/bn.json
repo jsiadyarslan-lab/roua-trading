@@ -1088,8 +1088,8 @@
       "visitHelpCenter": "Visit Help Center"
     },
     "contentAgent": {
-      "title": "Content Agent",
-      "subtitle": "Create and manage smart content"
+      "title": "কন্টেন্ট এজেন্ট",
+      "subtitle": "স্মার্ট কন্টেন্ট তৈরি এবং পরিচালনা করুন"
     },
     "copyTrading": {
       "title": "Copy Trading",
@@ -1331,12 +1331,12 @@
       "planPremiumF8": "Export reports",
       "planInstF1": "Unlimited linking",
       "planInstF2": "24/7 dedicated support",
-      "planInstF3": "Webhooks for integration",
-      "planInstF4": "Full API + priority",
-      "planInstF5": "Sub-accounts",
-      "planInstF6": "Custom strategies",
-      "planInstF7": "All advanced AI models",
-      "planInstF8": "SLA uptime guarantee"
+      "planInstF3": "ইন্টিগ্রেশনের জন্য ওয়েবহুক",
+      "planInstF4": "সম্পূর্ণ API + অগ্রাধিকার",
+      "planInstF5": "উপ-অ্যাকাউন্ট",
+      "planInstF6": "কাস্টম কৌশল",
+      "planInstF7": "সমস্ত উন্নত AI মডেল",
+      "planInstF8": "SLA আপটাইম গ্যারান্টি"
     },
     "notifications": {
       "title": "Notification Center",
@@ -1752,8 +1752,8 @@
       "autoStrategy": "Auto",
       "trendFollowing": "Trend Following",
       "meanReversion": "Mean Reversion",
-      "breakout": "Breakout",
-      "momentum": "Momentum"
+      "breakout": "ব্রেকআউট",
+      "momentum": "মোমেন্টাম"
     },
     "executor": {
       "title": "Smart Executor",
@@ -1920,12 +1920,12 @@
       "lossBadge": "Loss ✗"
     },
     "correlation": {
-      "title": "Correlation Matrix",
-      "subtitle": "How {symbol} moves against other assets",
-      "loading": "Building matrix...",
-      "noData": "Not enough data for correlation.",
-      "positiveCorrelation": "Positive correlation: may move in the same direction.",
-      "negativeCorrelation": "Inverse correlation: one may offset the other."
+      "title": "পারস্পরিক সম্পর্ক ম্যাট্রিক্স",
+      "subtitle": "কিভাবে{symbol}অন্যান্য সম্পদের বিপরীতে চলে",
+      "loading": "বিল্ডিং ম্যাট্রিক্স...",
+      "noData": "পারস্পরিক সম্পর্কের জন্য পর্যাপ্ত ডেটা নেই।",
+      "positiveCorrelation": "ইতিবাচক সম্পর্ক: একই দিকে যেতে পারে।",
+      "negativeCorrelation": "বিপরীত পারস্পরিক সম্পর্ক: একটি অন্যটিকে অফসেট করতে পারে।"
     },
     "portfolio": {
       "accountStatus": "Account Status",
@@ -2701,9 +2701,9 @@
       "closeFailedPositions": "Failed to close {count} position(s)",
       "closeAndRemoveAll": "Close & Remove All",
       "updating": "Updating...",
-      "update": "Update",
-      "clearLocal": "Clear Local",
-      "exit": "Exit",
+      "update": "আপডেট করুন",
+      "clearLocal": "স্থানীয় পরিষ্কার করুন",
+      "exit": "প্রস্থান করুন",
       "tp": "TP",
       "sl": "SL",
       "pnl": "P&L"
@@ -2780,23 +2780,23 @@
       "techIndicators": "18+ technical indicators"
     },
     "botCommand": {
-      "signalExecuted": "Signal executed ✅",
-      "paperTradeOpened": "Opened paper {type} trade for {pair} — Smart Executor handling",
-      "smartFollowEngine": "Smart Follow Engine",
-      "pausedManualOnly": "PAUSED · MANUAL ONLY",
+      "signalExecuted": "সিগন্যাল কার্যকর করা হয়েছে ✅",
+      "paperTradeOpened": "XPH1X-এর জন্য খোলা কাগজ{type}ট্রেড — স্মার্ট এক্সিকিউটর হ্যান্ডলিং",
+      "smartFollowEngine": "স্মার্ট ফলো ইঞ্জিন",
+      "pausedManualOnly": "বিরতি দেওয়া হয়েছে · শুধুমাত্র ম্যানুয়াল",
       "stop": "স্টপ",
       "activate": "সক্রিয় করুন",
       "low": "নিম্ন",
       "medium": "মধ্যম",
       "high": "উচ্চ",
-      "signalStream": "Signal Stream",
-      "scanningMarket": "Scanning market...",
-      "noStrongSignals": "No strong signals currently.",
-      "buyArrow": "⬆ Buy",
-      "sellArrow": "⬇ Sell",
-      "execute": "Execute",
-      "done": "Done",
-      "smartSignalsLabel": "Smart Signals"
+      "signalStream": "সিগন্যাল স্ট্রিম",
+      "scanningMarket": "স্ক্যানিং মার্কেট...",
+      "noStrongSignals": "বর্তমানে কোন শক্তিশালী সংকেত নেই।",
+      "buyArrow": "⬆ কিনুন",
+      "sellArrow": "⬇ বিক্রি করুন",
+      "execute": "কার্যকর করুন",
+      "done": "সম্পন্ন",
+      "smartSignalsLabel": "স্মার্ট সিগন্যাল"
     },
     "strategicCouncil": {
       "title": "Strategic Council",
@@ -3165,20 +3165,20 @@
       "reset": "রিসেট"
     },
     "chartFootprint": {
-      "footprint": "Footprint",
-      "bidAsk": "Bid×Ask",
-      "delta": "Delta",
-      "vol": "Vol",
-      "imbalance": "IMB"
+      "footprint": "পদচিহ্ন",
+      "bidAsk": "বিড×আস্ক",
+      "delta": "ডেল্টা",
+      "vol": "ভলিউম",
+      "imbalance": "আইএমবি"
     },
     "chartReplay": {
-      "replay": "REPLAY",
-      "previousBar": "Previous bar (←)",
-      "play": "Play (Space)",
-      "pause": "Pause (Space)",
-      "nextBar": "Next bar (→)",
-      "stopShowAll": "Stop & show all data",
-      "closeReplay": "Close replay mode"
+      "replay": "রিপ্লে",
+      "previousBar": "আগের বার (←)",
+      "play": "প্লে (স্পেস)",
+      "pause": "পজ (স্পেস)",
+      "nextBar": "পরবর্তী বার (→)",
+      "stopShowAll": "থামুন এবং সমস্ত ডেটা দেখান",
+      "closeReplay": "রিপ্লে মোড বন্ধ করুন"
     },
     "chartGrid": {
       "multiChartGrid": "Multi-Chart Grid",
@@ -3196,11 +3196,11 @@
       "loadFailed": "Failed to load"
     },
     "chartCrosshair": {
-      "fallbackData": "Fallback data",
-      "usingFallbackData": "Using fallback data",
-      "tokyo": "Tokyo",
-      "london": "London",
-      "newYork": "New York"
+      "fallbackData": "ফলব্যাক ডেটা",
+      "usingFallbackData": "ফলব্যাক ডেটা ব্যবহার করা",
+      "tokyo": "টোকিও",
+      "london": "লন্ডন",
+      "newYork": "নিউ ইয়র্ক"
     }
   },
   "mobile": {
@@ -4343,13 +4343,13 @@
       "rsiOverboughtAlert": "RSI Overbought Alert - {symbol}"
     },
     "aiOpinion": {
-      "consensus": "AI Consensus",
+      "consensus": "এআই কনসেনসাস",
       "strongBuy": "শক্তিশালী কেনা",
       "strongSell": "শক্তিশালী বিক্রি",
       "buy": "কিনুন",
       "sell": "বিক্রি",
       "hold": "ধরে রাখুন",
-      "neutral": "Neutral"
+      "neutral": "নিরপেক্ষ"
     }
   },
   "strategies": {

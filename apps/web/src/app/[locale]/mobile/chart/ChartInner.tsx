@@ -129,7 +129,7 @@ export default function ChartInner() {
       </div>
 
       {/* Chart */}
-      <div style={{ flex: 1, position: 'relative', height: isFullscreen ? 'calc(100dvh - 110px)' : 340, minHeight: 200 }}>
+      <div style={{ flex: 1, position: 'relative', height: isFullscreen ? 'calc(100dvh - var(--nav-h) - var(--safe-b) - 110px)' : 340, minHeight: 200 }}>
         <RouaChart currentPrice={currentPrice} mobile hideToolbar isChartFullscreen={isFullscreen} onToggleChartFullscreen={() => setIsFullscreen(f => !f)} chartActions={chartActionsRef} />
       </div>
 

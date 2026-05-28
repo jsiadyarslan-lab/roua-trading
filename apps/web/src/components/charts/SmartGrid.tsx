@@ -16,6 +16,36 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 
+// ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
+class RequestQueue {
+  private queue: Array<() => Promise<void>> = [];
+  private running = 0;
+  private maxConcurrency: number;
+
+  constructor(maxConcurrency = 2) {
+    this.maxConcurrency = maxConcurrency;
+  }
+
+  push(task: () => Promise<void>) {
+    this.queue.push(task);
+    this.runNext();
+  }
+
+  private runNext() {
+    if (this.running >= this.maxConcurrency || this.queue.length === 0) return;
+    this.running++;
+    const task = this.queue.shift()!;
+    task()
+      .catch(() => {})
+      .finally(() => {
+        this.running--;
+        this.runNext();
+      });
+  }
+}
+
+const fetchQueue = new RequestQueue(2);
+
 // ── Types ────────────────────────────────────────────────
 interface SmartGridProps {
   onClose: () => void;
@@ -212,6 +242,8 @@ export function SmartGrid({
   const pendingLoadsRef = useRef<Set<string>>(new Set());
   // AbortControllers per cell — cancel stale fetch requests when cell is destroyed
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
+  // Track cell version — increment on destroy so stale loads are discarded
+  const cellVersionRef = useRef<Map<string, number>>(new Map());
 
   // ═══ CRITICAL FIX: Read positions/trades directly from stores ═══
   // Previous version accepted openPositions as a prop with = [] default,
@@ -315,7 +347,13 @@ export function SmartGrid({
     const controller = new AbortController();
     abortControllersRef.current.set(cell.id, controller);
 
-    if (pendingLoadsRef.current.has(cell.id)) return;
+    // Allow reload after destroy by checking version — if version changed, the pending load is stale
+    const currentVersion = cellVersionRef.current.get(cell.id) || 0;
+    if (pendingLoadsRef.current.has(cell.id)) {
+      // Check if there's already a pending load with the same version — skip if so
+      // But if the version is different, allow the new load
+      return;
+    }
     pendingLoadsRef.current.add(cell.id);
 
     updateCellState(cell.id, {
@@ -327,11 +365,38 @@ export function SmartGrid({
     let candleData: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> = [];
     let detectedSource: DataSource = 'unavailable';
 
+    // Check version — if cell was destroyed and re-created, discard this stale load
+    const loadVersion = cellVersionRef.current.get(cell.id) || 0;
+    if (loadVersion !== currentVersion) {
+      pendingLoadsRef.current.delete(cell.id);
+      return;
+    }
+
     try {
-      // Fetch real data from API (with abort signal)
+      // Fetch real data from API (with abort signal, via request queue)
       const url = `/api/exchange/history/${encodeURIComponent(cell.symbol)}?interval=${cell.timeframe}`;
       console.log('[SmartGrid] Fetching:', url);
-      const res = await fetch(url, { signal: controller.signal });
+
+      // Use request queue to limit concurrent fetches and prevent network flood
+      const res = await new Promise<Response>((resolve, reject) => {
+        fetchQueue.push(async () => {
+          try {
+            // Re-check version before actually fetching
+            if ((cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
+              reject(new DOMException('Version mismatch', 'AbortError'));
+              return;
+            }
+            if (controller.signal.aborted) {
+              reject(new DOMException('Aborted', 'AbortError'));
+              return;
+            }
+            const response = await fetch(url, { signal: controller.signal });
+            resolve(response);
+          } catch (err) {
+            reject(err);
+          }
+        });
+      });
       const j = await res.json();
       console.log('[SmartGrid] Response for', cell.symbol, cell.timeframe, ':', j.success, j.data?.length, 'candles, source:', j.source || j.data?.[0]?.source);
 
@@ -375,7 +440,7 @@ export function SmartGrid({
       const changePercent = prevPrice && prevPrice !== 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
 
       // Guard: skip if cell was destroyed during fetch
-      if (!container.isConnected || controller.signal.aborted) {
+      if (!container.isConnected || controller.signal.aborted || (cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
         pendingLoadsRef.current.delete(cell.id);
         return;
       }
@@ -419,7 +484,7 @@ export function SmartGrid({
       }
 
       // Guard: skip if cell was destroyed during fetch
-      if (!container.isConnected || controller.signal.aborted) {
+      if (!container.isConnected || controller.signal.aborted || (cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
         pendingLoadsRef.current.delete(cell.id);
         return;
       }
@@ -608,32 +673,44 @@ export function SmartGrid({
   }, [cellStates, updateCellState, loadDataForCell]);
 
   // ── Crosshair time sync (ALWAYS ON) ──
+  // Debounced — only re-subscribe after cells settle (500ms)
   useEffect(() => {
-    crosshairSubsRef.current.forEach(unsub => { try { unsub(); } catch {} });
+    // Unsubscribe from old subs
+    crosshairSubsRef.current.forEach(unsub => {
+      if (typeof unsub === 'function') { try { unsub(); } catch {} }
+    });
     crosshairSubsRef.current = [];
 
-    const charts = Array.from(chartInstancesRef.current.entries());
-    if (charts.length < 2) return;
+    // Debounce: wait for cells to settle before subscribing
+    const subTimer = setTimeout(() => {
+      const charts = Array.from(chartInstancesRef.current.entries());
+      if (charts.length < 2) return;
 
-    charts.forEach(([id, chart]) => {
-      try {
-        const unsub = chart.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
-          if (!range) return;
-          charts.forEach(([otherId, otherChart]) => {
-            if (otherId === id) return;
-            // Guard: chart may have been destroyed
-            if (!chartInstancesRef.current.has(otherId)) return;
-            try { otherChart.timeScale().setVisibleRange(range); } catch {}
+      charts.forEach(([id, chart]) => {
+        try {
+          // Guard: chart might have been destroyed by now
+          if (!chartInstancesRef.current.has(id)) return;
+          const unsub = chart.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
+            if (!range) return;
+            charts.forEach(([otherId, otherChart]) => {
+              if (otherId === id) return;
+              // Guard: chart may have been destroyed
+              if (!chartInstancesRef.current.has(otherId)) return;
+              try { otherChart.timeScale().setVisibleRange(range); } catch {}
+            });
           });
-        });
-        if (typeof unsub === 'function') {
-          crosshairSubsRef.current.push(unsub);
-        }
-      } catch {}
-    });
+          if (typeof unsub === 'function') {
+            crosshairSubsRef.current.push(unsub);
+          }
+        } catch {}
+      });
+    }, 500); // 500ms debounce to avoid re-subscribing during rapid changes
 
     return () => {
-      crosshairSubsRef.current.forEach(unsub => { try { unsub(); } catch {} });
+      clearTimeout(subTimer);
+      crosshairSubsRef.current.forEach(unsub => {
+        if (typeof unsub === 'function') { try { unsub(); } catch {} }
+      });
       crosshairSubsRef.current = [];
     };
   }, [cells]);
@@ -653,6 +730,10 @@ export function SmartGrid({
     initializedCellsRef.current.delete(cellId);
     priceLineIdsRef.current.delete(cellId);
     pendingLoadsRef.current.delete(cellId);
+
+    // Bump version so any stale in-flight loads are discarded
+    const prevVersion = cellVersionRef.current.get(cellId) || 0;
+    cellVersionRef.current.set(cellId, prevVersion + 1);
   }, []);
 
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {
@@ -739,21 +820,23 @@ export function SmartGrid({
           loadDataForCell(cell);
         }
       });
-    }, 150);
+    }, 200); // 200ms — slightly longer to batch rapid symbol changes
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
-  // ── Auto-refresh every 15s ──
+  // ── Auto-refresh every 15s (stable — does NOT reset on cells change) ──
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
-      cells.forEach(cell => {
+      // Read latest cells from ref instead of depending on cells state
+      const currentCells = cellsRef.current;
+      currentCells.forEach(cell => {
         if (cell.symbol && initializedCellsRef.current.has(cell.id)) {
           loadDataForCell(cell);
         }
       });
     }, 15000);
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
-  }, [cells, loadDataForCell]);
+  }, [loadDataForCell]); // ← REMOVED cells from deps — uses cellsRef instead
 
   // ── Cleanup on unmount ──
   useEffect(() => {

@@ -277,6 +277,7 @@ export function SmartGrid({
   const [activeCellId, setActiveCellId] = useState<string>('');
   const [fullscreenCellId, setFullscreenCellId] = useState<string | null>(null);
   const [showGridSelector, setShowGridSelector] = useState(false);
+  const [compactMode, setCompactMode] = useState(false);
 
   // Set active cell on first render
   useEffect(() => {
@@ -654,9 +655,21 @@ export function SmartGrid({
     setShowGridSelector(false);
   }, [defaultSymbol]);
 
-  const handleFocusChart = useCallback((cell: GridCell, openTool?: string) => {
+  // ── Open tool: enter compact mode instead of closing SmartGrid ──
+  // When user clicks AI/Draw/Ind/Trade, SmartGrid shrinks to the left
+  // so the main chart + tool panel become visible on the right.
+  // Only "Focus" and double-click close SmartGrid entirely.
+  const handleOpenTool = useCallback((cell: GridCell, openTool: string) => {
     if (onSwitchToChart) {
       onSwitchToChart(cell.symbol, cell.timeframe, openTool);
+    }
+    setCompactMode(true);
+  }, [onSwitchToChart]);
+
+  // ── Focus chart: close SmartGrid entirely and switch main chart ──
+  const handleFocusChart = useCallback((cell: GridCell) => {
+    if (onSwitchToChart) {
+      onSwitchToChart(cell.symbol, cell.timeframe);
     }
     onClose();
   }, [onSwitchToChart, onClose]);
@@ -713,6 +726,42 @@ export function SmartGrid({
     };
   }, []);
 
+  // ── Resize all charts when compact mode changes ──
+  useEffect(() => {
+    if (!compactMode) return; // resize on entering compact + after transition
+    const timer = setTimeout(() => {
+      chartInstancesRef.current.forEach((chart, id) => {
+        const container = containerRefs.current.get(id);
+        if (chart && container) {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w > 0 && h > 0) {
+            try { chart.applyOptions({ width: w, height: h }); chart.timeScale().fitContent(); } catch {}
+          }
+        }
+      });
+    }, 350); // wait for CSS transition to finish
+    return () => clearTimeout(timer);
+  }, [compactMode]);
+
+  // Also resize when expanding back to full
+  useEffect(() => {
+    if (compactMode) return;
+    const timer = setTimeout(() => {
+      chartInstancesRef.current.forEach((chart, id) => {
+        const container = containerRefs.current.get(id);
+        if (chart && container) {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w > 0 && h > 0) {
+            try { chart.applyOptions({ width: w, height: h }); chart.timeScale().fitContent(); } catch {}
+          }
+        }
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [compactMode]);
+
   // ── Resize handling ──
   useEffect(() => {
     const handleResize = () => {
@@ -757,14 +806,18 @@ export function SmartGrid({
     if (el) containerRefs.current.set(id, el); else containerRefs.current.delete(id);
   }, []);
 
-  // ESC key
+  // ESC key — first exit compact/fullscreen, then close
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') { if (fullscreenCellId) { setFullscreenCellId(null); return; } onClose(); }
+      if (e.key === 'Escape') {
+        if (fullscreenCellId) { setFullscreenCellId(null); return; }
+        if (compactMode) { setCompactMode(false); return; }
+        onClose();
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [onClose, fullscreenCellId]);
+  }, [onClose, fullscreenCellId, compactMode]);
 
   const formatPrice = (price: number | null): string => {
     if (price === null) return '-';
@@ -808,10 +861,16 @@ export function SmartGrid({
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
+      position: 'fixed',
+      top: 0, left: 0, bottom: 0,
+      width: compactMode ? '42%' : '100%',
+      minWidth: compactMode ? 320 : undefined,
+      zIndex: 1000,
       background: 'rgba(0,0,0,0.92)',
       backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       display: 'flex', flexDirection: 'column',
+      transition: 'width 0.3s ease, min-width 0.3s ease',
+      borderRight: compactMode ? '2px solid rgba(0,212,255,0.3)' : 'none',
     }}>
       {/* ═══ TOOLBAR ═══ */}
       <div style={{
@@ -837,9 +896,18 @@ export function SmartGrid({
 
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
 
+        {/* Expand button (only in compact mode) */}
+        {compactMode && (
+          <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
+            onClick={() => setCompactMode(false)}
+            onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>
+            Expand
+          </button>
+        )}
+
         {/* Focus */}
         {activeCell && onSwitchToChart && (
-          <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
+          <button style={{ ...tbBtn, background: compactMode ? 'rgba(255,255,255,0.04)' : 'rgba(0,212,255,0.12)', color: compactMode ? C.textDim : C.cyan, border: compactMode ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,212,255,0.25)' }}
             onClick={() => handleFocusChart(activeCell)}>
             Focus
           </button>
@@ -848,13 +916,13 @@ export function SmartGrid({
         {/* Quick tools */}
         {activeCell && onSwitchToChart && (
           <>
-            <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'drawing')}
+            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'drawing')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Draw</button>
-            <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'indicators')}
+            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'indicators')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Ind</button>
-            <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'ai')}
+            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'ai')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>AI</button>
-            <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'trading')}
+            <button style={tbBtn} onClick={() => handleOpenTool(activeCell, 'trading')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Trade</button>
           </>
         )}
@@ -894,7 +962,7 @@ export function SmartGrid({
 
         <div style={{ flex: 1 }} />
 
-        <button style={{ ...tbBtn, width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}
+        <button style={{ ...tbBtn, width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => { if (compactMode) { setCompactMode(false); return; } onClose(); }}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,71,87,0.15)'; (e.currentTarget as HTMLElement).style.color = C.danger; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = C.textDim; }}>
           X
@@ -920,6 +988,7 @@ export function SmartGrid({
             <div key={cell.id}
               onClick={() => setActiveCellId(cell.id)}
               onDoubleClick={() => handleFocusChart(cell)}
+              onContextMenu={(e) => { e.preventDefault(); handleOpenTool(cell, 'ai'); }}
               style={{
                 background: C.card, display: 'flex', flexDirection: 'column', overflow: 'hidden',
                 borderRadius: 6, border: isActive ? '1px solid rgba(0,212,255,0.4)' : `1px solid ${C.cardBorder}`,

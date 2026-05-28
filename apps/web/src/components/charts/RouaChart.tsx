@@ -162,7 +162,7 @@ export default function RouaChart({
   onCrosshairDataChange,
 }: RouaChartProps) {
   const tc = useTranslations('dashboard.chart');
-  const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
+  const { selectedSymbol, timeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
   const [candleCountdown, setCandleCountdown] = useState('—');

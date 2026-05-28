@@ -1,13 +1,20 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading — Smart Grid (Unified Chart Grid + MTF)
-// SUSTAINABLE: No fake data — real API only, clear error states
-// AUTOMATIC: Sync is always on — no manual buttons needed
-// TRANSPARENT: Data source badge on every cell
+// ═══════════════════════════════════════════════════════════
+// CRITICAL FIX: Previous version had a React hooks death spiral:
+//   openPositions = [] (new ref each render) → getPositionsForSymbol
+//   new ref → loadDataForCell new ref → useEffect deps change →
+//   timeout cleared before 150ms → candles NEVER loaded
+//
+// FIX: Use refs for all stable data, remove unstable deps from useCallback
+// FIX: Pass positions + paperTrades from RouaChart, render trade overlays
 // ═══════════════════════════════════════════════════════════
 
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { usePositionsStore } from '@/hooks/usePositionsStore';
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 
 // ── Types ────────────────────────────────────────────────
 interface SmartGridProps {
@@ -15,7 +22,6 @@ interface SmartGridProps {
   defaultSymbol: string;
   defaultTimeframe: string;
   onSwitchToChart?: (symbol: string, timeframe: string, openTool?: string) => void;
-  openPositions?: Array<{ symbol: string; side: string; entry: number; sl?: number; tp?: number }>;
 }
 
 interface GridConfig {
@@ -46,16 +52,28 @@ interface CellState {
   retryCount: number;
 }
 
+// ── Unified trade info for chart rendering ──
+interface TradeInfo {
+  symbol: string;
+  side: 'long' | 'short' | 'BUY' | 'SELL';
+  entry: number;
+  sl?: number;
+  tp?: number;
+  qty?: number;
+  pnl?: number;
+  source: 'exchange' | 'paper' | 'bot' | 'agent';
+}
+
 // ── Constants ────────────────────────────────────────────
 const GRID_CONFIGS: GridConfig[] = [
-  { cols: 2, rows: 2, label: '2×2', icon: '▦' },
-  { cols: 3, rows: 1, label: '3×1', icon: '▬▬▬' },
-  { cols: 1, rows: 3, label: '1×3', icon: '▮▮▮' },
-  { cols: 3, rows: 2, label: '3×2', icon: '⬓' },
-  { cols: 2, rows: 3, label: '2×3', icon: '⬒' },
-  { cols: 1, rows: 1, label: '1×1', icon: '▪' },
-  { cols: 2, rows: 1, label: '2×1', icon: '▬▬' },
-  { cols: 1, rows: 2, label: '1×2', icon: '▮▮' },
+  { cols: 2, rows: 2, label: '2x2', icon: '▦' },
+  { cols: 3, rows: 1, label: '3x1', icon: '▬▬▬' },
+  { cols: 1, rows: 3, label: '1x3', icon: '▮▮▮' },
+  { cols: 3, rows: 2, label: '3x2', icon: '⬓' },
+  { cols: 2, rows: 3, label: '2x3', icon: '⬒' },
+  { cols: 1, rows: 1, label: '1x1', icon: '▪' },
+  { cols: 2, rows: 1, label: '2x1', icon: '▬▬' },
+  { cols: 1, rows: 2, label: '1x2', icon: '▮▮' },
 ];
 
 const POPULAR_PAIRS = [
@@ -77,7 +95,6 @@ const TIMEFRAME_OPTIONS = [
   { value: '1week', label: '1W' },
 ];
 
-// MTF default timeframes for multi-timeframe analysis
 const MTF_DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
 
 const C = {
@@ -97,7 +114,6 @@ const C = {
   warning: '#fbbf24',
 };
 
-// ── Data source display config ──
 const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
   loading: { label: '...', color: C.textMuted },
   binance: { label: 'Binance', color: C.success },
@@ -147,12 +163,10 @@ function detectDataSource(response: any): DataSource {
   const note = response?.note || '';
   const data = response?.data;
 
-  // If empty data + note, it's unavailable
   if (!data || !Array.isArray(data) || data.length === 0) {
     return 'unavailable';
   }
 
-  // Check source field from first candle
   if (data.length > 0) {
     const firstSource = data[0]?.source || '';
     const lowerSource = firstSource.toLowerCase();
@@ -164,20 +178,22 @@ function detectDataSource(response: any): DataSource {
     if (lowerSource.includes('exchangerate')) return 'yahoo';
   }
 
-  // Check response-level source
   const lowerRespSource = source.toLowerCase();
   if (lowerRespSource.includes('binance')) return 'binance';
   if (lowerRespSource.includes('coingecko')) return 'coingecko';
   if (lowerRespSource.includes('yahoo')) return 'yahoo';
   if (lowerRespSource.includes('twelvedata')) return 'twelvedata';
 
-  // If response has "Demo" source or note about unavailable, mark unavailable
   if (lowerRespSource === 'demo' || note.includes('غير متاحة') || note.includes('unavailable')) {
     return 'unavailable';
   }
 
-  // We have data but unknown source — assume it's from a real provider
   return 'binance';
+}
+
+// ── Normalize symbol for matching ──
+function normalizeSymbol(s: string): string {
+  return s.toUpperCase().replace(/[/\-_]/g, '');
 }
 
 export function SmartGrid({
@@ -185,7 +201,6 @@ export function SmartGrid({
   defaultSymbol,
   defaultTimeframe,
   onSwitchToChart,
-  openPositions = [],
 }: SmartGridProps) {
   const containerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const chartInstancesRef = useRef<Map<string, any>>(new Map());
@@ -196,7 +211,65 @@ export function SmartGrid({
   const initializedCellsRef = useRef<Set<string>>(new Set());
   const pendingLoadsRef = useRef<Set<string>>(new Set());
 
-  const [activeConfig, setActiveConfig] = useState<GridConfig>(GRID_CONFIGS[0]); // 2×2
+  // ═══ CRITICAL FIX: Read positions/trades directly from stores ═══
+  // Previous version accepted openPositions as a prop with = [] default,
+  // which created a new array reference on every render, causing the
+  // useCallback dependency chain to break and timeouts to never fire.
+  // Now we read from Zustand stores directly via refs — zero re-renders.
+  const positions = usePositionsStore(s => s.positions);
+  const paperTrades = usePaperTradesStore(s => s.trades);
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const paperTradesRef = useRef(paperTrades);
+  paperTradesRef.current = paperTrades;
+
+  // Build unified trade list for a symbol (from ref, no re-renders)
+  const getTradesForSymbol = useCallback((symbol: string): TradeInfo[] => {
+    const chartSymbol = normalizeSymbol(symbol);
+    const trades: TradeInfo[] = [];
+
+    // Exchange positions
+    for (const pos of positionsRef.current) {
+      const posSymbol = normalizeSymbol(pos.symbol || '');
+      if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) continue;
+      const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
+      if (entryPrice <= 0) continue;
+      const slVal = Number(pos.stopLoss || pos.sl || 0);
+      const tpVal = Number(pos.takeProfit || pos.tp || 0);
+      trades.push({
+        symbol: pos.symbol,
+        side: (pos.side || '').toLowerCase().includes('long') || pos.side === 'BUY' ? 'long' : 'short',
+        entry: entryPrice,
+        sl: slVal > 0 ? slVal : undefined,
+        tp: tpVal > 0 ? tpVal : undefined,
+        qty: pos.qty || 0,
+        source: 'exchange',
+      });
+    }
+
+    // Paper trades (including bot, agent, executor trades)
+    for (const trade of paperTradesRef.current) {
+      const tradeSymbol = normalizeSymbol(trade.symbol || '');
+      if (!tradeSymbol.includes(chartSymbol) && !chartSymbol.includes(tradeSymbol)) continue;
+      const entryPrice = Number(trade.entryPrice || 0);
+      if (entryPrice <= 0) continue;
+      trades.push({
+        symbol: trade.symbol,
+        side: trade.side,
+        entry: entryPrice,
+        sl: trade.sl && trade.sl > 0 ? trade.sl : undefined,
+        tp: trade.tp && trade.tp > 0 ? trade.tp : undefined,
+        qty: trade.qty,
+        pnl: trade.unrealizedPnl,
+        source: trade.source === 'bot' || trade.source === 'executor' ? 'bot'
+          : trade.source === 'agent' ? 'agent' : 'paper',
+      });
+    }
+
+    return trades;
+  }, []); // ← NO DEPS: reads from refs, always fresh
+
+  const [activeConfig, setActiveConfig] = useState<GridConfig>(GRID_CONFIGS[0]);
   const [cells, setCells] = useState<GridCell[]>(() =>
     createDefaultCells(GRID_CONFIGS[0], defaultSymbol)
   );
@@ -223,14 +296,15 @@ export function SmartGrid({
     });
   }, []);
 
-  const getPositionsForSymbol = useCallback((symbol: string) => {
-    return openPositions.filter(p => p.symbol === symbol);
-  }, [openPositions]);
-
-  // ── Data Loading (REAL DATA ONLY — no simulated fallback) ──
+  // ═══ CRITICAL FIX: loadDataForCell has STABLE dependencies ═══
+  // No more openPositions = [] in the dep chain.
+  // getTradesForSymbol reads from refs — always fresh, never causes re-render.
   const loadDataForCell = useCallback(async (cell: GridCell, isRetry = false) => {
     const container = containerRefs.current.get(cell.id);
-    if (!container) return;
+    if (!container) {
+      console.warn('[SmartGrid] No container for cell', cell.id);
+      return;
+    }
 
     if (pendingLoadsRef.current.has(cell.id)) return;
     pendingLoadsRef.current.add(cell.id);
@@ -246,8 +320,11 @@ export function SmartGrid({
 
     try {
       // Fetch real data from API
-      const res = await fetch(`/api/exchange/history/${encodeURIComponent(cell.symbol)}?interval=${cell.timeframe}`);
+      const url = `/api/exchange/history/${encodeURIComponent(cell.symbol)}?interval=${cell.timeframe}`;
+      console.log('[SmartGrid] Fetching:', url);
+      const res = await fetch(url);
       const j = await res.json();
+      console.log('[SmartGrid] Response for', cell.symbol, cell.timeframe, ':', j.success, j.data?.length, 'candles, source:', j.source || j.data?.[0]?.source);
 
       detectedSource = detectDataSource(j);
 
@@ -267,9 +344,8 @@ export function SmartGrid({
         candleData.sort((a: any, b: any) => a.time - b.time);
       }
 
-      // ═══ SUSTAINABLE: No simulated data fallback ═══
-      // If API returned no data, show clear unavailable state
       if (candleData.length === 0) {
+        console.warn('[SmartGrid] No candle data for', cell.symbol, cell.timeframe, '- source:', detectedSource);
         updateCellState(cell.id, {
           loading: false,
           error: detectedSource === 'unavailable'
@@ -283,6 +359,8 @@ export function SmartGrid({
         return;
       }
 
+      console.log('[SmartGrid] Loaded', candleData.length, 'candles for', cell.symbol, cell.timeframe);
+
       const currentPrice = candleData[candleData.length - 1].close;
       const prevPrice = candleData.length > 1 ? candleData[candleData.length - 2].close : null;
       const changePercent = prevPrice && prevPrice !== 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
@@ -290,7 +368,7 @@ export function SmartGrid({
       const existingChart = chartInstancesRef.current.get(cell.id);
       const existingSeries = seriesRefs.current.get(cell.id);
 
-      // If chart already exists, just update data
+      // If chart already exists, just update data + trade overlays
       if (existingChart && existingSeries) {
         try {
           existingSeries.setData(candleData);
@@ -302,7 +380,11 @@ export function SmartGrid({
             })));
           }
           existingChart.timeScale().fitContent();
+
+          // Update trade markers on data refresh
+          renderTradeOverlays(cell, existingChart, existingSeries, candleData);
         } catch (err) {
+          console.warn('[SmartGrid] setData error, recreating chart:', err);
           try { existingChart.remove(); } catch {}
           chartInstancesRef.current.delete(cell.id);
           seriesRefs.current.delete(cell.id);
@@ -323,6 +405,8 @@ export function SmartGrid({
 
       // ── Create new chart instance ──
       const { w, h } = await waitForDimensions(container);
+      console.log('[SmartGrid] Creating chart for', cell.symbol, cell.timeframe, '- dims:', w, 'x', h);
+
       const { createChart, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } = await import('lightweight-charts');
 
       const chart = createChart(container, {
@@ -364,22 +448,14 @@ export function SmartGrid({
       mainSeries.setData(candleData);
       chart.timeScale().fitContent();
 
-      // Show trade markers
-      const positions = getPositionsForSymbol(cell.symbol);
-      if (positions.length > 0) {
-        const markers = positions.map((pos) => ({
-          time: candleData[candleData.length - 1].time as any,
-          position: pos.side === 'BUY' ? 'belowBar' as const : 'aboveBar' as const,
-          color: pos.side === 'BUY' ? C.upColor : C.downColor,
-          shape: pos.side === 'BUY' ? 'arrowUp' as const : 'arrowDown' as const,
-          text: `${pos.side} ${pos.entry.toFixed(pos.entry > 100 ? 1 : 5)}`,
-        }));
-        try { mainSeries.setMarkers(markers); } catch {}
-      }
+      // Render trade overlays (markers + price lines)
+      renderTradeOverlays(cell, chart, mainSeries, candleData);
 
       chartInstancesRef.current.set(cell.id, chart);
       seriesRefs.current.set(cell.id, mainSeries);
       initializedCellsRef.current.add(cell.id);
+
+      console.log('[SmartGrid] Chart created successfully for', cell.symbol, cell.timeframe);
 
       updateCellState(cell.id, {
         loading: false, error: null, currentPrice, prevPrice, changePercent,
@@ -387,6 +463,7 @@ export function SmartGrid({
         lastUpdated: Date.now(), retryCount: 0,
       });
     } catch (err: any) {
+      console.error('[SmartGrid] loadDataForCell ERROR:', err);
       updateCellState(cell.id, {
         loading: false,
         error: 'خطأ في الاتصال',
@@ -397,14 +474,96 @@ export function SmartGrid({
     } finally {
       pendingLoadsRef.current.delete(cell.id);
     }
-  }, [updateCellState, getPositionsForSymbol]);
+  }, [updateCellState, getTradesForSymbol]); // ← STABLE: both have [] or [stable] deps
+
+  // ── Render trade overlays: markers + price lines ──
+  const priceLineIdsRef = useRef<Map<string, string[]>>(new Map());
+
+  const renderTradeOverlays = useCallback((cell: GridCell, chart: any, series: any, candleData: any[]) => {
+    if (!chart || !series || candleData.length === 0) return;
+
+    const trades = getTradesForSymbol(cell.symbol);
+    if (trades.length === 0) return;
+
+    // Remove old price lines for this cell
+    const oldLineIds = priceLineIdsRef.current.get(cell.id) || [];
+    for (const lineId of oldLineIds) {
+      try { series.removePriceLine(lineId); } catch {}
+    }
+    priceLineIdsRef.current.set(cell.id, []);
+
+    const newLineIds: string[] = [];
+
+    // Add price lines for each trade (Entry, SL, TP)
+    for (const trade of trades) {
+      const isLong = trade.side === 'long' || trade.side === 'BUY';
+      const entryColor = isLong ? C.upColor : C.downColor;
+
+      // Entry price line
+      try {
+        const entryLine = series.createPriceLine({
+          price: trade.entry,
+          color: entryColor,
+          lineWidth: 1 as any,
+          lineStyle: 2, // dashed
+          axisLabelVisible: true,
+          title: `${isLong ? 'LONG' : 'SHORT'} @ ${trade.entry.toFixed(trade.entry > 100 ? 1 : 5)}`,
+        });
+        newLineIds.push(entryLine);
+      } catch {}
+
+      // SL price line
+      if (trade.sl && trade.sl > 0) {
+        try {
+          const slLine = series.createPriceLine({
+            price: trade.sl,
+            color: C.danger,
+            lineWidth: 1 as any,
+            lineStyle: 1, // dotted
+            axisLabelVisible: true,
+            title: `SL ${trade.sl.toFixed(trade.sl > 100 ? 1 : 5)}`,
+          });
+          newLineIds.push(slLine);
+        } catch {}
+      }
+
+      // TP price line
+      if (trade.tp && trade.tp > 0) {
+        try {
+          const tpLine = series.createPriceLine({
+            price: trade.tp,
+            color: C.success,
+            lineWidth: 1 as any,
+            lineStyle: 1, // dotted
+            axisLabelVisible: true,
+            title: `TP ${trade.tp.toFixed(trade.tp > 100 ? 1 : 5)}`,
+          });
+          newLineIds.push(tpLine);
+        } catch {}
+      }
+    }
+
+    priceLineIdsRef.current.set(cell.id, newLineIds);
+
+    // Add markers on the last candle
+    const markers = trades.map((trade) => {
+      const isLong = trade.side === 'long' || trade.side === 'BUY';
+      return {
+        time: candleData[candleData.length - 1].time as any,
+        position: isLong ? 'belowBar' as const : 'aboveBar' as const,
+        color: isLong ? C.upColor : C.downColor,
+        shape: isLong ? 'arrowUp' as const : 'arrowDown' as const,
+        text: `${isLong ? 'L' : 'S'} ${trade.entry.toFixed(trade.entry > 100 ? 1 : 4)}${trade.source === 'bot' ? ' 🤖' : trade.source === 'agent' ? ' 🧠' : ''}`,
+      };
+    });
+    try { series.setMarkers(markers); } catch {}
+  }, [getTradesForSymbol]);
 
   // ── Retry handler with exponential backoff ──
   const handleRetry = useCallback((cell: GridCell) => {
     const state = cellStates.get(cell.id);
     const retryCount = state?.retryCount || 0;
 
-    // Destroy existing chart to force fresh load
     const chart = chartInstancesRef.current.get(cell.id);
     if (chart) { try { chart.remove(); } catch {} }
     chartInstancesRef.current.delete(cell.id);
@@ -412,14 +571,16 @@ export function SmartGrid({
     volumeSeriesRefs.current.delete(cell.id);
     initializedCellsRef.current.delete(cell.id);
 
+    // Remove price lines tracking
+    priceLineIdsRef.current.delete(cell.id);
+
     updateCellState(cell.id, { retryCount: retryCount + 1 });
 
-    // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
     const delay = Math.min(1000 * Math.pow(2, retryCount), 15000);
     setTimeout(() => loadDataForCell(cell, true), delay);
   }, [cellStates, updateCellState, loadDataForCell]);
 
-  // ── Crosshair time sync (ALWAYS ON — cTrader pattern) ──
+  // ── Crosshair time sync (ALWAYS ON) ──
   useEffect(() => {
     crosshairSubsRef.current.forEach(unsub => unsub());
     crosshairSubsRef.current = [];
@@ -454,9 +615,9 @@ export function SmartGrid({
     seriesRefs.current.delete(cellId);
     volumeSeriesRefs.current.delete(cellId);
     initializedCellsRef.current.delete(cellId);
+    priceLineIdsRef.current.delete(cellId);
   }, []);
 
-  // Symbol change: AUTO-SYNC all cells (MTF pattern)
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {
     cells.forEach(c => destroyCellChart(c.id));
     setCells(prev => prev.map(c => ({ ...c, symbol: newSymbol })));
@@ -515,7 +676,10 @@ export function SmartGrid({
     if (chart) { try { chart.timeScale().fitContent(); } catch {} }
   }, [activeCellId]);
 
-  // ── Initialize charts when cells change ──
+  // ═══ CRITICAL FIX: Initialize charts — STABLE loadDataForCell ═══
+  // loadDataForCell now has only stable deps ([updateCellState, getTradesForSymbol])
+  // both of which have [] or stable dep arrays. So this useEffect won't
+  // keep clearing the timeout before it fires.
   const cellsRef = useRef(cells);
   cellsRef.current = cells;
 
@@ -530,7 +694,7 @@ export function SmartGrid({
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
-  // ── Auto-refresh every 15s (fresher data) ──
+  // ── Auto-refresh every 15s ──
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
       cells.forEach(cell => {
@@ -603,7 +767,7 @@ export function SmartGrid({
   }, [onClose, fullscreenCellId]);
 
   const formatPrice = (price: number | null): string => {
-    if (price === null) return '—';
+    if (price === null) return '-';
     if (price > 10000) return price.toFixed(0);
     if (price > 100) return price.toFixed(1);
     if (price > 1) return price.toFixed(2);
@@ -613,13 +777,16 @@ export function SmartGrid({
   const formatLastUpdated = (ts: number | null): string => {
     if (!ts) return '';
     const diff = Math.floor((Date.now() - ts) / 1000);
-    if (diff < 5) return 'الآن';
+    if (diff < 5) return 'now';
     if (diff < 60) return `${diff}s`;
     return `${Math.floor(diff / 60)}m`;
   };
 
   const activeCell = cells.find(c => c.id === activeCellId);
   const isFullscreen = fullscreenCellId !== null;
+
+  // Count total trades for active symbol
+  const activeTrades = activeCell ? getTradesForSymbol(activeCell.symbol) : [];
 
   const tbBtn: React.CSSProperties = {
     background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
@@ -634,6 +801,11 @@ export function SmartGrid({
     else { el.style.background = 'rgba(255,255,255,0.04)'; el.style.color = C.textDim; }
   };
 
+  // Get trade count for a specific cell's symbol
+  const getTradeCountForCell = useCallback((symbol: string): number => {
+    return getTradesForSymbol(symbol).length;
+  }, [getTradesForSymbol]);
+
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 1000,
@@ -641,7 +813,7 @@ export function SmartGrid({
       backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* ═══ SIMPLIFIED TOOLBAR ═══ */}
+      {/* ═══ TOOLBAR ═══ */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 5,
         padding: '5px 10px',
@@ -665,11 +837,11 @@ export function SmartGrid({
 
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
 
-        {/* Focus: switch main chart to this cell */}
+        {/* Focus */}
         {activeCell && onSwitchToChart && (
           <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
             onClick={() => handleFocusChart(activeCell)}>
-            ⤢ Focus
+            Focus
           </button>
         )}
 
@@ -677,21 +849,28 @@ export function SmartGrid({
         {activeCell && onSwitchToChart && (
           <>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'drawing')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>🖊 Draw</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Draw</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'indicators')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>📊 Ind</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Ind</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'ai')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>🧠 AI</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>AI</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'trading')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>💰 Trade</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>Trade</button>
           </>
         )}
 
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
 
+        {/* Trades count */}
+        {activeTrades.length > 0 && (
+          <span style={{ padding: '0px 5px', borderRadius: 3, fontSize: 8, fontWeight: 700, fontFamily: "'JetBrains Mono',monospace", background: 'rgba(0,255,163,0.1)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
+            {activeTrades.length} trades
+          </span>
+        )}
+
         {/* Zoom */}
-        <button style={tbBtn} onClick={handleZoomOut}>−</button>
-        <button style={tbBtn} onClick={handleFitContent}>↔</button>
+        <button style={tbBtn} onClick={handleZoomOut}>-</button>
+        <button style={tbBtn} onClick={handleFitContent}>&lt;-&gt;</button>
         <button style={tbBtn} onClick={handleZoomIn}>+</button>
 
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
@@ -718,7 +897,7 @@ export function SmartGrid({
         <button style={{ ...tbBtn, width: 26, height: 26, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={onClose}
           onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,71,87,0.15)'; (e.currentTarget as HTMLElement).style.color = C.danger; }}
           onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.04)'; (e.currentTarget as HTMLElement).style.color = C.textDim; }}>
-          ✕
+          X
         </button>
       </div>
 
@@ -733,10 +912,9 @@ export function SmartGrid({
           const state = cellStates.get(cell.id);
           const isActive = activeCellId === cell.id;
           const isPositive = (state?.changePercent ?? 0) >= 0;
-          const positions = getPositionsForSymbol(cell.symbol);
+          const tradesForCell = getTradesForSymbol(cell.symbol);
           const sourceInfo = SOURCE_LABELS[state?.dataSource || 'loading'];
           const isUnavailable = state?.dataSource === 'unavailable' && !state?.loading;
-          const hasError = !!state?.error && !state?.loading;
 
           return (
             <div key={cell.id}
@@ -769,7 +947,7 @@ export function SmartGrid({
 
                 <div style={{ flex: 1 }} />
 
-                {/* Data source badge — transparent indicator */}
+                {/* Data source badge */}
                 {state?.dataSource && state.dataSource !== 'loading' && (
                   <span style={{
                     padding: '0px 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
@@ -782,9 +960,10 @@ export function SmartGrid({
                   </span>
                 )}
 
-                {positions.length > 0 && (
+                {/* Trade count badge */}
+                {tradesForCell.length > 0 && (
                   <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: 'monospace', background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
-                    {positions.length} pos
+                    {tradesForCell.length} trade{tradesForCell.length > 1 ? 's' : ''}
                   </span>
                 )}
 
@@ -801,20 +980,20 @@ export function SmartGrid({
 
                 <select value={cell.chartType} onClick={e => e.stopPropagation()} onChange={e => handleChangeChartType(cell.id, e.target.value as any)}
                   style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${C.cardBorder}`, borderRadius: 3, color: C.textDim, fontSize: 7.5, padding: '0px 2px', cursor: 'pointer', outline: 'none' }}>
-                  <option value="candle" style={{ background: C.card }}>🕯</option>
-                  <option value="line" style={{ background: C.card }}>📈</option>
-                  <option value="area" style={{ background: C.card }}>📊</option>
+                  <option value="candle" style={{ background: C.card }}>Candle</option>
+                  <option value="line" style={{ background: C.card }}>Line</option>
+                  <option value="area" style={{ background: C.card }}>Area</option>
                 </select>
 
                 <button onClick={e => { e.stopPropagation(); setFullscreenCellId(prev => prev === cell.id ? null : cell.id); }}
                   style={{ background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 9, padding: 0, outline: 'none' }}>
-                  {fullscreenCellId === cell.id ? '⤓' : '⤢'}
+                  {fullscreenCellId === cell.id ? 'v' : '^'}
                 </button>
               </div>
 
               {/* Chart container */}
               <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
-                {/* Unavailable overlay — clear message instead of fake data */}
+                {/* Unavailable overlay */}
                 {isUnavailable && (
                   <div style={{
                     position: 'absolute', inset: 0, zIndex: 5,
@@ -842,26 +1021,30 @@ export function SmartGrid({
               </div>
 
               {/* Trade markers legend */}
-              {positions.length > 0 && (
+              {tradesForCell.length > 0 && (
                 <div style={{ display: 'flex', gap: 3, padding: '2px 5px', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0, flexWrap: 'wrap' }}>
-                  {positions.slice(0, 3).map((pos, i) => (
-                    <span key={i} style={{ fontSize: 6.5, fontFamily: "'JetBrains Mono',monospace", color: pos.side === 'BUY' ? C.upColor : C.downColor, fontWeight: 700 }}>
-                      {pos.side === 'BUY' ? '▲' : '▼'} {pos.entry.toFixed(pos.entry > 100 ? 1 : 4)}
-                      {pos.sl && <span style={{ color: C.danger }}> SL:{pos.sl.toFixed(pos.sl > 100 ? 1 : 4)}</span>}
-                      {pos.tp && <span style={{ color: C.success }}> TP:{pos.tp.toFixed(pos.tp > 100 ? 1 : 4)}</span>}
-                    </span>
-                  ))}
+                  {tradesForCell.slice(0, 4).map((trade, i) => {
+                    const isLong = trade.side === 'long' || trade.side === 'BUY';
+                    const srcIcon = trade.source === 'bot' ? ' B' : trade.source === 'agent' ? ' A' : trade.source === 'exchange' ? ' E' : ' P';
+                    return (
+                      <span key={i} style={{ fontSize: 6.5, fontFamily: "'JetBrains Mono',monospace", color: isLong ? C.upColor : C.downColor, fontWeight: 700 }}>
+                        {isLong ? '^' : 'v'} {trade.entry.toFixed(trade.entry > 100 ? 1 : 4)}{srcIcon}
+                        {trade.sl && <span style={{ color: C.danger }}> SL:{trade.sl.toFixed(trade.sl > 100 ? 1 : 4)}</span>}
+                        {trade.tp && <span style={{ color: C.success }}> TP:{trade.tp.toFixed(trade.tp > 100 ? 1 : 4)}</span>}
+                      </span>
+                    );
+                  })}
                 </div>
               )}
 
-              {/* Bottom status bar with last updated time */}
+              {/* Bottom status bar */}
               {state?.lastUpdated && !state.loading && state.dataSource !== 'unavailable' && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 5px', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
                   <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
                     {state.candleCount} candles
                   </span>
                   <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
-                    ↑ {formatLastUpdated(state.lastUpdated)}
+                    {formatLastUpdated(state.lastUpdated)}
                   </span>
                 </div>
               )}
@@ -872,11 +1055,11 @@ export function SmartGrid({
 
       {/* Hints */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '3px 10px', background: 'rgba(11,14,20,0.8)', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>Double-click = Focus on main chart</span>
+        <span style={{ color: C.textMuted, fontSize: 7 }}>Double-click = Focus</span>
         <span style={{ color: C.textMuted, fontSize: 7 }}>ESC = Close</span>
         <span style={{ color: C.textMuted, fontSize: 7 }}>{cells.length} charts</span>
-        {openPositions.length > 0 && <span style={{ color: C.success, fontSize: 7 }}>{openPositions.length} open positions</span>}
-        <span style={{ color: C.cyan, fontSize: 7 }}>Auto-sync · 15s refresh</span>
+        {(positions.length + paperTrades.length) > 0 && <span style={{ color: C.success, fontSize: 7 }}>{positions.length + paperTrades.length} active trades</span>}
+        <span style={{ color: C.cyan, fontSize: 7 }}>Auto-sync 15s</span>
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

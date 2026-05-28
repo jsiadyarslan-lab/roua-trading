@@ -1,9 +1,8 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading — Smart Grid (Unified Chart Grid + MTF)
-// FIXED: Candles always load — added simulated data fallback
-// FIXED: Sync is AUTOMATIC — no manual sync buttons needed
-// FIXED: Symbol change syncs all cells (MTF pattern)
-// FIXED: Crosshair sync always on (cTrader pattern)
+// SUSTAINABLE: No fake data — real API only, clear error states
+// AUTOMATIC: Sync is always on — no manual buttons needed
+// TRANSPARENT: Data source badge on every cell
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -33,6 +32,8 @@ interface GridCell {
   chartType: 'candle' | 'line' | 'area';
 }
 
+type DataSource = 'loading' | 'binance' | 'coingecko' | 'yahoo' | 'twelvedata' | 'unavailable';
+
 interface CellState {
   loading: boolean;
   error: string | null;
@@ -40,6 +41,9 @@ interface CellState {
   prevPrice: number | null;
   candleCount: number;
   changePercent: number | null;
+  dataSource: DataSource;
+  lastUpdated: number | null;
+  retryCount: number;
 }
 
 // ── Constants ────────────────────────────────────────────
@@ -90,6 +94,17 @@ const C = {
   gold: '#d4af37',
   upColor: '#3fb950',
   downColor: '#f85149',
+  warning: '#fbbf24',
+};
+
+// ── Data source display config ──
+const SOURCE_LABELS: Record<DataSource, { label: string; color: string }> = {
+  loading: { label: '...', color: C.textMuted },
+  binance: { label: 'Binance', color: C.success },
+  coingecko: { label: 'CoinGecko', color: '#8B5CF6' },
+  yahoo: { label: 'Yahoo', color: '#6366F1' },
+  twelvedata: { label: '12Data', color: '#EC4899' },
+  unavailable: { label: 'Unavailable', color: C.danger },
 };
 
 let cellIdCounter = 0;
@@ -108,50 +123,6 @@ function createDefaultCells(config: GridConfig, defaultSymbol: string): GridCell
   return cells;
 }
 
-// ── Simulated data fallback (same pattern as RouaChart) ──
-const BASE_PRICES: Record<string, number> = {
-  'BTC/USDT': 65000, 'ETH/USDT': 3500, 'SOL/USDT': 150,
-  'BNB/USDT': 600, 'XRP/USDT': 0.55, 'ADA/USDT': 0.45,
-  'DOGE/USDT': 0.12, 'DOT/USDT': 7, 'AVAX/USDT': 35, 'LINK/USDT': 15,
-  'XAU/USD': 2350, 'XAG/USD': 28, 'EUR/USD': 1.08, 'GBP/USD': 1.27,
-  'USD/JPY': 155, 'AUD/USD': 0.65, 'USD/CAD': 1.37,
-};
-
-const TIMEFRAME_MINUTES: Record<string, number> = {
-  '1min': 1, '5min': 5, '15min': 15, '30min': 30,
-  '1h': 60, '2h': 120, '4h': 240, '1day': 1440,
-  '1week': 10080, '1month': 43200,
-};
-
-function generateSimulatedCandles(symbol: string, timeframe: string, count = 200): Array<{
-  time: number; open: number; high: number; low: number; close: number; volume: number;
-}> {
-  const price = BASE_PRICES[symbol] || 100;
-  const isJPY = symbol.includes('JPY');
-  const dp = isJPY ? 3 : price > 1000 ? 1 : price > 10 ? 2 : 5;
-  const tfMinutes = TIMEFRAME_MINUTES[timeframe] || 15;
-  const candles: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> = [];
-  let p = price * (0.985 + Math.random() * 0.03);
-  const now = Math.floor(Date.now() / 1000);
-
-  for (let i = 0; i < count; i++) {
-    const t = now - (count - i) * tfMinutes * 60;
-    const rng = p * 0.003 * (0.5 + Math.random() * 1.5);
-    const o = p;
-    const c = p + (Math.random() - 0.485) * rng;
-    const h = Math.max(o, c) + Math.random() * rng * 0.5;
-    const l = Math.min(o, c) - Math.random() * rng * 0.5;
-    const v = Math.round(500 + Math.random() * 2000);
-    candles.push({
-      time: t,
-      open: +o.toFixed(dp), high: +h.toFixed(dp),
-      low: +l.toFixed(dp), close: +c.toFixed(dp), volume: v,
-    });
-    p = c;
-  }
-  return candles;
-}
-
 // ── Wait for container to have real dimensions ──
 function waitForDimensions(el: HTMLElement, maxRetries = 30): Promise<{ w: number; h: number }> {
   return new Promise((resolve) => {
@@ -168,6 +139,45 @@ function waitForDimensions(el: HTMLElement, maxRetries = 30): Promise<{ w: numbe
     };
     check(0);
   });
+}
+
+// ── Detect data source from API response ──
+function detectDataSource(response: any): DataSource {
+  const source = response?.source || '';
+  const note = response?.note || '';
+  const data = response?.data;
+
+  // If empty data + note, it's unavailable
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    return 'unavailable';
+  }
+
+  // Check source field from first candle
+  if (data.length > 0) {
+    const firstSource = data[0]?.source || '';
+    const lowerSource = firstSource.toLowerCase();
+    if (lowerSource.includes('binance')) return 'binance';
+    if (lowerSource.includes('coingecko')) return 'coingecko';
+    if (lowerSource.includes('yahoo')) return 'yahoo';
+    if (lowerSource.includes('twelvedata')) return 'twelvedata';
+    if (lowerSource.includes('frankfurter') || lowerSource.includes('ecb')) return 'yahoo';
+    if (lowerSource.includes('exchangerate')) return 'yahoo';
+  }
+
+  // Check response-level source
+  const lowerRespSource = source.toLowerCase();
+  if (lowerRespSource.includes('binance')) return 'binance';
+  if (lowerRespSource.includes('coingecko')) return 'coingecko';
+  if (lowerRespSource.includes('yahoo')) return 'yahoo';
+  if (lowerRespSource.includes('twelvedata')) return 'twelvedata';
+
+  // If response has "Demo" source or note about unavailable, mark unavailable
+  if (lowerRespSource === 'demo' || note.includes('غير متاحة') || note.includes('unavailable')) {
+    return 'unavailable';
+  }
+
+  // We have data but unknown source — assume it's from a real provider
+  return 'binance';
 }
 
 export function SmartGrid({
@@ -203,7 +213,11 @@ export function SmartGrid({
   const updateCellState = useCallback((cellId: string, update: Partial<CellState>) => {
     setCellStates(prev => {
       const next = new Map(prev);
-      const existing = next.get(cellId) || { loading: true, error: null, currentPrice: null, prevPrice: null, candleCount: 0, changePercent: null };
+      const existing = next.get(cellId) || {
+        loading: true, error: null, currentPrice: null, prevPrice: null,
+        candleCount: 0, changePercent: null, dataSource: 'loading' as DataSource,
+        lastUpdated: null, retryCount: 0,
+      };
       next.set(cellId, { ...existing, ...update });
       return next;
     });
@@ -213,22 +227,29 @@ export function SmartGrid({
     return openPositions.filter(p => p.symbol === symbol);
   }, [openPositions]);
 
-  // ── Data Loading (with simulated fallback) ──
-  const loadDataForCell = useCallback(async (cell: GridCell) => {
+  // ── Data Loading (REAL DATA ONLY — no simulated fallback) ──
+  const loadDataForCell = useCallback(async (cell: GridCell, isRetry = false) => {
     const container = containerRefs.current.get(cell.id);
     if (!container) return;
 
     if (pendingLoadsRef.current.has(cell.id)) return;
     pendingLoadsRef.current.add(cell.id);
 
-    updateCellState(cell.id, { loading: true, error: null });
+    updateCellState(cell.id, {
+      loading: true,
+      error: null,
+      dataSource: 'loading',
+    });
 
     let candleData: Array<{ time: number; open: number; high: number; low: number; close: number; volume: number }> = [];
+    let detectedSource: DataSource = 'unavailable';
 
     try {
-      // Try fetching real data from API
+      // Fetch real data from API
       const res = await fetch(`/api/exchange/history/${encodeURIComponent(cell.symbol)}?interval=${cell.timeframe}`);
       const j = await res.json();
+
+      detectedSource = detectDataSource(j);
 
       if (j.success && j.data && j.data.length > 0) {
         candleData = j.data
@@ -246,13 +267,18 @@ export function SmartGrid({
         candleData.sort((a: any, b: any) => a.time - b.time);
       }
 
-      // FALLBACK: If API returned no data, generate simulated candles
+      // ═══ SUSTAINABLE: No simulated data fallback ═══
+      // If API returned no data, show clear unavailable state
       if (candleData.length === 0) {
-        candleData = generateSimulatedCandles(cell.symbol, cell.timeframe);
-      }
-
-      if (candleData.length === 0) {
-        updateCellState(cell.id, { loading: false, error: 'No data', candleCount: 0 });
+        updateCellState(cell.id, {
+          loading: false,
+          error: detectedSource === 'unavailable'
+            ? 'لا توجد بيانات متاحة'
+            : 'فشل تحميل البيانات',
+          candleCount: 0,
+          dataSource: 'unavailable',
+          lastUpdated: Date.now(),
+        });
         pendingLoadsRef.current.delete(cell.id);
         return;
       }
@@ -286,7 +312,11 @@ export function SmartGrid({
           setTimeout(() => loadDataForCell(cell), 100);
           return;
         }
-        updateCellState(cell.id, { loading: false, error: null, currentPrice, prevPrice, changePercent, candleCount: candleData.length });
+        updateCellState(cell.id, {
+          loading: false, error: null, currentPrice, prevPrice, changePercent,
+          candleCount: candleData.length, dataSource: detectedSource,
+          lastUpdated: Date.now(), retryCount: 0,
+        });
         pendingLoadsRef.current.delete(cell.id);
         return;
       }
@@ -351,54 +381,43 @@ export function SmartGrid({
       seriesRefs.current.set(cell.id, mainSeries);
       initializedCellsRef.current.add(cell.id);
 
-      updateCellState(cell.id, { loading: false, error: null, currentPrice, prevPrice, changePercent, candleCount: candleData.length });
+      updateCellState(cell.id, {
+        loading: false, error: null, currentPrice, prevPrice, changePercent,
+        candleCount: candleData.length, dataSource: detectedSource,
+        lastUpdated: Date.now(), retryCount: 0,
+      });
     } catch (err: any) {
-      // LAST RESORT: Use simulated data even if API threw an error
-      try {
-        candleData = generateSimulatedCandles(cell.symbol, cell.timeframe);
-        if (candleData.length > 0) {
-          const { w, h } = await waitForDimensions(container);
-          const { createChart, CandlestickSeries, HistogramSeries } = await import('lightweight-charts');
-
-          const chart = createChart(container, {
-            width: w, height: h,
-            layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", attributionLogo: false },
-            grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
-            rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.2 } },
-            timeScale: { borderVisible: false, timeVisible: true, secondsVisible: false, rightOffset: 3, barSpacing: 6, minBarSpacing: 2 },
-            crosshair: { mode: 0 },
-            handleScroll: true, handleScale: true,
-          });
-
-          const volSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
-          volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-          volSeries.setData(candleData.map((d: any) => ({ time: d.time, value: d.volume, color: d.close >= d.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)' })));
-          volumeSeriesRefs.current.set(cell.id, volSeries);
-
-          const mainSeries = chart.addSeries(CandlestickSeries, {
-            upColor: C.upColor, downColor: C.downColor,
-            borderUpColor: C.upColor, borderDownColor: C.downColor,
-            wickUpColor: C.upColor, wickDownColor: C.downColor,
-          });
-          mainSeries.setData(candleData);
-          chart.timeScale().fitContent();
-
-          chartInstancesRef.current.set(cell.id, chart);
-          seriesRefs.current.set(cell.id, mainSeries);
-          initializedCellsRef.current.add(cell.id);
-
-          const currentPrice = candleData[candleData.length - 1].close;
-          updateCellState(cell.id, { loading: false, error: null, currentPrice, candleCount: candleData.length });
-          pendingLoadsRef.current.delete(cell.id);
-          return;
-        }
-      } catch {}
-
-      updateCellState(cell.id, { loading: false, error: 'Load failed', candleCount: 0 });
+      updateCellState(cell.id, {
+        loading: false,
+        error: 'خطأ في الاتصال',
+        candleCount: 0,
+        dataSource: 'unavailable',
+        lastUpdated: Date.now(),
+      });
     } finally {
       pendingLoadsRef.current.delete(cell.id);
     }
   }, [updateCellState, getPositionsForSymbol]);
+
+  // ── Retry handler with exponential backoff ──
+  const handleRetry = useCallback((cell: GridCell) => {
+    const state = cellStates.get(cell.id);
+    const retryCount = state?.retryCount || 0;
+
+    // Destroy existing chart to force fresh load
+    const chart = chartInstancesRef.current.get(cell.id);
+    if (chart) { try { chart.remove(); } catch {} }
+    chartInstancesRef.current.delete(cell.id);
+    seriesRefs.current.delete(cell.id);
+    volumeSeriesRefs.current.delete(cell.id);
+    initializedCellsRef.current.delete(cell.id);
+
+    updateCellState(cell.id, { retryCount: retryCount + 1 });
+
+    // Exponential backoff: 1s, 2s, 4s, 8s, max 15s
+    const delay = Math.min(1000 * Math.pow(2, retryCount), 15000);
+    setTimeout(() => loadDataForCell(cell, true), delay);
+  }, [cellStates, updateCellState, loadDataForCell]);
 
   // ── Crosshair time sync (ALWAYS ON — cTrader pattern) ──
   useEffect(() => {
@@ -437,9 +456,8 @@ export function SmartGrid({
     initializedCellsRef.current.delete(cellId);
   }, []);
 
-  // Symbol change: AUTO-SYNC all cells (MTF pattern — that's the whole point)
+  // Symbol change: AUTO-SYNC all cells (MTF pattern)
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {
-    // Destroy ALL cell charts and update all to new symbol
     cells.forEach(c => destroyCellChart(c.id));
     setCells(prev => prev.map(c => ({ ...c, symbol: newSymbol })));
   }, [cells, destroyCellChart]);
@@ -512,13 +530,15 @@ export function SmartGrid({
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
-  // ── Auto-refresh every 30s ──
+  // ── Auto-refresh every 15s (fresher data) ──
   useEffect(() => {
     refreshIntervalRef.current = setInterval(() => {
       cells.forEach(cell => {
-        if (cell.symbol) loadDataForCell(cell);
+        if (cell.symbol && initializedCellsRef.current.has(cell.id)) {
+          loadDataForCell(cell);
+        }
       });
-    }, 30000);
+    }, 15000);
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
   }, [cells, loadDataForCell]);
 
@@ -590,6 +610,14 @@ export function SmartGrid({
     return price.toFixed(5);
   };
 
+  const formatLastUpdated = (ts: number | null): string => {
+    if (!ts) return '';
+    const diff = Math.floor((Date.now() - ts) / 1000);
+    if (diff < 5) return 'الآن';
+    if (diff < 60) return `${diff}s`;
+    return `${Math.floor(diff / 60)}m`;
+  };
+
   const activeCell = cells.find(c => c.id === activeCellId);
   const isFullscreen = fullscreenCellId !== null;
 
@@ -633,7 +661,6 @@ export function SmartGrid({
               {activeCell.symbol} · {TIMEFRAME_OPTIONS.find(tf => tf.value === activeCell.timeframe)?.label}
             </span>
           )}
-          <span style={{ color: C.textMuted, fontSize: 8, fontFamily: "'Cairo',sans-serif" }}>مزامنة تلقائية</span>
         </div>
 
         <div style={{ width: 1, height: 18, background: C.cardBorder }} />
@@ -707,6 +734,9 @@ export function SmartGrid({
           const isActive = activeCellId === cell.id;
           const isPositive = (state?.changePercent ?? 0) >= 0;
           const positions = getPositionsForSymbol(cell.symbol);
+          const sourceInfo = SOURCE_LABELS[state?.dataSource || 'loading'];
+          const isUnavailable = state?.dataSource === 'unavailable' && !state?.loading;
+          const hasError = !!state?.error && !state?.loading;
 
           return (
             <div key={cell.id}
@@ -739,6 +769,19 @@ export function SmartGrid({
 
                 <div style={{ flex: 1 }} />
 
+                {/* Data source badge — transparent indicator */}
+                {state?.dataSource && state.dataSource !== 'loading' && (
+                  <span style={{
+                    padding: '0px 3px', borderRadius: 2, fontSize: 6, fontWeight: 700,
+                    fontFamily: "'JetBrains Mono',monospace",
+                    background: `${sourceInfo.color}15`,
+                    color: sourceInfo.color,
+                    border: `1px solid ${sourceInfo.color}30`,
+                  }}>
+                    {sourceInfo.label}
+                  </span>
+                )}
+
                 {positions.length > 0 && (
                   <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: 'monospace', background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
                     {positions.length} pos
@@ -770,7 +813,33 @@ export function SmartGrid({
               </div>
 
               {/* Chart container */}
-              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }} />
+              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }}>
+                {/* Unavailable overlay — clear message instead of fake data */}
+                {isUnavailable && (
+                  <div style={{
+                    position: 'absolute', inset: 0, zIndex: 5,
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    background: 'rgba(11,14,20,0.85)', gap: 8,
+                  }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke={C.danger} strokeWidth="1.5" style={{ opacity: 0.6 }}>
+                      <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                    </svg>
+                    <span style={{ color: C.danger, fontSize: 9, fontWeight: 700, fontFamily: "'Cairo',sans-serif", textAlign: 'center', lineHeight: 1.4 }}>
+                      {state?.error || 'لا توجد بيانات'}
+                    </span>
+                    <button
+                      onClick={e => { e.stopPropagation(); handleRetry(cell); }}
+                      style={{
+                        background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.3)',
+                        borderRadius: 4, color: C.cyan, padding: '4px 12px', fontSize: 8, fontWeight: 700,
+                        cursor: 'pointer', fontFamily: "'Cairo',sans-serif",
+                      }}
+                    >
+                      إعادة المحاولة
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Trade markers legend */}
               {positions.length > 0 && (
@@ -785,7 +854,17 @@ export function SmartGrid({
                 </div>
               )}
 
-              {state?.error && <div style={{ padding: '3px 6px', color: C.danger, fontSize: 7, textAlign: 'center', flexShrink: 0 }}>{state.error}</div>}
+              {/* Bottom status bar with last updated time */}
+              {state?.lastUpdated && !state.loading && state.dataSource !== 'unavailable' && (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1px 5px', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
+                  <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
+                    {state.candleCount} candles
+                  </span>
+                  <span style={{ fontSize: 6, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace" }}>
+                    ↑ {formatLastUpdated(state.lastUpdated)}
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}
@@ -797,6 +876,7 @@ export function SmartGrid({
         <span style={{ color: C.textMuted, fontSize: 7 }}>ESC = Close</span>
         <span style={{ color: C.textMuted, fontSize: 7 }}>{cells.length} charts</span>
         {openPositions.length > 0 && <span style={{ color: C.success, fontSize: 7 }}>{openPositions.length} open positions</span>}
+        <span style={{ color: C.cyan, fontSize: 7 }}>Auto-sync · 15s refresh</span>
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

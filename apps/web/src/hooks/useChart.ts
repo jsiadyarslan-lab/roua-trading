@@ -520,9 +520,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     } catch { /* series might not exist yet on first render */ }
     // Clear active indicators state (they'll be re-added by setCandles)
     setActiveIndicators(new Map());
-    // Clear price lines
-    priceLinesRef.current.forEach((line, id) => {
-      try { line.remove(); } catch {}
+    // Clear price lines using proper lightweight-charts v5 API
+    // IPriceLine has no .remove() method — must use series.removePriceLine(line)
+    priceLinesRef.current.forEach((line) => {
+      try { candleSeriesRef.current?.removePriceLine(line); } catch {}
     });
     priceLinesRef.current.clear();
   }, [symbol]);
@@ -562,9 +563,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // triggering "Value is null" in lightweight-charts.
     setActiveIndicators(new Map());
     activeIndicatorsRef.current = new Map();
-    // Clear price lines (they are timeframe-dependent)
+    // Clear price lines using proper lightweight-charts v5 API
     priceLinesRef.current.forEach((line) => {
-      try { line.remove(); } catch {}
+      try { candleSeriesRef.current?.removePriceLine(line); } catch {}
     });
     priceLinesRef.current.clear();
     // Clear markers (they are timeframe-dependent)

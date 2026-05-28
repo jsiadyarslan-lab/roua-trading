@@ -1141,6 +1141,19 @@ export default function RouaChart({
       // renderOverlays call will create a fresh registry.
       resetOverlayRegistry();
     } catch {}
+    // SAFETY NET: Brute-force remove ALL price lines from the candle series.
+    // This catches orphaned lines from: delayed addPriceLine retries,
+    // race conditions between useChart and RouaChart cleanup, and
+    // any lines that lost their tracking ID.
+    try {
+      const series = chart.candleSeriesRef?.current || chart.mainSeriesRef?.current;
+      if (series) {
+        const allLines: any[] = series.priceLines?.() || [];
+        allLines.forEach((line: any) => {
+          try { series.removePriceLine(line); } catch {}
+        });
+      }
+    } catch {}
     // Clean up direct price lines (createPriceLine on mainSeries)
     const lines = (aiPriceLinesRef as any).__lines || [];
     lines.forEach(({ series, line }: any) => {
@@ -2265,7 +2278,7 @@ export default function RouaChart({
 
       {/* AI Smart Panel — uses DraggablePanel (same as all other panels) */}
       {showAIPanel && (
-        <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={340} minHeight={400} resizable={true}>
+        <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={255} minHeight={340} resizable={true}>
           <AISmartPanel
             symbol={selectedSymbol}
             candles={aiPanelCandles}

@@ -1139,7 +1139,7 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
   const regimeLabelAr = volRegime === 'extreme' ? t('extreme') : volRegime === 'high' ? t('high') : volRegime === 'low' ? t('low') : t('normal');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 400, maxHeight: 700, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 340, maxHeight: 560, background: C.bg, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden', fontFamily: "'Cairo','IBM Plex Sans Arabic',sans-serif", boxShadow: '0 24px 64px rgba(0,0,0,0.7)', direction: 'inherit' }}>
       {/* Header */}
       <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 10px', borderBottom: `1px solid ${C.border}`, background: 'rgba(255,255,255,0.025)', cursor: 'grab', userSelect: 'none', flexShrink: 0 }}>
         <div data-drag-handle="true" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1181,12 +1181,12 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         </div>
       </div>
 
-      {/* Overlay Toggles */}
-      <div style={{ display:'flex', gap:3, padding:'4px 8px', borderBottom:`1px solid ${C.border}`, flexShrink:0, flexWrap:'wrap', alignContent:'flex-start' }}>
-        {([[t('overlaySR'),'sr','#4ade80'],[t('overlayTrend'),'trend','#facc15'],[t('overlayHarmonic'),'harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],[t('overlayGeometric'),'geo','#a78bfa'],[t('overlayElliott'),'ew','#93c5fd'],[t('overlayWyckoff'),'wyckoff','#fb923c'],['VP','vp','#fbbf24'],[t('overlayEntry'),'entry','#00D4FF'],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRADE','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
-          <button key={key} onClick={()=>{ toggleOverlay(key); }}
-            style={{ padding:'2px 6px', borderRadius:3, fontSize:8, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
-              whiteSpace:'nowrap', flexShrink:0,
+      {/* Overlay Toggles — compact icon buttons in grid */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(42px, 1fr))', gap:2, padding:'3px 6px', borderBottom:`1px solid ${C.border}`, flexShrink:0 }}>
+        {([['S/R','sr','#4ade80'],['📈','trend','#facc15'],['HM','harmonic','#c084fc'],['FVG','fvg','#22d3ee'],['BOS','bos','#f97316'],['GEO','geo','#a78bfa'],['EW','ew','#93c5fd'],['WY','wyckoff','#fb923c'],['VP','vp','#fbbf24'],['ENT','entry','#00D4FF'],['MTF','mtf','#06b6d4'],['LIQ','liq','#f472b6'],['TRD','trade','#a3e635']] as [string,keyof typeof overlays,string][]).map(([lbl,key,col])=>(
+          <button key={key} onClick={()=>{ toggleOverlay(key); }} title={[['S/R','sr'],['📈','trend'],['HM','harmonic'],['FVG','fvg'],['BOS','bos'],['GEO','geo'],['EW','ew'],['WY','wyckoff'],['VP','vp'],['ENT','entry'],['MTF','mtf'],['LIQ','liq'],['TRD','trade']].find(x=>x[1]===key)?.[0] || key}
+            style={{ padding:'2px 0', borderRadius:3, fontSize:7.5, fontWeight:700, cursor:'pointer', outline:'none', fontFamily:'inherit',
+              textAlign:'center', lineHeight:1.2,
               border:`1px solid ${overlays[key]?col:'#333'}`,
               background:overlays[key]?col+'22':'transparent',
               color:overlays[key]?col:'#555',
@@ -1196,11 +1196,10 @@ export function AISmartPanel({ symbol, candles, currentPrice, onPatternsDetected
         ))}
       </div>
 
-      {/* Tabs — horizontally scrollable */}
-      <div style={{ display: 'flex', borderBottom: `1px solid ${C.border}`, flexShrink: 0, overflowX: 'auto', overflowY: 'hidden', scrollbarWidth: 'none' }}>
-        <style>{`div::-webkit-scrollbar { display: none; }`}</style>
-        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'Wyckoff'], ['elliott', 'Elliott'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖']] as [Tab, string][]).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)} style={{ flex: '0 0 auto', padding: '4px 8px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9.5, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400, whiteSpace: 'nowrap' }}>{l}</button>
+      {/* Tabs — two-row compact grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', borderBottom: `1px solid ${C.border}`, borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+        {([['signal', t('tabSignal')], ['patterns', t('tabPatterns')], ['wyckoff', 'WY'], ['elliott', 'EW'], ['levels', t('tabLevels')], ['smc', t('tabSmc')], ['mtf', 'MTF'], ['alerts', '🚨'], ['trades', '💰'], ['advanced', t('tabAdvanced')], ['adaptive', '🧠'], ['rules', '📐'], ['paper', '📝'], ['scanner', '🔍'], ['council', '🤖']] as [Tab, string][]).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} style={{ padding: '3px 2px', background: tab===k?'rgba(34,211,238,0.08)':'none', border: 'none', borderBottom: `2px solid ${tab === k ? C.cyan : 'transparent'}`, color: tab === k ? C.cyan : C.dim, fontSize: 9, cursor: 'pointer', outline: 'none', fontFamily: 'inherit', transition: 'all 0.15s', fontWeight: tab===k?700:400, whiteSpace: 'nowrap', textAlign: 'center' }}>{l}</button>
         ))}
       </div>
 

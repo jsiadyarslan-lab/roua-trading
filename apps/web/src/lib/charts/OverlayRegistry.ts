@@ -13,7 +13,7 @@
 import type { ISeriesApi, SeriesType } from 'lightweight-charts';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 
-export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts' | 'mtf' | 'trade' | 'liq' | 'heatmap';
+export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts' | 'mtf' | 'trade' | 'liq' | 'heatmap' | 'bayesian' | 'fusion';
 
 interface OverlayGroup {
   primitives: ISeriesPrimitive[];
@@ -41,7 +41,7 @@ export class OverlayRegistry {
   private removePriceLineFn: ((id: string) => void) | null = null;
 
   constructor() {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
     for (const type of types) {
       this.groups.set(type, { primitives: [], active: false, priceLineIds: [] });
     }
@@ -171,7 +171,7 @@ export class OverlayRegistry {
 
   /** Clear all overlay primitives and price lines */
   clearAll(): void {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
     for (const type of types) {
       this.clearType(type);
     }

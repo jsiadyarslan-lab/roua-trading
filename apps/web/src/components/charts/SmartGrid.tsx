@@ -239,7 +239,9 @@ export function SmartGrid({
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crosshairSubsRef = useRef<Array<() => void>>([]);
   const initializedCellsRef = useRef<Set<string>>(new Set());
-  const pendingLoadsRef = useRef<Set<string>>(new Set());
+  // pendingLoadsRef now tracks cellId → version to prevent stale finally blocks
+  // from removing a new load's entry
+  const pendingLoadsRef = useRef<Map<string, number>>(new Map());
   // AbortControllers per cell — cancel stale fetch requests when cell is destroyed
   const abortControllersRef = useRef<Map<string, AbortController>>(new Map());
   // Track cell version — increment on destroy so stale loads are discarded
@@ -347,14 +349,14 @@ export function SmartGrid({
     const controller = new AbortController();
     abortControllersRef.current.set(cell.id, controller);
 
-    // Allow reload after destroy by checking version — if version changed, the pending load is stale
+    // Version-aware pending check: only block if the same version is already loading
     const currentVersion = cellVersionRef.current.get(cell.id) || 0;
-    if (pendingLoadsRef.current.has(cell.id)) {
-      // Check if there's already a pending load with the same version — skip if so
-      // But if the version is different, allow the new load
+    const pendingVersion = pendingLoadsRef.current.get(cell.id);
+    if (pendingVersion !== undefined && pendingVersion === currentVersion) {
+      // Same version already loading — skip to prevent duplicate
       return;
     }
-    pendingLoadsRef.current.add(cell.id);
+    pendingLoadsRef.current.set(cell.id, currentVersion);
 
     updateCellState(cell.id, {
       loading: true,
@@ -368,7 +370,10 @@ export function SmartGrid({
     // Check version — if cell was destroyed and re-created, discard this stale load
     const loadVersion = cellVersionRef.current.get(cell.id) || 0;
     if (loadVersion !== currentVersion) {
-      pendingLoadsRef.current.delete(cell.id);
+      // Only remove our version's entry, not a newer one
+      if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+        pendingLoadsRef.current.delete(cell.id);
+      }
       return;
     }
 
@@ -429,7 +434,9 @@ export function SmartGrid({
           dataSource: 'unavailable',
           lastUpdated: Date.now(),
         });
-        pendingLoadsRef.current.delete(cell.id);
+        if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+          pendingLoadsRef.current.delete(cell.id);
+        }
         return;
       }
 
@@ -441,7 +448,9 @@ export function SmartGrid({
 
       // Guard: skip if cell was destroyed during fetch
       if (!container.isConnected || controller.signal.aborted || (cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
-        pendingLoadsRef.current.delete(cell.id);
+        if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+          pendingLoadsRef.current.delete(cell.id);
+        }
         return;
       }
 
@@ -470,7 +479,9 @@ export function SmartGrid({
           seriesRefs.current.delete(cell.id);
           volumeSeriesRefs.current.delete(cell.id);
           initializedCellsRef.current.delete(cell.id);
-          pendingLoadsRef.current.delete(cell.id);
+          if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+            pendingLoadsRef.current.delete(cell.id);
+          }
           setTimeout(() => loadDataForCell(cell), 100);
           return;
         }
@@ -479,13 +490,17 @@ export function SmartGrid({
           candleCount: candleData.length, dataSource: detectedSource,
           lastUpdated: Date.now(), retryCount: 0,
         });
-        pendingLoadsRef.current.delete(cell.id);
+        if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+          pendingLoadsRef.current.delete(cell.id);
+        }
         return;
       }
 
       // Guard: skip if cell was destroyed during fetch
       if (!container.isConnected || controller.signal.aborted || (cellVersionRef.current.get(cell.id) || 0) !== currentVersion) {
-        pendingLoadsRef.current.delete(cell.id);
+        if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+          pendingLoadsRef.current.delete(cell.id);
+        }
         return;
       }
 
@@ -551,7 +566,9 @@ export function SmartGrid({
     } catch (err: any) {
       // Don't show error for aborted requests (cell was destroyed)
       if (err?.name === 'AbortError' || controller.signal.aborted) {
-        pendingLoadsRef.current.delete(cell.id);
+        if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+          pendingLoadsRef.current.delete(cell.id);
+        }
         return;
       }
       console.error('[SmartGrid] loadDataForCell ERROR:', err);
@@ -563,7 +580,10 @@ export function SmartGrid({
         lastUpdated: Date.now(),
       });
     } finally {
-      pendingLoadsRef.current.delete(cell.id);
+      // Only remove our version's entry — don't delete a newer load's entry
+      if (pendingLoadsRef.current.get(cell.id) === currentVersion) {
+        pendingLoadsRef.current.delete(cell.id);
+      }
       abortControllersRef.current.delete(cell.id);
     }
   }, [updateCellState, getTradesForSymbol]); // ← STABLE: both have [] or [stable] deps
@@ -729,7 +749,7 @@ export function SmartGrid({
     volumeSeriesRefs.current.delete(cellId);
     initializedCellsRef.current.delete(cellId);
     priceLineIdsRef.current.delete(cellId);
-    pendingLoadsRef.current.delete(cellId);
+    pendingLoadsRef.current.delete(cellId); // Safe: destroyCellChart always clears regardless of version
 
     // Bump version so any stale in-flight loads are discarded
     const prevVersion = cellVersionRef.current.get(cellId) || 0;

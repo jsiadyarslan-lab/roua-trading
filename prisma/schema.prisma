@@ -594,16 +594,21 @@ model CoachAdvice {
   @@index([createdAt])
 }
 
-// ── Chart Preferences (Drawings & Settings) ──
+// ── Chart Preferences (Drawings, Settings, Indicators, Layout) ──
 model ChartPreference {
-  id        String   @id @default(cuid())
-  userId    String
-  symbol    String // e.g. "BTC/USD" or "global"
-  settings  String   @default("{}") // JSON for colors, indicators, timeframes
-  drawings  String   @default("[]") // JSON for lines, rects, fibs, etc.
-  updatedAt DateTime @updatedAt
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  userId       String
+  symbol       String   // e.g. "BTC/USD" or "global"
+  settings     String   @default("{}")  // JSON: ChartSettings (colors, grid, volume, etc.)
+  drawings     String   @default("[]")  // JSON: Drawing[] (lines, fibs, shapes, etc.)
+  indicators   String   @default("[]")  // JSON: SerializedIndicator[] (config only, not computed data)
+  chartType    String   @default("candle") // Chart type: candle | hollow | bar | line | area | heikin
+  visibleRange String   @default("null")   // JSON: {from, to} | null — visible time range for scroll/zoom
+  timeframe    String   @default("15min")  // Last used timeframe for this symbol
+  activeTool   String   @default("cursor") // Last used drawing tool
+  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, symbol])
   @@index([userId])

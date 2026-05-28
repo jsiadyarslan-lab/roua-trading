@@ -15,6 +15,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
+import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConfig } from '@/hooks/useChartStateStore';
 import type { CandleData } from '@/lib/charts/types';
 
 // ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
@@ -647,10 +648,33 @@ export function SmartGrid({
     return trades;
   }, []); // ← NO DEPS: reads from refs, always fresh
 
-  const [activeConfig, setActiveConfig] = useState<GridConfig>(GRID_CONFIGS[0]);
-  const [cells, setCells] = useState<GridCell[]>(() =>
-    createDefaultCells(GRID_CONFIGS[0], defaultSymbol)
-  );
+  const [activeConfig, setActiveConfig] = useState<GridConfig>(() => {
+    // Restore saved layout if available
+    try {
+      const saved = useChartStateStore.getState().smartGrid;
+      if (saved) {
+        const match = GRID_CONFIGS.find(c => c.label === saved.activeLayout);
+        if (match) return match;
+      }
+    } catch {}
+    return GRID_CONFIGS[0];
+  });
+  const [cells, setCells] = useState<GridCell[]>(() => {
+    // Restore saved cells if available
+    try {
+      const saved = useChartStateStore.getState().smartGrid;
+      if (saved && saved.cells && saved.cells.length > 0) {
+        // Restore cells with new IDs to avoid ID conflicts
+        return saved.cells.map(c => ({
+          id: `cell-${cellIdCounter++}`,
+          symbol: c.symbol,
+          timeframe: c.timeframe,
+          chartType: c.chartType || 'candle',
+        }));
+      }
+    } catch {}
+    return createDefaultCells(GRID_CONFIGS[0], defaultSymbol);
+  });
   const [cellStates, setCellStates] = useState<Map<string, CellState>>(new Map());
   const [activeCellId, setActiveCellId] = useState<string>('');
   const [fullscreenCellId, setFullscreenCellId] = useState<string | null>(null);
@@ -665,6 +689,34 @@ export function SmartGrid({
   useEffect(() => {
     if (!activeCellId && cells.length > 0) setActiveCellId(cells[0].id);
   }, [cells, activeCellId]);
+
+  // ── Auto-Save SmartGrid config when cells or layout change ──
+  const smartGridSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // Debounce save to avoid excessive writes during rapid changes
+    if (smartGridSaveTimerRef.current) clearTimeout(smartGridSaveTimerRef.current);
+    smartGridSaveTimerRef.current = setTimeout(() => {
+      try {
+        const store = useChartStateStore.getState();
+        const cellConfigs: SmartGridCellConfig[] = cells.map(c => ({
+          id: c.id,
+          symbol: c.symbol,
+          timeframe: c.timeframe,
+          chartType: c.chartType,
+        }));
+        store.saveSmartGridConfig({
+          activeLayout: activeConfig.label,
+          cells: cellConfigs,
+        });
+      } catch (e) {
+        console.warn('[SmartGrid] Auto-save failed:', e);
+      }
+      smartGridSaveTimerRef.current = null;
+    }, 2000);
+    return () => {
+      if (smartGridSaveTimerRef.current) clearTimeout(smartGridSaveTimerRef.current);
+    };
+  }, [cells, activeConfig]);
 
   const updateCellState = useCallback((cellId: string, update: Partial<CellState>) => {
     setCellStates(prev => {

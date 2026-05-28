@@ -5,7 +5,34 @@
 
 import type { Drawing, DrawingTool, DrawingPoint } from './types';
 
-const STORAGE_KEY = 'roua-chart-drawings';
+/**
+ * Get a user-isolated localStorage key for chart drawings.
+ * Uses userId from auth store to prevent data leakage between
+ * users on shared browsers (libraries, offices, kiosks).
+ */
+function getStorageKey(): string {
+  // Priority 1: Read from auth store (most reliable)
+  try {
+    const { useAuthStore } = require('@/lib/auth-store')
+    const user = useAuthStore.getState()?.user
+    if (user?.id) return `roua-chart-drawings:${user.id}`
+  } catch { /* Auth store not loaded yet */ }
+
+  // Priority 2: Read from localStorage cache (available before Zustand hydrates)
+  try {
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) return `roua-chart-drawings:${cached.id}`
+    }
+  } catch { /* Cache unavailable */ }
+
+  // Priority 3: Guest/fallback
+  return 'roua-chart-drawings:guest'
+}
+
+// Legacy static key — used ONLY for migration from old format
+const LEGACY_STORAGE_KEY = 'roua-chart-drawings'
 
 export class DrawingManager {
   private drawings: Map<string, Drawing> = new Map();
@@ -77,7 +104,7 @@ export class DrawingManager {
       const allDrawings = this.getAllStoredDrawings();
       const symbolDrawings = this.getAll();
       allDrawings[this.symbol] = symbolDrawings;
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(allDrawings));
+      localStorage.setItem(getStorageKey(), JSON.stringify(allDrawings));
     } catch {
       // localStorage might be full or unavailable
     }
@@ -86,7 +113,26 @@ export class DrawingManager {
   private loadFromStorage(): void {
     if (typeof window === 'undefined') return;
     try {
-      const allDrawings = this.getAllStoredDrawings();
+      let allDrawings = this.getAllStoredDrawings();
+
+      // MIGRATION: If user-isolated key is empty but legacy key has data,
+      // migrate the data to the new key for this user.
+      if (Object.keys(allDrawings).length === 0) {
+        try {
+          const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+          if (legacyRaw) {
+            const legacyData = JSON.parse(legacyRaw);
+            if (legacyData && Object.keys(legacyData).length > 0) {
+              allDrawings = legacyData;
+              // Save to user-isolated key
+              localStorage.setItem(getStorageKey(), JSON.stringify(legacyData));
+              // Remove legacy key to prevent re-migration
+              localStorage.removeItem(LEGACY_STORAGE_KEY);
+            }
+          }
+        } catch { /* Legacy data corrupted — skip migration */ }
+      }
+
       const symbolDrawings = allDrawings[this.symbol] || [];
       this.drawings.clear();
       symbolDrawings.forEach(d => this.drawings.set(d.id, d));
@@ -97,7 +143,7 @@ export class DrawingManager {
 
   private getAllStoredDrawings(): Record<string, Drawing[]> {
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(getStorageKey());
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};

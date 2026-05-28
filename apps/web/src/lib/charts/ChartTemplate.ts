@@ -5,7 +5,30 @@
 
 import type { ChartTemplate, ChartSettings, ActiveIndicator, Drawing } from './types';
 
-const STORAGE_KEY = 'roua-chart-templates';
+/**
+ * Get a user-isolated localStorage key for chart templates.
+ * Uses userId from auth store to prevent data leakage between
+ * users on shared browsers.
+ */
+function getStorageKey(): string {
+  try {
+    const { useAuthStore } = require('@/lib/auth-store')
+    const user = useAuthStore.getState()?.user
+    if (user?.id) return `roua-chart-templates:${user.id}`
+  } catch { /* Auth store not loaded yet */ }
+
+  try {
+    const cachedRaw = localStorage.getItem('roua_auth_user')
+    if (cachedRaw) {
+      const cached = JSON.parse(cachedRaw)
+      if (cached?.id) return `roua-chart-templates:${cached.id}`
+    }
+  } catch { /* Cache unavailable */ }
+
+  return 'roua-chart-templates:guest'
+}
+
+const LEGACY_STORAGE_KEY = 'roua-chart-templates'
 
 export class ChartTemplateManager {
 
@@ -55,7 +78,25 @@ export class ChartTemplateManager {
   static getAll(): ChartTemplate[] {
     if (typeof window === 'undefined') return [];
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const key = getStorageKey()
+      let raw = localStorage.getItem(key)
+
+      // MIGRATION: If user-isolated key is empty but legacy key has data,
+      // migrate the data to the new key for this user.
+      if (!raw) {
+        try {
+          const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY)
+          if (legacyRaw) {
+            const legacyData = JSON.parse(legacyRaw)
+            if (Array.isArray(legacyData) && legacyData.length > 0) {
+              raw = legacyRaw
+              localStorage.setItem(key, raw)
+              localStorage.removeItem(LEGACY_STORAGE_KEY)
+            }
+          }
+        } catch { /* Legacy data corrupted — skip migration */ }
+      }
+
       return raw ? JSON.parse(raw) : [];
     } catch {
       return [];
@@ -100,7 +141,7 @@ export class ChartTemplateManager {
   private static persist(templates: ChartTemplate[]): void {
     if (typeof window === 'undefined') return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+      localStorage.setItem(getStorageKey(), JSON.stringify(templates));
     } catch {
       // localStorage full
     }

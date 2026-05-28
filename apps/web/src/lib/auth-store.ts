@@ -82,7 +82,12 @@ async function _clearAllUserStores(): Promise<void> {
         key.startsWith('roua-paper-trades') ||
         key.startsWith('roua-bot') ||
         key.startsWith('roua-alerts') ||
-        key.startsWith('roua-decision')
+        key.startsWith('roua-decision') ||
+        key.startsWith('roua-chart-state') ||     // Chart state persistence
+        key.startsWith('roua-chart-drawings') ||  // DrawingManager drawings
+        key.startsWith('roua-chart-templates') ||  // ChartTemplate templates
+        key.startsWith('roua-symbol-store') ||     // Symbol/timeframe selection
+        key.startsWith('roua-smartgrid')           // SmartGrid layout
       )) {
         keysToRemove.push(key)
       }
@@ -260,13 +265,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const keysToRemove: string[] = []
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i)
-        // Remove all user-specific data keys (positions, paper-trades, bots, etc.)
+        // Remove all user-specific data keys (positions, paper-trades, bots, chart state, etc.)
         if (key && (
           key.startsWith('roua-positions-store') ||
           key.startsWith('roua-paper-trades') ||
           key.startsWith('roua-bot') ||
           key.startsWith('roua-alerts') ||
-          key.startsWith('roua-decision')
+          key.startsWith('roua-decision') ||
+          key.startsWith('roua-chart-state') ||     // Chart state persistence
+          key.startsWith('roua-chart-drawings') ||  // DrawingManager drawings
+          key.startsWith('roua-chart-templates') ||  // ChartTemplate templates
+          key.startsWith('roua-symbol-store') ||     // Symbol/timeframe selection
+          key.startsWith('roua-smartgrid')           // SmartGrid layout
         )) {
           keysToRemove.push(key)
         }

@@ -32,6 +32,13 @@ async function resolveUserId(req: Request): Promise<string | null> {
   return null
 }
 
+/**
+ * GET /api/chart-preference?symbol=BTC/USD
+ *
+ * Returns the chart preference for the authenticated user and symbol.
+ * Now includes indicators, chartType, visibleRange, timeframe, activeTool
+ * in addition to the existing settings and drawings.
+ */
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -53,6 +60,16 @@ export async function GET(req: Request) {
   }
 }
 
+/**
+ * POST /api/chart-preference?symbol=BTC/USD
+ *
+ * Save chart preference for the authenticated user and symbol.
+ * Body can include any subset of:
+ *   { settings, drawings, indicators, chartType, visibleRange, timeframe, activeTool }
+ *
+ * All fields are optional — only provided fields are updated (partial update).
+ * This allows saving just the visible range change without overwriting indicators.
+ */
 export async function POST(req: Request) {
   try {
     const { searchParams } = new URL(req.url)
@@ -62,9 +79,9 @@ export async function POST(req: Request) {
     if (!userId) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
-    
+
     const body = await req.json()
-    const { settings, drawings } = body
+    const { settings, drawings, indicators, chartType, visibleRange, timeframe, activeTool } = body
 
     // ANTI-PHANTOM-USER FIX: Removed user.upsert that created phantom users
     // (user-{@rouatrading.com) for every chart preference save.
@@ -74,18 +91,33 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Authentication required' }, { status: 401 })
     }
 
+    // Build update object — only include fields that are provided (partial update)
+    const updateData: Record<string, any> = {}
+    if (settings !== undefined) updateData.settings = JSON.stringify(settings)
+    if (drawings !== undefined) updateData.drawings = JSON.stringify(drawings)
+    if (indicators !== undefined) updateData.indicators = JSON.stringify(indicators)
+    if (chartType !== undefined) updateData.chartType = chartType
+    if (visibleRange !== undefined) updateData.visibleRange = JSON.stringify(visibleRange)
+    if (timeframe !== undefined) updateData.timeframe = timeframe
+    if (activeTool !== undefined) updateData.activeTool = activeTool
+
+    // Build create object — include all fields with defaults
+    const createData: Record<string, any> = {
+      userId,
+      symbol,
+      settings: settings ? JSON.stringify(settings) : '{}',
+      drawings: drawings ? JSON.stringify(drawings) : '[]',
+      indicators: indicators ? JSON.stringify(indicators) : '[]',
+      chartType: chartType || 'candle',
+      visibleRange: visibleRange ? JSON.stringify(visibleRange) : 'null',
+      timeframe: timeframe || '15min',
+      activeTool: activeTool || 'cursor',
+    }
+
     const pref = await db.chartPreference.upsert({
       where: { userId_symbol: { userId, symbol } },
-      update: {
-        settings: settings ? JSON.stringify(settings) : undefined,
-        drawings: drawings ? JSON.stringify(drawings) : undefined,
-      },
-      create: {
-        userId,
-        symbol,
-        settings: settings ? JSON.stringify(settings) : '{}',
-        drawings: drawings ? JSON.stringify(drawings) : '[]',
-      }
+      update: updateData,
+      create: createData,
     })
 
     return NextResponse.json({ success: true, data: pref })

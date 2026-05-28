@@ -19,6 +19,7 @@ import { KeyboardShortcuts } from '../lib/charts/KeyboardShortcuts';
 import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
 import { T } from '@/lib/unified-tokens';
+import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
 
 interface UseChartOptions {
   symbol: string;
@@ -144,13 +145,150 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const activeIndicatorsRef = useRef<Map<string, ActiveIndicator>>(new Map());
 
+  // ── Chart State Persistence ──
+  // Debounced auto-save timer ref
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track whether we've restored state for the current symbol+timeframe
+  const restoredConfigRef = useRef<string>('');
+  // Track visible range saving (separate debounce for scroll/zoom)
+  const visibleRangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Auto-Save: Save chart state to Zustand store (localStorage) ──
+  const saveChartState = useCallback(() => {
+    try {
+      const store = useChartStateStore.getState();
+      const indicators: SerializedIndicator[] = Array.from(activeIndicatorsRef.current.values()).map(ind => ({
+        key: ind.key,
+        params: ind.params,
+        color: ind.color,
+        opacity: ind.opacity,
+        visible: ind.visible,
+      }));
+
+      // Capture visible range from chart
+      let visibleRange: { from: number; to: number } | null = null;
+      if (chartInstanceRef.current) {
+        try {
+          const range = chartInstanceRef.current.timeScale().getVisibleRange();
+          if (range) {
+            visibleRange = {
+              from: range.from as number,
+              to: range.to as number,
+            };
+          }
+        } catch { /* chart destroyed */ }
+      }
+
+      store.saveChartConfig(symbol, timeframe, {
+        chartType: settings.type,
+        settings,
+        indicators,
+        visibleRange,
+        activeTool,
+      });
+
+      // Also save last symbol/timeframe
+      store.saveLastSymbolTimeframe(symbol, timeframe);
+    } catch (e) {
+      console.warn('[useChart] Auto-save failed:', e);
+    }
+  }, [symbol, timeframe, settings, activeTool]);
+
+  // ── Debounced Auto-Save (3 seconds) ──
+  const debouncedSaveChartState = useCallback(() => {
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(() => {
+      saveChartState();
+      autoSaveTimerRef.current = null;
+    }, 3000);
+  }, [saveChartState]);
+
+  // ── Save visible range on scroll/zoom (1 second debounce) ──
+  const saveVisibleRange = useCallback(() => {
+    if (visibleRangeTimerRef.current) clearTimeout(visibleRangeTimerRef.current);
+    visibleRangeTimerRef.current = setTimeout(() => {
+      saveChartState();
+      visibleRangeTimerRef.current = null;
+    }, 1000);
+  }, [saveChartState]);
+
+  // ── Restore chart state from store on mount/symbol/timeframe change ──
+  const restoreChartState = useCallback(() => {
+    const configKey = `${symbol}:${timeframe}`;
+    // Only restore once per symbol+timeframe combo
+    if (restoredConfigRef.current === configKey) return;
+    restoredConfigRef.current = configKey;
+
+    try {
+      const store = useChartStateStore.getState();
+      const saved = store.getChartConfig(symbol, timeframe);
+      if (!saved) return;
+
+      // Restore chart type
+      if (saved.chartType && saved.chartType !== 'candle') {
+        setSettings(prev => ({ ...prev, type: saved.chartType }));
+      }
+
+      // Restore settings (merge with defaults)
+      if (saved.settings) {
+        setSettings(prev => ({ ...prev, ...saved.settings }));
+      }
+
+      // Restore active tool
+      if (saved.activeTool && saved.activeTool !== 'cursor') {
+        setActiveTool(saved.activeTool);
+      }
+
+      // Restore indicators — they will be re-applied when candles load
+      // via the setCandles function's indicator re-apply logic
+      if (saved.indicators && saved.indicators.length > 0) {
+        const restoredIndicators = new Map<string, ActiveIndicator>();
+        saved.indicators.forEach((ind: SerializedIndicator) => {
+          restoredIndicators.set(ind.key, {
+            key: ind.key as any,
+            params: ind.params,
+            color: ind.color,
+            opacity: ind.opacity,
+            visible: ind.visible,
+          });
+        });
+        setActiveIndicators(restoredIndicators);
+        activeIndicatorsRef.current = restoredIndicators;
+      }
+
+      // Restore visible range after data loads (deferred)
+      if (saved.visibleRange) {
+        const range = saved.visibleRange;
+        // Apply visible range after a short delay to ensure data is rendered
+        setTimeout(() => {
+          if (chartInstanceRef.current && range) {
+            try {
+              chartInstanceRef.current.timeScale().setVisibleRange({
+                from: range.from as Time,
+                to: range.to as Time,
+              });
+            } catch { /* chart not ready or range invalid */ }
+          }
+        }, 1500);
+      }
+
+      console.log(`[useChart] Restored chart state for ${configKey}`);
+    } catch (e) {
+      console.warn('[useChart] Restore failed:', e);
+    }
+  }, [symbol, timeframe]);
+
   // ── Pending candles: store data that arrives before chart is ready ──
   const pendingCandlesRef = useRef<CandleData[] | null>(null);
   const [isChartReady, setIsChartReady] = useState(false);
 
   useEffect(() => {
     activeIndicatorsRef.current = activeIndicators;
-  }, [activeIndicators]);
+    // Auto-save when indicators change
+    if (activeIndicators.size > 0 || restoredConfigRef.current) {
+      debouncedSaveChartState();
+    }
+  }, [activeIndicators, debouncedSaveChartState]);
 
   // ── Chart Colors ───────────────────────────────────────
   const CHART_COLORS = {
@@ -483,12 +621,22 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (shortcutsRef.current) {
         shortcutsRef.current.detach();
       }
+      // Save chart state on unmount (page navigation)
+      saveChartState();
+      // Clear auto-save timers
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+      if (visibleRangeTimerRef.current) clearTimeout(visibleRangeTimerRef.current);
     };
   // initChart is now stable (empty deps), so this runs only on mount/unmount
   }, [initChart]);
 
   // ── Handle symbol change: clear data without destroying chart ──
   useEffect(() => {
+    // Save current state BEFORE switching (save for the PREVIOUS symbol)
+    if (restoredConfigRef.current) {
+      saveChartState();
+    }
+
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setSymbol(symbol);
     }
@@ -526,7 +674,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       try { candleSeriesRef.current?.removePriceLine(line); } catch {}
     });
     priceLinesRef.current.clear();
-  }, [symbol]);
+
+    // Restore chart state for the new symbol
+    restoreChartState();
+  }, [symbol, saveChartState, restoreChartState]);
 
   // ── Handle timeframe change: clear indicators and data to prevent "Value is null" ──
   // When timeframe changes, old indicator series have timestamps from the previous
@@ -534,6 +685,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // lightweight-charts throws "Value is null" when rendering indicator data at
   // timestamps that don't exist in the candle series.
   useEffect(() => {
+    // Save current state BEFORE switching timeframe
+    if (restoredConfigRef.current) {
+      saveChartState();
+    }
+
     // Cancel any pending indicator re-apply from a previous setCandles call
     cancelAnimationFrame(pendingIndicatorRafRef.current);
     pendingIndicatorRafRef.current = 0;
@@ -570,11 +726,49 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     priceLinesRef.current.clear();
     // Clear markers (they are timeframe-dependent)
     markersRef.current = [];
-  }, [timeframe]);
+
+    // Restore chart state for the new timeframe
+    restoreChartState();
+  }, [timeframe, saveChartState, restoreChartState]);
 
   // ── Apply pending candles when chart becomes ready ──
   // NOTE: This useEffect MUST come after setCandles is defined to avoid TDZ error
   // (moved from earlier in the function where setCandles was not yet declared)
+
+  // ── Restore chart state on initial mount ──
+  useEffect(() => {
+    if (isChartReady) {
+      restoreChartState();
+    }
+  }, [isChartReady, restoreChartState]);
+
+  // ── Subscribe to visible range changes for auto-save ──
+  useEffect(() => {
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    const handler = () => {
+      saveVisibleRange();
+    };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
+    return () => {
+      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {}
+    };
+  }, [isChartReady, saveVisibleRange]);
+
+  // ── Auto-save settings when they change ──
+  useEffect(() => {
+    if (restoredConfigRef.current) {
+      debouncedSaveChartState();
+    }
+  }, [settings, debouncedSaveChartState]);
+
+  // ── Auto-save active tool when it changes ──
+  useEffect(() => {
+    if (restoredConfigRef.current) {
+      debouncedSaveChartState();
+    }
+  }, [activeTool, debouncedSaveChartState]);
 
 
 

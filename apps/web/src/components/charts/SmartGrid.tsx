@@ -1,15 +1,14 @@
 // ═══════════════════════════════════════════════════════════
 // ROUA Trading — Smart Grid (Unified Chart Grid + MTF)
-// TradingView Pattern: Double-click mini chart → becomes main chart
-// Single-click → select (cyan border) → toolbar actions target it
-// Crosshair time sync across charts (cTrader feature)
-// Trade markers shown on all mini charts
+// FIXED: Empty charts — wait for container dimensions before
+// creating lightweight-charts instances (same pattern as useChart)
+// FIXED: Infinite re-render loop from loadDataForCell dependency
+// FIXED: Chart resize when grid layout changes
 // ═══════════════════════════════════════════════════════════
 
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useTranslations } from 'next-intl';
 
 // ── Types ────────────────────────────────────────────────
 interface SmartGridProps {
@@ -113,6 +112,31 @@ function createDefaultCells(
   return cells;
 }
 
+// ── Wait for container to have real dimensions ──
+// Same pattern as useChart.ts — prevents creating chart on 0x0 container
+function waitForDimensions(el: HTMLElement, maxRetries = 30): Promise<{ w: number; h: number }> {
+  return new Promise((resolve) => {
+    const check = (attempt: number) => {
+      const w = el.clientWidth;
+      const h = el.clientHeight;
+      if (w > 0 && h > 0) {
+        resolve({ w, h });
+        return;
+      }
+      if (attempt >= maxRetries) {
+        // Fallback: use parent dimensions or reasonable defaults
+        const parent = el.parentElement;
+        const fw = parent?.clientWidth || 400;
+        const fh = parent?.clientHeight || 200;
+        resolve({ w: fw, h: fh });
+        return;
+      }
+      requestAnimationFrame(() => check(attempt + 1));
+    };
+    check(0);
+  });
+}
+
 export function SmartGrid({
   onClose,
   defaultSymbol,
@@ -126,6 +150,10 @@ export function SmartGrid({
   const volumeSeriesRefs = useRef<Map<string, any>>(new Map());
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const crosshairSubsRef = useRef<Array<() => void>>([]);
+  // Track which cells have been initialized to avoid re-creating charts
+  const initializedCellsRef = useRef<Set<string>>(new Set());
+  // Track pending data loads
+  const pendingLoadsRef = useRef<Set<string>>(new Set());
 
   const [activeConfig, setActiveConfig] = useState<GridConfig>(GRID_CONFIGS[3]); // 2×2
   const [cells, setCells] = useState<GridCell[]>(() =>
@@ -138,8 +166,7 @@ export function SmartGrid({
   const [showGridSelector, setShowGridSelector] = useState(false);
   const [crosshairSync, setCrosshairSync] = useState(true);
 
-  const t = useTranslations('dashboard.chart');
-
+  // Set active cell on first render
   useEffect(() => {
     if (!activeCellId && cells.length > 0) setActiveCellId(cells[0].id);
   }, [cells, activeCellId]);
@@ -158,10 +185,14 @@ export function SmartGrid({
     return openPositions.filter(p => p.symbol === symbol);
   }, [openPositions]);
 
-  // ── Data Loading ──
+  // ── Data Loading (stable — no useTranslations dependency) ──
   const loadDataForCell = useCallback(async (cell: GridCell) => {
     const container = containerRefs.current.get(cell.id);
     if (!container) return;
+
+    // Prevent duplicate loads
+    if (pendingLoadsRef.current.has(cell.id)) return;
+    pendingLoadsRef.current.add(cell.id);
 
     updateCellState(cell.id, { loading: true, error: null });
 
@@ -170,7 +201,8 @@ export function SmartGrid({
       const j = await res.json();
 
       if (!j.success || !j.data || j.data.length === 0) {
-        updateCellState(cell.id, { loading: false, error: t('noData'), candleCount: 0 });
+        updateCellState(cell.id, { loading: false, error: 'No data', candleCount: 0 });
+        pendingLoadsRef.current.delete(cell.id);
         return;
       }
 
@@ -183,12 +215,14 @@ export function SmartGrid({
         }))
         .filter((d: any) => !isNaN(d.time) && d.time > 0 && !isNaN(d.close));
 
+      // Deduplicate by time
       const seen = new Set<number>();
       const unique = candleData.filter((d: any) => { if (seen.has(d.time)) return false; seen.add(d.time); return true; });
       unique.sort((a: any, b: any) => a.time - b.time);
 
       if (unique.length === 0) {
-        updateCellState(cell.id, { loading: false, error: t('noValidData'), candleCount: 0 });
+        updateCellState(cell.id, { loading: false, error: 'No valid data', candleCount: 0 });
+        pendingLoadsRef.current.delete(cell.id);
         return;
       }
 
@@ -196,11 +230,10 @@ export function SmartGrid({
       const prevPrice = unique.length > 1 ? unique[unique.length - 2].close : null;
       const changePercent = prevPrice && prevPrice !== 0 ? ((currentPrice - prevPrice) / prevPrice) * 100 : null;
 
-      const { createChart, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } = await import('lightweight-charts');
-
       const existingChart = chartInstancesRef.current.get(cell.id);
       const existingSeries = seriesRefs.current.get(cell.id);
 
+      // If chart already exists, just update data
       if (existingChart && existingSeries) {
         try {
           existingSeries.setData(unique);
@@ -212,17 +245,31 @@ export function SmartGrid({
             })));
           }
           existingChart.timeScale().fitContent();
-        } catch {}
+        } catch (err) {
+          // If setData fails (e.g. series detached), destroy and recreate
+          try { existingChart.remove(); } catch {}
+          chartInstancesRef.current.delete(cell.id);
+          seriesRefs.current.delete(cell.id);
+          volumeSeriesRefs.current.delete(cell.id);
+          initializedCellsRef.current.delete(cell.id);
+          // Retry creation
+          pendingLoadsRef.current.delete(cell.id);
+          setTimeout(() => loadDataForCell(cell), 100);
+          return;
+        }
         updateCellState(cell.id, { loading: false, error: null, currentPrice, prevPrice, changePercent, candleCount: unique.length });
+        pendingLoadsRef.current.delete(cell.id);
         return;
       }
 
-      const rect = container.getBoundingClientRect();
-      const width = rect.width || container.clientWidth || 400;
-      const height = rect.height || container.clientHeight || 180;
+      // ── Create new chart instance ──
+      // CRITICAL: Wait for container to have real dimensions first
+      const { w, h } = await waitForDimensions(container);
+
+      const { createChart, CandlestickSeries, LineSeries, AreaSeries, HistogramSeries } = await import('lightweight-charts');
 
       const chart = createChart(container, {
-        width, height,
+        width: w, height: h,
         layout: { background: { color: C.bg }, textColor: C.textDim, fontSize: 9, fontFamily: "'JetBrains Mono', monospace", attributionLogo: false },
         grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
         rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.2 } },
@@ -231,6 +278,7 @@ export function SmartGrid({
         handleScroll: true, handleScale: true,
       });
 
+      // Volume series
       const volSeries = chart.addSeries(HistogramSeries, { priceFormat: { type: 'volume' }, priceScaleId: 'volume' });
       volSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
       volSeries.setData(unique.map((d: any) => ({
@@ -239,6 +287,7 @@ export function SmartGrid({
       })));
       volumeSeriesRefs.current.set(cell.id, volSeries);
 
+      // Main price series
       let mainSeries: any;
       switch (cell.chartType) {
         case 'line':
@@ -273,17 +322,19 @@ export function SmartGrid({
 
       chartInstancesRef.current.set(cell.id, chart);
       seriesRefs.current.set(cell.id, mainSeries);
+      initializedCellsRef.current.add(cell.id);
 
       updateCellState(cell.id, { loading: false, error: null, currentPrice, prevPrice, changePercent, candleCount: unique.length });
-    } catch {
-      updateCellState(cell.id, { loading: false, error: t('loadFailed'), candleCount: 0 });
+    } catch (err: any) {
+      updateCellState(cell.id, { loading: false, error: 'Load failed', candleCount: 0 });
+    } finally {
+      pendingLoadsRef.current.delete(cell.id);
     }
-  }, [updateCellState, t, getPositionsForSymbol]);
+  }, [updateCellState, getPositionsForSymbol]);
 
   // ── Crosshair time sync (cTrader feature) ──
   useEffect(() => {
     if (!crosshairSync) return;
-    // Cleanup old subs
     crosshairSubsRef.current.forEach(unsub => unsub());
     crosshairSubsRef.current = [];
 
@@ -296,9 +347,7 @@ export function SmartGrid({
           if (!range) return;
           charts.forEach(([otherId, otherChart]) => {
             if (otherId === id) return;
-            try {
-              otherChart.timeScale().setVisibleRange(range);
-            } catch {}
+            try { otherChart.timeScale().setVisibleRange(range); } catch {}
           });
         });
         crosshairSubsRef.current.push(unsub);
@@ -318,6 +367,7 @@ export function SmartGrid({
     chartInstancesRef.current.delete(cellId);
     seriesRefs.current.delete(cellId);
     volumeSeriesRefs.current.delete(cellId);
+    initializedCellsRef.current.delete(cellId);
   }, []);
 
   const handleChangeSymbol = useCallback((cellId: string, newSymbol: string) => {
@@ -414,46 +464,89 @@ export function SmartGrid({
     if (chart) { try { chart.timeScale().fitContent(); } catch {} }
   }, [activeCellId]);
 
-  // ── Effects ──
+  // ── Initialize charts when cells change ──
+  // Use a ref-based approach to avoid infinite loops from useCallback deps
+  const cellsRef = useRef(cells);
+  cellsRef.current = cells;
+
   useEffect(() => {
-    const initTimer = setTimeout(() => { cells.forEach(cell => { if (cell.symbol) loadDataForCell(cell); }); }, 150);
+    // Wait for DOM to render the containers, then load data
+    const initTimer = setTimeout(() => {
+      cells.forEach(cell => {
+        if (cell.symbol && !initializedCellsRef.current.has(cell.id)) {
+          loadDataForCell(cell);
+        }
+      });
+    }, 200); // 200ms to ensure containers are mounted and have dimensions
     return () => clearTimeout(initTimer);
   }, [cells, loadDataForCell]);
 
+  // ── Auto-refresh every 30s ──
   useEffect(() => {
-    refreshIntervalRef.current = setInterval(() => { cells.forEach(cell => { if (cell.symbol) loadDataForCell(cell); }); }, 30000);
+    refreshIntervalRef.current = setInterval(() => {
+      cells.forEach(cell => {
+        if (cell.symbol) loadDataForCell(cell);
+      });
+    }, 30000);
     return () => { if (refreshIntervalRef.current) clearInterval(refreshIntervalRef.current); };
   }, [cells, loadDataForCell]);
 
-  useEffect(() => { return () => { chartInstancesRef.current.forEach(c => { if (c) try { c.remove(); } catch {} }); }; }, []);
+  // ── Cleanup on unmount ──
+  useEffect(() => {
+    return () => {
+      chartInstancesRef.current.forEach(c => { if (c) try { c.remove(); } catch {} });
+    };
+  }, []);
 
+  // ── Resize handling ──
   useEffect(() => {
     const handleResize = () => {
       chartInstancesRef.current.forEach((chart, id) => {
         const container = containerRefs.current.get(id);
-        if (chart && container) { const w = container.clientWidth; const h = container.clientHeight; if (w > 0 && h > 0) chart.applyOptions({ width: w, height: h }); }
+        if (chart && container) {
+          const w = container.clientWidth;
+          const h = container.clientHeight;
+          if (w > 0 && h > 0) {
+            try { chart.applyOptions({ width: w, height: h }); } catch {}
+          }
+        }
       });
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // ── ResizeObserver for each container ──
   useEffect(() => {
     const observers: ResizeObserver[] = [];
-    containerRefs.current.forEach((container, id) => {
-      const chart = chartInstancesRef.current.get(id);
-      if (container && chart) {
-        const obs = new ResizeObserver(() => { const w = container.clientWidth; const h = container.clientHeight; if (w > 0 && h > 0) { try { chart.applyOptions({ width: w, height: h }); } catch {} } });
-        obs.observe(container); observers.push(obs);
-      }
-    });
-    return () => observers.forEach(o => o.disconnect());
+    // Small delay to ensure containers are mounted
+    const timer = setTimeout(() => {
+      containerRefs.current.forEach((container, id) => {
+        const chart = chartInstancesRef.current.get(id);
+        if (container && chart) {
+          const obs = new ResizeObserver(() => {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w > 0 && h > 0) {
+              try { chart.applyOptions({ width: w, height: h }); } catch {}
+            }
+          });
+          obs.observe(container);
+          observers.push(obs);
+        }
+      });
+    }, 300);
+    return () => {
+      clearTimeout(timer);
+      observers.forEach(o => o.disconnect());
+    };
   }, [cells]);
 
   const setContainerRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
     if (el) containerRefs.current.set(id, el); else containerRefs.current.delete(id);
   }, []);
 
+  // ESC key
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') { if (fullscreenCellId) { setFullscreenCellId(null); return; } onClose(); }
@@ -521,7 +614,7 @@ export function SmartGrid({
         {activeCell && onSwitchToChart && (
           <button style={{ ...tbBtn, background: 'rgba(0,212,255,0.12)', color: C.cyan, border: '1px solid rgba(0,212,255,0.25)' }}
             onClick={() => handleFocusChart(activeCell)}>
-            ⤢ تركيز
+            ⤢ Focus
           </button>
         )}
 
@@ -529,13 +622,13 @@ export function SmartGrid({
         {activeCell && onSwitchToChart && (
           <>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'drawing')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>🖊 رسم</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>🖊 Draw</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'indicators')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>📊 مؤشرات</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>📊 Ind</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'ai')}
               onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>🧠 AI</button>
             <button style={tbBtn} onClick={() => handleFocusChart(activeCell, 'trading')}
-              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>💰 صفقات</button>
+              onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>💰 Trade</button>
           </>
         )}
 
@@ -555,7 +648,7 @@ export function SmartGrid({
           color: crosshairSync ? C.cyan : C.textMuted,
           border: `1px solid ${crosshairSync ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.08)'}`,
         }} onClick={() => setCrosshairSync(!crosshairSync)}>
-          ⊕ مزامنة خط
+          ⊕ Sync
         </button>
 
         {/* Grid config */}
@@ -575,12 +668,12 @@ export function SmartGrid({
           )}
         </div>
 
-        {/* Sync */}
+        {/* Sync mode */}
         <button style={{ ...tbBtn, background: syncMode ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.04)', color: syncMode ? C.cyan : C.textMuted, border: `1px solid ${syncMode ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.08)'}` }} onClick={() => setSyncMode(!syncMode)}>
-          {syncMode ? '🔗' : '🔓'} {syncMode ? 'مزامنة' : 'حر'}
+          {syncMode ? '🔗' : '🔓'} {syncMode ? 'Sync' : 'Free'}
         </button>
 
-        <button style={tbBtn} onClick={handleAddCell} onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>+ شارت</button>
+        <button style={tbBtn} onClick={handleAddCell} onMouseEnter={e => tbBtnHover(e)} onMouseLeave={e => tbBtnHover(e, false)}>+ Chart</button>
 
         <div style={{ flex: 1 }} />
 
@@ -638,16 +731,16 @@ export function SmartGrid({
                 {/* Positions badge */}
                 {positions.length > 0 && (
                   <span style={{ padding: '0px 3px', borderRadius: 2, fontSize: 6.5, fontWeight: 700, fontFamily: 'monospace', background: 'rgba(0,255,163,0.12)', color: C.success, border: '1px solid rgba(0,255,163,0.2)' }}>
-                    {positions.length} صفقة
+                    {positions.length} pos
                   </span>
                 )}
 
-                {state?.currentPrice !== null && (
+                {state?.currentPrice != null && state.currentPrice > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 600 }}>{formatPrice(state?.currentPrice ?? null)}</span>
-                    {state?.changePercent !== null && (
+                    <span style={{ color: C.text, fontFamily: "'JetBrains Mono',monospace", fontSize: 8.5, fontWeight: 600 }}>{formatPrice(state.currentPrice)}</span>
+                    {state?.changePercent != null && (
                       <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 7, fontWeight: 700, color: isPositive ? C.upColor : C.downColor }}>
-                        {isPositive ? '+' : ''}{state?.changePercent?.toFixed(2)}%
+                        {isPositive ? '+' : ''}{state.changePercent.toFixed(2)}%
                       </span>
                     )}
                   </div>
@@ -675,8 +768,8 @@ export function SmartGrid({
                 )}
               </div>
 
-              {/* Chart */}
-              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }} />
+              {/* Chart container — CRITICAL: must have position:relative for lightweight-charts */}
+              <div ref={setContainerRef(cell.id)} style={{ flex: 1, minHeight: 0, overflow: 'hidden', position: 'relative' }} />
 
               {/* Trade markers legend */}
               {positions.length > 0 && (
@@ -700,10 +793,10 @@ export function SmartGrid({
 
       {/* Hints */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '3px 10px', background: 'rgba(11,14,20,0.8)', borderTop: `1px solid ${C.cardBorder}`, flexShrink: 0 }}>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>نقر مزدوج = تركيز على الشارت الرئيسي</span>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>ESC = إغلاق</span>
-        <span style={{ color: C.textMuted, fontSize: 7 }}>{cells.length} شارت</span>
-        {openPositions.length > 0 && <span style={{ color: C.success, fontSize: 7 }}>{openPositions.length} صفقة مفتوحة</span>}
+        <span style={{ color: C.textMuted, fontSize: 7 }}>Double-click = Focus on main chart</span>
+        <span style={{ color: C.textMuted, fontSize: 7 }}>ESC = Close</span>
+        <span style={{ color: C.textMuted, fontSize: 7 }}>{cells.length} charts</span>
+        {openPositions.length > 0 && <span style={{ color: C.success, fontSize: 7 }}>{openPositions.length} open positions</span>}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

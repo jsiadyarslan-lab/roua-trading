@@ -968,7 +968,7 @@
       "accountDeletedDesc": "Tilisi poistetaan 30 päivän kuluttua",
       "deleteError": "Virhe",
       "deleteErrorDesc": "Tiliä poistettaessa tapahtui virhe",
-      "rouaUser": "Roua User"
+      "rouaUser": "Rouan käyttäjä"
     },
     "apiDocs": {
       "title": "API Documentation",
@@ -1153,7 +1153,7 @@
       "subtitle": "AI-käyttöiset kaupankäyntisignaalit"
     },
     "sanctuary": {
-      "title": "Sanctuary",
+      "title": "Pyhäkkö",
       "subtitle": "Älykäs suoja portfoliollesi"
     },
     "security": {
@@ -1232,7 +1232,7 @@
       "subtitle": "Hallitse ja seuraa kaupankäyntistrategioita"
     },
     "header": {
-      "connected": "Live",
+      "connected": "Elää",
       "pending": "Odottaa yhteyttä",
       "awaitingApi": "Odotetaan API-yhteyttä"
     },
@@ -3204,7 +3204,7 @@
     }
   },
   "mobile": {
-    "title": "Roua — Mobile",
+    "title": "Roua — Mobiili",
     "brandSub": "Tilin yhdistämisen alusta",
     "bottomNav": {
       "home": "Kotisivu",
@@ -3739,14 +3739,14 @@
     "enhancedSignals": "Enhanced Signals",
     "conflictingSignals": "Conflicting Signals",
     "elliottSmcConfluence": "Elliott + SMC Confluence",
-    "confluencePoint": "Confluence Point",
-    "adaptiveTPSL": "Adaptive TP/SL (ATR)",
-    "entry": "Entry",
-    "volatilityRegime": "Volatility Regime",
+    "confluencePoint": "Yhteyspiste",
+    "adaptiveTPSL": "Mukautuva TP/SL (ATR)",
+    "entry": "Sisäänpääsy",
+    "volatilityRegime": "Volatiliteettijärjestelmä",
     "low": "Matala",
     "high": "Korkea",
-    "extreme": "Extreme",
-    "normal": "Normal",
+    "extreme": "Äärimmäinen",
+    "normal": "Normaali",
     "patternStateMachine": "Kuvion tilakone",
     "near": "Lähellä",
     "broken": "Rikki",
@@ -3904,10 +3904,10 @@
     "tradeChartEntryExit": "Vertailukaavio Pisteet",
     "tradeChartBuyEntry": "Osta Entry",
     "tradeChartSellEntry": "Myy Entry",
-    "tradeChartExit": "Exit",
+    "tradeChartExit": "Poistu",
     "tradeChartRunBacktestFirst": "Suorita takaisintesti ensin nähdäksesi kynttilänjalkakaavio",
     "tradeChartCandlestick": "Kynttilänjalka",
-    "tradeChartEntry": "Entry",
+    "tradeChartEntry": "Sisääntulo",
     "tradeChartSellEntryShort": "Myy Entry"
   },
   "scannerAdvanced": {

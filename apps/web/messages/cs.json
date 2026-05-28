@@ -1153,7 +1153,7 @@
       "subtitle": "Obchodní signály poháněné umělou inteligencí"
     },
     "sanctuary": {
-      "title": "Sanctuary",
+      "title": "Svatyně",
       "subtitle": "Chytrá ochrana vašeho portfolia"
     },
     "security": {
@@ -1786,7 +1786,7 @@
       "monitoring": "MONITORING:"
     },
     "scanner": {
-      "title": "Market Scanner",
+      "title": "Skener trhu",
       "pair": "Spárovat",
       "scan": "Skenovat",
       "topOpportunity": "Nejlepší příležitost",
@@ -3374,7 +3374,7 @@
   },
   "harmonicPatterns": {
     "gartley": "Gartley",
-    "butterfly": "Butterfly",
+    "butterfly": "Motýl",
     "bat": "Netopýr",
     "crab": "Krab",
     "doubleTop": "Dvojitý vrch",
@@ -3443,7 +3443,7 @@
     "closeLoss": "Zavřít se ztrátou"
   },
   "sw": {
-    "pushTitle": "Roua Trading",
+    "pushTitle": "Roua obchodování",
     "pushBody": "Máte nové oznámení",
     "open": "Otevřít",
     "close": "Zavřít"
@@ -4539,7 +4539,7 @@
     "push": {
       "appName": "Roua Trading",
       "notificationsEnabled": "Oznámení byla úspěšně aktivována! Nyní budete dostávat obchodní upozornění.",
-      "alertTitle": "Roua Trading Alert",
+      "alertTitle": "Upozornění na obchodování Roua",
       "chartTitle": "Roua — XPH0X",
       "enableDeviceNotifications": "Povolte upozornění zařízení",
       "receiveAlertsInstantly": "Okamžitý příjem obchodních upozornění i mimo aplikaci",

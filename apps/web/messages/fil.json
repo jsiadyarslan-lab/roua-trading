@@ -457,7 +457,7 @@
     "loginFailed": "Login failed",
     "connectionError": "Connection error occurred",
     "tooManyRequests": "Masyadong maraming kahilingan",
-    "encryptedBadge": "Fully Encrypted",
+    "encryptedBadge": "Fully encrypted",
     "noPasswordBadge": "Walang Password",
     "googleNoAccessToken": "Nabigong makakuha ng access token mula sa Google.",
     "googleUserInfoFailed": "Nabigong kumuha ng impormasyon ng account.",
@@ -1846,7 +1846,7 @@
       "todayEvents": "Mga kaganapan sa araw na ito",
       "highImpact": "Mataas na epekto",
       "lastUpdate": "Huling update:",
-      "currency": "Currency:",
+      "currency": "Pera:",
       "impact": "Epekto:",
       "all": "Lahat",
       "event": "kaganapan",
@@ -3306,7 +3306,7 @@
     "title": "Hindi Natagpuan ang Pahina",
     "description": "Paumanhin, ang pahina na iyong hinahanap ay wala o inilipat na",
     "dashboard": "Dashboard",
-    "home": "Home"
+    "home": "Tahanan"
   },
   "errors": {
     "fetchPositionsFailed": "Failed to fetch positions",
@@ -3330,7 +3330,7 @@
   "tiers": {
     "free": "Libre",
     "professional": "Propesyonal",
-    "plus": "Plus",
+    "plus": "Dagdag pa",
     "elite": "Elite",
     "enterprise": "Enterprise",
     "admin": "Admin"
@@ -3419,11 +3419,11 @@
     "tradeDailyProfit": "Trade — Daily Profit"
   },
   "decisionFlow": {
-    "scanningMarket": "Decision engine scanning market",
+    "scanningMarket": "Desisyon sa merkado ng pag-scan ng makina",
     "aggressiveReady": "Agresibong Handa",
     "sellPressure": "Sa ilalim ng Selling Pressure",
-    "conflictBlocking": "Conflict Prevents Advance",
-    "underObservation": "Under Observation"
+    "conflictBlocking": "Pinipigilan ng Salungatan ang Pag-unlad",
+    "underObservation": "Sa ilalim ng Obserbasyon"
   },
   "contentAgent": {
     "categories": {
@@ -3496,7 +3496,7 @@
       "recommendationPrompt": "Rekomendasyon para sa entry point na paghinto ng trading, XPH0 direct loss, at rekomendadong punto ng paghinto ng trading. Sagot sa format na ito lamang: Aksyon | Entry | Stop Loss | Target | Dahilan"
     },
     "realAI": "🧠 Real AI",
-    "technicalAnalysis": "📐 Technical Analysis",
+    "technicalAnalysis": "📐 Teknikal na Pagsusuri",
     "aiLiveStatus": "Live",
     "cachedAnalysis": "Cached AI analysis — valid pa rin",
     "realAnalysisFrom": "Real AI analysis mula sa{count}models",
@@ -4595,10 +4595,10 @@
     "notAvailable": "Hindi Available",
     "yourRanking": "Iyong Kasalukuyang Ranking",
     "returnLabel": "Return",
-    "winRateLabel": "Win Rate",
+    "winRateLabel": "Rate ng Panalo",
     "consistency": "Consistency",
     "maxDrawdown": "Max Drawdown",
-    "followers": "Followers",
+    "followers": "Mga Tagasubaybay",
     "achievementBadges": "Achievement Badge"
   },
   "chartToolbar": {

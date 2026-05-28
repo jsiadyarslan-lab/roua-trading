@@ -237,7 +237,7 @@
     "rolePro": "Pro",
     "rolePlus": "Plus",
     "rolePremium": "Prémium",
-    "roleInstitutional": "Enterprise",
+    "roleInstitutional": "Vállalkozás",
     "roleAdmin": "Adminisztráció",
     "roleFreeDesc": "Egy fiók és alapvető információk",
     "roleProDesc": "Több fiók és mesterséges intelligencia",
@@ -968,7 +968,7 @@
       "accountDeletedDesc": "Fiókja 30 napon belül törlődik",
       "deleteError": "Hiba",
       "deleteErrorDesc": "Hiba történt a fiók törlése közben",
-      "rouaUser": "Roua User"
+      "rouaUser": "Roua felhasználó"
     },
     "apiDocs": {
       "title": "API Documentation",
@@ -1153,7 +1153,7 @@
       "subtitle": "AI-alapú kereskedési jelek"
     },
     "sanctuary": {
-      "title": "Sanctuary",
+      "title": "Szentély",
       "subtitle": "Intelligens védelem portfóliójához"
     },
     "security": {
@@ -2741,28 +2741,28 @@
       "closeBtn": "Bezárás"
     },
     "rightPanel": {
-      "decisionCenter": "Decision Center",
-      "tabExecutor": "Executor",
-      "subtitleExecutor": "Smart Execution",
-      "tabStrategic": "Strategic",
-      "subtitleStrategic": "Strategic Council",
-      "tabTrader": "Trader",
-      "subtitleTrader": "Autonomous Control",
-      "tabCouncil": "Council",
-      "subtitleCouncil": "AI Council",
-      "tabScanner": "Scanner",
-      "subtitleScanner": "Advanced Scan",
+      "decisionCenter": "Döntési központ",
+      "tabExecutor": "Végrehajtó",
+      "subtitleExecutor": "Intelligens végrehajtás",
+      "tabStrategic": "Stratégiai",
+      "subtitleStrategic": "Stratégiai Tanács",
+      "tabTrader": "Kereskedő",
+      "subtitleTrader": "Autonóm vezérlés",
+      "tabCouncil": "Tanács",
+      "subtitleCouncil": "AI Tanács",
+      "tabScanner": "Szkenner",
+      "subtitleScanner": "Speciális szkennelés",
       "tabSignals": "Jelek",
-      "subtitleSignals": "Trading Signals",
-      "headlineExecutor": "Smart Executor",
-      "headlineStrategic": "Strategic Council",
-      "headlineCouncil": "Recommendation: {recommendation}",
-      "headlineCouncilDefault": "AI Council",
-      "headlineScanner": "Scanning {symbol}",
-      "headlineScannerDefault": "Advanced Scanner",
-      "headlineSignals": "Trading Signals",
-      "headlineTrader": "Autonomous Trader",
-      "headlineDefault": "Decision Center"
+      "subtitleSignals": "Kereskedelmi jelek",
+      "headlineExecutor": "Intelligens Végrehajtó Tanács",
+      "headlineStrategic": "XP ReXcomd",
+      "headlineCouncil": "Smart Executor",
+      "headlineCouncilDefault": "AI Tanács",
+      "headlineScanner": "XPH0X szkennelés",
+      "headlineScannerDefault": "Fejlett szkenner",
+      "headlineSignals": "Kereskedési jelek",
+      "headlineTrader": "Autonóm kereskedő",
+      "headlineDefault": "Döntési központ"
     },
     "scannerSidebar": {
       "scanTable": "Scan Table",
@@ -3330,7 +3330,7 @@
   "tiers": {
     "free": "Ingyenes",
     "professional": "Professzionális",
-    "plus": "Plus",
+    "plus": "Plusz",
     "elite": "Elite",
     "enterprise": "Enterprise",
     "admin": "Admin"
@@ -3443,7 +3443,7 @@
     "closeLoss": "Zárás veszteséggel"
   },
   "sw": {
-    "pushTitle": "Roua Trading",
+    "pushTitle": "Roua kereskedés",
     "pushBody": "Új értesítése van",
     "open": "Megnyitás",
     "close": "Bezárás"
@@ -4646,7 +4646,7 @@
     "playUpdate": "Frissítések lejátszása",
     "pauseUpdate": "Frissítések szüneteltetése",
     "more": "További eszközök",
-    "aiPatternAnalysis": "AI Pattern Analysis",
+    "aiPatternAnalysis": "AI mintaelemzés",
     "livePatternProgress": "Élő AI mintaelemzés"
   },
   "aiCoach": {

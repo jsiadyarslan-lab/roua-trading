@@ -3305,7 +3305,7 @@
   "notFound": {
     "title": "Siden ble ikke funnet",
     "description": "Beklager, siden du leter etter eksisterer ikke eller har blitt flyttet",
-    "dashboard": "Dashboard",
+    "dashboard": "Dashbord",
     "home": "Hjem"
   },
   "errors": {
@@ -3406,12 +3406,12 @@
   },
   "agentStore": {
     "strategyAuto": "Auto (tilpasset)",
-    "strategyScalping": "Scalping",
+    "strategyScalping": "Skalpering",
     "strategySwing": "Swing",
-    "strategyGrid": "Grid",
-    "strategyMeanRevert": "Mean Reversion",
+    "strategyGrid": "Rutenett",
+    "strategyMeanRevert": "Gjennomsnittlig reversering",
     "strategyBreakout": "Momentum Breakout",
-    "strategyDCA": "Dollar Cost Average",
+    "strategyDCA": "Gjennomsnittlig dollarkostnad",
     "activatingAgent": "Aktiverer agent...",
     "tradingServiceUnavailable": "Handelstjeneste utilgjengelig",
     "agentActivated": "Handelsagent aktivert vellykket",
@@ -4536,7 +4536,7 @@
       "confirmDeleteKey": "Are you sure you want to delete this key? This action cannot be undone.",
       "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
       "noDummyAccounts": "No dummy accounts to delete",
-      "deleteErrors": "({count} errors)",
+      "deleteErrors": "({count}feil)",
       "guestNotAllowed": "Binance-kobling er ikke tilgjengelig i gjestemodus",
       "mustLoginFirst": "Du må logge inn med en ekte konto før du legger til utvekslingsnøkler for å holde saldoen isolert per bruker."
     },

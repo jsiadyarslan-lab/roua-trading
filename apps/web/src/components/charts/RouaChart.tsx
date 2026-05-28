@@ -32,8 +32,7 @@ import { QuickTradePanel } from './QuickTradePanel';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
-import { MultiTimeframeChart } from './MultiTimeframeChart';
-import { ChartGrid } from './ChartGrid';
+import { SmartGrid } from './SmartGrid';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
 import { AlertPanel } from './AlertPanel';
@@ -186,8 +185,7 @@ export default function RouaChart({
   const [showChartSettings, setShowChartSettings] = useState(false);
   const [showCompare, setShowCompare] = useState(false);
   const [compareSymbol, setCompareSymbol] = useState('');
-  const [showMTF, setShowMTF] = useState(false);
-  const [showChartGrid, setShowChartGrid] = useState(false);
+  const [showSmartGrid, setShowSmartGrid] = useState(false);
   const [showShare, setShowShare] = useState(false);
   // ── 5 New Feature States ──
   const [showFootprint, setShowFootprint] = useState(false);
@@ -1698,8 +1696,8 @@ export default function RouaChart({
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
         onToggleCompare={() => setShowCompare(!showCompare)}
-        onToggleMTF={() => setShowMTF(!showMTF)}
-        onToggleChartGrid={() => setShowChartGrid(!showChartGrid)}
+        onToggleMTF={() => setShowSmartGrid(!showSmartGrid)}
+        onToggleChartGrid={() => setShowSmartGrid(!showSmartGrid)}
         onToggleShare={() => setShowShare(!showShare)}
         showCompare={showCompare}
         // ── 5 New Feature Toolbar Props ──
@@ -2048,20 +2046,16 @@ export default function RouaChart({
           </DraggablePanel>
         )}
 
-        {/* Multi-Timeframe Chart */}
-        {showMTF && (
-          <MultiTimeframeChart
-            symbol={selectedSymbol}
-            onClose={() => setShowMTF(false)}
-          />
-        )}
-
-        {/* Multi-Chart Grid (TradingView/MT5 style) */}
-        {showChartGrid && (
-          <ChartGrid
-            onClose={() => setShowChartGrid(false)}
+        {/* Smart Grid — unified multi-chart + MTF */}
+        {showSmartGrid && (
+          <SmartGrid
+            onClose={() => setShowSmartGrid(false)}
             defaultSymbol={selectedSymbol}
             defaultTimeframe={timeframe}
+            onOpenDrawingPanel={() => setShowDrawingPanel(true)}
+            onOpenIndicatorPanel={() => setShowIndicatorPanel(true)}
+            onOpenAIPanel={() => setShowAIPanel(true)}
+            onOpenTrading={() => setShowChartTrading(true)}
           />
         )}
 

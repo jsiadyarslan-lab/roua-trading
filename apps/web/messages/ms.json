@@ -248,40 +248,40 @@
   },
   "landing": {
     "hero": {
-      "title": "AI-Powered Account Linking Platform",
+      "title": "Platform Pemautan Akaun Dikuasakan AI",
       "subtitle": "Roua",
-      "cta": "Start Linking Your Accounts",
-      "explore": "Explore Platform",
-      "aiModels": "AI Models",
-      "assetClasses": "Supported Asset Classes",
-      "sixAiModels": "Six Harmonious AI Models",
-      "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
-      "setupSeconds": "Seconds to Setup",
-      "dailyMonitoring": "Hours Daily Monitoring"
+      "cta": "Mula Memautkan Akaun Anda",
+      "explore": "Terokai Platform",
+      "aiModels": "Model AI",
+      "assetClasses": "Kelas Aset Disokong",
+      "sixAiModels": "Enam Model AI Harmoni",
+      "fullDescription": "Platform pemautan akaun berkuasa AI yang paling canggih di rantau ini. Di mana alam semesta kewangan bertemu dengan minda mesin yang meramalkan sebelum ia berlaku.",
+      "setupSeconds": "Saat untuk Persediaan",
+      "dailyMonitoring": "Jam Pemantauan Harian"
     },
     "navbar": {
-      "models": "Models",
-      "tools": "Tools",
-      "method": "Method",
-      "experiences": "Experiences",
-      "login": "Login",
-      "startFree": "Start Free",
-      "features": "Features",
-      "ai": "AI Intelligence",
-      "liveMarket": "Live Market",
-      "testimonials": "Trader Reviews"
+      "models": "Model",
+      "tools": "Alat",
+      "method": "Kaedah",
+      "experiences": "Pengalaman",
+      "login": "Log Masuk",
+      "startFree": "Mula Percuma",
+      "features": "Ciri",
+      "ai": "Kepintaran AI",
+      "liveMarket": "Pasaran Langsung",
+      "testimonials": "Ulasan Pedagang"
     },
     "howItWorks": {
-      "title": "From Sign Up to Profits",
-      "titlePart1": "From Sign Up to",
-      "titleHighlight": "Profits",
-      "subtitle": "Just four steps separate you from smarter AI-powered trading",
-      "step1Title": "Create Your Account",
-      "step2Title": "Link Your Accounts Securely",
-      "step3Title": "Let AI Work for You",
-      "step4Title": "Protect Your Profits",
+      "title": "Dari Daftar Hingga Untung",
+      "titlePart1": "Dari Mendaftar Hanya untuk Keuntungan",
+      "titleHighlight": "Dari Mendaftar Hanya untuk",
+      "subtitle": "Perdagangan dikuasakan AI",
+      "step1Title": "Cipta Akaun Anda",
+      "step2Title": "Pautkan Akaun Anda Dengan Selamat",
+      "step3Title": "Biarkan AI Bekerja untuk Anda",
+      "step4Title": "Lindungi Keuntungan Anda",
       "tradeSmart": "Trade Smart",
-      "step1Desc": "Log in under 30 seconds via Google or Passkey. No passwords, no complexity.",
+      "step1Desc": "Log masuk di bawah 30 saat melalui Google atau Passkey. Tiada kata laluan, tiada kerumitan.",
       "step2Desc": "Eight AI models analyze markets and generate trading signals based on multi-model analysis.",
       "step3Desc": "Execute trades based on data-driven insights with smart risk protection.",
       "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility."
@@ -450,33 +450,33 @@
     "passkeyNotAvailable": "No Passkey authenticator available",
     "passkeyFailed": "Passkey verification failed",
     "passkeyLoginFailed": "Passkey login failed",
-    "codeFailed": "Failed to send verification code",
-    "codeRequired": "Please enter the full verification code",
-    "codeInvalid": "Invalid verification code",
-    "codeExpired": "Verification code has expired",
-    "loginFailed": "Login failed",
-    "connectionError": "Connection error occurred",
-    "tooManyRequests": "Too many requests",
-    "encryptedBadge": "Fully Encrypted",
-    "noPasswordBadge": "No Password",
-    "googleNoAccessToken": "Failed to obtain access token from Google.",
-    "googleUserInfoFailed": "Failed to fetch account information.",
-    "googleNoEmail": "No email found in Google account.",
-    "dbUnavailable": "Database is currently unavailable. Please try again in a few seconds.",
-    "userCreationFailed": "Failed to create user account.",
-    "sessionCreationFailed": "Failed to create session. Please try again.",
-    "unknownError": "An unexpected error occurred. Please try again.",
-    "verificationFailed": "Verification failed. Please try again."
+    "codeFailed": "Gagal menghantar kod pengesahan",
+    "codeRequired": "Sila masukkan kod pengesahan penuh",
+    "codeInvalid": "Kod pengesahan tidak sah",
+    "codeExpired": "Kod pengesahan telah tamat tempoh",
+    "loginFailed": "Log masuk gagal",
+    "connectionError": "Ralat sambungan berlaku",
+    "tooManyRequests": "Terlalu banyak permintaan",
+    "encryptedBadge": "Disulitkan Sepenuhnya",
+    "noPasswordBadge": "Tiada Kata Laluan",
+    "googleNoAccessToken": "Gagal mendapatkan token akses daripada Google.",
+    "googleUserInfoFailed": "Gagal mengambil maklumat akaun.",
+    "googleNoEmail": "Tiada e-mel ditemui dalam akaun Google.",
+    "dbUnavailable": "Pangkalan data tidak tersedia pada masa ini. Sila cuba lagi dalam beberapa saat.",
+    "userCreationFailed": "Gagal membuat akaun pengguna.",
+    "sessionCreationFailed": "Gagal membuat sesi. Sila cuba lagi.",
+    "unknownError": "Ralat yang tidak dijangka berlaku. Sila cuba lagi.",
+    "verificationFailed": "Pengesahan gagal. Sila cuba lagi."
   },
   "guest": {
-    "loginToAccess": "Login to Access",
-    "loginRequired": "This action requires login",
-    "fullExperience": "For the full experience",
-    "fullExperienceDesc": "For the full experience with all features, log in for free",
-    "loginButton": "Login",
-    "continueAsGuest": "Continue as Guest",
-    "viewMode": "You are in view mode",
-    "viewModeBanner": "You are in view mode — login for full access"
+    "loginToAccess": "Log masuk ke Akses",
+    "loginRequired": "Tindakan ini memerlukan log masuk",
+    "fullExperience": "Untuk pengalaman penuh",
+    "fullExperienceDesc": "Untuk pengalaman penuh dengan semua ciri, log masuk secara percuma",
+    "loginButton": "Log masuk",
+    "continueAsGuest": "Teruskan sebagai Tetamu",
+    "viewMode": "Anda berada dalam mod paparan",
+    "viewModeBanner": "Anda berada dalam mod paparan — log masuk untuk akses penuh"
   },
   "dashboard": {
     "nav": {
@@ -3303,10 +3303,10 @@
     }
   },
   "notFound": {
-    "title": "Page Not Found",
-    "description": "Sorry, the page you're looking for doesn't exist or has been moved",
-    "dashboard": "Dashboard",
-    "home": "Home"
+    "title": "Halaman Tidak Ditemui",
+    "description": "Maaf, halaman yang anda cari tidak wujud atau telah dialihkan",
+    "dashboard": "Papan Pemuka",
+    "home": "Laman Utama"
   },
   "errors": {
     "fetchPositionsFailed": "Failed to fetch positions",
@@ -3328,11 +3328,11 @@
     "unauthorized": "Please login to access this resource"
   },
   "tiers": {
-    "free": "Free",
-    "professional": "Professional",
+    "free": "Percuma",
+    "professional": "Profesional",
     "plus": "Plus",
-    "elite": "Elite",
-    "enterprise": "Enterprise",
+    "elite": "Elit",
+    "enterprise": "Perusahaan",
     "admin": "Admin"
   },
   "indicators": {
@@ -3362,42 +3362,42 @@
     "macdNeutral": "Neutral"
   },
   "drawingTools": {
-    "pointer": "Pointer",
-    "trendLine": "Trend Line",
-    "ray": "Ray",
-    "horizontalLine": "Horizontal Line",
-    "parallelChannel": "Parallel Channel",
-    "fibonacciRetracement": "Fibonacci Retracement",
-    "rectangle": "Rectangle",
-    "triangle": "Triangle",
-    "circle": "Circle"
+    "pointer": "Penunjuk",
+    "trendLine": "Garisan Aliran",
+    "ray": "Sinar",
+    "horizontalLine": "Garisan Mendatar",
+    "parallelChannel": "Saluran Selari",
+    "fibonacciRetracement": "Jejak Semula Fibonacci",
+    "rectangle": "Segiempat tepat",
+    "triangle": "Segitiga",
+    "circle": "Bulatan"
   },
   "harmonicPatterns": {
     "gartley": "Gartley",
     "butterfly": "Butterfly",
-    "bat": "Bat",
-    "crab": "Crab",
+    "bat": "Kelawar",
+    "crab": "Ketam",
     "doubleTop": "Double Top",
     "doubleBottom": "Double Bottom",
-    "headAndShoulders": "Head and Shoulders",
-    "inverseHeadAndShoulders": "Inverse Head and Shoulders"
+    "headAndShoulders": "Kepala dan Bahu",
+    "inverseHeadAndShoulders": "Kepala dan Bahu Songsang"
   },
   "tradingIntelligence": {
-    "strongBullishMomentum": "Strong bullish momentum",
-    "oversold": "Oversold",
-    "overbought": "Overbought",
-    "bullishTrend": "Bullish trend",
-    "bearishTrend": "Bearish trend",
-    "ema20Above50": "EMA20 above EMA50",
-    "expandingRange": "Expanding range",
-    "staleData": "Stale data"
+    "strongBullishMomentum": "Momentum kenaikan harga yang kukuh",
+    "oversold": "Terlebih jual",
+    "overbought": "Terlebih belian",
+    "bullishTrend": "Aliran menaik",
+    "bearishTrend": "Aliran menurun",
+    "ema20Above50": "EMA20 di atas EMA50",
+    "expandingRange": "Julat berkembang",
+    "staleData": "Data basi"
   },
   "dashboardLive": {
-    "live": "Live",
-    "delayed": "Delayed",
-    "backup": "Backup",
+    "live": "Langsung",
+    "delayed": "Tertunda",
+    "backup": "Sandaran",
     "demo": "Demo",
-    "pendingConnection": "Pending Connection",
+    "pendingConnection": "Sambungan Menunggu",
     "binanceLive": "Binance Live",
     "coingecko": "CoinGecko",
     "twelvedata": "TwelveData",
@@ -3405,48 +3405,48 @@
     "ecb": "ECB"
   },
   "agentStore": {
-    "strategyAuto": "Auto (Adaptive)",
+    "strategyAuto": "Auto (Suai Suai)",
     "strategyScalping": "Scalping",
-    "strategySwing": "Swing",
+    "strategySwing": "Ayunan",
     "strategyGrid": "Grid",
-    "strategyMeanRevert": "Mean Reversion",
+    "strategyMeanRevert": "Pulangan Min",
     "strategyBreakout": "Momentum Breakout",
-    "strategyDCA": "Dollar Cost Average",
-    "activatingAgent": "Activating agent...",
-    "tradingServiceUnavailable": "Trading service unavailable",
-    "agentActivated": "Trading agent activated successfully",
-    "cycleComplete": "Cycle {n} complete",
-    "tradeDailyProfit": "Trade — Daily Profit"
+    "strategyDCA": "Purata Kos Dolar",
+    "activatingAgent": "Ejen pengaktif...",
+    "tradingServiceUnavailable": "Perkhidmatan perdagangan tidak tersedia",
+    "agentActivated": "Ejen dagangan berjaya diaktifkan",
+    "cycleComplete": "Kitaran{n}lengkap",
+    "tradeDailyProfit": "Dagangan Harian ⇶"
   },
   "decisionFlow": {
-    "scanningMarket": "Decision engine scanning market",
-    "aggressiveReady": "Aggressively Ready",
-    "sellPressure": "Under Selling Pressure",
-    "conflictBlocking": "Conflict Prevents Advance",
-    "underObservation": "Under Observation"
+    "scanningMarket": "Keputusan pasaran imbasan enjin",
+    "aggressiveReady": "Sedia Agresif",
+    "sellPressure": "Di bawah Tekanan Jualan",
+    "conflictBlocking": "Konflik Menghalang Kemajuan",
+    "underObservation": "Dalam Pemerhatian"
   },
   "contentAgent": {
     "categories": {
-      "crypto": "Crypto",
+      "crypto": "Kripto",
       "forex": "Forex",
-      "stocks": "Stocks",
-      "commodities": "Commodities",
-      "economy": "Economy",
-      "tech": "Tech"
+      "stocks": "Saham",
+      "commodities": "Komoditi",
+      "economy": "Ekonomi",
+      "tech": "Teknologi"
     }
   },
   "paperTrades": {
-    "sourceExecutor": "Executor",
-    "sourceAgent": "Agent",
-    "sourcePosition": "Position",
-    "closeProfit": "Close with Profit",
-    "closeLoss": "Close with Loss"
+    "sourceExecutor": "Pelaksana",
+    "sourceAgent": "Ejen",
+    "sourcePosition": "Jawatan",
+    "closeProfit": "Tutup dengan Untung",
+    "closeLoss": "Tutup dengan Rugi"
   },
   "sw": {
     "pushTitle": "Roua Trading",
-    "pushBody": "You have a new notification",
-    "open": "Open",
-    "close": "Close"
+    "pushBody": "Anda mempunyai pemberitahuan baharu",
+    "open": "Buka",
+    "close": "Tutup"
   },
   "ai": {
     "narrator": {
@@ -3504,7 +3504,11 @@
     "consensusFailed": "Failed to get consensus",
     "unexpectedError": "Unexpected error",
     "httpError": "Error {status}",
-    "monitoringTrends": "MONITORING TRENDS"
+    "monitoringTrends": "MONITORING TRENDS",
+    "title": "AI Council",
+    "models": "6 AI Models",
+    "recommendation": "Recommendation",
+    "confidence": "Confidence"
   },
   "portfolio": {
     "accountStatus": "Account Status",
@@ -3537,13 +3541,13 @@
     "exchangeTestnet": "Testnet",
     "closeAll": "Close All",
     "hedge": "Hedge",
-    "rebalance": "Rebalance",
-    "linkAccount": "Link Account",
-    "current": "Current",
-    "setStopLoss": "Set Stop Loss",
-    "setTakeProfit": "Set Take Profit",
-    "closePosition": "Close Position",
-    "quickActions": "Quick Actions"
+    "rebalance": "Imbangan Semula",
+    "linkAccount": "Pautkan Akaun",
+    "current": "Semasa",
+    "setStopLoss": "Tetapkan Henti Rugi",
+    "setTakeProfit": "Tetapkan Ambil Untung",
+    "closePosition": "Tutup Kedudukan",
+    "quickActions": "Tindakan Pantas"
   },
   "aiSmartPanel": {
     "title": "Smart Analysis",
@@ -4383,21 +4387,21 @@
     "structuralMatrix": "Structural Matrix",
     "quantMetrics": "Quantitative Metrics",
     "var95": "VaR (95%)",
-    "valueAtRisk": "Value at Risk",
+    "valueAtRisk": "Nilai Berisiko",
     "beta1y": "Beta (1Y)",
-    "marketVolatility": "Market Volatility",
-    "sharpeRatio": "Sharpe Ratio",
-    "riskReturn": "Risk-Adjusted Return",
-    "peRatio": "P/E Ratio",
-    "peRatioDesc": "Price-to-Earnings",
-    "intelligenceValuation": "Intelligence Valuation (FV)",
-    "undervalued": "Undervalued",
+    "marketVolatility": "Kemeruapan Pasaran",
+    "sharpeRatio": "Nisbah Tajam",
+    "riskReturn": "Pulangan Dilaraskan Risiko",
+    "peRatio": "Nisbah P/E",
+    "peRatioDesc": "Nisbah Harga-ke-Pendapatan",
+    "intelligenceValuation": "Penilaian Perisikan (FV)",
+    "undervalued": "Dinilai Rendah",
     "premium": "Premium",
-    "hiddenSignature": "Hidden Signature",
-    "majorWalletsConsensus": "Major Wallets Consensus",
-    "deepInstitutionalAnalysis": "Deep Institutional Analysis",
-    "today": "Today",
-    "yesterday": "Yesterday"
+    "hiddenSignature": "Analisis Institusi Tersembunyi",
+    "majorWalletsConsensus": "Institusi Tersembunyi",
+    "deepInstitutionalAnalysis": "Institusi Utama",
+    "today": "⇶ Hari ini",
+    "yesterday": "Semalam"
   },
   "notifications": {
     "profile": {
@@ -4533,27 +4537,27 @@
       "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
       "noDummyAccounts": "No dummy accounts to delete",
       "deleteErrors": "({count} errors)",
-      "guestNotAllowed": "Binance linking not available in guest mode",
-      "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user."
+      "guestNotAllowed": "Pautan binance tidak tersedia dalam mod tetamu",
+      "mustLoginFirst": "Anda mesti log masuk dengan akaun sebenar sebelum menambah kunci pertukaran untuk memastikan baki diasingkan bagi setiap pengguna."
     },
     "push": {
       "appName": "Roua Trading",
-      "notificationsEnabled": "Notifications enabled successfully! You will now receive trading alerts.",
-      "alertTitle": "Roua Trading Alert",
-      "chartTitle": "Roua — {symbol}",
-      "enableDeviceNotifications": "Enable Device Notifications",
-      "receiveAlertsInstantly": "Receive trading alerts instantly even outside the app",
-      "enable": "Enable",
-      "secureNote": "Secure notifications — we never share your data with third parties"
+      "notificationsEnabled": "Pemberitahuan berjaya didayakan! Anda kini akan menerima makluman dagangan.",
+      "alertTitle": "Makluman Perdagangan Roua",
+      "chartTitle": "Roua — XPH0X",
+      "enableDeviceNotifications": "Dayakan Pemberitahuan Peranti",
+      "receiveAlertsInstantly": "Terima makluman dagangan serta-merta walaupun di luar apl",
+      "enable": "Dayakan",
+      "secureNote": "Pemberitahuan selamat — kami tidak pernah berkongsi data anda dengan pihak ketiga"
     }
   },
   "commandPalette": {
-    "title": "Command Palette",
-    "search": "Search commands, indicators, tools...",
-    "noResults": "No results found",
-    "navigate": "Navigate",
-    "execute": "Execute",
-    "close": "Close"
+    "title": "Palet Perintah",
+    "search": "Cari arahan, penunjuk, alatan...",
+    "noResults": "Tiada hasil ditemui",
+    "navigate": "Navigasi",
+    "execute": "Laksanakan",
+    "close": "Tutup"
   },
   "leaderboardPage": {
     "title": "Leaderboard",
@@ -4586,16 +4590,16 @@
     "colFollowers": "Followers",
     "colCopyAvailable": "Copy Available",
     "you": "You",
-    "follow": "Follow",
-    "unfollow": "Unfollow",
-    "notAvailable": "Not Available",
-    "yourRanking": "Your Current Ranking",
-    "returnLabel": "Return",
-    "winRateLabel": "Win Rate",
-    "consistency": "Consistency",
-    "maxDrawdown": "Max Drawdown",
-    "followers": "Followers",
-    "achievementBadges": "Achievement Badges"
+    "follow": "Ikuti",
+    "unfollow": "Nyahikut",
+    "notAvailable": "Tidak Tersedia",
+    "yourRanking": "Kedudukan Semasa Anda",
+    "returnLabel": "Pulangan",
+    "winRateLabel": "Kadar Kemenangan",
+    "consistency": "Konsisten",
+    "maxDrawdown": "Pengeluaran Maksimum",
+    "followers": "Pengikut",
+    "achievementBadges": "Lencana Pencapaian"
   },
   "chartToolbar": {
     "timeframe": "Timeframe",
@@ -4646,39 +4650,39 @@
     "livePatternProgress": "Live Pattern Progress"
   },
   "aiCoach": {
-    "ratingExcellent": "Excellent",
-    "ratingGood": "Good",
-    "ratingNeedsImprovement": "Needs Improvement",
-    "ratingInsufficientData": "Insufficient Data",
-    "tipWarning": "Warning",
-    "tipOpportunity": "Opportunity",
-    "tipEducation": "Education",
-    "askCoach": "Ask Coach",
-    "chatUser": "You",
-    "chatCoach": "AI Coach",
-    "errorFetchFailed": "Failed to fetch coaching data",
-    "errorConnection": "Connection error",
-    "errorAnswerFailed": "Failed to generate answer. Please try again.",
-    "errorChatConnection": "Chat connection error. Please try again.",
-    "headerTitle": "AI Coach",
-    "headerSubtitle": "Personalized trading insights",
-    "performanceRating": "Performance Rating",
-    "statTrades": "Trades",
-    "statWinRate": "Win Rate",
-    "statProfitFactor": "Profit Factor",
-    "statMaxDrawdown": "Max Drawdown",
-    "loadingAnalysis": "Analyzing your trading performance...",
-    "loadingExamining": "Examining patterns and generating insights...",
-    "retry": "Retry",
-    "insufficientDataTitle": "Insufficient Data",
-    "insufficientDataDesc": "Complete more trades to receive personalized AI coaching insights.",
-    "coachTips": "Coach Tips",
-    "tipCount": "tips",
-    "askCoachMore": "Tell me more about: ",
-    "chatHeader": "Chat with AI Coach",
-    "chatEmpty": "Ask your AI coach anything about your trading performance...",
-    "coachThinking": "Analyzing...",
-    "chatPlaceholder": "Ask about your performance..."
+    "ratingExcellent": "Cemerlang",
+    "ratingGood": "Baik",
+    "ratingNeedsImprovement": "Perlu Penambahbaikan",
+    "ratingInsufficientData": "Data Tidak Mencukupi",
+    "tipWarning": "Amaran",
+    "tipOpportunity": "Peluang",
+    "tipEducation": "Pendidikan",
+    "askCoach": "Tanya Jurulatih",
+    "chatUser": "Anda",
+    "chatCoach": "Jurulatih AI",
+    "errorFetchFailed": "Gagal mengambil data bimbingan",
+    "errorConnection": "Ralat sambungan",
+    "errorAnswerFailed": "Gagal menjana jawapan. Sila cuba lagi.",
+    "errorChatConnection": "Ralat sambungan sembang. Sila cuba lagi.",
+    "headerTitle": "Jurulatih AI",
+    "headerSubtitle": "Cerapan dagangan yang diperibadikan",
+    "performanceRating": "Penilaian Prestasi",
+    "statTrades": "Dagangan",
+    "statWinRate": "Kadar Kemenangan",
+    "statProfitFactor": "Faktor Keuntungan",
+    "statMaxDrawdown": "Pengeluaran Maks",
+    "loadingAnalysis": "Menganalisis prestasi dagangan anda...",
+    "loadingExamining": "Meneliti corak dan menjana cerapan...",
+    "retry": "Cuba Semula",
+    "insufficientDataTitle": "Melengkapkan Data Peribadi yang Tidak Mencukupi",
+    "insufficientDataDesc": "Jurulatih AI yang Tidak Mencukupi",
+    "coachTips": "Petua Jurulatih",
+    "tipCount": "petua",
+    "askCoachMore": "Beritahu saya lebih lanjut tentang:",
+    "chatHeader": "Sembang dengan Jurulatih AI",
+    "chatEmpty": "Tanya jurulatih AI anda tentang prestasi dagangan anda...",
+    "coachThinking": "Menganalisis...",
+    "chatPlaceholder": "Tanya tentang prestasi anda..."
   },
   "notificationTypes": {
     "newUser": {
@@ -4742,36 +4746,586 @@
       "body": "{symbol} is now {condition} {targetPrice}"
     },
     "botSignal": {
-      "title": "Bot: {side} Signal",
-      "body": "{message}"
+      "title": "Bot: Isyarat XPH0X",
+      "body": "XPH0X"
     },
     "aiAnalysis": {
-      "title": "AI Analysis: {sentiment}",
-      "body": "{summary}"
+      "title": "Analisis AI: XPH0X",
+      "body": "XPH0X"
     },
     "scannerSignal": {
-      "title": "Scanner: {symbol} — {direction}",
-      "body": "Signal strength {confidence}% | {reasons}"
+      "title": "Pengimbas:{symbol}— XPH1X",
+      "body": "Kekuatan isyarat{confidence}% |  XPH1X"
     },
     "sharpMove": {
-      "title": "Sharp Move: {symbol}",
-      "body": "Price changed by {change}% — may be a trading opportunity"
+      "title": "Sharp Move: XPH0X",
+      "body": "Harga ditukar sebanyak{change}% — mungkin peluang dagangan"
     },
     "autoExecuteSuccess": {
-      "title": "Auto-execute: {side} {pair}",
-      "body": "Signal auto-executed (confidence: {confidence}%) — Order: {orderId}..."
+      "title": "Auto-execute:{side}XPH1X",
+      "body": "Signal auto-executed (keyakinan:{confidence}%) — Order:{orderId}..."
     },
     "autoExecuteFailed": {
-      "title": "Auto-execute Failed",
-      "body": "No exchange credentials linked. Please link your account first."
+      "title": "Auto-execute Failed credentials",
+      "body": "Auto-execute Failed credentials Sila pautkan akaun anda dahulu."
     },
     "autoExecuteRejected": {
-      "title": "Auto-execute Rejected",
-      "body": "Auto-execute not performed for {pair}: {reason}"
+      "title": "Autolaksana Ditolak",
+      "body": "Autolaksana tidak dilakukan untuk{pair}: XPH1X"
     },
     "autoExecuteError": {
-      "title": "Auto-execute Error",
-      "body": "Connection failed: {error}"
+      "title": "Autolaksana Ralat",
+      "body": "Sambungan gagal: XPH0X"
     }
+  },
+  "categories": {
+    "crypto": "Kripto",
+    "forex": "Forex",
+    "stocks": "Saham",
+    "commodities": "Komoditi",
+    "economy": "Ekonomi",
+    "tech": "Teknologi"
+  },
+  "newUser": {
+    "title": "New User",
+    "body": "New user registered: {name}\nEmail: {email}"
+  },
+  "subscriptionUpgrade": {
+    "title": "Subscription Upgrade",
+    "body": "User {email} upgraded from {fromTier} to {toTier}"
+  },
+  "systemError": {
+    "title": "System Error",
+    "body": "{context}{error}"
+  },
+  "performanceAlert": {
+    "title": "Performance Alert",
+    "body": "{metric} = {value} (Threshold: {threshold})"
+  },
+  "largeTrade": {
+    "title": "Large Trade",
+    "body": "Large trade on {symbol} for {amount}\nUser: {userId}"
+  },
+  "systemUpdate": {
+    "title": "System Update",
+    "body": "{message}"
+  },
+  "newReport": {
+    "title": "{emoji} New Report",
+    "body": "📌 {title}\n📂 Category: {category}\n🏷️ Assets: {symbols}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice"
+  },
+  "signalGenerated": {
+    "title": "{direction} Signal: {pair}",
+    "body": "Confidence: {confidence}% — {reason}"
+  },
+  "orderFilled": {
+    "title": "{direction} Order Filled: {symbol}",
+    "body": "Filled {quantity} {symbol} at {price}"
+  },
+  "orderRejected": {
+    "title": "{direction} Order Rejected: {symbol}",
+    "body": "Reason: {reason}"
+  },
+  "riskWarning": {
+    "title": "Trading Halted — Daily Loss Limit",
+    "body": "Today's loss reached {lossAmount} ({lossPercent}% of portfolio). Smart Executor has been automatically halted until tomorrow."
+  },
+  "positionClosed": {
+    "title": "Auto Close: {symbol}",
+    "body": "Closed {direction} {symbol} position automatically | PnL: {pnl} | Close price: {price}"
+  },
+  "positionOpened": {
+    "title": "Smart Executor: {direction} {pair}",
+    "body": "Executed {direction} {pair} @ {price} | Confidence {confidence}% | Mode {mode} | Stop Loss: {stopLoss} | Target: {takeProfit}"
+  },
+  "executionFailed": {
+    "title": "Execution Failed: {pair}",
+    "body": "Failed to execute {direction} {pair}: {reason}"
+  },
+  "priceAlert": {
+    "title": "Price Alert: {symbol}",
+    "body": "{symbol} is now {condition} {targetPrice}"
+  },
+  "botSignal": {
+    "title": "Bot: Isyarat XPH0X",
+    "body": "XPH0X"
+  },
+  "aiAnalysis": {
+    "title": "Analisis AI: XPH0X",
+    "body": "XPH0X"
+  },
+  "scannerSignal": {
+    "title": "Pengimbas:{symbol}— XPH1X",
+    "body": "Kekuatan isyarat{confidence}% |  XPH1X"
+  },
+  "sharpMove": {
+    "title": "Sharp Move: XPH0X",
+    "body": "Harga ditukar sebanyak{change}% — mungkin peluang dagangan"
+  },
+  "autoExecuteSuccess": {
+    "title": "Auto-execute:{side}XPH1X",
+    "body": "Signal auto-executed (keyakinan:{confidence}%) — Order:{orderId}..."
+  },
+  "autoExecuteFailed": {
+    "title": "Auto-execute Failed credentials",
+    "body": "Auto-execute Failed credentials Sila pautkan akaun anda dahulu."
+  },
+  "autoExecuteRejected": {
+    "title": "Autolaksana Ditolak",
+    "body": "Autolaksana tidak dilakukan untuk{pair}: XPH1X"
+  },
+  "autoExecuteError": {
+    "title": "Autolaksana Ralat",
+    "body": "Sambungan gagal: XPH0X"
+  },
+  "narrator": {
+    "whatIsHappening": "What's happening in {symbol}?",
+    "aiInsights": "AI Insights",
+    "councilSignals": "Strategic Council Signals",
+    "overallTrend": "Overall Trend",
+    "institutionalBullish": "Institutional Bullish",
+    "sovereignBearish": "Sovereign Bearish",
+    "sharpVolatility": "Sharp Volatility",
+    "sidewaysVolatility": "Sideways Volatility",
+    "riskLevel": "Risk Level",
+    "veryLowRisk": "Very Low",
+    "mediumRisk": "Medium",
+    "highRiskLevel": "High Risk",
+    "digitalConfidenceIndex": "Digital Confidence Index",
+    "analysisSteps": "Analysis Steps",
+    "globalNewsAnalysis": "Global News Analysis",
+    "technicalIndicatorsCheck": "Technical Indicators Check (RSI/MACD)",
+    "liquidityFlowMeasurement": "Liquidity Flow Measurement",
+    "riskAssessment": "Risk Assessment",
+    "assistantReading": "The assistant is reading {symbol} now, connecting the narrative to the trend and live data.",
+    "assistantConnecting": "The assistant connects the narrative to current market movements.",
+    "nextTriggerLabel": "Next Trigger:",
+    "tapToExpand": "Tap to expand...",
+    "smartRecommendationTitle": "Smart Recommendation — {symbol}",
+    "analyzing": "Analyzing...",
+    "entryLabel": "Entry:",
+    "smartRecommendation": "Smart Recommendation",
+    "alert": "Alert",
+    "alertTitle": "Roua — {symbol} Alert",
+    "sentiment": "Sentiment",
+    "risk": "Risk",
+    "confidence": "Confidence",
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutralSentiment": "Neutral",
+    "volatile": "Volatile",
+    "lowRisk": "Low",
+    "mediumRiskLevel": "Medium",
+    "highRisk2": "High",
+    "buy": "Buy",
+    "sell": "Sell",
+    "wait": "Hold",
+    "recommendationUnavailable": "Could not get a recommendation right now",
+    "aiConnectionError": "Error connecting to AI models",
+    "recommendationPrompt": "Give me a direct trading recommendation for {symbol} with entry point, stop loss, and target. Answer in this format only: Action | Entry | Stop Loss | Target | Reason"
+  },
+  "bottomNav": {
+    "home": "Home",
+    "chart": "Chart",
+    "trade": "Trade",
+    "wallet": "Wallet",
+    "more": "More"
+  },
+  "home": {
+    "chart": "Chart",
+    "agent": "Agent",
+    "ai": "AI",
+    "positions": "Positions",
+    "more": "More"
+  },
+  "wallet": {
+    "title": "Wallet",
+    "account": "Account",
+    "buyingPower": "Buying Power",
+    "equity": "Equity"
+  },
+  "news": {
+    "title": "News",
+    "none": "No news currently"
+  },
+  "positions": {
+    "title": "Positions",
+    "none": "No open positions"
+  },
+  "more": {
+    "title": "More",
+    "settings": "Settings",
+    "ai": "AI Intelligence",
+    "news": "News",
+    "linkAccounts": "Link Accounts",
+    "markets": "Markets",
+    "positions": "Positions"
+  },
+  "chart": {
+    "loading": "Loading chart...",
+    "candles": "Candles",
+    "line": "Line",
+    "area": "Area",
+    "bars": "Bars",
+    "pendingOrder": "Pending Order",
+    "selectPair": "Select Pair",
+    "timeframe": "Timeframe",
+    "chartType": "Chart Type",
+    "newOrder": "New Order",
+    "currentPrice": "Current Price",
+    "orderPrice": "Order Price",
+    "orderValue": "Value",
+    "executing": "Executing...",
+    "invalidPrice": "Invalid price",
+    "zeroPriceError": "Cannot execute order at zero price",
+    "executionFailed": "Execution failed",
+    "unknownError": "Unknown error",
+    "positionOpened": "Position opened",
+    "targetPrice": "Target Price",
+    "stopPrice": "Stop Price"
+  },
+  "trade": {
+    "agentTitle": "Autonomous Agent",
+    "agentDesc": "AI-powered autonomous trading",
+    "strategyAuto": "Auto (Adaptive)",
+    "strategyScalping": "Scalping",
+    "strategySwing": "Swing",
+    "strategyGrid": "Grid",
+    "strategyMeanRevert": "Mean Reversion",
+    "strategyBreakout": "Breakout",
+    "strategyDCA": "DCA",
+    "strategyVwapRsi": "VWAP+RSI",
+    "statusRunning": "Running",
+    "statusEmergencyStop": "Emergency Stop",
+    "statusLossLimit": "Loss Limit",
+    "statusWaiting": "Waiting",
+    "dailyProfit": "Daily Profit",
+    "trades": "Trades",
+    "consecutiveLosses": "Consecutive Losses"
+  },
+  "settings": {
+    "tradingMode": "Trading Mode",
+    "notifications": "Notifications",
+    "sound": "Sound"
+  },
+  "kyc": {
+    "linkDesc": "Link your trading account to start trading",
+    "noAccounts": "No linked accounts",
+    "notLinked": "Not linked",
+    "connectionTestRequired": "Connection test required",
+    "connectionTestRequiredDesc": "Please complete a successful connection test before proceeding",
+    "requiredFields": "Required fields",
+    "requiredFieldsDesc": "Please fill in all required fields before proceeding",
+    "connectionSuccess": "Connection successful",
+    "connectionSuccessDesc": "Successfully verified connection to {exchange}",
+    "accountLinkedSuccess": "Account linked successfully",
+    "accountLinkedSuccessDesc": "Your {exchange} account has been linked successfully..."
+  },
+  "profile": {
+    "nameRequired": "Name is required",
+    "nameRequiredDesc": "Please enter your display name",
+    "changesSaved": "Changes saved",
+    "changesSavedDesc": "Your profile has been updated successfully",
+    "saveError": "Save error",
+    "saveErrorDesc": "An error occurred while saving changes",
+    "confirmRequired": "Confirmation required",
+    "confirmRequiredDesc": "Please type \"delete\" to confirm",
+    "accountDeleted": "Account deleted",
+    "accountDeletedDesc": "Your account will be deleted within 30 days",
+    "deleteError": "Error",
+    "deleteErrorDesc": "An error occurred while deleting the account",
+    "emailChangeTitle": "Email change",
+    "emailChangeDesc": "A confirmation link will be sent to your new email"
+  },
+  "leaderboard": {
+    "unfollowed": "Unfollowed {name}",
+    "unfollowedDesc": "This account will no longer be tracked",
+    "followed": "Following {name}",
+    "followedDesc": "This account's performance will be tracked"
+  },
+  "trading": {
+    "stopLossRequired": "Stop loss is mandatory! Cannot submit order without stop loss — this is Roua's first rule.",
+    "slMustBeBelowEntry": "Stop loss for buy orders must be below the current entry price.",
+    "slMustBeAboveEntry": "Stop loss for sell orders must be above the current entry price.",
+    "qtyMustBePositive": "Quantity must be greater than zero."
+  },
+  "execution": {
+    "orderCancelled": "Order cancelled",
+    "orderCancelledDesc": "Order {orderId} has been cancelled...",
+    "orderFilled": "Filled {side} {qty} {symbol}{filled}",
+    "orderFillTitle": "{side} {symbol} completed",
+    "orderFillDesc": "Executed {qty} {symbol}{filled} [{source}]",
+    "orderRejected": "Order rejected: {reason}",
+    "executionFailed": "Execution failed: {error}",
+    "sourceExecutor": "Executor",
+    "sourceAgent": "Agent",
+    "sourcePosition": "Position",
+    "closeProfit": "Closed with profit",
+    "closeLoss": "Closed with loss",
+    "symbolRequired": "Symbol required",
+    "symbolRequiredDesc": "Please enter a symbol",
+    "invalidQty": "Invalid quantity",
+    "limitPriceRequired": "Limit price required",
+    "limitPriceRequiredDesc": "Please enter the limit order price",
+    "slBelowBuyPrice": "Stop loss must be below buy price",
+    "tpAboveBuyPrice": "Take profit must be above buy price",
+    "slAboveSellPrice": "Stop loss must be above sell price",
+    "tpBelowSellPrice": "Take profit must be below sell price",
+    "confirmOrder": "Confirm {type} {side} order for {qty} {symbol}{limit}?",
+    "maxPositions": "You have {count} open positions (max: {max}). Close some first.",
+    "submittingOrder": "Submitting order...",
+    "pendingType": "Pending",
+    "marketType": "Market",
+    "atPrice": " at price {price}",
+    "riskRejected": "Order rejected by risk gatekeeper",
+    "duplicateOrder": "This order has already been received. Please wait.",
+    "orderIdMissing": "Order ID not received from provider",
+    "networkError": "Network error — unable to reach provider",
+    "submitFailed": "Failed to submit order — please try again",
+    "orderSuccessStatus": "{side} {qty} {symbol}{filled}\n{source} — Order ID: {orderId}...",
+    "safeLabel": "Safe",
+    "directLabel": "Direct",
+    "sessionExpired": "Session expired — please log in again"
+  },
+  "exchange": {
+    "addKeyFailed": "Failed to add key",
+    "addKeySuccess": "Key added successfully!",
+    "disableTestMode": "Disable test mode",
+    "enableTestMode": "Enable test mode",
+    "saved": "Saved",
+    "devFeature": "This feature is under development — the key will be saved locally only"
+  },
+  "admin": {
+    "monitorNotPublished": "Monitor agent not published — set MONITOR_AGENT_URL first",
+    "agentStarted": "Agent started",
+    "agentStopped": "Agent stopped",
+    "commandFailed": "Failed to execute command",
+    "serverError": "Server connection error",
+    "settingsSaved": "Monitor settings saved",
+    "settingsSaveFailed": "Failed to save settings",
+    "fetchFailed": "Failed to fetch data from server",
+    "serverConnectionFailed": "Server connection failed",
+    "loginDisabled": "Login disabled — admin password not set. Set ADMIN_PASSWORD env variable first.",
+    "serverErrorRetry": "Server error — try again later",
+    "connectionError": "Server connection error",
+    "testNotification": "Test notification",
+    "testNotificationBody": "If you see this notification, browser alerts are working correctly!",
+    "settingsSavedSuccess": "Settings saved successfully",
+    "saveFailedErrors": "Save failed: {errors}",
+    "connectionErrorDetail": "Connection error: {error}",
+    "telegramTestSent": "Test message sent — check Telegram",
+    "connectionFailed": "Connection failed",
+    "cleanDummyConfirm": "All dummy accounts will be deleted...",
+    "cleanDummyFailed": "Failed to clean dummy accounts",
+    "cleanDummySuccess": "{count} dummy accounts deleted",
+    "fetchStatsFailed": "Failed to fetch statistics",
+    "fetchSignalsFailed": "Failed to fetch smart signals from server",
+    "dataUnavailable": "Data unavailable — server connection failed",
+    "demoDataWarning": "Demo data — analysis server connection failed",
+    "scannerFailed": "Failed to fetch scanner results from server",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "notVerified": "Not verified",
+    "newUser": "New user",
+    "subUpgrade": "Subscription upgrade",
+    "systemError": "System error",
+    "performanceAlert": "Performance alert",
+    "bigTrade": "Big trade",
+    "systemUpdate": "System update",
+    "sessionExpired": "Session expired — please log in again",
+    "sessionExpiredShort": "Session expired",
+    "incorrectPassword": "Incorrect password",
+    "connectionTimeout": "Connection timeout — server not responding",
+    "noInternetConnection": "Cannot connect to server — check internet connection",
+    "dbUnavailable": "Database currently unavailable — try again later",
+    "defaultError": "An error occurred",
+    "confirmDeleteDummy": "All dummy accounts (guest-*, user-*) and unverified users will be permanently deleted. Are you sure?",
+    "confirmDeleteKey": "Are you sure you want to delete this key? This action cannot be undone.",
+    "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
+    "noDummyAccounts": "No dummy accounts to delete",
+    "deleteErrors": "({count} errors)",
+    "guestNotAllowed": "Pautan binance tidak tersedia dalam mod tetamu",
+    "mustLoginFirst": "Anda mesti log masuk dengan akaun sebenar sebelum menambah kunci pertukaran untuk memastikan baki diasingkan bagi setiap pengguna."
+  },
+  "push": {
+    "appName": "Roua Trading",
+    "notificationsEnabled": "Pemberitahuan berjaya didayakan! Anda kini akan menerima makluman dagangan.",
+    "alertTitle": "Makluman Perdagangan Roua",
+    "chartTitle": "Roua — XPH0X",
+    "enableDeviceNotifications": "Dayakan Pemberitahuan Peranti",
+    "receiveAlertsInstantly": "Terima makluman dagangan serta-merta walaupun di luar apl",
+    "enable": "Dayakan",
+    "secureNote": "Pemberitahuan selamat — kami tidak pernah berkongsi data anda dengan pihak ketiga"
+  },
+  "hero": {
+    "title": "Platform Pemautan Akaun Dikuasakan AI",
+    "subtitle": "Roua",
+    "cta": "Mula Memautkan Akaun Anda",
+    "explore": "Terokai Platform",
+    "aiModels": "Model AI",
+    "assetClasses": "Kelas Aset Disokong",
+    "sixAiModels": "Enam Model AI Harmoni",
+    "fullDescription": "Platform pemautan akaun berkuasa AI yang paling canggih di rantau ini. Di mana alam semesta kewangan bertemu dengan minda mesin yang meramalkan sebelum ia berlaku.",
+    "setupSeconds": "Saat untuk Persediaan",
+    "dailyMonitoring": "Jam Pemantauan Harian"
+  },
+  "navbar": {
+    "models": "Model",
+    "tools": "Alat",
+    "method": "Kaedah",
+    "experiences": "Pengalaman",
+    "login": "Log Masuk",
+    "startFree": "Mula Percuma",
+    "features": "Ciri",
+    "ai": "Kepintaran AI",
+    "liveMarket": "Pasaran Langsung",
+    "testimonials": "Ulasan Pedagang"
+  },
+  "howItWorks": {
+    "title": "Dari Daftar Hingga Untung",
+    "titlePart1": "Dari Mendaftar Hanya untuk Keuntungan",
+    "titleHighlight": "Dari Mendaftar Hanya untuk",
+    "subtitle": "Perdagangan dikuasakan AI",
+    "step1Title": "Cipta Akaun Anda",
+    "step2Title": "Pautkan Akaun Anda Dengan Selamat",
+    "step3Title": "Biarkan AI Bekerja untuk Anda",
+    "step4Title": "Lindungi Keuntungan Anda",
+    "tradeSmart": "Trade Smart",
+    "step1Desc": "Log masuk di bawah 30 saat melalui Google atau Passkey. Tiada kata laluan, tiada kerumitan.",
+    "step2Desc": "Eight AI models analyze markets and generate trading signals based on multi-model analysis.",
+    "step3Desc": "Execute trades based on data-driven insights with smart risk protection.",
+    "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility."
+  },
+  "aiModels": {
+    "fastProcessing": "Ultra-Fast Processing",
+    "multilingualAnalyst": "Multilingual Model",
+    "chartAnalysis": "Chart Analysis",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Private Local Models",
+    "comprehensiveData": "Comprehensive Market Data",
+    "orchestraTitle": "Galaxy Orchestra",
+    "orchestraSubtitle": "Six AI models working in harmony",
+    "sectionTitlePart1": "Six AI Models",
+    "sectionTitleMiddle": "Working",
+    "sectionTitleHighlight": "in Harmony",
+    "sectionDesc": "Each model specializes in a specific aspect of analysis, working together for comprehensive market insight",
+    "fastProcessingDesc": "For instant inference and real-time market analysis with beyond-expected performance",
+    "multilingualAnalystDesc": "Deeply understands Arabic and global financial context, supports Arabic, English, Chinese, and Japanese",
+    "chartAnalysisDesc": "Advanced technical pattern analysis with high precision and automatic price formation recognition",
+    "secureInfraDesc": "For foundational models with enterprise-grade data protection and full encryption",
+    "localModelsDesc": "For sensitive analysis away from the cloud, ensuring complete data privacy",
+    "comprehensiveDataDesc": "Directly from global markets and their indicators with minimal latency"
+  },
+  "features": {
+    "title": "Advanced Tools for Smart Traders",
+    "sectionTitlePart1": "Advanced Tools for",
+    "sectionTitleHighlight": "Smart Traders",
+    "sectionDesc": "An integrated suite of AI-powered tools for market analysis and smarter decisions",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "Unified News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in multiple languages in real-time, giving you global insights without language barriers. Supports Arabic, English, Chinese, Japanese, and other major languages.",
+    "rouaSignalsDesc": "Instant AI-powered trading signals based on pattern and sentiment analysis for multi-model recommendations.",
+    "newsRadarDesc": "Monitors thousands of news and social sources simultaneously, filtering noise to deliver only what impacts your portfolio.",
+    "sanctuaryDesc": "Smart portfolio protection from sharp volatility via predictive risk alerts and automatic rebalancing recommendations.",
+    "smartLabDesc": "Test strategies in a realistic simulation before risking. Analyze historical performance and optimize based on real data."
+  },
+  "neuralFeatures": {
+    "title": "Smart Features",
+    "titlePart1": "Smart",
+    "titleHighlight": "Features",
+    "subtitle": "Advanced AI-powered technologies for market analysis and investment protection",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in 12+ languages",
+    "rouaSignalsDesc": "Trading signals with AI council",
+    "newsRadarDesc": "Monitors multiple news sources",
+    "sanctuaryDesc": "Military-grade encryption to protect your assets",
+    "smartLabDesc": "Test your strategies before risking"
+  },
+  "testimonials": {
+    "title": "What Traders Say",
+    "titlePart1": "What",
+    "titleHighlight": "Traders Say",
+    "sectionDesc": "Discover the features that distinguish Roua platform",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "multilingualAnalystText": "The multilingual analyst enables global market analysis in multiple languages, providing comprehensive insights without a translation team.",
+    "multilingualAnalystName": "Analyst Feature",
+    "multilingualAnalystRole": "Multilingual Analysis",
+    "rouaSignalsText": "Roua signals powered by eight AI models that discuss and reach consensus before providing recommendations, enhancing analysis reliability.",
+    "rouaSignalsName": "Signals Feature",
+    "rouaSignalsRole": "Multi-Model Consensus",
+    "newsRadarText": "The news radar monitors news sources and filters impactful events, helping make faster decisions based on latest developments.",
+    "newsRadarName": "Radar Feature",
+    "newsRadarRole": "Smart News Tracking"
+  },
+  "cta": {
+    "title": "Ready to Link Your Accounts Smartly?",
+    "titlePart1": "Ready to Link Your Accounts",
+    "titleHighlight": "Smartly?",
+    "joinUniverse": "Join the Universe",
+    "startLinking": "Start Linking Accounts",
+    "joinFree": "Join Now — Free",
+    "launchNow": "Launch Roua Now",
+    "joinCaption": "Join thousands of traders who trust Roua for smarter decisions",
+    "noCreditCard": "No credit card required · Setup in under a minute"
+  },
+  "liveChart": {
+    "title": "Track Markets in Real-Time",
+    "demoData": "Demo Data",
+    "demoDisclaimer": "Demo data — does not represent real prices"
+  },
+  "countdown": {
+    "upcomingEvent": "Next Financial Event",
+    "fedEvent": "Next Financial Event: US Federal Reserve Report",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds"
+  },
+  "mediaGallery": {
+    "dashboard": "Dashboard",
+    "charts": "Charts",
+    "signals": "Signals",
+    "portfolio": "Portfolio",
+    "aiCouncil": "AI Council",
+    "news": "News"
+  },
+  "footer": {
+    "brandDesc": "AI-Powered Smart Account Linking Platform"
+  },
+  "cosmicCanvas": {
+    "linguisticAnalyst": "Linguistic Analyst",
+    "chartAnalysis": "Chart Analysis",
+    "dataProcessing": "Data Processing",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Local Models",
+    "liveMarketData": "Live Market Data",
+    "defaultTitle": "AI Model",
+    "defaultDesc": "Model Description",
+    "linguisticAnalystDesc": "Analyzes markets in multiple languages in real-time",
+    "chartAnalysisDesc": "Advanced technical pattern analysis with high precision",
+    "dataProcessingDesc": "Ultra-fast real-time inference",
+    "secureInfraDesc": "Data and foundational model protection",
+    "localModelsDesc": "Sensitive analysis away from the cloud",
+    "liveMarketDataDesc": "Comprehensive data directly from global markets"
+  },
+  "liveSignals": {
+    "disclaimer": "Illustrative examples only — do not represent real signals"
+  },
+  "galaxyOrchestra": {
+    "closeTooltip": "Click to close",
+    "groqDesc": "Ultra-fast processing for instant inference and real-time market analysis",
+    "glm4Desc": "Multilingual model for understanding Arabic and global financial context",
+    "geminiDesc": "Advanced chart and technical pattern analysis with high precision",
+    "bedrockDesc": "Secure and reliable infrastructure for foundational models with data protection",
+    "ollamaDesc": "Private local models for sensitive analysis away from the cloud",
+    "twelveDataDesc": "Comprehensive live market data from global markets and indicators"
   }
 }

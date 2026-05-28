@@ -3362,42 +3362,42 @@
     "macdNeutral": "Neutral"
   },
   "drawingTools": {
-    "pointer": "Pointer",
-    "trendLine": "Trend Line",
-    "ray": "Ray",
-    "horizontalLine": "Horizontal Line",
-    "parallelChannel": "Parallel Channel",
-    "fibonacciRetracement": "Fibonacci Retracement",
-    "rectangle": "Rectangle",
-    "triangle": "Triangle",
-    "circle": "Circle"
+    "pointer": "পয়েন্টার",
+    "trendLine": "ট্রেন্ড লাইন",
+    "ray": "রে",
+    "horizontalLine": "অনুভূমিক রেখা",
+    "parallelChannel": "সমান্তরাল চ্যানেল",
+    "fibonacciRetracement": "ফিবোনাচি রিট্রেসমেন্ট",
+    "rectangle": "আয়তক্ষেত্র",
+    "triangle": "ত্রিভুজ",
+    "circle": "বৃত্ত"
   },
   "harmonicPatterns": {
-    "gartley": "Gartley",
-    "butterfly": "Butterfly",
-    "bat": "Bat",
-    "crab": "Crab",
-    "doubleTop": "Double Top",
-    "doubleBottom": "Double Bottom",
-    "headAndShoulders": "Head and Shoulders",
-    "inverseHeadAndShoulders": "Inverse Head and Shoulders"
+    "gartley": "গার্টলি",
+    "butterfly": "বাটারফ্লাই",
+    "bat": "ব্যাট",
+    "crab": "কাঁকড়া",
+    "doubleTop": "ডাবল টপ",
+    "doubleBottom": "ডাবল বটম",
+    "headAndShoulders": "মাথা এবং কাঁধ",
+    "inverseHeadAndShoulders": "বিপরীত মাথা এবং কাঁধ"
   },
   "tradingIntelligence": {
-    "strongBullishMomentum": "Strong bullish momentum",
-    "oversold": "Oversold",
-    "overbought": "Overbought",
-    "bullishTrend": "Bullish trend",
-    "bearishTrend": "Bearish trend",
-    "ema20Above50": "EMA20 above EMA50",
-    "expandingRange": "Expanding range",
-    "staleData": "Stale data"
+    "strongBullishMomentum": "শক্তিশালী বুলিশ মোমেন্টাম",
+    "oversold": "বেশি বিক্রি হওয়া",
+    "overbought": "বেশি কেনা",
+    "bullishTrend": "বুলিশ প্রবণতা",
+    "bearishTrend": "বিয়ারিশ প্রবণতা",
+    "ema20Above50": "EMA50 এর উপরে EMA20",
+    "expandingRange": "প্রসারিত পরিসর",
+    "staleData": "বাসি ডেটা"
   },
   "dashboardLive": {
     "live": "লাইভ",
-    "delayed": "Delayed",
-    "backup": "Backup",
+    "delayed": "বিলম্বিত",
+    "backup": "ব্যাকআপ",
     "demo": "ডেমো",
-    "pendingConnection": "Pending Connection",
+    "pendingConnection": "মুলতুবি সংযোগ",
     "binanceLive": "Binance Live",
     "coingecko": "CoinGecko",
     "twelvedata": "TwelveData",
@@ -3405,25 +3405,25 @@
     "ecb": "ECB"
   },
   "agentStore": {
-    "strategyAuto": "Auto (Adaptive)",
-    "strategyScalping": "Scalping",
-    "strategySwing": "Swing",
-    "strategyGrid": "Grid",
-    "strategyMeanRevert": "Mean Reversion",
-    "strategyBreakout": "Momentum Breakout",
-    "strategyDCA": "Dollar Cost Average",
-    "activatingAgent": "Activating agent...",
-    "tradingServiceUnavailable": "Trading service unavailable",
-    "agentActivated": "Trading agent activated successfully",
-    "cycleComplete": "Cycle {n} complete",
-    "tradeDailyProfit": "Trade — Daily Profit"
+    "strategyAuto": "স্বয়ংক্রিয় (অ্যাডাপ্টিভ)",
+    "strategyScalping": "স্ক্যাল্পিং",
+    "strategySwing": "সুইং",
+    "strategyGrid": "গ্রিড",
+    "strategyMeanRevert": "গড় প্রত্যাবর্তন",
+    "strategyBreakout": "মোমেন্টাম ব্রেকআউট",
+    "strategyDCA": "ডলার খরচ গড়",
+    "activatingAgent": "এজেন্ট সক্রিয় করা...",
+    "tradingServiceUnavailable": "ট্রেডিং পরিষেবা অনুপলব্ধ",
+    "agentActivated": "ট্রেডিং এজেন্ট সফলভাবে সক্রিয় করা হয়েছে",
+    "cycleComplete": "ডেইলি সাইকেল ফিট",
+    "tradeDailyProfit": "এক্সপিএইচডি সম্পূর্ণ"
   },
   "decisionFlow": {
-    "scanningMarket": "Decision engine scanning market",
-    "aggressiveReady": "Aggressively Ready",
-    "sellPressure": "Under Selling Pressure",
-    "conflictBlocking": "Conflict Prevents Advance",
-    "underObservation": "Under Observation"
+    "scanningMarket": "ডিসিশন ইঞ্জিন স্ক্যানিং মার্কেট",
+    "aggressiveReady": "আক্রমনাত্মকভাবে প্রস্তুত",
+    "sellPressure": "বিক্রির চাপে",
+    "conflictBlocking": "দ্বন্দ্ব অগ্রিম প্রতিরোধ করে",
+    "underObservation": "পর্যবেক্ষণে"
   },
   "contentAgent": {
     "categories": {
@@ -3431,20 +3431,20 @@
       "forex": "ফরেক্স",
       "stocks": "শেয়ার",
       "commodities": "পণ্য",
-      "economy": "Economy",
-      "tech": "Tech"
+      "economy": "অর্থনীতি",
+      "tech": "প্রযুক্তি"
     }
   },
   "paperTrades": {
-    "sourceExecutor": "Executor",
-    "sourceAgent": "Agent",
-    "sourcePosition": "Position",
-    "closeProfit": "Close with Profit",
-    "closeLoss": "Close with Loss"
+    "sourceExecutor": "নির্বাহক",
+    "sourceAgent": "এজেন্ট",
+    "sourcePosition": "অবস্থান",
+    "closeProfit": "লাভের সাথে বন্ধ",
+    "closeLoss": "ক্ষতি সহ বন্ধ"
   },
   "sw": {
     "pushTitle": "Roua Trading",
-    "pushBody": "You have a new notification",
+    "pushBody": "আপনার কাছে একটি নতুন বিজ্ঞপ্তি এসেছে",
     "open": "খুলুন",
     "close": "বন্ধ"
   },
@@ -3538,12 +3538,12 @@
     "closeAll": "Close All",
     "hedge": "Hedge",
     "rebalance": "Rebalance",
-    "linkAccount": "Link Account",
-    "current": "Current",
-    "setStopLoss": "Set Stop Loss",
-    "setTakeProfit": "Set Take Profit",
-    "closePosition": "Close Position",
-    "quickActions": "Quick Actions"
+    "linkAccount": "লিঙ্ক অ্যাকাউন্ট",
+    "current": "বর্তমান",
+    "setStopLoss": "সেট স্টপ লস",
+    "setTakeProfit": "সেট টেক প্রফিট",
+    "closePosition": "ক্লোজ পজিশন",
+    "quickActions": "দ্রুত পদক্ষেপ"
   },
   "aiSmartPanel": {
     "title": "Smart Analysis",
@@ -3643,13 +3643,13 @@
     "bearish": "Bearish",
     "neutral": "Neutral",
     "historicalPatternPerformance": "Historical Pattern Performance",
-    "patterns": "Patterns",
-    "worstPattern": "Worst Pattern",
-    "dynamicATRThresholds": "Dynamic ATR Thresholds",
-    "retracement": "Retracement",
-    "peakSimilarity": "Peak Similarity",
-    "shoulderDivergence": "Shoulder Divergence",
-    "breakoutConfirmation": "Breakout Confirmation"
+    "patterns": "প্যাটার্নস",
+    "worstPattern": "সবচেয়ে খারাপ প্যাটার্ন",
+    "dynamicATRThresholds": "ডাইনামিক ATR থ্রেশহোল্ড",
+    "retracement": "রিট্রেসমেন্ট",
+    "peakSimilarity": "পিক সিমিলারিটি",
+    "shoulderDivergence": "শোল্ডার ডাইভারজেন্স",
+    "breakoutConfirmation": "ব্রেকআউট নিশ্চিতকরণ"
   },
   "aiPatternPanel": {
     "cooldownWait": "Wait {seconds} seconds before analyzing again",
@@ -3747,19 +3747,19 @@
     "high": "উচ্চ",
     "extreme": "Extreme",
     "normal": "Normal",
-    "patternStateMachine": "Pattern State Machine",
-    "near": "Near",
-    "broken": "Broken",
-    "failed": "Failed",
-    "historicalPatternPerformance": "Historical Pattern Performance",
-    "trade": "trade",
-    "confidenceMap": "Confidence Map",
-    "dominantTrend": "Dominant Trend",
-    "coverage": "Coverage",
-    "strongSupport": "Strong Support",
-    "strongResistance": "Strong Resistance",
-    "bullishCandleReason": "Last candle is bullish closing at {price}. Consider buying with stop loss below nearest support.",
-    "bearishCandleReason": "Last candle is bearish closing at {price}. Consider selling with stop loss above nearest resistance."
+    "patternStateMachine": "প্যাটার্ন স্টেট মেশিন",
+    "near": "কাছাকাছি",
+    "broken": "ভাঙা",
+    "failed": "ব্যর্থ",
+    "historicalPatternPerformance": "ঐতিহাসিক প্যাটার্ন পারফরমেন্স",
+    "trade": "বাণিজ্য",
+    "confidenceMap": "আত্মবিশ্বাস মানচিত্র",
+    "dominantTrend": "প্রভাবশালী প্রবণতা",
+    "coverage": "কভারেজ",
+    "strongSupport": "শক্তিশালী সমর্থন",
+    "strongResistance": "শক্তিশালী প্রতিরোধ",
+    "bullishCandleReason": "শেষ মোমবাতি হল{price}নিকটতম সমর্থনের নীচে স্টপ লস সহ কেনার কথা বিবেচনা করুন।",
+    "bearishCandleReason": "শেষ মোমবাতিটি{price}এ বিয়ারিশ বন্ধ হচ্ছে। নিকটতম প্রতিরোধের উপরে স্টপ লস সহ বিক্রয় বিবেচনা করুন।"
   },
   "neuralLab": {
     "title": "AI Trading Lab",
@@ -4471,40 +4471,40 @@
       "orderIdMissing": "Order ID not received from provider",
       "networkError": "Network error — unable to reach provider",
       "submitFailed": "Failed to submit order — please try again",
-      "orderSuccessStatus": "{side} {qty} {symbol}{filled}\n{source} — Order ID: {orderId}...",
-      "safeLabel": "Safe",
-      "directLabel": "Direct",
-      "sessionExpired": "Session expired — please log in again"
+      "orderSuccessStatus": "XPH0X{qty}XPH2X{filled}\n{source}— অর্ডার আইডি: XPH5X...",
+      "safeLabel": "নিরাপদ",
+      "directLabel": "সরাসরি",
+      "sessionExpired": "সেশনের মেয়াদ শেষ হয়েছে — অনুগ্রহ করে আবার লগ ইন করুন"
     },
     "exchange": {
-      "addKeyFailed": "Failed to add key",
-      "addKeySuccess": "Key added successfully!",
-      "disableTestMode": "Disable test mode",
-      "enableTestMode": "Enable test mode",
-      "saved": "Saved",
-      "devFeature": "This feature is under development — the key will be saved locally only"
+      "addKeyFailed": "কী যোগ করতে ব্যর্থ",
+      "addKeySuccess": "কী সফলভাবে যোগ করা হয়েছে!",
+      "disableTestMode": "পরীক্ষা মোড নিষ্ক্রিয় করুন",
+      "enableTestMode": "পরীক্ষা মোড সক্ষম করুন",
+      "saved": "সংরক্ষিত",
+      "devFeature": "এই বৈশিষ্ট্যটি বিকাশের অধীনে রয়েছে — কীটি শুধুমাত্র স্থানীয়ভাবে সংরক্ষণ করা হবে"
     },
     "admin": {
-      "monitorNotPublished": "Monitor agent not published — set MONITOR_AGENT_URL first",
-      "agentStarted": "Agent started",
-      "agentStopped": "Agent stopped",
-      "commandFailed": "Failed to execute command",
-      "serverError": "Server connection error",
-      "settingsSaved": "Monitor settings saved",
-      "settingsSaveFailed": "Failed to save settings",
-      "fetchFailed": "Failed to fetch data from server",
-      "serverConnectionFailed": "Server connection failed",
-      "loginDisabled": "Login disabled — admin password not set. Set ADMIN_PASSWORD env variable first.",
-      "serverErrorRetry": "Server error — try again later",
-      "connectionError": "Server connection error",
-      "testNotification": "Test notification",
-      "testNotificationBody": "If you see this notification, browser alerts are working correctly!",
-      "settingsSavedSuccess": "Settings saved successfully",
-      "saveFailedErrors": "Save failed: {errors}",
-      "connectionErrorDetail": "Connection error: {error}",
-      "telegramTestSent": "Test message sent — check Telegram",
-      "connectionFailed": "Connection failed",
-      "cleanDummyConfirm": "All dummy accounts will be deleted...",
+      "monitorNotPublished": "মনিটর এজেন্ট প্রকাশিত হয়নি — প্রথমে MONITOR_AGENT_URL সেট করুন",
+      "agentStarted": "এজেন্ট শুরু হয়েছে",
+      "agentStopped": "এজেন্ট বন্ধ হয়েছে",
+      "commandFailed": "কমান্ড কার্যকর করতে ব্যর্থ হয়েছে",
+      "serverError": "সার্ভারের সেটিং ত্রুটি",
+      "settingsSaved": "সার্ভারের সংরক্ষিত ত্রুটি",
+      "settingsSaveFailed": "সার্ভারটি সংরক্ষণ করা হয়েছে সেটিংস সংরক্ষণ করতে",
+      "fetchFailed": "সার্ভার থেকে ডেটা আনতে ব্যর্থ",
+      "serverConnectionFailed": "সার্ভার সংযোগ ব্যর্থ",
+      "loginDisabled": "লগইন নিষ্ক্রিয় — অ্যাডমিন পাসওয়ার্ড সেট করা হয়নি৷ প্রথমে ADMIN_PASSWORD env ভেরিয়েবল সেট করুন।",
+      "serverErrorRetry": "সার্ভার ত্রুটি — পরে আবার চেষ্টা করুন",
+      "connectionError": "সার্ভার সংযোগ ত্রুটি",
+      "testNotification": "পরীক্ষা বিজ্ঞপ্তি",
+      "testNotificationBody": "আপনি যদি এই বিজ্ঞপ্তিটি দেখতে পান, ব্রাউজার সতর্কতা সঠিকভাবে কাজ করছে!",
+      "settingsSavedSuccess": "সেটিংস সফলভাবে সংরক্ষিত হয়েছে",
+      "saveFailedErrors": "সংরক্ষণ ব্যর্থ হয়েছে: XPH0X",
+      "connectionErrorDetail": "সংযোগ ত্রুটি: XPH0X",
+      "telegramTestSent": "পরীক্ষা বার্তা পাঠানো হয়েছে — টেলিগ্রাম চেক করুন",
+      "connectionFailed": "সংযোগ ব্যর্থ হয়েছে",
+      "cleanDummyConfirm": "সমস্ত ডামি অ্যাকাউন্ট মুছে ফেলা হবে...",
       "cleanDummyFailed": "Failed to clean dummy accounts",
       "cleanDummySuccess": "{count} dummy accounts deleted",
       "fetchStatsFailed": "Failed to fetch statistics",
@@ -4538,21 +4538,21 @@
     },
     "push": {
       "appName": "Roua Trading",
-      "notificationsEnabled": "Notifications enabled successfully! You will now receive trading alerts.",
-      "alertTitle": "Roua Trading Alert",
-      "chartTitle": "Roua — {symbol}",
-      "enableDeviceNotifications": "Enable Device Notifications",
-      "receiveAlertsInstantly": "Receive trading alerts instantly even outside the app",
-      "enable": "Enable",
-      "secureNote": "Secure notifications — we never share your data with third parties"
+      "notificationsEnabled": "বিজ্ঞপ্তি সফলভাবে সক্ষম! আপনি এখন ট্রেডিং সতর্কতা পাবেন।",
+      "alertTitle": "Roua ট্রেডিং সতর্কতা",
+      "chartTitle": "Roua — XPH0X",
+      "enableDeviceNotifications": "ডিভাইস বিজ্ঞপ্তিগুলি সক্ষম করুন",
+      "receiveAlertsInstantly": "অ্যাপের বাইরেও তাত্ক্ষণিকভাবে ট্রেডিং সতর্কতা পান",
+      "enable": "সক্ষম করুন",
+      "secureNote": "নিরাপদ বিজ্ঞপ্তিগুলি — আমরা কখনই তৃতীয় পক্ষের সাথে আপনার ডেটা ভাগ করি না"
     }
   },
   "commandPalette": {
-    "title": "Command Palette",
-    "search": "Search commands, indicators, tools...",
-    "noResults": "No results found",
-    "navigate": "Navigate",
-    "execute": "Execute",
+    "title": "কমান্ড প্যালেট",
+    "search": "কমান্ড, সূচক, সরঞ্জাম অনুসন্ধান করুন...",
+    "noResults": "কোন ফলাফল পাওয়া যায়নি",
+    "navigate": "নেভিগেট",
+    "execute": "কার্যকর করুন",
     "close": "বন্ধ"
   },
   "leaderboardPage": {
@@ -4587,15 +4587,15 @@
     "colCopyAvailable": "Copy Available",
     "you": "You",
     "follow": "Follow",
-    "unfollow": "Unfollow",
+    "unfollow": "অনফলো করুন",
     "notAvailable": "পাওয়া যায়নি",
-    "yourRanking": "Your Current Ranking",
-    "returnLabel": "Return",
-    "winRateLabel": "Win Rate",
-    "consistency": "Consistency",
-    "maxDrawdown": "Max Drawdown",
-    "followers": "Followers",
-    "achievementBadges": "Achievement Badges"
+    "yourRanking": "আপনার বর্তমান র‌্যাঙ্কিং",
+    "returnLabel": "রিটার্ন",
+    "winRateLabel": "জয়ের হার",
+    "consistency": "ধারাবাহিকতা",
+    "maxDrawdown": "সর্বোচ্চ ড্রডাউন",
+    "followers": "অনুসরণকারী",
+    "achievementBadges": "অর্জন ব্যাজ"
   },
   "chartToolbar": {
     "timeframe": "Timeframe",
@@ -4631,19 +4631,19 @@
     "indicators": "Indicators",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
-    "resetView": "Reset View",
-    "chartTrading": "Chart Trading",
-    "compareAsset": "Compare Asset",
-    "mtfTooltip": "Multi-Timeframe Analysis",
-    "chartGridTooltip": "Chart Grid",
-    "shareChart": "Share Chart",
-    "play": "Play",
-    "pause": "Pause",
-    "playUpdate": "Play Updates",
-    "pauseUpdate": "Pause Updates",
-    "more": "More Tools",
-    "aiPatternAnalysis": "AI Pattern Analysis",
-    "livePatternProgress": "Live Pattern Progress"
+    "resetView": "রিসেট ভিউ",
+    "chartTrading": "চার্ট ট্রেডিং",
+    "compareAsset": "সম্পদ তুলনা করুন",
+    "mtfTooltip": "মাল্টি-টাইমফ্রেম বিশ্লেষণ",
+    "chartGridTooltip": "চার্ট গ্রিড",
+    "shareChart": "চার্ট শেয়ার করুন",
+    "play": "প্লে",
+    "pause": "বিরতি",
+    "playUpdate": "প্লে আপডেট",
+    "pauseUpdate": "পজ আপডেট",
+    "more": "আরো টুল",
+    "aiPatternAnalysis": "এআই প্যাটার্ন বিশ্লেষণ",
+    "livePatternProgress": "লাইভ প্যাটার্ন"
   },
   "aiCoach": {
     "ratingExcellent": "Excellent",
@@ -4677,8 +4677,8 @@
     "askCoachMore": "Tell me more about: ",
     "chatHeader": "Chat with AI Coach",
     "chatEmpty": "Ask your AI coach anything about your trading performance...",
-    "coachThinking": "Analyzing...",
-    "chatPlaceholder": "Ask about your performance..."
+    "coachThinking": "বিশ্লেষণ করা হচ্ছে...",
+    "chatPlaceholder": "আপনার কর্মক্ষমতা সম্পর্কে জিজ্ঞাসা করুন..."
   },
   "notificationTypes": {
     "newUser": {
@@ -4773,5 +4773,307 @@
       "title": "Auto-execute Error",
       "body": "Connection failed: {error}"
     }
+  },
+  "categories": {
+    "economy": "অর্থনীতি",
+    "tech": "প্রযুক্তি"
+  },
+  "newUser": {
+    "title": "New User",
+    "body": "New user registered: {name}\nEmail: {email}"
+  },
+  "subscriptionUpgrade": {
+    "title": "Subscription Upgrade",
+    "body": "User {email} upgraded from {fromTier} to {toTier}"
+  },
+  "systemError": {
+    "title": "System Error",
+    "body": "{context}{error}"
+  },
+  "performanceAlert": {
+    "title": "Performance Alert",
+    "body": "{metric} = {value} (Threshold: {threshold})"
+  },
+  "largeTrade": {
+    "title": "Large Trade",
+    "body": "Large trade on {symbol} for {amount}\nUser: {userId}"
+  },
+  "systemUpdate": {
+    "title": "System Update",
+    "body": "{message}"
+  },
+  "newReport": {
+    "title": "{emoji} New Report",
+    "body": "📌 {title}\n📂 Category: {category}\n🏷️ Assets: {symbols}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice"
+  },
+  "signalGenerated": {
+    "title": "{direction} Signal: {pair}",
+    "body": "Confidence: {confidence}% — {reason}"
+  },
+  "orderFilled": {
+    "title": "{direction} Order Filled: {symbol}",
+    "body": "Filled {quantity} {symbol} at {price}"
+  },
+  "orderRejected": {
+    "title": "{direction} Order Rejected: {symbol}",
+    "body": "Reason: {reason}"
+  },
+  "riskWarning": {
+    "title": "Trading Halted — Daily Loss Limit",
+    "body": "Today's loss reached {lossAmount} ({lossPercent}% of portfolio). Smart Executor has been automatically halted until tomorrow."
+  },
+  "positionClosed": {
+    "title": "Auto Close: {symbol}",
+    "body": "Closed {direction} {symbol} position automatically | PnL: {pnl} | Close price: {price}"
+  },
+  "positionOpened": {
+    "title": "Smart Executor: {direction} {pair}",
+    "body": "Executed {direction} {pair} @ {price} | Confidence {confidence}% | Mode {mode} | Stop Loss: {stopLoss} | Target: {takeProfit}"
+  },
+  "executionFailed": {
+    "title": "Execution Failed: {pair}",
+    "body": "Failed to execute {direction} {pair}: {reason}"
+  },
+  "priceAlert": {
+    "title": "Price Alert: {symbol}",
+    "body": "{symbol} is now {condition} {targetPrice}"
+  },
+  "botSignal": {
+    "title": "Bot: {side} Signal",
+    "body": "{message}"
+  },
+  "aiAnalysis": {
+    "title": "AI Analysis: {sentiment}",
+    "body": "{summary}"
+  },
+  "scannerSignal": {
+    "title": "Scanner: {symbol} — {direction}",
+    "body": "Signal strength {confidence}% | {reasons}"
+  },
+  "sharpMove": {
+    "title": "Sharp Move: {symbol}",
+    "body": "Price changed by {change}% — may be a trading opportunity"
+  },
+  "autoExecuteSuccess": {
+    "title": "Auto-execute: {side} {pair}",
+    "body": "Signal auto-executed (confidence: {confidence}%) — Order: {orderId}..."
+  },
+  "autoExecuteFailed": {
+    "title": "Auto-execute Failed",
+    "body": "No exchange credentials linked. Please link your account first."
+  },
+  "autoExecuteRejected": {
+    "title": "Auto-execute Rejected",
+    "body": "Auto-execute not performed for {pair}: {reason}"
+  },
+  "autoExecuteError": {
+    "title": "Auto-execute Error",
+    "body": "Connection failed: {error}"
+  },
+  "trade": {
+    "strategyDCA": "DCA",
+    "strategyVwapRsi": "VWAP+RSI"
+  },
+  "profile": {
+    "nameRequired": "Name is required",
+    "nameRequiredDesc": "Please enter your display name",
+    "changesSaved": "Changes saved",
+    "changesSavedDesc": "Your profile has been updated successfully",
+    "saveError": "Save error",
+    "saveErrorDesc": "An error occurred while saving changes",
+    "confirmRequired": "Confirmation required",
+    "confirmRequiredDesc": "Please type \"delete\" to confirm",
+    "accountDeleted": "Account deleted",
+    "accountDeletedDesc": "Your account will be deleted within 30 days",
+    "deleteError": "Error",
+    "deleteErrorDesc": "An error occurred while deleting the account",
+    "emailChangeTitle": "Email change",
+    "emailChangeDesc": "A confirmation link will be sent to your new email"
+  },
+  "leaderboard": {
+    "unfollowed": "Unfollowed {name}",
+    "unfollowedDesc": "This account will no longer be tracked",
+    "followed": "Following {name}",
+    "followedDesc": "This account's performance will be tracked"
+  },
+  "kyc": {
+    "connectionTestRequired": "Connection test required",
+    "connectionTestRequiredDesc": "Please complete a successful connection test before proceeding",
+    "requiredFields": "Required fields",
+    "requiredFieldsDesc": "Please fill in all required fields before proceeding",
+    "connectionSuccess": "Connection successful",
+    "connectionSuccessDesc": "Successfully verified connection to {exchange}",
+    "accountLinkedSuccess": "Account linked successfully",
+    "accountLinkedSuccessDesc": "Your {exchange} account has been linked successfully..."
+  },
+  "trading": {
+    "stopLossRequired": "Stop loss is mandatory! Cannot submit order without stop loss — this is Roua's first rule.",
+    "slMustBeBelowEntry": "Stop loss for buy orders must be below the current entry price.",
+    "slMustBeAboveEntry": "Stop loss for sell orders must be above the current entry price.",
+    "qtyMustBePositive": "Quantity must be greater than zero."
+  },
+  "execution": {
+    "orderCancelled": "Order cancelled",
+    "orderCancelledDesc": "Order {orderId} has been cancelled...",
+    "orderFilled": "Filled {side} {qty} {symbol}{filled}",
+    "orderFillTitle": "{side} {symbol} completed",
+    "orderFillDesc": "Executed {qty} {symbol}{filled} [{source}]",
+    "orderRejected": "Order rejected: {reason}",
+    "executionFailed": "Execution failed: {error}",
+    "sourceExecutor": "Executor",
+    "sourceAgent": "Agent",
+    "sourcePosition": "Position",
+    "closeProfit": "Closed with profit",
+    "closeLoss": "Closed with loss",
+    "symbolRequired": "Symbol required",
+    "symbolRequiredDesc": "Please enter a symbol",
+    "invalidQty": "Invalid quantity",
+    "limitPriceRequired": "Limit price required",
+    "limitPriceRequiredDesc": "Please enter the limit order price",
+    "slBelowBuyPrice": "Stop loss must be below buy price",
+    "tpAboveBuyPrice": "Take profit must be above buy price",
+    "slAboveSellPrice": "Stop loss must be above sell price",
+    "tpBelowSellPrice": "Take profit must be below sell price",
+    "confirmOrder": "Confirm {type} {side} order for {qty} {symbol}{limit}?",
+    "maxPositions": "You have {count} open positions (max: {max}). Close some first.",
+    "submittingOrder": "Submitting order...",
+    "atPrice": " at price {price}",
+    "riskRejected": "Order rejected by risk gatekeeper",
+    "duplicateOrder": "This order has already been received. Please wait.",
+    "orderIdMissing": "Order ID not received from provider",
+    "networkError": "Network error — unable to reach provider",
+    "submitFailed": "Failed to submit order — please try again",
+    "orderSuccessStatus": "XPH0X{qty}XPH2X{filled}\n{source}— অর্ডার আইডি: XPH5X...",
+    "safeLabel": "নিরাপদ",
+    "directLabel": "সরাসরি",
+    "sessionExpired": "সেশনের মেয়াদ শেষ হয়েছে — অনুগ্রহ করে আবার লগ ইন করুন"
+  },
+  "exchange": {
+    "addKeyFailed": "কী যোগ করতে ব্যর্থ",
+    "addKeySuccess": "কী সফলভাবে যোগ করা হয়েছে!",
+    "disableTestMode": "পরীক্ষা মোড নিষ্ক্রিয় করুন",
+    "enableTestMode": "পরীক্ষা মোড সক্ষম করুন",
+    "saved": "সংরক্ষিত",
+    "devFeature": "এই বৈশিষ্ট্যটি বিকাশের অধীনে রয়েছে — কীটি শুধুমাত্র স্থানীয়ভাবে সংরক্ষণ করা হবে"
+  },
+  "admin": {
+    "monitorNotPublished": "মনিটর এজেন্ট প্রকাশিত হয়নি — প্রথমে MONITOR_AGENT_URL সেট করুন",
+    "agentStarted": "এজেন্ট শুরু হয়েছে",
+    "agentStopped": "এজেন্ট বন্ধ হয়েছে",
+    "commandFailed": "কমান্ড কার্যকর করতে ব্যর্থ হয়েছে",
+    "serverError": "সার্ভারের সেটিং ত্রুটি",
+    "settingsSaved": "সার্ভারের সংরক্ষিত ত্রুটি",
+    "settingsSaveFailed": "সার্ভারটি সংরক্ষণ করা হয়েছে সেটিংস সংরক্ষণ করতে",
+    "fetchFailed": "সার্ভার থেকে ডেটা আনতে ব্যর্থ",
+    "serverConnectionFailed": "সার্ভার সংযোগ ব্যর্থ",
+    "loginDisabled": "লগইন নিষ্ক্রিয় — অ্যাডমিন পাসওয়ার্ড সেট করা হয়নি৷ প্রথমে ADMIN_PASSWORD env ভেরিয়েবল সেট করুন।",
+    "serverErrorRetry": "সার্ভার ত্রুটি — পরে আবার চেষ্টা করুন",
+    "connectionError": "সার্ভার সংযোগ ত্রুটি",
+    "testNotification": "পরীক্ষা বিজ্ঞপ্তি",
+    "testNotificationBody": "আপনি যদি এই বিজ্ঞপ্তিটি দেখতে পান, ব্রাউজার সতর্কতা সঠিকভাবে কাজ করছে!",
+    "settingsSavedSuccess": "সেটিংস সফলভাবে সংরক্ষিত হয়েছে",
+    "saveFailedErrors": "সংরক্ষণ ব্যর্থ হয়েছে: XPH0X",
+    "connectionErrorDetail": "সংযোগ ত্রুটি: XPH0X",
+    "telegramTestSent": "পরীক্ষা বার্তা পাঠানো হয়েছে — টেলিগ্রাম চেক করুন",
+    "connectionFailed": "সংযোগ ব্যর্থ হয়েছে",
+    "cleanDummyConfirm": "সমস্ত ডামি অ্যাকাউন্ট মুছে ফেলা হবে...",
+    "cleanDummyFailed": "Failed to clean dummy accounts",
+    "cleanDummySuccess": "{count} dummy accounts deleted",
+    "fetchStatsFailed": "Failed to fetch statistics",
+    "fetchSignalsFailed": "Failed to fetch smart signals from server",
+    "dataUnavailable": "Data unavailable — server connection failed",
+    "demoDataWarning": "Demo data — analysis server connection failed",
+    "scannerFailed": "Failed to fetch scanner results from server",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "notVerified": "Not verified",
+    "newUser": "New user",
+    "subUpgrade": "Subscription upgrade",
+    "systemError": "System error",
+    "performanceAlert": "Performance alert",
+    "bigTrade": "Big trade",
+    "systemUpdate": "System update",
+    "sessionExpired": "Session expired — please log in again",
+    "sessionExpiredShort": "Session expired",
+    "incorrectPassword": "Incorrect password",
+    "connectionTimeout": "Connection timeout — server not responding",
+    "noInternetConnection": "Cannot connect to server — check internet connection",
+    "dbUnavailable": "Database currently unavailable — try again later",
+    "confirmDeleteDummy": "All dummy accounts (guest-*, user-*) and unverified users will be permanently deleted. Are you sure?",
+    "confirmDeleteKey": "Are you sure you want to delete this key? This action cannot be undone.",
+    "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
+    "noDummyAccounts": "No dummy accounts to delete",
+    "deleteErrors": "({count} errors)",
+    "guestNotAllowed": "Binance linking not available in guest mode",
+    "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user."
+  },
+  "push": {
+    "appName": "Roua Trading",
+    "notificationsEnabled": "বিজ্ঞপ্তি সফলভাবে সক্ষম! আপনি এখন ট্রেডিং সতর্কতা পাবেন।",
+    "alertTitle": "Roua ট্রেডিং সতর্কতা",
+    "chartTitle": "Roua — XPH0X",
+    "enableDeviceNotifications": "ডিভাইস বিজ্ঞপ্তিগুলি সক্ষম করুন",
+    "receiveAlertsInstantly": "অ্যাপের বাইরেও তাত্ক্ষণিকভাবে ট্রেডিং সতর্কতা পান",
+    "enable": "সক্ষম করুন",
+    "secureNote": "নিরাপদ বিজ্ঞপ্তিগুলি — আমরা কখনই তৃতীয় পক্ষের সাথে আপনার ডেটা ভাগ করি না"
+  },
+  "hero": {
+    "aiModels": "AI Models",
+    "assetClasses": "Supported Asset Classes",
+    "sixAiModels": "Six Harmonious AI Models",
+    "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
+    "setupSeconds": "Seconds to Setup",
+    "dailyMonitoring": "Hours Daily Monitoring"
+  },
+  "navbar": {
+    "models": "Models",
+    "experiences": "Experiences",
+    "startFree": "Start Free",
+    "ai": "AI Intelligence",
+    "liveMarket": "Live Market",
+    "testimonials": "Trader Reviews"
+  },
+  "neuralFeatures": {
+    "title": "Smart Features",
+    "titlePart1": "Smart",
+    "subtitle": "Advanced AI-powered technologies for market analysis and investment protection",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in 12+ languages",
+    "rouaSignalsDesc": "Trading signals with AI council",
+    "newsRadarDesc": "Monitors multiple news sources",
+    "sanctuaryDesc": "Military-grade encryption to protect your assets",
+    "smartLabDesc": "Test your strategies before risking"
+  },
+  "cta": {
+    "title": "Ready to Link Your Accounts Smartly?",
+    "titlePart1": "Ready to Link Your Accounts",
+    "titleHighlight": "Smartly?",
+    "joinUniverse": "Join the Universe",
+    "startLinking": "Start Linking Accounts",
+    "joinFree": "Join Now — Free",
+    "launchNow": "Launch Roua Now",
+    "joinCaption": "Join thousands of traders who trust Roua for smarter decisions",
+    "noCreditCard": "No credit card required · Setup in under a minute"
+  },
+  "mediaGallery": {
+    "charts": "Charts",
+    "aiCouncil": "AI Council"
+  },
+  "cosmicCanvas": {
+    "linguisticAnalyst": "Linguistic Analyst",
+    "chartAnalysis": "Chart Analysis",
+    "dataProcessing": "Data Processing",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Local Models",
+    "liveMarketData": "Live Market Data",
+    "defaultTitle": "AI Model",
+    "defaultDesc": "Model Description"
+  },
+  "galaxyOrchestra": {
+    "closeTooltip": "Click to close"
   }
 }

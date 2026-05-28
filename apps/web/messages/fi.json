@@ -244,7 +244,7 @@
     "rolePlusDesc": "Advanced AI & API",
     "rolePremiumDesc": "Full access, API & advanced tools",
     "roleInstDesc": "Full institutional permissions",
-    "roleAdminDesc": "Full administrative permissions"
+    "roleAdminDesc": "Täydelliset järjestelmänvalvojan käyttöoikeudet"
   },
   "landing": {
     "hero": {
@@ -402,21 +402,21 @@
       "linguisticAnalystDesc": "Analyzes markets in multiple languages in real-time",
       "chartAnalysisDesc": "Advanced technical pattern analysis with high precision",
       "dataProcessingDesc": "Ultra-fast real-time inference",
-      "secureInfraDesc": "Data and foundational model protection",
-      "localModelsDesc": "Sensitive analysis away from the cloud",
-      "liveMarketDataDesc": "Comprehensive data directly from global markets"
+      "secureInfraDesc": "Tietojen ja perusmallien suojaus",
+      "localModelsDesc": "Arkaluonteinen analyysi pois pilvestä",
+      "liveMarketDataDesc": "Kattavat tiedot suoraan globaaleilta markkinoilta"
     },
     "liveSignals": {
-      "disclaimer": "Illustrative examples only — do not represent real signals"
+      "disclaimer": "Vain havainnollistavia esimerkkejä – eivät edusta todellisia signaaleja"
     },
     "galaxyOrchestra": {
-      "closeTooltip": "Click to close",
-      "groqDesc": "Ultra-fast processing for instant inference and real-time market analysis",
-      "glm4Desc": "Multilingual model for understanding Arabic and global financial context",
-      "geminiDesc": "Advanced chart and technical pattern analysis with high precision",
-      "bedrockDesc": "Secure and reliable infrastructure for foundational models with data protection",
-      "ollamaDesc": "Private local models for sensitive analysis away from the cloud",
-      "twelveDataDesc": "Comprehensive live market data from global markets and indicators"
+      "closeTooltip": "Sulje napsauttamalla",
+      "groqDesc": "Erittäin nopea käsittely välittömiin päätelmiin ja reaaliaikaiseen markkina-analyysiin",
+      "glm4Desc": "Monikielinen malli, jolla ymmärrät arabiaa ja globaalia taloudellista taustaa",
+      "geminiDesc": "korkean tarkkuuden tekninen kaavio",
+      "bedrockDesc": "Turvallinen ja luotettava infrastruktuuri perusmalleille tietosuojalla",
+      "ollamaDesc": "Yksityiset paikalliset mallit arkaluonteiseen analysointiin pilvestä",
+      "twelveDataDesc": "Kattavat reaaliaikaiset markkinatiedot maailmanlaajuisilta markkinoilta ja indikaattoreilta"
     }
   },
   "auth": {
@@ -3336,68 +3336,68 @@
     "admin": "Ylläpitäjä"
   },
   "indicators": {
-    "sma": "Simple Moving Average",
-    "ema": "Exponential Moving Average",
-    "rsi": "Relative Strength Index",
+    "sma": "Yksinkertainen liukuva keskiarvo",
+    "ema": "eksponentiaalinen liukuva keskiarvo",
+    "rsi": "suhteellinen voimaindeksi",
     "macd": "MACD",
-    "bollinger": "Bollinger Bands",
-    "stochastic": "Stochastic",
-    "atr": "Average True Range",
-    "adx": "Average Directional Index",
-    "cci": "Commodity Channel Index",
-    "obv": "On Balance Volume",
-    "vwap": "Volume Weighted Average Price",
-    "ichimoku": "Ichimoku",
+    "bollinger": "Bollingerin nauhat",
+    "stochastic": "stokastinen",
+    "atr": "keskimääräinen todellinen vaihteluväli",
+    "adx": "keskimääräinen suuntaindeksi",
+    "cci": "hyödykekanavaindeksi",
+    "obv": "keskimääräinen volyymi",
+    "vwap": "hintatasapainossa",
+    "ichimoku": "tasapainossa Ichimoku",
     "fibonacci": "Fibonacci",
     "pivotPoints": "Pivot Points",
     "williams": "Williams %R",
-    "parabolicSar": "Parabolic SAR",
+    "parabolicSar": "Parabolinen SAR",
     "volume": "Volyymi",
-    "mfi": "Money Flow Index",
-    "roc": "Rate of Change",
+    "mfi": "Rahavirtaindeksi",
+    "roc": "Muutosnopeus",
     "trix": "TRIX",
-    "dmi": "Directional Movement Index",
-    "macdBullish": "Bullish",
-    "macdBearish": "Bearish",
-    "macdNeutral": "Neutral"
+    "dmi": "Suuntaliikkeen indeksi",
+    "macdBullish": "Nouseva",
+    "macdBearish": "Laskeva",
+    "macdNeutral": "Neutraali"
   },
   "drawingTools": {
-    "pointer": "Pointer",
-    "trendLine": "Trend Line",
-    "ray": "Ray",
-    "horizontalLine": "Horizontal Line",
-    "parallelChannel": "Parallel Channel",
+    "pointer": "Osoitin",
+    "trendLine": "Trendiviiva",
+    "ray": "Säde",
+    "horizontalLine": "Vaakaviiva",
+    "parallelChannel": "Rinnakkaiskanava",
     "fibonacciRetracement": "Fibonacci Retracement",
-    "rectangle": "Rectangle",
-    "triangle": "Triangle",
-    "circle": "Circle"
+    "rectangle": "Suorakulmio",
+    "triangle": "Kolmio",
+    "circle": "Ympyrä"
   },
   "harmonicPatterns": {
     "gartley": "Gartley",
     "butterfly": "Butterfly",
     "bat": "Bat",
-    "crab": "Crab",
+    "crab": "Rapu",
     "doubleTop": "Double Top",
     "doubleBottom": "Double Bottom",
-    "headAndShoulders": "Head and Shoulders",
-    "inverseHeadAndShoulders": "Inverse Head and Shoulders"
+    "headAndShoulders": "Pää ja hartiat",
+    "inverseHeadAndShoulders": "Käänteinen pää ja hartiat"
   },
   "tradingIntelligence": {
-    "strongBullishMomentum": "Strong bullish momentum",
-    "oversold": "Oversold",
-    "overbought": "Overbought",
-    "bullishTrend": "Bullish trend",
-    "bearishTrend": "Bearish trend",
-    "ema20Above50": "EMA20 above EMA50",
-    "expandingRange": "Expanding range",
-    "staleData": "Stale data"
+    "strongBullishMomentum": "Vahva nousuvauhti",
+    "oversold": "Ylimyyty",
+    "overbought": "Yliostettu",
+    "bullishTrend": "Nouseva trendi",
+    "bearishTrend": "Laskeva trendi",
+    "ema20Above50": "EMA20 yli EMA50",
+    "expandingRange": "Laajeneva valikoima",
+    "staleData": "Vanhentuneet tiedot"
   },
   "dashboardLive": {
     "live": "Live",
-    "delayed": "Delayed",
-    "backup": "Backup",
+    "delayed": "Viivästetty",
+    "backup": "Varmuuskopio",
     "demo": "Demo",
-    "pendingConnection": "Pending Connection",
+    "pendingConnection": "Odottaa yhteyttä",
     "binanceLive": "Binance Live",
     "coingecko": "CoinGecko",
     "twelvedata": "TwelveData",
@@ -3419,11 +3419,11 @@
     "tradeDailyProfit": "Trade — Daily Profit"
   },
   "decisionFlow": {
-    "scanningMarket": "Decision engine scanning market",
-    "aggressiveReady": "Aggressively Ready",
-    "sellPressure": "Under Selling Pressure",
-    "conflictBlocking": "Conflict Prevents Advance",
-    "underObservation": "Under Observation"
+    "scanningMarket": "Päätösmoottorien skannausmarkkinat",
+    "aggressiveReady": "Aggressiivisesti valmiina",
+    "sellPressure": "Myyntipaineen alla",
+    "conflictBlocking": "Konflikti estää etenemisen",
+    "underObservation": "Tarkkailussa"
   },
   "contentAgent": {
     "categories": {
@@ -3431,20 +3431,20 @@
       "forex": "Forex",
       "stocks": "Osakkeet",
       "commodities": "Raaka-aineet",
-      "economy": "Economy",
-      "tech": "Tech"
+      "economy": "Talous",
+      "tech": "Tekn"
     }
   },
   "paperTrades": {
-    "sourceExecutor": "Executor",
-    "sourceAgent": "Agent",
-    "sourcePosition": "Position",
-    "closeProfit": "Close with Profit",
-    "closeLoss": "Close with Loss"
+    "sourceExecutor": "Toimeenpanija",
+    "sourceAgent": "Agentti",
+    "sourcePosition": "Asema",
+    "closeProfit": "Sulje voitolla",
+    "closeLoss": "Sulje tappiolla"
   },
   "sw": {
     "pushTitle": "Roua Trading",
-    "pushBody": "You have a new notification",
+    "pushBody": "Sinulla on uusi ilmoitus",
     "open": "Avaa",
     "close": "Sulje"
   },
@@ -3538,12 +3538,12 @@
     "closeAll": "Close All",
     "hedge": "Hedge",
     "rebalance": "Rebalance",
-    "linkAccount": "Link Account",
-    "current": "Current",
-    "setStopLoss": "Set Stop Loss",
-    "setTakeProfit": "Set Take Profit",
-    "closePosition": "Close Position",
-    "quickActions": "Quick Actions"
+    "linkAccount": "Linkitä tili",
+    "current": "Nykyinen",
+    "setStopLoss": "Aseta Pysäytä tappio",
+    "setTakeProfit": "Aseta Ota voitto",
+    "closePosition": "Sulje sijainti",
+    "quickActions": "Pikatoiminnot"
   },
   "aiSmartPanel": {
     "title": "Smart Analysis",
@@ -3642,14 +3642,14 @@
     "bullish": "Bullish",
     "bearish": "Bearish",
     "neutral": "Neutral",
-    "historicalPatternPerformance": "Historical Pattern Performance",
-    "patterns": "Patterns",
-    "worstPattern": "Worst Pattern",
-    "dynamicATRThresholds": "Dynamic ATR Thresholds",
-    "retracement": "Retracement",
-    "peakSimilarity": "Peak Similarity",
-    "shoulderDivergence": "Shoulder Divergence",
-    "breakoutConfirmation": "Breakout Confirmation"
+    "historicalPatternPerformance": "Historiallisen mallin suorituskyky",
+    "patterns": "kuviot",
+    "worstPattern": "huonoin malli",
+    "dynamicATRThresholds": "dynaamiset ATR-kynnykset",
+    "retracement": "uudelleenjäljitys",
+    "peakSimilarity": "huippusamankaltaisuus",
+    "shoulderDivergence": "hartioiden ero",
+    "breakoutConfirmation": "murtumisvahvistus"
   },
   "aiPatternPanel": {
     "cooldownWait": "Wait {seconds} seconds before analyzing again",
@@ -3683,37 +3683,37 @@
     "stopLoss": "Stop Loss",
     "takeProfit": "Take Profit",
     "riskRewardRatio": "Risk/Reward Ratio",
-    "keyLevels": "Key Levels",
+    "keyLevels": "Avaintasot",
     "executeDirect": "Execute Direct (AI)",
     "buy": "Osta",
     "sell": "Myy",
-    "paperTradeNote": "Will be executed as a paper trade in dashboard",
-    "pressEntryAnalyzeToStart": "Press \"Analyze Entry Points\" to start",
-    "clickToDrawHint": "Click any item to draw on chart and navigate to it",
-    "detectingPatterns": "Detecting patterns...",
-    "detectGeometricPatterns": "Detect Geometric Patterns",
-    "clearPatternsFromChart": "Clear patterns from chart",
-    "pressDetectToAnalyze": "Press \"Detect Patterns\" to analyze chart",
-    "targetLabel": "Target",
-    "probability": "Probability",
-    "breakout": "Breakout",
-    "forming": "Forming",
-    "completed": "Completed",
-    "aiExecutionTitle": "AI Execution",
-    "tradeExecuted": "{direction} {symbol} at {price}",
+    "paperTradeNote": "Toteutetaan paperikaupana kojelaudassa",
+    "pressEntryAnalyzeToStart": "Aloita painamalla \"Analysoi aloituspisteet\".",
+    "clickToDrawHint": "Napsauta mitä tahansa kohdetta piirtääksesi kaavioon ja navigoidaksesi siihen",
+    "detectingPatterns": "Tunnistaa kuvioita...",
+    "detectGeometricPatterns": "Tunnista geometriset kuviot",
+    "clearPatternsFromChart": "Tyhjennä kuviot painamalla",
+    "pressDetectToAnalyze": "Tyhjennä kuviot.",
+    "targetLabel": "Kohde",
+    "probability": "Todennäköisyys",
+    "breakout": "Purkautuminen",
+    "forming": "Muodostaminen",
+    "completed": "Valmis",
+    "aiExecutionTitle": "Tekoälysuoritus",
+    "tradeExecuted": "XPH0X{symbol}at XPH2X",
     "patternDoji": "Doji",
-    "patternHammer": "Hammer",
-    "patternInvertedHammer": "Inverted Hammer",
-    "patternEngulfingBullish": "Engulfing Bullish",
-    "patternEngulfingBearish": "Engulfing Bearish",
-    "patternMorningStar": "Morning Star",
-    "patternEveningStar": "Evening Star",
-    "patternThreeWhiteSoldiers": "Three White Soldiers",
-    "patternThreeBlackCrows": "Three Black Crows",
+    "patternHammer": "Vasara",
+    "patternInvertedHammer": "Käänteinen vasara",
+    "patternEngulfingBullish": "Engulfing Morning",
+    "patternEngulfingBearish": "Engulfing",
+    "patternMorningStar": "Engulfing",
+    "patternEveningStar": "Tähti",
+    "patternThreeWhiteSoldiers": "Kolme valkoista sotilasta",
+    "patternThreeBlackCrows": "Kolme mustaa varista",
     "patternHaramiBullish": "Harami Bullish",
     "patternHaramiBearish": "Harami Bearish",
     "patternPiercingLine": "Piercing Line",
-    "patternDarkCloudCover": "Dark Cloud Cover",
+    "patternDarkCloudCover": "Tumma pilvipeite",
     "patternSpinningTop": "Spinning Top",
     "patternMarubozu": "Marubozu",
     "patternTweezerTop": "Tweezer Top",
@@ -3747,19 +3747,19 @@
     "high": "Korkea",
     "extreme": "Extreme",
     "normal": "Normal",
-    "patternStateMachine": "Pattern State Machine",
-    "near": "Near",
-    "broken": "Broken",
-    "failed": "Failed",
-    "historicalPatternPerformance": "Historical Pattern Performance",
-    "trade": "trade",
-    "confidenceMap": "Confidence Map",
-    "dominantTrend": "Dominant Trend",
-    "coverage": "Coverage",
-    "strongSupport": "Strong Support",
-    "strongResistance": "Strong Resistance",
-    "bullishCandleReason": "Last candle is bullish closing at {price}. Consider buying with stop loss below nearest support.",
-    "bearishCandleReason": "Last candle is bearish closing at {price}. Consider selling with stop loss above nearest resistance."
+    "patternStateMachine": "Kuvion tilakone",
+    "near": "Lähellä",
+    "broken": "Rikki",
+    "failed": "Epäonnistui",
+    "historicalPatternPerformance": "Historiallinen kuvion suorituskyky",
+    "trade": "kauppa",
+    "confidenceMap": "Luottamuskartta",
+    "dominantTrend": "Hallitseva trendi",
+    "coverage": "Kattavuus",
+    "strongSupport": "Vahva tuki",
+    "strongResistance": "Vahva vastus",
+    "bullishCandleReason": "Viimeinen kynttilä sulkeutuu nousevasti XPH0X. Harkitse ostamista stop lossilla lähimmän tuen alapuolella.",
+    "bearishCandleReason": "Viimeinen kynttilä sulkeutuu laskusuuntaisesti XPH0X:ssä. Harkitse myyntiä stop lossilla lähimmän vastuksen yläpuolella."
   },
   "neuralLab": {
     "title": "AI Trading Lab",
@@ -3888,27 +3888,27 @@
     "optimizerPrevious": "Edellinen",
     "optimizerIterations": "Iteration Results",
     "optimizerIteration": "iteration",
-    "comparisonTitle": "Strategy Comparison",
-    "comparisonStrategy1": "First Strategy",
-    "comparisonStrategy2": "Second Strategy",
-    "comparisonCompare": "Compare",
-    "comparisonComparing": "Comparing...",
-    "comparisonDifferentRequired": "Please select two different strategies",
-    "comparisonFailed": "Comparison failed",
-    "comparisonWinner": "Winning Strategy",
-    "comparisonTable": "Comparison Table",
-    "comparisonMetric": "Metric",
-    "comparisonBetter": "Better",
-    "comparisonChart": "Comparison Chart",
-    "tradeChartTitle": "Candlestick Chart",
-    "tradeChartEntryExit": "Entry & Exit Points",
-    "tradeChartBuyEntry": "Buy Entry",
-    "tradeChartSellEntry": "Sell Entry",
+    "comparisonTitle": "Strategian vertailu",
+    "comparisonStrategy1": "Ensimmäinen strategia",
+    "comparisonStrategy2": "Toinen strategia",
+    "comparisonCompare": "Vertaa",
+    "comparisonComparing": "Vertaillaan...",
+    "comparisonDifferentRequired": "Valitse kaksi eri strategiaa",
+    "comparisonFailed": "Vertailu epäonnistui",
+    "comparisonWinner": "Voittostrategia",
+    "comparisonTable": "Vertailutaulukko",
+    "comparisonMetric": "Mittarit",
+    "comparisonBetter": "Parempi",
+    "comparisonChart": "Vertailukaavio",
+    "tradeChartTitle": "Parempi",
+    "tradeChartEntryExit": "Vertailukaavio Pisteet",
+    "tradeChartBuyEntry": "Osta Entry",
+    "tradeChartSellEntry": "Myy Entry",
     "tradeChartExit": "Exit",
-    "tradeChartRunBacktestFirst": "Run backtest first to view candlestick chart",
-    "tradeChartCandlestick": "Candlestick",
+    "tradeChartRunBacktestFirst": "Suorita takaisintesti ensin nähdäksesi kynttilänjalkakaavio",
+    "tradeChartCandlestick": "Kynttilänjalka",
     "tradeChartEntry": "Entry",
-    "tradeChartSellEntryShort": "Sell Entry"
+    "tradeChartSellEntryShort": "Myy Entry"
   },
   "scannerAdvanced": {
     "all": "Kaikki",
@@ -4538,21 +4538,21 @@
     },
     "push": {
       "appName": "Roua Trading",
-      "notificationsEnabled": "Notifications enabled successfully! You will now receive trading alerts.",
+      "notificationsEnabled": "Ilmoitukset otettu käyttöön onnistuneesti! Saat nyt kaupankäyntihälytyksiä.",
       "alertTitle": "Roua Trading Alert",
-      "chartTitle": "Roua — {symbol}",
-      "enableDeviceNotifications": "Enable Device Notifications",
-      "receiveAlertsInstantly": "Receive trading alerts instantly even outside the app",
-      "enable": "Enable",
-      "secureNote": "Secure notifications — we never share your data with third parties"
+      "chartTitle": "Roua — XPH0X",
+      "enableDeviceNotifications": "Ota laitteen ilmoitukset käyttöön",
+      "receiveAlertsInstantly": "Vastaanota kaupankäynnin hälytykset välittömästi jopa sovelluksen ulkopuolella",
+      "enable": "Ota käyttöön",
+      "secureNote": "Suojatut ilmoitukset – emme koskaan jaa tietojasi kolmansien osapuolien kanssa"
     }
   },
   "commandPalette": {
-    "title": "Command Palette",
-    "search": "Search commands, indicators, tools...",
-    "noResults": "No results found",
-    "navigate": "Navigate",
-    "execute": "Execute",
+    "title": "Komentopaletti",
+    "search": "Hae komentoja, ilmaisimia, työkaluja...",
+    "noResults": "Tuloksia ei löytynyt",
+    "navigate": "Navigoi",
+    "execute": "Suorita",
     "close": "Sulje"
   },
   "leaderboardPage": {
@@ -4587,15 +4587,15 @@
     "colCopyAvailable": "Copy Available",
     "you": "You",
     "follow": "Follow",
-    "unfollow": "Unfollow",
+    "unfollow": "Lopeta seuraaminen",
     "notAvailable": "Ei saatavilla",
-    "yourRanking": "Your Current Ranking",
-    "returnLabel": "Return",
-    "winRateLabel": "Win Rate",
-    "consistency": "Consistency",
-    "maxDrawdown": "Max Drawdown",
-    "followers": "Followers",
-    "achievementBadges": "Achievement Badges"
+    "yourRanking": "Nykyinen sijoituksesi",
+    "returnLabel": "Paluu",
+    "winRateLabel": "Voittoprosentti",
+    "consistency": "Johdonmukaisuus",
+    "maxDrawdown": "Suurin arvostus",
+    "followers": "Seuraajat",
+    "achievementBadges": "Saavutusmerkit"
   },
   "chartToolbar": {
     "timeframe": "Timeframe",
@@ -4631,19 +4631,19 @@
     "indicators": "Indicators",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
-    "resetView": "Reset View",
-    "chartTrading": "Chart Trading",
-    "compareAsset": "Compare Asset",
-    "mtfTooltip": "Multi-Timeframe Analysis",
-    "chartGridTooltip": "Chart Grid",
-    "shareChart": "Share Chart",
-    "play": "Play",
-    "pause": "Pause",
-    "playUpdate": "Play Updates",
-    "pauseUpdate": "Pause Updates",
-    "more": "More Tools",
+    "resetView": "Nollausnäkymä",
+    "chartTrading": "Kaaviokauppa",
+    "compareAsset": "Vertaa omaisuutta",
+    "mtfTooltip": "Usean aikakehyksen analyysi",
+    "chartGridTooltip": "Kaavioruudukko",
+    "shareChart": "Jaa kaavio",
+    "play": "Toista",
+    "pause": "Keskeytä",
+    "playUpdate": "Toista päivitykset",
+    "pauseUpdate": "Keskeytä päivitykset",
+    "more": "Lisää työkaluja",
     "aiPatternAnalysis": "AI Pattern Analysis",
-    "livePatternProgress": "Live Pattern Progress"
+    "livePatternProgress": "Live Pattern Analysis ⇶"
   },
   "aiCoach": {
     "ratingExcellent": "Excellent",
@@ -4677,8 +4677,8 @@
     "askCoachMore": "Tell me more about: ",
     "chatHeader": "Chat with AI Coach",
     "chatEmpty": "Ask your AI coach anything about your trading performance...",
-    "coachThinking": "Analyzing...",
-    "chatPlaceholder": "Ask about your performance..."
+    "coachThinking": "Analysoidaan...",
+    "chatPlaceholder": "Kysy suoritustasi..."
   },
   "notificationTypes": {
     "newUser": {
@@ -4742,36 +4742,446 @@
       "body": "{symbol} is now {condition} {targetPrice}"
     },
     "botSignal": {
-      "title": "Bot: {side} Signal",
-      "body": "{message}"
+      "title": "Botti:{side}Signaali",
+      "body": "XPH0X"
     },
     "aiAnalysis": {
-      "title": "AI Analysis: {sentiment}",
-      "body": "{summary}"
+      "title": "AI-analyysi: XPH0X",
+      "body": "XPH0X"
     },
     "scannerSignal": {
-      "title": "Scanner: {symbol} — {direction}",
-      "body": "Signal strength {confidence}% | {reasons}"
+      "title": "Skanneri:{symbol}— XPH1X",
+      "body": "Signaalin voimakkuus{confidence}% |  XPH1X"
     },
     "sharpMove": {
-      "title": "Sharp Move: {symbol}",
-      "body": "Price changed by {change}% — may be a trading opportunity"
+      "title": "Terävä siirto: XPH0X",
+      "body": "Hintaa muutettu{change}% — saattaa olla kaupankäyntimahdollisuus"
     },
     "autoExecuteSuccess": {
-      "title": "Auto-execute: {side} {pair}",
-      "body": "Signal auto-executed (confidence: {confidence}%) — Order: {orderId}..."
+      "title": "Automaattinen suoritus:{side}XPH1X",
+      "body": "Signaalin automaattinen suoritus (luottamus:{confidence}%) — Järjestys:{orderId}..."
     },
     "autoExecuteFailed": {
-      "title": "Auto-execute Failed",
-      "body": "No exchange credentials linked. Please link your account first."
+      "title": "Automaattinen suoritus epäonnistui",
+      "body": "Tunnuksia ei ole vaihdettu. Liitä ensin tilisi."
     },
     "autoExecuteRejected": {
-      "title": "Auto-execute Rejected",
-      "body": "Auto-execute not performed for {pair}: {reason}"
+      "title": "Automaattinen suoritus hylätty",
+      "body": "Automaattista suoritusta ei suoritettu XPH0X:lle: XPH1X"
     },
     "autoExecuteError": {
-      "title": "Auto-execute Error",
-      "body": "Connection failed: {error}"
+      "title": "Automaattinen suoritusvirhe",
+      "body": "Yhteys epäonnistui: XPH0X"
     }
+  },
+  "categories": {
+    "forex": "Forex",
+    "economy": "Talous",
+    "tech": "Tekn"
+  },
+  "newUser": {
+    "title": "New User",
+    "body": "New user registered: {name}\nEmail: {email}"
+  },
+  "subscriptionUpgrade": {
+    "title": "Subscription Upgrade",
+    "body": "User {email} upgraded from {fromTier} to {toTier}"
+  },
+  "systemError": {
+    "title": "System Error",
+    "body": "{context}{error}"
+  },
+  "performanceAlert": {
+    "title": "Performance Alert",
+    "body": "{metric} = {value} (Threshold: {threshold})"
+  },
+  "largeTrade": {
+    "title": "Large Trade",
+    "body": "Large trade on {symbol} for {amount}\nUser: {userId}"
+  },
+  "systemUpdate": {
+    "title": "System Update",
+    "body": "{message}"
+  },
+  "newReport": {
+    "title": "{emoji} New Report",
+    "body": "📌 {title}\n📂 Category: {category}\n🏷️ Assets: {symbols}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice"
+  },
+  "signalGenerated": {
+    "title": "{direction} Signal: {pair}",
+    "body": "Confidence: {confidence}% — {reason}"
+  },
+  "orderFilled": {
+    "title": "{direction} Order Filled: {symbol}",
+    "body": "Filled {quantity} {symbol} at {price}"
+  },
+  "orderRejected": {
+    "title": "{direction} Order Rejected: {symbol}",
+    "body": "Reason: {reason}"
+  },
+  "riskWarning": {
+    "title": "Trading Halted — Daily Loss Limit",
+    "body": "Today's loss reached {lossAmount} ({lossPercent}% of portfolio). Smart Executor has been automatically halted until tomorrow."
+  },
+  "positionClosed": {
+    "title": "Auto Close: {symbol}",
+    "body": "Closed {direction} {symbol} position automatically | PnL: {pnl} | Close price: {price}"
+  },
+  "positionOpened": {
+    "title": "Smart Executor: {direction} {pair}",
+    "body": "Executed {direction} {pair} @ {price} | Confidence {confidence}% | Mode {mode} | Stop Loss: {stopLoss} | Target: {takeProfit}"
+  },
+  "executionFailed": {
+    "title": "Execution Failed: {pair}",
+    "body": "Failed to execute {direction} {pair}: {reason}"
+  },
+  "priceAlert": {
+    "title": "Price Alert: {symbol}",
+    "body": "{symbol} is now {condition} {targetPrice}"
+  },
+  "botSignal": {
+    "title": "Botti:{side}Signaali",
+    "body": "XPH0X"
+  },
+  "aiAnalysis": {
+    "title": "AI-analyysi: XPH0X",
+    "body": "XPH0X"
+  },
+  "scannerSignal": {
+    "title": "Skanneri:{symbol}— XPH1X",
+    "body": "Signaalin voimakkuus{confidence}% |  XPH1X"
+  },
+  "sharpMove": {
+    "title": "Terävä siirto: XPH0X",
+    "body": "Hintaa muutettu{change}% — saattaa olla kaupankäyntimahdollisuus"
+  },
+  "autoExecuteSuccess": {
+    "title": "Automaattinen suoritus:{side}XPH1X",
+    "body": "Signaalin automaattinen suoritus (luottamus:{confidence}%) — Järjestys:{orderId}..."
+  },
+  "autoExecuteFailed": {
+    "title": "Automaattinen suoritus epäonnistui",
+    "body": "Tunnuksia ei ole vaihdettu. Liitä ensin tilisi."
+  },
+  "autoExecuteRejected": {
+    "title": "Automaattinen suoritus hylätty",
+    "body": "Automaattista suoritusta ei suoritettu XPH0X:lle: XPH1X"
+  },
+  "autoExecuteError": {
+    "title": "Automaattinen suoritusvirhe",
+    "body": "Yhteys epäonnistui: XPH0X"
+  },
+  "home": {
+    "ai": "AI"
+  },
+  "trade": {
+    "strategyScalping": "Scalping",
+    "strategySwing": "Swing",
+    "strategyDCA": "DCA",
+    "strategyVwapRsi": "VWAP+RSI"
+  },
+  "profile": {
+    "nameRequired": "Name is required",
+    "nameRequiredDesc": "Please enter your display name",
+    "changesSaved": "Changes saved",
+    "changesSavedDesc": "Your profile has been updated successfully",
+    "saveError": "Save error",
+    "saveErrorDesc": "An error occurred while saving changes",
+    "confirmRequired": "Confirmation required",
+    "confirmRequiredDesc": "Please type \"delete\" to confirm",
+    "accountDeleted": "Account deleted",
+    "accountDeletedDesc": "Your account will be deleted within 30 days",
+    "deleteError": "Error",
+    "deleteErrorDesc": "An error occurred while deleting the account",
+    "emailChangeTitle": "Email change",
+    "emailChangeDesc": "A confirmation link will be sent to your new email"
+  },
+  "leaderboard": {
+    "unfollowed": "Unfollowed {name}",
+    "unfollowedDesc": "This account will no longer be tracked",
+    "followed": "Following {name}",
+    "followedDesc": "This account's performance will be tracked"
+  },
+  "kyc": {
+    "connectionTestRequired": "Connection test required",
+    "connectionTestRequiredDesc": "Please complete a successful connection test before proceeding",
+    "requiredFields": "Required fields",
+    "requiredFieldsDesc": "Please fill in all required fields before proceeding",
+    "connectionSuccess": "Connection successful",
+    "connectionSuccessDesc": "Successfully verified connection to {exchange}",
+    "accountLinkedSuccess": "Account linked successfully",
+    "accountLinkedSuccessDesc": "Your {exchange} account has been linked successfully..."
+  },
+  "trading": {
+    "stopLossRequired": "Stop loss is mandatory! Cannot submit order without stop loss — this is Roua's first rule.",
+    "slMustBeBelowEntry": "Stop loss for buy orders must be below the current entry price.",
+    "slMustBeAboveEntry": "Stop loss for sell orders must be above the current entry price.",
+    "qtyMustBePositive": "Quantity must be greater than zero."
+  },
+  "execution": {
+    "orderCancelled": "Order cancelled",
+    "orderCancelledDesc": "Order {orderId} has been cancelled...",
+    "orderFilled": "Filled {side} {qty} {symbol}{filled}",
+    "orderFillTitle": "{side} {symbol} completed",
+    "orderFillDesc": "Executed {qty} {symbol}{filled} [{source}]",
+    "orderRejected": "Order rejected: {reason}",
+    "executionFailed": "Execution failed: {error}",
+    "sourceExecutor": "Executor",
+    "sourceAgent": "Agent",
+    "sourcePosition": "Position",
+    "closeProfit": "Closed with profit",
+    "closeLoss": "Closed with loss",
+    "symbolRequired": "Symbol required",
+    "symbolRequiredDesc": "Please enter a symbol",
+    "invalidQty": "Invalid quantity",
+    "limitPriceRequired": "Limit price required",
+    "limitPriceRequiredDesc": "Please enter the limit order price",
+    "slBelowBuyPrice": "Stop loss must be below buy price",
+    "tpAboveBuyPrice": "Take profit must be above buy price",
+    "slAboveSellPrice": "Stop loss must be above sell price",
+    "tpBelowSellPrice": "Take profit must be below sell price",
+    "confirmOrder": "Confirm {type} {side} order for {qty} {symbol}{limit}?",
+    "maxPositions": "You have {count} open positions (max: {max}). Close some first.",
+    "submittingOrder": "Submitting order...",
+    "atPrice": " at price {price}",
+    "riskRejected": "Order rejected by risk gatekeeper",
+    "duplicateOrder": "This order has already been received. Please wait.",
+    "orderIdMissing": "Order ID not received from provider",
+    "networkError": "Network error — unable to reach provider",
+    "submitFailed": "Failed to submit order — please try again",
+    "orderSuccessStatus": "{side} {qty} {symbol}{filled}\n{source} — Order ID: {orderId}...",
+    "safeLabel": "Safe",
+    "directLabel": "Direct",
+    "sessionExpired": "Session expired — please log in again"
+  },
+  "exchange": {
+    "addKeyFailed": "Failed to add key",
+    "addKeySuccess": "Key added successfully!",
+    "disableTestMode": "Disable test mode",
+    "enableTestMode": "Enable test mode",
+    "saved": "Saved",
+    "devFeature": "This feature is under development — the key will be saved locally only"
+  },
+  "admin": {
+    "monitorNotPublished": "Monitor agent not published — set MONITOR_AGENT_URL first",
+    "agentStarted": "Agent started",
+    "agentStopped": "Agent stopped",
+    "commandFailed": "Failed to execute command",
+    "serverError": "Server connection error",
+    "settingsSaved": "Monitor settings saved",
+    "settingsSaveFailed": "Failed to save settings",
+    "fetchFailed": "Failed to fetch data from server",
+    "serverConnectionFailed": "Server connection failed",
+    "loginDisabled": "Login disabled — admin password not set. Set ADMIN_PASSWORD env variable first.",
+    "serverErrorRetry": "Server error — try again later",
+    "connectionError": "Server connection error",
+    "testNotification": "Test notification",
+    "testNotificationBody": "If you see this notification, browser alerts are working correctly!",
+    "settingsSavedSuccess": "Settings saved successfully",
+    "saveFailedErrors": "Save failed: {errors}",
+    "connectionErrorDetail": "Connection error: {error}",
+    "telegramTestSent": "Test message sent — check Telegram",
+    "connectionFailed": "Connection failed",
+    "cleanDummyConfirm": "All dummy accounts will be deleted...",
+    "cleanDummyFailed": "Failed to clean dummy accounts",
+    "cleanDummySuccess": "{count} dummy accounts deleted",
+    "fetchStatsFailed": "Failed to fetch statistics",
+    "fetchSignalsFailed": "Failed to fetch smart signals from server",
+    "dataUnavailable": "Data unavailable — server connection failed",
+    "demoDataWarning": "Demo data — analysis server connection failed",
+    "scannerFailed": "Failed to fetch scanner results from server",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "notVerified": "Not verified",
+    "newUser": "New user",
+    "subUpgrade": "Subscription upgrade",
+    "systemError": "System error",
+    "performanceAlert": "Performance alert",
+    "bigTrade": "Big trade",
+    "systemUpdate": "System update",
+    "sessionExpired": "Session expired — please log in again",
+    "sessionExpiredShort": "Session expired",
+    "incorrectPassword": "Incorrect password",
+    "connectionTimeout": "Connection timeout — server not responding",
+    "noInternetConnection": "Cannot connect to server — check internet connection",
+    "dbUnavailable": "Database currently unavailable — try again later",
+    "confirmDeleteDummy": "All dummy accounts (guest-*, user-*) and unverified users will be permanently deleted. Are you sure?",
+    "confirmDeleteKey": "Are you sure you want to delete this key? This action cannot be undone.",
+    "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
+    "noDummyAccounts": "No dummy accounts to delete",
+    "deleteErrors": "({count} errors)",
+    "guestNotAllowed": "Binance linking not available in guest mode",
+    "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user."
+  },
+  "push": {
+    "appName": "Roua Trading",
+    "notificationsEnabled": "Ilmoitukset otettu käyttöön onnistuneesti! Saat nyt kaupankäyntihälytyksiä.",
+    "alertTitle": "Roua Trading Alert",
+    "chartTitle": "Roua — XPH0X",
+    "enableDeviceNotifications": "Ota laitteen ilmoitukset käyttöön",
+    "receiveAlertsInstantly": "Vastaanota kaupankäynnin hälytykset välittömästi jopa sovelluksen ulkopuolella",
+    "enable": "Ota käyttöön",
+    "secureNote": "Suojatut ilmoitukset – emme koskaan jaa tietojasi kolmansien osapuolien kanssa"
+  },
+  "hero": {
+    "subtitle": "Roua",
+    "aiModels": "AI Models",
+    "assetClasses": "Supported Asset Classes",
+    "sixAiModels": "Six Harmonious AI Models",
+    "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
+    "setupSeconds": "Seconds to Setup",
+    "dailyMonitoring": "Hours Daily Monitoring"
+  },
+  "navbar": {
+    "models": "Models",
+    "method": "Method",
+    "experiences": "Experiences",
+    "startFree": "Start Free",
+    "ai": "AI Intelligence",
+    "liveMarket": "Live Market",
+    "testimonials": "Trader Reviews"
+  },
+  "howItWorks": {
+    "title": "From Sign Up to Profits",
+    "titlePart1": "From Sign Up to",
+    "titleHighlight": "Profits",
+    "subtitle": "Just four steps separate you from smarter AI-powered trading",
+    "step1Title": "Create Your Account",
+    "step2Title": "Link Your Accounts Securely",
+    "step3Title": "Let AI Work for You",
+    "step4Title": "Protect Your Profits",
+    "tradeSmart": "Trade Smart",
+    "step1Desc": "Log in under 30 seconds via Google or Passkey. No passwords, no complexity.",
+    "step2Desc": "Eight AI models analyze markets and generate trading signals based on multi-model analysis.",
+    "step3Desc": "Execute trades based on data-driven insights with smart risk protection.",
+    "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility."
+  },
+  "aiModels": {
+    "fastProcessing": "Ultra-Fast Processing",
+    "multilingualAnalyst": "Multilingual Model",
+    "chartAnalysis": "Chart Analysis",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Private Local Models",
+    "comprehensiveData": "Comprehensive Market Data",
+    "orchestraTitle": "Galaxy Orchestra",
+    "orchestraSubtitle": "Six AI models working in harmony",
+    "sectionTitlePart1": "Six AI Models",
+    "sectionTitleMiddle": "Working",
+    "sectionTitleHighlight": "in Harmony",
+    "sectionDesc": "Each model specializes in a specific aspect of analysis, working together for comprehensive market insight",
+    "fastProcessingDesc": "For instant inference and real-time market analysis with beyond-expected performance",
+    "multilingualAnalystDesc": "Deeply understands Arabic and global financial context, supports Arabic, English, Chinese, and Japanese",
+    "chartAnalysisDesc": "Advanced technical pattern analysis with high precision and automatic price formation recognition",
+    "secureInfraDesc": "For foundational models with enterprise-grade data protection and full encryption",
+    "localModelsDesc": "For sensitive analysis away from the cloud, ensuring complete data privacy",
+    "comprehensiveDataDesc": "Directly from global markets and their indicators with minimal latency"
+  },
+  "features": {
+    "title": "Advanced Tools for Smart Traders",
+    "sectionTitlePart1": "Advanced Tools for",
+    "sectionTitleHighlight": "Smart Traders",
+    "sectionDesc": "An integrated suite of AI-powered tools for market analysis and smarter decisions",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "Unified News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in multiple languages in real-time, giving you global insights without language barriers. Supports Arabic, English, Chinese, Japanese, and other major languages.",
+    "rouaSignalsDesc": "Instant AI-powered trading signals based on pattern and sentiment analysis for multi-model recommendations.",
+    "newsRadarDesc": "Monitors thousands of news and social sources simultaneously, filtering noise to deliver only what impacts your portfolio.",
+    "sanctuaryDesc": "Smart portfolio protection from sharp volatility via predictive risk alerts and automatic rebalancing recommendations.",
+    "smartLabDesc": "Test strategies in a realistic simulation before risking. Analyze historical performance and optimize based on real data."
+  },
+  "neuralFeatures": {
+    "title": "Smart Features",
+    "titlePart1": "Smart",
+    "subtitle": "Advanced AI-powered technologies for market analysis and investment protection",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in 12+ languages",
+    "rouaSignalsDesc": "Trading signals with AI council",
+    "newsRadarDesc": "Monitors multiple news sources",
+    "sanctuaryDesc": "Military-grade encryption to protect your assets",
+    "smartLabDesc": "Test your strategies before risking"
+  },
+  "testimonials": {
+    "title": "What Traders Say",
+    "titlePart1": "What",
+    "titleHighlight": "Traders Say",
+    "sectionDesc": "Discover the features that distinguish Roua platform",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "multilingualAnalystText": "The multilingual analyst enables global market analysis in multiple languages, providing comprehensive insights without a translation team.",
+    "multilingualAnalystName": "Analyst Feature",
+    "multilingualAnalystRole": "Multilingual Analysis",
+    "rouaSignalsText": "Roua signals powered by eight AI models that discuss and reach consensus before providing recommendations, enhancing analysis reliability.",
+    "rouaSignalsName": "Signals Feature",
+    "rouaSignalsRole": "Multi-Model Consensus",
+    "newsRadarText": "The news radar monitors news sources and filters impactful events, helping make faster decisions based on latest developments.",
+    "newsRadarName": "Radar Feature",
+    "newsRadarRole": "Smart News Tracking"
+  },
+  "cta": {
+    "title": "Ready to Link Your Accounts Smartly?",
+    "titlePart1": "Ready to Link Your Accounts",
+    "titleHighlight": "Smartly?",
+    "joinUniverse": "Join the Universe",
+    "startLinking": "Start Linking Accounts",
+    "joinFree": "Join Now — Free",
+    "launchNow": "Launch Roua Now",
+    "joinCaption": "Join thousands of traders who trust Roua for smarter decisions",
+    "noCreditCard": "No credit card required · Setup in under a minute"
+  },
+  "liveChart": {
+    "title": "Track Markets in Real-Time",
+    "demoData": "Demo Data",
+    "demoDisclaimer": "Demo data — does not represent real prices"
+  },
+  "countdown": {
+    "upcomingEvent": "Next Financial Event",
+    "fedEvent": "Next Financial Event: US Federal Reserve Report",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds"
+  },
+  "mediaGallery": {
+    "dashboard": "Dashboard",
+    "charts": "Charts",
+    "aiCouncil": "AI Council"
+  },
+  "footer": {
+    "brandDesc": "AI-Powered Smart Account Linking Platform"
+  },
+  "cosmicCanvas": {
+    "linguisticAnalyst": "Linguistic Analyst",
+    "chartAnalysis": "Chart Analysis",
+    "dataProcessing": "Data Processing",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Local Models",
+    "liveMarketData": "Live Market Data",
+    "defaultTitle": "AI Model",
+    "defaultDesc": "Model Description",
+    "linguisticAnalystDesc": "Analyzes markets in multiple languages in real-time",
+    "chartAnalysisDesc": "Advanced technical pattern analysis with high precision",
+    "dataProcessingDesc": "Ultra-fast real-time inference",
+    "secureInfraDesc": "Tietojen ja perusmallien suojaus",
+    "localModelsDesc": "Arkaluonteinen analyysi pois pilvestä",
+    "liveMarketDataDesc": "Kattavat tiedot suoraan globaaleilta markkinoilta"
+  },
+  "liveSignals": {
+    "disclaimer": "Vain havainnollistavia esimerkkejä – eivät edusta todellisia signaaleja"
+  },
+  "galaxyOrchestra": {
+    "closeTooltip": "Sulje napsauttamalla",
+    "groqDesc": "Erittäin nopea käsittely välittömiin päätelmiin ja reaaliaikaiseen markkina-analyysiin",
+    "glm4Desc": "Monikielinen malli, jolla ymmärrät arabiaa ja globaalia taloudellista taustaa",
+    "geminiDesc": "korkean tarkkuuden tekninen kaavio",
+    "bedrockDesc": "Turvallinen ja luotettava infrastruktuuri perusmalleille tietosuojalla",
+    "ollamaDesc": "Yksityiset paikalliset mallit arkaluonteiseen analysointiin pilvestä",
+    "twelveDataDesc": "Kattavat reaaliaikaiset markkinatiedot maailmanlaajuisilta markkinoilta ja indikaattoreilta"
   }
 }

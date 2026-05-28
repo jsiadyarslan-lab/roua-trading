@@ -236,15 +236,15 @@
     "roleFree": "Free",
     "rolePro": "Pro",
     "rolePlus": "Plus",
-    "rolePremium": "Premium",
+    "rolePremium": "Prémium",
     "roleInstitutional": "Enterprise",
-    "roleAdmin": "Admin",
-    "roleFreeDesc": "One account & basic insights",
-    "roleProDesc": "Multiple accounts & AI",
-    "rolePlusDesc": "Advanced AI & API",
-    "rolePremiumDesc": "Full access, API & advanced tools",
-    "roleInstDesc": "Full institutional permissions",
-    "roleAdminDesc": "Full administrative permissions"
+    "roleAdmin": "Adminisztráció",
+    "roleFreeDesc": "Egy fiók és alapvető információk",
+    "roleProDesc": "Több fiók és mesterséges intelligencia",
+    "rolePlusDesc": "Speciális AI és API",
+    "rolePremiumDesc": "Teljes hozzáférés, API és speciális eszközök",
+    "roleInstDesc": "Teljes intézményi engedélyek",
+    "roleAdminDesc": "Teljes adminisztrátori engedélyek"
   },
   "landing": {
     "hero": {
@@ -290,40 +290,40 @@
       "fastProcessing": "Ultra-Fast Processing",
       "multilingualAnalyst": "Multilingual Model",
       "chartAnalysis": "Chart Analysis",
-      "secureInfra": "Secure Infrastructure",
-      "localModels": "Private Local Models",
-      "comprehensiveData": "Comprehensive Market Data",
+      "secureInfra": "Biztonságos infrastruktúra",
+      "localModels": "Privát helyi modellek",
+      "comprehensiveData": "Átfogó piaci adatok",
       "orchestraTitle": "Galaxy Orchestra",
-      "orchestraSubtitle": "Six AI models working in harmony",
-      "sectionTitlePart1": "Six AI Models",
-      "sectionTitleMiddle": "Working",
-      "sectionTitleHighlight": "in Harmony",
-      "sectionDesc": "Each model specializes in a specific aspect of analysis, working together for comprehensive market insight",
-      "fastProcessingDesc": "For instant inference and real-time market analysis with beyond-expected performance",
-      "multilingualAnalystDesc": "Deeply understands Arabic and global financial context, supports Arabic, English, Chinese, and Japanese",
-      "chartAnalysisDesc": "Advanced technical pattern analysis with high precision and automatic price formation recognition",
-      "secureInfraDesc": "For foundational models with enterprise-grade data protection and full encryption",
-      "localModelsDesc": "For sensitive analysis away from the cloud, ensuring complete data privacy",
-      "comprehensiveDataDesc": "Directly from global markets and their indicators with minimal latency"
+      "orchestraSubtitle": "Hat AI modell működik harmóniában",
+      "sectionTitlePart1": "Hat AI modell",
+      "sectionTitleMiddle": "Munka",
+      "sectionTitleHighlight": "Harmóniában",
+      "sectionDesc": "Minden modell az elemzés egy bizonyos aspektusára specializálódott, így együtt dolgozva a valós idejű piaci elemzéssel és átfogó piaci betekintéssel",
+      "fastProcessingDesc": "nyújtanak átfogó piaci betekintést. teljesítmény",
+      "multilingualAnalystDesc": "Mélyen ismeri az arab és a globális pénzügyi kontextust, támogatja az arab, angol, kínai és japán nyelvet",
+      "chartAnalysisDesc": "Fejlett technikai mintaelemzés nagy pontossággal és automatikus árképzés-felismeréssel",
+      "secureInfraDesc": "Vállalati szintű adatvédelemmel és teljes titkosítással rendelkező alapmodellekhez",
+      "localModelsDesc": "Érzékeny elemzésekhez a felhőtől távol, teljes adatvédelmet biztosítva",
+      "comprehensiveDataDesc": "Adminisztrációs eszközzel a globális piacra vonatkozóan"
     },
     "features": {
-      "title": "Advanced Tools for Smart Traders",
-      "sectionTitlePart1": "Advanced Tools for",
-      "sectionTitleHighlight": "Smart Traders",
-      "sectionDesc": "An integrated suite of AI-powered tools for market analysis and smarter decisions",
-      "multilingualAnalyst": "Multilingual Analyst",
+      "title": "Közvetlenül a globális piacról. Intelligens kereskedők",
+      "sectionTitlePart1": "Speciális eszközök",
+      "sectionTitleHighlight": "Intelligens kereskedők számára",
+      "sectionDesc": "AI-alapú eszközök integrált csomagja a piacelemzéshez és az intelligensebb döntésekhez",
+      "multilingualAnalyst": "Többnyelvű elemző",
       "rouaSignals": "Roua Signals",
-      "newsRadar": "Unified News Radar",
-      "sanctuary": "Portfolio Sanctuary",
-      "smartLab": "Smart Lab",
-      "multilingualAnalystDesc": "Analyzes markets in multiple languages in real-time, giving you global insights without language barriers. Supports Arabic, English, Chinese, Japanese, and other major languages.",
-      "rouaSignalsDesc": "Instant AI-powered trading signals based on pattern and sentiment analysis for multi-model recommendations.",
-      "newsRadarDesc": "Monitors thousands of news and social sources simultaneously, filtering noise to deliver only what impacts your portfolio.",
-      "sanctuaryDesc": "Smart portfolio protection from sharp volatility via predictive risk alerts and automatic rebalancing recommendations.",
-      "smartLabDesc": "Test strategies in a realistic simulation before risking. Analyze historical performance and optimize based on real data."
+      "newsRadar": "Egységes hírradar",
+      "sanctuary": "Portfólió Sanctuary",
+      "smartLab": "Valós idejű Anaights Markets",
+      "multilingualAnalystDesc": "Intelligens Laboratóriumok több nyelven. nyelvi akadályok nélkül. Támogatja az arab, angol, kínai, japán és más fontosabb nyelveket.",
+      "rouaSignalsDesc": "Azonnali mesterséges intelligencia által vezérelt kereskedési jelek minta- és hangulatelemzésen alapuló többmodellre vonatkozó ajánlásokhoz.",
+      "newsRadarDesc": "Hírek és közösségi források ezreit figyeli egyszerre, szűrve a zajt, hogy csak azt jelenítse meg, ami a portfólióját érinti.",
+      "sanctuaryDesc": "Intelligens portfólióvédelem az éles volatilitás ellen prediktív kockázati figyelmeztetések és automatikus újraegyensúlyozási javaslatok révén.",
+      "smartLabDesc": "Tesztelje a stratégiákat valósághű szimulációban, mielőtt kockáztat. Elemezze a múltbeli teljesítményt, és valós adatok alapján optimalizálja."
     },
     "neuralFeatures": {
-      "title": "Smart Features",
+      "title": "Intelligens funkciók",
       "titlePart1": "Smart",
       "titleHighlight": "Funkciók",
       "subtitle": "Advanced AI-powered technologies for market analysis and investment protection",
@@ -454,29 +454,29 @@
     "codeRequired": "Please enter the full verification code",
     "codeInvalid": "Invalid verification code",
     "codeExpired": "Verification code has expired",
-    "loginFailed": "Login failed",
+    "loginFailed": "Sikertelen bejelentkezés",
     "connectionError": "Kapcsolódási hiba történt",
-    "tooManyRequests": "Too many requests",
-    "encryptedBadge": "Fully Encrypted",
-    "noPasswordBadge": "No Password",
-    "googleNoAccessToken": "Failed to obtain access token from Google.",
-    "googleUserInfoFailed": "Failed to fetch account information.",
-    "googleNoEmail": "No email found in Google account.",
-    "dbUnavailable": "Database is currently unavailable. Please try again in a few seconds.",
-    "userCreationFailed": "Failed to create user account.",
-    "sessionCreationFailed": "Failed to create session. Please try again.",
-    "unknownError": "An unexpected error occurred. Please try again.",
-    "verificationFailed": "Verification failed. Please try again."
+    "tooManyRequests": "Túl sok kérés",
+    "encryptedBadge": "Teljesen titkosított",
+    "noPasswordBadge": "Nincs jelszó",
+    "googleNoAccessToken": "Nem sikerült beszerezni a hozzáférési tokent a Google-tól.",
+    "googleUserInfoFailed": "Nem sikerült lekérni a fiókadatokat.",
+    "googleNoEmail": "Nem található e-mail a Google-fiókban.",
+    "dbUnavailable": "Az adatbázis jelenleg nem érhető el. Kérjük, próbálja újra néhány másodperc múlva.",
+    "userCreationFailed": "Nem sikerült létrehozni a felhasználói fiókot.",
+    "sessionCreationFailed": "Nem sikerült létrehozni a munkamenetet. Kérjük, próbálja újra.",
+    "unknownError": "Váratlan hiba történt. Kérjük, próbálja újra.",
+    "verificationFailed": "Az ellenőrzés sikertelen. Kérjük, próbálja újra."
   },
   "guest": {
     "loginToAccess": "Jelentkezzen be a hozzáféréshez",
-    "loginRequired": "This action requires login",
-    "fullExperience": "For the full experience",
-    "fullExperienceDesc": "For the full experience with all features, log in for free",
+    "loginRequired": "Ehhez a művelethez bejelentkezés szükséges",
+    "fullExperience": "A teljes élmény érdekében",
+    "fullExperienceDesc": "Az összes szolgáltatás teljes élményéhez jelentkezzen be ingyenesen",
     "loginButton": "Bejelentkezés",
     "continueAsGuest": "Folytatás vendégként",
-    "viewMode": "You are in view mode",
-    "viewModeBanner": "You are in view mode — login for full access"
+    "viewMode": "Nézet módban van",
+    "viewModeBanner": "Nézet módban van – jelentkezzen be a teljes hozzáféréshez"
   },
   "dashboard": {
     "nav": {
@@ -3294,18 +3294,18 @@
     "settings": {
       "tradingMode": "Trading Mode",
       "notifications": "Notifications",
-      "sound": "Sound"
+      "sound": "Hang"
     },
     "kyc": {
-      "linkDesc": "Link your trading account to start trading",
-      "noAccounts": "No linked accounts",
-      "notLinked": "Not linked"
+      "linkDesc": "Kapcsolja össze kereskedési számláját a kereskedés megkezdéséhez",
+      "noAccounts": "Nincsenek összekapcsolt számlák",
+      "notLinked": "Nincs összekapcsolva"
     }
   },
   "notFound": {
-    "title": "Page Not Found",
-    "description": "Sorry, the page you're looking for doesn't exist or has been moved",
-    "dashboard": "Dashboard",
+    "title": "Az oldal nem található",
+    "description": "Sajnáljuk, a keresett oldal nem létezik vagy el lett helyezve",
+    "dashboard": "Irányítópult",
     "home": "Kezdőlap"
   },
   "errors": {
@@ -3328,8 +3328,8 @@
     "unauthorized": "Please login to access this resource"
   },
   "tiers": {
-    "free": "Free",
-    "professional": "Professional",
+    "free": "Ingyenes",
+    "professional": "Professzionális",
     "plus": "Plus",
     "elite": "Elite",
     "enterprise": "Enterprise",
@@ -3362,42 +3362,42 @@
     "macdNeutral": "Neutral"
   },
   "drawingTools": {
-    "pointer": "Pointer",
-    "trendLine": "Trend Line",
-    "ray": "Ray",
-    "horizontalLine": "Horizontal Line",
-    "parallelChannel": "Parallel Channel",
+    "pointer": "Mutató",
+    "trendLine": "Trendvonal",
+    "ray": "Sugár",
+    "horizontalLine": "Vízszintes vonal",
+    "parallelChannel": "Párhuzamos csatorna",
     "fibonacciRetracement": "Fibonacci Retracement",
-    "rectangle": "Rectangle",
-    "triangle": "Triangle",
-    "circle": "Circle"
+    "rectangle": "Téglalap",
+    "triangle": "Háromszög",
+    "circle": "Kör"
   },
   "harmonicPatterns": {
     "gartley": "Gartley",
-    "butterfly": "Butterfly",
-    "bat": "Bat",
-    "crab": "Crab",
-    "doubleTop": "Double Top",
-    "doubleBottom": "Double Bottom",
-    "headAndShoulders": "Head and Shoulders",
-    "inverseHeadAndShoulders": "Inverse Head and Shoulders"
+    "butterfly": "Pillangó",
+    "bat": "Denevér",
+    "crab": "Rák",
+    "doubleTop": "Dupla felső",
+    "doubleBottom": "Dupla alsó",
+    "headAndShoulders": "Fej és vállak",
+    "inverseHeadAndShoulders": "Inverz fej és vállak"
   },
   "tradingIntelligence": {
-    "strongBullishMomentum": "Strong bullish momentum",
-    "oversold": "Oversold",
-    "overbought": "Overbought",
+    "strongBullishMomentum": "Erős bullish lendület",
+    "oversold": "Túlértékelt",
+    "overbought": "Túlvásárolt",
     "bullishTrend": "Bullish trend",
     "bearishTrend": "Bearish trend",
-    "ema20Above50": "EMA20 above EMA50",
-    "expandingRange": "Expanding range",
-    "staleData": "Stale data"
+    "ema20Above50": "EMA20 EMA50 felett",
+    "expandingRange": "Bővülő tartomány",
+    "staleData": "Elévült adatok"
   },
   "dashboardLive": {
-    "live": "Live",
-    "delayed": "Delayed",
-    "backup": "Backup",
+    "live": "Élő",
+    "delayed": "Késleltetett",
+    "backup": "Biztonsági mentés",
     "demo": "Demo",
-    "pendingConnection": "Pending Connection",
+    "pendingConnection": "Csatlakozás függőben",
     "binanceLive": "Binance Live",
     "coingecko": "CoinGecko",
     "twelvedata": "TwelveData",
@@ -3419,11 +3419,11 @@
     "tradeDailyProfit": "Trade — Daily Profit"
   },
   "decisionFlow": {
-    "scanningMarket": "Decision engine scanning market",
-    "aggressiveReady": "Aggressively Ready",
-    "sellPressure": "Under Selling Pressure",
-    "conflictBlocking": "Conflict Prevents Advance",
-    "underObservation": "Under Observation"
+    "scanningMarket": "Döntési motor szkennelési piac",
+    "aggressiveReady": "Agresszíven kész",
+    "sellPressure": "Eladási nyomás alatt",
+    "conflictBlocking": "A konfliktus megakadályozza az előrehaladást",
+    "underObservation": "Megfigyelés alatt"
   },
   "contentAgent": {
     "categories": {
@@ -3431,20 +3431,20 @@
       "forex": "Forex",
       "stocks": "Részvények",
       "commodities": "Árutermékek",
-      "economy": "Economy",
+      "economy": "Gazdaság",
       "tech": "Tech"
     }
   },
   "paperTrades": {
-    "sourceExecutor": "Executor",
-    "sourceAgent": "Agent",
-    "sourcePosition": "Position",
-    "closeProfit": "Close with Profit",
-    "closeLoss": "Close with Loss"
+    "sourceExecutor": "Végrehajtó",
+    "sourceAgent": "Ügynök",
+    "sourcePosition": "Pozíció",
+    "closeProfit": "Nyereséggel zárás",
+    "closeLoss": "Zárás veszteséggel"
   },
   "sw": {
     "pushTitle": "Roua Trading",
-    "pushBody": "You have a new notification",
+    "pushBody": "Új értesítése van",
     "open": "Megnyitás",
     "close": "Bezárás"
   },
@@ -3504,7 +3504,11 @@
     "consensusFailed": "Failed to get consensus",
     "unexpectedError": "Unexpected error",
     "httpError": "Error {status}",
-    "monitoringTrends": "MONITORING TRENDS"
+    "monitoringTrends": "MONITORING TRENDS",
+    "title": "AI Council",
+    "models": "6 AI Models",
+    "recommendation": "Recommendation",
+    "confidence": "Confidence"
   },
   "portfolio": {
     "accountStatus": "Account Status",
@@ -3538,12 +3542,12 @@
     "closeAll": "Close All",
     "hedge": "Hedge",
     "rebalance": "Rebalance",
-    "linkAccount": "Link Account",
-    "current": "Current",
-    "setStopLoss": "Set Stop Loss",
-    "setTakeProfit": "Set Take Profit",
-    "closePosition": "Close Position",
-    "quickActions": "Quick Actions"
+    "linkAccount": "Számla összekapcsolása",
+    "current": "Aktuális",
+    "setStopLoss": "Veszteség megállítása",
+    "setTakeProfit": "Profit bevétel beállítása",
+    "closePosition": "Pozíció bezárása",
+    "quickActions": "Gyors műveletek"
   },
   "aiSmartPanel": {
     "title": "Smart Analysis",
@@ -3642,14 +3646,14 @@
     "bullish": "Bullish",
     "bearish": "Bearish",
     "neutral": "Neutral",
-    "historicalPatternPerformance": "Historical Pattern Performance",
-    "patterns": "Patterns",
-    "worstPattern": "Worst Pattern",
-    "dynamicATRThresholds": "Dynamic ATR Thresholds",
+    "historicalPatternPerformance": "Történelmi mintateljesítmény",
+    "patterns": "Minták",
+    "worstPattern": "Legrosszabb minták",
+    "dynamicATRThresholds": "Dinamikus ATR küszöbök",
     "retracement": "Retracement",
-    "peakSimilarity": "Peak Similarity",
-    "shoulderDivergence": "Shoulder Divergence",
-    "breakoutConfirmation": "Breakout Confirmation"
+    "peakSimilarity": "Csúcs hasonlóság",
+    "shoulderDivergence": "Váll divergencia",
+    "breakoutConfirmation": "Kitörés megerősítése"
   },
   "aiPatternPanel": {
     "cooldownWait": "Wait {seconds} seconds before analyzing again",
@@ -3747,19 +3751,19 @@
     "high": "Magas",
     "extreme": "Extreme",
     "normal": "Normal",
-    "patternStateMachine": "Pattern State Machine",
-    "near": "Near",
-    "broken": "Broken",
-    "failed": "Failed",
-    "historicalPatternPerformance": "Historical Pattern Performance",
-    "trade": "trade",
-    "confidenceMap": "Confidence Map",
-    "dominantTrend": "Dominant Trend",
-    "coverage": "Coverage",
-    "strongSupport": "Strong Support",
-    "strongResistance": "Strong Resistance",
-    "bullishCandleReason": "Last candle is bullish closing at {price}. Consider buying with stop loss below nearest support.",
-    "bearishCandleReason": "Last candle is bearish closing at {price}. Consider selling with stop loss above nearest resistance."
+    "patternStateMachine": "Mintaállapot gép",
+    "near": "Közel",
+    "broken": "Törött",
+    "failed": "Sikertelen",
+    "historicalPatternPerformance": "Történeti minta teljesítmény",
+    "trade": "kereskedelem",
+    "confidenceMap": "Bizalmi térkép",
+    "dominantTrend": "Domináns trend",
+    "coverage": "Lefedettség",
+    "strongSupport": "Erős támogatás",
+    "strongResistance": "Erős ellenállás",
+    "bullishCandleReason": "Az utolsó gyertya bukásan záródik XPH0X-kor. Fontolja meg a vásárlást a legközelebbi támogatás alatti stop loss-val.",
+    "bearishCandleReason": "Az utolsó gyertya XPH0X-nél medve zár. Fontolja meg a legközelebbi ellenállás feletti stop loss-eladást."
   },
   "neuralLab": {
     "title": "AI Trading Lab",
@@ -4538,21 +4542,21 @@
     },
     "push": {
       "appName": "Roua Trading",
-      "notificationsEnabled": "Notifications enabled successfully! You will now receive trading alerts.",
+      "notificationsEnabled": "Az értesítések sikeresen engedélyezve! Most kereskedési figyelmeztetéseket fog kapni.",
       "alertTitle": "Roua Trading Alert",
-      "chartTitle": "Roua — {symbol}",
-      "enableDeviceNotifications": "Enable Device Notifications",
-      "receiveAlertsInstantly": "Receive trading alerts instantly even outside the app",
-      "enable": "Enable",
-      "secureNote": "Secure notifications — we never share your data with third parties"
+      "chartTitle": "Roua — XPH0X",
+      "enableDeviceNotifications": "Eszközértesítések engedélyezése",
+      "receiveAlertsInstantly": "Kereskedési figyelmeztetések azonnali fogadása, még az alkalmazáson kívül is",
+      "enable": "Engedélyezés",
+      "secureNote": "Biztonságos értesítések – soha nem osztjuk meg az adatait harmadik felekkel"
     }
   },
   "commandPalette": {
-    "title": "Command Palette",
-    "search": "Search commands, indicators, tools...",
-    "noResults": "No results found",
-    "navigate": "Navigate",
-    "execute": "Execute",
+    "title": "Parancspaletta",
+    "search": "Parancsok, indikátorok, eszközök keresése...",
+    "noResults": "Nem található találat",
+    "navigate": "Navigálás",
+    "execute": "Végrehajtás",
     "close": "Bezárás"
   },
   "leaderboardPage": {
@@ -4587,15 +4591,15 @@
     "colCopyAvailable": "Copy Available",
     "you": "You",
     "follow": "Follow",
-    "unfollow": "Unfollow",
+    "unfollow": "Követés leállítása",
     "notAvailable": "Nem elérhető",
-    "yourRanking": "Your Current Ranking",
-    "returnLabel": "Return",
-    "winRateLabel": "Win Rate",
-    "consistency": "Consistency",
-    "maxDrawdown": "Max Drawdown",
-    "followers": "Followers",
-    "achievementBadges": "Achievement Badges"
+    "yourRanking": "Jelenlegi helyezése",
+    "returnLabel": "Megtérülés",
+    "winRateLabel": "Nyerési arány",
+    "consistency": "Konzisztencia",
+    "maxDrawdown": "Maximális lehívás",
+    "followers": "Követők",
+    "achievementBadges": "Eredményjelvények"
   },
   "chartToolbar": {
     "timeframe": "Timeframe",
@@ -4631,19 +4635,19 @@
     "indicators": "Indicators",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
-    "resetView": "Reset View",
-    "chartTrading": "Chart Trading",
-    "compareAsset": "Compare Asset",
-    "mtfTooltip": "Multi-Timeframe Analysis",
-    "chartGridTooltip": "Chart Grid",
-    "shareChart": "Share Chart",
-    "play": "Play",
-    "pause": "Pause",
-    "playUpdate": "Play Updates",
-    "pauseUpdate": "Pause Updates",
-    "more": "More Tools",
+    "resetView": "Nézet visszaállítása",
+    "chartTrading": "Grafikon kereskedés",
+    "compareAsset": "Eszközök összehasonlítása",
+    "mtfTooltip": "Több időkeretes elemzés",
+    "chartGridTooltip": "Diagramrács",
+    "shareChart": "Diagram megosztása",
+    "play": "Lejátszás",
+    "pause": "Szünet",
+    "playUpdate": "Frissítések lejátszása",
+    "pauseUpdate": "Frissítések szüneteltetése",
+    "more": "További eszközök",
     "aiPatternAnalysis": "AI Pattern Analysis",
-    "livePatternProgress": "Live Pattern Progress"
+    "livePatternProgress": "Élő AI mintaelemzés"
   },
   "aiCoach": {
     "ratingExcellent": "Excellent",
@@ -4677,8 +4681,8 @@
     "askCoachMore": "Tell me more about: ",
     "chatHeader": "Chat with AI Coach",
     "chatEmpty": "Ask your AI coach anything about your trading performance...",
-    "coachThinking": "Analyzing...",
-    "chatPlaceholder": "Ask about your performance..."
+    "coachThinking": "Elemzés...",
+    "chatPlaceholder": "Kérdezzen a teljesítményéről..."
   },
   "notificationTypes": {
     "newUser": {
@@ -4742,36 +4746,552 @@
       "body": "{symbol} is now {condition} {targetPrice}"
     },
     "botSignal": {
-      "title": "Bot: {side} Signal",
-      "body": "{message}"
+      "title": "Bot:{side}jel",
+      "body": "XPH0X"
     },
     "aiAnalysis": {
-      "title": "AI Analysis: {sentiment}",
-      "body": "{summary}"
+      "title": "AI elemzés: XPH0X",
+      "body": "XPH0X"
     },
     "scannerSignal": {
-      "title": "Scanner: {symbol} — {direction}",
-      "body": "Signal strength {confidence}% | {reasons}"
+      "title": "Szkenner:{symbol}— XPH1X",
+      "body": "Jelerősség{confidence}% |  XPH1X"
     },
     "sharpMove": {
-      "title": "Sharp Move: {symbol}",
-      "body": "Price changed by {change}% — may be a trading opportunity"
+      "title": "Éles mozgás: XPH0X",
+      "body": "Az ár{change}%-kal módosult — kereskedési lehetőség lehet"
     },
     "autoExecuteSuccess": {
-      "title": "Auto-execute: {side} {pair}",
-      "body": "Signal auto-executed (confidence: {confidence}%) — Order: {orderId}..."
+      "title": "Automatikus végrehajtás:{side}XPH1X",
+      "body": "Jel automatikus végrehajtása (bizalom:{confidence}%) — Rendelés:{orderId}..."
     },
     "autoExecuteFailed": {
-      "title": "Auto-execute Failed",
-      "body": "No exchange credentials linked. Please link your account first."
+      "title": "Automatikus végrehajtás Sikertelen",
+      "body": "Hitelesítő adatok Nincs hivatkozás. Kérjük, először kapcsolja össze fiókját."
     },
     "autoExecuteRejected": {
-      "title": "Auto-execute Rejected",
-      "body": "Auto-execute not performed for {pair}: {reason}"
+      "title": "Automatikus végrehajtás elutasítva",
+      "body": "Az automatikus végrehajtás nem történt{pair}esetén: XPH1X"
     },
     "autoExecuteError": {
-      "title": "Auto-execute Error",
-      "body": "Connection failed: {error}"
+      "title": "Automatikus végrehajtási hiba",
+      "body": "Sikertelen csatlakozás: XPH0X"
     }
+  },
+  "categories": {
+    "forex": "Forex",
+    "economy": "Gazdaság",
+    "tech": "Tech"
+  },
+  "newUser": {
+    "title": "New User",
+    "body": "New user registered: {name}\nEmail: {email}"
+  },
+  "subscriptionUpgrade": {
+    "title": "Subscription Upgrade",
+    "body": "User {email} upgraded from {fromTier} to {toTier}"
+  },
+  "systemError": {
+    "title": "System Error",
+    "body": "{context}{error}"
+  },
+  "performanceAlert": {
+    "title": "Performance Alert",
+    "body": "{metric} = {value} (Threshold: {threshold})"
+  },
+  "largeTrade": {
+    "title": "Large Trade",
+    "body": "Large trade on {symbol} for {amount}\nUser: {userId}"
+  },
+  "systemUpdate": {
+    "title": "System Update",
+    "body": "{message}"
+  },
+  "newReport": {
+    "title": "{emoji} New Report",
+    "body": "📌 {title}\n📂 Category: {category}\n🏷️ Assets: {symbols}\n\n⚠️ This content is for educational purposes only and does not constitute investment advice"
+  },
+  "signalGenerated": {
+    "title": "{direction} Signal: {pair}",
+    "body": "Confidence: {confidence}% — {reason}"
+  },
+  "orderFilled": {
+    "title": "{direction} Order Filled: {symbol}",
+    "body": "Filled {quantity} {symbol} at {price}"
+  },
+  "orderRejected": {
+    "title": "{direction} Order Rejected: {symbol}",
+    "body": "Reason: {reason}"
+  },
+  "riskWarning": {
+    "title": "Trading Halted — Daily Loss Limit",
+    "body": "Today's loss reached {lossAmount} ({lossPercent}% of portfolio). Smart Executor has been automatically halted until tomorrow."
+  },
+  "positionClosed": {
+    "title": "Auto Close: {symbol}",
+    "body": "Closed {direction} {symbol} position automatically | PnL: {pnl} | Close price: {price}"
+  },
+  "positionOpened": {
+    "title": "Smart Executor: {direction} {pair}",
+    "body": "Executed {direction} {pair} @ {price} | Confidence {confidence}% | Mode {mode} | Stop Loss: {stopLoss} | Target: {takeProfit}"
+  },
+  "executionFailed": {
+    "title": "Execution Failed: {pair}",
+    "body": "Failed to execute {direction} {pair}: {reason}"
+  },
+  "priceAlert": {
+    "title": "Price Alert: {symbol}",
+    "body": "{symbol} is now {condition} {targetPrice}"
+  },
+  "botSignal": {
+    "title": "Bot:{side}jel",
+    "body": "XPH0X"
+  },
+  "aiAnalysis": {
+    "title": "AI elemzés: XPH0X",
+    "body": "XPH0X"
+  },
+  "scannerSignal": {
+    "title": "Szkenner:{symbol}— XPH1X",
+    "body": "Jelerősség{confidence}% |  XPH1X"
+  },
+  "sharpMove": {
+    "title": "Éles mozgás: XPH0X",
+    "body": "Az ár{change}%-kal módosult — kereskedési lehetőség lehet"
+  },
+  "autoExecuteSuccess": {
+    "title": "Automatikus végrehajtás:{side}XPH1X",
+    "body": "Jel automatikus végrehajtása (bizalom:{confidence}%) — Rendelés:{orderId}..."
+  },
+  "autoExecuteFailed": {
+    "title": "Automatikus végrehajtás Sikertelen",
+    "body": "Hitelesítő adatok Nincs hivatkozás. Kérjük, először kapcsolja össze fiókját."
+  },
+  "autoExecuteRejected": {
+    "title": "Automatikus végrehajtás elutasítva",
+    "body": "Az automatikus végrehajtás nem történt{pair}esetén: XPH1X"
+  },
+  "autoExecuteError": {
+    "title": "Automatikus végrehajtási hiba",
+    "body": "Sikertelen csatlakozás: XPH0X"
+  },
+  "narrator": {
+    "whatIsHappening": "What's happening in {symbol}?",
+    "aiInsights": "AI Insights",
+    "councilSignals": "Strategic Council Signals",
+    "overallTrend": "Overall Trend",
+    "institutionalBullish": "Institutional Bullish",
+    "sovereignBearish": "Sovereign Bearish",
+    "sharpVolatility": "Sharp Volatility",
+    "sidewaysVolatility": "Sideways Volatility",
+    "riskLevel": "Risk Level",
+    "veryLowRisk": "Very Low",
+    "highRiskLevel": "High Risk",
+    "digitalConfidenceIndex": "Digital Confidence Index",
+    "analysisSteps": "Analysis Steps",
+    "globalNewsAnalysis": "Global News Analysis",
+    "technicalIndicatorsCheck": "Technical Indicators Check (RSI/MACD)",
+    "liquidityFlowMeasurement": "Liquidity Flow Measurement",
+    "riskAssessment": "Risk Assessment",
+    "assistantReading": "The assistant is reading {symbol} now, connecting the narrative to the trend and live data.",
+    "assistantConnecting": "The assistant connects the narrative to current market movements.",
+    "nextTriggerLabel": "Next Trigger:",
+    "tapToExpand": "Tap to expand...",
+    "smartRecommendationTitle": "Smart Recommendation — {symbol}",
+    "analyzing": "Analyzing...",
+    "entryLabel": "Entry:",
+    "smartRecommendation": "Smart Recommendation",
+    "alert": "Alert",
+    "alertTitle": "Roua — {symbol} Alert",
+    "sentiment": "Sentiment",
+    "confidence": "Confidence",
+    "bullish": "Bullish",
+    "bearish": "Bearish",
+    "neutralSentiment": "Neutral",
+    "volatile": "Volatile",
+    "recommendationUnavailable": "Could not get a recommendation right now",
+    "aiConnectionError": "Error connecting to AI models",
+    "recommendationPrompt": "Give me a direct trading recommendation for {symbol} with entry point, stop loss, and target. Answer in this format only: Action | Entry | Stop Loss | Target | Reason"
+  },
+  "bottomNav": {
+    "chart": "Chart",
+    "trade": "Trade",
+    "wallet": "Wallet"
+  },
+  "home": {
+    "chart": "Chart",
+    "agent": "Agent",
+    "ai": "AI"
+  },
+  "wallet": {
+    "title": "Wallet",
+    "buyingPower": "Buying Power",
+    "equity": "Equity"
+  },
+  "news": {
+    "none": "No news currently"
+  },
+  "positions": {
+    "none": "No open positions"
+  },
+  "more": {
+    "ai": "AI Intelligence",
+    "linkAccounts": "Link Accounts",
+    "markets": "Markets"
+  },
+  "chart": {
+    "loading": "Loading chart...",
+    "candles": "Candles",
+    "line": "Line",
+    "area": "Area",
+    "bars": "Bars",
+    "pendingOrder": "Pending Order",
+    "selectPair": "Select Pair",
+    "timeframe": "Timeframe",
+    "chartType": "Chart Type",
+    "newOrder": "New Order",
+    "currentPrice": "Current Price",
+    "orderPrice": "Order Price",
+    "orderValue": "Value",
+    "executing": "Executing...",
+    "invalidPrice": "Invalid price",
+    "zeroPriceError": "Cannot execute order at zero price",
+    "executionFailed": "Execution failed",
+    "unknownError": "Unknown error",
+    "positionOpened": "Position opened",
+    "targetPrice": "Target Price",
+    "stopPrice": "Stop Price"
+  },
+  "trade": {
+    "agentTitle": "Autonomous Agent",
+    "agentDesc": "AI-powered autonomous trading",
+    "strategyAuto": "Auto (Adaptive)",
+    "strategyScalping": "Scalping",
+    "strategySwing": "Swing",
+    "strategyGrid": "Grid",
+    "strategyMeanRevert": "Mean Reversion",
+    "strategyBreakout": "Breakout",
+    "strategyDCA": "DCA",
+    "strategyVwapRsi": "VWAP+RSI",
+    "statusRunning": "Running",
+    "statusEmergencyStop": "Emergency Stop",
+    "statusLossLimit": "Loss Limit",
+    "statusWaiting": "Waiting",
+    "dailyProfit": "Daily Profit",
+    "trades": "Trades",
+    "consecutiveLosses": "Consecutive Losses"
+  },
+  "settings": {
+    "tradingMode": "Trading Mode",
+    "notifications": "Notifications",
+    "sound": "Hang"
+  },
+  "kyc": {
+    "linkDesc": "Kapcsolja össze kereskedési számláját a kereskedés megkezdéséhez",
+    "noAccounts": "Nincsenek összekapcsolt számlák",
+    "notLinked": "Nincs összekapcsolva",
+    "connectionTestRequired": "Connection test required",
+    "connectionTestRequiredDesc": "Please complete a successful connection test before proceeding",
+    "requiredFields": "Required fields",
+    "requiredFieldsDesc": "Please fill in all required fields before proceeding",
+    "connectionSuccess": "Connection successful",
+    "connectionSuccessDesc": "Successfully verified connection to {exchange}",
+    "accountLinkedSuccess": "Account linked successfully",
+    "accountLinkedSuccessDesc": "Your {exchange} account has been linked successfully..."
+  },
+  "profile": {
+    "nameRequired": "Name is required",
+    "nameRequiredDesc": "Please enter your display name",
+    "changesSaved": "Changes saved",
+    "changesSavedDesc": "Your profile has been updated successfully",
+    "saveError": "Save error",
+    "saveErrorDesc": "An error occurred while saving changes",
+    "confirmRequired": "Confirmation required",
+    "confirmRequiredDesc": "Please type \"delete\" to confirm",
+    "accountDeleted": "Account deleted",
+    "accountDeletedDesc": "Your account will be deleted within 30 days",
+    "deleteError": "Error",
+    "deleteErrorDesc": "An error occurred while deleting the account",
+    "emailChangeTitle": "Email change",
+    "emailChangeDesc": "A confirmation link will be sent to your new email"
+  },
+  "leaderboard": {
+    "unfollowed": "Unfollowed {name}",
+    "unfollowedDesc": "This account will no longer be tracked",
+    "followed": "Following {name}",
+    "followedDesc": "This account's performance will be tracked"
+  },
+  "trading": {
+    "stopLossRequired": "Stop loss is mandatory! Cannot submit order without stop loss — this is Roua's first rule.",
+    "slMustBeBelowEntry": "Stop loss for buy orders must be below the current entry price.",
+    "slMustBeAboveEntry": "Stop loss for sell orders must be above the current entry price.",
+    "qtyMustBePositive": "Quantity must be greater than zero."
+  },
+  "execution": {
+    "orderCancelled": "Order cancelled",
+    "orderCancelledDesc": "Order {orderId} has been cancelled...",
+    "orderFilled": "Filled {side} {qty} {symbol}{filled}",
+    "orderFillTitle": "{side} {symbol} completed",
+    "orderFillDesc": "Executed {qty} {symbol}{filled} [{source}]",
+    "orderRejected": "Order rejected: {reason}",
+    "executionFailed": "Execution failed: {error}",
+    "sourceExecutor": "Executor",
+    "sourceAgent": "Agent",
+    "sourcePosition": "Position",
+    "closeProfit": "Closed with profit",
+    "closeLoss": "Closed with loss",
+    "symbolRequired": "Symbol required",
+    "symbolRequiredDesc": "Please enter a symbol",
+    "invalidQty": "Invalid quantity",
+    "limitPriceRequired": "Limit price required",
+    "limitPriceRequiredDesc": "Please enter the limit order price",
+    "slBelowBuyPrice": "Stop loss must be below buy price",
+    "tpAboveBuyPrice": "Take profit must be above buy price",
+    "slAboveSellPrice": "Stop loss must be above sell price",
+    "tpBelowSellPrice": "Take profit must be below sell price",
+    "confirmOrder": "Confirm {type} {side} order for {qty} {symbol}{limit}?",
+    "maxPositions": "You have {count} open positions (max: {max}). Close some first.",
+    "submittingOrder": "Submitting order...",
+    "marketType": "Market",
+    "atPrice": " at price {price}",
+    "riskRejected": "Order rejected by risk gatekeeper",
+    "duplicateOrder": "This order has already been received. Please wait.",
+    "orderIdMissing": "Order ID not received from provider",
+    "networkError": "Network error — unable to reach provider",
+    "submitFailed": "Failed to submit order — please try again",
+    "orderSuccessStatus": "{side} {qty} {symbol}{filled}\n{source} — Order ID: {orderId}...",
+    "safeLabel": "Safe",
+    "directLabel": "Direct",
+    "sessionExpired": "Session expired — please log in again"
+  },
+  "exchange": {
+    "addKeyFailed": "Failed to add key",
+    "addKeySuccess": "Key added successfully!",
+    "disableTestMode": "Disable test mode",
+    "enableTestMode": "Enable test mode",
+    "saved": "Saved",
+    "devFeature": "This feature is under development — the key will be saved locally only"
+  },
+  "admin": {
+    "monitorNotPublished": "Monitor agent not published — set MONITOR_AGENT_URL first",
+    "agentStarted": "Agent started",
+    "agentStopped": "Agent stopped",
+    "commandFailed": "Failed to execute command",
+    "serverError": "Server connection error",
+    "settingsSaved": "Monitor settings saved",
+    "settingsSaveFailed": "Failed to save settings",
+    "fetchFailed": "Failed to fetch data from server",
+    "serverConnectionFailed": "Server connection failed",
+    "loginDisabled": "Login disabled — admin password not set. Set ADMIN_PASSWORD env variable first.",
+    "serverErrorRetry": "Server error — try again later",
+    "connectionError": "Server connection error",
+    "testNotification": "Test notification",
+    "testNotificationBody": "If you see this notification, browser alerts are working correctly!",
+    "settingsSavedSuccess": "Settings saved successfully",
+    "saveFailedErrors": "Save failed: {errors}",
+    "connectionErrorDetail": "Connection error: {error}",
+    "telegramTestSent": "Test message sent — check Telegram",
+    "connectionFailed": "Connection failed",
+    "cleanDummyConfirm": "All dummy accounts will be deleted...",
+    "cleanDummyFailed": "Failed to clean dummy accounts",
+    "cleanDummySuccess": "{count} dummy accounts deleted",
+    "fetchStatsFailed": "Failed to fetch statistics",
+    "fetchSignalsFailed": "Failed to fetch smart signals from server",
+    "dataUnavailable": "Data unavailable — server connection failed",
+    "demoDataWarning": "Demo data — analysis server connection failed",
+    "scannerFailed": "Failed to fetch scanner results from server",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "notVerified": "Not verified",
+    "newUser": "New user",
+    "subUpgrade": "Subscription upgrade",
+    "systemError": "System error",
+    "performanceAlert": "Performance alert",
+    "bigTrade": "Big trade",
+    "systemUpdate": "System update",
+    "sessionExpired": "Session expired — please log in again",
+    "sessionExpiredShort": "Session expired",
+    "incorrectPassword": "Incorrect password",
+    "connectionTimeout": "Connection timeout — server not responding",
+    "noInternetConnection": "Cannot connect to server — check internet connection",
+    "dbUnavailable": "Database currently unavailable — try again later",
+    "confirmDeleteDummy": "All dummy accounts (guest-*, user-*) and unverified users will be permanently deleted. Are you sure?",
+    "confirmDeleteKey": "Are you sure you want to delete this key? This action cannot be undone.",
+    "confirmTestnet": "Are you sure you want to {action}? The API key connection between Testnet and Mainnet will change.",
+    "noDummyAccounts": "No dummy accounts to delete",
+    "deleteErrors": "({count} errors)",
+    "guestNotAllowed": "Binance linking not available in guest mode",
+    "mustLoginFirst": "You must log in with a real account before adding exchange keys to keep balance isolated per user."
+  },
+  "push": {
+    "appName": "Roua Trading",
+    "notificationsEnabled": "Az értesítések sikeresen engedélyezve! Most kereskedési figyelmeztetéseket fog kapni.",
+    "alertTitle": "Roua Trading Alert",
+    "chartTitle": "Roua — XPH0X",
+    "enableDeviceNotifications": "Eszközértesítések engedélyezése",
+    "receiveAlertsInstantly": "Kereskedési figyelmeztetések azonnali fogadása, még az alkalmazáson kívül is",
+    "enable": "Engedélyezés",
+    "secureNote": "Biztonságos értesítések – soha nem osztjuk meg az adatait harmadik felekkel"
+  },
+  "hero": {
+    "subtitle": "Roua",
+    "aiModels": "AI Models",
+    "assetClasses": "Supported Asset Classes",
+    "sixAiModels": "Six Harmonious AI Models",
+    "fullDescription": "The most advanced AI-powered account linking platform in the region. Where the financial universe meets a machine mind that predicts before it happens.",
+    "setupSeconds": "Seconds to Setup",
+    "dailyMonitoring": "Hours Daily Monitoring"
+  },
+  "navbar": {
+    "models": "Models",
+    "method": "Method",
+    "experiences": "Experiences",
+    "startFree": "Start Free",
+    "ai": "AI Intelligence",
+    "liveMarket": "Live Market",
+    "testimonials": "Trader Reviews"
+  },
+  "howItWorks": {
+    "title": "From Sign Up to Profits",
+    "titlePart1": "From Sign Up to",
+    "titleHighlight": "Profits",
+    "subtitle": "Just four steps separate you from smarter AI-powered trading",
+    "step1Title": "Create Your Account",
+    "step2Title": "Link Your Accounts Securely",
+    "step3Title": "Let AI Work for You",
+    "step4Title": "Protect Your Profits",
+    "tradeSmart": "Trade Smart",
+    "step1Desc": "Log in under 30 seconds via Google or Passkey. No passwords, no complexity.",
+    "step2Desc": "Eight AI models analyze markets and generate trading signals based on multi-model analysis.",
+    "step3Desc": "Execute trades based on data-driven insights with smart risk protection.",
+    "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility."
+  },
+  "aiModels": {
+    "fastProcessing": "Ultra-Fast Processing",
+    "multilingualAnalyst": "Multilingual Model",
+    "chartAnalysis": "Chart Analysis",
+    "secureInfra": "Biztonságos infrastruktúra",
+    "localModels": "Privát helyi modellek",
+    "comprehensiveData": "Átfogó piaci adatok",
+    "orchestraTitle": "Galaxy Orchestra",
+    "orchestraSubtitle": "Hat AI modell működik harmóniában",
+    "sectionTitlePart1": "Hat AI modell",
+    "sectionTitleMiddle": "Munka",
+    "sectionTitleHighlight": "Harmóniában",
+    "sectionDesc": "Minden modell az elemzés egy bizonyos aspektusára specializálódott, így együtt dolgozva a valós idejű piaci elemzéssel és átfogó piaci betekintéssel",
+    "fastProcessingDesc": "nyújtanak átfogó piaci betekintést. teljesítmény",
+    "multilingualAnalystDesc": "Mélyen ismeri az arab és a globális pénzügyi kontextust, támogatja az arab, angol, kínai és japán nyelvet",
+    "chartAnalysisDesc": "Fejlett technikai mintaelemzés nagy pontossággal és automatikus árképzés-felismeréssel",
+    "secureInfraDesc": "Vállalati szintű adatvédelemmel és teljes titkosítással rendelkező alapmodellekhez",
+    "localModelsDesc": "Érzékeny elemzésekhez a felhőtől távol, teljes adatvédelmet biztosítva",
+    "comprehensiveDataDesc": "Adminisztrációs eszközzel a globális piacra vonatkozóan"
+  },
+  "features": {
+    "title": "Közvetlenül a globális piacról. Intelligens kereskedők",
+    "sectionTitlePart1": "Speciális eszközök",
+    "sectionTitleHighlight": "Intelligens kereskedők számára",
+    "sectionDesc": "AI-alapú eszközök integrált csomagja a piacelemzéshez és az intelligensebb döntésekhez",
+    "multilingualAnalyst": "Többnyelvű elemző",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "Egységes hírradar",
+    "sanctuary": "Portfólió Sanctuary",
+    "smartLab": "Valós idejű Anaights Markets",
+    "multilingualAnalystDesc": "Intelligens Laboratóriumok több nyelven. nyelvi akadályok nélkül. Támogatja az arab, angol, kínai, japán és más fontosabb nyelveket.",
+    "rouaSignalsDesc": "Azonnali mesterséges intelligencia által vezérelt kereskedési jelek minta- és hangulatelemzésen alapuló többmodellre vonatkozó ajánlásokhoz.",
+    "newsRadarDesc": "Hírek és közösségi források ezreit figyeli egyszerre, szűrve a zajt, hogy csak azt jelenítse meg, ami a portfólióját érinti.",
+    "sanctuaryDesc": "Intelligens portfólióvédelem az éles volatilitás ellen prediktív kockázati figyelmeztetések és automatikus újraegyensúlyozási javaslatok révén.",
+    "smartLabDesc": "Tesztelje a stratégiákat valósághű szimulációban, mielőtt kockáztat. Elemezze a múltbeli teljesítményt, és valós adatok alapján optimalizálja."
+  },
+  "neuralFeatures": {
+    "title": "Intelligens funkciók",
+    "titlePart1": "Smart",
+    "subtitle": "Advanced AI-powered technologies for market analysis and investment protection",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "sanctuary": "Portfolio Sanctuary",
+    "smartLab": "Smart Lab",
+    "multilingualAnalystDesc": "Analyzes markets in 12+ languages",
+    "rouaSignalsDesc": "Trading signals with AI council",
+    "newsRadarDesc": "Monitors multiple news sources",
+    "sanctuaryDesc": "Military-grade encryption to protect your assets",
+    "smartLabDesc": "Test your strategies before risking"
+  },
+  "testimonials": {
+    "title": "What Traders Say",
+    "titlePart1": "What",
+    "titleHighlight": "Traders Say",
+    "sectionDesc": "Discover the features that distinguish Roua platform",
+    "multilingualAnalyst": "Multilingual Analyst",
+    "rouaSignals": "Roua Signals",
+    "newsRadar": "News Radar",
+    "multilingualAnalystText": "The multilingual analyst enables global market analysis in multiple languages, providing comprehensive insights without a translation team.",
+    "multilingualAnalystName": "Analyst Feature",
+    "multilingualAnalystRole": "Multilingual Analysis",
+    "rouaSignalsText": "Roua signals powered by eight AI models that discuss and reach consensus before providing recommendations, enhancing analysis reliability.",
+    "rouaSignalsName": "Signals Feature",
+    "rouaSignalsRole": "Multi-Model Consensus",
+    "newsRadarText": "The news radar monitors news sources and filters impactful events, helping make faster decisions based on latest developments.",
+    "newsRadarName": "Radar Feature",
+    "newsRadarRole": "Smart News Tracking"
+  },
+  "cta": {
+    "title": "Ready to Link Your Accounts Smartly?",
+    "titlePart1": "Ready to Link Your Accounts",
+    "titleHighlight": "Smartly?",
+    "joinUniverse": "Join the Universe",
+    "startLinking": "Start Linking Accounts",
+    "joinFree": "Join Now — Free",
+    "launchNow": "Launch Roua Now",
+    "joinCaption": "Join thousands of traders who trust Roua for smarter decisions",
+    "noCreditCard": "No credit card required · Setup in under a minute"
+  },
+  "liveChart": {
+    "title": "Track Markets in Real-Time",
+    "demoData": "Demo Data",
+    "demoDisclaimer": "Demo data — does not represent real prices"
+  },
+  "countdown": {
+    "upcomingEvent": "Next Financial Event",
+    "fedEvent": "Next Financial Event: US Federal Reserve Report",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "seconds": "Seconds"
+  },
+  "mediaGallery": {
+    "dashboard": "Dashboard",
+    "charts": "Charts",
+    "aiCouncil": "AI Council"
+  },
+  "footer": {
+    "brandDesc": "AI-Powered Smart Account Linking Platform"
+  },
+  "cosmicCanvas": {
+    "linguisticAnalyst": "Linguistic Analyst",
+    "chartAnalysis": "Chart Analysis",
+    "dataProcessing": "Data Processing",
+    "secureInfra": "Secure Infrastructure",
+    "localModels": "Local Models",
+    "liveMarketData": "Live Market Data",
+    "defaultTitle": "AI Model",
+    "defaultDesc": "Model Description",
+    "linguisticAnalystDesc": "Analyzes markets in multiple languages in real-time",
+    "chartAnalysisDesc": "Advanced technical pattern analysis with high precision",
+    "dataProcessingDesc": "Ultra-fast real-time inference",
+    "secureInfraDesc": "Data and foundational model protection",
+    "localModelsDesc": "Sensitive analysis away from the cloud",
+    "liveMarketDataDesc": "Comprehensive data directly from global markets"
+  },
+  "liveSignals": {
+    "disclaimer": "Illustrative examples only — do not represent real signals"
+  },
+  "galaxyOrchestra": {
+    "closeTooltip": "Click to close",
+    "groqDesc": "Ultra-fast processing for instant inference and real-time market analysis",
+    "glm4Desc": "Multilingual model for understanding Arabic and global financial context",
+    "geminiDesc": "Advanced chart and technical pattern analysis with high precision",
+    "bedrockDesc": "Secure and reliable infrastructure for foundational models with data protection",
+    "ollamaDesc": "Private local models for sensitive analysis away from the cloud",
+    "twelveDataDesc": "Comprehensive live market data from global markets and indicators"
   }
 }

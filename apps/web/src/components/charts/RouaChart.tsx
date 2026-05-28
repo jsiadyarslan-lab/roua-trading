@@ -1696,8 +1696,7 @@ export default function RouaChart({
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
         onToggleCompare={() => setShowCompare(!showCompare)}
-        onToggleMTF={() => setShowSmartGrid(!showSmartGrid)}
-        onToggleChartGrid={() => setShowSmartGrid(!showSmartGrid)}
+        onToggleSmartGrid={() => setShowSmartGrid(!showSmartGrid)}
         onToggleShare={() => setShowShare(!showShare)}
         showCompare={showCompare}
         // ── 5 New Feature Toolbar Props ──
@@ -2052,10 +2051,20 @@ export default function RouaChart({
             onClose={() => setShowSmartGrid(false)}
             defaultSymbol={selectedSymbol}
             defaultTimeframe={timeframe}
-            onOpenDrawingPanel={() => setShowDrawingPanel(true)}
-            onOpenIndicatorPanel={() => setShowIndicatorPanel(true)}
-            onOpenAIPanel={() => setShowAIPanel(true)}
-            onOpenTrading={() => setShowChartTrading(true)}
+            onSwitchToChart={(symbol, tf, openTool) => {
+              // Switch main chart to the selected symbol/timeframe
+              setSelectedSymbol(symbol);
+              setTimeframe(tf);
+              // Open the requested tool after a brief delay (chart needs to load)
+              if (openTool) {
+                setTimeout(() => {
+                  if (openTool === 'drawing') setShowDrawingPanel(true);
+                  else if (openTool === 'indicators') setShowIndicatorPanel(true);
+                  else if (openTool === 'ai') setShowAIPanel(true);
+                  else if (openTool === 'trading') setShowChartTrading(true);
+                }, 500);
+              }
+            }}
           />
         )}
 

@@ -47,9 +47,8 @@ interface ChartToolbarProps {
   showChartTrading?: boolean;
   showWatchlist?: boolean;
   onToggleCompare?: () => void;
-  onToggleMTF?: () => void;
+  onToggleSmartGrid?: () => void;
   onToggleShare?: () => void;
-  onToggleChartGrid?: () => void;
   showCompare?: boolean;
   // ── 5 New Feature Toggle Props ──
   showFootprint?: boolean;
@@ -97,7 +96,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
     showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
-    onToggleCompare, onToggleMTF, onToggleShare, onToggleChartGrid, showCompare,
+    onToggleCompare, onToggleSmartGrid, onToggleShare, showCompare,
     showFootprint, onToggleFootprint,
     showAlerts, onToggleAlerts,
     showPatternProgress, onTogglePatternProgress,
@@ -388,8 +387,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         { label: '⏪ Replay Mode', action: onToggleReplay || (() => {}) },
         { label: '🔲 Heatmap', action: onToggleHeatmap || (() => {}) },
         { label: `⚖️ ${t('compare')}`, action: onToggleCompare || (() => {}) },
-        { label: `📊 ${t('mtfAnalysis')}`, action: onToggleMTF || (() => {}) },
-        { label: `▦ ${t('chartGrid')}`, action: onToggleChartGrid || (() => {}) },
+        { label: `🔲 ${t('chartGrid')}`, action: onToggleSmartGrid || (() => {}) },
         { label: `🔗 ${t('share')}`, action: onToggleShare || (() => {}) },
         { label: `📋 ${t('watchlist')}`, action: onToggleWatchlist || (() => {}) },
         { label: `💾 ${t('templateManager')}`, action: onToggleTemplateManager || (() => {}) },
@@ -568,22 +566,11 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* MTF — نفس الزوج، أطر زمنية مختلفة */}
-          {onToggleMTF && (
-            <button
-              style={toggleBtnStyle(false)}
-              onClick={onToggleMTF}
-              title={t('mtfTooltip')}
-            >
-              MTF
-            </button>
-          )}
-
-          {/* Chart Grid — أزواج مختلفة في شبكة */}
-          {onToggleChartGrid && (
+          {/* Smart Grid */}
+          {onToggleSmartGrid && (
             <button
               style={btnStyle}
-              onClick={onToggleChartGrid}
+              onClick={onToggleSmartGrid}
               title={t('chartGridTooltip')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -895,30 +882,17 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
-        {/* MTF — Multi-Timeframe Analysis (same symbol, different timeframes) */}
-        {onToggleMTF && (
+        {/* Smart Grid */}
+        {onToggleSmartGrid && (
           <button
             style={toggleBtnStyle(false)}
-            onClick={onToggleMTF}
-            title={t('mtfTooltip')}
+            onClick={onToggleSmartGrid}
+            title={t('chartGridTooltip')}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/>
             </svg>
-            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>MTF</span>
-          </button>
-        )}
-
-        {/* Chart Grid — Multi-symbol grid layout */}
-        {onToggleChartGrid && (
-          <button
-            style={btnStyle}
-            onClick={onToggleChartGrid}
-            title={t('chartGridTooltip')}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-            </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>Grid</span>
           </button>
         )}
 

@@ -237,7 +237,6 @@ export function SmartGrid({
   const seriesRefs = useRef<Map<string, any>>(new Map());
   const volumeSeriesRefs = useRef<Map<string, any>>(new Map());
   const refreshIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const crosshairSubsRef = useRef<Array<() => void>>([]);
   const initializedCellsRef = useRef<Set<string>>(new Set());
   // pendingLoadsRef now tracks cellId → version to prevent stale finally blocks
   // from removing a new load's entry
@@ -692,48 +691,11 @@ export function SmartGrid({
     setTimeout(() => loadDataForCell(cell, true), delay);
   }, [cellStates, updateCellState, loadDataForCell]);
 
-  // ── Crosshair time sync (ALWAYS ON) ──
-  // Debounced — only re-subscribe after cells settle (500ms)
-  useEffect(() => {
-    // Unsubscribe from old subs
-    crosshairSubsRef.current.forEach(unsub => {
-      if (typeof unsub === 'function') { try { unsub(); } catch {} }
-    });
-    crosshairSubsRef.current = [];
-
-    // Debounce: wait for cells to settle before subscribing
-    const subTimer = setTimeout(() => {
-      const charts = Array.from(chartInstancesRef.current.entries());
-      if (charts.length < 2) return;
-
-      charts.forEach(([id, chart]) => {
-        try {
-          // Guard: chart might have been destroyed by now
-          if (!chartInstancesRef.current.has(id)) return;
-          const unsub = chart.timeScale().subscribeVisibleTimeRangeChange((range: any) => {
-            if (!range) return;
-            charts.forEach(([otherId, otherChart]) => {
-              if (otherId === id) return;
-              // Guard: chart may have been destroyed
-              if (!chartInstancesRef.current.has(otherId)) return;
-              try { otherChart.timeScale().setVisibleRange(range); } catch {}
-            });
-          });
-          if (typeof unsub === 'function') {
-            crosshairSubsRef.current.push(unsub);
-          }
-        } catch {}
-      });
-    }, 500); // 500ms debounce to avoid re-subscribing during rapid changes
-
-    return () => {
-      clearTimeout(subTimer);
-      crosshairSubsRef.current.forEach(unsub => {
-        if (typeof unsub === 'function') { try { unsub(); } catch {} }
-      });
-      crosshairSubsRef.current = [];
-    };
-  }, [cells]);
+  // ── Crosshair time sync DISABLED ──
+  // Each chart operates independently — scrolling/zooming one chart
+  // should NOT affect other charts. Users expect full independence.
+  // Previous version synced all charts' visible ranges which caused
+  // confusion when different symbols had different time ranges.
 
   // ── Cell Management ──
   const destroyCellChart = useCallback((cellId: string) => {

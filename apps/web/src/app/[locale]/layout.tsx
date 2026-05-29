@@ -47,7 +47,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: 'cover',
-  themeColor: '#060A14',
+  themeColor: '#0B0E14',
 }
 
 export async function generateMetadata({
@@ -95,12 +95,23 @@ export async function generateMetadata({
   return {
     title,
     description,
+    manifest: '/manifest.json',
     appleWebApp: {
       capable: true,
       statusBarStyle: "black-translucent",
-      title: "Roua",
+      title: "رؤى",
     },
-    applicationName: "Roua Link",
+    applicationName: "رؤى",
+    icons: {
+      icon: [
+        { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
+        { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+        { url: '/favicon.svg', type: 'image/svg+xml' },
+      ],
+      apple: [
+        { url: '/icon-192.png', sizes: '192x192' },
+      ],
+    },
     alternates: {
       canonical: "/",
       languages: {

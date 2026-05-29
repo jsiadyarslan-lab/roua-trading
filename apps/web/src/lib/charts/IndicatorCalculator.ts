@@ -4,6 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData, IndicatorKey, ActiveIndicator } from './types';
+import { sanitizeTimeForIndicator as sanitizeTime } from './chart-utils';
 
 // ── Lazy-load technicalindicators to avoid SSR issues ──
 let _ti: typeof import('technicalindicators') | null = null;
@@ -66,15 +67,8 @@ export interface PivotResult {
 }
 
 // ── Helper: extract arrays from candles ──────────────────
-// FIX: sanitizeTime ensures every candle's time is a Unix timestamp number (seconds).
-// This prevents the fatal "Cannot update oldest data, last time=[object Object]" error
-// from lightweight-charts when a Date object or string leaks into the time field.
-const sanitizeTime = (t: any): number => {
-  if (typeof t === 'number' && isFinite(t)) return t;
-  if (t instanceof Date) return Math.floor(t.getTime() / 1000);
-  if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : 0; }
-  return 0;
-};
+// sanitizeTime is now imported from chart-utils.ts (shared utility).
+// Returns 0 for invalid inputs, which is safe for indicator calculations.
 
 function closes(candles: CandleData[]): number[] {
   return candles.map(c => c.close);

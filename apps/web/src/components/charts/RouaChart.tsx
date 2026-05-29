@@ -275,6 +275,19 @@ export default function RouaChart({
     candlesRef.current = [];
     candlesClearedAtRef.current = Date.now();
     prevSymbolRef.current = selectedSymbol;
+
+    // FIX: Reset singleton module-level state from pattern-engine and
+    // pattern-renderer. Without this, switching from BTC → ETH keeps
+    // BTC's incremental state and drawn patterns, causing incorrect
+    // pattern detection and stale series references on the chart.
+    try {
+      import('@/lib/charts/pattern-engine').then(mod => {
+        mod.resetPatternEngineState();
+      }).catch(() => {});
+      import('@/lib/charts/pattern-renderer').then(mod => {
+        mod.resetPatternRendererState();
+      }).catch(() => {});
+    } catch { /* non-critical */ }
   }, [timeframe, selectedSymbol]);
 
   // ── Chart Hook ─────────────────────────────────────────

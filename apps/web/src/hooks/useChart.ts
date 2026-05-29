@@ -20,6 +20,13 @@ import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
 import { T } from '@/lib/unified-tokens';
 import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
+import {
+  sanitizeTime,
+  isValidNumber,
+  binarySearchByTime,
+  CHART_COLORS as SHARED_COLORS,
+  MAX_VISIBLE_CANDLES,
+} from '@/lib/charts/chart-utils';
 
 interface UseChartOptions {
   symbol: string;
@@ -406,6 +413,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         // When zoomed out, merges data points to reduce rendering load.
         // Dramatic improvement for 10K+ point datasets without losing visual fidelity.
         enableConflation: true,
+        conflationThresholdFactor: 1.0, // Default: conflate only when <0.5px per point
       },
       handleScroll: { vertTouchDrag: !isMobile },
     };
@@ -454,6 +462,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // Hide built-in last price label on mobile — our overlay shows the price
       lastValueVisible: !isMobile,
       priceLineVisible: !isMobile,
+      // FIX: Prevent LWC from conflating OHLC data into single dots.
+      // Without this, candlesticks collapse to dots when zoomed out.
+      conflationThresholdFactor: 100,
     });
     candleSeriesRef.current = candleSeries;
     mainSeriesRef.current = candleSeries;
@@ -487,7 +498,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       const candles = candlesRef.current;
-      const candleIdx = candles.findIndex(c => c.time === param.time);
+      const candleIdx = binarySearchByTime(candles, param.time as number);
       const prevClose = candleIdx > 0 ? candles[candleIdx - 1].close : candleData.close;
       const change = candleData.close - prevClose;
       const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
@@ -844,21 +855,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
 
   // ── Update Last Candle (live tick) ─────────────────────
-  // FIX: sanitizeTime helper ensures time is always a number, never a Date object.
-  const _sanitizeTime = (t: any): number | null => {
-    if (typeof t === 'number' && isFinite(t)) return t;
-    if (t instanceof Date) return Math.floor(t.getTime() / 1000);
-    if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
-    return null;
-  };
-
   const updateLastCandle = useCallback((price: number) => {
     if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
 
     const candles = candlesRef.current;
     const last = candles[candles.length - 1];
     // FIX: Sanitize time to prevent "Cannot update oldest data, last time=[object Object]"
-    const lastTime = _sanitizeTime(last.time);
+    const lastTime = sanitizeTime(last.time);
     if (lastTime === null) return; // Invalid time — skip this update entirely
 
     const updated = { ...last, time: lastTime, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
@@ -891,7 +894,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       volumeSeriesRef.current.update({
         time: lastTime as Time,
         value: last.volume,
-        color: updated.close >= updated.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+        color: updated.close >= updated.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       } as any);
       // FIX: If volume was previously all-zero (histogram hidden) but this tick
       // has non-zero volume, make the histogram visible again.
@@ -920,7 +923,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const _flushUpdateCandle = useCallback((candle: CandleData) => {
     if (isPaused || !candleSeriesRef.current) return;
 
-    const time = _sanitizeTime(candle.time);
+    const time = sanitizeTime(candle.time);
     if (time === null) return;
 
     const candles = candlesRef.current;
@@ -961,7 +964,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           volumeSeriesRef.current.update({
             time: time as Time,
             value: candle.volume || 0,
-            color: updated.close >= updated.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+            color: updated.close >= updated.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
           } as any);
         } catch { /* chart destroyed */ }
       }
@@ -1022,19 +1025,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Indicator calculations (RSI, MACD, BB, etc.) produce NaN for the first N
     // periods before enough data is available. NaN passes !== null checks but
     // crashes lightweight-charts with "Value is null".
-    const isValid = (v: any): v is number =>
-      v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
     // FIX: Ensure time is always a Unix timestamp number (seconds), never a Date object or string.
     // This prevents the fatal "Cannot update oldest data, last time=[object Object]" error
     // from lightweight-charts when indicator data contains Date objects instead of numbers.
-    const sanitizeTime = (t: any): number | null => {
-      if (typeof t === 'number' && isFinite(t)) return t;
-      if (t instanceof Date) return Math.floor(t.getTime() / 1000);
-      if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
-      return null;
-    };
     const cleanData = (data: { time: Time; value: number }[]) =>
-      data.map(d => ({ ...d, time: sanitizeTime(d.time) as Time })).filter(d => isValid(d.time) && isValid(d.value));
+      data.map(d => ({ ...d, time: sanitizeTime(d.time) as Time })).filter(d => isValidNumber(d.time) && isValidNumber(d.value));
 
     const addOverlayLine = (key: string, data: { time: Time; value: number }[], color: string, lineWidth: number = 1, priceLineVisible = false) => {
       const filtered = cleanData(data);
@@ -1099,7 +1094,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap') {
       const data = results.map((r: any) => {
         const val = r.values?.[indicator.key] ?? r.value;
-        return isValid(val) && isValid(r.time) ? { time: r.time as Time, value: val } : null;
+        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
       }).filter((d): d is { time: Time; value: number } => d !== null);
       addOverlayLine(indicator.key, data, indicator.color);
     }
@@ -1111,7 +1106,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       results.forEach((r: any) => {
         const val = r.value;
         const dir = r.direction;
-        if (!isValid(val) || !isValid(r.time)) return;
+        if (!isValidNumber(val) || !isValidNumber(r.time)) return;
         if (dir === 'up') {
           upData.push({ time: r.time as Time, value: val });
         } else {
@@ -1128,9 +1123,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const middleData: { time: Time; value: number }[] = [];
       const lowerData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        if (isValid(r.upper) && isValid(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
-        if (isValid(r.middle) && isValid(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
-        if (isValid(r.lower) && isValid(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
+        if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
+        if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
+        if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
       });
       addOverlayLine('bb-upper', upperData, 'rgba(88,166,255,0.5)');
       addOverlayLine('bb-middle', middleData, 'rgba(88,166,255,0.3)');
@@ -1174,7 +1169,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const psarData: { time: Time; value: number; color?: string }[] = [];
       results.forEach((r: any) => {
         const val = r.values?.psar;
-        if (isValid(val) && isValid(r.time)) {
+        if (isValidNumber(val) && isValidNumber(r.time)) {
           const candleIdx = candlesRef.current.findIndex(c => c.time === r.time);
           const candle = candleIdx >= 0 ? candlesRef.current[candleIdx] : null;
           const isBullish = candle ? val < candle.close : true;
@@ -1222,11 +1217,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const chikouData: { time: Time; value: number }[] = [];
 
       results.forEach((r: any) => {
-        if (isValid(r.tenkan) && isValid(r.time)) tenkanData.push({ time: r.time as Time, value: r.tenkan });
-        if (isValid(r.kijun) && isValid(r.time)) kijunData.push({ time: r.time as Time, value: r.kijun });
-        if (isValid(r.senkouA) && isValid(r.time)) senkouAData.push({ time: r.time as Time, value: r.senkouA });
-        if (isValid(r.senkouB) && isValid(r.time)) senkouBData.push({ time: r.time as Time, value: r.senkouB });
-        if (isValid(r.chikou) && isValid(r.time)) chikouData.push({ time: r.time as Time, value: r.chikou });
+        if (isValidNumber(r.tenkan) && isValidNumber(r.time)) tenkanData.push({ time: r.time as Time, value: r.tenkan });
+        if (isValidNumber(r.kijun) && isValidNumber(r.time)) kijunData.push({ time: r.time as Time, value: r.kijun });
+        if (isValidNumber(r.senkouA) && isValidNumber(r.time)) senkouAData.push({ time: r.time as Time, value: r.senkouA });
+        if (isValidNumber(r.senkouB) && isValidNumber(r.time)) senkouBData.push({ time: r.time as Time, value: r.senkouB });
+        if (isValidNumber(r.chikou) && isValidNumber(r.time)) chikouData.push({ time: r.time as Time, value: r.chikou });
       });
 
       addOverlayLine('ichimoku-tenkan', tenkanData, '#2dd4bf', 1);
@@ -1243,7 +1238,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       for (let i = 0; i < minLen; i++) {
         const a = senkouAData[i];
         const b = senkouBData[i];
-        if (a.time === b.time && isValid(a.value) && isValid(b.value)) {
+        if (a.time === b.time && isValidNumber(a.value) && isValidNumber(b.value)) {
           cloudTopData.push({ time: a.time, value: Math.max(a.value, b.value) });
           cloudBottomData.push({ time: a.time, value: Math.min(a.value, b.value) });
         }
@@ -1314,9 +1309,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const middleData: { time: Time; value: number }[] = [];
       const lowerData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        if (isValid(r.upper) && isValid(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
-        if (isValid(r.middle) && isValid(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
-        if (isValid(r.lower) && isValid(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
+        if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
+        if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
+        if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
       });
       addOverlayLine('donchian-upper', upperData, 'rgba(249,115,22,0.6)');
       addOverlayLine('donchian-middle', middleData, 'rgba(249,115,22,0.3)', 1);
@@ -1361,7 +1356,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     else if (indicator.key === 'rsi') {
       const data = results.map((r: any) => {
         const val = r.values?.rsi;
-        return isValid(val) && isValid(r.time) ? { time: r.time as Time, value: val } : null;
+        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
       }).filter((d): d is { time: Time; value: number } => d !== null);
       addOscillatorLine('rsi', data, indicator.color, 'rsi-scale');
     }
@@ -1372,9 +1367,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const histData: { time: Time; value: number; color: string }[] = [];
 
       results.forEach((r: any) => {
-        if (isValid(r.macd) && isValid(r.time)) macdData.push({ time: r.time as Time, value: r.macd });
-        if (isValid(r.signal) && isValid(r.time)) signalData.push({ time: r.time as Time, value: r.signal });
-        if (isValid(r.histogram) && isValid(r.time)) histData.push({
+        if (isValidNumber(r.macd) && isValidNumber(r.time)) macdData.push({ time: r.time as Time, value: r.macd });
+        if (isValidNumber(r.signal) && isValidNumber(r.time)) signalData.push({ time: r.time as Time, value: r.signal });
+        if (isValidNumber(r.histogram) && isValidNumber(r.time)) histData.push({
           time: r.time as Time,
           value: r.histogram,
           color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
@@ -1399,7 +1394,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       // Histogram (same scale)
-      const filteredHist = histData.filter(d => isValid(d.time) && isValid(d.value));
+      const filteredHist = histData.filter(d => isValidNumber(d.time) && isValidNumber(d.value));
       if (filteredHist.length > 0) {
         const histSeries = chart.addSeries(LCHistogram, {
           priceScaleId: 'macd-scale',
@@ -1415,9 +1410,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const kData: { time: Time; value: number }[] = [];
       const dData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        // FIX: Use isValid() to catch null, undefined, NaN, and Infinity
-        if (isValid(r.values?.k) && isValid(r.time)) kData.push({ time: r.time as Time, value: r.values.k });
-        if (isValid(r.values?.d) && isValid(r.time)) dData.push({ time: r.time as Time, value: r.values.d });
+        // FIX: Use isValidNumber() to catch null, undefined, NaN, and Infinity
+        if (isValidNumber(r.values?.k) && isValidNumber(r.time)) kData.push({ time: r.time as Time, value: r.values.k });
+        if (isValidNumber(r.values?.d) && isValidNumber(r.time)) dData.push({ time: r.time as Time, value: r.values.d });
       });
 
       addOscillatorLine('stoch-k', kData, '#a855f7', 'stoch-scale');
@@ -1440,7 +1435,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     else if (indicator.key === 'atr') {
       const data = results.map((r: any) => {
         const val = r.values?.atr;
-        return isValid(val) && isValid(r.time) ? { time: r.time as Time, value: val } : null;
+        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
       }).filter((d): d is { time: Time; value: number } => d !== null);
       addOscillatorLine('atr', data, indicator.color, 'atr-scale');
     }
@@ -1450,10 +1445,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const pdiData: { time: Time; value: number }[] = [];
       const mdiData: { time: Time; value: number }[] = [];
       results.forEach((r: any) => {
-        // FIX: Use isValid() to catch null, undefined, NaN, and Infinity
-        if (isValid(r.values?.adx) && isValid(r.time)) adxData.push({ time: r.time as Time, value: r.values.adx });
-        if (isValid(r.values?.pdi) && isValid(r.time)) pdiData.push({ time: r.time as Time, value: r.values.pdi });
-        if (isValid(r.values?.mdi) && isValid(r.time)) mdiData.push({ time: r.time as Time, value: r.values.mdi });
+        // FIX: Use isValidNumber() to catch null, undefined, NaN, and Infinity
+        if (isValidNumber(r.values?.adx) && isValidNumber(r.time)) adxData.push({ time: r.time as Time, value: r.values.adx });
+        if (isValidNumber(r.values?.pdi) && isValidNumber(r.time)) pdiData.push({ time: r.time as Time, value: r.values.pdi });
+        if (isValidNumber(r.values?.mdi) && isValidNumber(r.time)) mdiData.push({ time: r.time as Time, value: r.values.mdi });
       });
 
       addOscillatorLine('adx-line', adxData, '#fbbf24', 'adx-scale', 2);
@@ -1490,7 +1485,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     else if (indicator.key === 'cci') {
       const data = results.map((r: any) => {
         const val = r.values?.cci;
-        return isValid(val) && isValid(r.time) ? { time: r.time as Time, value: val } : null;
+        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
       }).filter((d): d is { time: Time; value: number } => d !== null);
       addOscillatorLine('cci', data, indicator.color, 'cci-scale');
     }
@@ -1508,7 +1503,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
 
     // Sort by time (lightweight-charts v5 requires strictly ascending time)
-    const sorted = [...candles].sort((a, b) => a.time - b.time);
+    let sorted = [...candles].sort((a, b) => a.time - b.time);
+    // PERF: Limit candle count to prevent performance degradation
+    if (sorted.length > MAX_VISIBLE_CANDLES) {
+      sorted = sorted.slice(sorted.length - MAX_VISIBLE_CANDLES);
+    }
 
     // Apply Heikin-Ashi if needed
     const displayCandles = settings.type === 'heikin-ashi' ? toHeikinAshi(sorted) : sorted;
@@ -1559,18 +1558,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // crash lightweight-charts (null, undefined, NaN, Infinity)
     // Also sanitize time to ensure it's always a Unix timestamp number,
     // never a Date object or string (prevents "Cannot update oldest data" fatal error).
-    const isValidNum = (v: any): v is number =>
-      v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
-    const sanitizeTime = (t: any): number | null => {
-      if (typeof t === 'number' && isFinite(t)) return t;
-      if (t instanceof Date) return Math.floor(t.getTime() / 1000);
-      if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
-      return null;
-    };
-
     const chartData = displayCandles
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))
-      .filter(c => isValidNum(c.open) && isValidNum(c.high) && isValidNum(c.low) && isValidNum(c.close) && isValidNum(c.time))
+      .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time))
       .map(c => ({
         time: c.time as Time,
         open: c.open,
@@ -1581,11 +1571,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const volumeData = sorted
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))
-      .filter(c => isValidNum(c.volume) && isValidNum(c.time))
+      .filter(c => isValidNumber(c.volume) && isValidNumber(c.time))
       .map(c => ({
         time: c.time as Time,
         value: c.volume,
-        color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+        color: c.close >= c.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       }));
 
     // FIX: Hide volume histogram when all values are zero (e.g. forex/commodity
@@ -1792,7 +1782,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const volumeData = candles.map(c => ({
         time: c.time as Time,
         value: c.volume,
-        color: c.close >= c.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+        color: c.close >= c.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       }));
       const hasVol = volumeData.some(v => v.value > 0);
       hasVolumeRef.current = hasVol;

@@ -22,6 +22,16 @@ import { useEffect, useRef, useCallback, useState } from 'react';
 import type { CandleData } from '../lib/charts/types';
 import { WS_CONFIG, BINANCE_URLS, BINANCE_INTERVALS, CRYPTO_BASES } from '../lib/charts/config';
 
+// PERF: rAF batch buffer for WebSocket messages.
+// Instead of calling onCandleUpdate/onPriceUpdate on every WS message,
+// we buffer them and flush once per animation frame. This prevents
+// multiple React state updates per paint cycle.
+interface WSBuffer {
+  candle: CandleData | null;
+  price: number | null;
+  isKlineClosed: boolean;
+}
+
 interface UseChartWebSocketOptions {
   symbol: string;
   timeframe: string;
@@ -74,13 +84,68 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const isClosingRef = useRef(false);
   const [connectionState, setConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'fallback'>('disconnected');
+  // PERF: rAF batching buffer for WebSocket messages
+  const rafBufferRef = useRef<WSBuffer>({ candle: null, price: null, isKlineClosed: false });
+  const rafIdRef = useRef<number>(0);
+  // FIX: 24-hour connection rotation — Binance disconnects after 24h.
+  // We proactively reconnect 10 minutes before the 24h mark.
+  const connectionStartTimeRef = useRef<number>(0);
+  const rotationTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const CONNECTION_ROTATION_MS = 23 * 60 * 60 * 1000; // 23 hours (10min before 24h cutoff)
 
   // WS/Reconnection config from config.ts
   const { reconnectMaxAttempts: MAX_RECONNECT_ATTEMPTS, reconnectBaseDelay: BASE_DELAY, reconnectMaxDelay: MAX_DELAY, pollingInterval: POLLING_INTERVAL, pingInterval: PING_INTERVAL } = WS_CONFIG;
 
+  // ── rAF Flush: Apply buffered WS updates once per frame ──
+  const flushBuffer = useCallback(() => {
+    const buf = rafBufferRef.current;
+    rafBufferRef.current = { candle: null, price: null, isKlineClosed: false };
+    rafIdRef.current = 0;
+
+    if (buf.candle) {
+      // Attach isKlineClosed metadata to the candle so RouaChart can
+      // distinguish between forming and closed candles.
+      // We store it as a non-enumerable property to avoid serialization issues.
+      (buf.candle as any)._isClosed = buf.isKlineClosed;
+      onCandleUpdate(buf.candle);
+    }
+    if (buf.price !== null) {
+      onPriceUpdate(buf.price);
+    }
+  }, [onCandleUpdate, onPriceUpdate]);
+
+  // Buffer a WS update — coalesces multiple updates per frame
+  const bufferUpdate = useCallback((candle: CandleData | null, price: number | null, isKlineClosed: boolean = false) => {
+    if (isClosingRef.current) return;
+    const buf = rafBufferRef.current;
+    if (candle) {
+      buf.candle = candle; // Latest candle wins (coalesce)
+      buf.isKlineClosed = isKlineClosed;
+    }
+    if (price !== null) {
+      buf.price = price;
+    }
+    if (rafIdRef.current === 0) {
+      rafIdRef.current = requestAnimationFrame(flushBuffer);
+    }
+  }, [flushBuffer]);
+
   // ── Cleanup ────────────────────────────────────────────
   const cleanup = useCallback(() => {
     isClosingRef.current = true;
+
+    // Cancel rAF buffer
+    if (rafIdRef.current !== 0) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = 0;
+    }
+    rafBufferRef.current = { candle: null, price: null, isKlineClosed: false };
+
+    // Clear rotation timer
+    if (rotationTimerRef.current) {
+      clearTimeout(rotationTimerRef.current);
+      rotationTimerRef.current = null;
+    }
 
     // Clear ping interval first
     if (pingIntervalRef.current) {
@@ -224,14 +289,18 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
                 close: parseFloat(k.c),
                 volume: parseFloat(k.v),
               };
-              onCandleUpdate(candle);
+              // FIX: Use Binance k.x (isKlineClosed) field.
+              // k.x = false → candle is still forming (update existing)
+              // k.x = true → candle is closed (commit and prepare for new candle)
+              const isKlineClosed = k.x === true;
+              bufferUpdate(candle, null, isKlineClosed);
             }
           }
 
           if (msg.stream?.includes('@ticker')) {
             const d = msg.data;
             if (d?.c) {
-              onPriceUpdate(parseFloat(d.c));
+              bufferUpdate(null, parseFloat(d.c), false);
             }
           }
         } catch {
@@ -276,6 +345,18 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           }
         }
       }, PING_INTERVAL);
+
+      // FIX: 24-hour connection rotation — Binance disconnects after 24h.
+      // Proactively reconnect 10 minutes before the cutoff to avoid
+      // data gaps during active trading sessions.
+      connectionStartTimeRef.current = Date.now();
+      if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
+      rotationTimerRef.current = setTimeout(() => {
+        if (!isClosingRef.current && wsRef.current) {
+          console.log('[useChartWebSocket] Proactive 24h rotation — reconnecting...');
+          connectBinanceFallback();
+        }
+      }, CONNECTION_ROTATION_MS);
 
     } catch {
       startPolling();

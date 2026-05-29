@@ -256,3 +256,16 @@ export function clearAllPatterns(chartApi: any): void {
     removePattern(chartApi, id);
   }
 }
+
+// ── Reset Singleton State ──────────────────────────────
+// FIX: drawnPatterns is a module-level Map that survives across React
+// re-renders and symbol/timeframe changes. When the user switches from
+// BTC to ETH, old BTC pattern series remain in the map with stale
+// references. Call this when symbol or timeframe changes.
+export function resetPatternRendererState(): void {
+  // Cancel all active animations first
+  // Note: cancelAnimatedPattern requires chartApi, but we may not have it
+  // during symbol/timeframe switch. Just clear the map — series will be
+  // removed when the chart is reinitialized.
+  drawnPatterns.clear();
+}

@@ -987,3 +987,15 @@ export function runPatternEngine(
 
   return { patterns: allPatterns, pivots };
 }
+
+// ── Reset Singleton State ──────────────────────────────
+// FIX: Module-level variables _incrementalState, _lastCandleCount,
+// _lastCandleTime survive across React re-renders and symbol/timeframe
+// changes. When the user switches from BTC to ETH, the old BTC state
+// persists and produces incorrect patterns for ETH data.
+// Call this function when symbol or timeframe changes.
+export function resetPatternEngineState(): void {
+  _incrementalState = null;
+  _lastCandleCount = 0;
+  _lastCandleTime = 0;
+}

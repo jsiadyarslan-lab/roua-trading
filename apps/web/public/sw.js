@@ -1,4 +1,4 @@
-const CACHE_NAME = 'roua-v203-fix-positions-portal';
+const CACHE_NAME = 'roua-v204-pwa-enabled';
 
 const APP_SHELL = [
   '/manifest.json',
@@ -7,7 +7,7 @@ const APP_SHELL = [
   '/icon-512.png',
 ];
 
-// Install: cache only static assets (NOT HTML pages)
+// Install: cache static assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -79,15 +79,12 @@ self.addEventListener('notificationclick', (event) => {
   if (event.action === 'dismiss') return;
 
   const dataUrl = event.notification.data?.url || '';
-  let urlToOpen = dataUrl || '/dashboard';
+  let urlToOpen = dataUrl || '/ar/dashboard';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {
         if (client.url.includes(self.location.origin) && 'focus' in client) {
-          if (!dataUrl) {
-            urlToOpen = client.url.includes('/mobile') ? '/mobile' : '/dashboard';
-          }
           client.navigate(urlToOpen);
           return client.focus();
         }
@@ -97,23 +94,15 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ── Fetch: MINIMAL caching to never break Next.js navigation ──
+// ── Fetch: Smart caching that preserves Next.js routing ──
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // ══════════════════════════════════════════════════════════════
-  // CRITICAL: Let the browser handle ALL navigation and HTML fetches
-  // DO NOT intercept:
-  //   - Any GET request for a page (text/html)
-  //   - RSC payload requests (Next.js client-side routing)
-  //   - Anything with _rsc query param
-  //   - Anything from the same origin that is a document navigation
-  // ══════════════════════════════════════════════════════════════
-
   // Pass through all navigation requests (clicking links, back/forward)
   if (request.mode === 'navigate') {
-    return; // browser handles it natively
+    return;
   }
 
   // Pass through all RSC requests (Next.js App Router client-side navigation)
@@ -123,15 +112,15 @@ self.addEventListener('fetch', (event) => {
     request.headers.get('rsc') === '1' ||
     (request.headers.get('accept') || '').includes('text/x-component')
   ) {
-    return; // bypass SW completely
+    return;
   }
 
-  // Pass through all API calls - never cache, always network
+  // Pass through all API calls and WebSocket - never cache
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) {
-    return; // browser handles it natively
+    return;
   }
 
-  // Only cache static assets (_next/static/) with cache-first strategy
+  // Cache static assets (_next/static/) with cache-first strategy
   if (url.pathname.startsWith('/_next/static/')) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -148,13 +137,14 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache small static files (icons, manifest) with cache-first
+  // Cache images, icons, manifest with cache-first
   if (
     request.destination === 'image' ||
     url.pathname === '/manifest.json' ||
     url.pathname === '/favicon.svg' ||
     url.pathname.endsWith('.png') ||
-    url.pathname.endsWith('.ico')
+    url.pathname.endsWith('.ico') ||
+    url.pathname.endsWith('.svg')
   ) {
     event.respondWith(
       caches.match(request).then((cached) => {
@@ -171,7 +161,5 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Everything else: network only, no caching, no fallback
-  // This prevents the SW from ever returning a stale/wrong response
-  // that breaks Next.js routing.
+  // Everything else: network only
 });

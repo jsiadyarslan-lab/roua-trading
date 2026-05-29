@@ -5,14 +5,19 @@ import { useEffect } from 'react'
 export default function ServiceWorkerRegistrar() {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then((registrations) => {
-        for (const registration of registrations) {
-          registration.unregister().then(
-            (success) => console.log('SW unregistered:', success),
-            (error) => console.log('SW unregistration failed:', error)
-          )
-        }
-      })
+      navigator.serviceWorker
+        .register('/sw.js', { scope: '/' })
+        .then((registration) => {
+          console.log('✅ Service Worker registered:', registration.scope)
+
+          // Check for updates every 30 minutes
+          setInterval(() => {
+            registration.update().catch(() => {})
+          }, 30 * 60 * 1000)
+        })
+        .catch((error) => {
+          console.error('❌ Service Worker registration failed:', error)
+        })
     }
   }, [])
 

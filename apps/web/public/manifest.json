@@ -1,13 +1,16 @@
 {
-  "name": "رؤى للتداول — منصة ربط الحسابات",
+  "name": "رؤى للتداول — منصة التداول الذكي",
   "short_name": "رؤى",
-  "description": "منصة ربط الحسابات الآمنة للتداول الذكي",
-  "start_url": "/mobile",
+  "description": "منصة رؤى للتداول الذكي — تحليلات AI، إشارات تداول، ماسح سوق، محفظة ذكية",
+  "start_url": "/ar/dashboard",
+  "scope": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#0B0E14",
+  "theme_color": "#0B0E14",
   "orientation": "portrait",
   "categories": ["finance", "business"],
+  "lang": "ar",
+  "dir": "rtl",
   "icons": [
     {
       "src": "/icon-192.png",
@@ -26,6 +29,32 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "لوحة المتابعة",
+      "short_name": "المتابعة",
+      "url": "/ar/dashboard",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "التداول",
+      "short_name": "تداول",
+      "url": "/ar/dashboard/trading",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "ماسح السوق",
+      "short_name": "ماسح",
+      "url": "/ar/dashboard/scanner",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الذكاء الاصطناعي",
+      "short_name": "AI",
+      "url": "/ar/dashboard/ai",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

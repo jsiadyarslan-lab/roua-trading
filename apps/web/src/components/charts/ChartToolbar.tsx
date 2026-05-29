@@ -230,6 +230,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
     success: '#00FFA3',
   };
 
+  // FIX: على الجوال الضيق جداً نُخفي الأزرار الثانوية
+  const isNarrow = mobile && typeof window !== 'undefined' && window.innerWidth < 420;
   // FIX: احترام معيار 44px لأهداف اللمس على الجوال
   const touchSize = mobile ? 40 : 26;
   const btnStyle: React.CSSProperties = {
@@ -548,8 +550,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Chart Trading */}
-          {onToggleChartTrading && (
+          {/* Chart Trading — hidden on narrow screens */}
+          {!isNarrow && onToggleChartTrading && (
             <button
               style={toggleBtnStyle(!!showChartTrading)}
               onClick={onToggleChartTrading}
@@ -561,8 +563,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Compare */}
-          {onToggleCompare && (
+          {/* Compare — hidden on narrow screens */}
+          {!isNarrow && onToggleCompare && (
             <button
               style={toggleBtnStyle(!!showCompare)}
               onClick={onToggleCompare}
@@ -574,8 +576,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Smart Grid */}
-          {onToggleSmartGrid && (
+          {/* Smart Grid — hidden on narrow screens */}
+          {!isNarrow && onToggleSmartGrid && (
             <button
               style={btnStyle}
               onClick={onToggleSmartGrid}
@@ -587,8 +589,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Share */}
-          {onToggleShare && (
+          {/* Share — hidden on narrow screens */}
+          {!isNarrow && onToggleShare && (
             <button
               style={btnStyle}
               onClick={onToggleShare}
@@ -601,8 +603,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Replay Mode */}
-          {onToggleReplay && (
+          {/* Replay Mode — hidden on narrow screens */}
+          {!isNarrow && onToggleReplay && (
             <button
               style={toggleBtnStyle(!!showReplay)}
               onClick={onToggleReplay}
@@ -612,8 +614,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Heatmap */}
-          {onToggleHeatmap && (
+          {/* Heatmap — hidden on narrow screens */}
+          {!isNarrow && onToggleHeatmap && (
             <button
               style={toggleBtnStyle(!!showHeatmap)}
               onClick={onToggleHeatmap}
@@ -625,8 +627,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
           <div style={sepStyle} />
 
-          {/* Play/Pause */}
-          <button
+          {/* Play/Pause — hidden on narrow screens */}
+          {!isNarrow && <button
             style={{
               ...btnStyle,
               color: isPaused ? COLORS.warning : COLORS.success,
@@ -636,7 +638,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             title={isPaused ? t('play') : t('pause')}
           >
             {isPaused ? '▶' : '⏸'}
-          </button>
+          </button>}
 
           <div style={{ flex: 1 }} />
 

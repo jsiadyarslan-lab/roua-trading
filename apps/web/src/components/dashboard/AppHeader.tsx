@@ -436,7 +436,9 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
     flash: flashState[sym] ?? null,
   }))
 
-  const finalRows = isMobile ? rows.slice(0, 5) : rows
+  // FIX: على الشاشات الضيقة (<420px) نعرض 3 أزواج فقط لضمان ظهور EN+bell
+  const isNarrow = isMobile && typeof window !== 'undefined' && window.innerWidth < 420
+  const finalRows = isMobile ? (isNarrow ? rows.slice(0, 3) : rows.slice(0, 5)) : rows
 
   return (
     <div style={{
@@ -461,7 +463,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
             style={{
             flex: 1, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            padding: isMobile ? '0 4px' : '2px 6px',
+            padding: isMobile ? '0 2px' : '2px 6px',
             borderInlineStart: i < finalRows.length - 1 ? `0.5px solid ${T.border}` : 'none',
             borderRadius: 4,
             background: sym === selectedSymbol ? 'rgba(0,212,255,0.08)' : flashBg,
@@ -471,7 +473,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
           }}>
             <span style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: isMobile ? 9 : 7.5, color: T.text3,
+              fontSize: isMobile ? 8 : 7.5, color: T.text3,
               letterSpacing: '0.04em', lineHeight: 1.2,
             }}>{sym}</span>
             <span className="price" style={{
@@ -1650,11 +1652,12 @@ export function AppHeader() {
                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden' }}>
              <CurrencyTicker isMobile />
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+          {/* FIX: flexShrink:0 + minWidth يضمن ظهور EN والجرس دائماً */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, minWidth: 'fit-content' }}>
              <LocaleSwitcher variant="header" />
              <NotificationCenter />
           </div>

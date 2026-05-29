@@ -1740,7 +1740,7 @@ export default function RouaChart({
         <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
           {/* Chart Canvas Container — lightweight-charts renders here ONLY */}
-          {/* When a drawing tool is active, raise z-index so DrawingRenderer overlay canvas is above all sibling overlays */}
+          {/* zIndex stays at 0 always — DrawingRenderer overlay canvas (zIndex: 9999) handles drawing layer correctly */}
           <div
             ref={chart.containerRef as any}
             style={{
@@ -1749,13 +1749,13 @@ export default function RouaChart({
               minHeight: 0,
               background: T.bg,
               position: 'relative',
-              zIndex: chart.activeTool !== 'cursor' ? 30 : 0,
+              zIndex: 0,
             }}
           />
 
           {/* Overlay Layer — sibling of canvas container, always on top */}
-          {/* When a drawing tool is active, lower z-index so DrawingRenderer canvas receives events */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: chart.activeTool !== 'cursor' ? -1 : 0 }}>
+          {/* zIndex: 1 — above chart canvas (0) but below DrawingRenderer overlay (9999) */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 1 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 

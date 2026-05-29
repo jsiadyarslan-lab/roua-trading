@@ -16,7 +16,9 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useChartStateStore, type SmartGridPersistConfig, type SmartGridCellConfig } from '@/hooks/useChartStateStore';
-import type { CandleData } from '@/lib/charts/types';
+import type { CandleData, ActiveIndicator } from '@/lib/charts/types';
+import { INDICATOR_CONFIGS } from '@/lib/charts/types';
+import { calculateIndicator } from '@/lib/charts/IndicatorCalculator';
 
 // ── Request Queue — limits concurrent fetches to prevent ERR_NETWORK_CHANGED ──
 class RequestQueue {
@@ -241,6 +243,8 @@ interface CellToolOverlayProps {
   onClose: () => void;
   onFocus: () => void;
   onExecuteTrade?: (side: 'long' | 'short', entry: number, sl: number, tp: number) => void;
+  onToggleIndicator?: (cellId: string, indicatorKey: string, isOn: boolean) => void;
+  activeIndicators?: string[];
 }
 
 // AI Consensus result type
@@ -255,7 +259,7 @@ interface AIConsensus {
 }
 
 function CellToolOverlay({
-  cellId, cell, toolType, candles, currentPrice, onClose, onFocus, onExecuteTrade,
+  cellId, cell, toolType, candles, currentPrice, onClose, onFocus, onExecuteTrade, onToggleIndicator, activeIndicators,
 }: CellToolOverlayProps) {
   const [aiData, setAiData] = useState<AIConsensus | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -525,49 +529,177 @@ function CellToolOverlay({
     );
   }
 
-  // ── Drawing / Indicators placeholder ──
-  return (
-    <div style={{
-      position: 'absolute', bottom: 0, left: 0, right: 0,
-      maxHeight: '50%', zIndex: 20,
-      background: 'rgba(11,14,20,0.95)',
-      backdropFilter: 'blur(8px)',
-      borderTop: `2px solid ${C.cyan}`,
-      borderRadius: '8px 8px 0 0',
-      display: 'flex', flexDirection: 'column',
-      overflow: 'hidden',
-      animation: 'slideUp 0.2s ease-out',
-    }}
-    onClick={e => e.stopPropagation()}
-    >
+  // ── Drawing Panel (inline, with tool selection) ──
+  if (toolType === 'drawing') {
+    const DRAW_TOOLS = [
+      { key: 'trendline', icon: '/', label: 'خط اتجاه' },
+      { key: 'horizontal', icon: '—', label: 'خط أفقي' },
+      { key: 'fibonacci', icon: 'φ', label: 'فيبوناتشي' },
+      { key: 'rectangle', icon: '□', label: 'مستطيل' },
+      { key: 'ray', icon: '→', label: 'شعاع' },
+      { key: 'vertical', icon: '|', label: 'خط رأسي' },
+    ];
+
+    return (
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 4,
-        padding: '4px 8px',
-        background: `linear-gradient(90deg, ${C.cyan}15, transparent)`,
-        borderBottom: `1px solid ${C.cardBorder}`,
-      }}>
-        <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan }}>
-          {toolType === 'drawing' ? 'Draw' : 'Indicators'}
-        </span>
-        <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
-        <div style={{ flex: 1 }} />
-        <button onClick={onFocus} style={{
-          background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
-          borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
-        }}>Focus</button>
-        <button onClick={onClose} style={{
-          background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
-        }}>x</button>
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        maxHeight: '55%', zIndex: 20,
+        background: 'rgba(11,14,20,0.95)',
+        backdropFilter: 'blur(8px)',
+        borderTop: `2px solid ${C.cyan}`,
+        borderRadius: '8px 8px 0 0',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'slideUp 0.2s ease-out',
+      }}
+      onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px',
+          background: `linear-gradient(90deg, ${C.cyan}15, transparent)`,
+          borderBottom: `1px solid ${C.cardBorder}`,
+        }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan }}>Draw</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>{cell.symbol}</span>
+          <div style={{ flex: 1 }} />
+          <button onClick={onFocus} style={{
+            background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+          }}>Focus</button>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer', fontSize: 10, padding: '0 2px',
+          }}>x</button>
+        </div>
+        <div style={{ padding: '4px 6px', fontSize: 7, color: C.textMuted, textAlign: 'center', fontFamily: "'Cairo',sans-serif", borderBottom: `1px solid ${C.cardBorder}` }}>
+          اختر أداة ثم اضغط Focus للرسم على الشارت الرئيسي
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 3, padding: 4 }}>
+          {DRAW_TOOLS.map(tool => (
+            <button key={tool.key} onClick={onFocus} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+              padding: '4px 2px', borderRadius: 4, cursor: 'pointer',
+              background: 'rgba(255,255,255,0.03)', border: `1px solid ${C.cardBorder}`,
+              color: C.text, fontSize: 7, fontWeight: 600,
+              fontFamily: "'Cairo',sans-serif",
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.1)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(0,212,255,0.3)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; (e.currentTarget as HTMLElement).style.borderColor = C.cardBorder; }}
+            >
+              <span style={{ fontSize: 12 }}>{tool.icon}</span>
+              <span>{tool.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <div style={{ padding: '8px', textAlign: 'center' }}>
-        <span style={{ color: C.textDim, fontSize: 8, fontFamily: "'Cairo',sans-serif" }}>
-          {toolType === 'drawing'
-            ? 'للرسم على الشارت، اضغط Focus لفتح الشارت الرئيسي'
-            : 'لإضافة مؤشرات، اضغط Focus لفتح الشارت الرئيسي'}
-        </span>
+    );
+  }
+
+  // ── Indicators Panel (inline, functional) ──
+  if (toolType === 'indicators') {
+    const activeSet = new Set(activeIndicators || []);
+    const overlayIndicators = INDICATOR_CONFIGS.filter(c => c.category === 'overlay');
+    const oscillatorIndicators = INDICATOR_CONFIGS.filter(c => c.category === 'oscillator');
+
+    return (
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0,
+        maxHeight: '75%', zIndex: 20,
+        background: 'rgba(11,14,20,0.95)',
+        backdropFilter: 'blur(8px)',
+        borderTop: `2px solid ${C.cyan}`,
+        borderRadius: '8px 8px 0 0',
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        animation: 'slideUp 0.2s ease-out',
+      }}
+      onClick={e => e.stopPropagation()}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 4,
+          padding: '4px 8px',
+          background: `linear-gradient(90deg, ${C.cyan}15, transparent)`,
+          borderBottom: `1px solid ${C.cardBorder}`,
+          flexShrink: 0,
+        }}>
+          <span style={{ fontSize: 8, fontWeight: 800, color: C.cyan, fontFamily: "'JetBrains Mono',monospace" }}>Ind</span>
+          <span style={{ fontSize: 7, color: C.textDim, fontFamily: "'JetBrains Mono',monospace" }}>
+            {cell.symbol} {TIMEFRAME_OPTIONS.find(tf => tf.value === cell.timeframe)?.label}
+          </span>
+          <div style={{ flex: 1 }} />
+          <button onClick={onFocus} style={{
+            background: 'rgba(0,212,255,0.1)', border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 3, color: C.cyan, fontSize: 6.5, fontWeight: 700, cursor: 'pointer', padding: '1px 4px',
+          }}>Focus</button>
+          <button onClick={onClose} style={{
+            background: 'none', border: 'none', color: C.textMuted, cursor: 'pointer',
+            fontSize: 10, lineHeight: 1, padding: '0 2px',
+          }}>x</button>
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 4px', maxHeight: 180 }}>
+          {overlayIndicators.map(config => {
+            const isOn = activeSet.has(config.key);
+            return (
+              <div key={config.key} style={{
+                display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', cursor: 'pointer',
+                borderRadius: 3, transition: 'background 0.15s',
+                background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
+              }}
+              onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)'; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
+              >
+                <div style={{
+                  width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
+                  background: isOn ? C.cyan : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                </div>
+                <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "'JetBrains Mono',monospace", flex: 1 }}>
+                  {config.labelEn}
+                </span>
+                <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
+              </div>
+            );
+          })}
+          {oscillatorIndicators.length > 0 && (
+            <>
+              <div style={{ padding: '4px 6px 2px', fontSize: 7, fontWeight: 700, color: C.textMuted, fontFamily: "'JetBrains Mono',monospace", borderTop: `1px solid ${C.cardBorder}` }}>
+                OSCILLATOR
+              </div>
+              {oscillatorIndicators.map(config => {
+                const isOn = activeSet.has(config.key);
+                return (
+                  <div key={config.key} style={{
+                    display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', cursor: 'pointer',
+                    borderRadius: 3, transition: 'background 0.15s',
+                    background: isOn ? 'rgba(0,212,255,0.1)' : 'transparent',
+                  }}
+                  onClick={() => onToggleIndicator?.(cellId, config.key, !isOn)}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.04)'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isOn ? 'rgba(0,212,255,0.1)' : 'transparent'; }}
+                  >
+                    <div style={{
+                      width: 10, height: 10, borderRadius: 2, border: `1.5px solid ${isOn ? C.cyan : C.cardBorder}`,
+                      background: isOn ? C.cyan : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      {isOn && <span style={{ color: C.bg, fontSize: 7, fontWeight: 900, lineHeight: 1 }}>✓</span>}
+                    </div>
+                    <span style={{ fontSize: 8, fontWeight: 700, color: isOn ? C.cyan : C.text, fontFamily: "'JetBrains Mono',monospace", flex: 1 }}>
+                      {config.labelEn}
+                    </span>
+                    <div style={{ width: 8, height: 3, borderRadius: 2, background: config.defaultColor, flexShrink: 0 }} />
+                  </div>
+                );
+              })}
+            </>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 }
 
 export function SmartGrid({
@@ -684,6 +816,11 @@ export function SmartGrid({
   const [cellToolOpen, setCellToolOpen] = useState<Map<string, string>>(new Map());
   // Store candle data per cell for AI panel
   const cellCandleDataRef = useRef<Map<string, CandleData[]>>(new Map());
+  // ── Inline Indicator State ──
+  // Track active indicators per cell (cellId → Set of indicator keys)
+  const [cellIndicators, setCellIndicators] = useState<Map<string, Set<string>>>(new Map());
+  // Track indicator series per cell (cellId → (indicatorKey → series))
+  const indicatorSeriesRef = useRef<Map<string, Map<string, any>>>(new Map());
 
   // Set active cell on first render
   useEffect(() => {
@@ -1106,6 +1243,17 @@ export function SmartGrid({
     if (controller) { try { controller.abort(); } catch {} }
     abortControllersRef.current.delete(cellId);
 
+    // Clean up indicator series for this cell
+    const cellSeriesMap = indicatorSeriesRef.current.get(cellId);
+    if (cellSeriesMap) {
+      const chart = chartInstancesRef.current.get(cellId);
+      cellSeriesMap.forEach((series) => {
+        if (chart) { try { chart.removeSeries(series); } catch {} }
+      });
+      cellSeriesMap.clear();
+      indicatorSeriesRef.current.delete(cellId);
+    }
+
     const chart = chartInstancesRef.current.get(cellId);
     if (chart) { try { chart.remove(); } catch {} }
     chartInstancesRef.current.delete(cellId);
@@ -1157,22 +1305,9 @@ export function SmartGrid({
   }, [defaultSymbol]);
 
   // ── Open tool: show inline overlay within the cell ──
-  // When user clicks AI/Trade on a small chart,
-  // the tool overlay appears INSIDE that cell.
-  // When user clicks Draw/Ind, we switch directly to the main chart
-  // with the tool open — because drawing and indicators need the full
-  // chart experience (DrawingPanel, IndicatorPanel, etc.)
+  // All tools (including drawing and indicators) show inline overlay within the cell.
+  // The Focus button inside each overlay switches to the main chart.
   const handleOpenTool = useCallback((cell: GridCell, openTool: string) => {
-    // For drawing and indicators: switch to main chart directly with the tool open
-    if (openTool === 'drawing' || openTool === 'indicators') {
-      if (onSwitchToChart) {
-        onSwitchToChart(cell.symbol, cell.timeframe, openTool);
-      }
-      onClose();
-      return;
-    }
-
-    // For AI and trading: show inline overlay within the cell
     setCellToolOpen(prev => {
       const next = new Map(prev);
       // Toggle: if same tool is open on this cell, close it
@@ -1183,12 +1318,168 @@ export function SmartGrid({
       }
       return next;
     });
-  }, [onSwitchToChart, onClose]);
+  }, []);
 
   const handleCloseTool = useCallback((cellId: string) => {
     setCellToolOpen(prev => {
       const next = new Map(prev);
       next.delete(cellId);
+      return next;
+    });
+  }, []);
+
+  // ── Toggle indicator on/off for a cell's mini chart ──
+  const handleToggleCellIndicator = useCallback(async (cellId: string, indicatorKey: string, isOn: boolean) => {
+    const chart = chartInstancesRef.current.get(cellId);
+    const candles = cellCandleDataRef.current.get(cellId);
+    if (!chart || !candles || candles.length === 0) return;
+
+    // CRITICAL FIX: Ensure ALL candle time values are epoch seconds (numbers), not Date objects
+    // This prevents the "Cannot update oldest data, last time=[object Object]" crash
+    const safeCandles = candles.map(c => {
+      const rawTime = c.time as any;
+      const safeTime: number = typeof rawTime === 'number'
+        ? (isFinite(rawTime) && rawTime > 0 ? rawTime : 0)
+        : (rawTime instanceof Date ? Math.floor(rawTime.getTime() / 1000) : 0);
+      return { ...c, time: safeTime };
+    }).filter(c => c.time > 0);
+
+    if (safeCandles.length === 0) return;
+
+    // Get or create the indicator series map for this cell
+    let cellSeriesMap = indicatorSeriesRef.current.get(cellId);
+    if (!cellSeriesMap) {
+      cellSeriesMap = new Map();
+      indicatorSeriesRef.current.set(cellId, cellSeriesMap);
+    }
+
+    if (isOn) {
+      // Remove existing series for this indicator
+      const existing = cellSeriesMap.get(indicatorKey);
+      if (existing) {
+        try { chart.removeSeries(existing); } catch {}
+        cellSeriesMap.delete(indicatorKey);
+      }
+
+      // Calculate indicator
+      const config = INDICATOR_CONFIGS.find(c => c.key === indicatorKey);
+      if (!config) return;
+
+      const indicator: ActiveIndicator = {
+        key: config.key as any,
+        params: { ...config.defaultParams },
+        color: config.defaultColor,
+        opacity: config.defaultOpacity,
+        visible: true,
+      };
+
+      try {
+        const results = await calculateIndicator(indicator, safeCandles);
+        if (!results.length) return;
+
+        const { LineSeries } = await import('lightweight-charts');
+
+        // Sanitize time helper
+        const sanitizeT = (t: any): number | null => {
+          if (t === null || t === undefined) return null;
+          if (typeof t === 'number') return isFinite(t) && t > 0 ? t : null;
+          if (typeof t === 'object' && typeof t.getTime === 'function') return Math.floor(t.getTime() / 1000);
+          const num = Number(t);
+          return isFinite(num) && num > 0 ? num : null;
+        };
+
+        const isValid = (v: any): v is number =>
+          v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
+
+        // For overlay indicators, add line series directly
+        if (config.category === 'overlay') {
+          const data = results
+            .map((r: any) => {
+              const val = r.values?.[indicatorKey] ?? r.value;
+              const time = sanitizeT(r.time);
+              return (time !== null && time !== undefined && typeof time === 'number' && isFinite(time) && time > 0 && typeof val === 'number' && isFinite(val))
+                ? { time, value: val } : null;
+            })
+            .filter((d: any) => d !== null);
+
+          if (data.length > 0) {
+            const series = chart.addSeries(LineSeries, {
+              color: config.defaultColor,
+              lineWidth: 1 as any,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: false,
+            });
+            try {
+              series.setData(data as any);
+            } catch (e) {
+              console.error('[SmartGrid] Indicator setData error:', e);
+              try { chart.removeSeries(series); } catch {}
+              cellSeriesMap.delete(indicatorKey);
+              return;
+            }
+            cellSeriesMap.set(indicatorKey, series);
+          }
+        }
+        // For oscillator indicators, add with separate price scale
+        else if (config.category === 'oscillator') {
+          const data = results
+            .map((r: any) => {
+              const val = r.values?.[indicatorKey] ?? r.value;
+              const time = sanitizeT(r.time);
+              return (time !== null && time !== undefined && typeof time === 'number' && isFinite(time) && time > 0 && typeof val === 'number' && isFinite(val))
+                ? { time, value: val } : null;
+            })
+            .filter((d: any) => d !== null);
+
+          if (data.length > 0) {
+            const scaleId = `${indicatorKey}-scale`;
+            const series = chart.addSeries(LineSeries, {
+              color: config.defaultColor,
+              lineWidth: 1 as any,
+              priceLineVisible: false,
+              lastValueVisible: true,
+              crosshairMarkerVisible: false,
+              priceScaleId: scaleId,
+            });
+            series.priceScale().applyOptions({
+              scaleMargins: { top: 0.75, bottom: 0 },
+              borderVisible: false,
+            });
+            try {
+              series.setData(data as any);
+            } catch (e) {
+              console.error('[SmartGrid] Oscillator setData error:', e);
+              try { chart.removeSeries(series); } catch {}
+              cellSeriesMap.delete(indicatorKey);
+              return;
+            }
+            cellSeriesMap.set(indicatorKey, series);
+          }
+        }
+      } catch (err) {
+        console.error('[SmartGrid] Indicator calculation error:', err);
+      }
+    } else {
+      // Remove indicator series
+      const existing = cellSeriesMap.get(indicatorKey);
+      if (existing) {
+        try { chart.removeSeries(existing); } catch {}
+        cellSeriesMap.delete(indicatorKey);
+      }
+    }
+
+    // Update active indicators state
+    setCellIndicators(prev => {
+      const next = new Map(prev);
+      const current = next.get(cellId) || new Set<string>();
+      const updated = new Set(current);
+      if (isOn) {
+        updated.add(indicatorKey);
+      } else {
+        updated.delete(indicatorKey);
+      }
+      next.set(cellId, updated);
       return next;
     });
   }, []);
@@ -1654,6 +1945,8 @@ export function SmartGrid({
                     currentPrice={state?.currentPrice ?? null}
                     onClose={() => handleCloseTool(cell.id)}
                     onFocus={() => handleFocusChart(cell)}
+                    onToggleIndicator={handleToggleCellIndicator}
+                    activeIndicators={Array.from(cellIndicators.get(cell.id) || [])}
                     onExecuteTrade={(side, entry, sl, tp) => {
                       const { addTrade } = usePaperTradesStore.getState();
                       addTrade({

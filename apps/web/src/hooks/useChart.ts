@@ -269,13 +269,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         activeIndicatorsRef.current = restoredIndicators;
       }
 
-      // FIX: Store saved visible range in ref instead of setTimeout.
-      // resetView() will apply this range when data loads.
-      // This prevents the race condition where setTimeout(1500ms) fires
-      // and overrides the correct range set by resetView after fetch.
-      if (saved.visibleRange) {
-        savedVisibleRangeRef.current = saved.visibleRange;
-      }
+      // DO NOT restore saved visible range on symbol/timeframe switch.
+      // Previously, restoring the saved range from a previous session caused
+      // the chart to zoom into a narrow time window, making most candles
+      // appear to "disappear". Now, resetView() always uses fitContent()
+      // to show all candles, which is the expected default behavior.
+      // The saved visible range feature is removed because it caused more
+      // problems than it solved (race conditions, stale ranges, invisible candles).
 
       console.log(`[useChart] Restored chart state for ${configKey}`);
     } catch (e) {

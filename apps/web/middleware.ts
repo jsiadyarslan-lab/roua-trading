@@ -1,5 +1,5 @@
 import createMiddleware from 'next-intl/middleware';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { routing } from './i18n/routing';
 
 const intlMiddleware = createMiddleware(routing);
@@ -11,11 +11,11 @@ const intlMiddleware = createMiddleware(routing);
 // Without this, PWA installation fails on ALL browsers.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-// Regex for common static file extensions — catches ALL images, fonts, etc.
+// Regex for common static file extensions
 const STATIC_FILE_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|avif|json|js|css|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|xml|txt|html|map|wasm)$/i;
 
 // Exact paths that must bypass locale routing (PWA requirements)
-const STATIC_PATHS = new Set([
+const PWA_PATHS = [
   '/manifest.json',
   '/sw.js',
   '/icon-192.png',
@@ -26,25 +26,30 @@ const STATIC_PATHS = new Set([
   '/favicon.svg',
   '/robots.txt',
   '/offline.html',
-  '/apple-touch-icon.png',
-]);
+];
 
-export default function middleware(request: Request) {
-  const url = new URL(request.url);
-  const pathname = url.pathname;
+export default function middleware(request: NextRequest) {
+  // Use NextRequest.nextUrl for reliable URL parsing in middleware
+  const { pathname } = request.nextUrl;
 
   // ── BYPASS 1: Exact path match for PWA-critical files ──
-  if (STATIC_PATHS.has(pathname)) {
-    return NextResponse.next();
+  // Use includes() instead of Set for Edge Runtime compatibility
+  if (PWA_PATHS.includes(pathname)) {
+    // Use rewrite() instead of next() to explicitly serve the file
+    // and avoid any interference from next-intl or headers config
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = pathname;
+    return NextResponse.rewrite(rewriteUrl);
   }
 
   // ── BYPASS 2: Any path ending with a static file extension ──
-  // This catches /icons/icon-192.png, /images/hero.webp, etc.
   if (STATIC_FILE_REGEX.test(pathname)) {
-    return NextResponse.next();
+    const rewriteUrl = request.nextUrl.clone();
+    rewriteUrl.pathname = pathname;
+    return NextResponse.rewrite(rewriteUrl);
   }
 
-  // ── BYPASS 3: _next internal paths (should be in matcher exclude, but safety net) ──
+  // ── BYPASS 3: _next internal paths ──
   if (pathname.startsWith('/_next') || pathname.startsWith('/static')) {
     return NextResponse.next();
   }

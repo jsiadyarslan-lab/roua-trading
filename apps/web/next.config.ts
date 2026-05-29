@@ -71,22 +71,11 @@ const nextConfig: NextConfig = {
 
   async headers() {
     return [
-      // ── PWA Static Assets: Force no-redirect headers ──
-      // These headers ensure iOS Safari can read PWA icons without 307 redirects.
-      // The next-intl middleware was redirecting /icon-192.png → /ar/icon-192.png
-      // which broke PWA installation on iOS.
-      {
-        source: '/icon-192.png',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400' },
-        ],
-      },
-      {
-        source: '/icon-512.png',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400' },
-        ],
-      },
+      // ── PWA Service Worker headers ──
+      // NOTE: Removed icon-192.png and icon-512.png headers because they were
+      // being applied to 307 redirect responses from next-intl middleware,
+      // causing Railway CDN to cache the redirects for 24h. Icons now
+      // rely solely on middleware bypass + cache-control from SW.
       {
         source: '/sw.js',
         headers: [

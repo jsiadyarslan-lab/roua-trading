@@ -1069,11 +1069,11 @@ export default function DashboardPage() {
   ]
   const m2Indicators = ['RSI','MACD','EMA 20','EMA 50','Bollinger','Volume','ATR','Stoch']
   const m2NavItems = [
-    { id:'chart', label: tc('chart') || 'الشارت' },
-    { id:'portfolio', label: tc('portfolio') || 'محفظتي' },
-    { id:'scanner', label: tc('scanner') || 'السكانر' },
-    { id:'ai', label: 'AI' },
-    { id:'menu', label: tc('more') || 'المزيد' },
+    { id:'chart',     label: 'الشارت'  },
+    { id:'portfolio', label: 'محفظتي'  },
+    { id:'scanner',   label: 'السكانر' },
+    { id:'ai',        label: 'AI'       },
+    { id:'menu',      label: 'المزيد'  },
   ]
 
   // ── Chart Height: Pure CSS flex + explicit resize trigger ──
@@ -1631,28 +1631,25 @@ export default function DashboardPage() {
           {/* ── CHART AREA ── */}
           <div className="m2-chart-area">
 
-            {/* Symbol + Price — overlay أعلى الشارت */}
+            {/* Symbol + Price — شريط نظيف فوق الشارت */}
             <div style={{
-              position:'absolute', top:10, left:10, right:72, zIndex:10,
-              display:'flex', alignItems:'center', gap:8, pointerEvents:'none',
+              position:'absolute', top:0, left:0, right:0, height:36,
+              display:'flex', alignItems:'center', gap:8, zIndex:10,
+              padding:'0 10px',
+              background:'linear-gradient(180deg, rgba(10,13,19,0.9) 0%, rgba(10,13,19,0) 100%)',
+              pointerEvents:'none',
             }}>
-              <span style={{ fontSize:14, fontWeight:900, color:'#E8ECF4', letterSpacing:'-0.3px', fontFamily:"'Cairo',sans-serif" }}>
+              <span style={{ fontSize:13, fontWeight:800, color:'#8090A8', letterSpacing:'0.5px', fontFamily:"'JetBrains Mono',monospace" }}>
                 {selectedSymbol}
               </span>
-              <span style={{
-                fontSize:19, fontWeight:700,
-                color:'#D8E0EE',
-                fontFamily:"'JetBrains Mono',monospace",
-                letterSpacing:'-0.5px',
-              }}>
+              <span style={{ fontSize:18, fontWeight:700, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'-0.3px' }}>
                 {currentPrice ? formatQuotePrice(currentPrice) : '—'}
               </span>
               {activeQuote?.changePercent !== undefined && (
                 <span style={{
-                  fontSize:11, fontWeight:700,
+                  fontSize:11, fontWeight:700, borderRadius:5, padding:'1px 6px',
                   color: (activeQuote.changePercent ?? 0) >= 0 ? '#00FFA3' : '#FF4757',
                   background: (activeQuote.changePercent ?? 0) >= 0 ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
-                  padding:'1px 6px', borderRadius:5,
                 }}>
                   {(activeQuote.changePercent ?? 0) >= 0 ? '+' : ''}{(activeQuote.changePercent ?? 0).toFixed(2)}%
                 </span>
@@ -1749,10 +1746,11 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* الشارت */}
+            {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
             <RouaChart
               currentPrice={currentPrice}
               mobile
+              hideToolbar
               isChartFullscreen={chartFullscreen}
               onToggleChartFullscreen={toggleChartFullscreen}
             />

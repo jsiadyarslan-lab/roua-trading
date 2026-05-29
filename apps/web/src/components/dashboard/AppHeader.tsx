@@ -1652,12 +1652,10 @@ export function AppHeader() {
                <span style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 7, color: '#00C8FF', letterSpacing: '0.12em', opacity: 0.85, lineHeight: 1 }}>{t('common.brandSub')}</span>
              </div>
           </SafeLink>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-             <CurrencyTicker isMobile />
-          </div>
+          {/* Ticker مخفي — موجود في m2-ticker أسفل الهيدر */}
 
-          {/* FIX: flexShrink:0 + minWidth يضمن ظهور EN والجرس دائماً */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, minWidth: 'fit-content' }}>
+          {/* FIX: EN + bell دائماً ظاهرة */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, marginRight: 'auto' }}>
              <LocaleSwitcher variant="header" />
              <NotificationCenter />
           </div>

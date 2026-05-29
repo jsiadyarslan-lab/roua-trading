@@ -27,3 +27,27 @@ Stage Summary:
 - Public API unchanged: useChart.ts requires zero modifications
 - All 31 drawing tools preserved with identical rendering logic
 - Build passes successfully
+
+---
+Task ID: 2
+Agent: Super Z (main)
+Task: Deep investigation + fix critical runtime issues + push to production
+
+Work Log:
+- Deep investigation of current DrawingRenderer.ts (1158 lines, Plugin System v2)
+- Verified build passes: `npx turbo build --filter=@roua/web` → 46.5s, all tasks successful
+- Found 3 critical runtime issues through code analysis:
+  1. Null DrawingPaneView refs before attached() fires — requestUpdate() could crash
+  2. Lazy import race condition — tool selection lost if called before dynamic import resolves
+  3. Preview invisible at chart edges — chartPointToPixel returns null at boundaries
+- Fixed Issue 1: Added `_attached` flag + guard in requestUpdate() (DrawingRenderer.ts)
+- Fixed Issue 2: Added `activeToolRef` ref + sync in setTool/cancelDrawing (useChart.ts)
+- Fixed Issue 3: Added fallback to raw mouse pixel position when chartPointToPixel returns null (DrawingRenderer.ts)
+- Rebuilt and verified: all fixes compile successfully
+- Committed: `fix(drawing): إصلاح 3 مشاكل حرجة في نظام الرسم Plugin System`
+- Pushed to origin/main: commit 4bbc6798
+
+Stage Summary:
+- 3 critical runtime bugs fixed in DrawingRenderer Plugin System
+- Build passes successfully after fixes
+- Changes pushed to production (GitHub origin/main)

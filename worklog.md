@@ -39,3 +39,45 @@ Work Log:
 Stage Summary:
 - All PWA assets return 200 OK with correct content types
 - Build: v208-pwa-apple-capable-head deployed on Railway
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix TDZ runtime error "Cannot access 'tx' before initialization"
+
+Work Log:
+- Identified that 'tx' in minified production build corresponds to tfSeconds (useMemo)
+- The minifier was reordering the `let tfSeconds = useMemo(...)` declaration
+- Since onCandleUpdate callback used tfSeconds, and the minifier moved the let declaration after the callback definition, TDZ error occurred
+- Fix: Converted tfSeconds from useMemo to useRef with useEffect update
+- Refs are hoisted and always initialized before closures capture them
+- Removed unused useMemo import
+- Build succeeded
+
+Stage Summary:
+- Root cause: Production minifier reordering let declarations causing TDZ
+- Fix: tfSeconds converted from useMemo to useRef (immune to reordering)
+- Commit: f2df238a "FIX: Resolve TDZ error 'Cannot access tx before initialization'"
+- Also noted: 503 errors on /api/exchange/quote are due to Binance API IP blocking on Railway servers (infrastructure issue, not code bug)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Remove performance monitor and incremental updateCandle that broke candles
+
+Work Log:
+- Analyzed screenshot showing chart was broken after adding performance monitor
+- Investigated root cause: incremental updateCandle() created data inconsistency
+- The two candlesRef refs (RouaChart vs useChart) could diverge when updateLastCandle and updateCandle ran concurrently
+- updateCandle() only updated the LAST candle on chart, dropping updates for non-last candles
+- Performance monitor's wsConnectionStateRef added TDZ risk
+- Removed all performance monitoring code (perfRef, perfStats, wsConnectionStateRef, perf stats useEffect, JSX overlay)
+- Reverted incremental updateCandle() back to simple setCandles() approach
+- Fixed volume accumulation: changed from additive to replacement (WebSocket sends total volume)
+- Kept tfSecondsRef fix (still needed to prevent TDZ errors)
+- Build succeeded with no errors
+
+Stage Summary:
+- Root cause: incremental updateCandle() caused data inconsistency between two candlesRef copies
+- Fix: Removed all perf monitoring, reverted to simple setCandles() for all WS updates
+- Commit: 82f2afcc "FIX: Remove performance monitor and revert incremental updateCandle that broke candles"

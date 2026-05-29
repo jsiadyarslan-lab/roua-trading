@@ -816,7 +816,12 @@ export function NotificationCenter() {
                 ? { left: Math.max(8, panelPos.left) }
                 : { right: Math.max(8, panelPos.right) }),
               zIndex: 9999,
-              width: 360,
+              // FIX: على الجوال الضيق، تأخذ عرض كامل مع padding
+              width: typeof window !== 'undefined' && window.innerWidth < 480
+                ? Math.min(360, window.innerWidth - 16)
+                : 360,
+              // FIX: تأكد أن الـ panel لا تخرج خارج الشاشة
+              maxWidth: 'calc(100vw - 16px)',
               background: 'rgba(11,14,20,0.98)',
               backdropFilter: 'blur(24px)',
               border: '1px solid rgba(0,212,255,0.12)',

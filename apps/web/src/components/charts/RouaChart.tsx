@@ -217,6 +217,54 @@ export default function RouaChart({
   const prevPriceRef = useRef(currentPrice);
   const [pricePulse, setPricePulse] = useState(false);
 
+  // ── Performance Monitor ──
+  // Tracks WebSocket latency and chart render performance
+  const perfRef = useRef({
+    wsTickTimes: [] as number[],       // Timestamps of last N WS ticks
+    renderTimes: [] as number[],       // Time from WS tick to chart update
+    lastWsTick: 0,                     // Last WS tick timestamp
+    lastCandleUpdate: 0,               // Last candle chart update timestamp
+    tickCount: 0,                      // Total ticks received
+    candleUpdateCount: 0,              // Total candle updates applied
+    incrementalCount: 0,               // Updates via incremental updateCandle()
+    fullReplaceCount: 0,               // Updates via full setCandles()
+  });
+  const [perfStats, setPerfStats] = useState<{
+    wsLatency: string;
+    tickRate: string;
+    connectionType: string;
+    incrementalRatio: string;
+  } | null>(null);
+  // Update perf stats every 2 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const perf = perfRef.current;
+      const now = Date.now();
+      // Calculate tick rate (ticks per second in last 10 seconds)
+      const recentTicks = perf.wsTickTimes.filter(t => now - t < 10000);
+      const tickRate = recentTicks.length / 10;
+      // Calculate average inter-tick latency
+      let avgLatency = 0;
+      if (recentTicks.length >= 2) {
+        const deltas: number[] = [];
+        for (let i = 1; i < recentTicks.length; i++) {
+          deltas.push(recentTicks[i] - recentTicks[i - 1]);
+        }
+        avgLatency = deltas.reduce((a, b) => a + b, 0) / deltas.length;
+      }
+      const total = perf.incrementalCount + perf.fullReplaceCount;
+      const ratio = total > 0 ? `${Math.round(perf.incrementalCount / total * 100)}%` : '—';
+      setPerfStats({
+        wsLatency: avgLatency > 0 ? `${Math.round(avgLatency)}ms` : '—',
+        tickRate: tickRate > 0 ? `${tickRate.toFixed(1)}/s` : '—',
+        connectionType: ws.connectionState,
+        incrementalRatio: ratio,
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ws.connectionState]);
+
   // ── Track current timeframe to ignore stale WebSocket updates ──
   // When timeframe changes, WebSocket may still deliver candles from the
   // old timeframe before reconnecting. This ref lets us filter those out.
@@ -353,6 +401,15 @@ export default function RouaChart({
     symbol: selectedSymbol,
     timeframe,
     onCandleUpdate: (candle) => {
+      // ── Performance tracking ──
+      const wsTickTime = performance.now();
+      perfRef.current.tickCount++;
+      perfRef.current.wsTickTimes.push(Date.now());
+      // Keep only last 100 tick timestamps
+      if (perfRef.current.wsTickTimes.length > 100) {
+        perfRef.current.wsTickTimes.shift();
+      }
+
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
       // This prevents stale data from the old timeframe being pushed back.
@@ -394,12 +451,15 @@ export default function RouaChart({
         const isLastCandle = idx === candlesRef.current.length - 1;
         if (isLastCandle) {
           chart.updateCandle(candlesRef.current[idx]);
+          perfRef.current.incrementalCount++;
         }
       } else {
         candlesRef.current.push(alignedCandle);
         // New candle period started — need full setCandles to add the new bar
         setCandlesRef.current(candlesRef.current);
+        perfRef.current.fullReplaceCount++;
       }
+      perfRef.current.lastCandleUpdate = performance.now();
       // REVOLUTIONARY: Incremental computation update (O(1) per candle)
       try {
         if (incrementalInitializedRef.current) {
@@ -1755,6 +1815,39 @@ export default function RouaChart({
           candles={candlesRef.current}
           showCandleTimer={chart.settings.showCandleTimer}
         />
+
+        {/* ── Performance Monitor ── */}
+        {perfStats && (
+          <div style={{
+            position: 'absolute',
+            top: mobile ? 28 : 32,
+            right: 52,
+            zIndex: 10,
+            pointerEvents: 'none',
+            display: 'flex',
+            gap: 8,
+            fontSize: 10,
+            fontFamily: "'JetBrains Mono', monospace",
+            color: 'rgba(148,163,184,0.7)',
+          }}>
+            <span title="WebSocket inter-tick latency">
+              WS: {perfStats.wsLatency}
+            </span>
+            <span title="Ticks per second">
+              Rate: {perfStats.tickRate}
+            </span>
+            <span title="Incremental update ratio (higher = faster)">
+              Incr: {perfStats.incrementalRatio}
+            </span>
+            <span style={{
+              color: perfStats.connectionType === 'connected' ? '#3fb950' :
+                     perfStats.connectionType === 'fallback' ? '#f59e0b' : '#f85149',
+            }} title="Connection type">
+              {perfStats.connectionType === 'connected' ? 'WS' :
+               perfStats.connectionType === 'fallback' ? 'REST' : '...'}
+            </span>
+          </div>
+        )}
 
         {/* Chart Wrapper — contains canvas + overlays */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>

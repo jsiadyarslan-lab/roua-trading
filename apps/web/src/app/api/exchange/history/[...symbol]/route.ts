@@ -211,29 +211,11 @@ export async function GET(
       // ── Crypto History: NestJS ExchangeService → Binance → CoinGecko → Yahoo Finance ──
       let candles: any[] | null = null
 
-      // Step 0: Try NestJS backend ExchangeService (goes through ExchangeGateway adapter)
-      // This routes through the backend's adapter pattern which provides:
-      // - Rate limiting (RateLimiterService)
-      // - Adapter abstraction (BinanceAdapter, TwelveDataAdapter, FreeFallbackAdapter)
-      // - Caching via ExchangeService
-      // - Auth and request tracking
-      try {
-        const backendUrl = `${process.env.NESTJS_API_URL || 'http://127.0.0.1:3001'}/api/exchange/history/${encodeURIComponent(symbol)}?interval=${interval}`
-        const backendRes = await fetch(backendUrl, {
-          signal: AbortSignal.timeout(6000),
-          headers: { 'Accept': 'application/json' },
-        })
-        if (backendRes.ok) {
-          const backendData = await backendRes.json()
-          if (backendData.success && Array.isArray(backendData.data) && backendData.data.length > 0) {
-            candles = backendData.data
-          }
-        }
-      } catch {
-        // Backend unavailable — fall through to direct API calls
-      }
+      // Step 0: NestJS backend SKIPPED — it's not deployed and wastes 6 seconds
+      // on every request with a timeout. Binance direct API is fast and reliable.
+      // To re-enable, deploy NestJS ExchangeGateway and set NESTJS_API_URL.
 
-      // Step 1: Try Binance directly (fastest, most detailed) — fallback if backend unavailable
+      // Step 1: Try Binance directly (fastest, most detailed)
       try {
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {

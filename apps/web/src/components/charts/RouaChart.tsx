@@ -167,6 +167,9 @@ export default function RouaChart({
   const { selectedSymbol, timeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
+  // FIX: Ref for feedState to avoid stale closure in WebSocket callback
+  const feedStateRef = useRef(feedState);
+  useEffect(() => { feedStateRef.current = feedState; }, [feedState]);
   const [candleCountdown, setCandleCountdown] = useState('—');
   const [lotSize, setLotSize] = useState(0.01);
   const [tradePanelCollapsed, setTradePanelCollapsed] = useState(false);
@@ -386,6 +389,16 @@ export default function RouaChart({
         const timeSinceClear = Date.now() - candlesClearedAtRef.current;
         if (timeSinceClear < CANDLES_CLEAR_TIMEOUT_MS) return;
         // Timeout reached — allow WebSocket to populate the chart
+      }
+
+      // FIX: When WebSocket delivers real data after a fallback, switch feedState
+      // back to 'live'. This is what connects the "broken candles + disconnected
+      // message" bug — when historical fetch fails, feedState='fallback' shows the
+      // warning message and simulated candles. When WebSocket delivers real data,
+      // the chart recovers visually but feedState stays 'fallback', keeping the
+      // warning message visible even though data is now live.
+      if (feedStateRef.current === 'fallback' && candlesRef.current.length >= 2) {
+        setFeedState('live');
       }
 
       // FIX: Align candle timestamp to the current timeframe's interval.

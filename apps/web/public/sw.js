@@ -1,10 +1,11 @@
-const CACHE_NAME = 'roua-v204-pwa-enabled';
+const CACHE_NAME = 'roua-v205-pwa-full-fix';
 
 const APP_SHELL = [
   '/manifest.json',
   '/favicon.svg',
   '/icon-192.png',
   '/icon-512.png',
+  '/offline.html',
 ];
 
 // Install: cache static assets
@@ -100,11 +101,6 @@ self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Pass through all navigation requests (clicking links, back/forward)
-  if (request.mode === 'navigate') {
-    return;
-  }
-
   // Pass through all RSC requests (Next.js App Router client-side navigation)
   if (
     url.searchParams.has('_rsc') ||
@@ -117,6 +113,29 @@ self.addEventListener('fetch', (event) => {
 
   // Pass through all API calls and WebSocket - never cache
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) {
+    return;
+  }
+
+  // ── Navigation requests: Network-first with offline fallback ──
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache successful page loads for offline use
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          // If offline, try cache first, then show offline page
+          return caches.match(request).then((cached) => {
+            if (cached) return cached;
+            return caches.match('/offline.html');
+          });
+        })
+    );
     return;
   }
 

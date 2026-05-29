@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing';
 import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
+import PWARegistrar from "@/components/PWARegistrar";
 
 /* ── Font Loading via next/font/google ──
  * Loads only the glyphs needed (Arabic subset) with zero layout shift.
@@ -178,6 +179,7 @@ export default async function LocaleLayout({
       <body className={`${fontVars} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <GlobalStyleRegistry />
+          <PWARegistrar />
           {children}
           <Toaster />
         </NextIntlClientProvider>

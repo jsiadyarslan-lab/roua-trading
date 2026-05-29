@@ -21,8 +21,6 @@ const intlMiddleware = createMiddleware(routing);
 
 // PWA static files that must be served without locale redirect
 const PWA_ASSETS = [
-  '/pwa-icon-192.png',
-  '/pwa-icon-512.png',
   '/icon-192.png',
   '/icon-512.png',
   '/logo-192.png',

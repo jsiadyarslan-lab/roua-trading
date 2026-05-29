@@ -4,7 +4,6 @@ import { AuthInitializer } from '@/components/dashboard/AuthInitializer'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { GuestBanner } from '@/components/dashboard/GuestGuard'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
-import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
 import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
 import DesktopNotificationAdapter from '@/components/dashboard/DesktopNotificationAdapter'
@@ -83,7 +82,6 @@ export default async function DashboardLayout({
             <DashboardLayoutStyles />
             <ErrorBoundary>
               <AuthInitializer />
-              <ServiceWorkerRegistrar />
               <GlobalLogicEngine />
               <DesktopNotificationAdapter />
               <NotificationToasts />

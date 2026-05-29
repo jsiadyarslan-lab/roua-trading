@@ -138,7 +138,7 @@ export async function generateMetadata({
       type: "website",
       images: [
         {
-          url: "/icon-512.png",
+          url: "/api/pwa-asset?file=icon-512.png",
           width: 512,
           height: 512,
           alt: siteName,
@@ -149,7 +149,7 @@ export async function generateMetadata({
       card: "summary",
       title,
       description: description,
-      images: ["/icon-512.png"],
+      images: ["/api/pwa-asset?file=icon-512.png"],
     },
   };
 }

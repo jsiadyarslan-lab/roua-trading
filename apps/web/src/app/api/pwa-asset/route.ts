@@ -12,8 +12,6 @@ import { join } from 'path';
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const ASSET_MAP: Record<string, { path: string; contentType: string; cacheMaxAge: number }> = {
-  'pwa-icon-192.png': { path: 'pwa-icon-192.png', contentType: 'image/png', cacheMaxAge: 86400 },
-  'pwa-icon-512.png': { path: 'pwa-icon-512.png', contentType: 'image/png', cacheMaxAge: 86400 },
   'icon-192.png': { path: 'icon-192.png', contentType: 'image/png', cacheMaxAge: 86400 },
   'icon-512.png': { path: 'icon-512.png', contentType: 'image/png', cacheMaxAge: 86400 },
   'logo-192.png': { path: 'logo-192.png', contentType: 'image/png', cacheMaxAge: 86400 },

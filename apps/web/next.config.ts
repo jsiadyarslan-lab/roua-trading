@@ -14,6 +14,9 @@ const rawApiTarget = process.env.API_INTERNAL_URL || "http://127.0.0.1:3001";
 const apiTarget = rawApiTarget.includes("http://api:") ? "http://127.0.0.1:3001" : rawApiTarget;
 
 const nextConfig: NextConfig = {
+  // PWA FIX: Prevent Next.js from normalizing URLs before middleware runs.
+  // Without this, /icon-192.png gets redirected by next-intl middleware.
+  skipTrailingSlashRedirect: true,
   // PERFORMANCE: Image optimization
   images: {
     formats: ['image/avif', 'image/webp'],
@@ -65,6 +68,34 @@ const nextConfig: NextConfig = {
 
   // Removed destructive Webpack minimizer overrides that broke Next.js App Router client-side routing.
   // Next.js relies on its internal SWC minifier and chunking to correctly resolve RSC payloads.
+
+  async headers() {
+    return [
+      // ── PWA Static Assets: Force no-redirect headers ──
+      // These headers ensure iOS Safari can read PWA icons without 307 redirects.
+      // The next-intl middleware was redirecting /icon-192.png → /ar/icon-192.png
+      // which broke PWA installation on iOS.
+      {
+        source: '/icon-192.png',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400' },
+        ],
+      },
+      {
+        source: '/icon-512.png',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=86400' },
+        ],
+      },
+      {
+        source: '/sw.js',
+        headers: [
+          { key: 'Cache-Control', value: 'public, max-age=0' },
+          { key: 'Service-Worker-Allowed', value: '/' },
+        ],
+      },
+    ];
+  },
 
   async rewrites() {
     return [

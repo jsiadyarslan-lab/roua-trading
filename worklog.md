@@ -51,3 +51,23 @@ Stage Summary:
 - 3 critical runtime bugs fixed in DrawingRenderer Plugin System
 - Build passes successfully after fixes
 - Changes pushed to production (GitHub origin/main)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Bug #2 - Candles disappear when selecting drawing tool
+
+Work Log:
+- Read full DrawingRenderer.ts (1173 lines) - confirmed it already uses Plugin System (ISeriesPrimitive)
+- Read DrawingManager.ts (315 lines) - CRUD + localStorage persistence
+- Read chart-primitives.ts (880 lines) - separate overlay primitives
+- Read useChart.ts, RouaChart.tsx, DrawingPanel.tsx
+- Identified root cause: `setChartInteractionEnabled(false)` passes bare boolean `handleScroll: false, handleScale: false` which resets ALL sub-options to defaults, triggering GPU layer recomposition that makes candle bodies disappear
+- Fix: Changed `setChartInteractionEnabled` to pass granular options that only disable mouseWheel/pressedMouseMove while preserving touch/pinch settings
+- Build succeeded: `✓ Compiled successfully in 37.7s`
+- Dev server started and running at http://localhost:3000
+
+Stage Summary:
+- Bug #2 root cause: Bare boolean `handleScroll: false` resets ALL scroll config including mobile touch
+- Fix applied: Granular options in setChartInteractionEnabled
+- Build: SUCCESS
+- Key file modified: `/home/z/my-project/apps/web/src/lib/charts/DrawingRenderer.ts` (line 995-1016)

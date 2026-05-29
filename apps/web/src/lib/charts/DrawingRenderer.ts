@@ -993,7 +993,26 @@ export class DrawingRenderer {
   // ══════════════════════════════════════════════════════════
 
   private setChartInteractionEnabled(enabled: boolean): void {
-    this.chart.applyOptions({ handleScroll: enabled, handleScale: enabled });
+    // CRITICAL FIX (Bug #2): Never pass bare boolean — it resets ALL
+    // sub-options (including mobile touch configs) to defaults, which
+    // triggers a full GPU layer recomposition that makes candle bodies
+    // disappear. Instead, only toggle mouse-wheel & drag while keeping
+    // touch/pinch settings untouched.
+    this.chart.applyOptions({
+      handleScroll: {
+        mouseWheel: enabled,
+        pressedMouseMove: enabled,
+        // vertTouchDrag / horizTouchDrag are NOT overridden —
+        // whatever the chart was created with stays in effect.
+      },
+      handleScale: {
+        mouseWheel: enabled,
+        pinch: true, // always keep pinch-to-zoom working
+        axisPressedMouseMove: enabled
+          ? { time: true, price: true }
+          : { time: false, price: false },
+      },
+    });
   }
 
   // ══════════════════════════════════════════════════════════

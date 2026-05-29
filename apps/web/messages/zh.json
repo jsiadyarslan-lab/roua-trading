@@ -602,7 +602,7 @@
       "paperTradingBalance": "模拟 Trading 余额",
       "momentumDown": "看跌",
       "agentReady": "代理 Ready to 开始",
-      "tagVwapRsi": "VWAP + RSI",
+      "tagVwapRsi": "成交量加权平均价格 + 相对强弱指数",
       "strategyAutoDesc": "自适应自动 — 根据市场状况选择最佳策略",
       "pauseAgent": "暂停",
       "volatilityLow": "低",
@@ -2119,7 +2119,7 @@
       "cancelOrder": "取消",
       "goBack": "返回",
       "noOpenPositions": "暂无持仓",
-      "h24": "24h",
+      "h24": "24小时",
       "noApiKeys": "无API密钥 —",
       "openOrders": "未完成订单",
       "ratio": "比率",
@@ -2697,7 +2697,7 @@
     },
     "chartFootprint": {
       "delta": "三角洲",
-      "vol": "Vol",
+      "vol": "卷",
       "bidAsk": "买×卖",
       "footprint": "足迹",
       "imbalance": "IMB"
@@ -3612,7 +3612,7 @@
       "DOGE/USD": "狗狗币",
       "AMZN": "亚马逊公司",
       "APT/USD": "阿普托斯",
-      "SUIUSDT": "Sui",
+      "SUIUSDT": "隋",
       "INJ/USD": "单射",
       "BTC/USD": "比特币",
       "WTI/USD": "西德克萨斯中质原油",
@@ -3652,7 +3652,7 @@
       "ARBUSD": "仲裁",
       "BNBUSD": "币安币",
       "TRXUSD": "TRON",
-      "SUIUSD": "Sui",
+      "SUIUSD": "隋",
       "ALGOUSDT": "阿尔戈兰德",
       "AUDUSD": "澳元/美元",
       "FILUSD": "文件币",
@@ -3688,7 +3688,7 @@
       "NZDUSD": "新西兰元 / 美元",
       "ATOMUSD": "宇宙",
       "ALGOUSD": "阿尔戈兰德",
-      "SUI/USD": "Sui",
+      "SUI/USD": "隋",
       "XAG/USD": "银",
       "INJUSDT": "单射",
       "VET/USD": "唯链",
@@ -3906,7 +3906,7 @@
     "categories": {
       "crypto": "CRYPTO",
       "stocks": "STOCK",
-      "commodity": "COMMODITY",
+      "commodity": "商品",
       "forex": "FOREX"
     },
     "actions": {
@@ -4590,7 +4590,7 @@
   },
   "harmonicPatterns": {
     "crab": "螃蟹",
-    "bat": "Bat",
+    "bat": "蝙蝠",
     "doubleBottom": "双底",
     "gartley": "加特利",
     "butterfly": "蝴蝶",

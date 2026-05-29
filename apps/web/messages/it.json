@@ -602,7 +602,7 @@
       "paperTradingBalance": "Saldo di trading cartaceo",
       "momentumDown": "Ribassista",
       "agentReady": "Agente pronto per iniziare",
-      "tagVwapRsi": "VWAP + RSI",
+      "tagVwapRsi": "VWAP+RSI",
       "strategyAutoDesc": "Auto adattivo: sceglie la migliore strategia in base alle condizioni di mercato",
       "pauseAgent": "Pausa",
       "volatilityLow": "Basso",
@@ -1970,7 +1970,7 @@
       "cancelled": "Annullato",
       "activeSession": "⏳ Sessione attiva",
       "title": "Consiglio strategico",
-      "logTab": "Log",
+      "logTab": "Tronco d'albero",
       "bearishConsensus": "Consenso ribassista",
       "modifiedBrief": "~{n}modificato"
     },
@@ -2697,7 +2697,7 @@
     },
     "chartFootprint": {
       "delta": "Delta",
-      "vol": "Vol",
+      "vol": "vol",
       "bidAsk": "Offerta×Chiedi",
       "footprint": "Impronta",
       "imbalance": "IMB"
@@ -3906,7 +3906,7 @@
     "categories": {
       "crypto": "CRYPTO",
       "stocks": "AZIONI",
-      "commodity": "COMMODITY",
+      "commodity": "MERCE",
       "forex": "FOREX"
     },
     "actions": {

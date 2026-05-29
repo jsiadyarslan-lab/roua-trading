@@ -1857,7 +1857,7 @@
       "quickStatAuth": "인증",
       "catMarketsDesc": "실시간 및 과거 시장 데이터",
       "authDescription": "모든 보호된 요청에는 Bearer 토큰이 있는{code}헤더가 필요합니다. OTP 인증 엔드포인트 또는 API 키를 사용하여 액세스 토큰을 얻을 수 있습니다.",
-      "planPro": "Pro",
+      "planPro": "찬성",
       "errBadRequestSolution": "요청 구조 및 필수 데이터 확인",
       "or": "또는",
       "epTradingLinkDesc": "자동 연결 확인 기능이 있는 API 키를 통해 새 거래소 계정 연결",
@@ -2637,7 +2637,7 @@
       "title": "2단계 인증"
     },
     "orderBook": {
-      "connecting": "CONNECTING",
+      "connecting": "연결 중",
       "liveDepth": "라이브 깊이",
       "lastPrice": "최종 가격",
       "live": "LIVE",
@@ -3612,7 +3612,7 @@
       "DOGE/USD": "도지코인",
       "AMZN": "아마존닷컴(주)",
       "APT/USD": "앱토스",
-      "SUIUSDT": "Sui",
+      "SUIUSDT": "수이",
       "INJ/USD": "단사",
       "BTC/USD": "비트코인",
       "WTI/USD": "원유 WTI",
@@ -3652,7 +3652,7 @@
       "ARBUSD": "중재",
       "BNBUSD": "바이낸스 코인",
       "TRXUSD": "TRON",
-      "SUIUSD": "Sui",
+      "SUIUSD": "수이",
       "ALGOUSDT": "알고랜드",
       "AUDUSD": "호주 달러 / 미국 달러",
       "FILUSD": "파일코인",
@@ -3688,7 +3688,7 @@
       "NZDUSD": "뉴질랜드 달러 / 미국 달러",
       "ATOMUSD": "코스모스",
       "ALGOUSD": "알고랜드",
-      "SUI/USD": "Sui",
+      "SUI/USD": "수이",
       "XAG/USD": "은",
       "INJUSDT": "단사",
       "VET/USD": "비체인",
@@ -3906,7 +3906,7 @@
     "categories": {
       "crypto": "CRYPTO",
       "stocks": "STOCK",
-      "commodity": "COMMODITY",
+      "commodity": "상품",
       "forex": "FOREX"
     },
     "actions": {

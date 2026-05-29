@@ -1857,7 +1857,7 @@
       "quickStatAuth": "Autenticação",
       "catMarketsDesc": "Ao Vivo e Histórico Mercado Dados",
       "authDescription": "Todos protegido requests require an {code} header com a Bearer token. Você pode obtain an acesso Token via o OTP Autenticação Endpoint ou por usando API keys.",
-      "planPro": "Pro",
+      "planPro": "Pró",
       "errBadRequestSolution": "Check o Requisição structure e Obrigatório Dados",
       "or": "ou",
       "epTradingLinkDesc": "Vincular a Novo Exchange Conta via API keys com automático Conexão verification",
@@ -1970,7 +1970,7 @@
       "cancelled": "Cancelado",
       "activeSession": "⏳ Ativo Sessão",
       "title": "Estratégico Conselho",
-      "logTab": "Log",
+      "logTab": "Registro",
       "bearishConsensus": "Consenso de Baixa",
       "modifiedBrief": "~{n} modificado(s)"
     },
@@ -2299,7 +2299,7 @@
       "tradeRateLimit": "[Protection] Hourly Trade limite alcançado",
       "profitProtection": "Proteção de Lucro",
       "marketProtection": "Proteção de Mercado",
-      "log": "Log",
+      "log": "Registro",
       "scanningAssets": "[Scan] Escaneamento {count} Chave assets...",
       "exitLog": "[Exit] {symbol} fechado via {reason} @ ${price} | PnL {pnl}",
       "winsLosses": "Win / Perda",
@@ -2570,7 +2570,7 @@
       "expandAria": "Expand Barra Lateral",
       "collapse": "Recolher",
       "correlation": "Correlação",
-      "backtest": "Lab",
+      "backtest": "Laboratório",
       "aiHelper": "Insight e Contexto",
       "collapseAria": "Collapse Barra Lateral",
       "bookHelper": "Depth & Liquidez",
@@ -2697,7 +2697,7 @@
     },
     "chartFootprint": {
       "delta": "Delta",
-      "vol": "Vol",
+      "vol": "Vol.",
       "bidAsk": "Lance×Pergunta",
       "footprint": "Pegada",
       "imbalance": "IMB"
@@ -3133,7 +3133,7 @@
     "sourceCoinGecko": "CoinGecko",
     "quantity": "Quantidade",
     "balance": "Saldo",
-    "pro": "Pro",
+    "pro": "Pró",
     "takeProfit": "Obtenha lucro",
     "week": "Semana",
     "tools": "Ferramentas",
@@ -3166,7 +3166,7 @@
     "medium": "Médio",
     "perMonth": "$ / mês",
     "roleInstDesc": "Permissões institucionais completas",
-    "rolePro": "Pro",
+    "rolePro": "Pró",
     "demoData": "Dados Demo",
     "confidence": "Confiança",
     "date": "Data",
@@ -3906,7 +3906,7 @@
     "categories": {
       "crypto": "CRYPTO",
       "stocks": "AÇÕES",
-      "commodity": "COMMODITY",
+      "commodity": "MERCADORIA",
       "forex": "FOREX"
     },
     "actions": {
@@ -4590,7 +4590,7 @@
   },
   "harmonicPatterns": {
     "crab": "Caranguejo",
-    "bat": "Bat",
+    "bat": "Bastão",
     "doubleBottom": "Fundo Duplo",
     "gartley": "Gartley",
     "butterfly": "Borboleta",

@@ -15,7 +15,7 @@
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
+ARG BUILD_CACHE=v201-pwa-middleware-fix
 
 # CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
 # verify which version of code is actually running on Railway.
@@ -52,7 +52,7 @@ RUN npm ci --legacy-peer-deps
 FROM node:22-slim AS builder
 
 # Re-declare global ARGs so they're accessible in this build stage
-ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
+ARG BUILD_CACHE=v201-pwa-middleware-fix
 ARG GIT_COMMIT=unknown
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -106,7 +106,7 @@ FROM node:22-slim AS runner
 # Re-declare global ARGs so they're accessible in this build stage
 # Without this, the ENV vars below would be empty because global ARGs
 # (defined before the first FROM) are NOT accessible inside build stages.
-ARG BUILD_CACHE=v200-fix-oom-dockerfile-args
+ARG BUILD_CACHE=v201-pwa-middleware-fix
 ARG GIT_COMMIT=unknown
 
 # OpenSSL for Prisma + curl for health checks + bash for start.sh

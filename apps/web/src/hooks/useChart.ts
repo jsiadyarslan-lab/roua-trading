@@ -385,7 +385,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         secondsVisible: true,
         rightOffset: isMobile ? 3 : 5,
         barSpacing: isMobile ? 8 : 14,
-        minBarSpacing: isMobile ? 3 : 5,
+        minBarSpacing: isMobile ? 4 : 5,
       },
       handleScroll: { vertTouchDrag: !isMobile },
     };
@@ -572,7 +572,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       shortcutsRef.current = new KeyboardShortcuts({
         togglePlayPause: () => setIsPaused(p => !p),
         zoomIn: () => chart.timeScale().applyOptions({ barSpacing: Math.min(50, (chart.timeScale().options().barSpacing || 12) + 2) }),
-        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(4, (chart.timeScale().options().barSpacing || 12) - 2) }),
+        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(6, (chart.timeScale().options().barSpacing || 12) - 2) }),
         setTool: (tool) => setActiveTool(tool),
         saveChart: () => ChartTemplateManager.save(
           'auto-save',
@@ -1693,14 +1693,39 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   const zoomOut = useCallback(() => {
+    // FIX: Minimum barSpacing of 6 to keep candle bodies visible.
+    // Below 6, candle bodies collapse into dots/lines.
     chartInstanceRef.current?.timeScale().applyOptions({
-      barSpacing: Math.max(4, (chartInstanceRef.current?.timeScale().options().barSpacing || 12) - 2),
+      barSpacing: Math.max(6, (chartInstanceRef.current?.timeScale().options().barSpacing || 12) - 2),
     });
   }, []);
 
   const resetView = useCallback(() => {
-    chartInstanceRef.current?.timeScale().fitContent();
-  }, []);
+    const chart = chartInstanceRef.current;
+    if (!chart) return;
+
+    const candles = candlesRef.current;
+    if (candles.length === 0) {
+      chart.timeScale().fitContent();
+      return;
+    }
+
+    // FIX: Show only the last ~120 candles instead of fitting ALL candles.
+    // fitContent() with 300+ candles compresses barSpacing below 4px,
+    // causing candle bodies to disappear (appear as dots/lines).
+    // With ~120 candles, barSpacing stays ≥ 8px → proper candle bodies.
+    const MAX_VISIBLE_CANDLES = isMobile ? 80 : 120;
+    const fromIdx = Math.max(0, candles.length - MAX_VISIBLE_CANDLES);
+    const fromTime = candles[fromIdx].time as Time;
+    const toTime = candles[candles.length - 1].time as Time;
+
+    try {
+      chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
+    } catch {
+      // Fallback: if setVisibleRange fails (e.g., data not ready), use fitContent
+      chart.timeScale().fitContent();
+    }
+  }, [isMobile]);
 
   // ── Export ─────────────────────────────────────────────
   const exportPNG = useCallback(() => {

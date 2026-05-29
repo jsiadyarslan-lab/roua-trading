@@ -21,3 +21,24 @@ Stage Summary:
 - Event capture approach: Events are intercepted in capture phase before reaching chart's internal handlers
 - No canvas CSS modifications, no chart re-renders during tool switching → no GPU recomposition → candles remain visible
 - Files modified: DrawingRenderer.ts, useChart.ts
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix candles appearing as dots in Roua Trading chart
+
+Work Log:
+- Read all chart source files: useChart.ts, DrawingRenderer.ts, RouaChart.tsx
+- Confirmed DrawingRenderer.ts already uses Plugin System (ISeriesPrimitive) — no overlay canvas
+- Searched internet for lightweight-charts v5 candle dots issue
+- Found root cause: `fitContent()` with 300 candles compresses barSpacing below 4px → candle body width = 1-3px → appears as dots
+- Applied 3 fixes to useChart.ts:
+  1. Replaced `resetView`'s `fitContent()` with `setVisibleRange()` showing last 120 candles (80 on mobile)
+  2. Increased `minBarSpacing` from 3→4 on mobile to prevent barSpacing dropping below visible threshold
+  3. Changed `zoomOut` minimum barSpacing from 4→6 to prevent zooming out too far
+- Build succeeded
+
+Stage Summary:
+- Root cause: fitContent() with 300 data points → auto barSpacing < 4px → candle bodies invisible
+- Fix: Use setVisibleRange() to show only ~120 candles, keeping barSpacing ≥ 8px
+- All changes in /home/z/my-project/apps/web/src/hooks/useChart.ts
+- Build verified: turbo build successful

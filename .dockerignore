@@ -41,6 +41,9 @@ Dockerfile
 **/*.spec.tsx
 coverage
 
+# Mobile app (built separately via GitHub Actions, not Railway)
+apps/mobile
+
 # Misc
 .env.local
 .env.development.local

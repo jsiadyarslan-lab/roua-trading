@@ -1,0 +1,29 @@
+{
+  "name": "@roua/mobile",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "prebuild": "expo prebuild",
+    "build:ios": "expo build:ios --type simulator"
+  },
+  "dependencies": {
+    "expo": "~52.0.0",
+    "expo-status-bar": "~2.0.0",
+    "expo-updates": "~0.26.0",
+    "expo-splash-screen": "~0.29.0",
+    "expo-screen-orientation": "~8.0.0",
+    "react": "18.3.1",
+    "react-native": "0.76.6",
+    "react-native-webview": "13.12.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.24.0",
+    "@types/react": "~18.3.0",
+    "typescript": "^5.3.0"
+  },
+  "private": true
+}

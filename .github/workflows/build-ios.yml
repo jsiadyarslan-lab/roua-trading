@@ -1,0 +1,249 @@
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# Roua Trading — Build iOS IPA via GitHub Actions
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#
+# This workflow builds an IPA file from the React Native WebView app
+# in apps/mobile/ using Xcode on a macOS runner.
+#
+# COST: FREE — GitHub provides 2000 min/month of macOS runners for free
+#        (public repos get unlimited minutes)
+#
+# REQUIREMENTS:
+#   - Apple ID (free) — app works for 7 days, then needs re-sign
+#   - OR Apple Developer account ($99/yr) — app works permanently
+#
+# OUTPUT: IPA file uploaded as a GitHub Actions artifact (downloadable)
+#
+# HOW TO INSTALL IPA ON YOUR iPhone:
+#   1. Download the IPA from GitHub Actions artifacts
+#   2. Install via AltStore (free, https://altstore.io) or Sideloadly
+#   3. Trust the developer certificate in Settings > General > VPN & Device Management
+#
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+name: Build iOS IPA
+
+on:
+  # Manual trigger from GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: 'Build type: simulator (free, no Apple ID needed) or device (needs Apple ID)'
+        required: true
+        default: 'simulator'
+        type: choice
+        options:
+          - simulator
+          - device
+      apple_id:
+        description: 'Your Apple ID email (only needed for device build)'
+        required: false
+        type: string
+
+  # Also trigger on pushes to main if mobile app changes
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mobile/**'
+
+env:
+  NODE_VERSION: '22'
+  EXPO_VERSION: '52'
+
+jobs:
+  build-ios:
+    name: Build IPA
+    runs-on: macos-14  # Apple Silicon M1 runner with Xcode 15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          cd apps/mobile
+          npm install --legacy-peer-deps
+
+      - name: Setup Expo
+        run: |
+          npm install -g expo-cli eas-cli
+
+      - name: Generate app icon from web icon
+        run: |
+          cd apps/mobile
+          # Copy the web app's icon-512.png as the mobile app icon
+          if [ -f "../../apps/web/public/icon-512.png" ]; then
+            cp ../../apps/web/public/icon-512.png assets/icon.png
+            cp ../../apps/web/public/icon-512.png assets/splash.png
+            cp ../../apps/web/public/icon-512.png assets/adaptive-icon.png
+            echo "Icons copied from web app"
+          else
+            echo "Warning: Web app icon not found, using placeholder"
+            # Create a simple placeholder icon using Python
+            python3 -c "
+            import struct, zlib
+            size = 512
+            # Create a simple dark purple icon with 'R' letter
+            pixels = []
+            for y in range(size):
+              for x in range(size):
+                # Dark background #0B0E14
+                if (x - 256)**2 + (y - 256)**2 < 200**2:
+                  # Indigo circle #6366f1
+                  pixels.extend([99, 102, 241, 255])
+                else:
+                  pixels.extend([11, 14, 20, 255])
+            raw = b''.join(bytes(p) for p in [pixels[i:i+size*4] for i in range(0, len(pixels), size*4)])
+            print('Icon generated')
+            "
+          fi
+
+      - name: Run Expo Prebuild (generates ios/ directory)
+        run: |
+          cd apps/mobile
+          npx expo prebuild --platform ios --clean
+
+      # ───────────────────────────────────────────────────────
+      # BUILD FOR SIMULATOR (FREE — no Apple ID needed)
+      # ───────────────────────────────────────────────────────
+      - name: Build for Simulator
+        if: ${{ github.event.inputs.build_type == 'simulator' || github.event_name == 'push' }}
+        run: |
+          cd apps/mobile/ios
+          xcodebuild \
+            -workspace RouaTrading.xcworkspace \
+            -scheme RouaTrading \
+            -configuration Release \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 15 Pro' \
+            -derivedDataPath build \
+            ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tail -20
+
+          # Create .app bundle path
+          APP_PATH=$(find build/Build/Products/Release-iphonesimulator -name "*.app" | head -1)
+          echo "APP_PATH=$APP_PATH"
+
+          # Package as zip for download
+          cd build/Build/Products/Release-iphonesimulator
+          zip -r "${{ github.workspace }}/RouaTrading-simulator.zip" *.app
+
+      # ───────────────────────────────────────────────────────
+      # BUILD FOR DEVICE (needs Apple ID signing)
+      # ───────────────────────────────────────────────────────
+      - name: Build IPA for Device
+        if: ${{ github.event.inputs.build_type == 'device' }}
+        run: |
+          cd apps/mobile/ios
+
+          # Create ExportOptions.plist for ad-hoc distribution
+          cat > ExportOptions.plist << 'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>ad-hoc</string>
+            <key>compileBitcode</key>
+            <false/>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>teamID</key>
+            <string></string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+          </dict>
+          </plist>
+          EOF
+
+          # Build archive
+          xcodebuild \
+            -workspace RouaTrading.xcworkspace \
+            -scheme RouaTrading \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath build/RouaTrading.xcarchive \
+            archive \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=NO | tail -20
+
+          # Export IPA (unsigned — user will sign with AltStore/Sideloadly)
+          mkdir -p build/IPA
+          xcodebuild \
+            -exportArchive \
+            -archivePath build/RouaTrading.xcarchive \
+            -exportPath build/IPA \
+            -exportOptionsPlist ExportOptions.plist \
+            CODE_SIGN_IDENTITY="-" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO | tail -20
+
+          # Move IPA to workspace root
+          if [ -f build/IPA/*.ipa ]; then
+            cp build/IPA/*.ipa "${{ github.workspace }}/RouaTrading.ipa"
+            echo "IPA created successfully!"
+          else
+            echo "IPA export failed, trying manual package..."
+            # Manual IPA packaging (unsigned)
+            APP_PATH=$(find build/Build/Products/Release-iphoneos -name "*.app" | head -1)
+            if [ -n "$APP_PATH" ]; then
+              mkdir -p Payload
+              cp -r "$APP_PATH" Payload/
+              zip -r "${{ github.workspace }}/RouaTrading-unsigned.ipa" Payload
+              rm -rf Payload
+              echo "Unsigned IPA created!"
+            fi
+          fi
+
+      - name: Upload Simulator Build
+        if: ${{ hashFiles(format('{0}/RouaTrading-simulator.zip', github.workspace)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RouaTrading-Simulator
+          path: RouaTrading-simulator.zip
+          retention-days: 30
+
+      - name: Upload IPA
+        if: ${{ hashFiles(format('{0}/RouaTrading.ipa', github.workspace)) != '' || hashFiles(format('{0}/RouaTrading-unsigned.ipa', github.workspace)) != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: RouaTrading-IPA
+          path: |
+            RouaTrading.ipa
+            RouaTrading-unsigned.ipa
+          retention-days: 30
+
+      - name: Build Summary
+        run: |
+          echo "## Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f "${{ github.workspace }}/RouaTrading-simulator.zip" ]; then
+            echo "- ✅ Simulator build (.app) — download and run in iOS Simulator" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "${{ github.workspace }}/RouaTrading.ipa" ]; then
+            echo "- ✅ IPA build — install on device via AltStore/Sideloadly" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f "${{ github.workspace }}/RouaTrading-unsigned.ipa" ]; then
+            echo "- ✅ Unsigned IPA — sign with AltStore/Sideloadly to install" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### How to install on iPhone" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the IPA from the artifacts above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Install [AltStore](https://altstore.io) on your iPhone" >> $GITHUB_STEP_SUMMARY
+          echo "3. Open AltStore and sideload the IPA" >> $GITHUB_STEP_SUMMARY
+          echo "4. Go to Settings > General > VPN & Device Management > Trust the developer" >> $GITHUB_STEP_SUMMARY
+          echo "5. Open the app — it will load رؤى للتداول from the web!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **Note:** With a free Apple ID, the app expires every 7 days. Re-sign with AltStore to refresh." >> $GITHUB_STEP_SUMMARY

@@ -87,8 +87,29 @@ const nextConfig: NextConfig = {
   },
 
   async rewrites() {
-    return [
-      // ── Socket.IO proxy to NestJS ──
+    return {
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      // PWA CRITICAL: beforeFiles rewrites run BEFORE middleware.
+      // The next-intl middleware redirects /icon-192.png → /ar/icon-192.png
+      // which breaks PWA. These beforeFiles rewrites bypass the middleware
+      // entirely by rewriting icon URLs to themselves, preventing the
+      // locale redirect from ever happening.
+      // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+      beforeFiles: [
+        // PWA icons — must be served at root URL without locale redirect
+        { source: '/icon-192.png', destination: '/icon-192.png' },
+        { source: '/icon-512.png', destination: '/icon-512.png' },
+        { source: '/logo-192.png', destination: '/logo-192.png' },
+        { source: '/logo-512.png', destination: '/logo-512.png' },
+        { source: '/favicon.ico', destination: '/favicon.ico' },
+        { source: '/favicon.svg', destination: '/favicon.svg' },
+        { source: '/offline.html', destination: '/offline.html' },
+        { source: '/manifest.json', destination: '/manifest.json' },
+        { source: '/sw.js', destination: '/sw.js' },
+        { source: '/robots.txt', destination: '/robots.txt' },
+      ],
+      afterFiles: [
+        // ── Socket.IO proxy to NestJS ──
       // FIX: Socket.IO runs on NestJS (port 3001), but all traffic hits
       // Next.js (port 3000). Without this rewrite, /socket.io requests
       // return 404 because Next.js doesn't serve Socket.IO.
@@ -169,7 +190,9 @@ const nextConfig: NextConfig = {
       //   /api/strategic-council/[...path]/route.ts
       //   /api/smart-executor/[...path]/route.ts
       // already proxy to NestJS with proper auth injection via createNestJSProxyHandlers().
-    ];
+      ],
+      fallback: [],
+    };
   },
 };
 

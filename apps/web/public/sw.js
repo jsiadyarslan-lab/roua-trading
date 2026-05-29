@@ -1,11 +1,11 @@
-const CACHE_NAME = 'roua-v205-pwa-full-fix';
+const CACHE_NAME = 'roua-v207-pwa-api-assets';
 
 const APP_SHELL = [
   '/manifest.json',
   '/favicon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
-  '/offline.html',
+  '/api/pwa-asset?file=icon-192.png',
+  '/api/pwa-asset?file=icon-512.png',
+  '/api/pwa-asset?file=offline.html',
 ];
 
 // Install: cache static assets
@@ -38,8 +38,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'رؤى للتداول',
     body: 'لديك إشعار جديد',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/api/pwa-asset?file=icon-192.png',
+    badge: '/api/pwa-asset?file=icon-192.png',
     tag: 'roua-notification',
     data: {},
   };

@@ -34,6 +34,7 @@ export default async function MobileLayout({
   const { locale } = await params
   setRequestLocale(locale)
   const dir = getDirection(locale)
+  const isAr = locale === 'ar'
 
   return (
     <MarketProvider>
@@ -42,7 +43,16 @@ export default async function MobileLayout({
           <AuthInitializer />
           <GlobalLogicEngine />
           <NotificationToasts />
-          <div className="m-shell" style={{ direction: dir }}>
+          {/* m-shell: flex column، الناف بار في الأسفل بدون fixed */}
+          <div
+            className="m-shell"
+            dir={dir}
+            style={{
+              fontFamily: isAr ? "'Cairo', sans-serif" : "'Inter', sans-serif",
+              fontSize: isAr ? '15px' : '14px',
+              letterSpacing: isAr ? '0.2px' : 'normal',
+            }}
+          >
             <main className="m-main">{children}</main>
             <BottomNav />
           </div>

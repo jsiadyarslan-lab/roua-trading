@@ -3,59 +3,59 @@ import { usePathname, useRouter } from '@/i18n/navigation'
 import { usePositionsStore } from '@/hooks/usePositionsStore'
 
 const CYAN = '#00B4FF'
-const DIM = 'rgba(255,255,255,0.28)'
+const DIM  = 'rgba(255,255,255,0.28)'
 
 const SvgHome = ({ a }: { a: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <path d="M3 10.5L12 3l9 7.5V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-9.5z"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5}
-      fill={a ? 'rgba(0,180,255,0.12)' : 'none'} strokeLinejoin="round" />
-    <path d="M9 21v-8h6v8" stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5} strokeLinecap="round" />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5}
+      fill={a?'rgba(0,180,255,0.12)':'none'} strokeLinejoin="round"/>
+    <path d="M9 21v-8h6v8" stroke={a?CYAN:DIM} strokeWidth={a?2:1.5} strokeLinecap="round"/>
   </svg>
 )
 
 const SvgChart = ({ a }: { a: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <polyline points="3,18 8,11 13,14 21,5"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round" />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5} strokeLinecap="round" strokeLinejoin="round"/>
     {a && <>
-      <circle cx="8" cy="11" r="2" fill={CYAN} />
-      <circle cx="13" cy="14" r="2" fill={CYAN} />
-      <circle cx="21" cy="5" r="2" fill={CYAN} />
+      <circle cx="8"  cy="11" r="2" fill={CYAN}/>
+      <circle cx="13" cy="14" r="2" fill={CYAN}/>
+      <circle cx="21" cy="5"  r="2" fill={CYAN}/>
     </>}
-    <path d="M3 21h18" stroke={a ? CYAN : DIM} strokeWidth="1" opacity="0.2" />
+    <path d="M3 21h18" stroke={a?CYAN:DIM} strokeWidth="1" opacity="0.2"/>
   </svg>
 )
 
 const SvgTrade = ({ a }: { a: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <path d="M13 2L4 14h7l-1.5 8L20 10h-7L13 2z"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5} strokeLinejoin="round"
-      fill={a ? 'rgba(0,180,255,0.14)' : 'none'} />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5} strokeLinejoin="round"
+      fill={a?'rgba(0,180,255,0.14)':'none'}/>
   </svg>
 )
 
 const SvgPositions = ({ a }: { a: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <rect x="2" y="7" width="20" height="13" rx="2"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5}
-      fill={a ? 'rgba(0,180,255,0.1)' : 'none'} />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5}
+      fill={a?'rgba(0,180,255,0.1)':'none'}/>
     <path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5} />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5}/>
     <circle cx="12" cy="14" r="2"
-      fill={a ? CYAN : 'none'} stroke={a ? 'none' : DIM} strokeWidth="1.5" />
+      fill={a?CYAN:'none'} stroke={a?'none':DIM} strokeWidth="1.5"/>
   </svg>
 )
 
 const SvgAI = ({ a }: { a: boolean }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
     <circle cx="12" cy="12" r="3.5"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5}
-      fill={a ? 'rgba(0,180,255,0.15)' : 'none'} />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5}
+      fill={a?'rgba(0,180,255,0.15)':'none'}/>
     <path d="M12 2v3M12 19v3M2 12h3M19 12h3"
-      stroke={a ? CYAN : DIM} strokeWidth={a ? 2 : 1.5} strokeLinecap="round" />
+      stroke={a?CYAN:DIM} strokeWidth={a?2:1.5} strokeLinecap="round"/>
     <path d="M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"
-      stroke={a ? CYAN : DIM} strokeWidth="1.2" strokeLinecap="round" opacity={a ? 0.55 : 0.35} />
+      stroke={a?CYAN:DIM} strokeWidth="1.2" strokeLinecap="round" opacity={a?0.55:0.35}/>
   </svg>
 )
 
@@ -68,29 +68,18 @@ const TABS = [
 ]
 
 export default function BottomNav() {
-  const pathname = usePathname()
-  const router = useRouter()
+  const pathname  = usePathname()
+  const router    = useRouter()
   const positions = usePositionsStore(s => s.positions)
 
   return (
-    <nav style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0,
-      height: 'calc(58px + env(safe-area-inset-bottom, 0px))',
-      paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-      display: 'grid',
-      gridTemplateColumns: 'repeat(5, 1fr)',
-      background: 'rgba(5,7,13,0.82)',
-      backdropFilter: 'blur(32px) saturate(1.8)',
-      WebkitBackdropFilter: 'blur(32px) saturate(1.8)',
-      borderTop: '1px solid rgba(255,255,255,0.07)',
-      boxShadow: '0 -1px 0 rgba(0,180,255,0.05), inset 0 1px 0 rgba(255,255,255,0.04)',
-      zIndex: 100,
-    }}>
+    <nav className="m-nav">
       {TABS.map(({ href, Icon, label }) => {
         const active = href === '/mobile'
           ? pathname === '/mobile'
           : (pathname?.startsWith(href) ?? false)
-        const badge = href === '/mobile/positions' && positions.length > 0 ? positions.length : 0
+        const badge = href === '/mobile/positions' && positions.length > 0
+          ? positions.length : 0
 
         return (
           <button
@@ -106,7 +95,7 @@ export default function BottomNav() {
               WebkitTapHighlightColor: 'transparent',
             }}
           >
-            {/* Active line */}
+            {/* خط التنشيط */}
             {active && (
               <div style={{
                 position: 'absolute', top: 0, left: '50%',
@@ -115,26 +104,26 @@ export default function BottomNav() {
                 background: CYAN,
                 borderRadius: '0 0 2px 2px',
                 boxShadow: `0 0 8px ${CYAN}99`,
-              }} />
+              }}/>
             )}
 
-            {/* Icon */}
+            {/* الأيقونة */}
             <div style={{
-              width: 36, height: 36, borderRadius: 11,
+              width: 38, height: 38, borderRadius: 12,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               background: active ? 'rgba(0,180,255,0.09)' : 'transparent',
               transition: 'background 0.15s',
             }}>
-              <Icon a={active} />
+              <Icon a={active}/>
             </div>
 
-            {/* Label */}
+            {/* التسمية */}
             <span style={{
-              fontSize: 9,
+              fontSize: 10,
               fontWeight: active ? 800 : 500,
               color: active ? CYAN : DIM,
               fontFamily: "'Cairo', sans-serif",
-              letterSpacing: '0.2px',
+              letterSpacing: '0.3px',
               lineHeight: 1,
             }}>
               {label}
@@ -143,11 +132,10 @@ export default function BottomNav() {
             {/* Badge */}
             {badge > 0 && (
               <div style={{
-                position: 'absolute', top: 4, right: '50%',
+                position: 'absolute', top: 3, right: '50%',
                 transform: 'translateX(14px)',
                 minWidth: 16, height: 16,
-                background: '#FF3B5C',
-                borderRadius: 8,
+                background: '#FF3B5C', borderRadius: 8,
                 fontSize: 8, fontWeight: 800, color: '#fff',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 padding: '0 4px',

@@ -96,17 +96,16 @@ const nextConfig: NextConfig = {
       // locale redirect from ever happening.
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       beforeFiles: [
-        // PWA icons — must be served at root URL without locale redirect
-        { source: '/icon-192.png', destination: '/icon-192.png' },
-        { source: '/icon-512.png', destination: '/icon-512.png' },
-        { source: '/logo-192.png', destination: '/logo-192.png' },
-        { source: '/logo-512.png', destination: '/logo-512.png' },
-        { source: '/favicon.ico', destination: '/favicon.ico' },
-        { source: '/favicon.svg', destination: '/favicon.svg' },
-        { source: '/offline.html', destination: '/offline.html' },
-        { source: '/manifest.json', destination: '/manifest.json' },
-        { source: '/sw.js', destination: '/sw.js' },
-        { source: '/robots.txt', destination: '/robots.txt' },
+        // PWA icons — rewrite to API route to bypass next-intl 307 redirect
+        // next-intl redirects /icon-192.png → /ar/icon-192.png (404)
+        // API routes are never redirected by middleware
+        { source: '/icon-192.png', destination: '/api/pwa-asset?file=icon-192.png' },
+        { source: '/icon-512.png', destination: '/api/pwa-asset?file=icon-512.png' },
+        { source: '/logo-192.png', destination: '/api/pwa-asset?file=logo-192.png' },
+        { source: '/logo-512.png', destination: '/api/pwa-asset?file=logo-512.png' },
+        { source: '/favicon.ico', destination: '/api/pwa-asset?file=favicon.ico' },
+        { source: '/favicon.svg', destination: '/api/pwa-asset?file=favicon.svg' },
+        { source: '/offline.html', destination: '/api/pwa-asset?file=offline.html' },
       ],
       afterFiles: [
         // ── Socket.IO proxy to NestJS ──

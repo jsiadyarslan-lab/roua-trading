@@ -48,7 +48,7 @@ export default function PWARegistrar() {
       if (!existingTouchIcon) {
         const link = document.createElement('link')
         link.rel = 'apple-touch-icon'
-        link.href = '/api/pwa-asset?file=icon-192.png'
+        link.href = '/icon-192.png'
         link.sizes = '192x192'
         document.head.appendChild(link)
       }

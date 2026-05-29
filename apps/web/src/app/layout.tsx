@@ -17,13 +17,13 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   icons: {
     icon: [
-      { url: "/api/pwa-asset?file=icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/api/pwa-asset?file=icon-512.png", type: "image/png", sizes: "512x512" },
+      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
       { url: "/favicon.svg", type: "image/svg+xml" },
     ],
     apple: [
-      { url: "/api/pwa-asset?file=icon-192.png", sizes: "192x192" },
-      { url: "/api/pwa-asset?file=icon-512.png", sizes: "512x512" },
+      { url: "/icon-192.png", sizes: "192x192" },
+      { url: "/icon-512.png", sizes: "512x512" },
     ],
   },
   robots: {

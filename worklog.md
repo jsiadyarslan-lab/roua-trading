@@ -19,19 +19,23 @@ Stage Summary:
 - Commit: 24a01c07 "FIX: Remove savedVisibleRangeRef restoration — root cause of candles disappearing on pair switch"
 
 ---
-Task ID: 2
-Agent: Main Agent
-Task: Optimize chart performance for real-time WebSocket data + add performance monitor
+Task ID: pwa-fix-v208
+Agent: Super Z (Main)
+Task: Fix PWA that didn't work on mobile - icons returning 307 redirect, missing SW registration, missing iOS meta tags
 
 Work Log:
-- Analyzed complete data pipeline from Binance WS → WebSocket hook → RouaChart → useChart → lightweight-charts
-- Identified root cause: onCandleUpdate called setCandles() (full O(n) replacement) on EVERY WS tick
-- Added updateCandle() function to useChart.ts — uses incremental update() API instead of setData()
-- Modified RouaChart's onCandleUpdate to use updateCandle() for existing candles, setCandles() only for new candle periods
-- Added real-time performance monitor overlay showing WS latency, tick rate, incremental ratio, connection type
-- Added performance tracking (incremental vs full-replace counts) in onCandleUpdate callback
+- Diagnosed 4 critical PWA issues preventing mobile installation
+- Issue 1: Icons at /icon-192.png returned 307 redirect (next-intl middleware)
+- Issue 2: Service Worker only registered on dashboard, not on landing page
+- Issue 3: Missing apple-mobile-web-app-capable meta tag for iOS Safari
+- Issue 4: No offline.html fallback page
+- Solution: Created /api/pwa-asset route handler that serves PWA files (API routes bypass middleware)
+- Updated all icon references to use /api/pwa-asset?file=...
+- Created PWARegistrar component for SW registration on ALL pages
+- Added apple-mobile-web-app-capable directly in HTML head
+- Created Arabic offline.html page
+- Deployed as v208 on Railway
 
 Stage Summary:
-- Key optimization: ~10-50x faster for real-time price updates (O(1) vs O(n))
-- Performance monitor visible on chart: WS latency, tick rate, incremental ratio, connection type
-- Commits: 3d6b4ec8 (updateCandle optimization), 0e20dbbe (performance monitor)
+- All PWA assets return 200 OK with correct content types
+- Build: v208-pwa-apple-capable-head deployed on Railway

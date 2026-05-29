@@ -248,13 +248,21 @@ export default function RouaChart({
   // candlesRef.current.length === 0 and all WebSocket updates were dropped.
   const candlesClearedAtRef = useRef(0);
   const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
+  // FIX: Clear candlesRef on BOTH symbol and timeframe changes.
+  // Previously, only timeframe change cleared the ref. When the symbol
+  // changed (e.g., BTC/USD → ETH/USD), RouaChart's candlesRef still held
+  // the old symbol's data. This caused WebSocket ticks for the new symbol
+  // to be MERGED with old symbol's candles, producing mixed/invalid data
+  // that could cause "Value is null" errors or invisible candles.
+  const prevSymbolRef = useRef(selectedSymbol);
   useEffect(() => {
     timeframeRef.current = timeframe;
-    // Clear RouaChart's candlesRef immediately on timeframe change
+    // Clear RouaChart's candlesRef immediately on timeframe or symbol change
     // to prevent stale WebSocket onCandleUpdate from pushing old data
     candlesRef.current = [];
     candlesClearedAtRef.current = Date.now();
-  }, [timeframe]);
+    prevSymbolRef.current = selectedSymbol;
+  }, [timeframe, selectedSymbol]);
 
   // ── Chart Hook ─────────────────────────────────────────
   const handleCrosshairMove = useCallback((data: CrosshairData | null) => {

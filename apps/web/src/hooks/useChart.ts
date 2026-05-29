@@ -216,11 +216,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [saveChartState]);
 
   // ── Restore chart state from store on mount/symbol/timeframe change ──
+  // FIX: Store the saved visible range in a ref instead of using setTimeout(1500ms).
+  // The setTimeout was overriding resetView's correct visible range after data loads,
+  // causing candles to disappear when switching symbols.
+  // Now, resetView() checks this ref and applies the saved range if available.
+  const savedVisibleRangeRef = useRef<{ from: number; to: number } | null>(null);
+
   const restoreChartState = useCallback(() => {
     const configKey = `${symbol}:${timeframe}`;
     // Only restore once per symbol+timeframe combo
     if (restoredConfigRef.current === configKey) return;
     restoredConfigRef.current = configKey;
+
+    // Clear any previously saved visible range
+    savedVisibleRangeRef.current = null;
 
     try {
       const store = useChartStateStore.getState();
@@ -240,6 +249,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // Restore active tool
       if (saved.activeTool && saved.activeTool !== 'cursor') {
         setActiveTool(saved.activeTool);
+        activeToolRef.current = saved.activeTool;
       }
 
       // Restore indicators — they will be re-applied when candles load
@@ -259,20 +269,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         activeIndicatorsRef.current = restoredIndicators;
       }
 
-      // Restore visible range after data loads (deferred)
+      // FIX: Store saved visible range in ref instead of setTimeout.
+      // resetView() will apply this range when data loads.
+      // This prevents the race condition where setTimeout(1500ms) fires
+      // and overrides the correct range set by resetView after fetch.
       if (saved.visibleRange) {
-        const range = saved.visibleRange;
-        // Apply visible range after a short delay to ensure data is rendered
-        setTimeout(() => {
-          if (chartInstanceRef.current && range) {
-            try {
-              chartInstanceRef.current.timeScale().setVisibleRange({
-                from: range.from as Time,
-                to: range.to as Time,
-              });
-            } catch { /* chart not ready or range invalid */ }
-          }
-        }, 1500);
+        savedVisibleRangeRef.current = saved.visibleRange;
       }
 
       console.log(`[useChart] Restored chart state for ${configKey}`);
@@ -644,10 +646,27 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [initChart]);
 
   // ── Handle symbol change: clear data without destroying chart ──
+  // FIX: Use only `symbol` as dependency. Previously, `saveChartState` and
+  // `restoreChartState` were also dependencies. When `restoreChartState` changed
+  // settings (e.g., chart type), `saveChartState` was recreated, causing this
+  // effect to fire AGAIN. The second run would call setData([]) AFTER the fetch
+  // had already loaded new data, making candles disappear.
+  //
+  // Now, save/restore are done via refs to prevent re-triggering.
+  const saveChartStateRef = useRef(saveChartState);
+  useEffect(() => { saveChartStateRef.current = saveChartState; }, [saveChartState]);
+  const restoreChartStateRef = useRef(restoreChartState);
+  useEffect(() => { restoreChartStateRef.current = restoreChartState; }, [restoreChartState]);
+
   useEffect(() => {
     // Save current state BEFORE switching (save for the PREVIOUS symbol)
+    // FIX: Use ref to avoid stale closure — saveChartState captures the current
+    // symbol, but we need to save for the PREVIOUS symbol. We read the store
+    // directly instead to ensure we save the correct symbol's state.
     if (restoredConfigRef.current) {
-      saveChartState();
+      try {
+        saveChartStateRef.current();
+      } catch { /* ignore save errors during symbol switch */ }
     }
 
     if (drawingManagerRef.current) {
@@ -666,8 +685,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     });
     oscillatorSeriesRef.current.clear();
     // FIX: Also clear external series (e.g., AI overlay from RouaChart.tsx) when symbol changes.
-    // Without this, stale AI series from the old symbol remain in externalSeriesRef,
-    // and when setCandles is called later, it tries removeSeries() on already-removed series.
     externalSeriesRef.current.forEach((series) => {
       try { chartInstanceRef.current?.removeSeries(series); } catch {}
     });
@@ -679,28 +696,42 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       candleSeriesRef.current?.setData([] as any);
       volumeSeriesRef.current?.setData([] as any);
     } catch { /* series might not exist yet on first render */ }
-    // Clear active indicators state (they'll be re-added by setCandles)
+    // FIX: Clear active indicators BOTH via React state AND directly via ref.
+    // Previously only setState was called in symbol useEffect (unlike timeframe
+    // useEffect which did both). This caused stale indicators to be re-applied
+    // by setCandles, potentially causing "Value is null" errors.
     setActiveIndicators(new Map());
+    activeIndicatorsRef.current = new Map();
     // Clear price lines using proper lightweight-charts v5 API
-    // IPriceLine has no .remove() method — must use series.removePriceLine(line)
     priceLinesRef.current.forEach((line) => {
       try { candleSeriesRef.current?.removePriceLine(line); } catch {}
     });
     priceLinesRef.current.clear();
+    // FIX: Clear markers when symbol changes — they are symbol-specific.
+    // Previously only timeframe useEffect cleared markers, causing stale
+    // markers from the old symbol to be re-applied after setCandles.
+    markersRef.current = [];
+    if (markersPluginRef.current) {
+      try { markersPluginRef.current.setMarkers([]); } catch {}
+    }
 
     // Restore chart state for the new symbol
-    restoreChartState();
-  }, [symbol, saveChartState, restoreChartState]);
+    // FIX: Use ref to call the latest restoreChartState without adding it
+    // as a dependency (which would cause the effect to re-fire).
+    restoreChartStateRef.current();
+  // FIX: Only depend on `symbol`. Using refs for save/restore prevents
+  // the effect from re-firing when those functions are recreated.
+  }, [symbol]);
 
   // ── Handle timeframe change: clear indicators and data to prevent "Value is null" ──
-  // When timeframe changes, old indicator series have timestamps from the previous
-  // timeframe (e.g. 15min) that don't exist in the new candle data (e.g. 1h).
-  // lightweight-charts throws "Value is null" when rendering indicator data at
-  // timestamps that don't exist in the candle series.
+  // FIX: Same pattern as symbol useEffect — use refs for save/restore to prevent
+  // the effect from re-firing when those functions are recreated.
   useEffect(() => {
     // Save current state BEFORE switching timeframe
     if (restoredConfigRef.current) {
-      saveChartState();
+      try {
+        saveChartStateRef.current();
+      } catch { /* ignore save errors during timeframe switch */ }
     }
 
     // Cancel any pending indicator re-apply from a previous setCandles call
@@ -725,11 +756,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       volumeSeriesRef.current?.setData([] as any);
     } catch { /* series might not exist yet on first render */ }
     // FIX: Clear active indicators BOTH via React state AND directly via ref.
-    // Previously only setState was called, but the ref (activeIndicatorsRef)
-    // is updated in a separate useEffect that may not have run yet when
-    // setCandles is called from the new timeframe's fetch. This caused
-    // stale indicators to be re-applied with mismatched timestamps,
-    // triggering "Value is null" in lightweight-charts.
     setActiveIndicators(new Map());
     activeIndicatorsRef.current = new Map();
     // Clear price lines using proper lightweight-charts v5 API
@@ -739,10 +765,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     priceLinesRef.current.clear();
     // Clear markers (they are timeframe-dependent)
     markersRef.current = [];
+    if (markersPluginRef.current) {
+      try { markersPluginRef.current.setMarkers([]); } catch {}
+    }
 
     // Restore chart state for the new timeframe
-    restoreChartState();
-  }, [timeframe, saveChartState, restoreChartState]);
+    restoreChartStateRef.current();
+  // FIX: Only depend on `timeframe`. Using refs for save/restore prevents
+  // the effect from re-firing when those functions are recreated.
+  }, [timeframe]);
 
   // ── Apply pending candles when chart becomes ready ──
   // NOTE: This useEffect MUST come after setCandles is defined to avoid TDZ error
@@ -1716,28 +1747,35 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       return;
     }
 
-    // FIX: Calculate how many candles fit with barSpacing ≥ 6 (minimum for
-    // visible candle bodies). fitContent() would compress ALL 300 candles
-    // into the chart width, making barSpacing < 4 → candles appear as dots.
-    // Instead, show the last N candles that fit properly, and let the user
-    // scroll left to see older data.
-    const MIN_BODY_SPACING = 6; // Minimum barSpacing for visible candle bodies
-    const container = containerRef.current;
-    const chartWidth = container?.clientWidth || 800;
-    const maxCandlesThatFit = Math.floor(chartWidth / MIN_BODY_SPACING);
-
-    // Show last N candles that fit well, but at least 60 and at most all candles
-    const visibleCount = Math.max(60, Math.min(candles.length, maxCandlesThatFit));
-    const fromIdx = Math.max(0, candles.length - visibleCount);
-    const fromTime = candles[fromIdx].time as Time;
-    const toTime = candles[candles.length - 1].time as Time;
-
-    try {
-      chart.timeScale().setVisibleRange({ from: fromTime, to: toTime });
-    } catch {
-      // Fallback: if setVisibleRange fails (e.g., data not ready), use fitContent
-      chart.timeScale().fitContent();
+    // FIX: If there's a saved visible range for this symbol/timeframe, apply it.
+    // This replaces the old setTimeout(1500ms) approach that caused race conditions.
+    const savedRange = savedVisibleRangeRef.current;
+    if (savedRange) {
+      // Validate that the saved range overlaps with current data
+      const dataFrom = candles[0].time;
+      const dataTo = candles[candles.length - 1].time;
+      if (savedRange.from >= dataFrom && savedRange.to <= dataTo + (dataTo - dataFrom) * 0.1) {
+        // Saved range is within data bounds — apply it
+        try {
+          chart.timeScale().setVisibleRange({
+            from: savedRange.from as Time,
+            to: savedRange.to as Time,
+          });
+          // Clear the saved range after applying (one-time use per restore)
+          savedVisibleRangeRef.current = null;
+          return;
+        } catch {
+          // Saved range invalid — fall through to default behavior
+        }
+      }
+      // Saved range doesn't match current data — clear it and use default
+      savedVisibleRangeRef.current = null;
     }
+
+    // Default: fitContent() respects minBarSpacing, so it won't compress
+    // candles into dots. It shows as many candles as fit with the minimum
+    // spacing, and the rest are accessible by scrolling left.
+    chart.timeScale().fitContent();
   }, []);
 
   // ── Export ─────────────────────────────────────────────

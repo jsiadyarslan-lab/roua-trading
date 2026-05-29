@@ -409,11 +409,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         // 6 is the minimum for visible candle bodies (below = dots/lines).
         barSpacing: 8,
         minBarSpacing: isMobile ? 4 : 5,
-        // PERF: Enable data conflation (v5.1+) for large datasets.
-        // When zoomed out, merges data points to reduce rendering load.
-        // Dramatic improvement for 10K+ point datasets without losing visual fidelity.
-        enableConflation: true,
-        conflationThresholdFactor: 1.0, // Default: conflate only when <0.5px per point
+        // FIX: Data conflation is DISABLED because it destroys candlestick
+        // OHLC rendering. When enabled, LWC merges multiple candles into a
+        // single data point (dot) when zoomed out, losing open/high/low/close.
+        // This is fine for line charts but catastrophic for candlesticks.
+        // Performance is handled instead by MAX_VISIBLE_CANDLES limiting.
+        enableConflation: false,
       },
       handleScroll: { vertTouchDrag: !isMobile },
     };
@@ -462,9 +463,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // Hide built-in last price label on mobile — our overlay shows the price
       lastValueVisible: !isMobile,
       priceLineVisible: !isMobile,
-      // FIX: Prevent LWC from conflating OHLC data into single dots.
-      // Without this, candlesticks collapse to dots when zoomed out.
-      conflationThresholdFactor: 100,
+      // FIX: conflationThresholdFactor REMOVED — setting it to 100 was the
+      // ROOT CAUSE of candles turning into dots. A high factor value tells LWC
+      // to aggressively conflate (merge) OHLC data, collapsing candle bodies
+      // into single points. Disabling conflation entirely (enableConflation: false
+      // on timeScale) is the correct approach for candlestick charts.
     });
     candleSeriesRef.current = candleSeries;
     mainSeriesRef.current = candleSeries;

@@ -336,6 +336,10 @@ export default function RouaChart({
   const setCandlesRef = useRef(chart.setCandles);
   useEffect(() => { setCandlesRef.current = chart.setCandles; }, [chart.setCandles]);
 
+  // ── Ref to always have the latest updateCandle for incremental updates ──
+  const updateCandleRef = useRef(chart.updateCandle);
+  useEffect(() => { updateCandleRef.current = chart.updateCandle; }, [chart.updateCandle]);
+
   // ── Ref to always have the latest resetView ──
   const resetViewRef = useRef(chart.resetView);
   useEffect(() => { resetViewRef.current = chart.resetView; }, [chart.resetView]);
@@ -370,8 +374,6 @@ export default function RouaChart({
         if (timeSinceClear < CANDLES_CLEAR_TIMEOUT_MS) return;
         // Timeout reached — allow WebSocket to populate the chart
       }
-      // Guard: don't update if chart hook is not ready
-      if (!chart.setCandles) return;
 
       // FIX: Align candle timestamp to the current timeframe's interval.
       // WebSocket (especially Socket.IO ticker) may send candles at 1-minute
@@ -380,29 +382,45 @@ export default function RouaChart({
       const alignedTime = Math.floor(candle.time / tfSecondsRef.current) * tfSecondsRef.current;
       const alignedCandle = { ...candle, time: alignedTime };
 
-      // Update or add candle using the reliable setCandles() approach.
-      // This avoids data inconsistencies between RouaChart's candlesRef
-      // and useChart's candlesRef that the incremental updateCandle()
-      // approach caused. The simple merge + setCandles is slower but
-      // guarantees data consistency.
+      // ── PERF: Use incremental update() for EXISTING candles ──
+      // This is O(1) instead of O(n log n) with setData(), and avoids
+      // destroying/recreating indicator series. For NEW candles (new time
+      // period), we still use setCandles() with skipIndicatorRebuild:true
+      // which preserves indicators while setting the full dataset.
       const idx = candlesRef.current.findIndex(c => c.time === alignedTime);
       const isNewCandle = idx < 0;
+
       if (idx >= 0) {
         // Merge: keep the widest high/low, latest close
         const existing = candlesRef.current[idx];
-        candlesRef.current[idx] = {
+        const merged = {
           ...existing,
           high: Math.max(existing.high, alignedCandle.high),
           low: Math.min(existing.low, alignedCandle.low),
           close: alignedCandle.close,
           volume: alignedCandle.volume || existing.volume,
         };
+        candlesRef.current[idx] = merged;
+
+        // PERF: For the LAST candle (real-time forming), use O(1) update()
+        // via updateCandleRef(). This does NOT destroy indicators.
+        // For non-last candles (rare edge case), fall back to setCandles
+        // with skipIndicatorRebuild to avoid indicator destruction.
+        const isLastCandle = idx === candlesRef.current.length - 1;
+        if (isLastCandle) {
+          updateCandleRef.current(merged);
+        } else {
+          // Rare: updating a historical candle (shouldn't normally happen)
+          setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
+        }
       } else {
+        // NEW candle: append and use setCandles with skipIndicatorRebuild
+        // This uses setData() but preserves indicator series (they stay
+        // visible with slightly stale last-point data until next recalc).
         candlesRef.current.push(alignedCandle);
+        setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
       }
-      // Always use setCandles for consistency — this ensures useChart's
-      // candlesRef and the chart series are always in sync.
-      setCandlesRef.current([...candlesRef.current]);
+
       // REVOLUTIONARY: Incremental computation update (O(1) per candle)
       try {
         if (incrementalInitializedRef.current) {
@@ -593,6 +611,27 @@ export default function RouaChart({
         // Silent fail — periodic refresh is a best-effort safety net
       }
     }, PERIODIC_OVERLAY_REFRESH_MS);
+
+    return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── PERF: Periodic indicator refresh (every 60s) ──
+  // When using incremental update() for real-time candles, indicator
+  // series (SMA, EMA, RSI, etc.) stay visible but their last data
+  // point becomes stale. This timer triggers a full indicator rebuild
+  // every 60 seconds to keep indicator values accurate without the
+  // overhead of rebuilding on every WebSocket tick.
+  useEffect(() => {
+    const INDICATOR_REFRESH_MS = 60_000;
+    const interval = setInterval(() => {
+      try {
+        if (candlesRef.current.length === 0) return;
+        // Trigger full setCandles without skipIndicatorRebuild
+        // to rebuild all active indicators with fresh data
+        setCandlesRef.current([...candlesRef.current]);
+      } catch { /* non-critical */ }
+    }, INDICATOR_REFRESH_MS);
 
     return () => clearInterval(interval);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2368,13 +2407,14 @@ export default function RouaChart({
       <CommandPalette
         commands={createChartCommands({
           onToggleIndicator: (key) => {
-            const config = INDICATOR_CONFIGS[key as keyof typeof INDICATOR_CONFIGS];
+            const config = INDICATOR_CONFIGS.find(c => c.key === key);
             if (config) {
-              const existing = chart.settings.indicators.find((i: ActiveIndicator) => i.key === key);
+              const activeIndicators = chart.getActiveIndicators();
+              const existing = activeIndicators.find((i: ActiveIndicator) => i.key === key);
               if (existing) {
                 chart.removeIndicator(key);
               } else {
-                chart.addIndicator(key);
+                chart.addIndicator({ key: key as any, params: config.defaultParams, color: config.defaultColor, opacity: config.defaultOpacity, visible: true });
               }
             }
           },

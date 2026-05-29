@@ -1739,10 +1739,9 @@ export default function RouaChart({
         {/* Chart Wrapper — contains canvas + overlays */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
-          {/* Chart Canvas Container — lightweight-charts renders here ONLY */}
-          {/* FIX: z-index is stable at 1. DrawingRenderer canvas (z-index:9999) is INSIDE this
-              container and naturally sits above the lightweight-charts canvas. The overlay layer
-              sibling is always below this container (z-index: 0). No dynamic z-index switching. */}
+          {/* Chart Canvas Container — lightweight-charts renders here.
+              DrawingRenderer uses Series Primitive (Plugin System) — draws on the same canvas.
+              No overlay canvas, no z-index switching, no CSS modifications. */}
           <div
             ref={chart.containerRef as any}
             style={{
@@ -1755,10 +1754,7 @@ export default function RouaChart({
             }}
           />
 
-          {/* Overlay Layer — sibling of canvas container */}
-          {/* FIX: z-index always 0 (below canvas container at 1). When a drawing tool is active,
-              pointerEvents are disabled on trade buttons so DrawingRenderer canvas receives events.
-              No more z-index switching that caused candles to visually disappear. */}
+          {/* Overlay Layer — sibling of canvas container, z-index below chart */}
           <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 0 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}

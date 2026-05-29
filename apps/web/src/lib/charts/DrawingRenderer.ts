@@ -1,9 +1,22 @@
 // ═══════════════════════════════════════════════════════════
-// ROUA Trading Chart — Drawing Renderer
-// Interactive canvas overlay for drawing tools on lightweight-charts v5
+// ROUA Trading Chart — Drawing Renderer v2
+// Plugin System Architecture: draws on lightweight-charts' own canvas
+// via Series Primitives (ISeriesPrimitive) — NO separate overlay canvas
 // ═══════════════════════════════════════════════════════════
 
-import type { IChartApi, ISeriesApi, Time } from 'lightweight-charts';
+import type {
+  IChartApi,
+  ISeriesApi,
+  SeriesType,
+  Time,
+  ISeriesPrimitiveBase,
+  SeriesAttachedParameter,
+  PrimitiveHoveredItem,
+  IPrimitivePaneView,
+  IPrimitivePaneRenderer,
+  PrimitivePaneViewZOrder,
+} from 'lightweight-charts';
+import type { CanvasRenderingTarget2D, MediaCoordinatesRenderingScope } from 'fancy-canvas';
 import type { Drawing, DrawingTool, DrawingPoint } from './types';
 import { DrawingManager } from './DrawingManager';
 
@@ -30,233 +43,922 @@ const FIB_TIME_LEVELS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
 const GANN_ANGLES = [82.5, 75, 71.25, 63.75, 45, 26.25, 18.75, 15, 7.5];
 
 // ── Pixel point for canvas drawing ───────────────────────
-interface PixelPoint {
-  x: number;
-  y: number;
+interface PixelPoint { x: number; y: number; }
+
+// ── Preview data passed from DrawingRenderer to primitive ──
+interface PreviewData {
+  points: DrawingPoint[];
+  mousePixel: PixelPoint | null;
+  tool: DrawingTool;
 }
 
-/**
- * DrawingRenderer
- *
- * Overlays an HTML5 canvas on top of a lightweight-charts instance and
- * provides full mouse-driven interaction for 15 drawing tools.
- *
- * Usage:
- *   const renderer = new DrawingRenderer(chart, candleSeries, container, drawingManager);
- *   renderer.setTool('trendline');
- *   renderer.start();
- */
+// ═══════════════════════════════════════════════════════════
+// COORDINATE HELPERS
+// ═══════════════════════════════════════════════════════════
+
+function chartPointToPixel(pt: DrawingPoint, chart: IChartApi, series: ISeriesApi<SeriesType>): PixelPoint | null {
+  const x = chart.timeScale().timeToCoordinate(pt.time as Time);
+  const y = series.priceToCoordinate(pt.price);
+  if (x === null || y === null) return null;
+  return { x, y };
+}
+
+function pixelToChartPoint(x: number, y: number, chart: IChartApi, series: ISeriesApi<SeriesType>): DrawingPoint | null {
+  const time = chart.timeScale().coordinateToTime(x);
+  const price = series.coordinateToPrice(y);
+  if (time === null || price === null) return null;
+  return { time: time as number, price };
+}
+
+// ═══════════════════════════════════════════════════════════
+// PANE RENDERER — Draws ALL drawings on the chart's canvas
+// Called by lightweight-charts during its render cycle
+// ═══════════════════════════════════════════════════════════
+
+class DrawingPaneRenderer implements IPrimitivePaneRenderer {
+  private _chart: IChartApi;
+  private _series: ISeriesApi<SeriesType>;
+  private _drawings: Drawing[];
+  private _preview: PreviewData | null;
+
+  constructor(
+    chart: IChartApi,
+    series: ISeriesApi<SeriesType>,
+    drawings: Drawing[],
+    preview: PreviewData | null,
+  ) {
+    this._chart = chart;
+    this._series = series;
+    this._drawings = drawings;
+    this._preview = preview;
+  }
+
+  draw(target: CanvasRenderingTarget2D): void {
+    target.useMediaCoordinateSpace((scope) => {
+      const ctx = scope.context;
+      const { width, height } = scope.mediaSize;
+
+      ctx.save();
+      // Clip to chart bounds
+      ctx.beginPath();
+      ctx.rect(0, 0, width, height);
+      ctx.clip();
+
+      // 1. Draw all persisted drawings
+      for (const drawing of this._drawings) {
+        this.renderDrawing(ctx, drawing, width, height);
+      }
+
+      // 2. Draw in-progress preview
+      if (this._preview && this._preview.points.length > 0 && this._preview.mousePixel) {
+        this.renderPreview(ctx, this._preview, width, height);
+      }
+
+      ctx.restore();
+    });
+  }
+
+  // ── Render a persisted (completed) drawing ─────────────
+  private renderDrawing(ctx: CanvasRenderingContext2D, drawing: Drawing, canvasW: number, canvasH: number): void {
+    const pts = drawing.points
+      .map(p => chartPointToPixel(p, this._chart, this._series))
+      .filter((p): p is PixelPoint => p !== null);
+    if (pts.length === 0) return;
+
+    ctx.save();
+    ctx.setLineDash([]);
+    ctx.globalAlpha = drawing.opacity;
+    ctx.strokeStyle = drawing.color;
+    ctx.fillStyle = drawing.color;
+    ctx.lineWidth = drawing.lineWidth;
+
+    const d = { isPreview: false, points: drawing.points, color: drawing.color };
+
+    switch (drawing.type) {
+      case 'horizontal': this.drawHorizontalLine(ctx, pts[0], canvasW, d); break;
+      case 'vertical': this.drawVerticalLine(ctx, pts[0], canvasH, d); break;
+      case 'horizontal-ray': this.drawHorizontalRay(ctx, pts[0], canvasW, d); break;
+      case 'cross-line': if (pts.length >= 1) this.drawCrossLine(ctx, pts[0], canvasW, canvasH, d); break;
+      case 'x-marker': this.drawXMarker(ctx, pts[0], drawing.color, false); break;
+      case 'price-label': this.drawPriceLabelMarker(ctx, pts[0], d); break;
+      case 'note': this.drawNote(ctx, pts[0], d); break;
+      case 'trendline': if (pts.length >= 2) this.drawTrendLine(ctx, pts[0], pts[1], d); break;
+      case 'ray': if (pts.length >= 2) this.drawRay(ctx, pts[0], pts[1], canvasW, canvasH, d); break;
+      case 'extended-line': if (pts.length >= 2) this.drawExtendedLine(ctx, pts[0], pts[1], canvasW, canvasH, d); break;
+      case 'info-line': if (pts.length >= 2) this.drawInfoLine(ctx, pts[0], pts[1], d); break;
+      case 'trend-angle': if (pts.length >= 2) this.drawTrendAngle(ctx, pts[0], pts[1], d); break;
+      case 'fibonacci': if (pts.length >= 2) this.drawFibonacci(ctx, pts[0], pts[1], canvasW, d); break;
+      case 'fib-extension': if (pts.length >= 2) this.drawFibExtension(ctx, pts[0], pts[1], canvasW, d); break;
+      case 'fib-fan': if (pts.length >= 2) this.drawFibFan(ctx, pts[0], pts[1], d); break;
+      case 'fib-spiral': if (pts.length >= 2) this.drawFibSpiral(ctx, pts[0], pts[1], d); break;
+      case 'fib-wedge': if (pts.length >= 2) this.drawFibWedge(ctx, pts[0], pts[1], canvasW, d); break;
+      case 'fib-time-zone': if (pts.length >= 2) this.drawFibTimeZone(ctx, pts[0], pts[1], canvasW, canvasH, d); break;
+      case 'rectangle': if (pts.length >= 2) this.drawRectangle(ctx, pts[0], pts[1], d); break;
+      case 'channel': if (pts.length >= 3) this.drawChannel(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'regression-trend': if (pts.length >= 3) this.drawRegressionTrend(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'flat-top-bottom': if (pts.length >= 2) this.drawFlatTopBottom(ctx, pts[0], pts[1], d); break;
+      case 'disjoint-channel': if (pts.length >= 2) this.drawDisjointChannel(ctx, pts[0], pts[1], d); break;
+      case 'andrews-pitchfork': if (pts.length >= 3) this.drawAndrewsPitchfork(ctx, pts[0], pts[1], pts[2], canvasW, canvasH, d); break;
+      case 'schiff-pitchfork': if (pts.length >= 3) this.drawSchiffPitchfork(ctx, pts[0], pts[1], pts[2], canvasW, canvasH, d); break;
+      case 'modified-schiff': if (pts.length >= 3) this.drawModifiedSchiff(ctx, pts[0], pts[1], pts[2], canvasW, canvasH, d); break;
+      case 'triangle': if (pts.length >= 3) this.drawTriangle(ctx, pts[0], pts[1], pts[2], d); break;
+      case 'circle': if (pts.length >= 2) this.drawCircle(ctx, pts[0], pts[1], d); break;
+      case 'ellipse': if (pts.length >= 2) this.drawEllipse(ctx, pts[0], pts[1], d); break;
+      case 'gann-box': if (pts.length >= 2) this.drawGannBox(ctx, pts[0], pts[1], d); break;
+      case 'gann-square': if (pts.length >= 2) this.drawGannSquare(ctx, pts[0], pts[1], d); break;
+      case 'gann-fan': if (pts.length >= 1) this.drawGannFan(ctx, pts[0], canvasW, canvasH, d); break;
+      case 'arrow': if (pts.length >= 2) this.drawArrow(ctx, pts[0], pts[1], d); break;
+      case 'price-range': if (pts.length >= 2) this.drawPriceRange(ctx, pts[0], pts[1], d); break;
+      case 'text-annotation': if (pts.length >= 2) this.drawTextAnnotation(ctx, pts[0], pts[1], d); break;
+    }
+
+    ctx.restore();
+  }
+
+  // ── Render the in-progress preview ─────────────────────
+  private renderPreview(ctx: CanvasRenderingContext2D, preview: PreviewData, canvasW: number, canvasH: number): void {
+    const pts = preview.points
+      .map(p => chartPointToPixel(p, this._chart, this._series))
+      .filter((p): p is PixelPoint => p !== null);
+    if (pts.length === 0 && !preview.mousePixel) return;
+
+    const mouse = preview.mousePixel!;
+    const d = { isPreview: true, points: preview.points, color: DEFAULT_COLOR };
+
+    ctx.save();
+    ctx.setLineDash(PREVIEW_DASH);
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = DEFAULT_COLOR;
+    ctx.fillStyle = DEFAULT_COLOR;
+    ctx.lineWidth = DEFAULT_LINE_WIDTH;
+
+    switch (preview.tool) {
+      case 'horizontal': this.drawHorizontalLine(ctx, pts[0] || mouse, canvasW, d); break;
+      case 'vertical': this.drawVerticalLine(ctx, pts[0] || mouse, canvasH, d); break;
+      case 'horizontal-ray': this.drawHorizontalRay(ctx, pts[0] || mouse, canvasW, d); break;
+      case 'cross-line': this.drawCrossLine(ctx, pts[0] || mouse, canvasW, canvasH, d); break;
+      case 'x-marker': this.drawXMarker(ctx, mouse, DEFAULT_COLOR, true); break;
+      case 'trendline': if (pts.length >= 1) this.drawTrendLine(ctx, pts[0], mouse, d); break;
+      case 'ray': if (pts.length >= 1) this.drawRay(ctx, pts[0], mouse, canvasW, canvasH, d); break;
+      case 'extended-line': if (pts.length >= 1) this.drawExtendedLine(ctx, pts[0], mouse, canvasW, canvasH, d); break;
+      case 'info-line': if (pts.length >= 1) this.drawInfoLine(ctx, pts[0], mouse, d); break;
+      case 'trend-angle': if (pts.length >= 1) this.drawTrendAngle(ctx, pts[0], mouse, d); break;
+      case 'fibonacci': if (pts.length >= 1) this.drawFibonacci(ctx, pts[0], mouse, canvasW, d); break;
+      case 'fib-extension': if (pts.length >= 1) this.drawFibExtension(ctx, pts[0], mouse, canvasW, d); break;
+      case 'fib-fan': if (pts.length >= 1) this.drawFibFan(ctx, pts[0], mouse, d); break;
+      case 'fib-spiral': if (pts.length >= 1) this.drawFibSpiral(ctx, pts[0], mouse, d); break;
+      case 'fib-wedge': if (pts.length >= 1) this.drawFibWedge(ctx, pts[0], mouse, canvasW, d); break;
+      case 'fib-time-zone': if (pts.length >= 1) this.drawFibTimeZone(ctx, pts[0], mouse, canvasW, canvasH, d); break;
+      case 'rectangle': if (pts.length >= 1) this.drawRectangle(ctx, pts[0], mouse, d); break;
+      case 'channel':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawChannel(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'regression-trend':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawChannel(ctx, pts[0], pts[1], mouse, d);
+        break;
+      case 'flat-top-bottom': if (pts.length >= 1) this.drawFlatTopBottom(ctx, pts[0], mouse, d); break;
+      case 'disjoint-channel': if (pts.length >= 1) this.drawDisjointChannel(ctx, pts[0], mouse, d); break;
+      case 'andrews-pitchfork':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawSimpleLine(ctx, pts[0], mouse);
+        break;
+      case 'schiff-pitchfork':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawSimpleLine(ctx, pts[0], mouse);
+        break;
+      case 'modified-schiff':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawSimpleLine(ctx, pts[0], mouse);
+        break;
+      case 'triangle':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawSimpleLine(ctx, pts[0], mouse);
+        break;
+      case 'circle': if (pts.length >= 1) this.drawCircle(ctx, pts[0], mouse, d); break;
+      case 'ellipse': if (pts.length >= 1) this.drawEllipse(ctx, pts[0], mouse, d); break;
+      case 'gann-box': if (pts.length >= 1) this.drawGannBox(ctx, pts[0], mouse, d); break;
+      case 'gann-square': if (pts.length >= 1) this.drawGannSquare(ctx, pts[0], mouse, d); break;
+      case 'gann-fan':
+        if (pts.length === 1) this.drawTrendLine(ctx, pts[0], mouse, d);
+        else if (pts.length >= 2) this.drawSimpleLine(ctx, pts[0], mouse);
+        break;
+      case 'arrow': if (pts.length >= 1) this.drawArrow(ctx, pts[0], mouse, d); break;
+      case 'price-range': if (pts.length >= 1) this.drawPriceRange(ctx, pts[0], mouse, d); break;
+      case 'price-label': this.drawPriceLabelMarker(ctx, pts[0] || mouse, d); break;
+      case 'note': this.drawNote(ctx, pts[0] || mouse, d); break;
+      case 'text-annotation': if (pts.length >= 1) this.drawTextAnnotation(ctx, pts[0], mouse, d); break;
+    }
+
+    ctx.restore();
+  }
+
+  // ══════════════════════════════════════════════════════════
+  //  ALL DRAWING ROUTINES — CSS pixel coordinates (media space)
+  // ══════════════════════════════════════════════════════════
+
+  private drawDot(ctx: CanvasRenderingContext2D, pt: PixelPoint, radius: number = 3): void {
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  private drawPriceLabel(ctx: CanvasRenderingContext2D, x: number, y: number, price: number): void {
+    const text = price.toFixed(2);
+    ctx.save();
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    const textW = ctx.measureText(text).width;
+    const padX = 4, padY = 2;
+    const rx = x + padX, ry = y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;
+    ctx.globalAlpha = 0.85;
+    ctx.fillStyle = '#151A22';
+    ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 3); ctx.fill();
+    ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = 1; ctx.globalAlpha = 0.5; ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = DEFAULT_COLOR;
+    ctx.fillText(text, rx + padX, ry + padY + 10);
+    ctx.restore();
+  }
+
+  private drawTimeLabel(ctx: CanvasRenderingContext2D, x: number, y: number, time: number): void {
+    const date = new Date(time * 1000);
+    const text = date.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+    ctx.save();
+    ctx.font = "10px 'JetBrains Mono', monospace";
+    const textW = ctx.measureText(text).width;
+    const padX = 4, padY = 2;
+    const rx = x - textW / 2 - padX, ry = y, rw = textW + padX * 2, rh = 12 + padY * 2;
+    ctx.globalAlpha = 0.85; ctx.fillStyle = '#151A22';
+    ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 3); ctx.fill();
+    ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = 1; ctx.globalAlpha = 0.5; ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = DEFAULT_COLOR;
+    ctx.fillText(text, rx + padX, ry + padY + 10);
+    ctx.restore();
+  }
+
+  // ── Drawing type: DrawData ─────────────────────────────
+  private pp(d: { points: DrawingPoint[] }, index: number): number | null { return d.points[index]?.price ?? null; }
+
+  // ── Horizontal Line ────────────────────────────────────
+  private drawHorizontalLine(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(0, pt.y); ctx.lineTo(canvasW, pt.y); ctx.stroke();
+    if (!d.isPreview) this.drawPriceLabel(ctx, canvasW - 2, pt.y, this.pp(d, 0) ?? 0);
+  }
+
+  // ── Vertical Line ──────────────────────────────────────
+  private drawVerticalLine(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(pt.x, 0); ctx.lineTo(pt.x, canvasH); ctx.stroke();
+    if (!d.isPreview && d.points[0]) this.drawTimeLabel(ctx, pt.x, canvasH - 20, d.points[0].time);
+  }
+
+  // ── Horizontal Ray ─────────────────────────────────────
+  private drawHorizontalRay(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(pt.x, pt.y); ctx.lineTo(canvasW, pt.y); ctx.stroke();
+    if (!d.isPreview) this.drawPriceLabel(ctx, canvasW - 2, pt.y, this.pp(d, 0) ?? 0);
+    this.drawDot(ctx, pt);
+  }
+
+  // ── Cross Line ─────────────────────────────────────────
+  private drawCrossLine(ctx: CanvasRenderingContext2D, a: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(0, a.y); ctx.lineTo(canvasW, a.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(a.x, 0); ctx.lineTo(a.x, canvasH); ctx.stroke();
+    if (!d.isPreview) { this.drawPriceLabel(ctx, canvasW - 2, a.y, this.pp(d, 0) ?? 0); if (d.points[0]) this.drawTimeLabel(ctx, a.x, canvasH - 20, d.points[0].time); }
+    this.drawDot(ctx, a);
+  }
+
+  // ── X Marker ───────────────────────────────────────────
+  private drawXMarker(ctx: CanvasRenderingContext2D, pt: PixelPoint, color: string, isPreview: boolean): void {
+    const sz = X_MARKER_SIZE;
+    ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = isPreview ? 1 : 2;
+    ctx.beginPath(); ctx.moveTo(pt.x - sz, pt.y - sz); ctx.lineTo(pt.x + sz, pt.y + sz);
+    ctx.moveTo(pt.x + sz, pt.y - sz); ctx.lineTo(pt.x - sz, pt.y + sz); ctx.stroke();
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, sz + 2, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Trend Line ─────────────────────────────────────────
+  private drawTrendLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Simple Line ────────────────────────────────────────
+  private drawSimpleLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }
+
+  // ── Ray ────────────────────────────────────────────────
+  private drawRay(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    if (dx === 0 && dy === 0) return;
+    let tMax = this.tMax(a.x, a.y, dx, dy, canvasW, canvasH);
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + dx * tMax, a.y + dy * tMax); ctx.stroke();
+    this.drawDot(ctx, a);
+  }
+
+  // ── Extended Line ──────────────────────────────────────
+  private drawExtendedLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y;
+    let tMin = -Infinity, tMax = Infinity;
+    if (dx !== 0) { const tL = -a.x / dx, tR = (canvasW - a.x) / dx; if (dx > 0) { tMin = tL; tMax = tR; } else { tMin = tR; tMax = tL; } }
+    if (dy !== 0) { const tT = -a.y / dy, tB = (canvasH - a.y) / dy; if (dy > 0) { tMin = Math.max(tMin, tT); tMax = Math.min(tMax, tB); } else { tMin = Math.max(tMin, tB); tMax = Math.min(tMax, tT); } }
+    ctx.beginPath(); ctx.moveTo(a.x + dx * tMin, a.y + dy * tMin); ctx.lineTo(a.x + dx * tMax, a.y + dy * tMax); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Info Line ──────────────────────────────────────────
+  private drawInfoLine(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    if (!d.isPreview) {
+      const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+      const priceDist = priceA !== null && priceB !== null ? Math.abs(priceB - priceA) : 0;
+      const angle = Math.atan2(-(b.y - a.y), b.x - a.x) * (180 / Math.PI);
+      const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
+      ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.85;
+      ctx.fillText(`Δ ${priceDist.toFixed(2)}`, midX + 6, midY - 8);
+      ctx.fillText(`${angle.toFixed(1)}°`, midX + 6, midY + 4);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Trend Angle ────────────────────────────────────────
+  private drawTrendAngle(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    if (!d.isPreview) {
+      const dx = b.x - a.x, dy = b.y - a.y;
+      const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
+      const arcR = 20, lineAngle = Math.atan2(dy, dx);
+      ctx.save(); ctx.globalAlpha = 0.4;
+      ctx.beginPath(); ctx.arc(a.x, a.y, arcR, 0, -lineAngle, lineAngle > 0); ctx.stroke();
+      ctx.globalAlpha = 0.9; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color;
+      ctx.fillText(`${angle.toFixed(1)}°`, a.x + arcR + 6, a.y - 4);
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Retracement ──────────────────────────────
+  private drawFibonacci(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) return;
+    const range = priceB - priceA;
+    for (const level of FIBONACCI_LEVELS) {
+      const price = priceA + range * (level / 100);
+      const y = this._series.priceToCoordinate(price);
+      if (y === null) continue;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 50 ? 2 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
+      ctx.beginPath(); ctx.moveTo(a.x, y); ctx.lineTo(b.x, y); ctx.stroke();
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      ctx.restore();
+    }
+    ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Extension ────────────────────────────────
+  private drawFibExtension(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) return;
+    const range = priceB - priceA;
+    for (const level of FIB_EXTENSION_LEVELS) {
+      const price = priceA + range * (level / 100);
+      const y = this._series.priceToCoordinate(price);
+      if (y === null) continue;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = (level === 0 || level === 100) ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
+      ctx.beginPath(); ctx.moveTo(a.x, y); ctx.lineTo(b.x, y); ctx.stroke();
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      ctx.restore();
+    }
+    ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Fan ──────────────────────────────────────
+  private drawFibFan(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) return;
+    const range = priceB - priceA;
+    ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+    for (const level of FIB_FAN_LEVELS) {
+      const price = priceA + range * (level / 100);
+      const y = this._series.priceToCoordinate(price);
+      if (y === null) continue;
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, y); ctx.stroke();
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Spiral ───────────────────────────────────
+  private drawFibSpiral(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, _d?: any): void {
+    const dx = b.x - a.x, dy = b.y - a.y, maxR = Math.sqrt(dx * dx + dy * dy);
+    const phi = (1 + Math.sqrt(5)) / 2, gf = Math.log(phi) / (Math.PI / 2);
+    ctx.beginPath();
+    for (let i = 0; i <= 200; i++) { const t = (i / 200) * 4 * Math.PI; const r = maxR * Math.exp(-gf * t); if (r < 2) break; const px = a.x + r * Math.cos(t), py = a.y + r * Math.sin(t); if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); }
+    ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Wedge ────────────────────────────────────
+  private drawFibWedge(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) return;
+    const range = priceB - priceA;
+    ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.restore();
+    for (const level of FIB_FAN_LEVELS) {
+      const priceUp = priceA + range * (level / 100), priceDown = priceA - range * (level / 100);
+      const yUp = this._series.priceToCoordinate(priceUp), yDown = this._series.priceToCoordinate(priceDown);
+      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
+      if (yUp !== null) { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, yUp); ctx.stroke(); if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}%`, b.x + 6, yUp + 3); } ctx.restore(); }
+      if (yDown !== null) { ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, yDown); ctx.stroke(); if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`-${level}%`, b.x + 6, yDown + 3); } ctx.restore(); }
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Fibonacci Time Zone ────────────────────────────────
+  private drawFibTimeZone(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const timeDist = b.x - a.x;
+    for (const level of FIB_TIME_LEVELS) {
+      const x = a.x + timeDist * level;
+      if (x < 0 || x > canvasW) continue;
+      const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
+      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 1 ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.5;
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}`, x + 4, canvasH - 6); }
+      ctx.restore();
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Rectangle ──────────────────────────────────────────
+  private drawRectangle(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.05 : 0.08; ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x, y, w, h); ctx.restore();
+    ctx.strokeRect(x, y, w, h);
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Channel ────────────────────────────────────────────
+  private drawChannel(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    const px = -dy / len, py = dx / len, dist = (c.x - a.x) * px + (c.y - a.y) * py;
+    const a2x = a.x + px * dist, a2y = a.y + py * dist, b2x = b.x + px * dist, b2y = b.y + py * dist;
+    ctx.beginPath(); ctx.moveTo(a2x, a2y); ctx.lineTo(b2x, b2y); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.04 : 0.06; ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(b2x, b2y); ctx.lineTo(a2x, a2y); ctx.closePath(); ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, { x: a2x, y: a2y });
+  }
+
+  // ── Regression Trend ───────────────────────────────────
+  private drawRegressionTrend(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const xs = [a.x, b.x, c.x], ys = [a.y, b.y, c.y];
+    let sX = 0, sY = 0, sXY = 0, sXX = 0;
+    for (let i = 0; i < 3; i++) { sX += xs[i]; sY += ys[i]; sXY += xs[i] * ys[i]; sXX += xs[i] * xs[i]; }
+    const den = 3 * sXX - sX * sX; if (den === 0) return;
+    const slope = (3 * sXY - sX * sY) / den, intercept = (sY - slope * sX) / 3;
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const midY1 = slope * minX + intercept, midY2 = slope * maxX + intercept;
+    ctx.beginPath(); ctx.moveTo(minX, midY1); ctx.lineTo(maxX, midY2); ctx.stroke();
+    let maxDist = 0;
+    for (let i = 0; i < 3; i++) { const dist = Math.abs(slope * xs[i] - ys[i] + intercept) / Math.sqrt(slope * slope + 1); if (dist > maxDist) maxDist = dist; }
+    const pL = Math.sqrt(slope * slope + 1), px = -slope / pL, py = 1 / pL;
+    ctx.beginPath(); ctx.moveTo(minX + px * maxDist, midY1 + py * maxDist); ctx.lineTo(maxX + px * maxDist, midY2 + py * maxDist); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(minX - px * maxDist, midY1 - py * maxDist); ctx.lineTo(maxX - px * maxDist, midY2 - py * maxDist); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.04 : 0.06; ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath(); ctx.moveTo(minX + px * maxDist, midY1 + py * maxDist); ctx.lineTo(maxX + px * maxDist, midY2 + py * maxDist);
+    ctx.lineTo(maxX - px * maxDist, midY2 - py * maxDist); ctx.lineTo(minX - px * maxDist, midY1 - py * maxDist); ctx.closePath(); ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Flat Top / Bottom ──────────────────────────────────
+  private drawFlatTopBottom(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.05 : 0.08; ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x, y, w, h);
+    ctx.globalAlpha = d.isPreview ? 0.3 : 0.5;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + h); ctx.lineTo(x + w, y + h); ctx.stroke(); ctx.restore();
+    ctx.strokeRect(x, y, w, h);
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Disjoint Channel ───────────────────────────────────
+  private drawDisjointChannel(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const offset = 15, dx = b.x - a.x, dy = b.y - a.y, len = Math.sqrt(dx * dx + dy * dy);
+    if (len === 0) return;
+    const px = -dy / len, py = dx / len;
+    const a1x = a.x + px * offset, a1y = a.y + py * offset, b1x = b.x + px * offset, b1y = b.y + py * offset;
+    const a2x = a.x - px * offset, a2y = a.y - py * offset, b2x = b.x - px * offset, b2y = b.y - py * offset;
+    ctx.beginPath(); ctx.moveTo(a1x, a1y); ctx.lineTo(b1x, b1y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(a2x, a2y); ctx.lineTo(b2x, b2y); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.04 : 0.06; ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath(); ctx.moveTo(a1x, a1y); ctx.lineTo(b1x, b1y); ctx.lineTo(b2x, b2y); ctx.lineTo(a2x, a2y); ctx.closePath(); ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Pitchfork helpers ──────────────────────────────────
+  private drawPitchforkCore(ctx: CanvasRenderingContext2D, ox: number, oy: number, a: PixelPoint, b: PixelPoint, c: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }, midBCx: number, midBCy: number): void {
+    const dx = midBCx - ox, dy = midBCy - oy;
+    let tMax = this.tMax(ox, oy, dx, dy, canvasW, canvasH);
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(ox + dx * tMax, oy + dy * tMax); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(b.x, b.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(ox, oy); ctx.lineTo(c.x, c.y); ctx.stroke();
+    ctx.save(); ctx.setLineDash(d.isPreview ? PREVIEW_DASH : [4, 3]); ctx.globalAlpha = 0.4;
+    const dxB = b.x - ox, dyB = b.y - oy, tB = this.tMax(ox, oy, dxB, dyB, canvasW, canvasH);
+    ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(ox + dxB * tB, oy + dyB * tB); ctx.stroke();
+    const dxC = c.x - ox, dyC = c.y - oy, tC = this.tMax(ox, oy, dxC, dyC, canvasW, canvasH);
+    ctx.beginPath(); ctx.moveTo(c.x, c.y); ctx.lineTo(ox + dxC * tC, oy + dyC * tC); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  private drawAndrewsPitchfork(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    this.drawPitchforkCore(ctx, a.x, a.y, a, b, c, canvasW, canvasH, d, (b.x + c.x) / 2, (b.y + c.y) / 2);
+  }
+
+  private drawSchiffPitchfork(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const midBCx = (b.x + c.x) / 2, midBCy = (b.y + c.y) / 2;
+    this.drawPitchforkCore(ctx, (a.x + midBCx) / 2, (a.y + midBCy) / 2, a, b, c, canvasW, canvasH, d, midBCx, midBCy);
+  }
+
+  private drawModifiedSchiff(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const midBCx = (b.x + c.x) / 2, midBCy = (b.y + c.y) / 2;
+    const halfMidBCx = (a.x + midBCx) / 2, halfMidBCy = (a.y + midBCy) / 2;
+    this.drawPitchforkCore(ctx, (a.x + halfMidBCx) / 2, (a.y + halfMidBCy) / 2, a, b, c, canvasW, canvasH, d, halfMidBCx, halfMidBCy);
+  }
+
+  // ── Triangle ───────────────────────────────────────────
+  private drawTriangle(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, c: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.lineTo(c.x, c.y); ctx.closePath(); ctx.stroke();
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.04 : 0.06; ctx.fillStyle = ctx.strokeStyle; ctx.fill(); ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b); this.drawDot(ctx, c);
+  }
+
+  // ── Circle ─────────────────────────────────────────────
+  private drawCircle(ctx: CanvasRenderingContext2D, center: PixelPoint, edge: PixelPoint, _d?: any): void {
+    const dx = edge.x - center.x, dy = edge.y - center.y, r = Math.sqrt(dx * dx + dy * dy);
+    ctx.beginPath(); ctx.arc(center.x, center.y, r, 0, Math.PI * 2); ctx.stroke();
+    this.drawDot(ctx, center);
+  }
+
+  // ── Ellipse ────────────────────────────────────────────
+  private drawEllipse(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, rx = Math.abs(b.x - a.x) / 2, ry = Math.abs(b.y - a.y) / 2;
+    if (rx === 0 || ry === 0) return;
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.05 : 0.08; ctx.fillStyle = ctx.strokeStyle;
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.beginPath(); ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); ctx.stroke();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Gann Box ───────────────────────────────────────────
+  private drawGannBox(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.05 : 0.08; ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x, y, w, h); ctx.restore();
+    ctx.strokeRect(x, y, w, h);
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.3 : 0.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w, y); ctx.lineTo(x, y + h); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x, y + h / 2); ctx.lineTo(x + w, y + h / 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x + w / 2, y); ctx.lineTo(x + w / 2, y + h); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Gann Square ────────────────────────────────────────
+  private drawGannSquare(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const cx = (a.x + b.x) / 2, cy = (a.y + b.y) / 2, maxW = Math.abs(b.x - a.x), maxH = Math.abs(b.y - a.y);
+    for (let i = 1; i <= 4; i++) {
+      const f = i / 4, hw = maxW * f / 2, hh = maxH * f / 2;
+      ctx.save(); ctx.globalAlpha = d.isPreview ? 0.2 + f * 0.3 : 0.3 + f * 0.5;
+      ctx.strokeRect(cx - hw, cy - hh, hw * 2, hh * 2); ctx.restore();
+    }
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.3 : 0.5; ctx.setLineDash([4, 3]);
+    ctx.beginPath(); ctx.moveTo(cx, cy - maxH / 2); ctx.lineTo(cx, cy + maxH / 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx - maxW / 2, cy); ctx.lineTo(cx + maxW / 2, cy); ctx.stroke();
+    ctx.restore();
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Gann Fan ───────────────────────────────────────────
+  private drawGannFan(ctx: CanvasRenderingContext2D, a: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    for (const deg of GANN_ANGLES) {
+      const rad = (deg * Math.PI) / 180, dx = Math.cos(rad), dy = -Math.sin(rad);
+      let tM = this.tMax(a.x, a.y, dx, dy, canvasW, canvasH);
+      const main = Math.abs(deg - 45) < 0.1;
+      ctx.save(); ctx.strokeStyle = main ? DEFAULT_COLOR : ctx.strokeStyle; ctx.lineWidth = main ? 1.5 : 1;
+      ctx.globalAlpha = d.isPreview ? (main ? 0.5 : 0.3) : (main ? DEFAULT_OPACITY : 0.5);
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + dx * tM, a.y + dy * tM); ctx.stroke();
+      if (!d.isPreview) { ctx.globalAlpha = 0.7; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = main ? DEFAULT_COLOR : ctx.strokeStyle;
+        const lx = a.x + dx * Math.min(tM, 60), ly = a.y + dy * Math.min(tM, 60); ctx.fillText(`${deg}°`, lx + 4, ly - 4); }
+      ctx.restore();
+    }
+    this.drawDot(ctx, a);
+  }
+
+  // ── Arrow ──────────────────────────────────────────────
+  private drawArrow(ctx: CanvasRenderingContext2D, from: PixelPoint, to: PixelPoint, _d?: any): void {
+    ctx.beginPath(); ctx.moveTo(from.x, from.y); ctx.lineTo(to.x, to.y); ctx.stroke();
+    const angle = Math.atan2(to.y - from.y, to.x - from.x), h = ARROW_HEAD_SIZE;
+    ctx.beginPath(); ctx.moveTo(to.x, to.y); ctx.lineTo(to.x - h * Math.cos(angle - Math.PI / 6), to.y - h * Math.sin(angle - Math.PI / 6));
+    ctx.moveTo(to.x, to.y); ctx.lineTo(to.x - h * Math.cos(angle + Math.PI / 6), to.y - h * Math.sin(angle + Math.PI / 6)); ctx.stroke();
+    this.drawDot(ctx, from);
+  }
+
+  // ── Price Range ────────────────────────────────────────
+  private drawPriceRange(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const priceA = this.pp(d, 0), priceB = this.pp(d, 1);
+    if (priceA === null || priceB === null) return;
+    const topY = Math.min(a.y, b.y), botY = Math.max(a.y, b.y), midX = (a.x + b.x) / 2, capW = 8;
+    ctx.beginPath(); ctx.moveTo(midX, topY); ctx.lineTo(midX, botY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(midX - capW, topY); ctx.lineTo(midX + capW, topY); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(midX - capW, botY); ctx.lineTo(midX + capW, botY); ctx.stroke();
+    if (!d.isPreview) {
+      const hi = Math.max(priceA, priceB), lo = Math.min(priceA, priceB), diff = hi - lo;
+      this.drawPriceLabel(ctx, midX + capW + 4, topY, hi);
+      this.drawPriceLabel(ctx, midX + capW + 4, botY, lo);
+      if (diff > 0) { ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = DEFAULT_COLOR; ctx.globalAlpha = 0.9; ctx.fillText(`Δ ${diff.toFixed(2)}`, midX + capW + 4, (topY + botY) / 2 + 3); ctx.restore(); }
+    }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Text Annotation ────────────────────────────────────
+  private drawTextAnnotation(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.05 : 0.08; ctx.fillStyle = ctx.strokeStyle; ctx.fillRect(x, y, w, h); ctx.restore();
+    ctx.strokeRect(x, y, w, h);
+    if (!d.isPreview && w > 20 && h > 14) { ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = DEFAULT_COLOR; ctx.globalAlpha = 0.8; ctx.fillText('TEXT', x + 4, y + h / 2 + 3); ctx.restore(); }
+    this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // ── Price Label Marker ─────────────────────────────────
+  private drawPriceLabelMarker(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const price = this.pp(d, 0) ?? 0, text = price.toFixed(2);
+    ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace";
+    const textW = ctx.measureText(text).width, padX = 6, padY = 3;
+    const rx = pt.x - textW / 2 - padX, ry = pt.y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;
+    ctx.globalAlpha = 0.85; ctx.fillStyle = '#151A22'; ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, 4); ctx.fill();
+    ctx.strokeStyle = d.color; ctx.lineWidth = d.isPreview ? 1 : 1.5; ctx.globalAlpha = d.isPreview ? 0.5 : 0.7; ctx.stroke();
+    ctx.globalAlpha = 0.95; ctx.fillStyle = d.color; ctx.fillText(text, rx + padX, ry + padY + 10);
+    ctx.globalAlpha = 0.85; ctx.fillStyle = '#151A22'; const as = 4;
+    ctx.beginPath(); ctx.moveTo(pt.x - as, ry + rh); ctx.lineTo(pt.x, ry + rh + as); ctx.lineTo(pt.x + as, ry + rh); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // ── Note Pin ───────────────────────────────────────────
+  private drawNote(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
+    const sz = 6;
+    ctx.save(); ctx.globalAlpha = d.isPreview ? 0.5 : 0.9;
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, sz + 2, 0, Math.PI * 2); ctx.fillStyle = d.color; ctx.fill();
+    ctx.beginPath(); ctx.arc(pt.x, pt.y, sz - 1, 0, Math.PI * 2); ctx.fillStyle = '#151A22'; ctx.fill();
+    ctx.strokeStyle = d.color; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(pt.x, pt.y + sz + 2); ctx.lineTo(pt.x, pt.y + sz + 12); ctx.stroke();
+    ctx.restore();
+  }
+
+  // ── Helper: compute tMax for ray/line extension ────────
+  private tMax(ox: number, oy: number, dx: number, dy: number, canvasW: number, canvasH: number): number {
+    let tMax = Infinity;
+    if (dx !== 0) { const tR = (canvasW - ox) / dx, tL = -ox / dx; tMax = dx > 0 ? tR : tL; }
+    if (dy !== 0) { const tB = (canvasH - oy) / dy, tT = -oy / dy; tMax = Math.min(tMax, dy > 0 ? tB : tT); }
+    return tMax;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// PANE VIEW — Provides the renderer to lightweight-charts
+// ═══════════════════════════════════════════════════════════
+
+class DrawingPaneView implements IPrimitivePaneView {
+  private _chart: IChartApi;
+  private _series: ISeriesApi<SeriesType>;
+  private _drawings: Drawing[];
+  private _preview: PreviewData | null;
+
+  constructor(chart: IChartApi, series: ISeriesApi<SeriesType>) {
+    this._chart = chart;
+    this._series = series;
+    this._drawings = [];
+    this._preview = null;
+  }
+
+  update(drawings: Drawing[], preview: PreviewData | null): void {
+    this._drawings = drawings;
+    this._preview = preview;
+  }
+
+  zOrder(): PrimitivePaneViewZOrder {
+    return 'top';
+  }
+
+  renderer(): IPrimitivePaneRenderer | null {
+    return new DrawingPaneRenderer(this._chart, this._series, this._drawings, this._preview);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SERIES PRIMITIVE — Attached to the candlestick series
+// Implements ISeriesPrimitiveBase to draw on the chart's canvas
+// ═══════════════════════════════════════════════════════════
+
+class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParameter> {
+  private _chart: IChartApi | null = null;
+  private _series: ISeriesApi<SeriesType> | null = null;
+  private _requestUpdate: (() => void) | null = null;
+  private _paneView: DrawingPaneView;
+  private _drawings: Drawing[] = [];
+  private _preview: PreviewData | null = null;
+
+  constructor() {
+    this._paneView = new DrawingPaneView(null as any, null as any);
+  }
+
+  attached(param: SeriesAttachedParameter): void {
+    this._chart = param.chart as IChartApi;
+    this._series = param.series as ISeriesApi<SeriesType>;
+    this._requestUpdate = param.requestUpdate;
+    // Re-create pane view with actual chart/series refs
+    (this as any)._paneView = new DrawingPaneView(this._chart, this._series);
+    // Push current data to view
+    this._paneView.update(this._drawings, this._preview);
+  }
+
+  detached(): void {
+    this._chart = null;
+    this._series = null;
+    this._requestUpdate = null;
+  }
+
+  updateAllViews(): void {
+    this._paneView.update(this._drawings, this._preview);
+  }
+
+  paneViews(): readonly IPrimitivePaneView[] {
+    return [this._paneView];
+  }
+
+  hitTest(_x: number, _y: number): PrimitiveHoveredItem | null {
+    return null; // Hit testing handled by DrawingRenderer event system
+  }
+
+  // ── Data management ────────────────────────────────────
+
+  setDrawings(drawings: Drawing[]): void {
+    this._drawings = drawings;
+    this.requestUpdate();
+  }
+
+  setPreview(preview: PreviewData | null): void {
+    this._preview = preview;
+    this.requestUpdate();
+  }
+
+  private requestUpdate(): void {
+    if (this._requestUpdate) this._requestUpdate();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// MAIN DRAWING RENDERER — Public API
+// No overlay canvas — uses Series Primitive instead
+// ═══════════════════════════════════════════════════════════
+
 export class DrawingRenderer {
-  // ── Dependencies ───────────────────────────────────────
   private chart: IChartApi;
   private candleSeries: ISeriesApi<'Candlestick'>;
   private container: HTMLDivElement;
   private drawingManager: DrawingManager;
 
-  // ── Overlay canvas ─────────────────────────────────────
-  private overlayCanvas: HTMLCanvasElement | null = null;
-  private ctx: CanvasRenderingContext2D | null = null;
-  private dpr: number = 1;
+  private primitive: DrawingSeriesPrimitive | null = null;
 
-  // ── Interaction state ──────────────────────────────────
   private currentTool: DrawingTool = 'cursor';
   private clickedPoints: DrawingPoint[] = [];
   private mousePixel: PixelPoint | null = null;
   private isDrawing = false;
 
-  // ── Drag state ──────────────────────────────────────────
   private isDragging = false;
   private dragDrawingId: string | null = null;
-  private dragStartX: number = 0;
-  private dragStartY: number = 0;
-  private dragOriginalPoints: DrawingPoint[] = []; // Deep copy of points at drag start
-  private dragStartChartPoint: DrawingPoint | null = null; // Chart coord at drag start
-  private dragPointIndex: number = -1; // -1 = move whole drawing, >=0 = move single endpoint
+  private dragOriginalPoints: DrawingPoint[] = [];
+  private dragStartChartPoint: DrawingPoint | null = null;
+  private dragPointIndex: number = -1;
 
-  // ── Event handler refs (for cleanup) ───────────────────
   private boundMouseDown: (e: MouseEvent) => void;
   private boundMouseMove: (e: MouseEvent) => void;
   private boundMouseUp: (e: MouseEvent) => void;
   private boundContextMenu: (e: MouseEvent) => void;
-  private boundResize: () => void;
-  private boundWheel: (e: WheelEvent) => void;
-  private boundTouchStart: (e: TouchEvent) => void;
-  private boundTouchMove: (e: TouchEvent) => void;
-  private unsubscribeVisibleRange: (() => void) | null = null;
-  private resizeObserver: ResizeObserver | null = null;
+  private boundKeyDown: (e: KeyboardEvent) => void;
   private started = false;
 
-  // ── Event target ref (canvas or container) ─────────────
-  private eventTarget: HTMLElement | null = null;
+  private static readonly PROXIMITY_THRESHOLD = 12;
 
-  // ── Ref to lightweight-charts canvas (for CSS pointer-events control) ──
-  private chartCanvas: HTMLCanvasElement | null = null;
-
-  // ── Constructor ────────────────────────────────────────
-
-  constructor(
-    chart: IChartApi,
-    candleSeries: ISeriesApi<'Candlestick'>,
-    container: HTMLDivElement,
-    drawingManager: DrawingManager,
-  ) {
+  constructor(chart: IChartApi, candleSeries: ISeriesApi<'Candlestick'>, container: HTMLDivElement, drawingManager: DrawingManager) {
     this.chart = chart;
     this.candleSeries = candleSeries;
     this.container = container;
     this.drawingManager = drawingManager;
 
-    // Pre-bind handlers so we can remove them later
     this.boundMouseDown = this.onMouseDown.bind(this);
     this.boundMouseMove = this.onMouseMove.bind(this);
     this.boundMouseUp = this.onMouseUp.bind(this);
     this.boundContextMenu = (e: MouseEvent) => e.preventDefault();
-    this.boundResize = this.handleResize.bind(this);
-    this.boundWheel = this.onWheel.bind(this);
-    this.boundTouchStart = this.onTouchStart.bind(this);
-    this.boundTouchMove = this.onTouchMove.bind(this);
+    this.boundKeyDown = this.onKeyDown.bind(this);
   }
 
   // ══════════════════════════════════════════════════════════
-  //  PUBLIC API
+  //  PUBLIC API — Same interface as before, no changes needed
   // ══════════════════════════════════════════════════════════
 
-  /** Start listening to events and create the overlay canvas. */
   start(): void {
     if (this.started) return;
     this.started = true;
 
-    this.createOverlayCanvas();
-    this.findChartCanvas();
+    this.primitive = new DrawingSeriesPrimitive();
+    this.candleSeries.attachPrimitive(this.primitive as any);
+
     this.attachEvents();
-
-    // Set initial canvas pointer events based on current tool
-    if (this.currentTool !== 'cursor') {
-      this.setCanvasPointerEvents(true);
-      this.setChartInteractionEnabled(false);
-    }
-
-    this.redraw();
+    this.syncPrimitive();
   }
 
-  /** Stop listening and remove the overlay canvas. */
   stop(): void {
     if (!this.started) return;
     this.started = false;
 
+    if (this.primitive) {
+      this.candleSeries.detachPrimitive(this.primitive as any);
+      this.primitive = null;
+    }
+
     this.setChartInteractionEnabled(true);
-    this.container.style.cursor = ''; // Reset cursor
+    this.container.style.cursor = '';
     this.detachEvents();
-    this.removeOverlayCanvas();
     this.clickedPoints = [];
     this.mousePixel = null;
     this.isDrawing = false;
   }
 
-  /** Change the active drawing tool. Resets any in-progress drawing. */
   setTool(tool: DrawingTool): void {
     this.currentTool = tool;
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;
-    // Reset drag state too in case tool changes mid-drag
     this.isDragging = false;
     this.dragDrawingId = null;
     this.dragOriginalPoints = [];
     this.dragStartChartPoint = null;
     this.dragPointIndex = -1;
+
     if (tool === 'cursor') {
       this.setChartInteractionEnabled(true);
-      this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
       this.container.style.cursor = '';
     } else {
-      // FIX: Do NOT set pointer-events:none on the chart canvas — it triggers
-      // a browser GPU compositing layer change that causes candlestick bodies
-      // to disappear (wicks survive because they're cached differently).
-      // Instead, the overlay canvas (z-index:9999) with pointer-events:auto
-      // already blocks all mouse events from reaching the chart canvas below.
-      // We only need wheel/touch blockers to prevent chart zoom via scroll.
       this.setChartInteractionEnabled(false);
-      this.setCanvasPointerEvents(true);  // Capture mouse for drawing
-      this.container.style.cursor = 'crosshair'; // Visual feedback: user is in drawing mode
+      this.container.style.cursor = 'crosshair';
     }
-    this.redraw();
+    this.syncPrimitive();
   }
 
-  /** Clear all persisted drawings and re-render an empty canvas. */
   clearAndRedraw(): void {
     this.drawingManager.clearAll();
-    this.redraw();
+    this.syncPrimitive();
   }
 
-  /** Full redraw of all persisted drawings + any in-progress preview. */
   redraw(): void {
-    if (!this.ctx || !this.overlayCanvas) return;
+    this.syncPrimitive();
+  }
 
-    const w = this.overlayCanvas.width;
-    const h = this.overlayCanvas.height;
-    this.ctx.clearRect(0, 0, w, h);
-
-    // Clip all drawing to canvas bounds — prevents lines from going outside chart
-    this.ctx.save();
-    this.ctx.beginPath();
-    this.ctx.rect(0, 0, w, h);
-    this.ctx.clip();
-
-    // Draw all persisted drawings
-    const drawings = this.drawingManager.getAll();
-    for (const drawing of drawings) {
-      this.renderDrawing(drawing, false);
-    }
-
-    // Draw in-progress preview
-    if (this.isDrawing && this.clickedPoints.length > 0 && this.mousePixel) {
-      this.renderPreview();
-    }
-
-    this.ctx.restore();
+  cancelDrawing(): void {
+    this.clickedPoints = [];
+    this.isDrawing = false;
+    this.mousePixel = null;
+    this.syncPrimitive();
   }
 
   // ══════════════════════════════════════════════════════════
-  //  OVERLAY CANVAS SETUP
+  //  PRIMITIVE SYNC — Pushes all data to the series primitive
   // ══════════════════════════════════════════════════════════
 
-  private createOverlayCanvas(): void {
-    // Remove any stale overlay
-    this.removeOverlayCanvas();
-
-    this.dpr = window.devicePixelRatio || 1;
-
-    const canvas = document.createElement('canvas');
-    canvas.style.position = 'absolute';
-    canvas.style.top = '0';
-    canvas.style.left = '0';
-    canvas.style.width = '100%';
-    canvas.style.height = '100%';
-    canvas.style.pointerEvents = 'none'; // Let chart handle pan/zoom by default
-    canvas.style.zIndex = '9999'; // Above all chart overlays (trade panels, fill zones, etc.)
-    canvas.dataset.rouaDrawingOverlay = 'true';
-
-    this.sizeCanvas(canvas);
-    this.container.style.position = 'relative'; // Ensure positioning context
-    this.container.appendChild(canvas);
-
-    this.overlayCanvas = canvas;
-    this.ctx = canvas.getContext('2d');
-  }
-
-  private sizeCanvas(canvas: HTMLCanvasElement): void {
-    const rect = this.container.getBoundingClientRect();
-    this.dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(rect.width * this.dpr);
-    canvas.height = Math.round(rect.height * this.dpr);
-  }
-
-  private removeOverlayCanvas(): void {
-    if (this.overlayCanvas && this.overlayCanvas.parentNode) {
-      this.overlayCanvas.parentNode.removeChild(this.overlayCanvas);
-    }
-    this.overlayCanvas = null;
-    this.ctx = null;
+  private syncPrimitive(): void {
+    if (!this.primitive) return;
+    this.primitive.setDrawings(this.drawingManager.getAll());
+    this.primitive.setPreview(
+      this.isDrawing && this.clickedPoints.length > 0
+        ? { points: this.clickedPoints, mousePixel: this.mousePixel, tool: this.currentTool }
+        : null,
+    );
   }
 
   // ══════════════════════════════════════════════════════════
@@ -264,356 +966,160 @@ export class DrawingRenderer {
   // ══════════════════════════════════════════════════════════
 
   private attachEvents(): void {
-    // ALWAYS listen on the container for mousedown so we can detect
-    // clicks near drawings even in cursor mode (when canvas pointerEvents is 'none')
-    this.container.addEventListener('mousedown', this.boundMouseDown, true); // capture phase
+    this.container.addEventListener('mousedown', this.boundMouseDown, true);
     this.container.addEventListener('mousemove', this.boundMouseMove);
     this.container.addEventListener('mouseup', this.boundMouseUp);
     this.container.addEventListener('contextmenu', this.boundContextMenu);
-
-    this.eventTarget = this.container;
-
-    // Re-render when the visible range changes (scroll / zoom)
-    const onVisibleRangeChange = () => { this.redraw(); };
-    this.chart.timeScale().subscribeVisibleTimeRangeChange(onVisibleRangeChange);
-    this.unsubscribeVisibleRange = () => {
-      this.chart.timeScale().unsubscribeVisibleTimeRangeChange(onVisibleRangeChange);
-    };
-
-    // Resize observer to keep canvas sized correctly
-    this.resizeObserver = new ResizeObserver(() => {
-      this.handleResize();
-    });
-    this.resizeObserver.observe(this.container);
+    document.addEventListener('keydown', this.boundKeyDown);
   }
 
   private detachEvents(): void {
-    this.container.removeEventListener('mousedown', this.boundMouseDown, true); // capture phase
+    this.container.removeEventListener('mousedown', this.boundMouseDown, true);
     this.container.removeEventListener('mousemove', this.boundMouseMove);
     this.container.removeEventListener('mouseup', this.boundMouseUp);
     this.container.removeEventListener('contextmenu', this.boundContextMenu);
-
-    if (this.unsubscribeVisibleRange) {
-      this.unsubscribeVisibleRange();
-      this.unsubscribeVisibleRange = null;
-    }
-
-    if (this.resizeObserver) {
-      this.resizeObserver.disconnect();
-      this.resizeObserver = null;
-    }
+    document.removeEventListener('keydown', this.boundKeyDown);
   }
 
-  private handleResize(): void {
-    if (!this.overlayCanvas) return;
-    this.sizeCanvas(this.overlayCanvas);
-    this.redraw();
+  // ══════════════════════════════════════════════════════════
+  //  CHART INTERACTION — Uses API only, NEVER modifies CSS
+  // ══════════════════════════════════════════════════════════
+
+  private setChartInteractionEnabled(enabled: boolean): void {
+    this.chart.applyOptions({ handleScroll: enabled, handleScale: enabled });
   }
 
   // ══════════════════════════════════════════════════════════
   //  COORDINATE CONVERSION
   // ══════════════════════════════════════════════════════════
 
-  /** Convert a mouse event's page coordinates to a DrawingPoint (time, price). */
   private pixelToChartPoint(e: MouseEvent): DrawingPoint | null {
     const rect = this.container.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const time = this.chart.timeScale().coordinateToTime(x);
-    const price = this.candleSeries.coordinateToPrice(y);
-
-    if (time === null || price === null) return null;
-    return { time: time as number, price };
+    return pixelToChartPoint(e.clientX - rect.left, e.clientY - rect.top, this.chart, this.candleSeries);
   }
 
-  /** Convert a DrawingPoint (time, price) to pixel coordinates on the overlay canvas. */
   private chartPointToPixel(pt: DrawingPoint): PixelPoint | null {
-    const x = this.chart.timeScale().timeToCoordinate(pt.time as Time);
-    const y = this.candleSeries.priceToCoordinate(pt.price);
-
-    if (x === null || y === null) return null;
-    return { x, y };
+    return chartPointToPixel(pt, this.chart, this.candleSeries);
   }
 
   // ══════════════════════════════════════════════════════════
   //  DRAG HELPERS
   // ══════════════════════════════════════════════════════════
 
-  /** Start dragging a drawing — saves original state for correct delta calculation. */
-  private startDrag(drawing: Drawing, pixelX: number, pixelY: number, e: MouseEvent): void {
+  private startDrag(drawing: Drawing, e: MouseEvent): void {
     this.isDragging = true;
     this.dragDrawingId = drawing.id;
-    this.dragStartX = pixelX;
-    this.dragStartY = pixelY;
-    this.dragPointIndex = -1; // reset — caller sets specific index if endpoint drag
-    // Deep copy the original points so we always apply delta from the start position
+    this.dragPointIndex = -1;
     this.dragOriginalPoints = drawing.points.map(p => ({ ...p }));
-    // Save the chart coordinate at the drag start for delta calculation
     this.dragStartChartPoint = this.pixelToChartPoint(e);
     this.setChartInteractionEnabled(false);
-
     e.stopImmediatePropagation();
     e.preventDefault();
   }
 
-  /** Check if a pixel point is near a line segment (within PROXIMITY_THRESHOLD pixels). */
   private isPointNearSegment(px: number, py: number, a: PixelPoint, b: PixelPoint): boolean {
-    const threshold = DrawingRenderer.PROXIMITY_THRESHOLD;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const lenSq = dx * dx + dy * dy;
-
-    if (lenSq === 0) {
-      // Degenerate segment (both points are the same)
-      return Math.abs(px - a.x) < threshold && Math.abs(py - a.y) < threshold;
-    }
-
-    // Project point onto line segment, clamped to [0, 1]
-    let t = ((px - a.x) * dx + (py - a.y) * dy) / lenSq;
-    t = Math.max(0, Math.min(1, t));
-
-    // Closest point on the segment
-    const closestX = a.x + t * dx;
-    const closestY = a.y + t * dy;
-
-    // Distance from point to closest point on segment
-    const distSq = (px - closestX) * (px - closestX) + (py - closestY) * (py - closestY);
-    return distSq < threshold * threshold;
-  }
-
-  /** Scale pixel coordinate for DPI-aware canvas drawing. */
-  private s(v: number): number {
-    return v * this.dpr;
-  }
-
-  /** Get the canvas width in CSS pixels. */
-  private get canvasWidth(): number {
-    return this.overlayCanvas ? this.overlayCanvas.width / this.dpr : 0;
-  }
-
-  /** Get the canvas height in CSS pixels. */
-  private get canvasHeight(): number {
-    return this.overlayCanvas ? this.overlayCanvas.height / this.dpr : 0;
+    const t = DrawingRenderer.PROXIMITY_THRESHOLD;
+    const dx = b.x - a.x, dy = b.y - a.y, lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.abs(px - a.x) < t && Math.abs(py - a.y) < t;
+    let s = ((px - a.x) * dx + (py - a.y) * dy) / lenSq;
+    s = Math.max(0, Math.min(1, s));
+    const cx = a.x + s * dx, cy = a.y + s * dy;
+    return (px - cx) * (px - cx) + (py - cy) * (py - cy) < t * t;
   }
 
   // ══════════════════════════════════════════════════════════
   //  MOUSE HANDLERS
   // ══════════════════════════════════════════════════════════
 
-  // ── Proximity threshold in pixels ──
-  private static readonly PROXIMITY_THRESHOLD = 12;
-
   private onMouseDown(e: MouseEvent): void {
-    // Only react to left click
     if (e.button !== 0) return;
 
-    // When in cursor mode, check if we're clicking near an existing drawing to drag it
     if (this.currentTool === 'cursor') {
       const rect = this.container.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const x = e.clientX - rect.left;
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
 
-      // Check ALL drawing types for proximity
-      const drawings = this.drawingManager.getAll();
-      for (const drawing of drawings) {
+      for (const drawing of this.drawingManager.getAll()) {
         if (drawing.type === 'horizontal') {
-          // Horizontal lines: check proximity along the entire line (full width)
-          const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(y - pixelPt.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-            this.startDrag(drawing, x, y, e);
-            this.container.style.cursor = 'ns-resize';
-            return;
-          }
+          const pp = this.chartPointToPixel(drawing.points[0]);
+          if (pp && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) { this.startDrag(drawing, e); this.container.style.cursor = 'ns-resize'; return; }
         } else if (drawing.type === 'vertical') {
-          // Vertical lines: check proximity along the entire line (full height)
-          const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(x - pixelPt.x) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-            this.startDrag(drawing, x, y, e);
-            this.container.style.cursor = 'ew-resize';
-            return;
-          }
+          const pp = this.chartPointToPixel(drawing.points[0]);
+          if (pp && Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD) { this.startDrag(drawing, e); this.container.style.cursor = 'ew-resize'; return; }
         } else {
-          // For other drawing types:
-          // 1. Check proximity to any endpoint (primary grab points)
-          // 2. Check proximity to line segments between points
-          const pixelPts = drawing.points
-            .map(p => this.chartPointToPixel(p))
-            .filter((p): p is PixelPoint => p !== null);
-
-          // Check endpoints first
-          // Check endpoints first — if near endpoint, drag only that point
-          let nearEndpointIdx = -1;
-          for (let pi = 0; pi < pixelPts.length; pi++) {
-            const pp = pixelPts[pi];
-            if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
-                Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-              nearEndpointIdx = pi;
-              break;
-            }
-          }
-
-          if (nearEndpointIdx >= 0) {
-            // Drag single endpoint (resize/extend the line)
-            this.startDrag(drawing, x, y, e);
-            this.dragPointIndex = nearEndpointIdx;
-            this.container.style.cursor = 'crosshair';
-            return;
-          }
-
-          // If not near an endpoint, check proximity to line segments → move whole drawing
-          let nearSegment = false;
-          if (pixelPts.length >= 2) {
-            for (let i = 0; i < pixelPts.length - 1; i++) {
-              if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
-                nearSegment = true;
-                break;
-              }
-            }
-          }
-
-          if (nearSegment) {
-            this.startDrag(drawing, x, y, e);
-            this.dragPointIndex = -1; // move whole drawing
-            this.container.style.cursor = 'move';
-            return;
-          }
+          const pts = drawing.points.map(p => this.chartPointToPixel(p)).filter((p): p is PixelPoint => p !== null);
+          let endIdx = -1;
+          for (let i = 0; i < pts.length; i++) { if (Math.abs(x - pts[i].x) < DrawingRenderer.PROXIMITY_THRESHOLD && Math.abs(y - pts[i].y) < DrawingRenderer.PROXIMITY_THRESHOLD) { endIdx = i; break; } }
+          if (endIdx >= 0) { this.startDrag(drawing, e); this.dragPointIndex = endIdx; this.container.style.cursor = 'crosshair'; return; }
+          let nearSeg = false;
+          if (pts.length >= 2) { for (let i = 0; i < pts.length - 1; i++) { if (this.isPointNearSegment(x, y, pts[i], pts[i + 1])) { nearSeg = true; break; } } }
+          if (nearSeg) { this.startDrag(drawing, e); this.dragPointIndex = -1; this.container.style.cursor = 'move'; return; }
         }
       }
-      // Not near any drawing — let the event pass through to chart for normal pan/zoom
       return;
     }
 
     const point = this.pixelToChartPoint(e);
     if (!point) return;
-
     e.stopImmediatePropagation();
     e.preventDefault();
-
-    // Disable chart pan/zoom while drawing
     this.setChartInteractionEnabled(false);
-
-    const required = DrawingManager.requiredPoints(this.currentTool);
 
     this.clickedPoints.push(point);
     this.isDrawing = true;
     this.mousePixel = this.chartPointToPixel(point);
 
-    // If we have enough points, complete the drawing
-    if (this.clickedPoints.length >= required) {
+    if (this.clickedPoints.length >= DrawingManager.requiredPoints(this.currentTool)) {
       this.completeDrawing();
     } else {
-      this.redraw();
+      this.syncPrimitive();
     }
   }
 
   private onMouseMove(e: MouseEvent): void {
-    // Handle dragging existing drawings
     if (this.isDragging && this.dragDrawingId) {
       e.preventDefault();
-      const currentChartPoint = this.pixelToChartPoint(e);
-      if (!currentChartPoint || !this.dragStartChartPoint) return;
-
-      // Calculate the total delta from the drag start to the current mouse position
-      const deltaPrice = currentChartPoint.price - this.dragStartChartPoint.price;
-      const deltaTime = currentChartPoint.time - this.dragStartChartPoint.time;
-
+      const cur = this.pixelToChartPoint(e);
+      if (!cur || !this.dragStartChartPoint) return;
+      const dp = cur.price - this.dragStartChartPoint.price, dt = cur.time - this.dragStartChartPoint.time;
       const drawing = this.drawingManager.get(this.dragDrawingId);
       if (drawing) {
         if (drawing.type === 'horizontal') {
-          this.drawingManager.update(this.dragDrawingId, {
-            points: [{ ...this.dragOriginalPoints[0], price: this.dragOriginalPoints[0].price + deltaPrice }],
-          });
+          this.drawingManager.update(this.dragDrawingId, { points: [{ ...this.dragOriginalPoints[0], price: this.dragOriginalPoints[0].price + dp }] });
         } else if (drawing.type === 'vertical') {
-          this.drawingManager.update(this.dragDrawingId, {
-            points: [{ ...this.dragOriginalPoints[0], time: this.dragOriginalPoints[0].time + deltaTime }],
-          });
+          this.drawingManager.update(this.dragDrawingId, { points: [{ ...this.dragOriginalPoints[0], time: this.dragOriginalPoints[0].time + dt }] });
         } else if (this.dragPointIndex >= 0 && this.dragPointIndex < this.dragOriginalPoints.length) {
-          // Endpoint drag — only move the selected point (extend/shrink the line)
-          const newPoints = this.dragOriginalPoints.map((pt, i) =>
-            i === this.dragPointIndex
-              ? { ...pt, price: pt.price + deltaPrice, time: pt.time + deltaTime }
-              : { ...pt }
-          );
-          this.drawingManager.update(this.dragDrawingId, { points: newPoints });
+          this.drawingManager.update(this.dragDrawingId, { points: this.dragOriginalPoints.map((pt, i) => i === this.dragPointIndex ? { ...pt, price: pt.price + dp, time: pt.time + dt } : { ...pt }) });
         } else {
-          // Whole-drawing drag — move all points by same delta
-          const newPoints = this.dragOriginalPoints.map(pt => ({
-            ...pt,
-            price: pt.price + deltaPrice,
-            time: pt.time + deltaTime,
-          }));
-          this.drawingManager.update(this.dragDrawingId, { points: newPoints });
+          this.drawingManager.update(this.dragDrawingId, { points: this.dragOriginalPoints.map(pt => ({ ...pt, price: pt.price + dp, time: pt.time + dt })) });
         }
-        this.redraw();
+        this.syncPrimitive();
       }
       return;
     }
 
-    // In cursor mode, update cursor style when hovering near drawings
     if (this.currentTool === 'cursor' && !this.isDrawing) {
       const rect = this.container.getBoundingClientRect();
-      const y = e.clientY - rect.top;
-      const x = e.clientX - rect.left;
-
-      let nearDrawing = false;
-      const drawings = this.drawingManager.getAll();
-      for (const drawing of drawings) {
-        if (drawing.type === 'horizontal') {
-          const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(y - pixelPt.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-            nearDrawing = true;
-            break;
-          }
-        } else if (drawing.type === 'vertical') {
-          const pixelPt = this.chartPointToPixel(drawing.points[0]);
-          if (pixelPt && Math.abs(x - pixelPt.x) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-            nearDrawing = true;
-            break;
-          }
-        } else {
-          // Check endpoints
-          const pixelPts = drawing.points
-            .map(p => this.chartPointToPixel(p))
-            .filter((p): p is PixelPoint => p !== null);
-
-          // Check endpoints first — show crosshair to indicate resize
-          for (const pp of pixelPts) {
-            if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD &&
-                Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) {
-              nearDrawing = true;
-              this.container.style.cursor = 'crosshair';
-              break;
-            }
-          }
-
-          // Check line segments — show move cursor
-          if (!nearDrawing && pixelPts.length >= 2) {
-            for (let i = 0; i < pixelPts.length - 1; i++) {
-              if (this.isPointNearSegment(x, y, pixelPts[i], pixelPts[i + 1])) {
-                nearDrawing = true;
-                this.container.style.cursor = 'move';
-                break;
-              }
-            }
-          }
-
-          if (nearDrawing) break;
+      const x = e.clientX - rect.left, y = e.clientY - rect.top;
+      let near = false;
+      for (const drawing of this.drawingManager.getAll()) {
+        if (drawing.type === 'horizontal') { const pp = this.chartPointToPixel(drawing.points[0]); if (pp && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) { near = true; break; } }
+        else if (drawing.type === 'vertical') { const pp = this.chartPointToPixel(drawing.points[0]); if (pp && Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD) { near = true; break; } }
+        else {
+          const pts = drawing.points.map(p => this.chartPointToPixel(p)).filter((p): p is PixelPoint => p !== null);
+          for (const pp of pts) { if (Math.abs(x - pp.x) < DrawingRenderer.PROXIMITY_THRESHOLD && Math.abs(y - pp.y) < DrawingRenderer.PROXIMITY_THRESHOLD) { near = true; this.container.style.cursor = 'crosshair'; break; } }
+          if (!near && pts.length >= 2) { for (let i = 0; i < pts.length - 1; i++) { if (this.isPointNearSegment(x, y, pts[i], pts[i + 1])) { near = true; this.container.style.cursor = 'move'; break; } } }
+          if (near) break;
         }
       }
-      if (!nearDrawing) this.container.style.cursor = '';
+      if (!near) this.container.style.cursor = '';
       return;
     }
 
-    if (!this.isDrawing || this.currentTool === 'cursor') {
-      return;
-    }
-
+    if (!this.isDrawing || this.currentTool === 'cursor') return;
     e.preventDefault();
     const rect = this.container.getBoundingClientRect();
     this.mousePixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-
-    this.redraw();
+    this.syncPrimitive();
   }
 
   private onMouseUp(_e: MouseEvent): void {
@@ -622,12 +1128,18 @@ export class DrawingRenderer {
       this.dragDrawingId = null;
       this.dragOriginalPoints = [];
       this.dragStartChartPoint = null;
+      if (this.currentTool === 'cursor') this.setChartInteractionEnabled(true);
+      this.container.style.cursor = '';
+    }
+  }
+
+  private onKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'Escape') {
+      this.cancelDrawing();
+      this.currentTool = 'cursor';
       this.setChartInteractionEnabled(true);
       this.container.style.cursor = '';
-      if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);
-      return;
     }
-    // Don't reset drawing state on mouseup — we wait for all required clicks
   }
 
   // ══════════════════════════════════════════════════════════
@@ -636,2157 +1148,11 @@ export class DrawingRenderer {
 
   private completeDrawing(): void {
     if (this.clickedPoints.length === 0) return;
-
-    const drawing = this.drawingManager.create(
-      this.currentTool,
-      [...this.clickedPoints],
-      DEFAULT_COLOR,
-      DEFAULT_LINE_WIDTH,
-      DEFAULT_OPACITY,
-    );
-
-    // Reset interaction state
+    this.drawingManager.create(this.currentTool, [...this.clickedPoints], DEFAULT_COLOR, DEFAULT_LINE_WIDTH, DEFAULT_OPACITY);
     this.clickedPoints = [];
     this.isDrawing = false;
     this.mousePixel = null;
-
-    // Keep chart interaction disabled — tool is still active for next drawing.
-    // User can press Escape or switch to cursor to re-enable pan/zoom.
     this.container.style.cursor = 'crosshair';
-
-    this.redraw();
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  PREVIEW RENDERING
-  // ══════════════════════════════════════════════════════════
-
-  private renderPreview(): void {
-    if (!this.ctx || !this.mousePixel) return;
-
-    const tool = this.currentTool;
-    const pts = this.clickedPoints;
-    const mouse = this.mousePixel;
-
-    // Convert clicked points to pixels
-    const pixelPts = pts.map(p => this.chartPointToPixel(p)).filter((p): p is PixelPoint => p !== null);
-    if (pixelPts.length === 0) return;
-
-    // Set preview style: dashed, semi-transparent
-    this.ctx.save();
-    this.ctx.setLineDash(PREVIEW_DASH.map(d => this.s(d)));
-    this.ctx.globalAlpha = 0.5;
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
-
-    switch (tool as string) {
-      case 'horizontal':
-        this.drawHorizontalLine(pixelPts[0], mouse, true);
-        break;
-      case 'vertical':
-        this.drawVerticalLine(pixelPts[0], mouse, true);
-        break;
-      case 'x-marker':
-        this.drawXMarker(mouse, DEFAULT_COLOR, true);
-        break;
-      case 'trendline':
-        if (pixelPts.length >= 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        break;
-      case 'fibonacci':
-        if (pixelPts.length >= 1) this.drawFibonacci(pixelPts[0], mouse, true);
-        break;
-      case 'rectangle':
-        if (pixelPts.length >= 1) this.drawRectangle(pixelPts[0], mouse, true);
-        break;
-      case 'channel':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawChannel(pixelPts[0], pixelPts[1], mouse, true);
-        break;
-      case 'triangle':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
-        break;
-      case 'circle':
-        if (pixelPts.length >= 1) this.drawCircle(pixelPts[0], mouse, true);
-        break;
-      case 'arc':
-        if (pixelPts.length >= 1) this.drawArc(pixelPts[0], mouse, true);
-        break;
-      case 'arrow':
-        if (pixelPts.length >= 1) this.drawArrow(pixelPts[0], mouse, true);
-        break;
-      case 'extended-line':
-        if (pixelPts.length >= 1) this.drawExtendedLine(pixelPts[0], mouse, true);
-        break;
-      case 'ray':
-        if (pixelPts.length >= 1) this.drawRay(pixelPts[0], mouse, true);
-        break;
-      case 'price-range':
-        if (pixelPts.length >= 1) this.drawPriceRange(pixelPts[0], mouse, true);
-        break;
-      case 'horizontal-ray':
-        this.drawHorizontalRay(pixelPts[0], mouse, true);
-        break;
-      case 'cross-line':
-        if (pixelPts.length >= 1) this.drawCrossLine(pixelPts[0], mouse, true);
-        break;
-      case 'info-line':
-        if (pixelPts.length >= 1) this.drawInfoLine(pixelPts[0], mouse, true);
-        break;
-      case 'trend-angle':
-        if (pixelPts.length >= 1) this.drawTrendAngle(pixelPts[0], mouse, true);
-        break;
-      case 'regression-trend':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawChannel(pixelPts[0], pixelPts[1], mouse, true);
-        break;
-      case 'flat-top-bottom':
-        if (pixelPts.length >= 1) this.drawFlatTopBottom(pixelPts[0], mouse, true);
-        break;
-      case 'disjoint-channel':
-        if (pixelPts.length >= 1) this.drawDisjointChannel(pixelPts[0], mouse, true);
-        break;
-      case 'andrews-pitchfork':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
-        break;
-      case 'schiff-pitchfork':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
-        break;
-      case 'modified-schiff':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
-        break;
-      case 'fib-extension':
-        if (pixelPts.length >= 1) this.drawFibExtension(pixelPts[0], mouse, true);
-        break;
-      case 'fib-fan':
-        if (pixelPts.length >= 1) this.drawFibFan(pixelPts[0], mouse, true);
-        break;
-      case 'fib-spiral':
-        if (pixelPts.length >= 1) this.drawFibSpiral(pixelPts[0], mouse, true);
-        break;
-      case 'fib-wedge':
-        if (pixelPts.length >= 1) this.drawFibWedge(pixelPts[0], mouse, true);
-        break;
-      case 'fib-time-zone':
-        if (pixelPts.length >= 1) this.drawFibTimeZone(pixelPts[0], mouse, true);
-        break;
-      case 'gann-box':
-        if (pixelPts.length >= 1) this.drawGannBox(pixelPts[0], mouse, true);
-        break;
-      case 'gann-square':
-        if (pixelPts.length >= 1) this.drawGannSquare(pixelPts[0], mouse, true);
-        break;
-      case 'gann-fan':
-        if (pixelPts.length === 1) this.drawTrendLine(pixelPts[0], mouse, true);
-        if (pixelPts.length === 2) this.drawLine(pixelPts[0], mouse, true);
-        break;
-      case 'ellipse':
-        if (pixelPts.length >= 1) this.drawEllipse(pixelPts[0], mouse, true);
-        break;
-      case 'text-annotation':
-        if (pixelPts.length >= 1) this.drawTextAnnotation(pixelPts[0], mouse, true);
-        break;
-      case 'price-label':
-        this.drawPriceLabelMarker(pixelPts[0], DEFAULT_COLOR, true);
-        break;
-      case 'note':
-        this.drawNote(pixelPts[0], DEFAULT_COLOR, true);
-        break;
-    }
-
-    this.ctx.restore();
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  PERSISTED DRAWING RENDERING
-  // ══════════════════════════════════════════════════════════
-
-  private renderDrawing(drawing: Drawing, _isPreview: boolean = false): void {
-    if (!this.ctx) return;
-
-    const pts = drawing.points.map(p => this.chartPointToPixel(p)).filter((p): p is PixelPoint => p !== null);
-    if (pts.length === 0) return;
-
-    // Store drawing's own points so Fibonacci/PriceRange can read prices
-    const savedClickedPoints = this.clickedPoints;
-    this.clickedPoints = drawing.points;
-
-    this.ctx.save();
-    this.ctx.setLineDash([]);
-    this.ctx.globalAlpha = drawing.opacity;
-    this.ctx.strokeStyle = drawing.color;
-    this.ctx.fillStyle = drawing.color;
-    this.ctx.lineWidth = this.s(drawing.lineWidth);
-
-    switch (drawing.type as string) {
-      case 'horizontal':
-        this.drawHorizontalLine(pts[0], pts[0], false);
-        break;
-      case 'vertical':
-        this.drawVerticalLine(pts[0], pts[0], false);
-        break;
-      case 'x-marker':
-        this.drawXMarker(pts[0], drawing.color, false);
-        break;
-      case 'trendline':
-        if (pts.length >= 2) this.drawTrendLine(pts[0], pts[1], false);
-        break;
-      case 'fibonacci':
-        if (pts.length >= 2) this.drawFibonacci(pts[0], pts[1], false);
-        break;
-      case 'rectangle':
-        if (pts.length >= 2) this.drawRectangle(pts[0], pts[1], false);
-        break;
-      case 'channel':
-        if (pts.length >= 3) this.drawChannel(pts[0], pts[1], pts[2], false);
-        break;
-      case 'triangle':
-        if (pts.length >= 3) this.drawTriangle(pts[0], pts[1], pts[2], false);
-        break;
-      case 'circle':
-        if (pts.length >= 2) this.drawCircle(pts[0], pts[1], false);
-        break;
-      case 'arc':
-        if (pts.length >= 2) this.drawArc(pts[0], pts[1], false);
-        break;
-      case 'arrow':
-        if (pts.length >= 2) this.drawArrow(pts[0], pts[1], false);
-        break;
-      case 'extended-line':
-        if (pts.length >= 2) this.drawExtendedLine(pts[0], pts[1], false);
-        break;
-      case 'ray':
-        if (pts.length >= 2) this.drawRay(pts[0], pts[1], false);
-        break;
-      case 'price-range':
-        if (pts.length >= 2) this.drawPriceRange(pts[0], pts[1], false);
-        break;
-      case 'horizontal-ray':
-        this.drawHorizontalRay(pts[0], pts[0], false);
-        break;
-      case 'cross-line':
-        if (pts.length >= 2) this.drawCrossLine(pts[0], pts[1], false);
-        break;
-      case 'info-line':
-        if (pts.length >= 2) this.drawInfoLine(pts[0], pts[1], false);
-        break;
-      case 'trend-angle':
-        if (pts.length >= 2) this.drawTrendAngle(pts[0], pts[1], false);
-        break;
-      case 'regression-trend':
-        if (pts.length >= 3) this.drawRegressionTrend(pts[0], pts[1], pts[2], false);
-        break;
-      case 'flat-top-bottom':
-        if (pts.length >= 2) this.drawFlatTopBottom(pts[0], pts[1], false);
-        break;
-      case 'disjoint-channel':
-        if (pts.length >= 2) this.drawDisjointChannel(pts[0], pts[1], false);
-        break;
-      case 'andrews-pitchfork':
-        if (pts.length >= 3) this.drawAndrewsPitchfork(pts[0], pts[1], pts[2], false);
-        break;
-      case 'schiff-pitchfork':
-        if (pts.length >= 3) this.drawSchiffPitchfork(pts[0], pts[1], pts[2], false);
-        break;
-      case 'modified-schiff':
-        if (pts.length >= 3) this.drawModifiedSchiff(pts[0], pts[1], pts[2], false);
-        break;
-      case 'fib-extension':
-        if (pts.length >= 2) this.drawFibExtension(pts[0], pts[1], false);
-        break;
-      case 'fib-fan':
-        if (pts.length >= 2) this.drawFibFan(pts[0], pts[1], false);
-        break;
-      case 'fib-spiral':
-        if (pts.length >= 2) this.drawFibSpiral(pts[0], pts[1], false);
-        break;
-      case 'fib-wedge':
-        if (pts.length >= 2) this.drawFibWedge(pts[0], pts[1], false);
-        break;
-      case 'fib-time-zone':
-        if (pts.length >= 2) this.drawFibTimeZone(pts[0], pts[1], false);
-        break;
-      case 'gann-box':
-        if (pts.length >= 2) this.drawGannBox(pts[0], pts[1], false);
-        break;
-      case 'gann-square':
-        if (pts.length >= 2) this.drawGannSquare(pts[0], pts[1], false);
-        break;
-      case 'gann-fan':
-        if (pts.length >= 3) this.drawGannFan(pts[0], pts[1], pts[2], false);
-        break;
-      case 'ellipse':
-        if (pts.length >= 2) this.drawEllipse(pts[0], pts[1], false);
-        break;
-      case 'text-annotation':
-        if (pts.length >= 2) this.drawTextAnnotation(pts[0], pts[1], false);
-        break;
-      case 'price-label':
-        this.drawPriceLabelMarker(pts[0], drawing.color, false);
-        break;
-      case 'note':
-        this.drawNote(pts[0], drawing.color, false);
-        break;
-    }
-
-    this.ctx.restore();
-    this.clickedPoints = savedClickedPoints;
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  PRIMITIVE DRAWING ROUTINES
-  // ══════════════════════════════════════════════════════════
-
-  // ── Horizontal Line ────────────────────────────────────
-  private drawHorizontalLine(pt: PixelPoint, _mouse: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-    const y = pt.y;
-    const left = 0;
-    const right = this.canvasWidth;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(left), this.s(y));
-    this.ctx.lineTo(this.s(right), this.s(y));
-    this.ctx.stroke();
-
-    // Price label on the right
-    if (!isPreview) {
-      this.drawPriceLabel(right - 2, y, this.getPointPrice(0) ?? 0);
-    }
-  }
-
-  // ── Vertical Line ──────────────────────────────────────
-  private drawVerticalLine(pt: PixelPoint, _mouse: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-    const x = pt.x;
-    const top = 0;
-    const bottom = this.canvasHeight;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x), this.s(top));
-    this.ctx.lineTo(this.s(x), this.s(bottom));
-    this.ctx.stroke();
-
-    // Time label at the bottom
-    if (!isPreview) {
-      this.drawTimeLabel(x, bottom - 2);
-    }
-  }
-
-  // ── X Marker ───────────────────────────────────────────
-  private drawXMarker(pt: PixelPoint, color: string, isPreview: boolean): void {
-    if (!this.ctx) return;
-    const sz = X_MARKER_SIZE;
-
-    this.ctx.save();
-    this.ctx.strokeStyle = color;
-    this.ctx.lineWidth = this.s(isPreview ? 1 : 2);
-
-    // Draw X
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(pt.x - sz), this.s(pt.y - sz));
-    this.ctx.lineTo(this.s(pt.x + sz), this.s(pt.y + sz));
-    this.ctx.moveTo(this.s(pt.x + sz), this.s(pt.y - sz));
-    this.ctx.lineTo(this.s(pt.x - sz), this.s(pt.y + sz));
-    this.ctx.stroke();
-
-    // Small circle around
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(sz + 2), 0, Math.PI * 2);
-    this.ctx.stroke();
-    this.ctx.restore();
-  }
-
-  // ── Trend Line ─────────────────────────────────────────
-  private drawTrendLine(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // End-point dots
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Simple Line (for triangle preview etc.) ────────────
-  private drawLine(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-  }
-
-  // ── Fibonacci Retracement ──────────────────────────────
-  private drawFibonacci(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const priceA = this.getPointPrice(0);
-    const priceB = this.getPointPrice(1);
-    if (priceA === null || priceB === null) return;
-
-    const priceRange = priceB - priceA;
-
-    for (const level of FIBONACCI_LEVELS) {
-      const price = priceA + priceRange * (level / 100);
-      const y = this.candleSeries.priceToCoordinate(price);
-      if (y === null) continue;
-
-      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
-
-      this.ctx.save();
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = this.s(level === 50 ? 2 : 1);
-      this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.s(a.x), this.s(y));
-      this.ctx.lineTo(this.s(b.x), this.s(y));
-      this.ctx.stroke();
-
-      // Label
-      if (!isPreview) {
-        const labelText = `${level}% — ${price.toFixed(2)}`;
-        this.ctx.globalAlpha = 0.85;
-        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = color;
-        this.ctx.fillText(labelText, this.s(b.x + 6), this.s(y + 3));
-      }
-
-      this.ctx.restore();
-    }
-
-    // Draw the main trend line connecting A and B
-    this.ctx.save();
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
-    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Rectangle ──────────────────────────────────────────
-  private drawRectangle(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
-
-    // Fill with semi-transparent color
-    this.ctx.save();
-    this.ctx.globalAlpha = _isPreview ? 0.05 : 0.08;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
-    this.ctx.restore();
-
-    // Stroke
-    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Parallel Channel ───────────────────────────────────
-  private drawChannel(a: PixelPoint, b: PixelPoint, c: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Line 1: A → B
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // Line 2: parallel to A→B, offset by vector (C - midpoint of AB)
-    // The offset is the perpendicular distance from C to line AB
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) return;
-
-    // Perpendicular unit vector
-    const px = -dy / len;
-    const py = dx / len;
-
-    // Signed distance from C to line AB
-    const dist = (c.x - a.x) * px + (c.y - a.y) * py;
-
-    // Offset line
-    const a2x = a.x + px * dist;
-    const a2y = a.y + py * dist;
-    const b2x = b.x + px * dist;
-    const b2y = b.y + py * dist;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a2x), this.s(a2y));
-    this.ctx.lineTo(this.s(b2x), this.s(b2y));
-    this.ctx.stroke();
-
-    // Fill channel area
-    this.ctx.save();
-    this.ctx.globalAlpha = _isPreview ? 0.04 : 0.06;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.lineTo(this.s(b2x), this.s(b2y));
-    this.ctx.lineTo(this.s(a2x), this.s(a2y));
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot({ x: a2x, y: a2y });
-  }
-
-  // ── Triangle ───────────────────────────────────────────
-  private drawTriangle(a: PixelPoint, b: PixelPoint, c: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.lineTo(this.s(c.x), this.s(c.y));
-    this.ctx.closePath();
-    this.ctx.stroke();
-
-    // Fill
-    this.ctx.save();
-    this.ctx.globalAlpha = _isPreview ? 0.04 : 0.06;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.fill();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot(c);
-  }
-
-  // ── Circle ─────────────────────────────────────────────
-  private drawCircle(center: PixelPoint, edge: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const dx = edge.x - center.x;
-    const dy = edge.y - center.y;
-    const radius = Math.sqrt(dx * dx + dy * dy);
-
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(center.x), this.s(center.y), this.s(radius), 0, Math.PI * 2);
-    this.ctx.stroke();
-
-    this.drawDot(center);
-  }
-
-  // ── Arc ────────────────────────────────────────────────
-  private drawArc(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const cx = (a.x + b.x) / 2;
-    const cy = (a.y + b.y) / 2;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const radius = Math.sqrt(dx * dx + dy * dy) / 2;
-
-    // Calculate start and end angles
-    const startAngle = Math.atan2(a.y - cy, a.x - cx);
-    const endAngle = Math.atan2(b.y - cy, b.x - cx);
-
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(cx), this.s(cy), this.s(radius), startAngle, endAngle);
-    this.ctx.stroke();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Arrow ──────────────────────────────────────────────
-  private drawArrow(from: PixelPoint, to: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Shaft
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(from.x), this.s(from.y));
-    this.ctx.lineTo(this.s(to.x), this.s(to.y));
-    this.ctx.stroke();
-
-    // Arrowhead
-    const angle = Math.atan2(to.y - from.y, to.x - from.x);
-    const headLen = ARROW_HEAD_SIZE;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(to.x), this.s(to.y));
-    this.ctx.lineTo(
-      this.s(to.x - headLen * Math.cos(angle - Math.PI / 6)),
-      this.s(to.y - headLen * Math.sin(angle - Math.PI / 6)),
-    );
-    this.ctx.moveTo(this.s(to.x), this.s(to.y));
-    this.ctx.lineTo(
-      this.s(to.x - headLen * Math.cos(angle + Math.PI / 6)),
-      this.s(to.y - headLen * Math.sin(angle + Math.PI / 6)),
-    );
-    this.ctx.stroke();
-
-    this.drawDot(from);
-  }
-
-  // ── Extended Line ──────────────────────────────────────
-  private drawExtendedLine(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-
-    // Extend in both directions to canvas edges
-    let tMin = -Infinity;
-    let tMax = Infinity;
-
-    if (dx !== 0) {
-      const tLeft = (0 - a.x) / dx;
-      const tRight = (this.canvasWidth - a.x) / dx;
-      if (dx > 0) { tMin = tLeft; tMax = tRight; }
-      else { tMin = tRight; tMax = tLeft; }
-    }
-    if (dy !== 0) {
-      const tTop = (0 - a.y) / dy;
-      const tBottom = (this.canvasHeight - a.y) / dy;
-      if (dy > 0) { tMin = Math.max(tMin, tTop); tMax = Math.min(tMax, tBottom); }
-      else { tMin = Math.max(tMin, tBottom); tMax = Math.min(tMax, tTop); }
-    }
-
-    const startX = a.x + dx * tMin;
-    const startY = a.y + dy * tMin;
-    const endX = a.x + dx * tMax;
-    const endY = a.y + dy * tMax;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(startX), this.s(startY));
-    this.ctx.lineTo(this.s(endX), this.s(endY));
-    this.ctx.stroke();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Ray ────────────────────────────────────────────────
-  private drawRay(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-
-    if (dx === 0 && dy === 0) return;
-
-    // Extend from A through B to the right edge (or appropriate edge)
-    let tMax = Infinity;
-    if (dx !== 0) {
-      const tRight = (this.canvasWidth - a.x) / dx;
-      const tLeft = (0 - a.x) / dx;
-      if (dx > 0) tMax = tRight;
-      else tMax = tLeft;
-    }
-    if (dy !== 0) {
-      const tBottom = (this.canvasHeight - a.y) / dy;
-      const tTop = (0 - a.y) / dy;
-      if (dy > 0) tMax = Math.min(tMax, tBottom);
-      else tMax = Math.min(tMax, tTop);
-    }
-
-    const endX = a.x + dx * tMax;
-    const endY = a.y + dy * tMax;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(endX), this.s(endY));
-    this.ctx.stroke();
-
-    this.drawDot(a);
-  }
-
-  // ── Price Range ────────────────────────────────────────
-  private drawPriceRange(a: PixelPoint, b: PixelPoint, _isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const priceA = this.getPointPrice(0);
-    const priceB = this.getPointPrice(1);
-    if (priceA === null || priceB === null) return;
-
-    const topY = Math.min(a.y, b.y);
-    const bottomY = Math.max(a.y, b.y);
-    const midX = (a.x + b.x) / 2;
-
-    // Vertical line spanning the range
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(midX), this.s(topY));
-    this.ctx.lineTo(this.s(midX), this.s(bottomY));
-    this.ctx.stroke();
-
-    // Top cap
-    const capW = 8;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(midX - capW), this.s(topY));
-    this.ctx.lineTo(this.s(midX + capW), this.s(topY));
-    this.ctx.stroke();
-
-    // Bottom cap
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(midX - capW), this.s(bottomY));
-    this.ctx.lineTo(this.s(midX + capW), this.s(bottomY));
-    this.ctx.stroke();
-
-    // Price labels
-    if (!_isPreview) {
-      const highPrice = Math.max(priceA, priceB);
-      const lowPrice = Math.min(priceA, priceB);
-      const diff = highPrice - lowPrice;
-
-      this.drawPriceLabel(midX + capW + 4, topY, highPrice);
-      this.drawPriceLabel(midX + capW + 4, bottomY, lowPrice);
-
-      // Range label in the middle
-      if (diff > 0) {
-        const midY = (topY + bottomY) / 2;
-        this.ctx.save();
-        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = DEFAULT_COLOR;
-        this.ctx.globalAlpha = 0.9;
-        this.ctx.fillText(
-          `Δ ${diff.toFixed(2)}`,
-          this.s(midX + capW + 4),
-          this.s(midY + 3),
-        );
-        this.ctx.restore();
-      }
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Horizontal Ray ─────────────────────────────────────
-  private drawHorizontalRay(pt: PixelPoint, _mouse: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-    const y = pt.y;
-    const right = this.canvasWidth;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(pt.x), this.s(y));
-    this.ctx.lineTo(this.s(right), this.s(y));
-    this.ctx.stroke();
-
-    // Price label on the right
-    if (!isPreview) {
-      this.drawPriceLabel(right - 2, y, this.getPointPrice(0) ?? 0);
-    }
-
-    this.drawDot(pt);
-  }
-
-  // ── Cross Line ─────────────────────────────────────────
-  private drawCrossLine(a: PixelPoint, _b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Horizontal line through point A
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(0), this.s(a.y));
-    this.ctx.lineTo(this.s(this.canvasWidth), this.s(a.y));
-    this.ctx.stroke();
-
-    // Vertical line through point A
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(0));
-    this.ctx.lineTo(this.s(a.x), this.s(this.canvasHeight));
-    this.ctx.stroke();
-
-    // Labels
-    if (!isPreview) {
-      this.drawPriceLabel(this.canvasWidth - 2, a.y, this.getPointPrice(0) ?? 0);
-      this.drawTimeLabel(a.x, this.canvasHeight - 2);
-    }
-
-    this.drawDot(a);
-  }
-
-  // ── Info Line ──────────────────────────────────────────
-  private drawInfoLine(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Main trend line
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // Info labels
-    if (!isPreview) {
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-
-      const priceA = this.getPointPrice(0);
-      const priceB = this.getPointPrice(1);
-      const priceDist = priceA !== null && priceB !== null ? Math.abs(priceB - priceA) : 0;
-
-      // Angle in degrees
-      const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
-
-      const midX = (a.x + b.x) / 2;
-      const midY = (a.y + b.y) / 2;
-
-      this.ctx.save();
-      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-      this.ctx.fillStyle = DEFAULT_COLOR;
-      this.ctx.globalAlpha = 0.85;
-
-      // Distance label
-      this.ctx.fillText(
-        `Δ ${priceDist.toFixed(2)}`,
-        this.s(midX + 6),
-        this.s(midY - 8),
-      );
-
-      // Angle label
-      this.ctx.fillText(
-        `${angle.toFixed(1)}°`,
-        this.s(midX + 6),
-        this.s(midY + 4),
-      );
-
-      // Pixel distance label
-      this.ctx.fillText(
-        `${dist.toFixed(0)}px`,
-        this.s(midX + 6),
-        this.s(midY + 16),
-      );
-
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Trend Angle ────────────────────────────────────────
-  private drawTrendAngle(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Main trend line
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // Angle label
-    if (!isPreview) {
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const angle = Math.atan2(-dy, dx) * (180 / Math.PI);
-
-      // Draw a small arc showing the angle at point A
-      const arcRadius = 20;
-      const lineAngle = Math.atan2(dy, dx);
-
-      this.ctx.save();
-      this.ctx.globalAlpha = 0.4;
-      this.ctx.beginPath();
-      this.ctx.arc(this.s(a.x), this.s(a.y), this.s(arcRadius), 0, -lineAngle, lineAngle > 0);
-      this.ctx.stroke();
-
-      // Angle text
-      this.ctx.globalAlpha = 0.9;
-      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-      this.ctx.fillStyle = DEFAULT_COLOR;
-      this.ctx.fillText(
-        `${angle.toFixed(1)}°`,
-        this.s(a.x + arcRadius + 6),
-        this.s(a.y - 4),
-      );
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Regression Trend ───────────────────────────────────
-  private drawRegressionTrend(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Compute linear regression from the 3 points
-    const n = 3;
-    const xs = [a.x, b.x, c.x];
-    const ys = [a.y, b.y, c.y];
-
-    let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-    for (let i = 0; i < n; i++) {
-      sumX += xs[i];
-      sumY += ys[i];
-      sumXY += xs[i] * ys[i];
-      sumXX += xs[i] * xs[i];
-    }
-
-    const denom = n * sumXX - sumX * sumX;
-    if (denom === 0) return;
-
-    const slope = (n * sumXY - sumX * sumY) / denom;
-    const intercept = (sumY - slope * sumX) / n;
-
-    // Middle regression line
-    const minX = Math.min(a.x, b.x, c.x);
-    const maxX = Math.max(a.x, b.x, c.x);
-    const midY1 = slope * minX + intercept;
-    const midY2 = slope * maxX + intercept;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(minX), this.s(midY1));
-    this.ctx.lineTo(this.s(maxX), this.s(midY2));
-    this.ctx.stroke();
-
-    // Compute max perpendicular distance from points to regression line
-    let maxDist = 0;
-    for (let i = 0; i < n; i++) {
-      const dist = Math.abs(slope * xs[i] - ys[i] + intercept) / Math.sqrt(slope * slope + 1);
-      if (dist > maxDist) maxDist = dist;
-    }
-
-    // Upper channel line
-    const perpLen = Math.sqrt(slope * slope + 1);
-    const px = -slope / perpLen;
-    const py = 1 / perpLen;
-
-    // Upper channel
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(minX + px * maxDist), this.s(midY1 + py * maxDist));
-    this.ctx.lineTo(this.s(maxX + px * maxDist), this.s(midY2 + py * maxDist));
-    this.ctx.stroke();
-
-    // Lower channel
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(minX - px * maxDist), this.s(midY1 - py * maxDist));
-    this.ctx.lineTo(this.s(maxX - px * maxDist), this.s(midY2 - py * maxDist));
-    this.ctx.stroke();
-
-    // Fill channel area
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.04 : 0.06;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(minX + px * maxDist), this.s(midY1 + py * maxDist));
-    this.ctx.lineTo(this.s(maxX + px * maxDist), this.s(midY2 + py * maxDist));
-    this.ctx.lineTo(this.s(maxX - px * maxDist), this.s(midY2 - py * maxDist));
-    this.ctx.lineTo(this.s(minX - px * maxDist), this.s(midY1 - py * maxDist));
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot(c);
-  }
-
-  // ── Flat Top / Bottom ──────────────────────────────────
-  private drawFlatTopBottom(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
-
-    // Fill with stronger shading on top half
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
-
-    // Emphasized top border
-    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x), this.s(y));
-    this.ctx.lineTo(this.s(x + w), this.s(y));
-    this.ctx.stroke();
-
-    // Emphasized bottom border
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x), this.s(y + h));
-    this.ctx.lineTo(this.s(x + w), this.s(y + h));
-    this.ctx.stroke();
-    this.ctx.restore();
-
-    // Stroke full rectangle
-    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Disjoint Channel ───────────────────────────────────
-  private drawDisjointChannel(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const offset = 15; // Fixed pixel offset for disjoint lines
-
-    // Line 1 through A
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.sqrt(dx * dx + dy * dy);
-    if (len === 0) return;
-
-    // Perpendicular unit vector
-    const px = -dy / len;
-    const py = dx / len;
-
-    // Line 1: through A, offset slightly
-    const a1x = a.x + px * offset;
-    const a1y = a.y + py * offset;
-    const b1x = b.x + px * offset;
-    const b1y = b.y + py * offset;
-
-    // Line 2: through B, offset slightly opposite
-    const a2x = a.x - px * offset;
-    const a2y = a.y - py * offset;
-    const b2x = b.x - px * offset;
-    const b2y = b.y - py * offset;
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a1x), this.s(a1y));
-    this.ctx.lineTo(this.s(b1x), this.s(b1y));
-    this.ctx.stroke();
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a2x), this.s(a2y));
-    this.ctx.lineTo(this.s(b2x), this.s(b2y));
-    this.ctx.stroke();
-
-    // Fill area between lines
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.04 : 0.06;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a1x), this.s(a1y));
-    this.ctx.lineTo(this.s(b1x), this.s(b1y));
-    this.ctx.lineTo(this.s(b2x), this.s(b2y));
-    this.ctx.lineTo(this.s(a2x), this.s(a2y));
-    this.ctx.closePath();
-    this.ctx.fill();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Andrews Pitchfork ──────────────────────────────────
-  private drawAndrewsPitchfork(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Midpoint of B and C
-    const midBCx = (b.x + c.x) / 2;
-    const midBCy = (b.y + c.y) / 2;
-
-    // Median line from A through midpoint of B-C
-    const dx = midBCx - a.x;
-    const dy = midBCy - a.y;
-
-    // Extend median line to canvas edge
-    let tMax = Infinity;
-    if (dx !== 0) {
-      const tRight = (this.canvasWidth - a.x) / dx;
-      const tLeft = (0 - a.x) / dx;
-      tMax = dx > 0 ? tRight : tLeft;
-    }
-    if (dy !== 0) {
-      const tBottom = (this.canvasHeight - a.y) / dy;
-      const tTop = (0 - a.y) / dy;
-      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
-    }
-
-    const endX = a.x + dx * tMax;
-    const endY = a.y + dy * tMax;
-
-    // Median line
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(endX), this.s(endY));
-    this.ctx.stroke();
-
-    // Prong from A to B
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // Prong from A to C
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(c.x), this.s(c.y));
-    this.ctx.stroke();
-
-    // Dashed lines from B and C to the median extension
-    this.ctx.save();
-    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
-    this.ctx.globalAlpha = 0.4;
-
-    // Extend prong B
-    const dxB = b.x - a.x;
-    const dyB = b.y - a.y;
-    let tMaxB = Infinity;
-    if (dxB !== 0) {
-      const tRight = (this.canvasWidth - a.x) / dxB;
-      const tLeft = (0 - a.x) / dxB;
-      tMaxB = dxB > 0 ? tRight : tLeft;
-    }
-    if (dyB !== 0) {
-      const tBottom = (this.canvasHeight - a.y) / dyB;
-      const tTop = (0 - a.y) / dyB;
-      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(b.x), this.s(b.y));
-    this.ctx.lineTo(this.s(a.x + dxB * tMaxB), this.s(a.y + dyB * tMaxB));
-    this.ctx.stroke();
-
-    // Extend prong C
-    const dxC = c.x - a.x;
-    const dyC = c.y - a.y;
-    let tMaxC = Infinity;
-    if (dxC !== 0) {
-      const tRight = (this.canvasWidth - a.x) / dxC;
-      const tLeft = (0 - a.x) / dxC;
-      tMaxC = dxC > 0 ? tRight : tLeft;
-    }
-    if (dyC !== 0) {
-      const tBottom = (this.canvasHeight - a.y) / dyC;
-      const tTop = (0 - a.y) / dyC;
-      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(c.x), this.s(c.y));
-    this.ctx.lineTo(this.s(a.x + dxC * tMaxC), this.s(a.y + dyC * tMaxC));
-    this.ctx.stroke();
-
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot(c);
-  }
-
-  // ── Schiff Pitchfork ───────────────────────────────────
-  private drawSchiffPitchfork(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Midpoint of B and C
-    const midBCx = (b.x + c.x) / 2;
-    const midBCy = (b.y + c.y) / 2;
-
-    // Schiff: origin is midpoint of A and midpoint(B,C)
-    const originX = (a.x + midBCx) / 2;
-    const originY = (a.y + midBCy) / 2;
-
-    // Median line from origin through midpoint of B-C
-    const dx = midBCx - originX;
-    const dy = midBCy - originY;
-
-    let tMax = Infinity;
-    if (dx !== 0) {
-      const tRight = (this.canvasWidth - originX) / dx;
-      const tLeft = (0 - originX) / dx;
-      tMax = dx > 0 ? tRight : tLeft;
-    }
-    if (dy !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dy;
-      const tTop = (0 - originY) / dy;
-      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
-    }
-
-    const endX = originX + dx * tMax;
-    const endY = originY + dy * tMax;
-
-    // Median line
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(endX), this.s(endY));
-    this.ctx.stroke();
-
-    // Prong to B
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    // Prong to C
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(c.x), this.s(c.y));
-    this.ctx.stroke();
-
-    // Dashed extensions for prongs
-    this.ctx.save();
-    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
-    this.ctx.globalAlpha = 0.4;
-
-    const dxB = b.x - originX;
-    const dyB = b.y - originY;
-    let tMaxB = Infinity;
-    if (dxB !== 0) {
-      const tRight = (this.canvasWidth - originX) / dxB;
-      const tLeft = (0 - originX) / dxB;
-      tMaxB = dxB > 0 ? tRight : tLeft;
-    }
-    if (dyB !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dyB;
-      const tTop = (0 - originY) / dyB;
-      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(b.x), this.s(b.y));
-    this.ctx.lineTo(this.s(originX + dxB * tMaxB), this.s(originY + dyB * tMaxB));
-    this.ctx.stroke();
-
-    const dxC = c.x - originX;
-    const dyC = c.y - originY;
-    let tMaxC = Infinity;
-    if (dxC !== 0) {
-      const tRight = (this.canvasWidth - originX) / dxC;
-      const tLeft = (0 - originX) / dxC;
-      tMaxC = dxC > 0 ? tRight : tLeft;
-    }
-    if (dyC !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dyC;
-      const tTop = (0 - originY) / dyC;
-      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(c.x), this.s(c.y));
-    this.ctx.lineTo(this.s(originX + dxC * tMaxC), this.s(originY + dyC * tMaxC));
-    this.ctx.stroke();
-
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot(c);
-  }
-
-  // ── Modified Schiff Pitchfork ──────────────────────────
-  private drawModifiedSchiff(a: PixelPoint, b: PixelPoint, c: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Midpoint of B and C
-    const midBCx = (b.x + c.x) / 2;
-    const midBCy = (b.y + c.y) / 2;
-
-    // Modified Schiff: origin at midpoint(A, midpoint(B,C)/2)
-    const halfMidBCx = (a.x + midBCx) / 2;
-    const halfMidBCy = (a.y + midBCy) / 2;
-    const originX = (a.x + halfMidBCx) / 2;
-    const originY = (a.y + halfMidBCy) / 2;
-
-    // Median line from origin through halfMidBC
-    const dx = halfMidBCx - originX;
-    const dy = halfMidBCy - originY;
-
-    let tMax = Infinity;
-    if (dx !== 0) {
-      const tRight = (this.canvasWidth - originX) / dx;
-      const tLeft = (0 - originX) / dx;
-      tMax = dx > 0 ? tRight : tLeft;
-    }
-    if (dy !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dy;
-      const tTop = (0 - originY) / dy;
-      tMax = Math.min(tMax, dy > 0 ? tBottom : tTop);
-    }
-
-    const endX = originX + dx * tMax;
-    const endY = originY + dy * tMax;
-
-    // Median line
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(endX), this.s(endY));
-    this.ctx.stroke();
-
-    // Prongs adjusted: to B and C with adjusted origin
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(originX), this.s(originY));
-    this.ctx.lineTo(this.s(c.x), this.s(c.y));
-    this.ctx.stroke();
-
-    // Dashed extensions for prongs
-    this.ctx.save();
-    this.ctx.setLineDash(isPreview ? PREVIEW_DASH.map(d => this.s(d)) : [this.s(4), this.s(3)]);
-    this.ctx.globalAlpha = 0.4;
-
-    const dxB = b.x - originX;
-    const dyB = b.y - originY;
-    let tMaxB = Infinity;
-    if (dxB !== 0) {
-      const tRight = (this.canvasWidth - originX) / dxB;
-      const tLeft = (0 - originX) / dxB;
-      tMaxB = dxB > 0 ? tRight : tLeft;
-    }
-    if (dyB !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dyB;
-      const tTop = (0 - originY) / dyB;
-      tMaxB = Math.min(tMaxB, dyB > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(b.x), this.s(b.y));
-    this.ctx.lineTo(this.s(originX + dxB * tMaxB), this.s(originY + dyB * tMaxB));
-    this.ctx.stroke();
-
-    const dxC = c.x - originX;
-    const dyC = c.y - originY;
-    let tMaxC = Infinity;
-    if (dxC !== 0) {
-      const tRight = (this.canvasWidth - originX) / dxC;
-      const tLeft = (0 - originX) / dxC;
-      tMaxC = dxC > 0 ? tRight : tLeft;
-    }
-    if (dyC !== 0) {
-      const tBottom = (this.canvasHeight - originY) / dyC;
-      const tTop = (0 - originY) / dyC;
-      tMaxC = Math.min(tMaxC, dyC > 0 ? tBottom : tTop);
-    }
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(c.x), this.s(c.y));
-    this.ctx.lineTo(this.s(originX + dxC * tMaxC), this.s(originY + dyC * tMaxC));
-    this.ctx.stroke();
-
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-    this.drawDot(c);
-  }
-
-  // ── Fibonacci Extension ────────────────────────────────
-  private drawFibExtension(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const priceA = this.getPointPrice(0);
-    const priceB = this.getPointPrice(1);
-    if (priceA === null || priceB === null) return;
-
-    const priceRange = priceB - priceA;
-
-    for (const level of FIB_EXTENSION_LEVELS) {
-      const price = priceA + priceRange * (level / 100);
-      const y = this.candleSeries.priceToCoordinate(price);
-      if (y === null) continue;
-
-      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
-
-      this.ctx.save();
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = this.s(level === 0 || level === 100 ? 1.5 : 1);
-      this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.s(a.x), this.s(y));
-      this.ctx.lineTo(this.s(b.x), this.s(y));
-      this.ctx.stroke();
-
-      // Label on the right side
-      if (!isPreview) {
-        const labelText = `${level}% — ${price.toFixed(2)}`;
-        this.ctx.globalAlpha = 0.85;
-        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = color;
-        this.ctx.fillText(labelText, this.s(b.x + 6), this.s(y + 3));
-      }
-
-      this.ctx.restore();
-    }
-
-    // Draw the main trend line connecting A and B
-    this.ctx.save();
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
-    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Fibonacci Fan ──────────────────────────────────────
-  private drawFibFan(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const priceA = this.getPointPrice(0);
-    const priceB = this.getPointPrice(1);
-    if (priceA === null || priceB === null) return;
-
-    const priceRange = priceB - priceA;
-
-    // Draw the main trend line
-    this.ctx.save();
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
-    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-    this.ctx.restore();
-
-    // Fan lines from A at Fibonacci levels reaching to B's time coordinate
-    for (const level of FIB_FAN_LEVELS) {
-      const price = priceA + priceRange * (level / 100);
-      const y = this.candleSeries.priceToCoordinate(price);
-      if (y === null) continue;
-
-      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
-
-      this.ctx.save();
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = this.s(1);
-      this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.s(a.x), this.s(a.y));
-      this.ctx.lineTo(this.s(b.x), this.s(y));
-      this.ctx.stroke();
-
-      // Label
-      if (!isPreview) {
-        const labelText = `${level}% — ${price.toFixed(2)}`;
-        this.ctx.globalAlpha = 0.85;
-        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = color;
-        this.ctx.fillText(labelText, this.s(b.x + 6), this.s(y + 3));
-      }
-
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Fibonacci Spiral ───────────────────────────────────
-  private drawFibSpiral(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const cx = a.x;
-    const cy = a.y;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const maxRadius = Math.sqrt(dx * dx + dy * dy);
-
-    // Logarithmic spiral using golden ratio
-    const phi = (1 + Math.sqrt(5)) / 2; // golden ratio
-    const growthFactor = Math.log(phi) / (Math.PI / 2);
-
-    this.ctx.beginPath();
-    const steps = 200;
-    for (let i = 0; i <= steps; i++) {
-      const t = (i / steps) * 4 * Math.PI; // 2 full rotations
-      const r = maxRadius * Math.exp(-growthFactor * t);
-      if (r < 2) break;
-      const px = cx + r * Math.cos(t);
-      const py = cy + r * Math.sin(t);
-
-      if (i === 0) {
-        this.ctx.moveTo(this.s(px), this.s(py));
-      } else {
-        this.ctx.lineTo(this.s(px), this.s(py));
-      }
-    }
-    this.ctx.stroke();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Fibonacci Wedge ────────────────────────────────────
-  private drawFibWedge(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const priceA = this.getPointPrice(0);
-    const priceB = this.getPointPrice(1);
-    if (priceA === null || priceB === null) return;
-
-    const priceRange = priceB - priceA;
-
-    // Main trend line
-    this.ctx.save();
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(DEFAULT_LINE_WIDTH);
-    this.ctx.globalAlpha = isPreview ? 0.5 : DEFAULT_OPACITY;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(a.x), this.s(a.y));
-    this.ctx.lineTo(this.s(b.x), this.s(b.y));
-    this.ctx.stroke();
-    this.ctx.restore();
-
-    // Wedge lines from A forming Fibonacci-based width at B
-    for (const level of FIB_FAN_LEVELS) {
-      const priceUp = priceA + priceRange * (level / 100);
-      const priceDown = priceA - priceRange * (level / 100);
-
-      const yUp = this.candleSeries.priceToCoordinate(priceUp);
-      const yDown = this.candleSeries.priceToCoordinate(priceDown);
-
-      const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
-
-      if (yUp !== null) {
-        this.ctx.save();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = this.s(1);
-        this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.s(a.x), this.s(a.y));
-        this.ctx.lineTo(this.s(b.x), this.s(yUp));
-        this.ctx.stroke();
-
-        if (!isPreview) {
-          this.ctx.globalAlpha = 0.85;
-          this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-          this.ctx.fillStyle = color;
-          this.ctx.fillText(`${level}%`, this.s(b.x + 6), this.s(yUp + 3));
-        }
-        this.ctx.restore();
-      }
-
-      if (yDown !== null) {
-        this.ctx.save();
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = this.s(1);
-        this.ctx.globalAlpha = isPreview ? 0.35 : 0.6;
-        this.ctx.beginPath();
-        this.ctx.moveTo(this.s(a.x), this.s(a.y));
-        this.ctx.lineTo(this.s(b.x), this.s(yDown));
-        this.ctx.stroke();
-
-        if (!isPreview) {
-          this.ctx.globalAlpha = 0.85;
-          this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-          this.ctx.fillStyle = color;
-          this.ctx.fillText(`-${level}%`, this.s(b.x + 6), this.s(yDown + 3));
-        }
-        this.ctx.restore();
-      }
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Fibonacci Time Zone ────────────────────────────────
-  private drawFibTimeZone(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const timeDist = b.x - a.x;
-
-    for (const level of FIB_TIME_LEVELS) {
-      const x = a.x + timeDist * level;
-
-      // Only draw if within canvas
-      if (x < 0 || x > this.canvasWidth) continue;
-
-      const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
-
-      this.ctx.save();
-      this.ctx.strokeStyle = color;
-      this.ctx.lineWidth = this.s(level === 1 ? 1.5 : 1);
-      this.ctx.globalAlpha = isPreview ? 0.35 : 0.5;
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.s(x), this.s(0));
-      this.ctx.lineTo(this.s(x), this.s(this.canvasHeight));
-      this.ctx.stroke();
-
-      // Label at the bottom
-      if (!isPreview) {
-        this.ctx.globalAlpha = 0.85;
-        this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = color;
-        this.ctx.fillText(`${level}`, this.s(x + 4), this.s(this.canvasHeight - 6));
-      }
-
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Gann Box ───────────────────────────────────────────
-  private drawGannBox(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
-
-    // Fill
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
-    this.ctx.restore();
-
-    // Stroke rectangle
-    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
-
-    // Diagonal lines from corners at 45 degrees
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
-    this.ctx.setLineDash([this.s(4), this.s(3)]);
-
-    // Diagonal top-left to bottom-right
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x), this.s(y));
-    this.ctx.lineTo(this.s(x + w), this.s(y + h));
-    this.ctx.stroke();
-
-    // Diagonal top-right to bottom-left
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x + w), this.s(y));
-    this.ctx.lineTo(this.s(x), this.s(y + h));
-    this.ctx.stroke();
-
-    // Middle horizontal
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x), this.s(y + h / 2));
-    this.ctx.lineTo(this.s(x + w), this.s(y + h / 2));
-    this.ctx.stroke();
-
-    // Middle vertical
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(x + w / 2), this.s(y));
-    this.ctx.lineTo(this.s(x + w / 2), this.s(y + h));
-    this.ctx.stroke();
-
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Gann Square ────────────────────────────────────────
-  private drawGannSquare(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const cx = (a.x + b.x) / 2;
-    const cy = (a.y + b.y) / 2;
-    const maxW = Math.abs(b.x - a.x);
-    const maxH = Math.abs(b.y - a.y);
-
-    // Concentric squares from center
-    const rings = 4;
-    for (let i = 1; i <= rings; i++) {
-      const frac = i / rings;
-      const hw = maxW * frac / 2;
-      const hh = maxH * frac / 2;
-
-      this.ctx.save();
-      this.ctx.globalAlpha = isPreview ? 0.2 + frac * 0.3 : 0.3 + frac * 0.5;
-
-      this.ctx.strokeRect(
-        this.s(cx - hw),
-        this.s(cy - hh),
-        this.s(hw * 2),
-        this.s(hh * 2),
-      );
-
-      this.ctx.restore();
-    }
-
-    // Cross lines through center
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.3 : 0.5;
-    this.ctx.setLineDash([this.s(4), this.s(3)]);
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(cx), this.s(cy - maxH / 2));
-    this.ctx.lineTo(this.s(cx), this.s(cy + maxH / 2));
-    this.ctx.stroke();
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(cx - maxW / 2), this.s(cy));
-    this.ctx.lineTo(this.s(cx + maxW / 2), this.s(cy));
-    this.ctx.stroke();
-
-    this.ctx.restore();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Gann Fan ───────────────────────────────────────────
-  private drawGannFan(a: PixelPoint, _b: PixelPoint, _c: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    // Draw lines from point A at Gann angles
-    for (const angleDeg of GANN_ANGLES) {
-      const angleRad = (angleDeg * Math.PI) / 180;
-
-      // Compute direction: Gann angles measured from horizontal
-      const dx = Math.cos(angleRad);
-      const dy = -Math.sin(angleRad); // Canvas y is inverted
-
-      // Find intersection with canvas edge
-      let tMax = Infinity;
-      if (dx !== 0) {
-        const tRight = (this.canvasWidth - a.x) / dx;
-        const tLeft = (0 - a.x) / dx;
-        if (dx > 0) tMax = tRight;
-        else tMax = tLeft;
-      }
-      if (dy !== 0) {
-        const tBottom = (this.canvasHeight - a.y) / dy;
-        const tTop = (0 - a.y) / dy;
-        if (dy > 0) tMax = Math.min(tMax, tBottom);
-        else tMax = Math.min(tMax, tTop);
-      }
-
-      const endX = a.x + dx * tMax;
-      const endY = a.y + dy * tMax;
-
-      const isMainAngle = Math.abs(angleDeg - 45) < 0.1;
-
-      this.ctx.save();
-      this.ctx.strokeStyle = isMainAngle ? DEFAULT_COLOR : this.ctx.strokeStyle;
-      this.ctx.lineWidth = this.s(isMainAngle ? 1.5 : 1);
-      this.ctx.globalAlpha = isPreview
-        ? (isMainAngle ? 0.5 : 0.3)
-        : (isMainAngle ? DEFAULT_OPACITY : 0.5);
-
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.s(a.x), this.s(a.y));
-      this.ctx.lineTo(this.s(endX), this.s(endY));
-      this.ctx.stroke();
-
-      // Angle label
-      if (!isPreview) {
-        this.ctx.globalAlpha = 0.7;
-        this.ctx.font = `${this.s(9)}px 'JetBrains Mono', monospace`;
-        this.ctx.fillStyle = isMainAngle ? DEFAULT_COLOR : this.ctx.strokeStyle;
-        const labelX = a.x + dx * Math.min(tMax, 60);
-        const labelY = a.y + dy * Math.min(tMax, 60);
-        this.ctx.fillText(`${angleDeg}°`, this.s(labelX + 4), this.s(labelY - 4));
-      }
-
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-  }
-
-  // ── Ellipse ────────────────────────────────────────────
-  private drawEllipse(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const cx = (a.x + b.x) / 2;
-    const cy = (a.y + b.y) / 2;
-    const rx = Math.abs(b.x - a.x) / 2;
-    const ry = Math.abs(b.y - a.y) / 2;
-
-    if (rx === 0 || ry === 0) return;
-
-    // Fill
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.beginPath();
-    this.ctx.ellipse(this.s(cx), this.s(cy), this.s(rx), this.s(ry), 0, 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.restore();
-
-    // Stroke
-    this.ctx.beginPath();
-    this.ctx.ellipse(this.s(cx), this.s(cy), this.s(rx), this.s(ry), 0, 0, Math.PI * 2);
-    this.ctx.stroke();
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Text Annotation ────────────────────────────────────
-  private drawTextAnnotation(a: PixelPoint, b: PixelPoint, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const x = Math.min(a.x, b.x);
-    const y = Math.min(a.y, b.y);
-    const w = Math.abs(b.x - a.x);
-    const h = Math.abs(b.y - a.y);
-
-    // Fill background
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.05 : 0.08;
-    this.ctx.fillStyle = this.ctx.strokeStyle;
-    this.ctx.fillRect(this.s(x), this.s(y), this.s(w), this.s(h));
-    this.ctx.restore();
-
-    // Stroke border
-    this.ctx.strokeRect(this.s(x), this.s(y), this.s(w), this.s(h));
-
-    // TEXT label inside
-    if (!isPreview && w > 20 && h > 14) {
-      this.ctx.save();
-      this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-      this.ctx.fillStyle = DEFAULT_COLOR;
-      this.ctx.globalAlpha = 0.8;
-      this.ctx.fillText('TEXT', this.s(x + 4), this.s(y + h / 2 + 3));
-      this.ctx.restore();
-    }
-
-    this.drawDot(a);
-    this.drawDot(b);
-  }
-
-  // ── Price Label Marker ─────────────────────────────────
-  private drawPriceLabelMarker(pt: PixelPoint, color: string, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const price = this.getPointPrice(0) ?? 0;
-    const text = price.toFixed(2);
-
-    // Draw a tag/badge at the price level
-    this.ctx.save();
-    this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-
-    const metrics = this.ctx.measureText(text);
-    const textW = metrics.width / this.dpr;
-    const textH = 12;
-    const padX = 6;
-    const padY = 3;
-
-    const rx = pt.x - textW / 2 - padX;
-    const ry = pt.y - textH / 2 - padY;
-    const rw = textW + padX * 2;
-    const rh = textH + padY * 2;
-
-    // Background pill
-    this.ctx.globalAlpha = 0.85;
-    this.ctx.fillStyle = '#151A22';
-    this.ctx.beginPath();
-    this.roundRect(rx, ry, rw, rh, 4);
-    this.ctx.fill();
-
-    // Border
-    this.ctx.strokeStyle = color;
-    this.ctx.lineWidth = this.s(isPreview ? 1 : 1.5);
-    this.ctx.globalAlpha = isPreview ? 0.5 : 0.7;
-    this.ctx.stroke();
-
-    // Text
-    this.ctx.globalAlpha = 0.95;
-    this.ctx.fillStyle = color;
-    this.ctx.fillText(text, this.s(rx + padX), this.s(ry + padY + textH - 2));
-
-    // Pointer arrow at bottom
-    this.ctx.globalAlpha = 0.85;
-    this.ctx.fillStyle = '#151A22';
-    const arrowSize = 4;
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(pt.x - arrowSize), this.s(ry + rh));
-    this.ctx.lineTo(this.s(pt.x), this.s(ry + rh + arrowSize));
-    this.ctx.lineTo(this.s(pt.x + arrowSize), this.s(ry + rh));
-    this.ctx.closePath();
-    this.ctx.fill();
-
-    this.ctx.restore();
-  }
-
-  // ── Note Pin ───────────────────────────────────────────
-  private drawNote(pt: PixelPoint, color: string, isPreview: boolean): void {
-    if (!this.ctx) return;
-
-    const pinSize = 6;
-
-    // Pin circle
-    this.ctx.save();
-    this.ctx.globalAlpha = isPreview ? 0.5 : 0.9;
-
-    // Outer circle
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(pinSize + 2), 0, Math.PI * 2);
-    this.ctx.fillStyle = color;
-    this.ctx.fill();
-
-    // Inner circle
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(pinSize - 1), 0, Math.PI * 2);
-    this.ctx.fillStyle = '#151A22';
-    this.ctx.fill();
-
-    // Pin stem
-    this.ctx.strokeStyle = color;
-    this.ctx.lineWidth = this.s(1.5);
-    this.ctx.beginPath();
-    this.ctx.moveTo(this.s(pt.x), this.s(pt.y + pinSize + 2));
-    this.ctx.lineTo(this.s(pt.x), this.s(pt.y + pinSize + 12));
-    this.ctx.stroke();
-
-    // "NOTE" label
-    if (!isPreview) {
-      this.ctx.font = `${this.s(9)}px 'JetBrains Mono', monospace`;
-      this.ctx.fillStyle = color;
-      this.ctx.globalAlpha = 0.8;
-      this.ctx.fillText('📌', this.s(pt.x + pinSize + 4), this.s(pt.y + 3));
-    }
-
-    this.ctx.restore();
-  }
-
-  // ══════════════════════════════════════════════════════════
-  //  HELPER DRAWING PRIMITIVES
-  // ══════════════════════════════════════════════════════════
-
-  /** Small dot at an endpoint. */
-  private drawDot(pt: PixelPoint, radius: number = 3): void {
-    if (!this.ctx) return;
-    this.ctx.save();
-    this.ctx.globalAlpha = 1;
-    this.ctx.beginPath();
-    this.ctx.arc(this.s(pt.x), this.s(pt.y), this.s(radius), 0, Math.PI * 2);
-    this.ctx.fill();
-    this.ctx.restore();
-  }
-
-  /** Price label for horizontal lines and price ranges. */
-  private drawPriceLabel(x: number, y: number, price: number): void {
-    if (!this.ctx) return;
-
-    const text = price.toFixed(2);
-    this.ctx.save();
-    this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-
-    const metrics = this.ctx.measureText(text);
-    const textW = metrics.width / this.dpr;
-    const textH = 12;
-    const padX = 4;
-    const padY = 2;
-
-    // Background pill
-    this.ctx.globalAlpha = 0.85;
-    this.ctx.fillStyle = '#151A22';
-    const rx = x + padX;
-    const ry = y - textH / 2 - padY;
-    const rw = textW + padX * 2;
-    const rh = textH + padY * 2;
-
-    this.ctx.beginPath();
-    this.roundRect(rx, ry, rw, rh, 3);
-    this.ctx.fill();
-
-    // Border
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(0.5);
-    this.ctx.globalAlpha = 0.5;
-    this.ctx.stroke();
-
-    // Text
-    this.ctx.globalAlpha = 0.95;
-    this.ctx.fillStyle = DEFAULT_COLOR;
-    this.ctx.fillText(text, this.s(rx + padX), this.s(ry + padY + textH - 2));
-    this.ctx.restore();
-  }
-
-  /** Time label for vertical lines. */
-  private drawTimeLabel(x: number, y: number): void {
-    if (!this.ctx) return;
-
-    const timeVal = this.chart.timeScale().coordinateToTime(x);
-    if (timeVal === null) return;
-
-    const date = new Date((timeVal as number) * 1000);
-    const text = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-
-    this.ctx.save();
-    this.ctx.font = `${this.s(10)}px 'JetBrains Mono', monospace`;
-
-    const metrics = this.ctx.measureText(text);
-    const textW = metrics.width / this.dpr;
-    const textH = 12;
-    const padX = 4;
-    const padY = 2;
-
-    const rx = x - (textW + padX * 2) / 2;
-    const ry = y - textH - padY * 2 - 2;
-    const rw = textW + padX * 2;
-    const rh = textH + padY * 2;
-
-    this.ctx.globalAlpha = 0.85;
-    this.ctx.fillStyle = '#151A22';
-    this.ctx.beginPath();
-    this.roundRect(rx, ry, rw, rh, 3);
-    this.ctx.fill();
-
-    this.ctx.strokeStyle = DEFAULT_COLOR;
-    this.ctx.lineWidth = this.s(0.5);
-    this.ctx.globalAlpha = 0.5;
-    this.ctx.stroke();
-
-    this.ctx.globalAlpha = 0.95;
-    this.ctx.fillStyle = DEFAULT_COLOR;
-    this.ctx.fillText(text, this.s(rx + padX), this.s(ry + padY + textH - 2));
-    this.ctx.restore();
-  }
-
-  /** Rounded rectangle helper. */
-  private roundRect(x: number, y: number, w: number, h: number, r: number): void {
-    if (!this.ctx) return;
-    const sx = this.s(x);
-    const sy = this.s(y);
-    const sw = this.s(w);
-    const sh = this.s(h);
-    const sr = this.s(r);
-
-    this.ctx.beginPath();
-    this.ctx.moveTo(sx + sr, sy);
-    this.ctx.lineTo(sx + sw - sr, sy);
-    this.ctx.quadraticCurveTo(sx + sw, sy, sx + sw, sy + sr);
-    this.ctx.lineTo(sx + sw, sy + sh - sr);
-    this.ctx.quadraticCurveTo(sx + sw, sy + sh, sx + sw - sr, sy + sh);
-    this.ctx.lineTo(sx + sr, sy + sh);
-    this.ctx.quadraticCurveTo(sx, sy + sh, sx, sy + sh - sr);
-    this.ctx.lineTo(sx, sy + sr);
-    this.ctx.quadraticCurveTo(sx, sy, sx + sr, sy);
-    this.ctx.closePath();
-  }
-
-  /**
-   * Get the price value for a clicked point by index.
-   * Used for Fibonacci and Price Range where we need the actual price values.
-   */
-  private getPointPrice(index: number): number | null {
-    if (index >= this.clickedPoints.length) return null;
-    return this.clickedPoints[index].price;
-  }
-
-  /**
-   * Cancel the current in-progress drawing (e.g. on Escape key).
-   */
-  cancelDrawing(): void {
-    this.clickedPoints = [];
-    this.isDrawing = false;
-    this.mousePixel = null;
-    this.setChartInteractionEnabled(true);
-    this.container.style.cursor = ''; // Reset cursor
-    if (this.currentTool === 'cursor') this.setCanvasPointerEvents(false);
-    this.redraw();
-  }
-
-  /**
-   * Enable or disable pointer events on the overlay canvas.
-   * When enabled ('auto'), the canvas captures mouse events for drawing.
-   * When disabled ('none'), events pass through to the chart below.
-   */
-  private setCanvasPointerEvents(enabled: boolean): void {
-    if (this.overlayCanvas) {
-      this.overlayCanvas.style.pointerEvents = enabled ? 'auto' : 'none';
-    }
-  }
-
-  /**
-   * Find the lightweight-charts canvas inside the container.
-   * We need a reference to it so we can set CSS pointer-events on it
-   * without calling chart.applyOptions() (which causes candle disappearance).
-   */
-  private findChartCanvas(): void {
-    if (!this.container) return;
-    // lightweight-charts creates a canvas as the first child of the container
-    // Our overlay canvas has data-roua-drawing-overlay="true"
-    const canvases = this.container.querySelectorAll('canvas');
-    for (const canvas of canvases) {
-      if (canvas.dataset.rouaDrawingOverlay !== 'true') {
-        this.chartCanvas = canvas;
-        return;
-      }
-    }
-    // Fallback: if no non-drawing canvas found, try the first canvas
-    const firstCanvas = this.container.querySelector('canvas:not([data-roua-drawing-overlay])');
-    this.chartCanvas = firstCanvas as HTMLCanvasElement | null;
-  }
-
-  // ── Wheel event blocker ────────────────────────────────
-  // Prevents chart zoom via mouse wheel while a drawing tool is active.
-  private onWheel(e: WheelEvent): void {
-    e.preventDefault();
-    e.stopPropagation();
-  }
-
-  // ── Touch event blockers ────────────────────────────────
-  // Prevents chart zoom/scroll via touch gestures while drawing.
-  private onTouchStart(e: TouchEvent): void {
-    if (e.touches.length > 1) {
-      // Pinch zoom — block it
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
-  private onTouchMove(e: TouchEvent): void {
-    if (e.touches.length > 1) {
-      // Pinch zoom — block it
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }
-
-  /**
-   * Enable or disable chart interaction (scroll, zoom, pan).
-   *
-   * CRITICAL FIX (v3): Setting CSS pointer-events:none on the lightweight-charts
-   * canvas triggers a browser GPU compositing layer promotion/demotion which
-   * causes candlestick BODIES to disappear (wicks survive because they are
-   * simple 1px lines cached in GPU texture, while body filled rectangles
-   * are composited differently and get cleared during the layer change).
-   *
-   * The overlay canvas (z-index:9999) with pointer-events:auto already sits
-   * on top of the chart canvas and blocks ALL mouse events from reaching it.
-   * Therefore, we do NOT need to set pointer-events:none on the chart canvas.
-   *
-   * We only need to attach wheel/touch blockers on the overlay canvas to
-   * prevent chart zoom/scroll via scroll wheel and pinch gestures.
-   */
-  private setChartInteractionEnabled(enabled: boolean): void {
-    // DO NOT touch the chart canvas CSS pointer-events!
-    // Previously this set pointer-events:none which caused candle bodies
-    // to disappear due to GPU compositing layer changes.
-    // The overlay canvas (z-index:9999) already blocks mouse events.
-
-    // Attach/detach wheel & touch event blockers on the overlay canvas
-    // These prevent chart zoom/scroll via wheel and pinch gestures
-    if (this.overlayCanvas) {
-      if (enabled) {
-        // Remove blockers — let events pass through to chart
-        this.overlayCanvas.removeEventListener('wheel', this.boundWheel, true);
-        this.overlayCanvas.removeEventListener('touchstart', this.boundTouchStart, true);
-        this.overlayCanvas.removeEventListener('touchmove', this.boundTouchMove, true);
-      } else {
-        // Add blockers — prevent chart from zooming/scrolling
-        this.overlayCanvas.addEventListener('wheel', this.boundWheel, true);
-        this.overlayCanvas.addEventListener('touchstart', this.boundTouchStart, true);
-        this.overlayCanvas.addEventListener('touchmove', this.boundTouchMove, true);
-      }
-    }
+    this.syncPrimitive();
   }
 }

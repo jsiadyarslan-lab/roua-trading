@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { getPortalRoot } from '@/lib/portal-root';
 import { useChart } from '@/hooks/useChart';
@@ -235,6 +235,13 @@ export default function RouaChart({
     connectionType: string;
     incrementalRatio: string;
   } | null>(null);
+  // ── Ref to track ws.connectionState for perf monitoring without TDZ ──
+  // FIX: ws is declared below (line ~400 via useChartWebSocket), but this
+  // perf-monitoring useEffect needs ws.connectionState. Reading ws before
+  // its const initialization causes a TDZ (Temporal Dead Zone) error in
+  // production. Solution: use a ref that's updated after ws is initialized.
+  const wsConnectionStateRef = useRef<string>('disconnected');
+
   // Update perf stats every 2 seconds
   useEffect(() => {
     const interval = setInterval(() => {
@@ -257,18 +264,30 @@ export default function RouaChart({
       setPerfStats({
         wsLatency: avgLatency > 0 ? `${Math.round(avgLatency)}ms` : '—',
         tickRate: tickRate > 0 ? `${tickRate.toFixed(1)}/s` : '—',
-        connectionType: ws.connectionState,
+        connectionType: wsConnectionStateRef.current,
         incrementalRatio: ratio,
       });
     }, 2000);
     return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ws.connectionState]);
+  }, []);
 
   // ── Track current timeframe to ignore stale WebSocket updates ──
   // When timeframe changes, WebSocket may still deliver candles from the
   // old timeframe before reconnecting. This ref lets us filter those out.
   const timeframeRef = useRef(timeframe);
+
+  // ── Compute the timeframe's interval in seconds (as ref for TDZ safety) ──
+  // FIX: Previously this was a useMemo placed after the chart hook but used
+  // inside the onCandleUpdate callback. In production minified builds, the
+  // bundler may reorder let declarations, causing "Cannot access 'tx' before
+  // initialization" (TDZ error). Using a ref avoids this because refs are
+  // hoisted and always initialized before any closure captures them.
+  const tfSecondsRef = useRef(15 * 60);
+  useEffect(() => {
+    const tf = TIMEFRAMES.find(t => t.value === timeframe);
+    tfSecondsRef.current = (tf?.minutes || 15) * 60;
+    timeframeRef.current = timeframe;
+  }, [timeframe]);
 
   // ── Pre-load overlay renderer modules (needed for WebSocket overlay re-render) ──
   const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
@@ -389,13 +408,6 @@ export default function RouaChart({
   // This was THE root cause of the persistent "Value is null" error that
   // occurred specifically when AI analysis was open and the user changed
   // the timeframe.
-  // ═══════════════════════════════════════════════════════════════════
-  // ── Compute the timeframe's interval in seconds ──
-  const tfSeconds = useMemo(() => {
-    const tf = TIMEFRAMES.find(t => t.value === timeframe);
-    return (tf?.minutes || 15) * 60;
-  }, [timeframe]);
-
   // ── WebSocket ──────────────────────────────────────────
   const ws = useChartWebSocket({
     symbol: selectedSymbol,
@@ -428,7 +440,7 @@ export default function RouaChart({
       // WebSocket (especially Socket.IO ticker) may send candles at 1-minute
       // granularity regardless of the selected timeframe. We snap the time
       // to the nearest timeframe boundary so it matches the historical candles.
-      const alignedTime = Math.floor(candle.time / tfSeconds) * tfSeconds;
+      const alignedTime = Math.floor(candle.time / tfSecondsRef.current) * tfSecondsRef.current;
       const alignedCandle = { ...candle, time: alignedTime };
 
       // Update or add candle
@@ -572,6 +584,12 @@ export default function RouaChart({
     },
     enabled: !chart.isPaused,
   });
+
+  // FIX: Keep wsConnectionStateRef in sync so the perf-monitoring useEffect
+  // (declared above, before ws) can read the current state without TDZ error.
+  useEffect(() => {
+    wsConnectionStateRef.current = ws.connectionState;
+  }, [ws.connectionState]);
 
   // ═══════════════════════════════════════════════════════════════════
   // CRITICAL FIX: Periodic overlay refresh timer.

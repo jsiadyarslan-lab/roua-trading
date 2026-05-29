@@ -25,7 +25,9 @@ button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 
 /* ── Shell ── */
 .m-shell {
-  position: fixed; inset: 0;
+  position: relative;
+  width: 100dvw;
+  height: 100dvh;
   display: flex; flex-direction: column;
   background: var(--m-bg);
   color: var(--m-text);

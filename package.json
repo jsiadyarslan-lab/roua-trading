@@ -27,6 +27,12 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1040.0",
     "@prisma/client": "6.19.3",
+    "@serwist/cacheable-response": "^9.5.11",
+    "@serwist/expiration": "^9.5.11",
+    "@serwist/next": "^9.5.11",
+    "@serwist/precaching": "^9.5.11",
+    "@serwist/routing": "^9.5.11",
+    "@serwist/strategies": "^9.5.11",
     "@types/react": "18.3.28",
     "@types/react-dom": "18.3.7",
     "csv-stringify": "^6.7.0",
@@ -38,6 +44,7 @@
     "pg": "^8.20.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
+    "serwist": "^9.5.11",
     "socket.io-client": "^4.8.3",
     "technicalindicators": "^3.1.0"
   },

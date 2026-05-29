@@ -3,18 +3,15 @@
 import { useEffect } from 'react'
 
 /**
- * PWA Registrar — Registers Service Worker for PWA support.
+ * PWA Registrar — Registers the Serwist-generated Service Worker.
  *
- * iOS Safari meta tags are now added SERVER-SIDE in [locale]/layout.tsx <head>
- * to ensure they're present in the initial HTML response (not injected by JS).
+ * With @serwist/next, the SW is built automatically during `next build`.
+ * We just need to register it on the client side.
  *
- * This component only handles:
- * 1. Service Worker registration
- * 2. Periodic SW update checks
+ * iOS Safari meta tags are in [locale]/layout.tsx <head> (server-rendered).
  */
 export default function PWARegistrar() {
   useEffect(() => {
-    // ── Register Service Worker ──
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js', { scope: '/' })

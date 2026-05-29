@@ -11,6 +11,12 @@ dist/
 **/.turbo/
 *.tsbuildinfo
 
+# Serwist/PWA generated files (built during `next build`)
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/swe-worker-*.js
+apps/web/public/workbox-*.js
+
 # Environment
 .env
 .env.*

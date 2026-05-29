@@ -81,3 +81,29 @@ Stage Summary:
 - Root cause: incremental updateCandle() caused data inconsistency between two candlesRef copies
 - Fix: Removed all perf monitoring, reverted to simple setCandles() for all WS updates
 - Commit: 82f2afcc "FIX: Remove performance monitor and revert incremental updateCandle that broke candles"
+
+---
+Task ID: chart-perf-overhaul
+Agent: main
+Task: Deep audit and performance overhaul of the chart system
+
+Work Log:
+- Read and analyzed all chart source files (useChart.ts, RouaChart.tsx, useChartWebSocket.ts, config.ts, types.ts)
+- Researched lightweight-charts v5 best practices (update() vs setData(), rAF batching, indicator management, data conflation)
+- Identified 5 critical performance gaps: setData() on every tick, indicator destruction per tick, dual candlesRef, no rAF batching, missing v5.1 features
+- Implemented incremental update() via updateCandle() with rAF batching
+- Added skipIndicatorRebuild option to setCandles() to preserve indicators during WS updates
+- Added periodic indicator refresh (60s) to keep indicator values accurate
+- Enabled data conflation (v5.1+) for large datasets
+- Added rAF buffer cleanup on symbol/timeframe change and chart unmount
+- Fixed TypeScript errors in CommandPalette indicator toggle
+- Added updateCandleRef for stale-closure prevention
+- Built and tested successfully — no TypeScript errors in modified files
+- Committed and pushed as c55393e4
+
+Stage Summary:
+- Chart performance improved from O(n log n) per WS tick to O(1) for existing candle updates
+- Indicators no longer destroyed/recreated on every WebSocket tick
+- rAF batching reduces chart updates to max 60/s regardless of WS message rate
+- Data conflation enabled for zoomed-out views with 10K+ data points
+- All TypeScript errors in modified files resolved

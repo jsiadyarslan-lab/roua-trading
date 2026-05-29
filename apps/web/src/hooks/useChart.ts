@@ -348,15 +348,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       width: initialWidth,
       height: initialHeight,
       layout: {
-        background: { color: T.bg },
+        background: { color: isMobile ? '#000000' : T.bg },
         textColor: T.text2,
         fontSize: isMobile ? 11 : 12,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
       grid: {
-        vertLines: { color: CHART_COLORS.grid },
-        horzLines: { color: CHART_COLORS.grid },
+        vertLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
+        horzLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
       },
       crosshair: {
         mode: 0, // Normal
@@ -424,13 +424,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     chartInstanceRef.current = chart;
 
     // ── Candlestick Series ──
+    // MT5 style on mobile: brighter solid candles
+    const mobileUp   = '#4CAF50';  // MT5 green
+    const mobileDn   = '#F44336';  // MT5 red
     const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor: CHART_COLORS.upColor,
-      downColor: CHART_COLORS.downColor,
-      borderUpColor: CHART_COLORS.upColor,
-      borderDownColor: CHART_COLORS.downColor,
-      wickUpColor: CHART_COLORS.upWick,
-      wickDownColor: CHART_COLORS.downWick,
+      upColor:        isMobile ? mobileUp : CHART_COLORS.upColor,
+      downColor:      isMobile ? mobileDn : CHART_COLORS.downColor,
+      borderUpColor:  isMobile ? mobileUp : CHART_COLORS.upColor,
+      borderDownColor:isMobile ? mobileDn : CHART_COLORS.downColor,
+      wickUpColor:    isMobile ? mobileUp : CHART_COLORS.upWick,
+      wickDownColor:  isMobile ? mobileDn : CHART_COLORS.downWick,
       // Hide built-in last price label on mobile — our overlay shows the price
       lastValueVisible: !isMobile,
       priceLineVisible: !isMobile,
@@ -1819,8 +1822,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // to avoid duplicates with our custom overlay
     if (candleSeriesRef.current) {
       candleSeriesRef.current.applyOptions({
-        priceLineVisible: isMobile ? false : settings.showPriceLine,
-        lastValueVisible: isMobile ? false : settings.showPriceLine,
+        priceLineVisible: settings.showPriceLine,  // MT5: always show
+        lastValueVisible: settings.showPriceLine,
       });
     }
 

@@ -101,8 +101,8 @@ export function convertToChartMarkers(
         ? Math.floor(new Date(signal.timestamp).getTime() / 1000)
         : Math.floor(Date.now() / 1000);
 
-    const confidence = signal.confidence ? ` (${signal.confidence}%)` : '';
-    const label = isBuy ? `BUY${confidence}` : isSell ? `SELL${confidence}` : `WAIT${confidence}`;
+    // MT5 style: arrow only, no text clutter on chart
+    const label = '';
 
     markers.push({
       time: signalTime,
@@ -132,7 +132,7 @@ export function convertToChartMarkers(
       position: brief.direction === 'bullish' ? 'belowBar' : 'aboveBar',
       color: brief.direction === 'bullish' ? '#00D4FF' : brief.direction === 'bearish' ? '#FF6B6B' : '#fbbf24',
       shape: brief.direction === 'bullish' ? 'arrowUp' : 'arrowDown',
-      text: `${dirEmoji} Council ${confLabel}`,
+      text: '',
       _signalData: brief,
       _source: 'council',
     });

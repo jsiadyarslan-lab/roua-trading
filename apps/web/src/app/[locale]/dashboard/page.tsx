@@ -1524,18 +1524,18 @@ export default function DashboardPage() {
             {/* Separator */}
             <div style={{ width:1, height:22, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
 
-            {/* Drawing tools */}
+            {/* Drawing tools — MT5 style compact */}
             {m2DrawTools.map(dt => (
               <button key={dt.id} type="button"
                 onClick={() => setM2ActiveTool(dt.id)}
                 title={dt.id}
                 style={{
-                  width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center',
-                  borderRadius:7, cursor:'pointer', fontSize:13, fontFamily:'monospace',
+                  width:34, height:34, display:'flex', alignItems:'center', justifyContent:'center',
+                  borderRadius:6, cursor:'pointer', fontSize:14, fontFamily:'monospace',
                   flexShrink:0,
-                  background: m2ActiveTool===dt.id?'rgba(0,212,255,0.12)':'transparent',
-                  border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid transparent',
-                  color: m2ActiveTool===dt.id?'#00D4FF':'#5A6A82',
+                  background: m2ActiveTool===dt.id?'rgba(0,212,255,0.15)':'rgba(255,255,255,0.03)',
+                  border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.06)',
+                  color: m2ActiveTool===dt.id?'#00D4FF':'#6A7A90',
                 }}>
                 {dt.icon}
               </button>
@@ -1631,29 +1631,48 @@ export default function DashboardPage() {
           {/* ── CHART AREA ── */}
           <div className="m2-chart-area">
 
-            {/* Symbol + Price — شريط نظيف فوق الشارت */}
+            {/* OHLC Info Bar — MT5 style بالضبط */}
             <div style={{
-              position:'absolute', top:0, left:0, right:0, height:36,
-              display:'flex', alignItems:'center', gap:8, zIndex:10,
-              padding:'0 10px',
-              background:'linear-gradient(180deg, rgba(10,13,19,0.9) 0%, rgba(10,13,19,0) 100%)',
+              position:'absolute', top:0, left:0, right:0, zIndex:10,
+              padding:'4px 8px 3px',
+              background:'rgba(0,0,0,0.75)',
+              backdropFilter:'blur(4px)',
+              borderBottom:'1px solid rgba(255,255,255,0.06)',
               pointerEvents:'none',
             }}>
-              <span style={{ fontSize:13, fontWeight:800, color:'#8090A8', letterSpacing:'0.5px', fontFamily:"'JetBrains Mono',monospace" }}>
-                {selectedSymbol}
-              </span>
-              <span style={{ fontSize:18, fontWeight:700, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'-0.3px' }}>
-                {currentPrice ? formatQuotePrice(currentPrice) : '—'}
-              </span>
-              {activeQuote?.changePercent !== undefined && (
-                <span style={{
-                  fontSize:11, fontWeight:700, borderRadius:5, padding:'1px 6px',
-                  color: (activeQuote.changePercent ?? 0) >= 0 ? '#00FFA3' : '#FF4757',
-                  background: (activeQuote.changePercent ?? 0) >= 0 ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
-                }}>
-                  {(activeQuote.changePercent ?? 0) >= 0 ? '+' : ''}{(activeQuote.changePercent ?? 0).toFixed(2)}%
+              {/* السطر الأول: الزوج + OHLC مثل MT5 */}
+              <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                <span style={{ fontSize:11, fontWeight:800, color:'#00D4FF', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.3px' }}>
+                  {selectedSymbol}
                 </span>
-              )}
+                <span style={{ fontSize:10, color:'rgba(140,160,185,0.6)', fontFamily:"'JetBrains Mono',monospace" }}>
+                  {timeframe}
+                </span>
+                {activeQuote && (
+                  <>
+                    <span style={{ fontSize:10, color:'rgba(140,160,185,0.7)', fontFamily:"'JetBrains Mono',monospace" }}>
+                      {activeQuote.open ? formatQuotePrice(activeQuote.open) : '—'}
+                    </span>
+                    <span style={{ fontSize:10, color:'#00FFA3', fontFamily:"'JetBrains Mono',monospace" }}>
+                      {activeQuote.high ? formatQuotePrice(activeQuote.high) : '—'}
+                    </span>
+                    <span style={{ fontSize:10, color:'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>
+                      {activeQuote.low ? formatQuotePrice(activeQuote.low) : '—'}
+                    </span>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
+                      {currentPrice ? formatQuotePrice(currentPrice) : '—'}
+                    </span>
+                    {(activeQuote.changePercent ?? 0) !== 0 && (
+                      <span style={{
+                        fontSize:10, fontWeight:700,
+                        color: (activeQuote.changePercent ?? 0) >= 0 ? '#00FFA3' : '#FF4757',
+                      }}>
+                        {(activeQuote.changePercent ?? 0) >= 0 ? '+' : ''}{(activeQuote.changePercent ?? 0).toFixed(2)}%
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
 
             {/* ── TRADE FAB — الزاوية العلوية اليسارية من الشارت ── */}

@@ -954,7 +954,8 @@ export default function RouaChart({
     // On mobile, hide axis labels on position lines to reduce clutter
     // Our overlay already shows the price — axis labels create duplicates
     const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
-      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, mobile ? false : axisLabelVisible);
+      // MT5 style: always show axis labels for Entry/SL/TP
+      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
       positionLineIdsRef.current.push(id);
     };
 
@@ -965,18 +966,19 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
+        // MT5 style: entry line is white/cyan dashed
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) {
         const slPnl = entryPrice > 0 ? ((sl - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
-        const slLabel = `SL  ${slPnl !== 0 ? (slPnl > 0 ? '+' : '') + slPnl.toFixed(2) + '$' : ''}`;
+        const slLabel = `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`;
         addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, true);
       }
       const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) {
         const tpPnl = entryPrice > 0 ? ((tp - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
-        const tpLabel = `TP  ${tpPnl !== 0 ? (tpPnl > 0 ? '+' : '') + tpPnl.toFixed(2) + '$' : ''}`;
+        const tpLabel = `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`;
         addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, true);
       }
     });
@@ -1003,7 +1005,8 @@ export default function RouaChart({
       const isLong = (trade.side || '').toLowerCase() === 'long';
       
       const qty = Number(trade.qty || 1);
-      addLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00FFA3' : '#FF4757', 2, 0, '', true);
+      // MT5 style: cyan entry line with direction label
+      addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', true);
       if (trade.sl && Number(trade.sl) > 0) {
         const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
         addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, true);

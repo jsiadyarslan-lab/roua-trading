@@ -169,6 +169,12 @@ export class DrawingRenderer {
       this.setCanvasPointerEvents(false); // Let chart handle pan/zoom
       this.container.style.cursor = '';
     } else {
+      // FIX: Do NOT set pointer-events:none on the chart canvas — it triggers
+      // a browser GPU compositing layer change that causes candlestick bodies
+      // to disappear (wicks survive because they're cached differently).
+      // Instead, the overlay canvas (z-index:9999) with pointer-events:auto
+      // already blocks all mouse events from reaching the chart canvas below.
+      // We only need wheel/touch blockers to prevent chart zoom via scroll.
       this.setChartInteractionEnabled(false);
       this.setCanvasPointerEvents(true);  // Capture mouse for drawing
       this.container.style.cursor = 'crosshair'; // Visual feedback: user is in drawing mode
@@ -2748,23 +2754,26 @@ export class DrawingRenderer {
   /**
    * Enable or disable chart interaction (scroll, zoom, pan).
    *
-   * CRITICAL FIX: Instead of calling chart.applyOptions() which triggers a full
-   * chart re-render (_internal_fullUpdate) and causes candles to visually disappear
-   * due to a timing conflict with React's re-render cycle, we now use CSS
-   * pointer-events on the lightweight-charts canvas + event interception on
-   * the overlay canvas to block wheel/touch zoom.
+   * CRITICAL FIX (v3): Setting CSS pointer-events:none on the lightweight-charts
+   * canvas triggers a browser GPU compositing layer promotion/demotion which
+   * causes candlestick BODIES to disappear (wicks survive because they are
+   * simple 1px lines cached in GPU texture, while body filled rectangles
+   * are composited differently and get cleared during the layer change).
    *
-   * This avoids the chart.applyOptions() call entirely, preventing the
-   * candle disappearance bug.
+   * The overlay canvas (z-index:9999) with pointer-events:auto already sits
+   * on top of the chart canvas and blocks ALL mouse events from reaching it.
+   * Therefore, we do NOT need to set pointer-events:none on the chart canvas.
+   *
+   * We only need to attach wheel/touch blockers on the overlay canvas to
+   * prevent chart zoom/scroll via scroll wheel and pinch gestures.
    */
   private setChartInteractionEnabled(enabled: boolean): void {
-    // 1. Set pointer-events on the lightweight-charts canvas
-    // When disabled, the chart canvas won't receive any mouse/touch events
-    if (this.chartCanvas) {
-      this.chartCanvas.style.pointerEvents = enabled ? 'auto' : 'none';
-    }
+    // DO NOT touch the chart canvas CSS pointer-events!
+    // Previously this set pointer-events:none which caused candle bodies
+    // to disappear due to GPU compositing layer changes.
+    // The overlay canvas (z-index:9999) already blocks mouse events.
 
-    // 2. Attach/detach wheel & touch event blockers on the overlay canvas
+    // Attach/detach wheel & touch event blockers on the overlay canvas
     // These prevent chart zoom/scroll via wheel and pinch gestures
     if (this.overlayCanvas) {
       if (enabled) {

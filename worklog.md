@@ -69,3 +69,44 @@ Stage Summary:
 - Fix: CSS-based interaction blocking instead of chart.applyOptions()
 - File modified: apps/web/src/lib/charts/DrawingRenderer.ts
 - Pushed to origin/main as commit 8482fe04
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Bug #2 - Candles disappear when drawing tool is selected
+
+Work Log:
+- Analyzed user's screenshot with VLM - confirmed candlestick BODIES disappear but WICKS remain visible
+- Deep investigation of DrawingRenderer.ts, useChart.ts, RouaChart.tsx
+- Found root cause: `setChartInteractionEnabled(false)` sets `pointer-events: none` on the lightweight-charts canvas, which triggers a browser GPU compositing layer promotion/demotion
+- GPU compositing change clears candlestick body filled rectangles while wicks (1px lines) survive in GPU texture cache
+- Previous developers already tried: (1) chart.applyOptions() - also caused disappearance, (2) dynamic z-index switching - also caused disappearance
+- Fix: Removed the `chartCanvas.style.pointerEvents = enabled ? 'auto' : 'none'` line from setChartInteractionEnabled()
+- The overlay canvas (z-index:9999) with pointer-events:auto already blocks all mouse events from reaching the chart canvas - no need to also disable pointer-events on the chart canvas
+- Wheel/touch blockers on overlay canvas prevent chart zoom/scroll when drawing tool is active
+- Build verified successfully
+
+Stage Summary:
+- Root cause: CSS pointer-events:none on chart canvas triggers GPU compositing layer change → candle bodies disappear
+- Fix: Don't touch chart canvas CSS at all; rely on overlay canvas event interception
+- Modified file: /home/z/my-project/apps/web/src/lib/charts/DrawingRenderer.ts (setChartInteractionEnabled method)
+- Build passes
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix broken/thin candle appearance
+
+Work Log:
+- VLM analysis confirmed candle bodies are abnormally thin and some are missing
+- barSpacing was set to 8 (desktop) / 4 (mobile) which makes candle bodies very thin
+- Increased barSpacing to 12 (desktop) / 6 (mobile) for thicker, more visible candle bodies
+- Increased minBarSpacing to 4 (desktop) / 2 (mobile) to prevent candles from becoming too thin when zoomed out
+- Updated zoom functions to use new default barSpacing values
+- Build verified successfully
+
+Stage Summary:
+- Increased barSpacing: 8→12 (desktop), 4→6 (mobile)
+- Increased minBarSpacing: 2→4 (desktop), 1→2 (mobile)
+- Updated zoom in/out defaults from 8 to 12, and min from 2 to 4
+- Modified file: /home/z/my-project/apps/web/src/hooks/useChart.ts

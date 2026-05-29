@@ -381,8 +381,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         timeVisible: true,
         secondsVisible: true,
         rightOffset: isMobile ? 3 : 5,
-        barSpacing: isMobile ? 4 : 8,
-        minBarSpacing: isMobile ? 1 : 2,
+        barSpacing: isMobile ? 6 : 12,
+        minBarSpacing: isMobile ? 2 : 4,
       },
       handleScroll: { vertTouchDrag: !isMobile },
     };
@@ -564,8 +564,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (!shortcutsRef.current) {
       shortcutsRef.current = new KeyboardShortcuts({
         togglePlayPause: () => setIsPaused(p => !p),
-        zoomIn: () => chart.timeScale().applyOptions({ barSpacing: Math.min(50, (chart.timeScale().options().barSpacing || 8) + 2) }),
-        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(2, (chart.timeScale().options().barSpacing || 8) - 2) }),
+        zoomIn: () => chart.timeScale().applyOptions({ barSpacing: Math.min(50, (chart.timeScale().options().barSpacing || 12) + 2) }),
+        zoomOut: () => chart.timeScale().applyOptions({ barSpacing: Math.max(4, (chart.timeScale().options().barSpacing || 12) - 2) }),
         setTool: (tool) => setActiveTool(tool),
         saveChart: () => ChartTemplateManager.save(
           'auto-save',
@@ -1679,13 +1679,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Zoom ───────────────────────────────────────────────
   const zoomIn = useCallback(() => {
     chartInstanceRef.current?.timeScale().applyOptions({
-      barSpacing: Math.min(50, (chartInstanceRef.current?.timeScale().options().barSpacing || 8) + 2),
+      barSpacing: Math.min(50, (chartInstanceRef.current?.timeScale().options().barSpacing || 12) + 2),
     });
   }, []);
 
   const zoomOut = useCallback(() => {
     chartInstanceRef.current?.timeScale().applyOptions({
-      barSpacing: Math.max(2, (chartInstanceRef.current?.timeScale().options().barSpacing || 8) - 2),
+      barSpacing: Math.max(4, (chartInstanceRef.current?.timeScale().options().barSpacing || 12) - 2),
     });
   }, []);
 

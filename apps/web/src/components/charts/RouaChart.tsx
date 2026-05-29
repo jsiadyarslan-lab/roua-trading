@@ -1649,7 +1649,7 @@ export default function RouaChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newsMarkers, aiPatterns, signalMarkers, aiDirectMarkers]);
 
-  const toolbarHeight = hideToolbar ? 0 : mobile ? 32 : 38;
+  const toolbarHeight = hideToolbar ? 0 : mobile ? 48 : 38;
 
   return (
     <div

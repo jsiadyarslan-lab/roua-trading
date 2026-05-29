@@ -138,7 +138,9 @@ const STARS = [
 function formatHeaderPrice(value: unknown) {
   const price = Number(value)
   if (!Number.isFinite(price)) return '—'
-  return price.toLocaleString('en', { maximumFractionDigits: price > 100 ? 2 : 4 })
+  // FIX: ضمان عرض رقمين عشريين دائماً بدون اقتطاع
+  const decimals = price > 100 ? 2 : price > 1 ? 4 : 5
+  return price.toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: decimals })
 }
 
 /* ══ Cosmic Orb ══ */
@@ -433,7 +435,7 @@ function CurrencyTicker({ isMobile = false }: { isMobile?: boolean }) {
     flash: flashState[sym] ?? null,
   }))
 
-  const finalRows = isMobile ? rows.slice(0, 3) : rows
+  const finalRows = isMobile ? rows.slice(0, 5) : rows
 
   return (
     <div style={{
@@ -1389,6 +1391,10 @@ const KF = `
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
 }
+@keyframes slideInLeft {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
 header *            { scrollbar-width:none; -ms-overflow-style:none; }
 header *::-webkit-scrollbar { display:none; }
 
@@ -1483,6 +1489,16 @@ export function AppHeader() {
   const t = useTranslations()
   useScopedStyle(KF)
   const [menuOpen, setMenuOpen] = useState(false)
+
+  // FIX: Escape key closes mobile menu
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    document.addEventListener('keydown', handleEsc)
+    return () => document.removeEventListener('keydown', handleEsc)
+  }, [menuOpen])
   const mode = useDashboardStore(state => state.mode)
   const setMode = useDashboardStore(state => state.setMode)
   const pathname = usePathname()
@@ -1525,11 +1541,11 @@ export function AppHeader() {
           zIndex: 1000, backdropFilter: 'blur(8px)'
         }} onClick={() => setMenuOpen(false)}>
           <div style={{
-            position: 'absolute', right: 0, top: 0, bottom: 0, width: 'min(280px, 85vw)',
-            background: 'rgba(26,29,41,0.95)', borderInlineStart: `1px solid rgba(0,212,255,0.12)`,
+            position: 'absolute', left: 0, top: 0, bottom: 0, width: 'min(280px, 85vw)',
+            background: 'rgba(26,29,41,0.95)', borderInlineEnd: `1px solid rgba(0,212,255,0.12)`,
             display: 'flex', flexDirection: 'column', padding: '20px',
             overflowY: 'auto',
-            animation: 'slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            animation: 'slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           }} className="custom-scrollbar" onClick={e => e.stopPropagation()}>
              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
                 <span style={{ fontSize: 18, fontWeight: 900, color: T.text, fontFamily: "'Cairo', sans-serif" }}>{t('common.menu')}</span>

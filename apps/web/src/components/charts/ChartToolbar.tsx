@@ -230,12 +230,14 @@ export function ChartToolbar(props: ChartToolbarProps) {
     success: '#00FFA3',
   };
 
+  // FIX: احترام معيار 44px لأهداف اللمس على الجوال
+  const touchSize = mobile ? 40 : 26;
   const btnStyle: React.CSSProperties = {
-    height: 26,
-    minWidth: 26,
+    height: touchSize,
+    minWidth: touchSize,
     background: 'none',
     border: 'none',
-    borderRadius: 4,
+    borderRadius: mobile ? 6 : 4,
     color: COLORS.textSecondary,
     cursor: 'pointer',
     display: 'flex',
@@ -243,8 +245,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
     justifyContent: 'center',
     transition: 'all 0.12s',
     flexShrink: 0,
-    padding: '0 4px',
-    fontSize: 11,
+    padding: mobile ? '0 8px' : '0 4px',
+    fontSize: mobile ? 12 : 11,
     fontFamily: "'JetBrains Mono', monospace",
   };
 

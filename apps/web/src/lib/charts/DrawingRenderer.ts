@@ -868,6 +868,10 @@ export class DrawingRenderer {
   private boundMouseUp: (e: MouseEvent) => void;
   private boundContextMenu: (e: MouseEvent) => void;
   private boundKeyDown: (e: KeyboardEvent) => void;
+  // Event capture handlers — prevent chart from receiving events during drawing
+  private boundWheelCapture: (e: WheelEvent) => void;
+  private boundTouchStartCapture: (e: TouchEvent) => void;
+  private boundTouchMoveCapture: (e: TouchEvent) => void;
   private started = false;
 
   private static readonly PROXIMITY_THRESHOLD = 12;
@@ -883,6 +887,10 @@ export class DrawingRenderer {
     this.boundMouseUp = this.onMouseUp.bind(this);
     this.boundContextMenu = (e: MouseEvent) => e.preventDefault();
     this.boundKeyDown = this.onKeyDown.bind(this);
+    // Capture-phase handlers to block chart scroll/zoom during drawing
+    this.boundWheelCapture = this.onWheelCapture.bind(this);
+    this.boundTouchStartCapture = this.onTouchStartCapture.bind(this);
+    this.boundTouchMoveCapture = this.onTouchMoveCapture.bind(this);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -978,6 +986,10 @@ export class DrawingRenderer {
     this.container.addEventListener('mouseup', this.boundMouseUp);
     this.container.addEventListener('contextmenu', this.boundContextMenu);
     document.addEventListener('keydown', this.boundKeyDown);
+    // Capture-phase: block wheel/touch events from reaching chart during drawing
+    this.container.addEventListener('wheel', this.boundWheelCapture, true);
+    this.container.addEventListener('touchstart', this.boundTouchStartCapture, true);
+    this.container.addEventListener('touchmove', this.boundTouchMoveCapture, true);
   }
 
   private detachEvents(): void {
@@ -986,33 +998,61 @@ export class DrawingRenderer {
     this.container.removeEventListener('mouseup', this.boundMouseUp);
     this.container.removeEventListener('contextmenu', this.boundContextMenu);
     document.removeEventListener('keydown', this.boundKeyDown);
+    this.container.removeEventListener('wheel', this.boundWheelCapture, true);
+    this.container.removeEventListener('touchstart', this.boundTouchStartCapture, true);
+    this.container.removeEventListener('touchmove', this.boundTouchMoveCapture, true);
   }
 
   // ══════════════════════════════════════════════════════════
-  //  CHART INTERACTION — Uses API only, NEVER modifies CSS
+  //  CHART INTERACTION — Event capture approach, NEVER calls applyOptions
+  //
+  //  CRITICAL FIX (Bug #2): The old approach used chart.applyOptions()
+  //  to toggle handleScroll/handleScale, which triggered a full chart
+  //  re-render and GPU compositing layer recomposition. This caused
+  //  candle bodies to disappear (appearing as dots).
+  //
+  //  The new approach blocks events from reaching the chart's internal
+  //  event handlers by using capture-phase event listeners and calling
+  //  stopPropagation(). This completely avoids chart.applyOptions() and
+  //  thus never triggers a re-render or GPU recomposition.
   // ══════════════════════════════════════════════════════════
 
-  private setChartInteractionEnabled(enabled: boolean): void {
-    // CRITICAL FIX (Bug #2): Never pass bare boolean — it resets ALL
-    // sub-options (including mobile touch configs) to defaults, which
-    // triggers a full GPU layer recomposition that makes candle bodies
-    // disappear. Instead, only toggle mouse-wheel & drag while keeping
-    // touch/pinch settings untouched.
-    this.chart.applyOptions({
-      handleScroll: {
-        mouseWheel: enabled,
-        pressedMouseMove: enabled,
-        // vertTouchDrag / horizTouchDrag are NOT overridden —
-        // whatever the chart was created with stays in effect.
-      },
-      handleScale: {
-        mouseWheel: enabled,
-        pinch: true, // always keep pinch-to-zoom working
-        axisPressedMouseMove: enabled
-          ? { time: true, price: true }
-          : { time: false, price: false },
-      },
-    });
+  // Whether drawing mode is active (any tool except cursor)
+  private get isDrawingMode(): boolean {
+    return this.currentTool !== 'cursor' || this.isDragging;
+  }
+
+  // Block wheel events (zoom) during drawing mode
+  private onWheelCapture(e: WheelEvent): void {
+    if (this.isDrawingMode) {
+      e.stopPropagation(); // Prevent chart from receiving wheel event
+    }
+    // When not in drawing mode, wheel events pass through normally
+  }
+
+  // Block touch start (pan/pinch start) during drawing mode
+  private onTouchStartCapture(e: TouchEvent): void {
+    if (this.isDrawingMode && e.touches.length === 1) {
+      e.stopPropagation(); // Single-finger touch: block panning
+    }
+    // Two-finger touch (pinch): allow through for pinch-to-zoom
+  }
+
+  // Block touch move (pan) during drawing mode
+  private onTouchMoveCapture(e: TouchEvent): void {
+    if (this.isDrawingMode && e.touches.length === 1) {
+      e.stopPropagation(); // Single-finger move: block panning
+      e.preventDefault(); // Also prevent scroll
+    }
+  }
+
+  // Legacy method kept for compatibility — now a NO-OP
+  // This ensures existing call sites don't break
+  private setChartInteractionEnabled(_enabled: boolean): void {
+    // NO-OP: Chart interaction is now controlled via capture-phase event
+    // listeners (onWheelCapture, onTouchStartCapture, onTouchMoveCapture)
+    // which block events from reaching the chart during drawing mode.
+    // This avoids the GPU recomposition bug caused by chart.applyOptions().
   }
 
   // ══════════════════════════════════════════════════════════

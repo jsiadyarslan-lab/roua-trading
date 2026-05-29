@@ -384,8 +384,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         timeVisible: true,
         secondsVisible: true,
         rightOffset: isMobile ? 3 : 5,
-        barSpacing: isMobile ? 6 : 12,
-        minBarSpacing: isMobile ? 2 : 4,
+        barSpacing: isMobile ? 8 : 14,
+        minBarSpacing: isMobile ? 3 : 5,
       },
       handleScroll: { vertTouchDrag: !isMobile },
     };

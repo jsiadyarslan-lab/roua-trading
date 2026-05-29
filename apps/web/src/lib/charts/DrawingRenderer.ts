@@ -79,12 +79,18 @@ export class DrawingRenderer {
   private boundMouseUp: (e: MouseEvent) => void;
   private boundContextMenu: (e: MouseEvent) => void;
   private boundResize: () => void;
+  private boundWheel: (e: WheelEvent) => void;
+  private boundTouchStart: (e: TouchEvent) => void;
+  private boundTouchMove: (e: TouchEvent) => void;
   private unsubscribeVisibleRange: (() => void) | null = null;
   private resizeObserver: ResizeObserver | null = null;
   private started = false;
 
   // ── Event target ref (canvas or container) ─────────────
   private eventTarget: HTMLElement | null = null;
+
+  // ── Ref to lightweight-charts canvas (for CSS pointer-events control) ──
+  private chartCanvas: HTMLCanvasElement | null = null;
 
   // ── Constructor ────────────────────────────────────────
 
@@ -105,6 +111,9 @@ export class DrawingRenderer {
     this.boundMouseUp = this.onMouseUp.bind(this);
     this.boundContextMenu = (e: MouseEvent) => e.preventDefault();
     this.boundResize = this.handleResize.bind(this);
+    this.boundWheel = this.onWheel.bind(this);
+    this.boundTouchStart = this.onTouchStart.bind(this);
+    this.boundTouchMove = this.onTouchMove.bind(this);
   }
 
   // ══════════════════════════════════════════════════════════
@@ -117,11 +126,13 @@ export class DrawingRenderer {
     this.started = true;
 
     this.createOverlayCanvas();
+    this.findChartCanvas();
     this.attachEvents();
 
     // Set initial canvas pointer events based on current tool
     if (this.currentTool !== 'cursor') {
       this.setCanvasPointerEvents(true);
+      this.setChartInteractionEnabled(false);
     }
 
     this.redraw();
@@ -2689,24 +2700,84 @@ export class DrawingRenderer {
   }
 
   /**
+   * Find the lightweight-charts canvas inside the container.
+   * We need a reference to it so we can set CSS pointer-events on it
+   * without calling chart.applyOptions() (which causes candle disappearance).
+   */
+  private findChartCanvas(): void {
+    if (!this.container) return;
+    // lightweight-charts creates a canvas as the first child of the container
+    // Our overlay canvas has data-roua-drawing-overlay="true"
+    const canvases = this.container.querySelectorAll('canvas');
+    for (const canvas of canvases) {
+      if (canvas.dataset.rouaDrawingOverlay !== 'true') {
+        this.chartCanvas = canvas;
+        return;
+      }
+    }
+    // Fallback: if no non-drawing canvas found, try the first canvas
+    const firstCanvas = this.container.querySelector('canvas:not([data-roua-drawing-overlay])');
+    this.chartCanvas = firstCanvas as HTMLCanvasElement | null;
+  }
+
+  // ── Wheel event blocker ────────────────────────────────
+  // Prevents chart zoom via mouse wheel while a drawing tool is active.
+  private onWheel(e: WheelEvent): void {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  // ── Touch event blockers ────────────────────────────────
+  // Prevents chart zoom/scroll via touch gestures while drawing.
+  private onTouchStart(e: TouchEvent): void {
+    if (e.touches.length > 1) {
+      // Pinch zoom — block it
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  private onTouchMove(e: TouchEvent): void {
+    if (e.touches.length > 1) {
+      // Pinch zoom — block it
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }
+
+  /**
    * Enable or disable chart interaction (scroll, zoom, pan).
-   * Used to prevent chart panning while drawing or dragging.
+   *
+   * CRITICAL FIX: Instead of calling chart.applyOptions() which triggers a full
+   * chart re-render (_internal_fullUpdate) and causes candles to visually disappear
+   * due to a timing conflict with React's re-render cycle, we now use CSS
+   * pointer-events on the lightweight-charts canvas + event interception on
+   * the overlay canvas to block wheel/touch zoom.
+   *
+   * This avoids the chart.applyOptions() call entirely, preventing the
+   * candle disappearance bug.
    */
   private setChartInteractionEnabled(enabled: boolean): void {
-    try {
-      this.chart.applyOptions({
-        handleScroll: {
-          mouseWheel: enabled,
-          pressedMouseMove: enabled,
-          horzTouchDrag: enabled,
-          vertTouchDrag: enabled,
-        },
-        handleScale: {
-          axisPressedMouseMove: enabled,
-          mouseWheel: enabled,
-          pinch: enabled,
-        },
-      });
-    } catch {}
+    // 1. Set pointer-events on the lightweight-charts canvas
+    // When disabled, the chart canvas won't receive any mouse/touch events
+    if (this.chartCanvas) {
+      this.chartCanvas.style.pointerEvents = enabled ? 'auto' : 'none';
+    }
+
+    // 2. Attach/detach wheel & touch event blockers on the overlay canvas
+    // These prevent chart zoom/scroll via wheel and pinch gestures
+    if (this.overlayCanvas) {
+      if (enabled) {
+        // Remove blockers — let events pass through to chart
+        this.overlayCanvas.removeEventListener('wheel', this.boundWheel, true);
+        this.overlayCanvas.removeEventListener('touchstart', this.boundTouchStart, true);
+        this.overlayCanvas.removeEventListener('touchmove', this.boundTouchMove, true);
+      } else {
+        // Add blockers — prevent chart from zooming/scrolling
+        this.overlayCanvas.addEventListener('wheel', this.boundWheel, true);
+        this.overlayCanvas.addEventListener('touchstart', this.boundTouchStart, true);
+        this.overlayCanvas.addEventListener('touchmove', this.boundTouchMove, true);
+      }
+    }
   }
 }

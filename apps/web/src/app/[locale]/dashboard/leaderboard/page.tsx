@@ -407,7 +407,7 @@ export default function LeaderboardPage() {
       </div>
 
       {/* ──── Stats Summary Row ──── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { icon: Users, label: t('totalActiveAccounts'), val: formatNumber(totalActiveTraders), color: T.cyan },
           { icon: TrendingUp, label: t('avgReturn'), val: totalReturns, color: T.green },

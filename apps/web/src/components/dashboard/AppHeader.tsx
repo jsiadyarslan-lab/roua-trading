@@ -217,6 +217,7 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
       insetInlineStart: isDesktop ? 10 : undefined,
       transform: isDesktop ? 'translateY(-50%)' : undefined,
       width: D, height: D, borderRadius: '50%',
+      overflow: 'hidden', // FIX: منع الـ overflow
       background: `radial-gradient(circle at 50% 40%, #0D1520, #020308)`,
       border: `1.5px solid ${c.core}44`,
       boxShadow: `0 0 28px ${c.glow}, 0 0 0 ${isDesktop ? 4 : 2}px ${c.core}11`,

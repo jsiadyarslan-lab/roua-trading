@@ -127,7 +127,7 @@ export default function AccountMonitoringPage() {
       </div>
 
       {/* Stats Row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
         {[
           { icon: Star, label: ct('bestAccountThisWeek'), val: 'Quantum Alpha', color: T.amber },
           { icon: Shield, label: ct('totalAum'), val: '--', color: T.blue },
@@ -172,7 +172,7 @@ export default function AccountMonitoringPage() {
       </div>
 
       {/* Trader Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(340px, 100%), 1fr))', gap: 16 }}>
         {sortedTraders.map((trader) => {
           const isFollowing = followingTraders.has(trader.id)
           const riskLabel = ct(trader.riskKey as any)

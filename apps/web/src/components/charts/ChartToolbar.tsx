@@ -433,15 +433,21 @@ export function ChartToolbar(props: ChartToolbarProps) {
           display: 'flex',
           alignItems: 'center',
           padding: '0 4px',
-          height: `${height}px`,
+          // FIX: على الجوال نستخدم minHeight لإعطاء الأزرار مساحتها الطبيعية
+          // height صارم كان يقتطع الأزرار ويُنشئ scrollbar مرئياً
+          minHeight: `${height}px`,
+          height: mobile ? 'auto' : `${height}px`,
           background: COLORS.bg,
           borderBottom: `1px solid ${COLORS.border}`,
           flexShrink: 0,
           gap: 1,
           direction: 'inherit',
           overflowX: 'auto',
-          overflowY: 'visible',
-        }}>
+          overflowY: 'hidden',
+          // FIX: إخفاء الـ scrollbar بصرياً (لا يزال قابلاً للتمرير)
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        } as React.CSSProperties}>
           {/* Chart Type */}
           <div ref={chartTypeRef} style={{ position: 'relative' }}>
             <button
@@ -1032,7 +1038,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         <ScopedStyle>{`
           .toolbar-scrollable::-webkit-scrollbar {
-            height: 3px;
+            height: 0px;
+            display: none;
           }
           .toolbar-scrollable::-webkit-scrollbar-track {
             background: transparent;

@@ -9,6 +9,10 @@ import { join } from 'path';
 // which returns 404 and breaks PWA installation on ALL browsers.
 // API routes (/api/...) bypass the middleware, so this route
 // reliably serves PWA assets without locale redirects.
+//
+// NOTE: /sw.js and /manifest.json are NOT served here because they
+// work fine when served directly from public/ by Next.js (before
+// middleware runs). Only image/icon files need this workaround.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const ASSET_MAP: Record<string, { path: string; contentType: string; cacheMaxAge: number }> = {
@@ -19,8 +23,6 @@ const ASSET_MAP: Record<string, { path: string; contentType: string; cacheMaxAge
   'logo-512.png': { path: 'logo-512.png', contentType: 'image/png', cacheMaxAge: 86400 },
   'favicon.ico': { path: 'favicon.ico', contentType: 'image/x-icon', cacheMaxAge: 86400 },
   'favicon.svg': { path: 'favicon.svg', contentType: 'image/svg+xml', cacheMaxAge: 86400 },
-  'manifest.json': { path: 'manifest.json', contentType: 'application/manifest+json', cacheMaxAge: 0 },
-  'sw.js': { path: 'sw.js', contentType: 'application/javascript', cacheMaxAge: 0 },
   'offline.html': { path: 'offline.html', contentType: 'text/html', cacheMaxAge: 0 },
 };
 
@@ -37,20 +39,13 @@ export async function GET(request: NextRequest) {
     const filePath = join(process.cwd(), 'public', asset.path);
     const data = await readFile(filePath);
 
-    const headers: Record<string, string> = {
-      'Content-Type': asset.contentType,
-      'Cache-Control': `public, max-age=${asset.cacheMaxAge}`,
-      'Access-Control-Allow-Origin': '*',
-    };
-
-    // Special headers for Service Worker
-    if (file === 'sw.js') {
-      headers['Service-Worker-Allowed'] = '/';
-    }
-
     return new NextResponse(data, {
       status: 200,
-      headers,
+      headers: {
+        'Content-Type': asset.contentType,
+        'Cache-Control': `public, max-age=${asset.cacheMaxAge}`,
+        'Access-Control-Allow-Origin': '*',
+      },
     });
   } catch {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });

@@ -96,9 +96,11 @@ const nextConfig: NextConfig = {
       // locale redirect from ever happening.
       // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
       beforeFiles: [
-        // PWA icons — rewrite to API route to bypass next-intl 307 redirect
+        // PWA image/icon rewrites — bypass next-intl 307 redirect
         // next-intl redirects /icon-192.png → /ar/icon-192.png (404)
         // API routes are never redirected by middleware
+        // NOTE: /sw.js and /manifest.json do NOT need rewriting — they
+        // are served directly from public/ by Next.js before middleware.
         { source: '/icon-192.png', destination: '/api/pwa-asset?file=icon-192.png' },
         { source: '/icon-512.png', destination: '/api/pwa-asset?file=icon-512.png' },
         { source: '/apple-touch-icon.png', destination: '/api/pwa-asset?file=apple-touch-icon.png' },
@@ -106,8 +108,6 @@ const nextConfig: NextConfig = {
         { source: '/logo-512.png', destination: '/api/pwa-asset?file=logo-512.png' },
         { source: '/favicon.ico', destination: '/api/pwa-asset?file=favicon.ico' },
         { source: '/favicon.svg', destination: '/api/pwa-asset?file=favicon.svg' },
-        { source: '/manifest.json', destination: '/api/pwa-asset?file=manifest.json' },
-        { source: '/sw.js', destination: '/api/pwa-asset?file=sw.js' },
         { source: '/offline.html', destination: '/api/pwa-asset?file=offline.html' },
       ],
       afterFiles: [

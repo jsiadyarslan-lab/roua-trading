@@ -783,7 +783,10 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
   private _drawings: Drawing[] = [];
   private _preview: PreviewData | null = null;
 
+  private _attached = false;
+
   constructor() {
+    // PaneView will be re-created in attached() with real chart/series refs
     this._paneView = new DrawingPaneView(null as any, null as any);
   }
 
@@ -791,6 +794,7 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
     this._chart = param.chart as IChartApi;
     this._series = param.series as ISeriesApi<SeriesType>;
     this._requestUpdate = param.requestUpdate;
+    this._attached = true;
     // Re-create pane view with actual chart/series refs
     (this as any)._paneView = new DrawingPaneView(this._chart, this._series);
     // Push current data to view
@@ -801,6 +805,7 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
     this._chart = null;
     this._series = null;
     this._requestUpdate = null;
+    this._attached = false;
   }
 
   updateAllViews(): void {
@@ -828,7 +833,9 @@ class DrawingSeriesPrimitive implements ISeriesPrimitiveBase<SeriesAttachedParam
   }
 
   private requestUpdate(): void {
-    if (this._requestUpdate) this._requestUpdate();
+    // Guard: don't call requestUpdate before primitive is attached to chart
+    if (!this._attached || !this._requestUpdate) return;
+    this._requestUpdate();
   }
 }
 
@@ -1066,7 +1073,15 @@ export class DrawingRenderer {
 
     this.clickedPoints.push(point);
     this.isDrawing = true;
-    this.mousePixel = this.chartPointToPixel(point);
+    // Use chartPointToPixel for precise position, fallback to raw mouse position
+    const precisePixel = this.chartPointToPixel(point);
+    if (precisePixel) {
+      this.mousePixel = precisePixel;
+    } else {
+      // Fallback: raw mouse position for preview when point is at chart edge
+      const rect = this.container.getBoundingClientRect();
+      this.mousePixel = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    }
 
     if (this.clickedPoints.length >= DrawingManager.requiredPoints(this.currentTool)) {
       this.completeDrawing();

@@ -144,6 +144,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const [isPaused, setIsPaused] = useState(false);
 
   const activeIndicatorsRef = useRef<Map<string, ActiveIndicator>>(new Map());
+  // Keep a ref to the latest activeTool so the lazy-loaded DrawingRenderer
+  // can pick up the current tool even if the user clicked before import resolved.
+  const activeToolRef = useRef<DrawingTool>('cursor');
 
   // ── Chart State Persistence ──
   // Debounced auto-save timer ref
@@ -554,7 +557,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           container,
           drawingManagerRef.current,
         );
-        renderer.setTool(activeTool);
+        // Use the LATEST activeTool from state, not the stale closure value.
+        // This fixes a race condition where the user clicks a tool before
+        // the dynamic import resolves — the old value would be 'cursor'.
+        const currentTool = activeToolRef.current ?? activeTool;
+        renderer.setTool(currentTool);
         renderer.start();
         drawingRendererRef.current = renderer as any;
       }).catch(console.error);
@@ -1667,11 +1674,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const setTool = useCallback((tool: DrawingTool) => {
     setActiveTool(tool);
+    activeToolRef.current = tool; // Sync ref for lazy import race condition fix
     drawingRendererRef.current?.setTool(tool);
   }, []);
 
   const cancelDrawing = useCallback(() => {
     setActiveTool('cursor');
+    activeToolRef.current = 'cursor'; // Sync ref
     drawingRendererRef.current?.setTool('cursor');
     drawingRendererRef.current?.cancelDrawing();
   }, []);

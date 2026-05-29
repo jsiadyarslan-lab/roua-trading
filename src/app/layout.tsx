@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Cairo } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,25 +12,35 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// FIX: تحميل خط Cairo رسمياً عبر next/font
+// كان page.tsx يستخدمه لكنه غير محمّل — النظام كان يختار بديلاً عشوائياً
+const cairo = Cairo({
+  variable: "--font-cairo",
+  subsets: ["arabic", "latin"],
+  // تحميل الأوزان الأكثر استخداماً فقط لتحسين الأداء
+  weight: ["400", "500", "600", "700"],
+  // display swap: يعرض خط النظام أثناء التحميل بدلاً من إخفاء النص
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "Roua Trading - منصة التداول الذكي",
+  description:
+    "منصة تداول متكاملة مع 8 نماذج ذكاء اصطناعي و 13 وكيلاً آلياً للمراقبة والتحليل.",
+  keywords: ["تداول", "ذكاء اصطناعي", "روعا تريدينج", "Roua Trading", "BTC", "Forex"],
+  authors: [{ name: "Roua Trading Team" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/favicon.ico",
+  },
+  // FIX: viewport meta مع إعدادات صحيحة للجوال
+  // Next.js يدير هذا تلقائياً لكن التصريح يضمن القيم الصحيحة
+  other: {
+    "theme-color": "#0B0E14",
   },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "Roua Trading",
+    description: "منصة التداول الذكي",
     type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
   },
 };
 
@@ -40,9 +50,38 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ar" dir="rtl" suppressHydrationWarning>
+    <html
+      lang="ar"
+      dir="rtl"
+      suppressHydrationWarning
+    >
+      <head>
+        {/*
+          FIX: viewport صريح مع user-scalable=yes
+          - width=device-width: يمنع الـ zooming الافتراضي على iOS
+          - initial-scale=1: يبدأ بحجم طبيعي
+          - user-scalable=yes: يسمح بالتكبير — معيار إمكانية الوصول (WCAG 1.4.4)
+          - minimum-scale=1: يمنع التصغير الزائد
+        */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, minimum-scale=1, user-scalable=yes"
+        />
+      </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`
+          ${geistSans.variable}
+          ${geistMono.variable}
+          ${cairo.variable}
+          antialiased bg-background text-foreground
+        `}
+        /*
+          FIX: استخدام Cairo كخط رئيسي للواجهة العربية
+          Geist كخط احتياطي للمحتوى اللاتيني
+        */
+        style={{
+          fontFamily: "var(--font-cairo), var(--font-geist-sans), sans-serif",
+        }}
       >
         {children}
       </body>

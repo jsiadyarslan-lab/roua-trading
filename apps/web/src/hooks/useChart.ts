@@ -347,7 +347,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       layout: {
         background: { color: T.bg },
         textColor: T.text2,
-        fontSize: isMobile ? 9 : 11,
+        fontSize: isMobile ? 11 : 12,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
@@ -380,11 +380,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         borderColor: T.cardBorder,
         timeVisible: true,
         secondsVisible: true,
-        rightOffset: 5,
-        barSpacing: 8,
-        minBarSpacing: 2,
+        rightOffset: isMobile ? 3 : 5,
+        barSpacing: isMobile ? 4 : 8,
+        minBarSpacing: isMobile ? 1 : 2,
       },
-      handleScroll: { vertTouchDrag: false },
+      handleScroll: { vertTouchDrag: !isMobile },
     };
 
     const chart = createChart(container, chartOptions);
@@ -1945,14 +1945,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           mouseWheel: true,
           pressedMouseMove: false,
           horzTouchDrag: false,
-          vertTouchDrag: false,
+          vertTouchDrag: !isMobile,
         },
       });
     } else {
       // Normal mode: re-enable panning (restore original mobile settings)
       chart.applyOptions({
         handleScroll: {
-          vertTouchDrag: false,
+          vertTouchDrag: !isMobile,
         },
       });
     }

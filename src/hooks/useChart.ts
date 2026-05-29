@@ -44,7 +44,7 @@ export function useChart(options: UseChartOptions) {
     if (!containerRef.current) return;
 
     const container = containerRef.current;
-    // Wait for dimensions
+
     const waitForDimensions = (el: HTMLElement, maxRetries = 20): Promise<{ w: number; h: number }> => {
       return new Promise((resolve) => {
         const check = (attempt: number) => {
@@ -76,7 +76,8 @@ export function useChart(options: UseChartOptions) {
       layout: {
         background: { color: CHART_COLORS.bg },
         textColor: CHART_COLORS.text2,
-        fontSize: isMobile ? 9 : 11,
+        // FIX #2: رفع حجم الخط — 9px غير مقروء على الجوال
+        fontSize: isMobile ? 11 : 12,
         fontFamily: "'JetBrains Mono', monospace",
         attributionLogo: false,
       },
@@ -86,22 +87,50 @@ export function useChart(options: UseChartOptions) {
       },
       crosshair: {
         mode: 0,
-        vertLine: { color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: CHART_COLORS.card },
-        horzLine: { color: CHART_COLORS.crosshair, width: 1, style: 2, labelBackgroundColor: CHART_COLORS.card },
+        vertLine: {
+          color: CHART_COLORS.crosshair,
+          width: 1,
+          style: 2,
+          labelBackgroundColor: CHART_COLORS.card,
+        },
+        horzLine: {
+          color: CHART_COLORS.crosshair,
+          width: 1,
+          style: 2,
+          labelBackgroundColor: CHART_COLORS.card,
+        },
       },
       rightPriceScale: {
         borderColor: CHART_COLORS.cardBorder,
         scaleMargins: { top: 0.1, bottom: 0.2 },
+        // FIX: عرض أضيق للمحور السعري على الجوال
+        minimumWidth: isMobile ? 55 : 70,
       },
       timeScale: {
         borderColor: CHART_COLORS.cardBorder,
         timeVisible: true,
         secondsVisible: false,
-        rightOffset: 5,
-        barSpacing: 8,
-        minBarSpacing: 2,
+        // FIX #3: تكييف المسافات مع حجم الشاشة
+        rightOffset: isMobile ? 3 : 5,
+        barSpacing: isMobile ? 4 : 8,
+        minBarSpacing: isMobile ? 1 : 2,
       },
-      handleScroll: { vertTouchDrag: false },
+      // FIX #1: السماح بالتمرير العمودي على الجوال
+      // vertTouchDrag: false كان يجمّد الصفحة عند لمس الشارت
+      handleScroll: {
+        vertTouchDrag: !isMobile,
+        mouseWheel: true,
+        pressedMouseMove: true,
+      },
+      // FIX #4: تفعيل إيماءة القرص (Pinch-to-zoom) على الجوال
+      handleScale: {
+        pinch: true,
+        mouseWheel: true,
+        axisPressedMouseMove: {
+          time: true,
+          price: !isMobile, // تجنب التمرير العرضي على المحور السعري بالجوال
+        },
+      },
     };
 
     const chart = createChart(container, chartOptions);
@@ -144,10 +173,22 @@ export function useChart(options: UseChartOptions) {
       const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
       const d = new Date((param.time as number) * 1000);
-      const dateStr = d.toLocaleDateString('ar-EG', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit',
-      });
+
+      // FIX: تنسيق تاريخ مختصر للجوال لتجنب الفيضان
+      const dateStr = isMobile
+        ? d.toLocaleDateString('ar-EG', {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : d.toLocaleDateString('ar-EG', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
 
       onCrosshairMoveRef.current?.({
         time: param.time as number,
@@ -184,13 +225,39 @@ export function useChart(options: UseChartOptions) {
       }
     };
     window.addEventListener('resize', handleWindowResize);
-  }, []);
+
+    // FIX #: معالجة تغيير الاتجاه (Portrait ↔ Landscape)
+    // screen.orientation أدق من resize لأنه يُطلق فوراً عند الدوران
+    const handleOrientationChange = () => {
+      // تأخير قصير للسماح للمتصفح بإتمام إعادة الحساب
+      setTimeout(() => {
+        if (chart && containerRef.current) {
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          if (w > 0 && h > 0) chart.applyOptions({ width: w, height: h });
+        }
+      }, 150);
+    };
+
+    if (typeof screen !== 'undefined' && screen.orientation) {
+      screen.orientation.addEventListener('change', handleOrientationChange);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleWindowResize);
+      if (typeof screen !== 'undefined' && screen.orientation) {
+        screen.orientation.removeEventListener('change', handleOrientationChange);
+      }
+    };
+  }, [isMobile]);
 
   useEffect(() => {
-    initChart().catch(e => console.error('[useChart] init failed:', e));
+    let cleanup: (() => void) | void;
+    initChart().then(fn => { cleanup = fn; }).catch(e => console.error('[useChart] init failed:', e));
     return () => {
       if (resizeObserverRef.current) resizeObserverRef.current.disconnect();
       if (chartInstanceRef.current) { chartInstanceRef.current.remove(); chartInstanceRef.current = null; }
+      cleanup?.();
     };
   }, [initChart]);
 
@@ -207,7 +274,7 @@ export function useChart(options: UseChartOptions) {
     } catch {}
   }, [symbol]);
 
-  // FIX: Handle timeframe change — clear all indicator series to prevent "Value is null"
+  // Handle timeframe change
   useEffect(() => {
     overlaySeriesRef.current.forEach(s => { try { chartInstanceRef.current?.removeSeries(s); } catch {} });
     overlaySeriesRef.current.clear();

@@ -105,6 +105,7 @@ function SidebarProvider({
       }
     }
 
+    if (isMobile) return;
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [toggleSidebar])

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useChart } from '@/hooks/useChart';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { ChartToolbar } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { TIMEFRAMES, CHART_COLORS } from '@/lib/chart-types';
@@ -49,21 +50,24 @@ interface RouaChartProps {
   onExpand?: (() => void) | null;
 }
 
-export function RouaChart({ mobile, compact, hideToolbar, onExpand }: RouaChartProps) {
+export function RouaChart({ compact, hideToolbar, onExpand }: RouaChartProps) {
   const { selectedSymbol, timeframe, setTimeframe } = useSymbolStore();
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const containerElRef = useRef<HTMLDivElement>(null);
 
+  // FIX: اكتشاف الجوال داخلياً بدلاً من الاعتماد على prop خارجي
+  // هذا يضمن التكيف حتى لو لم يُمرَّر mobile prop
+  const isMobile = useIsMobile();
+
   const chart = useChart({
     symbol: selectedSymbol,
     timeframe,
     onCrosshairMove: setCrosshairData,
-    mobile,
+    // تمرير isMobile المكتشف للـ hook
+    mobile: isMobile,
   });
 
-  // Fetch candles when symbol or timeframe changes
-  // Using chart.setCandles from the hook — suppress lint for ref-in-deps
   const setCandles = chart.setCandles;
 
   useEffect(() => {
@@ -92,6 +96,15 @@ export function RouaChart({ mobile, compact, hideToolbar, onExpand }: RouaChartP
     return () => document.removeEventListener('fullscreenchange', handleFsChange);
   }, []);
 
+  // FIX: حساب الارتفاع الأدنى بوحدات vh لاحترام أحجام الشاشات المختلفة
+  // iPhone SE (667px): 400px = 60% من الشاشة — كثير جداً
+  // استخدام min() يضمن عدم تجاوز نسبة معينة من الشاشة
+  const minHeightStyle = compact
+    ? 'min(250px, 35vh)'
+    : isMobile
+      ? 'min(320px, 50vh)'  // على الجوال: أقصى 50% من ارتفاع الشاشة
+      : 'min(500px, 60vh)'; // على الديسكتوب: أكثر مساحة
+
   return (
     <div
       ref={containerElRef}
@@ -103,10 +116,10 @@ export function RouaChart({ mobile, compact, hideToolbar, onExpand }: RouaChartP
         overflow: 'hidden',
         width: '100%',
         height: '100%',
-        minHeight: compact ? 250 : 400,
+        minHeight: minHeightStyle,
       }}
     >
-      {/* Toolbar — no "trader mode" field */}
+      {/* FIX: تمرير isMobile للـ Toolbar لتكييف التخطيط والأزرار */}
       {!hideToolbar && (
         <ChartToolbar
           symbol={selectedSymbol}
@@ -114,13 +127,18 @@ export function RouaChart({ mobile, compact, hideToolbar, onExpand }: RouaChartP
           onTimeframeChange={setTimeframe}
           onToggleFullscreen={handleToggleFullscreen}
           isFullscreen={isFullscreen}
+          isMobile={isMobile}
         />
       )}
 
-      {/* Crosshair info bar */}
-      <CrosshairOverlay data={crosshairData} symbol={selectedSymbol} />
+      {/* FIX: تمرير isMobile للـ CrosshairOverlay لتبديل التخطيط */}
+      <CrosshairOverlay
+        data={crosshairData}
+        symbol={selectedSymbol}
+        isMobile={isMobile}
+      />
 
-      {/* Chart canvas — fills remaining space */}
+      {/* Chart canvas */}
       <div
         ref={chart.containerRef as React.Ref<HTMLDivElement>}
         className="flex-1 relative"

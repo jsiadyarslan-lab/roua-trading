@@ -1,24 +1,27 @@
 import type { Metadata, Viewport } from 'next'
-import { getTranslations, setRequestLocale } from 'next-intl/server'
+import { setRequestLocale } from 'next-intl/server'
+import { getDirection } from '@/lib/i18n-utils'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
-import { getDirection } from '@/lib/i18n-utils'
+import { AuthInitializer } from '@/components/dashboard/AuthInitializer'
+import { GlobalLogicEngine } from '@/components/dashboard/GlobalLogicEngine'
+import { NotificationToasts } from '@/components/dashboard/NotificationCenter'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 import BottomNav from './BottomNav'
 import '@/styles/mobile.css'
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ locale: string }>;
-}): Promise<Metadata> {
-  const { locale } = await params
-  const t = await getTranslations({ locale, namespace: 'mobile' })
-  return { title: t('title') }
+export const metadata: Metadata = {
+  title: 'رؤى',
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'رؤى' },
 }
 
 export const viewport: Viewport = {
-  themeColor: '#000000', width: 'device-width', initialScale: 1,
-  maximumScale: 1, userScalable: false, viewportFit: 'cover',
+  themeColor: '#060A14',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
 }
 
 export default async function MobileLayout({
@@ -35,10 +38,15 @@ export default async function MobileLayout({
   return (
     <MarketProvider>
       <AuthGuard>
-        <div className="m-shell" style={{ direction: dir }}>
-          <main className="m-main">{children}</main>
-        </div>
-        <BottomNav />
+        <ErrorBoundary>
+          <AuthInitializer />
+          <GlobalLogicEngine />
+          <NotificationToasts />
+          <div className="m-shell" style={{ direction: dir }}>
+            <main className="m-main">{children}</main>
+            <BottomNav />
+          </div>
+        </ErrorBoundary>
       </AuthGuard>
     </MarketProvider>
   )

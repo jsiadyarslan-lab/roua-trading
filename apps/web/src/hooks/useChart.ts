@@ -384,7 +384,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         timeVisible: true,
         secondsVisible: true,
         rightOffset: isMobile ? 3 : 5,
-        barSpacing: isMobile ? 8 : 14,
+        // FIX: barSpacing 8 gives proper candle bodies while showing enough data.
+        // 14 was too large → only 20-25 candles visible on small screens.
+        // 6 is the minimum for visible candle bodies (below = dots/lines).
+        barSpacing: 8,
         minBarSpacing: isMobile ? 4 : 5,
       },
       handleScroll: { vertTouchDrag: !isMobile },
@@ -1710,12 +1713,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       return;
     }
 
-    // FIX: Show only the last ~120 candles instead of fitting ALL candles.
-    // fitContent() with 300+ candles compresses barSpacing below 4px,
-    // causing candle bodies to disappear (appear as dots/lines).
-    // With ~120 candles, barSpacing stays ≥ 8px → proper candle bodies.
-    const MAX_VISIBLE_CANDLES = isMobile ? 80 : 120;
-    const fromIdx = Math.max(0, candles.length - MAX_VISIBLE_CANDLES);
+    // FIX: Calculate how many candles fit with barSpacing ≥ 6 (minimum for
+    // visible candle bodies). fitContent() would compress ALL 300 candles
+    // into the chart width, making barSpacing < 4 → candles appear as dots.
+    // Instead, show the last N candles that fit properly, and let the user
+    // scroll left to see older data.
+    const MIN_BODY_SPACING = 6; // Minimum barSpacing for visible candle bodies
+    const container = containerRef.current;
+    const chartWidth = container?.clientWidth || 800;
+    const maxCandlesThatFit = Math.floor(chartWidth / MIN_BODY_SPACING);
+
+    // Show last N candles that fit well, but at least 60 and at most all candles
+    const visibleCount = Math.max(60, Math.min(candles.length, maxCandlesThatFit));
+    const fromIdx = Math.max(0, candles.length - visibleCount);
     const fromTime = candles[fromIdx].time as Time;
     const toTime = candles[candles.length - 1].time as Time;
 
@@ -1725,7 +1735,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // Fallback: if setVisibleRange fails (e.g., data not ready), use fitContent
       chart.timeScale().fitContent();
     }
-  }, [isMobile]);
+  }, []);
 
   // ── Export ─────────────────────────────────────────────
   const exportPNG = useCallback(() => {

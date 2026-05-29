@@ -13,19 +13,19 @@
   "dir": "rtl",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/pwa-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/pwa-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/pwa-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -36,25 +36,25 @@
       "name": "لوحة المتابعة",
       "short_name": "المتابعة",
       "url": "/ar/dashboard",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "التداول",
       "short_name": "تداول",
       "url": "/ar/dashboard/trading",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "ماسح السوق",
       "short_name": "ماسح",
       "url": "/ar/dashboard/scanner",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "الذكاء الاصطناعي",
       "short_name": "AI",
       "url": "/ar/dashboard/ai",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

@@ -1,10 +1,10 @@
-const CACHE_NAME = 'roua-v209-pwa-beforefiles';
+const CACHE_NAME = 'roua-v213-pwa-new-icons';
 
 const APP_SHELL = [
   '/manifest.json',
   '/favicon.svg',
-  '/icon-192.png',
-  '/icon-512.png',
+  '/pwa-icon-192.png',
+  '/pwa-icon-512.png',
   '/offline.html',
 ];
 
@@ -38,8 +38,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: 'رؤى للتداول',
     body: 'لديك إشعار جديد',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
+    icon: '/pwa-icon-192.png',
+    badge: '/pwa-icon-192.png',
     tag: 'roua-notification',
     data: {},
   };

@@ -105,12 +105,12 @@ export async function generateMetadata({
     applicationName: "رؤى",
     icons: {
       icon: [
-        { url: '/icon-192.png', type: 'image/png', sizes: '192x192' },
-        { url: '/icon-512.png', type: 'image/png', sizes: '512x512' },
+        { url: '/pwa-icon-192.png', type: 'image/png', sizes: '192x192' },
+        { url: '/pwa-icon-512.png', type: 'image/png', sizes: '512x512' },
         { url: '/favicon.svg', type: 'image/svg+xml' },
       ],
       apple: [
-        { url: '/icon-192.png', sizes: '192x192' },
+        { url: '/pwa-icon-192.png', sizes: '192x192' },
       ],
     },
     alternates: {

@@ -7,11 +7,22 @@ const intlMiddleware = createMiddleware(routing);
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // PWA CRITICAL: Static assets MUST bypass locale routing.
 // The next-intl middleware with localePrefix: 'always' redirects
-// /icon-192.png → /ar/icon-192.png (307) which breaks PWA.
+// /pwa-icon-192.png → /ar/pwa-icon-192.png (307) which breaks PWA.
+//
+// SOLUTION: Rewrite PWA asset URLs to the /api/pwa-asset route
+// BEFORE intlMiddleware processes them. Use new URL() constructor
+// to properly separate pathname and query parameters.
+//
+// NOTE: We use /pwa-icon-*.png instead of /icon-*.png because
+// the old /icon-192.png URL was cached as a 307 redirect by
+// Railway's CDN edge proxy (from the old headers() config with
+// max-age=86400). New filenames bypass this cached redirect.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 // PWA static files that must be served without locale redirect
 const PWA_ASSETS = [
+  '/pwa-icon-192.png',
+  '/pwa-icon-512.png',
   '/icon-192.png',
   '/icon-512.png',
   '/logo-192.png',
@@ -21,20 +32,19 @@ const PWA_ASSETS = [
   '/offline.html',
 ];
 
-// Regex for static file extensions (images, fonts, etc.)
+// Regex for static file extensions
 const STATIC_FILE_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|xml|txt|map|wasm)$/i;
 
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // ── BYPASS 1: PWA-critical files — rewrite to API route ──
-  // Must use URL constructor to properly separate pathname and search params!
   if (PWA_ASSETS.includes(pathname)) {
     const url = new URL(`/api/pwa-asset?file=${pathname.slice(1)}`, request.url);
     return NextResponse.rewrite(url);
   }
 
-  // ── BYPASS 2: Static files with extensions (not in PWA list) ──
+  // ── BYPASS 2: Static files with extensions ──
   if (STATIC_FILE_REGEX.test(pathname)) {
     return NextResponse.next();
   }
@@ -49,7 +59,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Apply next-intl locale routing for everything else ──
+  // ── Apply next-intl locale routing ──
   return intlMiddleware(request);
 }
 

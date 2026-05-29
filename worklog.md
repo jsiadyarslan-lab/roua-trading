@@ -107,3 +107,31 @@ Stage Summary:
 - rAF batching reduces chart updates to max 60/s regardless of WS message rate
 - Data conflation enabled for zoomed-out views with 10K+ data points
 - All TypeScript errors in modified files resolved
+---
+Task ID: chart-overhaul-1
+Agent: main
+Task: Comprehensive chart system overhaul — fix candles-as-dots + performance + code quality
+
+Work Log:
+- Created chart-utils.ts shared utility file with sanitizeTime, isValidNumber, binarySearchByTime, CHART_COLORS, MAX_VISIBLE_CANDLES, ThrottledChartUpdater, getStorageKey
+- Fixed candles-as-dots: added conflationThresholdFactor=100 to CandlestickSeries (LWC v5.1+ conflation was merging OHLC data into single points)
+- Added global conflationThresholdFactor=1.0 to timeScale (conflate only when <0.5px per point)
+- Replaced 4 copies of sanitizeTime with shared import from chart-utils.ts
+- Replaced inline isValid/isValidNum with shared isValidNumber
+- Replaced 6+ hardcoded volume colors with SHARED_COLORS constants
+- Added binary search O(log n) in crosshair handler (was O(n) findIndex)
+- Added rAF batching to useChartWebSocket — buffers WS messages, flushes once per frame
+- Added Binance k.x (isKlineClosed) field usage — distinguishes forming vs closed candles
+- Added 24-hour connection rotation — proactively reconnects before Binance 24h cutoff
+- Added MAX_VISIBLE_CANDLES=3000 limit in setCandles
+- Added resetPatternEngineState() to pattern-engine.ts
+- Added resetPatternRendererState() to pattern-renderer.ts
+- Called reset functions from RouaChart on symbol/timeframe change
+- Fixed IndicatorCalculator.ts to use shared sanitizeTimeForIndicator
+
+Stage Summary:
+- 7 files changed, 421 insertions, 76 deletions
+- Commit: 1031bb1b
+- Key fix: conflationThresholdFactor=100 on CandlestickSeries prevents dots
+- Key perf: Binary search + rAF batching + WS k.x field + 24h rotation
+- Key quality: Shared utilities eliminate 4x sanitizeTime, 6+ color duplicates

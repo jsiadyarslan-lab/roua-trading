@@ -66,6 +66,16 @@ export interface PivotResult {
 }
 
 // ── Helper: extract arrays from candles ──────────────────
+// FIX: sanitizeTime ensures every candle's time is a Unix timestamp number (seconds).
+// This prevents the fatal "Cannot update oldest data, last time=[object Object]" error
+// from lightweight-charts when a Date object or string leaks into the time field.
+const sanitizeTime = (t: any): number => {
+  if (typeof t === 'number' && isFinite(t)) return t;
+  if (t instanceof Date) return Math.floor(t.getTime() / 1000);
+  if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : 0; }
+  return 0;
+};
+
 function closes(candles: CandleData[]): number[] {
   return candles.map(c => c.close);
 }
@@ -91,7 +101,7 @@ export async function calcSMA(candles: CandleData[], period: number = 20): Promi
   const ti = await getTI();
   const result = ti.SMA.calculate({ period, values: closes(candles) });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { sma: i < period - 1 ? null : result[i - period + 1] ?? null },
   }));
 }
@@ -101,7 +111,7 @@ export async function calcEMA(candles: CandleData[], period: number = 12): Promi
   const ti = await getTI();
   const result = ti.EMA.calculate({ period, values: closes(candles) });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { ema: i < period - 1 ? null : result[i - period + 1] ?? null },
   }));
 }
@@ -112,10 +122,10 @@ export async function calcBB(candles: CandleData[], period: number = 20, stdDev:
   const result = ti.BollingerBands.calculate({ period, stdDev, values: closes(candles) });
   return candles.map((c, i) => {
     if (i < period - 1 || !result[i - period + 1]) {
-      return { time: c.time, upper: null, middle: null, lower: null };
+      return { time: sanitizeTime(c.time), upper: null, middle: null, lower: null };
     }
     const r = result[i - period + 1];
-    return { time: c.time, upper: r.upper, middle: r.middle, lower: r.lower };
+    return { time: sanitizeTime(c.time), upper: r.upper, middle: r.middle, lower: r.lower };
   });
 }
 
@@ -128,7 +138,7 @@ export function calcVWAP(candles: CandleData[]): OverlayResult[] {
     cumVol += c.volume;
     cumTP += tp * c.volume;
     return {
-      time: c.time,
+      time: sanitizeTime(c.time),
       values: { vwap: cumVol > 0 ? cumTP / cumVol : null },
     };
   });
@@ -140,7 +150,7 @@ export async function calcPSAR(candles: CandleData[], step: number = 0.02, max: 
   const input = candles.map(c => ({ high: c.high, low: c.low, close: c.close }));
   const result = ti.PSAR.calculate({ step, max, high: highs(candles), low: lows(candles) });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { psar: i === 0 ? null : result[i - 1] ?? null },
   }));
 }
@@ -150,7 +160,7 @@ export async function calcRSI(candles: CandleData[], period: number = 14): Promi
   const ti = await getTI();
   const result = ti.RSI.calculate({ period, values: closes(candles) });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { rsi: i < period ? null : result[i - period] ?? null },
   }));
 }
@@ -174,10 +184,10 @@ export async function calcMACD(
   const offset = slow + signal - 2;
   return candles.map((c, i) => {
     if (i < offset || !result[i - offset]) {
-      return { time: c.time, macd: null, signal: null, histogram: null };
+      return { time: sanitizeTime(c.time), macd: null, signal: null, histogram: null };
     }
     const r = result[i - offset];
-    return { time: c.time, macd: r.MACD ?? null, signal: r.signal ?? null, histogram: r.histogram ?? null };
+    return { time: sanitizeTime(c.time), macd: r.MACD ?? null, signal: r.signal ?? null, histogram: r.histogram ?? null };
   });
 }
 
@@ -197,10 +207,10 @@ export async function calcStochastic(
   });
   return candles.map((c, i) => {
     if (i < kPeriod - 1 || !result[i - kPeriod + 1]) {
-      return { time: c.time, values: { k: null, d: null } };
+      return { time: sanitizeTime(c.time), values: { k: null, d: null } };
     }
     const r = result[i - kPeriod + 1];
-    return { time: c.time, values: { k: r.k, d: r.d } };
+    return { time: sanitizeTime(c.time), values: { k: r.k, d: r.d } };
   });
 }
 
@@ -214,7 +224,7 @@ export async function calcATR(candles: CandleData[], period: number = 14): Promi
     period,
   });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { atr: i < period ? null : result[i - period] ?? null },
   }));
 }
@@ -230,10 +240,10 @@ export async function calcADX(candles: CandleData[], period: number = 14): Promi
   });
   return candles.map((c, i) => {
     if (i < period * 2 || !result[i - period * 2]) {
-      return { time: c.time, values: { adx: null, pdi: null, mdi: null } };
+      return { time: sanitizeTime(c.time), values: { adx: null, pdi: null, mdi: null } };
     }
     const r = result[i - period * 2];
-    return { time: c.time, values: { adx: r.adx, pdi: r.pdi, mdi: r.mdi } };
+    return { time: sanitizeTime(c.time), values: { adx: r.adx, pdi: r.pdi, mdi: r.mdi } };
   });
 }
 
@@ -247,7 +257,7 @@ export async function calcCCI(candles: CandleData[], period: number = 20): Promi
     period,
   });
   return candles.map((c, i) => ({
-    time: c.time,
+    time: sanitizeTime(c.time),
     values: { cci: i < period - 1 ? null : result[i - period + 1] ?? null },
   }));
 }
@@ -288,7 +298,7 @@ export function calcIchimoku(
     const chikou = i < candles.length - basePeriod ? candles[i].close : null;
 
     results.push({
-      time: candles[i].time,
+      time: sanitizeTime(candles[i].time),
       tenkan,
       kijun,
       senkouA,
@@ -333,7 +343,7 @@ export function calcSuperTrend(
 
   for (let i = 0; i < candles.length; i++) {
     if (atrVals[i] === null) {
-      results.push({ time: candles[i].time, value: null, direction: null });
+      results.push({ time: sanitizeTime(candles[i].time), value: null, direction: null });
       continue;
     }
 
@@ -359,7 +369,7 @@ export function calcSuperTrend(
     prevLower = finalLower;
     prevDirection = direction;
 
-    results.push({ time: candles[i].time, value: supertrend, direction });
+    results.push({ time: sanitizeTime(candles[i].time), value: supertrend, direction });
   }
 
   return results;
@@ -369,7 +379,7 @@ export function calcSuperTrend(
 export function calcPivot(candles: CandleData[]): PivotResult[] {
   return candles.map((c, i) => {
     if (i === 0) {
-      return { time: c.time, pp: null, r1: null, r2: null, r3: null, s1: null, s2: null, s3: null };
+      return { time: sanitizeTime(c.time), pp: null, r1: null, r2: null, r3: null, s1: null, s2: null, s3: null };
     }
     const prev = candles[i - 1];
     const pp = (prev.high + prev.low + prev.close) / 3;
@@ -379,7 +389,7 @@ export function calcPivot(candles: CandleData[]): PivotResult[] {
     const s2 = pp - (prev.high - prev.low);
     const r3 = prev.high + 2 * (pp - prev.low);
     const s3 = prev.low - 2 * (prev.high - pp);
-    return { time: c.time, pp, r1, r2, r3, s1, s2, s3 };
+    return { time: sanitizeTime(c.time), pp, r1, r2, r3, s1, s2, s3 };
   });
 }
 
@@ -394,13 +404,13 @@ export interface DonchianResult {
 export function calcDonchian(candles: CandleData[], period: number = 20): DonchianResult[] {
   return candles.map((c, i) => {
     if (i < period - 1) {
-      return { time: c.time, upper: null, middle: null, lower: null };
+      return { time: sanitizeTime(c.time), upper: null, middle: null, lower: null };
     }
     const slice = candles.slice(i - period + 1, i + 1);
     const upper = Math.max(...slice.map(x => x.high));
     const lower = Math.min(...slice.map(x => x.low));
     const middle = (upper + lower) / 2;
-    return { time: c.time, upper, middle, lower };
+    return { time: sanitizeTime(c.time), upper, middle, lower };
   });
 }
 
@@ -445,7 +455,7 @@ export function toHeikinAshi(candles: CandleData[]): CandleData[] {
     const haHigh = Math.max(c.high, haOpen, haClose);
     const haLow = Math.min(c.low, haOpen, haClose);
 
-    results.push({ time: c.time, open: haOpen, high: haHigh, low: haLow, close: haClose, volume: c.volume });
+    results.push({ time: sanitizeTime(c.time), open: haOpen, high: haHigh, low: haLow, close: haClose, volume: c.volume });
     prevHaOpen = haOpen;
   }
 

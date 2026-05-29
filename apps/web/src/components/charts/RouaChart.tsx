@@ -1740,7 +1740,9 @@ export default function RouaChart({
         <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
 
           {/* Chart Canvas Container — lightweight-charts renders here ONLY */}
-          {/* zIndex stays at 0 always — DrawingRenderer overlay canvas (zIndex: 9999) handles drawing layer correctly */}
+          {/* FIX: z-index is stable at 1. DrawingRenderer canvas (z-index:9999) is INSIDE this
+              container and naturally sits above the lightweight-charts canvas. The overlay layer
+              sibling is always below this container (z-index: 0). No dynamic z-index switching. */}
           <div
             ref={chart.containerRef as any}
             style={{
@@ -1749,13 +1751,15 @@ export default function RouaChart({
               minHeight: 0,
               background: T.bg,
               position: 'relative',
-              zIndex: 0,
+              zIndex: 1,
             }}
           />
 
-          {/* Overlay Layer — sibling of canvas container, always on top */}
-          {/* zIndex: 1 — above chart canvas (0) but below DrawingRenderer overlay (9999) */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 1 }}>
+          {/* Overlay Layer — sibling of canvas container */}
+          {/* FIX: z-index always 0 (below canvas container at 1). When a drawing tool is active,
+              pointerEvents are disabled on trade buttons so DrawingRenderer canvas receives events.
+              No more z-index switching that caused candles to visually disappear. */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 0 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 
@@ -1938,20 +1942,28 @@ export default function RouaChart({
 
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
           </div>{/* ── Overlay Layer close ── */}
-        </div>{/* ── Chart Wrapper close ── */}
 
-        {/* Drawing Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
-        {showDrawingPanel && createPortal(
-          <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={280} minHeight={200}>
-            <DrawingPanel
-              activeTool={chart.activeTool}
-              onSetTool={chart.setTool}
-              onClose={() => setShowDrawingPanel(false)}
-              onClearAll={chart.clearDrawings}
-            />
-          </DraggablePanel>,
-          getPortalRoot()
-        )}
+          {/* FIX: Drawing Panel — rendered INSIDE Chart Wrapper (not portal) so it's positioned
+              relative to the chart container. Uses position:absolute instead of fixed so it
+              stays within chart boundaries even when the chart is in a dashboard grid cell. */}
+          {showDrawingPanel && (
+            <div style={{
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 50,
+              maxHeight: '90%',
+              overflow: 'hidden',
+            }}>
+              <DrawingPanel
+                activeTool={chart.activeTool}
+                onSetTool={chart.setTool}
+                onClose={() => setShowDrawingPanel(false)}
+                onClearAll={chart.clearDrawings}
+              />
+            </div>
+          )}
+        </div>{/* ── Chart Wrapper close ── */}
 
         {/* Indicator Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
         {showIndicatorPanel && createPortal(

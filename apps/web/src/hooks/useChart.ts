@@ -773,12 +773,24 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
 
   // ── Update Last Candle (live tick) ─────────────────────
+  // FIX: sanitizeTime helper ensures time is always a number, never a Date object.
+  const _sanitizeTime = (t: any): number | null => {
+    if (typeof t === 'number' && isFinite(t)) return t;
+    if (t instanceof Date) return Math.floor(t.getTime() / 1000);
+    if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
+    return null;
+  };
+
   const updateLastCandle = useCallback((price: number) => {
     if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
 
     const candles = candlesRef.current;
     const last = candles[candles.length - 1];
-    const updated = { ...last, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
+    // FIX: Sanitize time to prevent "Cannot update oldest data, last time=[object Object]"
+    const lastTime = _sanitizeTime(last.time);
+    if (lastTime === null) return; // Invalid time — skip this update entirely
+
+    const updated = { ...last, time: lastTime, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
     candlesRef.current = [...candles.slice(0, -1), updated]; // Immutable update to avoid stale refs
 
     if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
@@ -792,13 +804,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const haLow = Math.min(updated.low, haOpen, haClose);
       const lastDisplay = { ...updated, open: haOpen, high: haHigh, low: haLow, close: haClose };
       try { candleSeriesRef.current.update({
-        time: lastDisplay.time as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
+        time: lastTime as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
       } as any);
       } catch { /* chart was destroyed between the null check and update */ }
     } else {
       try {
         candleSeriesRef.current.update({
-          time: updated.time as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
+          time: lastTime as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
         } as any);
       } catch { /* chart was destroyed between the null check and update */ }
     }
@@ -806,7 +818,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Update volume — use `updated` (not `last`) for correct color after price change
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.update({
-        time: last.time as Time,
+        time: lastTime as Time,
         value: last.volume,
         color: updated.close >= updated.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
       } as any);
@@ -858,8 +870,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // crashes lightweight-charts with "Value is null".
     const isValid = (v: any): v is number =>
       v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
+    // FIX: Ensure time is always a Unix timestamp number (seconds), never a Date object or string.
+    // This prevents the fatal "Cannot update oldest data, last time=[object Object]" error
+    // from lightweight-charts when indicator data contains Date objects instead of numbers.
+    const sanitizeTime = (t: any): number | null => {
+      if (typeof t === 'number' && isFinite(t)) return t;
+      if (t instanceof Date) return Math.floor(t.getTime() / 1000);
+      if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
+      return null;
+    };
     const cleanData = (data: { time: Time; value: number }[]) =>
-      data.filter(d => isValid(d.time) && isValid(d.value));
+      data.map(d => ({ ...d, time: sanitizeTime(d.time) as Time })).filter(d => isValid(d.time) && isValid(d.value));
 
     const addOverlayLine = (key: string, data: { time: Time; value: number }[], color: string, lineWidth: number = 1, priceLineVisible = false) => {
       const filtered = cleanData(data);
@@ -1376,10 +1397,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Format for lightweight-charts with null/NaN filtering
     // FIX: Filter out any data points with invalid values that would
     // crash lightweight-charts (null, undefined, NaN, Infinity)
+    // Also sanitize time to ensure it's always a Unix timestamp number,
+    // never a Date object or string (prevents "Cannot update oldest data" fatal error).
     const isValidNum = (v: any): v is number =>
       v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
+    const sanitizeTime = (t: any): number | null => {
+      if (typeof t === 'number' && isFinite(t)) return t;
+      if (t instanceof Date) return Math.floor(t.getTime() / 1000);
+      if (typeof t === 'string') { const ts = new Date(t).getTime(); return isFinite(ts) ? Math.floor(ts / 1000) : null; }
+      return null;
+    };
 
     const chartData = displayCandles
+      .map(c => ({ ...c, time: sanitizeTime(c.time) }))
       .filter(c => isValidNum(c.open) && isValidNum(c.high) && isValidNum(c.low) && isValidNum(c.close) && isValidNum(c.time))
       .map(c => ({
         time: c.time as Time,
@@ -1390,6 +1420,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }));
 
     const volumeData = sorted
+      .map(c => ({ ...c, time: sanitizeTime(c.time) }))
       .filter(c => isValidNum(c.volume) && isValidNum(c.time))
       .map(c => ({
         time: c.time as Time,

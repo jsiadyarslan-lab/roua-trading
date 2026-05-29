@@ -176,6 +176,9 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
       <body className={`${fontVars} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <GlobalStyleRegistry />

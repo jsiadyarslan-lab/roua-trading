@@ -1,3 +1,14 @@
+/* body يحتاج height محدد حتى يعمل inset:0 بشكل صحيح */
+html:has(.m-shell) {
+  height: 100dvh;
+  overflow: hidden;
+}
+html:has(.m-shell) body {
+  height: 100dvh;
+  overflow: hidden;
+  position: relative;
+}
+
 /* رؤى Mobile */
 body:has(.m-shell) { position: relative; overflow: hidden; }
 
@@ -17,7 +28,7 @@ body:has(.m-shell) { position: relative; overflow: hidden; }
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
 }

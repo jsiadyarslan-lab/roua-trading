@@ -1,3 +1,11 @@
+/* ── Mobile page: override body/html for full-screen ── */
+html:has(.m-shell),
+html:has(.m-shell) body {
+  overflow: hidden !important;
+  height: 100dvh !important;
+  max-height: 100dvh !important;
+}
+
 /* ═══════════════════════════════════════════
    رؤى — تصميم الجوال
    ═══════════════════════════════════════════ */

@@ -101,10 +101,13 @@ const nextConfig: NextConfig = {
         // API routes are never redirected by middleware
         { source: '/icon-192.png', destination: '/api/pwa-asset?file=icon-192.png' },
         { source: '/icon-512.png', destination: '/api/pwa-asset?file=icon-512.png' },
+        { source: '/apple-touch-icon.png', destination: '/api/pwa-asset?file=apple-touch-icon.png' },
         { source: '/logo-192.png', destination: '/api/pwa-asset?file=logo-192.png' },
         { source: '/logo-512.png', destination: '/api/pwa-asset?file=logo-512.png' },
         { source: '/favicon.ico', destination: '/api/pwa-asset?file=favicon.ico' },
         { source: '/favicon.svg', destination: '/api/pwa-asset?file=favicon.svg' },
+        { source: '/manifest.json', destination: '/api/pwa-asset?file=manifest.json' },
+        { source: '/sw.js', destination: '/api/pwa-asset?file=sw.js' },
         { source: '/offline.html', destination: '/api/pwa-asset?file=offline.html' },
       ],
       afterFiles: [

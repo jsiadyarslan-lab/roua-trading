@@ -1,5 +1,9 @@
-const CACHE_NAME = 'roua-v220-sw-fixed';
+const CACHE_NAME = 'roua-v221-resilient';
 
+// Assets to pre-cache during install.
+// All URLs use paths that BYPASS next-intl middleware:
+//   - /sw.js, /manifest.json, /favicon.svg, /offline.html → served from public/ before middleware
+//   - /api/pwa-asset?file=... → API routes never hit middleware
 const APP_SHELL = [
   '/manifest.json',
   '/favicon.svg',
@@ -8,17 +12,36 @@ const APP_SHELL = [
   '/offline.html',
 ];
 
-// Install: cache static assets
+// ── Install: cache static assets (RESILIENT — one failure doesn't kill the SW) ──
 self.addEventListener('install', (event) => {
+  // skipWaiting FIRST so the new SW activates immediately,
+  // even if caching takes time or partially fails
+  self.skipWaiting();
+
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(APP_SHELL);
+      // Use Promise.allSettled instead of cache.addAll
+      // cache.addAll rejects ENTIRELY if ANY single file fails
+      // Promise.allSettled caches what it can and logs failures
+      return Promise.allSettled(
+        APP_SHELL.map((url) =>
+          fetch(url)
+            .then((response) => {
+              if (response.ok) {
+                return cache.put(url, response);
+              }
+              console.warn('[SW] Failed to cache (non-OK):', url, response.status);
+            })
+            .catch((err) => {
+              console.warn('[SW] Failed to cache:', url, err.message);
+            })
+        )
+      );
     })
   );
-  self.skipWaiting();
 });
 
-// Activate: clean old caches
+// ── Activate: clean old caches + claim clients immediately ──
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -27,13 +50,11 @@ self.addEventListener('activate', (event) => {
           .filter((name) => name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
-    })
+    }).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
 // ── Push Notification Support ──
-
 self.addEventListener('push', (event) => {
   let data = {
     title: 'رؤى للتداول',
@@ -96,10 +117,12 @@ self.addEventListener('notificationclick', (event) => {
 });
 
 // ── Fetch: Smart caching that preserves Next.js routing ──
-
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
+
+  // Only handle same-origin requests
+  if (url.origin !== self.location.origin) return;
 
   // Pass through all RSC requests (Next.js App Router client-side navigation)
   if (
@@ -111,7 +134,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Pass through all API calls and WebSocket - never cache
+  // Pass through all API calls and WebSocket — never cache
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/socket.io')) {
     return;
   }
@@ -121,7 +144,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Cache successful page loads for offline use
           if (response.ok) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
@@ -129,10 +151,16 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // If offline, try cache first, then show offline page
           return caches.match(request).then((cached) => {
             if (cached) return cached;
-            return caches.match('/offline.html');
+            return caches.match('/offline.html').then((offlinePage) => {
+              if (offlinePage) return offlinePage;
+              // Ultimate fallback: return a basic offline response
+              return new Response(
+                '<html><body style="background:#0B0E14;color:#fff;font-family:sans-serif;text-align:center;padding-top:40vh"><h1>لا يوجد اتصال</h1><p>تحقق من اتصال الإنترنت وحاول مرة أخرى</p></body></html>',
+                { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+              );
+            });
           });
         })
     );

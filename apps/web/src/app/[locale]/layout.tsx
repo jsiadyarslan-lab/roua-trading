@@ -8,10 +8,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
 import PWARegistrar from "@/components/PWARegistrar";
 
-/* ── Font Loading via next/font/google ──
- * Loads only the glyphs needed (Arabic subset) with zero layout shift.
- * CSS variables are set so existing font-family references resolve correctly.
- */
 const cairo = { variable: "--font-cairo", className: "" };
 const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
 const ibmPlexSansArabic = { variable: "--font-ibm-plex-ar", className: "" };
@@ -30,16 +26,6 @@ const fontVars = [
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
-// REMOVED: generateStaticParams() — was causing OOM on Railway during build.
-// With 32 locales and 60+ pages, static generation required rendering
-// 1,920+ pages at build time, exceeding Railway's memory limits.
-// Pages are now dynamically rendered (first request → cached by CDN).
-// This has zero impact on user experience — Next.js streams the page
-// on first visit and subsequent visits are served from the route cache.
-//
-// If static generation is needed for SEO on specific pages, add
-// generateStaticParams() to individual page.tsx files with a limited
-// set of locales (e.g., ['ar', 'en', 'fr']).
 export const dynamic = 'force-dynamic';
 
 
@@ -57,7 +43,6 @@ export async function generateMetadata({
   params: Promise<{ locale: string }>;
 }): Promise<Metadata> {
   const { locale } = await params;
-  // Title & description per locale
   const titles: Record<string, string> = {
     ar: "رؤى | منصة ربط الحسابات الذكية",
     en: "Roua | Smart Account Linking Platform",
@@ -110,7 +95,8 @@ export async function generateMetadata({
         { url: '/favicon.svg', type: 'image/svg+xml' },
       ],
       apple: [
-        { url: '/api/pwa-asset?file=icon-192.png', sizes: '192x192' },
+        { url: '/apple-touch-icon.png', sizes: '192x192' },
+        { url: '/api/pwa-asset?file=icon-512.png', sizes: '512x512' },
       ],
     },
     alternates: {
@@ -163,12 +149,10 @@ export default async function LocaleLayout({
 }>) {
   const { locale } = await params;
 
-  // Validate that the incoming locale is supported
   if (!routing.locales.includes(locale as any)) {
     notFound();
   }
 
-  // Enable static rendering for this locale
   setRequestLocale(locale);
 
   const messages = await getMessages();
@@ -177,7 +161,12 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
       <head>
+        {/* iOS PWA: These MUST be in server-rendered HTML, not injected by JS */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="رؤى" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="192x192" />
+        <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${fontVars} antialiased`}>
         <NextIntlClientProvider messages={messages}>

@@ -41,7 +41,7 @@ export async function generateMetadata({
         { url: '/favicon.svg', type: 'image/svg+xml' },
       ],
       apple: [
-        { url: '/api/pwa-asset?file=icon-192.png', sizes: '192x192' },
+        { url: '/apple-touch-icon.png', sizes: '192x192' },
         { url: '/api/pwa-asset?file=icon-512.png', sizes: '512x512' },
       ],
     },

@@ -41,6 +41,15 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-produ
 // set of locales (e.g., ['ar', 'en', 'fr']).
 export const dynamic = 'force-dynamic';
 
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: 'cover',
+  themeColor: '#060A14',
+}
+
 export async function generateMetadata({
   params,
 }: {

@@ -761,6 +761,10 @@ export default function DashboardPage() {
           display: none;
         }
 
+        /* ── New Mobile V2 ── */
+        .m2-shell, .m2-chart-toolbar, .m2-ticker,
+        .m2-bottom-nav, .m2-trade-fab { display: none; }
+
         @media (max-width: 1500px) {
           .dash-grid {
             grid-template-columns: minmax(230px, 260px) minmax(0, 1fr) minmax(280px, 320px);
@@ -786,53 +790,64 @@ export default function DashboardPage() {
             display: none;
           }
 
-          .mobile-dashboard-shell {
-            display: flex;
+          /* ── Mobile V2 shell ── */
+          .m2-shell {
+            display: flex !important;
             flex-direction: column;
-            gap: 0;
-            padding: 6px 6px 0;
-            background: ${T.bg};
-            box-sizing: border-box;
             width: 100%;
-            overflow: hidden;
             height: calc(100dvh - 52px);
+            background: #0A0D13;
+            overflow: hidden;
           }
-
-          .mobile-hero-trading-area {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            min-width: 0;
+          .m2-ticker {
+            display: flex !important;
+            height: 40px;
+            align-items: center;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: none;
+            padding: 0 10px;
+            gap: 2px;
+            flex-shrink: 0;
+            background: rgba(255,255,255,0.012);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+          }
+          .m2-ticker::-webkit-scrollbar { display: none; }
+          .m2-chart-toolbar {
+            display: flex !important;
+            height: 44px;
+            align-items: center;
+            padding: 0 10px;
+            gap: 4px;
+            flex-shrink: 0;
+            background: rgba(14,18,26,0.95);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            overflow-x: auto;
+            scrollbar-width: none;
+          }
+          .m2-chart-toolbar::-webkit-scrollbar { display: none; }
+          .m2-chart-area {
             flex: 1;
+            position: relative;
             min-height: 0;
             overflow: hidden;
           }
-
-          .mobile-market-strip {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 6px;
+          .m2-bottom-nav {
+            display: flex !important;
+            height: 70px;
+            background: rgba(8,11,16,0.98);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            align-items: flex-start;
+            padding: 6px 4px 0;
             flex-shrink: 0;
           }
-
+          /* keep old pill for fallback */
           .mobile-market-pill {
-            min-width: 0;
-            padding: 4px 4px;
-            border-radius: 10px;
-            border: 1px solid rgba(0, 212, 255, 0.12);
-            background: rgba(26, 29, 41, 0.6);
-            backdrop-filter: blur(8px);
-            text-align: center;
-            transition: all 0.2s;
+            display: none;
           }
+          .mobile-dashboard-shell { display: none !important; }
 
-          .mobile-market-pill--active {
-            border-color: rgba(0, 212, 255, 0.35);
-            background: rgba(0, 212, 255, 0.08);
-            box-shadow: 0 0 0 1px rgba(0, 212, 255, 0.08) inset, 0 0 16px rgba(0, 212, 255, 0.06);
-          }
-
-          .mobile-hero-card {
+          .mobile-hero-card-legacy {
             border-radius: 16px;
             overflow: hidden;
             border: 1px solid rgba(0, 212, 255, 0.10);
@@ -1034,6 +1049,32 @@ export default function DashboardPage() {
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false)
+  // Mobile V2 state
+  const timeframe = useSymbolStore(state => state.timeframe)
+  const setTimeframe = useSymbolStore(state => state.setTimeframe)
+  const [m2TradeOpen, setM2TradeOpen] = useState(false)
+  const [m2OrderSide, setM2OrderSide] = useState<'buy'|'sell'>('buy')
+  const [m2Qty, setM2Qty] = useState('0.05')
+  const [m2ConfirmSheet, setM2ConfirmSheet] = useState(false)
+  const [m2ActiveTool, setM2ActiveTool] = useState('cursor')
+  const [m2ShowTf, setM2ShowTf] = useState(false)
+  const [m2ShowInd, setM2ShowInd] = useState(false)
+  const [m2ShowAI, setM2ShowAI] = useState(false)
+  const [m2ActiveTab, setM2ActiveTab] = useState('chart')
+  const [m2ActiveInds, setM2ActiveInds] = useState<string[]>(['RSI', 'EMA 20'])
+  const m2TFs = ['1m','5m','15m','30m','1H','4H','1D','1W']
+  const m2DrawTools = [
+    { id:'cursor', icon:'↖' }, { id:'line', icon:'╱' }, { id:'hline', icon:'─' },
+    { id:'fib', icon:'φ' }, { id:'rect', icon:'▭' }, { id:'text', icon:'T' },
+  ]
+  const m2Indicators = ['RSI','MACD','EMA 20','EMA 50','Bollinger','Volume','ATR','Stoch']
+  const m2NavItems = [
+    { id:'chart', label: tc('chart') || 'الشارت' },
+    { id:'portfolio', label: tc('portfolio') || 'محفظتي' },
+    { id:'scanner', label: tc('scanner') || 'السكانر' },
+    { id:'ai', label: 'AI' },
+    { id:'menu', label: tc('more') || 'المزيد' },
+  ]
 
   // ── Chart Height: Pure CSS flex + explicit resize trigger ──
   // Chart uses flex:1 so it fills remaining space after banner + balance panel.
@@ -1406,98 +1447,411 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {/* ═══════════════════════════════════════════
+           MOBILE V2 — التصميم الجديد
+          ═══════════════════════════════════════════ */}
       {isMobileViewport && (
-        <div className="mobile-dashboard-shell">
-          <div className="mobile-hero-trading-area">
-            {/* Market Strip */}
-            <div className="mobile-market-strip">
-              {mobileSymbols.map(({ symbol, quote }) => {
-                const active = symbol === selectedSymbol
+        <div className="m2-shell">
 
-                return (
-                  <button
-                    key={symbol}
-                    type="button"
-                    onClick={() => setSelectedSymbol(symbol)}
-                    className={`mobile-market-pill${active ? ' mobile-market-pill--active' : ''}`}
-                    style={{ cursor: 'pointer' }}
-                  >
-                    <div style={{ fontSize: 8, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>{symbol}</div>
-                    <div style={{ fontSize: 10, color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", marginTop: 1 }}>
-                      {formatQuotePrice(quote?.price)}
-                    </div>
-                    <div style={{ fontSize: 7, color: getStatusTone(getDataStatus(quote)), marginTop: 1, fontFamily: "'JetBrains Mono', monospace" }}>
-                      {getStatusLabel(getDataStatus(quote), tc)}
-                    </div>
-                  </button>
-                )
-              })}
+          {/* ── TICKER STRIP ── */}
+          <div className="m2-ticker">
+            {['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD','SOL/USD'].map(sym => {
+              const q = globalQuotes[sym]
+              const chgPct = q?.changePercent ?? 0
+              const isUp = chgPct >= 0
+              const active = sym === selectedSymbol
+              return (
+                <button key={sym} type="button"
+                  onClick={() => setSelectedSymbol(sym)}
+                  style={{
+                    display:'flex', alignItems:'center', gap:5,
+                    padding:'3px 9px', borderRadius:7, flexShrink:0, cursor:'pointer',
+                    border: active ? '1px solid rgba(0,212,255,0.35)' : '1px solid transparent',
+                    background: active ? 'rgba(0,212,255,0.07)' : 'transparent',
+                  }}>
+                  <div style={{ display:'flex', flexDirection:'column', gap:0, alignItems:'flex-start' }}>
+                    <span style={{ fontSize:8, color:'rgba(130,150,175,0.65)', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
+                      {sym.split('/')[0]}
+                    </span>
+                    <span style={{ fontSize:11, fontWeight:700, color: isUp?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", lineHeight:1.3 }}>
+                      {chgPct >= 0 ? '+' : ''}{chgPct.toFixed(2)}%
+                    </span>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* ── CHART TOOLBAR ── */}
+          <div className="m2-chart-toolbar">
+            {/* Timeframe */}
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <button type="button"
+                onClick={() => { setM2ShowTf(!m2ShowTf); setM2ShowInd(false); setM2ShowAI(false); }}
+                style={{
+                  height:30, padding:'0 9px', display:'flex', alignItems:'center', gap:3,
+                  background:'rgba(0,212,255,0.1)', border:'1px solid rgba(0,212,255,0.28)',
+                  borderRadius:7, color:'#00D4FF', fontSize:12, fontWeight:800,
+                  fontFamily:"'JetBrains Mono',monospace", cursor:'pointer',
+                }}>
+                {timeframe} <span style={{ fontSize:7 }}>▾</span>
+              </button>
+              {m2ShowTf && (
+                <div style={{
+                  position:'absolute', top:'calc(100% + 5px)', left:0,
+                  background:'#141920', border:'1px solid rgba(255,255,255,0.09)',
+                  borderRadius:10, padding:6, display:'flex', flexWrap:'wrap',
+                  gap:3, width:165, zIndex:200,
+                  boxShadow:'0 10px 30px rgba(0,0,0,0.6)',
+                }}>
+                  {m2TFs.map(tf => (
+                    <button key={tf} type="button"
+                      onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
+                      style={{
+                        padding:'5px 9px', borderRadius:6, cursor:'pointer', fontSize:11,
+                        fontFamily:"'JetBrains Mono',monospace", fontWeight:600,
+                        background: tf===timeframe?'rgba(0,212,255,0.12)':'transparent',
+                        border: tf===timeframe?'1px solid rgba(0,212,255,0.3)':'1px solid transparent',
+                        color: tf===timeframe?'#00D4FF':'#6A7A90',
+                      }}>
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Chart Card — full remaining height */}
-            <div className="mobile-hero-card">
-              <div className="mobile-hero-card__header">
-                {/* Symbol name only - price shown by CrosshairOverlay */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                  <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 10, fontWeight: 800, color: T.cyan }}>{selectedSymbol}</div>
-                </div>
+            {/* Separator */}
+            <div style={{ width:1, height:22, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {/* Execution Zap Button — prominent */}
-                  <button
-                    type="button"
-                    onClick={() => setTradeDialogOpen(true)}
-                    title={t('executeOrders')}
-                    aria-label={t('openExecutionWindow')}
-                    style={{
-                      width: 34, height: 34, borderRadius: 10,
-                      background: 'linear-gradient(135deg, #00FFC6, #0A84FF)',
-                      border: 'none', color: '#fff', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      boxShadow: '0 0 12px rgba(0,255,198,0.3), 0 0 4px rgba(10,132,255,0.2)',
-                      transition: 'transform 0.12s ease, box-shadow 0.2s ease',
-                    }}
-                    onMouseDown={e => e.currentTarget.style.transform = 'scale(0.88)'}
-                    onMouseUp={e => e.currentTarget.style.transform = 'scale(1)'}
-                    onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-                  >
-                    <Zap size={16} fill="white" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setChartExpanded(value => !value)}
-                    title={chartExpanded ? t('collapseChart') : t('expandChart')}
-                    aria-label={chartExpanded ? t('collapseChart') : t('expandChart')}
-                    style={{ background: 'transparent', border: 'none', color: T.text3, cursor: 'pointer', padding: 2 }}
-                  >
-                    <ChevronDown size={14} style={{ transform: chartExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }} />
-                  </button>
-                </div>
+            {/* Drawing tools */}
+            {m2DrawTools.map(dt => (
+              <button key={dt.id} type="button"
+                onClick={() => setM2ActiveTool(dt.id)}
+                title={dt.id}
+                style={{
+                  width:30, height:30, display:'flex', alignItems:'center', justifyContent:'center',
+                  borderRadius:7, cursor:'pointer', fontSize:13, fontFamily:'monospace',
+                  flexShrink:0,
+                  background: m2ActiveTool===dt.id?'rgba(0,212,255,0.12)':'transparent',
+                  border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid transparent',
+                  color: m2ActiveTool===dt.id?'#00D4FF':'#5A6A82',
+                }}>
+                {dt.icon}
+              </button>
+            ))}
+
+            {/* Separator */}
+            <div style={{ width:1, height:22, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
+
+            {/* Indicators */}
+            <button type="button"
+              onClick={() => { setM2ShowInd(!m2ShowInd); setM2ShowTf(false); setM2ShowAI(false); }}
+              style={{
+                height:30, padding:'0 8px', display:'flex', alignItems:'center', gap:4,
+                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
+                background: m2ShowInd?'rgba(167,139,250,0.12)':'transparent',
+                border: m2ShowInd?'1px solid rgba(167,139,250,0.3)':'1px solid transparent',
+                color: m2ShowInd?'#A78BFA':'#5A6A82',
+              }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12h4l3-9 6 18 3-9h4"/></svg>
+              IND
+            </button>
+
+            {/* AI */}
+            <button type="button"
+              onClick={() => { setM2ShowAI(!m2ShowAI); setM2ShowTf(false); setM2ShowInd(false); }}
+              style={{
+                height:30, padding:'0 8px', display:'flex', alignItems:'center', gap:4,
+                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
+                background: m2ShowAI?'rgba(139,92,246,0.15)':'transparent',
+                border: m2ShowAI?'1px solid rgba(139,92,246,0.4)':'1px solid transparent',
+                color: m2ShowAI?'#C4B5FD':'#5A6A82',
+              }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              AI
+            </button>
+
+            <div style={{ flex:1 }}/>
+
+            {/* More */}
+            <button type="button" style={{ width:28, height:30, display:'flex', alignItems:'center', justifyContent:'center', background:'transparent', border:'none', color:'#5A6A82', cursor:'pointer', fontSize:16, flexShrink:0 }}>⋮</button>
+          </div>
+
+          {/* Indicators dropdown */}
+          {m2ShowInd && (
+            <div style={{
+              background:'#10141C', borderBottom:'1px solid rgba(255,255,255,0.06)',
+              padding:'10px 12px', display:'flex', flexWrap:'wrap', gap:6,
+              flexShrink:0,
+            }}>
+              {m2Indicators.map(ind => (
+                <button key={ind} type="button"
+                  onClick={() => setM2ActiveInds(a => a.includes(ind)?a.filter(x=>x!==ind):[...a,ind])}
+                  style={{
+                    padding:'4px 10px', borderRadius:6, cursor:'pointer', fontSize:11,
+                    border: m2ActiveInds.includes(ind)?'1px solid rgba(167,139,250,0.4)':'1px solid rgba(255,255,255,0.08)',
+                    background: m2ActiveInds.includes(ind)?'rgba(167,139,250,0.12)':'rgba(255,255,255,0.03)',
+                    color: m2ActiveInds.includes(ind)?'#A78BFA':'#6A7A90',
+                  }}>
+                  {ind}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* AI dropdown */}
+          {m2ShowAI && (
+            <div style={{
+              background:'#0E1118', borderBottom:'1px solid rgba(139,92,246,0.12)',
+              padding:'12px 16px', flexShrink:0,
+            }}>
+              <div style={{ fontSize:11, color:'#A78BFA', fontWeight:700, marginBottom:8 }}>
+                تحليل ذكي — {selectedSymbol}
               </div>
-
-              {/* Chart — takes all remaining space */}
-              <div className={`mobile-hero-chart${chartExpanded ? ' mobile-hero-chart--expanded' : ''}`}>
-                <RouaChart
-                  currentPrice={currentPrice}
-                  mobile
-                  compact={!chartExpanded}
-                  onExpand={() => setChartExpanded(value => !value)}
-                  isChartFullscreen={chartFullscreen}
-                  onToggleChartFullscreen={toggleChartFullscreen}
-                />
-              </div>
-
-              {/* Summary Strip — always visible below chart */}
-              <div className="mobile-summary-strip" style={{ flexShrink: 0 }}>
-                {mobileSummaryCards.map(card => (
-                  <div key={card.label} className="mobile-summary-card">
-                    <div style={{ fontSize: 9, color: T.text3, marginBottom: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.label}</div>
-                    <div style={{ fontSize: 11, color: card.tone, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{card.value}</div>
+              <div style={{ display:'flex', gap:8, marginBottom:8 }}>
+                {[{l:'شراء',v:'79%',c:'#00FFA3'},{l:'حيادي',v:'11%',c:'#F59E0B'},{l:'بيع',v:'10%',c:'#FF4757'}].map(b => (
+                  <div key={b.l} style={{
+                    flex:1, padding:'7px 0', textAlign:'center', borderRadius:8,
+                    background:`${b.c}18`, border:`1px solid ${b.c}44`,
+                    fontSize:13, fontWeight:700, color:b.c,
+                  }}>
+                    {b.v}<br/><span style={{ fontSize:9, opacity:0.7 }}>{b.l}</span>
                   </div>
                 ))}
               </div>
+              <div style={{ fontSize:10, color:'#4A5568', lineHeight:1.6 }}>
+                دعم قوي عند {currentPrice ? (currentPrice*0.995).toFixed(2) : '—'} · مقاومة عند {currentPrice ? (currentPrice*1.01).toFixed(2) : '—'}
+              </div>
+            </div>
+          )}
+
+          {/* ── CHART AREA ── */}
+          <div className="m2-chart-area">
+
+            {/* Symbol + Price — overlay أعلى الشارت */}
+            <div style={{
+              position:'absolute', top:10, left:10, right:72, zIndex:10,
+              display:'flex', alignItems:'center', gap:8, pointerEvents:'none',
+            }}>
+              <span style={{ fontSize:14, fontWeight:900, color:'#E8ECF4', letterSpacing:'-0.3px', fontFamily:"'Cairo',sans-serif" }}>
+                {selectedSymbol}
+              </span>
+              <span style={{
+                fontSize:19, fontWeight:700,
+                color:'#D8E0EE',
+                fontFamily:"'JetBrains Mono',monospace",
+                letterSpacing:'-0.5px',
+              }}>
+                {currentPrice ? formatQuotePrice(currentPrice) : '—'}
+              </span>
+              {activeQuote?.changePercent !== undefined && (
+                <span style={{
+                  fontSize:11, fontWeight:700,
+                  color: (activeQuote.changePercent ?? 0) >= 0 ? '#00FFA3' : '#FF4757',
+                  background: (activeQuote.changePercent ?? 0) >= 0 ? 'rgba(0,255,163,0.1)' : 'rgba(255,71,87,0.1)',
+                  padding:'1px 6px', borderRadius:5,
+                }}>
+                  {(activeQuote.changePercent ?? 0) >= 0 ? '+' : ''}{(activeQuote.changePercent ?? 0).toFixed(2)}%
+                </span>
+              )}
+            </div>
+
+            {/* ── TRADE FAB — الزاوية العلوية اليسارية من الشارت ── */}
+            <div style={{ position:'absolute', top:42, left:10, zIndex:20 }}>
+              {!m2TradeOpen ? (
+                <button type="button"
+                  onClick={() => setM2TradeOpen(true)}
+                  style={{
+                    display:'flex', alignItems:'center', gap:6,
+                    padding:'7px 14px',
+                    background:'rgba(0,212,255,0.12)',
+                    border:'1px solid rgba(0,212,255,0.35)',
+                    borderRadius:20, color:'#00D4FF', fontSize:12, fontWeight:800,
+                    fontFamily:"'Cairo',sans-serif", cursor:'pointer',
+                    backdropFilter:'blur(8px)',
+                    boxShadow:'0 4px 16px rgba(0,212,255,0.12)',
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+                  تداول
+                </button>
+              ) : (
+                <div style={{
+                  background:'rgba(10,14,20,0.95)',
+                  border:'1px solid rgba(255,255,255,0.1)',
+                  borderRadius:14, padding:'10px',
+                  backdropFilter:'blur(16px)',
+                  boxShadow:'0 8px 32px rgba(0,0,0,0.7)',
+                  minWidth:210,
+                }}>
+                  {/* Header */}
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+                    <span style={{ fontSize:11, color:'#8090A8', fontWeight:600 }}>
+                      تنفيذ سريع · {selectedSymbol}
+                    </span>
+                    <button type="button" onClick={() => setM2TradeOpen(false)}
+                      style={{ background:'none', border:'none', color:'#5A6A82', cursor:'pointer', fontSize:18, lineHeight:1, padding:'0 2px' }}>×</button>
+                  </div>
+
+                  {/* Contract size */}
+                  <div style={{
+                    background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
+                    borderRadius:9, display:'flex', alignItems:'center', overflow:'hidden', marginBottom:8,
+                  }}>
+                    <button type="button"
+                      onClick={() => setM2Qty(q => String(Math.max(0.01, parseFloat(q)-0.01).toFixed(2)))}
+                      style={{ padding:'7px 13px', background:'none', border:'none', color:'#6A7A90', fontSize:18, cursor:'pointer' }}>−</button>
+                    <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:1 }}>
+                      <span style={{ fontSize:15, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>{m2Qty}</span>
+                      <span style={{ fontSize:9, color:'#4A5568' }}>حجم العقد</span>
+                    </div>
+                    <button type="button"
+                      onClick={() => setM2Qty(q => String((parseFloat(q)+0.01).toFixed(2)))}
+                      style={{ padding:'7px 13px', background:'none', border:'none', color:'#6A7A90', fontSize:18, cursor:'pointer' }}>+</button>
+                  </div>
+
+                  {/* Value */}
+                  <div style={{ display:'flex', justifyContent:'space-between', padding:'0 2px', marginBottom:8 }}>
+                    <span style={{ fontSize:10, color:'#4A5568' }}>القيمة</span>
+                    <span style={{ fontSize:11, fontWeight:700, color:'#00D4FF', fontFamily:"'JetBrains Mono',monospace" }}>
+                      {currentPrice ? `$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}` : '—'}
+                    </span>
+                  </div>
+
+                  {/* BUY / SELL */}
+                  <div style={{ display:'flex', gap:6 }}>
+                    <button type="button"
+                      onClick={() => { setM2OrderSide('buy'); setM2TradeOpen(false); setM2ConfirmSheet(true); }}
+                      style={{
+                        flex:1, padding:'9px 0', borderRadius:9, border:'none',
+                        background:'linear-gradient(135deg,#00FFA3,#00D4AA)',
+                        color:'#000', fontSize:13, fontWeight:800,
+                        cursor:'pointer', fontFamily:"'Cairo',sans-serif",
+                        boxShadow:'0 3px 12px rgba(0,255,163,0.28)',
+                      }}>
+                      شراء
+                    </button>
+                    <button type="button"
+                      onClick={() => { setM2OrderSide('sell'); setM2TradeOpen(false); setM2ConfirmSheet(true); }}
+                      style={{
+                        flex:1, padding:'9px 0', borderRadius:9, border:'none',
+                        background:'linear-gradient(135deg,#FF4757,#E8314A)',
+                        color:'#fff', fontSize:13, fontWeight:800,
+                        cursor:'pointer', fontFamily:"'Cairo',sans-serif",
+                        boxShadow:'0 3px 12px rgba(255,71,87,0.28)',
+                      }}>
+                      بيع
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* الشارت */}
+            <RouaChart
+              currentPrice={currentPrice}
+              mobile
+              isChartFullscreen={chartFullscreen}
+              onToggleChartFullscreen={toggleChartFullscreen}
+            />
+
+            {/* Bottom info strip */}
+            <div style={{
+              position:'absolute', bottom:0, left:0, right:0, height:48,
+              background:'linear-gradient(180deg, transparent 0%, rgba(10,13,19,0.97) 50%, #0A0D13 100%)',
+              display:'flex', alignItems:'flex-end', padding:'0 12px 8px', gap:0,
+              pointerEvents:'none',
+            }}>
+              {mobileSummaryCards.map((card, i, arr) => (
+                <div key={card.label} style={{
+                  flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:1,
+                  borderRight: i < arr.length-1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                }}>
+                  <span style={{ fontSize:8, color:'#4A5568' }}>{card.label}</span>
+                  <span style={{ fontSize:12, fontWeight:700, color:card.tone, fontFamily:"'JetBrains Mono',monospace" }}>{card.value}</span>
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* ── BOTTOM NAVBAR ── */}
+          <div className="m2-bottom-nav">
+            {m2NavItems.map(item => {
+              const active = m2ActiveTab === item.id
+              return (
+                <button key={item.id} type="button"
+                  onClick={() => {
+                    setM2ActiveTab(item.id)
+                    if (item.id === 'menu') setSidebarDrawerOpen(true)
+                  }}
+                  style={{
+                    flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+                    padding:'6px 4px', background:'none', border:'none', cursor:'pointer',
+                    position:'relative',
+                  }}>
+                  {active && (
+                    <div style={{
+                      position:'absolute', top:0, left:'50%', transform:'translateX(-50%)',
+                      width:28, height:2,
+                      background:'linear-gradient(90deg,#00D4FF,#00FFA3)',
+                      borderRadius:'0 0 3px 3px',
+                    }}/>
+                  )}
+                  {/* Nav icons */}
+                  {item.id === 'chart' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><rect x="2" y="5" width="4" height="14" rx="1"/><line x1="4" y1="2" x2="4" y2="5"/><line x1="4" y1="19" x2="4" y2="22"/><rect x="10" y="8" width="4" height="9" rx="1"/><line x1="12" y1="4" x2="12" y2="8"/><line x1="12" y1="17" x2="12" y2="21"/><rect x="18" y="6" width="4" height="11" rx="1"/><line x1="20" y1="3" x2="20" y2="6"/><line x1="20" y1="17" x2="20" y2="20"/></svg>}
+                  {item.id === 'portfolio' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>}
+                  {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
+                  {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#A78BFA':'#3A4558'} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
+                  {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
+                  <span style={{ fontSize:9, fontWeight:active?700:400, color:active?'#00D4FF':'#3A4558', fontFamily:"'Cairo',sans-serif" }}>
+                    {item.label}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* ── ORDER CONFIRM SHEET ── */}
+          {m2ConfirmSheet && (
+            <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.65)', backdropFilter:'blur(4px)', zIndex:100, display:'flex', alignItems:'flex-end' }}
+              onClick={() => setM2ConfirmSheet(false)}>
+              <div style={{ width:'100%', background:'#0F1520', borderRadius:'18px 18px 0 0', border:'1px solid rgba(255,255,255,0.07)', borderBottom:'none', padding:'16px 18px 40px' }}
+                onClick={e => e.stopPropagation()}>
+                <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 16px' }}/>
+                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:16 }}>
+                  <span style={{ fontSize:15, fontWeight:800, color:'#E8ECF4', fontFamily:"'Cairo',sans-serif" }}>
+                    تأكيد {m2OrderSide==='buy'?'الشراء':'البيع'} · {selectedSymbol}
+                  </span>
+                  <span style={{ fontSize:13, fontWeight:700, color:'#6A7A90', fontFamily:"'JetBrains Mono',monospace" }}>
+                    {currentPrice ? formatQuotePrice(currentPrice) : '—'}
+                  </span>
+                </div>
+                {[
+                  {l:'نوع الأمر', v:'سوق فوري'},
+                  {l:'حجم العقد', v:m2Qty},
+                  {l:'القيمة الكلية', v:currentPrice?`$${(parseFloat(m2Qty)*currentPrice).toFixed(2)}`:'—'},
+                ].map(row => (
+                  <div key={row.l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                    <span style={{ fontSize:12, color:'#5A6A80' }}>{row.l}</span>
+                    <span style={{ fontSize:12, fontWeight:700, color:'#C8D0DC', fontFamily:"'JetBrains Mono',monospace" }}>{row.v}</span>
+                  </div>
+                ))}
+                <button type="button"
+                  onClick={() => { setTradeDialogOpen(true); setM2ConfirmSheet(false); }}
+                  style={{
+                    width:'100%', marginTop:16, padding:'14px', borderRadius:12, border:'none',
+                    background: m2OrderSide==='buy'?'linear-gradient(135deg,#00FFA3,#00C48C)':'linear-gradient(135deg,#FF4757,#E0283A)',
+                    color: m2OrderSide==='buy'?'#000':'#fff',
+                    fontSize:15, fontWeight:800, cursor:'pointer', fontFamily:"'Cairo',sans-serif",
+                    boxShadow: m2OrderSide==='buy'?'0 6px 24px rgba(0,255,163,0.28)':'0 6px 24px rgba(255,71,87,0.28)',
+                  }}>
+                  تأكيد {m2OrderSide==='buy'?'الشراء':'البيع'}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

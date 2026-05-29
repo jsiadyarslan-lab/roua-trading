@@ -387,10 +387,19 @@ export default function RouaChart({
           close: alignedCandle.close,
           volume: existing.volume + alignedCandle.volume,
         };
+        // PERF: Use incremental update() for existing candles instead of
+        // full setData() replacement. This is O(1) vs O(n) and avoids
+        // destroying/recreating indicator series on every WebSocket tick.
+        // Only the LAST candle (current period) gets updated in real-time.
+        const isLastCandle = idx === candlesRef.current.length - 1;
+        if (isLastCandle) {
+          chart.updateCandle(candlesRef.current[idx]);
+        }
       } else {
         candlesRef.current.push(alignedCandle);
+        // New candle period started — need full setCandles to add the new bar
+        setCandlesRef.current(candlesRef.current);
       }
-      setCandlesRef.current(candlesRef.current);
       // REVOLUTIONARY: Incremental computation update (O(1) per candle)
       try {
         if (incrementalInitializedRef.current) {

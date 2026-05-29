@@ -35,6 +35,7 @@ interface UseChartReturn {
   settings: ChartSettings;
   updateSettings: (updates: Partial<ChartSettings>) => void;
   setCandles: (candles: CandleData[], options?: { clearExternal?: boolean }) => void;
+  updateCandle: (candle: CandleData) => void;
   updateLastCandle: (price: number) => void;
   addIndicator: (indicator: ActiveIndicator) => void;
   removeIndicator: (key: string) => void;
@@ -873,6 +874,65 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         volumeSeriesRef.current.applyOptions({
           visible: settings.showVolume,
         });
+      }
+    }
+  }, [isPaused, settings.type]);
+
+  // ── Fast Incremental Candle Update ─────────────────────
+  // Used by WebSocket onCandleUpdate for updating EXISTING candles.
+  // Uses lightweight-charts' update() API instead of setData() —
+  // this is O(1) instead of O(n) and avoids destroying/recreating
+  // indicator series. Only use this when the candle time already
+  // exists in the data (i.e., the last candle is being updated).
+  // For NEW candles (new time period), use setCandles() instead.
+  const updateCandle = useCallback((candle: CandleData) => {
+    if (isPaused || !candleSeriesRef.current) return;
+
+    const time = _sanitizeTime(candle.time);
+    if (time === null) return;
+
+    const candles = candlesRef.current;
+    const lastCandle = candles[candles.length - 1];
+
+    // Only use incremental update for the LAST candle
+    // (which is the one WebSocket updates in real-time)
+    if (lastCandle && lastCandle.time === time) {
+      // Update the candle in our ref
+      candlesRef.current = [
+        ...candles.slice(0, -1),
+        { ...candle, time },
+      ];
+
+      // Apply Heikin-Ashi transform for the last candle only
+      if (settings.type === 'heikin-ashi') {
+        const prev = candles.length > 1 ? candles[candles.length - 2] : candle;
+        const haClose = (candle.open + candle.high + candle.low + candle.close) / 4;
+        const haOpen = prev === candle ? (candle.open + haClose) / 2 : (prev.open + prev.close) / 2;
+        const haHigh = Math.max(candle.high, haOpen, haClose);
+        const haLow = Math.min(candle.low, haOpen, haClose);
+        try {
+          candleSeriesRef.current.update({
+            time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose,
+          } as any);
+        } catch { /* chart destroyed */ }
+      } else {
+        try {
+          candleSeriesRef.current.update({
+            time: time as Time,
+            open: candle.open, high: candle.high, low: candle.low, close: candle.close,
+          } as any);
+        } catch { /* chart destroyed */ }
+      }
+
+      // Update volume
+      if (volumeSeriesRef.current) {
+        try {
+          volumeSeriesRef.current.update({
+            time: time as Time,
+            value: candle.volume || 0,
+            color: candle.close >= candle.open ? 'rgba(63,185,80,0.25)' : 'rgba(248,81,73,0.25)',
+          } as any);
+        } catch { /* chart destroyed */ }
       }
     }
   }, [isPaused, settings.type]);
@@ -2162,6 +2222,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     settings,
     updateSettings,
     setCandles,
+    updateCandle,
     updateLastCandle,
     addIndicator,
     removeIndicator,

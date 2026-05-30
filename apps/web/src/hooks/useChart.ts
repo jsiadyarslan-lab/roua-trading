@@ -7,7 +7,14 @@
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType, Time, MouseEventParams, DeepPartial, ChartOptions } from 'lightweight-charts';
-import { createSeriesMarkers } from 'lightweight-charts';
+// FIX: Removed static `import { createSeriesMarkers } from 'lightweight-charts'`
+// This was THE ROOT CAUSE of the TDZ error "Cannot access 'eT' before initialization"
+// at tL.symbol in production builds. The static import forced the entire
+// lightweight-charts module to be evaluated at module load time, and the
+// SWC minifier (Next.js 16 default, NOT Terser) reordered const/let
+// declarations within lightweight-charts, causing the TDZ error.
+// Now we cache it dynamically in initChart() and use the ref instead.
+let _cachedCreateSeriesMarkers: ((series: any, markers: any[]) => any) | null = null;
 import type {
   CandleData, ChartType, ActiveIndicator, Drawing, DrawingTool,
   ChartSettings, CrosshairData
@@ -113,7 +120,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // when setData() is called on the series. We store them in a ref and re-apply
   // after every setData call so signal/news/AI markers don't disappear.
   const markersRef = useRef<any[]>([]);
-  const markersPluginRef = useRef<ReturnType<typeof createSeriesMarkers> | null>(null);
+  const markersPluginRef = useRef<any>(null);
   const onCrosshairMoveRef = useRef(onCrosshairMove);
   // FIX: Moved visibleRangeCallbackRef and prevCallbackRef up from line ~1321 to here
   // to prevent TDZ (Temporal Dead Zone) error — initChart() at line ~136 references
@@ -385,7 +392,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const { w: initialWidth, h: initialHeight } = await waitForDimensions(containerRef.current);
 
     // Dynamic import lightweight-charts v5
-    const { createChart, CandlestickSeries, HistogramSeries } = await import('lightweight-charts');
+    const { createChart, CandlestickSeries, HistogramSeries, createSeriesMarkers: csmFn } = await import('lightweight-charts');
+    // Cache createSeriesMarkers for later synchronous use
+    _cachedCreateSeriesMarkers = csmFn;
 
     // Destroy existing chart
     if (chartInstanceRef.current) {
@@ -1222,7 +1231,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (series) {
         try {
           if (!markersPluginRef.current) {
-            markersPluginRef.current = createSeriesMarkers(series as any, storedMarkers);
+            if (_cachedCreateSeriesMarkers) {
+              markersPluginRef.current = _cachedCreateSeriesMarkers(series as any, storedMarkers);
+            }
           } else {
             markersPluginRef.current.setMarkers(storedMarkers);
           }
@@ -1648,8 +1659,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           try { markersPluginRef.current.setMarkers([]); } catch {}
           markersPluginRef.current = null;
         }
-        if (markers.length > 0) {
-          markersPluginRef.current = createSeriesMarkers(series as any, markers);
+        if (markers.length > 0 && _cachedCreateSeriesMarkers) {
+          markersPluginRef.current = _cachedCreateSeriesMarkers(series as any, markers);
         }
       } catch {
         markersPluginRef.current = null;

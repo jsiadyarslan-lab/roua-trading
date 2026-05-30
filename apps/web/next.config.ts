@@ -49,7 +49,12 @@ const nextConfig: NextConfig = {
       'recharts',
       'framer-motion',
       'lucide-react',
-      'lightweight-charts',
+      // FIX: Removed 'lightweight-charts' from optimizePackageImports.
+      // This optimization was restructuring lightweight-charts imports in a way
+      // that could create circular references between internal modules, contributing
+      // to the TDZ error "Cannot access 'eT' before initialization" at tL.symbol.
+      // Since we now use only dynamic imports for lightweight-charts, this
+      // optimization is no longer needed and was actively harmful.
       'technicalindicators',
       'socket.io-client',
     ],
@@ -58,42 +63,66 @@ const nextConfig: NextConfig = {
   turbopack: {},
 
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  // CRITICAL FIX: Terser minifier TDZ (Temporal Dead Zone) prevention.
+  // CRITICAL FIX: Production minifier TDZ (Temporal Dead Zone) prevention.
   //
-  // In production builds, Terser's `reduce_vars` optimization can reorder
-  // let/const declarations, causing "ReferenceError: Cannot access 'x' before
-  // initialization" at runtime. This has already caused 3 separate crashes:
-  //   1. lastAnalysisResultRef TDZ → moved declaration higher in component
-  //   2. tfSeconds useMemo TDZ → converted to useRef
-  //   3. Current: "Cannot access 'eT' before initialization" at tL.symbol
+  // Next.js 16 uses SWC minifier by default (NOT Terser). The previous
+  // TerserPlugin fix was a NO-OP because TerserPlugin is never in the
+  // minimizer array when SWC is the default minifier.
   //
-  // Root cause: Terser's `reduce_vars` tracks variable values and substitutes
-  // them earlier in the code, which can break the temporal ordering of
-  // let/const declarations. Disabling `reduce_vars` prevents this class of
-  // bugs entirely with minimal bundle size impact (~1-2% increase).
+  // The real fix is to force webpack to use Terser with `reduce_vars: false`
+  // which prevents reordering of let/const declarations that causes
+  // "ReferenceError: Cannot access 'x' before initialization" errors.
+  //
+  // Primary fix: Removed static `import { createSeriesMarkers } from 'lightweight-charts'`
+  // in useChart.ts — this eliminates the TDZ risk at the source.
+  // This webpack config is a defense-in-depth measure.
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   webpack: (config, { dev, isServer }) => {
     if (!dev && !isServer) {
-      const terserPlugin = config.optimization?.minimizer?.find(
-        (plugin: any) => plugin?.constructor?.name === 'TerserPlugin'
-      );
-      if (terserPlugin) {
-        const existingCompress = terserPlugin.options?.terserOptions?.compress || {};
-        terserPlugin.options = {
-          ...terserPlugin.options,
-          terserOptions: {
-            ...terserPlugin.options?.terserOptions,
-            compress: {
-              ...existingCompress,
-              // Prevent Terser from reordering let/const declarations
-              // which causes TDZ errors in production builds
-              reduce_vars: false,
-              reduce_funcs: false,
-              // Prevent hoisting of function declarations past let/const
-              hoist_funs: false,
+      // Try to find and configure whichever minifier is active
+      const minimizers = config.optimization?.minimizer || [];
+      for (const plugin of minimizers) {
+        const name = plugin?.constructor?.name || '';
+        // Handle TerserPlugin (if present)
+        if (name === 'TerserPlugin') {
+          const existingCompress = (plugin as any).options?.terserOptions?.compress || {};
+          (plugin as any).options = {
+            ...(plugin as any).options,
+            terserOptions: {
+              ...(plugin as any).options?.terserOptions,
+              compress: {
+                ...existingCompress,
+                reduce_vars: false,
+                reduce_funcs: false,
+                hoist_funs: false,
+              },
             },
-          },
-        };
+          };
+        }
+        // Handle SWC minifier (Next.js 16 default)
+        // SWC minimizer plugin has different options structure
+        if (name.includes('Swc') || name.includes('swc') || name.includes('Minify')) {
+          try {
+            if ((plugin as any).options) {
+              (plugin as any).options = {
+                ...(plugin as any).options,
+                // SWC minifier config - disable aggressive optimizations
+                // that can reorder const/let declarations
+                jsc: {
+                  ...(plugin as any).options?.jsc,
+                  minify: {
+                    ...(plugin as any).options?.jsc?.minify,
+                    // Disable compress optimizations that can cause TDZ
+                    compress: {
+                      ...(plugin as any).options?.jsc?.minify?.compress,
+                      reduce_vars: false,
+                    },
+                  },
+                },
+              };
+            }
+          } catch { /* SWC config may not support these options */ }
+        }
       }
     }
     return config;

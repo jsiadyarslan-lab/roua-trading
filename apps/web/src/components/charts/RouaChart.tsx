@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { getPortalRoot } from '@/lib/portal-root';
 import { useChart } from '@/hooks/useChart';
@@ -35,6 +35,9 @@ import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 import { SmartGrid } from './SmartGrid';
+import { ChartPanel } from './ChartPanel';
+import { useMultiChartStore, LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries } from '@/hooks/useMultiChartStore';
+import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
 import { AlertPanel } from './AlertPanel';
@@ -192,6 +195,17 @@ export default function RouaChart({
   const [compareSymbol, setCompareSymbol] = useState('');
   const [showSmartGrid, setShowSmartGrid] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  // ── Multi-Chart State ──
+  const multiChartLayout = useMultiChartStore(s => s.layout);
+  const isMultiChart = useMultiChartStore(s => s.isMultiChart);
+  const activeChartId = useMultiChartStore(s => s.activeChartId);
+  const charts = useMultiChartStore(s => s.charts);
+  const addChart = useMultiChartStore(s => s.addChart);
+  const removeChart = useMultiChartStore(s => s.removeChart);
+  const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
+  const changeLayout = useMultiChartStore(s => s.changeLayout);
+  const resetToSingle = useMultiChartStore(s => s.resetToSingle);
+  const [showLayoutSelector, setShowLayoutSelector] = useState(false);
   // ── 5 New Feature States ──
   const [showFootprint, setShowFootprint] = useState(false);
   const [showAlerts, setShowAlerts] = useState(false);
@@ -559,6 +573,23 @@ export default function RouaChart({
     },
     enabled: !chart.isPaused,
   });
+
+  // ── Multi-Chart: Automatic Crosshair + Scroll Sync ──
+  // Builds chart entry list from registry for sync hook
+  const syncEntries = useMemo(() => {
+    const entries: Array<{ id: string; chart: any; mainSeries: any }> = [];
+    const chartMap = getAllChartInstances();
+    const seriesMap = getAllMainSeries();
+    chartMap.forEach((chartInstance, id) => {
+      const series = seriesMap.get(id);
+      if (chartInstance && series) {
+        entries.push({ id, chart: chartInstance, mainSeries: series });
+      }
+    });
+    return entries;
+  }, [charts.length, isMultiChart]); // Rebuild when chart count changes
+
+  useChartSync(syncEntries);
 
   // ═══════════════════════════════════════════════════════════════════
   // CRITICAL FIX: Periodic overlay refresh timer.
@@ -1805,11 +1836,118 @@ export default function RouaChart({
         showAIStream={showAIStream}
         onToggleAIStream={() => setShowAIStream(!showAIStream)}
         priceAlertsCount={priceAlertsCount}
+        // ── Multi-Chart Toolbar Props ──
+        isMultiChart={isMultiChart}
+        onAddChart={() => addChart(selectedSymbol, timeframe)}
+        onRemoveChart={() => removeChart(activeChartId)}
+        onToggleLayoutSelector={() => setShowLayoutSelector(!showLayoutSelector)}
+        showLayoutSelector={showLayoutSelector}
+        chartCount={charts.length}
       />}
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
-        {/* OHLC Overlay */}
+
+        {/* ── Multi-Chart Mode: Grid Layout ── */}
+        {isMultiChart && (() => {
+          const meta = LAYOUT_METAS[multiChartLayout];
+          const visibleCharts = charts.slice(0, meta.cols * meta.rows);
+          return (
+            <div style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'grid',
+              gridTemplateColumns: `repeat(${meta.cols}, 1fr)`,
+              gridTemplateRows: `repeat(${meta.rows}, 1fr)`,
+              gap: 3,
+              padding: 2,
+              background: T.bg,
+              position: 'relative',
+            }}>
+              {visibleCharts.map(cell => (
+                <ChartPanel
+                  key={cell.id}
+                  chartId={cell.id}
+                  symbol={cell.symbol}
+                  timeframe={cell.timeframe}
+                  chartType={cell.chartType}
+                  isActive={activeChartId === cell.id}
+                  onActivate={() => setActiveChartId(cell.id)}
+                  onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
+                  canClose={charts.length > 1}
+                />
+              ))}
+            </div>
+          );
+        })()}
+
+        {/* ── Layout Selector Dropdown ── */}
+        {showLayoutSelector && isMultiChart && (
+          <div style={{
+            position: 'absolute',
+            top: 44,
+            right: 60,
+            background: '#151A22',
+            border: '1px solid rgba(0,212,255,0.2)',
+            borderRadius: 10,
+            padding: 10,
+            zIndex: 99999,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.8)',
+          }}>
+            <div style={{ fontSize: 9, color: '#4B5563', letterSpacing: 1, marginBottom: 8, textAlign: 'center', fontFamily: "'Cairo', sans-serif" }}>
+              تخطيط الشارت
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+              {(Object.entries(LAYOUT_METAS) as [LayoutConfig, typeof LAYOUT_METAS[LayoutConfig]][]).map(([key, m]) => {
+                const isActive = multiChartLayout === key;
+                return (
+                  <button
+                    key={key}
+                    onClick={() => {
+                      changeLayout(key, selectedSymbol, timeframe);
+                      setShowLayoutSelector(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 3,
+                      background: isActive ? 'rgba(0,212,255,0.15)' : 'rgba(255,255,255,0.03)',
+                      border: isActive ? '1px solid rgba(0,212,255,0.4)' : '1px solid rgba(255,255,255,0.06)',
+                      borderRadius: 6,
+                      padding: '6px 4px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={e => {
+                      if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(0,212,255,0.08)';
+                    }}
+                    onMouseLeave={e => {
+                      if (!isActive) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
+                    }}
+                  >
+                    <span style={{
+                      color: isActive ? '#00D4FF' : '#8B92A8',
+                      fontSize: 10,
+                      fontWeight: isActive ? 700 : 500,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>
+                      {m.label}
+                    </span>
+                    <span style={{ color: '#4B5563', fontSize: 7 }}>
+                      {m.cols * m.rows}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ── Single Chart Mode (original) ── */}
+        {!isMultiChart && (
+          <>
+            {/* OHLC Overlay */}
         <CrosshairOverlay
           symbol={selectedSymbol}
           currentPrice={currentPrice}
@@ -2048,6 +2186,8 @@ export default function RouaChart({
             </div>
           )}
         </div>{/* ── Chart Wrapper close ── */}
+          </> /* ── Single Chart Mode close ── */
+        )}
 
         {/* Indicator Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
         {showIndicatorPanel && createPortal(

@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts';
-import type { ChartSettings, ActiveIndicator, Drawing, ChartType, DrawingTool } from '@/lib/charts/types';
+import type { ChartType, DrawingTool } from '@/lib/charts/types';
 
 // ── Chart Control API ────────────────────────────────────
 // This is the interface that RouaChart (in mini mode) exposes so the main
@@ -32,56 +32,6 @@ export interface ChartControlAPI {
   addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
   removePriceLine: (id: string) => void;
   setCrosshairMode: (enabled: boolean) => void;
-  // ── Panel toggles (for main toolbar → active mini chart routing) ──
-  toggleDrawings: () => void;
-  toggleIndicators: () => void;
-  toggleAIPanel: () => void;
-  toggleVolumeProfile: () => void;
-  toggleChartTrading: () => void;
-  toggleTemplateManager: () => void;
-  toggleWatchlist: () => void;
-  toggleChartSettings: () => void;
-  toggleCompare: () => void;
-  toggleFootprint: () => void;
-  toggleAlerts: () => void;
-  togglePatternProgress: () => void;
-  toggleReplay: () => void;
-  toggleHeatmap: () => void;
-  toggleAIStream: () => void;
-  toggleShare: () => void;
-  // ── Symbol control ──
-  setSymbol: (symbol: string) => void;
-  // ── Template control ──
-  saveTemplate: (name: string) => void;
-  loadTemplate: (id: string) => void;
-  getTemplates: () => any[];
-  // ── Grid Template state export/import ──
-  getChartState: () => CellChartState;
-  applyChartState: (state: CellChartState) => void;
-  // ── Panel state getters (for toolbar highlight state) ──
-  isAIPanelOpen: boolean;
-  isVolumeProfileOpen: boolean;
-  isChartTradingOpen: boolean;
-  isWatchlistOpen: boolean;
-  isCompareOpen: boolean;
-  isFootprintOpen: boolean;
-  isAlertsOpen: boolean;
-  isPatternProgressOpen: boolean;
-  isReplayOpen: boolean;
-  isHeatmapOpen: boolean;
-  isAIStreamOpen: boolean;
-  isDrawingPanelOpen: boolean;
-  isIndicatorPanelOpen: boolean;
-}
-
-// ── Cell Chart State (for grid template save/load) ──
-export interface CellChartState {
-  symbol: string;
-  timeframe: string;
-  chartType: ChartType;
-  settings: ChartSettings;
-  indicators: ActiveIndicator[];
-  drawings: Drawing[];
 }
 
 // ── Types ────────────────────────────────────────────────
@@ -160,6 +110,3 @@ export function getChartControl(id: string): ChartControlAPI | undefined {
   return chartControlRegistry.get(id);
 }
 
-export function getAllChartControls(): Map<string, ChartControlAPI> {
-  return chartControlRegistry;
-}

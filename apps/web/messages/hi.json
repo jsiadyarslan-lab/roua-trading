@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 तकनीकी",
       "roleSent": "Sentiment Anlyst",
       "roleDiverge": "विचलन Anlyst",
-      "realAnalysisFrom": "रियल AI विश्लेषण — {ms}ms"
+      "realAnalysisFrom": "रियल AI विश्लेषण — {ms}ms",
+      "recBuy": "खरीदना",
+      "recSell": "बेचना",
+      "recHold": "पकड़ना",
+      "recStrong": "मज़बूत",
+      "recClear": "स्पष्ट",
+      "recProbable": "संभावित",
+      "masterStrategyFormat": "एआई परिषद की सहमति ({models} मॉडल से {roles} भूमिकाएँ): {confidence}% आत्मविश्वास के साथ {recLabel} {recStrength}।",
+      "conflictFewModels": "कुछ मॉडलों ने प्रतिक्रिया नहीं दी - उपलब्ध मॉडल ({models}) आम सहमति पर पहुंच गए।",
+      "conflictBroadCoverage": "भूमिकाएँ व्यापक कवरेज के साथ अपेक्षाकृत संरेखित हैं।",
+      "conflictAligned": "मुख्य भूमिकाएँ अपेक्षाकृत संरेखित हैं।"
     },
     "leaderboard": {
       "title": "Lederbord",

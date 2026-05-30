@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Tekninen",
       "roleSent": "Sentimenttianalyytikko",
       "roleDiverge": "Eroamisen analyytikko",
-      "realAnalysisFrom": "Todellinen AI-analyysi – {ms} ms"
+      "realAnalysisFrom": "Todellinen AI-analyysi – {ms} ms",
+      "recBuy": "Ostaa",
+      "recSell": "Myydä",
+      "recHold": "Pidä",
+      "recStrong": "Vahva",
+      "recClear": "Selkeä",
+      "recProbable": "Todennäköistä",
+      "masterStrategyFormat": "AI Council Consensus ({roles}-roolit {models}-malleista): {recLabel} {recStrength} {confidence} %:n varmuudella.",
+      "conflictFewModels": "Jotkut mallit eivät vastanneet – saatavilla olevat mallit ({models}) pääsivät yksimielisyyteen.",
+      "conflictBroadCoverage": "Roolit ovat suhteellisen linjassa laajan kattavuuden kanssa.",
+      "conflictAligned": "Ydinroolit ovat suhteellisen linjassa."
     },
     "leaderboard": {
       "title": "Tulostaulukko",

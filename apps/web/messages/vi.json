@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Kỹ thuật",
       "roleSent": "Nhà phân tích tình cảm",
       "roleDiverge": "Nhà phân tích phân kỳ",
-      "realAnalysisFrom": "Phân tích AI thực -{ms}ms"
+      "realAnalysisFrom": "Phân tích AI thực -{ms}ms",
+      "recBuy": "Mua",
+      "recSell": "Bán",
+      "recHold": "Giữ",
+      "recStrong": "Mạnh",
+      "recClear": "Thông thoáng",
+      "recProbable": "Có thể",
+      "masterStrategyFormat": "Sự đồng thuận của Hội đồng AI (vai trò {roles} từ các mô hình {models}): {recLabel} {recStrength} với độ tin cậy {confidence}%.",
+      "conflictFewModels": "Một số mô hình không phản hồi - các mô hình có sẵn ({models}) đã đạt được sự đồng thuận.",
+      "conflictBroadCoverage": "Các vai trò tương đối phù hợp với phạm vi bao phủ rộng rãi.",
+      "conflictAligned": "Các vai trò cốt lõi tương đối phù hợp."
     },
     "leaderboard": {
       "title": "Bảng xếp hạng",

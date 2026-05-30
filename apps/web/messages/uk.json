@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Технічний",
       "roleSent": "Аналітик настроїв",
       "roleDiverge": "Дивергентний аналітик",
-      "realAnalysisFrom": "Справжній аналіз AI —{ms}мс"
+      "realAnalysisFrom": "Справжній аналіз AI —{ms}мс",
+      "recBuy": "купити",
+      "recSell": "Продати",
+      "recHold": "Тримайте",
+      "recStrong": "Сильний",
+      "recClear": "ясно",
+      "recProbable": "Ймовірно",
+      "masterStrategyFormat": "Консенсус Ради штучного інтелекту (ролі {roles} з моделей {models}): {recLabel} {recStrength} із впевненістю {confidence}%.",
+      "conflictFewModels": "Деякі моделі не відповіли — доступні моделі ({models}) досягли консенсусу.",
+      "conflictBroadCoverage": "Ролі відносно узгоджені з широким охопленням.",
+      "conflictAligned": "Основні ролі відносно вирівняні."
     },
     "leaderboard": {
       "title": "Таблиця лідерів",

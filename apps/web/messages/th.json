@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 เทคนิค",
       "roleSent": "นักวิเคราะห์ความรู้สึก",
       "roleDiverge": "นักวิเคราะห์ความแตกต่าง",
-      "realAnalysisFrom": "การวิเคราะห์ AI จริง -{ms}ms"
+      "realAnalysisFrom": "การวิเคราะห์ AI จริง -{ms}ms",
+      "recBuy": "ซื้อ",
+      "recSell": "ขาย",
+      "recHold": "ถือ",
+      "recStrong": "แข็งแกร่ง",
+      "recClear": "ชัดเจน",
+      "recProbable": "น่าจะเป็น",
+      "masterStrategyFormat": "ฉันทามติสภา AI (บทบาท {roles} จากรุ่น {models}): {recLabel} {recStrength} พร้อมความมั่นใจ {confidence}%",
+      "conflictFewModels": "บางรุ่นไม่ตอบสนอง — รุ่นที่มี ({models}) บรรลุข้อตกลงร่วมกัน",
+      "conflictBroadCoverage": "บทบาทค่อนข้างสอดคล้องกับความครอบคลุมในวงกว้าง",
+      "conflictAligned": "บทบาทหลักค่อนข้างสอดคล้องกัน"
     },
     "leaderboard": {
       "title": "ลีดเดอร์บอร์ด",

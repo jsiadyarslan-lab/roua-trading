@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Teknikal",
       "roleSent": "Sentiment Analyst",
       "roleDiverge": "Divergence Analyst",
-      "realAnalysisFrom": "Real AI analysis — {ms}ms"
+      "realAnalysisFrom": "Real AI analysis — {ms}ms",
+      "recBuy": "Bumili",
+      "recSell": "Ibenta",
+      "recHold": "Hawakan",
+      "recStrong": "Malakas",
+      "recClear": "Maaliwalas",
+      "recProbable": "Malamang",
+      "masterStrategyFormat": "AI Council Consensus ({roles} roles mula sa {models} models): {recLabel} {recStrength} na may {confidence}% confidence.",
+      "conflictFewModels": "Hindi tumugon ang ilang modelo — naabot ng mga available na modelo ({models}) ang pinagkasunduan.",
+      "conflictBroadCoverage": "Ang mga tungkulin ay medyo naaayon sa malawak na saklaw.",
+      "conflictAligned": "Ang mga pangunahing tungkulin ay medyo nakahanay."
     },
     "leaderboard": {
       "title": "Leaderboard",

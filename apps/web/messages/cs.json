@@ -1537,7 +1537,17 @@
       "httpError": "Chyba HTTP: {status}",
       "roleExec": "Prováděcí stratég",
       "cachedAnalysis": "Analýza uložená v mezipaměti",
-      "models": "6 modelů AI"
+      "models": "6 modelů AI",
+      "recBuy": "Nakoupit",
+      "recSell": "Prodat",
+      "recHold": "Držet",
+      "recStrong": "Silný",
+      "recClear": "Jasný",
+      "recProbable": "Pravděpodobný",
+      "masterStrategyFormat": "AI Council Consensus (role {roles} z modelů {models}): {recLabel} {recStrength} se spolehlivostí {confidence} %.",
+      "conflictFewModels": "Některé modely nereagovaly — dostupné modely ({models}) dosáhly konsensu.",
+      "conflictBroadCoverage": "Role jsou relativně sladěny s širokým pokrytím.",
+      "conflictAligned": "Základní role jsou relativně sladěny."
     },
     "bot": {
       "on": "Na",

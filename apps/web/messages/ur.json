@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 تکنیکی",
       "roleSent": "جذباتی تجزیہ کار",
       "roleDiverge": "اختلافی تجزیہ کار",
-      "realAnalysisFrom": "حقیقی AI تجزیہ — {ms}ms"
+      "realAnalysisFrom": "حقیقی AI تجزیہ — {ms}ms",
+      "recBuy": "خریدیں۔",
+      "recSell": "بیچنا",
+      "recHold": "پکڑو",
+      "recStrong": "مضبوط",
+      "recClear": "صاف",
+      "recProbable": "ممکنہ",
+      "masterStrategyFormat": "AI کونسل کا اتفاق ({models} ماڈلز سے {roles} کردار): {recLabel} {recStrength} {confidence}% اعتماد کے ساتھ۔",
+      "conflictFewModels": "کچھ ماڈلز نے جواب نہیں دیا — دستیاب ماڈلز ({models}) اتفاق رائے پر پہنچ گئے۔",
+      "conflictBroadCoverage": "کردار نسبتاً وسیع کوریج کے ساتھ منسلک ہوتے ہیں۔",
+      "conflictAligned": "بنیادی کردار نسبتاً منسلک ہیں۔"
     },
     "leaderboard": {
       "title": "لیڈر بورڈ",

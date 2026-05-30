@@ -1537,7 +1537,17 @@
       "httpError": "HTTP ত্রুটি: {স্থিতি}",
       "roleExec": "এক্সিকিউশন স্ট্র্যাটেজিস্ট",
       "cachedAnalysis": "ক্যাশে করা বিশ্লেষণ",
-      "models": "৬টি এআই মডেল"
+      "models": "৬টি এআই মডেল",
+      "recBuy": "কিনুন",
+      "recSell": "বিক্রয়",
+      "recHold": "ধরে রাখুন",
+      "recStrong": "শক্তিশালী",
+      "recClear": "পরিষ্কার",
+      "recProbable": "সম্ভাব্য",
+      "masterStrategyFormat": "এআই কাউন্সিল কনসেনসাস ({models} মডেল থেকে {roles} ভূমিকা): {recLabel} {recStrength} {confidence}% আত্মবিশ্বাসের সাথে।",
+      "conflictFewModels": "কিছু মডেল সাড়া দেয়নি — উপলব্ধ মডেল ({models}) ঐক্যমত্যে পৌঁছেছে।",
+      "conflictBroadCoverage": "ভূমিকা তুলনামূলকভাবে বিস্তৃত কভারেজের সাথে সারিবদ্ধ।",
+      "conflictAligned": "মূল ভূমিকা তুলনামূলকভাবে সারিবদ্ধ।"
     },
     "bot": {
       "on": "চালু",

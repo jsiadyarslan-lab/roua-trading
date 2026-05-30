@@ -10,7 +10,7 @@ import { db, ensureDbReady } from '@/lib/db'
 type Vote = 'BUY' | 'SELL' | 'HOLD'
 
 // ── Bilingual text helper for Layer 3 scanner-rules ──
-function L3(lang: 'ar' | 'en' | 'fr' | 'tr' | 'es') {
+function L3(lang: string) {
   if (lang === 'es') return {
     council: 'Consejo',
     techAnalyst: 'Analista Técnico',
@@ -125,6 +125,183 @@ function L3(lang: 'ar' | 'en' | 'fr' | 'tr' | 'es') {
     errorConflict: 'Council fallback activated due to internal error, so no aggressive recommendation is allowed right now.',
     errorMasterStrategy: 'Wait until analysis is complete and the council engine returns to normal operation.',
   }
+  // ── Additional language support ──
+  if (lang === 'de') return {
+    council: 'Rat', techAnalyst: 'Technischer Analyst', sentAnalyst: 'Stimmungsanalyst',
+    riskExpert: 'Risiko-Experte', macroExpert: 'Makro-Experte', patternExpert: 'Muster-Experte', execStrategist: 'Ausführungsstratege',
+    noContextReason: 'Derzeit kann kein zuverlässiger Marktkontext erstellt werden, daher wurde die Empfehlung auf Warten herabgestuft, bis die Daten zurückkehren.',
+    councilProtection: 'Der Rat hat den Schutzmodus aktiviert, da die Marktdaten unzureichend oder unzuverlässig waren.',
+    waitUntilAI: 'Auf dieses Symbol warten, bis die KI-Modelle wieder online sind, dann vor einer Entscheidung neu bewerten.',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) => `24h-Änderung ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, mit ${dir}-Kontext im ${tf}-Zeitrahmen.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `Risikoniveau ${spreadRisk}. Datenstatus: ${freshness}. ${!isFresh ? 'Konfidenz wurde nur gesenkt, Signal nicht vollständig storniert.' : 'Berechnetes Risiko ist akzeptabel.'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `Tägl. Zeitrahmen ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `Aktuelle Gelegenheitsklassifikation ${signalClass} mit Tendenz ${entryBias}. Bereichserweiterung ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `Regime: Tägl. ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Hoch', medium: 'Mittel', low: 'Niedrig',
+    recBuy: 'Kaufen', recSell: 'Verkaufen', recHold: 'Halten',
+    recStrong: 'Stark', recClear: 'Klar', recProbable: 'Wahrscheinlich',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `Ratskonsens (${totalModels} Modelle): ${recLabel} ${recStrength} mit ${consensusScore}% Konfidenz.`,
+    conflictCounterTrend: 'Es gibt einen Konflikt zwischen dem übergeordneten Zeitrahmen und dem kurzfristigen Auslöser, aber der aktuelle Momentum reicht aus, um den Rat vorsichtig zu halten.',
+    conflictRiskVsTech: 'Die technische Analyse sieht eine Chance, aber die Risikoschicht hat die Aggression aufgrund von Datenqualität oder Volatilität reduziert.',
+    conflictBalanced: 'Die Kernrollen sind ausgewogen, daher begnügt sich der Rat damit, den Markt zu beobachten.',
+    conflictAligned: 'Die Kernrollen sind relativ gut aufeinander abgestimmt.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${recLabel} auf ${symbol} mit ${score}% Konsens, klassifiziert als ${signalClass} mit ${entryBias}-Tendenz. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Interner Konsensmotorfehler, vorsorglicher Wartemodus aktiviert.',
+    errorConflict: 'Rats-Fallback aufgrund eines internen Fehlers aktiviert, keine aggressive Empfehlung erlaubt.',
+    errorMasterStrategy: 'Warten bis die Analyse abgeschlossen ist und der Ratsmotor normal funktioniert.',
+  }
+  if (lang === 'it') return {
+    council: 'Consiglio', techAnalyst: 'Analista Tecnico', sentAnalyst: 'Analista del Sentiment',
+    riskExpert: 'Esperto di Rischio', macroExpert: 'Esperto Macro', patternExpert: 'Esperto di Pattern', execStrategist: 'Stratega di Esecuzione',
+    noContextReason: 'Impossibile creare un contesto di mercato affidabile in questo momento, la raccomandazione è stata ridotta ad attendere.',
+    councilProtection: 'Il consiglio è entrato in modalità protezione perché i dati di mercato erano insufficienti o inaffidabili.',
+    waitUntilAI: 'Attendere su questo simbolo fino al ritorno online dei modelli IA, quindi rivalutare.',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) => `Variazione 24h ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, con contesto ${dir} su ${tf}.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `Livello di rischio ${spreadRisk}. Stato dati: ${freshness}. ${!isFresh ? 'Confidenza ridotta, segnale non cancellato.' : 'Rischio calcolato accettabile.'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `Timeframe giornaliero ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `Classificazione attuale ${signalClass} con tendenza ${entryBias}. Espansione range ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `Regime: Giornaliero ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Alto', medium: 'Medio', low: 'Basso',
+    recBuy: 'Acquistare', recSell: 'Vendere', recHold: 'Mantenere',
+    recStrong: 'Forte', recClear: 'Chiaro', recProbable: 'Probabile',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `Consensus del consiglio (${totalModels} modelli): ${recLabel} ${recStrength} con confidenza ${consensusScore}%.`,
+    conflictCounterTrend: 'Conflitto tra timeframe superiore e trigger breve, ma momentum sufficiente per mantenere il consiglio cauto.',
+    conflictRiskVsTech: 'Analisi tecnica vede un\'opportunità, ma il livello di rischio ha ridotto l\'aggressività.',
+    conflictBalanced: 'I ruoli principali sono bilanciati, il consiglio monitora il mercato.',
+    conflictAligned: 'I ruoli principali sono relativamente allineati.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${recLabel} su ${symbol} con ${score}% consenso, classificato ${signalClass} con tendenza ${entryBias}. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Errore interno del motore di consensus, modalità attesa preventiva.',
+    errorConflict: 'Fallback del consiglio attivato per errore interno, nessuna raccomandazione aggressiva permessa.',
+    errorMasterStrategy: 'Attendere il completamento dell\'analisi e il ritorno normale del motore.',
+  }
+  if (lang === 'pt') return {
+    council: 'Conselho', techAnalyst: 'Analista Técnico', sentAnalyst: 'Analista de Sentimento',
+    riskExpert: 'Especialista em Risco', macroExpert: 'Especialista Macro', patternExpert: 'Especialista em Padrões', execStrategist: 'Estrategista de Execução',
+    noContextReason: 'Não foi possível construir um contexto de mercado confiável agora, a recomendação foi reduzida a esperar.',
+    councilProtection: 'O conselho entrou no modo de proteção porque os dados de mercado eram insuficientes ou não confiáveis.',
+    waitUntilAI: 'Aguarde neste símbolo até que os modelos de IA voltem online, depois reavalie.',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) => `Mudança 24h ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, com contexto ${dir} em ${tf}.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `Nível de risco ${spreadRisk}. Status dos dados: ${freshness}. ${!isFresh ? 'Confiança apenas reduzida, sinal não cancelado.' : 'Risco calculado aceitável.'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `Timeframe diário ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `Classificação atual ${signalClass} com viés ${entryBias}. Expansão de faixa ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `Regime: Diário ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Alto', medium: 'Médio', low: 'Baixo',
+    recBuy: 'Comprar', recSell: 'Vender', recHold: 'Segurar',
+    recStrong: 'Forte', recClear: 'Claro', recProbable: 'Provável',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `Consenso do conselho (${totalModels} modelos): ${recLabel} ${recStrength} com ${consensusScore}% de confiança.`,
+    conflictCounterTrend: 'Conflito entre timeframe superior e gatilho curto, mas momentum suficiente para manter o conselho cauteloso.',
+    conflictRiskVsTech: 'Análise técnica vê oportunidade, mas a camada de risco reduziu a agressividade.',
+    conflictBalanced: 'Os papéis principais estão equilibrados, o conselho monitora o mercado.',
+    conflictAligned: 'Os papéis principais estão relativamente alinhados.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${recLabel} em ${symbol} com ${score}% de consenso, classificado como ${signalClass} com viés ${entryBias}. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Falha interna do motor de consenso, modo de espera preventivo ativado.',
+    errorConflict: 'Fallback do conselho ativado por erro interno, nenhuma recomendação agressiva permitida.',
+    errorMasterStrategy: 'Aguarde até que a análise seja concluída e o motor do conselho volte ao normal.',
+  }
+  if (lang === 'ru') return {
+    council: 'Совет', techAnalyst: 'Технический аналитик', sentAnalyst: 'Аналитик настроений',
+    riskExpert: 'Эксперт по рискам', macroExpert: 'Макро-эксперт', patternExpert: 'Эксперт по паттернам', execStrategist: 'Стратег исполнения',
+    noContextReason: 'Невозможно построить надёжный контекст рынка сейчас, рекомендация снижена до ожидания.',
+    councilProtection: 'Совет перешёл в режим защиты из-за недостаточных или ненадёжных данных рынка.',
+    waitUntilAI: 'Дождитесь на этом символе, пока модели ИИ вернутся в онлайн, затем переоцените.',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) => `Изменение за 24ч ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, с контекстом ${dir} на ${tf}.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `Уровень риска ${spreadRisk}. Статус данных: ${freshness}. ${!isFresh ? 'Уверенность снижена, сигнал не отменён.' : 'Расчётный риск приемлем.'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `Дневной таймфрейм ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `Текущая классификация ${signalClass} со смещением ${entryBias}. Расширение диапазона ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `Режим: Дневной ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: 'Высокий', medium: 'Средний', low: 'Низкий',
+    recBuy: 'Покупать', recSell: 'Продавать', recHold: 'Держать',
+    recStrong: 'Сильный', recClear: 'Ясный', recProbable: 'Вероятный',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `Консенсус Совета (${totalModels} моделей): ${recLabel} ${recStrength} с достоверностью ${consensusScore}%.`,
+    conflictCounterTrend: 'Конфликт между старшим таймфреймом и краткосрочным триггером, но текущий импульс достаточен для осторожности.',
+    conflictRiskVsTech: 'Теханализ видит возможность, но уровень риска снизил агрессивность.',
+    conflictBalanced: 'Основные роли сбалансированы, Совет наблюдает за рынком.',
+    conflictAligned: 'Основные роли относительно согласованы.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${recLabel} на ${symbol} с ${score}% консенсусом, классифицировано как ${signalClass} со смещением ${entryBias}. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'Внутренняя ошибка двигателя консенсуса, превентивный режим ожидания.',
+    errorConflict: 'Запасной режим Совета активирован из-за внутренней ошибки, агрессивные рекомендации не разрешены.',
+    errorMasterStrategy: 'Дождитесь завершения анализа и нормальной работы двигателя Совета.',
+  }
+  if (lang === 'ja') return {
+    council: '評議会', techAnalyst: 'テクニカルアナリスト', sentAnalyst: 'センチメントアナリスト',
+    riskExpert: 'リスク専門家', macroExpert: 'マクロ専門家', patternExpert: 'パターン専門家', execStrategist: '実行ストラテジスト',
+    noContextReason: '現在、信頼できる市場コンテキストを構築できません。データが戻るまで推奨は待機に下げられます。',
+    councilProtection: '市場データが不十分または信頼できないため、評議会は保護モードに入りました。',
+    waitUntilAI: 'AIモデルがオンラインに戻るまでこのシンボルを待機し、再評価してください。',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join('、')}。RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}。`,
+    sentReason: (change: number, dir: string, tf: string) => `24時間変化 ${change >= 0 ? '+' : ''}${change.toFixed(2)}%、${tf}タイムフレームで${dir}コンテキスト。`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `リスクレベル${spreadRisk}。データ状況：${freshness}。${!isFresh ? '信頼度のみ低下、シグナルは完全にキャンセルされていません。' : '計算されたリスクは許容範囲です。'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `日足${daily}、4H ${h4}。${hint}。`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `現在の機会分類${signalClass}、バイアス${entryBias}。レンジ拡大${range.toFixed(2)}%。`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `レジーム：日足${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}。`,
+    high: '高', medium: '中', low: '低',
+    recBuy: '買い', recSell: '売り', recHold: 'ホールド',
+    recStrong: '強い', recClear: '明確', recProbable: '可能性',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `評議会コンセンサス（${totalModels}モデル）：${recLabel} ${recStrength}、信頼度${consensusScore}%。`,
+    conflictCounterTrend: '上位タイムフレームと短期トリガーの間に矛盾がありますが、現在のモメンタムは評議会の慎重な姿勢を維持するのに十分です。',
+    conflictRiskVsTech: 'テクニカル分析は機会を見ていますが、リスク層がデータ品質またはボラティリティのため攻撃性を下げました。',
+    conflictBalanced: '主要な役割はバランスが取れており、評議会は市場を監視しています。',
+    conflictAligned: '主要な役割は比較的一致しています。',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${symbol}で${recLabel}、${score}%コンセンサス、${signalClass}分類、${entryBias}バイアス。${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || 'コンセンサスエンジンの内部エラー、予防的待機モードがアクティブ化されました。',
+    errorConflict: '内部エラーにより評議会フォールバックがアクティブ化、攻撃的な推奨は許可されていません。',
+    errorMasterStrategy: '分析が完了し、評議会エンジンが正常に戻るまでお待ちください。',
+  }
+  if (lang === 'zh') return {
+    council: '委员会', techAnalyst: '技术分析师', sentAnalyst: '情绪分析师',
+    riskExpert: '风险专家', macroExpert: '宏观专家', patternExpert: '形态专家', execStrategist: '执行策略师',
+    noContextReason: '目前无法构建可靠的市场背景，建议降级为等待数据返回。',
+    councilProtection: '委员会进入保护模式，因为市场数据不足或不可靠。',
+    waitUntilAI: '等待此标的一直到AI模型重新上线，然后重新评估。',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join('、')}。RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}。`,
+    sentReason: (change: number, dir: string, tf: string) => `24小时变化 ${change >= 0 ? '+' : ''}${change.toFixed(2)}%，${tf}时间框架${dir}背景。`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `风险水平${spreadRisk}。数据状态：${freshness}。${!isFresh ? '仅降低置信度，信号未完全取消。' : '计算风险可接受。'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `日线${daily}，4H ${h4}。${hint}。`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `当前机会分类${signalClass}，偏向${entryBias}。区间扩展${range.toFixed(2)}%。`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `机制：日线${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}。`,
+    high: '高', medium: '中', low: '低',
+    recBuy: '买入', recSell: '卖出', recHold: '持有',
+    recStrong: '强势', recClear: '明确', recProbable: '可能',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `委员会共识（${totalModels}模型）：${recLabel} ${recStrength}，置信度${consensusScore}%。`,
+    conflictCounterTrend: '高时间框架与短期触发之间存在冲突，但当前动量足以保持委员会谨慎。',
+    conflictRiskVsTech: '技术分析看到机会，但风险层因数据质量或波动性降低了激进程度。',
+    conflictBalanced: '核心角色平衡，委员会选择观察市场。',
+    conflictAligned: '核心角色相对一致。',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${symbol}上${recLabel}，${score}%共识，分类为${signalClass}，偏向${entryBias}。${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || '共识引擎内部故障，预防性等待模式已激活。',
+    errorConflict: '由于内部错误激活了委员会回退模式，不允许激进建议。',
+    errorMasterStrategy: '请等待分析完成且委员会引擎恢复正常运行。',
+  }
+  if (lang === 'ko') return {
+    council: '위원회', techAnalyst: '기술 분석가', sentAnalyst: '감정 분석가',
+    riskExpert: '위험 전문가', macroExpert: '거시 전문가', patternExpert: '패턴 전문가', execStrategist: '실행 전략가',
+    noContextReason: '현재 신뢰할 수 있는 시장 컨텍스트를 구축할 수 없어 데이터가 반환될 때까지 대기로 권장이 하향 조정되었습니다.',
+    councilProtection: '시장 데이터가 불충분하거나 신뢰할 수 없어 위원회가 보호 모드에 진입했습니다.',
+    waitUntilAI: 'AI 모델이 온라인으로 돌아올 때까지 이 기호를 대기한 후 재평가하세요.',
+    techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) => `${reasons.join(', ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
+    sentReason: (change: number, dir: string, tf: string) => `24시간 변화 ${change >= 0 ? '+' : ''}${change.toFixed(2)}%, ${tf} 타임프레임 ${dir} 컨텍스트.`,
+    riskReason: (spreadRisk: string, freshness: string, isFresh: boolean) => `위험 수준 ${spreadRisk}. 데이터 상태: ${freshness}. ${!isFresh ? '신뢰도만 하향, 신호 완전 취소 아님.' : '계산된 위험 수용 가능.'}`,
+    macroReason: (daily: string, h4: string, hint: string) => `일일 타임프레임 ${daily}, 4H ${h4}. ${hint}.`,
+    patternReason: (signalClass: string, entryBias: string, range: number) => `현재 기회 분류 ${signalClass}, 편향 ${entryBias}. 범위 확장 ${range.toFixed(2)}%.`,
+    execReason: (daily: string, h4: string, h1: string, m15: string) => `체제: 일일 ${daily} → 4H ${h4} → 1H ${h1} → 15m ${m15}.`,
+    high: '높음', medium: '중간', low: '낮음',
+    recBuy: '매수', recSell: '매도', recHold: '관망',
+    recStrong: '강한', recClear: '분명한', recProbable: '유망한',
+    consensusFallback: (totalModels: number, recLabel: string, recStrength: string, consensusScore: number) => `위원회 합의 (${totalModels} 모델): ${recLabel} ${recStrength}, 신뢰도 ${consensusScore}%.`,
+    conflictCounterTrend: '상위 타임프레임과 단기 트리거 간 충돌, 현재 모멘텀으로 위원회 신중 유지 충분.',
+    conflictRiskVsTech: '기술 분석이 기회를 보지만 위험 레이어가 공격성을 낮춤.',
+    conflictBalanced: '핵심 역할이 균형 잡혀 있어 위원회가 시장을 관찰 중.',
+    conflictAligned: '핵심 역할이 비교적 일치합니다.',
+    masterStrategy: (recLabel: string, symbol: string, score: number, signalClass: string, entryBias: string, hint: string, conflict: string) => `${symbol}에서 ${recLabel}, ${score}% 합의, ${signalClass} 분류, ${entryBias} 편향. ${hint} ${conflict}`,
+    errorReason: (msg: string) => msg || '합의 엔진 내부 오류, 예방적 대기 모드 활성화.',
+    errorConflict: '내부 오류로 위원회 폴백 활성화, 공격적 권장 허용 안됨.',
+    errorMasterStrategy: '분석 완료 및 위원회 엔진 정상 복귀까지 대기.',
+  }
+  // ── Arabic (default) ──
   return {
     council: 'المجلس',
     techAnalyst: 'المحلل الفني',
@@ -135,7 +312,7 @@ function L3(lang: 'ar' | 'en' | 'fr' | 'tr' | 'es') {
     execStrategist: 'استراتيجي التنفيذ',
     noContextReason: 'تعذر بناء سياق سوق موثوق الآن، لذلك تم خفض التوصية إلى الانتظار حتى تعود البيانات.',
     councilProtection: 'المجلس دخل وضع الحماية لأن بيانات السوق لم تكن كافية أو موثوقة عند هذه اللحظة.',
-    waitUntilAI: `الانتظار على هذا الرمز حتى تعود نماذج الذكاء الاصطناعي للعمل، ثم إعادة التقييم قبل أي قرار.`,
+    waitUntilAI: 'الانتظار على هذا الرمز حتى تعود نماذج الذكاء الاصطناعي للعمل، ثم إعادة التقييم قبل أي قرار.',
     techReason: (reasons: string[], rsi: number, ema20: number, ema50: number) =>
       `${reasons.join('، ')}. RSI ${Math.round(rsi)} | EMA20 ${ema20.toFixed(2)} | EMA50 ${ema50.toFixed(2)}.`,
     sentReason: (change: number, dir: string, tf: string) =>
@@ -190,9 +367,18 @@ function toVote(dir: 'buy' | 'sell' | 'neutral'): Vote {
   return dir === 'buy' ? 'BUY' : dir === 'sell' ? 'SELL' : 'HOLD'
 }
 
-function directionLabel(dir: 'buy' | 'sell' | 'neutral', language: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'ar') {
+function directionLabel(dir: 'buy' | 'sell' | 'neutral', language: string = 'ar') {
   if (language === 'en') return dir === 'buy' ? 'Bullish' : dir === 'sell' ? 'Bearish' : 'Neutral'
   if (language === 'es') return dir === 'buy' ? 'Alcista' : dir === 'sell' ? 'Bajista' : 'Neutral'
+  if (language === 'de') return dir === 'buy' ? 'Bullisch' : dir === 'sell' ? 'Bärisch' : 'Neutral'
+  if (language === 'fr') return dir === 'buy' ? 'Haussier' : dir === 'sell' ? 'Baissier' : 'Neutre'
+  if (language === 'tr') return dir === 'buy' ? 'Yükseliş' : dir === 'sell' ? 'Düşüş' : 'Nötr'
+  if (language === 'it') return dir === 'buy' ? 'Rialzista' : dir === 'sell' ? 'Ribassista' : 'Neutrale'
+  if (language === 'pt') return dir === 'buy' ? 'Alta' : dir === 'sell' ? 'Baixa' : 'Neutro'
+  if (language === 'ru') return dir === 'buy' ? 'Бычий' : dir === 'sell' ? 'Медвежий' : 'Нейтральный'
+  if (language === 'ja') return dir === 'buy' ? '強気' : dir === 'sell' ? '弱気' : 'ニュートラル'
+  if (language === 'zh') return dir === 'buy' ? '看涨' : dir === 'sell' ? '看跌' : '中性'
+  if (language === 'ko') return dir === 'buy' ? '강세' : dir === 'sell' ? '약세' : '중립'
   return dir === 'buy' ? 'صاعد' : dir === 'sell' ? 'هابط' : 'محايد'
 }
 
@@ -309,12 +495,12 @@ function getNestJSStatus() {
  * prevent Railway from sleeping the NestJS backend.
  */
 export async function POST(req: NextRequest) {
-  let language: 'ar' | 'en' | 'fr' | 'tr' | 'es' = 'en'
+  let language: string = 'en'
   try {
     const body = await req.json()
     const symbol = body.symbol || 'BTC/USD'
     const rawLang = body.language || 'en'
-    language = (['ar', 'en', 'fr', 'tr', 'es'].includes(rawLang) ? rawLang : 'en') as 'ar' | 'en' | 'fr' | 'tr' | 'es'
+    language = rawLang || 'en'
     const origin = req.nextUrl.origin
     const startedAt = Date.now()
 
@@ -494,7 +680,7 @@ export async function POST(req: NextRequest) {
             const l3t = L3(language)
             const recLabel = recommendation === 'BUY' ? l3t.recBuy : recommendation === 'SELL' ? l3t.recSell : l3t.recHold
             const recStrength = consensusScore >= 80 ? l3t.recStrong : consensusScore >= 60 ? l3t.recClear : l3t.recProbable
-            const masterStrategy = directResult.data.masterStrategy || l3t.consensusFallback(totalModels, recLabel, recStrength, consensusScore)
+            const masterStrategy = l3t.consensusFallback(totalModels, recLabel, recStrength, consensusScore)  // Always use L3 translation, not directResult English
 
             const result = {
               success: true,
@@ -530,11 +716,25 @@ export async function POST(req: NextRequest) {
           }
 
           // No Layer 1 result — Layer 2 is the sole source
+          // Override English masterStrategy/conflictExplanation from directResult with L3 translations
+          const l3t2 = L3(language)
+          const d2 = directResult.data
+          const recLabel2 = d2.recommendation === 'BUY' ? l3t2.recBuy : d2.recommendation === 'SELL' ? l3t2.recSell : l3t2.recHold
+          const recStrength2 = d2.consensusScore >= 80 ? l3t2.recStrong : d2.consensusScore >= 60 ? l3t2.recClear : l3t2.recProbable
+          const modelsCount2 = d2.meta?.modelsResponded || d2.analyses?.length || 0
+          const rolesCount2 = d2.analyses?.length || 0
+          const translatedMasterStrategy = l3t2.consensusFallback(modelsCount2, recLabel2, recStrength2, d2.consensusScore)
+          const translatedConflictExplanation = rolesCount2 < 4
+            ? l3t2.conflictAligned  // Few models → similar to "aligned" message
+            : l3t2.conflictAligned
+
           const result = {
             success: true,
             source: directResult.source,
             data: {
               ...directResult.data,
+              masterStrategy: translatedMasterStrategy,
+              conflictExplanation: translatedConflictExplanation,
               meta: {
                 ...directResult.data.meta,
                 connectionLayer: 'direct',

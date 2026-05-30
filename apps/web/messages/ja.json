@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "Realized P&L",
       "roleSent": "センチメントアナリスト",
       "roleDiverge": "ダイバージェンスアナリスト",
-      "realAnalysisFrom": "リアルAI分析 ({ms}ms)"
+      "realAnalysisFrom": "リアルAI分析 ({ms}ms)",
+      "recBuy": "買い",
+      "recSell": "売り",
+      "recHold": "ホールド",
+      "recStrong": "強い",
+      "recClear": "明確",
+      "recProbable": "可能性",
+      "masterStrategyFormat": "AI Council のコンセンサス ({models} モデルからの {roles} の役割): {recLabel} {recStrength}、{confidence}% の信頼度。",
+      "conflictFewModels": "一部のモデルは応答しませんでした - 利用可能なモデル ({models}) はコンセンサスに達しました。",
+      "conflictBroadCoverage": "役割は比較的広範囲に対応しています。",
+      "conflictAligned": "中核的な役割は比較的一致しています。"
     },
     "leaderboard": {
       "title": "リーダーボード",

@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Műszaki",
       "roleSent": "Hangulatelemző",
       "roleDiverge": "Divergenciaelemző",
-      "realAnalysisFrom": "Valódi AI-elemzés – {ms} ms"
+      "realAnalysisFrom": "Valódi AI-elemzés – {ms} ms",
+      "recBuy": "Vétel",
+      "recSell": "Elad",
+      "recHold": "Tart",
+      "recStrong": "Erős",
+      "recClear": "Világos",
+      "recProbable": "Valószínű",
+      "masterStrategyFormat": "AI Council Consensus ({roles} szerepek {models} modellekből): {recLabel} {recStrength} {confidence}%-os biztonsággal.",
+      "conflictFewModels": "Egyes modellek nem válaszoltak – a rendelkezésre álló modellek ({models}) konszenzusra jutottak.",
+      "conflictBroadCoverage": "A szerepkörök viszonylag jól illeszkednek a széles lefedettséghez.",
+      "conflictAligned": "Az alapszerepek viszonylag össze vannak hangolva."
     },
     "leaderboard": {
       "title": "Ranglista",

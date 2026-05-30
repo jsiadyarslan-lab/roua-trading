@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Tekniskt",
       "roleSent": "Sentimentanalytiker",
       "roleDiverge": "Divergensanalytiker",
-      "realAnalysisFrom": "Verklig AI-analys — {ms}ms"
+      "realAnalysisFrom": "Verklig AI-analys — {ms}ms",
+      "recBuy": "Köpa",
+      "recSell": "Sälja",
+      "recHold": "Hålla",
+      "recStrong": "Stark",
+      "recClear": "Rensa",
+      "recProbable": "Sannolik",
+      "masterStrategyFormat": "AI Council Consensus ({roles}-roller från {models}-modeller): {recLabel} {recStrength} med {confidence}% förtroende.",
+      "conflictFewModels": "Vissa modeller svarade inte - tillgängliga modeller ({models}) nådde konsensus.",
+      "conflictBroadCoverage": "Roller är relativt anpassade med bred täckning.",
+      "conflictAligned": "Kärnrollerna är relativt samordnade."
     },
     "leaderboard": {
       "title": "Ledartavla",

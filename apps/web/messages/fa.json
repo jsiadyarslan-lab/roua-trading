@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 فنی",
       "roleSent": "تحلیلگر احساسات",
       "roleDiverge": "تحلیلگر واگرایی",
-      "realAnalysisFrom": "تحلیل هوش مصنوعی واقعی — {ms}ms"
+      "realAnalysisFrom": "تحلیل هوش مصنوعی واقعی — {ms}ms",
+      "recBuy": "خرید کنید",
+      "recSell": "فروش",
+      "recHold": "نگه دارید",
+      "recStrong": "قوی",
+      "recClear": "پاک کردن",
+      "recProbable": "محتمل",
+      "masterStrategyFormat": "اجماع شورای هوش مصنوعی (نقش های {roles} از مدل های {models}): {recLabel} {recStrength} با اطمینان {confidence}٪.",
+      "conflictFewModels": "برخی از مدل ها پاسخ ندادند - مدل های موجود ({models}) به توافق رسیدند.",
+      "conflictBroadCoverage": "نقش ها با پوشش گسترده نسبتاً همسو هستند.",
+      "conflictAligned": "نقش های اصلی نسبتاً همسو هستند."
     },
     "leaderboard": {
       "title": "تابلوی امتیازات",

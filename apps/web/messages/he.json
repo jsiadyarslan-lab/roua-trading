@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 טכני",
       "roleSent": "מנתח סנטימנט",
       "roleDiverge": "אנליסט סטייה",
-      "realAnalysisFrom": "ניתוח בינה מלאכותית אמיתית - {ms}ms"
+      "realAnalysisFrom": "ניתוח בינה מלאכותית אמיתית - {ms}ms",
+      "recBuy": "לִקְנוֹת",
+      "recSell": "מְכִירָה",
+      "recHold": "לְהַחזִיק",
+      "recStrong": "חָזָק",
+      "recClear": "בָּרוּר",
+      "recProbable": "מִסתַבֵּר",
+      "masterStrategyFormat": "קונצנזוס מועצת AI (תפקידי {roles} מדגמי {models}): {recLabel} {recStrength} עם ביטחון {confidence}.",
+      "conflictFewModels": "חלק מהדגמים לא הגיבו - הדגמים הזמינים ({models}) הגיעו לקונצנזוס.",
+      "conflictBroadCoverage": "תפקידים מתאימים יחסית לכיסוי רחב.",
+      "conflictAligned": "תפקידי הליבה מיושרים יחסית."
     },
     "leaderboard": {
       "title": "Leaderboard",

@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Teknik",
       "roleSent": "Duygu Analisti",
       "roleDiverge": "Sapma Analisti",
-      "realAnalysisFrom": "Gerçek yapay zeka analizi — {ms}ms"
+      "realAnalysisFrom": "Gerçek yapay zeka analizi — {ms}ms",
+      "recBuy": "Al",
+      "recSell": "Sat",
+      "recHold": "Bekle",
+      "recStrong": "Güçlü",
+      "recClear": "Net",
+      "recProbable": "Muhtemel",
+      "masterStrategyFormat": "AI Konseyi Konsensüsü ({models} modellerinden {roles} rolleri): % {confidence} güvenle {recLabel} {recStrength}.",
+      "conflictFewModels": "Bazı modeller yanıt vermedi; mevcut modeller ({models}) fikir birliğine vardı.",
+      "conflictBroadCoverage": "Roller nispeten geniş kapsama alanıyla uyumludur.",
+      "conflictAligned": "Temel roller nispeten uyumludur."
     },
     "leaderboard": {
       "title": "Liderlik Tablosu",

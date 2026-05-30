@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 技术",
       "roleSent": "情绪分析师",
       "roleDiverge": "背离 Analyst",
-      "realAnalysisFrom": "真实 AI analysis — {ms}ms"
+      "realAnalysisFrom": "真实 AI analysis — {ms}ms",
+      "recBuy": "买入",
+      "recSell": "卖出",
+      "recHold": "持有",
+      "recStrong": "强势",
+      "recClear": "明确",
+      "recProbable": "可能",
+      "masterStrategyFormat": "AI 委员会共识（{models} 模型中的 {roles} 角色）：{recLabel} {recStrength}，置信度为 {confidence}%。",
+      "conflictFewModels": "一些型号没有回应——可用型号（{models}）达成共识。",
+      "conflictBroadCoverage": "角色与广泛的覆盖面相对一致。",
+      "conflictAligned": "核心角色相对一致。"
     },
     "leaderboard": {
       "title": "排行榜",

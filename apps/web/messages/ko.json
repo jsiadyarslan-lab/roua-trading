@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 기술",
       "roleSent": "감정 분석가",
       "roleDiverge": "다이버전스 분석가",
-      "realAnalysisFrom": "실제 AI 분석 —{ms}ms"
+      "realAnalysisFrom": "실제 AI 분석 —{ms}ms",
+      "recBuy": "매수",
+      "recSell": "매도",
+      "recHold": "관망",
+      "recStrong": "강한",
+      "recClear": "분명한",
+      "recProbable": "유망한 후보자",
+      "masterStrategyFormat": "AI 위원회 합의({models} 모델의 {roles} 역할): {confidence}% 신뢰도를 갖춘 {recLabel} {recStrength}.",
+      "conflictFewModels": "일부 모델은 응답하지 않았습니다. 사용 가능한 모델({models})이 합의에 도달했습니다.",
+      "conflictBroadCoverage": "역할은 상대적으로 광범위한 범위에 맞춰져 있습니다.",
+      "conflictAligned": "핵심 역할은 상대적으로 일치합니다."
     },
     "leaderboard": {
       "title": "리더보드",

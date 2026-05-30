@@ -1502,7 +1502,17 @@
       "rolePattern": "Muster Expert",
       "roleExec": "Ausführung Strategist",
       "roleDiverge": "Divergenz Analyst",
-      "roleScenario": "Szenario-Analyst"
+      "roleScenario": "Szenario-Analyst",
+      "recBuy": "Kaufen",
+      "recSell": "Verkaufen",
+      "recHold": "Halten",
+      "recStrong": "Stark",
+      "recClear": "Klar",
+      "recProbable": "Wahrscheinlich",
+      "masterStrategyFormat": "Konsens des AI Council ({roles}-Rollen von {models}-Modellen): {recLabel} {recStrength} mit {confidence} %-Konfidenz.",
+      "conflictFewModels": "Einige Modelle antworteten nicht – verfügbare Modelle ({models}) erzielten einen Konsens.",
+      "conflictBroadCoverage": "Die Rollen sind relativ auf eine breite Abdeckung abgestimmt.",
+      "conflictAligned": "Die Kernrollen sind relativ aufeinander abgestimmt."
     },
     "aiPage": {
       "smartAnalysisCenter": "Smart Analyse Center",

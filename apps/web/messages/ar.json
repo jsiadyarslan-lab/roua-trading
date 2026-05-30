@@ -1502,7 +1502,17 @@
       "rolePattern": "خبير الأنماط",
       "roleExec": "استراتيجي التنفيذ",
       "roleDiverge": "محلل التباين",
-      "roleScenario": "محلل السيناريوهات"
+      "roleScenario": "محلل السيناريوهات",
+      "recBuy": "شراء",
+      "recSell": "بيع",
+      "recHold": "انتظار",
+      "recStrong": "قوي",
+      "recClear": "واضح",
+      "recProbable": "محتمل",
+      "masterStrategyFormat": "إجماع مجلس الذكاء الاصطناعي (أدوار {roles} من نماذج {models}): {recLabel} {recStrength} مع ثقة {confidence}%.",
+      "conflictFewModels": "لم تستجب بعض النماذج — وصلت النماذج المتاحة ({models}) إلى الإجماع.",
+      "conflictBroadCoverage": "تتماشى الأدوار نسبيًا مع التغطية الواسعة.",
+      "conflictAligned": "الأدوار الأساسية متوافقة نسبيًا."
     },
     "aiPage": {
       "smartAnalysisCenter": "مركز التحليل الذكي",

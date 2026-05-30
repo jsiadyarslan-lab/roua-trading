@@ -146,7 +146,7 @@ export function AICouncilPanel() {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: selectedSymbol }),
+        body: JSON.stringify({ symbol: selectedSymbol, language: locale }),
         signal: abortRef.current.signal, // 90s timeout handled by server
       })
 

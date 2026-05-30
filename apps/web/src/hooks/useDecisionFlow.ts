@@ -33,6 +33,7 @@ export type NarratorSnapshot = {
 }
 
 export function useDecisionFlow() {
+  const locale = useLocale()
   const selectedSymbol = useSymbolStore((state) => state.selectedSymbol)
   const { engineState, isOn } = useBotStore()
   const [scanner, setScanner] = useState<ScannerSnapshot | null>(null)
@@ -54,7 +55,7 @@ export function useDecisionFlow() {
           fetch('/api/ai/consensus', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ symbol: selectedSymbol }),
+            body: JSON.stringify({ symbol: selectedSymbol, language: locale || 'en' }),
             signal: AbortSignal.timeout(20000),
           }),
           fetch(`/api/ai/narrator?symbol=${encodeURIComponent(selectedSymbol)}`, {

@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Technisch",
       "roleSent": "Sentimentanalist",
       "roleDiverge": "Divergentie-analist",
-      "realAnalysisFrom": "Echte AI-analyse —{ms}ms"
+      "realAnalysisFrom": "Echte AI-analyse —{ms}ms",
+      "recBuy": "Kopen",
+      "recSell": "Verkopen",
+      "recHold": "Uitstel",
+      "recStrong": "Sterk",
+      "recClear": "Duidelijk",
+      "recProbable": "Waarschijnlijk",
+      "masterStrategyFormat": "AI Council Consensus ({roles}-rollen van {models}-modellen): {recLabel} {recStrength} met {confidence}% vertrouwen.",
+      "conflictFewModels": "Sommige modellen reageerden niet: de beschikbare modellen ({models}) bereikten consensus.",
+      "conflictBroadCoverage": "De rollen zijn relatief afgestemd op een brede dekking.",
+      "conflictAligned": "De kernrollen liggen relatief op één lijn."
     },
     "leaderboard": {
       "title": "Leiderbord",

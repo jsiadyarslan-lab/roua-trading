@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Tecnico",
       "roleSent": "Analista del sentiment",
       "roleDiverge": "Analista di divergenza",
-      "realAnalysisFrom": "Analisi AI reale -{ms}ms"
+      "realAnalysisFrom": "Analisi AI reale -{ms}ms",
+      "recBuy": "Acquistare",
+      "recSell": "Vendere",
+      "recHold": "Presa",
+      "recStrong": "Forte",
+      "recClear": "Chiaro",
+      "recProbable": "Probabile",
+      "masterStrategyFormat": "Consenso dell'AI Council (ruoli {roles} dai modelli {models}): {recLabel} {recStrength} con confidenza {confidence}%.",
+      "conflictFewModels": "Alcuni modelli non hanno risposto: i modelli disponibili ({models}) hanno raggiunto il consenso.",
+      "conflictBroadCoverage": "I ruoli sono relativamente allineati con un’ampia copertura.",
+      "conflictAligned": "I ruoli principali sono relativamente allineati."
     },
     "leaderboard": {
       "title": "Classifica",

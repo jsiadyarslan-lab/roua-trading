@@ -42,7 +42,7 @@ const MODELS = [
 export async function GET(req: NextRequest) {
   const symbol = req.nextUrl.searchParams.get('symbol') || 'BTC/USD'
   const rawLang = req.nextUrl.searchParams.get('language') || 'en'
-  const language = (['ar', 'en', 'fr', 'tr', 'es'].includes(rawLang) ? rawLang : 'en') as 'ar' | 'en' | 'fr' | 'tr' | 'es'
+  const language = rawLang || 'en'
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({

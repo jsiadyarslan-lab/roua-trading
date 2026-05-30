@@ -274,7 +274,7 @@ function CellToolOverlay({
 
     const fetchConsensus = async () => {
       try {
-        const res = await fetch(`/api/ai/consensus?symbol=${encodeURIComponent(cell.symbol)}&timeframe=${cell.timeframe}`);
+        const res = await fetch(`/api/ai/consensus?symbol=${encodeURIComponent(cell.symbol)}&timeframe=${cell.timeframe}&language=en`);
         if (cancelled) return;
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const j = await res.json();

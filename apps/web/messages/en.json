@@ -1502,7 +1502,17 @@
       "rolePattern": "Pattern Expert",
       "roleExec": "Execution Strategist",
       "roleDiverge": "Divergence Analyst",
-      "roleScenario": "Scenario Analyst"
+      "roleScenario": "Scenario Analyst",
+      "recBuy": "Buy",
+      "recSell": "Sell",
+      "recHold": "Hold",
+      "recStrong": "Strong",
+      "recClear": "Clear",
+      "recProbable": "Probable",
+      "masterStrategyFormat": "AI Council Consensus ({roles} roles from {models} models): {recLabel} {recStrength} with {confidence}% confidence.",
+      "conflictFewModels": "Some models did not respond — available models ({models}) reached consensus.",
+      "conflictBroadCoverage": "Roles are relatively aligned with broad coverage.",
+      "conflictAligned": "Core roles are relatively aligned."
     },
     "aiPage": {
       "smartAnalysisCenter": "Smart Analysis Center",

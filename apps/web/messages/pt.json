@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Técnico",
       "roleSent": "Analista de Sentimento",
       "roleDiverge": "Divergência Analyst",
-      "realAnalysisFrom": "IA Real Análise — {ms}ms"
+      "realAnalysisFrom": "IA Real Análise — {ms}ms",
+      "recBuy": "Comprar",
+      "recSell": "Vender",
+      "recHold": "Segurar",
+      "recStrong": "Forte",
+      "recClear": "Claro",
+      "recProbable": "Provável",
+      "masterStrategyFormat": "Consenso do AI Council (funções {roles} dos modelos {models}): {recLabel} {recStrength} com {confidence}% de confiança.",
+      "conflictFewModels": "Alguns modelos não responderam — os modelos disponíveis ({models}) chegaram a um consenso.",
+      "conflictBroadCoverage": "As funções estão relativamente alinhadas com uma ampla cobertura.",
+      "conflictAligned": "As funções principais estão relativamente alinhadas."
     },
     "leaderboard": {
       "title": "Ranking",

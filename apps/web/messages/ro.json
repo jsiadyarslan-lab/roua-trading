@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Tehnic",
       "roleSent": "Analist de sentimente",
       "roleDiverge": "Analist de divergenta",
-      "realAnalysisFrom": "Analiză AI reală — {ms}ms"
+      "realAnalysisFrom": "Analiză AI reală — {ms}ms",
+      "recBuy": "Cumpăra",
+      "recSell": "Vinde",
+      "recHold": "Ține",
+      "recStrong": "Puternic",
+      "recClear": "Clar",
+      "recProbable": "Probabil",
+      "masterStrategyFormat": "Consensul Consiliului AI (roluri {roles} de la modelele {models}): {recLabel} {recStrength} cu {confidence}% încredere.",
+      "conflictFewModels": "Unele modele nu au răspuns - modelele disponibile ({models}) au ajuns la un consens.",
+      "conflictBroadCoverage": "Rolurile sunt relativ aliniate cu o acoperire largă.",
+      "conflictAligned": "Rolurile de bază sunt relativ aliniate."
     },
     "leaderboard": {
       "title": "Clasament",

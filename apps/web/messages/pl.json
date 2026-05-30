@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Techniczny",
       "roleSent": "Analityk nastrojów",
       "roleDiverge": "Analityk rozbieżności",
-      "realAnalysisFrom": "Analiza prawdziwej AI —{ms}ms"
+      "realAnalysisFrom": "Analiza prawdziwej AI —{ms}ms",
+      "recBuy": "Kupić",
+      "recSell": "Sprzedać",
+      "recHold": "Trzymać",
+      "recStrong": "Mocny",
+      "recClear": "Jasne",
+      "recProbable": "Prawdopodobny",
+      "masterStrategyFormat": "Konsensus Rady AI (role {roles} z modeli {models}): {recLabel} {recStrength} z pewnością {confidence}%.",
+      "conflictFewModels": "Niektóre modele nie odpowiedziały – dostępne modele ({models}) osiągnęły konsensus.",
+      "conflictBroadCoverage": "Role są stosunkowo wyrównane i mają szeroki zasięg.",
+      "conflictAligned": "Podstawowe role są stosunkowo wyrównane."
     },
     "leaderboard": {
       "title": "Tablica liderów",

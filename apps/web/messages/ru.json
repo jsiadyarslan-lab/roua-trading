@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Технический",
       "roleSent": "Аналитик настроений",
       "roleDiverge": "Аналитик дивергенции",
-      "realAnalysisFrom": "Реальный ИИ-анализ — {ms}мс"
+      "realAnalysisFrom": "Реальный ИИ-анализ — {ms}мс",
+      "recBuy": "Покупать",
+      "recSell": "Продавать",
+      "recHold": "Держать",
+      "recStrong": "Сильный",
+      "recClear": "Ясный",
+      "recProbable": "Вероятный",
+      "masterStrategyFormat": "Консенсус Совета ИИ (роли {roles} из моделей {models}): {recLabel} {recStrength} с достоверностью {confidence}%.",
+      "conflictFewModels": "Некоторые модели не ответили — доступные модели ({models}) достигли консенсуса.",
+      "conflictBroadCoverage": "Роли относительно совпадают с широким охватом.",
+      "conflictAligned": "Основные роли относительно выровнены."
     },
     "leaderboard": {
       "title": "Рейтинг",

@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Teknikal",
       "roleSent": "Penganalisis Sentimen",
       "roleDiverge": "Penganalisis Perbezaan",
-      "realAnalysisFrom": "Analisis AI sebenar — {ms}ms"
+      "realAnalysisFrom": "Analisis AI sebenar — {ms}ms",
+      "recBuy": "Beli",
+      "recSell": "jual",
+      "recHold": "tahan",
+      "recStrong": "kuat",
+      "recClear": "Jelas",
+      "recProbable": "Berkemungkinan",
+      "masterStrategyFormat": "Konsensus Majlis AI (peranan {roles} daripada model {models}): {recLabel} {recStrength} dengan keyakinan {confidence}%.",
+      "conflictFewModels": "Sesetengah model tidak bertindak balas — model tersedia ({models}) mencapai kata sepakat.",
+      "conflictBroadCoverage": "Peranan secara relatifnya sejajar dengan liputan luas.",
+      "conflictAligned": "Peranan teras agak sejajar."
     },
     "leaderboard": {
       "title": "Papan pendahulu",

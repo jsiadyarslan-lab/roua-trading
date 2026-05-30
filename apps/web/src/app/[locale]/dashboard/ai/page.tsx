@@ -376,7 +376,7 @@ export default function AIPage() {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: selectedSymbol, language: locale === 'ar' ? 'ar' : 'en' }),
+        body: JSON.stringify({ symbol: selectedSymbol, language: locale }),
         signal: AbortSignal.timeout(45000),
       })
       const json = await res.json()

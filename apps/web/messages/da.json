@@ -1502,7 +1502,17 @@
       "rolePattern": "Mønsterekspert",
       "roleExec": "Eksekveringsstrateg",
       "roleDiverge": "Divergensanalytiker",
-      "roleScenario": "Scenarieanalytiker"
+      "roleScenario": "Scenarieanalytiker",
+      "recBuy": "Købe",
+      "recSell": "Sælge",
+      "recHold": "Holde",
+      "recStrong": "Stærk",
+      "recClear": "Klar",
+      "recProbable": "Sandsynlig",
+      "masterStrategyFormat": "AI Council Consensus ({roles}-roller fra {models}-modeller): {recLabel} {recStrength} med {confidence}% tillid.",
+      "conflictFewModels": "Nogle modeller reagerede ikke - tilgængelige modeller ({models}) nåede konsensus.",
+      "conflictBroadCoverage": "Roller er relativt afstemt med bred dækning.",
+      "conflictAligned": "Kernerollerne er relativt afstemte."
     },
     "aiPage": {
       "smartAnalysisCenter": "Smart Analysecenter",

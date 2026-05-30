@@ -2397,7 +2397,17 @@
       "technicalAnalysisLabel": "📐 Teknis",
       "roleSent": "Analis Sentimen",
       "roleDiverge": "Analis Divergensi",
-      "realAnalysisFrom": "Analisis AI Nyata —{ms}ms"
+      "realAnalysisFrom": "Analisis AI Nyata —{ms}ms",
+      "recBuy": "Membeli",
+      "recSell": "Menjual",
+      "recHold": "Memegang",
+      "recStrong": "Kuat",
+      "recClear": "Jernih",
+      "recProbable": "Mungkin",
+      "masterStrategyFormat": "Konsensus Dewan AI (peran {roles} dari model {models}): {recLabel} {recStrength} dengan keyakinan {confidence}%.",
+      "conflictFewModels": "Beberapa model tidak merespons — model yang tersedia ({models}) mencapai konsensus.",
+      "conflictBroadCoverage": "Perannya relatif selaras dengan cakupan yang luas.",
+      "conflictAligned": "Peran inti relatif selaras."
     },
     "leaderboard": {
       "title": "Papan peringkat",

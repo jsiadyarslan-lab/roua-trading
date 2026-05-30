@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
+
 import { useVisibleInterval } from '@/hooks/useVisibleInterval'
 import { useBotStore } from '@/hooks/useBotStore'
 import { usePaperTradesStore, type PaperTrade } from '@/hooks/usePaperTradesStore'
@@ -30,6 +31,7 @@ type SmartSignalLike = {
 }
 
 export function BotEngine() {
+  const locale = useLocale()
   const t = useTranslations('dashboard.bot')
   const tc = useTranslations('common')
   const { isOn, addLog, settings, setEngineState, patchStats, syncFromDB } = useBotStore()
@@ -88,7 +90,7 @@ export function BotEngine() {
       const res = await fetch('/api/ai/consensus', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
+        body: JSON.stringify({ symbol, language: locale || 'en' }),
         signal: AbortSignal.timeout(30000),
       })
 

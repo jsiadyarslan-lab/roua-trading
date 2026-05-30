@@ -8,24 +8,17 @@ import "./globals.css";
 // must NOT render <html>/<body> — that's handled by [locale]/layout.tsx
 // so that lang and dir attributes can be set per-locale.
 // Next.js 14.1+ supports this pass-through pattern.
+//
+// PWA NOTE: manifest, icons, appleWebApp are ALL defined in
+// [locale]/layout.tsx generateMetadata(). DO NOT duplicate them here
+// — duplicate manifest links and apple-touch-icons break PWA
+// installability in Chrome.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://roua-trading-production.up.railway.app";
 
 export const metadata: Metadata = {
-  manifest: "/manifest.json",
   metadataBase: new URL(SITE_URL),
-  icons: {
-    icon: [
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "192x192" },
-      { url: "/icon-512.png", sizes: "512x512" },
-    ],
-  },
   robots: {
     index: true,
     follow: true,

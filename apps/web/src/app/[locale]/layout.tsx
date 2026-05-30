@@ -6,7 +6,6 @@ import { routing } from '@/i18n/routing';
 import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
-import PWARegistrar from "@/components/PWARegistrar";
 
 const cairo = { variable: "--font-cairo", className: "" };
 const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
@@ -160,18 +159,16 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
-      <head>
-        {/* iOS PWA: These MUST be in server-rendered HTML, not injected by JS */}
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="رؤى" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="192x192" />
-        <link rel="manifest" href="/manifest.json" />
-      </head>
+      {/*
+        NO manual <head> PWA tags!
+        Next.js metadata API handles: manifest link, apple-mobile-web-app-*,
+        apple-touch-icon, theme-color, icons.
+        Serwist handles: SW registration automatically via cacheOnNavigation.
+        Duplicate tags were causing Chrome to reject PWA installability.
+      */}
       <body className={`${fontVars} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <GlobalStyleRegistry />
-          <PWARegistrar />
           {children}
           <Toaster />
         </NextIntlClientProvider>

@@ -1191,6 +1191,13 @@ export default function RouaChart({
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
   }>>([]);
+  // PERF: Refs for overlay throttling — avoid re-rendering the entire 3000+ line
+  // RouaChart component on every scroll frame. Instead of calling setState on
+  // every rAF, we use direct DOM manipulation for position updates and only
+  // setState when the structure changes (e.g. trades added/removed).
+  const lastOverlayUpdateRef = useRef(0);
+  const OVERLAY_THROTTLE_MS = 120; // ~8fps for overlay position updates
+  const lastOverlayStructureRef = useRef(''); // Hash to detect structural changes
 
   // Keep latest positions/trades in ref so the rAF callback always has fresh data
   const positionsRef = useRef(positions);
@@ -1330,8 +1337,45 @@ export default function RouaChart({
         );
       });
 
-      setTradeOverlays(overlays);
-      setFillZones(zones);
+      // PERF: Throttle state updates to avoid re-rendering the entire component
+      // on every scroll frame. Only update state when:
+      // 1. Enough time has passed (OVERLAY_THROTTLE_MS)
+      // 2. The overlay structure changed (new/removed trades)
+      const now = Date.now();
+      const structureHash = overlays.map(o => o.key).join(',') + zones.map(z => z.key).join(',');
+      const structureChanged = structureHash !== lastOverlayStructureRef.current;
+
+      if (structureChanged || now - lastOverlayUpdateRef.current >= OVERLAY_THROTTLE_MS) {
+        lastOverlayUpdateRef.current = now;
+        lastOverlayStructureRef.current = structureHash;
+        setTradeOverlays(overlays);
+        setFillZones(zones);
+      } else {
+        // Position-only update: move existing DOM elements directly without React re-render
+        // This is the KEY optimization — no setState → no re-render → chart stays smooth
+        try {
+          const overlayContainer = document.querySelector('.roua-overlay-layer');
+          if (overlayContainer) {
+            // Update fill zone positions directly
+            const zoneEls = overlayContainer.querySelectorAll('[data-zone]');
+            zones.forEach((zone, i) => {
+              const el = zoneEls[i] as HTMLElement;
+              if (el) {
+                el.style.top = zone.top + 'px';
+                el.style.height = Math.max(zone.height, 1) + 'px';
+              }
+            });
+            // Update trade label positions directly
+            const labelEls = overlayContainer.querySelectorAll('[data-trade-label]');
+            overlays.forEach((ov, i) => {
+              const el = labelEls[i] as HTMLElement;
+              if (el) {
+                el.style.top = (ov.y - 9) + 'px';
+              }
+            });
+          }
+        } catch { /* DOM may not be ready */ }
+      }
     });
   }, []); // FIX: Empty deps — uses refs for all chart access, preventing infinite re-render loop
 
@@ -1358,8 +1402,8 @@ export default function RouaChart({
 
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    // PERF: 2000ms is sufficient — trade overlay positions don't change sub-second
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
+    // PERF: 3000ms — positions update via DOM manipulation between full state updates
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
 
     return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2515,7 +2559,7 @@ export default function RouaChart({
 
           {/* Overlay Layer — ABOVE canvas so trade labels and fill zones are visible.
               pointerEvents: none so chart interactions (drawing, crosshair) still work. */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}>
+          <div className="roua-overlay-layer" style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 
@@ -2523,6 +2567,7 @@ export default function RouaChart({
             {fillZones.map(zone => (
               <div
                 key={zone.key}
+                data-zone={zone.key}
                 style={{
                   position: 'absolute',
                   top: zone.top,
@@ -2534,6 +2579,7 @@ export default function RouaChart({
                     : 'rgba(63, 185, 80, 0.13)',
                   pointerEvents: 'none',
                   zIndex: 2,
+                  willChange: 'top, height',
                 }}
               />
             ))}
@@ -2556,7 +2602,7 @@ export default function RouaChart({
                 : isSL ? `SL ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`
                 : `TP ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`;
               return (
-                <div key={ov.key} style={{
+                <div key={ov.key} data-trade-label={ov.key} style={{
                   position: 'absolute',
                   top: ov.y - 9,
                   left: 6,
@@ -2565,6 +2611,7 @@ export default function RouaChart({
                   display: 'flex',
                   alignItems: 'center',
                   gap: 3,
+                  willChange: 'top',
                 }}>
                   <span style={{
                     background: bg,

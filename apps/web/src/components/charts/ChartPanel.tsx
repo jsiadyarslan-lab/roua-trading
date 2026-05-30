@@ -8,6 +8,8 @@
 // - Active state tracking (blue border when selected)
 // - Chart Control API registration for main toolbar routing
 // - Mini header with symbol/timeframe/price info
+// - Position/Trade price lines (entry/SL/TP)
+// - Trade overlay labels with fill zones
 // ═══════════════════════════════════════════════════════════
 
 'use client';
@@ -23,6 +25,8 @@ import {
   unregisterChartControl,
 } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore } from '@/hooks/useMultiChartStore';
+import { usePositionsStore } from '@/hooks/usePositionsStore';
+import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 
 interface ChartPanelProps {
   chartId: string;
@@ -69,6 +73,9 @@ const TIMEFRAME_OPTIONS = [
   { value: '1week', label: '1W' },
 ];
 
+// Helper: Normalize symbol for matching positions
+const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
+
 export function ChartPanel({
   chartId,
   symbol,
@@ -99,6 +106,39 @@ export function ChartPanel({
   const [candleCount, setCandleCount] = useState(0);
   const [changePercent, setChangePercent] = useState<number | null>(null);
 
+  // ── Position/Trade Overlay State ──
+  const positions = usePositionsStore(s => s.positions);
+  const paperTrades = usePaperTradesStore(s => s.trades);
+  const positionsRef = useRef(positions);
+  positionsRef.current = positions;
+  const paperTradesRef = useRef(paperTrades);
+  paperTradesRef.current = paperTrades;
+  const symbolRef = useRef(symbol);
+  symbolRef.current = symbol;
+
+  interface TradeOverlay {
+    key: string;
+    y: number;
+    price: number;
+    type: 'entry' | 'sl' | 'tp';
+    direction: 'long' | 'short';
+    source: 'manual' | 'bot' | 'exchange';
+    qty: number;
+    pnl?: number;
+  }
+
+  const [tradeOverlays, setTradeOverlays] = useState<TradeOverlay[]>([]);
+  const [fillZones, setFillZones] = useState<Array<{
+    top: number; height: number; type: 'sl' | 'tp'; key: string;
+  }>>([]);
+
+  // rAF deduplication
+  const rafIdRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
+
+  // Price line IDs for cleanup
+  const positionLineIdsRef = useRef<string[]>([]);
+
   // ── Format price ──
   const formatPrice = (price: number | null): string => {
     if (price === null) return '—';
@@ -108,9 +148,206 @@ export function ChartPanel({
     return price.toFixed(5);
   };
 
+  // ── Recalculate overlay positions ──
+  const scheduleOverlayUpdate = useCallback(() => {
+    cancelAnimationFrame(rafIdRef.current);
+    rafIdRef.current = requestAnimationFrame(() => {
+      if (!isMountedRef.current) return;
+      const chart = chartRef.current;
+      if (!chart) return;
+
+      const chartSymbol = normalizeSymbol(symbolRef.current);
+      const overlays: TradeOverlay[] = [];
+      const zones: typeof fillZones = [];
+
+      const processTrade = (
+        entryPrice: number, direction: 'long' | 'short',
+        sl?: number, tp?: number, qty = 0, pnl?: number,
+        source: 'manual' | 'bot' | 'exchange' = 'manual', prefix = ''
+      ) => {
+        const entryY = chart.getPriceCoordinate(entryPrice);
+        const slY = sl && sl > 0 ? chart.getPriceCoordinate(sl) : null;
+        const tpY = tp && tp > 0 ? chart.getPriceCoordinate(tp) : null;
+
+        if (entryY !== null) {
+          overlays.push({ key: `${prefix}entry`, y: entryY, price: entryPrice, type: 'entry', direction, source, qty, pnl });
+        }
+        if (slY !== null) {
+          overlays.push({ key: `${prefix}sl`, y: slY, price: sl!, type: 'sl', direction, source, qty });
+        }
+        if (tpY !== null) {
+          overlays.push({ key: `${prefix}tp`, y: tpY, price: tp!, type: 'tp', direction, source, qty });
+        }
+
+        if (slY !== null && entryY !== null) {
+          zones.push({ top: Math.min(entryY, slY), height: Math.abs(entryY - slY), type: 'sl', key: `${prefix}sl-zone` });
+        }
+        if (tpY !== null && entryY !== null) {
+          zones.push({ top: Math.min(entryY, tpY), height: Math.abs(entryY - tpY), type: 'tp', key: `${prefix}tp-zone` });
+        }
+      };
+
+      // Exchange positions
+      positionsRef.current.forEach(pos => {
+        const posSymbol = normalizeSymbol(pos.symbol || '');
+        if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
+        const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
+        if (entryPrice <= 0) return;
+        const slVal = Number(pos.stopLoss || pos.sl || 0);
+        const tpVal = Number(pos.takeProfit || pos.tp || 0);
+        processTrade(
+          entryPrice,
+          (pos.side || '').toLowerCase() === 'long' ? 'long' : 'short',
+          slVal > 0 ? slVal : undefined,
+          tpVal > 0 ? tpVal : undefined,
+          pos.qty || 0, undefined, 'exchange',
+          `pos-${pos.id}-`
+        );
+      });
+
+      // Paper trades (grouped)
+      const groupedPaper = new Map<string, any>();
+      paperTradesRef.current.forEach(trade => {
+        const tradeSymbol = normalizeSymbol(trade.symbol || '');
+        if (!tradeSymbol.includes(chartSymbol) && !chartSymbol.includes(tradeSymbol)) return;
+        const entryPrice = Number(trade.entryPrice || 0);
+        if (entryPrice <= 0) return;
+        const key = `${trade.side}-${entryPrice}-${trade.sl}-${trade.tp}`;
+        if (groupedPaper.has(key)) {
+          groupedPaper.get(key)!.qty += trade.qty || 0;
+          groupedPaper.get(key)!.unrealizedPnl += trade.unrealizedPnl || 0;
+          groupedPaper.get(key)!.count += 1;
+        } else {
+          groupedPaper.set(key, { ...trade, count: 1, qty: trade.qty || 0, unrealizedPnl: trade.unrealizedPnl || 0 });
+        }
+      });
+
+      groupedPaper.forEach((trade, key) => {
+        processTrade(
+          Number(trade.entryPrice || 0),
+          (trade.side || '').toLowerCase() === 'long' ? 'long' : 'short',
+          trade.sl ? Number(trade.sl) : undefined,
+          trade.tp ? Number(trade.tp) : undefined,
+          trade.qty || 0, trade.unrealizedPnl,
+          trade.source === 'bot' ? 'bot' : 'manual',
+          `trade-grp-${key}-`
+        );
+      });
+
+      setTradeOverlays(overlays);
+      setFillZones(zones);
+    });
+  }, []);
+
+  // ── Subscribe to chart scroll/zoom for overlay recalc ──
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const unsubscribe = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    const timer = setTimeout(scheduleOverlayUpdate, 200);
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
+
+    return () => { unsubscribe(); clearTimeout(timer); clearInterval(priceScaleInterval); };
+  }, [scheduleOverlayUpdate, chartRef.current]);
+
+  // ── Re-calculate overlays when trades change ──
+  useEffect(() => {
+    scheduleOverlayUpdate();
+  }, [positions, paperTrades, scheduleOverlayUpdate]);
+
+  // ── Apply Position Price Lines to Chart ──
+  useEffect(() => {
+    const chart = chartRef.current;
+    const series = mainSeriesRef.current;
+    if (!chart || !series) return;
+
+    // Remove old lines
+    positionLineIdsRef.current.forEach(id => {
+      try { series.removePriceLine(id as any); } catch {}
+    });
+    positionLineIdsRef.current = [];
+
+    const chartSymbol = normalizeSymbol(symbol);
+    const addLine = (id: string, price: number, color: string, label: string = '', lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
+      try {
+        const priceLine = series.createPriceLine({
+          price,
+          color,
+          lineWidth: lineWidth as any,
+          lineStyle: lineStyle as any,
+          axisLabelVisible,
+          title: label,
+        });
+        positionLineIdsRef.current.push(id);
+      } catch {}
+    };
+
+    // Exchange positions
+    positions.forEach(pos => {
+      const posSymbol = normalizeSymbol(pos.symbol || '');
+      if (!posSymbol.includes(chartSymbol) && !chartSymbol.includes(posSymbol)) return;
+      const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
+      const isLong = (pos.side || '').toLowerCase() === 'long';
+      if (entryPrice > 0) {
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', isLong ? '▲ Entry' : '▼ Entry', 2, 2, true);
+      }
+      const sl = Number(pos.stopLoss || pos.sl || 0);
+      if (sl > 0) {
+        addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`, 1, 2, true);
+      }
+      const tp = Number(pos.takeProfit || pos.tp || 0);
+      if (tp > 0) {
+        addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`, 1, 2, true);
+      }
+    });
+
+    // Paper trades (grouped)
+    const groupedLines = new Map<string, any>();
+    paperTrades.forEach(trade => {
+      const tradeSymbol = normalizeSymbol(trade.symbol || '');
+      if (!tradeSymbol.includes(chartSymbol) && !chartSymbol.includes(tradeSymbol)) return;
+      const entryPrice = Number(trade.entryPrice || 0);
+      if (entryPrice <= 0) return;
+      const key = `${trade.side}-${entryPrice}-${trade.sl}-${trade.tp}`;
+      if (groupedLines.has(key)) {
+        groupedLines.get(key)!.count += 1;
+      } else {
+        groupedLines.set(key, { ...trade, count: 1 });
+      }
+    });
+
+    groupedLines.forEach((trade, key) => {
+      const entryPrice = Number(trade.entryPrice || 0);
+      const isLong = (trade.side || '').toLowerCase() === 'long';
+      const qty = Number(trade.qty || 1);
+
+      addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', isLong ? '▲ Entry' : '▼ Entry', 2, 2, true);
+      if (trade.sl && Number(trade.sl) > 0) {
+        const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
+        addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', `SL ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, 1, 2, true);
+      }
+      if (trade.tp && Number(trade.tp) > 0) {
+        const tpP = ((Number(trade.tp) - entryPrice) * qty * (isLong ? 1 : -1));
+        addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', `TP ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, 1, 2, true);
+      }
+    });
+
+    return () => {
+      positionLineIdsRef.current.forEach(id => {
+        try { series.removePriceLine(id as any); } catch {}
+      });
+      positionLineIdsRef.current = [];
+    };
+  }, [positions, paperTrades, symbol, chartRef.current, mainSeriesRef.current]);
+
+  // ── Mount guard ──
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => { isMountedRef.current = false; cancelAnimationFrame(rafIdRef.current); };
+  }, []);
+
   // ── Register Chart Control API for toolbar routing ──
-  // This allows the main toolbar to control this chart panel
-  // when it's the active chart in multi-chart mode.
   useEffect(() => {
     const controlApi = {
       zoomIn: () => {
@@ -143,7 +380,6 @@ export function ChartPanel({
       get isPaused() { return isPausedRef.current; },
       get activeTool() { return activeToolRef.current; },
       clearDrawings: () => {
-        // Clear overlay series
         overlaySeriesRef.current.forEach(series => {
           try { chartRef.current?.removeSeries(series); } catch {}
         });
@@ -174,11 +410,30 @@ export function ChartPanel({
           link.click();
         } catch {}
       },
-      exportSVG: () => { /* SVG export not available for canvas-based charts */ },
-      toggleFullscreen: () => { /* Handled at parent level */ },
+      exportSVG: () => {},
+      toggleFullscreen: () => {},
       isFullscreen: false,
-      addPriceLine: () => { /* Price lines not supported in panel mode yet */ },
-      removePriceLine: () => {},
+      addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => {
+        const series = mainSeriesRef.current;
+        if (!series) return;
+        try {
+          series.createPriceLine({
+            price,
+            color,
+            lineWidth: (lineWidth || 1) as any,
+            lineStyle: (lineStyle || 2) as any,
+            axisLabelVisible: axisLabelVisible !== false,
+            title: label,
+          });
+          positionLineIdsRef.current.push(id);
+        } catch {}
+      },
+      removePriceLine: (id: string) => {
+        const series = mainSeriesRef.current;
+        if (!series) return;
+        try { series.removePriceLine(id as any); } catch {}
+        positionLineIdsRef.current = positionLineIdsRef.current.filter(i => i !== id);
+      },
       setCrosshairMode: (enabled: boolean) => {
         try {
           chartRef.current?.applyOptions({
@@ -196,7 +451,7 @@ export function ChartPanel({
     return () => {
       unregisterChartControl(chartId);
     };
-  }, [chartId, updateChartConfig]);
+  }, [chartId, updateChartConfig, symbol, timeframe]);
 
   // ── WebSocket: Live data ──
   const handleCandleUpdate = useCallback((candle: CandleData) => {
@@ -204,14 +459,12 @@ export function ChartPanel({
     if (!chartRef.current || !mainSeriesRef.current) return;
     const candles = candlesRef.current;
 
-    // Update or append candle
     if (candles.length > 0 && candles[candles.length - 1].time === candle.time) {
       candles[candles.length - 1] = candle;
     } else if (candles.length > 0 && candle.time > candles[candles.length - 1].time) {
       candles.push(candle);
     }
 
-    // Update series (cast time to UTCTimestamp for lightweight-charts)
     try {
       mainSeriesRef.current.update(candle as any);
       if (volumeSeriesRef.current) {
@@ -261,7 +514,6 @@ export function ChartPanel({
 
         if (destroyed || !containerRef.current) return;
 
-        // Clean up previous chart if any
         if (chartRef.current) {
           try { chartRef.current.remove(); } catch {}
           chartRef.current = null;
@@ -299,7 +551,6 @@ export function ChartPanel({
           handleScroll: true, handleScale: true,
         });
 
-        // Volume series
         const volumeSeries = chart.addSeries(HistogramSeries, {
           priceFormat: { type: 'volume' },
           priceScaleId: 'volume',
@@ -307,7 +558,6 @@ export function ChartPanel({
         volumeSeries.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
         volumeSeriesRef.current = volumeSeries;
 
-        // Main series based on chart type
         let mainSeries: ISeriesApi<SeriesType>;
         if (chartType === 'line') {
           mainSeries = chart.addSeries(LineSeries, {
@@ -328,14 +578,12 @@ export function ChartPanel({
           }) as ISeriesApi<SeriesType>;
         }
 
-        // CRITICAL: Disable conflation to prevent candles becoming dots
         try { mainSeries.applyOptions({ enableConflation: false } as any); } catch {}
 
         chartRef.current = chart;
         mainSeriesRef.current = mainSeries;
         registerChartInstance(chartId, chart, mainSeries);
 
-        // Resize observer
         const observer = new ResizeObserver(entries => {
           for (const entry of entries) {
             const { width: w, height: h } = entry.contentRect;
@@ -347,7 +595,6 @@ export function ChartPanel({
         observer.observe(container);
         resizeObserverRef.current = observer;
 
-        // Load initial data
         setLoading(true);
         setError(null);
 
@@ -371,7 +618,6 @@ export function ChartPanel({
             }))
             .filter((d: CandleData) => !isNaN(d.time) && d.time > 0 && !isNaN(d.close));
 
-          // Deduplicate and sort
           const seen = new Set<number>();
           const unique = candleData.filter(d => {
             if (seen.has(d.time)) return false;
@@ -386,8 +632,6 @@ export function ChartPanel({
           }
 
           candlesRef.current = unique;
-
-          // Cast time for lightweight-charts (number → UTCTimestamp)
           const typedCandles = unique.map(d => ({ ...d, time: d.time as any }));
 
           if (chartType === 'line' || chartType === 'area') {
@@ -415,11 +659,9 @@ export function ChartPanel({
           }
 
           if (!destroyed) setLoading(false);
-
         } catch (err: any) {
           if (!destroyed) { setError(err.message || 'Failed to load'); setLoading(false); }
         }
-
       } catch (err: any) {
         if (!destroyed) { setError(err.message || 'Failed to create chart'); setLoading(false); }
       }
@@ -441,10 +683,10 @@ export function ChartPanel({
         volumeSeriesRef.current = null;
       }
       overlaySeriesRef.current.clear();
+      positionLineIdsRef.current = [];
     };
   }, [chartId, symbol, timeframe, chartType]);
 
-  // ── Handle config change from mini-header ──
   const handleSymbolChange = useCallback((newSymbol: string) => {
     updateChartConfig(chartId, { symbol: newSymbol });
   }, [chartId, updateChartConfig]);
@@ -453,7 +695,6 @@ export function ChartPanel({
     updateChartConfig(chartId, { timeframe: newTimeframe });
   }, [chartId, updateChartConfig]);
 
-  // ── Render ──
   const isPositive = changePercent !== null && changePercent >= 0;
 
   return (
@@ -544,7 +785,6 @@ export function ChartPanel({
 
         <div style={{ flex: 1 }} />
 
-        {/* Loading spinner */}
         {loading && (
           <div style={{
             width: 10, height: 10,
@@ -555,12 +795,10 @@ export function ChartPanel({
           }} />
         )}
 
-        {/* Paused indicator */}
         {isPaused && !loading && (
           <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
         )}
 
-        {/* Price display */}
         {currentPrice !== null && !loading && (
           <>
             <span style={{
@@ -591,7 +829,6 @@ export function ChartPanel({
           <span style={{ color: C.danger, fontSize: 8, fontWeight: 700 }}>!</span>
         )}
 
-        {/* Close button */}
         {canClose && onClose && (
           <button
             onClick={e => { e.stopPropagation(); onClose(); }}
@@ -627,7 +864,7 @@ export function ChartPanel({
         )}
       </div>
 
-      {/* ── Chart Container ── */}
+      {/* ── Chart Container with Trade Overlays ── */}
       <div
         ref={containerRef}
         style={{
@@ -637,7 +874,71 @@ export function ChartPanel({
           position: 'relative',
           background: C.bg,
         }}
-      />
+      >
+        {/* ── Fill Zones (SL/TP bands) ── */}
+        {fillZones.map(zone => (
+          <div
+            key={zone.key}
+            style={{
+              position: 'absolute',
+              top: zone.top,
+              left: 0,
+              right: 0,
+              height: Math.max(zone.height, 1),
+              background: zone.type === 'sl' ? 'rgba(248,81,73,0.08)' : 'rgba(63,185,80,0.08)',
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          />
+        ))}
+
+        {/* ── Trade Overlay Labels ── */}
+        {tradeOverlays.map(overlay => {
+          const isEntry = overlay.type === 'entry';
+          const isSL = overlay.type === 'sl';
+          const isTP = overlay.type === 'tp';
+          const color = isEntry ? '#00D4FF' : isSL ? '#FF4757' : '#00FFA3';
+          const bgColor = isEntry ? 'rgba(0,212,255,0.15)' : isSL ? 'rgba(248,81,73,0.15)' : 'rgba(0,255,163,0.15)';
+          const label = isEntry
+            ? `${overlay.direction === 'long' ? '▲' : '▼'} ${overlay.qty}`
+            : isSL ? 'SL' : 'TP';
+
+          return (
+            <div
+              key={overlay.key}
+              style={{
+                position: 'absolute',
+                top: overlay.y - 7,
+                left: 4,
+                zIndex: 5,
+                pointerEvents: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 2,
+              }}
+            >
+              <span style={{
+                fontSize: 7,
+                fontWeight: 700,
+                fontFamily: "'JetBrains Mono', monospace",
+                color,
+                background: bgColor,
+                padding: '1px 4px',
+                borderRadius: 2,
+                whiteSpace: 'nowrap',
+                lineHeight: '12px',
+              }}>
+                {label} {overlay.price > 999 ? overlay.price.toFixed(2) : overlay.price.toFixed(5)}
+                {overlay.pnl !== undefined && overlay.pnl !== 0 && (
+                  <span style={{ color: overlay.pnl >= 0 ? '#00FFA3' : '#FF4757', marginLeft: 2 }}>
+                    {overlay.pnl >= 0 ? '+' : ''}{overlay.pnl.toFixed(1)}$
+                  </span>
+                )}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

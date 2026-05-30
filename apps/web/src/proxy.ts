@@ -12,6 +12,9 @@ import type { NextRequest } from 'next/server'
  *
  * Migrated from middleware.ts to proxy.ts for Next.js 16 compatibility.
  * See: https://nextjs.org/docs/messages/middleware-to-proxy
+ *
+ * PWA FIX: Static asset files (icons, manifest, SW) must NOT be redirected
+ * by locale detection. They are served directly from public/ without locale prefix.
  */
 
 // ── i18n Configuration ──
@@ -20,75 +23,52 @@ const DEFAULT_LOCALE = 'ar'
 
 // Smart locale proximity — maps unsupported browser locales to closest supported one
 const LOCALE_PROXIMITY: Record<string, string> = {
-  // Spanish family
   ca: 'es', gl: 'es',
-  // Chinese family
   zh_CN: 'zh', zh_TW: 'zh', zh_HK: 'zh', zh_SG: 'zh',
-  // Portuguese family
   pt_BR: 'pt', pt_PT: 'pt',
-  // Hindi family
   hi_IN: 'hi',
-  // Korean
   ko_KR: 'ko',
-  // Indonesian family
   id_ID: 'id',
-  // Vietnamese
   vi_VN: 'vi',
-  // Thai
   th_TH: 'th',
-  // Italian
   it_IT: 'it', it_CH: 'it',
-  // Polish
   pl_PL: 'pl',
-  // Dutch family
   nl_BE: 'nl', nl_NL: 'nl', af: 'nl',
-  // Malay family
   ms_MY: 'ms', ms_BN: 'ms',
-  // Hebrew
   he_IL: 'he',
-  // Swedish family
   sv_SE: 'sv', sv_FI: 'sv',
-  // Ukrainian
   uk_UA: 'uk',
-  // Persian family
   fa_IR: 'fa', fa_AF: 'fa', tg: 'fa',
-  // Urdu
   ur_PK: 'ur', ur_IN: 'ur',
-  // Filipino
   fil_PH: 'fil',
-  // Danish
   da_DK: 'da', da_GL: 'da',
-  // Norwegian
   no_NO: 'no', nb: 'no', nn: 'no', nb_NO: 'no', nn_NO: 'no',
-  // Finnish
   fi_FI: 'fi',
-  // Czech
   cs_CZ: 'cs', cs_SK: 'cs',
-  // Hungarian
   hu_HU: 'hu',
-  // Romanian
   ro_RO: 'ro', ro_MD: 'ro', mo: 'ro',
-  // Bengali
   bn_BD: 'bn', bn_IN: 'bn',
-  // Remaining proximity mappings (no dedicated locale yet)
   bg: 'ru', mk: 'ru', sr: 'ru', hr: 'ru', sl: 'ru', bs: 'ru',
   az: 'tr', kk: 'tr', uz: 'tr', ky: 'tr', tk: 'tr',
   ku: 'ar',
   eo: 'en',
 }
 
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// PWA CRITICAL: These static files must NEVER be locale-redirected.
+// They live in public/ and must be served at their exact paths.
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+const STATIC_FILE_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|xml|txt|map|wasm|js|json|html|css)$/i
+
 /**
  * Detect locale from cookie or Accept-Language header.
- * Priority: NEXT_LOCALE cookie > Accept-Language proximity mapping > default (ar)
  */
 function detectLocale(request: NextRequest): string {
-  // 1. Cookie (highest priority — user's explicit choice)
   const cookieLocale = request.cookies.get('NEXT_LOCALE')?.value
   if (cookieLocale && SUPPORTED_LOCALES.includes(cookieLocale)) {
     return cookieLocale
   }
 
-  // 2. Browser Accept-Language header with proximity mapping
   const acceptLanguage = request.headers.get('accept-language') || ''
   const languages = acceptLanguage.split(',').map(lang => {
     const [code, qStr] = lang.trim().split(';')
@@ -99,22 +79,14 @@ function detectLocale(request: NextRequest): string {
 
   for (const { code } of languages) {
     const baseLang = code.split('-')[0].toLowerCase()
-    // Exact match
     if (SUPPORTED_LOCALES.includes(code.toLowerCase())) return code.toLowerCase()
-    // Base language match
     if (SUPPORTED_LOCALES.includes(baseLang)) return baseLang
-    // Proximity mapping
     if (LOCALE_PROXIMITY[baseLang]) return LOCALE_PROXIMITY[baseLang]
   }
 
-  // 3. Default
   return DEFAULT_LOCALE
 }
 
-/**
- * Check if a pathname already has a locale prefix.
- * Returns the locale if found, null otherwise.
- */
 function extractLocaleFromPath(pathname: string): string | null {
   for (const locale of SUPPORTED_LOCALES) {
     if (pathname === `/${locale}` || pathname.startsWith(`/${locale}/`)) {
@@ -124,10 +96,6 @@ function extractLocaleFromPath(pathname: string): string | null {
   return null
 }
 
-/**
- * Strip the locale prefix from a pathname.
- * e.g., /ar/login → /login, /en/dashboard → /dashboard
- */
 function stripLocalePrefix(pathname: string): string {
   for (const locale of SUPPORTED_LOCALES) {
     if (pathname === `/${locale}`) return '/'
@@ -136,9 +104,6 @@ function stripLocalePrefix(pathname: string): string {
   return pathname
 }
 
-/**
- * Add security headers to a response.
- */
 function addSecurityHeaders(response: NextResponse, request: NextRequest): NextResponse {
   response.headers.delete('x-powered-by')
 
@@ -146,7 +111,7 @@ function addSecurityHeaders(response: NextResponse, request: NextRequest): NextR
   const isStaticAsset =
     pathname.startsWith('/_next/static/') ||
     pathname.startsWith('/_next/image') ||
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|woff2?|ttf|eot|css|js|map)$/i)
+    STATIC_FILE_REGEX.test(pathname)
 
   if (isStaticAsset) {
     response.headers.set('Cache-Control', 'public, max-age=86400, immutable')
@@ -203,7 +168,17 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // ── Static assets: pass through with security headers ──
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // PWA CRITICAL FIX: Static files MUST pass through WITHOUT locale
+  // redirect. Files like /icon-192.png, /manifest.json, /sw.js, etc.
+  // are served from public/ and must NOT be redirected to /ar/icon-192.png.
+  // This was the root cause of PWA not working on mobile for 50+ attempts!
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (STATIC_FILE_REGEX.test(pathname)) {
+    return addSecurityHeaders(NextResponse.next(), request)
+  }
+
+  // ── Static assets (_next): pass through with security headers ──
   if (pathname.startsWith('/_next/')) {
     return addSecurityHeaders(NextResponse.next(), request)
   }
@@ -231,17 +206,13 @@ export function proxy(request: NextRequest) {
   }
 
   // ── i18n: Locale detection & redirect ──
-  // With localePrefix:'always', ALL paths must have a locale prefix.
-  // If the path doesn't have one, detect the best locale and redirect.
   const pathLocale = extractLocaleFromPath(pathname)
 
   if (!pathLocale) {
-    // No locale prefix in URL — detect and redirect
     const targetLocale = detectLocale(request)
     const url = request.nextUrl.clone()
     url.pathname = `/${targetLocale}${pathname}`
     const response = NextResponse.redirect(url)
-    // Set cookie so we don't re-detect on every request
     if (!request.cookies.get('NEXT_LOCALE')?.value) {
       response.cookies.set('NEXT_LOCALE', targetLocale, {
         path: '/',
@@ -253,7 +224,6 @@ export function proxy(request: NextRequest) {
   }
 
   // ── Path HAS a locale prefix — apply route protection ──
-  // Strip locale prefix to check the actual route
   const barePath = stripLocalePrefix(pathname)
 
   // ── Admin API routes: pass through ──
@@ -290,6 +260,8 @@ export function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    '/((?!_next/static|_next/image|favicon\\.ico|favicon\\.svg|logo\\.svg|logo-.*\\.png|sw\\.js|manifest\\.json|robots\\.txt).*)',
+    // PWA FIX: Exclude static file extensions from the matcher entirely.
+    // This ensures icons, manifest, SW, and other assets bypass locale routing.
+    '/((?!_next/static|_next/image|.*\\.(ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|css|js|map|json|html|webp|avif|mp3|mp4|webm|pdf|xml|txt|wasm)|sw\\.js|manifest\\.json|robots\\.txt).*)',
   ],
 }

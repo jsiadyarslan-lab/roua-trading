@@ -229,6 +229,10 @@ export default function RouaChart({
   const [newsMarkers, setNewsMarkers] = useState<NewsMarker[]>([]);
   const positionLineIdsRef = useRef<string[]>([]);
   const signalLineIdsRef = useRef<string[]>([]);
+  // FIX: Moved lastAnalysisResultRef up from line ~1412 to avoid TDZ error
+  // in production minified builds. It's used in WebSocket onCandleUpdate (line ~529)
+  // and periodic overlay refresh (line ~632) which are defined before the old location.
+  const lastAnalysisResultRef = useRef<any>(null);
 
   const candlesRef = useRef<CandleData[]>([]);
   const prevPriceRef = useRef(currentPrice);
@@ -1404,12 +1408,7 @@ export default function RouaChart({
     return () => { cancelled = true; clearInterval(timer); };
   }, [selectedSymbol, timeframe]);
 
-  // FIX: Removed aiProcessingRef — was declared but never used. The async lock
-  // was previously removed in favor of direct execution, but the ref remained
-  // as dead code. The aiProcessingRef was also referenced in a comment that
-  // said "Direct execution — no lock needed", confirming it's unused.
-
-  const lastAnalysisResultRef = useRef<any>(null); // store full result for retry draws
+  // lastAnalysisResultRef moved to top of component (near other refs) to avoid TDZ error
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
 
   // ═══════════════════════════════════════════════════════════════════

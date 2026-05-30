@@ -476,7 +476,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       const mainSeries = mainSeriesRef.current || candleSeriesRef.current;
-      const candleData = seriesData.get(mainSeries as any) as any || seriesData.get(candleSeries) as any;
+      // FIX: guard against undefined series before calling .get()
+      let candleData: any = null;
+      try {
+        if (mainSeries) candleData = seriesData.get(mainSeries as any) as any;
+        if (!candleData && candleSeries) candleData = seriesData.get(candleSeries as any) as any;
+      } catch {
+        candleData = null;
+      }
       if (!candleData) {
         onCrosshairMoveRef.current?.(null);
         return;

@@ -32,6 +32,9 @@ export interface ChartControlAPI {
   addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
   removePriceLine: (id: string) => void;
   setCrosshairMode: (enabled: boolean) => void;
+  // ── Panel toggles (for main toolbar → active mini chart routing) ──
+  toggleDrawings: () => void;
+  toggleIndicators: () => void;
 }
 
 // ── Types ────────────────────────────────────────────────

@@ -578,6 +578,9 @@ export default function RouaChart({
           addPriceLine: chart.addPriceLine,
           removePriceLine: chart.removePriceLine,
           setCrosshairMode: chart.setCrosshairMode,
+          // ── Panel toggles — route main toolbar actions to this mini chart ──
+          toggleDrawings: () => setShowDrawingPanel(prev => !prev),
+          toggleIndicators: () => setShowIndicatorPanel(prev => !prev),
         };
         registerChartControl(chartId, controlApi);
         return true;
@@ -1374,7 +1377,9 @@ export default function RouaChart({
   // ensure candles are visible.
   const prevIsMultiChartRef = useRef(false);
   useEffect(() => {
-    if (isMiniChart) return; // Only for the main chart
+    // This effect is only for the main (non-mini) chart — mini charts don't
+    // have a "previous multi-chart state" to restore from.
+    if (isMiniChart) return;
     const wasMultiChart = prevIsMultiChartRef.current;
     prevIsMultiChartRef.current = isMultiChart;
 
@@ -1413,8 +1418,9 @@ export default function RouaChart({
   // FIX: Skip in mini chart mode — price lines are not needed for compact charts.
   // Also uses refs for chart methods to avoid re-running on every render.
   useEffect(() => {
-    if (isMiniChart) return;
-
+    // Position/trade lines should show on ALL charts (main + mini cells).
+    // Previously this was gated by `if (isMiniChart) return;` which prevented
+    // mini chart cells from showing open positions/trades — the user's #1 complaint.
     const addPriceLine = addPriceLineRef.current;
     const removePriceLine = removePriceLineRef.current;
 
@@ -2229,8 +2235,8 @@ export default function RouaChart({
         onZoomIn={isMultiChart ? (() => { getActiveChartControl()?.zoomIn(); }) : chart.zoomIn}
         onZoomOut={isMultiChart ? (() => { getActiveChartControl()?.zoomOut(); }) : chart.zoomOut}
         onResetView={isMultiChart ? (() => { getActiveChartControl()?.resetView(); }) : chart.resetView}
-        onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
-        onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
+        onToggleDrawings={isMultiChart ? (() => { getActiveChartControl()?.toggleDrawings(); }) : () => setShowDrawingPanel(!showDrawingPanel)}
+        onToggleIndicators={isMultiChart ? (() => { getActiveChartControl()?.toggleIndicators(); }) : () => setShowIndicatorPanel(!showIndicatorPanel)}
         onExportPNG={isMultiChart ? (() => { getActiveChartControl()?.exportPNG(); }) : chart.exportPNG}
         onExportCSV={isMultiChart ? (() => { getActiveChartControl()?.exportCSV(); }) : chart.exportCSV}
         onExportSVG={isMultiChart ? (() => { getActiveChartControl()?.exportSVG(); }) : chart.exportSVG}

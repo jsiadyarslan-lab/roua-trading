@@ -56,7 +56,7 @@ function tryTranslateToArabic(text: string): string {
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
-  const lang = searchParams.get('lang') || 'en'
+  const lang = searchParams.get('lang') || 'ar'
 
   try {
     // ── Priority 1: Roua News Site (AI-analyzed Arabic financial news) ──
@@ -118,7 +118,8 @@ export async function GET(request: Request) {
 
     if (integrationKey) {
       try {
-        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=15`, {
+        const fetchLimit = (lang === 'en' || lang === 'tr' || lang === 'es') ? '45' : '15'
+        const newsRes = await fetch(`${newsSiteUrl}/api/integration/news?limit=${fetchLimit}`, {
           headers: {
             'Content-Type': 'application/json',
             'X-Integration-Key': integrationKey,
@@ -185,15 +186,21 @@ export async function GET(request: Request) {
                 isArabicOnly: isArabicTitle,
               };
             })
-            // Filter out Arabic-only articles (no English content available)
-            .filter((item: any) => !item.isArabicOnly);
+            // Filter by language pipeline (like /api/news/latest does)
+            // Arabic: prefer articles with Arabic content (titleAr exists)
+            // English/Turkish/Spanish: prefer articles without Arabic titles
+            .filter((item: any) => {
+              if (lang === 'ar') {
+                // Arabic users: show articles that have Arabic content
+                return item.textAr && /[\u0600-\u06FF]/.test(item.textAr)
+              }
+              // English/Turkish/Spanish/French: show articles without Arabic-only titles
+              return !item.isArabicOnly
+            });
 
             if (items.length > 0) {
-              if (lang === 'fr' || lang === 'tr' || lang === 'es') {
-                // For French/Turkish/Spanish, strip the internal isArabicOnly flag from response
-                return NextResponse.json(items.map(({ isArabicOnly, ...rest }: any) => rest))
-              }
-              return NextResponse.json(items);
+              // Strip internal isArabicOnly flag from response
+              return NextResponse.json(items.map(({ isArabicOnly, ...rest }: any) => rest))
             }
           }
         }

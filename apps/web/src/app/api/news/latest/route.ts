@@ -127,10 +127,12 @@ export async function GET(request: NextRequest) {
           if (newsData.articles && Array.isArray(newsData.articles) && newsData.articles.length > 0) {
             let filteredArticles = newsData.articles;
 
-            if (lang === 'en' || lang === 'tr' || lang === 'es') {
-              filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
-            } else {
+            if (lang === 'ar') {
+              // Arabic users: prefer articles with Arabic content
               filteredArticles = filteredArticles.filter((article: any) => article.titleAr);
+            } else {
+              // English/French/Turkish/Spanish/other: prefer English-pipeline articles
+              filteredArticles = filteredArticles.filter((article: any) => !article.titleAr);
             }
 
             const articles = filteredArticles.map((article: any) => {

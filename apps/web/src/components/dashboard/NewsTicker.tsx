@@ -33,7 +33,7 @@ export default function NewsTicker() {
     try {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 5000)
-      const response = await fetch('/api/news/feed', { signal: controller.signal })
+      const response = await fetch(`/api/news/feed?lang=${locale}`, { signal: controller.signal })
       clearTimeout(timeoutId)
       if (response.ok) {
         const data = await response.json()
@@ -85,7 +85,7 @@ export default function NewsTicker() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [locale])
 
   useEffect(() => { fetchNews() }, [fetchNews])
 

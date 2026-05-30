@@ -56,6 +56,11 @@ interface MultiChartState {
   activeChartId: string;
   setActiveChartId: (id: string) => void;
 
+  // Expanded (maximized) chart — when set, only this chart is shown full-size
+  expandedChartId: string | null;
+  setExpandedChartId: (id: string | null) => void;
+  toggleExpandChart: (id: string) => void;
+
   // Chart configurations
   charts: ChartCellConfig[];
   addChart: (mainSymbol: string, mainTimeframe: string) => string;
@@ -75,6 +80,7 @@ export const useMultiChartStore = create<MultiChartState>()(
       layout: '1x1',
       isMultiChart: false,
       activeChartId: 'mc-1',
+      expandedChartId: null,
 
       charts: [
         { id: 'mc-1', symbol: 'BTC/USDT', timeframe: '15min', chartType: 'candle' },
@@ -85,6 +91,12 @@ export const useMultiChartStore = create<MultiChartState>()(
       setMultiChart: (value) => set({ isMultiChart: value }),
 
       setActiveChartId: (id) => set({ activeChartId: id }),
+
+      setExpandedChartId: (id) => set({ expandedChartId: id }),
+
+      toggleExpandChart: (id) => set(state => ({
+        expandedChartId: state.expandedChartId === id ? null : id,
+      })),
 
       addChart: (mainSymbol, mainTimeframe) => {
         const state = get();
@@ -120,6 +132,8 @@ export const useMultiChartStore = create<MultiChartState>()(
 
       removeChart: (id) => {
         const state = get();
+        // If the removed chart was expanded, collapse back to grid
+        const newExpanded = state.expandedChartId === id ? null : state.expandedChartId;
         const remaining = state.charts.filter(c => c.id !== id);
 
         // Unregister instance
@@ -150,6 +164,7 @@ export const useMultiChartStore = create<MultiChartState>()(
           layout: newLayout,
           activeChartId: newActiveId,
           isMultiChart: count > 1,
+          expandedChartId: newExpanded,
         });
       },
 
@@ -217,6 +232,7 @@ export const useMultiChartStore = create<MultiChartState>()(
             chartType: 'candle',
           }],
           activeChartId: state.charts[0]?.id || 'mc-1',
+          expandedChartId: null,
         });
       },
     }),
@@ -227,6 +243,7 @@ export const useMultiChartStore = create<MultiChartState>()(
         charts: state.charts,
         isMultiChart: state.isMultiChart,
         activeChartId: state.activeChartId,
+        expandedChartId: state.expandedChartId,
       }),
     }
   )

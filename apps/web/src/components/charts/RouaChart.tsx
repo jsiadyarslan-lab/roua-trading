@@ -78,6 +78,8 @@ interface RouaChartProps {
   onActivate?: () => void;
   onClose?: () => void;
   canClose?: boolean;
+  isExpanded?: boolean;
+  onToggleExpand?: () => void;
   // ── External toolbar control callbacks ──
   onToggleIndicators?: () => void;
   onToggleDrawings?: () => void;
@@ -333,6 +335,8 @@ export default function RouaChart({
   onActivate,
   onClose,
   canClose = true,
+  isExpanded = false,
+  onToggleExpand,
 }: RouaChartProps) {
   const tc = useTranslations('dashboard.chart');
   const { selectedSymbol, timeframe: storeTimeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
@@ -378,6 +382,8 @@ export default function RouaChart({
   const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
   const changeLayout = useMultiChartStore(s => s.changeLayout);
   const resetToSingle = useMultiChartStore(s => s.resetToSingle);
+  const expandedChartId = useMultiChartStore(s => !isGridCell ? (s.expandedChartId ?? null) : null);
+  const toggleExpandChart = useMultiChartStore(s => s.toggleExpandChart);
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
   // FIX: Ref for feedState to avoid stale closure in WebSocket callback
@@ -2143,6 +2149,31 @@ export default function RouaChart({
     const meta = LAYOUT_METAS[multiChartLayout];
     if (!meta) return null; // Defensive: invalid layout key
     const visibleCharts = charts.slice(0, meta.cols * meta.rows);
+
+    // If a chart is expanded, show ONLY that chart at full size
+    if (expandedChartId && visibleCharts.some(c => c.id === expandedChartId)) {
+      const expandedCell = visibleCharts.find(c => c.id === expandedChartId)!;
+      return (
+        <div style={{
+          flex: 1, minHeight: 0, display: 'flex', background: T.bg, position: 'relative',
+        }}>
+          <RouaChart
+            key={expandedCell.id}
+            chartId={expandedCell.id}
+            symbol={expandedCell.symbol}
+            timeframe={expandedCell.timeframe}
+            chartType={expandedCell.chartType}
+            isActive={true}
+            onActivate={() => setActiveChartId(expandedCell.id)}
+            onClose={charts.length > 1 ? () => removeChart(expandedCell.id) : undefined}
+            canClose={charts.length > 1}
+            isExpanded={true}
+            onToggleExpand={() => toggleExpandChart(expandedCell.id)}
+          />
+        </div>
+      );
+    }
+
     return (
       <div style={{
         flex: 1,
@@ -2166,13 +2197,15 @@ export default function RouaChart({
             onActivate={() => setActiveChartId(cell.id)}
             onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
             canClose={charts.length > 1}
+            isExpanded={false}
+            onToggleExpand={() => toggleExpandChart(cell.id)}
           />
         ))}
       </div>
     );
   // FIX: Include all values used inside the memo. Previously the IIFE
   // captured stale closures because it had no dependency tracking.
-  }, [isGridCell, isMultiChart, multiChartLayout, charts, activeChartId, setActiveChartId, removeChart]);
+  }, [isGridCell, isMultiChart, multiChartLayout, charts, activeChartId, setActiveChartId, removeChart, expandedChartId, toggleExpandChart]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 48 : 38;
 
@@ -2230,6 +2263,32 @@ export default function RouaChart({
               borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
           )}
           <div style={{ flex: 1 }} />
+          {/* Expand/Collapse button */}
+          {onToggleExpand && (
+            <button onClick={e => { e.stopPropagation(); onToggleExpand(); }}
+              style={{
+                background: isExpanded ? 'rgba(0,212,255,0.12)' : 'rgba(255,255,255,0.04)',
+                border: isExpanded ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 2, color: isExpanded ? '#00D4FF' : '#4B5563', width: 16, height: 16, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                flexShrink: 0, transition: 'all 0.15s ease',
+              }}
+              title={isExpanded ? 'Collapse' : 'Maximize'}
+            >
+              {isExpanded ? (
+                /* Minimize icon (4 corners inward) */
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="4 14 10 14 10 20" /><polyline points="20 10 14 10 14 4" />
+                </svg>
+              ) : (
+                /* Maximize icon (4 corners outward) */
+                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" />
+                  <line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" />
+                </svg>
+              )}
+            </button>
+          )}
           {canClose && onClose && (
             <button onClick={e => { e.stopPropagation(); onClose(); }}
               style={{

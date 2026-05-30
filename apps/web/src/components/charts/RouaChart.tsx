@@ -310,6 +310,11 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
   );
 }
 
+// ── Stable empty array for mini chart Zustand selector ──
+// Prevents infinite re-renders: if we return `[]` inside a selector,
+// Zustand sees a new reference each time → triggers re-render → new `[]` → loop.
+const EMPTY_CHARTS: Array<{ id: string; symbol: string; timeframe: string; chartType: ChartType }> = [];
+
 export default function RouaChart({
   currentPrice = null,
   mobile = false,
@@ -357,12 +362,17 @@ export default function RouaChart({
   const isMiniChart = compact || !!(symbolProp && timeframeProp);
 
   // Multi-chart state — only relevant for the main (non-mini) chart instance
+  // FIX: Use stable selectors to prevent infinite re-renders.
+  // Previously, inline selectors returned new `[]` every render for mini charts,
+  // causing Zustand to detect a change and re-render → infinite loop → React error #185.
   const multiChartLayout = useMultiChartStore(s => !isMiniChart ? (s.layout ?? '1x1') : '1x1');
-  const isMultiChart = useMultiChartStore(s => !isMiniChart ? (s.isMultiChart ?? false) : false);
+  const isMultiChart = useMultiChartStore(s => !isMiniChart ? (s.isMultiChart === true) : false);
   const activeChartId = useMultiChartStore(s => !isMiniChart ? (s.activeChartId ?? 'mc-1') : '');
-  const charts = useMultiChartStore(s => !isMiniChart ? (Array.isArray(s.charts) ? s.charts : [
+  // FIX: Use store directly for charts to avoid selector returning new array each render
+  const chartsRaw = useMultiChartStore(s => s.charts);
+  const charts = isMiniChart ? EMPTY_CHARTS : (Array.isArray(chartsRaw) ? chartsRaw : [
     { id: 'mc-1', symbol: selectedSymbol_, timeframe: timeframe_, chartType: 'candle' as ChartType },
-  ]) : []);
+  ]);
   const addChart = useMultiChartStore(s => s.addChart);
   const removeChart = useMultiChartStore(s => s.removeChart);
   const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
@@ -1392,7 +1402,7 @@ export default function RouaChart({
         resetViewRef.current();
       }, 300);
     }
-  }, [isMultiChart, isMiniChart, chart.chartRef, chart.containerRef]);
+  }, [isMultiChart, isMiniChart]); // FIX: Removed chart.chartRef/chart.containerRef from deps — refs are stable
 
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
@@ -2118,6 +2128,49 @@ export default function RouaChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [newsMarkers, aiPatterns, signalMarkers, aiDirectMarkers]);
 
+  // ── Multi-Chart Grid (memoized) ──
+  // FIX: Use useMemo instead of IIFE to prevent React from treating the grid
+  // as a new element type on every render. The IIFE pattern (() => {...})()
+  // created a new closure each render → React unmount/remount all children →
+  // broken charts + React error #185 from cascading re-renders.
+  const multiChartGrid = useMemo(() => {
+    if (isMiniChart || !isMultiChart) return null;
+    const meta = LAYOUT_METAS[multiChartLayout];
+    if (!meta) return null; // Defensive: invalid layout key
+    const visibleCharts = charts.slice(0, meta.cols * meta.rows);
+    return (
+      <div style={{
+        flex: 1,
+        minHeight: 0,
+        display: 'grid',
+        gridTemplateColumns: `repeat(${meta.cols}, 1fr)`,
+        gridTemplateRows: `repeat(${meta.rows}, 1fr)`,
+        gap: 3,
+        padding: 2,
+        background: T.bg,
+        position: 'relative',
+      }}>
+        {visibleCharts.map(cell => (
+          <RouaChart
+            key={cell.id}
+            chartId={cell.id}
+            symbol={cell.symbol}
+            timeframe={cell.timeframe}
+            chartType={cell.chartType}
+            isActive={activeChartId === cell.id}
+            onActivate={() => setActiveChartId(cell.id)}
+            onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
+            canClose={charts.length > 1}
+            compact
+            mobile
+          />
+        ))}
+      </div>
+    );
+  // FIX: Include all values used inside the memo. Previously the IIFE
+  // captured stale closures because it had no dependency tracking.
+  }, [isMiniChart, isMultiChart, multiChartLayout, charts, activeChartId, setActiveChartId, removeChart]);
+
   const toolbarHeight = hideToolbar ? 0 : mobile ? 48 : 38;
 
   return (
@@ -2243,39 +2296,11 @@ export default function RouaChart({
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
         {/* ── Multi-Chart Mode: Grid Layout (main chart only) ── */}
-        {!isMiniChart && isMultiChart && (() => {
-          const meta = LAYOUT_METAS[multiChartLayout];
-          const visibleCharts = charts.slice(0, meta.cols * meta.rows);
-          return (
-            <div style={{
-              flex: 1,
-              minHeight: 0,
-              display: 'grid',
-              gridTemplateColumns: `repeat(${meta.cols}, 1fr)`,
-              gridTemplateRows: `repeat(${meta.rows}, 1fr)`,
-              gap: 3,
-              padding: 2,
-              background: T.bg,
-              position: 'relative',
-            }}>
-              {visibleCharts.map(cell => (
-                <RouaChart
-                  key={cell.id}
-                  chartId={cell.id}
-                  symbol={cell.symbol}
-                  timeframe={cell.timeframe}
-                  chartType={cell.chartType}
-                  isActive={activeChartId === cell.id}
-                  onActivate={() => setActiveChartId(cell.id)}
-                  onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
-                  canClose={charts.length > 1}
-                  compact
-                  mobile
-                />
-              ))}
-            </div>
-          );
-        })()}
+        {/* FIX: Replaced IIFE with useMemo for stable rendering. The old IIFE
+            pattern `(() => {...})()` created a new function/closure every render,
+            which React's reconciler treated as a new child type → unmount/remount
+            all grid cells on every render → broken charts + potential error #185. */}
+        {multiChartGrid}
 
         {/* ── Layout Selector Dropdown ── */}
         {showLayoutSelector && isMultiChart && (

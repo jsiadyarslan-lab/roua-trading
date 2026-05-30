@@ -2454,8 +2454,9 @@ export default function RouaChart({
             }}
           />
 
-          {/* Overlay Layer — sibling of canvas container, z-index below chart */}
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 0 }}>
+          {/* Overlay Layer — ABOVE canvas so trade labels and fill zones are visible.
+              pointerEvents: none so chart interactions (drawing, crosshair) still work. */}
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'visible', zIndex: 5 }}>
 
             {/* Symbol Watermark — REMOVED: name already shown in toolbar/CrosshairOverlay */}
 

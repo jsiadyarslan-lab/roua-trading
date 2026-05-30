@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useLocale } from 'next-intl'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { useBotStore } from '@/hooks/useBotStore'
 

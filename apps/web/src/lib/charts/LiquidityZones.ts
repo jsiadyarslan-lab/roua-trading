@@ -16,6 +16,7 @@
 import type { CandleData, AIPattern } from './types';
 import { computeZigZag } from './chart-detection';
 import { calcATR } from './ATRAdapter';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -114,8 +115,8 @@ function detectEqualLevels(candles: CandleData[], swings: Array<{ type: string; 
 
     if (cluster.length >= 2) {
       const avgPrice = cluster.reduce((s, p) => s + p.price, 0) / cluster.length;
-      const startTime = Math.min(...cluster.map(p => p.time));
-      const endTime = Math.max(...cluster.map(p => p.time));
+      const startTime = safeMin(cluster.map(p => p.time));
+      const endTime = safeMax(cluster.map(p => p.time));
 
       // Check if swept
       const swept = candles.some(c =>
@@ -153,8 +154,8 @@ function detectEqualLevels(candles: CandleData[], swings: Array<{ type: string; 
 
     if (cluster.length >= 2) {
       const avgPrice = cluster.reduce((s, p) => s + p.price, 0) / cluster.length;
-      const startTime = Math.min(...cluster.map(p => p.time));
-      const endTime = Math.max(...cluster.map(p => p.time));
+      const startTime = safeMin(cluster.map(p => p.time));
+      const endTime = safeMax(cluster.map(p => p.time));
 
       // Check if swept
       const swept = candles.some(c =>

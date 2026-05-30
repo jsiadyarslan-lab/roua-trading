@@ -8,6 +8,19 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import type { CandleData } from '@/lib/charts/types';
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 interface VolumeProfileProps {
   candles: CandleData[];
   width?: number;
@@ -84,7 +97,7 @@ export function VolumeProfile({ candles, width = 80, rows = 24, visible = true }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, width, h);
 
-      const maxVol = Math.max(...profile.map(r => r.volume));
+      const maxVol = safeMax(profile.map(r => r.volume));
       if (maxVol === 0) return;
 
       const rowH = h / rows;

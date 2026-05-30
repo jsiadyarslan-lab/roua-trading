@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 export interface GeometricPattern {
   type: string;
@@ -112,7 +113,7 @@ function detectAscendingTriangle(candles: CandleData[]): GeometricPattern | null
   if (highs.length < 3 || lows.length < 3) return null;
   // Resistance flat: tops roughly equal
   const topPrices = highs.slice(-3).map(h => h.price);
-  const topRange = (Math.max(...topPrices) - Math.min(...topPrices)) / Math.max(...topPrices);
+  const topRange = (safeMax(topPrices) - safeMin(topPrices)) / safeMax(topPrices);
   if (topRange > 0.015) return null;
   // Support rising: each low higher than previous
   const botPrices = lows.slice(-3).map(l => l.price);
@@ -135,7 +136,7 @@ function detectDescendingTriangle(candles: CandleData[]): GeometricPattern | nul
   const { highs, lows } = pivots(slice, 2);
   if (highs.length < 3 || lows.length < 3) return null;
   const botPrices = lows.slice(-3).map(l => l.price);
-  const botRange = (Math.max(...botPrices) - Math.min(...botPrices)) / Math.max(...botPrices);
+  const botRange = (safeMax(botPrices) - safeMin(botPrices)) / safeMax(botPrices);
   if (botRange > 0.015) return null;
   const topPrices = highs.slice(-3).map(h => h.price);
   if (topPrices[1] >= topPrices[0] || topPrices[2] >= topPrices[1]) return null;

@@ -19,6 +19,7 @@ import type {
   Time,
   AutoscaleInfo,
 } from 'lightweight-charts';
+import { safeMax, safeMin } from './chart-utils';
 
 // CanvasRenderingTarget2D is not exported from lightweight-charts types
 // We use the internal type from fancy-canvas
@@ -394,7 +395,7 @@ export class ShapePrimitive implements ISeriesPrimitive {
     if (this._data.points.length === 0) return null;
     const prices = this._data.points.map(p => p.price);
     return {
-      priceRange: { minValue: Math.min(...prices), maxValue: Math.max(...prices) },
+      priceRange: { minValue: safeMin(prices), maxValue: safeMax(prices) },
       margins: { above: 10, below: 10 },
     };
   }

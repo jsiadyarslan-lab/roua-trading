@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData, AIPattern } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 /** Validation result for a single check */
 interface ValidationCheck {
@@ -46,8 +47,8 @@ export function validateAnalysis(
     };
   }
 
-  const priceMin = Math.min(...candles.slice(-100).map(c => c.low));
-  const priceMax = Math.max(...candles.slice(-100).map(c => c.high));
+  const priceMin = safeMin(candles.slice(-100).map(c => c.low));
+  const priceMax = safeMax(candles.slice(-100).map(c => c.high));
   const priceRange = priceMax - priceMin;
   const lastPrice = candles[candles.length - 1].close;
   const timeMin = candles[0].time;

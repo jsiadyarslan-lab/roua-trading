@@ -24,6 +24,7 @@
 import type { CandleData } from './types';
 import { runUnifiedAnalysis, type UnifiedAnalysisResult } from './unified-analysis';
 import { calcATR } from './ATRAdapter';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -987,8 +988,8 @@ function aggregateCandles(candles: CandleData[], factor: number): CandleData[] {
     result.push({
       time: slice[0].time,
       open: slice[0].open,
-      high: Math.max(...slice.map(c => c.high)),
-      low: Math.min(...slice.map(c => c.low)),
+      high: safeMax(slice.map(c => c.high)),
+      low: safeMin(slice.map(c => c.low)),
       close: slice[slice.length - 1].close,
       volume: slice.reduce((s, c) => s + (c.volume || 0), 0),
     });

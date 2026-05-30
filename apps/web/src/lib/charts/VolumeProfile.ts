@@ -1,5 +1,6 @@
 // Volume Profile — POC, VAH, VAL — STANDALONE
 import type { CandleData } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 export interface VolumeProfileResult {
   poc: number;      // Point of Control (highest volume price)
@@ -12,8 +13,8 @@ export function calcVolumeProfile(candles: CandleData[], bins = 20): VolumeProfi
   if (candles.length < 10) return { poc: 0, vah: 0, val: 0, levels: [] };
 
   const prices = candles.map(c => (c.high + c.low) / 2);
-  const minP = Math.min(...prices);
-  const maxP = Math.max(...prices);
+  const minP = safeMin(prices);
+  const maxP = safeMax(prices);
   const priceRange = maxP - minP;
 
   // FIX: Guard against zero/near-zero price range (e.g., stablecoins or single-price data).

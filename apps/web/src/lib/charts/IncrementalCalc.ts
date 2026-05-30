@@ -7,6 +7,7 @@
 import type { CandleData } from './types';
 import { calcATR } from './ATRAdapter';
 import { detectZigZag, type SwingPoint } from './zigzag';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Incremental State ────────────────────────────────────
 export interface IncrementalState {
@@ -85,8 +86,8 @@ export function initializeState(
   state.lastPivots = detectZigZag(candles, { depth: 5, deviation: 0.003, backstep: 3, maxPivots: 30 });
 
   // Initial stats
-  state.highestHigh = Math.max(...candles.slice(-100).map(c => c.high));
-  state.lowestLow = Math.min(...candles.slice(-100).map(c => c.low));
+  state.highestHigh = safeMax(candles.slice(-100).map(c => c.high));
+  state.lowestLow = safeMin(candles.slice(-100).map(c => c.low));
   state.volumeSum = candles.slice(-50).reduce((s, c) => s + c.volume, 0);
   state.avgVolume = state.volumeSum / Math.min(50, candles.length);
   state.candleCount = candles.length;

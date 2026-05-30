@@ -1,5 +1,18 @@
 'use client'
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 interface MiniHeatmapProps {
   data: number[]
   color?: string
@@ -12,8 +25,8 @@ export function MiniHeatmap({
 }: MiniHeatmapProps) {
   if (!data || data.length < 2) return null
 
-  const min = Math.min(...data)
-  const max = Math.max(...data)
+  const min = safeMin(data)
+  const max = safeMax(data)
   const range = max - min || 1
   const bins = 8
   const binSize = range / bins
@@ -24,7 +37,7 @@ export function MiniHeatmap({
     const idx = Math.min(bins - 1, Math.floor((v - min) / binSize))
     binCounts[idx]++
   }
-  const maxCount = Math.max(...binCounts, 1)
+  const maxCount = Math.max(safeMax(binCounts), 1)
 
   const barWidth = width / bins
   const colors = data[data.length - 1] >= data[0] ? ['#00FFA3', '#00CC82', '#00994D'] : ['#FF4757', '#FF3344', '#CC2233']

@@ -9,6 +9,7 @@
 // Output: array of SwingPoint (high/low alternating, confirmed only)
 
 import type { CandleData } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 export interface SwingPoint {
   time: number;          // Unix timestamp
@@ -49,8 +50,8 @@ export function detectZigZag(
     const windowStart = Math.max(0, i - cfg.depth);
     const window = candles.slice(windowStart, i + 1);
 
-    const windowHigh = Math.max(...window.map(c => c.high));
-    const windowLow = Math.min(...window.map(c => c.low));
+    const windowHigh = safeMax(window.map(c => c.high));
+    const windowLow = safeMin(window.map(c => c.low));
     const currentHigh = candles[i].high;
     const currentLow = candles[i].low;
 

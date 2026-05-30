@@ -41,6 +41,26 @@ import {
   CandlePattern,
 } from './scanner.types';
 
+// ── Safe Math helpers — avoid stack overflow with large arrays ──
+// Math.max(...array) throws RangeError when array exceeds ~65,536 elements
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] > max) max = arr[i];
+  }
+  return max;
+}
+
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] < min) min = arr[i];
+  }
+  return min;
+}
+
 @Injectable()
 export class ScannerService {
   private readonly logger = new Logger(ScannerService.name);
@@ -326,8 +346,8 @@ export class ScannerService {
       cciResult = this._cci(highs, lows, closes);
       sarResult = this._parabolicSar(highs, lows);
       fibonacciResult = this._fibonacci(
-        Math.max(...highs.slice(-52)),
-        Math.min(...lows.slice(-52)),
+        safeMax(highs.slice(-52)),
+        safeMin(lows.slice(-52)),
       );
 
       // Divergence detection (use RSI values if available)
@@ -614,8 +634,8 @@ export class ScannerService {
     for (let i = kPeriod - 1; i < closes.length; i++) {
       const highSlice = highs.slice(i - kPeriod + 1, i + 1);
       const lowSlice = lows.slice(i - kPeriod + 1, i + 1);
-      const highestHigh = Math.max(...highSlice);
-      const lowestLow = Math.min(...lowSlice);
+      const highestHigh = safeMax(highSlice);
+      const lowestLow = safeMin(lowSlice);
       const range = highestHigh - lowestLow;
 
       if (range === 0) {
@@ -851,8 +871,8 @@ export class ScannerService {
     const sma20 = last20.reduce((a, b) => a + b, 0) / last20.length;
     const sma10 = last10.reduce((a, b) => a + b, 0) / last10.length;
     const sma5 = last5.reduce((a, b) => a + b, 0) / last5.length;
-    const recentHigh = Math.max(...last10);
-    const recentLow = Math.min(...last10);
+    const recentHigh = safeMax(last10);
+    const recentLow = safeMin(last10);
     const range = recentHigh - recentLow;
     const currentPrice = closes[closes.length - 1];
 
@@ -887,10 +907,10 @@ export class ScannerService {
     const min1Idx = last10.indexOf(recentLow);
     const afterMin1 = last10.slice(min1Idx + 2);
     if (afterMin1.length > 2) {
-      const min2 = Math.min(...afterMin1);
+      const min2 = safeMin(afterMin1);
       const min2Idx = min1Idx + 2 + afterMin1.indexOf(min2);
       const priceDiff = Math.abs(recentLow - min2) / recentLow;
-      const midPeak = Math.max(...last10.slice(min1Idx, min2Idx + 1));
+      const midPeak = safeMax(last10.slice(min1Idx, min2Idx + 1));
       if (priceDiff < 0.02 && midPeak > recentLow * 1.02) {
         patterns.push({
           name: 'Double Bottom',
@@ -904,14 +924,14 @@ export class ScannerService {
     }
 
     // Double Top (M pattern)
-    const maxRecent = Math.max(...last10);
+    const maxRecent = safeMax(last10);
     const max1Idx = last10.indexOf(maxRecent);
     const afterMax1 = last10.slice(max1Idx + 2);
     if (afterMax1.length > 2) {
-      const max2 = Math.max(...afterMax1);
+      const max2 = safeMax(afterMax1);
       const max2Idx = max1Idx + 2 + afterMax1.indexOf(max2);
       const priceDiff = Math.abs(maxRecent - max2) / maxRecent;
-      const midDip = Math.min(...last10.slice(max1Idx, max2Idx + 1));
+      const midDip = safeMin(last10.slice(max1Idx, max2Idx + 1));
       if (priceDiff < 0.02 && midDip < maxRecent * 0.98) {
         patterns.push({
           name: 'Double Top',
@@ -985,7 +1005,7 @@ export class ScannerService {
     // Helper: period midpoint (highest high + lowest low) / 2
     const midPoint = (data: number[], period: number, endIdx: number): number => {
       const slice = data.slice(Math.max(0, endIdx - period + 1), endIdx + 1);
-      return (Math.max(...slice) + Math.min(...slice)) / 2;
+      return (safeMax(slice) + safeMin(slice)) / 2;
     };
 
     const lastIdx = closes.length - 1;
@@ -993,19 +1013,19 @@ export class ScannerService {
     // Tenkan-sen (Conversion Line) — 9-period
     const tenkanSen = midPoint(highs, tenkanPeriod, lastIdx)
       + midPoint(lows, tenkanPeriod, lastIdx);
-    const tenkanSenValue = (Math.max(...highs.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))
-      + Math.min(...lows.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))) / 2;
+    const tenkanSenValue = (safeMax(highs.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))
+      + safeMin(lows.slice(lastIdx - tenkanPeriod + 1, lastIdx + 1))) / 2;
 
     // Kijun-sen (Base Line) — 26-period
-    const kijunSenValue = (Math.max(...highs.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))
-      + Math.min(...lows.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))) / 2;
+    const kijunSenValue = (safeMax(highs.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))
+      + safeMin(lows.slice(lastIdx - kijunPeriod + 1, lastIdx + 1))) / 2;
 
     // Senkou Span A (Leading Span A) — (Tenkan + Kijun) / 2, shifted 26 ahead
     const senkouSpanA = (tenkanSenValue + kijunSenValue) / 2;
 
     // Senkou Span B (Leading Span B) — 52-period midpoint, shifted 26 ahead
-    const senkouSpanB = (Math.max(...highs.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))
-      + Math.min(...lows.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))) / 2;
+    const senkouSpanB = (safeMax(highs.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))
+      + safeMin(lows.slice(lastIdx - senkouBPeriod + 1, lastIdx + 1))) / 2;
 
     // Chikou Span (Lagging Span) — close shifted 26 back
     const chikouSpan = lastIdx >= kijunPeriod ? closes[lastIdx - kijunPeriod] : closes[0];
@@ -1083,16 +1103,16 @@ export class ScannerService {
     const recentObvFinal = obvValues.slice(-lookback);
 
     // Check for bearish divergence: price higher high, OBV lower high
-    const priceHighIdx = recentCloses.indexOf(Math.max(...recentCloses));
-    const obvHighIdx = recentObvFinal.indexOf(Math.max(...recentObvFinal));
+    const priceHighIdx = recentCloses.indexOf(safeMax(recentCloses));
+    const obvHighIdx = recentObvFinal.indexOf(safeMax(recentObvFinal));
 
     if (priceHighIdx > lookback / 2 && obvHighIdx < lookback / 2) {
       divergence = 'BEARISH_DIVERGENCE';
     }
 
     // Check for bullish divergence: price lower low, OBV higher low
-    const priceLowIdx = recentCloses.indexOf(Math.min(...recentCloses));
-    const obvLowIdx = recentObvFinal.indexOf(Math.min(...recentObvFinal));
+    const priceLowIdx = recentCloses.indexOf(safeMin(recentCloses));
+    const obvLowIdx = recentObvFinal.indexOf(safeMin(recentObvFinal));
 
     if (priceLowIdx > lookback / 2 && obvLowIdx < lookback / 2) {
       divergence = 'BULLISH_DIVERGENCE';
@@ -1412,8 +1432,8 @@ export class ScannerService {
   ): VolumeProfileResult | null {
     if (closes.length < 10 || volumes.length < 10) return null;
 
-    const priceMin = Math.min(...lows.slice(-60));
-    const priceMax = Math.max(...highs.slice(-60));
+    const priceMin = safeMin(lows.slice(-60));
+    const priceMax = safeMax(highs.slice(-60));
     const priceRange = priceMax - priceMin;
 
     if (priceRange === 0) return null;

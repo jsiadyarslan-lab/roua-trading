@@ -9,6 +9,19 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslations } from 'next-intl';
 import type { CandleData } from '@/lib/charts/types';
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 interface PatternProgressProps {
   symbol: string;
   candles: CandleData[];
@@ -148,10 +161,10 @@ function analyzePatternProgress(candles: CandleData[], tc: ReturnType<typeof use
 
 function detectHSProgress(candles: CandleData[]): number {
   const highs = candles.slice(-15).map(c => c.high);
-  const maxIdx = highs.indexOf(Math.max(...highs));
+  const maxIdx = highs.indexOf(safeMax(highs));
   if (maxIdx < 3 || maxIdx > highs.length - 4) return 10;
-  const leftHigh = Math.max(...highs.slice(0, maxIdx));
-  const rightHigh = Math.max(...highs.slice(maxIdx + 1));
+  const leftHigh = safeMax(highs.slice(0, maxIdx));
+  const rightHigh = safeMax(highs.slice(maxIdx + 1));
   if (Math.abs(leftHigh - rightHigh) / leftHigh < 0.02) return 75;
   if (Math.abs(leftHigh - rightHigh) / leftHigh < 0.05) return 45;
   return 15;
@@ -161,8 +174,8 @@ function detectDoubleTopBottom(candles: CandleData[]): number {
   const last10 = candles.slice(-10);
   const highs = last10.map(c => c.high);
   const lows = last10.map(c => c.low);
-  const maxH = Math.max(...highs);
-  const minL = Math.min(...lows);
+  const maxH = safeMax(highs);
+  const minL = safeMin(lows);
   const nearMax = highs.filter(h => Math.abs(h - maxH) / maxH < 0.01).length;
   const nearMin = lows.filter(l => Math.abs(l - minL) / minL < 0.01).length;
   if (nearMax >= 2 || nearMin >= 2) return 80;

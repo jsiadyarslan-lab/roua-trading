@@ -450,3 +450,234 @@ export function renderIndicatorSeries(
     addOscillatorLine(chart, refs, LineSeries, 'cci', data, indicator.color, 'cci-scale');
   }
 }
+
+/**
+ * Update existing indicator series data in-place.
+ * Instead of removing and re-creating series, this function finds
+ * existing series by key prefix and calls setData() with new results.
+ * Falls back to renderIndicatorSeries() if a series doesn't exist yet.
+ *
+ * This is MUCH faster than remove + recreate because:
+ * - chart.removeSeries() + chart.addSeries() is O(n) in LWC internal data structures
+ * - series.setData() is O(n) but avoids the series creation overhead
+ * - No layout recalculation needed (series already positioned)
+ */
+export function updateIndicatorSeriesData(
+  refs: SeriesRefs,
+  indicator: ActiveIndicator,
+  results: any[],
+  candles: CandleData[],
+): { updated: boolean; missingKeys: string[] } {
+  const missingKeys: string[] = [];
+  let updated = false;
+
+  // Helper: try to update an existing series by key
+  const tryUpdate = (key: string, data: { time: any; value: number }[]) => {
+    const series = refs.overlaySeries.get(key) || refs.oscillatorSeries.get(key);
+    if (series) {
+      const filtered = cleanData(data as { time: Time; value: number }[]);
+      if (filtered.length > 0) {
+        try {
+          series.setData(filtered as any);
+          updated = true;
+        } catch { /* series may be destroyed */ }
+      }
+    } else {
+      missingKeys.push(key);
+    }
+  };
+
+  // Map indicator keys to their series keys and data
+  if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap') {
+    const data = results.map((r: any) => {
+      const val = r.values?.[indicator.key] ?? r.value;
+      return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time, value: val } : null;
+    }).filter((d): d is { time: any; value: number } => d !== null);
+    tryUpdate(indicator.key, data);
+  }
+  else if (indicator.key === 'bb') {
+    const upperData: { time: any; value: number }[] = [];
+    const middleData: { time: any; value: number }[] = [];
+    const lowerData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time, value: r.upper });
+      if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time, value: r.middle });
+      if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time, value: r.lower });
+    });
+    tryUpdate('bb-upper', upperData);
+    tryUpdate('bb-middle', middleData);
+    tryUpdate('bb-lower', lowerData);
+    tryUpdate('bb-fill-upper', upperData);
+    tryUpdate('bb-fill-lower', lowerData);
+  }
+  else if (indicator.key === 'ichimoku') {
+    const tenkanData: { time: any; value: number }[] = [];
+    const kijunData: { time: any; value: number }[] = [];
+    const senkouAData: { time: any; value: number }[] = [];
+    const senkouBData: { time: any; value: number }[] = [];
+    const chikouData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.tenkan) && isValidNumber(r.time)) tenkanData.push({ time: r.time, value: r.tenkan });
+      if (isValidNumber(r.kijun) && isValidNumber(r.time)) kijunData.push({ time: r.time, value: r.kijun });
+      if (isValidNumber(r.senkouA) && isValidNumber(r.time)) senkouAData.push({ time: r.time, value: r.senkouA });
+      if (isValidNumber(r.senkouB) && isValidNumber(r.time)) senkouBData.push({ time: r.time, value: r.senkouB });
+      if (isValidNumber(r.chikou) && isValidNumber(r.time)) chikouData.push({ time: r.time, value: r.chikou });
+    });
+    tryUpdate('ichimoku-tenkan', tenkanData);
+    tryUpdate('ichimoku-kijun', kijunData);
+    tryUpdate('ichimoku-senkouA', senkouAData);
+    tryUpdate('ichimoku-senkouB', senkouBData);
+    tryUpdate('ichimoku-chikou', chikouData);
+
+    // Cloud data
+    const cloudTopData: { time: any; value: number }[] = [];
+    const cloudBottomData: { time: any; value: number }[] = [];
+    const minLen = Math.min(senkouAData.length, senkouBData.length);
+    for (let i = 0; i < minLen; i++) {
+      const a = senkouAData[i];
+      const b = senkouBData[i];
+      if (a.time === b.time && isValidNumber(a.value) && isValidNumber(b.value)) {
+        cloudTopData.push({ time: a.time, value: Math.max(a.value, b.value) });
+        cloudBottomData.push({ time: a.time, value: Math.min(a.value, b.value) });
+      }
+    }
+    tryUpdate('ichimoku-cloud-top', cloudTopData);
+    tryUpdate('ichimoku-cloud-bottom', cloudBottomData);
+  }
+  else if (indicator.key === 'rsi') {
+    const data = results.map((r: any) => {
+      const val = r.values?.rsi;
+      return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time, value: val } : null;
+    }).filter((d): d is { time: any; value: number } => d !== null);
+    tryUpdate('rsi', data);
+  }
+  else if (indicator.key === 'macd') {
+    const macdData: { time: any; value: number }[] = [];
+    const signalData: { time: any; value: number }[] = [];
+    const histData: { time: any; value: number; color: string }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.macd) && isValidNumber(r.time)) macdData.push({ time: r.time, value: r.macd });
+      if (isValidNumber(r.signal) && isValidNumber(r.time)) signalData.push({ time: r.time, value: r.signal });
+      if (isValidNumber(r.histogram) && isValidNumber(r.time)) histData.push({
+        time: r.time, value: r.histogram,
+        color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
+      });
+    });
+    tryUpdate('macd-line', macdData);
+    tryUpdate('macd-signal', signalData);
+    // Histogram needs special handling — it has color data
+    const histSeries = refs.oscillatorSeries.get('macd-hist');
+    if (histSeries) {
+      const filtered = histData.filter(d => isValidNumber(d.time) && isValidNumber(d.value));
+      if (filtered.length > 0) {
+        try { histSeries.setData(filtered as any); updated = true; } catch {}
+      }
+    } else {
+      missingKeys.push('macd-hist');
+    }
+  }
+  else if (indicator.key === 'stochastic') {
+    const kData: { time: any; value: number }[] = [];
+    const dData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.values?.k) && isValidNumber(r.time)) kData.push({ time: r.time, value: r.values.k });
+      if (isValidNumber(r.values?.d) && isValidNumber(r.time)) dData.push({ time: r.time, value: r.values.d });
+    });
+    tryUpdate('stoch-k', kData);
+    tryUpdate('stoch-d', dData);
+  }
+  else if (indicator.key === 'atr') {
+    const data = results.map((r: any) => {
+      const val = r.values?.atr;
+      return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time, value: val } : null;
+    }).filter((d): d is { time: any; value: number } => d !== null);
+    tryUpdate('atr', data);
+  }
+  else if (indicator.key === 'adx') {
+    const adxData: { time: any; value: number }[] = [];
+    const pdiData: { time: any; value: number }[] = [];
+    const mdiData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.values?.adx) && isValidNumber(r.time)) adxData.push({ time: r.time, value: r.values.adx });
+      if (isValidNumber(r.values?.pdi) && isValidNumber(r.time)) pdiData.push({ time: r.time, value: r.values.pdi });
+      if (isValidNumber(r.values?.mdi) && isValidNumber(r.time)) mdiData.push({ time: r.time, value: r.values.mdi });
+    });
+    tryUpdate('adx-line', adxData);
+    tryUpdate('adx-pdi', pdiData);
+    tryUpdate('adx-mdi', mdiData);
+  }
+  else if (indicator.key === 'cci') {
+    const data = results.map((r: any) => {
+      const val = r.values?.cci;
+      return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time, value: val } : null;
+    }).filter((d): d is { time: any; value: number } => d !== null);
+    tryUpdate('cci', data);
+  }
+  else if (indicator.key === 'supertrend') {
+    const upData: { time: any; value: number }[] = [];
+    const downData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      const val = r.value;
+      const dir = r.direction;
+      if (!isValidNumber(val) || !isValidNumber(r.time)) return;
+      if (dir === 'up') upData.push({ time: r.time, value: val });
+      else downData.push({ time: r.time, value: val });
+    });
+    tryUpdate('supertrend-up', upData);
+    tryUpdate('supertrend-down', downData);
+  }
+  else if (indicator.key === 'donchian') {
+    const upperData: { time: any; value: number }[] = [];
+    const middleData: { time: any; value: number }[] = [];
+    const lowerData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time, value: r.upper });
+      if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time, value: r.middle });
+      if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time, value: r.lower });
+    });
+    tryUpdate('donchian-upper', upperData);
+    tryUpdate('donchian-middle', middleData);
+    tryUpdate('donchian-lower', lowerData);
+    tryUpdate('donchian-fill-upper', upperData);
+    tryUpdate('donchian-fill-lower', lowerData);
+  }
+  else if (indicator.key === 'psar') {
+    const bullData: { time: any; value: number }[] = [];
+    const bearData: { time: any; value: number }[] = [];
+    results.forEach((r: any) => {
+      const val = r.values?.psar;
+      if (isValidNumber(val) && isValidNumber(r.time)) {
+        const candleIdx = candles.findIndex(c => c.time === r.time);
+        const candle = candleIdx >= 0 ? candles[candleIdx] : null;
+        const isBullish = candle ? val < candle.close : true;
+        if (isBullish) bullData.push({ time: r.time, value: val });
+        else bearData.push({ time: r.time, value: val });
+      }
+    });
+    tryUpdate('psar-bull', bullData);
+    tryUpdate('psar-bear', bearData);
+  }
+  else if (indicator.key === 'pivot') {
+    const lastCandle = candles[candles.length - 1];
+    if (!lastCandle) return { updated: false, missingKeys: [] };
+    const pivotResult = results[results.length - 1] as any;
+    if (!pivotResult || pivotResult.pp === null) return { updated: false, missingKeys: [] };
+
+    const pivotLines: { key: string; price: number }[] = [
+      { key: 'pp', price: pivotResult.pp },
+      { key: 'r1', price: pivotResult.r1 },
+      { key: 'r2', price: pivotResult.r2 },
+      { key: 'r3', price: pivotResult.r3 },
+      { key: 's1', price: pivotResult.s1 },
+      { key: 's2', price: pivotResult.s2 },
+      { key: 's3', price: pivotResult.s3 },
+    ];
+    pivotLines.forEach(pl => {
+      if (pl.price === null || pl.price === undefined) return;
+      const data = candles.map(c => ({ time: c.time, value: pl.price }));
+      tryUpdate(`pivot-${pl.key}`, data);
+    });
+  }
+
+  return { updated, missingKeys };
+}

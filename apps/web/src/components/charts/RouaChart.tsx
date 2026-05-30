@@ -27,7 +27,7 @@ import { AIPatternPanel } from './AIPatternPanel';
 import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
-import { resetOverlayManager } from '@/lib/charts/OverlayManager';
+import { resetOverlayRegistry } from '@/lib/charts/OverlayRegistry';
 import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/ProfessionalTrendLines';
 import { ChartTrading } from './ChartTrading';
 import { QuickTradePanel } from './QuickTradePanel';
@@ -1017,8 +1017,8 @@ export default function RouaChart({
     return () => {
       isMountedRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
-      // Clean up OverlayManager on unmount
-      resetOverlayManager();
+      // Clean up OverlayRegistry on unmount (replaces old OverlayManager)
+      resetOverlayRegistry();
     };
   }, []);
 

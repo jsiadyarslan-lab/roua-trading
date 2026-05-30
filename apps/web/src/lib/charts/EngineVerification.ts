@@ -13,6 +13,7 @@ import { getPatternStateMachine, type PatternStateMachineResult } from './Patter
 import { getPatternPerformanceTracker, type PerformanceSummary } from './PatternPerformance';
 import { buildHeatmap, type HeatmapResult } from './ConfidenceHeatmap';
 import { detectElliottSMCFusion, type ElliottSMCFusion } from './ElliottSMCFusion';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Verification Result Types ─────────────────────────────────
 
@@ -563,8 +564,8 @@ export function verifyConfidenceHeatmap(): EngineVerificationResult {
     name: 'Not all confidences = 0.3 (stub value)',
     nameAr: 'ليس كل الثقات = 0.3 (قيمة وهمية)',
     passed: !allSame || result.points.length === 0,
-    detail: `Min: ${Math.min(...confidences).toFixed(2)}, Max: ${Math.max(...confidences).toFixed(2)}, Avg: ${result.avgConfidence.toFixed(3)}`,
-    detailAr: `أدنى: ${Math.min(...confidences).toFixed(2)}, أعلى: ${Math.max(...confidences).toFixed(2)}, متوسط: ${result.avgConfidence.toFixed(3)}`,
+    detail: `Min: ${safeMin(confidences).toFixed(2)}, Max: ${safeMax(confidences).toFixed(2)}, Avg: ${result.avgConfidence.toFixed(3)}`,
+    detailAr: `أدنى: ${safeMin(confidences).toFixed(2)}, أعلى: ${safeMax(confidences).toFixed(2)}, متوسط: ${result.avgConfidence.toFixed(3)}`,
   });
 
   // ── Check 3: Direction not always based on candle color ──

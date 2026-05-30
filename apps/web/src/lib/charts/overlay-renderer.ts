@@ -30,6 +30,7 @@ import {
   type DetectedHarmonic, type DetectedBOS, type DetectedElliott,
   type SRLevel, type FVGZone,
 } from './chart-detection';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Type for AI analysis result ────────────────────────────────────
 export interface OverlayInput {
@@ -173,8 +174,8 @@ export function renderOverlays(
   const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
     if (!addPriceLine) return;
     const range = candles.slice(-30);
-    const high = Math.max(...range.map(c => c.high));
-    const low = Math.min(...range.map(c => c.low));
+    const high = safeMax(range.map(c => c.high));
+    const low = safeMin(range.map(c => c.low));
     const maxDist = (high - low) * 3;
     const lastPrice = candles[candles.length - 1].close;
     if (Math.abs(price - lastPrice) > maxDist) return;
@@ -620,7 +621,7 @@ export function renderOverlays(
       // Phase label at latest candle
       registry.add('wyckoff', new LabelPrimitive({
         time: candles[candles.length - 1].time as any,
-        price: bias === 'bullish' ? Math.min(...candles.slice(-20).map(c => c.low)) : Math.max(...candles.slice(-20).map(c => c.high)),
+        price: bias === 'bullish' ? safeMin(candles.slice(-20).map(c => c.low)) : safeMax(candles.slice(-20).map(c => c.high)),
         text: phase,
         color: col,
         fontSize: 12,
@@ -639,8 +640,8 @@ export function renderOverlays(
       // FIX: Add key S/R levels as horizontal lines for Wyckoff context
       // even when there are no events from AI data
       if (events.length === 0) {
-        const recentHigh = Math.max(...candles.slice(-30).map(c => c.high));
-        const recentLow = Math.min(...candles.slice(-30).map(c => c.low));
+        const recentHigh = safeMax(candles.slice(-30).map(c => c.high));
+        const recentLow = safeMin(candles.slice(-30).map(c => c.low));
         const midRange = (recentHigh + recentLow) / 2;
 
         // Resistance level
@@ -845,8 +846,8 @@ export function renderOverlays(
       registry.add('fusion', new LabelPrimitive({
         time: recentCandles[0]?.time as any || lastTime as any,
         price: isBull
-          ? Math.min(...recentCandles.map(c => c.low)) * 0.9995
-          : Math.max(...recentCandles.map(c => c.high)) * 1.0005,
+          ? safeMin(recentCandles.map(c => c.low)) * 0.9995
+          : safeMax(recentCandles.map(c => c.high)) * 1.0005,
         text: layerText,
         color: 'rgba(255,255,255,0.4)',
         fontSize: 8,
@@ -906,8 +907,8 @@ export function renderOverlays(
       registry.add('bayesian', new LabelPrimitive({
         time: (lastTime - 7200) as any,
         price: isBull
-          ? Math.min(...candles.slice(-10).map(c => c.low))
-          : Math.max(...candles.slice(-10).map(c => c.high)),
+          ? safeMin(candles.slice(-10).map(c => c.low))
+          : safeMax(candles.slice(-10).map(c => c.high)),
         text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`,
         color: 'rgba(255,255,255,0.35)',
         fontSize: 7,
@@ -983,8 +984,8 @@ export function renderOverlays(
       registry.add('mtf', new LabelPrimitive({
         time: lastTime as any,
         price: isBull
-          ? Math.min(...candles.slice(-10).map(c => c.low)) * 0.999
-          : Math.max(...candles.slice(-10).map(c => c.high)) * 1.001,
+          ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999
+          : safeMax(candles.slice(-10).map(c => c.high)) * 1.001,
         text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`,
         color: mtfColor,
         fontSize: 10,
@@ -1125,8 +1126,8 @@ export function renderOverlays(
       registry.add('trade', new LabelPrimitive({
         time: candles[candles.length - 1].time as any,
         price: isBull
-          ? Math.max(...candles.slice(-5).map(c => c.high)) * 1.002
-          : Math.min(...candles.slice(-5).map(c => c.low)) * 0.998,
+          ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002
+          : safeMin(candles.slice(-5).map(c => c.low)) * 0.998,
         text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`,
         color: 'rgba(255,255,255,0.5)',
         fontSize: 8,
@@ -1221,8 +1222,8 @@ export function renderOverlays(
         registry.add('liq', new LabelPrimitive({
           time: lastTime as any,
           price: isBull
-            ? Math.min(...candles.slice(-5).map(c => c.low)) * 0.998
-            : Math.max(...candles.slice(-5).map(c => c.high)) * 1.002,
+            ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998
+            : safeMax(candles.slice(-5).map(c => c.high)) * 1.002,
           text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`,
           color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)',
           fontSize: 9,
@@ -1297,8 +1298,8 @@ export function renderAnalysisOverlays(
   const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
     if (!addPriceLine) return;
     const range = candles.slice(-30);
-    const high = Math.max(...range.map(c => c.high));
-    const low = Math.min(...range.map(c => c.low));
+    const high = safeMax(range.map(c => c.high));
+    const low = safeMin(range.map(c => c.low));
     const maxDist = (high - low) * 3;
     const lastPrice = candles[candles.length - 1].close;
     if (Math.abs(price - lastPrice) > maxDist) return;
@@ -1376,7 +1377,7 @@ export function renderAnalysisOverlays(
       registry.add('fusion', new LabelPrimitive({ time: lastTime as any, price: lastPrice, text: `${arrowLabel} تقارب ${fusion.confluenceScore}%`, color: confluenceColor, fontSize: 11, align: 'right', bg: isBull ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)', position: isBull ? 'above' : 'below' }));
       const recentCandles = candles.slice(-5);
       const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
-      registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? Math.min(...recentCandles.map(c => c.low)) * 0.9995 : Math.max(...recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 8, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
+      registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 8, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
     }
   } else {
     registry.clearType('fusion');
@@ -1395,7 +1396,7 @@ export function renderAnalysisOverlays(
       registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⬡ بايزي ${isBull ? 'صعودي' : 'هبوطي'} ${confPct}%`, color: bayesColor, fontSize: 9, align: 'right', bg: `${bayesColor}15`, position: isBull ? 'below' : 'above' }));
       const bullPct = Math.round(bayes.posteriorBullish * 100);
       const bearPct = Math.round(bayes.posteriorBearish * 100);
-      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? Math.min(...candles.slice(-10).map(c => c.low)) : Math.max(...candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 7, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
+      registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 7, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
     }
   } else {
     registry.clearType('bayesian');
@@ -1431,7 +1432,7 @@ export function renderAnalysisOverlays(
       const isBull = mtf.confluenceDirection === 'bullish';
       const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
       const arrow = isBull ? '▲' : '▼';
-      registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? Math.min(...candles.slice(-10).map(c => c.low)) * 0.999 : Math.max(...candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 10, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
+      registry.add('mtf', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) * 0.999 : safeMax(candles.slice(-10).map(c => c.high)) * 1.001, text: `${arrow} MTF ${mtf.confluenceScore}% (${mtf.agreeingTFs}/${mtf.totalTFs})`, color: mtfColor, fontSize: 10, align: 'right', bg: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(249, 115, 22, 0.12)', position: isBull ? 'below' : 'above' }));
     }
     for (const sr of mtf.srConfluences.slice(0, 3)) {
       const opacity = Math.min(0.8, sr.combinedStrength);
@@ -1476,7 +1477,7 @@ export function renderAnalysisOverlays(
       for (let i = 0; i < proposal.takeProfits.length; i++) {
         safeAddPriceLine(`trade-tp${i}`, proposal.takeProfits[i], tpColors[i] || '#10b981', tpLabels[i] || `TP${i+1}`, i === 0 ? 2 : 1, 2, i === 0, 'trade');
       }
-      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? Math.max(...candles.slice(-5).map(c => c.high)) * 1.002 : Math.min(...candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
+      registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
     }
     if (!proposal) registry.clearType('trade');
   } else {
@@ -1503,7 +1504,7 @@ export function renderAnalysisOverlays(
       }
       if (liqData.dominantSweepDirection !== 'neutral' && liqData.sweptZones > 0) {
         const isBull = liqData.dominantSweepDirection === 'bullish';
-        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? Math.min(...candles.slice(-5).map(c => c.low)) * 0.998 : Math.max(...candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 9, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
+        registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 9, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
       }
     }
   } else {
@@ -1545,8 +1546,8 @@ function detectLocalWyckoff(
   const volumeDecreasing = avgVol2 < avgVol1 * 0.9;
 
   // Range analysis
-  const recentHigh = Math.max(...recent.map(c => c.high));
-  const recentLow = Math.min(...recent.map(c => c.low));
+  const recentHigh = safeMax(recent.map(c => c.high));
+  const recentLow = safeMin(recent.map(c => c.low));
   const range = recentHigh - recentLow;
   const rangeRatio = range / recentLow;
 

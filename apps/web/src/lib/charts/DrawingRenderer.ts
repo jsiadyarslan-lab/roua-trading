@@ -19,6 +19,7 @@ import type {
 import type { CanvasRenderingTarget2D, MediaCoordinatesRenderingScope } from 'fancy-canvas';
 import type { Drawing, DrawingTool, DrawingPoint } from './types';
 import { DrawingManager } from './DrawingManager';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Style Constants ──────────────────────────────────────
 const DEFAULT_COLOR = '#fbbf24';
@@ -531,7 +532,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     for (let i = 0; i < 3; i++) { sX += xs[i]; sY += ys[i]; sXY += xs[i] * ys[i]; sXX += xs[i] * xs[i]; }
     const den = 3 * sXX - sX * sX; if (den === 0) return;
     const slope = (3 * sXY - sX * sY) / den, intercept = (sY - slope * sX) / 3;
-    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minX = safeMin(xs), maxX = safeMax(xs);
     const midY1 = slope * minX + intercept, midY2 = slope * maxX + intercept;
     ctx.beginPath(); ctx.moveTo(minX, midY1); ctx.lineTo(maxX, midY2); ctx.stroke();
     let maxDist = 0;

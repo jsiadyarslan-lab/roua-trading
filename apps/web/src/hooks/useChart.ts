@@ -27,6 +27,7 @@ import {
   CHART_COLORS as SHARED_COLORS,
   MAX_VISIBLE_CANDLES,
 } from '@/lib/charts/chart-utils';
+import { buildChartOptions, buildCandlestickOptions, buildVolumeOptions, CHART_COLORS as CHART_OPTIONS_COLORS } from '../lib/charts/chart-options';
 
 interface UseChartOptions {
   symbol: string;
@@ -131,6 +132,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // high-frequency market conditions.
   const rafBufferRef = useRef<CandleData | null>(null);
   const rafIdRef = useRef<number>(0);
+  // PERF: Debounced indicator refresh timer.
+  // After a WS candle update, we schedule a debounced (500ms) indicator
+  // data refresh that recalculates all active indicators and updates
+  // their series data IN-PLACE (series.setData()) instead of removing
+  // and re-creating series. This gives users real-time indicator values
+  // without the overhead of full indicator rebuild.
+  const indicatorRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Indicator Cache ─────────────────────────────────
   // Stores the last calculated results for each indicator keyed by
@@ -344,15 +352,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
   }, [activeIndicators, debouncedSaveChartState]);
 
-  // ── Chart Colors ───────────────────────────────────────
-  const CHART_COLORS = {
-    grid: 'rgba(42,49,60,0.5)',
-    crosshair: 'rgba(160,200,220,0.3)',
-    upColor: '#3fb950',
-    downColor: '#f85149',
-    upWick: '#3fb950',
-    downWick: '#f85149',
-  };
+
 
   // ── Initialize Chart ───────────────────────────────────
   const initChart = useCallback(async () => {
@@ -395,63 +395,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     const container = containerRef.current;
 
-    const chartOptions: DeepPartial<ChartOptions> = {
+    const chartOptions = buildChartOptions({
       width: initialWidth,
       height: initialHeight,
-      layout: {
-        background: { color: isMobile ? '#000000' : T.bg },
-        textColor: T.text2,
-        fontSize: isMobile ? 11 : 12,
-        fontFamily: "'JetBrains Mono', monospace",
-        attributionLogo: false,
-      },
-      grid: {
-        vertLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
-        horzLines: { color: isMobile ? 'rgba(255,255,255,0.06)' : CHART_COLORS.grid, style: isMobile ? 1 : 0 },
-      },
-      crosshair: {
-        mode: 0, // Normal
-        vertLine: {
-          color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair,
-          width: isMobile ? 1 : 1,
-          style: 2,
-          labelVisible: true,
-          labelBackgroundColor: isMobile ? '#2a2e3e' : T.card,
-        },
-        horzLine: {
-          color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair,
-          width: isMobile ? 1 : 1,
-          style: 2,
-          labelVisible: true,
-          labelBackgroundColor: isMobile ? '#2a2e3e' : T.card,
-        },
-      },
-      rightPriceScale: {
-        borderColor: isMobile ? 'transparent' : T.cardBorder,
-        scaleMargins: { top: 0.1, bottom: 0.2 },
-      },
-      timeScale: {
-        borderColor: T.cardBorder,
-        timeVisible: true,
-        secondsVisible: true,
-        rightOffset: isMobile ? 3 : 5,
-        // PERF: rightOffsetPixels provides pixel-based right offset (v5.0.9+).
-        // More consistent than bar-based rightOffset which varies with zoom level.
-        // rightOffsetPixels: isMobile ? 30 : 50,
-        // FIX: barSpacing 8 gives proper candle bodies while showing enough data.
-        // 14 was too large → only 20-25 candles visible on small screens.
-        // 6 is the minimum for visible candle bodies (below = dots/lines).
-        barSpacing: 8,
-        minBarSpacing: isMobile ? 4 : 5,
-        // FIX: Data conflation is DISABLED because it destroys candlestick
-        // OHLC rendering. When enabled, LWC merges multiple candles into a
-        // single data point (dot) when zoomed out, losing open/high/low/close.
-        // This is fine for line charts but catastrophic for candlesticks.
-        // Performance is handled instead by MAX_VISIBLE_CANDLES limiting.
-        enableConflation: false,
-      },
-      handleScroll: { vertTouchDrag: !isMobile },
-    };
+      isMobile: isMobile ?? false,
+      bgColor: T.bg,
+      textColor: T.text2,
+      cardColor: T.card,
+      cardBorderColor: T.cardBorder,
+    });
 
     const chart = createChart(container, chartOptions);
 
@@ -484,34 +436,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     chartInstanceRef.current = chart;
 
     // ── Candlestick Series ──
-    // MT5 style on mobile: brighter solid candles
-    const mobileUp   = '#4CAF50';  // MT5 green
-    const mobileDn   = '#F44336';  // MT5 red
-    const candleSeries = chart.addSeries(CandlestickSeries, {
-      upColor:        isMobile ? mobileUp : CHART_COLORS.upColor,
-      downColor:      isMobile ? mobileDn : CHART_COLORS.downColor,
-      borderUpColor:  isMobile ? mobileUp : CHART_COLORS.upColor,
-      borderDownColor:isMobile ? mobileDn : CHART_COLORS.downColor,
-      wickUpColor:    isMobile ? mobileUp : CHART_COLORS.upWick,
-      wickDownColor:  isMobile ? mobileDn : CHART_COLORS.downWick,
-      // Hide built-in last price label on mobile — our overlay shows the price
-      lastValueVisible: !isMobile,
-      priceLineVisible: !isMobile,
-      // FIX: conflationThresholdFactor REMOVED — setting it to 100 was the
-      // ROOT CAUSE of candles turning into dots. A high factor value tells LWC
-      // to aggressively conflate (merge) OHLC data, collapsing candle bodies
-      // into single points. Disabling conflation entirely (enableConflation: false
-      // on timeScale) is the correct approach for candlestick charts.
-    });
+    const candleSeries = chart.addSeries(CandlestickSeries, buildCandlestickOptions(isMobile ?? false));
     candleSeriesRef.current = candleSeries;
     mainSeriesRef.current = candleSeries;
 
     // ── Volume Series ──
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: 'volume' },
-      priceScaleId: 'volume',
-      lastValueVisible: false,
-    });
+    const volumeSeries = chart.addSeries(HistogramSeries, buildVolumeOptions());
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.85, bottom: 0 },
     });
@@ -700,6 +630,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         window.removeEventListener('resize', windowResizeHandlerRef.current);
         windowResizeHandlerRef.current = null;
       }
+      // Clean up debounced indicator refresh timer
+      if (indicatorRefreshTimerRef.current) {
+        clearTimeout(indicatorRefreshTimerRef.current);
+        indicatorRefreshTimerRef.current = null;
+      }
       if (shortcutsRef.current) {
         shortcutsRef.current.detach();
       }
@@ -763,6 +698,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = 0;
     rafBufferRef.current = null;
+    // Cancel debounced indicator refresh
+    if (indicatorRefreshTimerRef.current) {
+      clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = null;
+    }
     try {
       candleSeriesRef.current?.setData([] as any);
       volumeSeriesRef.current?.setData([] as any);
@@ -828,6 +768,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = 0;
     rafBufferRef.current = null;
+    // Cancel debounced indicator refresh
+    if (indicatorRefreshTimerRef.current) {
+      clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = null;
+    }
     try {
       candleSeriesRef.current?.setData([] as any);
       volumeSeriesRef.current?.setData([] as any);
@@ -1009,8 +954,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           } as any);
         } catch { /* chart destroyed */ }
       }
+
+      // PERF: Schedule debounced indicator refresh after WS candle update.
+      // This ensures indicators update with real-time data without
+      // the overhead of removing/recreating series on every tick.
+      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = setTimeout(() => {
+        refreshIndicatorsData();
+        indicatorRefreshTimerRef.current = null;
+      }, 500); // 500ms debounce — balances responsiveness with performance
     }
-  }, [isPaused, settings.type]);
+  }, [isPaused, settings.type, refreshIndicatorsData]);
 
   const updateCandle = useCallback((candle: CandleData) => {
     // Buffer the latest candle — if another update arrives before this
@@ -1087,6 +1041,75 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       overlaySeries: overlaySeriesRef.current,
       oscillatorSeries: oscillatorSeriesRef.current,
     }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
+  }, [hashIndicatorParams, getDataSignature]);
+
+  // ── Refresh Indicators Data In-Place ─────────────────────
+  // Recalculates all active indicators and updates their series
+  // data using series.setData() instead of remove + recreate.
+  // Called on a debounce after WS updates for real-time indicators.
+  const refreshIndicatorsData = useCallback(async () => {
+    const chart = chartInstanceRef.current;
+    if (!chart || !candlesRef.current.length) return;
+
+    const activeIndicators = activeIndicatorsRef.current;
+    if (activeIndicators.size === 0) return;
+
+    const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
+    const { updateIndicatorSeriesData } = await import('../lib/charts/chart-indicator-renderer');
+    const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
+
+    for (const [_, indicator] of activeIndicators) {
+      try {
+        // Check cache first
+        const paramsHash = hashIndicatorParams(indicator);
+        const dataSig = getDataSignature();
+        const cacheKey = indicator.key;
+        const cached = indicatorCacheRef.current.get(cacheKey);
+
+        let results: any[];
+        if (cached && cached.paramsHash === paramsHash && cached.dataSignature === dataSig && cached.results.length > 0) {
+          results = cached.results;
+        } else {
+          results = await calculateIndicator(indicator, candlesRef.current);
+          if (!results.length) continue;
+          indicatorCacheRef.current.set(cacheKey, {
+            paramsHash,
+            dataSignature: dataSig,
+            results,
+          });
+        }
+
+        // Try in-place update first
+        const { missingKeys } = updateIndicatorSeriesData(
+          { overlaySeries: overlaySeriesRef.current, oscillatorSeries: oscillatorSeriesRef.current },
+          indicator,
+          results,
+          candlesRef.current,
+        );
+
+        // If any series are missing (e.g., new indicator), fall back to full render
+        if (missingKeys.length > 0) {
+          const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
+          // Remove existing series for this indicator first
+          const existingKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+          existingKeys.forEach(k => {
+            const s = overlaySeriesRef.current.get(k);
+            if (s) { try { chart.removeSeries(s); } catch {} overlaySeriesRef.current.delete(k); }
+          });
+          const existingOscKeys = Array.from(oscillatorSeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+          existingOscKeys.forEach(k => {
+            const s = oscillatorSeriesRef.current.get(k);
+            if (s) { try { chart.removeSeries(s); } catch {} oscillatorSeriesRef.current.delete(k); }
+          });
+          renderIndicatorSeries(chart, {
+            overlaySeries: overlaySeriesRef.current,
+            oscillatorSeries: oscillatorSeriesRef.current,
+          }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
+        }
+      } catch (e) {
+        console.warn(`[useChart] refreshIndicatorsData error for ${indicator.key}:`, e);
+      }
+    }
   }, [hashIndicatorParams, getDataSignature]);
 
   // ── Set Candles ────────────────────────────────────────
@@ -1291,20 +1314,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (type === 'hollow' && candleSeriesRef.current) {
         candleSeriesRef.current.applyOptions({
           upColor: 'transparent',
-          downColor: CHART_COLORS.downColor,
-          borderUpColor: CHART_COLORS.upColor,
-          borderDownColor: CHART_COLORS.downColor,
-          wickUpColor: CHART_COLORS.upWick,
-          wickDownColor: CHART_COLORS.downWick,
+          downColor: CHART_OPTIONS_COLORS.downColor,
+          borderUpColor: CHART_OPTIONS_COLORS.upColor,
+          borderDownColor: CHART_OPTIONS_COLORS.downColor,
+          wickUpColor: CHART_OPTIONS_COLORS.upWick,
+          wickDownColor: CHART_OPTIONS_COLORS.downWick,
         });
       } else if (candleSeriesRef.current) {
         candleSeriesRef.current.applyOptions({
-          upColor: CHART_COLORS.upColor,
-          downColor: CHART_COLORS.downColor,
-          borderUpColor: CHART_COLORS.upColor,
-          borderDownColor: CHART_COLORS.downColor,
-          wickUpColor: CHART_COLORS.upWick,
-          wickDownColor: CHART_COLORS.downWick,
+          upColor: CHART_OPTIONS_COLORS.upColor,
+          downColor: CHART_OPTIONS_COLORS.downColor,
+          borderUpColor: CHART_OPTIONS_COLORS.upColor,
+          borderDownColor: CHART_OPTIONS_COLORS.downColor,
+          wickUpColor: CHART_OPTIONS_COLORS.upWick,
+          wickDownColor: CHART_OPTIONS_COLORS.downWick,
         });
       }
 
@@ -1332,7 +1355,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     if (type === 'line') {
       const lineSeries = chart.addSeries(LineSeries, {
-        color: CHART_COLORS.upColor,
+        color: CHART_OPTIONS_COLORS.upColor,
         lineWidth: 2 as any,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -1347,7 +1370,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const areaSeries = chart.addSeries(AreaSeries, {
         topColor: 'rgba(63,185,80,0.3)',
         bottomColor: 'rgba(63,185,80,0.02)',
-        lineColor: CHART_COLORS.upColor,
+        lineColor: CHART_OPTIONS_COLORS.upColor,
         lineWidth: 2 as any,
         priceLineVisible: true,
         lastValueVisible: true,
@@ -1360,8 +1383,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
     else if (type === 'bar') {
       const barSeries = chart.addSeries(BarSeries, {
-        upColor: CHART_COLORS.upColor,
-        downColor: CHART_COLORS.downColor,
+        upColor: CHART_OPTIONS_COLORS.upColor,
+        downColor: CHART_OPTIONS_COLORS.downColor,
       });
       const displayCandles = candles.map(c => ({
         time: c.time as Time,
@@ -1539,8 +1562,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } else {
           return {
             mode: 0, // Normal
-            vertLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
-            horzLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
+            vertLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
+            horzLine: { visible: true, color: isMobile ? 'rgba(160,200,220,0.7)' : CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true, labelBackgroundColor: isMobile ? '#2a2e3e' : T.card },
           };
         }
       })(),
@@ -1792,7 +1815,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const chart = chartInstanceRef.current;
     if (chart) {
       if (updates.showGrid !== undefined) {
-        const gridColor = updates.gridColor || (updates.showGrid ? CHART_COLORS.grid : 'transparent');
+        const gridColor = updates.gridColor || (updates.showGrid ? CHART_OPTIONS_COLORS.grid : 'transparent');
         chart.applyOptions({
           grid: {
             vertLines: { color: updates.showGrid ? gridColor : 'transparent' },
@@ -1810,12 +1833,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
       if (updates.upColor !== undefined || updates.downColor !== undefined) {
         candleSeriesRef.current?.applyOptions({
-          upColor: updates.upColor || CHART_COLORS.upColor,
-          downColor: updates.downColor || CHART_COLORS.downColor,
-          borderUpColor: updates.upColor || CHART_COLORS.upColor,
-          borderDownColor: updates.downColor || CHART_COLORS.downColor,
-          wickUpColor: updates.upColor || CHART_COLORS.upWick,
-          wickDownColor: updates.downColor || CHART_COLORS.downWick,
+          upColor: updates.upColor || CHART_OPTIONS_COLORS.upColor,
+          downColor: updates.downColor || CHART_OPTIONS_COLORS.downColor,
+          borderUpColor: updates.upColor || CHART_OPTIONS_COLORS.upColor,
+          borderDownColor: updates.downColor || CHART_OPTIONS_COLORS.downColor,
+          wickUpColor: updates.upColor || CHART_OPTIONS_COLORS.upWick,
+          wickDownColor: updates.downColor || CHART_OPTIONS_COLORS.downWick,
         });
       }
       if (updates.showVolume !== undefined) {
@@ -1852,8 +1875,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           chart.applyOptions({
             crosshair: {
               mode: 0,
-              vertLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
-              horzLine: { visible: true, color: CHART_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+              vertLine: { visible: true, color: CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
+              horzLine: { visible: true, color: CHART_OPTIONS_COLORS.crosshair, width: 1, style: 2, labelVisible: true },
             },
           });
         }

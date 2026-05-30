@@ -14,6 +14,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import type { CandleData } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -266,8 +267,8 @@ function analyzeAssetQuick(
 
   // 4. Price position relative to recent range
   const recent = candles.slice(-20);
-  const high = Math.max(...recent.map(c => c.high));
-  const low = Math.min(...recent.map(c => c.low));
+  const high = safeMax(recent.map(c => c.high));
+  const low = safeMin(recent.map(c => c.low));
   const range = high - low;
   if (range > 0) {
     const position = (price - low) / range;

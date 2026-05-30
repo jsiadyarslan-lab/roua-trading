@@ -3,6 +3,19 @@
 import { useMemo } from 'react'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 interface PortfolioSparklineProps {
   data: number[]
   color?: string
@@ -19,8 +32,8 @@ export function PortfolioSparkline({
   const pathData = useMemo(() => {
     if (!data || data.length < 2) return { line: '', fill: '' }
 
-    const mn = Math.min(...data)
-    const mx = Math.max(...data)
+    const mn = safeMin(data)
+    const mx = safeMax(data)
     const range = mx - mn || 1
 
     const padding = 2
@@ -126,8 +139,8 @@ export function PortfolioSparkline({
             cy={
               2 +
               (height - 4) -
-              ((lastVal - Math.min(...data)) /
-                (Math.max(...data) - Math.min(...data) || 1)) *
+              ((lastVal - safeMin(data)) /
+                (safeMax(data) - safeMin(data) || 1)) *
                 (height - 4)
             }
             r={2.5}

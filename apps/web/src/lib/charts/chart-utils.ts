@@ -240,3 +240,28 @@ export interface CandleUpdateData {
 // like Ichimoku 52-period) and rendering performance.
 
 export const MAX_VISIBLE_CANDLES = 3000;
+
+// ── Safe Math Helpers ────────────────────────────────────────
+// Math.max(...array) / Math.min(...array) throws RangeError when
+// the array exceeds the engine's argument limit (~65,536 in V8).
+// These loop-based alternatives handle arrays of any size safely.
+// MUST be used instead of Math.max(...spread) / Math.min(...spread)
+// anywhere the array size is not guaranteed to be tiny (< 100).
+
+export function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] > max) max = arr[i];
+  }
+  return max;
+}
+
+export function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] < min) min = arr[i];
+  }
+  return min;
+}

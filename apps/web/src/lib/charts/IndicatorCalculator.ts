@@ -4,7 +4,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { CandleData, IndicatorKey, ActiveIndicator } from './types';
-import { sanitizeTimeForIndicator as sanitizeTime } from './chart-utils';
+import { sanitizeTimeForIndicator as sanitizeTime, safeMax, safeMin } from './chart-utils';
 
 // ── Lazy-load technicalindicators to avoid SSR issues ──
 let _ti: typeof import('technicalindicators') | null = null;
@@ -90,28 +90,10 @@ function hlc3(candles: CandleData[]): number[] {
   return candles.map(c => (c.high + c.low + c.close) / 3);
 }
 
-// ── Safe Math helpers — avoid stack overflow with large arrays ──
-// Math.max(...array) / Math.min(...array) throws RangeError when
-// the array exceeds the engine's argument limit (~65,536 in V8).
-// These loop-based alternatives handle arrays of any size safely.
-
-function safeMax(arr: number[]): number {
-  if (arr.length === 0) return -Infinity;
-  let max = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] > max) max = arr[i];
-  }
-  return max;
-}
-
-function safeMin(arr: number[]): number {
-  if (arr.length === 0) return Infinity;
-  let min = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    if (arr[i] < min) min = arr[i];
-  }
-  return min;
-}
+// ── Safe Math helpers imported from chart-utils ──
+// safeMax/safeMin are now shared from chart-utils.ts to avoid duplication.
+// They replace Math.max(...array) / Math.min(...array) which throw RangeError
+// when the array exceeds the engine's argument limit (~65,536 in V8).
 
 // ── SMA ─────────────────────────────────────────────────
 export async function calcSMA(candles: CandleData[], period: number = 20): Promise<OverlayResult[]> {

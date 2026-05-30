@@ -23,6 +23,7 @@
 
 import type { CandleData, AIPattern } from './types';
 import { calcATR } from './ATRAdapter';
+import { safeMax, safeMin } from './chart-utils';
 
 // ── Exported Types ───────────────────────────────────────────────────
 
@@ -277,8 +278,8 @@ function detectAccumulation(candles: CandleData[], atr: number): WyckoffResult |
   const volumes = recentSlice.map(c => c.volume);
   const avgVol = volumes.reduce((s, v) => s + v, 0) / volumes.length;
 
-  const maxP = Math.max(...recentSlice.map(c => c.high));
-  const minP = Math.min(...recentSlice.map(c => c.low));
+  const maxP = safeMax(recentSlice.map(c => c.high));
+  const minP = safeMin(recentSlice.map(c => c.low));
   const range = maxP - minP;
   const current = prices[prices.length - 1];
   const posInRange = range > 0 ? (current - minP) / range : 0.5;
@@ -493,8 +494,8 @@ function detectDistribution(candles: CandleData[], atr: number): WyckoffResult |
   const volumes = recentSlice.map(c => c.volume);
   const avgVol = volumes.reduce((s, v) => s + v, 0) / volumes.length;
 
-  const maxP = Math.max(...recentSlice.map(c => c.high));
-  const minP = Math.min(...recentSlice.map(c => c.low));
+  const maxP = safeMax(recentSlice.map(c => c.high));
+  const minP = safeMin(recentSlice.map(c => c.low));
   const range = maxP - minP;
   const current = prices[prices.length - 1];
   const posInRange = range > 0 ? (current - minP) / range : 0.5;
@@ -749,8 +750,8 @@ export function detectWyckoffAdvanced(candles: CandleData[]): WyckoffResult {
   } else {
     // Neither detected — fallback to basic analysis
     const recentSlice = candles.slice(-Math.min(LOOKBACK, candles.length));
-    const maxP = Math.max(...recentSlice.map(c => c.high));
-    const minP = Math.min(...recentSlice.map(c => c.low));
+    const maxP = safeMax(recentSlice.map(c => c.high));
+    const minP = safeMin(recentSlice.map(c => c.low));
     const current = recentSlice[recentSlice.length - 1].close;
     const range = maxP - minP;
     const posInRange = range > 0 ? (current - minP) / range : 0.5;

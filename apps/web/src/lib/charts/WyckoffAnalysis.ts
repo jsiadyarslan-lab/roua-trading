@@ -1,5 +1,6 @@
 // Wyckoff Phase Detector — STANDALONE
 import type { CandleData } from './types';
+import { safeMax, safeMin } from './chart-utils';
 
 export type WyckoffPhase = 'Accumulation' | 'Markup' | 'Distribution' | 'Markdown' | 'Unknown';
 
@@ -20,8 +21,8 @@ export function detectWyckoff(candles: CandleData[]): WyckoffResult {
   const avgVol = volumes.reduce((s,v) => s+v, 0) / volumes.length;
 
   // Price range analysis
-  const maxP = Math.max(...prices);
-  const minP = Math.min(...prices);
+  const maxP = safeMax(prices);
+  const minP = safeMin(prices);
   const range = maxP - minP;
   const current = prices[prices.length - 1];
   const posInRange = (current - minP) / (range || 1);

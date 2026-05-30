@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing';
 import { getDirection } from '@/lib/i18n-utils';
 import { Toaster } from "@/components/ui/toaster";
 import { GlobalStyleRegistry } from "@/components/GlobalStyleRegistry";
+import PWARegistrar from "@/components/PWARegistrar";
 
 const cairo = { variable: "--font-cairo", className: "" };
 const notoNaskhArabic = { variable: "--font-noto-naskh", className: "" };
@@ -159,16 +160,15 @@ export default async function LocaleLayout({
 
   return (
     <html lang={locale} dir={dir} className="dark" suppressHydrationWarning>
-      {/*
-        NO manual <head> PWA tags!
-        Next.js metadata API handles: manifest link, apple-mobile-web-app-*,
-        apple-touch-icon, theme-color, icons.
-        Serwist handles: SW registration automatically via cacheOnNavigation.
-        Duplicate tags were causing Chrome to reject PWA installability.
-      */}
+      <head>
+        {/* iOS PWA: Next.js 16 generates mobile-web-app-capable instead of
+            apple-mobile-web-app-capable. We must add the correct one manually. */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+      </head>
       <body className={`${fontVars} antialiased`}>
         <NextIntlClientProvider messages={messages}>
           <GlobalStyleRegistry />
+          <PWARegistrar />
           {children}
           <Toaster />
         </NextIntlClientProvider>

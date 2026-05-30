@@ -476,11 +476,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       const mainSeries = mainSeriesRef.current || candleSeriesRef.current;
-      // FIX: guard against undefined series before calling .get()
+      // FIX: guard against undefined/stale series before calling .get()
+      // candleSeries (closure) may be stale after chart reinit — use refs
+      const activeSeries = mainSeriesRef.current || candleSeriesRef.current || mainSeries;
       let candleData: any = null;
       try {
-        if (mainSeries) candleData = seriesData.get(mainSeries as any) as any;
-        if (!candleData && candleSeries) candleData = seriesData.get(candleSeries as any) as any;
+        if (activeSeries) candleData = seriesData.get(activeSeries as any) as any;
+        // Fallback: iterate seriesData to find any valid candle entry
+        if (!candleData && (seriesData as any).forEach) {
+          (seriesData as any).forEach((v: any) => {
+            if (!candleData && v && typeof v.close === 'number') candleData = v;
+          });
+        }
       } catch {
         candleData = null;
       }

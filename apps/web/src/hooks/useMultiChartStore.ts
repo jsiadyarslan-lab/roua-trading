@@ -131,11 +131,10 @@ export function getChartControl(id: string): ChartControlAPI | undefined {
   return chartControlRegistry.get(id);
 }
 
-export function getActiveChartControl(): ChartControlAPI | undefined {
-  // Read the current activeChartId from the store
-  const state = useMultiChartStore.getState();
-  return chartControlRegistry.get(state.activeChartId);
-}
+// NOTE: getActiveChartControl() is defined AFTER useMultiChartStore to avoid
+// TDZ (Temporal Dead Zone) error in production minified builds.
+// Previously, this function was defined BEFORE the store's `const` declaration,
+// causing "Cannot access 'eT' before initialization" in production.
 
 // ── Store State ──────────────────────────────────────────
 interface MultiChartState {
@@ -326,3 +325,15 @@ export const useMultiChartStore = create<MultiChartState>()(
     }
   )
 );
+
+// ── Active Chart Control (MUST be after store definition) ──
+// This function references useMultiChartStore, which is a `const` variable.
+// In production minified builds, if this function is defined before the
+// store's `const` declaration, webpack/terser may create a TDZ error:
+// "ReferenceError: Cannot access 'eT' before initialization"
+// By placing it AFTER the store, we guarantee the `const` is initialized
+// before any code can call this function.
+export function getActiveChartControl(): ChartControlAPI | undefined {
+  const state = useMultiChartStore.getState();
+  return chartControlRegistry.get(state.activeChartId);
+}

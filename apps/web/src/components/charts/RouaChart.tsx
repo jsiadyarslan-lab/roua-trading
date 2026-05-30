@@ -197,10 +197,15 @@ export default function RouaChart({
   const [showSmartGrid, setShowSmartGrid] = useState(false);
   const [showShare, setShowShare] = useState(false);
   // ── Multi-Chart State ──
-  const multiChartLayout = useMultiChartStore(s => s.layout);
-  const isMultiChart = useMultiChartStore(s => s.isMultiChart);
-  const activeChartId = useMultiChartStore(s => s.activeChartId);
-  const charts = useMultiChartStore(s => s.charts);
+  // FIX: Defensive selectors — ensure charts is always a valid array even if
+  // persisted localStorage data is corrupted or has an unexpected shape.
+  // This prevents "Cannot read property 'symbol' of undefined" crashes.
+  const multiChartLayout = useMultiChartStore(s => s.layout ?? '1x1');
+  const isMultiChart = useMultiChartStore(s => s.isMultiChart ?? false);
+  const activeChartId = useMultiChartStore(s => s.activeChartId ?? 'mc-1');
+  const charts = useMultiChartStore(s => Array.isArray(s.charts) ? s.charts : [
+    { id: 'mc-1', symbol: selectedSymbol, timeframe, chartType: 'candle' as ChartType },
+  ]);
   const addChart = useMultiChartStore(s => s.addChart);
   const removeChart = useMultiChartStore(s => s.removeChart);
   const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);

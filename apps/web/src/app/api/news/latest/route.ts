@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+// Force dynamic rendering to prevent cached responses across different lang parameters
+export const dynamic = 'force-dynamic'
+
 /**
  * GET /api/news/latest
  * Get latest news with filtering
@@ -12,7 +15,7 @@ export async function GET(request: NextRequest) {
     const sentiment = searchParams.get('sentiment') || '';
     const category = searchParams.get('category') || '';
     const limit = searchParams.get('limit') || '20';
-    const lang = searchParams.get('lang') || 'ar';
+    const lang = searchParams.get('lang') || 'en';
 
     const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
     const integrationKey = process.env.INTEGRATION_API_KEY;

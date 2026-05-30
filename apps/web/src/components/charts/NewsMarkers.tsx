@@ -22,7 +22,7 @@ export function NewsMarkers({ symbol, onMarkersUpdate }: NewsMarkersProps) {
   const fetchNews = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/news/feed?symbol=${encodeURIComponent(symbol)}&limit=20`);
+      const res = await fetch(`/api/news/feed?symbol=${encodeURIComponent(symbol)}&limit=20`, { cache: 'no-store' });
       if (!res.ok) return;
 
       const data = await res.json();

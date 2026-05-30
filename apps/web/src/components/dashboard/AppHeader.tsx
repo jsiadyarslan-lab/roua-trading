@@ -248,60 +248,87 @@ function LogoCircle({ state, size = 'desktop' }: { state: MarketState, size?: 'd
 }
 
 /* ══ Strip 1: News Ticker ══ */
-/* ─── Shared news data (single fetch) with TTL ─── */
+/* ─── Shared news data (single fetch per locale) with TTL ─── */
 // BUG-004 FIX: Added TTL so cache expires after 10 min instead of living forever.
-type NewsItem = { text: string; textAr: string; category: string; categoryAr: string; color: string; impact: string }
-let _newsCache: NewsItem[] | null = null
-let _newsCacheAt = 0
+// BUG-FEED-LANG FIX: Cache is now per-locale to prevent language swap.
+type NewsItem = { text: string; textAr: string; textFr: string; textTr: string; textEs: string; category: string; categoryAr: string; categoryFr: string; categoryTr: string; categoryEs: string; color: string; impact: string }
+const _newsCacheByLocale: Record<string, { items: NewsItem[]; at: number }> = {}
 const NEWS_TTL_MS = 10 * 60 * 1000 // 10 minutes
-let _newsPromise: Promise<NewsItem[]> | null = null
+const _newsPromises: Record<string, Promise<NewsItem[]>> = {}
 
-function fetchNewsData(): Promise<NewsItem[]> {
-  if (_newsCache && Date.now() - _newsCacheAt < NEWS_TTL_MS) return Promise.resolve(_newsCache)
-  if (_newsPromise) return _newsPromise
-  _newsCache = null // invalidate stale cache
-  _newsPromise = fetch('/api/news/feed')
+function fetchNewsData(locale: string): Promise<NewsItem[]> {
+  const cached = _newsCacheByLocale[locale]
+  if (cached && Date.now() - cached.at < NEWS_TTL_MS) return Promise.resolve(cached.items)
+  if (_newsPromises[locale]) return _newsPromises[locale]
+  _newsPromises[locale] = fetch(`/api/news/feed?lang=${locale}`, { cache: 'no-store' })
     .then(r => r.ok ? r.json() : [])
     .then((d: unknown) => {
+      const items: NewsItem[] = []
       if (Array.isArray(d) && d.length) {
-        _newsCache = d
-          .map((item: any) => {
-            const rawTextAr = item.textAr || item.translatedTitle || ''
-            const rawText = item.text || item.headline || item.title || ''
-            const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
-            return {
-              text: rawText,
-              textAr: hasRealArabic ? rawTextAr : rawText,
-              category: item.category || 'Markets',
-              categoryAr: item.categoryAr || 'Markets',
-              color: item.color || '#8B92A8',
-              impact: item.impact || 'medium',
-            }
+        for (const item of d) {
+          const rawTextAr = item.textAr || item.translatedTitle || ''
+          const rawText = item.text || item.headline || item.title || ''
+          const hasRealArabic = rawTextAr && /[\u0600-\u06FF]/.test(rawTextAr)
+          items.push({
+            text: rawText,
+            textAr: hasRealArabic ? rawTextAr : rawText,
+            textFr: item.textFr || rawText,
+            textTr: item.textTr || rawText,
+            textEs: item.textEs || rawText,
+            category: item.category || 'Markets',
+            categoryAr: item.categoryAr || 'Markets',
+            categoryFr: item.categoryFr || item.category || 'Général',
+            categoryTr: item.categoryTr || item.category || 'Genel',
+            categoryEs: item.categoryEs || item.category || 'General',
+            color: item.color || '#8B92A8',
+            impact: item.impact || 'medium',
           })
-          // Safety: filter out any items where text is Arabic (no English available)
-          .filter((item) => !/[\u0600-\u06FF]/.test(item.text))
-      } else {
-        _newsCache = []
+        }
       }
-      _newsCacheAt = Date.now()
-      _newsPromise = null
-      return _newsCache!
+      _newsCacheByLocale[locale] = { items, at: Date.now() }
+      delete _newsPromises[locale]
+      return items
     })
-    .catch(() => { _newsCache = []; _newsCacheAt = Date.now(); _newsPromise = null; return _newsCache! })
-  return _newsPromise
+    .catch(() => {
+      const items: NewsItem[] = []
+      _newsCacheByLocale[locale] = { items, at: Date.now() }
+      delete _newsPromises[locale]
+      return items
+    })
+  return _newsPromises[locale]
+}
+
+/** Get localized text for a news item based on locale */
+function getNewsText(item: NewsItem, locale: string): string {
+  switch (locale) {
+    case 'ar': return item.textAr || item.text
+    case 'fr': return item.textFr || item.text
+    case 'tr': return item.textTr || item.text
+    case 'es': return item.textEs || item.text
+    default: return item.text
+  }
+}
+
+/** Get localized category for a news item based on locale */
+function getNewsCategory(item: NewsItem, locale: string): string {
+  switch (locale) {
+    case 'ar': return item.categoryAr || item.category
+    case 'fr': return item.categoryFr || item.category
+    case 'tr': return item.categoryTr || item.category
+    case 'es': return item.categoryEs || item.category
+    default: return item.category
+  }
 }
 
 function NewsTicker() {
   const t = useTranslations()
   const locale = useLocale()
   const isAr = locale === 'ar'
-  const [items, setItems] = useState<
-    { text: string; textAr: string; category: string; categoryAr: string; color: string; impact: string }[]
-  >([])
+  const [items, setItems] = useState<NewsItem[]>([])
 
   useEffect(() => {
-    fetchNewsData().then(data => { if (data.length) setItems(data) })
-  }, [])
+    fetchNewsData(locale).then(data => { if (data.length) setItems(data) })
+  }, [locale])
 
   const doubled = items.length ? [...items, ...items] : []
 
@@ -339,8 +366,8 @@ function NewsTicker() {
             animation: `news-scroll ${Math.max(doubled.length * 2.5, 18)}s linear infinite`,
           }}>
             {doubled.map((item, i) => {
-              const displayText = isAr && item.textAr ? item.textAr : item.text
-              const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
+              const displayText = getNewsText(item, locale)
+              const displayCat = getNewsCategory(item, locale)
               return (
                 <span key={i} style={{
                   fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 11.5,
@@ -495,17 +522,15 @@ function MobileNewsTicker() {
   const t = useTranslations()
   const locale = useLocale()
   const isAr = locale === 'ar'
-  const [items, setItems] = useState<
-    { text: string; textAr: string; category: string; categoryAr: string; color: string }[]
-  >([])
+  const [items, setItems] = useState<NewsItem[]>([])
 
   useEffect(() => {
-    fetchNewsData().then(data => {
+    fetchNewsData(locale).then(data => {
       if (data.length) {
-        setItems(data.slice(0, 10).map(({ text, textAr, category, categoryAr, color }) => ({ text, textAr, category, categoryAr, color })))
+        setItems(data.slice(0, 10))
       }
     })
-  }, [])
+  }, [locale])
 
   const doubled = items.length ? [...items, ...items] : []
 
@@ -515,8 +540,8 @@ function MobileNewsTicker() {
       animation: `news-scroll ${Math.max(doubled.length * 2, 14)}s linear infinite`,
     }}>
       {doubled.map((item, i) => {
-        const displayText = isAr && item.textAr ? item.textAr : item.text
-        const displayCat = isAr && item.categoryAr ? item.categoryAr : item.category
+        const displayText = getNewsText(item, locale)
+        const displayCat = getNewsCategory(item, locale)
         return (
           <span key={i} style={{
             fontFamily: isAr ? "'Cairo', 'Readex Pro', sans-serif" : "'Inter', 'Readex Pro', sans-serif", fontSize: 10,

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useEffect, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { Activity, CalendarDays, GitMerge, Newspaper, RefreshCw } from 'lucide-react'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
 import { formatFreshness } from '@/lib/dashboard-live'
@@ -60,6 +60,7 @@ function PanelShell({
 export function DesktopNewsPanel() {
   const t = useTranslations('dashboard.news')
   const tc = useTranslations('common')
+  const locale = useLocale()
   const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
   const [items, setItems] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -67,7 +68,7 @@ export function DesktopNewsPanel() {
   useEffect(() => {
     let mounted = true
     setLoading(true)
-    fetch('/api/news/feed', { cache: 'no-store' })
+    fetch(`/api/news/feed?lang=${locale}`, { cache: 'no-store' })
       .then(r => r.json())
       .then(data => {
         if (!mounted) return
@@ -82,7 +83,7 @@ export function DesktopNewsPanel() {
     return () => {
       mounted = false
     }
-  }, [])
+  }, [locale])
 
   return (
     <PanelShell title={t('title')} accent={T.cyan} icon={Newspaper} subtitle={t('newsSummary', { symbol: selectedSymbol })}>
@@ -92,12 +93,12 @@ export function DesktopNewsPanel() {
         {items.map((item, index) => (
           <div key={`${safeStr(item.text)}-${index}`} className="card" style={{ padding: '10px 11px', display: 'flex', flexDirection: 'column', gap: 6 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-              <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(item.categoryAr || item.category)}</span>
+              <span style={{ fontSize: 9, color: item.impact === 'high' ? T.danger : T.amber, fontWeight: 800 }}>{safeStr(locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : locale === 'es' ? (item.categoryEs || item.category) : item.category)}</span>
               <span style={{ fontSize: 9, color: T.text3, fontFamily: "'JetBrains Mono', monospace" }}>
                 {item.publishedAt ? formatFreshness(item.publishedAt, tc) : safeStr(item.source)}
               </span>
             </div>
-            <div style={{ fontSize: 11, color: T.text, lineHeight: 1.8 }}>{safeStr(item.text)}</div>
+            <div style={{ fontSize: 11, color: T.text, lineHeight: 1.8 }}>{safeStr(locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : locale === 'es' ? (item.textEs || item.text) : item.text)}</div>
           </div>
         ))}
       </div>

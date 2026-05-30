@@ -9,16 +9,45 @@ interface NewsItem {
   categoryAr: string
   categoryFr: string
   categoryTr?: string
+  categoryEs?: string
   color: string
   bgColor: string
   text: string
   textAr: string
   textFr: string
   textTr?: string
+  textEs?: string
   impact: 'high' | 'medium'
 }
 
 const emptyNewsItems: NewsItem[] = []
+
+/**
+ * Get the localized text for a news item based on the current locale.
+ * Supports: ar, fr, tr, es, and falls back to English (text field) for all others.
+ */
+function getLocalizedText(item: NewsItem, locale: string): string {
+  switch (locale) {
+    case 'ar': return item.textAr || item.text
+    case 'fr': return item.textFr || item.text
+    case 'tr': return item.textTr || item.text
+    case 'es': return item.textEs || item.text
+    default: return item.text
+  }
+}
+
+/**
+ * Get the localized category for a news item based on the current locale.
+ */
+function getLocalizedCategory(item: NewsItem, locale: string): string {
+  switch (locale) {
+    case 'ar': return item.categoryAr || item.category
+    case 'fr': return item.categoryFr || item.category
+    case 'tr': return item.categoryTr || item.category
+    case 'es': return item.categoryEs || item.category
+    default: return item.category
+  }
+}
 
 export default function NewsTicker() {
   const tn = useTranslations('dashboard.news')
@@ -28,12 +57,15 @@ export default function NewsTicker() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>(emptyNewsItems)
   const [isLoading, setIsLoading] = useState(true)
 
-  // Fetch from /api/news/feed
+  // Fetch from /api/news/feed — use cache: 'no-store' to prevent stale cached responses
   const fetchNews = useCallback(async () => {
     try {
       const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 5000)
-      const response = await fetch(`/api/news/feed?lang=${locale}`, { signal: controller.signal })
+      const timeoutId = setTimeout(() => controller.abort(), 8000)
+      const response = await fetch(`/api/news/feed?lang=${locale}`, {
+        signal: controller.signal,
+        cache: 'no-store',
+      })
       clearTimeout(timeoutId)
       if (response.ok) {
         const data = await response.json()
@@ -58,23 +90,26 @@ export default function NewsTicker() {
               const content = (item.translatedContent || '') + (item.content || '');
               return !errorPatterns.some(p => title.includes(p) || content.includes(p));
             })
-            // Filter out Arabic-only articles for non-Arabic locales
+            // Filter by locale: Arabic users get Arabic news, others get non-Arabic news
             .filter((item: any) => {
               if (isAr) return true; // Arabic users want Arabic news
+              // For non-Arabic locales, filter out Arabic-only text
               const text = item.text || item.headline || item.title || '';
               return text && !/[\u0600-\u06FF]/.test(text);
             })
             .map((item: any) => ({
             category: item.category || 'General',
-            categoryAr: item.categoryAr || item.category || 'Markets',
+            categoryAr: item.categoryAr || item.category || 'أسواق',
             categoryFr: item.categoryFr || item.category || 'Général',
             categoryTr: item.categoryTr || item.category || 'Genel',
+            categoryEs: item.categoryEs || item.category || 'General',
             color: item.color || '#8B92A8',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
             textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
-            textFr: item.textFr || item.translatedTitleFr || item.text || item.headline || item.title || '',
+            textFr: item.textFr || item.text || item.headline || item.title || '',
             textTr: item.textTr || item.text || item.headline || item.title || '',
+            textEs: item.textEs || item.text || item.headline || item.title || '',
             impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
           }))
           if (mapped.length > 0) setNewsItems(mapped)
@@ -85,7 +120,7 @@ export default function NewsTicker() {
     } finally {
       setIsLoading(false)
     }
-  }, [locale])
+  }, [locale, isAr])
 
   useEffect(() => { fetchNews() }, [fetchNews])
 
@@ -104,9 +139,9 @@ export default function NewsTicker() {
   const renderNewsItem = (item: NewsItem, index: number) => (
     <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
       <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
-        {locale === 'ar' ? (item.categoryAr || item.category) : locale === 'fr' ? (item.categoryFr || item.category) : locale === 'tr' ? (item.categoryTr || item.category) : item.category}
+        {getLocalizedCategory(item, locale)}
       </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{locale === 'ar' ? (item.textAr || item.text) : locale === 'fr' ? (item.textFr || item.text) : locale === 'tr' ? (item.textTr || item.text) : item.text}</span>
+      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{getLocalizedText(item, locale)}</span>
       <span className="text-[10px]">
         {item.impact === 'high' ? (
           <span style={{ color: 'var(--loss)' }}>●</span>

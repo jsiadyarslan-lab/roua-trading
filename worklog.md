@@ -40,3 +40,27 @@ Stage Summary:
 - Commits: 18c45d06 (Terser fix), 16c53d3f (cache bust)
 - Impact: ~1-2% bundle size increase, eliminates entire class of TDZ bugs
 - Production: Waiting for Railway rebuild (~5-10 min)
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix runtime TDZ error "Cannot access 'eT' before initialization" in Roua Trading multi-chart system
+
+Work Log:
+- Cloned repository and read all multi-chart source files (useMultiChartStore.ts, useChartSync.ts, ChartPanel.tsx, RouaChart.tsx)
+- Ran circular dependency analysis - confirmed NO circular imports between modules
+- Built production bundle and analyzed webpack chunk 4107 containing the TDZ error
+- Traced minified variable names: found tL = useChart result, is = RouaChart component
+- Found root cause: getActiveChartControl() function defined BEFORE useMultiChartStore const declaration
+- In minified code: function w(){S.getState()} followed by let S=create()(persist(...)) - TDZ risk!
+- When webpack's export getter ()=>S is accessed during chunk evaluation before let S=... executes, TDZ error occurs
+- Fixed by moving getActiveChartControl() AFTER useMultiChartStore definition
+- Added defensive null-coalescing to Zustand selectors in RouaChart.tsx
+- Added Array.isArray guard for charts selector
+- Built successfully, verified fix in new production chunk
+- Pushed commit b9289e53 to GitHub main branch
+
+Stage Summary:
+- Root cause: getActiveChartControl() referencing useMultiChartStore before its const declaration
+- Fix: Moved function after store definition + added defensive selectors
+- Commit: b9289e53 pushed to main, Railway deploying

@@ -37,7 +37,8 @@ import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
 const ChartPanel = dynamic(() => import('./ChartPanel').then(m => ({ default: m.ChartPanel })), { ssr: false })
-import { useMultiChartStore, LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getActiveChartControl, getChartControl } from '@/hooks/useMultiChartStore';
+import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl } from '@/hooks/multi-chart-registry';
+import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';

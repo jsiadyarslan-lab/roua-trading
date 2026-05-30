@@ -17,12 +17,12 @@ import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts';
 import type { CandleData, ChartType, ActiveIndicator, DrawingTool } from '@/lib/charts/types';
 import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import {
-  useMultiChartStore,
   registerChartInstance,
   unregisterChartInstance,
   registerChartControl,
   unregisterChartControl,
-} from '@/hooks/useMultiChartStore';
+} from '@/hooks/multi-chart-registry';
+import { useMultiChartStore } from '@/hooks/useMultiChartStore';
 
 interface ChartPanelProps {
   chartId: string;

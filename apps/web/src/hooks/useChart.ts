@@ -363,7 +363,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Initialize Chart ───────────────────────────────────
   const initChart = useCallback(async () => {
-    if (!containerRef.current) return;
+    const initialContainer = containerRef.current;
+    if (!initialContainer) return;
 
     // Wait for container to have non-zero dimensions (flex layout may not have resolved yet)
     const waitForDimensions = (el: HTMLElement, maxRetries = 20): Promise<{ w: number; h: number }> => {
@@ -389,10 +390,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       });
     };
 
-    const { w: initialWidth, h: initialHeight } = await waitForDimensions(containerRef.current);
+    const { w: initialWidth, h: initialHeight } = await waitForDimensions(initialContainer);
 
     // Dynamic import lightweight-charts v5
     const { createChart, CandlestickSeries, HistogramSeries, createSeriesMarkers: csmFn } = await import('lightweight-charts');
+    if (containerRef.current !== initialContainer || !initialContainer.isConnected) return;
+
     // Cache createSeriesMarkers for later synchronous use
     _cachedCreateSeriesMarkers = csmFn;
 
@@ -402,7 +405,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       chartInstanceRef.current = null;
     }
 
-    const container = containerRef.current;
+    const container = initialContainer;
 
     const chartOptions = buildChartOptions({
       width: initialWidth,

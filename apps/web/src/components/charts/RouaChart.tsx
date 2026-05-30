@@ -36,7 +36,7 @@ import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
-const ChartPanel = dynamic(() => import('./ChartPanel').then(m => ({ default: m.ChartPanel })), { ssr: false })
+
 import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
@@ -68,6 +68,17 @@ interface RouaChartProps {
   onExpand?: (() => void) | null;
   isChartFullscreen?: boolean;
   onToggleChartFullscreen?: () => void;
+  // ── Per-instance symbol/timeframe (for multi-chart) ──
+  // When provided, overrides useSymbolStore() values.
+  // This allows multiple RouaChart instances with different symbols.
+  symbol?: string;
+  timeframe?: string;
+  // ── Multi-chart cell metadata ──
+  chartId?: string;
+  isActive?: boolean;
+  onActivate?: () => void;
+  onClose?: () => void;
+  canClose?: boolean;
   // ── External toolbar control callbacks ──
   onToggleIndicators?: () => void;
   onToggleDrawings?: () => void;
@@ -96,6 +107,125 @@ interface RouaChartProps {
     setCrosshairMode: (enabled: boolean) => void;
   } | null>;
   onCrosshairDataChange?: (data: CrosshairData | null) => void;
+}
+
+// ── Mini Chart Header (for multi-chart compact mode) ──
+// Shows symbol, timeframe selector, current price, and close button.
+// Replaces the full toolbar when RouaChart is used as a mini chart cell.
+const POPULAR_SYMBOLS_MINI = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+];
+const TIMEFRAME_MINI = [
+  { value: '1min', label: '1m' }, { value: '5min', label: '5m' },
+  { value: '15min', label: '15m' }, { value: '1h', label: '1H' },
+  { value: '4h', label: '4H' }, { value: '1day', label: '1D' },
+];
+
+function MiniChartHeader({
+  symbol, timeframe, currentPrice, changePercent, isPaused, loading,
+  onSymbolChange, onTimeframeChange, onActivate, onClose, canClose, isActive,
+}: {
+  symbol: string; timeframe: string; currentPrice: number | null;
+  changePercent: number | null; isPaused: boolean; loading: boolean;
+  onSymbolChange: (s: string) => void; onTimeframeChange: (tf: string) => void;
+  onActivate: () => void; onClose?: () => void; canClose?: boolean; isActive: boolean;
+}) {
+  const isPositive = changePercent !== null && changePercent >= 0;
+  const fmtPrice = (p: number) => {
+    if (p > 10000) return p.toFixed(0);
+    if (p > 100) return p.toFixed(1);
+    if (p > 1) return p.toFixed(2);
+    return p.toFixed(5);
+  };
+
+  return (
+    <div
+      onMouseDown={onActivate}
+      style={{
+        display: 'flex', alignItems: 'center', height: 28, padding: '0 6px',
+        borderBottom: isActive ? '1.5px solid rgba(0,212,255,0.5)' : '1px solid #1E2530',
+        background: isActive ? 'rgba(0,212,255,0.04)' : 'rgba(17,22,32,0.95)',
+        boxShadow: isActive ? '0 0 16px rgba(0,212,255,0.15)' : 'none',
+        flexShrink: 0, gap: 4, direction: 'ltr', cursor: 'default',
+      }}
+    >
+      {/* Symbol selector */}
+      <select value={symbol} onClick={e => e.stopPropagation()}
+        onChange={e => onSymbolChange(e.target.value)}
+        style={{
+          background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
+          borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+          fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
+          outline: 'none', maxWidth: 90, flexShrink: 0,
+        }}
+      >
+        {POPULAR_SYMBOLS_MINI.map(p => (
+          <option key={p} value={p} style={{ background: '#111620', color: '#F0F2F5' }}>{p}</option>
+        ))}
+      </select>
+
+      {/* Timeframe buttons */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+        {TIMEFRAME_MINI.map(tf => {
+          const active = timeframe === tf.value;
+          return (
+            <button key={tf.value}
+              onClick={e => { e.stopPropagation(); onTimeframeChange(tf.value); }}
+              style={{
+                background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
+                border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+                borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+              }}
+            >{tf.label}</button>
+          );
+        })}
+      </div>
+
+      <div style={{ flex: 1 }} />
+
+      {loading && (
+        <div style={{ width: 10, height: 10, border: '2px solid #1E2530',
+          borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
+      )}
+      {isPaused && !loading && <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>}
+
+      {currentPrice !== null && !loading && (
+        <>
+          <span style={{ color: '#F0F2F5', fontSize: 10, fontWeight: 600,
+            fontFamily: "'JetBrains Mono', monospace" }}>
+            {fmtPrice(currentPrice)}
+          </span>
+          {changePercent !== null && (
+            <span style={{ color: isPositive ? '#3fb950' : '#f85149', fontSize: 8, fontWeight: 700,
+              fontFamily: "'JetBrains Mono', monospace", padding: '0 3px', borderRadius: 2,
+              background: isPositive ? 'rgba(63,185,80,0.1)' : 'rgba(248,81,73,0.1)' }}>
+              {isPositive ? '+' : ''}{changePercent.toFixed(2)}%
+            </span>
+          )}
+        </>
+      )}
+
+      {canClose && onClose && (
+        <button onClick={e => { e.stopPropagation(); onClose(); }}
+          style={{
+            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+            borderRadius: 2, color: '#4B5563', width: 18, height: 18, cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+            flexShrink: 0,
+          }}
+          title="Close chart"
+        >
+          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
+    </div>
+  );
 }
 
 // ── Price-Synced Candle Timer Component ──
@@ -179,9 +309,49 @@ export default function RouaChart({
   onToggleChartFullscreen,
   chartActions,
   onCrosshairDataChange,
+  // ── Per-instance props (for multi-chart) ──
+  symbol: symbolProp,
+  timeframe: timeframeProp,
+  chartId,
+  isActive = true,
+  onActivate,
+  onClose,
+  canClose = true,
 }: RouaChartProps) {
   const tc = useTranslations('dashboard.chart');
-  const { selectedSymbol, timeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
+  const { selectedSymbol, timeframe: storeTimeframe, setTimeframe, setSelectedSymbol } = useSymbolStore();
+
+  // ── Effective symbol/timeframe ──
+  // When per-instance props are provided (multi-chart mode),
+  // use them instead of the global store. This allows multiple
+  // RouaChart instances to show different symbols simultaneously.
+  const effectiveSymbol = symbolProp ?? selectedSymbol;
+  const effectiveTimeframe = timeframeProp ?? storeTimeframe;
+
+  // Alias for backward compatibility with the rest of the component.
+  // These replace the old `selectedSymbol` and `timeframe` store references.
+  // IMPORTANT: All code below uses selectedSymbol_ and timeframe_ which
+  // resolve to the effective (prop-overridden) values.
+  const selectedSymbol_ = effectiveSymbol;
+  const timeframe_ = effectiveTimeframe;
+
+  // ── Mini-chart mode ──
+  // When symbol and timeframe props are provided, this RouaChart is
+  // operating as a mini chart cell in the multi-chart grid.
+  const isMiniChart = !!(symbolProp && timeframeProp);
+
+  // Multi-chart state — only relevant for the main (non-mini) chart instance
+  const multiChartLayout = useMultiChartStore(s => !isMiniChart ? (s.layout ?? '1x1') : '1x1');
+  const isMultiChart = useMultiChartStore(s => !isMiniChart ? (s.isMultiChart ?? false) : false);
+  const activeChartId = useMultiChartStore(s => !isMiniChart ? (s.activeChartId ?? 'mc-1') : '');
+  const charts = useMultiChartStore(s => !isMiniChart ? (Array.isArray(s.charts) ? s.charts : [
+    { id: 'mc-1', symbol: selectedSymbol_, timeframe: timeframe_, chartType: 'candle' as ChartType },
+  ]) : []);
+  const addChart = useMultiChartStore(s => s.addChart);
+  const removeChart = useMultiChartStore(s => s.removeChart);
+  const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
+  const changeLayout = useMultiChartStore(s => s.changeLayout);
+  const resetToSingle = useMultiChartStore(s => s.resetToSingle);
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
   const [feedState, setFeedState] = useState<'live' | 'fallback' | 'waiting'>('waiting');
   // FIX: Ref for feedState to avoid stale closure in WebSocket callback
@@ -209,21 +379,6 @@ export default function RouaChart({
   const [compareSymbol, setCompareSymbol] = useState('');
   const [showSmartGrid, setShowSmartGrid] = useState(false);
   const [showShare, setShowShare] = useState(false);
-  // ── Multi-Chart State ──
-  // FIX: Defensive selectors — ensure charts is always a valid array even if
-  // persisted localStorage data is corrupted or has an unexpected shape.
-  // This prevents "Cannot read property 'symbol' of undefined" crashes.
-  const multiChartLayout = useMultiChartStore(s => s.layout ?? '1x1');
-  const isMultiChart = useMultiChartStore(s => s.isMultiChart ?? false);
-  const activeChartId = useMultiChartStore(s => s.activeChartId ?? 'mc-1');
-  const charts = useMultiChartStore(s => Array.isArray(s.charts) ? s.charts : [
-    { id: 'mc-1', symbol: selectedSymbol, timeframe, chartType: 'candle' as ChartType },
-  ]);
-  const addChart = useMultiChartStore(s => s.addChart);
-  const removeChart = useMultiChartStore(s => s.removeChart);
-  const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
-  const changeLayout = useMultiChartStore(s => s.changeLayout);
-  const resetToSingle = useMultiChartStore(s => s.resetToSingle);
   const [showLayoutSelector, setShowLayoutSelector] = useState(false);
   // ── 5 New Feature States ──
   const [showFootprint, setShowFootprint] = useState(false);
@@ -260,7 +415,7 @@ export default function RouaChart({
   // ── Track current timeframe to ignore stale WebSocket updates ──
   // When timeframe changes, WebSocket may still deliver candles from the
   // old timeframe before reconnecting. This ref lets us filter those out.
-  const timeframeRef = useRef(timeframe);
+  const timeframeRef = useRef(timeframe_);
 
   // ── Compute the timeframe's interval in seconds (as ref for TDZ safety) ──
   // FIX: Previously this was a useMemo placed after the chart hook but used
@@ -270,10 +425,10 @@ export default function RouaChart({
   // hoisted and always initialized before any closure captures them.
   const tfSecondsRef = useRef(15 * 60);
   useEffect(() => {
-    const tf = TIMEFRAMES.find(t => t.value === timeframe);
+    const tf = TIMEFRAMES.find(t => t.value === timeframe_);
     tfSecondsRef.current = (tf?.minutes || 15) * 60;
-    timeframeRef.current = timeframe;
-  }, [timeframe]);
+    timeframeRef.current = timeframe_;
+  }, [timeframe_]);
 
   // ── Pre-load overlay renderer modules (needed for WebSocket overlay re-render) ──
   const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
@@ -307,14 +462,14 @@ export default function RouaChart({
   // the old symbol's data. This caused WebSocket ticks for the new symbol
   // to be MERGED with old symbol's candles, producing mixed/invalid data
   // that could cause "Value is null" errors or invisible candles.
-  const prevSymbolRef = useRef(selectedSymbol);
+  const prevSymbolRef = useRef(selectedSymbol_);
   useEffect(() => {
-    timeframeRef.current = timeframe;
+    timeframeRef.current = timeframe_;
     // Clear RouaChart's candlesRef immediately on timeframe or symbol change
     // to prevent stale WebSocket onCandleUpdate from pushing old data
     candlesRef.current = [];
     candlesClearedAtRef.current = Date.now();
-    prevSymbolRef.current = selectedSymbol;
+    prevSymbolRef.current = selectedSymbol_;
 
     // FIX: Reset singleton module-level state from pattern-engine and
     // pattern-renderer. Without this, switching from BTC → ETH keeps
@@ -328,7 +483,7 @@ export default function RouaChart({
         mod.resetPatternRendererState();
       }).catch(() => {});
     } catch { /* non-critical */ }
-  }, [timeframe, selectedSymbol]);
+  }, [timeframe_, selectedSymbol_]);
 
   // ── Chart Hook ─────────────────────────────────────────
   const handleCrosshairMove = useCallback((data: CrosshairData | null) => {
@@ -337,8 +492,8 @@ export default function RouaChart({
   }, [onCrosshairDataChange]);
 
   const chart = useChart({
-    symbol: selectedSymbol,
-    timeframe,
+    symbol: selectedSymbol_,
+    timeframe: timeframe_,
     onCrosshairMove: handleCrosshairMove,
     mobile,
   });
@@ -413,8 +568,8 @@ export default function RouaChart({
   // the timeframe.
   // ── WebSocket ──────────────────────────────────────────
   const ws = useChartWebSocket({
-    symbol: selectedSymbol,
-    timeframe,
+    symbol: selectedSymbol_,
+    timeframe: timeframe_,
     onCandleUpdate: (candle) => {
       // If candlesRef was just cleared (timeframe change in progress),
       // don't accept WebSocket candles until the fetch fills it again.
@@ -583,13 +738,13 @@ export default function RouaChart({
       // Keep paper trades currentPrice in sync with live feed
       try {
         const { updatePrice } = usePaperTradesStore.getState();
-        updatePrice(selectedSymbol, price);
+        updatePrice(selectedSymbol_, price);
       } catch { /* store may not be ready */ }
       // FIX: Also update exchange positions with live price from WebSocket
       // Previously only paper trades were updated — exchange positions showed stale prices
       try {
         const { updatePositionPrice } = usePositionsStore.getState();
-        updatePositionPrice(selectedSymbol, price);
+        updatePositionPrice(selectedSymbol_, price);
       } catch { /* store may not be ready */ }
       // Schedule overlay recalculation so trade markers stay aligned
       scheduleOverlayUpdateRef.current();
@@ -724,7 +879,7 @@ export default function RouaChart({
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
-        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol)}?interval=${timeframe}`);
+        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`);
         const j = await res.json();
 
         if (cancelled) return; // Symbol/timeframe changed while fetching — discard
@@ -792,10 +947,10 @@ export default function RouaChart({
 
     const generateSimulatedData = () => {
       const price = currentPrice || 65000;
-      const isJPY = selectedSymbol.includes('JPY');
-      const isBTC = selectedSymbol.includes('BTC');
+      const isJPY = selectedSymbol_.includes('JPY');
+      const isBTC = selectedSymbol_.includes('BTC');
       const dp = isJPY ? 3 : isBTC ? 1 : 5;
-      const tf = TIMEFRAMES.find(t => t.value === timeframe);
+      const tf = TIMEFRAMES.find(t => t.value === timeframe_);
       const tfMinutes = tf?.minutes || 15;
 
       const candles: CandleData[] = [];
@@ -842,7 +997,7 @@ export default function RouaChart({
     fetchCandles();
 
     return () => { cancelled = true; };
-  }, [selectedSymbol, timeframe]);
+  }, [selectedSymbol_, timeframe_]);
 
   // ── Live Price Sync ────────────────────────────────────
   useEffect(() => {
@@ -865,7 +1020,7 @@ export default function RouaChart({
   // ── Candle Countdown ───────────────────────────────────
   useEffect(() => {
     const tick = () => {
-      const tf = TIMEFRAMES.find(t => t.value === timeframe);
+      const tf = TIMEFRAMES.find(t => t.value === timeframe_);
       const minutes = tf?.minutes || 15;
       const intervalMs = minutes * 60 * 1000;
       const remaining = intervalMs - (Date.now() % intervalMs);
@@ -888,7 +1043,7 @@ export default function RouaChart({
     };
     document.addEventListener('visibilitychange', handleVisibility);
     return () => { clearInterval(intervalId); document.removeEventListener('visibilitychange', handleVisibility); };
-  }, [timeframe]);
+  }, [timeframe_]);
 
 
 
@@ -921,8 +1076,8 @@ export default function RouaChart({
   positionsRef.current = positions;
   const paperTradesRef = useRef(paperTrades);
   paperTradesRef.current = paperTrades;
-  const selectedSymbolRef = useRef(selectedSymbol);
-  selectedSymbolRef.current = selectedSymbol;
+  const selectedSymbol_Ref = useRef(selectedSymbol_);
+  selectedSymbol_Ref.current = selectedSymbol_;
 
   // rAF deduplication — cancel previous frame before scheduling new one
   const rafIdRef = useRef<number>(0);
@@ -938,7 +1093,7 @@ export default function RouaChart({
     rafIdRef.current = requestAnimationFrame(() => {
       if (!isMountedRef.current) return;
 
-      const chartSymbol = normalizeSymbol(selectedSymbolRef.current);
+      const chartSymbol = normalizeSymbol(selectedSymbol_Ref.current);
       const overlays: TradeOverlay[] = [];
       const zones: typeof fillZones = [];
 
@@ -1089,7 +1244,7 @@ export default function RouaChart({
     positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
     positionLineIdsRef.current = [];
 
-    const chartSymbol = normalizeSymbol(selectedSymbol);
+    const chartSymbol = normalizeSymbol(selectedSymbol_);
 
     const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
 
@@ -1163,7 +1318,7 @@ export default function RouaChart({
       positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, selectedSymbol, chart]);
+  }, [positions, paperTrades, selectedSymbol_, chart]);
 
 
 
@@ -1348,7 +1503,7 @@ export default function RouaChart({
     // Reset pattern throttle so it runs immediately on new timeframe data
     lastPatternRunRef.current = 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeframe]);
+  }, [timeframe_]);
 
   // Clean up AI overlays when AI panel is closed
   useEffect(() => {
@@ -1393,7 +1548,7 @@ export default function RouaChart({
             const names = highConf.map(p => p.type).join(', ');
             const bosNames = bos.map(b => `${b.type}${b.direction==='bullish'?'↑':'↓'}`).join(', ');
             const body = [names, bosNames].filter(Boolean).join(' | ');
-            new Notification(tc('notificationTitle', { symbol: selectedSymbol }), { body, icon: '/favicon.ico' });
+            new Notification(tc('notificationTitle', { symbol: selectedSymbol_ }), { body, icon: '/favicon.ico' });
           } else if (Notification.permission === 'default') {
             Notification.requestPermission();
           }
@@ -1406,7 +1561,7 @@ export default function RouaChart({
             alerter.announce({
               patternType: p.type,
               patternTypeAr: p.type,
-              symbol: selectedSymbol,
+              symbol: selectedSymbol_,
               direction: p.direction,
               confidence: p.confidence,
             });
@@ -1415,7 +1570,7 @@ export default function RouaChart({
             alerter.announceBreakout({
               patternType: b.type,
               patternTypeAr: b.direction === 'bullish' ? tc('bullishBreakout') : tc('bearishBreakout'),
-              symbol: selectedSymbol,
+              symbol: selectedSymbol_,
               direction: b.direction,
               price: b.price,
             });
@@ -1428,7 +1583,7 @@ export default function RouaChart({
     detect();
     const timer = setInterval(detect, 5 * 60 * 1000);
     return () => { cancelled = true; clearInterval(timer); };
-  }, [selectedSymbol, timeframe]);
+  }, [selectedSymbol_, timeframe_]);
 
   // lastAnalysisResultRef moved to top of component (near other refs) to avoid TDZ error
   const [aiDirectMarkers, setAiDirectMarkers] = useState<any[]>([]); // markers مباشرة من handlePatternsDetected
@@ -1658,7 +1813,7 @@ export default function RouaChart({
 
     const { addTrade } = usePaperTradesStore.getState();
     addTrade({
-      symbol: selectedSymbol,
+      symbol: selectedSymbol_,
       side: order.side === 'buy' ? 'long' : 'short',
       qty: order.quantity,
       entryPrice: resolvedEntryPrice,
@@ -1671,7 +1826,7 @@ export default function RouaChart({
     });
 
     console.log('Chart order placed:', order);
-  }, [selectedSymbol]);
+  }, [selectedSymbol_]);
 
   // ── Fetch Active Trading Signals (signalMarkers declared above) ──
   useEffect(() => {
@@ -1679,8 +1834,8 @@ export default function RouaChart({
     const fetchSignals = async () => {
       try {
         const [signals, briefs] = await Promise.all([
-          fetchSignalsForChart(selectedSymbol),
-          fetchStrategicBriefs(selectedSymbol),
+          fetchSignalsForChart(selectedSymbol_),
+          fetchStrategicBriefs(selectedSymbol_),
         ]);
         if (cancelled) return;
 
@@ -1696,7 +1851,7 @@ export default function RouaChart({
         }
 
         // Convert to chart markers
-        const markers = convertToChartMarkers(signals, briefs, selectedSymbol);
+        const markers = convertToChartMarkers(signals, briefs, selectedSymbol_);
         setSignalMarkers(markers);
 
         // Add SL/TP price lines for signals — clear old ones first
@@ -1707,7 +1862,7 @@ export default function RouaChart({
           const latestSignal = signals[signals.length - 1];
           if (latestSignal) {
             const normalizeSymbolLocal = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
-            const chartSymbol = normalizeSymbolLocal(selectedSymbol);
+            const chartSymbol = normalizeSymbolLocal(selectedSymbol_);
             const sigSymbol = normalizeSymbolLocal((latestSignal as any).pair || (latestSignal as any).symbol || '');
             if (sigSymbol.includes(chartSymbol) || chartSymbol.includes(sigSymbol)) {
               const sl = Number(latestSignal.stopLoss || 0);
@@ -1726,7 +1881,7 @@ export default function RouaChart({
     fetchSignals();
     const interval = setInterval(fetchSignals, 30000);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [selectedSymbol]);
+  }, [selectedSymbol_]);
 
   // ── Apply Combined Markers (News + AI Patterns + Trading Signals + AI Entry/Exit) to Chart ──
   // FIX: Single source of truth for ALL markers — no more conflicts between handlePatternsDetected and this useEffect
@@ -1803,9 +1958,36 @@ export default function RouaChart({
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      {!hideToolbar && <ChartToolbar
-        symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol) : selectedSymbol}
-        timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe) : timeframe}
+      {isMiniChart ? (
+        <MiniChartHeader
+          symbol={effectiveSymbol}
+          timeframe={effectiveTimeframe}
+          currentPrice={currentPrice}
+          changePercent={(() => {
+            const c = candlesRef.current;
+            if (c.length >= 2) {
+              const prev = c[c.length - 2].close;
+              const last = c[c.length - 1].close;
+              return prev > 0 ? ((last - prev) / prev) * 100 : null;
+            }
+            return null;
+          })()}
+          isPaused={chart.isPaused}
+          loading={feedState === 'waiting'}
+          onSymbolChange={(s) => {
+            if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { symbol: s });
+          }}
+          onTimeframeChange={(tf) => {
+            if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { timeframe: tf });
+          }}
+          onActivate={onActivate || (() => {})}
+          onClose={onClose}
+          canClose={canClose}
+          isActive={isActive}
+        />
+      ) : (!hideToolbar ? <ChartToolbar
+        symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol_) : selectedSymbol_}
+        timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe_) : timeframe_}
         chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
         onSetTimeframe={isMultiChart ? ((tf: string) => {
           const ctrl = getActiveChartControl();
@@ -1849,10 +2031,10 @@ export default function RouaChart({
         onToggleSmartGrid={() => {
           if (isMultiChart) {
             // Already in multi-chart mode → reset to single
-            resetToSingle(selectedSymbol, timeframe);
+            resetToSingle(selectedSymbol_, timeframe_);
           } else {
             // Enter multi-chart mode with 2x1 layout
-            addChart(selectedSymbol, timeframe);
+            addChart(selectedSymbol_, timeframe_);
           }
         }}
         onToggleShare={() => setShowShare(!showShare)}
@@ -1875,18 +2057,19 @@ export default function RouaChart({
         priceAlertsCount={priceAlertsCount}
         // ── Multi-Chart Toolbar Props ──
         isMultiChart={isMultiChart}
-        onAddChart={() => addChart(selectedSymbol, timeframe)}
+        onAddChart={() => addChart(selectedSymbol_, timeframe_)}
         onRemoveChart={() => removeChart(activeChartId)}
         onToggleLayoutSelector={() => setShowLayoutSelector(!showLayoutSelector)}
         showLayoutSelector={showLayoutSelector}
         chartCount={charts.length}
-      />}
+      /> : null
+      )}
 
       {/* ── CHART AREA ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
 
-        {/* ── Multi-Chart Mode: Grid Layout ── */}
-        {isMultiChart && (() => {
+        {/* ── Multi-Chart Mode: Grid Layout (main chart only) ── */}
+        {!isMiniChart && isMultiChart && (() => {
           const meta = LAYOUT_METAS[multiChartLayout];
           const visibleCharts = charts.slice(0, meta.cols * meta.rows);
           return (
@@ -1902,16 +2085,17 @@ export default function RouaChart({
               position: 'relative',
             }}>
               {visibleCharts.map(cell => (
-                <ChartPanel
+                <RouaChart
                   key={cell.id}
                   chartId={cell.id}
                   symbol={cell.symbol}
                   timeframe={cell.timeframe}
-                  chartType={cell.chartType}
                   isActive={activeChartId === cell.id}
                   onActivate={() => setActiveChartId(cell.id)}
                   onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
                   canClose={charts.length > 1}
+                  compact
+                  mobile
                 />
               ))}
             </div>
@@ -1941,7 +2125,7 @@ export default function RouaChart({
                   <button
                     key={key}
                     onClick={() => {
-                      changeLayout(key, selectedSymbol, timeframe);
+                      changeLayout(key, selectedSymbol_, timeframe_);
                       setShowLayoutSelector(false);
                     }}
                     style={{
@@ -1981,12 +2165,12 @@ export default function RouaChart({
           </div>
         )}
 
-        {/* ── Single Chart Mode (original) ── */}
-        {!isMultiChart && (
+        {/* ── Single Chart / Mini Chart Mode ── */}
+        {(isMiniChart || !isMultiChart) && (
           <>
             {/* OHLC Overlay */}
         <CrosshairOverlay
-          symbol={selectedSymbol}
+          symbol={selectedSymbol_}
           currentPrice={currentPrice}
           crosshairData={crosshairData}
           pricePulse={pricePulse}
@@ -2105,7 +2289,7 @@ export default function RouaChart({
                       const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
                       const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
-                        symbol: selectedSymbol,
+                        symbol: selectedSymbol_,
                         side: 'long',
                         qty: lotSize,
                         entryPrice: resolvedPrice,
@@ -2152,7 +2336,7 @@ export default function RouaChart({
                       const lastClose = candlesRef.current[candlesRef.current.length - 1]?.close || 0;
                       const resolvedPrice = (typeof currentPrice === 'number' && currentPrice > 0) ? currentPrice : lastClose;
                       addTrade({
-                        symbol: selectedSymbol,
+                        symbol: selectedSymbol_,
                         side: 'short',
                         qty: lotSize,
                         entryPrice: resolvedPrice,
@@ -2271,7 +2455,7 @@ export default function RouaChart({
         {showChartTrading && currentPrice && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={240} minHeight={300}>
             <ChartTrading
-              symbol={selectedSymbol}
+              symbol={selectedSymbol_}
               currentPrice={typeof currentPrice === 'number' ? currentPrice : 0}
               onClose={() => setShowChartTrading(false)}
               onPlaceOrder={handlePlaceOrder}
@@ -2284,7 +2468,7 @@ export default function RouaChart({
         {showQuickTrade && createPortal(
           <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={260} minHeight={200}>
             <QuickTradePanel
-              symbol={selectedSymbol}
+              symbol={selectedSymbol_}
               currentPrice={currentPrice}
               onPlaceOrder={handlePlaceOrder}
               onClose={() => setShowQuickTrade(false)}
@@ -2333,8 +2517,8 @@ export default function RouaChart({
         {showSmartGrid && (
           <SmartGrid
             onClose={() => setShowSmartGrid(false)}
-            defaultSymbol={selectedSymbol}
-            defaultTimeframe={timeframe}
+            defaultSymbol={selectedSymbol_}
+            defaultTimeframe={timeframe_}
             onSwitchToChart={(symbol, tf, openTool) => {
               // Switch main chart to the selected symbol/timeframe
               setSelectedSymbol(symbol);
@@ -2356,8 +2540,8 @@ export default function RouaChart({
         {showShare && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
             <ShareChart
-              symbol={selectedSymbol}
-              timeframe={timeframe}
+              symbol={selectedSymbol_}
+              timeframe={timeframe_}
               activeIndicators={chart.getActiveIndicators().map(i => i.key)}
               chartType={chart.settings.type}
               onClose={() => setShowShare(false)}
@@ -2372,7 +2556,7 @@ export default function RouaChart({
         {showFootprint && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={300} minHeight={250}>
             <FootprintChart
-              symbol={selectedSymbol}
+              symbol={selectedSymbol_}
               onClose={() => setShowFootprint(false)}
             />
           </DraggablePanel>,
@@ -2385,7 +2569,7 @@ export default function RouaChart({
         {showPatternProgress && createPortal(
           <DraggablePanel defaultPosition={{ top: 120, left: 12 }} defaultWidth={280} minHeight={220}>
             <PatternProgress
-              symbol={selectedSymbol}
+              symbol={selectedSymbol_}
               candles={candlesRef.current}
               onClose={() => setShowPatternProgress(false)}
             />
@@ -2399,7 +2583,7 @@ export default function RouaChart({
         {showAlerts && createPortal(
           <DraggablePanel defaultPosition={{ top: 0, right: 0 }} defaultWidth={300} minHeight={250}>
             <PriceAlertLine
-              symbol={selectedSymbol}
+              symbol={selectedSymbol_}
               currentPrice={currentPrice}
               chart={chart}
               onClose={() => setShowAlerts(false)}
@@ -2426,7 +2610,7 @@ export default function RouaChart({
         {showHeatmap && createPortal(
           <DraggablePanel defaultPosition={{ top: 50, right: 8 }} defaultWidth={340} minHeight={300}>
             <MiniHeatmap
-              selectedSymbol={selectedSymbol}
+              selectedSymbol={selectedSymbol_}
               onSelectSymbol={(symbol) => {
                 const { setSelectedSymbol } = useSymbolStore.getState();
                 setSelectedSymbol(symbol);
@@ -2443,7 +2627,7 @@ export default function RouaChart({
       {showWatchlist && createPortal(
         <DraggablePanel defaultPosition={{ top: 50, right: 10 }} minWidth={260} minHeight={200}>
           <WatchlistOverlay
-            selectedSymbol={selectedSymbol}
+            selectedSymbol={selectedSymbol_}
             onSelectSymbol={(symbol) => {
               // Use the symbol store to change symbol
               const { setSelectedSymbol } = useSymbolStore.getState();
@@ -2457,7 +2641,7 @@ export default function RouaChart({
 
       {/* ── News Markers (data provider — invisible) ── */}
       <NewsMarkers
-        symbol={selectedSymbol}
+        symbol={selectedSymbol_}
         onMarkersUpdate={handleNewsUpdate}
       />
 
@@ -2573,7 +2757,7 @@ export default function RouaChart({
       {showAIPanel && (
         <DraggablePanel defaultPosition={{ top: 130, left: 350 }} defaultWidth={255} minHeight={340} resizable={true}>
           <AISmartPanel
-            symbol={selectedSymbol}
+            symbol={selectedSymbol_}
             candles={aiPanelCandles}
             currentPrice={currentPrice}
             onPatternsDetected={handlePatternsDetected}
@@ -2590,7 +2774,7 @@ export default function RouaChart({
             onExecuteTrade={(side, entry, sl, tp) => {
               const { addTrade } = usePaperTradesStore.getState();
               addTrade({
-                symbol: selectedSymbol,
+                symbol: selectedSymbol_,
                 side,
                 qty: 0.01,
                 entryPrice: entry,

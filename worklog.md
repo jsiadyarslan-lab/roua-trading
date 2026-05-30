@@ -64,3 +64,24 @@ Stage Summary:
 - Root cause: getActiveChartControl() referencing useMultiChartStore before its const declaration
 - Fix: Moved function after store definition + added defensive selectors
 - Commit: b9289e53 pushed to main, Railway deploying
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix "e.onVisibleRangeChange is not a function" crash + missing translations + mini chart trade display
+
+Work Log:
+- Pulled latest code from GitHub (jsiadyarslan-lab/roua-trading)
+- Identified root cause of TypeError: ChartPanel.tsx line 247 calls chart.onVisibleRangeChange() on raw IChartApi from lightweight-charts v5, which does NOT have this method. The correct API is chart.timeScale().subscribeVisibleLogicalRangeChange()
+- Fixed ChartPanel.tsx: replaced chart.onVisibleRangeChange() with chart.timeScale().subscribeVisibleLogicalRangeChange(handler)
+- Fixed RouaChart.tsx PriceSyncedTimer (line 115): added defensive check — try useChart's onVisibleRangeChange first, fall back to IChartApi timeScale subscription
+- Fixed RouaChart.tsx overlay subscription (line 1044): added null check for chart.onVisibleRangeChange before calling
+- Fixed mini charts not showing open trades: added chartReady state to ChartPanel.tsx — refs (chartRef.current, mainSeriesRef.current) are not reactive, so price line and overlay effects never re-ran after chart init. Now setChartReady(true) after chart creation, used as dependency
+- Fixed MISSING_MESSAGE: chartToolbar.exitMultiChart (ar) — added exitMultiChart translation key to ALL 32 locale files
+- Committed and pushed eca07af2 to main
+
+Stage Summary:
+- Critical fix: onVisibleRangeChange crash was breaking ChartPanel entirely
+- Trade display fix: chartReady state makes position price lines and overlays render on mini charts
+- Translation fix: exitMultiChart key added to all 32 locales
+- Note: Drawing tools on mini charts are a stub (setTool only sets ref) — full drawing requires DrawingManager from useChart.ts which is not in ChartPanel scope

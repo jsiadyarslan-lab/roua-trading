@@ -57,6 +57,48 @@ const nextConfig: NextConfig = {
 
   turbopack: {},
 
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // CRITICAL FIX: Terser minifier TDZ (Temporal Dead Zone) prevention.
+  //
+  // In production builds, Terser's `reduce_vars` optimization can reorder
+  // let/const declarations, causing "ReferenceError: Cannot access 'x' before
+  // initialization" at runtime. This has already caused 3 separate crashes:
+  //   1. lastAnalysisResultRef TDZ → moved declaration higher in component
+  //   2. tfSeconds useMemo TDZ → converted to useRef
+  //   3. Current: "Cannot access 'eT' before initialization" at tL.symbol
+  //
+  // Root cause: Terser's `reduce_vars` tracks variable values and substitutes
+  // them earlier in the code, which can break the temporal ordering of
+  // let/const declarations. Disabling `reduce_vars` prevents this class of
+  // bugs entirely with minimal bundle size impact (~1-2% increase).
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && !isServer) {
+      const terserPlugin = config.optimization?.minimizer?.find(
+        (plugin: any) => plugin?.constructor?.name === 'TerserPlugin'
+      );
+      if (terserPlugin) {
+        const existingCompress = terserPlugin.options?.terserOptions?.compress || {};
+        terserPlugin.options = {
+          ...terserPlugin.options,
+          terserOptions: {
+            ...terserPlugin.options?.terserOptions,
+            compress: {
+              ...existingCompress,
+              // Prevent Terser from reordering let/const declarations
+              // which causes TDZ errors in production builds
+              reduce_vars: false,
+              reduce_funcs: false,
+              // Prevent hoisting of function declarations past let/const
+              hoist_funs: false,
+            },
+          },
+        };
+      }
+    }
+    return config;
+  },
+
   async headers() {
     return [
       {

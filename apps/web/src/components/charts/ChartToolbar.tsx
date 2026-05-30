@@ -905,14 +905,14 @@ export function ChartToolbar(props: ChartToolbarProps) {
         {/* Smart Grid */}
         {onToggleSmartGrid && (
           <button
-            style={toggleBtnStyle(false)}
+            style={toggleBtnStyle(!!isMultiChart)}
             onClick={onToggleSmartGrid}
-            title={t('chartGridTooltip')}
+            title={isMultiChart ? t('exitMultiChart') || 'Exit Multi-Chart' : t('chartGridTooltip')}
           >
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/>
             </svg>
-            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>Grid</span>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>{isMultiChart ? '1×1' : 'Grid'}</span>
           </button>
         )}
 

@@ -6,6 +6,7 @@
 // - Live WebSocket data
 // - Automatic crosshair/scroll sync with siblings
 // - Active state tracking (blue border when selected)
+// - Chart Control API registration for main toolbar routing
 // - Mini header with symbol/timeframe/price info
 // ═══════════════════════════════════════════════════════════
 
@@ -13,12 +14,14 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts';
-import type { CandleData, ChartType, ActiveIndicator } from '@/lib/charts/types';
+import type { CandleData, ChartType, ActiveIndicator, DrawingTool } from '@/lib/charts/types';
 import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import {
   useMultiChartStore,
   registerChartInstance,
   unregisterChartInstance,
+  registerChartControl,
+  unregisterChartControl,
 } from '@/hooks/useMultiChartStore';
 
 interface ChartPanelProps {
@@ -84,6 +87,9 @@ export function ChartPanel({
   const overlaySeriesRef = useRef<Map<string, ISeriesApi<SeriesType>>>(new Map());
   const activeIndicatorsRef = useRef<Map<string, ActiveIndicator>>(new Map());
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const isPausedRef = useRef(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const activeToolRef = useRef<DrawingTool>('cursor');
   const updateChartConfig = useMultiChartStore(s => s.updateChartConfig);
 
   const [loading, setLoading] = useState(true);
@@ -102,8 +108,99 @@ export function ChartPanel({
     return price.toFixed(5);
   };
 
+  // ── Register Chart Control API for toolbar routing ──
+  // This allows the main toolbar to control this chart panel
+  // when it's the active chart in multi-chart mode.
+  useEffect(() => {
+    const controlApi = {
+      zoomIn: () => {
+        const chart = chartRef.current;
+        if (!chart) return;
+        const currentSpacing = chart.timeScale().options().barSpacing || 6;
+        chart.timeScale().applyOptions({ barSpacing: Math.min(50, currentSpacing + 2) });
+      },
+      zoomOut: () => {
+        const chart = chartRef.current;
+        if (!chart) return;
+        const currentSpacing = chart.timeScale().options().barSpacing || 6;
+        chart.timeScale().applyOptions({ barSpacing: Math.max(2, currentSpacing - 2) });
+      },
+      resetView: () => {
+        try { chartRef.current?.timeScale().fitContent(); } catch {}
+      },
+      setChartType: (type: ChartType) => {
+        updateChartConfig(chartId, { chartType: type });
+      },
+      setTool: (tool: DrawingTool) => {
+        activeToolRef.current = tool;
+      },
+      togglePause: () => {
+        setIsPaused(prev => {
+          isPausedRef.current = !prev;
+          return !prev;
+        });
+      },
+      get isPaused() { return isPausedRef.current; },
+      get activeTool() { return activeToolRef.current; },
+      clearDrawings: () => {
+        // Clear overlay series
+        overlaySeriesRef.current.forEach(series => {
+          try { chartRef.current?.removeSeries(series); } catch {}
+        });
+        overlaySeriesRef.current.clear();
+      },
+      exportPNG: () => {
+        try {
+          const canvas = containerRef.current?.querySelector('canvas');
+          if (!canvas) return;
+          const link = document.createElement('a');
+          link.download = `${symbol}_${timeframe}_chart.png`;
+          link.href = canvas.toDataURL('image/png');
+          link.click();
+        } catch {}
+      },
+      exportCSV: () => {
+        try {
+          const candles = candlesRef.current;
+          if (!candles.length) return;
+          const header = 'Time,Open,High,Low,Close,Volume\n';
+          const rows = candles.map(c =>
+            `${new Date(c.time * 1000).toISOString()},${c.open},${c.high},${c.low},${c.close},${c.volume}`
+          ).join('\n');
+          const blob = new Blob([header + rows], { type: 'text/csv' });
+          const link = document.createElement('a');
+          link.download = `${symbol}_${timeframe}_data.csv`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+        } catch {}
+      },
+      exportSVG: () => { /* SVG export not available for canvas-based charts */ },
+      toggleFullscreen: () => { /* Handled at parent level */ },
+      isFullscreen: false,
+      addPriceLine: () => { /* Price lines not supported in panel mode yet */ },
+      removePriceLine: () => {},
+      setCrosshairMode: (enabled: boolean) => {
+        try {
+          chartRef.current?.applyOptions({
+            crosshair: {
+              vertLine: { visible: enabled },
+              horzLine: { visible: enabled },
+            },
+          });
+        } catch {}
+      },
+    };
+
+    registerChartControl(chartId, controlApi);
+
+    return () => {
+      unregisterChartControl(chartId);
+    };
+  }, [chartId, updateChartConfig]);
+
   // ── WebSocket: Live data ──
   const handleCandleUpdate = useCallback((candle: CandleData) => {
+    if (isPausedRef.current) return;
     if (!chartRef.current || !mainSeriesRef.current) return;
     const candles = candlesRef.current;
 
@@ -137,6 +234,7 @@ export function ChartPanel({
   }, []);
 
   const handlePriceUpdate = useCallback((price: number) => {
+    if (isPausedRef.current) return;
     setCurrentPrice(prev => {
       if (prev !== null && prev !== price) setPrevPrice(prev);
       return price;
@@ -148,6 +246,7 @@ export function ChartPanel({
     timeframe,
     onCandleUpdate: handleCandleUpdate,
     onPriceUpdate: handlePriceUpdate,
+    enabled: !isPaused,
   });
 
   // ── Create chart + reload on symbol/timeframe/chartType change ──
@@ -377,11 +476,11 @@ export function ChartPanel({
       }}
       onMouseDown={onActivate}
     >
-      {/* ── Mini Header (32px) ── */}
+      {/* ── Mini Header (28px) ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        height: 32,
+        height: 28,
         padding: '0 6px',
         borderBottom: `1px solid ${C.cardBorder}`,
         background: isActive ? 'rgba(0,212,255,0.04)' : 'rgba(17,22,32,0.95)',
@@ -454,6 +553,11 @@ export function ChartPanel({
             borderRadius: '50%',
             animation: 'mcSpin 1s linear infinite',
           }} />
+        )}
+
+        {/* Paused indicator */}
+        {isPaused && !loading && (
+          <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
         )}
 
         {/* Price display */}

@@ -36,7 +36,7 @@ import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 import { SmartGrid } from './SmartGrid';
 import { ChartPanel } from './ChartPanel';
-import { useMultiChartStore, LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries } from '@/hooks/useMultiChartStore';
+import { useMultiChartStore, LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getActiveChartControl, getChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
 import { FootprintChart } from './FootprintChart';
@@ -1783,26 +1783,34 @@ export default function RouaChart({
     >
       {/* ── TOOLBAR ── */}
       {!hideToolbar && <ChartToolbar
-        symbol={selectedSymbol}
-        timeframe={timeframe}
-        chartType={chart.settings.type}
-        onSetTimeframe={setTimeframe}
-        onSetChartType={chart.setChartType}
-        onZoomIn={chart.zoomIn}
-        onZoomOut={chart.zoomOut}
-        onResetView={chart.resetView}
+        symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol) : selectedSymbol}
+        timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe) : timeframe}
+        chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
+        onSetTimeframe={isMultiChart ? ((tf: string) => {
+          const ctrl = getActiveChartControl();
+          if (ctrl) { /* timeframe is updated via updateChartConfig in ChartPanel */ }
+          const activeCell = charts.find(c => c.id === activeChartId);
+          if (activeCell) useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
+        }) : setTimeframe}
+        onSetChartType={isMultiChart ? ((type: ChartType) => {
+          const ctrl = getActiveChartControl();
+          if (ctrl) ctrl.setChartType(type);
+        }) : chart.setChartType}
+        onZoomIn={isMultiChart ? (() => { getActiveChartControl()?.zoomIn(); }) : chart.zoomIn}
+        onZoomOut={isMultiChart ? (() => { getActiveChartControl()?.zoomOut(); }) : chart.zoomOut}
+        onResetView={isMultiChart ? (() => { getActiveChartControl()?.resetView(); }) : chart.resetView}
         onToggleDrawings={() => setShowDrawingPanel(!showDrawingPanel)}
         onToggleIndicators={() => setShowIndicatorPanel(!showIndicatorPanel)}
-        onExportPNG={chart.exportPNG}
-        onExportCSV={chart.exportCSV}
-        onExportSVG={chart.exportSVG}
+        onExportPNG={isMultiChart ? (() => { getActiveChartControl()?.exportPNG(); }) : chart.exportPNG}
+        onExportCSV={isMultiChart ? (() => { getActiveChartControl()?.exportCSV(); }) : chart.exportCSV}
+        onExportSVG={isMultiChart ? (() => { getActiveChartControl()?.exportSVG(); }) : chart.exportSVG}
         onToggleFullscreen={onToggleChartFullscreen || chart.toggleFullscreen}
         isFullscreen={isChartFullscreen || chart.isFullscreen}
-        activeTool={chart.activeTool}
-        onSetTool={chart.setTool}
-        onClearDrawings={chart.clearDrawings}
-        isPaused={chart.isPaused}
-        onTogglePause={chart.togglePause}
+        activeTool={isMultiChart ? (getActiveChartControl()?.activeTool || 'cursor') : chart.activeTool}
+        onSetTool={isMultiChart ? ((tool: DrawingTool) => { getActiveChartControl()?.setTool(tool); }) : chart.setTool}
+        onClearDrawings={isMultiChart ? (() => { getActiveChartControl()?.clearDrawings(); }) : chart.clearDrawings}
+        isPaused={isMultiChart ? (getActiveChartControl()?.isPaused || false) : chart.isPaused}
+        onTogglePause={isMultiChart ? (() => { getActiveChartControl()?.togglePause(); }) : chart.togglePause}
         mobile={mobile}
         height={toolbarHeight}
         // ── New Toolbar Props ──
@@ -1817,7 +1825,15 @@ export default function RouaChart({
         showChartTrading={showChartTrading}
         showWatchlist={showWatchlist}
         onToggleCompare={() => setShowCompare(!showCompare)}
-        onToggleSmartGrid={() => setShowSmartGrid(!showSmartGrid)}
+        onToggleSmartGrid={() => {
+          if (isMultiChart) {
+            // Already in multi-chart mode → reset to single
+            resetToSingle(selectedSymbol, timeframe);
+          } else {
+            // Enter multi-chart mode with 2x1 layout
+            addChart(selectedSymbol, timeframe);
+          }
+        }}
         onToggleShare={() => setShowShare(!showShare)}
         showCompare={showCompare}
         // ── 5 New Feature Toolbar Props ──

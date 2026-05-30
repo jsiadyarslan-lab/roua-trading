@@ -902,6 +902,75 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
   }, [isPaused, settings.type]);
 
+  // ── Refresh Indicators Data In-Place ─────────────────────
+  // Recalculates all active indicators and updates their series
+  // data using series.setData() instead of remove + recreate.
+  // Called on a debounce after WS updates for real-time indicators.
+  const refreshIndicatorsData = useCallback(async () => {
+    const chart = chartInstanceRef.current;
+    if (!chart || !candlesRef.current.length) return;
+
+    const activeIndicators = activeIndicatorsRef.current;
+    if (activeIndicators.size === 0) return;
+
+    const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
+    const { updateIndicatorSeriesData } = await import('../lib/charts/chart-indicator-renderer');
+    const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
+
+    for (const [_, indicator] of activeIndicators) {
+      try {
+        // Check cache first
+        const paramsHash = hashIndicatorParams(indicator);
+        const dataSig = getDataSignature();
+        const cacheKey = indicator.key;
+        const cached = indicatorCacheRef.current.get(cacheKey);
+
+        let results: any[];
+        if (cached && cached.paramsHash === paramsHash && cached.dataSignature === dataSig && cached.results.length > 0) {
+          results = cached.results;
+        } else {
+          results = await calculateIndicator(indicator, candlesRef.current);
+          if (!results.length) continue;
+          indicatorCacheRef.current.set(cacheKey, {
+            paramsHash,
+            dataSignature: dataSig,
+            results,
+          });
+        }
+
+        // Try in-place update first
+        const { missingKeys } = updateIndicatorSeriesData(
+          { overlaySeries: overlaySeriesRef.current, oscillatorSeries: oscillatorSeriesRef.current },
+          indicator,
+          results,
+          candlesRef.current,
+        );
+
+        // If any series are missing (e.g., new indicator), fall back to full render
+        if (missingKeys.length > 0) {
+          const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
+          // Remove existing series for this indicator first
+          const existingKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+          existingKeys.forEach(k => {
+            const s = overlaySeriesRef.current.get(k);
+            if (s) { try { chart.removeSeries(s); } catch {} overlaySeriesRef.current.delete(k); }
+          });
+          const existingOscKeys = Array.from(oscillatorSeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
+          existingOscKeys.forEach(k => {
+            const s = oscillatorSeriesRef.current.get(k);
+            if (s) { try { chart.removeSeries(s); } catch {} oscillatorSeriesRef.current.delete(k); }
+          });
+          renderIndicatorSeries(chart, {
+            overlaySeries: overlaySeriesRef.current,
+            oscillatorSeries: oscillatorSeriesRef.current,
+          }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
+        }
+      } catch (e) {
+        console.warn(`[useChart] refreshIndicatorsData error for ${indicator.key}:`, e);
+      }
+    }
+  }, [hashIndicatorParams, getDataSignature]);
+
   // ── Fast Incremental Candle Update (rAF-batched) ──────
   // Used by WebSocket onCandleUpdate for updating EXISTING candles.
   // Uses lightweight-charts' update() API instead of setData() —
@@ -1050,75 +1119,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       overlaySeries: overlaySeriesRef.current,
       oscillatorSeries: oscillatorSeriesRef.current,
     }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
-  }, [hashIndicatorParams, getDataSignature]);
-
-  // ── Refresh Indicators Data In-Place ─────────────────────
-  // Recalculates all active indicators and updates their series
-  // data using series.setData() instead of remove + recreate.
-  // Called on a debounce after WS updates for real-time indicators.
-  const refreshIndicatorsData = useCallback(async () => {
-    const chart = chartInstanceRef.current;
-    if (!chart || !candlesRef.current.length) return;
-
-    const activeIndicators = activeIndicatorsRef.current;
-    if (activeIndicators.size === 0) return;
-
-    const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
-    const { updateIndicatorSeriesData } = await import('../lib/charts/chart-indicator-renderer');
-    const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
-
-    for (const [_, indicator] of activeIndicators) {
-      try {
-        // Check cache first
-        const paramsHash = hashIndicatorParams(indicator);
-        const dataSig = getDataSignature();
-        const cacheKey = indicator.key;
-        const cached = indicatorCacheRef.current.get(cacheKey);
-
-        let results: any[];
-        if (cached && cached.paramsHash === paramsHash && cached.dataSignature === dataSig && cached.results.length > 0) {
-          results = cached.results;
-        } else {
-          results = await calculateIndicator(indicator, candlesRef.current);
-          if (!results.length) continue;
-          indicatorCacheRef.current.set(cacheKey, {
-            paramsHash,
-            dataSignature: dataSig,
-            results,
-          });
-        }
-
-        // Try in-place update first
-        const { missingKeys } = updateIndicatorSeriesData(
-          { overlaySeries: overlaySeriesRef.current, oscillatorSeries: oscillatorSeriesRef.current },
-          indicator,
-          results,
-          candlesRef.current,
-        );
-
-        // If any series are missing (e.g., new indicator), fall back to full render
-        if (missingKeys.length > 0) {
-          const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
-          // Remove existing series for this indicator first
-          const existingKeys = Array.from(overlaySeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
-          existingKeys.forEach(k => {
-            const s = overlaySeriesRef.current.get(k);
-            if (s) { try { chart.removeSeries(s); } catch {} overlaySeriesRef.current.delete(k); }
-          });
-          const existingOscKeys = Array.from(oscillatorSeriesRef.current.keys()).filter(k => k.startsWith(indicator.key));
-          existingOscKeys.forEach(k => {
-            const s = oscillatorSeriesRef.current.get(k);
-            if (s) { try { chart.removeSeries(s); } catch {} oscillatorSeriesRef.current.delete(k); }
-          });
-          renderIndicatorSeries(chart, {
-            overlaySeries: overlaySeriesRef.current,
-            oscillatorSeries: oscillatorSeriesRef.current,
-          }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
-        }
-      } catch (e) {
-        console.warn(`[useChart] refreshIndicatorsData error for ${indicator.key}:`, e);
-      }
-    }
   }, [hashIndicatorParams, getDataSignature]);
 
   // ── Set Candles ────────────────────────────────────────

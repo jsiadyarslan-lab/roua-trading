@@ -4558,7 +4558,8 @@
     "export": "エクスポート",
     "chartType": "チャート タイプ",
     "resetView": "Reset 表示",
-    "indicators": "指標"
+    "indicators": "指標",
+    "exitMultiChart": "マルチチャートを終了"
   },
   "indicators": {
     "macdBullish": "強気",

@@ -4558,7 +4558,8 @@
     "export": "Eksportuj",
     "chartType": "Typ wykresu",
     "resetView": "Resetuj widok",
-    "indicators": "Wskaźniki"
+    "indicators": "Wskaźniki",
+    "exitMultiChart": "Zakończ Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Byczy",

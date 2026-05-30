@@ -4558,7 +4558,8 @@
     "export": "برآمد کریں۔",
     "chartType": "چارٹ کی قسم",
     "resetView": "منظر کو دوبارہ ترتیب دیں۔",
-    "indicators": "اشارے"
+    "indicators": "اشارے",
+    "exitMultiChart": "ملٹی چارٹ سے باہر"
   },
   "indicators": {
     "macdBullish": "تیزی",

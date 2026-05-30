@@ -4558,7 +4558,8 @@
     "export": "Ekspor",
     "chartType": "Jenis Bagan",
     "resetView": "Tampilan Reset",
-    "indicators": "Indikator"
+    "indicators": "Indikator",
+    "exitMultiChart": "Keluar dari Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Bullish",

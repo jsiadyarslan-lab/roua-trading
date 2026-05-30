@@ -4558,7 +4558,8 @@
     "export": "Exportar",
     "chartType": "Gráfico Tipo",
     "resetView": "Redefinir Visualizar",
-    "indicators": "Indicadores"
+    "indicators": "Indicadores",
+    "exitMultiChart": "Sair do Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Alta",

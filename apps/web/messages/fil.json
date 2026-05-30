@@ -4558,7 +4558,8 @@
     "export": "I-export",
     "chartType": "Uri ng Tsart",
     "resetView": "I-reset ang View",
-    "indicators": "Mga tagapagpahiwatig"
+    "indicators": "Mga tagapagpahiwatig",
+    "exitMultiChart": "Exit Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Bullish",

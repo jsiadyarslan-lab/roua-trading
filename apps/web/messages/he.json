@@ -4558,7 +4558,8 @@
     "export": "יְצוּא",
     "chartType": "סוג תרשים",
     "resetView": "אפס את התצוגה",
-    "indicators": "אינדיקטורים"
+    "indicators": "אינדיקטורים",
+    "exitMultiChart": "יציאה מריבוי גרפים"
   },
   "indicators": {
     "macdBullish": "שורי",

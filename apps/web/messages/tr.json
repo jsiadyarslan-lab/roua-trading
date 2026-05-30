@@ -4558,7 +4558,8 @@
     "export": "Dışa Aktar",
     "chartType": "Grafik Türü",
     "resetView": "Görünümü Sıfırla",
-    "indicators": "Göstergeler"
+    "indicators": "Göstergeler",
+    "exitMultiChart": "Çoklu Grafikten Çık"
   },
   "indicators": {
     "macdBullish": "Boğa",

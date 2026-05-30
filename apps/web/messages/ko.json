@@ -4558,7 +4558,8 @@
     "export": "내보내기",
     "chartType": "차트 유형",
     "resetView": "보기 재설정",
-    "indicators": "표시기"
+    "indicators": "표시기",
+    "exitMultiChart": "멀티 차트 종료"
   },
   "indicators": {
     "macdBullish": "강세",

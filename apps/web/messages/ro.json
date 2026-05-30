@@ -4558,7 +4558,8 @@
     "export": "Export",
     "chartType": "Tip diagramă",
     "resetView": "Resetați vizualizarea",
-    "indicators": "Indicatori"
+    "indicators": "Indicatori",
+    "exitMultiChart": "Ieși din Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Bullish",

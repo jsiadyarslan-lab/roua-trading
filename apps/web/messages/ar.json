@@ -4654,7 +4654,8 @@
     "pauseUpdate": "إيقاف التحديثات مؤقتاً",
     "more": "المزيد من الأدوات",
     "aiPatternAnalysis": "تحليل الأنماط بالذكاء الاصطناعي",
-    "livePatternProgress": "تقدم الأنماط المباشر"
+    "livePatternProgress": "تقدم الأنماط المباشر",
+    "exitMultiChart": "إنهاء الشارت المتعدد"
   },
   "aiCoach": {
     "ratingExcellent": "ممتاز",

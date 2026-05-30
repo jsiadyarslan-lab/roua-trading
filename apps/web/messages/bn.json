@@ -2954,7 +2954,8 @@
     "exitFullscreen": "ফুলস্ক্রিন থেকে প্রস্থান করুন",
     "chartTrading": "চার্ট ট্রেডিং",
     "zoomIn": "জুম ইন করুন",
-    "drawings": "অঙ্কন"
+    "drawings": "অঙ্কন",
+    "exitMultiChart": "মাল্টি-চার্ট থেকে প্রস্থান"
   },
   "aiSmartPanel": {
     "patternBat": "ব্যাট হারমোনিক",

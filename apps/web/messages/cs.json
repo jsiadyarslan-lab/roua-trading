@@ -2954,7 +2954,8 @@
     "exitFullscreen": "Ukončete celou obrazovku",
     "chartTrading": "Grafové obchodování",
     "zoomIn": "Přiblížit",
-    "drawings": "Výkresy"
+    "drawings": "Výkresy",
+    "exitMultiChart": "Ukončit Multi-Chart"
   },
   "aiSmartPanel": {
     "patternBat": "Bat Harmonic",

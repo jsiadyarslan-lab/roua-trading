@@ -105,6 +105,10 @@ export function ChartPanel({
   const [prevPrice, setPrevPrice] = useState<number | null>(null);
   const [candleCount, setCandleCount] = useState(0);
   const [changePercent, setChangePercent] = useState<number | null>(null);
+  // Tracks whether the chart IChartApi + mainSeries are ready (after async initChart).
+  // Used as a dependency in effects that need chartRef/mainSeriesRef so they
+  // re-run after the chart is created (refs themselves are not reactive).
+  const [chartReady, setChartReady] = useState(false);
 
   // ── Position/Trade Overlay State ──
   const positions = usePositionsStore(s => s.positions);
@@ -244,17 +248,25 @@ export function ChartPanel({
     const chart = chartRef.current;
     if (!chart) return;
 
-    const unsubscribe = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    // lightweight-charts v5: IChartApi has no onVisibleRangeChange.
+    // Use timeScale().subscribeVisibleLogicalRangeChange() instead.
+    const handler = () => { scheduleOverlayUpdate(); };
+    chart.timeScale().subscribeVisibleLogicalRangeChange(handler);
     const timer = setTimeout(scheduleOverlayUpdate, 200);
     const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
 
-    return () => { unsubscribe(); clearTimeout(timer); clearInterval(priceScaleInterval); };
-  }, [scheduleOverlayUpdate, chartRef.current]);
+    return () => {
+      try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {}
+      clearTimeout(timer);
+      clearInterval(priceScaleInterval);
+    };
+  }, [scheduleOverlayUpdate, chartReady]);
 
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
+    if (!chartReady) return;
     scheduleOverlayUpdate();
-  }, [positions, paperTrades, scheduleOverlayUpdate]);
+  }, [positions, paperTrades, scheduleOverlayUpdate, chartReady]);
 
   // ── Apply Position Price Lines to Chart ──
   useEffect(() => {
@@ -339,7 +351,7 @@ export function ChartPanel({
       });
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, symbol, chartRef.current, mainSeriesRef.current]);
+  }, [positions, paperTrades, symbol, chartReady]);
 
   // ── Mount guard ──
   useEffect(() => {
@@ -583,6 +595,7 @@ export function ChartPanel({
         chartRef.current = chart;
         mainSeriesRef.current = mainSeries;
         registerChartInstance(chartId, chart, mainSeries);
+        setChartReady(true); // Signal that chart is ready for price lines/overlays
 
         const observer = new ResizeObserver(entries => {
           for (const entry of entries) {
@@ -671,6 +684,7 @@ export function ChartPanel({
 
     return () => {
       destroyed = true;
+      setChartReady(false); // Reset so effects know chart is gone
       unregisterChartInstance(chartId);
       if (resizeObserverRef.current) {
         resizeObserverRef.current.disconnect();

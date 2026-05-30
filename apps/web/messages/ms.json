@@ -4558,7 +4558,8 @@
     "export": "Eksport",
     "chartType": "Jenis Carta",
     "resetView": "Tetapkan Semula Pandangan",
-    "indicators": "Penunjuk"
+    "indicators": "Penunjuk",
+    "exitMultiChart": "Keluar Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Bullish",

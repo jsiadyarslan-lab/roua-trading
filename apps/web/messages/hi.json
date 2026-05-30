@@ -4558,7 +4558,8 @@
     "export": "निर्यात",
     "chartType": "Chrt प्रकार",
     "resetView": "रीसेट देखें",
-    "indicators": "संकेतकs"
+    "indicators": "संकेतकs",
+    "exitMultiChart": "मल्टी-चार्ट से बाहर"
   },
   "indicators": {
     "macdBullish": "तेजी",

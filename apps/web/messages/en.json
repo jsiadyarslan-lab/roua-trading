@@ -4654,7 +4654,8 @@
     "pauseUpdate": "Pause Updates",
     "more": "More Tools",
     "aiPatternAnalysis": "AI Pattern Analysis",
-    "livePatternProgress": "Live Pattern Progress"
+    "livePatternProgress": "Live Pattern Progress",
+    "exitMultiChart": "Exit Multi-Chart"
   },
   "aiCoach": {
     "ratingExcellent": "Excellent",

@@ -4558,7 +4558,8 @@
     "export": "Xuất",
     "chartType": "Loại biểu đồ",
     "resetView": "Đặt lại chế độ xem",
-    "indicators": "Chỉ báo"
+    "indicators": "Chỉ báo",
+    "exitMultiChart": "Thoát Multi-Chart"
   },
   "indicators": {
     "macdBullish": "Tăng",

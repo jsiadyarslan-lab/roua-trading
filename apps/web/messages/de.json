@@ -4654,7 +4654,8 @@
     "pauseUpdate": "Pause Aktualisierungs",
     "more": "Mehr Tools",
     "aiPatternAnalysis": "AI Muster Analysis",
-    "livePatternProgress": "Live Muster Progress"
+    "livePatternProgress": "Live Muster Progress",
+    "exitMultiChart": "Multi-Chart beenden"
   },
   "aiCoach": {
     "ratingExcellent": "Ausgezeichnet",

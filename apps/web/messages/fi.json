@@ -4558,7 +4558,8 @@
     "export": "Viedä",
     "chartType": "Kaavion tyyppi",
     "resetView": "Palauta näkymä",
-    "indicators": "Indikaattorit"
+    "indicators": "Indikaattorit",
+    "exitMultiChart": "Poistu Multi-Chartista"
   },
   "indicators": {
     "macdBullish": "Nouseva",

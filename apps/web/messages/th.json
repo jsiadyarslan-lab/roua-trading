@@ -4558,7 +4558,8 @@
     "export": "ส่งออก",
     "chartType": "ประเภทแผนภูมิ",
     "resetView": "รีเซ็ตมุมมอง",
-    "indicators": "ตัวชี้วัด"
+    "indicators": "ตัวชี้วัด",
+    "exitMultiChart": "ออกจาก Multi-Chart"
   },
   "indicators": {
     "macdBullish": "รั้น",

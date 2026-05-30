@@ -4558,7 +4558,8 @@
     "export": "Export",
     "chartType": "Diagram típusa",
     "resetView": "Nézet visszaállítása",
-    "indicators": "Mutatók"
+    "indicators": "Mutatók",
+    "exitMultiChart": "Multi-Chart bezárása"
   },
   "indicators": {
     "macdBullish": "Bullish",

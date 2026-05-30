@@ -108,14 +108,26 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
 
   useEffect(() => {
     const update = () => {
-      const coord = chart.getPriceCoordinate(currentPrice);
-      setY(coord);
+      try {
+        const coord = chart.getPriceCoordinate ? chart.getPriceCoordinate(currentPrice) : null;
+        setY(coord);
+      } catch { /* chart may be destroyed */ }
     };
     update();
-    const unsub = chart.onVisibleRangeChange(update);
+
+    // Try useChart's onVisibleRangeChange first, fall back to IChartApi timeScale subscription
+    let unsub: (() => void) | null = null;
+    if (chart.onVisibleRangeChange) {
+      unsub = chart.onVisibleRangeChange(update);
+    } else if (chart.timeScale) {
+      const handler = () => update();
+      try { chart.timeScale().subscribeVisibleLogicalRangeChange(handler); } catch {}
+      unsub = () => { try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
+    }
+
     // PERF: 2000ms — price label coordinate doesn't need sub-second updates
     const interval = setInterval(update, 2000);
-    return () => { unsub(); clearInterval(interval); };
+    return () => { unsub?.(); clearInterval(interval); };
   }, [chart, currentPrice]);
 
   if (y === null) return null;
@@ -1041,7 +1053,10 @@ export default function RouaChart({
 
   // ── Subscribe to chart scroll/zoom (horizontal + vertical) ──
   useEffect(() => {
-    const unsubscribe = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    let unsub: (() => void) | null = null;
+    if (chart.onVisibleRangeChange) {
+      unsub = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    }
     // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
 
@@ -1050,7 +1065,7 @@ export default function RouaChart({
     // PERF: 2000ms is sufficient — trade overlay positions don't change sub-second
     const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
 
-    return () => { unsubscribe(); clearTimeout(timer); clearInterval(priceScaleInterval); };
+    return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   }, [chart, scheduleOverlayUpdate]);
 
   // ── Mount guard for rAF callbacks ──

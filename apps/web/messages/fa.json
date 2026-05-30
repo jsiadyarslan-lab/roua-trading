@@ -4558,7 +4558,8 @@
     "export": "صادرات",
     "chartType": "نوع نمودار",
     "resetView": "بازنشانی نمای",
-    "indicators": "شاخص ها"
+    "indicators": "شاخص ها",
+    "exitMultiChart": "خروج از چارت چندگانه"
   },
   "indicators": {
     "macdBullish": "صعودی",

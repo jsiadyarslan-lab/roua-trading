@@ -4654,7 +4654,8 @@
     "pauseUpdate": "Sæt opdateringer på pause",
     "more": "Flere værktøjer",
     "aiPatternAnalysis": "AI-mønsteranalyse",
-    "livePatternProgress": "Live mønsterfremskridt"
+    "livePatternProgress": "Live mønsterfremskridt",
+    "exitMultiChart": "Afslut Multi-Chart"
   },
   "aiCoach": {
     "ratingExcellent": "Fremragende",

@@ -4558,7 +4558,8 @@
     "export": "Экспорт",
     "chartType": "Тип графика",
     "resetView": "Сбросить вид",
-    "indicators": "Индикаторы"
+    "indicators": "Индикаторы",
+    "exitMultiChart": "Выйти из мульти-графика"
   },
   "indicators": {
     "macdBullish": "Бычий",

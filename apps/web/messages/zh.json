@@ -4558,7 +4558,8 @@
     "export": "导出",
     "chartType": "Chart 类型",
     "resetView": "重置 View",
-    "indicators": "指标"
+    "indicators": "指标",
+    "exitMultiChart": "退出多图表"
   },
   "indicators": {
     "macdBullish": "看涨",

@@ -41,5 +41,8 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/(?:(?!_next|static|socket.io).*)/'],
+  // NOTE: Next.js 16 does NOT support complex regex (lookaheads, groups) in matchers.
+  // We use a simple catch-all and handle ALL filtering inside middleware().
+  // Static files, _next, API routes are handled early with NextResponse.next().
+  matcher: ['/:path*'],
 };

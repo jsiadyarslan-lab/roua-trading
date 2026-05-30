@@ -259,10 +259,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    // PWA FIX: Exclude static file extensions from the matcher entirely.
-    // This ensures icons, manifest, SW, and other assets bypass locale routing.
-    // NOTE: Non-capturing groups (?:...) required — Next.js 16 forbids capturing groups in matchers.
-    '/(?:(?!_next/static|_next/image|.*\\.(?:ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|css|js|map|json|html|webp|avif|mp3|mp4|webm|pdf|xml|txt|wasm)|sw\\.js|manifest\\.json|robots\\.txt).*)/',
-  ],
+  // NOTE: Next.js 16 does NOT support complex regex (lookaheads, groups) in matchers.
+  // We use a simple catch-all and handle ALL filtering inside proxy().
+  // Static files, _next, API routes are handled early in proxy() with NextResponse.next().
+  matcher: ['/:path*'],
 }

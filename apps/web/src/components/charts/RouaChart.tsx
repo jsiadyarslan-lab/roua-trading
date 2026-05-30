@@ -36,7 +36,7 @@ import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
-
+const MiniChartCell = dynamic(() => import('./MiniChartCell').then(m => ({ default: m.MiniChartCell })), { ssr: false })
 import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
@@ -1991,7 +1991,7 @@ export default function RouaChart({
         chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
         onSetTimeframe={isMultiChart ? ((tf: string) => {
           const ctrl = getActiveChartControl();
-          if (ctrl) { /* timeframe is updated via updateChartConfig in ChartPanel */ }
+          if (ctrl) { /* timeframe is updated via updateChartConfig in MiniChartCell */ }
           const activeCell = charts.find(c => c.id === activeChartId);
           if (activeCell) useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
         }) : setTimeframe}
@@ -2085,17 +2085,16 @@ export default function RouaChart({
               position: 'relative',
             }}>
               {visibleCharts.map(cell => (
-                <RouaChart
+                <MiniChartCell
                   key={cell.id}
                   chartId={cell.id}
                   symbol={cell.symbol}
                   timeframe={cell.timeframe}
+                  chartType={cell.chartType}
                   isActive={activeChartId === cell.id}
                   onActivate={() => setActiveChartId(cell.id)}
                   onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
                   canClose={charts.length > 1}
-                  compact
-                  mobile
                 />
               ))}
             </div>

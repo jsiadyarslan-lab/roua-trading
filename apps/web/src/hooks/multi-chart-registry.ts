@@ -12,7 +12,7 @@ import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts';
 import type { ChartType, DrawingTool } from '@/lib/charts/types';
 
 // ── Chart Control API ────────────────────────────────────
-// This is the interface that ChartPanel exposes so the main
+// This is the interface that MiniChartCell exposes so the main
 // toolbar can control it like the main chart.
 export interface ChartControlAPI {
   zoomIn: () => void;
@@ -95,8 +95,8 @@ export function getAllMainSeries(): Map<string, ISeriesApi<SeriesType>> {
 }
 
 // ── Chart Control API Registry ──
-// ChartPanel registers its control API here so the main toolbar
-// can route commands to the active chart panel.
+// MiniChartCell registers its control API here so the main toolbar
+// can route commands to the active chart cell.
 
 export function registerChartControl(id: string, api: ChartControlAPI) {
   chartControlRegistry.set(id, api);

@@ -347,9 +347,14 @@ export default function RouaChart({
   const timeframe_ = effectiveTimeframe;
 
   // ── Mini-chart mode ──
-  // When symbol and timeframe props are provided, this RouaChart is
-  // operating as a mini chart cell in the multi-chart grid.
-  const isMiniChart = !!(symbolProp && timeframeProp);
+  // When compact prop is true OR symbol+timeframe props are provided,
+  // this RouaChart is operating as a mini chart cell in the multi-chart grid.
+  // FIX: Also check `compact` to prevent infinite recursion when
+  // symbol/timeframe are somehow undefined but compact is true.
+  // Without this, a grid cell with missing symbol/timeframe would NOT
+  // be a mini chart, and would try to render its own grid → infinite
+  // recursion → React error #185.
+  const isMiniChart = compact || !!(symbolProp && timeframeProp);
 
   // Multi-chart state — only relevant for the main (non-mini) chart instance
   const multiChartLayout = useMultiChartStore(s => !isMiniChart ? (s.layout ?? '1x1') : '1x1');
@@ -620,6 +625,29 @@ export default function RouaChart({
   // ── Ref to always have the latest resetView ──
   const resetViewRef = useRef(chart.resetView);
   useEffect(() => { resetViewRef.current = chart.resetView; }, [chart.resetView]);
+
+  // ── Refs for chart methods used in effects/callbacks ──
+  // FIX: These refs prevent infinite re-render loops caused by `chart`
+  // being a new object every render. Effects/callbacks that use these
+  // methods can have empty or stable deps instead of depending on `chart`.
+  const addPriceLineRef = useRef(chart.addPriceLine);
+  useEffect(() => { addPriceLineRef.current = chart.addPriceLine; }, [chart.addPriceLine]);
+  const removePriceLineRef = useRef(chart.removePriceLine);
+  useEffect(() => { removePriceLineRef.current = chart.removePriceLine; }, [chart.removePriceLine]);
+  const getActiveIndicatorsRef = useRef(chart.getActiveIndicators);
+  useEffect(() => { getActiveIndicatorsRef.current = chart.getActiveIndicators; }, [chart.getActiveIndicators]);
+  const addIndicatorRef = useRef(chart.addIndicator);
+  useEffect(() => { addIndicatorRef.current = chart.addIndicator; }, [chart.addIndicator]);
+  const removeIndicatorRef = useRef(chart.removeIndicator);
+  useEffect(() => { removeIndicatorRef.current = chart.removeIndicator; }, [chart.removeIndicator]);
+  const setChartTypeRef = useRef(chart.setChartType);
+  useEffect(() => { setChartTypeRef.current = chart.setChartType; }, [chart.setChartType]);
+  const candleSeriesRef_ = useRef(chart.candleSeriesRef);
+  useEffect(() => { candleSeriesRef_.current = chart.candleSeriesRef; }, [chart.candleSeriesRef]);
+  const mainSeriesRef_ = useRef(chart.mainSeriesRef);
+  useEffect(() => { mainSeriesRef_.current = chart.mainSeriesRef; }, [chart.mainSeriesRef]);
+  const chartRef_ = useRef(chart.chartRef);
+  useEffect(() => { chartRef_.current = chart.chartRef; }, [chart.chartRef]);
 
   // ═══════════════════════════════════════════════════════════════════
   // CRITICAL FIX: Remove AI overlay series when timeframe changes.
@@ -1372,8 +1400,15 @@ export default function RouaChart({
   }, [positions, paperTrades, scheduleOverlayUpdate]);
 
   // ── Apply Position Lines to Chart (price lines with labels) ──
+  // FIX: Skip in mini chart mode — price lines are not needed for compact charts.
+  // Also uses refs for chart methods to avoid re-running on every render.
   useEffect(() => {
-    positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
+    if (isMiniChart) return;
+
+    const addPriceLine = addPriceLineRef.current;
+    const removePriceLine = removePriceLineRef.current;
+
+    positionLineIdsRef.current.forEach(id => removePriceLine(id));
     positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol_);
@@ -1384,7 +1419,7 @@ export default function RouaChart({
     // Our overlay already shows the price — axis labels create duplicates
     const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
       // MT5 style: always show axis labels for Entry/SL/TP
-      chart.addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
+      addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
       positionLineIdsRef.current.push(id);
     };
 
@@ -1420,7 +1455,7 @@ export default function RouaChart({
       if (!symbol.includes(chartSymbol) && !chartSymbol.includes(symbol)) return;
       const entryPrice = Number(trade.entryPrice || 0);
       if (entryPrice <= 0) return;
-      
+
       const key = `${trade.side}-${entryPrice}-${trade.sl}-${trade.tp}`;
       if (groupedLines.has(key)) {
         groupedLines.get(key)!.count += 1;
@@ -1432,7 +1467,7 @@ export default function RouaChart({
     groupedLines.forEach((trade, key) => {
       const entryPrice = Number(trade.entryPrice || 0);
       const isLong = (trade.side || '').toLowerCase() === 'long';
-      
+
       const qty = Number(trade.qty || 1);
       // MT5 style: cyan entry line with direction label
       addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', true);
@@ -1447,18 +1482,23 @@ export default function RouaChart({
     });
 
     return () => {
-      positionLineIdsRef.current.forEach(id => chart.removePriceLine(id));
+      const rmPriceLine = removePriceLineRef.current;
+      positionLineIdsRef.current.forEach(id => rmPriceLine(id));
       positionLineIdsRef.current = [];
     };
-  }, [positions, paperTrades, selectedSymbol_, chart]);
+  // FIX: Removed `chart` from deps — uses refs for all chart method access.
+  // This prevents the effect from re-running on every render (chart is a new
+  // object each render), which caused position lines to be rapidly added/removed.
+  }, [positions, paperTrades, selectedSymbol_, isMiniChart]);
 
 
 
   // ── Indicator Management ───────────────────────────────
+  // FIX: Use refs for chart methods to avoid recreating callbacks on every render
   const handleToggleIndicator = useCallback((key: string) => {
-    const existing = chart.getActiveIndicators().find(i => i.key === key);
+    const existing = getActiveIndicatorsRef.current().find(i => i.key === key);
     if (existing) {
-      chart.removeIndicator(key);
+      removeIndicatorRef.current(key);
     } else {
       const config = INDICATOR_CONFIGS.find(c => c.key === key);
       if (!config) return;
@@ -1469,12 +1509,12 @@ export default function RouaChart({
         opacity: config.defaultOpacity,
         visible: true,
       };
-      chart.addIndicator(indicator);
+      addIndicatorRef.current(indicator);
     }
-  }, [chart]);
+  }, []);
 
   const handleOpenSettings = useCallback((key: string) => {
-    const existing = chart.getActiveIndicators().find(i => i.key === key);
+    const existing = getActiveIndicatorsRef.current().find(i => i.key === key);
     const config = INDICATOR_CONFIGS.find(c => c.key === key);
     if (!config) return;
 
@@ -1487,13 +1527,13 @@ export default function RouaChart({
     };
     setSettingsIndicator(indicator);
     setShowSettingsPanel(true);
-  }, [chart]);
+  }, []);
 
   const handleSaveSettings = useCallback((indicator: ActiveIndicator) => {
-    chart.addIndicator(indicator);
+    addIndicatorRef.current(indicator);
     setShowSettingsPanel(false);
     setSettingsIndicator(null);
-  }, [chart]);
+  }, []);
 
   // ── Fetch Active Trading Signals for Chart Markers ──
   const [signalMarkers, setSignalMarkers] = useState<any[]>([]);
@@ -1524,11 +1564,12 @@ export default function RouaChart({
   }, []);
 
   // ── REVOLUTIONARY: Heatmap Overlay Handler ──────────────
+  // FIX: Uses chartRef_ ref instead of chart.chartRef to avoid dep on `chart` object
   const handleHeatmapData = useCallback((heatmap: HeatmapResult | null) => {
     // Only render heatmap if user explicitly enabled it
     if (!showHeatmap) {
       // If heatmap is disabled, remove any existing heatmap series
-      const chartApi = chart.chartRef?.current;
+      const chartApi = chartRef_.current?.current;
       if (chartApi) {
         heatmapSeriesRef.current.forEach(s => {
           try { chartApi.removeSeries(s); } catch {}
@@ -1537,7 +1578,7 @@ export default function RouaChart({
       }
       return;
     }
-    const chartApi = chart.chartRef?.current;
+    const chartApi = chartRef_.current?.current;
     if (!chartApi) return;
     // Remove previous heatmap series
     heatmapSeriesRef.current.forEach(s => {
@@ -1554,19 +1595,20 @@ export default function RouaChart({
     } catch (e) {
       console.debug('[RouaChart] Heatmap render error:', e);
     }
-  }, [chart, showHeatmap]);
+  }, [showHeatmap]); // FIX: Removed `chart` from deps — uses chartRef_ ref
 
   // Cleanup function for AI overlays — reusable across multiple call sites.
   // Uses OverlayRegistry for primitive-based lifecycle management.
   // IMPORTANT: Only resets the registry on timeframe change (when the series
   // will be recreated). Does NOT destroy the singleton when simply toggling
   // overlays off — that would lose tracking state and cause orphaned primitives.
+  // FIX: Uses refs for chart method access to prevent infinite re-render loops.
   const cleanupAIOverlays = useCallback(() => {
     try {
       const { getOverlayRegistry, resetOverlayRegistry } = require('@/lib/charts/OverlayRegistry');
       const reg = getOverlayRegistry();
       // Set removePriceLine callback so clearAll() can remove price lines
-      reg.setRemovePriceLine(chart.removePriceLine);
+      reg.setRemovePriceLine(removePriceLineRef.current);
       reg.clearAll();
       // Destroy the singleton only on timeframe change — the chart will be
       // recreated, so all primitives and price lines must go. The next
@@ -1578,7 +1620,7 @@ export default function RouaChart({
     // race conditions between useChart and RouaChart cleanup, and
     // any lines that lost their tracking ID.
     try {
-      const series = chart.candleSeriesRef?.current || chart.mainSeriesRef?.current;
+      const series = candleSeriesRef_.current?.current || mainSeriesRef_.current?.current;
       if (series) {
         const allLines: any[] = series.priceLines?.() || [];
         allLines.forEach((line: any) => {
@@ -1602,13 +1644,13 @@ export default function RouaChart({
     setAiPatterns([]);
     // Cancel any active animated patterns
     try {
-      const chartApi = chart.chartRef?.current;
+      const chartApi = chartRef_.current?.current;
       const active = getActiveAnimations();
       for (const anim of active) {
         try { cancelAnimatedPattern(chartApi, anim.patternId); } catch {}
       }
     } catch {}
-  }, [chart]);
+  }, []); // FIX: Empty deps — uses refs for all chart method access
 
   // Clean up AI overlays when timeframe changes
   useEffect(() => {
@@ -1618,7 +1660,7 @@ export default function RouaChart({
     // Without this, overlays from old timeframes accumulate on the chart.
     lastAnalysisResultRef.current = null;
     // REVOLUTIONARY: Also clean up heatmap overlay on timeframe change
-    const chartApi = chart.chartRef?.current;
+    const chartApi = chartRef_.current?.current;
     if (chartApi) {
       heatmapSeriesRef.current.forEach(s => {
         try { chartApi.removeSeries(s); } catch {}
@@ -1808,12 +1850,12 @@ export default function RouaChart({
       mtfResult: (result as any).mtfResult,
       tradeProposals: (result as any).tradeProposals,
       liquidityResult: (result as any).liquidityResult,
-    }, chart.addPriceLine, chart.removePriceLine);
+    }, addPriceLineRef.current, removePriceLineRef.current);
 
     } catch (e) {
       console.warn('[AI Overlay] handlePatternsDetected error:', e);
     }
-  }, [chart]);
+  }, []); // FIX: Empty deps — uses refs for all chart method access
 
   // ═══════════════════════════════════════════════════════════════════
   // Sustainable: Direct overlay change handler
@@ -1845,7 +1887,7 @@ export default function RouaChart({
     currentOverlaysRef.current = { ...overlays };
 
     try {
-      const series = chart.candleSeriesRef?.current;
+      const series = candleSeriesRef_.current?.current;
       if (!series) return;
 
       const overlayMod = overlayRendererRef.current || await import('@/lib/charts/overlay-renderer');
@@ -1855,13 +1897,13 @@ export default function RouaChart({
       if (!anyOverlayEnabled) {
         setAiPatterns([]);
         const reg = registryMod.getOverlayRegistry();
-        reg.init(series, chart.removePriceLine);
+        reg.init(series, removePriceLineRef.current);
         reg.clearAll();
         return;
       }
 
       // Re-validate series after potential async import
-      const currentSeries = chart.candleSeriesRef?.current;
+      const currentSeries = candleSeriesRef_.current?.current;
       if (currentSeries !== series) return;
 
       // SUSTAINABLE: Do NOT call reg.clearAll() here.
@@ -1872,7 +1914,7 @@ export default function RouaChart({
       //   - Toggling SR OFF doesn't touch trend overlays
       //   - No flicker from clearing everything and re-drawing
       const reg = registryMod.getOverlayRegistry();
-      reg.init(series, chart.removePriceLine);
+      reg.init(series, removePriceLineRef.current);
 
       // Use cached analysis data if available, empty otherwise.
       const cached = lastAnalysisResultRef.current;
@@ -1896,12 +1938,12 @@ export default function RouaChart({
         mtfResult: (cached as any)?.mtfResult,
         tradeProposals: (cached as any)?.tradeProposals,
         liquidityResult: (cached as any)?.liquidityResult,
-      }, chart.addPriceLine, chart.removePriceLine);
+      }, addPriceLineRef.current, removePriceLineRef.current);
 
     } catch (e) {
       console.warn('[AI Overlay] handleOverlayChange error:', e);
     }
-  }, [chart]);
+  }, []); // FIX: Empty deps — uses refs for all chart method access
 
 
   // ── News Markers Handler ───────────────────────────────

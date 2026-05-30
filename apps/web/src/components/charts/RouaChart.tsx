@@ -235,10 +235,19 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
 }) {
   const [y, setY] = useState<number | null>(null);
 
+  // FIX: Use refs for chart methods to avoid re-running the effect when `chart`
+  // object changes (which happens every render since useChart returns a new object).
+  // Only re-subscribe when currentPrice actually changes.
+  const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
+  useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
+  const onVisibleRangeChangeRef = useRef(chart.onVisibleRangeChange);
+  useEffect(() => { onVisibleRangeChangeRef.current = chart.onVisibleRangeChange; }, [chart.onVisibleRangeChange]);
+
   useEffect(() => {
     const update = () => {
       try {
-        const coord = chart.getPriceCoordinate ? chart.getPriceCoordinate(currentPrice) : null;
+        const getPriceCoordinate = getPriceCoordinateRef.current;
+        const coord = getPriceCoordinate ? getPriceCoordinate(currentPrice) : null;
         setY(coord);
       } catch { /* chart may be destroyed */ }
     };
@@ -246,18 +255,21 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
 
     // Try useChart's onVisibleRangeChange first, fall back to IChartApi timeScale subscription
     let unsub: (() => void) | null = null;
-    if (chart.onVisibleRangeChange) {
-      unsub = chart.onVisibleRangeChange(update);
-    } else if (chart.timeScale) {
+    const onVisibleRangeChange = onVisibleRangeChangeRef.current;
+    if (onVisibleRangeChange) {
+      unsub = onVisibleRangeChange(update);
+    } else if (chart.chartRef?.current?.timeScale) {
       const handler = () => update();
-      try { chart.timeScale().subscribeVisibleLogicalRangeChange(handler); } catch {}
-      unsub = () => { try { chart.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
+      try { chart.chartRef.current.timeScale().subscribeVisibleLogicalRangeChange(handler); } catch {}
+      unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
     }
 
     // PERF: 2000ms — price label coordinate doesn't need sub-second updates
     const interval = setInterval(update, 2000);
     return () => { unsub?.(); clearInterval(interval); };
-  }, [chart, currentPrice]);
+  // FIX: Only depend on currentPrice, not `chart` (which changes every render)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrice]);
 
   if (y === null) return null;
 
@@ -806,7 +818,12 @@ export default function RouaChart({
       // Schedule overlay recalculation so trade markers stay aligned
       scheduleOverlayUpdateRef.current();
     },
-    enabled: !chart.isPaused,
+    // FIX: When the main chart is in multi-chart mode (canvas hidden),
+    // disable WebSocket to prevent wasted resources. Mini charts have their
+    // own WebSocket connections. Without this, the main chart's hidden canvas
+    // still receives and processes data for nothing, and can cause the main
+    // chart's candles to be in an inconsistent state when returning to single mode.
+    enabled: !chart.isPaused && !(isMultiChart && !isMiniChart),
   });
 
   // ── Multi-Chart: Automatic Crosshair + Scroll Sync ──
@@ -1144,12 +1161,23 @@ export default function RouaChart({
   // can call it without stale-closure issues — the ref is updated each render.
   const scheduleOverlayUpdateRef = useRef<() => void>(() => {});
 
+  // FIX: Ref for chart.getPriceCoordinate to avoid depending on unstable `chart` object.
+  // `useChart` returns a new object every render, but getPriceCoordinate is a stable
+  // useCallback (empty deps). Storing it in a ref lets scheduleOverlayUpdate be stable too,
+  // breaking the infinite re-render loop (React error #185).
+  const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
+  useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
+
   // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──
+  // FIX: Removed `chart` from useCallback deps. Uses refs instead to prevent
+  // the callback from being recreated on every render, which caused the
+  // useEffect at line ~1267 to re-run on every render → infinite loop.
   const scheduleOverlayUpdate = useCallback(() => {
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = requestAnimationFrame(() => {
       if (!isMountedRef.current) return;
 
+      const getPriceCoordinate = getPriceCoordinateRef.current;
       const chartSymbol = normalizeSymbol(selectedSymbol_Ref.current);
       const overlays: TradeOverlay[] = [];
       const zones: typeof fillZones = [];
@@ -1161,9 +1189,9 @@ export default function RouaChart({
       ) => {
         // Compute each line's Y coordinate independently so they don't
         // disappear when the entry scrolls off-screen
-        const entryY = chart.getPriceCoordinate(entryPrice);
-        const slY = sl && sl > 0 ? chart.getPriceCoordinate(sl) : null;
-        const tpY = tp && tp > 0 ? chart.getPriceCoordinate(tp) : null;
+        const entryY = getPriceCoordinate(entryPrice);
+        const slY = sl && sl > 0 ? getPriceCoordinate(sl) : null;
+        const tpY = tp && tp > 0 ? getPriceCoordinate(tp) : null;
 
         // Only add entry overlay if it's visible
         if (entryY !== null) {
@@ -1258,16 +1286,25 @@ export default function RouaChart({
       setTradeOverlays(overlays);
       setFillZones(zones);
     });
-  }, [chart]);
+  }, []); // FIX: Empty deps — uses refs for all chart access, preventing infinite re-render loop
 
   // Keep the ref in sync with the latest scheduleOverlayUpdate callback
   scheduleOverlayUpdateRef.current = scheduleOverlayUpdate;
 
+  // FIX: Ref for chart.onVisibleRangeChange to avoid depending on unstable `chart` object.
+  const onVisibleRangeChangeRef = useRef(chart.onVisibleRangeChange);
+  useEffect(() => { onVisibleRangeChangeRef.current = chart.onVisibleRangeChange; }, [chart.onVisibleRangeChange]);
+
   // ── Subscribe to chart scroll/zoom (horizontal + vertical) ──
+  // FIX: Removed `chart` and `scheduleOverlayUpdate` from deps. Both are now stable
+  // (scheduleOverlayUpdate has empty deps, onVisibleRangeChange uses ref).
+  // This prevents the effect from re-running on every render, which caused
+  // React error #185 (infinite update depth exceeded).
   useEffect(() => {
     let unsub: (() => void) | null = null;
-    if (chart.onVisibleRangeChange) {
-      unsub = chart.onVisibleRangeChange(scheduleOverlayUpdate);
+    const onVisibleRangeChange = onVisibleRangeChangeRef.current;
+    if (onVisibleRangeChange) {
+      unsub = onVisibleRangeChange(scheduleOverlayUpdate);
     }
     // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
@@ -1278,7 +1315,8 @@ export default function RouaChart({
     const priceScaleInterval = setInterval(scheduleOverlayUpdate, 2000);
 
     return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
-  }, [chart, scheduleOverlayUpdate]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps — stable refs used inside
 
   // ── Mount guard for rAF callbacks ──
   useEffect(() => {
@@ -1290,6 +1328,43 @@ export default function RouaChart({
       resetOverlayRegistry();
     };
   }, []);
+
+  // ── FIX: Restore main chart when exiting multi-chart mode ──
+  // When the main chart's canvas was hidden (display:none) during multi-chart
+  // mode, the chart instance may have stale dimensions. When we return to
+  // single-chart mode, we need to resize the chart and refetch data to
+  // ensure candles are visible.
+  const prevIsMultiChartRef = useRef(false);
+  useEffect(() => {
+    if (isMiniChart) return; // Only for the main chart
+    const wasMultiChart = prevIsMultiChartRef.current;
+    prevIsMultiChartRef.current = isMultiChart;
+
+    // Transitioning from multi-chart to single-chart
+    if (wasMultiChart && !isMultiChart) {
+      // Resize the chart to fit the now-visible container
+      requestAnimationFrame(() => {
+        try {
+          const chartApi = chart.chartRef.current;
+          const container = chart.containerRef.current;
+          if (chartApi && container) {
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            if (w > 0 && h > 0) {
+              chartApi.applyOptions({ width: w, height: h });
+            }
+          }
+        } catch { /* chart may not be ready */ }
+      });
+
+      // Re-fetch data to ensure fresh candles
+      setCandlesRef.current([...candlesRef.current]);
+      // Fit content to show all candles
+      setTimeout(() => {
+        resetViewRef.current();
+      }, 300);
+    }
+  }, [isMultiChart, isMiniChart, chart.chartRef, chart.containerRef]);
 
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
@@ -2224,9 +2299,27 @@ export default function RouaChart({
         )}
 
         {/* ── Single Chart / Mini Chart Mode ── */}
-        {(isMiniChart || !isMultiChart) && (
-          <>
+        {/* FIX: Always render the chart canvas container (even in multi-chart mode)
+            to prevent the ref from becoming stale. When the main chart is in
+            multi-chart mode, the canvas is visually hidden but stays in the DOM.
+            Previously, conditional rendering removed the div from the DOM, which
+            caused chart.containerRef to point to a detached element. When returning
+            to single-chart mode, React created a NEW div but the chart instance
+            was still attached to the OLD detached div → "candles are broken". */}
+        <div style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          position: 'relative',
+          // Hide the single-chart canvas when the multi-chart grid is shown.
+          // Using display:none would prevent lightweight-charts from rendering,
+          // but since the WebSocket is disabled for hidden main chart anyway,
+          // visibility:hidden + height:0 is better to keep the container in layout.
+          ...(isMultiChart && !isMiniChart ? { display: 'none' } : {}),
+        }}>
             {/* OHLC Overlay */}
+        {(!isMultiChart || isMiniChart) && (
         <CrosshairOverlay
           symbol={selectedSymbol_}
           currentPrice={currentPrice}
@@ -2240,6 +2333,7 @@ export default function RouaChart({
           candles={candlesRef.current}
           showCandleTimer={chart.settings.showCandleTimer}
         />
+        )}
 
         {/* Chart Wrapper — contains canvas + overlays */}
         <div style={{ flex: 1, minHeight: 0, position: 'relative', display: 'flex', flexDirection: 'column' }}>
@@ -2465,8 +2559,7 @@ export default function RouaChart({
             </div>
           )}
         </div>{/* ── Chart Wrapper close ── */}
-          </> /* ── Single Chart Mode close ── */
-        )}
+        </div>{/* ── Single Chart / Mini Chart Mode div close ── */}
 
         {/* Indicator Panel (draggable) — rendered via Portal to escape .panel backdrop-filter containing block */}
         {showIndicatorPanel && createPortal(

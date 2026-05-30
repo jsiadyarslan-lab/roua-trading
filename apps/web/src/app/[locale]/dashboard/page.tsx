@@ -1447,7 +1447,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      )}
 
       {/* ═══════════════════════════════════════════
            MOBILE V2 — التصميم الجديد
@@ -1864,7 +1863,6 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
-      )}
 
       {/* Trade Dialog (bottom sheet) — mobile only now, desktop uses inline overlay */}
       {isMobileViewport && tradeDialogOpen && (

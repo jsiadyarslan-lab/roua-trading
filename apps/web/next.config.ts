@@ -46,7 +46,11 @@ const nextConfig: NextConfig = {
 
   experimental: {
     optimizePackageImports: [
-      'recharts',
+      // FIX: Removed 'recharts' from optimizePackageImports.
+      // The production stack points at a minified `.symbol` export, which
+      // matches Recharts' d3-shape dependency. Keeping Recharts bundled
+      // normally avoids Next's package import rewriting from exposing another
+      // TDZ cycle in optimized client chunks.
       'framer-motion',
       'lucide-react',
       // FIX: Removed 'lightweight-charts' from optimizePackageImports.

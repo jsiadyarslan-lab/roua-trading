@@ -6,6 +6,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { getPortalRoot } from '@/lib/portal-root';
 import { useChart } from '@/hooks/useChart';
@@ -34,8 +35,8 @@ import { QuickTradePanel } from './QuickTradePanel';
 import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
-import { SmartGrid } from './SmartGrid';
-import { ChartPanel } from './ChartPanel';
+const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
+const ChartPanel = dynamic(() => import('./ChartPanel').then(m => ({ default: m.ChartPanel })), { ssr: false })
 import { useMultiChartStore, LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getActiveChartControl, getChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';

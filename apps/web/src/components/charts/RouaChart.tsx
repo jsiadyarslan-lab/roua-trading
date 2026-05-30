@@ -1446,20 +1446,19 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        // MT5 style: entry line is white/cyan dashed
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', true);
+        // Entry line — axis label hidden to avoid cluttering right price scale
+        // Labels are shown via HTML overlay on the LEFT side instead
+        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) {
-        const slPnl = entryPrice > 0 ? ((sl - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
         const slLabel = `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`;
-        addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, true);
+        addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, false);
       }
       const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) {
-        const tpPnl = entryPrice > 0 ? ((tp - entryPrice) * Number(pos.qty || 1) * (isLong ? 1 : -1)) : 0;
         const tpLabel = `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`;
-        addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, true);
+        addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, false);
       }
     });
 
@@ -1485,15 +1484,15 @@ export default function RouaChart({
       const isLong = (trade.side || '').toLowerCase() === 'long';
 
       const qty = Number(trade.qty || 1);
-      // MT5 style: cyan entry line with direction label
-      addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', true);
+      // Entry line — axis label hidden (shown via HTML overlay on LEFT side)
+      addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
       if (trade.sl && Number(trade.sl) > 0) {
         const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
-        addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, true);
+        addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, false);
       }
       if (trade.tp && Number(trade.tp) > 0) {
         const tpP = ((Number(trade.tp) - entryPrice) * qty * (isLong ? 1 : -1));
-        addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, true);
+        addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, false);
       }
     });
 
@@ -2471,17 +2470,70 @@ export default function RouaChart({
                   right: 0,
                   height: Math.max(zone.height, 1),
                   background: zone.type === 'sl'
-                    ? 'rgba(248, 81, 73, 0.08)'
-                    : 'rgba(63, 185, 80, 0.08)',
+                    ? 'rgba(248, 81, 73, 0.13)'
+                    : 'rgba(63, 185, 80, 0.13)',
                   pointerEvents: 'none',
                   zIndex: 2,
                 }}
               />
             ))}
 
-            {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
-            {/* ── Trade Line Labels (HTML overlays like TradingView) ── */}
-            {tradeOverlays.map(ov => null)}
+            {/* ── Trade Line Labels — LEFT side HTML overlays ── */}
+            {/* Position/trade labels (Entry, SL, TP) rendered on the LEFT side
+                of the chart to avoid cluttering the right price scale where the
+                current price indicator lives. Price lines themselves are still
+                rendered via lightweight-charts createPriceLine (dashed lines
+                spanning the full chart width), but their axis labels are hidden. */}
+            {tradeOverlays.map(ov => {
+              if (ov.y === null) return null;
+              const isEntry = ov.type === 'entry';
+              const isSL = ov.type === 'sl';
+              const isTP = ov.type === 'tp';
+              const color = isEntry ? '#00D4FF' : isSL ? '#FF4757' : '#00FFA3';
+              const bg = isEntry ? 'rgba(0,212,255,0.12)' : isSL ? 'rgba(248,81,73,0.12)' : 'rgba(63,185,80,0.12)';
+              const label = isEntry
+                ? (ov.direction === 'long' ? '▲ Entry' : '▼ Entry')
+                : isSL ? `SL ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`
+                : `TP ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`;
+              return (
+                <div key={ov.key} style={{
+                  position: 'absolute',
+                  top: ov.y - 9,
+                  left: 6,
+                  zIndex: 10,
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 3,
+                }}>
+                  <span style={{
+                    background: bg,
+                    border: `1px solid ${color}33`,
+                    borderRadius: 3,
+                    color,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: 9,
+                    fontWeight: 700,
+                    padding: '1px 5px',
+                    whiteSpace: 'nowrap',
+                    letterSpacing: 0.3,
+                    textShadow: `0 0 6px ${color}44`,
+                  }}>
+                    {label}
+                  </span>
+                  {ov.qty > 0 && !isEntry && (
+                    <span style={{
+                      color: color + '99',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      fontSize: 8,
+                      fontWeight: 500,
+                    }}>
+                      {ov.qty}x
+                    </span>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Volume Profile moved to draggable panel below */}
 

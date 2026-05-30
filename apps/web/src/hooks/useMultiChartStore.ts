@@ -13,7 +13,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { ChartControlAPI, LayoutConfig, ChartCellConfig } from '@/hooks/multi-chart-registry';
-import { LAYOUT_METAS, unregisterChartInstance, chartControlRegistry } from '@/hooks/multi-chart-registry';
+import { LAYOUT_METAS, unregisterChartInstance, getChartControl } from '@/hooks/multi-chart-registry';
 
 // Re-export types and registry functions for backward compatibility
 // so consumers don't need to change their import paths.
@@ -238,5 +238,5 @@ export const useMultiChartStore = create<MultiChartState>()(
 // webpack cannot create a TDZ cycle.
 export function getActiveChartControl(): ChartControlAPI | undefined {
   const state = useMultiChartStore.getState();
-  return chartControlRegistry.get(state.activeChartId);
+  return getChartControl(state.activeChartId);
 }

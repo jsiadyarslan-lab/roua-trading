@@ -41,5 +41,5 @@ export default function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next|static|socket.io).*)'],
+  matcher: ['/(?:(?!_next|static|socket.io).*)/'],
 };

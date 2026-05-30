@@ -262,6 +262,7 @@ export const config = {
   matcher: [
     // PWA FIX: Exclude static file extensions from the matcher entirely.
     // This ensures icons, manifest, SW, and other assets bypass locale routing.
-    '/((?!_next/static|_next/image|.*\\.(ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|css|js|map|json|html|webp|avif|mp3|mp4|webm|pdf|xml|txt|wasm)|sw\\.js|manifest\\.json|robots\\.txt).*)',
+    // NOTE: Non-capturing groups (?:...) required — Next.js 16 forbids capturing groups in matchers.
+    '/(?:(?!_next/static|_next/image|.*\\.(?:ico|png|jpg|jpeg|gif|svg|woff2?|ttf|eot|css|js|map|json|html|webp|avif|mp3|mp4|webm|pdf|xml|txt|wasm)|sw\\.js|manifest\\.json|robots\\.txt).*)/',
   ],
 }

@@ -18,7 +18,9 @@ export default function middleware(request: NextRequest) {
 
   // ── Static files: pass through without locale routing ──
   if (STATIC_FILE_REGEX.test(pathname)) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('X-Middleware-Version', 'v223-direct');
+    return response;
   }
 
   // ── Internal routes: pass through ──

@@ -85,3 +85,28 @@ Stage Summary:
 - Trade display fix: chartReady state makes position price lines and overlays render on mini charts
 - Translation fix: exitMultiChart key added to all 32 locales
 - Note: Drawing tools on mini charts are a stub (setTool only sets ref) — full drawing requires DrawingManager from useChart.ts which is not in ChartPanel scope
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Replace broken ChartPanel with MiniChartCell using useChart
+
+Work Log:
+- Read and analyzed all key files: RouaChart.tsx (~2000 lines), ChartPanel.tsx (945 lines), useChart.ts, useMultiChartStore.ts, multi-chart-registry.ts
+- Identified that ChartPanel was fundamentally broken: manual chart creation, broken candle alignment, infinite price labels, bad registry cleanup, no drawing/indicator support
+- Created MiniChartCell.tsx (~500 lines) that reuses the SAME useChart hook as RouaChart
+- MiniChartCell gets ALL features for free: drawing, indicators, overlays, price lines, trade markers, crosshair sync
+- Fixed feedState stale closure with ref pattern (same pattern as RouaChart)
+- Fixed chart registration timing with polling approach (useChart creates chart async)
+- Avoided React error #185 with proper effect dependency arrays
+- Updated RouaChart.tsx to import MiniChartCell instead of ChartPanel
+- Deleted ChartPanel.tsx entirely (945 lines removed = less maintenance)
+- Updated multi-chart-registry.ts comments
+- Build succeeded, pushed as commit 711decb9
+
+Stage Summary:
+- ChartPanel.tsx deleted (945 lines → 0)
+- MiniChartCell.tsx created (~500 lines, using useChart engine)
+- Net reduction: ~450 lines + all chart features now work in mini charts
+- React error #185 should be fixed (no more stale closure / render-time state updates)
+- All mini chart bugs (broken candles, infinite labels, closing breaks main chart) should be fixed

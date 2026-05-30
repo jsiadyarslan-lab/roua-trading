@@ -469,8 +469,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         return;
       }
 
+      const seriesData = param.seriesData;
+      if (!seriesData || typeof (seriesData as any).get !== 'function') {
+        onCrosshairMoveRef.current?.(null);
+        return;
+      }
+
       const mainSeries = mainSeriesRef.current || candleSeriesRef.current;
-      const candleData = param.seriesData.get(mainSeries as any) as any || param.seriesData.get(candleSeries) as any;
+      const candleData = seriesData.get(mainSeries as any) as any || seriesData.get(candleSeries) as any;
       if (!candleData) {
         onCrosshairMoveRef.current?.(null);
         return;

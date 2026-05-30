@@ -59,8 +59,13 @@ export function useChartSync(entries: ChartEntry[]) {
             entries.forEach((target, targetIdx) => {
               if (targetIdx !== sourceIdx) {
                 try {
-                  // Try to get data point from source series
-                  const sourceData = param.seriesData.get(source.mainSeries);
+                  // Try to get data point from source series. During chart
+                  // teardown/data transitions lightweight-charts can emit a
+                  // crosshair event without a seriesData map.
+                  const seriesData = param.seriesData;
+                  const sourceData = seriesData && typeof (seriesData as any).get === 'function'
+                    ? seriesData.get(source.mainSeries)
+                    : null;
                   if (sourceData) {
                     // setCrosshairPosition(dataPoint, time, series) - dataPoint has value field
                     const value = (sourceData as any).value ?? (sourceData as any).close ?? 0;

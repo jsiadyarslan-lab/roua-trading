@@ -90,6 +90,29 @@ function hlc3(candles: CandleData[]): number[] {
   return candles.map(c => (c.high + c.low + c.close) / 3);
 }
 
+// ── Safe Math helpers — avoid stack overflow with large arrays ──
+// Math.max(...array) / Math.min(...array) throws RangeError when
+// the array exceeds the engine's argument limit (~65,536 in V8).
+// These loop-based alternatives handle arrays of any size safely.
+
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] > max) max = arr[i];
+  }
+  return max;
+}
+
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) {
+    if (arr[i] < min) min = arr[i];
+  }
+  return min;
+}
+
 // ── SMA ─────────────────────────────────────────────────
 export async function calcSMA(candles: CandleData[], period: number = 20): Promise<OverlayResult[]> {
   const ti = await getTI();
@@ -269,14 +292,14 @@ export function calcIchimoku(
     const tenkan = i >= conversionPeriod - 1
       ? (() => {
           const slice = candles.slice(i - conversionPeriod + 1, i + 1);
-          return (Math.max(...slice.map(c => c.high)) + Math.min(...slice.map(c => c.low))) / 2;
+          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
         })()
       : null;
 
     const kijun = i >= basePeriod - 1
       ? (() => {
           const slice = candles.slice(i - basePeriod + 1, i + 1);
-          return (Math.max(...slice.map(c => c.high)) + Math.min(...slice.map(c => c.low))) / 2;
+          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
         })()
       : null;
 
@@ -285,7 +308,7 @@ export function calcIchimoku(
     const senkouB = i >= spanBPeriod - 1
       ? (() => {
           const slice = candles.slice(i - spanBPeriod + 1, i + 1);
-          return (Math.max(...slice.map(c => c.high)) + Math.min(...slice.map(c => c.low))) / 2;
+          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
         })()
       : null;
 
@@ -401,8 +424,8 @@ export function calcDonchian(candles: CandleData[], period: number = 20): Donchi
       return { time: sanitizeTime(c.time), upper: null, middle: null, lower: null };
     }
     const slice = candles.slice(i - period + 1, i + 1);
-    const upper = Math.max(...slice.map(x => x.high));
-    const lower = Math.min(...slice.map(x => x.low));
+    const upper = safeMax(slice.map(x => x.high));
+    const lower = safeMin(slice.map(x => x.low));
     const middle = (upper + lower) / 2;
     return { time: sanitizeTime(c.time), upper, middle, lower };
   });

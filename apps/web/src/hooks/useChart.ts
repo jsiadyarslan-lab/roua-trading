@@ -132,6 +132,40 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const rafBufferRef = useRef<CandleData | null>(null);
   const rafIdRef = useRef<number>(0);
 
+  // ── Indicator Cache ─────────────────────────────────
+  // Stores the last calculated results for each indicator keyed by
+  // a hash of (indicatorKey + params + candleDataSignature).
+  // This prevents expensive recalculation when the same data is set
+  // multiple times (e.g., symbol/timeframe switch triggers setCandles
+  // → re-apply indicators → full recalc). With the cache, if the
+  // candle data hasn't changed and the indicator params are the same,
+  // we reuse the cached result and skip calculateIndicator().
+  interface IndicatorCacheEntry {
+    /** Hash of indicator key + params */
+    paramsHash: string;
+    /** Signature of candle data when this was calculated: `${length}:${lastTime}` */
+    dataSignature: string;
+    /** Cached calculation results */
+    results: any[];
+  }
+  const indicatorCacheRef = useRef<Map<string, IndicatorCacheEntry>>(new Map());
+
+  /** Generate a hash string for indicator params to detect changes */
+  const hashIndicatorParams = useCallback((indicator: ActiveIndicator): string => {
+    try {
+      return `${indicator.key}:${JSON.stringify(indicator.params)}`;
+    } catch {
+      return `${indicator.key}:${Date.now()}`; // Fallback: force recalc
+    }
+  }, []);
+
+  /** Generate a data signature from the current candle array */
+  const getDataSignature = useCallback((): string => {
+    const candles = candlesRef.current;
+    if (!candles.length) return '0:0';
+    return `${candles.length}:${candles[candles.length - 1].time}`;
+  }, []);
+
   // Keep the ref updated without triggering re-init
   useEffect(() => {
     onCrosshairMoveRef.current = onCrosshairMove;
@@ -739,6 +773,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // by setCandles, potentially causing "Value is null" errors.
     setActiveIndicators(new Map());
     activeIndicatorsRef.current = new Map();
+    // Clear indicator cache when symbol changes — data is completely different
+    indicatorCacheRef.current.clear();
     // Clear price lines using proper lightweight-charts v5 API
     priceLinesRef.current.forEach((line) => {
       try { candleSeriesRef.current?.removePriceLine(line); } catch {}
@@ -799,6 +835,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // FIX: Clear active indicators BOTH via React state AND directly via ref.
     setActiveIndicators(new Map());
     activeIndicatorsRef.current = new Map();
+    // Clear indicator cache when timeframe changes — data is completely different
+    indicatorCacheRef.current.clear();
     // Clear price lines using proper lightweight-charts v5 API
     priceLinesRef.current.forEach((line) => {
       try { candleSeriesRef.current?.removePriceLine(line); } catch {}
@@ -1016,483 +1054,40 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (s) { chart.removeSeries(s); oscillatorSeriesRef.current.delete(k); }
     });
 
-    // Calculate indicator data
-    const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
-    const results = await calculateIndicator(indicator, candlesRef.current);
-    if (!results.length) return;
+    // Calculate indicator data — use cache if available
+    const paramsHash = hashIndicatorParams(indicator);
+    const dataSig = getDataSignature();
+    const cacheKey = indicator.key;
+    const cached = indicatorCacheRef.current.get(cacheKey);
+
+    let results: any[];
+    if (cached && cached.paramsHash === paramsHash && cached.dataSignature === dataSig && cached.results.length > 0) {
+      // Cache HIT — reuse previous calculation results
+      results = cached.results;
+    } else {
+      // Cache MISS — recalculate and store
+      const { calculateIndicator } = await import('../lib/charts/IndicatorCalculator');
+      results = await calculateIndicator(indicator, candlesRef.current);
+      if (!results.length) return;
+
+      // Store in cache
+      indicatorCacheRef.current.set(cacheKey, {
+        paramsHash,
+        dataSignature: dataSig,
+        results,
+      });
+    }
 
     const { LineSeries, AreaSeries, HistogramSeries: LCHistogram } = await import('lightweight-charts');
 
-    // ── Helper: add overlay line series ──
-    // FIX: Filter NaN/Infinity from ALL data before passing to lightweight-charts.
-    // Indicator calculations (RSI, MACD, BB, etc.) produce NaN for the first N
-    // periods before enough data is available. NaN passes !== null checks but
-    // crashes lightweight-charts with "Value is null".
-    // FIX: Ensure time is always a Unix timestamp number (seconds), never a Date object or string.
-    // This prevents the fatal "Cannot update oldest data, last time=[object Object]" error
-    // from lightweight-charts when indicator data contains Date objects instead of numbers.
-    const cleanData = (data: { time: Time; value: number }[]) =>
-      data.map(d => ({ ...d, time: sanitizeTime(d.time) as Time })).filter(d => isValidNumber(d.time) && isValidNumber(d.value));
-
-    const addOverlayLine = (key: string, data: { time: Time; value: number }[], color: string, lineWidth: number = 1, priceLineVisible = false) => {
-      const filtered = cleanData(data);
-      if (filtered.length === 0) return; // Don't create empty series
-      const series = chart.addSeries(LineSeries, {
-        color,
-        lineWidth: lineWidth as any,
-        priceLineVisible,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-      });
-      series.setData(filtered as any);
-      overlaySeriesRef.current.set(key, series);
-    };
-
-    // ── Helper: add oscillator sub-panel series ──
-    const addOscillatorLine = (key: string, rawData: { time: Time; value: number }[], color: string, scaleId: string, lineWidth: number = 1) => {
-      // FIX: Filter NaN/Infinity before creating series
-      const data = cleanData(rawData);
-      if (data.length === 0) return; // Don't create empty series
-      // Count how many oscillator scales already exist
-      const existingScaleIds = new Set<string>();
-      oscillatorSeriesRef.current.forEach(s => {
-        try {
-          const opts = s.options() as any;
-          if (opts.priceScaleId) existingScaleIds.add(opts.priceScaleId);
-        } catch {}
-      });
-
-      const totalScales = existingScaleIds.size + 1;
-      const panelHeight = Math.min(0.15, Math.max(0.10, 0.60 / totalScales));
-
-      // Find the slot index for this scale
-      const scaleSlots = Array.from(existingScaleIds);
-      scaleSlots.push(scaleId);
-      scaleSlots.sort();
-      const slotIndex = scaleSlots.indexOf(scaleId);
-
-      const bottomMargin = slotIndex * panelHeight;
-      const topMargin = 1 - bottomMargin - panelHeight;
-
-      const series = chart.addSeries(LineSeries, {
-        color,
-        lineWidth: lineWidth as any,
-        priceLineVisible: false,
-        lastValueVisible: true,
-        crosshairMarkerVisible: false,
-        priceScaleId: scaleId,
-      });
-      series.priceScale().applyOptions({
-        scaleMargins: { top: Math.max(0.1, topMargin), bottom: bottomMargin },
-        borderVisible: false,
-      });
-      series.setData(data as any);
-      oscillatorSeriesRef.current.set(key, series);
-    };
-
-    // ════════════════════════════════════════════════════════
-    // OVERLAY INDICATORS
-    // ════════════════════════════════════════════════════════
-
-    if (indicator.key === 'sma' || indicator.key === 'ema' || indicator.key === 'vwap') {
-      const data = results.map((r: any) => {
-        const val = r.values?.[indicator.key] ?? r.value;
-        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
-      }).filter((d): d is { time: Time; value: number } => d !== null);
-      addOverlayLine(indicator.key, data, indicator.color);
-    }
-
-    else if (indicator.key === 'supertrend') {
-      // SuperTrend: one line, green when up, red when down
-      const upData: { time: Time; value: number }[] = [];
-      const downData: { time: Time; value: number }[] = [];
-      results.forEach((r: any) => {
-        const val = r.value;
-        const dir = r.direction;
-        if (!isValidNumber(val) || !isValidNumber(r.time)) return;
-        if (dir === 'up') {
-          upData.push({ time: r.time as Time, value: val });
-        } else {
-          downData.push({ time: r.time as Time, value: val });
-        }
-      });
-      addOverlayLine('supertrend-up', upData, '#3fb950', 2);
-      addOverlayLine('supertrend-down', downData, '#f85149', 2);
-    }
-
-    else if (indicator.key === 'bb') {
-      // Bollinger Bands: upper, middle, lower + fill
-      const upperData: { time: Time; value: number }[] = [];
-      const middleData: { time: Time; value: number }[] = [];
-      const lowerData: { time: Time; value: number }[] = [];
-      results.forEach((r: any) => {
-        if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
-        if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
-        if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
-      });
-      addOverlayLine('bb-upper', upperData, 'rgba(88,166,255,0.5)');
-      addOverlayLine('bb-middle', middleData, 'rgba(88,166,255,0.3)');
-      addOverlayLine('bb-lower', lowerData, 'rgba(88,166,255,0.5)');
-
-      // Fill area between upper and lower bands using upper band as top fill
-      const filteredUpper = cleanData(upperData);
-      if (filteredUpper.length > 0) {
-        const upperFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(88,166,255,0.08)',
-          bottomColor: 'rgba(88,166,255,0.02)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        upperFill.setData(filteredUpper as any);
-        overlaySeriesRef.current.set('bb-fill-upper', upperFill);
-      }
-
-      // Lower band fill (fills from bottom to lower band)
-      const filteredLower = cleanData(lowerData);
-      if (filteredLower.length > 0) {
-        const lowerFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(88,166,255,0.02)',
-          bottomColor: 'rgba(88,166,255,0.06)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        lowerFill.setData(filteredLower as any);
-        overlaySeriesRef.current.set('bb-fill-lower', lowerFill);
-      }
-    }
-
-    else if (indicator.key === 'psar') {
-      // Parabolic SAR: dots using small step-like line segments
-      const psarData: { time: Time; value: number; color?: string }[] = [];
-      results.forEach((r: any) => {
-        const val = r.values?.psar;
-        if (isValidNumber(val) && isValidNumber(r.time)) {
-          const candleIdx = candlesRef.current.findIndex(c => c.time === r.time);
-          const candle = candleIdx >= 0 ? candlesRef.current[candleIdx] : null;
-          const isBullish = candle ? val < candle.close : true;
-          psarData.push({ time: r.time as Time, value: val, color: isBullish ? '#3fb950' : '#f85149' });
-        }
-      });
-
-      // Split into bullish and bearish
-      const bullData = psarData.filter(d => d.color === '#3fb950').map(d => ({ time: d.time, value: d.value }));
-      const bearData = psarData.filter(d => d.color === '#f85149').map(d => ({ time: d.time, value: d.value }));
-
-      // Use LineSeries with dashed style to create dot-like appearance
-      // lightweight-charts v5 doesn't support point markers on LineSeries
-      const bullSeries = chart.addSeries(LineSeries, {
-        color: '#3fb950',
-        lineWidth: 1 as any,
-        lineStyle: 2, // Dashed - makes it look like dots from a distance
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-        crosshairMarkerRadius: 2,
-      });
-      bullSeries.setData(bullData as any);
-      overlaySeriesRef.current.set('psar-bull', bullSeries);
-
-      const bearSeries = chart.addSeries(LineSeries, {
-        color: '#f85149',
-        lineWidth: 1 as any,
-        lineStyle: 2, // Dashed
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false,
-        crosshairMarkerRadius: 2,
-      });
-      bearSeries.setData(bearData as any);
-      overlaySeriesRef.current.set('psar-bear', bearSeries);
-    }
-
-    else if (indicator.key === 'ichimoku') {
-      // Ichimoku: 5 lines + cloud
-      const tenkanData: { time: Time; value: number }[] = [];
-      const kijunData: { time: Time; value: number }[] = [];
-      const senkouAData: { time: Time; value: number }[] = [];
-      const senkouBData: { time: Time; value: number }[] = [];
-      const chikouData: { time: Time; value: number }[] = [];
-
-      results.forEach((r: any) => {
-        if (isValidNumber(r.tenkan) && isValidNumber(r.time)) tenkanData.push({ time: r.time as Time, value: r.tenkan });
-        if (isValidNumber(r.kijun) && isValidNumber(r.time)) kijunData.push({ time: r.time as Time, value: r.kijun });
-        if (isValidNumber(r.senkouA) && isValidNumber(r.time)) senkouAData.push({ time: r.time as Time, value: r.senkouA });
-        if (isValidNumber(r.senkouB) && isValidNumber(r.time)) senkouBData.push({ time: r.time as Time, value: r.senkouB });
-        if (isValidNumber(r.chikou) && isValidNumber(r.time)) chikouData.push({ time: r.time as Time, value: r.chikou });
-      });
-
-      addOverlayLine('ichimoku-tenkan', tenkanData, '#2dd4bf', 1);
-      addOverlayLine('ichimoku-kijun', kijunData, '#f87171', 1);
-      addOverlayLine('ichimoku-senkouA', senkouAData, 'rgba(45,212,191,0.4)', 1);
-      addOverlayLine('ichimoku-senkouB', senkouBData, 'rgba(248,113,113,0.4)', 1);
-      addOverlayLine('ichimoku-chikou', chikouData, 'rgba(255,255,255,0.3)', 1);
-
-      // Cloud fill — proper Kumo between Senkou A and Senkou B
-      // When A > B: bullish cloud (green tint), when B > A: bearish cloud (red tint)
-      const cloudTopData: { time: Time; value: number }[] = [];
-      const cloudBottomData: { time: Time; value: number }[] = [];
-      const minLen = Math.min(senkouAData.length, senkouBData.length);
-      for (let i = 0; i < minLen; i++) {
-        const a = senkouAData[i];
-        const b = senkouBData[i];
-        if (a.time === b.time && isValidNumber(a.value) && isValidNumber(b.value)) {
-          cloudTopData.push({ time: a.time, value: Math.max(a.value, b.value) });
-          cloudBottomData.push({ time: a.time, value: Math.min(a.value, b.value) });
-        }
-      }
-
-      // Bullish cloud fill (top of cloud)
-      const filteredCloudTop = cleanData(cloudTopData);
-      if (filteredCloudTop.length > 0) {
-        const cloudTopFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(45,212,191,0.08)',
-          bottomColor: 'rgba(45,212,191,0.03)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        cloudTopFill.setData(filteredCloudTop as any);
-        overlaySeriesRef.current.set('ichimoku-cloud-top', cloudTopFill);
-      }
-
-      // Bearish cloud fill (bottom of cloud)
-      const filteredCloudBottom = cleanData(cloudBottomData);
-      if (filteredCloudBottom.length > 0) {
-        const cloudBottomFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(248,113,113,0.03)',
-          bottomColor: 'rgba(248,113,113,0.08)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        cloudBottomFill.setData(filteredCloudBottom as any);
-        overlaySeriesRef.current.set('ichimoku-cloud-bottom', cloudBottomFill);
-      }
-    }
-
-    else if (indicator.key === 'pivot') {
-      // Pivot Points: horizontal lines (PP, R1-R3, S1-S3)
-      const lastCandle = candlesRef.current[candlesRef.current.length - 1];
-      if (!lastCandle) return;
-      const pivotResult = results[results.length - 1] as any;
-      if (!pivotResult || pivotResult.pp === null) return;
-
-      const pivotLines: { key: string; price: number; color: string }[] = [
-        { key: 'pp', price: pivotResult.pp, color: '#a78bfa' },
-        { key: 'r1', price: pivotResult.r1, color: 'rgba(63,185,80,0.6)' },
-        { key: 'r2', price: pivotResult.r2, color: 'rgba(63,185,80,0.4)' },
-        { key: 'r3', price: pivotResult.r3, color: 'rgba(63,185,80,0.25)' },
-        { key: 's1', price: pivotResult.s1, color: 'rgba(248,81,73,0.6)' },
-        { key: 's2', price: pivotResult.s2, color: 'rgba(248,81,73,0.4)' },
-        { key: 's3', price: pivotResult.s3, color: 'rgba(248,81,73,0.25)' },
-      ];
-
-      // Create a line for each pivot level spanning all candles
-      const allCandles = candlesRef.current;
-      pivotLines.forEach(pl => {
-        if (pl.price === null || pl.price === undefined) return;
-        const data = allCandles.map(c => ({ time: c.time as Time, value: pl.price }));
-        addOverlayLine(`pivot-${pl.key}`, data, pl.color, pl.key === 'pp' ? 2 : 1, pl.key === 'pp');
-      });
-    }
-
-    else if (indicator.key === 'donchian') {
-      // Donchian Channel: upper, middle, lower lines + fill
-      const upperData: { time: Time; value: number }[] = [];
-      const middleData: { time: Time; value: number }[] = [];
-      const lowerData: { time: Time; value: number }[] = [];
-      results.forEach((r: any) => {
-        if (isValidNumber(r.upper) && isValidNumber(r.time)) upperData.push({ time: r.time as Time, value: r.upper });
-        if (isValidNumber(r.middle) && isValidNumber(r.time)) middleData.push({ time: r.time as Time, value: r.middle });
-        if (isValidNumber(r.lower) && isValidNumber(r.time)) lowerData.push({ time: r.time as Time, value: r.lower });
-      });
-      addOverlayLine('donchian-upper', upperData, 'rgba(249,115,22,0.6)');
-      addOverlayLine('donchian-middle', middleData, 'rgba(249,115,22,0.3)', 1);
-      addOverlayLine('donchian-lower', lowerData, 'rgba(249,115,22,0.6)');
-
-      // Fill area between upper and lower bands
-      const filteredDonchianUpper = cleanData(upperData);
-      if (filteredDonchianUpper.length > 0) {
-        const upperFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(249,115,22,0.08)',
-          bottomColor: 'rgba(249,115,22,0.02)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        upperFill.setData(filteredDonchianUpper as any);
-        overlaySeriesRef.current.set('donchian-fill-upper', upperFill);
-      }
-
-      const filteredDonchianLower = cleanData(lowerData);
-      if (filteredDonchianLower.length > 0) {
-        const lowerFill = chart.addSeries(AreaSeries, {
-          topColor: 'rgba(249,115,22,0.02)',
-          bottomColor: 'rgba(249,115,22,0.06)',
-          lineColor: 'transparent',
-          lineWidth: 0 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-        });
-        lowerFill.setData(filteredDonchianLower as any);
-        overlaySeriesRef.current.set('donchian-fill-lower', lowerFill);
-      }
-    }
-
-    // ════════════════════════════════════════════════════════
-    // OSCILLATOR INDICATORS (sub-panels)
-    // ════════════════════════════════════════════════════════
-
-    else if (indicator.key === 'rsi') {
-      const data = results.map((r: any) => {
-        const val = r.values?.rsi;
-        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
-      }).filter((d): d is { time: Time; value: number } => d !== null);
-      addOscillatorLine('rsi', data, indicator.color, 'rsi-scale');
-    }
-
-    else if (indicator.key === 'macd') {
-      const macdData: { time: Time; value: number }[] = [];
-      const signalData: { time: Time; value: number }[] = [];
-      const histData: { time: Time; value: number; color: string }[] = [];
-
-      results.forEach((r: any) => {
-        if (isValidNumber(r.macd) && isValidNumber(r.time)) macdData.push({ time: r.time as Time, value: r.macd });
-        if (isValidNumber(r.signal) && isValidNumber(r.time)) signalData.push({ time: r.time as Time, value: r.signal });
-        if (isValidNumber(r.histogram) && isValidNumber(r.time)) histData.push({
-          time: r.time as Time,
-          value: r.histogram,
-          color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
-        });
-      });
-
-      addOscillatorLine('macd-line', macdData, '#58a6ff', 'macd-scale');
-
-      // Signal line (same scale)
-      const filteredSignal = cleanData(signalData);
-      if (filteredSignal.length > 0) {
-        const sigSeries = chart.addSeries(LineSeries, {
-          color: '#f97316',
-          lineWidth: 1 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-          priceScaleId: 'macd-scale',
-        });
-        sigSeries.setData(filteredSignal as any);
-        oscillatorSeriesRef.current.set('macd-signal', sigSeries);
-      }
-
-      // Histogram (same scale)
-      const filteredHist = histData.filter(d => isValidNumber(d.time) && isValidNumber(d.value));
-      if (filteredHist.length > 0) {
-        const histSeries = chart.addSeries(LCHistogram, {
-          priceScaleId: 'macd-scale',
-          priceLineVisible: false,
-          lastValueVisible: false,
-        });
-        histSeries.setData(filteredHist as any);
-        oscillatorSeriesRef.current.set('macd-hist', histSeries);
-      }
-    }
-
-    else if (indicator.key === 'stochastic') {
-      const kData: { time: Time; value: number }[] = [];
-      const dData: { time: Time; value: number }[] = [];
-      results.forEach((r: any) => {
-        // FIX: Use isValidNumber() to catch null, undefined, NaN, and Infinity
-        if (isValidNumber(r.values?.k) && isValidNumber(r.time)) kData.push({ time: r.time as Time, value: r.values.k });
-        if (isValidNumber(r.values?.d) && isValidNumber(r.time)) dData.push({ time: r.time as Time, value: r.values.d });
-      });
-
-      addOscillatorLine('stoch-k', kData, '#a855f7', 'stoch-scale');
-
-      const filteredD = cleanData(dData);
-      if (filteredD.length > 0) {
-        const dSeries = chart.addSeries(LineSeries, {
-          color: '#fbbf24',
-          lineWidth: 1 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-          priceScaleId: 'stoch-scale',
-        });
-        dSeries.setData(filteredD as any);
-        oscillatorSeriesRef.current.set('stoch-d', dSeries);
-      }
-    }
-
-    else if (indicator.key === 'atr') {
-      const data = results.map((r: any) => {
-        const val = r.values?.atr;
-        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
-      }).filter((d): d is { time: Time; value: number } => d !== null);
-      addOscillatorLine('atr', data, indicator.color, 'atr-scale');
-    }
-
-    else if (indicator.key === 'adx') {
-      const adxData: { time: Time; value: number }[] = [];
-      const pdiData: { time: Time; value: number }[] = [];
-      const mdiData: { time: Time; value: number }[] = [];
-      results.forEach((r: any) => {
-        // FIX: Use isValidNumber() to catch null, undefined, NaN, and Infinity
-        if (isValidNumber(r.values?.adx) && isValidNumber(r.time)) adxData.push({ time: r.time as Time, value: r.values.adx });
-        if (isValidNumber(r.values?.pdi) && isValidNumber(r.time)) pdiData.push({ time: r.time as Time, value: r.values.pdi });
-        if (isValidNumber(r.values?.mdi) && isValidNumber(r.time)) mdiData.push({ time: r.time as Time, value: r.values.mdi });
-      });
-
-      addOscillatorLine('adx-line', adxData, '#fbbf24', 'adx-scale', 2);
-
-      const filteredPdi = cleanData(pdiData);
-      if (filteredPdi.length > 0) {
-        const pdiSeries = chart.addSeries(LineSeries, {
-          color: '#3fb950',
-          lineWidth: 1 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-          priceScaleId: 'adx-scale',
-        });
-        pdiSeries.setData(filteredPdi as any);
-        oscillatorSeriesRef.current.set('adx-pdi', pdiSeries);
-      }
-
-      const filteredMdi = cleanData(mdiData);
-      if (filteredMdi.length > 0) {
-        const mdiSeries = chart.addSeries(LineSeries, {
-          color: '#f85149',
-          lineWidth: 1 as any,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false,
-          priceScaleId: 'adx-scale',
-        });
-        mdiSeries.setData(filteredMdi as any);
-        oscillatorSeriesRef.current.set('adx-mdi', mdiSeries);
-      }
-    }
-
-    else if (indicator.key === 'cci') {
-      const data = results.map((r: any) => {
-        const val = r.values?.cci;
-        return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
-      }).filter((d): d is { time: Time; value: number } => d !== null);
-      addOscillatorLine('cci', data, indicator.color, 'cci-scale');
-    }
-  }, []);
+    // Delegate indicator series rendering to the extracted utility
+    // (reduces this callback from ~500 lines to a single call)
+    const { renderIndicatorSeries } = await import('../lib/charts/chart-indicator-renderer');
+    renderIndicatorSeries(chart, {
+      overlaySeries: overlaySeriesRef.current,
+      oscillatorSeries: oscillatorSeriesRef.current,
+    }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
+  }, [hashIndicatorParams, getDataSignature]);
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean; skipIndicatorRebuild?: boolean }) => {

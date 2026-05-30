@@ -5,10 +5,13 @@ import { routing } from './i18n/routing';
 const intlMiddleware = createMiddleware(routing);
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// Static files bypass locale routing.
-// All files with standard static extensions (png, jpg, svg, ico, js, json, etc.)
-// must pass through WITHOUT locale prefixing. next-intl would redirect
-// /icon-192.png → /ar/icon-192.png (404), breaking PWA.
+// PWA CRITICAL FIX: Static files must NEVER be redirected by
+// next-intl locale routing. The intlMiddleware redirects
+// /icon-192.png → /ar/icon-192.png which breaks PWA.
+//
+// IMPORTANT: NextResponse.next() does NOT prevent the redirect
+// because next-intl's middleware internally uses rewrite/redirect.
+// We must explicitly SKIP calling intlMiddleware for static files.
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 const STATIC_FILE_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|eot|otf|mp3|mp4|webm|pdf|xml|txt|map|wasm|js|json|html)$/i;
@@ -16,10 +19,10 @@ const STATIC_FILE_REGEX = /\.(png|jpg|jpeg|gif|svg|ico|webp|avif|woff|woff2|ttf|
 export default function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // ── Static files: pass through without locale routing ──
+  // ── Static files: DO NOT call intlMiddleware, just continue ──
   if (STATIC_FILE_REGEX.test(pathname)) {
     const response = NextResponse.next();
-    response.headers.set('X-Middleware-Version', 'v223-direct');
+    response.headers.set('X-PWA-Bypass', 'true');
     return response;
   }
 
@@ -33,7 +36,7 @@ export default function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // ── Locale routing ──
+  // ── Locale routing (ONLY for non-static, non-API routes) ──
   return intlMiddleware(request);
 }
 

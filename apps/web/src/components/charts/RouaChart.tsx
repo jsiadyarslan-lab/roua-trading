@@ -36,8 +36,7 @@ import { TemplateManager } from './TemplateManager';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
-const MiniChartCell = dynamic(() => import('./MiniChartCell').then(m => ({ default: m.MiniChartCell })), { ssr: false })
-import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl } from '@/hooks/multi-chart-registry';
+import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl, registerChartInstance, unregisterChartInstance, registerChartControl, unregisterChartControl, type ChartControlAPI } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
@@ -517,6 +516,64 @@ export default function RouaChart({
       };
     }
   }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine, chart.setCrosshairMode]);
+
+  // ── Mini Chart: Register chart instance + control API with registry ──
+  // When RouaChart is used as a mini chart cell (isMiniChart=true),
+  // it registers its IChartApi and ChartControlAPI so the main toolbar
+  // can route commands to the active mini chart and crosshair sync works.
+  useEffect(() => {
+    if (!isMiniChart || !chartId) return;
+
+    // Register once chart instance is available
+    const register = () => {
+      const chartApi = chart.chartRef.current;
+      const mainSeries = chart.candleSeriesRef?.current;
+      if (chartApi && mainSeries) {
+        registerChartInstance(chartId, chartApi, mainSeries);
+
+        const controlApi: ChartControlAPI = {
+          zoomIn: chart.zoomIn,
+          zoomOut: chart.zoomOut,
+          resetView: chart.resetView,
+          setChartType: (type: ChartType) => {
+            useMultiChartStore.getState().updateChartConfig(chartId, { chartType: type });
+          },
+          setTool: chart.setTool,
+          togglePause: chart.togglePause,
+          get isPaused() { return chart.isPaused; },
+          get activeTool() { return chart.activeTool; },
+          clearDrawings: chart.clearDrawings,
+          exportPNG: chart.exportPNG,
+          exportCSV: chart.exportCSV,
+          exportSVG: chart.exportSVG,
+          toggleFullscreen: () => {},
+          isFullscreen: false,
+          addPriceLine: chart.addPriceLine,
+          removePriceLine: chart.removePriceLine,
+          setCrosshairMode: chart.setCrosshairMode,
+        };
+        registerChartControl(chartId, controlApi);
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately, then poll if chart not yet ready
+    if (register()) return;
+
+    const interval = setInterval(() => {
+      if (register()) clearInterval(interval);
+    }, 100);
+    const timeout = setTimeout(() => clearInterval(interval), 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      unregisterChartInstance(chartId);
+      unregisterChartControl(chartId);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chartId, isMiniChart]);
 
   // ── Auto-run Pattern Engine when candles update ──
   // FIX: Throttled to run at most once every 30 seconds. Previously ran on
@@ -1991,7 +2048,7 @@ export default function RouaChart({
         chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
         onSetTimeframe={isMultiChart ? ((tf: string) => {
           const ctrl = getActiveChartControl();
-          if (ctrl) { /* timeframe is updated via updateChartConfig in MiniChartCell */ }
+          if (ctrl) { /* timeframe is updated via updateChartConfig in RouaChart mini instance */ }
           const activeCell = charts.find(c => c.id === activeChartId);
           if (activeCell) useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
         }) : setTimeframe}
@@ -2085,7 +2142,7 @@ export default function RouaChart({
               position: 'relative',
             }}>
               {visibleCharts.map(cell => (
-                <MiniChartCell
+                <RouaChart
                   key={cell.id}
                   chartId={cell.id}
                   symbol={cell.symbol}
@@ -2095,6 +2152,8 @@ export default function RouaChart({
                   onActivate={() => setActiveChartId(cell.id)}
                   onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
                   canClose={charts.length > 1}
+                  compact
+                  mobile
                 />
               ))}
             </div>

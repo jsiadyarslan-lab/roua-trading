@@ -65,8 +65,8 @@ self.addEventListener("push", (event) => {
   let data: Record<string, unknown> = {
     title: "رؤى للتداول",
     body: "لديك إشعار جديد",
-    icon: "/api/pwa-asset?file=icon-192.png",
-    badge: "/api/pwa-asset?file=icon-192.png",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
     tag: "roua-notification",
     data: {},
   };

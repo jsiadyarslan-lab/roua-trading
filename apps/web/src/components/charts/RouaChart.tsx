@@ -351,26 +351,26 @@ export default function RouaChart({
   const selectedSymbol_ = effectiveSymbol;
   const timeframe_ = effectiveTimeframe;
 
-  // ── Mini-chart mode ──
-  // When compact prop is true OR symbol+timeframe props are provided,
-  // this RouaChart is operating as a mini chart cell in the multi-chart grid.
-  // FIX: Also check `compact` to prevent infinite recursion when
-  // symbol/timeframe are somehow undefined but compact is true.
-  // Without this, a grid cell with missing symbol/timeframe would NOT
-  // be a mini chart, and would try to render its own grid → infinite
-  // recursion → React error #185.
-  const isMiniChart = compact || !!(symbolProp && timeframeProp);
+  // ── Grid cell detection ──
+  // A RouaChart is a grid cell when it has a chartId AND per-instance
+  // symbol/timeframe props. Grid cells are FULL interactive charts
+  // (not stripped-down "mini" versions). They render without their own
+  // toolbar — the main toolbar at the top controls the active cell.
+  // We NO LONGER use `compact` to mark grid cells because it was
+  // stripping features (drawing, trades, indicators) making charts
+  // look like static images. Now all charts are full-featured.
+  const isGridCell = !!(chartId && symbolProp && timeframeProp);
 
   // Multi-chart state — only relevant for the main (non-mini) chart instance
   // FIX: Use stable selectors to prevent infinite re-renders.
   // Previously, inline selectors returned new `[]` every render for mini charts,
   // causing Zustand to detect a change and re-render → infinite loop → React error #185.
-  const multiChartLayout = useMultiChartStore(s => !isMiniChart ? (s.layout ?? '1x1') : '1x1');
-  const isMultiChart = useMultiChartStore(s => !isMiniChart ? (s.isMultiChart === true) : false);
-  const activeChartId = useMultiChartStore(s => !isMiniChart ? (s.activeChartId ?? 'mc-1') : '');
+  const multiChartLayout = useMultiChartStore(s => !isGridCell ? (s.layout ?? '1x1') : '1x1');
+  const isMultiChart = useMultiChartStore(s => !isGridCell ? (s.isMultiChart === true) : false);
+  const activeChartId = useMultiChartStore(s => !isGridCell ? (s.activeChartId ?? 'mc-1') : '');
   // FIX: Use store directly for charts to avoid selector returning new array each render
   const chartsRaw = useMultiChartStore(s => s.charts);
-  const charts = isMiniChart ? EMPTY_CHARTS : (Array.isArray(chartsRaw) ? chartsRaw : [
+  const charts = isGridCell ? EMPTY_CHARTS : (Array.isArray(chartsRaw) ? chartsRaw : [
     { id: 'mc-1', symbol: selectedSymbol_, timeframe: timeframe_, chartType: 'candle' as ChartType },
   ]);
   const addChart = useMultiChartStore(s => s.addChart);
@@ -545,11 +545,11 @@ export default function RouaChart({
   }, [chartActions, chart.setTool, chart.zoomIn, chart.zoomOut, chart.togglePause, chart.setChartType, chart.isPaused, chart.activeTool, chart.addPriceLine, chart.removePriceLine, chart.setCrosshairMode]);
 
   // ── Mini Chart: Register chart instance + control API with registry ──
-  // When RouaChart is used as a mini chart cell (isMiniChart=true),
+  // When RouaChart is used as a grid cell (isGridCell=true),
   // it registers its IChartApi and ChartControlAPI so the main toolbar
-  // can route commands to the active mini chart and crosshair sync works.
+  // can route commands to the active cell and crosshair sync works.
   useEffect(() => {
-    if (!isMiniChart || !chartId) return;
+    if (!isGridCell || !chartId) return;
 
     // Register once chart instance is available
     const register = () => {
@@ -603,7 +603,7 @@ export default function RouaChart({
       unregisterChartControl(chartId);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartId, isMiniChart]);
+  }, [chartId, isGridCell]);
 
   // ── Auto-run Pattern Engine when candles update ──
   // FIX: Throttled to run at most once every 30 seconds. Previously ran on
@@ -864,7 +864,7 @@ export default function RouaChart({
     // own WebSocket connections. Without this, the main chart's hidden canvas
     // still receives and processes data for nothing, and can cause the main
     // chart's candles to be in an inconsistent state when returning to single mode.
-    enabled: !chart.isPaused && !(isMultiChart && !isMiniChart),
+    enabled: !chart.isPaused && !(isMultiChart && !isGridCell),
   });
 
   // ── Multi-Chart: Automatic Crosshair + Scroll Sync ──
@@ -1379,7 +1379,7 @@ export default function RouaChart({
   useEffect(() => {
     // This effect is only for the main (non-mini) chart — mini charts don't
     // have a "previous multi-chart state" to restore from.
-    if (isMiniChart) return;
+    if (isGridCell) return;
     const wasMultiChart = prevIsMultiChartRef.current;
     prevIsMultiChartRef.current = isMultiChart;
 
@@ -1407,7 +1407,7 @@ export default function RouaChart({
         resetViewRef.current();
       }, 300);
     }
-  }, [isMultiChart, isMiniChart]); // FIX: Removed chart.chartRef/chart.containerRef from deps — refs are stable
+  }, [isMultiChart, isGridCell]); // FIX: Removed chart.chartRef/chart.containerRef from deps — refs are stable
 
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
@@ -1419,7 +1419,7 @@ export default function RouaChart({
   // Also uses refs for chart methods to avoid re-running on every render.
   useEffect(() => {
     // Position/trade lines should show on ALL charts (main + mini cells).
-    // Previously this was gated by `if (isMiniChart) return;` which prevented
+    // Previously this was gated by `if (isGridCell) return;` which prevented
     // mini chart cells from showing open positions/trades — the user's #1 complaint.
     const addPriceLine = addPriceLineRef.current;
     const removePriceLine = removePriceLineRef.current;
@@ -1505,7 +1505,7 @@ export default function RouaChart({
   // FIX: Removed `chart` from deps — uses refs for all chart method access.
   // This prevents the effect from re-running on every render (chart is a new
   // object each render), which caused position lines to be rapidly added/removed.
-  }, [positions, paperTrades, selectedSymbol_, isMiniChart]);
+  }, [positions, paperTrades, selectedSymbol_, isGridCell]);
 
 
 
@@ -2140,7 +2140,7 @@ export default function RouaChart({
   // created a new closure each render → React unmount/remount all children →
   // broken charts + React error #185 from cascading re-renders.
   const multiChartGrid = useMemo(() => {
-    if (isMiniChart || !isMultiChart) return null;
+    if (isGridCell || !isMultiChart) return null;
     const meta = LAYOUT_METAS[multiChartLayout];
     if (!meta) return null; // Defensive: invalid layout key
     const visibleCharts = charts.slice(0, meta.cols * meta.rows);
@@ -2167,57 +2167,86 @@ export default function RouaChart({
             onActivate={() => setActiveChartId(cell.id)}
             onClose={charts.length > 1 ? () => removeChart(cell.id) : undefined}
             canClose={charts.length > 1}
-            compact
-            mobile
           />
         ))}
       </div>
     );
   // FIX: Include all values used inside the memo. Previously the IIFE
   // captured stale closures because it had no dependency tracking.
-  }, [isMiniChart, isMultiChart, multiChartLayout, charts, activeChartId, setActiveChartId, removeChart]);
+  }, [isGridCell, isMultiChart, multiChartLayout, charts, activeChartId, setActiveChartId, removeChart]);
 
   const toolbarHeight = hideToolbar ? 0 : mobile ? 48 : 38;
 
   return (
     <div
+      onMouseDown={isGridCell ? onActivate : undefined}
       style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         width: '100%',
         background: T.bg,
+        // Active cell gets a bright border so the user knows which chart the toolbar controls
+        outline: isGridCell && isActive ? '1.5px solid rgba(0,212,255,0.4)' : isGridCell ? '1px solid #1E2530' : 'none',
+        outlineOffset: '-1px',
+        borderRadius: isGridCell ? 4 : 0,
+        overflow: 'hidden',
       }}
       className="roua-chart-root"
     >
       {/* ── TOOLBAR ── */}
-      {isMiniChart ? (
-        <MiniChartHeader
-          symbol={effectiveSymbol}
-          timeframe={effectiveTimeframe}
-          currentPrice={currentPrice}
-          changePercent={(() => {
-            const c = candlesRef.current;
-            if (c.length >= 2) {
-              const prev = c[c.length - 2].close;
-              const last = c[c.length - 1].close;
-              return prev > 0 ? ((last - prev) / prev) * 100 : null;
-            }
-            return null;
-          })()}
-          isPaused={chart.isPaused}
-          loading={feedState === 'waiting'}
-          onSymbolChange={(s) => {
-            if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { symbol: s });
+      {isGridCell ? (
+        /* Grid Cell Header — thin bar showing symbol/timeframe + close.
+         * The MAIN toolbar at the top controls this chart (drawing, indicators,
+         * zoom, etc.). This header only shows: which chart this is + close button.
+         * Click anywhere on this header to make this the active chart. */
+        <div
+          onMouseDown={onActivate}
+          style={{
+            display: 'flex', alignItems: 'center', height: 22, padding: '0 4px',
+            borderBottom: isActive ? '1.5px solid rgba(0,212,255,0.5)' : '1px solid #1E2530',
+            background: isActive ? 'rgba(0,212,255,0.06)' : 'rgba(17,22,32,0.95)',
+            boxShadow: isActive ? '0 0 12px rgba(0,212,255,0.12)' : 'none',
+            flexShrink: 0, gap: 4, direction: 'ltr', cursor: 'default',
           }}
-          onTimeframeChange={(tf) => {
-            if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { timeframe: tf });
-          }}
-          onActivate={onActivate || (() => {})}
-          onClose={onClose}
-          canClose={canClose}
-          isActive={isActive}
-        />
+        >
+          <span style={{
+            color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 10, fontWeight: 700, flexShrink: 0,
+          }}>
+            {effectiveSymbol}
+          </span>
+          <span style={{
+            color: isActive ? '#F0F2F5' : '#4B5563',
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9, fontWeight: 500, flexShrink: 0,
+          }}>
+            {TIMEFRAMES.find(t => t.value === effectiveTimeframe)?.label || effectiveTimeframe}
+          </span>
+          {chart.isPaused && (
+            <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
+          )}
+          {feedState === 'waiting' && (
+            <div style={{ width: 8, height: 8, border: '2px solid #1E2530',
+              borderTopColor: '#00D4FF', borderRadius: '50%', animation: 'mcSpin 1s linear infinite' }} />
+          )}
+          <div style={{ flex: 1 }} />
+          {canClose && onClose && (
+            <button onClick={e => { e.stopPropagation(); onClose(); }}
+              style={{
+                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 2, color: '#4B5563', width: 16, height: 16, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
+                flexShrink: 0,
+              }}
+              title="Close chart"
+            >
+              <svg width="7" height="7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+        </div>
       ) : (!hideToolbar ? <ChartToolbar
         symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol_) : selectedSymbol_}
         timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe_) : timeframe_}
@@ -2389,10 +2418,10 @@ export default function RouaChart({
           // Using display:none would prevent lightweight-charts from rendering,
           // but since the WebSocket is disabled for hidden main chart anyway,
           // visibility:hidden + height:0 is better to keep the container in layout.
-          ...(isMultiChart && !isMiniChart ? { display: 'none' } : {}),
+          ...(isMultiChart && !isGridCell ? { display: 'none' } : {}),
         }}>
             {/* OHLC Overlay */}
-        {(!isMultiChart || isMiniChart) && (
+        {(!isMultiChart || isGridCell) && (
         <CrosshairOverlay
           symbol={selectedSymbol_}
           currentPrice={currentPrice}

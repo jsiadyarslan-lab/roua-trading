@@ -1270,8 +1270,8 @@ export default function DashboardPage() {
     <>
       {/* Scoped styles via useScopedStyle */}<BotEngine />
 
-      {!isMobileViewport && (
-        <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`}>
+      {/* Desktop — hidden by CSS on mobile */}
+      <div className={`dash-grid dashboard-shell${chartFullscreen ? ' chart-fullscreen' : ''}`} style={{ display: isMobileViewport ? 'none' : undefined }}>
           {/* Left Sidebar — hidden on compact desktop when drawer is used */}
           {!(isCompactDesktopViewport && !sidebarPinned) && (
             <div className="dash-col dash-col-left animate-in-1" style={{ height: '100%' }}>
@@ -1452,8 +1452,8 @@ export default function DashboardPage() {
       {/* ═══════════════════════════════════════════
            MOBILE V2 — التصميم الجديد
           ═══════════════════════════════════════════ */}
-      {isMobileViewport && (
-        <div className="m2-shell">
+      {/* Mobile V2 — hidden by CSS on desktop */}
+      <div className="m2-shell" style={{ display: isMobileViewport ? undefined : 'none' }}>
 
           {/* ── TICKER STRIP ── */}
           <div className="m2-ticker">

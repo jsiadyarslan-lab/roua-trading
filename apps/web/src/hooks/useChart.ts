@@ -520,7 +520,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     setIsChartReady(true);
 
     // ── Crosshair Move Handler ──
-    chart.subscribeCrosshairMove((param: MouseEventParams) => {
+    chart.subscribeCrosshairMove((param: MouseEventParams) => { try {
       if (!param.time || !param.point) {
         onCrosshairMoveRef.current?.(null);
         return;
@@ -586,6 +586,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         changePercent,
         dateStr,
       });
+    } catch (e) {
+      // Silently ignore any lightweight-charts internal errors in crosshair handler
+      onCrosshairMoveRef.current?.(null);
+    }
     });
 
     // ── Resize Observer ──

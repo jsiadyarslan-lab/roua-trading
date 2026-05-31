@@ -723,12 +723,13 @@ export function ChartToolbar(props: ChartToolbarProps) {
                 borderRadius: 4,
                 color: COLORS.cyan,
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: 11,
+                fontSize: 9,
                 fontWeight: 700,
-                padding: '1px 6px',
+                padding: '0 2px',
                 cursor: 'pointer',
                 outline: 'none',
-                height: 22,
+                height: 18,
+                maxWidth: 68,
               }}
             >
               {TOOLBAR_SYMBOLS.map(s => (
@@ -895,18 +896,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         <div style={sepStyle} />
 
-        {/* ── Group 5: Monitoring ── */}
-        {onToggleAlerts && (
-          <button
-            style={toggleBtnStyle(!!showAlerts)}
-            onClick={onToggleAlerts}
-            title={t('alerts')}
-          >
-            🔔
-          </button>
-        )}
-
-        {/* ── Group 6: Trading ── */}
+        {/* ── Group 5: Trading ── */}
 
         {/* Chart Trading (existing) */}
         {onToggleChartTrading && (
@@ -950,27 +940,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
-        {/* ── Multi-Chart: + Add Chart ── */}
-        {onAddChart && (
-          <button
-            style={{
-              ...btnStyle,
-              background: 'rgba(0,212,255,0.08)',
-              border: '1px solid rgba(0,212,255,0.2)',
-              color: COLORS.cyan,
-              padding: '0 5px',
-              fontWeight: 700,
-            }}
-            onClick={onAddChart}
-            title="Add Chart (+)"
-          >
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginInlineEnd: 2 }}>
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>
-            </svg>
-            <span style={{ fontSize: 8, fontWeight: 700 }}>+</span>
-          </button>
-        )}
-
         {/* ── Multi-Chart: Layout Selector ▦ ── */}
         {onToggleLayoutSelector && (
           <button
@@ -988,23 +957,6 @@ export function ChartToolbar(props: ChartToolbarProps) {
               <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
             </svg>
             <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>▦</span>
-          </button>
-        )}
-
-        {/* ── Multi-Chart: Remove Chart × ── */}
-        {isMultiChart && onRemoveChart && (
-          <button
-            style={{
-              ...btnStyle,
-              color: COLORS.danger,
-              padding: '0 5px',
-            }}
-            onClick={onRemoveChart}
-            title="Remove active chart"
-          >
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/>
-            </svg>
           </button>
         )}
 
@@ -1054,6 +1006,17 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
+          </button>
+        )}
+
+        {/* Alerts — placed after Settings */}
+        {onToggleAlerts && (
+          <button
+            style={toggleBtnStyle(!!showAlerts)}
+            onClick={onToggleAlerts}
+            title={t('alerts')}
+          >
+            🔔
           </button>
         )}
 

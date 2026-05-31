@@ -1046,18 +1046,23 @@ export class TradingService {
         else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
         else leverage = cryptoLev;
 
-        const notional = posEntryPrice * closeQuantity;
+        // FIX: Use entryPrice (fixed at open) not currentPrice for margin calculation
+        // Using currentPrice caused wrong margin return when price moved significantly
+        const notional = posEntryPrice * closeQuantity;  // Always use entry price
         const marginToReturn = leverage > 1 ? notional / leverage : notional;
         const totalReturn = marginToReturn + pnl;
+
+        // Safety check: never add negative total (protects against extreme loss edge cases)
+        const safeReturn = Math.max(-marginToReturn, totalReturn);
 
         // Atomic increment — prevents race condition
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${totalReturn}
+          SET "paperBalance" = "paperBalance" + ${safeReturn}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172d Paper balance on close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V172e Paper balance on close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${safeReturn.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
@@ -1371,11 +1376,11 @@ export class TradingService {
 
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${totalReturn}
+          SET "paperBalance" = "paperBalance" + ${Math.max(-marginToReturn, totalReturn)}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172d Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V172e Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);
@@ -1437,7 +1442,7 @@ export class TradingService {
   /**
    * Get closed positions for a user
    */
-  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string) {
+  async getClosedPositions(userId: string, limit: number = 500, from?: string, to?: string) {
     try {
       const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
 

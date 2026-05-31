@@ -321,7 +321,7 @@ export default function PortfolioPage() {
 
   const fetchClosedPositions = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/positions/history?limit=100')
+      const res = await fetch('/api/trading/positions/history?limit=500')
       if (res.ok) {
         const data = await res.json()
         setClosedPositions(Array.isArray(data) ? data : (data.data || data.positions || []))

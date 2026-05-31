@@ -123,7 +123,7 @@ export function AlpacaPositions() {
     if (closedLoading) return
     setClosedLoading(true)
     try {
-      const res = await fetch('/api/trading/positions/history?limit=50')
+      const res = await fetch('/api/trading/positions/history?limit=500')
       if (res.ok) {
         const data = await res.json()
         const positions = Array.isArray(data) ? data : (data.data || data.positions || [])
@@ -305,6 +305,8 @@ export function AlpacaPositions() {
   }, [fetchPositions, fetchAccount])
   // Poll every 30s — pauses when tab hidden
   useVisibleInterval(() => { fetchPositions(); fetchAccount() }, 30000)
+  // FIX: Auto-refresh closed positions every 30s to catch agent/automated closes
+  useVisibleInterval(() => { fetchClosedPositions() }, 30000)
 
   const refreshAfterTrade = usePositionsStore(state => state.refreshAfterTrade)
   const addNotification = useNotificationStore(state => state.addNotification)
@@ -849,11 +851,14 @@ export function AlpacaPositions() {
 
               {/* V141: Also show localStorage paper trades (for backwards compatibility) */}
               {closedTrades.map((ct: ClosedPaperTrade) => {
-                // Skip if this trade is already shown from the DB
-                const alreadyInDb = dbClosedPositions.some((cp: any) =>
-                  cp.symbol?.replace('/', '') === ct.symbol.replace('/', '') &&
-                  Math.abs(Number(cp.entryPrice) - ct.entryPrice) < 0.01
-                )
+                // FIX: Skip localStorage trades that are already in DB
+                // Improved deduplication: match by symbol + entryPrice + side (more precise)
+                const alreadyInDb = dbClosedPositions.some((cp: any) => {
+                  const sameSymbol = (cp.symbol || '').replace('/', '') === ct.symbol.replace('/', '')
+                  const sameEntry  = Math.abs(Number(cp.entryPrice) - ct.entryPrice) < 0.0001
+                  const sameSide   = (cp.side || '').toLowerCase() === ct.side
+                  return sameSymbol && sameEntry && sameSide
+                })
                 if (alreadyInDb) return null
 
                 const isLong = ct.side === 'long'

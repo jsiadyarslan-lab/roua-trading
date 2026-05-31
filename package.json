@@ -18,7 +18,7 @@
     "seed:reports": "npx ts-node -P apps/api/tsconfig.json scripts/seed-reports.ts"
   },
   "devDependencies": {
-    "prisma": "6.19.3",
+    "prisma": "^6.19.3",
     "terser-webpack-plugin": "^5.5.0",
     "turbo": "^2.9.15",
     "typescript": "^5"
@@ -27,7 +27,7 @@
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.1040.0",
     "@parcel/watcher": "^2.5.6",
-    "@prisma/client": "6.19.3",
+    "@prisma/client": "^6.19.3",
     "@serwist/cacheable-response": "^9.5.11",
     "@serwist/expiration": "^9.5.11",
     "@serwist/next": "^9.5.11",

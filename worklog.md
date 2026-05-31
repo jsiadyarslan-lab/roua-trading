@@ -132,3 +132,24 @@ Stage Summary:
 - Key fix: All `chart` dependencies removed from effect/callback deps, replaced with refs
 - Build succeeds, push to GitHub successful (778b46bb)
 - Railway will auto-deploy from this push
+---
+Task ID: 1
+Agent: Super Z (main)
+Task: Fix dancing lines/colors/labels and candles-as-dots regression in Roua Trading chart
+
+Work Log:
+- Analyzed the entire chart rendering pipeline: useChart.ts, RouaChart.tsx, DrawingRenderer.ts, chart-options.ts, chart-primitives.ts
+- Identified root cause of "dancing" lines: addPriceLine always removed+recreated lines even when options unchanged, causing visual flicker on every positions/paperTrades update
+- Identified root cause of "candles as dots": chart.applyOptions() calls in setCrosshairMode and updateSettings triggered GPU recomposition that could make candle bodies disappear
+- Fixed addPriceLine: Now stores PriceLineEntry (line + options) and skips remove+recreate when all options match
+- Fixed removePriceLine: Handles new PriceLineEntry format with backward compatibility
+- Fixed position line effect in RouaChart.tsx: Changed from "remove all → recreate all" to diff-based updates (only removes stale lines)
+- Fixed setCrosshairMode: Replaced chart.applyOptions() with capture-phase event listeners (same approach as DrawingRenderer uses for drawing tools)
+- Fixed updateSettings: Batched all chart-level applyOptions into single call to reduce GPU recompositions
+- Fixed price line cleanup in symbol/timeframe change effects to handle new PriceLineEntry format
+
+Stage Summary:
+- Key fix: addPriceLine now detects unchanged lines and skips update → no more dancing/flickering
+- Key fix: setCrosshairMode uses event capture instead of applyOptions → no GPU recomposition → no more dots
+- Key fix: Position line effect uses diff-based updates → only stale lines removed, existing ones kept
+- Pushed to remote: a83c4c20 → a127ebca5

@@ -233,6 +233,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         visible: ind.visible,
       }));
 
+      // Capture drawings from DrawingManager
+      const drawings = drawingManagerRef.current?.getAll() || [];
+
       // Capture visible range from chart
       let visibleRange: { from: number; to: number } | null = null;
       if (chartInstanceRef.current) {
@@ -251,6 +254,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         chartType: settings.type,
         settings,
         indicators,
+        drawings,
         visibleRange,
         activeTool,
       });
@@ -332,6 +336,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         });
         setActiveIndicators(restoredIndicators);
         activeIndicatorsRef.current = restoredIndicators;
+      }
+
+      // Restore drawings — import into DrawingManager and redraw
+      if (saved.drawings && saved.drawings.length > 0 && drawingManagerRef.current) {
+        const adaptedDrawings = saved.drawings.map(d => ({ ...d, symbol }));
+        drawingManagerRef.current.importDrawings(JSON.stringify(adaptedDrawings));
+        // Redraw after a short delay (renderer needs chart to be ready)
+        setTimeout(() => {
+          drawingRendererRef.current?.redraw();
+        }, 500);
       }
 
       // DO NOT restore saved visible range on symbol/timeframe switch.
@@ -590,6 +604,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           candleSeriesRef.current,
           container,
           drawingManagerRef.current,
+          // onDrawingChange callback — triggers auto-save when drawings are completed/dragged
+          () => { debouncedSaveChartStateRef.current(); },
         );
         // Use the LATEST activeTool from state, not the stale closure value.
         // This fixes a race condition where the user clicks a tool before
@@ -690,6 +706,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // Now, save/restore are done via refs to prevent re-triggering.
   const saveChartStateRef = useRef(saveChartState);
   useEffect(() => { saveChartStateRef.current = saveChartState; }, [saveChartState]);
+  const debouncedSaveChartStateRef = useRef(debouncedSaveChartState);
+  useEffect(() => { debouncedSaveChartStateRef.current = debouncedSaveChartState; }, [debouncedSaveChartState]);
   const restoreChartStateRef = useRef(restoreChartState);
   useEffect(() => { restoreChartStateRef.current = restoreChartState; }, [restoreChartState]);
 
@@ -1474,16 +1492,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const addDrawing = useCallback((tool: DrawingTool, points: { time: number; price: number }[]) => {
     if (!drawingManagerRef.current) return;
     drawingManagerRef.current.create(tool, points);
-  }, []);
+    debouncedSaveChartState();
+  }, [debouncedSaveChartState]);
 
   const removeDrawing = useCallback((id: string) => {
     drawingManagerRef.current?.delete(id);
-  }, []);
+    debouncedSaveChartState();
+  }, [debouncedSaveChartState]);
 
   const clearDrawings = useCallback(() => {
     drawingManagerRef.current?.clearAll();
     drawingRendererRef.current?.clearAndRedraw();
-  }, []);
+    debouncedSaveChartState();
+  }, [debouncedSaveChartState]);
 
   const getDrawings = useCallback((): Drawing[] => {
     return drawingManagerRef.current?.getAll() || [];
@@ -1494,7 +1515,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const adapted = drawings.map(d => ({ ...d, symbol }));
     drawingManagerRef.current.importDrawings(JSON.stringify(adapted));
     drawingRendererRef.current?.redraw();
-  }, [symbol]);
+    debouncedSaveChartState();
+  }, [symbol, debouncedSaveChartState]);
 
   const setTool = useCallback((tool: DrawingTool) => {
     setActiveTool(tool);

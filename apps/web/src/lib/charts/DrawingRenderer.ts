@@ -850,6 +850,7 @@ export class DrawingRenderer {
   private candleSeries: ISeriesApi<'Candlestick'>;
   private container: HTMLDivElement;
   private drawingManager: DrawingManager;
+  private onDrawingChange?: () => void;
 
   private primitive: DrawingSeriesPrimitive | null = null;
 
@@ -877,11 +878,12 @@ export class DrawingRenderer {
 
   private static readonly PROXIMITY_THRESHOLD = 12;
 
-  constructor(chart: IChartApi, candleSeries: ISeriesApi<'Candlestick'>, container: HTMLDivElement, drawingManager: DrawingManager) {
+  constructor(chart: IChartApi, candleSeries: ISeriesApi<'Candlestick'>, container: HTMLDivElement, drawingManager: DrawingManager, onDrawingChange?: () => void) {
     this.chart = chart;
     this.candleSeries = candleSeries;
     this.container = container;
     this.drawingManager = drawingManager;
+    this.onDrawingChange = onDrawingChange;
 
     this.boundMouseDown = this.onMouseDown.bind(this);
     this.boundMouseMove = this.onMouseMove.bind(this);
@@ -1205,6 +1207,8 @@ export class DrawingRenderer {
       this.dragStartChartPoint = null;
       if (this.currentTool === 'cursor') this.setChartInteractionEnabled(true);
       this.container.style.cursor = '';
+      // Notify that drawings changed (drag completed, triggers auto-save)
+      this.onDrawingChange?.();
     }
   }
 
@@ -1229,5 +1233,7 @@ export class DrawingRenderer {
     this.mousePixel = null;
     this.container.style.cursor = 'crosshair';
     this.syncPrimitive();
+    // Notify that drawings changed (triggers auto-save)
+    this.onDrawingChange?.();
   }
 }

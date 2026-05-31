@@ -10,7 +10,7 @@
 
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
-import type { ChartType, ChartSettings, ActiveIndicator, DrawingTool } from '@/lib/charts/types'
+import type { ChartType, ChartSettings, ActiveIndicator, Drawing, DrawingTool } from '@/lib/charts/types'
 
 // ── Serialized Indicator (config only, no computed data) ──
 
@@ -28,6 +28,7 @@ export interface ChartConfig {
   chartType: ChartType;
   settings: ChartSettings;
   indicators: SerializedIndicator[];
+  drawings: Drawing[];                 // Serialized drawings (trend lines, fibs, etc.)
   visibleRange: { from: number; to: number } | null;
   activeTool: DrawingTool;
   lastSaved: number;                   // Timestamp for conflict resolution

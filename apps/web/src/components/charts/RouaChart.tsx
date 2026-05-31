@@ -10,6 +10,7 @@ import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
 import { getPortalRoot } from '@/lib/portal-root';
 import { useChart } from '@/hooks/useChart';
+import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
 import { useChartWebSocket } from '@/hooks/useChartWebSocket';
 import { useSymbolStore } from '@/hooks/useSymbolStore';
 import { usePositionsStore } from '@/hooks/usePositionsStore';
@@ -649,15 +650,33 @@ export default function RouaChart({
           applyChartState: (state: CellChartState) => {
             // Apply settings
             chart.updateSettings(state.settings);
-            // Apply indicators
-            state.indicators.forEach(ind => chart.addIndicator(ind));
-            // Apply drawings
-            if (state.drawings && state.drawings.length > 0) {
-              chart.importDrawings(state.drawings);
-            }
             // Apply chart type
             if (state.chartType && state.chartType !== chart.settings.type) {
               chart.updateSettings({ type: state.chartType } as any);
+            }
+            // Save indicators and drawings to useChartStateStore so they
+            // get restored automatically when candles load.
+            // Direct addIndicator() fails if candles haven't loaded yet.
+            const store = useChartStateStore.getState();
+            const indicators: SerializedIndicator[] = (state.indicators || []).map(ind => ({
+              key: ind.key,
+              params: ind.params,
+              color: ind.color,
+              opacity: ind.opacity,
+              visible: ind.visible,
+            }));
+            store.saveChartConfig(state.symbol, state.timeframe, {
+              chartType: state.chartType,
+              settings: state.settings,
+              indicators,
+              drawings: state.drawings || [],
+            });
+            // If chart already has candles, apply immediately too
+            if (chart.candleSeriesRef?.current) {
+              state.indicators?.forEach(ind => chart.addIndicator(ind));
+              if (state.drawings && state.drawings.length > 0) {
+                chart.importDrawings(state.drawings);
+              }
             }
           },
           // ── Panel state getters (use refs to avoid stale closures) ──
@@ -3019,37 +3038,71 @@ export default function RouaChart({
               onLoadGridTemplate={isMultiChart ? ((id: string) => {
                 const gridTemplate = GridTemplateManager.load(id);
                 if (!gridTemplate) return;
-                const store = useMultiChartStore.getState();
-                // Change layout to match template (this creates/removes cells as needed)
-                store.changeLayout(gridTemplate.layout, selectedSymbol_, timeframe_);
-                // Now apply each cell's state after a short delay (layout change needs to render first)
-                setTimeout(() => {
-                  const updatedStore = useMultiChartStore.getState();
-                  gridTemplate.cells.forEach((cellState, index) => {
-                    const chartCfg = updatedStore.charts[index];
-                    if (chartCfg) {
-                      // Update cell config (symbol, timeframe, chartType)
-                      updatedStore.updateChartConfig(chartCfg.id, {
-                        symbol: cellState.symbol,
-                        timeframe: cellState.timeframe,
-                        chartType: cellState.chartType,
-                      });
-                    }
+
+                // STEP 1: Pre-save each cell's state to useChartStateStore
+                // This MUST happen BEFORE changing symbols/timeframes so that
+                // restoreChartState() (triggered by symbol/timeframe change)
+                // will find the correct state in the store.
+                const chartStateStore = useChartStateStore.getState();
+                gridTemplate.cells.forEach((cellState) => {
+                  const indicators: SerializedIndicator[] = (cellState.indicators || []).map(ind => ({
+                    key: ind.key,
+                    params: ind.params,
+                    color: ind.color,
+                    opacity: ind.opacity,
+                    visible: ind.visible,
+                  }));
+                  chartStateStore.saveChartConfig(cellState.symbol, cellState.timeframe, {
+                    chartType: cellState.chartType,
+                    settings: cellState.settings,
+                    indicators,
+                    drawings: cellState.drawings || [],
                   });
-                  // Apply chart state (settings, indicators, drawings) after config changes propagate
-                  setTimeout(() => {
-                    const finalStore = useMultiChartStore.getState();
-                    gridTemplate.cells.forEach((cellState, index) => {
-                      const chartCfg = finalStore.charts[index];
-                      if (chartCfg) {
-                        const ctrl = getChartControl(chartCfg.id);
-                        if (ctrl) {
-                          ctrl.applyChartState(cellState);
-                        }
-                      }
-                    });
-                  }, 500);
-                }, 300);
+                });
+
+                // STEP 2: Apply the template's layout and chart configs directly.
+                // We bypass changeLayout() because it uses pickSymbol/pickTimeframe
+                // which would give wrong symbols, and then updateChartConfig would
+                // trigger a save-then-restore race condition.
+                // Instead, we build the complete charts array from the template.
+                // IMPORTANT: We always use NEW chart IDs so that RouaChart components
+                // remount completely. If we reuse old IDs, the existing RouaChart would
+                // receive new symbol/timeframe props, triggering useEffect([symbol])
+                // which saves OLD state under the NEW symbol, overwriting our pre-saved state.
+                const store = useMultiChartStore.getState();
+                const meta = LAYOUT_METAS[gridTemplate.layout];
+                const targetCount = meta.cols * meta.rows;
+
+                // Unregister ALL old chart instances
+                store.charts.forEach(c => unregisterChartInstance(c.id));
+
+                // Build new charts array from template cells with fresh IDs
+                const newCharts = gridTemplate.cells.slice(0, targetCount).map((cellState, i) => ({
+                  id: `mc-${Date.now()}-${i}`,
+                  symbol: cellState.symbol,
+                  timeframe: cellState.timeframe,
+                  chartType: cellState.chartType,
+                }));
+
+                // Pad with default cells if template has fewer cells than layout needs
+                while (newCharts.length < targetCount) {
+                  const i = newCharts.length;
+                  newCharts.push({
+                    id: `mc-${Date.now()}-${i}`,
+                    symbol: selectedSymbol_,
+                    timeframe: timeframe_,
+                    chartType: 'candle' as ChartType,
+                  });
+                }
+
+                // Set everything in one atomic update
+                useMultiChartStore.setState({
+                  layout: gridTemplate.layout,
+                  charts: newCharts,
+                  isMultiChart: targetCount > 1,
+                  activeChartId: newCharts[0]?.id || 'mc-1',
+                  expandedChartId: null,
+                });
               }) : undefined}
               onSaveGridTemplate={isMultiChart ? ((name: string) => {
                 const store = useMultiChartStore.getState();

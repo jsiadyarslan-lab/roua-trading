@@ -1416,7 +1416,29 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const chart = chartInstanceRef.current;
     if (!chart || !candlesRef.current.length) return;
 
-    // For heikin-ashi and candle, just re-set data on existing candlestick series
+    // Check if the current main series is a CandlestickSeries.
+    // If we previously switched to line/area/bar, candleSeriesRef.current
+    // is pointing to a non-candlestick series. We must recreate the
+    // CandlestickSeries when switching back to candle types.
+    const { CandlestickSeries, LineSeries, AreaSeries, BarSeries } = await import('lightweight-charts');
+
+    // Detect if candleSeriesRef is a CandlestickSeries by checking if it
+    // has candlestick-specific methods (seriesType property in LWC v5).
+    // A simpler check: if the current series type name doesn't contain 'Candle',
+    // we need to recreate it.
+    const currentSeries = candleSeriesRef.current;
+    const isCurrentlyCandle = (() => {
+      try {
+        // LWC v5 series have a seriesType() method or property
+        const st = (currentSeries as any)?.seriesType;
+        return st === 'Candlestick' || st === 'Candle';
+      } catch {
+        // Fallback: assume it's candlestick if it was never swapped
+        return true;
+      }
+    })();
+
+    // For heikin-ashi, candle, and hollow: ensure CandlestickSeries exists
     if (type === 'candle' || type === 'heikin-ashi' || type === 'hollow') {
       const displayCandles = type === 'heikin-ashi' ? toHeikinAshi(candlesRef.current) : candlesRef.current;
       const chartData = displayCandles.map(c => ({
@@ -1426,6 +1448,44 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         low: c.low,
         close: c.close,
       }));
+
+      // FIX: If current series is NOT a CandlestickSeries (e.g., was Line/Area),
+      // we must remove it and recreate a proper CandlestickSeries.
+      // Otherwise, setting OHLC data on a LineSeries would render as dots.
+      if (!isCurrentlyCandle) {
+        // Remove the non-candlestick series (Line/Area/Bar)
+        if (mainSeriesRef.current) {
+          try { chart.removeSeries(mainSeriesRef.current); } catch {}
+          mainSeriesRef.current = null;
+        }
+        if (candleSeriesRef.current) {
+          try { chart.removeSeries(candleSeriesRef.current); } catch {}
+          candleSeriesRef.current = null;
+        }
+        // Reset markers plugin so it gets re-created on the new series
+        markersPluginRef.current = null;
+
+        // Recreate a proper CandlestickSeries
+        const newCandleSeries = chart.addSeries(CandlestickSeries, buildCandlestickOptions(isMobile ?? false));
+        candleSeriesRef.current = newCandleSeries;
+        mainSeriesRef.current = newCandleSeries;
+
+        // Re-set volume
+        if (volumeSeriesRef.current) {
+          const candles = candlesRef.current;
+          const volumeData = candles.map(c => ({
+            time: c.time as Time,
+            value: c.volume,
+            color: c.close >= c.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
+          }));
+          const hasVol = volumeData.some(v => v.value > 0);
+          hasVolumeRef.current = hasVol;
+          volumeSeriesRef.current.setData(volumeData as any);
+          volumeSeriesRef.current.applyOptions({
+            visible: hasVol && settings.showVolume,
+          });
+        }
+      }
 
       // Apply hollow candle style
       if (type === 'hollow' && candleSeriesRef.current) {
@@ -1451,11 +1511,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (candleSeriesRef.current) {
         candleSeriesRef.current.setData(chartData as any);
       }
+
+      // If we recreated the CandlestickSeries, re-apply indicators
+      if (!isCurrentlyCandle) {
+        overlaySeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
+        overlaySeriesRef.current.clear();
+        oscillatorSeriesRef.current.forEach(s => { try { chart.removeSeries(s); } catch {} });
+        oscillatorSeriesRef.current.clear();
+        const prevIndicators = Array.from(activeIndicatorsRef.current.values());
+        prevIndicators.forEach(ind => addIndicator(ind));
+      }
       return;
     }
 
     // For line/area/bar types, swap the main series
-    const { LineSeries, AreaSeries, BarSeries } = await import('lightweight-charts');
     const candles = candlesRef.current;
 
     // Remove existing main series

@@ -350,7 +350,7 @@ export class TradingService {
       userAgent,
     });
 
-    // V172d FIX: Deduct margin from paperBalance atomically when opening a paper-trading position.
+    // V175 FIX: Lock margin (do NOT deduct from balance) when opening paper-trading position.
     // Uses $executeRaw to prevent race condition: findUnique→update is NOT atomic.
     // With two concurrent orders, both would read the same balance and each deduct their margin
     // independently, ignoring the other's deduction (double-spending).
@@ -373,17 +373,15 @@ export class TradingService {
         const notional = request.quantity * currentPrice;
         const marginToDeduct = leverage > 1 ? notional / leverage : notional;
 
-        // Atomic decrement — prevents race condition with concurrent orders
-        await this.prisma.$executeRaw`
-          UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
-          WHERE "userId" = ${userId}
-        `;
+        // FIX V175: Do NOT deduct margin from paperBalance on open.
+        // In real trading, margin is LOCKED (collateral), not SPENT.
+        // Balance stays the same when opening a position.
+        // Free margin = Balance - UsedMargin (calculated dynamically from open positions)
         this.logger.log(
-          `📝 V172d Paper margin deducted: -$${marginToDeduct.toFixed(2)} (${request.symbol} qty=${request.quantity} @ ${currentPrice})`,
+          `📝 V175 Paper position opened: margin locked $${marginToDeduct.toFixed(2)} (not deducted from balance) — ${request.symbol}`,
         );
       } catch (err: any) {
-        this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
+        this.logger.warn(`V175 Failed to log paper margin lock on open: ${err.message}`);
       }
     }
 
@@ -1048,21 +1046,16 @@ export class TradingService {
 
         // FIX: Use entryPrice (fixed at open) not currentPrice for margin calculation
         // Using currentPrice caused wrong margin return when price moved significantly
-        const notional = posEntryPrice * closeQuantity;  // Always use entry price
-        const marginToReturn = leverage > 1 ? notional / leverage : notional;
-        const totalReturn = marginToReturn + pnl;
-
-        // Safety check: never add negative total (protects against extreme loss edge cases)
-        const safeReturn = Math.max(-marginToReturn, totalReturn);
-
-        // Atomic increment — prevents race condition
+        // FIX V175: On close, only add realized PnL to paperBalance.
+        // Margin was never deducted from balance (it was only locked).
+        // Balance changes ONLY by the profit or loss of the trade.
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${safeReturn}
+          SET "paperBalance" = "paperBalance" + ${pnl}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172e Paper balance on close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${safeReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V175 Paper balance on close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
@@ -1354,7 +1347,7 @@ export class TradingService {
     // for the same symbol can be executed after force close.
     this._clearProcessedKeysForPosition(userId, position.symbol).catch(() => {});
 
-    // V172d FIX: Return MARGIN + PnL to paperBalance atomically on force-close.
+    // V175 FIX: Add PnL only to paperBalance on force-close (margin was never deducted).
     if (position.exchange === 'paper-trading') {
       try {
         const settings = await this.prisma.agentSettings.findUnique({
@@ -1376,11 +1369,11 @@ export class TradingService {
 
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${Math.max(-marginToReturn, totalReturn)}
+          SET "paperBalance" = "paperBalance" + ${pnl}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172e Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V175 Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);

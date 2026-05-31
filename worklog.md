@@ -110,3 +110,25 @@ Stage Summary:
 - Net reduction: ~450 lines + all chart features now work in mini charts
 - React error #185 should be fixed (no more stale closure / render-time state updates)
 - All mini chart bugs (broken candles, infinite labels, closing breaks main chart) should be fixed
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix AI analysis panel and all chart tools not working on newly opened charts in multi-chart mode
+
+Work Log:
+- Investigated the root cause: In multi-chart mode, ALL panel toggle buttons (AI, VolumeProfile, ChartTrading, Drawings, Indicators, etc.) were setting the MAIN chart's local state instead of the active grid cell's state
+- Found that the previous session's fix (commit c59ccb1e) added toggle routing through getActiveChartControl(), but the toolbar highlight state was still non-reactive
+- Discovered overlay filesystem issue: Edit/Write tools write to overlay layer, but git and shell commands read from a different layer
+- Used Python to write files directly to bypass the overlay FS issue
+- Added panelStateVersion counter to Zustand store - forces toolbar re-render when panels toggle
+- Made all panel state refs synchronous (direct assignment instead of useEffect) so ChartControlAPI getters return current values immediately
+- Added isDrawingPanelOpen/isIndicatorPanelOpen getters to ChartControlAPI (were missing)
+- Added showDrawingPanelRef/showIndicatorPanelRef refs
+- Fixed cellIdCounter sync with persisted chart IDs after page reload
+- Committed and pushed successfully (db4db33c)
+
+Stage Summary:
+- Root cause: Non-reactive toolbar state — toolbar never re-rendered after panels were toggled on grid cells
+- Fix: panelStateVersion counter + bumpPanelStateVersion() in every toggle function + synchronous ref updates
+- Also added missing isDrawingPanelOpen/isIndicatorPanelOpen getters and fixed cellIdCounter
+- Deployed to https://roua-trading-production.up.railway.app/

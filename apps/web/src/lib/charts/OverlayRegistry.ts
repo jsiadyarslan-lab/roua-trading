@@ -40,6 +40,14 @@ export class OverlayRegistry {
   // when an overlay type is cleared.
   private removePriceLineFn: ((id: string) => void) | null = null;
 
+  // ── Smart Redraw: data signature tracking ──
+  // Stores a hash of the last rendered data for each overlay type.
+  // When smartRedraw() is called, it compares the new signature with the
+  // stored one. If they match and primitives are active, the redraw is
+  // skipped — existing primitives continue to render smoothly without
+  // being destroyed and recreated.
+  private lastRenderData: Map<OverlayType, string> = new Map();
+
   constructor() {
     const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
     for (const type of types) {
@@ -167,6 +175,8 @@ export class OverlayRegistry {
     group.primitives = [];
     group.priceLineIds = [];
     group.active = false;
+    // Also clear the data signature so smartRedraw knows this type needs recreation
+    this.lastRenderData.delete(type);
   }
 
   /** Clear all overlay primitives and price lines */
@@ -182,6 +192,39 @@ export class OverlayRegistry {
     const wasActive = this.isActive(type);
     this.clearType(type);
     return wasActive;
+  }
+
+  /**
+   * Smart Redraw — only redraw if data has changed.
+   *
+   * Instead of always destroying and recreating primitives (which causes
+   * visual flicker / "dancing" lines), this method checks if the data
+   * signature has changed since the last render. If not, it skips the
+   * redraw entirely — existing primitives stay attached and continue
+   * to render smoothly.
+   *
+   * Returns true if primitives need to be recreated (data changed).
+   * Returns false if existing primitives are fine (data unchanged).
+   *
+   * Usage:
+   *   if (registry.smartRedraw('entry', JSON.stringify({entry, sl, tp, dir}))) {
+   *     // Data changed — recreate primitives
+   *     registry.add('entry', new HorizontalLinePrimitive({...}));
+   *   }
+   *   // else: data unchanged, skip primitive creation
+   */
+  smartRedraw(type: OverlayType, dataSignature: string): boolean {
+    const lastSignature = this.lastRenderData.get(type);
+    if (lastSignature === dataSignature && this.isActive(type)) {
+      // Data unchanged AND primitives are active — skip redraw completely.
+      // Existing primitives will continue to render smoothly on their own
+      // (their renderer() method recalculates pixel positions every frame).
+      return false;
+    }
+    // Data changed or primitives missing — need to redraw
+    this.lastRenderData.set(type, dataSignature);
+    this.prepareRedraw(type);
+    return true;
   }
 
   /** Check if a type has active overlays */
@@ -210,6 +253,7 @@ export class OverlayRegistry {
   /** Destroy the registry — clears everything and nulls references */
   destroy(): void {
     this.clearAll();
+    this.lastRenderData.clear();
     this.series = null;
   }
 }

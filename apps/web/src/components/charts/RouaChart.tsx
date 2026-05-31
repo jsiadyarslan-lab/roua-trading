@@ -1590,26 +1590,22 @@ export default function RouaChart({
   // ── Apply Position Lines to Chart (price lines with labels) ──
   // FIX: Skip in mini chart mode — price lines are not needed for compact charts.
   // Also uses refs for chart methods to avoid re-running on every render.
+  // FIX: Uses DIFFING instead of remove-all-then-re-add to prevent "dancing" lines.
+  // Only adds/removes lines that actually changed, keeping stable lines in place.
   useEffect(() => {
     // Position/trade lines should show on ALL charts (main + mini cells).
-    // Previously this was gated by `if (isGridCell) return;` which prevented
-    // mini chart cells from showing open positions/trades — the user's #1 complaint.
     const addPriceLine = addPriceLineRef.current;
     const removePriceLine = removePriceLineRef.current;
-
-    positionLineIdsRef.current.forEach(id => removePriceLine(id));
-    positionLineIdsRef.current = [];
 
     const chartSymbol = normalizeSymbol(selectedSymbol_);
 
     const fmtPrice = (p: number) => p > 999 ? p.toFixed(2) : p.toFixed(5);
 
-    // On mobile, hide axis labels on position lines to reduce clutter
-    // Our overlay already shows the price — axis labels create duplicates
-    const addLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
-      // MT5 style: always show axis labels for Entry/SL/TP
-      addPriceLine(id, price, color, label, lineWidth, lineStyle, axisLabelVisible);
-      positionLineIdsRef.current.push(id);
+    // Build the full set of desired lines
+    const desiredLines = new Map<string, { price: number; color: string; lineWidth: number; lineStyle: number; label: string; axisLabelVisible: boolean }>();
+
+    const addDesiredLine = (id: string, price: number, color: string, lineWidth: number, lineStyle: number, label: string = '', axisLabelVisible: boolean = true) => {
+      desiredLines.set(id, { price, color, lineWidth, lineStyle, label, axisLabelVisible });
     };
 
     // Exchange positions
@@ -1619,24 +1615,21 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        // Entry line — axis label hidden to avoid cluttering right price scale
-        // Labels are shown via HTML overlay on the LEFT side instead
-        addLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
+        addDesiredLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) {
         const slLabel = `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`;
-        addLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, false);
+        addDesiredLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, false);
       }
       const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) {
         const tpLabel = `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`;
-        addLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, false);
+        addDesiredLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, false);
       }
     });
 
     // Paper trades (including executor and agent trades)
-    // Group identical trades for clean price scale labels
     const groupedLines = new Map<string, any>();
     paperTrades.forEach(trade => {
       const symbol = normalizeSymbol(trade.symbol || '');
@@ -1657,17 +1650,36 @@ export default function RouaChart({
       const isLong = (trade.side || '').toLowerCase() === 'long';
 
       const qty = Number(trade.qty || 1);
-      // Entry line — axis label hidden (shown via HTML overlay on LEFT side)
-      addLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
+      addDesiredLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
       if (trade.sl && Number(trade.sl) > 0) {
         const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
-        addLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, false);
+        addDesiredLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, false);
       }
       if (trade.tp && Number(trade.tp) > 0) {
         const tpP = ((Number(trade.tp) - entryPrice) * qty * (isLong ? 1 : -1));
-        addLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, false);
+        addDesiredLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, false);
       }
     });
+
+    // ── DIFFING: Only add/remove lines that actually changed ──
+    // This prevents "dancing" lines caused by removing and re-adding
+    // lines that haven't changed.
+
+    // 1. Remove lines that are no longer desired
+    const existingIds = new Set(positionLineIdsRef.current);
+    for (const id of existingIds) {
+      if (!desiredLines.has(id)) {
+        removePriceLine(id);
+      }
+    }
+
+    // 2. Add/update lines that are desired
+    for (const [id, lineData] of desiredLines) {
+      addPriceLine(id, lineData.price, lineData.color, lineData.label, lineData.lineWidth, lineData.lineStyle, lineData.axisLabelVisible);
+    }
+
+    // 3. Update the tracking set
+    positionLineIdsRef.current = Array.from(desiredLines.keys());
 
     return () => {
       const rmPriceLine = removePriceLineRef.current;
@@ -1678,6 +1690,7 @@ export default function RouaChart({
   // This prevents the effect from re-running on every price tick (which creates
   // new array references). The structural key only changes when trades are
   // actually added/removed or have entry/SL/TP modified.
+  // Also removed `chart` from deps — uses refs for all chart method access.
   }, [positionStructKey, selectedSymbol_, isGridCell]);
 
 

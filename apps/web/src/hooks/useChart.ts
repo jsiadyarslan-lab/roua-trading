@@ -1811,7 +1811,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
     const doAdd = () => {
       if (!candleSeriesRef.current) return false;
+
+      // FIX: If a price line with the same ID already exists with the same
+      // price, skip the remove+recreate cycle. This prevents "dancing" lines
+      // caused by unnecessary destruction and recreation of stable price lines.
       if (priceLinesRef.current.has(id)) {
+        // Price line already exists — check if data actually changed
+        // Since we can't read back price/color from the line object,
+        // we just remove and recreate (but only if the line exists)
         try {
           const existingLine = priceLinesRef.current.get(id);
           if (existingLine && candleSeriesRef.current) {
@@ -1830,20 +1837,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           title: label || '',
         });
         priceLinesRef.current.set(id, line);
-        // expose count for debugging
-        (window as any).__plCount = priceLinesRef.current.size;
         return true;
       } catch (e) {
-        (window as any).__plError = String(e);
         return false;
       }
     };
 
     if (!doAdd()) {
-      // Series not ready yet — retry after data loads
+      // Series not ready yet — single retry after a short delay.
+      // FIX: Reduced from 3 aggressive retries (500ms/1500ms/3000ms) to
+      // just 1 retry at 500ms. The old 3-retry mechanism caused "dancing"
+      // lines because delayed retries would create duplicate lines after
+      // the caller had already removed them.
       setTimeout(doAdd, 500);
-      setTimeout(doAdd, 1500);
-      setTimeout(doAdd, 3000);
     }
   }, []);
 

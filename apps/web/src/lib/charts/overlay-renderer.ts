@@ -188,7 +188,6 @@ export function renderOverlays(
   // S/R — Support/Resistance using clustering + horizontal lines
   // ═══════════════════════════════════════════════════════════════
   if (showSR) {
-    registry.prepareRedraw('sr');
     const levels = detectSRLevels(candles);
     // ── CLEANUP: Only show top 4 strongest levels to avoid chart clutter ──
     // Filter to only levels within 3% of current price (relevant zone)
@@ -196,6 +195,9 @@ export function renderOverlays(
     const nearbyLevels = levels.filter(l => Math.abs(l.price - lastPrice) / lastPrice < 0.03);
     const displayLevels = (nearbyLevels.length >= 2 ? nearbyLevels : levels).slice(0, 4);
 
+    // Build data signature from detected levels (prices + types)
+    const srSig = JSON.stringify(displayLevels.map(l => `${l.price}:${l.type}:${l.strength}`).join('|'));
+    if (registry.smartRedraw('sr', srSig)) {
     displayLevels.forEach((level, i) => {
       const opacity = level.strength > 0.6 ? 0.8 : level.strength > 0.3 ? 0.5 : 0.3;
 
@@ -241,6 +243,7 @@ export function renderOverlays(
         }));
       }
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('sr');
   }
@@ -250,9 +253,11 @@ export function renderOverlays(
   // KEY: Only draws on recent swing points, not all candles
   // ═══════════════════════════════════════════════════════════════
   if (showTrend) {
-    registry.prepareRedraw('trend');
     const trendLines = detectTrendLines(candles, swings);
 
+    // Build data signature from trend lines
+    const trendSig = JSON.stringify(trendLines.map(l => `${l.startPoint.price}:${l.endPoint.price}:${l.type}:${l.strength}`).join('|'));
+    if (registry.smartRedraw('trend', trendSig)) {
     trendLines.forEach((line, i) => {
       const isBull = line.type === 'support';
       const color = isBull ? OVERLAY_COLORS.trendUp : OVERLAY_COLORS.trendDown;
@@ -290,6 +295,7 @@ export function renderOverlays(
         }));
       }
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('trend');
   }
@@ -298,9 +304,11 @@ export function renderOverlays(
   // HARMONIC — XABCD patterns with legs + PRZ
   // ═══════════════════════════════════════════════════════════════
   if (showHarmonic) {
-    registry.prepareRedraw('harmonic');
     const harmonics = detectHarmonicPatterns(swings);
 
+    // Build data signature from harmonic patterns
+    const harmonicSig = JSON.stringify(harmonics.slice(0, 4).map(h => `${h.type}:${h.direction}:${h.przLevel}:${h.points.X.price}:${h.points.D.price}`).join('|'));
+    if (registry.smartRedraw('harmonic', harmonicSig)) {
     harmonics.slice(0, 4).forEach((harm, idx) => {
       const isBull = harm.direction === 'bullish';
       const col = isBull ? OVERLAY_COLORS.harmonic : '#ef4444';
@@ -375,6 +383,7 @@ export function renderOverlays(
         }
       }
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('harmonic');
   }
@@ -383,12 +392,14 @@ export function renderOverlays(
   // FVG — Fair Value Gap zones
   // ═══════════════════════════════════════════════════════════════
   if (showFVG) {
-    registry.prepareRedraw('fvg');
     // Use ONLY the ATR-filtered detectFVGs — no SMC duplicates.
     // The SMCDetector FVGs caused dozens of lines on few candles
     // because they lacked ATR filtering and middle-candle validation.
     const fvgs = detectFVGs(candles);
 
+    // Build data signature from FVG zones
+    const fvgSig = JSON.stringify(fvgs.map(f => `${f.type}:${f.highPrice}:${f.lowPrice}:${f.startTime}`).join('|'));
+    if (registry.smartRedraw('fvg', fvgSig)) {
     fvgs.forEach((fvg, i) => {
       const isBull = fvg.type === 'bullish';
       registry.add('fvg', new ZonePrimitive({
@@ -401,6 +412,7 @@ export function renderOverlays(
         label: `FVG${isBull ? '↑' : '↓'}`,
       }));
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('fvg');
   }
@@ -409,9 +421,11 @@ export function renderOverlays(
   // BOS — Break of Structure / CHoCH
   // ═══════════════════════════════════════════════════════════════
   if (showBOS) {
-    registry.prepareRedraw('bos');
     const bosBreaks = detectBOS(candles, swings);
 
+    // Build data signature from BOS breaks
+    const bosSig = JSON.stringify(bosBreaks.map(b => `${b.type}:${b.direction}:${b.brokenLevel}:${b.breakPrice}`).join('|'));
+    if (registry.smartRedraw('bos', bosSig)) {
     bosBreaks.forEach((br, i) => {
       const isBull = br.direction === 'bullish';
       const color = br.type === 'BOS'
@@ -442,6 +456,7 @@ export function renderOverlays(
 
       safeAddPriceLine(`bos-${i}`, br.brokenLevel, color, `${br.type}${isBull ? '↑' : '↓'}`, 2, 0, true, 'bos');
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('bos');
   }
@@ -450,9 +465,11 @@ export function renderOverlays(
   // GEOMETRIC — Classic pattern shapes
   // ═══════════════════════════════════════════════════════════════
   if (showGeo) {
-    registry.prepareRedraw('geo');
     const classicPatterns = detectClassicPatterns(swings);
 
+    // Build data signature from geometric patterns
+    const geoSig = JSON.stringify(classicPatterns.slice(0, 4).map(p => `${p.type}:${p.direction}:${p.targetPrice}:${p.points.length}`).join('|'));
+    if (registry.smartRedraw('geo', geoSig)) {
     classicPatterns.slice(0, 4).forEach((pat, i) => {
       const isBull = pat.direction === 'bullish';
       const col = isBull ? OVERLAY_COLORS.trendUp : OVERLAY_COLORS.trendDown;
@@ -517,6 +534,7 @@ export function renderOverlays(
         }
       }
     });
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('geo');
   }
@@ -525,9 +543,16 @@ export function renderOverlays(
   // ELLIOTT WAVE — Wave labels + connecting lines
   // ═══════════════════════════════════════════════════════════════
   if (showEW) {
-    registry.prepareRedraw('ew');
     const elliott = detectElliottWaves(swings);
+    const aiElliott = input.elliottPattern;
 
+    // Build data signature from Elliott waves
+    const ewSig = JSON.stringify({
+      elliott: elliott ? elliott.labels.map(l => `${l.waveNumber}:${l.price}`).join('|') : null,
+      direction: elliott?.direction,
+      aiElliott: aiElliott ? `${aiElliott.direction}:${aiElliott.nextTarget}:${aiElliott.waves?.length}` : null,
+    });
+    if (registry.smartRedraw('ew', ewSig)) {
     if (elliott && elliott.labels.length >= 2) {
       const isBull = elliott.direction === 'bullish';
       const col = OVERLAY_COLORS.elliott;
@@ -566,7 +591,6 @@ export function renderOverlays(
     }
 
     // Also include Elliott data from AI panel
-    const aiElliott = input.elliottPattern;
     if (!elliott && aiElliott && aiElliott.waves?.length >= 2) {
       const isBull = aiElliott.direction === 'bullish';
       const col = '#93c5fd';
@@ -588,6 +612,7 @@ export function renderOverlays(
         safeAddPriceLine('ew-tgt', aiElliott.nextTarget, col, `Elliott Target`, 2, 2, true, 'ew');
       }
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('ew');
   }
@@ -599,7 +624,6 @@ export function renderOverlays(
   // the current market phase (Accumulation, Markup, Distribution, Markdown).
   // ═══════════════════════════════════════════════════════════════
   if (showWyckoff) {
-    registry.prepareRedraw('wyckoff');
     const w = input.wyckoff;
 
     // Try AI data first, then local detection
@@ -615,6 +639,9 @@ export function renderOverlays(
       events = localWyckoff.events;
     }
 
+    // Build data signature from Wyckoff data
+    const wyckoffSig = JSON.stringify({ phase, bias, events: events.map((e: any) => `${e.type}:${e.price}`).join('|') });
+    if (registry.smartRedraw('wyckoff', wyckoffSig)) {
     if (phase !== 'Unknown') {
       const col = bias === 'bullish' ? OVERLAY_COLORS.trendUp : bias === 'bearish' ? OVERLAY_COLORS.trendDown : '#fbbf24';
 
@@ -673,6 +700,7 @@ export function renderOverlays(
         safeAddPriceLine('wy-sup', recentLow, 'rgba(0,255,163,0.5)', 'Support', 1, 2, true, 'wyckoff');
       }
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('wyckoff');
   }
@@ -681,8 +709,10 @@ export function renderOverlays(
   // VOLUME PROFILE — POC, VAH, VAL
   // ═══════════════════════════════════════════════════════════════
   if (showVP) {
-    registry.prepareRedraw('vp');
     const vp = input.volumeProfile;
+    // Build data signature from VP data
+    const vpSig = JSON.stringify(vp ? `${vp.poc}:${vp.vah}:${vp.val}` : null);
+    if (registry.smartRedraw('vp', vpSig)) {
     if (vp && vp.poc > 0) {
       registry.add('vp', new HorizontalLinePrimitive({
         price: vp.poc,
@@ -710,6 +740,7 @@ export function renderOverlays(
       safeAddPriceLine('vp-vah', vp.vah, 'rgba(0,200,255,0.6)', 'VAH', 1, 2, false, 'vp');
       safeAddPriceLine('vp-val', vp.val, 'rgba(255,100,100,0.6)', 'VAL', 1, 2, false, 'vp');
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('vp');
   }
@@ -718,8 +749,6 @@ export function renderOverlays(
   // ENTRY — Entry/SL/TP from AI signal
   // ═══════════════════════════════════════════════════════════════
   if (showEntry) {
-    registry.prepareRedraw('entry');
-
     // Use AI signal data for entry (NOT the broken entryExit:null)
     const signal = input.signal;
     const entryExit = input.entryExit;
@@ -752,6 +781,10 @@ export function renderOverlays(
       sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
       tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
     }
+
+    // Build data signature from entry/SL/TP/direction — prevents "dancing lines"
+    const entrySig = JSON.stringify({ entry, sl, tp, dir });
+    if (registry.smartRedraw('entry', entrySig)) {
 
     // Draw entry/SL/TP using HorizontalLinePrimitive with price badges
     registry.add('entry', new HorizontalLinePrimitive({
@@ -805,10 +838,11 @@ export function renderOverlays(
       }));
     }
 
-    // NOTE: IPriceLine (safeAddPriceLine) is NOT added here because
-    // HorizontalLinePrimitive already draws the line + label on canvas.
-    // Adding both creates DUPLICATE lines that jitter on scroll.
-    // The price axis label is handled by HorizontalLinePrimitive's label field.
+    // Price lines for axis labels
+    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
+    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', `SL`, 2, 2, true, 'entry');
+    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', `TP`, 2, 2, true, 'entry');
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('entry');
   }
@@ -820,11 +854,14 @@ export function renderOverlays(
   // ═══════════════════════════════════════════════════════════════
   if (input.fusionResult && input.fusionResult.confluenceScore > 40) {
     const fusion = input.fusionResult;
-    registry.prepareRedraw('fusion');
 
     const lastPrice = candles[candles.length - 1].close;
     const recentCandles = candles.slice(-5);
     const lastTime = candles[candles.length - 1].time;
+
+    // Build data signature from fusion data
+    const fusionSig = JSON.stringify(`${fusion.direction}:${fusion.confluenceScore}:${fusion.layerScores.directionalAgreement}:${fusion.layerScores.spatialConfluence}`);
+    if (registry.smartRedraw('fusion', fusionSig)) {
 
     // Show confluence direction label on chart
     if (fusion.direction !== 'neutral') {
@@ -872,6 +909,7 @@ export function renderOverlays(
         // We already have labels — skip extra lines to avoid clutter
       }
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('fusion');
   }
@@ -882,10 +920,13 @@ export function renderOverlays(
   // ═══════════════════════════════════════════════════════════════
   if (input.bayesianResult && input.bayesianResult.confidence > 0.4) {
     const bayes = input.bayesianResult;
-    registry.prepareRedraw('bayesian');
 
     const lastPrice = candles[candles.length - 1].close;
     const lastTime = candles[candles.length - 1].time;
+
+    // Build data signature from Bayesian data
+    const bayesianSig = JSON.stringify(`${bayes.direction}:${bayes.confidence}:${bayes.posteriorBullish}:${bayes.posteriorBearish}`);
+    if (registry.smartRedraw('bayesian', bayesianSig)) {
 
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
@@ -920,6 +961,7 @@ export function renderOverlays(
         position: isBull ? 'below' : 'above',
       }));
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('bayesian');
   }
@@ -936,7 +978,6 @@ export function renderOverlays(
   // suppressed (too many — they clutter the chart).
   // ═══════════════════════════════════════════════════════════════
   if (input.alerts && input.alerts.length > 0) {
-    registry.prepareRedraw('alerts');
     // Filter alerts: only show alerts whose overlay is currently active
     const filteredAlerts = input.alerts.filter((alert) => {
       switch (alert.type) {
@@ -947,6 +988,9 @@ export function renderOverlays(
         default:         return false;         // Unknown alert types suppressed
       }
     });
+    // Build data signature from filtered alerts
+    const alertsSig = JSON.stringify(filteredAlerts.slice(-8).map(a => `${a.type}:${a.price}:${a.direction}:${a.confidence}`).join('|'));
+    if (registry.smartRedraw('alerts', alertsSig)) {
     // Show max 8 most recent filtered alert markers to avoid clutter
     filteredAlerts.slice(-8).forEach((alert) => {
       registry.add('alerts', new AlertMarkerPrimitive({
@@ -962,6 +1006,7 @@ export function renderOverlays(
     if (filteredAlerts.length === 0) {
       registry.clearType('alerts');
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('alerts');
   }
@@ -973,10 +1018,13 @@ export function renderOverlays(
   // ═══════════════════════════════════════════════════════════════
   if (showMTF && input.mtfResult && input.mtfResult.confluenceScore > 30) {
     const mtf = input.mtfResult;
-    registry.prepareRedraw('mtf');
 
     const lastPrice = candles[candles.length - 1].close;
     const lastTime = candles[candles.length - 1].time;
+
+    // Build data signature from MTF data
+    const mtfSig = JSON.stringify(`${mtf.confluenceDirection}:${mtf.confluenceScore}:${mtf.agreeingTFs}:${mtf.srConfluences.length}:${mtf.fibConfluences.length}`);
+    if (registry.smartRedraw('mtf', mtfSig)) {
 
     if (mtf.confluenceDirection !== 'neutral') {
       const isBull = mtf.confluenceDirection === 'bullish';
@@ -1042,6 +1090,7 @@ export function renderOverlays(
         position: 'above',
       }));
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('mtf');
   }
@@ -1052,12 +1101,14 @@ export function renderOverlays(
   // risk (red) and reward (green) areas.
   // ═══════════════════════════════════════════════════════════════
   if (showTrade && input.tradeProposals && input.tradeProposals.length > 0) {
-    registry.prepareRedraw('trade');
-
     // Show the most recent active trade proposal
     const proposal = input.tradeProposals.find(p =>
       p.status === 'pending' || p.status === 'active' || p.status === 'breakeven'
     ) || input.tradeProposals[0];
+
+    // Build data signature from trade proposal
+    const tradeSig = JSON.stringify(proposal ? `${proposal.id}:${proposal.entryPrice}:${proposal.stopLoss}:${proposal.takeProfits.join(',')}:${proposal.currentTrailSL}:${proposal.status}` : null);
+    if (registry.smartRedraw('trade', tradeSig)) {
 
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
@@ -1142,6 +1193,7 @@ export function renderOverlays(
     if (!proposal) {
       registry.clearType('trade');
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('trade');
   }
@@ -1151,10 +1203,13 @@ export function renderOverlays(
   // Uses LiquidityZones engine for ICT/SMC liquidity analysis.
   // ═══════════════════════════════════════════════════════════════
   if (showLiq) {
-    registry.prepareRedraw('liq');
-
     // Use provided liquidity data or detect locally
     const liqData = input.liquidityResult;
+
+    // Build data signature from liquidity zones
+    const liqSig = JSON.stringify(liqData ? `${liqData.activeZones}:${liqData.sweptZones}:${liqData.dominantSweepDirection}:${liqData.zones.map(z => `${z.type}:${z.price}:${z.swept}`).join('|')}` : null);
+    if (registry.smartRedraw('liq', liqSig)) {
+
     if (liqData && liqData.zones.length > 0) {
       const lastTime = candles[candles.length - 1].time;
       const lastPrice = candles[candles.length - 1].close;
@@ -1234,6 +1289,7 @@ export function renderOverlays(
         }));
       }
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('liq');
   }
@@ -1310,8 +1366,10 @@ export function renderAnalysisOverlays(
 
   // ── VP: Volume Profile (analysis-dependent) ──
   if (showVP) {
-    registry.prepareRedraw('vp');
     const vp = input.volumeProfile;
+    // Build data signature from VP data
+    const vpSig = JSON.stringify(vp ? `${vp.poc}:${vp.vah}:${vp.val}` : null);
+    if (registry.smartRedraw('vp', vpSig)) {
     if (vp && vp.poc > 0) {
       registry.add('vp', new HorizontalLinePrimitive({
         price: vp.poc, color: OVERLAY_COLORS.vp, lineWidth: 2, lineStyle: 0, label: 'POC',
@@ -1326,13 +1384,13 @@ export function renderAnalysisOverlays(
       safeAddPriceLine('vp-vah', vp.vah, 'rgba(0,200,255,0.6)', 'VAH', 1, 2, false, 'vp');
       safeAddPriceLine('vp-val', vp.val, 'rgba(255,100,100,0.6)', 'VAL', 1, 2, false, 'vp');
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('vp');
   }
 
   // ── ENTRY: Entry/SL/TP (analysis-dependent) ──
   if (showEntry) {
-    registry.prepareRedraw('entry');
     const signal = input.signal;
     const entryExit = input.entryExit;
     const lastPrice = candles[candles.length - 1].close;
@@ -1353,22 +1411,30 @@ export function renderAnalysisOverlays(
       })() : lastPrice * 0.01;
       entry = lastPrice; sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5; tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
     }
+    // Build data signature from entry/SL/TP/direction — prevents "dancing lines"
+    const entrySig = JSON.stringify({ entry, sl, tp, dir });
+    if (registry.smartRedraw('entry', entrySig)) {
     registry.add('entry', new HorizontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? '▲ BUY' : '▼ SELL'}`, showPrice: true }));
     if (sl > 0) registry.add('entry', new HorizontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL', showPrice: true }));
     if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP', showPrice: true }));
     if (sl > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, sl), lowPrice: Math.min(entry, sl), fillColor: 'rgba(239, 68, 68, 0.04)', borderColor: undefined }));
     if (tp > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, tp), lowPrice: Math.min(entry, tp), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
-    // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles the line + label
+    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
+    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', 'SL', 2, 2, true, 'entry');
+    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', 'TP', 2, 2, true, 'entry');
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('entry');
   }
 
   // ── FUSION: Confluence (analysis-dependent) ──
   if (input.fusionResult && input.fusionResult.confluenceScore > 40) {
-    registry.prepareRedraw('fusion');
     const fusion = input.fusionResult;
     const lastPrice = candles[candles.length - 1].close;
     const lastTime = candles[candles.length - 1].time;
+    // Build data signature from fusion data
+    const fusionSig = JSON.stringify(`${fusion.direction}:${fusion.confluenceScore}:${fusion.layerScores.directionalAgreement}:${fusion.layerScores.spatialConfluence}`);
+    if (registry.smartRedraw('fusion', fusionSig)) {
     if (fusion.direction !== 'neutral') {
       const isBull = fusion.direction === 'bullish';
       const confluenceColor = isBull ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)';
@@ -1378,16 +1444,19 @@ export function renderAnalysisOverlays(
       const layerText = `L1:${fusion.layerScores.directionalAgreement}% L2:${fusion.layerScores.spatialConfluence}%`;
       registry.add('fusion', new LabelPrimitive({ time: recentCandles[0]?.time as any || lastTime as any, price: isBull ? safeMin(recentCandles.map(c => c.low)) * 0.9995 : safeMax(recentCandles.map(c => c.high)) * 1.0005, text: layerText, color: 'rgba(255,255,255,0.4)', fontSize: 8, align: 'left', bg: 'rgba(11,14,20,0.6)', position: isBull ? 'below' : 'above' }));
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('fusion');
   }
 
   // ── BAYESIAN: Consensus direction (analysis-dependent) ──
   if (input.bayesianResult && input.bayesianResult.confidence > 0.4) {
-    registry.prepareRedraw('bayesian');
     const bayes = input.bayesianResult;
     const lastPrice = candles[candles.length - 1].close;
     const lastTime = candles[candles.length - 1].time;
+    // Build data signature from Bayesian data
+    const bayesianSig = JSON.stringify(`${bayes.direction}:${bayes.confidence}:${bayes.posteriorBullish}:${bayes.posteriorBearish}`);
+    if (registry.smartRedraw('bayesian', bayesianSig)) {
     if (bayes.direction !== 'neutral') {
       const isBull = bayes.direction === 'bullish';
       const bayesColor = isBull ? '#22d3ee' : '#f97316';
@@ -1397,13 +1466,13 @@ export function renderAnalysisOverlays(
       const bearPct = Math.round(bayes.posteriorBearish * 100);
       registry.add('bayesian', new LabelPrimitive({ time: (lastTime - 7200) as any, price: isBull ? safeMin(candles.slice(-10).map(c => c.low)) : safeMax(candles.slice(-10).map(c => c.high)), text: `P(▲)=${bullPct}% P(▼)=${bearPct}%`, color: 'rgba(255,255,255,0.35)', fontSize: 7, align: 'left', bg: 'rgba(11,14,20,0.5)', position: isBull ? 'below' : 'above' }));
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('bayesian');
   }
 
   // ── ALERTS: Visual pins (analysis-dependent) ──
   if (input.alerts && input.alerts.length > 0) {
-    registry.prepareRedraw('alerts');
     const filteredAlerts = input.alerts.filter((alert) => {
       switch (alert.type) {
         case 'smc':      return ov.bos === true;
@@ -1413,20 +1482,26 @@ export function renderAnalysisOverlays(
         default:         return false;
       }
     });
+    // Build data signature from filtered alerts
+    const alertsSig = JSON.stringify(filteredAlerts.slice(-8).map(a => `${a.type}:${a.price}:${a.direction}:${a.confidence}`).join('|'));
+    if (registry.smartRedraw('alerts', alertsSig)) {
     filteredAlerts.slice(-8).forEach((alert) => {
       registry.add('alerts', new AlertMarkerPrimitive({ time: alert.time, price: alert.price, label: alert.label, direction: alert.direction, confidence: alert.confidence, type: alert.type }));
     });
     if (filteredAlerts.length === 0) registry.clearType('alerts');
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('alerts');
   }
 
   // ── MTF: Multi-Timeframe (analysis-dependent) ──
   if (showMTF && input.mtfResult && input.mtfResult.confluenceScore > 30) {
-    registry.prepareRedraw('mtf');
     const mtf = input.mtfResult;
     const lastPrice = candles[candles.length - 1].close;
     const lastTime = candles[candles.length - 1].time;
+    // Build data signature from MTF data
+    const mtfSig = JSON.stringify(`${mtf.confluenceDirection}:${mtf.confluenceScore}:${mtf.agreeingTFs}:${mtf.srConfluences.length}:${mtf.fibConfluences.length}`);
+    if (registry.smartRedraw('mtf', mtfSig)) {
     if (mtf.confluenceDirection !== 'neutral') {
       const isBull = mtf.confluenceDirection === 'bullish';
       const mtfColor = isBull ? 'rgba(34, 211, 238, 0.9)' : 'rgba(249, 115, 22, 0.9)';
@@ -1447,14 +1522,17 @@ export function renderAnalysisOverlays(
     for (const div of mtf.divergences.filter(d => d.significance > 0.5).slice(0, 2)) {
       registry.add('mtf', new LabelPrimitive({ time: (lastTime - 3600) as any, price: lastPrice, text: `⚠ ${div.type === 'bullish-divergence' ? 'تباعد صعودي' : div.type === 'bearish-divergence' ? 'تباعد هبوطي' : 'تباعد زخم'}`, color: 'rgba(245, 158, 11, 0.7)', fontSize: 8, align: 'right', bg: 'rgba(245, 158, 11, 0.08)', position: 'above' }));
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('mtf');
   }
 
   // ── TRADE: Proposals (analysis-dependent) ──
   if (showTrade && input.tradeProposals && input.tradeProposals.length > 0) {
-    registry.prepareRedraw('trade');
     const proposal = input.tradeProposals.find(p => p.status === 'pending' || p.status === 'active' || p.status === 'breakeven') || input.tradeProposals[0];
+    // Build data signature from trade proposal
+    const tradeSig = JSON.stringify(proposal ? `${proposal.id}:${proposal.entryPrice}:${proposal.stopLoss}:${proposal.takeProfits.join(',')}:${proposal.currentTrailSL}:${proposal.status}` : null);
+    if (registry.smartRedraw('trade', tradeSig)) {
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
       const dirAr = isBull ? 'شراء' : 'بيع';
@@ -1474,14 +1552,17 @@ export function renderAnalysisOverlays(
       registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
     }
     if (!proposal) registry.clearType('trade');
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('trade');
   }
 
   // ── LIQUIDITY: Zones (analysis-dependent) ──
   if (showLiq) {
-    registry.prepareRedraw('liq');
     const liqData = input.liquidityResult;
+    // Build data signature from liquidity zones
+    const liqSig = JSON.stringify(liqData ? `${liqData.activeZones}:${liqData.sweptZones}:${liqData.dominantSweepDirection}:${liqData.zones.map(z => `${z.type}:${z.price}:${z.swept}`).join('|')}` : null);
+    if (registry.smartRedraw('liq', liqSig)) {
     if (liqData && liqData.zones.length > 0) {
       const lastTime = candles[candles.length - 1].time;
       for (const zone of liqData.zones) {
@@ -1501,6 +1582,7 @@ export function renderAnalysisOverlays(
         registry.add('liq', new LabelPrimitive({ time: lastTime as any, price: isBull ? safeMin(candles.slice(-5).map(c => c.low)) * 0.998 : safeMax(candles.slice(-5).map(c => c.high)) * 1.002, text: `${isBull ? '▲' : '▼'} سيولة ${isBull ? 'صاعد' : 'هابط'} (${liqData.sweptZones} مسحوب)`, color: isBull ? 'rgba(0, 255, 163, 0.9)' : 'rgba(255, 71, 87, 0.9)', fontSize: 9, align: 'right', bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)', position: isBull ? 'below' : 'above' }));
       }
     }
+    } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('liq');
   }

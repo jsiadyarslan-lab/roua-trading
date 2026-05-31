@@ -284,7 +284,12 @@
       "step1Desc": "Log ind under 30 sekunder via Google eller adgangsnøgle. Ingen adgangskoder, ingen kompleksitet.",
       "step2Desc": "Otte AI-modeller analyserer markeder og genererer handelssignaler baseret på multimodelanalyse.",
       "step3Desc": "Udfør handler baseret på datadrevet indsigt med smart risikobeskyttelse.",
-      "step4Desc": "Automatisk beskyttelsessystem overvåger din portefølje og advarer dig før skarp volatilitet."
+      "step4Desc": "Automatisk beskyttelsessystem overvåger din portefølje og advarer dig før skarp volatilitet.",
+      "sectionLabel": "SÅDAN VIRKER DET",
+      "step1Subtitle": "Tilmelding",
+      "step2Subtitle": "AI-analyse",
+      "step3Subtitle": "Smart handel",
+      "step4Subtitle": "Beskyt profit"
     },
     "aiModels": {
       "fastProcessing": "Ultrahurtig behandling",

@@ -8,7 +8,7 @@ import { useTranslations } from 'next-intl'
 interface Step {
   icon: LucideIcon
   titleKey: string
-  subtitle: string
+  subtitleKey: string
   descKey: string
   color: string
   step: number
@@ -18,7 +18,7 @@ const steps: Step[] = [
   {
     icon: UserPlus,
     titleKey: 'step1Title',
-    subtitle: 'Sign Up',
+    subtitleKey: 'step1Subtitle',
     descKey: 'step1Desc',
     color: '#10B981',
     step: 1,
@@ -26,15 +26,15 @@ const steps: Step[] = [
   {
     icon: Brain,
     titleKey: 'step3Title',
-    subtitle: 'AI Analysis',
+    subtitleKey: 'step2Subtitle',
     descKey: 'step2Desc',
     color: '#3B82F6',
     step: 2,
   },
   {
     icon: TrendingUp,
-    titleKey: 'tradeSmart',
-    subtitle: 'Trade Smart',
+    titleKey: 'step2Title',
+    subtitleKey: 'step3Subtitle',
     descKey: 'step3Desc',
     color: '#8B5CF6',
     step: 3,
@@ -42,7 +42,7 @@ const steps: Step[] = [
   {
     icon: ShieldCheck,
     titleKey: 'step4Title',
-    subtitle: 'Protect Profits',
+    subtitleKey: 'step4Subtitle',
     descKey: 'step4Desc',
     color: '#F59E0B',
     step: 4,
@@ -94,7 +94,7 @@ export default function HowItWorksSection() {
               fontFamily: 'var(--font-en)',
             }}
           >
-            HOW IT WORKS
+            {t('sectionLabel')}
           </div>
           <h2
             className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4"
@@ -187,7 +187,7 @@ export default function HowItWorksSection() {
                     className="text-[10px] font-medium tracking-wider mb-3"
                     style={{ color: '#475569', fontFamily: 'var(--font-en)' }}
                   >
-                    {step.subtitle}
+                    {t(step.subtitleKey)}
                   </p>
 
                   {/* Description */}

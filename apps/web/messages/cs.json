@@ -2794,7 +2794,12 @@
       "titlePart1": "Od Registrace do",
       "subtitle": "Jen čtyři kroky vás dělí od chytřejšího obchodování s umělou inteligencí",
       "step3Desc": "Provádějte obchody na základě poznatků založených na datech s inteligentní ochranou před riziky.",
-      "titleHighlight": "Zisky"
+      "titleHighlight": "Zisky",
+      "sectionLabel": "JAK TO FUNGUJE",
+      "step1Subtitle": "Registrace",
+      "step2Subtitle": "AI analýza",
+      "step3Subtitle": "Chytrý trading",
+      "step4Subtitle": "Ochrana zisků"
     },
     "neuralFeatures": {
       "newsRadar": "Radar zpráv",

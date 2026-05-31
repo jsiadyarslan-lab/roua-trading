@@ -2794,7 +2794,12 @@
       "titlePart1": "সাইন আপ থেকে",
       "subtitle": "মাত্র চারটি ধাপ আপনাকে স্মার্ট এআই-চালিত ট্রেডিং থেকে আলাদা করে",
       "step3Desc": "স্মার্ট ঝুঁকি সুরক্ষা সহ ডেটা-চালিত অন্তর্দৃষ্টির উপর ভিত্তি করে ব্যবসা চালান।",
-      "titleHighlight": "লাভ"
+      "titleHighlight": "লাভ",
+      "sectionLabel": "এটি কীভাবে কাজ করে",
+      "step1Subtitle": "নিবন্ধন",
+      "step2Subtitle": "AI বিশ্লেষণ",
+      "step3Subtitle": "স্মার্ট ট্রেডিং",
+      "step4Subtitle": "লাভ সুরক্ষা"
     },
     "neuralFeatures": {
       "newsRadar": "নিউজ রাডার",

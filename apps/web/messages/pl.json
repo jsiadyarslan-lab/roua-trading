@@ -4357,7 +4357,12 @@
       "step1Title": "Utwórz swoje konto",
       "step3Title": "Pozwól AI pracować dla Ciebie",
       "step2Desc": "Osiem modeli AI analizuje rynki i generuje sygnały handlowe w oparciu o analizę wielomodelową.",
-      "step4Desc": "Automatyczny system ochrony monitoruje Twój portfel i ostrzega Cię przed gwałtowną zmiennością."
+      "step4Desc": "Automatyczny system ochrony monitoruje Twój portfel i ostrzega Cię przed gwałtowną zmiennością.",
+      "sectionLabel": "JAK TO DZIAŁA",
+      "step1Subtitle": "Rejestracja",
+      "step2Subtitle": "Analiza AI",
+      "step3Subtitle": "Smart trading",
+      "step4Subtitle": "Ochrona zysków"
     },
     "neuralFeatures": {
       "newsRadar": "Radar wiadomości",

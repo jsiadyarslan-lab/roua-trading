@@ -4357,7 +4357,12 @@
       "step1Title": "Buat Akun Anda",
       "step3Title": "Biarkan AI Bekerja untuk Anda",
       "step2Desc": "Delapan model AI menganalisis pasar dan menghasilkan sinyal perdagangan berdasarkan analisis multi-model.",
-      "step4Desc": "Sistem perlindungan otomatis memantau portofolio Anda dan memperingatkan Anda sebelum volatilitas tajam."
+      "step4Desc": "Sistem perlindungan otomatis memantau portofolio Anda dan memperingatkan Anda sebelum volatilitas tajam.",
+      "sectionLabel": "CARA KERJA",
+      "step1Subtitle": "Daftar",
+      "step2Subtitle": "Analisis AI",
+      "step3Subtitle": "Trading Cerdas",
+      "step4Subtitle": "Lindungi Keuntungan"
     },
     "neuralFeatures": {
       "newsRadar": "Radar Berita",

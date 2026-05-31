@@ -284,7 +284,12 @@
       "step1Desc": "Log in under 30 seconds via Google or Passkey. No passwords, no complexity.",
       "step2Desc": "Eight AI models analyze markets and generate trading signals based on multi-model analysis.",
       "step3Desc": "Execute trades based on data-driven insights with smart risk protection.",
-      "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility."
+      "step4Desc": "Automatic protection system monitors your portfolio and alerts you before sharp volatility.",
+      "sectionLabel": "HOW IT WORKS",
+      "step1Subtitle": "Sign Up",
+      "step2Subtitle": "AI Analysis",
+      "step3Subtitle": "Trade Smart",
+      "step4Subtitle": "Protect Profits"
     },
     "aiModels": {
       "fastProcessing": "Ultra-Fast Processing",

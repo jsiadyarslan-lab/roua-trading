@@ -4357,7 +4357,12 @@
       "step1Title": "Opprett din konto",
       "step3Title": "La AI jobbe for deg",
       "step2Desc": "Åtte AI-modeller analyserer markeder og genererer handelssignaler basert på multi-modellanalyse.",
-      "step4Desc": "Automatisk beskyttelsessystem overvåker porteføljen din og varsler deg før kraftig volatilitet."
+      "step4Desc": "Automatisk beskyttelsessystem overvåker porteføljen din og varsler deg før kraftig volatilitet.",
+      "sectionLabel": "Slik fungerer det",
+      "step1Subtitle": "Registrering",
+      "step2Subtitle": "AI-analyse",
+      "step3Subtitle": "Smart trading",
+      "step4Subtitle": "Beskytt profitt"
     },
     "neuralFeatures": {
       "newsRadar": "Nyheter Radar",

@@ -4357,7 +4357,12 @@
       "step1Title": "Lumikha ng Iyong Account",
       "step3Title": "Hayaang gumana ang AI para sa iyo",
       "step2Desc": "Sinusuri ng walong modelo ng AI ang mga merkado at bumubuo ng mga signal ng kalakalan batay sa pagsusuri ng maraming modelo.",
-      "step4Desc": "Sinusubaybayan ng awtomatikong sistema ng proteksyon ang iyong portfolio at inaalerto ka bago ang matinding pagkasumpungin."
+      "step4Desc": "Sinusubaybayan ng awtomatikong sistema ng proteksyon ang iyong portfolio at inaalerto ka bago ang matinding pagkasumpungin.",
+      "sectionLabel": "PAANO GUMAGANA",
+      "step1Subtitle": "Mag-sign Up",
+      "step2Subtitle": "AI Pagsusuri",
+      "step3Subtitle": "Matalinong Kalakal",
+      "step4Subtitle": "Protektahan ang Kita"
     },
     "neuralFeatures": {
       "newsRadar": "Radar ng Balita",

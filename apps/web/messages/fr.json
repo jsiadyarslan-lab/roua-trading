@@ -4357,7 +4357,12 @@
       "step1Title": "Créez votre compte",
       "step3Title": "Laissez l'IA travailler pour vous",
       "step2Desc": "Huit modèles IA analysent les marchés et génèrent des signaux de trading basés sur l'analyse multi-modèles.",
-      "step4Desc": "Un système de protection automatique surveille votre portefeuille et vous alerte avant les fortes volatilités."
+      "step4Desc": "Un système de protection automatique surveille votre portefeuille et vous alerte avant les fortes volatilités.",
+      "sectionLabel": "COMMENT ÇA MARCHE",
+      "step1Subtitle": "Inscription",
+      "step2Subtitle": "Analyse IA",
+      "step3Subtitle": "Tradez malin",
+      "step4Subtitle": "Protégez vos gains"
     },
     "neuralFeatures": {
       "newsRadar": "Radar d'actualités",

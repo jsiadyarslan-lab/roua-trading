@@ -4357,7 +4357,12 @@
       "step1Title": "계정 만들기",
       "step3Title": "AI가 당신을 위해 일하게 하세요",
       "step2Desc": "8개의 AI 모델은 다중 모델 분석을 기반으로 시장을 분석하고 거래 신호를 생성합니다.",
-      "step4Desc": "자동 보호 시스템은 귀하의 포트폴리오를 모니터링하고 급격한 변동이 발생하기 전에 경고합니다."
+      "step4Desc": "자동 보호 시스템은 귀하의 포트폴리오를 모니터링하고 급격한 변동이 발생하기 전에 경고합니다.",
+      "sectionLabel": "사용 방법",
+      "step1Subtitle": "가입하기",
+      "step2Subtitle": "AI 분석",
+      "step3Subtitle": "스마트 거래",
+      "step4Subtitle": "수익 보호"
     },
     "neuralFeatures": {
       "newsRadar": "뉴스 레이더",

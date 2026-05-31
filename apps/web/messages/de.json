@@ -284,7 +284,12 @@
       "step1Desc": "Melden Sie sich in unter 30 Sekunden über Google oder Passkey an. Keine Passwörter, keine Komplexität.",
       "step2Desc": "Acht KI-Modelle analysieren Märkte und generieren Handelssignale basierend auf Mehrmodell-Analyse.",
       "step3Desc": "Führen Sie Trades basierend auf datengetriebenen Einblicken mit intelligentem Risikoschutz aus.",
-      "step4Desc": "Automatisches Schutzsystem überwacht Ihr Portfolio und warnt Sie vor starker Volatilität."
+      "step4Desc": "Automatisches Schutzsystem überwacht Ihr Portfolio und warnt Sie vor starker Volatilität.",
+      "sectionLabel": "SO FUNKTIONIERT ES",
+      "step1Subtitle": "Anmelden",
+      "step2Subtitle": "KI-Analyse",
+      "step3Subtitle": "Smart handeln",
+      "step4Subtitle": "Gewinne sichern"
     },
     "aiModels": {
       "fastProcessing": "Ultraschnelle Verarbeitung",

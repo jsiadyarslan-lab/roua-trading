@@ -4357,7 +4357,12 @@
       "step1Title": "アカウントを作成",
       "step3Title": "AIに任せる",
       "step2Desc": "8つのAIモデルが市場を分析し、マルチモデル分析に基づいてトレードシグナルを生成。",
-      "step4Desc": "自動保護システムがポートフォリオを監視し、急激な変動の前にアラート。"
+      "step4Desc": "自動保護システムがポートフォリオを監視し、急激な変動の前にアラート。",
+      "sectionLabel": "使い方",
+      "step1Subtitle": "サインアップ",
+      "step2Subtitle": "AI分析",
+      "step3Subtitle": "スマートトレード",
+      "step4Subtitle": "利益を守る"
     },
     "neuralFeatures": {
       "newsRadar": "ニュースレーダー",

@@ -4357,7 +4357,12 @@
       "step1Title": "Crea tu Cuenta",
       "step3Title": "Deja que la IA Trabaje por Ti",
       "step2Desc": "Ocho modelos de IA analizan los mercados y generan señales de trading basadas en análisis multimodelo.",
-      "step4Desc": "El sistema de protección automática monitorea tu cartera y te alerta antes de la volatilidad aguda."
+      "step4Desc": "El sistema de protección automática monitorea tu cartera y te alerta antes de la volatilidad aguda.",
+      "sectionLabel": "CÓMO FUNCIONA",
+      "step1Subtitle": "Regístrate",
+      "step2Subtitle": "Análisis IA",
+      "step3Subtitle": "Opera inteligentemente",
+      "step4Subtitle": "Protege tus ganancias"
     },
     "neuralFeatures": {
       "newsRadar": "Radar de Noticias",

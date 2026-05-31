@@ -4357,7 +4357,12 @@
       "step1Title": "Maak uw account aan",
       "step3Title": "Laat AI voor u werken",
       "step2Desc": "Acht AI-modellen analyseren markten en genereren handelssignalen op basis van multi-modelanalyse.",
-      "step4Desc": "Het automatische beveiligingssysteem bewaakt uw portefeuille en waarschuwt u bij scherpe volatiliteit."
+      "step4Desc": "Het automatische beveiligingssysteem bewaakt uw portefeuille en waarschuwt u bij scherpe volatiliteit.",
+      "sectionLabel": "HOE HET WERKT",
+      "step1Subtitle": "Aanmelden",
+      "step2Subtitle": "AI-analyse",
+      "step3Subtitle": "Slim handelen",
+      "step4Subtitle": "Bescherm winst"
     },
     "neuralFeatures": {
       "newsRadar": "Nieuwsradar",

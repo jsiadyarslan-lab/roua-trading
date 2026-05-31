@@ -4357,7 +4357,12 @@
       "step1Title": "Skapa ditt konto",
       "step3Title": "Låt AI arbeta för dig",
       "step2Desc": "Åtta AI-modeller analyserar marknader och genererar handelssignaler baserat på multimodellanalys.",
-      "step4Desc": "Automatiskt skyddssystem övervakar din portfölj och varnar dig innan kraftig volatilitet."
+      "step4Desc": "Automatiskt skyddssystem övervakar din portfölj och varnar dig innan kraftig volatilitet.",
+      "sectionLabel": "SÅ HÄR FUNGERAR DET",
+      "step1Subtitle": "Registrering",
+      "step2Subtitle": "AI-analys",
+      "step3Subtitle": "Smart handel",
+      "step4Subtitle": "Skydda vinster"
     },
     "neuralFeatures": {
       "newsRadar": "Radar företagsprofil",

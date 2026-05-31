@@ -4357,7 +4357,12 @@
       "step1Title": "Hesabınızı Oluşturun",
       "step3Title": "Yapay Zeka Sizin İçin Çalışsın",
       "step2Desc": "Sekiz yapay zeka modeli piyasaları analiz eder ve çoklu model analizine dayalı işlem sinyalleri üretir.",
-      "step4Desc": "Otomatik koruma sistemi portföyünüzü izler ve keskin volatilite öncesi sizi uyarır."
+      "step4Desc": "Otomatik koruma sistemi portföyünüzü izler ve keskin volatilite öncesi sizi uyarır.",
+      "sectionLabel": "NASIL ÇALIŞIR",
+      "step1Subtitle": "Kayıt Ol",
+      "step2Subtitle": "AI Analizi",
+      "step3Subtitle": "Akıllı Ticaret",
+      "step4Subtitle": "Kârı Koru"
     },
     "neuralFeatures": {
       "newsRadar": "Haber Radarı",

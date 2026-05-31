@@ -4357,7 +4357,12 @@
       "step1Title": "Tạo Tài khoản của bạn",
       "step3Title": "Hãy để AI làm việc cho bạn",
       "step2Desc": "Tám mô hình AI phân tích thị trường và tạo tín hiệu giao dịch dựa trên phân tích đa mô hình.",
-      "step4Desc": "Hệ thống bảo vệ tự động giám sát danh mục đầu tư của bạn và cảnh báo bạn trước những biến động mạnh."
+      "step4Desc": "Hệ thống bảo vệ tự động giám sát danh mục đầu tư của bạn và cảnh báo bạn trước những biến động mạnh.",
+      "sectionLabel": "CÁCH HOẠT ĐỘNG",
+      "step1Subtitle": "Đăng ký",
+      "step2Subtitle": "Phân tích AI",
+      "step3Subtitle": "Giao dịch thông minh",
+      "step4Subtitle": "Bảo vệ lợi nhuận"
     },
     "neuralFeatures": {
       "newsRadar": "Radar tin tức",

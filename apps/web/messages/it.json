@@ -4357,7 +4357,12 @@
       "step1Title": "Crea il tuo account",
       "step3Title": "Lascia che l'intelligenza artificiale lavori per te",
       "step2Desc": "Otto modelli di intelligenza artificiale analizzano i mercati e generano segnali di trading basati sull'analisi multi-modello.",
-      "step4Desc": "Il sistema di protezione automatica monitora il tuo portafoglio e ti avvisa prima di una forte volatilità."
+      "step4Desc": "Il sistema di protezione automatica monitora il tuo portafoglio e ti avvisa prima di una forte volatilità.",
+      "sectionLabel": "COME FUNZIONA",
+      "step1Subtitle": "Registrati",
+      "step2Subtitle": "Analisi IA",
+      "step3Subtitle": "Trading intelligente",
+      "step4Subtitle": "Proteggi i profitti"
     },
     "neuralFeatures": {
       "newsRadar": "Radar di notizie",

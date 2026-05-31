@@ -4357,7 +4357,12 @@
       "step1Title": "创建您的账户",
       "step3Title": "让AI为您工作",
       "step2Desc": "八个AI模型分析市场并基于多模型分析生成交易信号。",
-      "step4Desc": "自动保护系统监控您的投资组合，在剧烈波动前发出警报。"
+      "step4Desc": "自动保护系统监控您的投资组合，在剧烈波动前发出警报。",
+      "sectionLabel": "使用方法",
+      "step1Subtitle": "注册",
+      "step2Subtitle": "AI分析",
+      "step3Subtitle": "智能交易",
+      "step4Subtitle": "保护利润"
     },
     "neuralFeatures": {
       "newsRadar": "新闻雷达",

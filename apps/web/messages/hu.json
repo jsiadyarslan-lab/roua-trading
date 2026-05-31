@@ -4357,7 +4357,12 @@
       "step1Title": "Hozzon létre fiókot",
       "step3Title": "Hagyja, hogy a mesterséges intelligencia Ön helyett dolgozzon",
       "step2Desc": "Nyolc mesterséges intelligencia modell elemzi a piacokat, és több modell elemzése alapján kereskedési jeleket generál.",
-      "step4Desc": "Az automatikus védelmi rendszer figyeli portfólióját, és figyelmezteti Önt az éles volatilitás előtt."
+      "step4Desc": "Az automatikus védelmi rendszer figyeli portfólióját, és figyelmezteti Önt az éles volatilitás előtt.",
+      "sectionLabel": "HOGYAN MŰKÖDIK",
+      "step1Subtitle": "Regisztráció",
+      "step2Subtitle": "AI elemzés",
+      "step3Subtitle": "Okos kereskedés",
+      "step4Subtitle": "Nyereségvédelem"
     },
     "neuralFeatures": {
       "newsRadar": "Hírek Radar",

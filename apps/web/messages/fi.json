@@ -4357,7 +4357,12 @@
       "step1Title": "Luo tilisi",
       "step3Title": "Anna tekoälyn työskennellä puolestasi",
       "step2Desc": "Kahdeksan tekoälymallia analysoi markkinoita ja luo kaupankäyntisignaaleja usean mallin analyysin perusteella.",
-      "step4Desc": "Automaattinen suojausjärjestelmä tarkkailee portfoliotasi ja varoittaa ennen jyrkkiä volatiliteettia."
+      "step4Desc": "Automaattinen suojausjärjestelmä tarkkailee portfoliotasi ja varoittaa ennen jyrkkiä volatiliteettia.",
+      "sectionLabel": "MITE SE TOIMII",
+      "step1Subtitle": "Rekisteröidy",
+      "step2Subtitle": "AI-analyysi",
+      "step3Subtitle": "Älykäs kaupankäynti",
+      "step4Subtitle": "Suojaa voitot"
     },
     "neuralFeatures": {
       "newsRadar": "Uutiset Radar",

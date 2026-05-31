@@ -4357,7 +4357,12 @@
       "step1Title": "Creați-vă contul",
       "step3Title": "Lasă AI să lucreze pentru tine",
       "step2Desc": "Opt modele AI analizează piețele și generează semnale de tranzacționare bazate pe analize multi-model.",
-      "step4Desc": "Sistemul de protecție automată vă monitorizează portofoliul și vă avertizează înainte de o volatilitate puternică."
+      "step4Desc": "Sistemul de protecție automată vă monitorizează portofoliul și vă avertizează înainte de o volatilitate puternică.",
+      "sectionLabel": "CUM FUNCȚIONEAZĂ",
+      "step1Subtitle": "Înregistrare",
+      "step2Subtitle": "Analiză AI",
+      "step3Subtitle": "Tranzacționare inteligentă",
+      "step4Subtitle": "Protejează profiturile"
     },
     "neuralFeatures": {
       "newsRadar": "Radar de știri",

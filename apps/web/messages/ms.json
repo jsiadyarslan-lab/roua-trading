@@ -4357,7 +4357,12 @@
       "step1Title": "Cipta Akaun Anda",
       "step3Title": "Biarkan AI Bekerja untuk Anda",
       "step2Desc": "Lapan model AI menganalisis pasaran dan menjana isyarat dagangan berdasarkan analisis berbilang model.",
-      "step4Desc": "Sistem perlindungan automatik memantau portfolio anda dan memaklumkan anda sebelum turun naik mendadak."
+      "step4Desc": "Sistem perlindungan automatik memantau portfolio anda dan memaklumkan anda sebelum turun naik mendadak.",
+      "sectionLabel": "CARA IANYA BERFUNGSI",
+      "step1Subtitle": "Daftar",
+      "step2Subtitle": "Analisis AI",
+      "step3Subtitle": "Dagangan Pintar",
+      "step4Subtitle": "Lindungi Keuntungan"
     },
     "neuralFeatures": {
       "newsRadar": "Radar Berita",

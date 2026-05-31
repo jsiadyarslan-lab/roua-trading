@@ -51,6 +51,10 @@ export interface ChartControlAPI {
   toggleShare: () => void;
   // ── Symbol control ──
   setSymbol: (symbol: string) => void;
+  // ── Template control ──
+  saveTemplate: (name: string) => void;
+  loadTemplate: (id: string) => void;
+  getTemplates: () => any[];
   // ── Panel state getters (for toolbar highlight state) ──
   isAIPanelOpen: boolean;
   isVolumeProfileOpen: boolean;

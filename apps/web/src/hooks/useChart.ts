@@ -692,6 +692,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const restoreChartStateRef = useRef(restoreChartState);
   useEffect(() => { restoreChartStateRef.current = restoreChartState; }, [restoreChartState]);
 
+  // ── beforeunload: Force-save chart state before page refresh/close ──
+  // React cleanup effects may not execute reliably during page unload.
+  // This ensures indicators, settings, and other state are persisted
+  // even when the user refreshes or closes the tab.
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      try { saveChartStateRef.current(); } catch { /* ignore */ }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   useEffect(() => {
     // Save current state BEFORE switching (save for the PREVIOUS symbol)
     // FIX: Use ref to avoid stale closure — saveChartState captures the current
@@ -1660,7 +1672,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     setSettings(template.settings); // This triggers the settings effect which applies to chart
     // Apply indicators from template
     template.indicators.forEach(ind => addIndicator(ind));
-  }, [addIndicator]);
+    // Apply drawings from template
+    if (template.drawings && template.drawings.length > 0 && drawingManagerRef.current) {
+      // Override the drawings' symbol to match current chart and import all at once
+      const adaptedDrawings = template.drawings.map(d => ({ ...d, symbol }));
+      drawingManagerRef.current.importDrawings(JSON.stringify(adaptedDrawings));
+      drawingRendererRef.current?.redraw();
+    }
+    // Apply timeframe and chartType from template if they differ
+    if (template.timeframe && template.timeframe !== timeframe) {
+      // Let the parent component handle timeframe change if needed
+    }
+    if (template.chartType && template.chartType !== settings.type) {
+      setSettings(prev => ({ ...prev, type: template.chartType }));
+    }
+  }, [addIndicator, symbol, timeframe, settings.type]);
 
   const getTemplates = useCallback(() => {
     return ChartTemplateManager.getAll();

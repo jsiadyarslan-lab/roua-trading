@@ -632,6 +632,10 @@ export default function RouaChart({
           setSymbol: (symbol: string) => {
             useMultiChartStore.getState().updateChartConfig(chartId, { symbol });
           },
+          // ── Template control ──
+          saveTemplate: (name: string) => { chart.saveTemplate(name); },
+          loadTemplate: (id: string) => { chart.loadTemplate(id); },
+          getTemplates: () => chart.getTemplates(),
           // ── Panel state getters (use refs to avoid stale closures) ──
           get isAIPanelOpen() { return showAIPanelRef.current; },
           get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
@@ -2475,7 +2479,7 @@ export default function RouaChart({
         onToggleVolumeProfile={isMultiChart ? (() => { getActiveChartControl()?.toggleVolumeProfile(); }) : () => setShowVolumeProfile(!showVolumeProfile)}
         onToggleAIPanel={isMultiChart ? (() => { getActiveChartControl()?.toggleAIPanel(); }) : () => setShowAIPanel(!showAIPanel)}
         onToggleChartTrading={isMultiChart ? (() => { getActiveChartControl()?.toggleChartTrading(); }) : () => setShowChartTrading(!showChartTrading)}
-        onToggleTemplateManager={isMultiChart ? (() => { getActiveChartControl()?.toggleTemplateManager(); }) : () => setShowTemplateManager(!showTemplateManager)}
+        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
         onToggleWatchlist={isMultiChart ? (() => { getActiveChartControl()?.toggleWatchlist(); }) : () => setShowWatchlist(!showWatchlist)}
         onToggleChartSettings={isMultiChart ? (() => { getActiveChartControl()?.toggleChartSettings(); }) : () => setShowChartSettings(!showChartSettings)}
         showVolumeProfile={isMultiChart ? (getActiveChartControl()?.isVolumeProfileOpen || false) : showVolumeProfile}
@@ -2984,8 +2988,8 @@ export default function RouaChart({
         {showTemplateManager && createPortal(
           <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={280} minHeight={250}>
             <TemplateManager
-              onLoadTemplate={chart.loadTemplate}
-              onSaveTemplate={chart.saveTemplate}
+              onLoadTemplate={isMultiChart ? ((id: string) => { getActiveChartControl()?.loadTemplate(id); }) : chart.loadTemplate}
+              onSaveTemplate={isMultiChart ? ((name: string) => { getActiveChartControl()?.saveTemplate(name); }) : chart.saveTemplate}
               onClose={() => setShowTemplateManager(false)}
             />
           </DraggablePanel>,

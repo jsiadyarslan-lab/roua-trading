@@ -1096,9 +1096,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Only use incremental update for the LAST candle
     // (which is the one WebSocket updates in real-time)
     if (lastCandle && lastCandle.time === time) {
+      // FIX: Sanitize OHLC before rendering — flat candles (open===high===low===close)
+      // from WebSocket ticker data would render as dots without this.
+      let { open, high, low, close } = candle;
+      if (high < Math.max(open, close)) high = Math.max(open, close);
+      if (low > Math.min(open, close)) low = Math.min(open, close);
+      if (high === low) {
+        const tick = close * 0.0001;
+        high += tick;
+        low -= tick;
+      }
       // Update the candle in our ref (mutate last element for performance —
       // no need to copy the entire array for a single-element update)
-      const updated = { ...candle, time };
+      const updated = { ...candle, time, open, high, low, close };
       candles[candles.length - 1] = updated;
 
       // Apply Heikin-Ashi transform for the last candle only
@@ -1441,13 +1451,27 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // For heikin-ashi and candle, just re-set data on existing candlestick series
     if (type === 'candle' || type === 'heikin-ashi' || type === 'hollow') {
       const displayCandles = type === 'heikin-ashi' ? toHeikinAshi(candlesRef.current) : candlesRef.current;
-      const chartData = displayCandles.map(c => ({
-        time: c.time as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
+      // FIX: Apply OHLC validation + flat candle fix (same as setCandles)
+      // Without this, switching chart type re-introduces flat candles as dots.
+      const chartData = displayCandles
+        .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && c.close > 0)
+        .map(c => {
+          let { open, high, low, close } = c;
+          if (high < Math.max(open, close)) high = Math.max(open, close);
+          if (low > Math.min(open, close)) low = Math.min(open, close);
+          if (high === low) {
+            const tick = close * 0.0001;
+            high += tick;
+            low -= tick;
+          }
+          return {
+            time: c.time as Time,
+            open,
+            high,
+            low,
+            close,
+          };
+        });
 
       // Apply hollow candle style
       if (type === 'hollow' && candleSeriesRef.current) {

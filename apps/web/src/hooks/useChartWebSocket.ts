@@ -200,12 +200,25 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           const price = data.price || data.close;
           onPriceUpdate(price);
           const now = Math.floor(Date.now() / 1000);
+          // FIX: Sanitize OHLC — flat candles (open===high===low===close)
+          // from forex/ticker sources render as dots. Add tiny range if flat.
+          let open = data.open || price;
+          let high = data.high || price;
+          let low = data.low || price;
+          const close = price;
+          if (high < Math.max(open, close)) high = Math.max(open, close);
+          if (low > Math.min(open, close)) low = Math.min(open, close);
+          if (high === low) {
+            const tick = close * 0.0001;
+            high += tick;
+            low -= tick;
+          }
           const candle: CandleData = {
             time: now - (now % 60),
-            open: data.open || price,
-            high: data.high || price,
-            low: data.low || price,
-            close: price,
+            open,
+            high,
+            low,
+            close,
             volume: data.volume || 0,
           };
           onCandleUpdate(candle);
@@ -438,13 +451,25 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               onPriceUpdate(price);
 
               // Create synthetic candle from ticker data
+              // FIX: Sanitize OHLC — flat candles from ticker render as dots.
               const now = Math.floor(Date.now() / 1000);
+              let open = quote.open || price;
+              let high = quote.high || price;
+              let low = quote.low || price;
+              const close = price;
+              if (high < Math.max(open, close)) high = Math.max(open, close);
+              if (low > Math.min(open, close)) low = Math.min(open, close);
+              if (high === low) {
+                const tick = close * 0.0001;
+                high += tick;
+                low -= tick;
+              }
               const candle: CandleData = {
                 time: now - (now % 60),
-                open: quote.open || price,
-                high: quote.high || price,
-                low: quote.low || price,
-                close: price,
+                open,
+                high,
+                low,
+                close,
                 volume: quote.volume || 0,
               };
               onCandleUpdate(candle);

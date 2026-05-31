@@ -35,6 +35,32 @@ export interface ChartControlAPI {
   // ── Panel toggles (for main toolbar → active mini chart routing) ──
   toggleDrawings: () => void;
   toggleIndicators: () => void;
+  toggleAIPanel: () => void;
+  toggleVolumeProfile: () => void;
+  toggleChartTrading: () => void;
+  toggleTemplateManager: () => void;
+  toggleWatchlist: () => void;
+  toggleChartSettings: () => void;
+  toggleCompare: () => void;
+  toggleFootprint: () => void;
+  toggleAlerts: () => void;
+  togglePatternProgress: () => void;
+  toggleReplay: () => void;
+  toggleHeatmap: () => void;
+  toggleAIStream: () => void;
+  toggleShare: () => void;
+  // ── Panel state getters (for toolbar highlight state) ──
+  isAIPanelOpen: boolean;
+  isVolumeProfileOpen: boolean;
+  isChartTradingOpen: boolean;
+  isWatchlistOpen: boolean;
+  isCompareOpen: boolean;
+  isFootprintOpen: boolean;
+  isAlertsOpen: boolean;
+  isPatternProgressOpen: boolean;
+  isReplayOpen: boolean;
+  isHeatmapOpen: boolean;
+  isAIStreamOpen: boolean;
 }
 
 // ── Types ────────────────────────────────────────────────

@@ -420,6 +420,27 @@ export default function RouaChart({
   const [showReplay, setShowReplay] = useState(false);
   const [showHeatmap, setShowHeatmap] = useState(false);
   const [showAIStream, setShowAIStream] = useState(false);
+  // ── Panel state refs (for ChartControlAPI getters — avoid stale closures) ──
+  const showVolumeProfileRef = useRef(showVolumeProfile);
+  useEffect(() => { showVolumeProfileRef.current = showVolumeProfile; }, [showVolumeProfile]);
+  const showChartTradingRef = useRef(showChartTrading);
+  useEffect(() => { showChartTradingRef.current = showChartTrading; }, [showChartTrading]);
+  const showWatchlistRef = useRef(showWatchlist);
+  useEffect(() => { showWatchlistRef.current = showWatchlist; }, [showWatchlist]);
+  const showCompareRef = useRef(showCompare);
+  useEffect(() => { showCompareRef.current = showCompare; }, [showCompare]);
+  const showFootprintRef = useRef(showFootprint);
+  useEffect(() => { showFootprintRef.current = showFootprint; }, [showFootprint]);
+  const showAlertsRef = useRef(showAlerts);
+  useEffect(() => { showAlertsRef.current = showAlerts; }, [showAlerts]);
+  const showPatternProgressRef = useRef(showPatternProgress);
+  useEffect(() => { showPatternProgressRef.current = showPatternProgress; }, [showPatternProgress]);
+  const showReplayRef = useRef(showReplay);
+  useEffect(() => { showReplayRef.current = showReplay; }, [showReplay]);
+  const showHeatmapRef = useRef(showHeatmap);
+  useEffect(() => { showHeatmapRef.current = showHeatmap; }, [showHeatmap]);
+  const showAIStreamRef = useRef(showAIStream);
+  useEffect(() => { showAIStreamRef.current = showAIStream; }, [showAIStream]);
   // ── Quick Trade Panel State ──
   const [showQuickTrade, setShowQuickTrade] = useState(false);
   // ── Command Palette (Ctrl+K) ──
@@ -587,6 +608,32 @@ export default function RouaChart({
           // ── Panel toggles — route main toolbar actions to this mini chart ──
           toggleDrawings: () => setShowDrawingPanel(prev => !prev),
           toggleIndicators: () => setShowIndicatorPanel(prev => !prev),
+          toggleAIPanel: () => setShowAIPanel(prev => !prev),
+          toggleVolumeProfile: () => setShowVolumeProfile(prev => !prev),
+          toggleChartTrading: () => setShowChartTrading(prev => !prev),
+          toggleTemplateManager: () => setShowTemplateManager(prev => !prev),
+          toggleWatchlist: () => setShowWatchlist(prev => !prev),
+          toggleChartSettings: () => setShowChartSettings(prev => !prev),
+          toggleCompare: () => setShowCompare(prev => !prev),
+          toggleFootprint: () => setShowFootprint(prev => !prev),
+          toggleAlerts: () => setShowAlerts(prev => !prev),
+          togglePatternProgress: () => setShowPatternProgress(prev => !prev),
+          toggleReplay: () => setShowReplay(prev => !prev),
+          toggleHeatmap: () => setShowHeatmap(prev => !prev),
+          toggleAIStream: () => setShowAIStream(prev => !prev),
+          toggleShare: () => setShowShare(prev => !prev),
+          // ── Panel state getters (use refs to avoid stale closures) ──
+          get isAIPanelOpen() { return showAIPanelRef.current; },
+          get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
+          get isChartTradingOpen() { return showChartTradingRef.current; },
+          get isWatchlistOpen() { return showWatchlistRef.current; },
+          get isCompareOpen() { return showCompareRef.current; },
+          get isFootprintOpen() { return showFootprintRef.current; },
+          get isAlertsOpen() { return showAlertsRef.current; },
+          get isPatternProgressOpen() { return showPatternProgressRef.current; },
+          get isReplayOpen() { return showReplayRef.current; },
+          get isHeatmapOpen() { return showHeatmapRef.current; },
+          get isAIStreamOpen() { return showAIStreamRef.current; },
         };
         registerChartControl(chartId, controlApi);
         return true;
@@ -2381,17 +2428,17 @@ export default function RouaChart({
         mobile={mobile}
         height={toolbarHeight}
         // ── New Toolbar Props ──
-        onToggleVolumeProfile={() => setShowVolumeProfile(!showVolumeProfile)}
-        onToggleAIPanel={() => setShowAIPanel(!showAIPanel)}
-        onToggleChartTrading={() => setShowChartTrading(!showChartTrading)}
-        onToggleTemplateManager={() => setShowTemplateManager(!showTemplateManager)}
-        onToggleWatchlist={() => setShowWatchlist(!showWatchlist)}
-        onToggleChartSettings={() => setShowChartSettings(!showChartSettings)}
-        showVolumeProfile={showVolumeProfile}
-        showAIPanel={showAIPanel}
-        showChartTrading={showChartTrading}
-        showWatchlist={showWatchlist}
-        onToggleCompare={() => setShowCompare(!showCompare)}
+        onToggleVolumeProfile={isMultiChart ? (() => { getActiveChartControl()?.toggleVolumeProfile(); }) : () => setShowVolumeProfile(!showVolumeProfile)}
+        onToggleAIPanel={isMultiChart ? (() => { getActiveChartControl()?.toggleAIPanel(); }) : () => setShowAIPanel(!showAIPanel)}
+        onToggleChartTrading={isMultiChart ? (() => { getActiveChartControl()?.toggleChartTrading(); }) : () => setShowChartTrading(!showChartTrading)}
+        onToggleTemplateManager={isMultiChart ? (() => { getActiveChartControl()?.toggleTemplateManager(); }) : () => setShowTemplateManager(!showTemplateManager)}
+        onToggleWatchlist={isMultiChart ? (() => { getActiveChartControl()?.toggleWatchlist(); }) : () => setShowWatchlist(!showWatchlist)}
+        onToggleChartSettings={isMultiChart ? (() => { getActiveChartControl()?.toggleChartSettings(); }) : () => setShowChartSettings(!showChartSettings)}
+        showVolumeProfile={isMultiChart ? (getActiveChartControl()?.isVolumeProfileOpen || false) : showVolumeProfile}
+        showAIPanel={isMultiChart ? (getActiveChartControl()?.isAIPanelOpen || false) : showAIPanel}
+        showChartTrading={isMultiChart ? (getActiveChartControl()?.isChartTradingOpen || false) : showChartTrading}
+        showWatchlist={isMultiChart ? (getActiveChartControl()?.isWatchlistOpen || false) : showWatchlist}
+        onToggleCompare={isMultiChart ? (() => { getActiveChartControl()?.toggleCompare(); }) : () => setShowCompare(!showCompare)}
         onToggleSmartGrid={() => {
           if (isMultiChart) {
             // Already in multi-chart mode → reset to single
@@ -2401,23 +2448,23 @@ export default function RouaChart({
             addChart(selectedSymbol_, timeframe_);
           }
         }}
-        onToggleShare={() => setShowShare(!showShare)}
-        showCompare={showCompare}
+        onToggleShare={isMultiChart ? (() => { getActiveChartControl()?.toggleShare(); }) : () => setShowShare(!showShare)}
+        showCompare={isMultiChart ? (getActiveChartControl()?.isCompareOpen || false) : showCompare}
         // ── 5 New Feature Toolbar Props ──
-        showFootprint={showFootprint}
-        onToggleFootprint={() => setShowFootprint(!showFootprint)}
-        showAlerts={showAlerts}
-        onToggleAlerts={() => setShowAlerts(!showAlerts)}
-        showPatternProgress={showPatternProgress}
-        onTogglePatternProgress={() => setShowPatternProgress(!showPatternProgress)}
+        showFootprint={isMultiChart ? (getActiveChartControl()?.isFootprintOpen || false) : showFootprint}
+        onToggleFootprint={isMultiChart ? (() => { getActiveChartControl()?.toggleFootprint(); }) : () => setShowFootprint(!showFootprint)}
+        showAlerts={isMultiChart ? (getActiveChartControl()?.isAlertsOpen || false) : showAlerts}
+        onToggleAlerts={isMultiChart ? (() => { getActiveChartControl()?.toggleAlerts(); }) : () => setShowAlerts(!showAlerts)}
+        showPatternProgress={isMultiChart ? (getActiveChartControl()?.isPatternProgressOpen || false) : showPatternProgress}
+        onTogglePatternProgress={isMultiChart ? (() => { getActiveChartControl()?.togglePatternProgress(); }) : () => setShowPatternProgress(!showPatternProgress)}
         // ── 3 Revolutionary Feature Toolbar Props ──
-        showReplay={showReplay}
-        onToggleReplay={() => setShowReplay(!showReplay)}
-        showHeatmap={showHeatmap}
-        onToggleHeatmap={() => setShowHeatmap(!showHeatmap)}
+        showReplay={isMultiChart ? (getActiveChartControl()?.isReplayOpen || false) : showReplay}
+        onToggleReplay={isMultiChart ? (() => { getActiveChartControl()?.toggleReplay(); }) : () => setShowReplay(!showReplay)}
+        showHeatmap={isMultiChart ? (getActiveChartControl()?.isHeatmapOpen || false) : showHeatmap}
+        onToggleHeatmap={isMultiChart ? (() => { getActiveChartControl()?.toggleHeatmap(); }) : () => setShowHeatmap(!showHeatmap)}
         // ── 4 AI Streaming Toolbar Prop ──
-        showAIStream={showAIStream}
-        onToggleAIStream={() => setShowAIStream(!showAIStream)}
+        showAIStream={isMultiChart ? (getActiveChartControl()?.isAIStreamOpen || false) : showAIStream}
+        onToggleAIStream={isMultiChart ? (() => { getActiveChartControl()?.toggleAIStream(); }) : () => setShowAIStream(!showAIStream)}
         priceAlertsCount={priceAlertsCount}
         // ── Multi-Chart Toolbar Props ──
         isMultiChart={isMultiChart}

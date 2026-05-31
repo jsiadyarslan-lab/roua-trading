@@ -1106,15 +1106,38 @@ export default function RouaChart({
         if (j.success && j.data && j.data.length > 0) {
           setFeedState('live');
           const formatted: CandleData[] = j.data
-            .map((c: any) => ({
-              time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-              open: Number(c.open) || 0,
-              high: Number(c.high) || 0,
-              low: Number(c.low) || 0,
-              close: Number(c.close) || 0,
-              volume: Number(c.volume) || 0,
-            }))
-            .filter(c => !isNaN(c.time) && c.time > 0 && !isNaN(c.open) && !isNaN(c.close));
+            .map((c: any) => {
+              let open = Number(c.open) || 0;
+              let high = Number(c.high) || 0;
+              let low = Number(c.low) || 0;
+              let close = Number(c.close) || 0;
+              // FIX: Validate OHLC — lightweight-charts requires high >= max(open,close)
+              // and low <= min(open,close). If high/low are 0 or invalid, auto-correct
+              // from open/close. This prevents candles appearing as dots when the
+              // API returns flat data (e.g., forex ECB rates where open=high=low=close)
+              // or when high/low fields are missing (toNum() returns 0).
+              if (close > 0) {
+                if (high <= 0 || high < Math.max(open, close)) high = Math.max(open, close);
+                if (low <= 0 || low > Math.min(open, close)) low = Math.min(open, close);
+                // FIX: For flat candles (open===high===low===close from forex sources),
+                // add a tiny artificial range so the candle renders with a visible body
+                // and wicks instead of appearing as a dot.
+                if (high === low) {
+                  const tick = close * 0.0001; // 0.01% of price — visually imperceptible
+                  high += tick;
+                  low -= tick;
+                }
+              }
+              return {
+                time: Math.floor(new Date(c.timestamp).getTime() / 1000),
+                open,
+                high,
+                low,
+                close,
+                volume: Number(c.volume) || 0,
+              };
+            })
+            .filter(c => !isNaN(c.time) && c.time > 0 && !isNaN(c.open) && !isNaN(c.close) && c.close > 0 && !isNaN(c.high) && c.high > 0 && !isNaN(c.low) && c.low > 0);
           // Deduplicate by time
           const seen = new Set<number>();
           const unique = formatted.filter(c => {

@@ -1293,16 +1293,34 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // crash lightweight-charts (null, undefined, NaN, Infinity)
     // Also sanitize time to ensure it's always a Unix timestamp number,
     // never a Date object or string (prevents "Cannot update oldest data" fatal error).
+    //
+    // FIX: Also validate OHLC relationships and auto-correct:
+    // - high must be >= max(open, close)
+    // - low must be <= min(open, close)
+    // - flat candles (open===high===low===close) get a tiny range to render
+    //   as visible candles instead of dots
     const chartData = displayCandles
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))
-      .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time))
-      .map(c => ({
-        time: c.time as Time,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
+      .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time) && c.close > 0)
+      .map(c => {
+        let { open, high, low, close } = c;
+        // Auto-correct invalid OHLC relationships
+        if (high < Math.max(open, close)) high = Math.max(open, close);
+        if (low > Math.min(open, close)) low = Math.min(open, close);
+        // Flat candle fix — add tiny range so candle renders with body/wicks
+        if (high === low) {
+          const tick = close * 0.0001;
+          high += tick;
+          low -= tick;
+        }
+        return {
+          time: c.time as Time,
+          open,
+          high,
+          low,
+          close,
+        };
+      });
 
     const volumeData = sorted
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))

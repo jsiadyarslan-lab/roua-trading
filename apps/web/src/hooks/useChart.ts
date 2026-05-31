@@ -133,6 +133,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // we must cancel the previous scheduled indicator re-apply to avoid
   // "Value is null" errors from stale indicator data.
   const pendingIndicatorRafRef = useRef<number>(0);
+
+  // ── Template restore flag ──
+  // When a grid template is being loaded, the calling code pre-saves state
+  // to useChartStateStore. We set this flag to tell restoreChartState()
+  // that the store data is authoritative and should override localStorage.
+  // Without this, DrawingManager.setSymbol() loads stale drawings from
+  // localStorage and overwrites the template's drawings saved in the store.
+  const templateRestoreFlagRef = useRef(false);
+
   // PERF: rAF buffer for batching WebSocket candle updates.
   // Instead of calling series.update() on every WS message, we buffer
   // them and flush once per animation frame. This prevents multiple
@@ -293,19 +302,33 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   const restoreChartState = useCallback(() => {
     const configKey = `${symbol}:${timeframe}`;
-    // Only restore once per symbol+timeframe combo
-    if (restoredConfigRef.current === configKey) return;
-    restoredConfigRef.current = configKey;
-
-    // Clear any previously saved visible range
-    savedVisibleRangeRef.current = null;
+    // Only skip if we've ALREADY successfully restored for this config key.
+    // EXCEPTION: if templateRestoreFlagRef is set, always restore (grid template load).
+    // IMPORTANT: If the chart instance is not ready yet (no drawingManagerRef,
+    // no chartInstanceRef), we must NOT set restoredConfigRef because the
+    // indicators and drawings won't actually be restored — they'll be skipped
+    // due to null refs, and the useEffect([isChartReady]) won't re-restore.
+    const isTemplateRestore = templateRestoreFlagRef.current;
+    if (!isTemplateRestore && restoredConfigRef.current === configKey) return;
 
     try {
       const store = useChartStateStore.getState();
       const saved = store.getChartConfig(symbol, timeframe);
-      if (!saved) return;
+      if (!saved) {
+        // No saved state — mark as restored so we don't keep trying
+        restoredConfigRef.current = configKey;
+        templateRestoreFlagRef.current = false;
+        return;
+      }
 
-      // Restore chart type
+      // Check if chart is ready for full restoration (indicators + drawings)
+      // If not ready, only restore settings/indicators to state, and
+      // DON'T set restoredConfigRef so that useEffect([isChartReady]) will
+      // re-try the full restoration once the chart is ready.
+      const chartReady = !!chartInstanceRef.current && !!candleSeriesRef.current;
+      const drawingsReady = !!drawingManagerRef.current;
+
+      // Restore chart type (safe even if chart not ready — just sets React state)
       if (saved.chartType && saved.chartType !== 'candle') {
         setSettings(prev => ({ ...prev, type: saved.chartType }));
       }
@@ -322,7 +345,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       // Restore indicators — they will be re-applied when candles load
-      // via the setCandles function's indicator re-apply logic
+      // via the setCandles function's indicator re-apply logic.
+      // This is safe even if chart isn't ready — just sets React state + ref.
       if (saved.indicators && saved.indicators.length > 0) {
         const restoredIndicators = new Map<string, ActiveIndicator>();
         saved.indicators.forEach((ind: SerializedIndicator) => {
@@ -338,27 +362,45 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         activeIndicatorsRef.current = restoredIndicators;
       }
 
-      // Restore drawings — import into DrawingManager and redraw
-      if (saved.drawings && saved.drawings.length > 0 && drawingManagerRef.current) {
+      // Restore drawings — requires DrawingManager to be initialized
+      if (saved.drawings && saved.drawings.length > 0 && drawingsReady) {
+        // Clear any drawings loaded from localStorage by setSymbol()
+        // and replace them with the template's drawings from the store
+        drawingManagerRef.current!.clearAll();
         const adaptedDrawings = saved.drawings.map(d => ({ ...d, symbol }));
-        drawingManagerRef.current.importDrawings(JSON.stringify(adaptedDrawings));
-        // Redraw after a short delay (renderer needs chart to be ready)
-        setTimeout(() => {
-          drawingRendererRef.current?.redraw();
-        }, 500);
+        drawingManagerRef.current!.importDrawings(JSON.stringify(adaptedDrawings));
+        // Redraw with retries — the DrawingRenderer may not be ready yet
+        // (it's loaded asynchronously via dynamic import)
+        const tryRedraw = (attempt = 0) => {
+          if (drawingRendererRef.current) {
+            drawingRendererRef.current.redraw();
+          } else if (attempt < 10) {
+            setTimeout(() => tryRedraw(attempt + 1), 300);
+          }
+        };
+        tryRedraw();
       }
 
-      // DO NOT restore saved visible range on symbol/timeframe switch.
-      // Previously, restoring the saved range from a previous session caused
-      // the chart to zoom into a narrow time window, making most candles
-      // appear to "disappear". Now, resetView() always uses fitContent()
-      // to show all candles, which is the expected default behavior.
-      // The saved visible range feature is removed because it caused more
-      // problems than it solved (race conditions, stale ranges, invisible candles).
+      // Mark as fully restored ONLY if we were able to restore everything
+      // (chart ready + drawings ready), OR if there were no drawings to restore.
+      const drawingsRestored = !saved.drawings || saved.drawings.length === 0 || drawingsReady;
+      if (chartReady && drawingsRestored) {
+        restoredConfigRef.current = configKey;
+        templateRestoreFlagRef.current = false;
+      }
+      // If not fully restored, DON'T set restoredConfigRef — the
+      // useEffect([isChartReady]) will call us again when ready.
 
-      console.log(`[useChart] Restored chart state for ${configKey}`);
+      console.log(`[useChart] Restored chart state for ${configKey}`, {
+        indicators: saved.indicators?.length || 0,
+        drawings: saved.drawings?.length || 0,
+        chartReady,
+        drawingsReady,
+        isTemplateRestore,
+      });
     } catch (e) {
       console.warn('[useChart] Restore failed:', e);
+      // Don't mark as restored on failure — allow retry
     }
   }, [symbol, timeframe]);
 
@@ -1122,9 +1164,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const chart = chartInstanceRef.current;
     if (!chart || !candlesRef.current.length) return;
 
+    // Update both React state AND ref immediately.
+    // The ref is used by getActiveIndicators() (which is called by
+    // ChartControlAPI.getChartState() for template saving) and must
+    // be up-to-date even before React re-renders.
     setActiveIndicators(prev => {
       const next = new Map(prev);
       next.set(indicator.key, indicator);
+      activeIndicatorsRef.current = next; // Sync ref immediately
       return next;
     });
 
@@ -1348,14 +1395,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     setActiveIndicators(prev => {
       const next = new Map(prev);
       next.delete(key);
+      activeIndicatorsRef.current = next; // Sync ref immediately
       return next;
     });
   }, []);
 
   // ── Get Active Indicators ──────────────────────────────
+  // FIX: Use activeIndicatorsRef instead of activeIndicators state.
+  // The state may be stale in closures (e.g., ChartControlAPI's getChartState)
+  // because the API object is created once during registration and captures
+  // the old `activeIndicators` value. The ref is always up-to-date.
   const getActiveIndicators = useCallback((): ActiveIndicator[] => {
-    return Array.from(activeIndicators.values());
-  }, [activeIndicators]);
+    return Array.from(activeIndicatorsRef.current.values());
+  }, []);
 
   // ── Set Chart Type ─────────────────────────────────────
   const setChartType = useCallback(async (type: ChartType) => {

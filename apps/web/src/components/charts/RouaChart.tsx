@@ -648,15 +648,10 @@ export default function RouaChart({
             drawings: chart.getDrawings(),
           }),
           applyChartState: (state: CellChartState) => {
-            // Apply settings
-            chart.updateSettings(state.settings);
-            // Apply chart type
-            if (state.chartType && state.chartType !== chart.settings.type) {
-              chart.updateSettings({ type: state.chartType } as any);
-            }
             // Save indicators and drawings to useChartStateStore so they
-            // get restored automatically when candles load.
-            // Direct addIndicator() fails if candles haven't loaded yet.
+            // get restored automatically when candles load via setCandles().
+            // Direct addIndicator() fails if candles haven't loaded yet,
+            // so we rely on the store-based restore flow instead.
             const store = useChartStateStore.getState();
             const indicators: SerializedIndicator[] = (state.indicators || []).map(ind => ({
               key: ind.key,
@@ -671,13 +666,9 @@ export default function RouaChart({
               indicators,
               drawings: state.drawings || [],
             });
-            // If chart already has candles, apply immediately too
-            if (chart.candleSeriesRef?.current) {
-              state.indicators?.forEach(ind => chart.addIndicator(ind));
-              if (state.drawings && state.drawings.length > 0) {
-                chart.importDrawings(state.drawings);
-              }
-            }
+            // Force restoreChartState to re-run for this symbol:timeframe
+            // by resetting the restored config tracking
+            // (this is handled by the templateRestoreFlagRef in useChart)
           },
           // ── Panel state getters (use refs to avoid stale closures) ──
           get isAIPanelOpen() { return showAIPanelRef.current; },

@@ -628,6 +628,10 @@ export default function RouaChart({
           toggleHeatmap: () => { setShowHeatmap(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
           toggleAIStream: () => { setShowAIStream(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
           toggleShare: () => { setShowShare(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          // ── Symbol control ──
+          setSymbol: (symbol: string) => {
+            useMultiChartStore.getState().updateChartConfig(chartId, { symbol });
+          },
           // ── Panel state getters (use refs to avoid stale closures) ──
           get isAIPanelOpen() { return showAIPanelRef.current; },
           get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
@@ -2327,33 +2331,60 @@ export default function RouaChart({
     >
       {/* ── TOOLBAR ── */}
       {isGridCell ? (
-        /* Grid Cell Header — thin bar showing symbol/timeframe + close.
+        /* Grid Cell Header — interactive bar with symbol selector, timeframe buttons + close.
          * The MAIN toolbar at the top controls this chart (drawing, indicators,
-         * zoom, etc.). This header only shows: which chart this is + close button.
+         * zoom, etc.). This header shows: symbol selector + timeframe + close button.
          * Click anywhere on this header to make this the active chart. */
         <div
           onMouseDown={onActivate}
           style={{
-            display: 'flex', alignItems: 'center', height: 22, padding: '0 4px',
+            display: 'flex', alignItems: 'center', height: 28, padding: '0 6px',
             borderBottom: isActive ? '1.5px solid rgba(0,212,255,0.5)' : '1px solid #1E2530',
             background: isActive ? 'rgba(0,212,255,0.06)' : 'rgba(17,22,32,0.95)',
             boxShadow: isActive ? '0 0 12px rgba(0,212,255,0.12)' : 'none',
             flexShrink: 0, gap: 4, direction: 'ltr', cursor: 'default',
           }}
         >
-          <span style={{
-            color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 10, fontWeight: 700, flexShrink: 0,
-          }}>
-            {effectiveSymbol}
-          </span>
-          <span style={{
-            color: isActive ? '#F0F2F5' : '#4B5563',
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: 9, fontWeight: 500, flexShrink: 0,
-          }}>
-            {TIMEFRAMES.find(t => t.value === effectiveTimeframe)?.label || effectiveTimeframe}
-          </span>
+          {/* Symbol selector dropdown */}
+          <select value={effectiveSymbol} onClick={e => e.stopPropagation()}
+            onChange={e => {
+              e.stopPropagation();
+              const newSymbol = e.target.value;
+              if (chartId) {
+                useMultiChartStore.getState().updateChartConfig(chartId, { symbol: newSymbol });
+              }
+            }}
+            style={{
+              background: 'rgba(0,212,255,0.08)', border: '1px solid rgba(0,212,255,0.2)',
+              borderRadius: 3, color: '#00D4FF', fontFamily: "'JetBrains Mono', monospace",
+              fontSize: 10, fontWeight: 700, padding: '1px 4px', cursor: 'pointer',
+              outline: 'none', maxWidth: 95, flexShrink: 0,
+            }}
+          >
+            {POPULAR_SYMBOLS_MINI.map(p => (
+              <option key={p} value={p} style={{ background: '#111620', color: '#F0F2F5' }}>{p}</option>
+            ))}
+          </select>
+
+          {/* Timeframe buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 1, overflow: 'hidden' }}>
+            {TIMEFRAME_MINI.map(tf => {
+              const active = effectiveTimeframe === tf.value;
+              return (
+                <button key={tf.value}
+                  onClick={e => { e.stopPropagation(); if (chartId) useMultiChartStore.getState().updateChartConfig(chartId, { timeframe: tf.value }); }}
+                  style={{
+                    background: active ? 'rgba(0,212,255,0.15)' : 'transparent',
+                    border: active ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+                    borderRadius: 2, color: active ? '#00D4FF' : '#4B5563',
+                    fontFamily: "'JetBrains Mono', monospace", fontSize: 8,
+                    fontWeight: active ? 700 : 500, padding: '0 3px', height: 18,
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                >{tf.label}</button>
+              );
+            })}
+          </div>
           {chart.isPaused && (
             <span style={{ color: '#fbbf24', fontSize: 8, fontWeight: 700 }}>⏸</span>
           )}
@@ -2408,6 +2439,11 @@ export default function RouaChart({
         symbol={isMultiChart ? (charts.find(c => c.id === activeChartId)?.symbol || selectedSymbol_) : selectedSymbol_}
         timeframe={isMultiChart ? (charts.find(c => c.id === activeChartId)?.timeframe || timeframe_) : timeframe_}
         chartType={isMultiChart ? (charts.find(c => c.id === activeChartId)?.chartType || chart.settings.type) : chart.settings.type}
+        onSetSymbol={isMultiChart ? ((sym: string) => {
+          getActiveChartControl()?.setSymbol(sym);
+        }) : ((sym: string) => {
+          setSelectedSymbol(sym);
+        })}
         onSetTimeframe={isMultiChart ? ((tf: string) => {
           const ctrl = getActiveChartControl();
           if (ctrl) { /* timeframe is updated via updateChartConfig in RouaChart mini instance */ }
@@ -2987,9 +3023,19 @@ export default function RouaChart({
             defaultSymbol={selectedSymbol_}
             defaultTimeframe={timeframe_}
             onSwitchToChart={(symbol, tf, openTool) => {
-              // Switch main chart to the selected symbol/timeframe
-              setSelectedSymbol(symbol);
-              setTimeframe(tf);
+              // Switch to the selected symbol/timeframe
+              if (isMultiChart) {
+                // In multi-chart mode: update the active chart cell
+                const ctrl = getActiveChartControl();
+                if (ctrl) {
+                  ctrl.setSymbol(symbol);
+                  useMultiChartStore.getState().updateChartConfig(activeChartId, { timeframe: tf });
+                }
+              } else {
+                // In single chart mode: update global store
+                setSelectedSymbol(symbol);
+                setTimeframe(tf);
+              }
               // Open the requested tool after a brief delay (chart needs to load)
               if (openTool) {
                 setTimeout(() => {
@@ -3079,8 +3125,12 @@ export default function RouaChart({
             <MiniHeatmap
               selectedSymbol={selectedSymbol_}
               onSelectSymbol={(symbol) => {
-                const { setSelectedSymbol } = useSymbolStore.getState();
-                setSelectedSymbol(symbol);
+                if (isMultiChart) {
+                  getActiveChartControl()?.setSymbol(symbol);
+                } else {
+                  const { setSelectedSymbol } = useSymbolStore.getState();
+                  setSelectedSymbol(symbol);
+                }
               }}
               onClose={() => setShowHeatmap(false)}
             />
@@ -3096,9 +3146,14 @@ export default function RouaChart({
           <WatchlistOverlay
             selectedSymbol={selectedSymbol_}
             onSelectSymbol={(symbol) => {
-              // Use the symbol store to change symbol
-              const { setSelectedSymbol } = useSymbolStore.getState();
-              setSelectedSymbol(symbol);
+              if (isMultiChart) {
+                // In multi-chart mode: update the active chart cell's symbol
+                getActiveChartControl()?.setSymbol(symbol);
+              } else {
+                // In single chart mode: update the global symbol store
+                const { setSelectedSymbol } = useSymbolStore.getState();
+                setSelectedSymbol(symbol);
+              }
             }}
             visible={showWatchlist}
           />

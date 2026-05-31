@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react'
 import { useRouter } from '@/i18n/navigation'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
@@ -9,6 +9,7 @@ import { ChevronDown, PanelRight, Zap, X, Target } from 'lucide-react'
 import { fmtPriceLocale } from '@/lib/price-format'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore'
 import { PrimarySidebarLayout } from '@/components/dashboard/layouts/PrimarySidebarLayout'
 import { SidebarDrawer } from '@/components/dashboard/layouts/SidebarDrawer'
 import { RightPanelLayout } from '@/components/dashboard/layouts/RightPanelLayout'
@@ -991,6 +992,23 @@ export default function DashboardPage() {
   const globalQuotes = useMarketStore(state => state.quotes) as Record<string, QuoteData | undefined>
   const selectedSymbol = useSymbolStore(state => state.selectedSymbol)
   const setSelectedSymbol = useSymbolStore(state => state.setSelectedSymbol)
+  // ── Smart symbol selector: routes to active chart cell in multi-chart mode ──
+  // When in multi-chart mode, clicking a symbol in the watchlist or currency bar
+  // should update the ACTIVE chart cell's symbol, not just the global store.
+  const isMultiChart = useMultiChartStore(state => state.isMultiChart)
+  const activeChartId = useMultiChartStore(state => state.activeChartId)
+  const handleSelectSymbol = useCallback((sym: string) => {
+    if (isMultiChart && activeChartId) {
+      // Route to the active chart cell via ChartControlAPI
+      const ctrl = getActiveChartControl();
+      if (ctrl) {
+        ctrl.setSymbol(sym);
+        return;
+      }
+    }
+    // Fallback: update global symbol store
+    setSelectedSymbol(sym);
+  }, [isMultiChart, activeChartId, setSelectedSymbol])
   const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
   const activeQuote = globalQuotes[selectedSymbol] ?? null
   const account = usePositionsStore(state => state.account)
@@ -1404,7 +1422,7 @@ export default function DashboardPage() {
                     <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
                   </div>
                   <div className="panel hover-glow" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                    <WatchlistMini selectedSymbol={selectedSymbol} />
+                    <WatchlistMini selectedSymbol={selectedSymbol} onSelectSymbol={handleSelectSymbol} />
                   </div>
                 </div>
               )}
@@ -1428,7 +1446,7 @@ export default function DashboardPage() {
                 <>
                   <PortfolioMini dataStatus={quoteStatus} lastUpdatedAt={activeQuote?.timestamp ?? null} sourceLabel={sourceLabel} selectedSymbol={selectedSymbol} />
                   <div style={{ height: 10 }} />
-                  <WatchlistMini selectedSymbol={selectedSymbol} />
+                  <WatchlistMini selectedSymbol={selectedSymbol} onSelectSymbol={handleSelectSymbol} />
                 </>
               )}
               {mode === 'ai' && (
@@ -1441,7 +1459,7 @@ export default function DashboardPage() {
               {mode === 'trader' && (
                 <>
                   <div style={{ height: 10 }} />
-                  <WatchlistMini />
+                  <WatchlistMini onSelectSymbol={handleSelectSymbol} />
                 </>
               )}
             </div>
@@ -1464,7 +1482,7 @@ export default function DashboardPage() {
               const active = sym === selectedSymbol
               return (
                 <button key={sym} type="button"
-                  onClick={() => setSelectedSymbol(sym)}
+                  onClick={() => handleSelectSymbol(sym)}
                   style={{
                     display:'flex', alignItems:'center', gap:5,
                     padding:'3px 9px', borderRadius:7, flexShrink:0, cursor:'pointer',

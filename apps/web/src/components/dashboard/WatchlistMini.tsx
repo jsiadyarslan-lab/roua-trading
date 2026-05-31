@@ -53,7 +53,7 @@ const ALL_SYMBOLS = [
   ...SYMBOLS_BY_TAB.Stocks,
 ]
 
-export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selectedSymbol?: string }) {
+export function WatchlistMini({ selectedSymbol: selectedSymbolProp, onSelectSymbol }: { selectedSymbol?: string; onSelectSymbol?: (symbol: string) => void }) {
   useScopedStyle(`
         @keyframes dash-pulse {
           0%, 100% { opacity: 1; }
@@ -196,7 +196,7 @@ export function WatchlistMini({ selectedSymbol: selectedSymbolProp }: { selected
             return (
               <div
                 key={sym}
-                onClick={() => setSelectedSymbol(sym)}
+                onClick={() => onSelectSymbol ? onSelectSymbol(sym) : setSelectedSymbol(sym)}
                 className="card"
                 style={{
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between',

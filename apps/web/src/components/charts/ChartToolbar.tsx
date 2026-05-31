@@ -17,6 +17,7 @@ interface ChartToolbarProps {
   timeframe: string;
   chartType: ChartType;
   onSetTimeframe: (tf: string) => void;
+  onSetSymbol?: (symbol: string) => void;
   onSetChartType: (type: ChartType) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -91,10 +92,16 @@ const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; i18nKey: string }[] = 
   { key: 'cursor',     icon: '↖', i18nKey: 'cursor' },
 ];
 
+// Symbol list for toolbar dropdown (same as grid cell header)
+const TOOLBAR_SYMBOLS = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+];
+
 export function ChartToolbar(props: ChartToolbarProps) {
   const {
     symbol, timeframe, chartType,
-    onSetTimeframe, onSetChartType,
+    onSetTimeframe, onSetChartType, onSetSymbol,
     onZoomIn, onZoomOut, onResetView,
     onToggleDrawings, onToggleIndicators,
     onExportPNG, onExportCSV, onExportSVG, onToggleFullscreen,
@@ -704,6 +711,33 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </div>
 
         <div style={sepStyle} />
+
+        {/* Symbol Selector (only when onSetSymbol is provided — multi-chart mode) */}
+        {onSetSymbol && (
+          <>
+            <select value={symbol}
+              onChange={e => onSetSymbol(e.target.value)}
+              style={{
+                background: 'rgba(0,212,255,0.08)',
+                border: '1px solid rgba(0,212,255,0.25)',
+                borderRadius: 4,
+                color: COLORS.cyan,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 11,
+                fontWeight: 700,
+                padding: '1px 6px',
+                cursor: 'pointer',
+                outline: 'none',
+                height: 22,
+              }}
+            >
+              {TOOLBAR_SYMBOLS.map(s => (
+                <option key={s} value={s} style={{ background: '#111620', color: '#F0F2F5' }}>{s}</option>
+              ))}
+            </select>
+            <div style={sepStyle} />
+          </>
+        )}
 
         {/* Timeframe */}
         <div ref={tfRef} style={{ position: 'relative' }}>

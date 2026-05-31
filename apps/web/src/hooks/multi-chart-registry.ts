@@ -49,6 +49,8 @@ export interface ChartControlAPI {
   toggleHeatmap: () => void;
   toggleAIStream: () => void;
   toggleShare: () => void;
+  // ── Symbol control ──
+  setSymbol: (symbol: string) => void;
   // ── Panel state getters (for toolbar highlight state) ──
   isAIPanelOpen: boolean;
   isVolumeProfileOpen: boolean;

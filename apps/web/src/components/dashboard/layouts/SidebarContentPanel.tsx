@@ -15,6 +15,7 @@ import {
 } from '@/components/dashboard/DesktopContextPanels'
 import { useMarketStore } from '@/hooks/useMarketStore'
 import { useSymbolStore } from '@/hooks/useSymbolStore'
+import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore'
 import { getDataStatus, getSourceLabel } from '@/lib/dashboard-live'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
@@ -94,7 +95,16 @@ export function SidebarContentPanel({
               />
             )}
             {activeTab === 'book' && <OrderBookMini />}
-            {activeTab === 'watch' && <WatchlistMini />}
+            {activeTab === 'watch' && (
+              <WatchlistMini onSelectSymbol={(sym) => {
+                const isMultiChart = useMultiChartStore.getState().isMultiChart
+                if (isMultiChart) {
+                  const ctrl = getActiveChartControl()
+                  if (ctrl) { ctrl.setSymbol(sym); return }
+                }
+                useSymbolStore.getState().setSelectedSymbol(sym)
+              }} />
+            )}
             {activeTab === 'alerts' && <PriceAlertsPanel />}
             {activeTab === 'ai' && (
               <AlNarratorMini

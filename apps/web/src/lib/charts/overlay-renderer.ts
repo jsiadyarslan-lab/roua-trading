@@ -755,24 +755,36 @@ export function renderOverlays(
     const lastPrice = candles[candles.length - 1].close;
 
     let entry: number, sl: number, tp: number, dir: string;
+    // ATR for grid rounding — snap prices to ATR/10 grid to prevent micro-jitter
+    let atr: number;
     if (entryExit && entryExit.entryPrice > 0) {
       entry = entryExit.entryPrice;
       sl = entryExit.stopLoss;
       tp = entryExit.takeProfit;
       dir = entryExit.direction;
+      atr = candles.length >= 14 ? (() => {
+        const sl2 = candles.slice(-14);
+        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+        return trs.reduce((s, v) => s + v, 0) / trs.length;
+      })() : lastPrice * 0.01;
     } else if (signal && signal.entry > 0) {
       // FIX: Use the AI council signal (not null entryExit!)
       entry = signal.entry;
       sl = signal.sl;
       tp = signal.tp;
       dir = signal.dir === 'BUY' ? 'long' : 'short';
+      atr = candles.length >= 14 ? (() => {
+        const sl2 = candles.slice(-14);
+        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+        return trs.reduce((s, v) => s + v, 0) / trs.length;
+      })() : lastPrice * 0.01;
     } else {
       // Fallback: EMA-based
       const last20 = candles.slice(-20);
       const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
       const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
       dir = ema9 > ema20 ? 'long' : 'short';
-      const atr = candles.length >= 14 ? (() => {
+      atr = candles.length >= 14 ? (() => {
         const sl2 = candles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
@@ -780,6 +792,18 @@ export function renderOverlays(
       entry = lastPrice;
       sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
       tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+    }
+
+    // ATR/10 grid rounding — snap entry/SL/TP to the nearest ATR/10 grid step.
+    // This prevents "dancing lines" caused by tiny price fluctuations (e.g., 
+    // entry=1.08432 → 1.08435) that change the line position visually.
+    // With grid rounding, both values snap to the same ATR/10 grid point.
+    const gridStep = atr / 10;
+    if (gridStep > 0) {
+      const snapToGrid = (price: number) => Math.round(price / gridStep) * gridStep;
+      entry = snapToGrid(entry);
+      if (sl > 0) sl = snapToGrid(sl);
+      if (tp > 0) tp = snapToGrid(tp);
     }
 
     // Build data signature from entry/SL/TP/direction — prevents "dancing lines"
@@ -1395,21 +1419,40 @@ export function renderAnalysisOverlays(
     const entryExit = input.entryExit;
     const lastPrice = candles[candles.length - 1].close;
     let entry: number, sl: number, tp: number, dir: string;
+    let atr: number;
     if (entryExit && entryExit.entryPrice > 0) {
       entry = entryExit.entryPrice; sl = entryExit.stopLoss; tp = entryExit.takeProfit; dir = entryExit.direction;
+      atr = candles.length >= 14 ? (() => {
+        const sl2 = candles.slice(-14);
+        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+        return trs.reduce((s, v) => s + v, 0) / trs.length;
+      })() : lastPrice * 0.01;
     } else if (signal && signal.entry > 0) {
       entry = signal.entry; sl = signal.sl; tp = signal.tp; dir = signal.dir === 'BUY' ? 'long' : 'short';
+      atr = candles.length >= 14 ? (() => {
+        const sl2 = candles.slice(-14);
+        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+        return trs.reduce((s, v) => s + v, 0) / trs.length;
+      })() : lastPrice * 0.01;
     } else {
       const last20 = candles.slice(-20);
       const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
       const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
       dir = ema9 > ema20 ? 'long' : 'short';
-      const atr = candles.length >= 14 ? (() => {
+      atr = candles.length >= 14 ? (() => {
         const sl2 = candles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
       })() : lastPrice * 0.01;
       entry = lastPrice; sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5; tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+    }
+    // ATR/10 grid rounding — snap entry/SL/TP to prevent micro-jitter
+    const gridStep = atr / 10;
+    if (gridStep > 0) {
+      const snapToGrid = (price: number) => Math.round(price / gridStep) * gridStep;
+      entry = snapToGrid(entry);
+      if (sl > 0) sl = snapToGrid(sl);
+      if (tp > 0) tp = snapToGrid(tp);
     }
     // Build data signature from entry/SL/TP/direction — prevents "dancing lines"
     const entrySig = JSON.stringify({ entry, sl, tp, dir });

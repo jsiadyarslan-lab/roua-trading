@@ -150,6 +150,12 @@ export class TrendLinePrimitive implements ISeriesPrimitive {
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: TrendLineData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
+
   autoscaleInfo(): AutoscaleInfo | null {
     const min = Math.min(this._data.startPrice, this._data.endPrice);
     const max = Math.max(this._data.startPrice, this._data.endPrice);
@@ -311,6 +317,12 @@ export class HorizontalLinePrimitive implements ISeriesPrimitive {
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: HorizontalLineData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
+
   autoscaleInfo(): AutoscaleInfo | null {
     return { priceRange: { minValue: this._data.price, maxValue: this._data.price } };
   }
@@ -421,6 +433,12 @@ export class ShapePrimitive implements ISeriesPrimitive {
   detached(): void { this._param = null; }
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
+
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: ShapeData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
 
   autoscaleInfo(): AutoscaleInfo | null {
     if (this._data.points.length === 0) return null;
@@ -540,6 +558,12 @@ export class FibonacciPrimitive implements ISeriesPrimitive {
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
 
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: FibonacciData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
+
   autoscaleInfo(): AutoscaleInfo | null {
     return {
       priceRange: {
@@ -647,6 +671,12 @@ export class LabelPrimitive implements ISeriesPrimitive {
   detached(): void { this._param = null; }
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
+
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: LabelData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
 }
 
 
@@ -741,6 +771,12 @@ export class ZonePrimitive implements ISeriesPrimitive {
   detached(): void { this._param = null; }
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
+
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: ZoneData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
 
   autoscaleInfo(): AutoscaleInfo | null {
     return {
@@ -909,4 +945,10 @@ export class AlertMarkerPrimitive implements ISeriesPrimitive {
   detached(): void { this._param = null; }
   updateAllViews(): void {}
   paneViews(): readonly IPrimitivePaneView[] { return [this._paneView] as const; }
+
+  /** Update data in-place without recreating the primitive — prevents flickering */
+  updateData(newData: AlertMarkerData): void {
+    this._data = newData;
+    this.updateAllViews();
+  }
 }

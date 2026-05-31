@@ -506,7 +506,7 @@ export default function RouaChart({
     vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean;
   }>({ sr: false, trend: false, harmonic: false, fvg: false, bos: false, geo: false, ew: false, wyckoff: false, vp: false, entry: false, mtf: false, liq: false, trade: false });
   const lastOverlayRerenderRef = useRef(0);
-  const OVERLAY_RERENDER_INTERVAL_MS = 15_000;
+  const OVERLAY_RERENDER_INTERVAL_MS = 60_000;
   // CRITICAL FIX: Periodic overlay refresh interval.
   // A separate timer that re-renders overlays periodically, ensuring trend
   // lines and other overlays stay current even if the WebSocket path fails.
@@ -3261,7 +3261,8 @@ export default function RouaChart({
             <PriceAlertLine
               symbol={selectedSymbol_}
               currentPrice={currentPrice}
-              chart={chart}
+              addPriceLineRef={addPriceLineRef}
+              removePriceLineRef={removePriceLineRef}
               onClose={() => setShowAlerts(false)}
               onAlertsCountChange={setPriceAlertsCount}
             />

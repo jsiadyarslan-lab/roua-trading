@@ -26,11 +26,9 @@ export interface PriceAlert {
 interface PriceAlertLineProps {
   symbol: string;
   currentPrice?: number | null;
-  /** Chart hook — used to add/remove price lines */
-  chart: {
-    addPriceLine: (id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void;
-    removePriceLine: (id: string) => void;
-  };
+  /** Refs to chart methods — avoids re-render loops from `chart` prop recreation */
+  addPriceLineRef: React.RefObject<((id: string, price: number, color: string, label: string, lineWidth?: number, lineStyle?: number, axisLabelVisible?: boolean) => void) | null>;
+  removePriceLineRef: React.RefObject<((id: string) => void) | null>;
   onClose: () => void;
   /** Callback to report active alerts count */
   onAlertsCountChange?: (count: number) => void;
@@ -150,7 +148,7 @@ function sendBrowserNotification(alert: PriceAlert) {
 }
 
 // ── Main Component ────────────────────────────────────────
-export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsCountChange }: PriceAlertLineProps) {
+export function PriceAlertLine({ symbol, currentPrice, addPriceLineRef, removePriceLineRef, onClose, onAlertsCountChange }: PriceAlertLineProps) {
   const [alerts, setAlerts] = useState<PriceAlert[]>(() => loadAlerts(symbol));
   const [newPrice, setNewPrice] = useState('');
   const [newDirection, setNewDirection] = useState<PriceAlertDirection>('above');
@@ -175,17 +173,24 @@ export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsC
   }, [alerts, symbol, onAlertsCountChange]);
 
   // ── Manage chart price lines ──
+  // FIX: Use refs instead of `chart` prop to prevent infinite re-render loops.
+  // The `chart` object is recreated every render, so using it as a useEffect dep
+  // causes the effect to run on every render, removing and re-adding all lines.
   useEffect(() => {
+    const addPL = addPriceLineRef.current;
+    const removePL = removePriceLineRef.current;
+    if (!addPL || !removePL) return;
+
     // Remove all alert price lines first
     alerts.forEach(a => {
-      chart.removePriceLine(`price-alert-${a.id}`);
+      removePL(`price-alert-${a.id}`);
     });
 
     // Add active alert lines
     alerts.filter(a => a.active).forEach(a => {
       const color = a.direction === 'above' ? C.success : C.danger;
       const label = `🔔 ${a.direction === 'above' ? '↑' : '↓'} ${a.price.toFixed(a.price > 1000 ? 2 : 5)}`;
-      chart.addPriceLine(
+      addPL(
         `price-alert-${a.id}`,
         a.price,
         a.triggered ? `${color}88` : color,
@@ -198,10 +203,10 @@ export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsC
 
     return () => {
       alerts.forEach(a => {
-        chart.removePriceLine(`price-alert-${a.id}`);
+        removePL(`price-alert-${a.id}`);
       });
     };
-  }, [alerts, chart]);
+  }, [alerts, addPriceLineRef, removePriceLineRef]);
 
   // ── Check alerts against current price ──
   useEffect(() => {
@@ -273,10 +278,10 @@ export function PriceAlertLine({ symbol, currentPrice, chart, onClose, onAlertsC
   }, [newPrice, newDirection, symbol]);
 
   const handleDelete = useCallback((id: string) => {
-    chart.removePriceLine(`price-alert-${id}`);
+    removePriceLineRef.current?.(`price-alert-${id}`);
     notifiedRef.current.delete(id);
     setAlerts(prev => prev.filter(a => a.id !== id));
-  }, [chart]);
+  }, [removePriceLineRef]);
 
   const handleToggle = useCallback((id: string) => {
     setAlerts(prev => prev.map(a =>

@@ -17,6 +17,10 @@ interface RawNewsItem {
   source: string;
   category?: string;
   imageUrl?: string;
+  // RouaNews pre-analyzed fields
+  sentiment?: number;
+  impactLevel?: string;
+  affectedAssets?: string;
 }
 
 /**
@@ -320,27 +324,33 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    * Fetch news from all configured sources
    */
   private async _fetchAllSources(): Promise<RawNewsItem[]> {
-    const [ctResult, cpResult, cdResult] = await Promise.allSettled([
+    const [rouaResult, ctResult, cpResult, cdResult] = await Promise.allSettled([
+      this._fetchRouaNews(),       // ← أولاً: الموقع الإخباري الخاص (أعلى جودة + تحليل AI)
       this._fetchCoinTelegraph(),
       this._fetchCryptoPanic(),
       this._fetchCoinDesk(),
     ]);
 
-    const ctNews = ctResult.status === 'fulfilled' ? ctResult.value : [];
-    const cpNews = cpResult.status === 'fulfilled' ? cpResult.value : [];
-    const cdNews = cdResult.status === 'fulfilled' ? cdResult.value : [];
+    const rouaNews = rouaResult.status === 'fulfilled' ? rouaResult.value : [];
+    const ctNews   = ctResult.status === 'fulfilled' ? ctResult.value : [];
+    const cpNews   = cpResult.status === 'fulfilled' ? cpResult.value : [];
+    const cdNews   = cdResult.status === 'fulfilled' ? cdResult.value : [];
 
+    if (rouaResult.status === 'rejected') {
+      this.logger.warn(`RouaNews fetch failed: ${(rouaResult as any).reason?.message || (rouaResult as any).reason}`);
+    }
     if (ctResult.status === 'rejected') {
-      this.logger.warn(`CoinTelegraph fetch failed: ${ctResult.reason?.message || ctResult.reason}`);
+      this.logger.warn(`CoinTelegraph fetch failed: ${(ctResult as any).reason?.message || (ctResult as any).reason}`);
     }
     if (cpResult.status === 'rejected') {
-      this.logger.warn(`CryptoPanic fetch failed: ${cpResult.reason?.message || cpResult.reason}`);
+      this.logger.warn(`CryptoPanic fetch failed: ${(cpResult as any).reason?.message || (cpResult as any).reason}`);
     }
     if (cdResult.status === 'rejected') {
-      this.logger.warn(`CoinDesk fetch failed: ${cdResult.reason?.message || cdResult.reason}`);
+      this.logger.warn(`CoinDesk fetch failed: ${(cdResult as any).reason?.message || (cdResult as any).reason}`);
     }
 
-    const allNews = [...ctNews, ...cpNews, ...cdNews];
+    // RouaNews أولاً — بياناتها تشمل sentiment وimpactLevel محللين مسبقاً
+    const allNews = [...rouaNews, ...ctNews, ...cpNews, ...cdNews];
 
     // Deduplicate by title
     const seen = new Set<string>();
@@ -667,4 +677,70 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     if (lower.includes('tech') || lower.includes('ai')) return 'تقنية';
     return 'أسواق';
   }
+  /**
+   * Fetch from Roua Trading News site — primary source
+   * Uses /api/integration/news endpoint with X-Integration-Key
+   * Returns pre-analyzed articles with sentiment scores and impact levels
+   */
+  private async _fetchRouaNews(): Promise<RawNewsItem[]> {
+    const newsSiteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
+    const integrationKey = process.env.INTEGRATION_API_KEY;
+
+    if (!integrationKey) {
+      this.logger.debug('INTEGRATION_API_KEY not set — skipping RouaNews fetch');
+      return [];
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+
+    try {
+      const res = await fetch(`${newsSiteUrl}/api/integration/news?limit=20`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Integration-Key': integrationKey,
+        },
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        this.logger.warn(`RouaNews fetch failed: HTTP ${res.status}`);
+        return [];
+      }
+
+      const data = await res.json();
+      const articles = data.articles || data.news || [];
+
+      if (!Array.isArray(articles) || articles.length === 0) {
+        this.logger.debug('RouaNews: no articles returned');
+        return [];
+      }
+
+      this.logger.log(`📰 RouaNews: fetched ${articles.length} articles`);
+
+      return articles.map((a: any): RawNewsItem => ({
+        title:       a.titleAr || a.title || '',
+        description: a.summaryAr || a.summary || '',
+        link:        a.url || (a.slug ? `${newsSiteUrl}/news/${a.slug}` : undefined),
+        publishedAt: a.publishedAt || undefined,
+        source:      'RouaNews',
+        category:    a.category || 'أسواق',
+        // Pre-analyzed fields — pass through directly
+        sentiment:   typeof a.sentiment === 'number' ? a.sentiment : 0,
+        impactLevel: a.impactLevel || 'medium',
+        affectedAssets: Array.isArray(a.affectedAssets) ? a.affectedAssets.join(',') : (a.affectedAssets || ''),
+      }));
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        this.logger.warn('RouaNews fetch timed out (10s)');
+      } else {
+        this.logger.warn(`RouaNews fetch error: ${err.message}`);
+      }
+      return [];
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+
 }

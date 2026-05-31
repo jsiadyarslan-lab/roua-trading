@@ -354,6 +354,29 @@ export class PositionMonitorService {
 
     // ── Below: Full monitoring for non-Agent positions ──
 
+    // ── MAX_HOLDING_TIME: Smart Executor positions close after timeframe limit ──
+    // Smart Executor uses M1/M5/M15 briefs — positions should not stay open for hours.
+    // Without this, a position that misses TP/SL drifts indefinitely.
+    // MAX per timeframe: M1=30min, M5=90min, M15=3h, default=6h
+    const isSmartExecutorPosition = position.source === 'smart_executor';
+    if (isSmartExecutorPosition && position.openedAt) {
+      const holdingMs = Date.now() - new Date(position.openedAt).getTime();
+      // M1/M5/M15 briefs shouldn't hold longer than 4 hours
+      // Without briefTimeframe field in DB, we use a unified cap
+      const maxHoldingMs = 4 * 60 * 60 * 1000;  // 4 ساعات
+
+      if (holdingMs > maxHoldingMs) {
+        const holdingHrs = (holdingMs / 3600000).toFixed(1);
+        this.logger.warn(
+          `⏱️ MAX_HOLDING exceeded for smart_executor position ${position.symbol} ` +
+          `(held ${holdingHrs}h, max=${maxHoldingMs/60000}min, TF=${briefTimeframe || 'unknown'}) — closing at market`,
+        );
+        await this._closePosition(position, currentPrice, 'STRATEGY_EXIT');
+        result.slTriggered = true;
+        return result;
+      }
+    }
+
     // ── Stop-Loss Check ──
     if (stopLossNum !== null) {
       const slHit =

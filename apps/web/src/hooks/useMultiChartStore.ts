@@ -17,8 +17,8 @@ import { LAYOUT_METAS, unregisterChartInstance, getChartControl } from '@/hooks/
 
 // Re-export types and registry functions for backward compatibility
 // so consumers don't need to change their import paths.
-export type { ChartControlAPI, LayoutConfig, ChartCellConfig } from '@/hooks/multi-chart-registry';
-export { LAYOUT_METAS, registerChartInstance, unregisterChartInstance, getChartInstance, getMainSeries, getAllChartInstances, getAllMainSeries, registerChartControl, unregisterChartControl, getChartControl } from '@/hooks/multi-chart-registry';
+export type { ChartControlAPI, LayoutConfig, ChartCellConfig, CellChartState } from '@/hooks/multi-chart-registry';
+export { LAYOUT_METAS, registerChartInstance, unregisterChartInstance, getChartInstance, getMainSeries, getAllChartInstances, getAllMainSeries, registerChartControl, unregisterChartControl, getChartControl, getAllChartControls } from '@/hooks/multi-chart-registry';
 
 const DEFAULT_TIMEFRAMES = ['15min', '1h', '4h', '1day', '5min', '1min'];
 const POPULAR_SYMBOLS = [

@@ -33,10 +33,11 @@ import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/Profe
 import { ChartTrading } from './ChartTrading';
 import { QuickTradePanel } from './QuickTradePanel';
 import { TemplateManager } from './TemplateManager';
+import { GridTemplateManager, type GridTemplate } from '@/lib/charts/GridTemplate';
 import { ChartSettingsPanel } from './ChartSettingsPanel';
 import { CompareOverlay } from './CompareOverlay';
 const SmartGrid = dynamic(() => import('./SmartGrid').then(m => ({ default: m.SmartGrid })), { ssr: false })
-import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl, registerChartInstance, unregisterChartInstance, registerChartControl, unregisterChartControl, type ChartControlAPI } from '@/hooks/multi-chart-registry';
+import { LAYOUT_METAS, type LayoutConfig, getAllChartInstances, getAllMainSeries, getChartControl, getAllChartControls, registerChartInstance, unregisterChartInstance, registerChartControl, unregisterChartControl, type ChartControlAPI, type CellChartState } from '@/hooks/multi-chart-registry';
 import { useMultiChartStore, getActiveChartControl } from '@/hooks/useMultiChartStore';
 import { useChartSync } from '@/hooks/useChartSync';
 import ShareChart from './ShareChart';
@@ -636,6 +637,29 @@ export default function RouaChart({
           saveTemplate: (name: string) => { chart.saveTemplate(name); },
           loadTemplate: (id: string) => { chart.loadTemplate(id); },
           getTemplates: () => chart.getTemplates(),
+          // ── Grid Template state export/import ──
+          getChartState: (): CellChartState => ({
+            symbol: selectedSymbol_,
+            timeframe: timeframe_,
+            chartType: chart.settings.type,
+            settings: chart.settings,
+            indicators: chart.getActiveIndicators(),
+            drawings: chart.getDrawings(),
+          }),
+          applyChartState: (state: CellChartState) => {
+            // Apply settings
+            chart.updateSettings(state.settings);
+            // Apply indicators
+            state.indicators.forEach(ind => chart.addIndicator(ind));
+            // Apply drawings
+            if (state.drawings && state.drawings.length > 0) {
+              chart.importDrawings(state.drawings);
+            }
+            // Apply chart type
+            if (state.chartType && state.chartType !== chart.settings.type) {
+              chart.updateSettings({ type: state.chartType } as any);
+            }
+          },
           // ── Panel state getters (use refs to avoid stale closures) ──
           get isAIPanelOpen() { return showAIPanelRef.current; },
           get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
@@ -2986,11 +3010,66 @@ export default function RouaChart({
 
         {/* Template Manager (draggable) — rendered via Portal */}
         {showTemplateManager && createPortal(
-          <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={280} minHeight={250}>
+          <DraggablePanel defaultPosition={{ top: 40, left: 100 }} defaultWidth={isMultiChart ? 300 : 280} minHeight={250}>
             <TemplateManager
               onLoadTemplate={isMultiChart ? ((id: string) => { getActiveChartControl()?.loadTemplate(id); }) : chart.loadTemplate}
               onSaveTemplate={isMultiChart ? ((name: string) => { getActiveChartControl()?.saveTemplate(name); }) : chart.saveTemplate}
               onClose={() => setShowTemplateManager(false)}
+              isMultiChart={isMultiChart}
+              onLoadGridTemplate={isMultiChart ? ((id: string) => {
+                const gridTemplate = GridTemplateManager.load(id);
+                if (!gridTemplate) return;
+                const store = useMultiChartStore.getState();
+                // Change layout to match template (this creates/removes cells as needed)
+                store.changeLayout(gridTemplate.layout, selectedSymbol_, timeframe_);
+                // Now apply each cell's state after a short delay (layout change needs to render first)
+                setTimeout(() => {
+                  const updatedStore = useMultiChartStore.getState();
+                  gridTemplate.cells.forEach((cellState, index) => {
+                    const chartCfg = updatedStore.charts[index];
+                    if (chartCfg) {
+                      // Update cell config (symbol, timeframe, chartType)
+                      updatedStore.updateChartConfig(chartCfg.id, {
+                        symbol: cellState.symbol,
+                        timeframe: cellState.timeframe,
+                        chartType: cellState.chartType,
+                      });
+                    }
+                  });
+                  // Apply chart state (settings, indicators, drawings) after config changes propagate
+                  setTimeout(() => {
+                    const finalStore = useMultiChartStore.getState();
+                    gridTemplate.cells.forEach((cellState, index) => {
+                      const chartCfg = finalStore.charts[index];
+                      if (chartCfg) {
+                        const ctrl = getChartControl(chartCfg.id);
+                        if (ctrl) {
+                          ctrl.applyChartState(cellState);
+                        }
+                      }
+                    });
+                  }, 500);
+                }, 300);
+              }) : undefined}
+              onSaveGridTemplate={isMultiChart ? ((name: string) => {
+                const store = useMultiChartStore.getState();
+                const allControls = getAllChartControls();
+                // Collect state from ALL chart cells
+                const cells = store.charts.map(cellCfg => {
+                  const ctrl = allControls.get(cellCfg.id);
+                  const state = ctrl?.getChartState();
+                  return {
+                    id: cellCfg.id,
+                    symbol: state?.symbol ?? cellCfg.symbol,
+                    timeframe: state?.timeframe ?? cellCfg.timeframe,
+                    chartType: state?.chartType ?? cellCfg.chartType,
+                    settings: state?.settings ?? chart.settings,
+                    indicators: state?.indicators ?? [],
+                    drawings: state?.drawings ?? [],
+                  };
+                });
+                GridTemplateManager.save(name, store.layout, cells);
+              }) : undefined}
             />
           </DraggablePanel>,
           getPortalRoot()

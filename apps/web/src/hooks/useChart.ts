@@ -60,6 +60,7 @@ interface UseChartReturn {
   removeDrawing: (id: string) => void;
   clearDrawings: () => void;
   getDrawings: () => Drawing[];
+  importDrawings: (drawings: Drawing[]) => void;
   setTool: (tool: DrawingTool) => void;
   activeTool: DrawingTool;
   zoomIn: () => void;
@@ -1488,6 +1489,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return drawingManagerRef.current?.getAll() || [];
   }, []);
 
+  const importDrawings = useCallback((drawings: Drawing[]) => {
+    if (!drawingManagerRef.current) return;
+    const adapted = drawings.map(d => ({ ...d, symbol }));
+    drawingManagerRef.current.importDrawings(JSON.stringify(adapted));
+    drawingRendererRef.current?.redraw();
+  }, [symbol]);
+
   const setTool = useCallback((tool: DrawingTool) => {
     setActiveTool(tool);
     activeToolRef.current = tool; // Sync ref for lazy import race condition fix
@@ -1965,6 +1973,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     removeDrawing,
     clearDrawings,
     getDrawings,
+    importDrawings,
     setTool,
     activeTool,
     zoomIn,

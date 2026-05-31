@@ -9,7 +9,7 @@
 // ═══════════════════════════════════════════════════════════
 
 import type { IChartApi, ISeriesApi, SeriesType } from 'lightweight-charts';
-import type { ChartType, DrawingTool } from '@/lib/charts/types';
+import type { ChartSettings, ActiveIndicator, Drawing, ChartType, DrawingTool } from '@/lib/charts/types';
 
 // ── Chart Control API ────────────────────────────────────
 // This is the interface that RouaChart (in mini mode) exposes so the main
@@ -55,6 +55,9 @@ export interface ChartControlAPI {
   saveTemplate: (name: string) => void;
   loadTemplate: (id: string) => void;
   getTemplates: () => any[];
+  // ── Grid Template state export/import ──
+  getChartState: () => CellChartState;
+  applyChartState: (state: CellChartState) => void;
   // ── Panel state getters (for toolbar highlight state) ──
   isAIPanelOpen: boolean;
   isVolumeProfileOpen: boolean;
@@ -69,6 +72,16 @@ export interface ChartControlAPI {
   isAIStreamOpen: boolean;
   isDrawingPanelOpen: boolean;
   isIndicatorPanelOpen: boolean;
+}
+
+// ── Cell Chart State (for grid template save/load) ──
+export interface CellChartState {
+  symbol: string;
+  timeframe: string;
+  chartType: ChartType;
+  settings: ChartSettings;
+  indicators: ActiveIndicator[];
+  drawings: Drawing[];
 }
 
 // ── Types ────────────────────────────────────────────────
@@ -145,4 +158,8 @@ export function unregisterChartControl(id: string) {
 
 export function getChartControl(id: string): ChartControlAPI | undefined {
   return chartControlRegistry.get(id);
+}
+
+export function getAllChartControls(): Map<string, ChartControlAPI> {
+  return chartControlRegistry;
 }

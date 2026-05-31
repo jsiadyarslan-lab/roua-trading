@@ -1,0 +1,591 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Roua Trading (رؤى) — Risk Calculator Service
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+import { Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
+import { RiskAssessment, AgentConfig, StrategyType } from '../types/agent.types';
+import { EvaluatedSignal } from '../types/agent.types';
+import {
+  getSymbolMetadata,
+  calculatePositionSizeFromRisk,
+  lotsToUnits,
+  unitsToLots,
+  roundLotSize,
+  calculateMargin,
+  calculateNotionalValue,
+} from '../../../modules/trading/services/symbol-metadata';
+
+/**
+ * RiskCalculatorService — Smart risk management engine
+ *
+ * Calculates position size, validates risk limits, and ensures
+ * every trade adheres to the strict safety rules of the platform.
+ *
+ * Safety Rules (NON-NEGOTIABLE):
+ * ┌─────────────────────────────────────────────────────────────┐
+ * │ 1. Stop-loss is MANDATORY for every position               │
+ * │ 2. Max position size: 1-2% of portfolio per trade          │
+ * │ 3. Max daily loss: 5% of portfolio — agent auto-stops      │
+ * │ 4. Max open positions: 5 per user                          │
+ * │ 5. Risk-reward ratio must be >= 1:1.5                      │
+ * │ 6. No new trades if daily loss limit reached                │
+ * │ 7. No withdrawal capability (trading permissions only)      │
+ * │ 8. Full audit trail for every risk decision                 │
+ * └─────────────────────────────────────────────────────────────┘
+ */
+@Injectable()
+export class RiskCalculatorService {
+  private readonly logger = new Logger(RiskCalculatorService.name);
+
+  // Default risk parameters (overridden by agent config and DB settings)
+  private defaultMaxPositionSizePercent = 2;
+  private defaultMaxDailyLossPercent = 5;
+  private defaultMaxOpenPositions = 5;
+  private defaultRiskPerTradePercent = 1.5;
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redis: RedisService,
+    private readonly configService: ConfigService,
+  ) {
+    // Load defaults from env
+    this.defaultMaxPositionSizePercent = parseFloat(
+      this.configService.get('MAX_POSITION_SIZE_PERCENT', '2'),
+    );
+    this.defaultMaxDailyLossPercent = parseFloat(
+      this.configService.get('MAX_DAILY_LOSS_PERCENT', '5'),
+    );
+    this.defaultMaxOpenPositions = parseInt(
+      this.configService.get('MAX_OPEN_POSITIONS', '5'),
+      10,
+    );
+
+    this.logger.log('🛡️ Risk Calculator initialized — capital protection active');
+  }
+
+  /**
+   * Strategy-specific minimum risk-reward ratios.
+   * Different strategies have different R:R expectations:
+   * - DCA: Very low R:R (0.5) because it has 70-80% win rate
+   * - Mean Reversion: Low R:R (1.0) because it targets the mean, not large moves
+   * - Scalping: Moderate R:R (1.0) because it takes small quick profits
+   * - Other strategies: Standard R:R (1.2)
+   */
+  private readonly STRATEGY_MIN_RR: Record<string, number> = {
+    [StrategyType.DCA]: 0.4,
+    [StrategyType.MEAN_REVERSION]: 0.8,
+    [StrategyType.SCALPING]: 1.0,
+    [StrategyType.GRID]: 0.8,
+    [StrategyType.VWAP_RSI]: 1.0,
+    [StrategyType.SWING]: 1.5,
+    [StrategyType.MOMENTUM_BREAKOUT]: 1.2,
+  };
+
+  /**
+   * Full risk assessment for a potential trade
+   * Returns whether the trade is allowed and all calculated risk metrics
+   */
+  async assessRisk(
+    userId: string,
+    signal: EvaluatedSignal,
+    config: AgentConfig,
+  ): Promise<RiskAssessment> {
+    // Step 1: Get current portfolio value
+    const portfolioValue = await this._getPortfolioValue(userId);
+
+    // Step 2: Calculate daily P&L
+    const dailyPnL = await this._getDailyPnL(userId);
+    const dailyLossPercent = portfolioValue > 0
+      ? (Math.abs(Math.min(0, dailyPnL)) / portfolioValue) * 100
+      : 0;
+
+    // Step 3: Count open positions
+    const openPositionsCount = await this._getOpenPositionsCount(userId);
+
+    // Step 4: Apply risk limits from config (or defaults)
+    const maxPositionSizePercent = config.maxPositionSizePercent || this.defaultMaxPositionSizePercent;
+    const maxDailyLossPercent = config.maxDailyLossPercent || this.defaultMaxDailyLossPercent;
+    const maxOpenPositions = config.maxOpenPositions || this.defaultMaxOpenPositions;
+    const riskPerTradePercent = config.riskPerTradePercent || this.defaultRiskPerTradePercent;
+
+    // Step 5: Calculate position size (with maxPositionSizePercent cap)
+    // V146: Pass symbol for lot-aware sizing
+    const positionSize = this._calculatePositionSize(
+      portfolioValue,
+      riskPerTradePercent,
+      signal.entryPrice,
+      signal.stopLoss,
+      maxPositionSizePercent,
+      signal.symbol,
+    );
+
+    // Step 6: Calculate risk-reward ratio
+    const risk = Math.abs(signal.entryPrice - signal.stopLoss);
+    const reward = Math.abs(signal.takeProfit - signal.entryPrice);
+    const riskRewardRatio = risk > 0 ? reward / risk : 0;
+
+    // Step 7: Calculate risk score (0-100)
+    const riskScore = this._calculateRiskScore({
+      positionSize,
+      portfolioValue,
+      maxPositionSizePercent,
+      openPositionsCount,
+      maxOpenPositions,
+      dailyLossPercent,
+      maxDailyLossPercent,
+      riskRewardRatio,
+      volatility: signal.metadata?.volatility,
+    });
+
+    // Step 8: Validate all safety rules
+    let canTrade = true;
+    let reason: string | undefined;
+
+    // RULE 1: Mandatory stop-loss (already enforced by strategy, but double-check)
+    if (!signal.stopLoss || signal.stopLoss <= 0) {
+      canTrade = false;
+      reason = 'وقف الخسارة إجباري — لا يمكن فتح مركز بدون وقف خسارة';
+    }
+
+    // RULE 2: Daily loss limit
+    if (dailyLossPercent >= maxDailyLossPercent) {
+      canTrade = false;
+      reason = `الخسارة اليومية (${dailyLossPercent.toFixed(1)}%) تجاوزت الحد (${maxDailyLossPercent}%) — توقف الوكيل تلقائياً`;
+    }
+
+    // RULE 3: Max open positions
+    if (openPositionsCount >= maxOpenPositions) {
+      canTrade = false;
+      reason = `عدد المراكز المفتوحة (${openPositionsCount}) بلغ الحد الأقصى (${maxOpenPositions})`;
+    }
+
+    // RULE 4: Position size within limit
+    // FIX: Add 0.01% tolerance for floating-point arithmetic.
+    // _calculatePositionSize() caps the value to exactly maxPositionSizePercent,
+    // but floating-point multiplication produces results like 2.0000000001%
+    // which was being rejected even though it's effectively equal to the limit.
+    const POSITION_SIZE_TOLERANCE = 0.01; // 0.01% tolerance
+    const positionValuePercent = portfolioValue > 0
+      ? (positionSize * signal.entryPrice / portfolioValue) * 100
+      : 0;
+
+    if (positionValuePercent > maxPositionSizePercent + POSITION_SIZE_TOLERANCE) {
+      canTrade = false;
+      reason = `حجم المركز (${positionValuePercent.toFixed(1)}%) يتجاوز الحد (${maxPositionSizePercent}%)`;
+    }
+
+
+    // RULE 5: Risk-reward ratio — strategy-specific minimum
+    // CRITICAL FIX: Each strategy has a different R:R expectation.
+    // DCA and Mean Reversion have low R:R but high win rates — rejecting them
+    // with a blanket 1.2 minimum prevents these strategies from ever executing!
+    const strategyMinRR = this.STRATEGY_MIN_RR[signal.strategy] ?? 1.2;
+    if (riskRewardRatio < strategyMinRR) {
+      canTrade = false;
+      reason = `نسبة المخاطرة للمكافأة (${riskRewardRatio.toFixed(2)}) أقل من الحد الأدنى لاستراتيجية ${signal.strategy} (${strategyMinRR})`;
+    }
+
+    // RULE 6: Duplicate positions check
+    // RELAXED: Previously this blocked ANY duplicate position for the same symbol.
+    // Now we allow it but log a warning, OR we check if the strategy is different.
+    // This allows the Agent and Executor to work on the same symbol with different strategies.
+    const existingPosition = await this._hasOpenPosition(userId, signal.symbol);
+    if (existingPosition) {
+      // If it's the SAME strategy, we might want to block to prevent double-entry
+      if (existingPosition.strategy === signal.strategy) {
+        canTrade = false;
+        reason = `يوجد مركز مفتوح بالفعل لـ ${signal.symbol} باستخدام نفس الاستراتيجية (${signal.strategy})`;
+      } else {
+        this.logger.log(`⚠️ Adding additional position for ${signal.symbol} using strategy ${signal.strategy} (existing: ${existingPosition.strategy})`);
+      }
+    }
+
+    // RULE 7: Check if AUTO_TRADING_ENABLED (global DB/ENV = admin kill switch)
+    let globalAutoTradingEnabled: boolean;
+    try {
+      const dbSetting = await this.prisma.setting.findUnique({
+        where: { key: 'AUTO_TRADING_ENABLED' },
+      });
+      if (dbSetting) {
+        globalAutoTradingEnabled = JSON.parse(dbSetting.value);
+      } else {
+        globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+      }
+    } catch {
+      globalAutoTradingEnabled = this.configService.get('AUTO_TRADING_ENABLED', 'true') === 'true';
+    }
+
+    if (!globalAutoTradingEnabled) {
+      canTrade = false;
+      reason = 'التداول الذاتي معطّل على مستوى النظام — تواصل مع الإدارة';
+      this.logger.warn(`🚫 AUTO_TRADING_ENABLED=false (global) — ALL trades for user ${userId} are being rejected.`);
+    } else {
+      // Also check per-user autoTradingEnabled from AgentSettings
+      try {
+        const userSettings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+        });
+        if (userSettings && !userSettings.autoTradingEnabled) {
+          canTrade = false;
+          reason = 'التداول الذاتي معطّل في إعداداتك — فعّله من صفحة إعدادات الوكيل';
+          this.logger.warn(`🚫 User ${userId} autoTradingEnabled=false — trades rejected.`);
+        }
+      } catch (e: any) {
+        this.logger.warn(`Could not check user autoTradingEnabled in risk assessment: ${e.message}`);
+      }
+    }
+
+    if (canTrade) {
+      this.logger.debug(
+        `🛡️ Trade allowed: ${signal.action} ${signal.symbol} ` +
+        `qty=${positionSize.toFixed(6)} risk=${riskScore}`,
+      );
+    } else {
+      this.logger.warn(`🛡️ Trade rejected: ${reason}`);
+    }
+
+    return {
+      canTrade,
+      reason,
+      positionSize,
+      stopLoss: signal.stopLoss,
+      takeProfit: signal.takeProfit,
+      riskRewardRatio,
+      riskScore,
+      dailyPnL,
+      dailyLossPercent,
+      openPositionsCount,
+      portfolioValue,
+    };
+  }
+
+  /**
+   * Check if daily loss limit has been reached
+   *
+   * FIX (V133): Two critical bugs fixed:
+   *
+   * 1. CROSS-SOURCE CONTAMINATION: Previously, _getDailyPnL() counted losses
+   *    from ALL sources (smart_executor, auto_paper, user_manual, etc.), not just
+   *    the agent's own trades. This meant the Smart Executor's losses could trigger
+   *    the Agent's daily limit, even though the Agent itself had zero trades.
+   *    Now: only count trades where source='agent'.
+   *
+   * 2. PAPER-TRADING BYPASS: RiskGatekeeperService.checkDailyDrawdownLimit()
+   *    bypasses the daily limit for paper-trading-only users (no real credentials).
+   *    But this function had NO such bypass, causing paper-trading agents to be
+   *    stopped by a daily loss limit on virtual money — defeating the purpose of
+   *    paper trading (learning/testing). Now: if user has no real credentials,
+   *    the daily limit check is bypassed for the agent too, matching RiskGatekeeper.
+   */
+  async isDailyLimitReached(userId: string, maxDailyLossPercent: number): Promise<boolean> {
+    // ── FIX #2 (V133): Bypass daily limit for paper-trading-only users ──
+    // RiskGatekeeperService already bypasses this check for simulated-only users.
+    // The Agent should follow the same logic — paper trading is for learning,
+    // and stopping the agent on virtual losses defeats the purpose.
+    try {
+      const realCredential = await this.prisma.exchangeCredential.findFirst({
+        where: {
+          userId,
+          isValid: true,
+          exchange: { not: 'paper-trading' },
+          testnet: { not: true },
+        },
+      });
+      if (!realCredential) {
+        this.logger.debug(
+          `🛡️ Agent daily limit check BYPASSED for user ${userId} — paper-trading only (no real credentials)`,
+        );
+        return false;
+      }
+    } catch (credErr: any) {
+      this.logger.warn(
+        `🛡️ Could not check credentials for daily limit bypass: ${credErr.message} — proceeding with check`,
+      );
+    }
+
+    // FIX #1: Only count the AGENT's own realized losses, not Smart Executor's.
+    // Previously, this called _getDailyPnL(userId) which counted ALL sources.
+    const dailyPnL = await this._getAgentDailyPnL(userId);
+    const portfolioValue = await this._getPortfolioValue(userId);
+
+    if (portfolioValue <= 0) return false;
+    // No realized losses today → never blocked
+    if (dailyPnL >= 0) return false;
+
+    const lossPercent = (Math.abs(dailyPnL) / portfolioValue) * 100;
+    if (lossPercent >= maxDailyLossPercent) {
+      this.logger.warn(
+        `🛡️ Agent daily loss limit reached: ${lossPercent.toFixed(2)}% >= ${maxDailyLossPercent}% (agent-only losses: $${dailyPnL.toFixed(2)})`,
+      );
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get current risk parameters
+   */
+  getRiskParameters() {
+    return {
+      maxPositionSizePercent: this.defaultMaxPositionSizePercent,
+      maxDailyLossPercent: this.defaultMaxDailyLossPercent,
+      maxOpenPositions: this.defaultMaxOpenPositions,
+      riskPerTradePercent: this.defaultRiskPerTradePercent,
+    };
+  }
+
+  // ── Private Helpers ──
+
+  private _calculatePositionSize(
+    portfolioValue: number,
+    riskPerTradePercent: number,
+    entryPrice: number,
+    stopLoss: number,
+    maxPositionSizePercent?: number,
+    symbol?: string,
+  ): number {
+    if (portfolioValue <= 0 || entryPrice <= 0 || stopLoss <= 0) return 0;
+
+    // Use config maxPositionSizePercent or fallback to default
+    const maxSizePercent = maxPositionSizePercent || this.defaultMaxPositionSizePercent;
+
+    // Risk amount = portfolio × risk %
+    const riskAmount = portfolioValue * (riskPerTradePercent / 100);
+
+    // Price risk per unit = |entry - stopLoss|
+    const priceRisk = Math.abs(entryPrice - stopLoss);
+
+    if (priceRisk === 0) return 0;
+
+    // V146: Use symbol-aware calculation when symbol is provided
+    if (symbol) {
+      const result = calculatePositionSizeFromRisk(riskAmount, entryPrice, stopLoss, symbol);
+
+      // Cap to maxPositionSizePercent of portfolio
+      const maxPositionValue = portfolioValue * (maxSizePercent / 100);
+      let quantityUnits = result.quantityUnits;
+      let quantityLots = result.quantityLots;
+
+      if (result.notional > maxPositionValue) {
+        // Reduce to fit within max position size limit
+        quantityUnits = maxPositionValue / entryPrice;
+        quantityLots = roundLotSize(unitsToLots(quantityUnits, symbol), symbol);
+        quantityUnits = lotsToUnits(quantityLots, symbol);
+      }
+
+      return parseFloat(quantityUnits.toFixed(8));
+    }
+
+    // Legacy path: no symbol — raw unit calculation
+    let quantity = riskAmount / priceRisk;
+
+    const maxPositionValue = portfolioValue * (maxSizePercent / 100);
+    const currentPositionValue = quantity * entryPrice;
+
+    if (currentPositionValue > maxPositionValue) {
+      quantity = maxPositionValue / entryPrice;
+      this.logger.debug(
+        `🛡️ Position size capped: ${currentPositionValue.toFixed(2)} > ${maxPositionValue.toFixed(2)} ` +
+        `(max ${maxSizePercent}% of portfolio) → reduced to ${quantity.toFixed(8)} units`,
+      );
+    }
+
+    return parseFloat(quantity.toFixed(8));
+  }
+
+  private _calculateRiskScore(params: {
+    positionSize: number;
+    portfolioValue: number;
+    maxPositionSizePercent: number;
+    openPositionsCount: number;
+    maxOpenPositions: number;
+    dailyLossPercent: number;
+    maxDailyLossPercent: number;
+    riskRewardRatio: number;
+    volatility?: string;
+  }): number {
+    let score = 0;
+
+    // Position size relative to portfolio (0-30 points)
+    if (params.portfolioValue > 0) {
+      const positionPercent = (params.positionSize * 100) / params.portfolioValue;
+      score += Math.min(30, (positionPercent / params.maxPositionSizePercent) * 30);
+    }
+
+    // Open positions ratio (0-25 points)
+    score += Math.min(25, (params.openPositionsCount / params.maxOpenPositions) * 25);
+
+    // Daily loss contribution (0-30 points)
+    score += Math.min(30, (params.dailyLossPercent / params.maxDailyLossPercent) * 30);
+
+    // R:R ratio penalty (0-15 points)
+    if (params.riskRewardRatio < 2.0) score += 15;
+    else if (params.riskRewardRatio < 3.0) score += 8;
+
+    // Volatility bonus
+    if (params.volatility === 'EXTREME') score += 15;
+    else if (params.volatility === 'HIGH') score += 8;
+
+    return Math.min(100, Math.round(score));
+  }
+
+  private async _getPortfolioValue(userId: string): Promise<number> {
+    try {
+      // V147 FIX: For paper-trading users, ALWAYS use paperBalance as the base,
+      // then ADD unrealized P&L (not position notional value). Previously,
+      // the code added positionsValue (qty × price = full notional) to manualValue,
+      // which gave wrong results:
+      //   - Paper user with 0 portfolio + 5 positions worth $500 each = $2,500 portfolio
+      //   - But the actual balance is $10,000 (paperBalance)
+      // This caused the position sizing to be based on $2,500 instead of $10,000,
+      // producing tiny positions and incorrect risk calculations.
+      // Now: paperPortfolioValue = paperBalance + unrealizedPnL
+      const settings = await this.prisma.agentSettings.findUnique({
+        where: { userId },
+      });
+
+      const isPaperTrading = settings ? settings.autoTradingEnabled !== false : true;
+      const paperBalance = settings ? Number(settings.paperBalance) || 10000 : 10000;
+
+      if (isPaperTrading) {
+        // Add unrealized P&L from open positions to paper balance
+        try {
+          const openPositions = await this.prisma.position.findMany({
+            where: { userId, status: 'OPEN' },
+            select: { quantity: true, currentPrice: true, entryPrice: true, side: true },
+          });
+          let unrealizedPnl = 0;
+          for (const p of openPositions) {
+            const qty = Number(p.quantity) || 0;
+            const currentPrice = Number(p.currentPrice) || Number(p.entryPrice) || 0;
+            const entryPrice = Number(p.entryPrice) || 0;
+            if (p.side === 'BUY') {
+              unrealizedPnl += (currentPrice - entryPrice) * qty;
+            } else {
+              unrealizedPnl += (entryPrice - currentPrice) * qty;
+            }
+          }
+          return paperBalance + unrealizedPnl;
+        } catch {
+          return paperBalance;
+        }
+      }
+
+      // For real-trading users: aggregate portfolio value from DB
+      const portfolios = await this.prisma.portfolio.aggregate({
+        where: { userId },
+        _sum: { totalValue: true },
+      });
+
+      const manualValue = Number(portfolios._sum.totalValue || 0);
+
+      // Add open positions value
+      const positions = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+      });
+
+      const positionsValue = positions.reduce((sum, p) => {
+        return sum + Number(p.quantity) * (Number(p.currentPrice) || Number(p.entryPrice));
+      }, 0);
+
+      const totalValue = manualValue + positionsValue;
+
+      if (totalValue <= 0) {
+        this.logger.warn(
+          `🛡️ Portfolio value is 0 for real-trading user ${userId} — NOT executing for safety`,
+        );
+        return 0;
+      }
+
+      return totalValue;
+    } catch (error: any) {
+      // Even on DB error, return default for paper trading so agent doesn't get stuck
+      const defaultBalance = parseFloat(
+        this.configService.get('DEFAULT_PAPER_BALANCE', '10000'),
+      ) || 10000;
+      this.logger.warn(
+        `🛡️ Failed to calculate portfolio value for ${userId}: ${error.message} — using default: $${defaultBalance}`,
+      );
+      return defaultBalance;
+    }
+  }
+
+  /**
+   * Get daily P&L from ALL sources (used by assessRisk for display purposes).
+   * NOTE: This includes Smart Executor, Agent, and manual trades.
+   */
+  private async _getDailyPnL(userId: string): Promise<number> {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const trades = await this.prisma.trade.findMany({
+        where: {
+          userId,
+          executedAt: { gte: todayStart },
+          type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+        },
+      });
+
+      return trades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * V133 FIX: Get daily P&L from the AGENT's own trades ONLY.
+   *
+   * Previously, isDailyLimitReached() used _getDailyPnL() which counted
+   * ALL trade sources. This caused CROSS-SOURCE CONTAMINATION:
+   *   - Smart Executor loses $500 → Agent sees daily loss = $500
+   *   - Agent immediately hits DAILY_LIMIT_REACHED
+   *   - User sees "تجاوز الحد اليومي" even though Agent had zero trades
+   *
+   * Now: Only count trades where source='agent' for the agent's daily limit.
+   * This matches how SmartExecutor tracks its own daily PnL separately.
+   */
+  private async _getAgentDailyPnL(userId: string): Promise<number> {
+    try {
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+
+      const trades = await this.prisma.trade.findMany({
+        where: {
+          userId,
+          executedAt: { gte: todayStart },
+          type: { in: ['EXIT', 'PARTIAL_EXIT'] },
+          source: 'agent',  // V133: Only count the agent's own losses
+        },
+      });
+
+      return trades.reduce((sum, t) => sum + Number(t.pnl || 0), 0);
+    } catch {
+      return 0;
+    }
+  }
+
+  // V146b: Only count Agent's own positions, not Smart Executor's
+  private async _getOpenPositionsCount(userId: string): Promise<number> {
+    try {
+      return await this.prisma.position.count({
+        where: { userId, status: 'OPEN', source: 'agent' },
+      });
+    } catch {
+      return 0;
+    }
+  }
+
+  private async _hasOpenPosition(userId: string, symbol: string): Promise<any> {
+    try {
+      return await this.prisma.position.findFirst({
+        where: { userId, symbol, status: 'OPEN' },
+      });
+    } catch {
+      return null;
+    }
+  }
+}

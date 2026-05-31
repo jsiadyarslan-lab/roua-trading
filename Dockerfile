@@ -94,6 +94,9 @@ RUN cd apps/web && next build --webpack
 # ─────────────────────────────────────────────────────────────
 FROM node:22-slim AS runner
 
+# Re-declare ARG so it's available in this stage (ARGs don't carry across stages)
+ARG GIT_COMMIT=unknown
+
 # OpenSSL for Prisma + curl for health checks + bash for start.sh
 # procps: Provides pgrep/pkill for process management in start.sh
 # NOTE: PgBouncer removed in v7 — using Railway's built-in pooler or direct connections
@@ -110,9 +113,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
-# CRITICAL FIX: Pass git commit SHA so /api/health can report what version is running
+# Pass git commit SHA so /api/health can report what version is running
 ENV DEPLOY_COMMIT=${GIT_COMMIT}
-# BUILD_CACHE removed — was causing 30+ min rebuilds
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
 # The previous "COPY --from=builder /app ." copied EVERYTHING including
@@ -162,4 +164,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v236 — removed BUILD_CACHE, excluded mobile, fixed npm strategy
+

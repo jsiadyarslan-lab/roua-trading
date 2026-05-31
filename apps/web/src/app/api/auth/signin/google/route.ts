@@ -30,11 +30,27 @@ export async function GET(request: NextRequest) {
   // Build Google OAuth URL
   const callbackUrl = request.nextUrl.searchParams.get('callbackUrl') || '/dashboard'
 
+  // Mobile app support: accept a custom app_redirect_uri (e.g. roua://auth/callback)
+  // After successful Google auth, the callback handler will redirect to this URI
+  // with the session token as a query parameter instead of the web dashboard.
+  // Only allow specific custom URL schemes (security: prevent open redirect).
+  const appRedirectUri = request.nextUrl.searchParams.get('app_redirect_uri') || null
+  const allowedAppSchemes = ['roua://', 'rouatrading://', 'com.roua.trading://']
+  const isAllowedAppRedirect = appRedirectUri && allowedAppSchemes.some(s => appRedirectUri.startsWith(s))
+
   // Use shared origin helper — handles Railway/containers correctly
   const publicOrigin = getPublicOrigin(request)
   const redirectUri = `${publicOrigin}/api/auth/callback/google`
 
   console.log(`[auth/google] Using redirect URI: ${redirectUri} (origin: ${publicOrigin})`)
+  if (isAllowedAppRedirect) {
+    console.log(`[auth/google] Mobile app redirect: ${appRedirectUri}`)
+  }
+
+  const stateData: Record<string, string> = { callbackUrl }
+  if (isAllowedAppRedirect && appRedirectUri) {
+    stateData.appRedirectUri = appRedirectUri
+  }
 
   const params = new URLSearchParams({
     client_id: clientId,
@@ -43,7 +59,7 @@ export async function GET(request: NextRequest) {
     scope: 'openid email profile',
     access_type: 'offline',
     prompt: 'consent',
-    state: Buffer.from(JSON.stringify({ callbackUrl })).toString('base64url'),
+    state: Buffer.from(JSON.stringify(stateData)).toString('base64url'),
   })
 
   return NextResponse.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)

@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
   }
 
   let callbackUrl = '/dashboard'
+  let appRedirectUri: string | null = null
   try {
     if (stateParam) {
       const state = JSON.parse(Buffer.from(stateParam, 'base64url').toString())
@@ -74,6 +75,18 @@ export async function GET(request: NextRequest) {
           callbackUrl = url
         } else {
           console.warn('[auth/callback/google] Blocked external callbackUrl:', url)
+        }
+      }
+      // Mobile app support: if the signin request included an app_redirect_uri
+      // (e.g. roua://auth/callback), redirect there with the session token
+      // instead of the web dashboard. Only allow specific custom URL schemes.
+      if (state.appRedirectUri) {
+        const allowedAppSchemes = ['roua://', 'rouatrading://', 'com.roua.trading://']
+        const uri = state.appRedirectUri as string
+        if (allowedAppSchemes.some(s => uri.startsWith(s))) {
+          appRedirectUri = uri
+        } else {
+          console.warn('[auth/callback/google] Blocked disallowed app_redirect_uri:', uri)
         }
       }
     }
@@ -250,7 +263,37 @@ export async function GET(request: NextRequest) {
 
     console.log(`[auth/callback/google] Session created successfully for user ${user.id}`)
 
-    // Redirect with session + refresh cookies
+    // Mobile app support: if an app_redirect_uri was provided (e.g. roua://auth/callback),
+    // redirect to it with the session token as a query parameter.
+    // This allows ASWebAuthenticationSession on iOS to capture the callback
+    // and extract the token, keeping the user inside the app.
+    if (appRedirectUri) {
+      const separator = appRedirectUri.includes('?') ? '&' : '?'
+      const mobileRedirectUrl = `${appRedirectUri}${separator}token=${sessionToken}&refresh=${refreshToken}&userId=${user.id}`
+      console.log(`[auth/callback/google] Redirecting to mobile app: ${appRedirectUri.split('?')[0]}?token=***`)
+
+      const response = NextResponse.redirect(mobileRedirectUrl)
+
+      // Set cookies too — useful if the user later opens the web app in a browser
+      response.cookies.set('roua_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60,
+        path: '/',
+      })
+      response.cookies.set('roua_refresh', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60,
+        path: '/',
+      })
+
+      return response
+    }
+
+    // Web app: redirect with session + refresh cookies
     const response = NextResponse.redirect(new URL(callbackUrl, getPublicOrigin(request)))
 
     response.cookies.set('roua_session', sessionToken, {

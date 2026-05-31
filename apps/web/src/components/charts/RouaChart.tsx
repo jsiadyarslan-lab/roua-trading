@@ -2928,25 +2928,20 @@ export default function RouaChart({
           {/* Candle countdown removed from chart — shown only in header via CrosshairOverlay */}
           </div>{/* ── Overlay Layer close ── */}
 
-          {/* FIX: Drawing Panel — rendered INSIDE Chart Wrapper (not portal) so it's positioned
-              relative to the chart container. Uses position:absolute instead of fixed so it
-              stays within chart boundaries even when the chart is in a dashboard grid cell. */}
-          {showDrawingPanel && (
-            <div style={{
-              position: 'absolute',
-              top: 8,
-              right: 8,
-              zIndex: 50,
-              maxHeight: '90%',
-              overflow: 'hidden',
-            }}>
+          {/* FIX: Drawing Panel — rendered via Portal + DraggablePanel (same as all
+              other panels) so it's NOT clipped by the chart wrapper's overflow.
+              Previously used position:absolute inside chart wrapper, which caused
+              the panel to be cut off when the chart was short (multi-chart grid). */}
+          {showDrawingPanel && createPortal(
+            <DraggablePanel defaultPosition={{ top: 40, right: 8 }} defaultWidth={280} minHeight={200}>
               <DrawingPanel
                 activeTool={chart.activeTool}
                 onSetTool={chart.setTool}
                 onClose={() => setShowDrawingPanel(false)}
                 onClearAll={chart.clearDrawings}
               />
-            </div>
+            </DraggablePanel>,
+            getPortalRoot()
           )}
         </div>{/* ── Chart Wrapper close ── */}
         </div>{/* ── Single Chart / Mini Chart Mode div close ── */}

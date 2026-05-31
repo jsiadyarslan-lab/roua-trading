@@ -90,7 +90,7 @@ export function DrawingPanel({ activeTool, onSetTool, onClose, onClearAll }: Dra
       boxShadow: '0 15px 45px rgba(0,0,0,0.85)',
       backdropFilter: 'blur(10px)',
       width: 280,
-      maxHeight: 480,
+      maxHeight: '80vh',  // Use viewport height so panel isn't cut off
       overflow: 'hidden',
       display: 'flex',
       flexDirection: 'column',

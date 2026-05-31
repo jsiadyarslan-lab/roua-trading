@@ -1230,14 +1230,30 @@ export function renderOverlays(
         showPrice: true,
       }));
 
-      // Take Profit levels (TP1, TP2, TP3)
+      // Trailing SL connector line (dashed line from original SL to trail SL)
+      if (proposal.currentTrailSL && proposal.stopLoss !== proposal.currentTrailSL) {
+        registry.add('trade', new TrendLinePrimitive({
+          startTime: candles[Math.max(0, candles.length - 10)]?.time as any,
+          startPrice: proposal.stopLoss,
+          endTime: candles[candles.length - 1]?.time as any,
+          endPrice: proposal.currentTrailSL,
+          color: 'rgba(251, 191, 36, 0.3)',
+          lineWidth: 1,
+          lineStyle: 2,
+          label: '',
+        }));
+      }
+
+      // Take Profit levels (TP1, TP2, TP3) with safe bounds check
       const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
-      const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
+      const tpColors = ['rgba(16, 185, 129, 0.9)', 'rgba(16, 185, 129, 0.65)', 'rgba(16, 185, 129, 0.4)'];
       const tpLineStyles = [0, 1, 2];
 
       for (let i = 0; i < proposal.takeProfits.length; i++) {
+        const tpPrice = proposal.takeProfits[i];
+        if (tpPrice == null || tpPrice <= 0) continue; // Bounds check — skip undefined TPs
         registry.add('trade', new HorizontalLinePrimitive({
-          price: proposal.takeProfits[i],
+          price: tpPrice,
           color: tpColors[i] || tpColors[2],
           lineWidth: i === 0 ? 2 : 1,
           lineStyle: tpLineStyles[i] ?? 2,
@@ -1256,18 +1272,21 @@ export function renderOverlays(
         borderColor: undefined,
       }));
 
-      // Reward zone (Entry → TP3)
-      registry.add('trade', new ZonePrimitive({
-        startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
-        endTime: candles[candles.length - 1].time as any,
-        highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]),
-        lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]),
-        fillColor: 'rgba(16, 185, 129, 0.04)',
-        borderColor: undefined,
-      }));
-
-      // NOTE: No safeAddPriceLine — HorizontalLinePrimitive already draws lines + labels
-      // Previously safeAddPriceLine was called here creating DUPLICATE lines that jitter
+      // Reward zone (Entry → farthest TP) — FIXED: was using takeProfits[2] without bounds check
+      const farthestTP = proposal.takeProfits.length > 0
+        ? proposal.takeProfits.filter(tp => tp != null && tp > 0)
+            .reduce((max, tp) => isBull ? Math.max(max, tp) : Math.min(max, tp), isBull ? -Infinity : Infinity)
+        : null;
+      if (farthestTP != null && isFinite(farthestTP)) {
+        registry.add('trade', new ZonePrimitive({
+          startTime: candles[candles.length - 30]?.time as any || candles[0].time as any,
+          endTime: candles[candles.length - 1].time as any,
+          highPrice: Math.max(proposal.entryPrice, farthestTP),
+          lowPrice: Math.min(proposal.entryPrice, farthestTP),
+          fillColor: 'rgba(16, 185, 129, 0.04)',
+          borderColor: undefined,
+        }));
+      }
 
       // R:R and quality label
       registry.add('trade', new LabelPrimitive({
@@ -1280,6 +1299,18 @@ export function renderOverlays(
         fontSize: 8,
         align: 'right',
         bg: 'rgba(11,14,20,0.7)',
+        position: isBull ? 'above' : 'below',
+      }));
+
+      // Direction arrow label near entry
+      registry.add('trade', new LabelPrimitive({
+        time: candles[candles.length - 1].time as any,
+        price: proposal.entryPrice,
+        text: isBull ? '▲ شراء' : '▼ بيع',
+        color: isBull ? '#22d3ee' : '#f97316',
+        fontSize: 11,
+        align: 'right',
+        bg: isBull ? 'rgba(34, 211, 238, 0.1)' : 'rgba(249, 115, 22, 0.1)',
         position: isBull ? 'above' : 'below',
       }));
     }
@@ -1309,10 +1340,16 @@ export function renderOverlays(
       const lastTime = candles[candles.length - 1].time;
       const lastPrice = candles[candles.length - 1].close;
 
+      // Only render zones within visible range (last 100 candles)
+      const visibleStart = candles.length > 100 ? candles[candles.length - 100].time : candles[0].time;
+
       for (const zone of liqData.zones) {
+        // Skip zones entirely outside visible range
+        if (zone.endTime < visibleStart && !zone.swept) continue;
+
         // Draw zone rectangle
         registry.add('liq', new ZonePrimitive({
-          startTime: zone.startTime as any,
+          startTime: Math.max(zone.startTime, visibleStart) as any,
           endTime: (zone.swept ? (zone.sweepTime || zone.endTime) : lastTime) as any,
           highPrice: zone.high,
           lowPrice: zone.low,
@@ -1328,7 +1365,22 @@ export function renderOverlays(
               : 'rgba(255, 71, 87, 0.3)',
         }));
 
-        // Label for significant zones (strength >= 3 or unswept)
+        // Sweep marker — show a small arrow where the sweep happened
+        if (zone.swept && zone.sweepTime) {
+          const sweepIsBull = zone.sweepDirection === 'bullish';
+          registry.add('liq', new LabelPrimitive({
+            time: zone.sweepTime as any,
+            price: sweepIsBull ? zone.high : zone.low,
+            text: sweepIsBull ? '⚡ مسح' : '⚡ مسح',
+            color: sweepIsBull ? 'rgba(0, 255, 163, 0.7)' : 'rgba(255, 71, 87, 0.7)',
+            fontSize: 7,
+            align: 'center',
+            bg: sweepIsBull ? 'rgba(0, 255, 163, 0.08)' : 'rgba(255, 71, 87, 0.08)',
+            position: sweepIsBull ? 'above' : 'below',
+          }));
+        }
+
+        // Label for significant zones (strength >= 2 or unswept)
         if (!zone.swept && zone.strength >= 2) {
           const labelColor = zone.sweepDirection === 'bullish'
             ? 'rgba(0, 255, 163, 0.8)'
@@ -1381,6 +1433,20 @@ export function renderOverlays(
           align: 'right',
           bg: isBull ? 'rgba(0, 255, 163, 0.1)' : 'rgba(255, 71, 87, 0.1)',
           position: isBull ? 'below' : 'above',
+        }));
+      }
+
+      // Interpretation label at bottom
+      if (liqData.interpretationAr) {
+        registry.add('liq', new LabelPrimitive({
+          time: lastTime as any,
+          price: safeMin(candles.slice(-5).map(c => c.low)) * 0.995,
+          text: liqData.interpretationAr,
+          color: 'rgba(255,255,255,0.4)',
+          fontSize: 7,
+          align: 'right',
+          bg: 'rgba(11,14,20,0.5)',
+          position: 'below',
         }));
       }
     }

@@ -690,18 +690,41 @@ export function detectBOS(candles: CandleData[], swings: SwingPoint[]): Detected
     }
   }
 
-  // FIX: Deduplicate BOS breaks at the same price level.
-  // Previously, multiple candles breaking the same swing level would each
-  // create a separate BOS entry, causing overlapping/cumulative lines.
-  // Now, only keep the FIRST break at each unique price level.
-  const seen = new Map<number, DetectedBOS>();
+  // FIX: Deduplicate BOS breaks at similar price levels using ATR-relative
+  // threshold instead of fixed decimal rounding. The old approach
+  // (Math.round(level * 100) / 100) was fragile:
+  // - For BTC ($100k): 2 decimals = $100 gap → different breaks at same level
+  // - For EUR/USD (1.08): 2 decimals = $0.01 gap → too coarse
+  // ATR-relative threshold: two breaks are "same level" if within ATR/4
+  const atr = candles.length >= 14 ? (() => {
+    const sl2 = candles.slice(-14);
+    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+    return trs.reduce((s, v) => s + v, 0) / trs.length;
+  })() : candles.length > 0 ? (candles[candles.length - 1].high - candles[candles.length - 1].low) : 0;
+
+  const threshold = atr / 4; // Two breaks within ATR/4 are considered same level
+  const dedupedBreaks: DetectedBOS[] = [];
+
   for (const br of breaks) {
-    const key = Math.round(br.brokenLevel * 100) / 100; // Round to 2 decimals
-    if (!seen.has(key)) {
-      seen.set(key, br);
+    const isDuplicate = dedupedBreaks.some(existing =>
+      Math.abs(existing.brokenLevel - br.brokenLevel) < threshold &&
+      existing.type === br.type &&
+      existing.direction === br.direction
+    );
+    if (!isDuplicate) {
+      dedupedBreaks.push(br);
+    } else {
+      // If this break is more significant (later = more relevant), replace the old one
+      const existingIdx = dedupedBreaks.findIndex(existing =>
+        Math.abs(existing.brokenLevel - br.brokenLevel) < threshold &&
+        existing.type === br.type &&
+        existing.direction === br.direction
+      );
+      if (existingIdx >= 0 && br.breakIndex > dedupedBreaks[existingIdx].breakIndex) {
+        dedupedBreaks[existingIdx] = br; // Keep the more recent break
+      }
     }
   }
-  const dedupedBreaks = Array.from(seen.values());
 
   // Return the most recent breaks (max 6)
   return dedupedBreaks.slice(-6);

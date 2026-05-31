@@ -4412,7 +4412,7 @@
       "disclaimer": "Mga halimbawang nagpapakita lamang — hindi kumakatawan sa mga tunay na senyales"
     },
     "features": {
-      "multilingualAnalyst": "Multilingual analyst",
+      "multilingualAnalyst": "Penganalys na Multilingguwal",
       "rouaSignalsDesc": "Instant AI-powered trading signal batay sa pattern at pagsusuri ng sentimento para sa mga rekomendasyong multi-model.",
       "smartLab": "matalinong laboratoryo",
       "sectionDesc": "Isang pinagsama-samang suite ng mga tool na pinapagana ng AI para sa pagsusuri sa merkado at mas matalinong mga desisyon",
@@ -4425,7 +4425,23 @@
       "sectionTitleHighlight": "Mga Matalinong Mangangalakal",
       "sectionTitlePart1": "Mga Advanced na Tool para sa",
       "title": "Mga Advanced na Tool para sa Matalinong Mangangalakal",
-      "sanctuary": "Portfolio Sanctuary"
+      "sanctuary": "Dambana ng Portfolio",
+      "sectionLabel": "PANGUNAHING TAMPOK",
+      "metaMultilingual1": "🌍 12+ Wika",
+      "metaMultilingual2": "⚡ Agarang Pagsusuri",
+      "metaMultilingual3": "🧠 Maramihang Katalinuhan",
+      "metaSignals1": "🎯 Multi-model na Katalinuhan",
+      "metaSignals2": "⏱️ Agarang Alerto",
+      "metaSignals3": "📊 50+ Pares",
+      "metaRadar1": "📡 Maraming Pinagmulan",
+      "metaRadar2": "⚡ Real-time na Subaybay",
+      "metaRadar3": "🧠 Matalinong Pagsala",
+      "metaSanctuary1": "🛡️ 24/7 Proteksyon",
+      "metaSanctuary2": "📉 Pagbabawas ng Panganib",
+      "metaSanctuary3": "⚖️ Awtomatikong Balanse",
+      "metaSmartLab1": "🧪 Realistikong Simulasyon",
+      "metaSmartLab2": "📈 Historikal na Data",
+      "metaSmartLab3": "🔧 Awtomatikong Optimisasyon"
     },
     "mediaGallery": {
       "aiCouncil": "Konseho ng AI",

@@ -28,10 +28,25 @@ const emptyNewsItems: NewsItem[] = []
  */
 function getLocalizedText(item: NewsItem, locale: string): string {
   switch (locale) {
-    case 'ar': return item.textAr || item.text
-    case 'fr': return item.textFr || item.text
-    case 'tr': return item.textTr || item.text
-    case 'es': return item.textEs || item.text
+    case 'ar': {
+      // Only return Arabic text if it actually contains Arabic characters
+      if (item.textAr && /[\u0600-\u06FF]/.test(item.textAr)) return item.textAr
+      // Don't fall back to English for Arabic users — return empty to hide item
+      return ''
+    }
+    case 'fr': {
+      // Only return French text if it's not Arabic
+      if (item.textFr && !/[\u0600-\u06FF]/.test(item.textFr)) return item.textFr
+      return item.text
+    }
+    case 'tr': {
+      if (item.textTr && !/[\u0600-\u06FF]/.test(item.textTr)) return item.textTr
+      return item.text
+    }
+    case 'es': {
+      if (item.textEs && !/[\u0600-\u06FF]/.test(item.textEs)) return item.textEs
+      return item.text
+    }
     default: return item.text
   }
 }
@@ -41,7 +56,10 @@ function getLocalizedText(item: NewsItem, locale: string): string {
  */
 function getLocalizedCategory(item: NewsItem, locale: string): string {
   switch (locale) {
-    case 'ar': return item.categoryAr || item.category
+    case 'ar': {
+      if (item.categoryAr && /[\u0600-\u06FF]/.test(item.categoryAr)) return item.categoryAr
+      return item.category
+    }
     case 'fr': return item.categoryFr || item.category
     case 'tr': return item.categoryTr || item.category
     case 'es': return item.categoryEs || item.category
@@ -90,12 +108,16 @@ export default function NewsTicker() {
               const content = (item.translatedContent || '') + (item.content || '');
               return !errorPatterns.some(p => title.includes(p) || content.includes(p));
             })
-            // Filter by locale: Arabic users get Arabic news, others get non-Arabic news
+            // Filter by locale: ensure displayed language matches user's locale
             .filter((item: any) => {
-              if (isAr) return true; // Arabic users want Arabic news
-              // For non-Arabic locales, filter out Arabic-only text
-              const text = item.text || item.headline || item.title || '';
-              return text && !/[\u0600-\u06FF]/.test(text);
+              if (isAr) {
+                // Arabic users: only show articles that have actual Arabic text
+                const arText = item.textAr || item.translatedTitle || '';
+                return arText && /[\u0600-\u06FF]/.test(arText);
+              }
+              // For non-Arabic locales, filter out Arabic-only text from the main text field
+              const mainText = item.text || item.headline || item.title || '';
+              return mainText && !/[\u0600-\u06FF]/.test(mainText);
             })
             .map((item: any) => ({
             category: item.category || 'General',
@@ -106,10 +128,10 @@ export default function NewsTicker() {
             color: item.color || '#8B92A8',
             bgColor: item.bgColor || '#8B92A812',
             text: item.text || item.headline || item.title || '',
-            textAr: item.textAr || item.translatedTitle || item.text || item.headline || item.title || '',
-            textFr: item.textFr || item.text || item.headline || item.title || '',
-            textTr: item.textTr || item.text || item.headline || item.title || '',
-            textEs: item.textEs || item.text || item.headline || item.title || '',
+            textAr: (item.textAr && /[\u0600-\u06FF]/.test(item.textAr)) ? item.textAr : (item.translatedTitle && /[\u0600-\u06FF]/.test(item.translatedTitle)) ? item.translatedTitle : '',
+            textFr: (item.textFr && !/[\u0600-\u06FF]/.test(item.textFr)) ? item.textFr : '',
+            textTr: (item.textTr && !/[\u0600-\u06FF]/.test(item.textTr)) ? item.textTr : '',
+            textEs: (item.textEs && !/[\u0600-\u06FF]/.test(item.textEs)) ? item.textEs : '',
             impact: item.impact || (item.sentiment === 'positive' ? 'medium' : 'high'),
           }))
           if (mapped.length > 0) setNewsItems(mapped)
@@ -136,21 +158,26 @@ export default function NewsTicker() {
     }
   }, [newsItems])
 
-  const renderNewsItem = (item: NewsItem, index: number) => (
-    <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
-      <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
-        {getLocalizedCategory(item, locale)}
-      </span>
-      <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{getLocalizedText(item, locale)}</span>
-      <span className="text-[10px]">
-        {item.impact === 'high' ? (
-          <span style={{ color: 'var(--loss)' }}>●</span>
-        ) : (
-          <span style={{ color: 'var(--warning)' }}>●</span>
-        )}
-      </span>
-    </div>
-  )
+  const renderNewsItem = (item: NewsItem, index: number) => {
+    const displayText = getLocalizedText(item, locale)
+    // Skip items that have no text in the current locale
+    if (!displayText) return null
+    return (
+      <div key={`${item.text?.slice(0, 30)}-${index}`} className="inline-flex items-center gap-2 mx-6 whitespace-nowrap">
+        <span className="text-[9px] font-bold px-1.5 py-0 rounded" style={{ color: item.color, background: item.bgColor }}>
+          {getLocalizedCategory(item, locale)}
+        </span>
+        <span className="text-[11px]" style={{ color: 'var(--text-secondary)' }}>{displayText}</span>
+        <span className="text-[10px]">
+          {item.impact === 'high' ? (
+            <span style={{ color: 'var(--loss)' }}>●</span>
+          ) : (
+            <span style={{ color: 'var(--warning)' }}>●</span>
+          )}
+        </span>
+      </div>
+    )
+  }
 
   return (
     <div style={{ gridArea: 'news' }} className="flex items-center overflow-hidden">

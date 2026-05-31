@@ -7,41 +7,40 @@ interface FeatureData {
   num: string;
   icon: string;
   titleKey: string;
-  titleEn: string;
   descKey: string;
-  meta: string[];
+  metaKeys: string[];
 }
 
 const features: FeatureData[] = [
   {
     num: '01', icon: '🗣️',
-    titleKey: 'multilingualAnalyst', titleEn: 'Polyglot Analyst',
+    titleKey: 'multilingualAnalyst',
     descKey: 'multilingualAnalystDesc',
-    meta: ['🌍 12+ لغة', '⚡ تحليل فوري', '🧠 ذكاء متعدد']
+    metaKeys: ['metaMultilingual1', 'metaMultilingual2', 'metaMultilingual3']
   },
   {
     num: '02', icon: '📡',
-    titleKey: 'rouaSignals', titleEn: 'Roua Signals',
+    titleKey: 'rouaSignals',
     descKey: 'rouaSignalsDesc',
-    meta: ['🎯 ذكاء متعدد', '⏱️ تنبيه فوري', '📊 50+ زوج']
+    metaKeys: ['metaSignals1', 'metaSignals2', 'metaSignals3']
   },
   {
     num: '03', icon: '📰',
-    titleKey: 'newsRadar', titleEn: 'Unified News Radar',
+    titleKey: 'newsRadar',
     descKey: 'newsRadarDesc',
-    meta: ['📡 مصادر متعددة', '⚡ رصد فوري', '🧠 تصفية ذكية']
+    metaKeys: ['metaRadar1', 'metaRadar2', 'metaRadar3']
   },
   {
     num: '04', icon: '🛡️',
-    titleKey: 'sanctuary', titleEn: 'Portfolio Sanctuary',
+    titleKey: 'sanctuary',
     descKey: 'sanctuaryDesc',
-    meta: ['🛡️ حماية 24/7', '📉 تقليل المخاطر', '⚖️ توازن تلقائي']
+    metaKeys: ['metaSanctuary1', 'metaSanctuary2', 'metaSanctuary3']
   },
   {
     num: '05', icon: '🧪',
-    titleKey: 'smartLab', titleEn: 'Smart Lab',
+    titleKey: 'smartLab',
     descKey: 'smartLabDesc',
-    meta: ['🧪 محاكاة حقيقية', '📈 بيانات تاريخية', '🔧 تحسين تلقائي']
+    metaKeys: ['metaSmartLab1', 'metaSmartLab2', 'metaSmartLab3']
   },
 ];
 
@@ -79,11 +78,11 @@ function FeatureCard({ feature, t }: { feature: FeatureData; t: ReturnType<typeo
     <div className="feature-card fade-in" ref={cardRef}>
       <div className="feature-number">{feature.num}</div>
       <div className="feature-icon">{feature.icon}</div>
-      <h3>{t(feature.titleKey)} <span>{feature.titleEn}</span></h3>
+      <h3>{t(feature.titleKey)}</h3>
       <p>{t(feature.descKey)}</p>
       <div className="feature-meta">
-        {feature.meta.map((tag, i) => (
-          <span key={i}>{tag}</span>
+        {feature.metaKeys.map((key, i) => (
+          <span key={i}>{t(key)}</span>
         ))}
       </div>
     </div>
@@ -96,7 +95,7 @@ export default function FeaturesSection() {
   return (
     <section className="section features-section" id="features">
       <div className="section-header fade-in">
-        <div className="section-label">CORE FEATURES</div>
+        <div className="section-label">{t('sectionLabel')}</div>
         <h2 className="section-title">
           {t('sectionTitlePart1')}<br /><span className="highlight">{t('sectionTitleHighlight')}</span>
         </h2>

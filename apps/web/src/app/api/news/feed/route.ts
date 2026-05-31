@@ -260,8 +260,8 @@ export async function GET(request: Request) {
                 // French users: prefer French articles, but also allow English ones
                 return true // Show all non-Arabic articles
               }
-              // English/Turkish/Spanish: show articles without Arabic-only titles
-              return !item.isArabicOnly
+              // English/Turkish/Spanish: show articles without Arabic-only OR French-only titles
+              return !item.isArabicOnly && !item.isFrenchOnly
             });
 
             if (items.length > 0) {
@@ -327,26 +327,36 @@ export async function GET(request: Request) {
             }
           })
 
-          const hasArabic = items.some((item: any) => /[\u0600-\u06FF]/.test(item.textAr))
-          if (hasArabic) {
-            const fallbackItems = getFallbackNews()
-            const finalItems = items.map((item: any, idx: number) => {
-              if (!/[\u0600-\u06FF]/.test(item.textAr) && fallbackItems[idx]) {
-                return {
-                  ...item,
-                  textAr: fallbackItems[idx].textAr,
-                  categoryAr: fallbackItems[idx].categoryAr,
-                  textFr: fallbackItems[idx].textFr,
-                  categoryFr: fallbackItems[idx].categoryFr,
-                  textTr: fallbackItems[idx].textTr,
-                  categoryTr: fallbackItems[idx].categoryTr,
-                  textEs: fallbackItems[idx].textEs,
-                  categoryEs: fallbackItems[idx].categoryEs,
-                }
+          // Fill in missing Arabic translations from fallback data
+          const fallbackItems = getFallbackNews()
+          const enrichedItems = items.map((item: any, idx: number) => {
+            if (!/[\u0600-\u06FF]/.test(item.textAr) && fallbackItems[idx]) {
+              return {
+                ...item,
+                textAr: fallbackItems[idx].textAr,
+                categoryAr: fallbackItems[idx].categoryAr,
+                textFr: fallbackItems[idx].textFr || item.textFr,
+                categoryFr: fallbackItems[idx].categoryFr || item.categoryFr,
+                textTr: fallbackItems[idx].textTr || item.textTr,
+                categoryTr: fallbackItems[idx].categoryTr || item.categoryTr,
+                textEs: fallbackItems[idx].textEs || item.textEs,
+                categoryEs: fallbackItems[idx].categoryEs || item.categoryEs,
               }
-              return item
-            })
-            return NextResponse.json(finalItems)
+            }
+            return item
+          })
+
+          // Filter by language pipeline (same logic as Priority 1)
+          const filteredItems = enrichedItems.filter((item: any) => {
+            if (lang === 'ar') {
+              return item.textAr && /[\u0600-\u06FF]/.test(item.textAr)
+            }
+            // For non-Arabic locales, filter out Arabic-only text
+            return item.text && !/[\u0600-\u06FF]/.test(item.text)
+          })
+
+          if (filteredItems.length > 0) {
+            return NextResponse.json(filteredItems)
           }
         }
       }
@@ -355,7 +365,14 @@ export async function GET(request: Request) {
     }
 
     // ── Priority 3: Fallback static news ──
-    return NextResponse.json(getFallbackNews())
+    const fallback = getFallbackNews()
+    const filteredFallback = fallback.filter((item: any) => {
+      if (lang === 'ar') {
+        return item.textAr && /[\u0600-\u06FF]/.test(item.textAr)
+      }
+      return item.text && !/[\u0600-\u06FF]/.test(item.text)
+    })
+    return NextResponse.json(filteredFallback.length > 0 ? filteredFallback : fallback)
   } catch (error) {
     return NextResponse.json(getFallbackNews())
   }

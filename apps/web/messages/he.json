@@ -2410,7 +2410,7 @@
       "conflictAligned": "תפקידי הליבה מיושרים יחסית."
     },
     "leaderboard": {
-      "title": "Leaderboard",
+      "title": "לוח מובילים",
       "subtitle": "דירוג הסוחרים המובילים בפלטפורמת Roua"
     },
     "botCommand": {
@@ -4199,7 +4199,7 @@
     "colFollowers": "עוקבים",
     "timeAll": "כל הזמן",
     "avgReturn": "תשואה ממוצעת",
-    "title": "Leaderboard",
+    "title": "לוח מובילים",
     "follow": "לַעֲקוֹב",
     "catConsistency": "עֲקֵבִיוּת",
     "consistency": "עֲקֵבִיוּת",

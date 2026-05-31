@@ -76,14 +76,10 @@ export function buildChartOptions(opts: {
       rightOffset: isMobile ? 3 : 5,
       barSpacing: 8,
       minBarSpacing: isMobile ? 4 : 5,
-      // FIX: Enable conflation globally for performance (line/area indicators
-      // benefit from it). Candlestick conflation is prevented per-series via
-      // conflationThresholdFactor: 100 (see buildCandlestickOptions below).
-      // Previously, setting enableConflation: false broke conflation for all
-      // series, but the per-series override approach is better because it
-      // allows indicators to conflate while protecting OHLC candlesticks.
-      enableConflation: true,
-      conflationThresholdFactor: 1.0,
+      // FIX: Data conflation is DISABLED because it destroys candlestick
+      // OHLC rendering. When enabled, LWC merges multiple candles into a
+      // single data point (dot) when zoomed out, losing open/high/low/close.
+      enableConflation: false,
     },
     handleScroll: { vertTouchDrag: !isMobile },
   };
@@ -101,13 +97,6 @@ export function buildCandlestickOptions(isMobile: boolean): Record<string, any> 
     wickDownColor: isMobile ? MOBILE_DN : CHART_COLORS.downWick,
     lastValueVisible: !isMobile,
     priceLineVisible: !isMobile,
-    // FIX: Prevent LWC v5.1+ from conflating OHLC candlestick data into
-    // single dots. Without this, when the chart is zoomed out and there are
-    // many data points, LWC merges multiple candles into a single point
-    // (losing open/high/low/close) which makes them appear as dots.
-    // A value of 100 means conflation only kicks in at extreme zoom-out
-    // levels where individual candles would be < 0.01px wide.
-    conflationThresholdFactor: 100,
   };
 }
 

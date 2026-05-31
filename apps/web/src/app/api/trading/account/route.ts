@@ -12,9 +12,32 @@ export const dynamic = 'force-dynamic'
  * Now: When NestJS is unreachable, returns HTTP 502 with an error message.
  * The frontend (usePositionsStore) has its own fallback logic.
  */
+/**
+ * Extract session token from request — checks cookie, Authorization header, and custom header.
+ * Supports both browser clients (cookie-based) and mobile/native clients (header-based).
+ */
+function extractSessionToken(req: NextRequest): string | null {
+  // 1. Check cookie (browser clients)
+  const cookieToken = req.cookies.get('roua_session')?.value
+  if (cookieToken) return cookieToken
+
+  // 2. Check Authorization: Bearer <token> (mobile/native clients)
+  const authHeader = req.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim()
+    if (token) return token
+  }
+
+  // 3. Check x-roua-session custom header (mobile/native clients)
+  const customHeader = req.headers.get('x-roua-session')
+  if (customHeader?.trim()) return customHeader.trim()
+
+  return null
+}
+
 export async function GET(req: NextRequest) {
   const baseUrl = process.env.API_INTERNAL_URL || 'http://127.0.0.1:3001'
-  const sessionToken = req.cookies.get('roua_session')?.value
+  const sessionToken = extractSessionToken(req)
 
   try {
     const headers: Record<string, string> = {

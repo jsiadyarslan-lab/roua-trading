@@ -184,12 +184,35 @@ async function forceCreateSession(): Promise<{ token: string } | null> {
  * Ensure a valid session token exists.
  * Always returns a token — never returns null.
  */
+/**
+ * Extract session token from request — checks cookie, Authorization header, and custom header.
+ * This supports both browser clients (cookie-based) and mobile/native clients (header-based).
+ */
+function extractSessionToken(request: NextRequest): string | null {
+  // 1. Check cookie (browser clients)
+  const cookieToken = request.cookies.get('roua_session')?.value
+  if (cookieToken) return cookieToken
+
+  // 2. Check Authorization: Bearer <token> (mobile/native clients)
+  const authHeader = request.headers.get('authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.substring(7).trim()
+    if (token) return token
+  }
+
+  // 3. Check x-roua-session custom header (mobile/native clients)
+  const customHeader = request.headers.get('x-roua-session')
+  if (customHeader?.trim()) return customHeader.trim()
+
+  return null
+}
+
 async function ensureSession(request: NextRequest): Promise<{
   token: string
   cookieAlreadySet: boolean
 }> {
-  // Check existing cookie
-  const existingToken = request.cookies.get('roua_session')?.value
+  // Check existing token from cookie, Authorization header, or x-roua-session header
+  const existingToken = extractSessionToken(request)
   if (existingToken) {
     try {
       const dbReady = await ensureDbReady()
@@ -206,11 +229,11 @@ async function ensureSession(request: NextRequest): Promise<{
           await db.session.delete({ where: { id: session.id } }).catch(() => {})
         }
       } else {
-        // DB unavailable — trust the cookie, NestJS will validate
+        // DB unavailable — trust the token, NestJS will validate
         return { token: existingToken, cookieAlreadySet: true }
       }
     } catch {
-      // DB error — trust the cookie
+      // DB error — trust the token
       return { token: existingToken, cookieAlreadySet: true }
     }
   }

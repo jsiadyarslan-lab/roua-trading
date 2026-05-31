@@ -11,8 +11,15 @@ import crypto from 'crypto'
  * 2. Refresh token: If the session access token is expired but a valid refresh token exists,
  *    creates a new session with device info from the original session.
  *
- * The refresh token is stored in the `roua_refresh` httpOnly cookie (30-day TTL).
- * The access token is stored in the `roua_session` httpOnly cookie (24h TTL).
+ * The refresh token can be provided via:
+ * - `roua_refresh` httpOnly cookie (browser clients)
+ * - `Authorization: Bearer <refresh>` header (mobile/native clients)
+ * - `x-roua-refresh` custom header (mobile/native clients)
+ *
+ * The session token can be provided via:
+ * - `roua_session` httpOnly cookie (browser clients)
+ * - `Authorization: Bearer <token>` header (mobile/native clients — only if no refresh token in header)
+ * - `x-roua-session` custom header (mobile/native clients)
  */
 
 const REFRESH_THRESHOLD_MS = 60 * 60 * 1000 // Refresh if expiring within 60 minutes
@@ -63,8 +70,36 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'AUTH_SERVICE_UNAVAILABLE' }, { status: 503 })
     }
 
-    const sessionToken = request.cookies.get('roua_session')?.value
-    const refreshToken = request.cookies.get('roua_refresh')?.value
+    // ── Extract tokens from cookie, Authorization header, or custom headers ──
+    // Mobile/native clients send tokens via headers since they can't set httpOnly cookies.
+    let sessionToken = request.cookies.get('roua_session')?.value
+    let refreshToken = request.cookies.get('roua_refresh')?.value
+
+    // Check Authorization header for refresh token (mobile sends: Bearer <refresh>)
+    // or session token if no separate refresh header
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      const bearerToken = authHeader.substring(7).trim()
+      if (bearerToken) {
+        // If we already have a refresh token from cookie, this Bearer is the session token
+        // If no refresh token from cookie, assume this is the refresh token (mobile refresh flow)
+        if (!refreshToken) {
+          refreshToken = bearerToken
+        } else if (!sessionToken) {
+          sessionToken = bearerToken
+        }
+      }
+    }
+
+    // Check custom headers (mobile clients)
+    const customSession = request.headers.get('x-roua-session')
+    if (customSession?.trim() && !sessionToken) {
+      sessionToken = customSession.trim()
+    }
+    const customRefresh = request.headers.get('x-roua-refresh')
+    if (customRefresh?.trim() && !refreshToken) {
+      refreshToken = customRefresh.trim()
+    }
     const userAgent = request.headers.get('user-agent')
     const ipAddress = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
       || request.headers.get('x-real-ip')
@@ -135,6 +170,12 @@ export async function POST(request: NextRequest) {
               displayName: sessionByRefresh.user.displayName,
               tier: sessionByRefresh.user.tier,
               isGuest: false,
+            },
+            // Include tokens in response body for mobile/native clients
+            // that can't read httpOnly Set-Cookie headers
+            data: {
+              token: newToken,
+              refresh: newRefreshToken,
             },
           })
 
@@ -231,6 +272,11 @@ export async function POST(request: NextRequest) {
                 tier: sessionByRefresh.user.tier,
                 isGuest: false,
               },
+              // Include tokens in response body for mobile/native clients
+              data: {
+                token: newToken,
+                refresh: newRefreshToken,
+              },
             })
 
             response.cookies.set('roua_session', newToken, {
@@ -303,6 +349,11 @@ export async function POST(request: NextRequest) {
             displayName: session.user.displayName,
             tier: session.user.tier,
             isGuest: false,
+          },
+          // Include tokens in response body for mobile/native clients
+          data: {
+            token: newToken,
+            refresh: newRefreshToken,
           },
         })
 

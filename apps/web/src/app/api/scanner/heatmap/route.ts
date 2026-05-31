@@ -9,7 +9,16 @@ export async function GET(req: NextRequest) {
     const params = new URLSearchParams()
     if (category) params.set('category', category)
 
-    const sessionToken = req.cookies.get('roua_session')?.value
+    // FIX: Forward session token for auth — check cookie, Authorization header, and custom header
+    let sessionToken = req.cookies.get('roua_session')?.value
+    if (!sessionToken) {
+      const authHeader = req.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) sessionToken = authHeader.substring(7).trim()
+    }
+    if (!sessionToken) {
+      const customHeader = req.headers.get('x-roua-session')
+      if (customHeader?.trim()) sessionToken = customHeader.trim()
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }

@@ -30,6 +30,7 @@ import { AISmartPanel } from './AISmartPanel';
 import { runPatternEngine } from '@/lib/charts/pattern-engine';
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { resetOverlayRegistry } from '@/lib/charts/OverlayRegistry';
+import { resetFallbackEntryCache } from '@/lib/charts/overlay-renderer';
 import { detectProfessionalTrendLines, type TrendLine } from '@/lib/charts/ProfessionalTrendLines';
 import { ChartTrading } from './ChartTrading';
 import { QuickTradePanel } from './QuickTradePanel';
@@ -1540,6 +1541,7 @@ export default function RouaChart({
       cancelAnimationFrame(rafIdRef.current);
       // Clean up OverlayRegistry on unmount (replaces old OverlayManager)
       resetOverlayRegistry();
+      resetFallbackEntryCache();
     };
   }, []);
 
@@ -1816,6 +1818,7 @@ export default function RouaChart({
       // recreated, so all primitives and price lines must go. The next
       // renderOverlays call will create a fresh registry.
       resetOverlayRegistry();
+      resetFallbackEntryCache();
     } catch {}
     // SAFETY NET: Brute-force remove ALL price lines from the candle series.
     // This catches orphaned lines from: delayed addPriceLine retries,

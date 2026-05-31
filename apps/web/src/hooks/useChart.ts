@@ -1812,17 +1812,31 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // Direct access to candle series for external use
   const getCandleSeries = useCallback(() => candleSeriesRef.current || mainSeriesRef.current, []);
 
+  // Track the last-set data for each price line ID to skip unchanged lines
+  const priceLineDataRef = useRef<Map<string, { price: number; color: string; label: string; lineWidth: number; lineStyle: number; axisLabelVisible: boolean }>>(new Map());
+
   const addPriceLine = useCallback((id: string, price: number, color: string, label: string, lineWidth: number = 1, lineStyle: number = 2, axisLabelVisible: boolean = true) => {
     const doAdd = () => {
       if (!candleSeriesRef.current) return false;
 
-      // FIX: If a price line with the same ID already exists with the same
-      // price, skip the remove+recreate cycle. This prevents "dancing" lines
-      // caused by unnecessary destruction and recreation of stable price lines.
+      // FIX: Skip remove+recreate if the line data hasn't changed.
+      // This is the KEY fix for "dancing" price lines — the old code always
+      // removed and recreated lines even when price/color/label were identical,
+      // causing a visible flicker on every renderOverlays() call.
+      const lastData = priceLineDataRef.current.get(id);
+      if (lastData &&
+          lastData.price === price &&
+          lastData.color === color &&
+          lastData.label === label &&
+          lastData.lineWidth === lineWidth &&
+          lastData.lineStyle === lineStyle &&
+          lastData.axisLabelVisible === axisLabelVisible) {
+        // Data unchanged — skip the remove+recreate cycle entirely
+        return true;
+      }
+
+      // Data changed — remove old line if exists
       if (priceLinesRef.current.has(id)) {
-        // Price line already exists — check if data actually changed
-        // Since we can't read back price/color from the line object,
-        // we just remove and recreate (but only if the line exists)
         try {
           const existingLine = priceLinesRef.current.get(id);
           if (existingLine && candleSeriesRef.current) {
@@ -1841,6 +1855,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           title: label || '',
         });
         priceLinesRef.current.set(id, line);
+        priceLineDataRef.current.set(id, { price, color, label, lineWidth, lineStyle, axisLabelVisible });
         return true;
       } catch (e) {
         return false;
@@ -1849,10 +1864,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     if (!doAdd()) {
       // Series not ready yet — single retry after a short delay.
-      // FIX: Reduced from 3 aggressive retries (500ms/1500ms/3000ms) to
-      // just 1 retry at 500ms. The old 3-retry mechanism caused "dancing"
-      // lines because delayed retries would create duplicate lines after
-      // the caller had already removed them.
       setTimeout(doAdd, 500);
     }
   }, []);
@@ -1867,6 +1878,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       } catch {}
       priceLinesRef.current.delete(id);
     }
+    // Also clear the data cache for this ID
+    priceLineDataRef.current.delete(id);
   }, []);
 
   // ── Update Settings ────────────────────────────────────

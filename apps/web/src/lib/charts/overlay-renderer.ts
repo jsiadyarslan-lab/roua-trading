@@ -32,6 +32,64 @@ import {
 } from './chart-detection';
 import { safeMax, safeMin } from './chart-utils';
 
+// ═══════════════════════════════════════════════════════════════════════
+// STABLE ENTRY CACHE — prevents "dancing lines"
+//
+// ROOT CAUSE: When no AI signal exists, the fallback entry = lastPrice.
+// Every WebSocket tick changes lastPrice → entry changes → SL/TP change
+// → smartRedraw signature changes → primitives destroyed + recreated → DANCING
+//
+// FIX: Cache the fallback entry/SL/TP and only recalculate when:
+// 1. A new candle CLOSES (candle time changes)
+// 2. Direction changes (EMA9/EMA20 crossover)
+// Between closes, the cached values are reused so the signature stays stable.
+// ═══════════════════════════════════════════════════════════════════════
+interface CachedEntry {
+  candleTime: number;   // time of the last closed candle used for calculation
+  dir: string;          // 'long' | 'short'
+  entry: number;
+  sl: number;
+  tp: number;
+}
+let _cachedFallbackEntry: CachedEntry | null = null;
+
+function getStableFallbackEntry(candles: CandleData[]): { entry: number; sl: number; tp: number; dir: string } {
+  // Use CLOSED candles only (exclude the forming candle)
+  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
+  const lastClosedCandle = closedCandles[closedCandles.length - 1];
+  const candleTime = lastClosedCandle.time;
+
+  // Calculate direction from closed candles
+  const last20 = closedCandles.slice(-20);
+  const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
+  const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
+  const dir = ema9 > ema20 ? 'long' : 'short';
+
+  // If we have a cached entry for this candle time AND same direction → reuse it
+  if (_cachedFallbackEntry && _cachedFallbackEntry.candleTime === candleTime && _cachedFallbackEntry.dir === dir) {
+    return { entry: _cachedFallbackEntry.entry, sl: _cachedFallbackEntry.sl, tp: _cachedFallbackEntry.tp, dir: _cachedFallbackEntry.dir };
+  }
+
+  // Recalculate entry from the LAST CLOSED candle (not the forming one)
+  const entry = lastClosedCandle.close;
+  const atr = closedCandles.length >= 14 ? (() => {
+    const sl2 = closedCandles.slice(-14);
+    const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
+    return trs.reduce((s, v) => s + v, 0) / trs.length;
+  })() : entry * 0.01;
+
+  const sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
+  const tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+
+  _cachedFallbackEntry = { candleTime, dir, entry, sl, tp };
+  return { entry, sl, tp, dir };
+}
+
+/** Reset the fallback entry cache (e.g., on timeframe change) */
+export function resetFallbackEntryCache(): void {
+  _cachedFallbackEntry = null;
+}
+
 // ── Type for AI analysis result ────────────────────────────────────
 export interface OverlayInput {
   candles: CandleData[];
@@ -140,6 +198,13 @@ export function renderOverlays(
   if (!candles.length || candles.length < 20) return;
 
   const registry = getOverlayRegistry();
+
+  // MUTEX: Prevent overlapping renderOverlays() calls from concurrent triggers
+  // (WebSocket onCandleUpdate + periodic timer + user toggle). If a render
+  // is already in progress, skip this call — the next trigger will re-render.
+  if (!registry.acquireRenderLock()) return;
+
+  try {
   // FIX: Pass removePriceLine to registry so it can clean up price lines
   // when an overlay type is cleared (toggled off).
   registry.init(series, removePriceLine ?? undefined);
@@ -165,8 +230,14 @@ export function renderOverlays(
     return;
   }
 
-  // ── Run ZigZag detection once ──
-  const swings = computeZigZag(candles);
+  // ── Run ZigZag detection on CLOSED candles only ──
+  // FIX: Exclude the last (forming) candle from detection. The forming
+  // candle's high/low/close change on every WebSocket tick, causing
+  // ZigZag swing points to shift → signature changes → primitives
+  // destroyed+recreated → "dancing lines". Only closed candles produce
+  // stable swing points that don't change between ticks.
+  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
+  const swings = computeZigZag(closedCandles);
 
   // ── Helper: safe price line ──
   // FIX: Also register the price line ID with the OverlayRegistry so
@@ -188,7 +259,7 @@ export function renderOverlays(
   // S/R — Support/Resistance using clustering + horizontal lines
   // ═══════════════════════════════════════════════════════════════
   if (showSR) {
-    const levels = detectSRLevels(candles);
+    const levels = detectSRLevels(closedCandles);
     // ── CLEANUP: Only show top 4 strongest levels to avoid chart clutter ──
     // Filter to only levels within 3% of current price (relevant zone)
     const lastPrice = candles[candles.length - 1].close;
@@ -253,7 +324,7 @@ export function renderOverlays(
   // KEY: Only draws on recent swing points, not all candles
   // ═══════════════════════════════════════════════════════════════
   if (showTrend) {
-    const trendLines = detectTrendLines(candles, swings);
+    const trendLines = detectTrendLines(closedCandles, swings);
 
     // Build data signature from trend lines
     const trendSig = JSON.stringify(trendLines.map(l => `${l.startPoint.price}:${l.endPoint.price}:${l.type}:${l.strength}`).join('|'));
@@ -335,8 +406,8 @@ export function renderOverlays(
         }));
       });
 
-      // PRZ zone at point D
-      const atr = candles[candles.length - 1].high - candles[candles.length - 1].low;
+      // PRZ zone at point D — use closedCandles for stable ATR
+      const atr = closedCandles[closedCandles.length - 1].high - closedCandles[closedCandles.length - 1].low;
       registry.add('harmonic', new ZonePrimitive({
         startTime: pts.C.time as any,
         endTime: pts.D.time as any,
@@ -395,7 +466,7 @@ export function renderOverlays(
     // Use ONLY the ATR-filtered detectFVGs — no SMC duplicates.
     // The SMCDetector FVGs caused dozens of lines on few candles
     // because they lacked ATR filtering and middle-candle validation.
-    const fvgs = detectFVGs(candles);
+    const fvgs = detectFVGs(closedCandles);
 
     // Build data signature from FVG zones
     const fvgSig = JSON.stringify(fvgs.map(f => `${f.type}:${f.highPrice}:${f.lowPrice}:${f.startTime}`).join('|'));
@@ -421,7 +492,7 @@ export function renderOverlays(
   // BOS — Break of Structure / CHoCH
   // ═══════════════════════════════════════════════════════════════
   if (showBOS) {
-    const bosBreaks = detectBOS(candles, swings);
+    const bosBreaks = detectBOS(closedCandles, swings);
 
     // Build data signature from BOS breaks
     const bosSig = JSON.stringify(bosBreaks.map(b => `${b.type}:${b.direction}:${b.brokenLevel}:${b.breakPrice}`).join('|'));
@@ -633,7 +704,7 @@ export function renderOverlays(
 
     // FIX: Local Wyckoff detection when AI data is unavailable
     if (phase === 'Unknown' || !w) {
-      const localWyckoff = detectLocalWyckoff(candles, swings);
+      const localWyckoff = detectLocalWyckoff(closedCandles, swings);
       phase = localWyckoff.phase;
       bias = localWyckoff.bias;
       events = localWyckoff.events;
@@ -752,46 +823,46 @@ export function renderOverlays(
     // Use AI signal data for entry (NOT the broken entryExit:null)
     const signal = input.signal;
     const entryExit = input.entryExit;
-    const lastPrice = candles[candles.length - 1].close;
 
     let entry: number, sl: number, tp: number, dir: string;
     // ATR for grid rounding — snap prices to ATR/10 grid to prevent micro-jitter
     let atr: number;
     if (entryExit && entryExit.entryPrice > 0) {
+      // AI panel provided explicit entry/SL/TP — use directly (stable, not price-dependent)
       entry = entryExit.entryPrice;
       sl = entryExit.stopLoss;
       tp = entryExit.takeProfit;
       dir = entryExit.direction;
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
+      })() : entry * 0.01;
     } else if (signal && signal.entry > 0) {
-      // FIX: Use the AI council signal (not null entryExit!)
+      // AI council signal — use directly (stable, not price-dependent)
       entry = signal.entry;
       sl = signal.sl;
       tp = signal.tp;
       dir = signal.dir === 'BUY' ? 'long' : 'short';
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
+      })() : entry * 0.01;
     } else {
-      // Fallback: EMA-based
-      const last20 = candles.slice(-20);
-      const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
-      const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
-      dir = ema9 > ema20 ? 'long' : 'short';
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      // Fallback: Use STABLE cached entry (recalculated only on candle close)
+      // This is the FIX for "dancing lines" — old code used lastPrice which
+      // changed on every tick, causing the signature to change every tick.
+      const stable = getStableFallbackEntry(candles);
+      entry = stable.entry;
+      sl = stable.sl;
+      tp = stable.tp;
+      dir = stable.dir;
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
-      entry = lastPrice;
-      sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
-      tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+      })() : entry * 0.01;
     }
 
     // ATR/10 grid rounding — snap entry/SL/TP to the nearest ATR/10 grid step.
@@ -1337,6 +1408,11 @@ export function renderOverlays(
   if (!showTrade) {
     registry.clearType('trade');
   }
+
+  } finally {
+    // Always release the mutex, even if an error occurred
+    registry.releaseRenderLock();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -1367,6 +1443,9 @@ export function renderAnalysisOverlays(
 
   const registry = getOverlayRegistry();
   registry.init(series, removePriceLine ?? undefined);
+
+  // Use closed candles for stable calculations (same as renderOverlays)
+  const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
 
   const ov = overlays || {};
   const showVP = ov.vp === true;
@@ -1417,34 +1496,31 @@ export function renderAnalysisOverlays(
   if (showEntry) {
     const signal = input.signal;
     const entryExit = input.entryExit;
-    const lastPrice = candles[candles.length - 1].close;
     let entry: number, sl: number, tp: number, dir: string;
     let atr: number;
     if (entryExit && entryExit.entryPrice > 0) {
       entry = entryExit.entryPrice; sl = entryExit.stopLoss; tp = entryExit.takeProfit; dir = entryExit.direction;
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
+      })() : entry * 0.01;
     } else if (signal && signal.entry > 0) {
       entry = signal.entry; sl = signal.sl; tp = signal.tp; dir = signal.dir === 'BUY' ? 'long' : 'short';
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
+      })() : entry * 0.01;
     } else {
-      const last20 = candles.slice(-20);
-      const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
-      const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
-      dir = ema9 > ema20 ? 'long' : 'short';
-      atr = candles.length >= 14 ? (() => {
-        const sl2 = candles.slice(-14);
+      // Use STABLE cached entry (same as renderOverlays)
+      const stable = getStableFallbackEntry(candles);
+      entry = stable.entry; sl = stable.sl; tp = stable.tp; dir = stable.dir;
+      atr = closedCandles.length >= 14 ? (() => {
+        const sl2 = closedCandles.slice(-14);
         const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
         return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : lastPrice * 0.01;
-      entry = lastPrice; sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5; tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+      })() : entry * 0.01;
     }
     // ATR/10 grid rounding — snap entry/SL/TP to prevent micro-jitter
     const gridStep = atr / 10;

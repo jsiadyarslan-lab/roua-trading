@@ -48,6 +48,26 @@ export class OverlayRegistry {
   // being destroyed and recreated.
   private lastRenderData: Map<OverlayType, string> = new Map();
 
+  // ── Render Mutex ──
+  // Prevents overlapping renderOverlays() calls from concurrent triggers
+  // (WebSocket + periodic timer + user toggle). Without this, two calls
+  // can race: first call starts smartRedraw → prepareRedraw clears type →
+  // second call sees no active primitives → also starts redraw → double
+  // creation → visual flicker.
+  private _rendering = false;
+
+  /** Acquire the render lock. Returns false if another render is in progress. */
+  acquireRenderLock(): boolean {
+    if (this._rendering) return false;
+    this._rendering = true;
+    return true;
+  }
+
+  /** Release the render lock. */
+  releaseRenderLock(): void {
+    this._rendering = false;
+  }
+
   constructor() {
     const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
     for (const type of types) {

@@ -195,6 +195,7 @@ export interface HorizontalLineData {
   label?: string;
   startTime?: Time; // If set, line starts from this time; otherwise full width
   endTime?: Time;
+  showPrice?: boolean; // If true, show price value in the label badge
 }
 
 class HorizontalLineRenderer implements IPrimitivePaneRenderer {
@@ -208,6 +209,8 @@ class HorizontalLineRenderer implements IPrimitivePaneRenderer {
     private _lineWidth: number,
     private _lineStyle: number,
     private _label: string,
+    private _price: number,
+    private _showPrice: boolean,
   ) {}
 
   draw(target: CanvasRenderingTarget2D): void {
@@ -220,6 +223,7 @@ class HorizontalLineRenderer implements IPrimitivePaneRenderer {
         const startX = this._fullWidth ? 0 : (this._startX ?? 0);
         const endX = this._fullWidth ? scope.mediaSize.width : (this._endX ?? scope.mediaSize.width);
 
+        // Draw the horizontal line
         ctx.beginPath();
         ctx.moveTo(startX, this._y!);
         ctx.lineTo(endX, this._y!);
@@ -231,11 +235,37 @@ class HorizontalLineRenderer implements IPrimitivePaneRenderer {
         ctx.stroke();
         ctx.setLineDash([]);
 
-        if (this._label) {
+        // Draw label badge on the LEFT side of the chart
+        // MT5/TradingView style: colored badge with text
+        if (this._label || this._showPrice) {
+          const labelText = this._label || '';
+          const priceText = this._showPrice ? (this._price > 999 ? this._price.toFixed(2) : this._price.toFixed(5)) : '';
+          const fullText = labelText && priceText ? `${labelText}  ${priceText}` : (labelText || priceText);
+          if (!fullText) return;
+
           ctx.font = 'bold 10px sans-serif';
+          const metrics = ctx.measureText(fullText);
+          const badgeW = metrics.width + 10;
+          const badgeH = 16;
+          const badgeX = 4;
+          const badgeY = this._y! - badgeH / 2;
+
+          // Badge background with semi-transparent fill
+          ctx.fillStyle = this._color + '22';
+          ctx.beginPath();
+          ctx.roundRect(badgeX, badgeY, badgeW, badgeH, 3);
+          ctx.fill();
+
+          // Badge border
+          ctx.strokeStyle = this._color + '55';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+
+          // Badge text
           ctx.fillStyle = this._color;
-          ctx.textAlign = 'right';
-          ctx.fillText(this._label, endX - 4, this._y! - 4);
+          ctx.textAlign = 'left';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(fullText, badgeX + 5, this._y!);
         }
       } finally {
         ctx.restore();
@@ -264,6 +294,7 @@ class HorizontalLinePaneView implements IPrimitivePaneView {
     return new HorizontalLineRenderer(
       y, startX, endX, fullWidth, 0,
       d.color, d.lineWidth ?? 1, d.lineStyle ?? 2, d.label ?? '',
+      d.price, d.showPrice ?? false,
     );
   }
 }

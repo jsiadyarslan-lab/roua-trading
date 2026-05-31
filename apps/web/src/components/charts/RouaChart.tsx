@@ -1272,6 +1272,32 @@ export default function RouaChart({
   // ── Helper: Normalize symbol for matching ──
   const normalizeSymbol = (s: string) => s.toUpperCase().replace(/[/\-_]/g, '');
 
+  // ── Structural key for position/trade lines ──
+  // CRITICAL: This prevents the price line useEffect from re-running on every
+  // price tick. Previously, `paperTrades` changed on every tick (updatePrice
+  // creates a new array), causing ALL price lines to be removed and re-added,
+  // which produced visible flicker/dancing.
+  //
+  // Now we compute a structural hash that ONLY changes when trades are
+  // actually added, removed, or have their entry/SL/TP modified — NOT when
+  // only currentPrice/unrealizedPnl changes.
+  const positionStructKey = useMemo(() => {
+    const chartSymbol = normalizeSymbol(selectedSymbol_);
+    const parts: string[] = [];
+    positions.forEach(p => {
+      const ps = normalizeSymbol(p.symbol || '');
+      if (!ps.includes(chartSymbol) && !chartSymbol.includes(ps)) return;
+      parts.push(`P:${p.id}:${p.side}:${p.entryPrice}:${p.stopLoss || p.sl}:${p.takeProfit || p.tp}`);
+    });
+    paperTrades.forEach(t => {
+      const ts = normalizeSymbol(t.symbol || '');
+      if (!ts.includes(chartSymbol) && !chartSymbol.includes(ts)) return;
+      parts.push(`T:${t.id}:${t.side}:${t.entryPrice}:${t.sl}:${t.tp}`);
+    });
+    parts.sort();
+    return parts.join('|');
+  }, [positions, paperTrades, selectedSymbol_]);
+
   // ── Trade Overlay State ──
   interface TradeOverlay {
     key: string;
@@ -1293,7 +1319,7 @@ export default function RouaChart({
   // every rAF, we use direct DOM manipulation for position updates and only
   // setState when the structure changes (e.g. trades added/removed).
   const lastOverlayUpdateRef = useRef(0);
-  const OVERLAY_THROTTLE_MS = 120; // ~8fps for overlay position updates
+  const OVERLAY_THROTTLE_MS = 50; // ~20fps for overlay position updates (reduced from 120ms to fix label jitter)
   const lastOverlayStructureRef = useRef(''); // Hash to detect structural changes
 
   // Keep latest positions/trades in ref so the rAF callback always has fresh data
@@ -1462,12 +1488,12 @@ export default function RouaChart({
                 el.style.height = Math.max(zone.height, 1) + 'px';
               }
             });
-            // Update trade label positions directly
+            // Update trade label positions directly using GPU-accelerated transform
             const labelEls = overlayContainer.querySelectorAll('[data-trade-label]');
             overlays.forEach((ov, i) => {
               const el = labelEls[i] as HTMLElement;
               if (el) {
-                el.style.top = (ov.y - 9) + 'px';
+                el.style.transform = `translateY(${ov.y - 9}px)`;
               }
             });
           }
@@ -1559,7 +1585,7 @@ export default function RouaChart({
   // ── Re-calculate overlays when trades change ──
   useEffect(() => {
     scheduleOverlayUpdate();
-  }, [positions, paperTrades, scheduleOverlayUpdate]);
+  }, [positionStructKey, scheduleOverlayUpdate]);
 
   // ── Apply Position Lines to Chart (price lines with labels) ──
   // FIX: Skip in mini chart mode — price lines are not needed for compact charts.
@@ -1648,10 +1674,11 @@ export default function RouaChart({
       positionLineIdsRef.current.forEach(id => rmPriceLine(id));
       positionLineIdsRef.current = [];
     };
-  // FIX: Removed `chart` from deps — uses refs for all chart method access.
-  // This prevents the effect from re-running on every render (chart is a new
-  // object each render), which caused position lines to be rapidly added/removed.
-  }, [positions, paperTrades, selectedSymbol_, isGridCell]);
+  // FIX: Uses `positionStructKey` instead of `positions`/`paperTrades` directly.
+  // This prevents the effect from re-running on every price tick (which creates
+  // new array references). The structural key only changes when trades are
+  // actually added/removed or have entry/SL/TP modified.
+  }, [positionStructKey, selectedSymbol_, isGridCell]);
 
 
 
@@ -2733,14 +2760,15 @@ export default function RouaChart({
               return (
                 <div key={ov.key} data-trade-label={ov.key} style={{
                   position: 'absolute',
-                  top: ov.y - 9,
+                  top: 0,
                   left: 6,
                   zIndex: 10,
                   pointerEvents: 'none',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 3,
-                  willChange: 'top',
+                  transform: `translateY(${ov.y - 9}px)`,
+                  willChange: 'transform',
                 }}>
                   <span style={{
                     background: bg,

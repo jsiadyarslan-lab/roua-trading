@@ -753,13 +753,14 @@ export function renderOverlays(
       tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
     }
 
-    // Draw entry/SL/TP using HorizontalLinePrimitive
+    // Draw entry/SL/TP using HorizontalLinePrimitive with price badges
     registry.add('entry', new HorizontalLinePrimitive({
       price: entry,
       color: OVERLAY_COLORS.entry,
       lineWidth: 2,
       lineStyle: 0,
-      label: `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`,
+      label: `Entry ${dir === 'long' ? '▲ BUY' : '▼ SELL'}`,
+      showPrice: true,
     }));
     if (sl > 0) {
       registry.add('entry', new HorizontalLinePrimitive({
@@ -768,6 +769,7 @@ export function renderOverlays(
         lineWidth: 2,
         lineStyle: 2,
         label: 'SL',
+        showPrice: true,
       }));
     }
     if (tp > 0) {
@@ -777,6 +779,7 @@ export function renderOverlays(
         lineWidth: 2,
         lineStyle: 2,
         label: 'TP',
+        showPrice: true,
       }));
     }
 
@@ -802,10 +805,10 @@ export function renderOverlays(
       }));
     }
 
-    // Price lines for axis labels
-    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
-    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', `SL`, 2, 2, true, 'entry');
-    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', `TP`, 2, 2, true, 'entry');
+    // NOTE: IPriceLine (safeAddPriceLine) is NOT added here because
+    // HorizontalLinePrimitive already draws the line + label on canvas.
+    // Adding both creates DUPLICATE lines that jitter on scroll.
+    // The price axis label is handled by HorizontalLinePrimitive's label field.
   } else {
     registry.clearType('entry');
   }
@@ -1067,6 +1070,7 @@ export function renderOverlays(
         lineWidth: 2,
         lineStyle: 0,
         label: `Entry ${dirAr} (Q:${proposal.qualityScore})`,
+        showPrice: true,
       }));
 
       // Stop Loss line (use trail SL if active)
@@ -1077,6 +1081,7 @@ export function renderOverlays(
         lineWidth: 2,
         lineStyle: proposal.currentTrailSL ? 0 : 2,
         label: proposal.currentTrailSL ? 'Trail SL' : 'SL',
+        showPrice: true,
       }));
 
       // Take Profit levels (TP1, TP2, TP3)
@@ -1091,6 +1096,7 @@ export function renderOverlays(
           lineWidth: i === 0 ? 2 : 1,
           lineStyle: tpLineStyles[i] ?? 2,
           label: tpLabels[i] || `TP${i + 1}`,
+          showPrice: true,
         }));
       }
 
@@ -1114,13 +1120,8 @@ export function renderOverlays(
         borderColor: undefined,
       }));
 
-      // Price lines for axis labels
-      const entryCol = isBull ? '#22d3ee' : '#f97316';
-      safeAddPriceLine('trade-entry', proposal.entryPrice, entryCol, `Entry ${dirAr}`, 2, 0, true, 'trade');
-      safeAddPriceLine('trade-sl', effectiveSL, proposal.currentTrailSL ? '#fbbf24' : '#ef4444', proposal.currentTrailSL ? 'Trail SL' : 'SL', 2, 2, true, 'trade');
-      for (let i = 0; i < proposal.takeProfits.length; i++) {
-        safeAddPriceLine(`trade-tp${i}`, proposal.takeProfits[i], tpColors[i] || '#10b981', tpLabels[i] || `TP${i+1}`, i === 0 ? 2 : 1, 2, i === 0, 'trade');
-      }
+      // NOTE: No safeAddPriceLine — HorizontalLinePrimitive already draws lines + labels
+      // Previously safeAddPriceLine was called here creating DUPLICATE lines that jitter
 
       // R:R and quality label
       registry.add('trade', new LabelPrimitive({
@@ -1352,14 +1353,12 @@ export function renderAnalysisOverlays(
       })() : lastPrice * 0.01;
       entry = lastPrice; sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5; tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
     }
-    registry.add('entry', new HorizontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? 'BUY' : 'SELL'}` }));
-    if (sl > 0) registry.add('entry', new HorizontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL' }));
-    if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP' }));
+    registry.add('entry', new HorizontalLinePrimitive({ price: entry, color: OVERLAY_COLORS.entry, lineWidth: 2, lineStyle: 0, label: `Entry ${dir === 'long' ? '▲ BUY' : '▼ SELL'}`, showPrice: true }));
+    if (sl > 0) registry.add('entry', new HorizontalLinePrimitive({ price: sl, color: OVERLAY_COLORS.sl, lineWidth: 2, lineStyle: 2, label: 'SL', showPrice: true }));
+    if (tp > 0) registry.add('entry', new HorizontalLinePrimitive({ price: tp, color: OVERLAY_COLORS.tp, lineWidth: 2, lineStyle: 2, label: 'TP', showPrice: true }));
     if (sl > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, sl), lowPrice: Math.min(entry, sl), fillColor: 'rgba(239, 68, 68, 0.04)', borderColor: undefined }));
     if (tp > 0 && entry > 0) registry.add('entry', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(entry, tp), lowPrice: Math.min(entry, tp), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
-    safeAddPriceLine('ee-entry', entry, '#00D4FF', `Entry ${dir === 'long' ? 'BUY' : 'SELL'}`, 2, 0, true, 'entry');
-    if (sl > 0) safeAddPriceLine('ee-sl', sl, '#FF4757', 'SL', 2, 2, true, 'entry');
-    if (tp > 0) safeAddPriceLine('ee-tp', tp, '#00FFA3', 'TP', 2, 2, true, 'entry');
+    // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles the line + label
   } else {
     registry.clearType('entry');
   }
@@ -1459,24 +1458,19 @@ export function renderAnalysisOverlays(
     if (proposal) {
       const isBull = proposal.direction === 'bullish';
       const dirAr = isBull ? 'شراء' : 'بيع';
-      registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#22d3ee' : '#f97316', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})` }));
+      registry.add('trade', new HorizontalLinePrimitive({ price: proposal.entryPrice, color: isBull ? '#22d3ee' : '#f97316', lineWidth: 2, lineStyle: 0, label: `Entry ${dirAr} (Q:${proposal.qualityScore})`, showPrice: true }));
       const effectiveSL = proposal.currentTrailSL ?? proposal.stopLoss;
-      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL' }));
+      registry.add('trade', new HorizontalLinePrimitive({ price: effectiveSL, color: proposal.currentTrailSL ? '#fbbf24' : '#ef4444', lineWidth: 2, lineStyle: proposal.currentTrailSL ? 0 : 2, label: proposal.currentTrailSL ? 'Trail SL' : 'SL', showPrice: true }));
       const tpLabels = ['TP1 (50%)', 'TP2 (30%)', 'TP3 (20%)'];
       const tpColors = ['rgba(16, 185, 129, 0.8)', 'rgba(16, 185, 129, 0.6)', 'rgba(16, 185, 129, 0.4)'];
       for (let i = 0; i < proposal.takeProfits.length; i++) {
-        registry.add('trade', new HorizontalLinePrimitive({ price: proposal.takeProfits[i], color: tpColors[i] || tpColors[2], lineWidth: i === 0 ? 2 : 1, lineStyle: i === 0 ? 0 : i === 1 ? 1 : 2, label: tpLabels[i] || `TP${i + 1}` }));
+        registry.add('trade', new HorizontalLinePrimitive({ price: proposal.takeProfits[i], color: tpColors[i] || tpColors[2], lineWidth: i === 0 ? 2 : 1, lineStyle: i === 0 ? 0 : i === 1 ? 1 : 2, label: tpLabels[i] || `TP${i + 1}`, showPrice: true }));
       }
       registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, effectiveSL), lowPrice: Math.min(proposal.entryPrice, effectiveSL), fillColor: 'rgba(239, 68, 68, 0.05)', borderColor: undefined }));
       if (proposal.takeProfits[2]) {
         registry.add('trade', new ZonePrimitive({ startTime: candles[candles.length - 30]?.time as any || candles[0].time as any, endTime: candles[candles.length - 1].time as any, highPrice: Math.max(proposal.entryPrice, proposal.takeProfits[2]), lowPrice: Math.min(proposal.entryPrice, proposal.takeProfits[2]), fillColor: 'rgba(16, 185, 129, 0.04)', borderColor: undefined }));
       }
-      const entryCol = isBull ? '#22d3ee' : '#f97316';
-      safeAddPriceLine('trade-entry', proposal.entryPrice, entryCol, `Entry ${dirAr}`, 2, 0, true, 'trade');
-      safeAddPriceLine('trade-sl', effectiveSL, proposal.currentTrailSL ? '#fbbf24' : '#ef4444', proposal.currentTrailSL ? 'Trail SL' : 'SL', 2, 2, true, 'trade');
-      for (let i = 0; i < proposal.takeProfits.length; i++) {
-        safeAddPriceLine(`trade-tp${i}`, proposal.takeProfits[i], tpColors[i] || '#10b981', tpLabels[i] || `TP${i+1}`, i === 0 ? 2 : 1, 2, i === 0, 'trade');
-      }
+      // NOTE: No safeAddPriceLine — HorizontalLinePrimitive handles lines + labels
       registry.add('trade', new LabelPrimitive({ time: candles[candles.length - 1].time as any, price: isBull ? safeMax(candles.slice(-5).map(c => c.high)) * 1.002 : safeMin(candles.slice(-5).map(c => c.low)) * 0.998, text: `R:R 1:${proposal.rrRatio} | جودة ${proposal.qualityScore}% | ثقة ${Math.round(proposal.confidence * 100)}%`, color: 'rgba(255,255,255,0.5)', fontSize: 8, align: 'right', bg: 'rgba(11,14,20,0.7)', position: isBull ? 'above' : 'below' }));
     }
     if (!proposal) registry.clearType('trade');

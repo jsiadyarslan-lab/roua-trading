@@ -14,12 +14,10 @@
 #
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Cache bust — increment to force full rebuild on Railway
-ARG BUILD_CACHE=v179-french-locale-support
-
-# CRITICAL FIX: Embed the git commit SHA into the Docker image so we can
-# verify which version of code is actually running on Railway.
-# Without this, we had NO way to know if Railway was serving stale code.
+# Embed the git commit SHA into the Docker image
+# NOTE: ARG BUILD_CACHE was REMOVED — it busted ALL Docker layer cache
+# on every version bump, causing 30+ minute full rebuilds.
+# Use Railway's "Redeploy" button for clean rebuilds instead.
 ARG GIT_COMMIT=unknown
 
 # ─────────────────────────────────────────────────────────────
@@ -38,8 +36,11 @@ COPY apps/web/package.json ./apps/web/
 COPY apps/api/package.json ./apps/api/
 COPY packages/shared/package.json ./packages/shared/
 
+# Remove mobile from workspaces before npm ci (saves ~225MB)
+RUN node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));p.workspaces=['apps/web','apps/api','packages/shared'];fs.writeFileSync('package.json',JSON.stringify(p,null,2)+'\n')"
+
 # Install all workspace dependencies
-RUN npm ci --install-strategy=hoisted
+RUN npm ci --legacy-peer-deps
 
 # ─────────────────────────────────────────────────────────────
 # Stage 2: Build BOTH applications
@@ -62,6 +63,9 @@ COPY . .
 # We CANNOT rely on `npm run` to find them because npm scripts
 # only add ./node_modules/.bin relative to the package directory,
 # which doesn't exist with hoisted installs in a workspace.
+ARG GIT_COMMIT=unknown
+
+# Add node_modules/.bin to PATH
 ENV PATH="/app/node_modules/.bin:${PATH}"
 
 # Generate Prisma client (schema is at repo root: prisma/schema.prisma)
@@ -108,8 +112,7 @@ ENV API_PORT=3001
 ENV HOSTNAME="0.0.0.0"
 # CRITICAL FIX: Pass git commit SHA so /api/health can report what version is running
 ENV DEPLOY_COMMIT=${GIT_COMMIT}
-# Pass build cache version so /api/deploy-version can report it
-ENV BUILD_CACHE=${BUILD_CACHE}
+# BUILD_CACHE removed — was causing 30+ min rebuilds
 
 # FIX: Selective copy — only runtime files, NOT devDependencies or source.
 # The previous "COPY --from=builder /app ." copied EVERYTHING including
@@ -159,4 +162,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=5 \
 # Previously only ran `next start`, leaving the API dead.
 CMD ["bash", "start.sh"]
 
-# Build v94 - Flux UI mobile rebuild: new bottom nav, single CSS, all pages working
+# Build v236 — removed BUILD_CACHE, excluded mobile, fixed npm strategy

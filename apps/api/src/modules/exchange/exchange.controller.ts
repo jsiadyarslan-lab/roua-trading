@@ -20,8 +20,15 @@ export class ExchangeController {
     @Param('symbol') symbol: string,
     @Query('source') source?: string,
   ) {
-    this.logger.debug(`Quote request: ${symbol} (source: ${source || 'auto'})`);
-    const quote = await this.exchangeService.getQuote(symbol, source);
+    // Decode URL-encoded symbols (e.g. BTC%2FUSDT → BTC/USDT)
+    let decodedSymbol: string;
+    try {
+      decodedSymbol = decodeURIComponent(symbol);
+    } catch {
+      decodedSymbol = symbol;
+    }
+    this.logger.debug(`Quote request: ${decodedSymbol} (source: ${source || 'auto'})`);
+    const quote = await this.exchangeService.getQuote(decodedSymbol, source);
     return { success: true, data: quote };
   }
 
@@ -38,11 +45,18 @@ export class ExchangeController {
     @Query('endDate') endDate?: string,
     @Query('source') source?: string,
   ) {
+    // Decode URL-encoded symbols (e.g. BTC%2FUSDT → BTC/USDT)
+    let decodedSymbol: string;
+    try {
+      decodedSymbol = decodeURIComponent(symbol);
+    } catch {
+      decodedSymbol = symbol;
+    }
     const start = startDate ? new Date(startDate) : undefined;
     const end = endDate ? new Date(endDate) : undefined;
 
     const data = await this.exchangeService.getHistoricalData(
-      symbol,
+      decodedSymbol,
       interval,
       start,
       end,

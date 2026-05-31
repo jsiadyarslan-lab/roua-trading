@@ -39,13 +39,13 @@ import { safeMax, safeMin } from './chart-utils';
 // Every WebSocket tick changes lastPrice → entry changes → SL/TP change
 // → smartRedraw signature changes → primitives destroyed + recreated → DANCING
 //
-// FIX: Cache the fallback entry/SL/TP and only recalculate when:
-// 1. A new candle CLOSES (candle time changes)
-// 2. Direction changes (EMA9/EMA20 crossover)
-// Between closes, the cached values are reused so the signature stays stable.
+// FIX: Calculate the fallback entry ONCE and keep it until the DIRECTION
+// changes (EMA9/EMA20 crossover). The lines should NOT move just because
+// a new candle closes — they should stay FIXED until the market direction
+// actually reverses. This matches how real traders set entry/SL/TP:
+// you pick your levels and stick with them until the setup invalidates.
 // ═══════════════════════════════════════════════════════════════════════
 interface CachedEntry {
-  candleTime: number;   // time of the last closed candle used for calculation
   dir: string;          // 'long' | 'short'
   entry: number;
   sl: number;
@@ -56,33 +56,33 @@ let _cachedFallbackEntry: CachedEntry | null = null;
 function getStableFallbackEntry(candles: CandleData[]): { entry: number; sl: number; tp: number; dir: string } {
   // Use CLOSED candles only (exclude the forming candle)
   const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
-  const lastClosedCandle = closedCandles[closedCandles.length - 1];
-  const candleTime = lastClosedCandle.time;
 
-  // Calculate direction from closed candles
+  // Calculate CURRENT direction from closed candles
   const last20 = closedCandles.slice(-20);
   const ema9 = last20.slice(-9).reduce((s, x) => s + x.close, 0) / Math.min(9, last20.length);
   const ema20 = last20.reduce((s, x) => s + x.close, 0) / last20.length;
-  const dir = ema9 > ema20 ? 'long' : 'short';
+  const currentDir = ema9 > ema20 ? 'long' : 'short';
 
-  // If we have a cached entry for this candle time AND same direction → reuse it
-  if (_cachedFallbackEntry && _cachedFallbackEntry.candleTime === candleTime && _cachedFallbackEntry.dir === dir) {
+  // If we have a cached entry and the direction hasn't changed → KEEP IT
+  // The lines should NOT move just because a candle closed. They only move
+  // when the market direction actually reverses (EMA crossover).
+  if (_cachedFallbackEntry && _cachedFallbackEntry.dir === currentDir) {
     return { entry: _cachedFallbackEntry.entry, sl: _cachedFallbackEntry.sl, tp: _cachedFallbackEntry.tp, dir: _cachedFallbackEntry.dir };
   }
 
-  // Recalculate entry from the LAST CLOSED candle (not the forming one)
-  const entry = lastClosedCandle.close;
+  // Direction changed (or first calculation) → calculate new levels
+  const entry = closedCandles[closedCandles.length - 1].close;
   const atr = closedCandles.length >= 14 ? (() => {
     const sl2 = closedCandles.slice(-14);
     const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
     return trs.reduce((s, v) => s + v, 0) / trs.length;
   })() : entry * 0.01;
 
-  const sl = dir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
-  const tp = dir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
+  const sl = currentDir === 'long' ? entry - atr * 1.5 : entry + atr * 1.5;
+  const tp = currentDir === 'long' ? entry + atr * 2.5 : entry - atr * 2.5;
 
-  _cachedFallbackEntry = { candleTime, dir, entry, sl, tp };
-  return { entry, sl, tp, dir };
+  _cachedFallbackEntry = { dir: currentDir, entry, sl, tp };
+  return { entry, sl, tp, dir: currentDir };
 }
 
 /** Reset the fallback entry cache (e.g., on timeframe change) */

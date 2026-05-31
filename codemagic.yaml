@@ -1,0 +1,80 @@
+# Roua Trading — Codemagic CI/CD
+# Builds unsigned IPA for sideloading (AltStore / Sideloadly)
+workflows:
+  ios-unsigned-ipa:
+    name: Roua Trading iOS (Unsigned IPA)
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+
+    environment:
+      ios_signing:
+        distribution_type: none  # No signing — unsigned IPA
+      vars:
+        XCODE_PROJECT: RouaTrading.xcodeproj
+        XCODE_SCHEME: RouaTrading
+        BUNDLE_ID: com.roua.trading
+      xcode: "16.0"
+
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+        - pattern: develop
+          include: true
+
+    scripts:
+      - name: Install XcodeGen
+        script: |
+          brew install xcodegen 2>/dev/null || true
+
+      - name: Generate Xcode project
+        script: |
+          cd ios/RouaTrading
+          xcodegen generate
+
+      - name: Resolve SPM dependencies
+        script: |
+          cd ios/RouaTrading
+          xcodebuild -resolvePackageDependencies \
+            -project $XCODE_PROJECT \
+            -scheme $XCODE_SCHEME \
+            -clonedSourcePackagesDirPath SourcePackages
+
+      - name: Build unsigned IPA
+        script: |
+          cd ios/RouaTrading
+          xcodebuild \
+            -project $XCODE_PROJECT \
+            -scheme $XCODE_SCHEME \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath build/RouaTrading.xcarchive \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            | xcpretty
+
+      - name: Export IPA from archive
+        script: |
+          mkdir -p build/ipa Payload
+          cp -r build/RouaTrading.xcarchive/Products/Applications/RouaTrading.app Payload/
+          zip -r build/ipa/RouaTrading.ipa Payload
+          rm -rf Payload
+          echo "✅ IPA created: build/ipa/RouaTrading.ipa"
+          ls -lh build/ipa/RouaTrading.ipa
+
+    artifacts:
+      - ios/RouaTrading/build/ipa/*.ipa
+
+    publishing:
+      email:
+        recipients:
+          - user@example.com  # Replace with your email
+        notify:
+          success: true
+          failure: true

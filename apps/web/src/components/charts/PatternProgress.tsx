@@ -6,7 +6,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { CandleData } from '@/lib/charts/types';
+
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
 
 interface PatternProgressProps {
   symbol: string;
@@ -36,9 +50,9 @@ const C = {
   warning: '#fbbf24',
 };
 
-function analyzePatternProgress(candles: CandleData[]): PatternStatus[] {
+function analyzePatternProgress(candles: CandleData[], tc: ReturnType<typeof useTranslations<'dashboard.chart'>>): PatternStatus[] {
   if (!candles || candles.length < 10) {
-    return getDefaultPatterns();
+    return getDefaultPatterns(tc);
   }
 
   const last20 = candles.slice(-20);
@@ -96,61 +110,61 @@ function analyzePatternProgress(candles: CandleData[]): PatternStatus[] {
   return [
     {
       name: 'Engulfing',
-      nameAr: 'ابتلاع',
+      nameAr: tc('engulfing'),
       icon: '🕯',
       progress: engulfingProgress,
       direction: isBull ? 'bullish' : 'bearish',
-      expectedMove: isBull ? 'صعود' : 'هبوط',
+      expectedMove: isBull ? tc('upward') : tc('downward'),
     },
     {
       name: 'Pin Bar',
-      nameAr: 'بار مسامير',
+      nameAr: tc('pinBar'),
       icon: '📌',
       progress: pinBarProgress,
       direction: lowerWick > upperWick ? 'bullish' : 'bearish',
-      expectedMove: lowerWick > upperWick ? 'انعكاس صعودي' : 'انعكاس هبوطي',
+      expectedMove: lowerWick > upperWick ? tc('bullishReversal') : tc('bearishReversal'),
     },
     {
       name: 'Squeeze Breakout',
-      nameAr: 'اختراق ضغط',
+      nameAr: tc('squeezeBreakout'),
       icon: '📊',
       progress: squeezeProgress,
       direction: 'neutral',
-      expectedMove: 'اختراق وشيك',
+      expectedMove: tc('imminentBreakout'),
     },
     {
       name: 'Head & Shoulders',
-      nameAr: 'رأس وكتفين',
+      nameAr: tc('headAndShoulders'),
       icon: '🏔️',
       progress: hsProgress,
       direction: hsProgress > 50 ? 'bearish' : 'neutral',
-      expectedMove: hsProgress > 50 ? 'هبوط بعد الاكتمال' : 'قيد التشكل',
+      expectedMove: hsProgress > 50 ? tc('dropAfterCompletion') : tc('formingStatus'),
     },
     {
       name: 'Double Top/Bottom',
-      nameAr: 'قمة/قاع مزدوج',
+      nameAr: tc('doubleTopBottom'),
       icon: '⏸️',
       progress: doubleProgress,
       direction: doubleProgress > 50 ? (lastCandle.close < mean ? 'bearish' : 'bullish') : 'neutral',
-      expectedMove: doubleProgress > 50 ? 'انعكاس' : 'تحقق',
+      expectedMove: doubleProgress > 50 ? tc('reversal') : tc('verifying'),
     },
     {
       name: 'Wedge',
-      nameAr: 'وتد',
+      nameAr: tc('wedge'),
       icon: '🔺',
       progress: wedgeProgress,
       direction: 'neutral',
-      expectedMove: 'اختراق قادم',
+      expectedMove: tc('upcomingBreakout'),
     },
   ];
 }
 
 function detectHSProgress(candles: CandleData[]): number {
   const highs = candles.slice(-15).map(c => c.high);
-  const maxIdx = highs.indexOf(Math.max(...highs));
+  const maxIdx = highs.indexOf(safeMax(highs));
   if (maxIdx < 3 || maxIdx > highs.length - 4) return 10;
-  const leftHigh = Math.max(...highs.slice(0, maxIdx));
-  const rightHigh = Math.max(...highs.slice(maxIdx + 1));
+  const leftHigh = safeMax(highs.slice(0, maxIdx));
+  const rightHigh = safeMax(highs.slice(maxIdx + 1));
   if (Math.abs(leftHigh - rightHigh) / leftHigh < 0.02) return 75;
   if (Math.abs(leftHigh - rightHigh) / leftHigh < 0.05) return 45;
   return 15;
@@ -160,8 +174,8 @@ function detectDoubleTopBottom(candles: CandleData[]): number {
   const last10 = candles.slice(-10);
   const highs = last10.map(c => c.high);
   const lows = last10.map(c => c.low);
-  const maxH = Math.max(...highs);
-  const minL = Math.min(...lows);
+  const maxH = safeMax(highs);
+  const minL = safeMin(lows);
   const nearMax = highs.filter(h => Math.abs(h - maxH) / maxH < 0.01).length;
   const nearMin = lows.filter(l => Math.abs(l - minL) / minL < 0.01).length;
   if (nearMax >= 2 || nearMin >= 2) return 80;
@@ -183,25 +197,26 @@ function detectWedge(candles: CandleData[]): number {
   return 10;
 }
 
-function getDefaultPatterns(): PatternStatus[] {
+function getDefaultPatterns(tc: ReturnType<typeof useTranslations<'dashboard.chart'>>): PatternStatus[] {
   return [
-    { name: 'Engulfing', nameAr: 'ابتلاع', icon: '🕯', progress: 0, direction: 'neutral', expectedMove: '—' },
-    { name: 'Pin Bar', nameAr: 'بار مسامير', icon: '📌', progress: 0, direction: 'neutral', expectedMove: '—' },
-    { name: 'Squeeze Breakout', nameAr: 'اختراق ضغط', icon: '📊', progress: 0, direction: 'neutral', expectedMove: '—' },
-    { name: 'Head & Shoulders', nameAr: 'رأس وكتفين', icon: '🏔️', progress: 0, direction: 'neutral', expectedMove: '—' },
-    { name: 'Double Top/Bottom', nameAr: 'قمة/قاع مزدوج', icon: '⏸️', progress: 0, direction: 'neutral', expectedMove: '—' },
-    { name: 'Wedge', nameAr: 'وتد', icon: '🔺', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Engulfing', nameAr: tc('engulfing'), icon: '🕯', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Pin Bar', nameAr: tc('pinBar'), icon: '📌', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Squeeze Breakout', nameAr: tc('squeezeBreakout'), icon: '📊', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Head & Shoulders', nameAr: tc('headAndShoulders'), icon: '🏔️', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Double Top/Bottom', nameAr: tc('doubleTopBottom'), icon: '⏸️', progress: 0, direction: 'neutral', expectedMove: '—' },
+    { name: 'Wedge', nameAr: tc('wedge'), icon: '🔺', progress: 0, direction: 'neutral', expectedMove: '—' },
   ];
 }
 
 export function PatternProgress({ symbol, candles, onClose }: PatternProgressProps) {
-  const [patterns, setPatterns] = useState<PatternStatus[]>(getDefaultPatterns);
+  const tc = useTranslations('dashboard.chart');
+  const [patterns, setPatterns] = useState<PatternStatus[]>(() => getDefaultPatterns(tc));
 
   // FIX: Only re-analyze when candles change, not on a fixed interval
   const updatePatterns = useCallback(() => {
-    const updated = analyzePatternProgress(candles);
+    const updated = analyzePatternProgress(candles, tc);
     setPatterns(updated);
-  }, [candles]);
+  }, [candles, tc]);
 
   useEffect(() => {
     updatePatterns();
@@ -241,7 +256,7 @@ export function PatternProgress({ symbol, candles, onClose }: PatternProgressPro
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
           <span style={{ fontSize: 10 }}>📈</span>
           <span style={{ fontSize: 10, color: C.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            تقدم الأنماط
+            {tc('patternProgress')}
           </span>
           <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
             {symbol}

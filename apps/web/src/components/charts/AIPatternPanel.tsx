@@ -15,6 +15,19 @@ import { runPatternEngine, type DetectedPattern } from '@/lib/charts/pattern-eng
 import { drawAllPatterns, clearAllPatterns } from '@/lib/charts/pattern-renderer';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import { useNotificationStore } from '@/hooks/useNotificationStore';
+// ── Revolutionary Feature Engines ──
+import { getBayesianEngine, extractSignalsFromAnalysis, type BayesianConsensus } from '@/lib/charts/BayesianEngine';
+import { getPatternStateMachine, type PatternStateMachineResult } from '@/lib/charts/PatternStateMachine';
+import { getPatternAudioAlerter } from '@/lib/charts/AudioAlerts';
+import { calcAdaptiveTPSL, getDynamicThresholds, adjustQualityForVolatility, type AdaptiveTPSL } from '@/lib/charts/ATRAdapter';
+import { detectElliottSMCFusion, type ElliottSMCFusion as ElliottSMCFusionResult } from '@/lib/charts/ElliottSMCFusion';
+import { getPatternPerformanceTracker, type PatternTypeStats } from '@/lib/charts/PatternPerformance';
+import { buildHeatmap, type HeatmapResult as HeatmapOverlay } from '@/lib/charts/ConfidenceHeatmap';
+import { detectSMC } from '@/lib/charts/SMCDetector';
+import { detectElliottWaves } from '@/lib/charts/ElliottWave';
+import { detectWyckoff } from '@/lib/charts/WyckoffAnalysis';
+import { calcVolumeProfile } from '@/lib/charts/VolumeProfile';
+import { detectGeometricPatterns } from '@/lib/charts/GeometricPatterns';
 
 export interface SupportResistanceLevel {
   price: number;
@@ -45,7 +58,14 @@ export interface AIAnalysisResult {
   elliottPattern?: import('@/lib/charts/ElliottWave').ElliottPattern | null;
   wyckoff?: import('@/lib/charts/WyckoffAnalysis').WyckoffResult;
   volumeProfile?: import('@/lib/charts/VolumeProfile').VolumeProfileResult;
-  overlays?: { fvg: boolean; bos: boolean; sr: boolean; geo: boolean; ew: boolean; wyckoff: boolean };
+  overlays?: { sr: boolean; trend: boolean; harmonic: boolean; fvg: boolean; bos: boolean; geo: boolean; ew: boolean; wyckoff: boolean; vp: boolean; entry: boolean; mtf: boolean; liq: boolean; trade: boolean };
+  signal?: { dir: string; entry: number; sl: number; tp: number } | null;
+  alerts?: import('@/lib/charts/chart-primitives').AlertMarkerData[];
+  fusionResult?: any;
+  bayesianResult?: any;
+  mtfResult?: any;
+  tradeProposals?: any[];
+  liquidityResult?: any;
 }
 
 interface AIPatternPanelProps {
@@ -143,7 +163,7 @@ const C = {
 };
 
 // V164: engine tab active
-type TabKey = 'patterns' | 'sr' | 'trend' | 'entry' | 'engine';
+type TabKey = 'patterns' | 'sr' | 'trend' | 'entry' | 'engine' | 'bayesian';
 
 export function AIPatternPanel({
   symbol,
@@ -159,7 +179,7 @@ export function AIPatternPanel({
 }: AIPatternPanelProps) {
   const t = useTranslations('aiPatternPanel');
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
   const [loading, setLoading] = useState(false);
   const [entryLoading, setEntryLoading] = useState(false);
   const [patterns, setPatterns] = useState<AIPattern[]>([]);
@@ -172,6 +192,14 @@ export function AIPatternPanel({
   const [engineRunning, setEngineRunning] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [dataSource, setDataSource] = useState<'ai' | 'local' | null>(null);
+  // ── Revolutionary Feature States ──
+  const [bayesianConsensus, setBayesianConsensus] = useState<BayesianConsensus | null>(null);
+  const [stateMachineResult, setStateMachineResult] = useState<PatternStateMachineResult | null>(null);
+  const [adaptiveTPSL, setAdaptiveTPSL] = useState<AdaptiveTPSL | null>(null);
+  const [elliottSMCFusion, setElliottSMCFusion] = useState<ElliottSMCFusionResult | null>(null);
+  const [patternPerformance, setPatternPerformance] = useState<PatternTypeStats[]>([]);
+  const [heatmapData, setHeatmapData] = useState<HeatmapOverlay | null>(null);
+  const audioAlerterRef = useRef<ReturnType<typeof getPatternAudioAlerter> | null>(null);
 
   // FIX: AbortController for request cancellation + Rate limiting
   const abortRef = useRef<AbortController | null>(null);
@@ -340,6 +368,109 @@ export function AIPatternPanel({
         console.warn('[AIPanel] harmonic patterns error:', e);
       }
 
+      // ── REVOLUTIONARY: Run standalone detectors for Bayesian input ──
+      let smcResult: ReturnType<typeof detectSMC> | undefined;
+      let elliottResult: ReturnType<typeof detectElliottWaves> | null = null;
+      let wyckoffResult: ReturnType<typeof detectWyckoff> | undefined;
+      let vpResult: ReturnType<typeof calcVolumeProfile> | undefined;
+      let geoResult: ReturnType<typeof detectGeometricPatterns> | undefined;
+
+      try { smcResult = detectSMC(candles); } catch (e) { console.warn('[AIPanel] SMC error:', e); }
+      try { elliottResult = detectElliottWaves(candles); } catch (e) { console.warn('[AIPanel] Elliott error:', e); }
+      try { wyckoffResult = detectWyckoff(candles); } catch (e) { console.warn('[AIPanel] Wyckoff error:', e); }
+      try { vpResult = calcVolumeProfile(candles); } catch (e) { console.warn('[AIPanel] VolumeProfile error:', e); }
+      try { geoResult = detectGeometricPatterns(candles); } catch (e) { console.warn('[AIPanel] Geometric error:', e); }
+
+      // ── REVOLUTIONARY: Run Bayesian Engine on all signals ──
+      try {
+        const allAnalysis = {
+          smcData: smcResult ? {
+            orderBlocks: smcResult.orderBlocks,
+            fvgs: smcResult.fvgs,
+            structureBreaks: smcResult.structureBreaks,
+          } : undefined,
+          wyckoff: wyckoffResult,
+          elliottPattern: elliottResult,
+          volumeProfile: vpResult,
+          geoPatterns: geoResult,
+          patterns: detectedPatterns,
+          currentPrice: candles[candles.length - 1]?.close,
+        };
+        const signals = extractSignalsFromAnalysis(allAnalysis);
+        const bayesianEngine = getBayesianEngine();
+        const consensus = bayesianEngine.combine(signals);
+        setBayesianConsensus(consensus);
+
+        // ── REVOLUTIONARY: Build confidence heatmap ──
+        const heatmap = buildHeatmap(candles, signals);
+        setHeatmapData(heatmap);
+
+        // ── REVOLUTIONARY: Elliott + SMC Fusion ──
+        if (elliottResult && smcResult) {
+          const fusion = detectElliottSMCFusion({
+            candles,
+            elliott: elliottResult,
+            orderBlocks: smcResult.orderBlocks,
+            fvgs: smcResult.fvgs,
+            structureBreaks: smcResult.structureBreaks,
+            wyckoff: wyckoffResult,
+            volumeProfile: vpResult,
+            currentPrice: candles[candles.length - 1]?.close,
+          });
+          setElliottSMCFusion(fusion);
+        }
+
+        // ── REVOLUTIONARY: Adaptive TP/SL based on ATR ──
+        if (consensus.direction !== 'neutral' && consensus.confidence > 0.5) {
+          const tpsl = calcAdaptiveTPSL(candles, consensus.direction === 'bullish' ? 'long' : 'short', consensus.confidence);
+          setAdaptiveTPSL(tpsl);
+        }
+
+        // ── REVOLUTIONARY: Pattern State Machine ──
+        const psm = getPatternStateMachine();
+        const engineResult = runPatternEngine(candles, { minQuality: 5 });
+        const smResult = psm.update(candles, engineResult.patterns);
+        setStateMachineResult(smResult);
+
+        // ── REVOLUTIONARY: Pattern Performance Tracking ──
+        const perfTracker = getPatternPerformanceTracker();
+        const perfSummary = perfTracker.getSummary();
+        const perfData = Array.from(perfSummary.statsByType.values());
+        setPatternPerformance(perfData);
+
+        // ── REVOLUTIONARY: Audio Alerts for high-confidence patterns ──
+        try {
+          if (!audioAlerterRef.current) {
+            audioAlerterRef.current = getPatternAudioAlerter();
+          }
+          for (const p of detectedPatterns) {
+            audioAlerterRef.current.announce({
+              patternType: p.type,
+              patternTypeAr: p.type,
+              symbol,
+              direction: p.direction,
+              confidence: p.confidence,
+            });
+          }
+          // Alert for state machine breakouts
+          for (const alert of smResult.alerts) {
+            if (alert.priority === 'critical') {
+              audioAlerterRef.current.announceBreakout({
+                patternType: alert.patternType,
+                patternTypeAr: alert.messageAr,
+                symbol,
+                direction: alert.direction,
+                price: alert.keyLevel,
+              });
+            }
+          }
+        } catch (audioErr) {
+          console.warn('[AIPanel] Audio alert error:', audioErr);
+        }
+      } catch (e) {
+        console.warn('[AIPanel] Revolutionary features error:', e);
+      }
+
       // ALWAYS call onPatternsDetected — this is the key fix
       console.log('[AIPanel] calling onPatternsDetected:', detectedPatterns.length, 'patterns,', lines.length, 'trendLines,', levels.length, 'levels');
       onPatternsDetected({
@@ -409,7 +540,7 @@ export function AIPatternPanel({
       // Build context about detected levels
       const supportPrices = levels.filter(l => l.type === 'support').map(l => l.price.toFixed(l.price > 1000 ? 2 : 5)).join(', ');
       const resistancePrices = levels.filter(l => l.type === 'resistance').map(l => l.price.toFixed(l.price > 1000 ? 2 : 5)).join(', ');
-      const trendInfo = lines.map(l => `${l.type === 'ascending' ? 'صاعد' : 'هابط'} (${l.strength})`).join(', ');
+      const trendInfo = lines.map(l => `${l.type === 'ascending' ? t('ascending') : t('descending')} (${l.strength})`).join(', ');
 
       const response = await fetch('/api/ai/chart-analysis', {
         method: 'POST',
@@ -417,7 +548,7 @@ export function AIPatternPanel({
         body: JSON.stringify({
           symbol,
           candles: ohlcSummary,
-          instruction: `You are an expert forex/crypto analyst. Based on the following OHLC data for ${symbol}, determine the best entry and exit points RIGHT NOW. The current price is ${lastCandle.close}. Support levels: ${supportPrices || 'N/A'}. Resistance levels: ${resistancePrices || 'N/A'}. Trend: ${trendInfo || 'N/A'}. Return ONLY a JSON object with: "direction" ("long" or "short"), "entryPrice" (number), "stopLoss" (number), "takeProfit" (number), "confidence" (0-1), "reasonAr" (Arabic explanation, 2-3 sentences), "keyLevels" (array of {price: number, label: string} with key support/resistance). Example: {"direction":"long","entryPrice":65000,"stopLoss":64500,"takeProfit":66000,"confidence":0.75,"reasonAr":"السعر فوق مستوى الدعم مع نمط ابتلاع صعودي","keyLevels":[{"price":64500,"label":"دعم قوي"},{"price":66000,"label":"مقاومة"}]}`,
+          instruction: `You are an expert forex/crypto analyst. Based on the following OHLC data for ${symbol}, determine the best entry and exit points RIGHT NOW. The current price is ${lastCandle.close}. Support levels: ${supportPrices || 'N/A'}. Resistance levels: ${resistancePrices || 'N/A'}. Trend: ${trendInfo || 'N/A'}. Return ONLY a JSON object with: "direction" ("long" or "short"), "entryPrice" (number), "stopLoss" (number), "takeProfit" (number), "confidence" (0-1), "reasonAr" (Arabic explanation, 2-3 sentences), "keyLevels" (array of {price: number, label: string} with key support/resistance). Example: {"direction":"long","entryPrice":65000,"stopLoss":64500,"takeProfit":66000,"confidence":0.75,"reasonAr":"السعر فوق مستوى الدعم مع نمط ابتلاع صعودي","keyLevels":[{"price":64500,"label":"${t('strongSupport')}"},{"price":66000,"label":"${t('resistance')}"}]}`,
         }),
         signal: controller.signal,
       });
@@ -505,7 +636,7 @@ export function AIPatternPanel({
         });
       } else {
         // AI didn't return valid entry/exit — generate local one
-        const localEE = generateLocalEntryExit(lastCandle, levels, lines);
+        const localEE = generateLocalEntryExit(lastCandle, levels, lines, t);
         setEntryExit(localEE);
         setActiveTab('entry');
         setDataSource('local'); // FIX: Update dataSource for fallback entry/exit
@@ -525,7 +656,7 @@ export function AIPatternPanel({
       const lastCandle = candles[candles.length - 1];
       const levels = detectSupportResistance(candles);
       const lines = detectTrendLines(candles);
-      const localEE = generateLocalEntryExit(lastCandle, levels, lines);
+      const localEE = generateLocalEntryExit(lastCandle, levels, lines, t);
       setEntryExit(localEE);
       setActiveTab('entry');
       setDataSource('local'); // FIX: Update dataSource for error fallback
@@ -584,6 +715,7 @@ export function AIPatternPanel({
     { key: 'trend', label: t('tabTrend'), icon: '📉', count: trendLines.length },
     { key: 'entry', label: t('tabEntry'), icon: '🎯', count: entryExit ? 1 : 0 },
     { key: 'engine', label: t('tabGeometric'), icon: '📊', count: enginePatterns.length },
+    { key: 'bayesian', label: t('bayesian'), icon: '🧬', count: bayesianConsensus ? 1 : 0 },
   ];
 
   return (
@@ -865,7 +997,7 @@ export function AIPatternPanel({
                           fontFamily: "'Cairo', sans-serif", lineHeight: 1.3,
                           display: 'flex', alignItems: 'center', gap: 4,
                         }}>
-                          {t(PATTERN_KEYS[p.type] || p.type) || p.labelAr}
+                          {t(PATTERN_KEYS[p.type] || p.type)}
                           <span style={{
                             fontSize: 8, color: C.textMuted, fontWeight: 400,
                             fontFamily: "'JetBrains Mono', monospace",
@@ -1433,6 +1565,301 @@ export function AIPatternPanel({
         </div>
       )}
 
+      {/* ── Bayesian Tab ── */}
+      {activeTab === 'bayesian' && (
+        <div style={{ padding: '8px 4px', overflowY: 'auto', maxHeight: 'calc(100% - 48px)' }}>
+          {!bayesianConsensus ? (
+            <div style={{ textAlign: 'center', padding: '24px 16px', color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>
+              <div style={{ fontSize: 24, marginBottom: 8 }}>🧬</div>
+              {t('enableAnalysisFirst')}
+              <div style={{ fontSize: 9, marginTop: 6, color: 'rgba(255,255,255,0.2)' }}>
+                Bayesian Engine · Elliott+SMC Fusion · Adaptive TP/SL
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {/* Consensus Direction */}
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                padding: '10px 8px',
+                background: bayesianConsensus.direction === 'bullish' ? 'rgba(0,255,163,0.06)'
+                  : bayesianConsensus.direction === 'bearish' ? 'rgba(255,71,87,0.06)' : 'rgba(251,191,36,0.06)',
+                border: `1px solid ${bayesianConsensus.direction === 'bullish' ? 'rgba(0,255,163,0.2)'
+                  : bayesianConsensus.direction === 'bearish' ? 'rgba(255,71,87,0.2)' : 'rgba(251,191,36,0.2)'}`,
+                borderRadius: 8,
+              }}>
+                <span style={{ fontSize: 16 }}>{bayesianConsensus.direction === 'bullish' ? '▲' : bayesianConsensus.direction === 'bearish' ? '▼' : '◆'}</span>
+                <span style={{
+                  fontSize: 13, fontWeight: 900, fontFamily: "'Cairo', sans-serif",
+                  color: bayesianConsensus.direction === 'bullish' ? C.success : bayesianConsensus.direction === 'bearish' ? C.danger : C.warning,
+                }}>
+                  {bayesianConsensus.direction === 'bullish' ? t('bullish') : bayesianConsensus.direction === 'bearish' ? t('bearish') : t('neutral')}
+                </span>
+                <span style={{
+                  fontSize: 10, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                  color: C.cyan, background: 'rgba(0,212,255,0.1)', padding: '2px 6px', borderRadius: 4,
+                }}>
+                  {Math.round(bayesianConsensus.confidence * 100)}%
+                </span>
+              </div>
+
+              {/* Posterior Distribution */}
+              <div style={{
+                padding: '8px 10px',
+                background: 'rgba(0,0,0,0.2)',
+                borderRadius: 6,
+              }}>
+                <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 4 }}>
+                  {t('posteriorDistribution')}
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, marginBottom: 2 }}>
+                      <span style={{ color: C.success }}>{t('up')}</span>
+                      <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>{(bayesianConsensus.posteriorBullish * 100).toFixed(1)}%</span>
+                    </div>
+                    <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${bayesianConsensus.posteriorBullish * 100}%`, height: '100%', background: C.success, borderRadius: 2 }} />
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 3 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 8, marginBottom: 2 }}>
+                      <span style={{ color: C.danger }}>{t('down')}</span>
+                      <span style={{ color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>{(bayesianConsensus.posteriorBearish * 100).toFixed(1)}%</span>
+                    </div>
+                    <div style={{ height: 4, background: 'rgba(255,255,255,0.05)', borderRadius: 2, overflow: 'hidden' }}>
+                      <div style={{ width: `${bayesianConsensus.posteriorBearish * 100}%`, height: '100%', background: C.danger, borderRadius: 2 }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signal Likelihoods — real Bayesian contributions */}
+              {bayesianConsensus.likelihoods && bayesianConsensus.likelihoods.length > 0 && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,255,163,0.04)',
+                  border: '1px solid rgba(0,255,163,0.12)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.success, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`🔗 ${t('enhancedSignals')}`}
+                  </div>
+                  {bayesianConsensus.likelihoods.filter(l => l.likelihoodBull > l.likelihoodBear).map((l, i) => (
+                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", marginBottom: 2, lineHeight: 1.4 }}>
+                      • {l.source} <span style={{ color: C.success, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBull * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Conflicting Signals — bearish likelihoods dominate */}
+              {bayesianConsensus.likelihoods && bayesianConsensus.likelihoods.some(l => l.likelihoodBear > l.likelihoodBull) && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(255,71,87,0.04)',
+                  border: '1px solid rgba(255,71,87,0.12)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.danger, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`⚠️ ${t('conflictingSignals')}`}
+                  </div>
+                  {bayesianConsensus.likelihoods.filter(l => l.likelihoodBear > l.likelihoodBull).map((l, i) => (
+                    <div key={i} style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", lineHeight: 1.4 }}>
+                      • {l.source} <span style={{ color: C.danger, fontFamily: "'JetBrains Mono', monospace", fontSize: 8 }}>{(l.likelihoodBear * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Key Levels — from Bayesian signal sources */}
+              {bayesianConsensus.keyLevels && bayesianConsensus.keyLevels.length > 0 && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.textMuted, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`📍 ${t('keyLevels')}`}
+                  </div>
+                  {bayesianConsensus.keyLevels.slice(0, 5).map((kl: any, i: number) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0' }}>
+                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{kl.label}</span>
+                      <span style={{ fontSize: 9, color: kl.type === 'support' ? C.success : kl.type === 'resistance' ? C.danger : C.cyan, fontFamily: "'JetBrains Mono', monospace", fontWeight: 600 }}>
+                        {kl.price.toFixed(kl.price > 1000 ? 2 : 5)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Elliott+SMC Fusion */}
+              {elliottSMCFusion && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: elliottSMCFusion.direction === 'bullish' ? 'rgba(0,255,163,0.04)' : elliottSMCFusion.direction === 'bearish' ? 'rgba(255,71,87,0.04)' : 'rgba(0,0,0,0.2)',
+                  border: `1px solid ${elliottSMCFusion.direction === 'bullish' ? 'rgba(0,255,163,0.12)' : elliottSMCFusion.direction === 'bearish' ? 'rgba(255,71,87,0.12)' : C.border}'`,
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`⚡ ${t('elliottSmcConfluence')}`}
+                  </div>
+                  <div style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif", lineHeight: 1.5 }}>
+                    {elliottSMCFusion.interpretationAr}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                    <span style={{ fontSize: 8, color: C.textMuted }}>{t('confluencePoint')}</span>
+                    <span style={{ fontSize: 9, color: C.gold, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                      {elliottSMCFusion.confluenceScore}/100
+                    </span>
+                  </div>
+                  {/* Confluence breakdown */}
+                  {elliottSMCFusion.confluenceBreakdown.map((cb, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                      <span style={{ fontSize: 8, color: C.textMuted }}>{cb.factorAr}</span>
+                      <span style={{ fontSize: 8, color: cb.score >= 15 ? C.success : C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{cb.score}/25</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Adaptive TP/SL */}
+              {adaptiveTPSL && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,0,0,0.2)',
+                  border: '1px solid rgba(212,175,55,0.15)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`🎯 ${t('adaptiveTPSL')}`}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 9, color: C.cyan }}>{t('entry')}</span>
+                      <span style={{ fontSize: 9, color: C.cyan, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.entry.toFixed(adaptiveTPSL.entry > 1000 ? 2 : 5)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 9, color: C.danger }}>{t('stopLoss')}</span>
+                      <span style={{ fontSize: 9, color: C.danger, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.stopLoss.toFixed(adaptiveTPSL.stopLoss > 1000 ? 2 : 5)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 9, color: C.success }}>{t('takeProfit')}</span>
+                      <span style={{ fontSize: 9, color: C.success, fontFamily: "'JetBrains Mono', monospace" }}>{adaptiveTPSL.takeProfit.toFixed(adaptiveTPSL.takeProfit > 1000 ? 2 : 5)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2, borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 3 }}>
+                      <span style={{ fontSize: 8, color: C.textMuted }}>RR</span>
+                      <span style={{ fontSize: 9, color: adaptiveTPSL.riskRewardRatio >= 2 ? C.success : C.warning, fontFamily: "'JetBrains Mono', monospace", fontWeight: 700 }}>
+                        1:{adaptiveTPSL.riskRewardRatio.toFixed(1)}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 8, color: C.textMuted }}>{t('volatilityRegime')}</span>
+                      <span style={{ fontSize: 8, color: adaptiveTPSL.regime === 'low' ? C.success : adaptiveTPSL.regime === 'high' ? C.danger : C.warning, fontFamily: "'JetBrains Mono', monospace" }}>
+                        {adaptiveTPSL.regime === 'low' ? t('low') : adaptiveTPSL.regime === 'high' ? t('high') : adaptiveTPSL.regime === 'extreme' ? t('extreme') : t('normal')}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* State Machine Summary */}
+              {stateMachineResult && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`🔄 ${t('patternStateMachine')}`}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {[
+                      { label: t('forming'), count: stateMachineResult.summary.forming, color: C.warning },
+                      { label: t('near'), count: stateMachineResult.summary.nearCompletion, color: C.cyan },
+                      { label: t('completed'), count: stateMachineResult.summary.completed, color: C.success },
+                      { label: t('broken'), count: stateMachineResult.summary.breakout, color: C.danger },
+                      { label: t('failed'), count: stateMachineResult.summary.failed, color: C.textMuted },
+                    ].map((s, i) => (
+                      <div key={i} style={{
+                        display: 'flex', alignItems: 'center', gap: 3,
+                        padding: '2px 6px', background: `${s.color}10`,
+                        border: `1px solid ${s.color}25`, borderRadius: 4,
+                      }}>
+                        <span style={{ fontSize: 10, color: s.color, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>{s.count}</span>
+                        <span style={{ fontSize: 8, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{s.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Breakout alerts */}
+                  {stateMachineResult.alerts.filter(a => a.priority === 'critical').length > 0 && (
+                    <div style={{ marginTop: 4 }}>
+                      {stateMachineResult.alerts.filter(a => a.priority === 'critical').map((a, i) => (
+                        <div key={i} style={{ fontSize: 9, color: C.danger, fontFamily: "'Cairo', sans-serif", lineHeight: 1.4 }}>
+                          🚨 {a.messageAr}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Pattern Performance */}
+              {patternPerformance.length > 0 && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.gold, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`📈 ${t('historicalPatternPerformance')}`}
+                  </div>
+                  {patternPerformance.slice(0, 6).map((pp, i) => (
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '2px 0', borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'Cairo', sans-serif" }}>{pp.patternType}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 8, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>{pp.totalTrades} {t('trade')}</span>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                          color: pp.winRate >= 0.6 ? C.success : pp.winRate >= 0.4 ? C.warning : C.danger,
+                        }}>
+                          {(pp.winRate * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Heatmap Summary */}
+              {heatmapData && heatmapData.points.length > 0 && (
+                <div style={{
+                  padding: '6px 8px',
+                  background: 'rgba(0,0,0,0.2)',
+                  borderRadius: 6,
+                }}>
+                  <div style={{ fontSize: 9, color: C.textMuted, fontWeight: 700, fontFamily: "'Cairo', sans-serif", marginBottom: 3 }}>
+                    {`🔥 ${t('confidenceMap')}`}
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 8, color: C.textMuted }}>{t('dominantTrend')}</span>
+                    <span style={{ fontSize: 9, color: heatmapData.dominantDirection === 'bullish' ? C.success : heatmapData.dominantDirection === 'bearish' ? C.danger : C.warning, fontFamily: "'Cairo', sans-serif", fontWeight: 600 }}>
+                      {heatmapData.dominantDirection === 'bullish' ? t('bullish') : heatmapData.dominantDirection === 'bearish' ? t('bearish') : t('neutral')}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 2 }}>
+                    <span style={{ fontSize: 8, color: C.textMuted }}>{t('coverage')}</span>
+                    <span style={{ fontSize: 9, color: C.textDim, fontFamily: "'JetBrains Mono', monospace" }}>{(heatmapData.coverage * 100).toFixed(0)}%</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Spinner animation */}
       <ScopedStyle>{`@keyframes aiSpin { to { transform: rotate(360deg); } }`}</ScopedStyle>
     </div>
@@ -1508,7 +1935,7 @@ function buildPatternShape(patternType: string, candle: CandleData, prevCandle?:
 }
 
 // ── Generate Local Entry/Exit (fallback when AI is unavailable) ──
-function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanceLevel[], _trendLines: TrendLine[]): AIEntryExit {
+function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanceLevel[], _trendLines: TrendLine[], tFn?: (key: string, params?: Record<string, unknown>) => string): AIEntryExit {
   const price = lastCandle.close;
   const supports = levels.filter(l => l.type === 'support').sort((a, b) => b.price - a.price);
   const resistances = levels.filter(l => l.type === 'resistance').sort((a, b) => a.price - b.price);
@@ -1537,8 +1964,8 @@ function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanc
   const confidence = risk > 0 ? Math.min(0.85, Math.max(0.4, reward / risk * 0.4)) : 0.5;
 
   const keyLevels: { price: number; label: string }[] = [];
-  if (nearestSupport) keyLevels.push({ price: nearestSupport.price, label: `دعم ${nearestSupport.strength === 'strong' ? 'قوي' : nearestSupport.strength === 'medium' ? 'متوسط' : 'ضعيف'}` });
-  if (nearestResistance) keyLevels.push({ price: nearestResistance.price, label: `مقاومة ${nearestResistance.strength === 'strong' ? 'قوية' : nearestResistance.strength === 'medium' ? 'متوسطة' : 'ضعيفة'}` });
+  if (nearestSupport) keyLevels.push({ price: nearestSupport.price, label: tFn ? `${tFn('support')} ${nearestSupport.strength === 'strong' ? tFn('strongSupport') : nearestSupport.strength === 'medium' ? tFn('medium') : tFn('weak')}` : `دعم ${nearestSupport.strength === 'strong' ? 'قوي' : nearestSupport.strength === 'medium' ? 'متوسط' : 'ضعيف'}` });
+  if (nearestResistance) keyLevels.push({ price: nearestResistance.price, label: tFn ? `${tFn('resistance')} ${nearestResistance.strength === 'strong' ? tFn('strongResistance') : nearestResistance.strength === 'medium' ? tFn('medium') : tFn('weak')}` : `مقاومة ${nearestResistance.strength === 'strong' ? 'قوية' : nearestResistance.strength === 'medium' ? 'متوسطة' : 'ضعيفة'}` });
 
   return {
     direction,
@@ -1546,9 +1973,13 @@ function generateLocalEntryExit(lastCandle: CandleData, levels: SupportResistanc
     stopLoss,
     takeProfit,
     confidence,
-    reasonAr: isBullish
-      ? `الشمعة الأخيرة صاعدة مع إغلاق عند ${price.toFixed(price > 1000 ? 2 : 5)}. يُنصح بالشراء مع وقف خسارة تحت أقرب دعم.`
-      : `الشمعة الأخيرة هابطة مع إغلاق عند ${price.toFixed(price > 1000 ? 2 : 5)}. يُنصح بالبيع مع وقف خسارة فوق أقرب مقاومة.`,
+    reasonAr: tFn
+      ? (isBullish
+        ? tFn('bullishCandleReason', { price: price.toFixed(price > 1000 ? 2 : 5) })
+        : tFn('bearishCandleReason', { price: price.toFixed(price > 1000 ? 2 : 5) }))
+      : (isBullish
+        ? `الشمعة الأخيرة صاعدة مع إغلاق عند ${price.toFixed(price > 1000 ? 2 : 5)}. يُنصح بالشراء مع وقف خسارة تحت أقرب دعم.`
+        : `الشمعة الأخيرة هابطة مع إغلاق عند ${price.toFixed(price > 1000 ? 2 : 5)}. يُنصح بالبيع مع وقف خسارة فوق أقرب مقاومة.`),
     keyLevels,
   };
 }
@@ -1574,24 +2005,24 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
       // Dragonfly Doji — open=close=high, long lower wick
       if (upperWick < range * 0.1 && lowerWick > range * 0.6) {
         const shapePoints = buildPatternShape('Dragonfly Doji', c, prev);
-        patterns.push({ type: 'Dragonfly Doji', labelAr: 'دوجي يعسوب', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
+        patterns.push({ type: 'Dragonfly Doji', labelAr: PATTERN_NAMES_AR['Dragonfly Doji'] || 'Dragonfly Doji', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
       }
       // Gravestone Doji — open=close=low, long upper wick
       else if (lowerWick < range * 0.1 && upperWick > range * 0.6) {
         const shapePoints = buildPatternShape('Gravestone Doji', c, prev);
-        patterns.push({ type: 'Gravestone Doji', labelAr: 'دوجي شاهد قبر', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
+        patterns.push({ type: 'Gravestone Doji', labelAr: PATTERN_NAMES_AR['Gravestone Doji'] || 'Gravestone Doji', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
       }
       // Regular Doji
       else {
         const shapePoints = buildPatternShape('Doji', c, prev);
-        patterns.push({ type: 'Doji', labelAr: 'دوجي', time: c.time, price: c.close, confidence: 0.7, direction: 'neutral', shapePoints, shapeType: 'line', shapeColor: 'rgba(251,191,36,0.3)' });
+        patterns.push({ type: 'Doji', labelAr: PATTERN_NAMES_AR['Doji'] || 'Doji', time: c.time, price: c.close, confidence: 0.7, direction: 'neutral', shapePoints, shapeType: 'line', shapeColor: 'rgba(251,191,36,0.3)' });
       }
     }
 
     // Hammer — small body at top, long lower wick
     if (body > 0 && lowerWick > body * 2 && upperWick < body * 0.5) {
       const shapePoints = buildPatternShape('Hammer', c, prev);
-      patterns.push({ type: 'Hammer', labelAr: 'مطرقة', time: c.time, price: c.close, confidence: 0.75, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
+      patterns.push({ type: 'Hammer', labelAr: PATTERN_NAMES_AR['Hammer'] || 'Hammer', time: c.time, price: c.close, confidence: 0.75, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.4)' });
     }
 
     // Shooting Star / Inverted Hammer
@@ -1599,30 +2030,30 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
       const isUptrend = prev.close > prev.open;
       if (isUptrend) {
         const shapePoints = buildPatternShape('Shooting Star', c, prev);
-        patterns.push({ type: 'Shooting Star', labelAr: 'نجم ساقط', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
+        patterns.push({ type: 'Shooting Star', labelAr: PATTERN_NAMES_AR['Shooting Star'] || 'Shooting Star', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapePoints, shapeType: 'line', shapeColor: 'rgba(255,71,87,0.4)' });
       } else {
         const shapePoints = buildPatternShape('Inverted Hammer', c, prev);
-        patterns.push({ type: 'Inverted Hammer', labelAr: 'مطرقة مقلوبة', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.3)' });
+        patterns.push({ type: 'Inverted Hammer', labelAr: PATTERN_NAMES_AR['Inverted Hammer'] || 'Inverted Hammer', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapePoints, shapeType: 'line', shapeColor: 'rgba(0,255,163,0.3)' });
       }
     }
 
     // Engulfing Bullish — prev red, current green engulfs prev body
     if (prev.close < prev.open && c.close > c.open && c.open <= prev.close && c.close >= prev.open) {
       const shapePoints = buildPatternShape('Engulfing Bullish', c, prev);
-      patterns.push({ type: 'Engulfing Bullish', labelAr: 'ابتلاع صعودي', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(0,255,163,0.15)' });
+      patterns.push({ type: 'Engulfing Bullish', labelAr: PATTERN_NAMES_AR['Engulfing Bullish'] || 'Engulfing Bullish', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(0,255,163,0.15)' });
     }
 
     // Engulfing Bearish — prev green, current red engulfs prev body
     if (prev.close > prev.open && c.close < c.open && c.open >= prev.close && c.close <= prev.open) {
       const shapePoints = buildPatternShape('Engulfing Bearish', c, prev);
-      patterns.push({ type: 'Engulfing Bearish', labelAr: 'ابتلاع هبوطي', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(255,71,87,0.15)' });
+      patterns.push({ type: 'Engulfing Bearish', labelAr: PATTERN_NAMES_AR['Engulfing Bearish'] || 'Engulfing Bearish', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapePoints, shapeType: 'polygon', shapeColor: 'rgba(255,71,87,0.15)' });
     }
 
     // Harami Bullish — prev big red, current small green inside
     if (prev.close < prev.open && c.close > c.open) {
       const prevBody = Math.abs(prev.open - prev.close);
       if (c.open > prev.close && c.close < prev.open && body < prevBody * 0.6) {
-        patterns.push({ type: 'Harami Bullish', labelAr: 'هارامي صعودي', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+        patterns.push({ type: 'Harami Bullish', labelAr: PATTERN_NAMES_AR['Harami Bullish'] || 'Harami Bullish', time: c.time, price: c.close, confidence: 0.65, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
       }
     }
 
@@ -1630,19 +2061,19 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
     if (prev.close > prev.open && c.close < c.open) {
       const prevBody = Math.abs(prev.close - prev.open);
       if (c.open < prev.close && c.close > prev.open && body < prevBody * 0.6) {
-        patterns.push({ type: 'Harami Bearish', labelAr: 'هارامي هبوطي', time: c.time, price: c.close, confidence: 0.65, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+        patterns.push({ type: 'Harami Bearish', labelAr: PATTERN_NAMES_AR['Harami Bearish'] || 'Harami Bearish', time: c.time, price: c.close, confidence: 0.65, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
       }
     }
 
     // Spinning Top — small body, wicks on both sides
     if (body > 0 && range > 0 && body / range < 0.3 && body / range >= 0.1 && upperWick > body * 0.5 && lowerWick > body * 0.5) {
-      patterns.push({ type: 'Spinning Top', labelAr: 'قمة دوارة', time: c.time, price: c.close, confidence: 0.6, direction: 'neutral' });
+      patterns.push({ type: 'Spinning Top', labelAr: PATTERN_NAMES_AR['Spinning Top'] || 'Spinning Top', time: c.time, price: c.close, confidence: 0.6, direction: 'neutral' });
     }
 
     // Marubozu — very large body, tiny wicks
     if (body > 0 && range > 0 && body / range > 0.85) {
       const shapePoints = buildPatternShape('Marubozu', c, prev);
-      patterns.push({ type: 'Marubozu', labelAr: 'ماروبوزو', time: c.time, price: c.close, confidence: 0.75, direction: c.close > c.open ? 'bullish' : 'bearish', shapePoints, shapeType: 'line', shapeColor: c.close > c.open ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)' });
+      patterns.push({ type: 'Marubozu', labelAr: PATTERN_NAMES_AR['Marubozu'] || 'Marubozu', time: c.time, price: c.close, confidence: 0.75, direction: c.close > c.open ? 'bullish' : 'bearish', shapePoints, shapeType: 'line', shapeColor: c.close > c.open ? 'rgba(0,255,163,0.4)' : 'rgba(255,71,87,0.4)' });
     }
   }
 
@@ -1658,7 +2089,7 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
       const prevBody = Math.abs(prev.open - prev.close);
       const currBody = Math.abs(c.close - c.open);
       if (prevBody < prev2Body * 0.35 && currBody > prev2Body * 0.5) {
-        patterns.push({ type: 'Morning Star', labelAr: 'نجمة صباحية', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+        patterns.push({ type: 'Morning Star', labelAr: PATTERN_NAMES_AR['Morning Star'] || 'Morning Star', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
       }
     }
 
@@ -1668,21 +2099,21 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
       const prevBody = Math.abs(prev.open - prev.close);
       const currBody = Math.abs(c.open - c.close);
       if (prevBody < prev2Body * 0.35 && currBody > prev2Body * 0.5) {
-        patterns.push({ type: 'Evening Star', labelAr: 'نجمة مسائية', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+        patterns.push({ type: 'Evening Star', labelAr: PATTERN_NAMES_AR['Evening Star'] || 'Evening Star', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
       }
     }
 
     // Three White Soldiers
     if (prev2.close > prev2.open && prev.close > prev.open && c.close > c.open) {
       if (prev.close > prev2.close && c.close > prev.close) {
-        patterns.push({ type: 'Three White Soldiers', labelAr: 'ثلاثة جنود بيض', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+        patterns.push({ type: 'Three White Soldiers', labelAr: PATTERN_NAMES_AR['Three White Soldiers'] || 'Three White Soldiers', time: c.time, price: c.close, confidence: 0.8, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
       }
     }
 
     // Three Black Crows
     if (prev2.close < prev2.open && prev.close < prev.open && c.close < c.open) {
       if (prev.close < prev2.close && c.close < prev.close) {
-        patterns.push({ type: 'Three Black Crows', labelAr: 'ثلاثة غربان سود', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+        patterns.push({ type: 'Three Black Crows', labelAr: PATTERN_NAMES_AR['Three Black Crows'] || 'Three Black Crows', time: c.time, price: c.close, confidence: 0.8, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
       }
     }
 
@@ -1690,7 +2121,7 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
     if (prev.close < prev.open && c.close > c.open) {
       const prevMid = (prev.open + prev.close) / 2;
       if (c.open < prev.close && c.close > prevMid) {
-        patterns.push({ type: 'Piercing Line', labelAr: 'خط اختراق', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
+        patterns.push({ type: 'Piercing Line', labelAr: PATTERN_NAMES_AR['Piercing Line'] || 'Piercing Line', time: c.time, price: c.close, confidence: 0.7, direction: 'bullish', shapeColor: 'rgba(0,255,163,0.15)' });
       }
     }
 
@@ -1698,7 +2129,7 @@ export function detectLocalPatterns(candles: CandleData[]): AIPattern[] {
     if (prev.close > prev.open && c.close < c.open) {
       const prevMid = (prev.open + prev.close) / 2;
       if (c.open > prev.close && c.close < prevMid) {
-        patterns.push({ type: 'Dark Cloud Cover', labelAr: 'غطاء سحابة مظلمة', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
+        patterns.push({ type: 'Dark Cloud Cover', labelAr: PATTERN_NAMES_AR['Dark Cloud Cover'] || 'Dark Cloud Cover', time: c.time, price: c.close, confidence: 0.7, direction: 'bearish', shapeColor: 'rgba(255,71,87,0.15)' });
       }
     }
   }

@@ -7,7 +7,7 @@
 import { useMemo } from 'react';
 import type { CrosshairData, CandleData } from '@/lib/charts/types';
 import { priceDecimals } from '@/lib/price-format';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 interface CrosshairOverlayProps {
   symbol: string;
@@ -37,7 +37,8 @@ export function CrosshairOverlay({
   showCandleTimer = true,
 }: CrosshairOverlayProps) {
   const locale = useLocale();
-  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : 'en-US';
+  const t = useTranslations('dashboard.chartCrosshair');
+  const dateLocale = locale === 'ar' ? 'ar-EG' : locale === 'fr' ? 'fr-FR' : locale === 'tr' ? 'tr-TR' : 'en-US';
   // Get current OHLC from last candle when crosshair is not active
   const lastCandle = candles[candles.length - 1];
   const displayData = crosshairData || (lastCandle ? {
@@ -153,7 +154,7 @@ export function CrosshairOverlay({
             </span>
           )}
           {feedState === 'fallback' && (
-            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>بيانات احتياطية</span>
+            <span style={{ fontSize: 7, color: '#fbbf24', fontFamily: "'JetBrains Mono', monospace" }}>{t('fallbackData')}</span>
           )}
         </div>
       </div>
@@ -255,13 +256,13 @@ export function CrosshairOverlay({
         color: COLORS.textSecondary,
       }}>
         {feedState === 'fallback' && (
-          <span style={{ color: '#fbbf24' }}>استخدام بيانات احتياطية</span>
+          <span style={{ color: '#fbbf24' }}>{t('usingFallbackData')}</span>
         )}
         {!mobile && (
           <>
-            <span style={{ color: 'rgba(139,92,246,0.7)' }}>■ طوكيو</span>
-            <span style={{ color: 'rgba(88,166,255,0.7)' }}>■ لندن</span>
-            <span style={{ color: 'rgba(227,179,65,0.7)' }}>■ نيويورك</span>
+            <span style={{ color: 'rgba(139,92,246,0.7)' }}>■ {t('tokyo')}</span>
+            <span style={{ color: 'rgba(88,166,255,0.7)' }}>■ {t('london')}</span>
+            <span style={{ color: 'rgba(227,179,65,0.7)' }}>■ {t('newYork')}</span>
           </>
         )}
       </div>

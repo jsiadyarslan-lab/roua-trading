@@ -8,6 +8,19 @@ import { DirectionTag } from '../shared/DirectionTag'
 import { IndicatorBadge } from '../shared/IndicatorBadge'
 import { ScopedStyle } from '@/components/ScopedStyle'
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', cardHover: '#1F2335',
   surface: '#1A1D29', cyan: '#00D4FF', green: '#00FFA3', greenDim: '#00CC82',
@@ -315,7 +328,7 @@ export function PatternsView() {
 
       // Confidence filter
       if (confidenceFilter !== 'all') {
-        const maxConf = Math.max(...patterns.map(p => p.confidence))
+        const maxConf = safeMax(patterns.map(p => p.confidence))
         if (confidenceFilter === 'high' && maxConf < 70) return false
         if (confidenceFilter === 'medium' && maxConf < 50) return false
         if (confidenceFilter === 'low' && maxConf >= 50) return false
@@ -332,8 +345,8 @@ export function PatternsView() {
       return true
     }).sort((a, b) => {
       // Sort by highest pattern confidence first
-      const aMax = Math.max(...a.patterns.map(p => p.confidence))
-      const bMax = Math.max(...b.patterns.map(p => p.confidence))
+      const aMax = safeMax(a.patterns.map(p => p.confidence))
+      const bMax = safeMax(b.patterns.map(p => p.confidence))
       return bMax - aMax
     })
   }, [itemsWithPatterns, filter, confidenceFilter, patternSearch])

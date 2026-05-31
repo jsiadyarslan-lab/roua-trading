@@ -195,7 +195,7 @@ export function ScreenerTab() {
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                     {isActive && <span style={{ width: 4, height: 4, borderRadius: '50%', background: T.cyan }} />}
-                    <span>{f.labelAr}</span>
+                    <span>{(f as any).type || (f as any).labelAr}</span>
                   </div>
                   {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 </button>

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { T } from '@/lib/theme-tokens'
 import { useTranslations, useLocale } from 'next-intl'
+import { isRtlLocale } from '@/lib/i18n-utils'
 
 const FONT_MONO = "'JetBrains Mono', monospace"
 
@@ -58,7 +59,7 @@ export function SidebarIconRail({
 }: SidebarIconRailProps) {
   const t = useTranslations('dashboard.sidebarTabs')
   const locale = useLocale()
-  const isRtl = locale === 'ar'
+  const isRtl = isRtlLocale(locale)
   const [hoveredTab, setHoveredTab] = useState<string | null>(null)
 
   // Resolve translated labels & helpers

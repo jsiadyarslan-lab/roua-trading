@@ -17,6 +17,7 @@ interface ChartToolbarProps {
   timeframe: string;
   chartType: ChartType;
   onSetTimeframe: (tf: string) => void;
+  onSetSymbol?: (symbol: string) => void;
   onSetChartType: (type: ChartType) => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -47,9 +48,8 @@ interface ChartToolbarProps {
   showChartTrading?: boolean;
   showWatchlist?: boolean;
   onToggleCompare?: () => void;
-  onToggleMTF?: () => void;
+  onToggleSmartGrid?: () => void;
   onToggleShare?: () => void;
-  onToggleChartGrid?: () => void;
   showCompare?: boolean;
   // ── 5 New Feature Toggle Props ──
   showFootprint?: boolean;
@@ -64,6 +64,16 @@ interface ChartToolbarProps {
   showHeatmap?: boolean;
   onToggleHeatmap?: () => void;
   priceAlertsCount?: number;
+  // ── 4 AI Streaming Toggle Prop ──
+  showAIStream?: boolean;
+  onToggleAIStream?: () => void;
+  // ── Multi-Chart Props ──
+  isMultiChart?: boolean;
+  onAddChart?: () => void;
+  onRemoveChart?: () => void;
+  onToggleLayoutSelector?: () => void;
+  showLayoutSelector?: boolean;
+  chartCount?: number;
 }
 
 // Chart type keys — labels resolved via i18n in the component
@@ -82,10 +92,16 @@ const QUICK_DRAW_TOOLS: { key: DrawingTool; icon: string; i18nKey: string }[] = 
   { key: 'cursor',     icon: '↖', i18nKey: 'cursor' },
 ];
 
+// Symbol list for toolbar dropdown (same as grid cell header)
+const TOOLBAR_SYMBOLS = [
+  'BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'XRP/USDT', 'SOL/USDT',
+  'ADA/USDT', 'DOGE/USDT', 'EUR/USD', 'GBP/USD', 'XAU/USD',
+];
+
 export function ChartToolbar(props: ChartToolbarProps) {
   const {
     symbol, timeframe, chartType,
-    onSetTimeframe, onSetChartType,
+    onSetTimeframe, onSetChartType, onSetSymbol,
     onZoomIn, onZoomOut, onResetView,
     onToggleDrawings, onToggleIndicators,
     onExportPNG, onExportCSV, onExportSVG, onToggleFullscreen,
@@ -94,14 +110,18 @@ export function ChartToolbar(props: ChartToolbarProps) {
     onToggleVolumeProfile, onToggleAIPanel, onToggleChartTrading,
     onToggleTemplateManager, onToggleWatchlist, onToggleChartSettings,
     showVolumeProfile, showAIPanel, showChartTrading, showWatchlist,
-    onToggleCompare, onToggleMTF, onToggleShare, onToggleChartGrid, showCompare,
+    onToggleCompare, onToggleSmartGrid, onToggleShare, showCompare,
     showFootprint, onToggleFootprint,
     showAlerts, onToggleAlerts,
     showPatternProgress, onTogglePatternProgress,
     showReplay, onToggleReplay,
     showHeatmap, onToggleHeatmap,
+    showAIStream, onToggleAIStream,
     priceAlertsCount,
     isFullscreen,
+    // ── Multi-Chart Props ──
+    isMultiChart, onAddChart, onRemoveChart,
+    onToggleLayoutSelector, showLayoutSelector, chartCount,
   } = props;
 
   const t = useTranslations('chartToolbar');
@@ -117,28 +137,45 @@ export function ChartToolbar(props: ChartToolbarProps) {
   const exportPanelRef = useRef<HTMLDivElement>(null);
 
   // ── Fixed-position dropdown placement (avoids overflow clipping) ──
-  const [tfPanelPos, setTfPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [tfPanelPos, setTfPanelPos] = useState<{ top: number; right: number; left: number } | null>(null);
   const [ctPanelPos, setCtPanelPos] = useState<{ top: number; left: number } | null>(null);
-  const [exportPanelPos, setExportPanelPos] = useState<{ top: number; right: number } | null>(null);
+  const [exportPanelPos, setExportPanelPos] = useState<{ top: number; left: number } | null>(null);
 
   const updateTfPos = useCallback(() => {
     if (tfRef.current && showTimeframePanel) {
       const rect = tfRef.current.getBoundingClientRect();
-      setTfPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      // Use left instead of right to avoid RTL positioning issues
+      // Ensure panel stays within viewport bounds
+      const panelWidth = mobile ? 200 : 240;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setTfPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right, left });
     }
   }, [showTimeframePanel]);
 
   const updateCtPos = useCallback(() => {
     if (chartTypeRef.current && showChartTypePanel) {
       const rect = chartTypeRef.current.getBoundingClientRect();
-      setCtPanelPos({ top: rect.bottom + 4, left: rect.left });
+      const panelWidth = mobile ? 130 : 150;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setCtPanelPos({ top: rect.bottom + 4, left });
     }
   }, [showChartTypePanel]);
 
   const updateExportPos = useCallback(() => {
     if (exportRef.current && showExportPanel) {
       const rect = exportRef.current.getBoundingClientRect();
-      setExportPanelPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+      const panelWidth = mobile ? 160 : 120;
+      let left = rect.left;
+      if (left + panelWidth > window.innerWidth) {
+        left = window.innerWidth - panelWidth - 8;
+      }
+      setExportPanelPos({ top: rect.bottom + 4, left });
     }
   }, [showExportPanel]);
 
@@ -210,12 +247,16 @@ export function ChartToolbar(props: ChartToolbarProps) {
     success: '#00FFA3',
   };
 
+  // FIX: على الجوال الضيق جداً نُخفي الأزرار الثانوية
+  const isNarrow = mobile && typeof window !== 'undefined' && window.innerWidth < 420;
+  // FIX: احترام معيار 44px لأهداف اللمس على الجوال
+  const touchSize = mobile ? 40 : 26;
   const btnStyle: React.CSSProperties = {
-    height: 26,
-    minWidth: 26,
+    height: touchSize,
+    minWidth: touchSize,
     background: 'none',
     border: 'none',
-    borderRadius: 4,
+    borderRadius: mobile ? 6 : 4,
     color: COLORS.textSecondary,
     cursor: 'pointer',
     display: 'flex',
@@ -223,8 +264,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
     justifyContent: 'center',
     transition: 'all 0.12s',
     flexShrink: 0,
-    padding: '0 4px',
-    fontSize: 11,
+    padding: mobile ? '0 8px' : '0 4px',
+    fontSize: mobile ? 12 : 11,
     fontFamily: "'JetBrains Mono', monospace",
   };
 
@@ -297,7 +338,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
   // ── Portal dropdown panels ──
   const tfPanelPortal = showTimeframePanel && tfPanelPos ? createPortal(
-    <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, right: tfPanelPos.right, minWidth: mobile ? 200 : 240 }}>
+    <div ref={tfPanelRef} style={{ ...panelBaseStyle, top: tfPanelPos.top, left: tfPanelPos.left, right: 'auto', minWidth: mobile ? 200 : 240 }}>
       <div style={{ fontSize: 9, color: COLORS.textMuted, letterSpacing: 1, marginBottom: 6, fontFamily: "'Cairo', sans-serif" }}>{t('timeframe')}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 3 }}>
         {TIMEFRAMES.map(tf => {
@@ -355,7 +396,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
   ) : null;
 
   const exportPanelPortal = showExportPanel && exportPanelPos ? createPortal(
-    <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, right: exportPanelPos.right, minWidth: mobile ? 160 : 120 }}>
+    <div ref={exportPanelRef} style={{ ...panelBaseStyle, top: exportPanelPos.top, left: exportPanelPos.left, right: 'auto', minWidth: mobile ? 160 : 120 }}>
       {mobile ? [
         { label: `📐 ${t('drawings')}`, action: onToggleDrawings },
         { label: `🗑️ ${t('clearDrawings')}`, action: onClearDrawings },
@@ -367,8 +408,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
         { label: '⏪ Replay Mode', action: onToggleReplay || (() => {}) },
         { label: '🔲 Heatmap', action: onToggleHeatmap || (() => {}) },
         { label: `⚖️ ${t('compare')}`, action: onToggleCompare || (() => {}) },
-        { label: `📊 ${t('mtfAnalysis')}`, action: onToggleMTF || (() => {}) },
-        { label: `▦ ${t('chartGrid')}`, action: onToggleChartGrid || (() => {}) },
+        { label: `🔲 ${t('chartGrid')}`, action: onToggleSmartGrid || (() => {}) },
         { label: `🔗 ${t('share')}`, action: onToggleShare || (() => {}) },
         { label: `📋 ${t('watchlist')}`, action: onToggleWatchlist || (() => {}) },
         { label: `💾 ${t('templateManager')}`, action: onToggleTemplateManager || (() => {}) },
@@ -412,15 +452,21 @@ export function ChartToolbar(props: ChartToolbarProps) {
           display: 'flex',
           alignItems: 'center',
           padding: '0 4px',
-          height: `${height}px`,
+          // FIX: على الجوال نستخدم minHeight لإعطاء الأزرار مساحتها الطبيعية
+          // height صارم كان يقتطع الأزرار ويُنشئ scrollbar مرئياً
+          minHeight: `${height}px`,
+          height: mobile ? 'auto' : `${height}px`,
           background: COLORS.bg,
           borderBottom: `1px solid ${COLORS.border}`,
           flexShrink: 0,
           gap: 1,
           direction: 'inherit',
           overflowX: 'auto',
-          overflowY: 'visible',
-        }}>
+          overflowY: 'hidden',
+          // FIX: إخفاء الـ scrollbar بصرياً (لا يزال قابلاً للتمرير)
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        } as React.CSSProperties}>
           {/* Chart Type */}
           <div ref={chartTypeRef} style={{ position: 'relative' }}>
             <button
@@ -508,8 +554,21 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Chart Trading */}
-          {onToggleChartTrading && (
+          {/* AI Stream (SSE) */}
+          {onToggleAIStream && (
+            <button
+              style={toggleBtnStyle(!!showAIStream)}
+              onClick={onToggleAIStream}
+              title="AI Live Stream"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M2 12h4l3-9 6 18 3-9h4"/>
+              </svg>
+            </button>
+          )}
+
+          {/* Chart Trading — hidden on narrow screens */}
+          {!isNarrow && onToggleChartTrading && (
             <button
               style={toggleBtnStyle(!!showChartTrading)}
               onClick={onToggleChartTrading}
@@ -521,8 +580,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Compare */}
-          {onToggleCompare && (
+          {/* Compare — hidden on narrow screens */}
+          {!isNarrow && onToggleCompare && (
             <button
               style={toggleBtnStyle(!!showCompare)}
               onClick={onToggleCompare}
@@ -534,22 +593,11 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* MTF — نفس الزوج، أطر زمنية مختلفة */}
-          {onToggleMTF && (
+          {/* Smart Grid — hidden on narrow screens */}
+          {!isNarrow && onToggleSmartGrid && (
             <button
               style={btnStyle}
-              onClick={onToggleMTF}
-              title={t('mtfTooltip')}
-            >
-              MTF
-            </button>
-          )}
-
-          {/* Chart Grid — أزواج مختلفة في شبكة */}
-          {onToggleChartGrid && (
-            <button
-              style={btnStyle}
-              onClick={onToggleChartGrid}
+              onClick={onToggleSmartGrid}
               title={t('chartGridTooltip')}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -558,8 +606,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Share */}
-          {onToggleShare && (
+          {/* Share — hidden on narrow screens */}
+          {!isNarrow && onToggleShare && (
             <button
               style={btnStyle}
               onClick={onToggleShare}
@@ -572,8 +620,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Replay Mode */}
-          {onToggleReplay && (
+          {/* Replay Mode — hidden on narrow screens */}
+          {!isNarrow && onToggleReplay && (
             <button
               style={toggleBtnStyle(!!showReplay)}
               onClick={onToggleReplay}
@@ -583,8 +631,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
             </button>
           )}
 
-          {/* Heatmap */}
-          {onToggleHeatmap && (
+          {/* Heatmap — hidden on narrow screens */}
+          {!isNarrow && onToggleHeatmap && (
             <button
               style={toggleBtnStyle(!!showHeatmap)}
               onClick={onToggleHeatmap}
@@ -596,8 +644,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
           <div style={sepStyle} />
 
-          {/* Play/Pause */}
-          <button
+          {/* Play/Pause — hidden on narrow screens */}
+          {!isNarrow && <button
             style={{
               ...btnStyle,
               color: isPaused ? COLORS.warning : COLORS.success,
@@ -607,7 +655,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
             title={isPaused ? t('play') : t('pause')}
           >
             {isPaused ? '▶' : '⏸'}
-          </button>
+          </button>}
 
           <div style={{ flex: 1 }} />
 
@@ -663,6 +711,34 @@ export function ChartToolbar(props: ChartToolbarProps) {
         </div>
 
         <div style={sepStyle} />
+
+        {/* Symbol Selector (only when onSetSymbol is provided — multi-chart mode) */}
+        {onSetSymbol && (
+          <>
+            <select value={symbol}
+              onChange={e => onSetSymbol(e.target.value)}
+              style={{
+                background: 'rgba(0,212,255,0.08)',
+                border: '1px solid rgba(0,212,255,0.25)',
+                borderRadius: 4,
+                color: COLORS.cyan,
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: 9,
+                fontWeight: 700,
+                padding: '0 2px',
+                cursor: 'pointer',
+                outline: 'none',
+                height: 18,
+                maxWidth: 68,
+              }}
+            >
+              {TOOLBAR_SYMBOLS.map(s => (
+                <option key={s} value={s} style={{ background: '#111620', color: '#F0F2F5' }}>{s}</option>
+              ))}
+            </select>
+            <div style={sepStyle} />
+          </>
+        )}
 
         {/* Timeframe */}
         <div ref={tfRef} style={{ position: 'relative' }}>
@@ -780,6 +856,20 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
+        {/* AI Streaming — SSE Consensus War Room */}
+        {onToggleAIStream && (
+          <button
+            style={toggleBtnStyle(!!showAIStream)}
+            onClick={onToggleAIStream}
+            title="AI Live Stream (SSE)"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M2 12h4l3-9 6 18 3-9h4"/>
+            </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>SSE</span>
+          </button>
+        )}
+
         {/* Pattern Progress */}
         {onTogglePatternProgress && (
           <button
@@ -806,18 +896,7 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         <div style={sepStyle} />
 
-        {/* ── Group 5: Monitoring ── */}
-        {onToggleAlerts && (
-          <button
-            style={toggleBtnStyle(!!showAlerts)}
-            onClick={onToggleAlerts}
-            title={t('alerts')}
-          >
-            🔔
-          </button>
-        )}
-
-        {/* ── Group 6: Trading ── */}
+        {/* ── Group 5: Trading ── */}
 
         {/* Chart Trading (existing) */}
         {onToggleChartTrading && (
@@ -847,7 +926,39 @@ export function ChartToolbar(props: ChartToolbarProps) {
           </button>
         )}
 
-        {/* MTF and ChartGrid buttons are in Group 8 above */}
+        {/* Smart Grid */}
+        {onToggleSmartGrid && (
+          <button
+            style={toggleBtnStyle(!!isMultiChart)}
+            onClick={onToggleSmartGrid}
+            title={isMultiChart ? t('exitMultiChart') || 'Exit Multi-Chart' : t('chartGridTooltip')}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="2" y="2" width="9" height="9" rx="1"/><rect x="13" y="2" width="9" height="9" rx="1"/><rect x="2" y="13" width="9" height="9" rx="1"/><rect x="13" y="13" width="9" height="9" rx="1"/>
+            </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>{isMultiChart ? '1×1' : 'Grid'}</span>
+          </button>
+        )}
+
+        {/* ── Multi-Chart: Layout Selector ▦ ── */}
+        {onToggleLayoutSelector && (
+          <button
+            style={{
+              ...btnStyle,
+              background: isMultiChart ? 'rgba(0,212,255,0.15)' : 'none',
+              border: isMultiChart ? '1px solid rgba(0,212,255,0.3)' : '1px solid transparent',
+              color: isMultiChart ? COLORS.cyan : COLORS.textSecondary,
+              padding: '0 5px',
+            }}
+            onClick={onToggleLayoutSelector}
+            title="Chart Layout"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+            </svg>
+            <span style={{ fontSize: 8, fontWeight: 700, marginInlineStart: 2 }}>▦</span>
+          </button>
+        )}
 
         {/* Share */}
         {onToggleShare && (
@@ -895,6 +1006,17 @@ export function ChartToolbar(props: ChartToolbarProps) {
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
+          </button>
+        )}
+
+        {/* Alerts — placed after Settings */}
+        {onToggleAlerts && (
+          <button
+            style={toggleBtnStyle(!!showAlerts)}
+            onClick={onToggleAlerts}
+            title={t('alerts')}
+          >
+            🔔
           </button>
         )}
 
@@ -983,7 +1105,8 @@ export function ChartToolbar(props: ChartToolbarProps) {
 
         <ScopedStyle>{`
           .toolbar-scrollable::-webkit-scrollbar {
-            height: 3px;
+            height: 0px;
+            display: none;
           }
           .toolbar-scrollable::-webkit-scrollbar-track {
             background: transparent;

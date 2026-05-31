@@ -6,6 +6,20 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
+
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
 
 interface FootprintChartProps {
   symbol: string;
@@ -106,6 +120,7 @@ function generateSimulatedFootprint(symbol: string, tf: FootprintTimeframe): Foo
 }
 
 export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
+  const t = useTranslations('dashboard.chartFootprint');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [mode, setMode] = useState<FootprintMode>('bidask');
@@ -324,7 +339,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 11, color: C.cyan, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-            👣 Footprint
+            👣 {t('footprint')}
           </span>
           <span style={{ fontSize: 9, color: C.textMuted, fontFamily: "'JetBrains Mono', monospace" }}>
             {symbol}
@@ -347,7 +362,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
                 transition: 'all 0.15s ease',
               }}
             >
-              {m === 'bidask' ? 'Bid×Ask' : m === 'delta' ? 'Delta' : 'Vol'}
+              {m === 'bidask' ? t('bidAsk') : m === 'delta' ? t('delta') : t('vol')}
             </button>
           ))}
 
@@ -386,7 +401,7 @@ export function FootprintChart({ symbol, onClose }: FootprintChartProps) {
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            IMB
+            {t('imbalance')}
           </button>
 
           {onClose && (

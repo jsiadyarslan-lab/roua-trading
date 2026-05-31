@@ -7,6 +7,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { ScopedStyle } from '@/components/ScopedStyle';
 
 interface MultiTimeframeChartProps {
@@ -79,6 +80,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
   ]);
   const [chartStates, setChartStates] = useState<Map<string, MiniChartState>>(new Map());
   const [activeSlotId, setActiveSlotId] = useState<string>('');
+  const tc = useTranslations('dashboard.chart');
 
   // Set initial active slot
   useEffect(() => {
@@ -109,7 +111,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
       const j = await res.json();
 
       if (!j.success || !j.data || j.data.length === 0) {
-        updateChartState(slot.id, { loading: false, error: 'لا توجد بيانات', candleCount: 0 });
+        updateChartState(slot.id, { loading: false, error: tc('noData'), candleCount: 0 });
         return;
       }
 
@@ -133,7 +135,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
       unique.sort((a: any, b: any) => a.time - b.time);
 
       if (unique.length === 0) {
-        updateChartState(slot.id, { loading: false, error: 'لا توجد بيانات صالحة', candleCount: 0 });
+        updateChartState(slot.id, { loading: false, error: tc('noValidData'), candleCount: 0 });
         return;
       }
 
@@ -183,9 +185,9 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
 
       updateChartState(slot.id, { loading: false, error: null, currentPrice, prevPrice, candleCount: unique.length });
     } catch {
-      updateChartState(slot.id, { loading: false, error: 'فشل التحميل', candleCount: 0 });
+      updateChartState(slot.id, { loading: false, error: tc('loadFailed'), candleCount: 0 });
     }
-  }, [updateChartState]);
+  }, [updateChartState, tc]);
 
   const handleAddChart = useCallback(() => {
     const newSlot: ChartSlot = {
@@ -388,7 +390,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
             </div>
             <div>
               <div style={{ color: C.text, fontWeight: 700, fontSize: 14, fontFamily: "'Cairo', sans-serif", lineHeight: 1.2 }}>
-                تحليل متعدد الأطر الزمنية
+                {tc('multiTimeframeAnalysis')}
               </div>
               <div style={{ color: C.cyan, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, fontWeight: 600, letterSpacing: 0.5 }}>
                 {symbol}
@@ -415,7 +417,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
               </svg>
-              إضافة شارت
+              {tc('addChart')}
             </button>
 
             <button onClick={onClose} style={{
@@ -617,7 +619,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <line x1="9" y1="4" x2="9" y2="20" /><rect x="6" y="8" width="6" height="8" rx="1" /><line x1="17" y1="2" x2="17" y2="10" /><rect x="14" y="6" width="6" height="8" rx="1" />
                       </svg>
-                      شموع
+                      {tc('candles')}
                     </button>
 
                     {/* Indicators button (visual only) */}
@@ -645,7 +647,7 @@ export function MultiTimeframeChart({ symbol, onClose }: MultiTimeframeChartProp
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <polyline points="22,12 18,12 15,21 9,3 6,12 2,12" />
                       </svg>
-                      مؤشرات
+                      {tc('indicators')}
                     </button>
                   </div>
 

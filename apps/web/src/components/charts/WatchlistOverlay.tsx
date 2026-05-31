@@ -9,6 +9,19 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useMarketStore } from '@/hooks/useMarketStore';
 import type { QuoteData } from '@/hooks/useMarketStore';
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 interface WatchlistOverlayProps {
   symbols?: string[];
   selectedSymbol: string;
@@ -110,7 +123,7 @@ export function WatchlistOverlay({
               {spark.points.length > 1 && (
                 <polyline
                   points={spark.points.map((p, i) =>
-                    `${(i / (spark.points.length - 1)) * 60},${20 - (p / Math.max(...spark.points)) * 18}`
+                    `${(i / (spark.points.length - 1)) * 60},${20 - (p / safeMax(spark.points)) * 18}`
                   ).join(' ')}
                   fill="none"
                   stroke={color}

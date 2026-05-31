@@ -27,6 +27,7 @@ interface ChartOrderData {
 
 export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: ChartTradingProps) {
   const tn = useTranslations('notifications.trading');
+  const tc = useTranslations('dashboard.chart');
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [orderType, setOrderType] = useState<'market' | 'limit' | 'stop'>('market');
   const [quantity, setQuantity] = useState('0.01');
@@ -131,7 +132,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
       {/* Header */}
       <div data-drag-handle style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'grab' }}>
         <span style={{ fontSize: 11, color: COLORS.text, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>
-          📊 أمر تداول
+          📊 {tc('tradeOrder')}
         </span>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14 }}>✕</button>
       </div>
@@ -172,7 +173,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
               transition: 'all 0.15s',
             }}
           >
-            {s === 'buy' ? 'شراء' : 'بيع'}
+            {s === 'buy' ? tc('buy') : tc('sell')}
           </button>
         ))}
       </div>
@@ -196,14 +197,14 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
               fontFamily: "'JetBrains Mono', monospace",
             }}
           >
-            {t === 'market' ? 'سوق' : t === 'limit' ? 'حد' : 'وقف'}
+            {t === 'market' ? tc('market') : t === 'limit' ? tc('limit') : tc('stop')}
           </button>
         ))}
       </div>
 
       {/* Quantity */}
       <div style={{ marginBottom: 8 }}>
-        <label style={{ display: 'block', fontSize: 9, color: COLORS.textMuted, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>الكمية</label>
+        <label style={{ display: 'block', fontSize: 9, color: COLORS.textMuted, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('quantity')}</label>
         <input
           type="number"
           value={quantity}
@@ -227,12 +228,12 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
       {/* SL / TP */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
         <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: 9, color: COLORS.danger, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>وقف الخسارة 🔴</label>
+          <label style={{ display: 'block', fontSize: 9, color: COLORS.danger, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('stopLoss')} 🔴</label>
           <input
             type="number"
             value={sl}
             onChange={e => setSl(e.target.value)}
-            placeholder={side === 'buy' ? 'أقل من السعر' : 'أعلى من السعر'}
+            placeholder={side === 'buy' ? tc('slBelowPrice') : tc('slAbovePrice')}
             step="0.0001"
             style={{
               width: '100%',
@@ -248,12 +249,12 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
           />
         </div>
         <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: 9, color: COLORS.success, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>جني الأرباح 🟢</label>
+          <label style={{ display: 'block', fontSize: 9, color: COLORS.success, marginBottom: 3, fontFamily: "'Cairo', sans-serif" }}>{tc('takeProfit')} 🟢</label>
           <input
             type="number"
             value={tp}
             onChange={e => setTp(e.target.value)}
-            placeholder={side === 'buy' ? 'أعلى من السعر' : 'أقل من السعر'}
+            placeholder={side === 'buy' ? tc('tpAbovePrice') : tc('tpBelowPrice')}
             step="0.0001"
             style={{
               width: '100%',
@@ -313,7 +314,7 @@ export function ChartTrading({ symbol, currentPrice, onClose, onPlaceOrder }: Ch
           opacity: submitting ? 0.6 : 1,
         }}
       >
-        {submitting ? '⏳ جاري الإرسال...' : side === 'buy' ? '✅ شراء' : '🔴 بيع'}
+        {submitting ? tc('submitting') : side === 'buy' ? tc('buySubmit') : tc('sellSubmit')}
       </button>
     </div>
   );

@@ -6,6 +6,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import type { CandleData } from '@/lib/charts/types';
 
 // ── Types ─────────────────────────────────────────────────
@@ -44,6 +45,7 @@ const C = {
 };
 
 export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) {
+  const t = useTranslations('dashboard.chartReplay');
   const [isPlaying, setIsPlaying] = useState(false);
   const [replayIndex, setReplayIndex] = useState(1); // Start with at least 1 candle visible
   const [speed, setSpeed] = useState<ReplaySpeed>(1);
@@ -173,7 +175,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
           fontFamily: "'JetBrains Mono', monospace",
           flexShrink: 0,
         }}>
-          ⏪ REPLAY
+          ⏪ {t('replay')}
         </div>
 
         {/* Transport controls */}
@@ -190,7 +192,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               fontSize: 12, cursor: replayIndex <= 1 ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
-            title="Previous bar (←)"
+            title={t('previousBar')}
           >
             ⏮
           </button>
@@ -207,7 +209,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
               fontWeight: 700,
             }}
-            title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+            title={isPlaying ? t('pause') : t('play')}
           >
             {isPlaying ? '⏸' : '▶'}
           </button>
@@ -224,7 +226,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               fontSize: 12, cursor: replayIndex >= totalCandles ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
-            title="Next bar (→)"
+            title={t('nextBar')}
           >
             ⏭
           </button>
@@ -240,7 +242,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
               fontSize: 10, cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
             }}
-            title="Stop & show all data"
+            title={t('stopShowAll')}
           >
             ⏹
           </button>
@@ -303,7 +305,7 @@ export function ChartReplay({ candles, setCandles, onClose }: ChartReplayProps) 
             color: C.textMuted, fontSize: 10, cursor: 'pointer',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
           }}
-          title="Close replay mode"
+          title={t('closeReplay')}
         >
           ✕
         </button>

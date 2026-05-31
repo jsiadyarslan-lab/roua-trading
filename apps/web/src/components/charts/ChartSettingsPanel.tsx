@@ -6,6 +6,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { ChartSettings } from '@/lib/charts/types';
 
 interface ChartSettingsPanelProps {
@@ -16,25 +17,26 @@ interface ChartSettingsPanelProps {
 
 type SettingsTab = 'appearance' | 'chart' | 'grid' | 'crosshair' | 'behavior';
 
-const TABS: { key: SettingsTab; label: string; icon: string }[] = [
-  { key: 'appearance', label: 'المظهر', icon: '🎨' },
-  { key: 'chart', label: 'الشارت', icon: '📊' },
-  { key: 'grid', label: 'الشبكة', icon: '▦' },
-  { key: 'crosshair', label: 'المؤشر', icon: '✛' },
-  { key: 'behavior', label: 'السلوك', icon: '⚡' },
-];
-
-const PRESET_THEMES = [
-  { name: 'ROUA Classic', bg: '#0B0E14', up: '#00FFA3', down: '#FF4757' },
-  { name: 'Ocean', bg: '#0a1628', up: '#00d4ff', down: '#ff6b6b' },
-  { name: 'Neon', bg: '#0d0221', up: '#00ff88', down: '#ff0055' },
-  { name: 'Sunset', bg: '#1a0a2e', up: '#ffd700', down: '#ff4500' },
-  { name: 'Arctic', bg: '#0a192f', up: '#64ffda', down: '#ff5555' },
-  { name: 'Forest', bg: '#0a1a0a', up: '#39ff14', down: '#ff3333' },
-];
-
 export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: ChartSettingsPanelProps) {
+  const t = useTranslations('dashboard.chartSettings');
   const [activeTab, setActiveTab] = useState<SettingsTab>('appearance');
+
+  const TABS: { key: SettingsTab; label: string; icon: string }[] = [
+    { key: 'appearance', label: t('appearance'), icon: '🎨' },
+    { key: 'chart', label: t('chart'), icon: '📊' },
+    { key: 'grid', label: t('gridTab'), icon: '▦' },
+    { key: 'crosshair', label: t('crosshair'), icon: '✛' },
+    { key: 'behavior', label: t('behavior'), icon: '⚡' },
+  ];
+
+  const PRESET_THEMES = [
+    { name: 'ROUA Classic', bg: '#0B0E14', up: '#00FFA3', down: '#FF4757' },
+    { name: 'Ocean', bg: '#0a1628', up: '#00d4ff', down: '#ff6b6b' },
+    { name: 'Neon', bg: '#0d0221', up: '#00ff88', down: '#ff0055' },
+    { name: 'Sunset', bg: '#1a0a2e', up: '#ffd700', down: '#ff4500' },
+    { name: 'Arctic', bg: '#0a192f', up: '#64ffda', down: '#ff5555' },
+    { name: 'Forest', bg: '#0a1a0a', up: '#39ff14', down: '#ff3333' },
+  ];
 
   const COLORS = {
     bg: '#0B0E14',
@@ -132,7 +134,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
           </svg>
           <span style={{ fontSize: 12, color: COLORS.text, fontWeight: 800, fontFamily: "'Cairo', sans-serif" }}>
-            إعدادات الشارت
+            {t('chartSettings')}
           </span>
         </div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', color: COLORS.textMuted, cursor: 'pointer', fontSize: 14, lineHeight: 1 }}>✕</button>
@@ -170,7 +172,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {/* Appearance Tab */}
         {activeTab === 'appearance' && (
           <>
-            <div style={sectionTitle}>سمات جاهزة</div>
+            <div style={sectionTitle}>{t('presetThemes')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, marginBottom: 14 }}>
               {PRESET_THEMES.map(theme => (
                 <button
@@ -199,9 +201,9 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               ))}
             </div>
 
-            <div style={sectionTitle}>الألوان</div>
+            <div style={sectionTitle}>{t('colors')}</div>
             <div style={settingRow}>
-              <span style={settingLabel}>لون الصعود</span>
+              <span style={settingLabel}>{t('upColor')}</span>
               <input
                 type="color"
                 value={settings.upColor}
@@ -210,7 +212,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               />
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>لون الهبوط</span>
+              <span style={settingLabel}>{t('downColor')}</span>
               <input
                 type="color"
                 value={settings.downColor}
@@ -219,7 +221,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
               />
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>لون الخلفية</span>
+              <span style={settingLabel}>{t('bgColor')}</span>
               <input
                 type="color"
                 value={settings.bgColor}
@@ -233,27 +235,27 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {/* Chart Tab */}
         {activeTab === 'chart' && (
           <>
-            <div style={sectionTitle}>العرض</div>
+            <div style={sectionTitle}>{t('display')}</div>
             <div style={settingRow}>
-              <span style={settingLabel}>خط السعر الحالي</span>
+              <span style={settingLabel}>{t('priceLine')}</span>
               <div style={switchStyle(settings.showPriceLine)} onClick={() => onUpdateSettings({ showPriceLine: !settings.showPriceLine })}>
                 <div style={switchKnobStyle(settings.showPriceLine)} />
               </div>
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>الحجم</span>
+              <span style={settingLabel}>{t('volume')}</span>
               <div style={switchStyle(settings.showVolume)} onClick={() => onUpdateSettings({ showVolume: !settings.showVolume })}>
                 <div style={switchKnobStyle(settings.showVolume)} />
               </div>
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>الجلسات</span>
+              <span style={settingLabel}>{t('sessions')}</span>
               <div style={switchStyle(settings.showSessions)} onClick={() => onUpdateSettings({ showSessions: !settings.showSessions })}>
                 <div style={switchKnobStyle(settings.showSessions)} />
               </div>
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>مؤقت الشمعة</span>
+              <span style={settingLabel}>{t('candleTimer')}</span>
               <div style={switchStyle(settings.showCandleTimer)} onClick={() => onUpdateSettings({ showCandleTimer: !settings.showCandleTimer })}>
                 <div style={switchKnobStyle(settings.showCandleTimer)} />
               </div>
@@ -264,15 +266,15 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {/* Grid Tab */}
         {activeTab === 'grid' && (
           <>
-            <div style={sectionTitle}>الشبكة</div>
+            <div style={sectionTitle}>{t('gridTab')}</div>
             <div style={settingRow}>
-              <span style={settingLabel}>إظهار الشبكة</span>
+              <span style={settingLabel}>{t('showGrid')}</span>
               <div style={switchStyle(settings.showGrid)} onClick={() => onUpdateSettings({ showGrid: !settings.showGrid })}>
                 <div style={switchKnobStyle(settings.showGrid)} />
               </div>
             </div>
             <div style={settingRow}>
-              <span style={settingLabel}>لون الشبكة</span>
+              <span style={settingLabel}>{t('gridColor')}</span>
               <input
                 type="color"
                 value={settings.gridColor?.startsWith('rgba') ? '#2A313C' : settings.gridColor}
@@ -293,11 +295,11 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {/* Crosshair Tab */}
         {activeTab === 'crosshair' && (
           <>
-            <div style={sectionTitle}>نوع المؤشر</div>
+            <div style={sectionTitle}>{t('crosshairType')}</div>
             {[
-              { key: 'cross', label: 'صلب', icon: '✛' },
-              { key: 'dot', label: 'نقطة', icon: '◉' },
-              { key: 'none', label: 'بدون', icon: '—' },
+              { key: 'cross', label: t('cross'), icon: '✛' },
+              { key: 'dot', label: t('dot'), icon: '◉' },
+              { key: 'none', label: t('none'), icon: '—' },
             ].map(opt => (
               <div key={opt.key} style={settingRow}>
                 <span style={{ ...settingLabel, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -324,14 +326,14 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
         {/* Behavior Tab */}
         {activeTab === 'behavior' && (
           <>
-            <div style={sectionTitle}>اختصارات لوحة المفاتيح</div>
+            <div style={sectionTitle}>{t('keyboardShortcuts')}</div>
             <div style={{ fontSize: 9, color: COLORS.textMuted, lineHeight: 1.8, fontFamily: "'JetBrains Mono', monospace" }}>
-              <div><span style={{ color: COLORS.cyan }}>Space</span> تشغيل/إيقاف التحديث</div>
-              <div><span style={{ color: COLORS.cyan }}>+ / -</span> تكبير/تصغير</div>
-              <div><span style={{ color: COLORS.cyan }}>R</span> إعادة ضبط العرض</div>
-              <div><span style={{ color: COLORS.cyan }}>F</span> ملء الشاشة</div>
-              <div><span style={{ color: COLORS.cyan }}>Esc</span> إلغاء الرسم</div>
-              <div><span style={{ color: COLORS.cyan }}>Ctrl+S</span> حفظ القالب</div>
+              <div><span style={{ color: COLORS.cyan }}>Space</span> {t('toggleUpdates')}</div>
+              <div><span style={{ color: COLORS.cyan }}>+ / -</span> {t('zoomInOut')}</div>
+              <div><span style={{ color: COLORS.cyan }}>R</span> {t('resetView')}</div>
+              <div><span style={{ color: COLORS.cyan }}>F</span> {t('fullscreen')}</div>
+              <div><span style={{ color: COLORS.cyan }}>Esc</span> {t('cancelDrawing')}</div>
+              <div><span style={{ color: COLORS.cyan }}>Ctrl+S</span> {t('saveTemplate')}</div>
             </div>
           </>
         )}
@@ -377,7 +379,7 @@ export function ChartSettingsPanel({ settings, onUpdateSettings, onClose }: Char
             fontWeight: 700,
           }}
         >
-          إعادة ضبط
+          {t('reset')}
         </button>
       </div>
     </div>

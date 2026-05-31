@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface ShareChartProps {
   symbol: string;
@@ -18,6 +19,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
   onClose,
 }) => {
   const [copied, setCopied] = useState(false);
+  const tc = useTranslations('dashboard.chart');
 
   const shareUrl = useMemo(() => {
     const base = typeof window !== 'undefined' ? window.location.origin : '';
@@ -103,7 +105,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             letterSpacing: '0.02em',
           }}
         >
-          مشاركة الشارت
+          {tc('shareChart')}
         </span>
         <button
           onClick={onClose}
@@ -234,7 +236,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
               (e.currentTarget as HTMLButtonElement).style.opacity = '1';
             }}
           >
-            مشاركة
+            {tc('share')}
           </button>
         )}
 
@@ -261,7 +263,7 @@ const ShareChart: React.FC<ShareChartProps> = ({
             (e.currentTarget as HTMLButtonElement).style.opacity = '1';
           }}
         >
-          {copied ? '✓ تم النسخ' : 'نسخ الرابط'}
+          {copied ? tc('copied') : tc('copyLink')}
         </button>
       </div>
     </div>

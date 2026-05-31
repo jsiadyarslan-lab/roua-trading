@@ -4,6 +4,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 import React, { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DetectedPattern } from '@/lib/charts/pattern-engine';
 
 interface PatternOverlayProps {
@@ -29,6 +30,7 @@ const QUALITY_BAR = (score: number) => {
 };
 
 export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOverlayProps) {
+  const tc = useTranslations('dashboard.chart');
   const [filter, setFilter] = useState<'all' | 'bullish' | 'bearish'>('all');
   const [sortBy, setSortBy] = useState<'quality' | 'time'>('quality');
 
@@ -70,7 +72,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: 14 }}>📊</span>
           <span style={{ fontWeight: 700, color: T.accent, letterSpacing: 0.5 }}>
-            أنماط السوق
+            {tc('marketPatterns')}
           </span>
           <span style={{
             background: 'rgba(0,212,255,0.15)', borderRadius: 8,
@@ -105,7 +107,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
               : T.accent
               : T.muted,
           }}>
-            {f === 'all' ? 'الكل' : f === 'bullish' ? '▲ صعود' : '▼ هبوط'}
+            {f === 'all' ? tc('all') : f === 'bullish' ? tc('bullish') : tc('bearish')}
           </button>
         ))}
         <button onClick={() => setSortBy(s => s === 'quality' ? 'time' : 'quality')} style={{
@@ -122,7 +124,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
            className="custom-scrollbar">
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '20px 0', color: T.muted }}>
-            لا توجد أنماط مكتشفة
+            {tc('noData')}
           </div>
         )}
         {filtered.map((p, i) => {
@@ -146,15 +148,15 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
                   <span style={{ color: T.text, fontWeight: 600 }}>{p.type}</span>
                 </div>
                 <span style={{ color: statusCol, fontSize: 8, fontWeight: 700 }}>
-                  {p.status === 'forming' ? '⏳ يتشكل'
-                   : p.status === 'breakout' ? '🚀 اختراق'
-                   : '✅ مكتمل'}
+                  {p.status === 'forming' ? tc('forming')
+                   : p.status === 'breakout' ? tc('breakout')
+                   : tc('completed')}
                 </span>
               </div>
 
               {/* Row 2: quality bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-                <span style={{ color: T.muted, fontSize: 8 }}>جودة</span>
+                <span style={{ color: T.muted, fontSize: 8 }}>{tc('quality')}</span>
                 <span style={{
                   fontFamily: 'monospace', fontSize: 8,
                   color: p.quality.overall >= 7 ? T.green : p.quality.overall >= 5 ? '#FFD700' : T.muted,
@@ -170,7 +172,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
               {p.forecast && (
                 <div style={{ display: 'flex', gap: 8, fontSize: 9 }}>
                   <div>
-                    <span style={{ color: T.muted }}>هدف: </span>
+                    <span style={{ color: T.muted }}>{tc('target')}: </span>
                     <span style={{ color: col, fontWeight: 600 }}>
                       {p.forecast.priceMin.toLocaleString('en', { maximumFractionDigits: 2 })}
                       {' – '}
@@ -178,7 +180,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
                     </span>
                   </div>
                   <div>
-                    <span style={{ color: T.muted }}>احتمال: </span>
+                    <span style={{ color: T.muted }}>{tc('probability')}: </span>
                     <span style={{ color: '#FFD700', fontWeight: 600 }}>
                       {p.forecast.probability}%
                     </span>
@@ -196,7 +198,7 @@ export function PatternOverlay({ patterns, onPatternClick, onClose }: PatternOve
         display: 'flex', justifyContent: 'space-between',
         color: T.muted, fontSize: 8,
       }}>
-        <span>اضغط على النمط للتنقل إليه</span>
+        <span>{tc('clickToNavigate')}</span>
         <span>Autochartist-style</span>
       </div>
     </div>

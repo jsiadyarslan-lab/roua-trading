@@ -5,6 +5,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import type { IndicatorKey } from '@/lib/charts/types';
 import { INDICATOR_CONFIGS } from '@/lib/charts/types';
 
@@ -21,6 +22,7 @@ export function IndicatorPanel({
   onOpenSettings,
   onClose,
 }: IndicatorPanelProps) {
+  const tc = useTranslations('dashboard.chart');
   const [search, setSearch] = useState('');
 
   const overlayIndicators = INDICATOR_CONFIGS.filter(c => c.category === 'overlay');
@@ -103,7 +105,7 @@ export function IndicatorPanel({
               fontSize: 12,
               padding: 2,
             }}
-            title="إعدادات"
+            title={tc('settings')}
           >
             ⚙
           </button>
@@ -138,7 +140,7 @@ export function IndicatorPanel({
           fontWeight: 700,
           fontFamily: "'Cairo', sans-serif",
         }}>
-          المؤشرات
+          {tc('indicatorPanel')}
         </span>
         <button
           onClick={onClose}
@@ -153,7 +155,7 @@ export function IndicatorPanel({
         type="text"
         value={search}
         onChange={e => setSearch(e.target.value)}
-        placeholder="بحث..."
+        placeholder={tc('search')}
         style={{
           width: '100%',
           padding: '5px 8px',
@@ -181,7 +183,7 @@ export function IndicatorPanel({
             fontWeight: 700,
             fontFamily: "'Cairo', sans-serif",
           }}>
-            مؤشرات فوق الشارت
+            {tc('overlayIndicators')}
           </div>
           {filteredOverlay.map(renderItem)}
         </>
@@ -199,7 +201,7 @@ export function IndicatorPanel({
             fontWeight: 700,
             fontFamily: "'Cairo', sans-serif",
           }}>
-            مؤشرات مذبذبة
+            {tc('oscillatorIndicators')}
           </div>
           {filteredOsc.map(renderItem)}
         </>

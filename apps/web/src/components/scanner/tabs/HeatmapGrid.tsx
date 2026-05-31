@@ -8,6 +8,19 @@ import { ScopedStyle } from '@/components/ScopedStyle'
 import { useLocale } from 'next-intl'
 import { getLocalizedAssetName, safeStr } from '@/lib/utils'
 
+function safeMax(arr: number[]): number {
+  if (arr.length === 0) return -Infinity;
+  let max = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] > max) max = arr[i]; }
+  return max;
+}
+function safeMin(arr: number[]): number {
+  if (arr.length === 0) return Infinity;
+  let min = arr[0];
+  for (let i = 1; i < arr.length; i++) { if (arr[i] < min) min = arr[i]; }
+  return min;
+}
+
 const T = {
   bg: '#0B0E14', bg2: '#1A1D29', card: '#1A1D29', surface: '#1A1D29',
   green: '#00FFA3', greenDim: '#00CC82', red: '#FF4757', redDim: '#FF3344',
@@ -66,7 +79,7 @@ export function HeatmapGrid() {
   // Compute spans: weight based on volume or marketCap → colSpan/rowSpan 1-3
   const cells = useMemo(() => {
     if (!items.length) return []
-    const maxVol = Math.max(...items.map(d => d.marketCap ?? d.volume))
+    const maxVol = safeMax(items.map(d => d.marketCap ?? d.volume))
     return items.map((d, i) => {
       const w = (d.marketCap ?? d.volume) / maxVol
       const colSpan = w > 0.6 ? 3 : w > 0.3 ? 2 : 1

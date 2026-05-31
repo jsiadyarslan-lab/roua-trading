@@ -224,6 +224,7 @@ export class BinanceAdapter implements IExchangeAdapter {
 
   private _mapInterval(interval: string): string {
     const mapping: Record<string, string> = {
+      // Full format (from API docs)
       '1min': '1m',
       '5min': '5m',
       '15min': '15m',
@@ -234,6 +235,15 @@ export class BinanceAdapter implements IExchangeAdapter {
       '1day': '1d',
       '1week': '1w',
       '1month': '1M',
+      // Short format (from mobile app / CCXT standard)
+      '1m': '1m',
+      '3m': '3m',
+      '5m': '5m',
+      '15m': '15m',
+      '30m': '30m',
+      '1d': '1d',
+      '1w': '1w',
+      '1M': '1M',
     };
     return mapping[interval] || '1d';
   }

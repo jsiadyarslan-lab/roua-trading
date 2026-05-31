@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query, UseGuards, Logger } from '@nestjs/common';
 import { ExchangeService } from './exchange.service';
-import { AuthGuard } from '../../common/guards/auth.guard';
+import { AuthGuard, Public } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
 @Controller('exchange')
@@ -13,7 +13,9 @@ export class ExchangeController {
   /**
    * GET /api/exchange/quote/:symbol
    * Fetch real-time quote — auto-selects adapter (Binance for crypto, TwelveData for stocks)
+   * Public: market data should be accessible without authentication
    */
+  @Public()
   @Get('quote/:symbol')
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   async getQuote(
@@ -35,7 +37,9 @@ export class ExchangeController {
   /**
    * GET /api/exchange/history/:symbol
    * Fetch historical OHLCV data
+   * Public: market data should be accessible without authentication
    */
+  @Public()
   @Get('history/:symbol')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
   async getHistoricalData(
@@ -70,6 +74,7 @@ export class ExchangeController {
    * GET /api/exchange/adapters
    * List available exchange adapters
    */
+  @Public()
   @Get('adapters')
   async getAdapters() {
     return { success: true, data: this.exchangeService.getAdapters() };

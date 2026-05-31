@@ -25,10 +25,10 @@ import {
 import {
   computeZigZag, detectTrendLines, detectClassicPatterns,
   detectHarmonicPatterns, detectBOS, detectElliottWaves,
-  detectSRLevels, detectFVGs,
+  detectSRLevels, detectFVGs, detectOrderBlocks, detectFVGsEnhanced,
   type SwingPoint, type DetectedTrendLine, type DetectedPattern,
   type DetectedHarmonic, type DetectedBOS, type DetectedElliott,
-  type SRLevel, type FVGZone,
+  type SRLevel, type FVGZone, type OrderBlock, type FVGZoneEnhanced,
 } from './chart-detection';
 import { safeMax, safeMin } from './chart-utils';
 
@@ -223,9 +223,10 @@ export function renderOverlays(
   const showMTF = ov.mtf === true;
   const showLiq = ov.liq === true;
   const showTrade = ov.trade === true;
+  const showOB = ov.ob === true;
 
   // If nothing is enabled, clear all
-  if (!showSR && !showTrend && !showHarmonic && !showFVG && !showBOS && !showGeo && !showEW && !showWyckoff && !showVP && !showEntry && !showMTF && !showLiq && !showTrade) {
+  if (!showSR && !showTrend && !showHarmonic && !showFVG && !showBOS && !showGeo && !showEW && !showWyckoff && !showVP && !showEntry && !showMTF && !showLiq && !showTrade && !showOB) {
     registry.clearAll();
     return;
   }
@@ -238,6 +239,19 @@ export function renderOverlays(
   // stable swing points that don't change between ticks.
   const closedCandles = candles.length > 1 ? candles.slice(0, -1) : candles;
   const swings = computeZigZag(closedCandles);
+
+  // ── PHASE 3: Compute ATR ONCE and reuse everywhere ──
+  // Previously, ATR was calculated 6 times inline with identical code.
+  // Now it's computed once here and reused by all overlays that need it.
+  const _atrPeriod = 14;
+  const atr = closedCandles.length >= _atrPeriod ? (() => {
+    const sl = closedCandles.slice(-_atrPeriod);
+    const trs = sl.map((c, i) => i === 0
+      ? c.high - c.low
+      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
+    );
+    return trs.reduce((s, v) => s + v, 0) / trs.length;
+  })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
 
   // ── Helper: safe price line ──
   // FIX: Also register the price line ID with the OverlayRegistry so
@@ -460,27 +474,69 @@ export function renderOverlays(
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // FVG — Fair Value Gap zones
+  // FVG — Fair Value Gap zones (PHASE 4: Enhanced with fill tracking)
   // ═══════════════════════════════════════════════════════════════
-  if (showFVG) {
-    // Use ONLY the ATR-filtered detectFVGs — no SMC duplicates.
-    // The SMCDetector FVGs caused dozens of lines on few candles
-    // because they lacked ATR filtering and middle-candle validation.
-    const fvgs = detectFVGs(closedCandles);
+  // PHASE 4: Compute Order Blocks first (needed for FVG confluence)
+  const bosBreaks = detectBOS(closedCandles, swings);
+  const orderBlocks = detectOrderBlocks(closedCandles, bosBreaks);
 
-    // Build data signature from FVG zones
-    const fvgSig = JSON.stringify(fvgs.map(f => `${f.type}:${f.highPrice}:${f.lowPrice}:${f.startTime}`).join('|'));
+  if (showFVG) {
+    // PHASE 4: Use enhanced FVG detection with fill tracking and OB confluence
+    const fvgs = detectFVGsEnhanced(closedCandles, orderBlocks);
+
+    // Build data signature from FVG zones (including fill percent and confluence)
+    const fvgSig = JSON.stringify(fvgs.map(f => `${f.type}:${f.highPrice}:${f.lowPrice}:${f.startTime}:${f.fillPercent.toFixed(2)}:${f.confluenceWithOB}`).join('|'));
     if (registry.smartRedraw('fvg', fvgSig)) {
     fvgs.forEach((fvg, i) => {
       const isBull = fvg.type === 'bullish';
+
+      // PHASE 4: Visual distinction based on fill status
+      // - Unfilled: solid border + filled zone (active zone)
+      // - Partially filled: dashed border + semi-transparent (weakening)
+      // - Fully filled (>80%): very transparent + dotted border (expired)
+      // - OB Confluence: gold border highlight
+      const fillPct = fvg.fillPercent;
+      const isFilled = fillPct >= 0.8;
+      const isPartial = fillPct > 0 && fillPct < 0.8;
+
+      let fillOpacity: number;
+      let borderStyle: number; // 0=solid, 1=dashed, 2=dotted
+
+      if (isFilled) {
+        fillOpacity = 0.04;
+        borderStyle = 2;
+      } else if (isPartial) {
+        fillOpacity = 0.08;
+        borderStyle = 1;
+      } else {
+        fillOpacity = 0.12;
+        borderStyle = 0;
+      }
+
+      // OB confluence gets gold border and higher opacity
+      const borderColor = fvg.confluenceWithOB
+        ? '#d4af37' // Gold for OB+FVG confluence
+        : (isBull ? OVERLAY_COLORS.fvg : '#ef4444');
+
+      const fillBase = isBull ? '34, 211, 238' : '239, 68, 68';
+      const fillColor = fvg.confluenceWithOB
+        ? `rgba(212, 175, 55, ${fillOpacity + 0.05})` // Gold tint for confluence
+        : `rgba(${fillBase}, ${fillOpacity})`;
+
+      const fillLabel = isFilled
+        ? `FVG${isBull ? '↑' : '↓'} ممتلئ`
+        : isPartial
+          ? `FVG${isBull ? '↑' : '↓'} ${Math.round((1 - fillPct) * 100)}%`
+          : `FVG${isBull ? '↑' : '↓'}`;
+
       registry.add('fvg', new ZonePrimitive({
         startTime: fvg.startTime as any,
         endTime: fvg.endTime as any,
         highPrice: fvg.highPrice,
         lowPrice: fvg.lowPrice,
-        fillColor: isBull ? 'rgba(34, 211, 238, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-        borderColor: isBull ? OVERLAY_COLORS.fvg : '#ef4444',
-        label: `FVG${isBull ? '↑' : '↓'}`,
+        fillColor,
+        borderColor,
+        label: fvg.confluenceWithOB ? `${fillLabel}+${fvg.obLabel}` : fillLabel,
       }));
     });
     } // smartRedraw: data unchanged, existing primitives stay
@@ -492,7 +548,7 @@ export function renderOverlays(
   // BOS — Break of Structure / CHoCH
   // ═══════════════════════════════════════════════════════════════
   if (showBOS) {
-    const bosBreaks = detectBOS(closedCandles, swings);
+    // BOS breaks already computed above for Order Blocks — reuse them
 
     // Build data signature from BOS breaks
     const bosSig = JSON.stringify(bosBreaks.map(b => `${b.type}:${b.direction}:${b.brokenLevel}:${b.breakPrice}`).join('|'));
@@ -530,6 +586,97 @@ export function renderOverlays(
     } // smartRedraw: data unchanged, existing primitives stay
   } else {
     registry.clearType('bos');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // ORDER BLOCKS (OB) — Phase 4: SMC institutional order zones
+  // Draws colored zones for bullish/bearish order blocks detected
+  // from BOS breaks. Shows mitigation status and OB+FVG confluence.
+  // ═══════════════════════════════════════════════════════════════
+  if (showOB) {
+    // Order blocks already computed above for FVG confluence — reuse them
+
+    // Build data signature from order blocks
+    const obSig = JSON.stringify(orderBlocks.map(ob => `${ob.type}:${ob.highPrice}:${ob.lowPrice}:${ob.startTime}:${ob.strength}:${ob.mitigated}`).join('|'));
+    if (registry.smartRedraw('ob', obSig)) {
+    orderBlocks.forEach((ob, i) => {
+      const isBull = ob.type === 'bullish';
+
+      // Mitigated OBs: grayed out (institutional orders already absorbed)
+      // Unmitigated OBs: colored zone (active institutional level)
+      const mitigatedOpacity = ob.mitigated ? 0.04 : 0.12;
+      const borderColorOpacity = ob.mitigated ? 0.2 : 0.6;
+
+      const baseColor = isBull ? '34, 211, 238' : '239, 68, 68';
+      const fillColor = ob.mitigated
+        ? `rgba(156, 163, 175, ${mitigatedOpacity})` // Gray if mitigated
+        : `rgba(${baseColor}, ${mitigatedOpacity})`;
+      const borderCol = ob.mitigated
+        ? `rgba(156, 163, 175, ${borderColorOpacity})`
+        : isBull ? `rgba(34, 211, 238, ${borderColorOpacity})` : `rgba(239, 68, 68, ${borderColorOpacity})`;
+
+      const lastTime = candles[candles.length - 1].time;
+
+      // Draw OB zone rectangle (from OB candle to current/mitigation time)
+      registry.add('ob', new ZonePrimitive({
+        startTime: ob.startTime as any,
+        endTime: (ob.mitigated ? (ob.mitigationTime || ob.endTime) : lastTime) as any,
+        highPrice: ob.highPrice,
+        lowPrice: ob.lowPrice,
+        fillColor,
+        borderColor: borderCol,
+        label: ob.mitigated ? `${ob.labelAr} (مخفف)` : `${ob.labelAr} S${ob.strength}`,
+      }));
+
+      // Mitigation marker — show where price returned to OB zone
+      if (ob.mitigated && ob.mitigationTime) {
+        registry.add('ob', new LabelPrimitive({
+          time: ob.mitigationTime as any,
+          price: isBull ? ob.highPrice : ob.lowPrice,
+          text: `✓ ${ob.labelAr} مخفف`,
+          color: 'rgba(156, 163, 175, 0.7)',
+          fontSize: 8,
+          align: 'center',
+          bg: 'rgba(11, 14, 20, 0.7)',
+          position: isBull ? 'above' : 'below',
+        }));
+      }
+
+      // Unmitigated OBs: add horizontal line at OB level for easy identification
+      if (!ob.mitigated && ob.strength >= 3) {
+        const lineColor = isBull ? 'rgba(34, 211, 238, 0.5)' : 'rgba(239, 68, 68, 0.5)';
+        registry.add('ob', new HorizontalLinePrimitive({
+          price: isBull ? ob.lowPrice : ob.highPrice, // Key level: OB low for bullish, OB high for bearish
+          color: lineColor,
+          lineWidth: 1,
+          lineStyle: 2,
+          label: `${ob.labelAr} S${ob.strength}`,
+        }));
+        safeAddPriceLine(`ob-${i}`, isBull ? ob.lowPrice : ob.highPrice, lineColor, `${ob.labelAr} S${ob.strength}`, 1, 2, false, 'ob');
+      }
+    });
+
+    // OB+FVG confluence label (show when both OB and FVG overlays are active)
+    if (showFVG) {
+      const confluentFVGs = detectFVGsEnhanced(closedCandles, orderBlocks).filter(f => f.confluenceWithOB);
+      if (confluentFVGs.length > 0) {
+        const lastTime = candles[candles.length - 1].time;
+        const lastPrice = candles[candles.length - 1].close;
+        registry.add('ob', new LabelPrimitive({
+          time: lastTime as any,
+          price: lastPrice * (confluentFVGs[0].type === 'bullish' ? 0.998 : 1.002),
+          text: `⬡ تقاطع OB+FVG (${confluentFVGs.length})`,
+          color: '#d4af37',
+          fontSize: 9,
+          align: 'right',
+          bg: 'rgba(212, 175, 55, 0.1)',
+          position: confluentFVGs[0].type === 'bullish' ? 'below' : 'above',
+        }));
+      }
+    }
+    } // smartRedraw: data unchanged, existing primitives stay
+  } else {
+    registry.clearType('ob');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -825,30 +972,19 @@ export function renderOverlays(
     const entryExit = input.entryExit;
 
     let entry: number, sl: number, tp: number, dir: string;
-    // ATR for grid rounding — snap prices to ATR/10 grid to prevent micro-jitter
-    let atr: number;
+    // PHASE 3: Reuse pre-computed ATR instead of recalculating 3 times
     if (entryExit && entryExit.entryPrice > 0) {
       // AI panel provided explicit entry/SL/TP — use directly (stable, not price-dependent)
       entry = entryExit.entryPrice;
       sl = entryExit.stopLoss;
       tp = entryExit.takeProfit;
       dir = entryExit.direction;
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     } else if (signal && signal.entry > 0) {
       // AI council signal — use directly (stable, not price-dependent)
       entry = signal.entry;
       sl = signal.sl;
       tp = signal.tp;
       dir = signal.dir === 'BUY' ? 'long' : 'short';
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     } else {
       // Fallback: Use STABLE cached entry (recalculated only on candle close)
       // This is the FIX for "dancing lines" — old code used lastPrice which
@@ -858,11 +994,6 @@ export function renderOverlays(
       sl = stable.sl;
       tp = stable.tp;
       dir = stable.dir;
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     }
 
     // ATR/10 grid rounding — snap entry/SL/TP to the nearest ATR/10 grid step.
@@ -1474,6 +1605,9 @@ export function renderOverlays(
   if (!showTrade) {
     registry.clearType('trade');
   }
+  if (!showOB) {
+    registry.clearType('ob');
+  }
 
   } finally {
     // Always release the mutex, even if an error occurred
@@ -1520,6 +1654,17 @@ export function renderAnalysisOverlays(
   const showLiq = ov.liq === true;
   const showTrade = ov.trade === true;
 
+  // PHASE 3: Compute ATR once for this render cycle (same as renderOverlays)
+  const _atrPeriod = 14;
+  const atr = closedCandles.length >= _atrPeriod ? (() => {
+    const sl = closedCandles.slice(-_atrPeriod);
+    const trs = sl.map((c, i) => i === 0
+      ? c.high - c.low
+      : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low)
+    );
+    return trs.reduce((s, v) => s + v, 0) / trs.length;
+  })() : (closedCandles.length > 0 ? closedCandles[closedCandles.length - 1].close * 0.01 : 1);
+
   // ── Helper: safe price line ──
   const safeAddPriceLine = (id: string, price: number, color: string, label: string, lw: number, ls: number, axisVisible: boolean, _type: OverlayType) => {
     if (!addPriceLine) return;
@@ -1563,30 +1708,15 @@ export function renderAnalysisOverlays(
     const signal = input.signal;
     const entryExit = input.entryExit;
     let entry: number, sl: number, tp: number, dir: string;
-    let atr: number;
+    // PHASE 3: Reuse pre-computed ATR (computed at top of function)
     if (entryExit && entryExit.entryPrice > 0) {
       entry = entryExit.entryPrice; sl = entryExit.stopLoss; tp = entryExit.takeProfit; dir = entryExit.direction;
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     } else if (signal && signal.entry > 0) {
       entry = signal.entry; sl = signal.sl; tp = signal.tp; dir = signal.dir === 'BUY' ? 'long' : 'short';
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     } else {
       // Use STABLE cached entry (same as renderOverlays)
       const stable = getStableFallbackEntry(candles);
       entry = stable.entry; sl = stable.sl; tp = stable.tp; dir = stable.dir;
-      atr = closedCandles.length >= 14 ? (() => {
-        const sl2 = closedCandles.slice(-14);
-        const trs = sl2.map((c, i) => i === 0 ? c.high - c.low : Math.max(c.high - c.close, Math.abs(c.low - c.close), c.high - c.low));
-        return trs.reduce((s, v) => s + v, 0) / trs.length;
-      })() : entry * 0.01;
     }
     // ATR/10 grid rounding — snap entry/SL/TP to prevent micro-jitter
     const gridStep = atr / 10;

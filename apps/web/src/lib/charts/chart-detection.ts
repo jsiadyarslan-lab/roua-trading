@@ -967,3 +967,316 @@ export function detectFVGs(candles: CandleData[]): FVGZone[] {
   // Return up to 5 most recent unfilled FVGs
   return fvgs.filter(f => !f.filled).slice(-5);
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// 9. ORDER BLOCK (OB) DETECTION — Phase 4
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface OrderBlock {
+  type: 'bullish' | 'bearish';
+  highPrice: number;       // Top of the order block zone
+  lowPrice: number;        // Bottom of the order block zone
+  startIndex: number;      // Index of the OB candle
+  startTime: number;       // Time of the OB candle
+  endIndex: number;        // Index where OB was confirmed (BOS candle)
+  endTime: number;         // Time where OB was confirmed
+  strength: number;        // 1-5 based on volume and breakout momentum
+  mitigated: boolean;      // Whether price has returned to the OB zone
+  mitigationIndex?: number; // Index where mitigation happened
+  mitigationTime?: number; // Time where mitigation happened
+  labelAr: string;         // Arabic label for display
+}
+
+/**
+ * PHASE 4: Detect Order Blocks from BOS breaks.
+ *
+ * An Order Block is the last bearish candle before a bullish BOS
+ * (or the last bullish candle before a bearish BOS). It represents
+ * the institutional order that caused the breakout.
+ *
+ * Key rules:
+ * - Bullish OB: Last bearish (close < open) candle before bullish BOS
+ * - Bearish OB: Last bullish (close > open) candle before bearish BOS
+ * - OB zone = [candle open, candle close] (body only, not wicks)
+ * - Strength based on: volume ratio, BOS momentum, ATR relative size
+ * - Mitigation: price returns to OB zone after confirmation
+ */
+export function detectOrderBlocks(
+  candles: CandleData[],
+  bosBreaks: DetectedBOS[],
+): OrderBlock[] {
+  const obs: OrderBlock[] = [];
+  if (candles.length < 20 || bosBreaks.length === 0) return obs;
+
+  const atrValues = computeATR(candles, 14);
+  const recentATR = atrValues[atrValues.length - 1] || (candles[candles.length - 1].high - candles[candles.length - 1].low);
+
+  for (const bos of bosBreaks) {
+    // Search backwards from the BOS candle for the OB candle
+    const searchStart = Math.max(0, bos.breakIndex - 10);
+    let obCandle: CandleData | null = null;
+    let obIndex = -1;
+
+    if (bos.direction === 'bullish') {
+      // Bullish OB: Find last bearish candle (close < open) before BOS
+      for (let i = bos.breakIndex - 1; i >= searchStart; i--) {
+        const c = candles[i];
+        if (c.close < c.open) { // Bearish candle
+          obCandle = c;
+          obIndex = i;
+          break;
+        }
+      }
+    } else {
+      // Bearish OB: Find last bullish candle (close > open) before BOS
+      for (let i = bos.breakIndex - 1; i >= searchStart; i--) {
+        const c = candles[i];
+        if (c.close > c.open) { // Bullish candle
+          obCandle = c;
+          obIndex = i;
+          break;
+        }
+      }
+    }
+
+    if (!obCandle || obIndex < 0) continue;
+
+    // OB zone is the candle body (open-close range, not wicks)
+    const obHigh = Math.max(obCandle.open, obCandle.close);
+    const obLow = Math.min(obCandle.open, obCandle.close);
+
+    // Calculate strength (1-5)
+    // - Volume ratio: OB candle volume vs average
+    // - BOS momentum: how far price moved beyond the BOS level
+    // - OB size relative to ATR
+    const avgVolume = candles.slice(-20).reduce((s, c) => s + (c.volume || 0), 0) / 20;
+    const volRatio = avgVolume > 0 ? (obCandle.volume || 0) / avgVolume : 1;
+    const obSizeATR = recentATR > 0 ? (obHigh - obLow) / recentATR : 1;
+    const bosMomentum = Math.abs(bos.breakPrice - bos.brokenLevel) / (recentATR || 1);
+
+    let strength = 1;
+    if (volRatio > 2) strength++;
+    if (volRatio > 3) strength++;
+    if (obSizeATR > 0.5) strength++;
+    if (bosMomentum > 1.5) strength++;
+    strength = Math.min(5, Math.max(1, strength));
+
+    // Check if OB has been mitigated (price returned to OB zone)
+    let mitigated = false;
+    let mitigationIndex: number | undefined;
+    let mitigationTime: number | undefined;
+    for (let i = bos.breakIndex + 1; i < candles.length; i++) {
+      const c = candles[i];
+      if (c.low <= obHigh && c.high >= obLow) {
+        // Price entered the OB zone
+        // For bullish OB: mitigation means price dipped into OB zone
+        // For bearish OB: mitigation means price rallied into OB zone
+        if ((bos.direction === 'bullish' && c.low <= obHigh) ||
+            (bos.direction === 'bearish' && c.high >= obLow)) {
+          mitigated = true;
+          mitigationIndex = i;
+          mitigationTime = c.time;
+          break;
+        }
+      }
+    }
+
+    obs.push({
+      type: bos.direction,
+      highPrice: obHigh,
+      lowPrice: obLow,
+      startIndex: obIndex,
+      startTime: obCandle.time,
+      endIndex: bos.breakIndex,
+      endTime: bos.breakTime,
+      strength,
+      mitigated,
+      mitigationIndex,
+      mitigationTime,
+      labelAr: bos.direction === 'bullish' ? 'بلوك شراء' : 'بلوك بيع',
+    });
+  }
+
+  // Deduplicate: if two OBs overlap significantly (within 0.5 ATR), keep the stronger one
+  const deduped: OrderBlock[] = [];
+  for (const ob of obs) {
+    const overlapping = deduped.find(d =>
+      Math.abs(d.highPrice - ob.highPrice) < recentATR * 0.5 &&
+      Math.abs(d.lowPrice - ob.lowPrice) < recentATR * 0.5
+    );
+    if (!overlapping) {
+      deduped.push(ob);
+    } else if (ob.strength > overlapping.strength) {
+      // Replace with stronger OB
+      const idx = deduped.indexOf(overlapping);
+      deduped[idx] = ob;
+    }
+  }
+
+  return deduped.slice(0, 8); // Max 8 order blocks
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// 10. ENHANCED FVG DETECTION with Fill Tracking — Phase 4
+// ═══════════════════════════════════════════════════════════════════════
+
+export interface FVGZoneEnhanced extends FVGZone {
+  fillPercent: number;     // 0 = unfilled, 1 = fully filled
+  fillHighPrice: number;   // Highest price that entered the gap
+  fillLowPrice: number;    // Lowest price that entered the gap
+  confluenceWithOB: boolean; // Whether this FVG overlaps with an Order Block
+  obLabel?: string;        // Label of overlapping OB
+}
+
+/**
+ * PHASE 4: Enhanced FVG detection with fill tracking and OB confluence.
+ *
+ * Improvements over basic detectFVGs:
+ * 1. Tracks partial fills (what % of the gap has been filled)
+ * 2. Returns both filled and unfilled FVGs (filled ones are still useful for context)
+ * 3. Detects confluence with Order Blocks (FVG + OB = high-probability zone)
+ * 4. More accurate fill detection using candle bodies, not just close price
+ */
+export function detectFVGsEnhanced(
+  candles: CandleData[],
+  orderBlocks: OrderBlock[],
+): FVGZoneEnhanced[] {
+  const fvgs: FVGZoneEnhanced[] = [];
+  if (candles.length < 3) return fvgs;
+
+  const lookback = Math.min(60, candles.length);
+  const startIdx = candles.length - lookback;
+
+  const atrValues = computeATR(candles, 14);
+  const recentATR = atrValues[atrValues.length - 1] || (candles[candles.length - 1].high - candles[candles.length - 1].low);
+  const minGapSize = recentATR * 0.15;
+
+  for (let i = startIdx + 2; i < candles.length; i++) {
+    const prev = candles[i - 2];
+    const curr = candles[i];
+
+    // Bullish FVG
+    if (curr.low > prev.high) {
+      const gapSize = curr.low - prev.high;
+      if (gapSize >= minGapSize) {
+        const gapHigh = curr.low;
+        const gapLow = prev.high;
+
+        // Check fill percentage: how much of the gap has been filled by subsequent candles
+        let fillHighPrice = gapHigh;
+        let fillLowPrice = gapLow;
+        let fillPercent = 0;
+
+        for (let j = i + 1; j < candles.length; j++) {
+          const c = candles[j];
+          // Check if this candle intrudes into the gap
+          if (c.low <= gapHigh && c.high >= gapLow) {
+            // Calculate how much of the gap was filled
+            const intrusionHigh = Math.min(c.high, gapHigh);
+            const intrusionLow = Math.max(c.low, gapLow);
+            const intrusionSize = intrusionHigh - intrusionLow;
+            const gapSize2 = gapHigh - gapLow;
+            const thisFill = gapSize2 > 0 ? intrusionSize / gapSize2 : 0;
+            fillPercent = Math.max(fillPercent, thisFill);
+            fillHighPrice = Math.min(fillHighPrice, intrusionHigh);
+            fillLowPrice = Math.max(fillLowPrice, intrusionLow);
+          }
+          // For bullish FVG, if price drops below gap, it's fully filled
+          if (c.low <= gapLow) {
+            fillPercent = 1;
+            break;
+          }
+        }
+
+        // Check confluence with Order Blocks
+        let confluenceWithOB = false;
+        let obLabel: string | undefined;
+        for (const ob of orderBlocks) {
+          // FVG overlaps with OB if their price ranges intersect
+          if (gapHigh >= ob.lowPrice && gapLow <= ob.highPrice) {
+            confluenceWithOB = true;
+            obLabel = ob.labelAr;
+            break;
+          }
+        }
+
+        fvgs.push({
+          type: 'bullish',
+          highPrice: gapHigh,
+          lowPrice: gapLow,
+          startIndex: i - 2,
+          startTime: prev.time,
+          endIndex: i,
+          endTime: curr.time,
+          filled: fillPercent >= 0.8,
+          fillPercent,
+          fillHighPrice,
+          fillLowPrice,
+          confluenceWithOB,
+          obLabel,
+        });
+      }
+    }
+
+    // Bearish FVG
+    if (curr.high < prev.low) {
+      const gapSize = prev.low - curr.high;
+      if (gapSize >= minGapSize) {
+        const gapHigh = prev.low;
+        const gapLow = curr.high;
+
+        let fillHighPrice = gapHigh;
+        let fillLowPrice = gapLow;
+        let fillPercent = 0;
+
+        for (let j = i + 1; j < candles.length; j++) {
+          const c = candles[j];
+          if (c.low <= gapHigh && c.high >= gapLow) {
+            const intrusionHigh = Math.min(c.high, gapHigh);
+            const intrusionLow = Math.max(c.low, gapLow);
+            const intrusionSize = intrusionHigh - intrusionLow;
+            const gapSize2 = gapHigh - gapLow;
+            const thisFill = gapSize2 > 0 ? intrusionSize / gapSize2 : 0;
+            fillPercent = Math.max(fillPercent, thisFill);
+            fillHighPrice = Math.min(fillHighPrice, intrusionHigh);
+            fillLowPrice = Math.max(fillLowPrice, intrusionLow);
+          }
+          // For bearish FVG, if price rises above gap, it's fully filled
+          if (c.high >= gapHigh) {
+            fillPercent = 1;
+            break;
+          }
+        }
+
+        let confluenceWithOB = false;
+        let obLabel: string | undefined;
+        for (const ob of orderBlocks) {
+          if (gapHigh >= ob.lowPrice && gapLow <= ob.highPrice) {
+            confluenceWithOB = true;
+            obLabel = ob.labelAr;
+            break;
+          }
+        }
+
+        fvgs.push({
+          type: 'bearish',
+          highPrice: gapHigh,
+          lowPrice: gapLow,
+          startIndex: i - 2,
+          startTime: prev.time,
+          endIndex: i,
+          endTime: curr.time,
+          filled: fillPercent >= 0.8,
+          fillPercent,
+          fillHighPrice,
+          fillLowPrice,
+          confluenceWithOB,
+          obLabel,
+        });
+      }
+    }
+  }
+
+  // Return up to 8 FVGs (both filled and unfilled for context)
+  return fvgs.slice(-8);
+}

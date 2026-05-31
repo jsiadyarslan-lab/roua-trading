@@ -13,7 +13,7 @@
 import type { ISeriesApi, SeriesType } from 'lightweight-charts';
 import type { ISeriesPrimitive } from 'lightweight-charts';
 
-export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts' | 'mtf' | 'trade' | 'liq' | 'heatmap' | 'bayesian' | 'fusion';
+export type OverlayType = 'sr' | 'trend' | 'harmonic' | 'fvg' | 'bos' | 'geo' | 'ew' | 'wyckoff' | 'vp' | 'entry' | 'alerts' | 'mtf' | 'trade' | 'liq' | 'heatmap' | 'bayesian' | 'fusion' | 'ob';
 
 interface OverlayGroup {
   primitives: ISeriesPrimitive[];
@@ -56,6 +56,21 @@ export class OverlayRegistry {
   // creation → visual flicker.
   private _rendering = false;
 
+  // PHASE 3: Primitive count limit per type to prevent memory leaks.
+  // If too many primitives accumulate (e.g., from a very long chart session
+  // with many toggles), the browser can slow down or crash.
+  private readonly MAX_PRIMITIVES_PER_TYPE = 50;
+
+  // PHASE 3: Total primitive count limit across all types.
+  private readonly MAX_TOTAL_PRIMITIVES = 300;
+
+  // PHASE 3: Render debounce — batch rapid render calls.
+  // If renderOverlays is called within this window, the second call
+  // is queued and executed after the window expires.
+  private _renderDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+  private _pendingRender: (() => void) | null = null;
+  private readonly RENDER_DEBOUNCE_MS = 16; // ~1 frame at 60fps
+
   /** Acquire the render lock. Returns false if another render is in progress. */
   acquireRenderLock(): boolean {
     if (this._rendering) return false;
@@ -69,7 +84,7 @@ export class OverlayRegistry {
   }
 
   constructor() {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion', 'ob'];
     for (const type of types) {
       this.groups.set(type, { primitives: [], active: false, priceLineIds: [] });
     }
@@ -144,9 +159,50 @@ export class OverlayRegistry {
       console.warn('[OverlayRegistry] No series attached, cannot add primitive');
       return;
     }
+
+    // PHASE 3: Enforce primitive count limits to prevent memory leaks.
+    // If a type has too many primitives, remove the oldest ones first.
+    const group = this.groups.get(type);
+    if (group && group.primitives.length >= this.MAX_PRIMITIVES_PER_TYPE) {
+      // Remove oldest primitives (first in array)
+      const excess = group.primitives.length - this.MAX_PRIMITIVES_PER_TYPE + 1;
+      for (let i = 0; i < excess; i++) {
+        const old = group.primitives[i];
+        try { this.series.detachPrimitive(old); } catch { /* already detached */ }
+      }
+      group.primitives = group.primitives.slice(excess);
+    }
+
+    // PHASE 3: Check total primitive count across all types
+    const totalCount = this.getTotalPrimitiveCount();
+    if (totalCount >= this.MAX_TOTAL_PRIMITIVES) {
+      // Trim the largest type to free up space
+      let maxType: OverlayType | null = null;
+      let maxCount = 0;
+      this.groups.forEach((g, t) => {
+        if (g.primitives.length > maxCount) { maxCount = g.primitives.length; maxType = t; }
+      });
+      if (maxType && maxCount > 5) {
+        const g = this.groups.get(maxType)!;
+        const trim = Math.ceil(maxCount * 0.3); // Remove 30% of largest type
+        for (let i = 0; i < trim; i++) {
+          const old = g.primitives[i];
+          try { this.series.detachPrimitive(old); } catch { /* already detached */ }
+        }
+        g.primitives = g.primitives.slice(trim);
+        // Also trim price lines
+        const plTrim = Math.min(trim, g.priceLineIds.length);
+        if (this.removePriceLineFn) {
+          for (let i = 0; i < plTrim; i++) {
+            try { this.removePriceLineFn(g.priceLineIds[i]); } catch { /* gone */ }
+          }
+        }
+        g.priceLineIds = g.priceLineIds.slice(plTrim);
+      }
+    }
+
     try {
       this.series.attachPrimitive(primitive);
-      const group = this.groups.get(type);
       if (group) {
         group.primitives.push(primitive);
         group.active = true;
@@ -201,7 +257,7 @@ export class OverlayRegistry {
 
   /** Clear all overlay primitives and price lines */
   clearAll(): void {
-    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion'];
+    const types: OverlayType[] = ['sr', 'trend', 'harmonic', 'fvg', 'bos', 'geo', 'ew', 'wyckoff', 'vp', 'entry', 'alerts', 'mtf', 'trade', 'liq', 'heatmap', 'bayesian', 'fusion', 'ob'];
     for (const type of types) {
       this.clearType(type);
     }
@@ -268,6 +324,37 @@ export class OverlayRegistry {
   getCount(type: OverlayType): number {
     const group = this.groups.get(type);
     return group ? group.primitives.length : 0;
+  }
+
+  /** PHASE 3: Get total primitive count across all types */
+  getTotalPrimitiveCount(): number {
+    let total = 0;
+    this.groups.forEach((group) => {
+      total += group.primitives.length;
+    });
+    return total;
+  }
+
+  /**
+   * PHASE 3: Debounced render — batch rapid render calls into one.
+   *
+   * Usage:
+   *   registry.debouncedRender(() => renderOverlays(series, input, addLine, removeLine));
+   *
+   * If called multiple times within 16ms (one frame), only the last
+   * call's render function executes. This prevents duplicate rendering
+   * when WebSocket + timer + user toggle fire in the same frame.
+   */
+  debouncedRender(renderFn: () => void): void {
+    this._pendingRender = renderFn;
+    if (!this._renderDebounceTimer) {
+      this._renderDebounceTimer = setTimeout(() => {
+        this._renderDebounceTimer = null;
+        const fn = this._pendingRender;
+        this._pendingRender = null;
+        if (fn) fn();
+      }, this.RENDER_DEBOUNCE_MS);
+    }
   }
 
   /** Destroy the registry — clears everything and nulls references */

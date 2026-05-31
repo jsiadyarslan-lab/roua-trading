@@ -159,7 +159,18 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.['roua_refresh'];
+    // Check refresh token from cookie, Authorization header, or custom header
+    // Mobile/native clients send tokens via headers since they can't set httpOnly cookies
+    let refreshToken = req.cookies?.['roua_refresh'];
+    if (!refreshToken) {
+      const authHeader = req.headers.authorization;
+      if (authHeader?.startsWith('Bearer ')) {
+        refreshToken = authHeader.slice(7).trim();
+      }
+    }
+    if (!refreshToken) {
+      refreshToken = req.headers['x-roua-refresh'] as string | undefined;
+    }
     const userAgent = req.headers['user-agent'];
     const ipAddress = req.ip || req.socket.remoteAddress;
 
@@ -190,7 +201,17 @@ export class AuthController {
         });
       }
 
-      return { success: true, authenticated: true, user: result.user };
+      return {
+        success: true,
+        authenticated: true,
+        user: result.user,
+        // Include tokens in response body for mobile/native clients
+        // that can't read httpOnly Set-Cookie headers
+        data: {
+          token: result.sessionToken,
+          refresh: result.refreshToken,
+        },
+      };
     } catch (error: any) {
       // Refresh failed — clear both cookies
       res.clearCookie('roua_session');

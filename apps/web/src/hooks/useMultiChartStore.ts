@@ -72,6 +72,11 @@ interface MultiChartState {
 
   // Reset to single chart
   resetToSingle: (mainSymbol: string, mainTimeframe: string) => void;
+
+  // Panel state version — incremented on any panel toggle in a mini chart.
+  // Forces the main chart toolbar to re-render and update button highlights.
+  panelStateVersion: number;
+  bumpPanelStateVersion: () => void;
 }
 
 export const useMultiChartStore = create<MultiChartState>()(
@@ -235,6 +240,9 @@ export const useMultiChartStore = create<MultiChartState>()(
           expandedChartId: null,
         });
       },
+
+      panelStateVersion: 0,
+      bumpPanelStateVersion: () => set(s => ({ panelStateVersion: (s.panelStateVersion ?? 0) + 1 })),
     }),
     {
       name: 'roua-multi-chart',
@@ -248,6 +256,19 @@ export const useMultiChartStore = create<MultiChartState>()(
     }
   )
 );
+
+// ── Sync cellIdCounter with persisted chart IDs ──
+// After store rehydration, the counter might be out of sync with persisted
+// chart IDs (e.g., after page reload). This prevents duplicate chart IDs.
+try {
+  const persistedCharts = useMultiChartStore.getState().charts;
+  let maxId = 0;
+  for (const c of persistedCharts) {
+    const match = c.id.match(/^mc-(\d+)$/);
+    if (match) maxId = Math.max(maxId, parseInt(match[1]));
+  }
+  cellIdCounter = maxId;
+} catch {}
 
 // ── Active Chart Control ──
 // References useMultiChartStore — MUST be after the store definition.

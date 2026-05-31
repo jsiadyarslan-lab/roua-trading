@@ -61,6 +61,8 @@ export interface ChartControlAPI {
   isReplayOpen: boolean;
   isHeatmapOpen: boolean;
   isAIStreamOpen: boolean;
+  isDrawingPanelOpen: boolean;
+  isIndicatorPanelOpen: boolean;
 }
 
 // ── Types ────────────────────────────────────────────────

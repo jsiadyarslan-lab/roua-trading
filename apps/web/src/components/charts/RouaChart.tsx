@@ -382,6 +382,8 @@ export default function RouaChart({
   const setActiveChartId = useMultiChartStore(s => s.setActiveChartId);
   const changeLayout = useMultiChartStore(s => s.changeLayout);
   const resetToSingle = useMultiChartStore(s => s.resetToSingle);
+  // Panel state version — forces toolbar re-render when panels toggle on grid cells
+  const _panelStateVersion = useMultiChartStore(s => !isGridCell ? (s.panelStateVersion ?? 0) : 0);
   const expandedChartId = useMultiChartStore(s => !isGridCell ? (s.expandedChartId ?? null) : null);
   const toggleExpandChart = useMultiChartStore(s => s.toggleExpandChart);
   const [crosshairData, setCrosshairData] = useState<CrosshairData | null>(null);
@@ -401,7 +403,11 @@ export default function RouaChart({
   const [showVolumeProfile, setShowVolumeProfile] = useState(false);
   const [showAIPanel, setShowAIPanel] = useState(false);
   const showAIPanelRef = useRef(showAIPanel);
-  useEffect(() => { showAIPanelRef.current = showAIPanel; }, [showAIPanel]);
+  showAIPanelRef.current = showAIPanel; // synchronous: needed by ChartControlAPI getters
+  const showDrawingPanelRef = useRef(showDrawingPanel);
+  showDrawingPanelRef.current = showDrawingPanel;
+  const showIndicatorPanelRef = useRef(showIndicatorPanel);
+  showIndicatorPanelRef.current = showIndicatorPanel;
   const [aiPanelCandles, setAiPanelCandles] = useState<CandleData[]>([]);
   const [showChartTrading, setShowChartTrading] = useState(false);
   const [showTemplateManager, setShowTemplateManager] = useState(false);
@@ -422,25 +428,25 @@ export default function RouaChart({
   const [showAIStream, setShowAIStream] = useState(false);
   // ── Panel state refs (for ChartControlAPI getters — avoid stale closures) ──
   const showVolumeProfileRef = useRef(showVolumeProfile);
-  useEffect(() => { showVolumeProfileRef.current = showVolumeProfile; }, [showVolumeProfile]);
+  showVolumeProfileRef.current = showVolumeProfile; // synchronous: needed by ChartControlAPI getters
   const showChartTradingRef = useRef(showChartTrading);
-  useEffect(() => { showChartTradingRef.current = showChartTrading; }, [showChartTrading]);
+  showChartTradingRef.current = showChartTrading; // synchronous: needed by ChartControlAPI getters
   const showWatchlistRef = useRef(showWatchlist);
-  useEffect(() => { showWatchlistRef.current = showWatchlist; }, [showWatchlist]);
+  showWatchlistRef.current = showWatchlist; // synchronous: needed by ChartControlAPI getters
   const showCompareRef = useRef(showCompare);
-  useEffect(() => { showCompareRef.current = showCompare; }, [showCompare]);
+  showCompareRef.current = showCompare; // synchronous: needed by ChartControlAPI getters
   const showFootprintRef = useRef(showFootprint);
-  useEffect(() => { showFootprintRef.current = showFootprint; }, [showFootprint]);
+  showFootprintRef.current = showFootprint; // synchronous: needed by ChartControlAPI getters
   const showAlertsRef = useRef(showAlerts);
-  useEffect(() => { showAlertsRef.current = showAlerts; }, [showAlerts]);
+  showAlertsRef.current = showAlerts; // synchronous: needed by ChartControlAPI getters
   const showPatternProgressRef = useRef(showPatternProgress);
-  useEffect(() => { showPatternProgressRef.current = showPatternProgress; }, [showPatternProgress]);
+  showPatternProgressRef.current = showPatternProgress; // synchronous: needed by ChartControlAPI getters
   const showReplayRef = useRef(showReplay);
-  useEffect(() => { showReplayRef.current = showReplay; }, [showReplay]);
+  showReplayRef.current = showReplay; // synchronous: needed by ChartControlAPI getters
   const showHeatmapRef = useRef(showHeatmap);
-  useEffect(() => { showHeatmapRef.current = showHeatmap; }, [showHeatmap]);
+  showHeatmapRef.current = showHeatmap; // synchronous: needed by ChartControlAPI getters
   const showAIStreamRef = useRef(showAIStream);
-  useEffect(() => { showAIStreamRef.current = showAIStream; }, [showAIStream]);
+  showAIStreamRef.current = showAIStream; // synchronous: needed by ChartControlAPI getters
   // ── Quick Trade Panel State ──
   const [showQuickTrade, setShowQuickTrade] = useState(false);
   // ── Command Palette (Ctrl+K) ──
@@ -606,22 +612,22 @@ export default function RouaChart({
           removePriceLine: chart.removePriceLine,
           setCrosshairMode: chart.setCrosshairMode,
           // ── Panel toggles — route main toolbar actions to this mini chart ──
-          toggleDrawings: () => setShowDrawingPanel(prev => !prev),
-          toggleIndicators: () => setShowIndicatorPanel(prev => !prev),
-          toggleAIPanel: () => setShowAIPanel(prev => !prev),
-          toggleVolumeProfile: () => setShowVolumeProfile(prev => !prev),
-          toggleChartTrading: () => setShowChartTrading(prev => !prev),
-          toggleTemplateManager: () => setShowTemplateManager(prev => !prev),
-          toggleWatchlist: () => setShowWatchlist(prev => !prev),
-          toggleChartSettings: () => setShowChartSettings(prev => !prev),
-          toggleCompare: () => setShowCompare(prev => !prev),
-          toggleFootprint: () => setShowFootprint(prev => !prev),
-          toggleAlerts: () => setShowAlerts(prev => !prev),
-          togglePatternProgress: () => setShowPatternProgress(prev => !prev),
-          toggleReplay: () => setShowReplay(prev => !prev),
-          toggleHeatmap: () => setShowHeatmap(prev => !prev),
-          toggleAIStream: () => setShowAIStream(prev => !prev),
-          toggleShare: () => setShowShare(prev => !prev),
+          toggleDrawings: () => { setShowDrawingPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleIndicators: () => { setShowIndicatorPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAIPanel: () => { setShowAIPanel(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleVolumeProfile: () => { setShowVolumeProfile(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleChartTrading: () => { setShowChartTrading(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleTemplateManager: () => { setShowTemplateManager(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleWatchlist: () => { setShowWatchlist(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleChartSettings: () => { setShowChartSettings(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleCompare: () => { setShowCompare(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleFootprint: () => { setShowFootprint(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAlerts: () => { setShowAlerts(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          togglePatternProgress: () => { setShowPatternProgress(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleReplay: () => { setShowReplay(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleHeatmap: () => { setShowHeatmap(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleAIStream: () => { setShowAIStream(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
+          toggleShare: () => { setShowShare(prev => !prev); useMultiChartStore.getState().bumpPanelStateVersion(); },
           // ── Panel state getters (use refs to avoid stale closures) ──
           get isAIPanelOpen() { return showAIPanelRef.current; },
           get isVolumeProfileOpen() { return showVolumeProfileRef.current; },
@@ -634,6 +640,8 @@ export default function RouaChart({
           get isReplayOpen() { return showReplayRef.current; },
           get isHeatmapOpen() { return showHeatmapRef.current; },
           get isAIStreamOpen() { return showAIStreamRef.current; },
+          get isDrawingPanelOpen() { return showDrawingPanelRef.current; },
+          get isIndicatorPanelOpen() { return showIndicatorPanelRef.current; },
         };
         registerChartControl(chartId, controlApi);
         return true;

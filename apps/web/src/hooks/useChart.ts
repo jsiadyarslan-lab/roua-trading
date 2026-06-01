@@ -1076,7 +1076,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m data render as dots.
     const s = sanitizeOhlc(updated.open, updated.high, updated.low, updated.close);
     const sanitized = { ...updated, open: s.open, high: s.high, low: s.low, close: s.close };
-    candlesRef.current = [...candles.slice(0, -1), sanitized]; // Immutable update to avoid stale refs
+    // PERF FIX: Mutate last element directly instead of creating new array
+    // [...candles.slice(0,-1), sanitized] = O(n) allocation on every tick
+    // Direct mutation = O(1), no GC pressure
+    candlesRef.current[candlesRef.current.length - 1] = sanitized;
 
     if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
 

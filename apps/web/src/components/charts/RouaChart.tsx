@@ -882,7 +882,10 @@ export default function RouaChart({
         const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
         const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
         candlesRef.current.push(sanitizedCandle);
-        setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
+        // PERF FIX: Use updateCandleRef (O(1) series.update) instead of full setData()
+        // setData() destroys and recreates all indicator series → "rubbery" animation
+        // updateCandleRef only updates the single new candle, indicators stay intact
+        updateCandleRef.current(sanitizedCandle);
       }
 
       // REVOLUTIONARY: Incremental computation update (O(1) per candle)
@@ -1109,13 +1112,15 @@ export default function RouaChart({
   // every 60 seconds to keep indicator values accurate without the
   // overhead of rebuilding on every WebSocket tick.
   useEffect(() => {
-    const INDICATOR_REFRESH_MS = 60_000;
+    // PERF FIX: Was 60s — caused "rubbery" candle animation every minute
+    // Indicators stay accurate via incremental updates; full rebuild only needed rarely
+    const INDICATOR_REFRESH_MS = 5 * 60_000; // 5 minutes instead of 60s
     const interval = setInterval(() => {
       try {
         if (candlesRef.current.length === 0) return;
-        // Trigger full setCandles without skipIndicatorRebuild
-        // to rebuild all active indicators with fresh data
-        setCandlesRef.current([...candlesRef.current]);
+        // Use skipIndicatorRebuild to avoid destroying/recreating series visually
+        // This prevents the "rubber band" effect on the chart every minute
+        setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
       } catch { /* non-critical */ }
     }, INDICATOR_REFRESH_MS);
 

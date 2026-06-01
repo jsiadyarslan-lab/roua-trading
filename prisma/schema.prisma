@@ -388,6 +388,9 @@ model Position {
   source         String?            @default("user_manual")
   version        Int                @default(0) // FIX: Optimistic locking — prevents concurrent close race condition
   exchangeSymbol String? // FIX: Exchange-specific symbol (e.g. BTCUSD for Alpaca) for reconciliation
+  // V175: ربط المركز بالـ brief الذي أصدره — للتعلم من النتائج
+  briefId        String?
+  brief          TradingBrief?      @relation(fields: [briefId], references: [id], onDelete: SetNull)
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
   trades         Trade[]
@@ -399,6 +402,7 @@ model Position {
   @@index([userId, status])
   @@index([userId, symbol, status])
   @@index([userId, symbol, side, status])
+  @@index([briefId])
 }
 
 model Trade {
@@ -1234,11 +1238,17 @@ model TradingBrief {
   // Analysis Context
   analysisSummary String? // AI reasoning / context for this brief
 
+  // V175: نتيجة الـ brief بعد تنفيذه — للتعلم من الأخطاء
+  outcome    String?   // WIN / LOSS / BREAKEVEN
+  actualPnl  Decimal?  @db.Decimal(18, 4)
+  outcomeAt  DateTime?
+
   // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  positions Position[]
 
   @@index([userId])
   @@index([pair])

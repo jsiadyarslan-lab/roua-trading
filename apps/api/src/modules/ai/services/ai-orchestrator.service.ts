@@ -913,15 +913,72 @@ export class AIOrchestratorService implements OnModuleDestroy {
         });
       }
 
-      // ── Add 9th model (Prediction Market) vote if available ──
+      // ── Add 9th model (Prediction Market) vote — V175: Dynamic Weight ──
+      // الأحداث الكبيرة (FOMC, halving, regulation) تُؤثر فعلاً على المجلس
       if (predictionMarketVote) {
         const pmConf = predictionMarketVote.confidence / 100;
-        if (predictionMarketVote.vote === 'BUY') { buyWeight += pmConf; buyConfidences.push(pmConf); }
-        else if (predictionMarketVote.vote === 'SELL') { sellWeight += pmConf; sellConfidences.push(pmConf); }
-        else { holdWeight += pmConf; holdConfidences.push(pmConf); }
-        totalConfidence += pmConf;
+        // وزن ديناميكي: كلما كان Prediction Market واثقاً أكثر، وزنه أعلى
+        const pmWeight = pmConf > 0.70 ? 3.0   // ثقة عالية جداً → 3x وزن
+                       : pmConf > 0.55 ? 1.8   // ثقة عالية → 1.8x
+                       : pmConf > 0.40 ? 1.0   // ثقة متوسطة → وزن عادي
+                       :                 0.4;  // ثقة منخفضة → تقليل التأثير
+        const pmWeightedConf = pmConf * pmWeight;
 
-        analyses.push(predictionMarketVote);
+        if (predictionMarketVote.vote === 'BUY')  { buyWeight  += pmWeightedConf; buyConfidences.push(pmWeightedConf); }
+        else if (predictionMarketVote.vote === 'SELL') { sellWeight += pmWeightedConf; sellConfidences.push(pmWeightedConf); }
+        else { holdWeight += pmConf; holdConfidences.push(pmConf); }
+        totalConfidence += pmWeightedConf;
+
+        analyses.push({
+          ...predictionMarketVote,
+          reason: predictionMarketVote.reason + ` [weight×${pmWeight.toFixed(1)}]`,
+        });
+      }
+
+      // ── Add 10th vote: Advanced Scanner (SmartScore) ──
+      // يقرأ مباشرة من Redis — بدون circular dependency
+      // Scanner:deep:SYMBOL يُحدَّث كل 2 دقيقة بالتحليل الفني الكامل
+      try {
+        const scannerCacheKey = `scanner:deep:${symbol.replace('/','').replace('-','')}`;
+        // جرب أشكال مختلفة للـ symbol
+        const scannerKeys = [
+          `scanner:deep:${symbol}`,
+          `scanner:deep:${symbol.replace('/USDT','').replace('/USD','')}USDT`,
+          scannerCacheKey,
+        ];
+        let scannerData: any = null;
+        for (const key of scannerKeys) {
+          const raw = await this.redis?.get(key);
+          if (raw) { scannerData = JSON.parse(raw); break; }
+        }
+
+        if (scannerData?.smartScore && scannerData.smartScore.action !== 'HOLD') {
+          const isBuy    = scannerData.smartScore.action.includes('BUY');
+          const rawScore = Math.abs(scannerData.smartScore.score || 0); // 0-100
+          const scanConf = rawScore / 100;
+
+          // وزن Scanner أعلى لأنه تحليل فني حقيقي لا توقعات لغوية
+          // STRONG_BUY/STRONG_SELL → وزن 2x | BUY/SELL → وزن 1.2x
+          const isStrong  = scannerData.smartScore.action.includes('STRONG');
+          const scanWeight = isStrong ? 2.0 : 1.2;
+          const scanWeightedConf = scanConf * scanWeight;
+
+          if (isBuy)  { buyWeight  += scanWeightedConf; buyConfidences.push(scanWeightedConf); }
+          else        { sellWeight += scanWeightedConf; sellConfidences.push(scanWeightedConf); }
+          totalConfidence += scanWeightedConf;
+
+          analyses.push({
+            role:       'السكانر الفني المتقدم',
+            model:      'TechnicalScanner/10th',
+            vote:       isBuy ? 'BUY' : 'SELL',
+            confidence: Math.round(rawScore),
+            reason:     `SmartScore:${rawScore} | ${scannerData.smartScore.signalType || ''} | ${scannerData.smartScore.tradeTimeframe || ''} | divergence:${scannerData.divergence?.type || 'none'} [weight×${scanWeight}]`,
+          });
+
+          this.logger.debug(`🔍 Scanner vote for ${symbol}: ${isBuy?'BUY':'SELL'} score=${rawScore} weight=${scanWeight}`);
+        }
+      } catch (scanErr: any) {
+        this.logger.debug(`Scanner vote skipped for ${symbol}: ${scanErr.message}`);
       }
 
       let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';

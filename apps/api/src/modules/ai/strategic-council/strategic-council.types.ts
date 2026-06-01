@@ -162,7 +162,7 @@ export function isAgentTimeframe(tf: BriefTimeframe): boolean {
  *  of 50 rejected ALL technical fallback briefs, causing 0 trades.
  *  A 40% confidence brief with proper SL/TP is safer than no brief.
  */
-export const MIN_BRIEF_CONFIDENCE = 40;
+export const MIN_BRIEF_CONFIDENCE = 50; // V175: رُفع من 40 إلى 50
 
 /** Minimum consensus score to issue a brief — lowered from 60 to 50 to 40
  *  With 8 AI models, votes are often split. 60% was too strict and
@@ -170,7 +170,7 @@ export const MIN_BRIEF_CONFIDENCE = 40;
  *  40% = allows even weak directional consensus to produce briefs.
  *  Risk management (SL/TP) handles downside protection.
  */
-export const MIN_CONSENSUS_SCORE = 40;
+export const MIN_CONSENSUS_SCORE = 55; // V175: رُفع من 40 إلى 55 — إشارات أقل لكن جودة أعلى
 
 export const AGENT_FAST_TIMEFRAMES: BriefTimeframe[] = ['M30', 'H1'];
 export const AGENT_SLOW_TIMEFRAMES: BriefTimeframe[] = ['H4', 'D1', 'W1'];

@@ -288,6 +288,15 @@ export class StrategicCouncilService {
       };
     }
 
+    // V175: Sanctuary halt check — يمنع الجلسات عند الخسارة المتتالية
+    try {
+      const haltUntil = await this.redis?.get('council:sanctuary:halt');
+      if (haltUntil && new Date(haltUntil) > new Date()) {
+        this.logger.warn(`🏛️ Council HALTED by Sanctuary until ${haltUntil}`);
+        return { timestamp: new Date().toISOString(), pairsAnalyzed: 0, briefsIssued: 0, briefsModified: 0, briefsCancelled: 0, briefsExecuted: 0, durationMs: 0 };
+      }
+    } catch { /* non-critical — don't block trading */ }
+
     // ═══════════════════════════════════════════════════════════════════
     // FIX: Single AUTO_TRADING_ENABLED check (removed double-guard).
     // Previously there were TWO separate checks that both defaulted to
@@ -1201,6 +1210,28 @@ export class StrategicCouncilService {
       },
     });
 
+    // V175: Performance Penalty — إذا المجلس خسر كثيراً على هذا الزوج مؤخراً
+    let performancePenalty = 0;
+    try {
+      const recentBriefs = await this.prisma.tradingBrief.findMany({
+        where: { pair, outcome: { not: null } },
+        orderBy: { outcomeAt: 'desc' },
+        take: 10,
+        select: { outcome: true, actualPnl: true },
+      });
+      if (recentBriefs.length >= 5) {
+        const wins    = recentBriefs.filter(b => b.outcome === 'WIN').length;
+        const winRate = wins / recentBriefs.length;
+        if (winRate < 0.20) {
+          performancePenalty = 25; // أداء سيء جداً → خفض 25 نقطة
+          this.logger.warn(`📉 ${pair}: Win Rate ${(winRate*100).toFixed(0)}% في آخر ${recentBriefs.length} صفقات → penalty -${performancePenalty}`);
+        } else if (winRate < 0.30) {
+          performancePenalty = 15;
+          this.logger.log(`📉 ${pair}: Win Rate ${(winRate*100).toFixed(0)}% → penalty -${performancePenalty}`);
+        }
+      }
+    } catch { /* non-critical */ }
+
     // V143: Fetch news context for this pair to inject into AI analysis.
     // This is the KEY integration point — previously the council was news-blind.
     // Now it sees recent news sentiment, impact levels, and affected assets
@@ -1244,7 +1275,12 @@ export class StrategicCouncilService {
     // V143: Apply news-adjusted confidence directly to the consensus object.
     // This way, all downstream code (including the effectiveConsensus = consensus line)
     // uses the news-adjusted values.
-    consensus.consensusScore = newsAdjustedConfidence;
+    // V175: تطبيق performance penalty
+    consensus.consensusScore = Math.max(0, newsAdjustedConfidence - performancePenalty);
+    if (performancePenalty > 0) {
+      consensus.masterStrategy = (consensus.masterStrategy || '') +
+        `\n\n⚠️ Performance penalty: -${performancePenalty} نقطة (أداء ضعيف مؤخراً على ${pair})`;
+    }
     if (newsContext) {
       consensus.masterStrategy = (consensus.masterStrategy || '') +
         `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`;

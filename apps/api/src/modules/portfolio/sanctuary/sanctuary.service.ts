@@ -64,11 +64,11 @@ export class SanctuaryService {
 
   constructor(
     private readonly prisma: PrismaService,
-    @Optional() private readonly redisService?: RedisService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
     private readonly orchestrator: AIOrchestratorService,
     private readonly auditService: AuditService,
+    @Optional() private readonly redisService?: RedisService,
   ) {
     this.logger.log('🏛️ Sanctuary Service initialized — portfolio risk analysis ready');
   }

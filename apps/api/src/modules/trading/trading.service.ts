@@ -312,8 +312,7 @@ export class TradingService {
             price: tradePrice,
             fee: execution.fee ?? 0,
             feeCurrency: execution.feeCurrency,
-            source:  request.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
-            briefId: (request as any).briefId ?? null, // V175
+            source: request.source || (credential.exchange === 'paper-trading' ? 'auto_paper' : 'user_manual'),
           },
         });
       }

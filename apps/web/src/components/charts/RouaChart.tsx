@@ -530,6 +530,12 @@ export default function RouaChart({
   // candlesRef.current.length === 0 and all WebSocket updates were dropped.
   const candlesClearedAtRef = useRef(0);
   const CANDLES_CLEAR_TIMEOUT_MS = 10_000; // Allow WebSocket after 10s even if fetch failed
+  // FIX: Pagination — track whether we're loading older data and whether
+  // there's more data to load. When the user scrolls left past the initial
+  // 1000 candles, we fetch older data using Binance's startTime parameter.
+  // This eliminates the visual gap at the left edge of the chart.
+  const isLoadingOlderRef = useRef(false);   // Prevent duplicate fetches
+  const hasMoreHistoryRef = useRef(true);    // Set to false when Binance returns < 1000 candles
   // FIX: Clear candlesRef on BOTH symbol and timeframe changes.
   // Previously, only timeframe change cleared the ref. When the symbol
   // changed (e.g., BTC/USD → ETH/USD), RouaChart's candlesRef still held
@@ -544,6 +550,9 @@ export default function RouaChart({
     candlesRef.current = [];
     candlesClearedAtRef.current = Date.now();
     prevSymbolRef.current = selectedSymbol_;
+    // FIX: Reset pagination state on symbol/timeframe change
+    isLoadingOlderRef.current = false;
+    hasMoreHistoryRef.current = true;
 
     // FIX: Reset singleton module-level state from pattern-engine and
     // pattern-renderer. Without this, switching from BTC → ETH keeps
@@ -1114,6 +1123,65 @@ export default function RouaChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── FIX: Periodic data refresh (every 120s) ──
+  // Re-fetches the latest candles from the API to fill any gaps that
+  // may have developed between the historical fetch and WebSocket updates.
+  // This is especially important when WebSocket reconnects after a
+  // disconnect — the gap between the last WS candle and reconnection
+  // would otherwise persist until the user manually changes timeframe.
+  useEffect(() => {
+    const DATA_REFRESH_MS = 120_000; // 2 minutes — balances freshness vs API load
+    let active = true;
+    const refreshData = async () => {
+      if (!active || candlesRef.current.length === 0) return;
+      try {
+        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`);
+        const j = await res.json();
+        if (!active || !j.success || !j.data || j.data.length === 0) return;
+
+        // Merge new data with existing candles — only add/update, don't remove
+        const newCandles: CandleData[] = j.data
+          .map((c: any) => ({
+            time: Math.floor(new Date(c.timestamp).getTime() / 1000),
+            open: Number(c.open) || 0,
+            high: Number(c.high) || 0,
+            low: Number(c.low) || 0,
+            close: Number(c.close) || 0,
+            volume: Number(c.volume) || 0,
+          }))
+          .filter(c => !isNaN(c.time) && c.time > 0 && c.close > 0);
+
+        if (newCandles.length === 0) return;
+
+        // Build a map for fast lookup
+        const existingMap = new Map(candlesRef.current.map(c => [c.time, c]));
+        let changed = false;
+        for (const nc of newCandles) {
+          const existing = existingMap.get(nc.time);
+          if (!existing) {
+            // New candle — add it
+            existingMap.set(nc.time, nc);
+            changed = true;
+          } else if (nc.close !== existing.close || nc.high !== existing.high || nc.low !== existing.low) {
+            // Updated candle — replace it
+            existingMap.set(nc.time, nc);
+            changed = true;
+          }
+        }
+
+        if (changed) {
+          const merged = Array.from(existingMap.values()).sort((a, b) => a.time - b.time);
+          candlesRef.current = merged;
+          setCandlesRef.current(merged, { skipIndicatorRebuild: true });
+        }
+      } catch { /* non-critical */ }
+    };
+
+    const interval = setInterval(refreshData, DATA_REFRESH_MS);
+    return () => { active = false; clearInterval(interval); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol_, timeframe_]);
+
   // ── Fetch Historical Candles ───────────────────────────
   useEffect(() => {
     let cancelled = false; // Guard against stale responses after symbol change
@@ -1139,16 +1207,16 @@ export default function RouaChart({
               const rawHigh = Number(c.high) || 0;
               const rawLow = Number(c.low) || 0;
               const rawClose = Number(c.close) || 0;
-              // FIX: Sanitize OHLC using sanitizeOhlc — near-flat candles from
-              // Binance 1m/5m data (range < $0.01 on $73,000 price) render as
-              // dots. sanitizeOhlc ensures a minimum visible range of 0.05%.
-              const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
+              // NOTE: sanitizeOhlc is NOT applied here — it's applied in useChart.ts
+              // setCandles() which is the canonical data entry point. Applying it
+              // here AND in setCandles causes triple application with compounding
+              // range expansion. Only apply it ONCE in setCandles.
               return {
                 time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-                open: s.open,
-                high: s.high,
-                low: s.low,
-                close: s.close,
+                open: rawOpen,
+                high: rawHigh,
+                low: rawLow,
+                close: rawClose,
                 volume: Number(c.volume) || 0,
               };
             })
@@ -1257,6 +1325,114 @@ export default function RouaChart({
 
     return () => { cancelled = true; };
   }, [selectedSymbol_, timeframe_]);
+
+  // ── Pagination: Load Older Data on Scroll ──────────────
+  // FIX: When the user scrolls left past the initial 1000 candles, the chart
+  // shows empty space because there's no more data. This is the #1 cause of
+  // "gaps between candles" — the user sees blank space at the left edge.
+  // We subscribe to visibleLogicalRangeChange and fetch older data when
+  // the user scrolls near the left edge.
+  useEffect(() => {
+    const chartApi = chart.chartRef.current;
+    if (!chartApi) return;
+
+    const loadOlderCandles = async () => {
+      // Don't fetch if already loading or no more data
+      if (isLoadingOlderRef.current || !hasMoreHistoryRef.current) return;
+      // Don't fetch if no candles loaded yet
+      if (candlesRef.current.length === 0) return;
+
+      isLoadingOlderRef.current = true;
+      try {
+        // Get the earliest candle time and use it as endTime for Binance
+        // Binance returns candles BEFORE endTime when no startTime is given,
+        // so we set endTime = earliest_candle_time_ms to get older data.
+        const earliestTime = candlesRef.current[0].time;
+        const endTimeMs = (earliestTime * 1000) - 1; // -1ms to avoid duplicate
+        const res = await fetch(
+          `/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}&endTime=${endTimeMs}`
+        );
+        const j = await res.json();
+
+        if (j.success && j.data && j.data.length > 0) {
+          // If Binance returned fewer than 1000, there's no more history
+          if (j.data.length < 1000) {
+            hasMoreHistoryRef.current = false;
+          }
+
+          // Format the new (older) candles
+          const olderCandles: CandleData[] = j.data
+            .map((c: any) => {
+              const rawOpen = Number(c.open) || 0;
+              const rawHigh = Number(c.high) || 0;
+              const rawLow = Number(c.low) || 0;
+              const rawClose = Number(c.close) || 0;
+              return {
+                time: Math.floor(new Date(c.timestamp).getTime() / 1000),
+                open: rawOpen,
+                high: rawHigh,
+                low: rawLow,
+                close: rawClose,
+                volume: Number(c.volume) || 0,
+              };
+            })
+            .filter(c => !isNaN(c.time) && c.time > 0 && !isNaN(c.open) && !isNaN(c.close) && c.close > 0 && !isNaN(c.high) && c.high > 0 && !isNaN(c.low) && c.low > 0);
+
+          if (olderCandles.length === 0) {
+            hasMoreHistoryRef.current = false;
+            return;
+          }
+
+          // Merge: prepend older candles, deduplicate, sort
+          const existingTimes = new Set(candlesRef.current.map(c => c.time));
+          const newCandles = olderCandles.filter(c => !existingTimes.has(c.time));
+          if (newCandles.length > 0) {
+            const merged = [...newCandles, ...candlesRef.current].sort((a, b) => a.time - b.time);
+            // Deduplicate
+            const seen = new Set<number>();
+            const unique = merged.filter(c => {
+              if (seen.has(c.time)) return false;
+              seen.add(c.time);
+              return true;
+            });
+            candlesRef.current = unique;
+            // Use setCandles to update the chart — skip indicator rebuild
+            // since we're just prepending older data (indicators don't change)
+            setCandlesRef.current(unique, { skipIndicatorRebuild: true });
+            console.log(`[RouaChart] Pagination: loaded ${newCandles.length} older candles (total: ${unique.length})`);
+          }
+        } else {
+          // No data returned — no more history available
+          hasMoreHistoryRef.current = false;
+        }
+      } catch (err) {
+        console.warn('[RouaChart] Pagination fetch failed:', err);
+      } finally {
+        isLoadingOlderRef.current = false;
+      }
+    };
+
+    const handler = (logicalRange: { from: number; to: number } | null) => {
+      if (!logicalRange) return;
+      // When the user scrolls near the left edge (from < 5 candles from start),
+      // trigger loading older data. This prevents the user from ever reaching
+      // the "no data" boundary.
+      if (logicalRange.from < 5 && hasMoreHistoryRef.current && !isLoadingOlderRef.current) {
+        loadOlderCandles();
+      }
+    };
+
+    try {
+      chartApi.timeScale().subscribeVisibleLogicalRangeChange(handler as any);
+    } catch {}
+
+    return () => {
+      try {
+        chartApi.timeScale().unsubscribeVisibleLogicalRangeChange(handler as any);
+      } catch {}
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSymbol_, timeframe_, chart.chartRef.current]);
 
   // ── Live Price Sync ────────────────────────────────────
   useEffect(() => {

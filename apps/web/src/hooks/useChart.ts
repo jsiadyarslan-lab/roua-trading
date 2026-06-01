@@ -1366,20 +1366,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean; skipIndicatorRebuild?: boolean }) => {
-    // FIX: Store SANITIZED + SORTED candles — not raw data.
+    // FIX: Store SORTED candles — not raw data.
     // Previously, candlesRef.current stored unsorted data, but binarySearchByTime
     // and updateCandle both assume ascending time order. This caused wrong
     // crosshair data, wrong indicator values, and wrong volume display.
-    // Now we sort FIRST, then sanitize, then store.
+    // Now we sort FIRST, then store.
+    // NOTE: sanitizeOhlc is NOT applied here — it's applied only ONCE when
+    // formatting data for LWC setData() below. Previously it was applied 3
+    // times (RouaChart + here + setData), causing compounding range expansion.
     let sorted = [...candles].sort((a, b) => a.time - b.time);
     // PERF: Limit candle count to prevent performance degradation
     if (sorted.length > MAX_VISIBLE_CANDLES) {
       sorted = sorted.slice(sorted.length - MAX_VISIBLE_CANDLES);
     }
-    candlesRef.current = sorted.map(c => {
-      const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
-      return { ...c, open: s.open, high: s.high, low: s.low, close: s.close };
-    });
+    candlesRef.current = sorted;
 
     // If chart isn't ready yet, store data as pending and return
     if (!candleSeriesRef.current || !volumeSeriesRef.current) {

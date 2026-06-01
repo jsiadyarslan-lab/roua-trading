@@ -192,13 +192,18 @@ async function fetchYahooCryptoHistory(symbol: string, interval: string): Promis
 
     const candles: any[] = []
     for (let i = 0; i < timestamps.length; i++) {
-      if (closes[i] !== null && closes[i] !== undefined) {
+      // FIX: Check ALL OHLCV fields for null, not just close.
+      // Yahoo Finance frequently returns null for open/high/low on the first
+      // candle of a session or during data gaps. When low=null → toNum returns 0
+      // → RouaChart filter rejects the candle (c.low > 0 fails) → gap in chart.
+      const o = opens[i], h = highs[i], l = lows[i], c = closes[i], v = volumes[i];
+      if (c !== null && c !== undefined && o !== null && o !== undefined && h !== null && h !== undefined && l !== null && l !== undefined) {
         candles.push({
           symbol,
           timestamp: new Date(timestamps[i] * 1000).toISOString(),
           datetime: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
-          open: toNum(opens[i]), high: toNum(highs[i]), low: toNum(lows[i]),
-          close: toNum(closes[i]), volume: toNum(volumes[i]),
+          open: toNum(o), high: toNum(h), low: toNum(l),
+          close: toNum(c), volume: toNum(v),
           source: 'Yahoo Finance',
         })
       }
@@ -220,6 +225,8 @@ export async function GET(
     const url = request.nextUrl
     const interval = url.searchParams.get('interval') || '1day'
     const source = url.searchParams.get('source')
+    const startTimeParam = url.searchParams.get('startTime')  // Pagination: fetch candles before this timestamp (ms)
+    const endTimeParam = url.searchParams.get('endTime')      // Pagination: fetch candles after this timestamp (ms)
     // Cache busting: if _t parameter is present, skip cache (for debugging)
     const skipCache = url.searchParams.has('_t')
 
@@ -232,9 +239,12 @@ export async function GET(
     const intervalMap = BINANCE_INTERVALS
 
     // Normalize interval for cache key: '1min' and '1m' should produce the same key
-    // to avoid storing duplicate data under different aliases
+    // to avoid storing duplicate data under different aliases.
+    // FIX: Include startTime/endTime in cache key for pagination — each page
+    // of historical data must be cached independently.
     const normalizedInterval = intervalMap[interval] || interval
-    const cacheKey = `history:${symbol}:${normalizedInterval}`
+    const paginationSuffix = startTimeParam ? `:st${startTimeParam}` : (endTimeParam ? `:et${endTimeParam}` : '')
+    const cacheKey = `history:${symbol}:${normalizedInterval}${paginationSuffix}`
     if (!skipCache) {
       const cached = getCachedHistory(cacheKey)
       if (cached) {
@@ -277,9 +287,19 @@ export async function GET(
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
 
+        // FIX: Pagination support — startTime and endTime allow fetching older data.
+        // When the user scrolls left past the initial 1000 candles, the frontend
+        // sends startTime=<earliest_candle_time_ms> to get the 1000 candles BEFORE
+        // that point. This eliminates the visual gap at the left edge of the chart.
+        // Binance klines API: startTime/endTime are in MILLISECONDS.
+        const timeParams: string[] = [];
+        if (startTimeParam) timeParams.push(`startTime=${startTimeParam}`);
+        if (endTimeParam) timeParams.push(`endTime=${endTimeParam}`);
+        const timeSuffix = timeParams.length > 0 ? `&${timeParams.join('&')}` : '';
+
         const binanceEndpoints = [
-          ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`),
-          `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+          ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`),
+          `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`,
         ]
 
         for (const bUrl of binanceEndpoints) {
@@ -317,12 +337,12 @@ export async function GET(
       }
 
       // Step 2: Try CoinGecko OHLCV (free, no key needed)
-      // CRITICAL: CoinGecko OHLC doesn't support intraday granularity!
-      // For days=1, it always returns 30-min candles regardless of the
-      // requested interval (1min, 5min, 15min all get the SAME 30-min data).
-      // This was the ROOT CAUSE of "all timeframes show same data" bug.
-      // Skip CoinGecko for intervals shorter than 4h.
-      const skipCoinGecko = ['1min', '5min', '15min', '30min', '1m', '5m', '15m', '30m', '1h', '2h'].includes(interval)
+      // FIX: Skip CoinGecko for intervals shorter than 1d.
+      // CoinGecko OHLC doesn't support intraday granularity — for days=1 it
+      // always returns 30-min candles, for days=7 it returns hourly candles.
+      // Even 4h is wrong: CoinGecko returns 30-min or 1h candles for days=30,
+      // which don't align with 4h boundaries, creating visual gaps on the chart.
+      const skipCoinGecko = ['1min', '5min', '15min', '30min', '1m', '5m', '15m', '30m', '1h', '2h', '4h'].includes(interval)
       if ((!candles || candles.length === 0) && !skipCoinGecko) {
         const cgCandles = await fetchCoinGeckoHistory(symbol, interval)
         if (cgCandles && cgCandles.length > 0) {
@@ -469,13 +489,17 @@ export async function GET(
 
           const candles: any[] = []
           for (let i = 0; i < timestamps.length; i++) {
-            if (closes[i] !== null && closes[i] !== undefined) {
+            // FIX: Check ALL OHLCV fields for null, not just close.
+            // Yahoo Finance frequently returns null for open/high/low on the first
+            // candle of a session or during data gaps.
+            const o = opens[i], h = highs[i], l = lows[i], c = closes[i], v = volumes[i];
+            if (c !== null && c !== undefined && o !== null && o !== undefined && h !== null && h !== undefined && l !== null && l !== undefined) {
               candles.push({
                 symbol,
                 timestamp: new Date(timestamps[i] * 1000).toISOString(),
                 datetime: new Date(timestamps[i] * 1000).toISOString().split('T')[0],
-                open: toNum(opens[i]), high: toNum(highs[i]), low: toNum(lows[i]),
-                close: toNum(closes[i]), volume: toNum(volumes[i]),
+                open: toNum(o), high: toNum(h), low: toNum(l),
+                close: toNum(c), volume: toNum(v),
                 source: 'Yahoo Finance',
               })
             }

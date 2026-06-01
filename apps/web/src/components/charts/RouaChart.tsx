@@ -17,6 +17,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
+import { sanitizeOhlc } from '@/lib/charts/chart-utils';
 import { ChartToolbar } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { DrawingPanel } from './DrawingPanel';
@@ -828,20 +829,15 @@ export default function RouaChart({
         let mergedHigh = Math.max(existing.high, alignedCandle.high);
         let mergedLow = Math.min(existing.low, alignedCandle.low);
         const mergedClose = alignedCandle.close;
-        // FIX: Sanitize OHLC — if merged candle is still flat (high===low),
-        // add a tiny range so it renders as a candle, not a dot.
-        // This happens when both existing and incoming candles have the same
-        // high/low (common with forex ticker data that lacks OHLC detail).
-        if (mergedHigh === mergedLow) {
-          const tick = mergedClose * 0.0001;
-          mergedHigh += tick;
-          mergedLow -= tick;
-        }
+        const mergedOpen = existing.open; // Keep original open for the candle period
+        // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m render as dots.
+        const s = sanitizeOhlc(mergedOpen, mergedHigh, mergedLow, mergedClose);
         const merged = {
           ...existing,
-          high: mergedHigh,
-          low: mergedLow,
-          close: mergedClose,
+          high: s.high,
+          low: s.low,
+          close: s.close,
+          open: s.open,
           volume: alignedCandle.volume || existing.volume,
         };
         candlesRef.current[idx] = merged;
@@ -861,21 +857,10 @@ export default function RouaChart({
         // NEW candle: append and use setCandles with skipIndicatorRebuild
         // This uses setData() but preserves indicator series (they stay
         // visible with slightly stale last-point data until next recalc).
-        // FIX: Sanitize the new candle's OHLC before storing in candlesRef
-        // to prevent flat candles (dots) from being written to the ref.
-        let newHigh = alignedCandle.high;
-        let newLow = alignedCandle.low;
-        const newClose = alignedCandle.close;
-        if (newClose > 0) {
-          if (newHigh < Math.max(alignedCandle.open, newClose)) newHigh = Math.max(alignedCandle.open, newClose);
-          if (newLow > Math.min(alignedCandle.open, newClose)) newLow = Math.min(alignedCandle.open, newClose);
-          if (newHigh === newLow) {
-            const tick = newClose * 0.0001;
-            newHigh += tick;
-            newLow -= tick;
-          }
-        }
-        const sanitizedCandle = { ...alignedCandle, high: newHigh, low: newLow };
+        // FIX: Sanitize the new candle's OHLC using sanitizeOhlc to prevent
+        // near-flat candles (dots) from Binance 1m/5m data.
+        const s = sanitizeOhlc(alignedCandle.open, alignedCandle.high, alignedCandle.low, alignedCandle.close);
+        const sanitizedCandle = { ...alignedCandle, open: s.open, high: s.high, low: s.low, close: s.close };
         candlesRef.current.push(sanitizedCandle);
         setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
       }
@@ -1134,33 +1119,20 @@ export default function RouaChart({
           setFeedState('live');
           const formatted: CandleData[] = j.data
             .map((c: any) => {
-              let open = Number(c.open) || 0;
-              let high = Number(c.high) || 0;
-              let low = Number(c.low) || 0;
-              let close = Number(c.close) || 0;
-              // FIX: Validate OHLC — lightweight-charts requires high >= max(open,close)
-              // and low <= min(open,close). If high/low are 0 or invalid, auto-correct
-              // from open/close. This prevents candles appearing as dots when the
-              // API returns flat data (e.g., forex ECB rates where open=high=low=close)
-              // or when high/low fields are missing (toNum() returns 0).
-              if (close > 0) {
-                if (high <= 0 || high < Math.max(open, close)) high = Math.max(open, close);
-                if (low <= 0 || low > Math.min(open, close)) low = Math.min(open, close);
-                // FIX: For flat candles (open===high===low===close from forex sources),
-                // add a tiny artificial range so the candle renders with a visible body
-                // and wicks instead of appearing as a dot.
-                if (high === low) {
-                  const tick = close * 0.0001; // 0.01% of price — visually imperceptible
-                  high += tick;
-                  low -= tick;
-                }
-              }
+              const rawOpen = Number(c.open) || 0;
+              const rawHigh = Number(c.high) || 0;
+              const rawLow = Number(c.low) || 0;
+              const rawClose = Number(c.close) || 0;
+              // FIX: Sanitize OHLC using sanitizeOhlc — near-flat candles from
+              // Binance 1m/5m data (range < $0.01 on $73,000 price) render as
+              // dots. sanitizeOhlc ensures a minimum visible range of 0.05%.
+              const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
               return {
                 time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-                open,
-                high,
-                low,
-                close,
+                open: s.open,
+                high: s.high,
+                low: s.low,
+                close: s.close,
                 volume: Number(c.volume) || 0,
               };
             })

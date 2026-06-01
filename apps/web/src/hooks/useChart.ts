@@ -33,6 +33,7 @@ import {
   binarySearchByTime,
   CHART_COLORS as SHARED_COLORS,
   MAX_VISIBLE_CANDLES,
+  sanitizeOhlc,
 } from '@/lib/charts/chart-utils';
 import { buildChartOptions, buildCandlestickOptions, buildVolumeOptions, CHART_COLORS as CHART_OPTIONS_COLORS } from '../lib/charts/chart-options';
 
@@ -960,25 +961,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (lastTime === null) return; // Invalid time — skip this update entirely
 
     const updated = { ...last, time: lastTime, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
-    // FIX: Sanitize OHLC — if the candle is still flat after extending range,
-    // add a tiny artificial range so it renders as a candle, not a dot.
-    if (updated.high === updated.low) {
-      const tick = updated.close * 0.0001;
-      updated.high += tick;
-      updated.low -= tick;
-    }
-    candlesRef.current = [...candles.slice(0, -1), updated]; // Immutable update to avoid stale refs
+    // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m data render as dots.
+    const s = sanitizeOhlc(updated.open, updated.high, updated.low, updated.close);
+    const sanitized = { ...updated, open: s.open, high: s.high, low: s.low, close: s.close };
+    candlesRef.current = [...candles.slice(0, -1), sanitized]; // Immutable update to avoid stale refs
 
     if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
 
     if (settings.type === 'heikin-ashi') {
       // Only recalculate last candle for HA, not entire series
-      const prevCandle = candles.length > 1 ? candles[candles.length - 2] : updated;
-      const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
-      const haOpen = prevCandle === updated ? (updated.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
-      const haHigh = Math.max(updated.high, haOpen, haClose);
-      const haLow = Math.min(updated.low, haOpen, haClose);
-      const lastDisplay = { ...updated, open: haOpen, high: haHigh, low: haLow, close: haClose };
+      const prevCandle = candles.length > 1 ? candles[candles.length - 2] : sanitized;
+      const haClose = (sanitized.open + sanitized.high + sanitized.low + sanitized.close) / 4;
+      const haOpen = prevCandle === sanitized ? (sanitized.open + haClose) / 2 : (prevCandle.open + prevCandle.close) / 2;
+      const haHigh = Math.max(sanitized.high, haOpen, haClose);
+      const haLow = Math.min(sanitized.low, haOpen, haClose);
+      const lastDisplay = { ...sanitized, open: haOpen, high: haHigh, low: haLow, close: haClose };
       try { candleSeriesRef.current.update({
         time: lastTime as Time, open: lastDisplay.open, high: lastDisplay.high, low: lastDisplay.low, close: lastDisplay.close,
       } as any);
@@ -986,17 +983,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     } else {
       try {
         candleSeriesRef.current.update({
-          time: lastTime as Time, open: updated.open, high: updated.high, low: updated.low, close: updated.close,
+          time: lastTime as Time, open: sanitized.open, high: sanitized.high, low: sanitized.low, close: sanitized.close,
         } as any);
       } catch { /* chart was destroyed between the null check and update */ }
     }
 
-    // Update volume — use `updated` (not `last`) for correct color after price change
+    // Update volume — use `sanitized` (not `last`) for correct color after price change
     if (volumeSeriesRef.current) {
       volumeSeriesRef.current.update({
         time: lastTime as Time,
         value: last.volume,
-        color: updated.close >= updated.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
+        color: sanitized.close >= sanitized.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown,
       } as any);
       // FIX: If volume was previously all-zero (histogram hidden) but this tick
       // has non-zero volume, make the histogram visible again.
@@ -1103,19 +1100,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Only use incremental update for the LAST candle
     // (which is the one WebSocket updates in real-time)
     if (lastCandle && lastCandle.time === time) {
-      // FIX: Sanitize OHLC before rendering — flat candles (open===high===low===close)
-      // from WebSocket ticker data would render as dots without this.
-      let { open, high, low, close } = candle;
-      if (high < Math.max(open, close)) high = Math.max(open, close);
-      if (low > Math.min(open, close)) low = Math.min(open, close);
-      if (high === low) {
-        const tick = close * 0.0001;
-        high += tick;
-        low -= tick;
-      }
-      // Update the candle in our ref (mutate last element for performance —
-      // no need to copy the entire array for a single-element update)
-      const updated = { ...candle, time, open, high, low, close };
+      // FIX: Sanitize OHLC — near-flat candles from Binance 1m/5m data render as dots.
+      const s = sanitizeOhlc(candle.open, candle.high, candle.low, candle.close);
+      const updated = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
       candles[candles.length - 1] = updated;
 
       // Apply Heikin-Ashi transform for the last candle only
@@ -1254,17 +1241,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // to render as dots. Now we sanitize BEFORE storing, so all downstream
     // readers always get valid non-flat OHLC data.
     candlesRef.current = candles.map(c => {
-      let { open, high, low, close } = c;
-      if (close > 0) {
-        if (!isValidNumber(high) || high <= 0 || high < Math.max(open, close)) high = Math.max(open, close);
-        if (!isValidNumber(low) || low <= 0 || low > Math.min(open, close)) low = Math.min(open, close);
-        if (high === low) {
-          const tick = close * 0.0001;
-          high += tick;
-          low -= tick;
-        }
-      }
-      return { ...c, open, high, low, close };
+      const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
+      return { ...c, open: s.open, high: s.high, low: s.low, close: s.close };
     });
 
     // If chart isn't ready yet, store data as pending and return
@@ -1339,22 +1317,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))
       .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time) && c.close > 0)
       .map(c => {
-        let { open, high, low, close } = c;
-        // Auto-correct invalid OHLC relationships
-        if (high < Math.max(open, close)) high = Math.max(open, close);
-        if (low > Math.min(open, close)) low = Math.min(open, close);
-        // Flat candle fix — add tiny range so candle renders with body/wicks
-        if (high === low) {
-          const tick = close * 0.0001;
-          high += tick;
-          low -= tick;
-        }
+        const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
         return {
           time: c.time as Time,
-          open,
-          high,
-          low,
-          close,
+          open: s.open,
+          high: s.high,
+          low: s.low,
+          close: s.close,
         };
       });
 

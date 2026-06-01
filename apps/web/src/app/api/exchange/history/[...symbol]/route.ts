@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { CRYPTO_BASES, BINANCE_URLS, BINANCE_INTERVALS, BINANCE_US_REST } from '../../../../../lib/charts/config'
+import { CRYPTO_BASES, BINANCE_URLS, BINANCE_INTERVALS, BINANCE_US_REST, BINANCE_REST_ENDPOINTS } from '../../../../../lib/charts/config'
 
 function normalizeRouteSymbol(parts: string[] | string) {
   const joined = Array.isArray(parts) ? parts.join('/') : parts
@@ -15,6 +15,31 @@ function toNum(v: any): number {
   const n = parseFloat(v)
   return isNaN(n) ? 0 : n
 }
+
+// ── Data Quality Check ──
+// FIX: Binance 1m/5m data often has "near-flat" candles where the OHLC range
+// is microscopically small (e.g., $0.01 on a $73,000 BTC price). These render
+// as dots because the candle body/wicks are less than 1 pixel tall.
+// We reject data where >40% of candles are "near-flat" (range < 0.05% of close)
+// and try the next endpoint.
+function flatCandleRatio(candles: any[]): number {
+  if (candles.length === 0) return 1
+  // A candle is "near-flat" if its OHLC range is less than 0.05% of the close price
+  // OR if it's exactly flat (open===high===low===close)
+  const nearFlat = candles.filter(c => {
+    if (c.open === c.high && c.high === c.low && c.low === c.close) return true
+    const range = Math.abs(c.high - c.low)
+    const close = Math.abs(c.close)
+    if (close > 0 && (range / close) < 0.0005) return true // < 0.05% range
+    return false
+  }).length
+  return nearFlat / candles.length
+}
+
+// FIX: Maximum acceptable ratio of near-flat candles. If more than this fraction
+// of candles are near-flat (range < 0.05% of close), the data likely comes from
+// a low-liquidity endpoint and should be rejected in favor of a better source.
+const MAX_FLAT_CANDLE_RATIO = 0.4
 
 // ── In-memory cache for history ──
 const historyCache = new Map<string, { data: any; expiresAt: number }>()
@@ -216,6 +241,10 @@ export async function GET(
       // To re-enable, deploy NestJS ExchangeGateway and set NESTJS_API_URL.
 
       // Step 1: Try Binance directly (fastest, most detailed)
+      // FIX: Use multiple Binance REST endpoints (api1-4, data-api.binance.vision)
+      // because api.binance.com may be geo-blocked on cloud servers (Railway, AWS, etc).
+      // Binance.us has extremely low liquidity (65%+ flat 1m candles) and is used
+      // only as the very last resort with a quality check.
       try {
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
@@ -228,9 +257,10 @@ export async function GET(
         const binanceInterval = intervalMap[interval] || '1d'
         const limit = 200
 
-        // Try Binance.com first, then Binance.us as fallback
+        // FIX: Build endpoint list with all Binance alternatives + quality check.
+        // Order: api.binance.com → api1-4 → data-api.binance.vision → binance.us (last resort)
         const binanceEndpoints = [
-          `${BINANCE_URLS.rest}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
+          ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`),
           `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
         ]
 
@@ -243,14 +273,23 @@ export async function GET(
             if (res.ok) {
               const data = await res.json()
               if (Array.isArray(data) && data.length > 0) {
-                candles = data.map((c: any[]) => ({
+                const mapped = data.map((c: any[]) => ({
                   symbol,
                   timestamp: new Date(c[0]).toISOString(),
                   datetime: new Date(c[0]).toISOString(),
                   open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
                   source: 'Binance',
                 }))
-                break // Got data, no need to try next endpoint
+                // FIX: Quality check — reject data with too many flat candles.
+                // Binance.us returns 65%+ flat candles on 1m/5m due to low liquidity.
+                // This causes candles to render as dots on the chart.
+                const flatRatio = flatCandleRatio(mapped)
+                if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
+                  console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles (> ${MAX_FLAT_CANDLE_RATIO * 100}% threshold)`)
+                  continue // Try next endpoint
+                }
+                candles = mapped
+                break // Got quality data, no need to try next endpoint
               }
             }
           } catch {

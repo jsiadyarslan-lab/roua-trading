@@ -41,6 +41,68 @@ export function isValidNumber(v: unknown): v is number {
   return v !== null && v !== undefined && typeof v === 'number' && isFinite(v);
 }
 
+// ── OHLC Sanitization ─────────────────────────────────────
+// FIX: Binance 1m/5m data often has "near-flat" candles where the OHLC range
+// is microscopically small (e.g., $0.01 on a $73,000 BTC price). These render
+// as invisible dots because the candle body/wicks are less than 1 pixel tall.
+//
+// The old sanitization only checked `high === low` (exactly flat), missing
+// near-flat candles where high-low is just a few cents. This function ensures
+// the OHLC range is ALWAYS at least 0.05% of the close price, which produces
+// a visible candle body on any timeframe and zoom level.
+//
+// Minimum range = close * MIN_OHLC_RANGE_RATIO (0.0005 = 0.05%)
+// For BTC @ $73,000: min range = $36.50 (clearly visible)
+// For EUR/USD @ 1.08: min range = $0.00054 (2 pips — visible on forex)
+// For XAU/USD @ $2,300: min range = $1.15 (visible)
+
+export const MIN_OHLC_RANGE_RATIO = 0.0005; // 0.05% of close price — minimum visible candle range
+
+export interface SanitizeOhlcResult {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+/**
+ * Sanitize OHLC values to ensure:
+ * 1. high >= max(open, close) and low <= min(open, close)
+ * 2. The range (high - low) is at least MIN_OHLC_RANGE_RATIO * close
+ *    (prevents "dot" rendering on near-flat candles from Binance 1m/5m data)
+ * 3. All values are valid finite numbers > 0
+ */
+export function sanitizeOhlc(open: number, high: number, low: number, close: number): SanitizeOhlcResult {
+  // Ensure valid numbers
+  if (!isValidNumber(close) || close <= 0) return { open, high, low, close };
+  if (!isValidNumber(open) || open <= 0) open = close;
+  if (!isValidNumber(high) || high <= 0) high = Math.max(open, close);
+  if (!isValidNumber(low) || low <= 0) low = Math.min(open, close);
+
+  // Enforce OHLC relationships: high >= max(open, close), low <= min(open, close)
+  if (high < Math.max(open, close)) high = Math.max(open, close);
+  if (low > Math.min(open, close)) low = Math.min(open, close);
+
+  // FIX: Check if the range is too small to render visibly.
+  // Near-flat candles (e.g., high-low = $0.01 on $73,000 BTC) render as dots
+  // because the body/wicks are less than 1 pixel. Expand the range to at least
+  // MIN_OHLC_RANGE_RATIO * close, centered on the candle's midpoint.
+  const range = high - low;
+  const minRange = close * MIN_OHLC_RANGE_RATIO;
+
+  if (range < minRange) {
+    const midpoint = (high + low) / 2;
+    const halfMin = minRange / 2;
+    high = midpoint + halfMin;
+    low = midpoint - halfMin;
+    // Re-enforce after expansion: high must cover open/close, low must cover them
+    if (high < Math.max(open, close)) high = Math.max(open, close);
+    if (low > Math.min(open, close)) low = Math.min(open, close);
+  }
+
+  return { open, high, low, close };
+}
+
 // ── Storage Key Helper ───────────────────────────────────
 // Generates a prefixed localStorage key that includes the userId.
 // Prevents data leakage between different user sessions.

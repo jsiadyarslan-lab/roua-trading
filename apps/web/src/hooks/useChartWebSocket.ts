@@ -21,6 +21,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { CandleData } from '../lib/charts/types';
 import { WS_CONFIG, BINANCE_URLS, BINANCE_INTERVALS, CRYPTO_BASES } from '../lib/charts/config';
+import { sanitizeOhlc } from '../lib/charts/chart-utils';
 
 // PERF: rAF batch buffer for WebSocket messages.
 // Instead of calling onCandleUpdate/onPriceUpdate on every WS message,
@@ -200,25 +201,19 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           const price = data.price || data.close;
           onPriceUpdate(price);
           const now = Math.floor(Date.now() / 1000);
-          // FIX: Sanitize OHLC — flat candles (open===high===low===close)
-          // from forex/ticker sources render as dots. Add tiny range if flat.
-          let open = data.open || price;
-          let high = data.high || price;
-          let low = data.low || price;
-          const close = price;
-          if (high < Math.max(open, close)) high = Math.max(open, close);
-          if (low > Math.min(open, close)) low = Math.min(open, close);
-          if (high === low) {
-            const tick = close * 0.0001;
-            high += tick;
-            low -= tick;
-          }
+          // FIX: Sanitize OHLC — near-flat candles from ticker/forex sources
+          // render as dots. sanitizeOhlc ensures minimum visible range.
+          const rawOpen = data.open || price;
+          const rawHigh = data.high || price;
+          const rawLow = data.low || price;
+          const rawClose = price;
+          const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
           const candle: CandleData = {
             time: now - (now % 60),
-            open,
-            high,
-            low,
-            close,
+            open: s.open,
+            high: s.high,
+            low: s.low,
+            close: s.close,
             volume: data.volume || 0,
           };
           onCandleUpdate(candle);
@@ -451,25 +446,19 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               onPriceUpdate(price);
 
               // Create synthetic candle from ticker data
-              // FIX: Sanitize OHLC — flat candles from ticker render as dots.
+              // FIX: Sanitize OHLC — near-flat candles from ticker render as dots.
               const now = Math.floor(Date.now() / 1000);
-              let open = quote.open || price;
-              let high = quote.high || price;
-              let low = quote.low || price;
-              const close = price;
-              if (high < Math.max(open, close)) high = Math.max(open, close);
-              if (low > Math.min(open, close)) low = Math.min(open, close);
-              if (high === low) {
-                const tick = close * 0.0001;
-                high += tick;
-                low -= tick;
-              }
+              const rawOpen = quote.open || price;
+              const rawHigh = quote.high || price;
+              const rawLow = quote.low || price;
+              const rawClose = price;
+              const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
               const candle: CandleData = {
                 time: now - (now % 60),
-                open,
-                high,
-                low,
-                close,
+                open: s.open,
+                high: s.high,
+                low: s.low,
+                close: s.close,
                 volume: quote.volume || 0,
               };
               onCandleUpdate(candle);

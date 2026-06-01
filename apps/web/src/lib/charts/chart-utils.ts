@@ -56,7 +56,12 @@ export function isValidNumber(v: unknown): v is number {
 // For EUR/USD @ 1.08: min range = $0.00054 (2 pips — visible on forex)
 // For XAU/USD @ $2,300: min range = $1.15 (visible)
 
-export const MIN_OHLC_RANGE_RATIO = 0.0005; // 0.05% of close price — minimum visible candle range
+export const MIN_OHLC_RANGE_RATIO = 0.00001; // 0.001% — only expand truly flat candles (range=$0 on $73K BTC)
+// NOTE: Previous value was 0.0005 (0.05%) which artificially expanded 73.8% of
+// Binance 1m candles by $36.50 each, destroying real price action. Real Binance
+// 1m candles have ranges as small as $0.01 (1 cent tick size), which is valid
+// micro-consolidation — NOT a "dot". Only candles with range=0 (exactly flat)
+// or range < 0.001% (sub-pixel at any zoom) need expansion.
 
 export interface SanitizeOhlcResult {
   open: number;

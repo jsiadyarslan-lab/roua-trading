@@ -17,29 +17,22 @@ function toNum(v: any): number {
 }
 
 // ── Data Quality Check ──
-// FIX: Binance 1m/5m data often has "near-flat" candles where the OHLC range
-// is microscopically small (e.g., $0.01 on a $73,000 BTC price). These render
-// as dots because the candle body/wicks are less than 1 pixel tall.
-// We reject data where >40% of candles are "near-flat" (range < 0.05% of close)
-// and try the next endpoint.
+// FIX: Only EXACTLY flat candles (O=H=L=C, range=0) indicate bad data.
+// Real Binance 1m candles have small ranges ($0.01 on $73K BTC) which is
+// valid micro-consolidation — NOT bad data. Previous threshold of 0.05%
+// rejected 73.8% of good Binance 1m data, falling back to worse sources.
 function flatCandleRatio(candles: any[]): number {
   if (candles.length === 0) return 1
-  // A candle is "near-flat" if its OHLC range is less than 0.05% of the close price
-  // OR if it's exactly flat (open===high===low===close)
-  const nearFlat = candles.filter(c => {
-    if (c.open === c.high && c.high === c.low && c.low === c.close) return true
-    const range = Math.abs(c.high - c.low)
-    const close = Math.abs(c.close)
-    if (close > 0 && (range / close) < 0.0005) return true // < 0.05% range
-    return false
+  // A candle is "flat" ONLY if all OHLC values are identical (range = 0)
+  const flat = candles.filter(c => {
+    return c.open === c.high && c.high === c.low && c.low === c.close
   }).length
-  return nearFlat / candles.length
+  return flat / candles.length
 }
 
-// FIX: Maximum acceptable ratio of near-flat candles. If more than this fraction
-// of candles are near-flat (range < 0.05% of close), the data likely comes from
-// a low-liquidity endpoint and should be rejected in favor of a better source.
-const MAX_FLAT_CANDLE_RATIO = 0.4
+// FIX: Maximum acceptable ratio of exactly-flat candles. Only Binance.us
+// and truly illiquid endpoints produce candles where O=H=L=C.
+const MAX_FLAT_CANDLE_RATIO = 0.5
 
 // ── In-memory cache for history ──
 const historyCache = new Map<string, { data: any; expiresAt: number }>()

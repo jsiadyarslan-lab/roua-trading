@@ -228,7 +228,8 @@ export class OrderExecutorService implements OnModuleDestroy {
             price: orderRequest.price || 0,
             stopLoss: orderRequest.stopLoss,
             takeProfit: orderRequest.takeProfit,
-            signalId: signal?.id,
+            signalId:  signal?.id,
+            briefId:   (signal?.metadata as any)?.briefId ?? null, // V175: ربط الصفقة بالـ brief
             isPaperTrading: true,
             timeframe: signal?.timeframe, // V132: Pass timeframe for smart idempotency TTL
           });

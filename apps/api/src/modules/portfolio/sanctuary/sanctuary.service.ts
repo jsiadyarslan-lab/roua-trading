@@ -1,4 +1,5 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { RedisService } from '../../../common/redis/redis.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { CredentialsService } from '../credentials/credentials.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -58,10 +59,12 @@ export interface RiskMetrics {
  */
 @Injectable()
 export class SanctuaryService {
+  private redis?: RedisService;
   private readonly logger = new Logger(SanctuaryService.name);
 
   constructor(
     private readonly prisma: PrismaService,
+    @Optional() private readonly redisService?: RedisService,
     private readonly credentialsService: CredentialsService,
     private readonly exchangeService: ExchangeService,
     private readonly orchestrator: AIOrchestratorService,
@@ -487,4 +490,44 @@ ${positionsSummary || 'لا توجد أصول'}
 
     return `تحليل ملاذ المحفظة: ${positions.length} مركز بقيمة إجمالية $${totalValue.toFixed(2)}. مستوى المخاطر: ${riskLevel} (${riskScore}/100). درجة التنويع: ${metrics.diversificationScore}/100.`;
   }
+  /**
+   * V175: تحقق من الأداء الأخير وأوقف المجلس إذا لزم
+   * يُستدعى من position-monitor عند كل إغلاق صفقة
+   */
+  async checkAndHaltCouncil(userId: string): Promise<void> {
+    try {
+      // آخر 10 صفقات مغلقة
+      const recentPositions = await this.prisma.position.findMany({
+        where: { userId, status: 'CLOSED', closedAt: { not: null } },
+        orderBy: { closedAt: 'desc' },
+        take: 10,
+        select: { realizedPnl: true, closedAt: true },
+      });
+
+      if (recentPositions.length < 3) return; // نحتاج بيانات كافية
+
+      // خسارة 5 متتالية أو أكثر → halt ساعة
+      let consecutive = 0;
+      for (const p of recentPositions) {
+        if (Number(p.realizedPnl) < 0) consecutive++;
+        else break;
+      }
+
+      if (consecutive >= 5) {
+        const haltUntil = new Date(Date.now() + 60 * 60 * 1000); // ساعة
+        await this.redisService?.set(
+          'council:sanctuary:halt',
+          haltUntil.toISOString(),
+          60 * 60 * 1000,
+        );
+        this.logger.warn(
+          `🛡️ Sanctuary HALTED council for 1h: ${consecutive} consecutive losses`,
+        );
+      }
+    } catch (err: any) {
+      this.logger.debug(`Sanctuary check failed: ${err.message}`);
+    }
+  }
+
+
 }

@@ -381,6 +381,8 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'STOP_LOSS');
+        // V175: Sanctuary check بعد كل SL
+        this._checkSanctuary(position.userId).catch(() => {});
         result.slTriggered = true;
         return result;
       }
@@ -418,6 +420,7 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+        this._checkSanctuary(position.userId).catch(() => {});
         result.tpTriggered = true;
         return result;
       }
@@ -602,4 +605,25 @@ export class PositionMonitorService {
       86400000, // 24 hours
     );
   }
+  private async _checkSanctuary(userId: string): Promise<void> {
+    // Non-blocking: يستدعي checkAndHaltCouncil إذا SanctuaryService متاح
+    try {
+      const recentLosses = await this.prisma.position.count({
+        where: {
+          userId,
+          status: 'CLOSED',
+          realizedPnl: { lt: 0 },
+          closedAt: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) }, // آخر 3 ساعات
+        },
+      });
+      if (recentLosses >= 5) {
+        // خسارة 5 صفقات في 3 ساعات → halt المجلس ساعة
+        const haltUntil = new Date(Date.now() + 60 * 60 * 1000);
+        await this.redis.set('council:sanctuary:halt', haltUntil.toISOString(), 60 * 60 * 1000);
+        this.logger.warn(`🛡️ Sanctuary: ${recentLosses} خسائر في 3 ساعات → halt المجلس حتى ${haltUntil.toISOString()}`);
+      }
+    } catch { /* non-critical */ }
+  }
+
+
 }

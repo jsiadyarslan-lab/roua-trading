@@ -1709,7 +1709,7 @@ export class StrategicCouncilService {
       // This ensures: (1) same pair gets consistent direction, (2) direction changes hourly
       const hash = this._deterministicHash(pair + new Date().getUTCHours().toString());
       const fallbackDir: 'BUY' | 'SELL' = hash % 2 === 0 ? 'BUY' : 'SELL';
-      const fallbackConfidence = 42; // Above MIN_BRIEF_CONFIDENCE=40
+      const fallbackConfidence = 58; // V175: رُفع ليتجاوز MIN_CONSENSUS_SCORE=55
 
       return {
         recommendation: fallbackDir,

@@ -97,6 +97,16 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   // WS/Reconnection config from config.ts
   const { reconnectMaxAttempts: MAX_RECONNECT_ATTEMPTS, reconnectBaseDelay: BASE_DELAY, reconnectMaxDelay: MAX_DELAY, pollingInterval: POLLING_INTERVAL, pingInterval: PING_INTERVAL } = WS_CONFIG;
 
+  // M7 FIX: Use refs for onCandleUpdate/onPriceUpdate in flushBuffer.
+  // Previously, flushBuffer captured these callbacks in its closure, meaning
+  // if the callbacks changed between when an update was buffered and when it
+  // was flushed (~16ms), stale callbacks could be called. Using refs ensures
+  // the latest callbacks are always invoked.
+  const onCandleUpdateRef = useRef(onCandleUpdate);
+  onCandleUpdateRef.current = onCandleUpdate;
+  const onPriceUpdateRef = useRef(onPriceUpdate);
+  onPriceUpdateRef.current = onPriceUpdate;
+
   // ── rAF Flush: Apply buffered WS updates once per frame ──
   const flushBuffer = useCallback(() => {
     const buf = rafBufferRef.current;
@@ -108,12 +118,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       // distinguish between forming and closed candles.
       // We store it as a non-enumerable property to avoid serialization issues.
       (buf.candle as any)._isClosed = buf.isKlineClosed;
-      onCandleUpdate(buf.candle);
+      // M7: Use ref instead of closure — always calls latest callback
+      onCandleUpdateRef.current(buf.candle);
     }
     if (buf.price !== null) {
-      onPriceUpdate(buf.price);
+      // M7: Use ref instead of closure — always calls latest callback
+      onPriceUpdateRef.current(buf.price);
     }
-  }, [onCandleUpdate, onPriceUpdate]);
+  }, []); // M7: No dependencies — refs are always current
 
   // Buffer a WS update — coalesces multiple updates per frame
   const bufferUpdate = useCallback((candle: CandleData | null, price: number | null, isKlineClosed: boolean = false) => {

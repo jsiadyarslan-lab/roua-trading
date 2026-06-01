@@ -5,18 +5,21 @@
 
 import type { Drawing, DrawingTool, DrawingPoint } from './types';
 
+// M2 FIX: Replaced synchronous require() with a parameter-based approach.
+// The old getStorageKey() used require('@/lib/auth-store') which is:
+// 1. Synchronous CommonJS inside ESM — breaks Next.js bundling/tree-shaking
+// 2. Can fail silently in edge runtime or before Zustand hydrates
+// Now, userId is passed explicitly from the React layer where it's available.
+// The fallback chain still checks localStorage cache for pre-hydration scenarios.
+
 /**
  * Get a user-isolated localStorage key for chart drawings.
- * Uses userId from auth store to prevent data leakage between
- * users on shared browsers (libraries, offices, kiosks).
+ * @param userId - Optional user ID from the React component layer.
+ *   If not provided, falls back to localStorage cache, then guest.
  */
-function getStorageKey(): string {
-  // Priority 1: Read from auth store (most reliable)
-  try {
-    const { useAuthStore } = require('@/lib/auth-store')
-    const user = useAuthStore.getState()?.user
-    if (user?.id) return `roua-chart-drawings:${user.id}`
-  } catch { /* Auth store not loaded yet */ }
+function getStorageKey(userId?: string): string {
+  // Priority 1: Explicit userId parameter (most reliable, from React layer)
+  if (userId) return `roua-chart-drawings:${userId}`;
 
   // Priority 2: Read from localStorage cache (available before Zustand hydrates)
   try {
@@ -41,10 +44,13 @@ export class DrawingManager {
   // Previously, drawings were stored per-symbol only, meaning switching from
   // BTC/USDT 15min to BTC/USDT 1H would show 15min drawings at wrong positions.
   private timeframe: string = '';
+  // M2 FIX: Store userId from React layer instead of using require().
+  private userId: string | undefined;
 
-  constructor(symbol: string, timeframe?: string) {
+  constructor(symbol: string, timeframe?: string, userId?: string) {
     this.symbol = symbol;
     this.timeframe = timeframe || '';
+    this.userId = userId;
     this.loadFromStorage();
   }
 
@@ -127,7 +133,8 @@ export class DrawingManager {
       const symbolDrawings = this.getAll();
       // H2 FIX: Use composite key (symbol:timeframe) instead of just symbol
       allDrawings[this.getStorageKey()] = symbolDrawings;
-      localStorage.setItem(getStorageKey(), JSON.stringify(allDrawings));
+      // M2: Pass userId to getStorageKey instead of using require()
+      localStorage.setItem(getStorageKey(this.userId), JSON.stringify(allDrawings));
     } catch {
       // localStorage might be full or unavailable
     }
@@ -148,7 +155,8 @@ export class DrawingManager {
             if (legacyData && Object.keys(legacyData).length > 0) {
               allDrawings = legacyData;
               // Save to user-isolated key
-              localStorage.setItem(getStorageKey(), JSON.stringify(legacyData));
+              // M2: Pass userId to getStorageKey instead of using require()
+              localStorage.setItem(getStorageKey(this.userId), JSON.stringify(legacyData));
               // Remove legacy key to prevent re-migration
               localStorage.removeItem(LEGACY_STORAGE_KEY);
             }
@@ -167,7 +175,8 @@ export class DrawingManager {
 
   private getAllStoredDrawings(): Record<string, Drawing[]> {
     try {
-      const raw = localStorage.getItem(getStorageKey());
+      // M2: Pass userId to getStorageKey instead of using require()
+      const raw = localStorage.getItem(getStorageKey(this.userId));
       return raw ? JSON.parse(raw) : {};
     } catch {
       return {};

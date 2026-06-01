@@ -527,6 +527,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // ── Volume Series ──
     const volumeSeries = chart.addSeries(HistogramSeries, buildVolumeOptions());
+    // M6 FIX: Volume scaleMargins will be dynamically adjusted when
+    // oscillators are added/removed (via recalcOscillatorMargins).
+    // The bottom margin must match the total height of all oscillator panels.
+    // Default is { top: 0.85, bottom: 0 } when no oscillators are present.
     volumeSeries.priceScale().applyOptions({
       scaleMargins: { top: 0.85, bottom: 0 },
     });

@@ -525,23 +525,50 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Fibonacci Time Zone ────────────────────────────────
   // FIX: Calculate time zone lines based on CANDLE COUNT, not pixel distance.
-  // Previously, the distance between the two anchor points was measured in
-  // pixels (b.x - a.x), which means the time zones would be at different
-  // candle positions depending on zoom level. The correct approach is:
-  // 1. Convert both anchor points from pixel coordinates to candle time
-  // 2. The time interval between anchors = 1 unit
-  // 3. Draw vertical lines at Fibonacci multiples of that interval
-  // This ensures the time zones are anchored to actual candle positions,
-  // just like TradingView and other professional charting platforms.
+  // M4 FIX: Even during PREVIEW, use time-based calculation.
+  // Previously, the preview used pixel distance and the committed drawing used
+  // time-based calculation, causing lines to visually "jump" when the mouse
+  // was released. Now both use the same time-based approach.
   private drawFibTimeZone(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     // Convert pixel positions to chart time coordinates
     const timeA = this.tt(d, 0); // time at point A
-    const timeB = this.tt(d, 1); // time at point B
 
-    if (timeA !== null && timeB !== null && timeB !== timeA) {
-      // Calculate time interval between the two points
-      const timeInterval = timeB - timeA;
+    // M4 FIX: For preview, also use time-based calculation by converting
+    // the mouse pixel position back to a chart time coordinate.
+    // This eliminates the visual "jump" when the drawing is committed.
+    let timeInterval: number;
 
+    if (timeA !== null && d.points.length >= 2) {
+      const timeB = this.tt(d, 1);
+      if (timeB !== null && timeB !== timeA) {
+        timeInterval = timeB - timeA;
+      } else if (timeA !== null) {
+        // Preview mode: point B is the mouse position — convert pixel to time
+        const mouseTime = this._chart.timeScale().coordinateToTime(b.x);
+        if (mouseTime !== null && mouseTime !== timeA) {
+          timeInterval = (mouseTime as number) - timeA;
+        } else {
+          // Can't convert mouse to time — estimate from pixel distance
+          // using the time scale's visible range
+          timeInterval = this.estimateTimeFromPixels(a.x, b.x);
+        }
+      } else {
+        timeInterval = this.estimateTimeFromPixels(a.x, b.x);
+      }
+    } else if (timeA !== null) {
+      // Only point A has time data — estimate interval from pixel distance
+      const mouseTime = this._chart.timeScale().coordinateToTime(b.x);
+      if (mouseTime !== null && mouseTime !== timeA) {
+        timeInterval = (mouseTime as number) - timeA;
+      } else {
+        timeInterval = this.estimateTimeFromPixels(a.x, b.x);
+      }
+    } else {
+      // No time data available at all — pure pixel fallback
+      timeInterval = 0;
+    }
+
+    if (timeInterval > 0 && timeA !== null) {
       for (const level of FIB_TIME_LEVELS) {
         const targetTime = timeA + timeInterval * level;
 
@@ -556,8 +583,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
         ctx.restore();
       }
     } else {
-      // Fallback: use pixel distance if time conversion isn't available
-      // (e.g., during preview when the drawing hasn't been committed yet)
+      // Pure pixel fallback — no time coordinates available at all
       const timeDist = b.x - a.x;
       for (const level of FIB_TIME_LEVELS) {
         const x = a.x + timeDist * level;
@@ -570,6 +596,30 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       }
     }
     this.drawDot(ctx, a); this.drawDot(ctx, b);
+  }
+
+  // M4: Estimate time interval from pixel distance using the visible time scale range.
+  // This is used when coordinateToTime fails (e.g., mouse is outside visible range).
+  private estimateTimeFromPixels(aX: number, bX: number): number {
+    try {
+      const range = this._chart.timeScale().getVisibleLogicalRange();
+      if (!range) return 0;
+      const coordRange = this._chart.timeScale().getVisibleRange();
+      if (!coordRange) return 0;
+      const fromTime = (coordRange.from as number);
+      const toTime = (coordRange.to as number);
+      const barCount = range.to - range.from;
+      if (barCount <= 0) return 0;
+      const pixelsPerBar = (bX - aX); // pixel distance between two points
+      // Approximate: if the distance between points A and B is X pixels,
+      // and we know the total time range and bar count, estimate the time interval
+      const chartWidth = this._chart.timeScale().width();
+      if (chartWidth <= 0) return 0;
+      const timePerPixel = (toTime - fromTime) / chartWidth;
+      return Math.max(1, Math.round(pixelsPerBar * timePerPixel));
+    } catch {
+      return 0;
+    }
   }
 
   // ── Rectangle ──────────────────────────────────────────

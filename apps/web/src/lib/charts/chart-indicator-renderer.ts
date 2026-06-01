@@ -85,6 +85,24 @@ function recalcOscillatorMargins(chart: IChartApi, refs: SeriesRefs): void {
       scaleMargins: { top: 0.1, bottom: Math.min(0.15, totalOscHeight + 0.02) },
     });
   } catch {}
+
+  // M6 FIX: Adjust volume series margins to avoid overlapping with oscillator panels.
+  // When oscillators take up the bottom portion of the chart, volume must be
+  // compressed to the top area only. Without this, volume bars extend behind
+  // oscillator panels, making them hard to read.
+  // Find the volume series by checking overlaySeries for a histogram without priceScaleId
+  refs.overlaySeries.forEach(s => {
+    try {
+      const opts = s.options() as any;
+      // Volume series uses the default price scale (no custom priceScaleId)
+      // and is a histogram. We detect it by checking if it has no priceScaleId.
+      if (!opts.priceScaleId && opts.priceLineVisible === false) {
+        s.priceScale().applyOptions({
+          scaleMargins: { top: Math.max(0.70, 1 - totalOscHeight - 0.15), bottom: totalOscHeight },
+        });
+      }
+    } catch {}
+  });
 }
 
 function addOscillatorLine(

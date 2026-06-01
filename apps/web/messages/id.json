@@ -2884,7 +2884,7 @@
     "unknownError": "Terjadi kesalahan yang tidak terduga. Silakan coba lagi.",
     "enterEmail": "Masukkan email Anda",
     "passkeyNotAvailable": "Pengautentikasi Passkey tidak tersedia",
-    "verifyCode": "Login",
+    "verifyCode": "Masuk",
     "codeInvalid": "Kode verifikasi tidak valid",
     "googleNoEmail": "Tidak ada email yang ditemukan di akun Google.",
     "verifying": "Memverifikasi...",
@@ -3152,7 +3152,7 @@
     "previous": "Sebelumnya",
     "features": "Fitur",
     "filter": "Menyaring",
-    "roleAdmin": "Admin",
+    "roleAdmin": "Administrator",
     "year": "Tahun",
     "submitting": "Mengirim...",
     "refresh": "Segarkan",
@@ -4402,7 +4402,7 @@
       "ai": "Kecerdasan AI",
       "method": "Metode",
       "tools": "Alat",
-      "login": "Login"
+      "login": "Masuk"
     },
     "galaxyOrchestra": {
       "ollamaDesc": "Model lokal pribadi untuk analisis sensitif jauh dari cloud",
@@ -4741,7 +4741,7 @@
     "enterprise": "Perusahaan",
     "plus": "Plus",
     "free": "Gratis",
-    "elite": "Elite",
+    "elite": "Elit",
     "admin": "Admin"
   },
   "errors": {

@@ -316,16 +316,19 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
    * Fetch news from all configured sources
    */
   private async _fetchAllSources(): Promise<RawNewsItem[]> {
-    const [ctResult, cpResult, cdResult] = await Promise.allSettled([
+    const [rouaResult, ctResult, cpResult, cdResult] = await Promise.allSettled([
+      this._fetchRouaNews(),
       this._fetchCoinTelegraph(),
       this._fetchCryptoPanic(),
       this._fetchCoinDesk(),
     ]);
 
-    const ctNews = ctResult.status === 'fulfilled' ? ctResult.value : [];
-    const cpNews = cpResult.status === 'fulfilled' ? cpResult.value : [];
-    const cdNews = cdResult.status === 'fulfilled' ? cdResult.value : [];
+    const rouaNews = rouaResult.status === 'fulfilled' ? rouaResult.value : [];
+    const ctNews   = ctResult.status === 'fulfilled' ? ctResult.value : [];
+    const cpNews   = cpResult.status === 'fulfilled' ? cpResult.value : [];
+    const cdNews   = cdResult.status === 'fulfilled' ? cdResult.value : [];
 
+    if (rouaResult.status === 'rejected') this.logger.debug(`RouaNews unavailable: ${(rouaResult as any).reason?.message}`);
     if (ctResult.status === 'rejected') {
       this.logger.warn(`CoinTelegraph fetch failed: ${ctResult.reason?.message || ctResult.reason}`);
     }
@@ -336,7 +339,7 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
       this.logger.warn(`CoinDesk fetch failed: ${cdResult.reason?.message || cdResult.reason}`);
     }
 
-    const allNews = [...ctNews, ...cpNews, ...cdNews];
+    const allNews = [...rouaNews, ...ctNews, ...cpNews, ...cdNews];
 
     // Deduplicate by title
     const seen = new Set<string>();
@@ -646,4 +649,36 @@ export class NewsService implements OnModuleInit, OnModuleDestroy {
     if (lower.includes('tech') || lower.includes('ai')) return 'تقنية';
     return 'أسواق';
   }
+  private async _fetchRouaNews(): Promise<RawNewsItem[]> {
+    const siteUrl = process.env.NEWS_SITE_URL || 'https://rouatradingnews-production.up.railway.app';
+    const apiKey  = process.env.INTEGRATION_API_KEY;
+    if (!apiKey) return [];
+
+    try {
+      const res = await fetch(`${siteUrl}/api/integration/news?limit=20`, {
+        headers: { 'Content-Type': 'application/json', 'X-Integration-Key': apiKey },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (!res.ok) return [];
+      const data = await res.json();
+      const articles = data.articles || data.news || [];
+      if (!Array.isArray(articles) || !articles.length) return [];
+      this.logger.log(`📰 RouaNews: ${articles.length} articles`);
+      return articles.map((a: any): RawNewsItem => ({
+        title:          a.titleAr || a.title || '',
+        description:    a.summaryAr || a.summary || '',
+        link:           a.url || (a.slug ? `${siteUrl}/news/${a.slug}` : undefined),
+        publishedAt:    a.publishedAt,
+        source:         'RouaNews',
+        category:       a.category || 'أسواق',
+        sentiment:      typeof a.sentiment === 'number' ? a.sentiment : 0,
+        impactLevel:    a.impactLevel || 'medium',
+        affectedAssets: Array.isArray(a.affectedAssets) ? a.affectedAssets.join(',') : (a.affectedAssets || ''),
+      }));
+    } catch {
+      return [];
+    }
+  }
+
+
 }

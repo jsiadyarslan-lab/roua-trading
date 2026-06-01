@@ -354,6 +354,20 @@ export class PositionMonitorService {
 
     // ── Below: Full monitoring for non-Agent positions ──
 
+    // ── MAX_HOLDING_TIME: Smart Executor positions (M1/M5/M15) close after 4h ──
+    if (position.source === 'smart_executor' && position.openedAt) {
+      const holdingMs = Date.now() - new Date(position.openedAt).getTime();
+      const maxHoldingMs = 4 * 60 * 60 * 1000; // 4 ساعات
+      if (holdingMs > maxHoldingMs) {
+        this.logger.warn(
+          `⏱️ MAX_HOLDING: ${position.symbol} held ${(holdingMs/3600000).toFixed(1)}h > 4h — closing`,
+        );
+        await this._closePosition(position, currentPrice, 'STRATEGY_EXIT');
+        result.slTriggered = true;
+        return result;
+      }
+    }
+
     // ── Stop-Loss Check ──
     if (stopLossNum !== null) {
       const slHit =

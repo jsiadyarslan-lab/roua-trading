@@ -373,14 +373,10 @@ export class TradingService {
         const notional = request.quantity * currentPrice;
         const marginToDeduct = leverage > 1 ? notional / leverage : notional;
 
-        // Atomic decrement — prevents race condition with concurrent orders
-        await this.prisma.$executeRaw`
-          UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
-          WHERE "userId" = ${userId}
-        `;
+        // V175: margin is LOCKED (collateral), NOT deducted from balance
+        // Balance only changes on close by PnL amount
         this.logger.log(
-          `📝 V172d Paper margin deducted: -$${marginToDeduct.toFixed(2)} (${request.symbol} qty=${request.quantity} @ ${currentPrice})`,
+          `📝 V175 Paper margin locked (not deducted): $${marginToDeduct.toFixed(2)} (${request.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
@@ -1050,14 +1046,14 @@ export class TradingService {
         const marginToReturn = leverage > 1 ? notional / leverage : notional;
         const totalReturn = marginToReturn + pnl;
 
-        // Atomic increment — prevents race condition
+        // V175: only add PnL — margin was never deducted
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${totalReturn}
+          SET "paperBalance" = "paperBalance" + ${pnl}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172d Paper balance on close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V175 Paper balance on close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
@@ -1371,11 +1367,11 @@ export class TradingService {
 
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${totalReturn}
+          SET "paperBalance" = "paperBalance" + ${pnl}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V172d Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V175 Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);

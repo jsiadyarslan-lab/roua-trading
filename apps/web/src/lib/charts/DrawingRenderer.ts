@@ -268,8 +268,24 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
     ctx.restore();
   }
 
+  // H11 FIX: Dynamic price decimals based on price magnitude.
+  // Previously, all prices used .toFixed(2), which is wrong for:
+  // - BTC/USD (2 decimals is fine: 67,234.56)
+  // - EUR/USD forex (needs 5 decimals: 1.08234)
+  // - JPY pairs (needs 3 decimals: 149.500)
+  // - DOGE (needs 5+ decimals: 0.12345)
+  private formatPrice(price: number): string {
+    const abs = Math.abs(price);
+    if (abs === 0) return '0.00';
+    if (abs >= 10000) return price.toFixed(2);   // BTC, large stocks
+    if (abs >= 100) return price.toFixed(2);     // Most stocks, JPY pairs
+    if (abs >= 1) return price.toFixed(4);       // Small stocks, some crypto
+    if (abs >= 0.01) return price.toFixed(6);    // Low-value crypto (DOGE, SHIB)
+    return price.toFixed(8);                      // Micro-cap tokens
+  }
+
   private drawPriceLabel(ctx: CanvasRenderingContext2D, x: number, y: number, price: number): void {
-    const text = price.toFixed(2);
+    const text = this.formatPrice(price);
     ctx.save();
     ctx.font = "10px 'JetBrains Mono', monospace";
     const textW = ctx.measureText(text).width;
@@ -397,7 +413,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       const angle = Math.atan2(-(b.y - a.y), b.x - a.x) * (180 / Math.PI);
       const midX = (a.x + b.x) / 2, midY = (a.y + b.y) / 2;
       ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = d.color; ctx.globalAlpha = 0.85;
-      ctx.fillText(`Δ ${priceDist.toFixed(2)}`, midX + 6, midY - 8);
+      ctx.fillText(`Δ ${this.formatPrice(priceDist)}`, midX + 6, midY - 8);
       ctx.fillText(`${angle.toFixed(1)}°`, midX + 6, midY + 4);
       ctx.restore();
     }
@@ -432,7 +448,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
       ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 50 ? 2 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
       ctx.beginPath(); ctx.moveTo(a.x, y); ctx.lineTo(b.x, y); ctx.stroke();
-      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${this.formatPrice(price)}`, b.x + 6, y + 3); }
       ctx.restore();
     }
     ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
@@ -452,7 +468,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
       ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = (level === 0 || level === 100) ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
       ctx.beginPath(); ctx.moveTo(a.x, y); ctx.lineTo(b.x, y); ctx.stroke();
-      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${this.formatPrice(price)}`, b.x + 6, y + 3); }
       ctx.restore();
     }
     ctx.save(); ctx.strokeStyle = DEFAULT_COLOR; ctx.lineWidth = DEFAULT_LINE_WIDTH; ctx.globalAlpha = d.isPreview ? 0.5 : DEFAULT_OPACITY;
@@ -474,7 +490,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       const color = FIBONACCI_COLORS[level] || DEFAULT_COLOR;
       ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.6;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, y); ctx.stroke();
-      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${price.toFixed(2)}`, b.x + 6, y + 3); }
+      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}% — ${this.formatPrice(price)}`, b.x + 6, y + 3); }
       ctx.restore();
     }
     this.drawDot(ctx, a); this.drawDot(ctx, b);
@@ -763,7 +779,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
       const hi = Math.max(priceA, priceB), lo = Math.min(priceA, priceB), diff = hi - lo;
       this.drawPriceLabel(ctx, midX + capW + 4, topY, hi);
       this.drawPriceLabel(ctx, midX + capW + 4, botY, lo);
-      if (diff > 0) { ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = DEFAULT_COLOR; ctx.globalAlpha = 0.9; ctx.fillText(`Δ ${diff.toFixed(2)}`, midX + capW + 4, (topY + botY) / 2 + 3); ctx.restore(); }
+      if (diff > 0) { ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = DEFAULT_COLOR; ctx.globalAlpha = 0.9; ctx.fillText(`Δ ${this.formatPrice(diff)}`, midX + capW + 4, (topY + botY) / 2 + 3); ctx.restore(); }
     }
     this.drawDot(ctx, a); this.drawDot(ctx, b);
   }
@@ -779,7 +795,7 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
 
   // ── Price Label Marker ─────────────────────────────────
   private drawPriceLabelMarker(ctx: CanvasRenderingContext2D, pt: PixelPoint, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
-    const price = this.pp(d, 0) ?? 0, text = price.toFixed(2);
+    const price = this.pp(d, 0) ?? 0, text = this.formatPrice(price);
     ctx.save(); ctx.font = "10px 'JetBrains Mono', monospace";
     const textW = ctx.measureText(text).width, padX = 6, padY = 3;
     const rx = pt.x - textW / 2 - padX, ry = pt.y - 6 - padY, rw = textW + padX * 2, rh = 12 + padY * 2;

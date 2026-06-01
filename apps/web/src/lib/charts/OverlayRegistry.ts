@@ -365,11 +365,18 @@ export class OverlayRegistry {
   }
 }
 
-// Singleton instance — persists across React re-renders but is NOT destroyed
-// when all overlays are toggled off. Only destroyed on component unmount or
-// timeframe change (via resetOverlayRegistry).
+// H3 FIX: Removed module-level singleton pattern.
+// The singleton broke multi-chart mode because all RouaChart instances shared
+// the same registry. Now, each useChart instance creates its own OverlayRegistry
+// (as a ref), and RouaChart uses the per-instance registry instead of the global one.
+//
+// The functions below are kept for backward compatibility but are deprecated.
+// New code should create OverlayRegistry instances directly.
+
+// Legacy singleton — kept for backward compat only, should NOT be used in new code
 let _instance: OverlayRegistry | null = null;
 
+/** @deprecated Use `new OverlayRegistry()` instead — creates per-instance registry */
 export function getOverlayRegistry(): OverlayRegistry {
   if (!_instance) {
     _instance = new OverlayRegistry();
@@ -377,6 +384,7 @@ export function getOverlayRegistry(): OverlayRegistry {
   return _instance;
 }
 
+/** @deprecated Use `registry.destroy()` on your per-instance registry instead */
 export function resetOverlayRegistry(): void {
   if (_instance) {
     _instance.destroy();

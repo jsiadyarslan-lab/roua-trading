@@ -576,7 +576,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const changePercent = prevClose > 0 ? (change / prevClose) * 100 : 0;
 
       const d = new Date((param.time as number) * 1000);
-      const dateStr = d.toLocaleDateString('ar-EG', {
+      // H14 FIX: Use dynamic locale instead of hardcoded 'ar-EG'.
+      // This ensures English users see English date formatting and Arabic
+      // users see Arabic formatting, matching their language preference.
+      const userLocale = (typeof navigator !== 'undefined' && navigator.language) || 'en-US';
+      const dateStr = d.toLocaleDateString(userLocale, {
         year: 'numeric', month: 'short', day: 'numeric',
         hour: '2-digit', minute: '2-digit',
       });
@@ -647,10 +651,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     }
 
     // ── Init Drawing Manager ──
+    // H2 FIX: Pass timeframe to DrawingManager so drawings are stored per-symbol:timeframe
     if (!drawingManagerRef.current) {
-      drawingManagerRef.current = new DrawingManager(symbol);
+      drawingManagerRef.current = new DrawingManager(symbol, timeframe);
     } else {
-      drawingManagerRef.current.setSymbol(symbol);
+      drawingManagerRef.current.setSymbol(symbol, timeframe);
     }
 
     // ── Init Drawing Renderer ──
@@ -802,7 +807,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // Data for the current symbol+timeframe is already loaded — skip clearing.
       // Only update the drawing manager and restore chart state.
       if (drawingManagerRef.current) {
-        drawingManagerRef.current.setSymbol(symbol);
+        drawingManagerRef.current.setSymbol(symbol, timeframe);
       }
       drawingRendererRef.current?.redraw();
       restoreChartStateRef.current();
@@ -833,9 +838,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     prevSymbolRef.current = symbol;
 
     if (drawingManagerRef.current) {
-      drawingManagerRef.current.setSymbol(symbol);
+      drawingManagerRef.current.setSymbol(symbol, timeframe);
     }
-    // Redraw renderer for new symbol's drawings
     drawingRendererRef.current?.redraw();
     // Clear overlay series when symbol changes
     overlaySeriesRef.current.forEach((series) => {
@@ -928,6 +932,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       } catch { /* ignore save errors during timeframe switch */ }
     }
     prevTimeframeRef.current = timeframe;
+
+    // H15 FIX: Update DrawingManager with new timeframe when timeframe changes.
+    // Previously, drawings from the old timeframe persisted when only the timeframe
+    // changed (same symbol), because DrawingManager only tracked symbol.
+    if (drawingManagerRef.current) {
+      drawingManagerRef.current.setTimeframe(timeframe);
+    }
 
     // Cancel any pending indicator re-apply from a previous setCandles call
     cancelAnimationFrame(pendingIndicatorRafRef.current);
@@ -1510,6 +1521,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     oscKeys.forEach(k => {
       const s = oscillatorSeriesRef.current.get(k);
       if (s) { chart.removeSeries(s); oscillatorSeriesRef.current.delete(k); }
+    });
+
+    // H8 FIX: Clean up orphaned price scales and recalculate margins
+    // after removing an oscillator. Without this, the price scale for the
+    // removed oscillator persists as an invisible orphan, wasting space.
+    import('../lib/charts/chart-indicator-renderer').then(({ cleanupOrphanedScales }) => {
+      const c = chartInstanceRef.current;
+      if (c) {
+        cleanupOrphanedScales(c, {
+          overlaySeries: overlaySeriesRef.current,
+          oscillatorSeries: oscillatorSeriesRef.current,
+        });
+      }
     });
 
     setActiveIndicators(prev => {

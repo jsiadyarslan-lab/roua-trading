@@ -24,27 +24,13 @@ export function IndicatorSettings({ indicator, onSave, onClose }: IndicatorSetti
 
   const config = INDICATOR_CONFIGS.find(c => c.key === indicator.key);
 
-  // Persist to localStorage
-  useEffect(() => {
-    try {
-      const key = `roua-ind-settings-${indicator.key}`;
-      localStorage.setItem(key, JSON.stringify({ params, color, opacity }));
-    } catch { /* ignore */ }
-  }, [params, color, opacity, indicator.key]);
-
-  // Load from localStorage
-  useEffect(() => {
-    try {
-      const key = `roua-ind-settings-${indicator.key}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.params) setParams(parsed.params);
-        if (parsed.color) setColor(parsed.color);
-        if (parsed.opacity !== undefined) setOpacity(parsed.opacity);
-      }
-    } catch { /* ignore */ }
-  }, [indicator.key]);
+  // H12 FIX: Removed competing localStorage persistence.
+  // Previously, IndicatorSettings saved its own copy of indicator settings to
+  // `roua-ind-settings-${key}` in localStorage on every keystroke (no debounce),
+  // while the main persistence mechanism is useChartStateStore (3-second debounce).
+  // These two storage systems could conflict on page load.
+  // Now, IndicatorSettings loads its initial state from the indicator prop
+  // and relies solely on the onSave callback → addIndicator → debouncedSaveChartState.
 
   const handleSave = () => {
     onSave({

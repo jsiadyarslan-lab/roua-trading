@@ -37,9 +37,14 @@ const LEGACY_STORAGE_KEY = 'roua-chart-drawings'
 export class DrawingManager {
   private drawings: Map<string, Drawing> = new Map();
   private symbol: string = '';
+  // H2+H15 FIX: Track timeframe so drawings are stored per-symbol:timeframe.
+  // Previously, drawings were stored per-symbol only, meaning switching from
+  // BTC/USDT 15min to BTC/USDT 1H would show 15min drawings at wrong positions.
+  private timeframe: string = '';
 
-  constructor(symbol: string) {
+  constructor(symbol: string, timeframe?: string) {
     this.symbol = symbol;
+    this.timeframe = timeframe || '';
     this.loadFromStorage();
   }
 
@@ -90,10 +95,27 @@ export class DrawingManager {
 
   // ── Symbol Management ──────────────────────────────────
 
-  setSymbol(symbol: string): void {
+  /** H2+H15 FIX: Set both symbol AND timeframe together.
+   * Drawings are now keyed by `${symbol}:${timeframe}`, so changing
+   * either one loads the correct set of drawings. */
+  setSymbol(symbol: string, timeframe?: string): void {
     this.symbol = symbol;
+    if (timeframe !== undefined) this.timeframe = timeframe;
     this.drawings.clear();
     this.loadFromStorage();
+  }
+
+  /** Set only the timeframe (when symbol stays the same but timeframe changes) */
+  setTimeframe(timeframe: string): void {
+    if (this.timeframe === timeframe) return;
+    this.timeframe = timeframe;
+    this.drawings.clear();
+    this.loadFromStorage();
+  }
+
+  /** Get the composite storage key for the current symbol+timeframe */
+  private getStorageKey(): string {
+    return this.timeframe ? `${this.symbol}:${this.timeframe}` : this.symbol;
   }
 
   // ── Persistence ────────────────────────────────────────
@@ -103,7 +125,8 @@ export class DrawingManager {
     try {
       const allDrawings = this.getAllStoredDrawings();
       const symbolDrawings = this.getAll();
-      allDrawings[this.symbol] = symbolDrawings;
+      // H2 FIX: Use composite key (symbol:timeframe) instead of just symbol
+      allDrawings[this.getStorageKey()] = symbolDrawings;
       localStorage.setItem(getStorageKey(), JSON.stringify(allDrawings));
     } catch {
       // localStorage might be full or unavailable
@@ -133,7 +156,8 @@ export class DrawingManager {
         } catch { /* Legacy data corrupted — skip migration */ }
       }
 
-      const symbolDrawings = allDrawings[this.symbol] || [];
+      // H2 FIX: Load drawings by composite key (symbol:timeframe)
+      const symbolDrawings = allDrawings[this.getStorageKey()] || [];
       this.drawings.clear();
       symbolDrawings.forEach(d => this.drawings.set(d.id, d));
     } catch {
@@ -208,7 +232,10 @@ export class DrawingManager {
       case 'andrews-pitchfork': return 3;
       case 'schiff-pitchfork':  return 3;
       case 'modified-schiff':   return 3;
-      case 'gann-fan':          return 3;
+      // H13 FIX: Gann Fan originates from a single pivot point.
+      // Previously required 3 clicks but only used the first point, creating
+      // confusing UX where 2 extra clicks were needed for no purpose.
+      case 'gann-fan':          return 1;
       default:                  return 0;
     }
   }

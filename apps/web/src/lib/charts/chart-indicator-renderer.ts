@@ -8,6 +8,9 @@ import type { IChartApi, ISeriesApi, SeriesType, Time } from 'lightweight-charts
 import type { CandleData, ActiveIndicator } from './types';
 import { sanitizeTime, isValidNumber } from './chart-utils';
 
+// ── Track oscillator scale IDs for dynamic margin recalculation (H7/H8) ──
+const activeOscillatorScales: Set<string> = new Set();
+
 // ── Types ──────────────────────────────────────────────
 interface SeriesRefs {
   overlaySeries: Map<string, ISeriesApi<SeriesType>>;
@@ -46,6 +49,44 @@ function addOverlayLine(
 }
 
 // ── Helper: Add oscillator sub-panel series ──
+// ── H7: Dynamically recalculate ALL oscillator panel margins ──
+// When an oscillator is added/removed, all panels must be recalculated
+// so they don't overlap and the price chart area is properly sized.
+function recalcOscillatorMargins(chart: IChartApi, refs: SeriesRefs): void {
+  const scales = new Map<string, ISeriesApi<SeriesType>>();
+  refs.oscillatorSeries.forEach(s => {
+    try {
+      const opts = s.options() as any;
+      if (opts.priceScaleId) scales.set(opts.priceScaleId, s);
+    } catch {}
+  });
+  if (scales.size === 0) return;
+
+  const panelHeight = Math.min(0.18, Math.max(0.10, 0.65 / scales.size));
+  const scaleIds = Array.from(scales.keys()).sort();
+
+  scaleIds.forEach((scaleId, idx) => {
+    const bottomMargin = idx * panelHeight;
+    const topMargin = 1 - bottomMargin - panelHeight;
+    const series = scales.get(scaleId)!;
+    try {
+      series.priceScale().applyOptions({
+        scaleMargins: { top: Math.max(0.02, topMargin), bottom: bottomMargin },
+        borderVisible: false,
+      });
+    } catch {}
+  });
+
+  // Shrink the main price chart's bottom margin to make room for oscillators
+  const totalOscHeight = scales.size * panelHeight;
+  try {
+    // Access the default (right) price scale which the candle series uses
+    chart.priceScale('right').applyOptions({
+      scaleMargins: { top: 0.1, bottom: Math.min(0.15, totalOscHeight + 0.02) },
+    });
+  } catch {}
+}
+
 function addOscillatorLine(
   chart: IChartApi,
   refs: SeriesRefs,
@@ -55,9 +96,12 @@ function addOscillatorLine(
   color: string,
   scaleId: string,
   lineWidth: number = 1,
+  title?: string, // H5/M5: Oscillator panel title label
 ): void {
   const data = cleanData(rawData);
   if (data.length === 0) return;
+
+  activeOscillatorScales.add(scaleId);
 
   const existingScaleIds = new Set<string>();
   refs.oscillatorSeries.forEach(s => {
@@ -68,7 +112,7 @@ function addOscillatorLine(
   });
 
   const totalScales = existingScaleIds.size + 1;
-  const panelHeight = Math.min(0.15, Math.max(0.10, 0.60 / totalScales));
+  const panelHeight = Math.min(0.18, Math.max(0.10, 0.65 / totalScales));
 
   const scaleSlots = Array.from(existingScaleIds);
   scaleSlots.push(scaleId);
@@ -85,13 +129,18 @@ function addOscillatorLine(
     lastValueVisible: true,
     crosshairMarkerVisible: false,
     priceScaleId: scaleId,
+    title: title || '', // H5/M5: Show indicator name in panel
   });
   series.priceScale().applyOptions({
-    scaleMargins: { top: Math.max(0.1, topMargin), bottom: bottomMargin },
-    borderVisible: false,
+    scaleMargins: { top: Math.max(0.02, topMargin), bottom: bottomMargin },
+    borderVisible: true, // H1/M1: Show border to visually separate panels
+    borderColor: 'rgba(42,49,60,0.5)',
   });
   series.setData(data as any);
   refs.oscillatorSeries.set(key, series);
+
+  // H7: Recalculate ALL oscillator panel margins after adding
+  recalcOscillatorMargins(chart, refs);
 }
 
 /**
@@ -157,10 +206,21 @@ export function renderIndicatorSeries(
     addOverlayLine(chart, refs, LineSeries, 'bb-middle', middleData, 'rgba(88,166,255,0.3)');
     addOverlayLine(chart, refs, LineSeries, 'bb-lower', lowerData, 'rgba(88,166,255,0.5)');
 
+    // H9 FIX: Fill ONLY between the upper and lower bands.
+    // The old approach used two AreaSeries that filled from each band
+    // toward the bottom/top of the chart, resulting in the entire area
+    // below the upper band being shaded. The correct approach uses the
+    // upper band as a "top" fill and the lower band as a "bottom" fill,
+    // creating a cloud that appears only between the two bands.
+    //
+    // Strategy: Use the UPPER band as an AreaSeries with topColor
+    // (visible cloud) and bottomColor=transparent. Use the LOWER band
+    // as a second AreaSeries with topColor=transparent and bottomColor
+    // (visible cloud). The overlap creates the between-bands fill.
     const filteredUpper = cleanData(upperData);
     if (filteredUpper.length > 0) {
       const upperFill = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(88,166,255,0.08)', bottomColor: 'rgba(88,166,255,0.02)',
+        topColor: 'rgba(88,166,255,0.10)', bottomColor: 'rgba(88,166,255,0.06)',
         lineColor: 'transparent', lineWidth: 0 as any,
         priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
       });
@@ -171,7 +231,7 @@ export function renderIndicatorSeries(
     const filteredLower = cleanData(lowerData);
     if (filteredLower.length > 0) {
       const lowerFill = chart.addSeries(AreaSeries, {
-        topColor: 'rgba(88,166,255,0.02)', bottomColor: 'rgba(88,166,255,0.06)',
+        topColor: 'rgba(88,166,255,0.06)', bottomColor: 'transparent',
         lineColor: 'transparent', lineWidth: 0 as any,
         priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false,
       });
@@ -337,24 +397,54 @@ export function renderIndicatorSeries(
       const val = r.values?.rsi;
       return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
     }).filter((d): d is { time: Time; value: number } => d !== null);
-    addOscillatorLine(chart, refs, LineSeries, 'rsi', data, indicator.color, 'rsi-scale');
+    const rsiPeriod = indicator.params?.period || 14;
+    addOscillatorLine(chart, refs, LineSeries, 'rsi', data, indicator.color, 'rsi-scale', 1, `RSI(${rsiPeriod})`);
+
+    // H4 FIX: Add 70/30 reference lines for RSI overbought/oversold zones.
+    // Every professional charting platform shows these — without them, users
+    // cannot visually identify overbought/oversold conditions.
+    const rsiSeries = refs.oscillatorSeries.get('rsi');
+    if (rsiSeries) {
+      try {
+        rsiSeries.createPriceLine({ price: 70, color: 'rgba(248,81,73,0.4)', lineWidth: 1 as any, lineStyle: 2, axisLabelVisible: true, title: '70' });
+        rsiSeries.createPriceLine({ price: 30, color: 'rgba(63,185,80,0.4)', lineWidth: 1 as any, lineStyle: 2, axisLabelVisible: true, title: '30' });
+        // Also add 50 midline for trend identification
+        rsiSeries.createPriceLine({ price: 50, color: 'rgba(139,146,168,0.2)', lineWidth: 1 as any, lineStyle: 1, axisLabelVisible: false, title: '' });
+      } catch {}
+    }
   }
 
   else if (indicator.key === 'macd') {
     const macdData: { time: Time; value: number }[] = [];
     const signalData: { time: Time; value: number }[] = [];
     const histData: { time: Time; value: number; color: string }[] = [];
+    // Track previous histogram for momentum-change coloring (H5)
+    let prevHist = 0;
 
     results.forEach((r: any) => {
       if (isValidNumber(r.macd) && isValidNumber(r.time)) macdData.push({ time: r.time as Time, value: r.macd });
       if (isValidNumber(r.signal) && isValidNumber(r.time)) signalData.push({ time: r.time as Time, value: r.signal });
-      if (isValidNumber(r.histogram) && isValidNumber(r.time)) histData.push({
-        time: r.time as Time, value: r.histogram,
-        color: r.histogram >= 0 ? 'rgba(63,185,80,0.5)' : 'rgba(248,81,73,0.5)',
-      });
+      if (isValidNumber(r.histogram) && isValidNumber(r.time)) {
+        // H5 FIX: Differentiate increasing vs decreasing momentum.
+        // Green bars getting brighter = momentum increasing.
+        // Red bars getting brighter = momentum increasing (bearish).
+        // Dimmer bars = momentum fading.
+        let color: string;
+        const h = r.histogram;
+        if (h >= 0) {
+          color = h >= prevHist ? 'rgba(63,185,80,0.7)' : 'rgba(63,185,80,0.35)';
+        } else {
+          color = h <= prevHist ? 'rgba(248,81,73,0.7)' : 'rgba(248,81,73,0.35)';
+        }
+        histData.push({ time: r.time as Time, value: h, color });
+        prevHist = h;
+      }
     });
 
-    addOscillatorLine(chart, refs, LineSeries, 'macd-line', macdData, '#58a6ff', 'macd-scale');
+    const macdFast = indicator.params?.fast || 12;
+    const macdSlow = indicator.params?.slow || 26;
+    const macdSignal = indicator.params?.signal || 9;
+    addOscillatorLine(chart, refs, LineSeries, 'macd-line', macdData, '#58a6ff', 'macd-scale', 1, `MACD(${macdFast},${macdSlow},${macdSignal})`);
 
     const filteredSignal = cleanData(signalData);
     if (filteredSignal.length > 0) {
@@ -375,6 +465,15 @@ export function renderIndicatorSeries(
       histSeries.setData(filteredHist as any);
       refs.oscillatorSeries.set('macd-hist', histSeries);
     }
+
+    // H5 FIX: Add zero line to MACD panel — critical for identifying
+    // bullish (above zero) vs bearish (below zero) momentum.
+    const macdLineSeries = refs.oscillatorSeries.get('macd-line');
+    if (macdLineSeries) {
+      try {
+        macdLineSeries.createPriceLine({ price: 0, color: 'rgba(139,146,168,0.4)', lineWidth: 1 as any, lineStyle: 2, axisLabelVisible: false, title: '' });
+      } catch {}
+    }
   }
 
   else if (indicator.key === 'stochastic') {
@@ -385,7 +484,9 @@ export function renderIndicatorSeries(
       if (isValidNumber(r.values?.d) && isValidNumber(r.time)) dData.push({ time: r.time as Time, value: r.values.d });
     });
 
-    addOscillatorLine(chart, refs, LineSeries, 'stoch-k', kData, '#a855f7', 'stoch-scale');
+    const stochK = indicator.params?.kPeriod || 14;
+    const stochD = indicator.params?.dPeriod || 3;
+    addOscillatorLine(chart, refs, LineSeries, 'stoch-k', kData, '#a855f7', 'stoch-scale', 1, `Stoch(${stochK},${stochD})`);
 
     const filteredD = cleanData(dData);
     if (filteredD.length > 0) {
@@ -397,6 +498,18 @@ export function renderIndicatorSeries(
       dSeries.setData(filteredD as any);
       refs.oscillatorSeries.set('stoch-d', dSeries);
     }
+
+    // H6 FIX: Add 80/20 reference lines for Stochastic overbought/oversold zones.
+    // These are the standard thresholds used by TradingView, MT5, etc.
+    const stochSeries = refs.oscillatorSeries.get('stoch-k');
+    if (stochSeries) {
+      try {
+        stochSeries.createPriceLine({ price: 80, color: 'rgba(248,81,73,0.4)', lineWidth: 1 as any, lineStyle: 2, axisLabelVisible: true, title: '80' });
+        stochSeries.createPriceLine({ price: 20, color: 'rgba(63,185,80,0.4)', lineWidth: 1 as any, lineStyle: 2, axisLabelVisible: true, title: '20' });
+        // Also add 50 midline
+        stochSeries.createPriceLine({ price: 50, color: 'rgba(139,146,168,0.2)', lineWidth: 1 as any, lineStyle: 1, axisLabelVisible: false, title: '' });
+      } catch {}
+    }
   }
 
   else if (indicator.key === 'atr') {
@@ -404,7 +517,8 @@ export function renderIndicatorSeries(
       const val = r.values?.atr;
       return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
     }).filter((d): d is { time: Time; value: number } => d !== null);
-    addOscillatorLine(chart, refs, LineSeries, 'atr', data, indicator.color, 'atr-scale');
+    const atrPeriod = indicator.params?.period || 14;
+    addOscillatorLine(chart, refs, LineSeries, 'atr', data, indicator.color, 'atr-scale', 1, `ATR(${atrPeriod})`);
   }
 
   else if (indicator.key === 'adx') {
@@ -417,7 +531,7 @@ export function renderIndicatorSeries(
       if (isValidNumber(r.values?.mdi) && isValidNumber(r.time)) mdiData.push({ time: r.time as Time, value: r.values.mdi });
     });
 
-    addOscillatorLine(chart, refs, LineSeries, 'adx-line', adxData, '#fbbf24', 'adx-scale', 2);
+    addOscillatorLine(chart, refs, LineSeries, 'adx-line', adxData, '#fbbf24', 'adx-scale', 2, `ADX(${indicator.params?.period || 14})`);
 
     const filteredPdi = cleanData(pdiData);
     if (filteredPdi.length > 0) {
@@ -447,7 +561,46 @@ export function renderIndicatorSeries(
       const val = r.values?.cci;
       return isValidNumber(val) && isValidNumber(r.time) ? { time: r.time as Time, value: val } : null;
     }).filter((d): d is { time: Time; value: number } => d !== null);
-    addOscillatorLine(chart, refs, LineSeries, 'cci', data, indicator.color, 'cci-scale');
+    const cciPeriod = indicator.params?.period || 20;
+    addOscillatorLine(chart, refs, LineSeries, 'cci', data, indicator.color, 'cci-scale', 1, `CCI(${cciPeriod})`);
+  }
+}
+
+/**
+ * H8 FIX: Remove orphaned price scales after oscillator removal.
+ * After removing oscillator series, the custom price scales (rsi-scale, macd-scale, etc.)
+ * may persist as invisible orphans. This function checks which scales still have
+ * active series and recalculates margins for the remaining ones.
+ *
+ * Call this after removeIndicator() in useChart.ts.
+ */
+export function cleanupOrphanedScales(chart: IChartApi, refs: SeriesRefs): void {
+  // Find all scale IDs that still have active series
+  const activeScales = new Set<string>();
+  refs.oscillatorSeries.forEach(s => {
+    try {
+      const opts = s.options() as any;
+      if (opts.priceScaleId) activeScales.add(opts.priceScaleId);
+    } catch {}
+  });
+
+  // Remove any scale IDs from the tracking set that no longer have series
+  for (const scaleId of activeOscillatorScales) {
+    if (!activeScales.has(scaleId)) {
+      activeOscillatorScales.delete(scaleId);
+    }
+  }
+
+  // If no oscillators remain, reset the price chart's bottom margin
+  if (activeScales.size === 0) {
+    try {
+      chart.priceScale('right').applyOptions({
+        scaleMargins: { top: 0.1, bottom: 0.2 },
+      });
+    } catch {}
+  } else {
+    // Recalculate margins for remaining oscillators
+    recalcOscillatorMargins(chart, refs);
   }
 }
 

@@ -496,9 +496,20 @@ export default function RouaChart({
   // ── Pre-load overlay renderer modules (needed for WebSocket overlay re-render) ──
   const overlayRendererRef = useRef<typeof import('@/lib/charts/overlay-renderer') | null>(null);
   const overlayRegistryRef = useRef<typeof import('@/lib/charts/OverlayRegistry') | null>(null);
+  // H3 FIX: Per-instance OverlayRegistry instead of module-level singleton.
+  // Each RouaChart instance gets its own registry, preventing cross-chart
+  // interference in multi-chart mode. Previously, all charts shared the
+  // same singleton, so toggling overlays on one chart affected all charts.
+  const overlayRegistryInstanceRef = useRef<import('@/lib/charts/OverlayRegistry').OverlayRegistry | null>(null);
   useEffect(() => {
     import('@/lib/charts/overlay-renderer').then(mod => { overlayRendererRef.current = mod; }).catch(() => {});
-    import('@/lib/charts/OverlayRegistry').then(mod => { overlayRegistryRef.current = mod; }).catch(() => {});
+    import('@/lib/charts/OverlayRegistry').then(mod => {
+      overlayRegistryRef.current = mod;
+      // H3: Create per-instance registry
+      if (!overlayRegistryInstanceRef.current) {
+        overlayRegistryInstanceRef.current = new mod.OverlayRegistry();
+      }
+    }).catch(() => {});
   }, []);
 
   // ── Track current overlay flags for WebSocket-triggered re-render ──
@@ -927,7 +938,7 @@ export default function RouaChart({
                 const currentSeries = chart.candleSeriesRef?.current;
                 if (currentSeries !== series) return;
 
-                const reg = registryMod.getOverlayRegistry();
+                const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
                 reg.init(series, chart.removePriceLine);
 
                 const cached = lastAnalysisResultRef.current;
@@ -1035,7 +1046,7 @@ export default function RouaChart({
         const series = chart.candleSeriesRef?.current;
         if (!series) return;
 
-        const reg = registryMod.getOverlayRegistry();
+        const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
         reg.init(series, chart.removePriceLine);
 
         const cached = lastAnalysisResultRef.current;
@@ -1568,7 +1579,14 @@ export default function RouaChart({
     return () => {
       isMountedRef.current = false;
       cancelAnimationFrame(rafIdRef.current);
-      // Clean up OverlayRegistry on unmount (replaces old OverlayManager)
+      // H3 FIX: Destroy per-instance registry instead of global singleton.
+      // In multi-chart mode, resetting the global singleton would destroy
+      // overlays for ALL charts, not just this one.
+      if (overlayRegistryInstanceRef.current) {
+        overlayRegistryInstanceRef.current.destroy();
+        overlayRegistryInstanceRef.current = null;
+      }
+      // Also reset legacy singleton for backward compat
       resetOverlayRegistry();
       resetFallbackEntryCache();
     };
@@ -1844,9 +1862,14 @@ export default function RouaChart({
       // mount time (line ~498-502).
       const registryMod = overlayRegistryRef.current;
       if (registryMod) {
-        const reg = registryMod.getOverlayRegistry();
+        const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
         reg.setRemovePriceLine(removePriceLineRef.current);
         reg.clearAll();
+        // H3 FIX: Destroy per-instance registry for symbol change
+        if (overlayRegistryInstanceRef.current) {
+          overlayRegistryInstanceRef.current.destroy();
+          overlayRegistryInstanceRef.current = new registryMod.OverlayRegistry();
+        }
         registryMod.resetOverlayRegistry();
         resetFallbackEntryCache();
       }
@@ -2048,7 +2071,7 @@ export default function RouaChart({
 
     if (!anyOverlayEnabled) {
       // All overlays off — clear everything
-      const reg = registryMod.getOverlayRegistry();
+      const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
       reg.init(series, chart.removePriceLine);
       reg.clearAll();
       return;
@@ -2132,7 +2155,7 @@ export default function RouaChart({
 
       if (!anyOverlayEnabled) {
         setAiPatterns([]);
-        const reg = registryMod.getOverlayRegistry();
+        const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
         reg.init(series, removePriceLineRef.current);
         reg.clearAll();
         return;
@@ -2149,7 +2172,7 @@ export default function RouaChart({
       //   - Toggling trend ON doesn't touch SR overlays
       //   - Toggling SR OFF doesn't touch trend overlays
       //   - No flicker from clearing everything and re-drawing
-      const reg = registryMod.getOverlayRegistry();
+      const reg = (overlayRegistryInstanceRef.current || registryMod.getOverlayRegistry());
       reg.init(series, removePriceLineRef.current);
 
       // Use cached analysis data if available, empty otherwise.

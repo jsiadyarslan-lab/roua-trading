@@ -496,7 +496,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
               const rawClose = price;
               const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
               const candle: CandleData = {
-                time: now - (now % 60),
+                // H10 FIX: Use tfSecondsRef instead of hardcoded 60.
+                // Previously, Socket.IO ticker candles always snapped to 1-minute
+                // boundaries, creating wrong candles on 1H/1D charts.
+                time: now - (now % tfSecondsRef.current),
                 open: s.open,
                 high: s.high,
                 low: s.low,

@@ -17,7 +17,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
-import { sanitizeOhlc, fillTimeGaps, timeframeToSeconds } from '@/lib/charts/chart-utils';
+import { sanitizeOhlc } from '@/lib/charts/chart-utils';
 import { ChartToolbar } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { DrawingPanel } from './DrawingPanel';
@@ -270,8 +270,8 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
       unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
     }
 
-    // PERF: 5000ms — price label coordinate, WebSocket handles live price
-    const interval = setInterval(update, 5000);
+    // PERF: 2000ms — price label coordinate doesn't need sub-second updates
+    const interval = setInterval(update, 2000);
     return () => { unsub?.(); clearInterval(interval); };
   // FIX: Only depend on currentPrice, not `chart` (which changes every render)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1162,25 +1162,17 @@ export default function RouaChart({
           });
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
-          // FIX: Fill time gaps in candle data to prevent visual gaps on the chart.
-          // When Binance or other data sources return incomplete data (missing minutes/
-          // hours), lightweight-charts shows empty spaces between candles because it
-          // treats every timestamp as a position on the time axis. By inserting
-          // forward-fill candles (open=high=low=close=prev_close, volume=0), we
-          // bridge the gaps without introducing fake price action.
-          const tfSec = timeframeToSeconds(timeframe_);
-          const gapFilled = fillTimeGaps(unique, tfSec);
-          candlesRef.current = gapFilled;
+          candlesRef.current = unique;
           // Run pattern engine after candles are updated
           // FIX: Use ref to avoid stale closure over chart.setCandles
           // Pass clearExternal:true because this is a timeframe/symbol change —
           // old AI overlay series have timestamps from the previous timeframe
           // and would cause "Value is null" crash if left on the chart.
-          console.log(`[RouaChart] Setting ${gapFilled.length} candles on chart for ${selectedSymbol_} ${timeframe_} (filled ${gapFilled.length - unique.length} gaps)`);
-          setCandlesRef.current(gapFilled, { clearExternal: true });
+          console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
+          setCandlesRef.current(unique, { clearExternal: true });
           // Update AI panel candles if panel is open so overlays can redraw
           if (showAIPanelRef.current) {
-            setAiPanelCandles([...gapFilled]);
+            setAiPanelCandles([...unique]);
           }
           // REVOLUTIONARY: Initialize incremental computation state
           try {
@@ -1298,14 +1290,14 @@ export default function RouaChart({
     };
 
     tick();
-    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 5000); // PERF: 5s sufficient
+    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 1000);
     // Pause when tab hidden to save CPU — FIX: store new interval ID on restore
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         clearInterval(intervalId);
       } else {
         tick();
-        intervalId = setInterval(tick, 5000); // PERF: 5s sufficient
+        intervalId = setInterval(tick, 1000);
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -1575,7 +1567,7 @@ export default function RouaChart({
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
     // PERF: 3000ms — positions update via DOM manipulation between full state updates
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 8000); // PERF: 8s sufficient — WebSocket handles live updates
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
 
     return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps

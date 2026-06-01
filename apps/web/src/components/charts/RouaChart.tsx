@@ -1190,12 +1190,18 @@ export default function RouaChart({
   // ── Fetch Historical Candles ───────────────────────────
   useEffect(() => {
     let cancelled = false; // Guard against stale responses after symbol change
+    // FIX: AbortController cancels the actual network request on symbol/timeframe change
+    // Previously: cancelled=true only prevented rendering, but fetch completed anyway
+    // causing network congestion when switching symbols quickly
+    const controller = new AbortController();
 
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
         console.log(`[RouaChart] Fetching candles: ${selectedSymbol_} ${timeframe_}...`);
-        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`);
+        const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`, {
+          signal: controller.signal,
+        });
         const j = await res.json();
 
         if (cancelled) {
@@ -1270,8 +1276,9 @@ export default function RouaChart({
           // Generate simulated data as fallback
           generateSimulatedData();
         }
-      } catch {
-        if (cancelled) return;
+      } catch (err: any) {
+        // AbortError = intentional cancel (symbol/timeframe changed) — not an error
+        if (err?.name === 'AbortError' || cancelled) return;
         setFeedState('fallback');
         generateSimulatedData();
       }
@@ -1328,7 +1335,7 @@ export default function RouaChart({
 
     fetchCandles();
 
-    return () => { cancelled = true; };
+    return () => { cancelled = true; controller.abort(); }; // Cancel network request
   }, [selectedSymbol_, timeframe_]);
 
   // ── Pagination: Load Older Data on Scroll ──────────────

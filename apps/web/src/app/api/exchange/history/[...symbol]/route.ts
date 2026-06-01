@@ -310,8 +310,10 @@ export async function GET(
         ];
 
         const fetchBinanceEndpoint = async (url: string) => {
+          // Combine timeout with request abort signal
+          const timeoutSignal = AbortSignal.timeout(3000);
           const res = await fetch(url, {
-            signal: AbortSignal.timeout(3000), // 3s per endpoint
+            signal: timeoutSignal,
             headers: { 'Accept': 'application/json' },
           });
           if (!res.ok) throw new Error(`HTTP ${res.status}`);

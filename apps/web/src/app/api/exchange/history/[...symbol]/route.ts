@@ -251,10 +251,6 @@ export async function GET(
       // To re-enable, deploy NestJS ExchangeGateway and set NESTJS_API_URL.
 
       // Step 1: Try Binance directly (fastest, most detailed)
-      // FIX: Race only 2 endpoints at a time to avoid Binance rate limiting (429).
-      // Previous attempt with Promise.any() on ALL 7 endpoints caused rate limits.
-      // Strategy: try primary + one backup in parallel (3s timeout each),
-      // then fall back to next pair if both fail. Worst case: ~6s (2 rounds).
       try {
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
@@ -268,74 +264,38 @@ export async function GET(
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
 
-        // Helper: fetch from a single Binance endpoint with quality check
-        // IMPORTANT: Must THROW on failure (not return null) so Promise.any()
-        // can distinguish between "no data" and "good data" results.
-        async function tryBinanceEndpoint(bUrl: string, timeoutMs: number): Promise<any[]> {
-          const res = await fetch(bUrl, {
-            signal: AbortSignal.timeout(timeoutMs),
-            headers: { 'Accept': 'application/json' },
-          })
-          if (!res.ok) throw new Error(`HTTP ${res.status}`)
-          const data = await res.json()
-          if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data')
-
-          const mapped = data.map((c: any[]) => ({
-            symbol,
-            timestamp: new Date(c[0]).toISOString(),
-            datetime: new Date(c[0]).toISOString(),
-            open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
-            source: 'Binance',
-          }))
-
-          // Quality check — reject data with too many flat candles
-          const flatRatio = flatCandleRatio(mapped)
-          if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
-            console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles`)
-            throw new Error('Too many flat candles')
-          }
-          return mapped
-        }
-
-        // Build all endpoint URLs
-        const allUrls = [
+        const binanceEndpoints = [
           ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`),
           `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
         ]
 
-        // Round 1: Race primary (api.binance.com) + vision backup in parallel (3s each)
-        // These are the most reliable endpoints on cloud servers
-        const round1Primary = allUrls[0] // api.binance.com
-        const round1Backup = allUrls[5]  // data-api.binance.vision
-
-        const round1Result = await Promise.any([
-          tryBinanceEndpoint(round1Primary, 3000),
-          tryBinanceEndpoint(round1Backup, 3000),
-        ]).catch(() => null)
-
-        if (round1Result && round1Result.length > 0) {
-          candles = round1Result
-        } else {
-          // Round 2: Try api1-4 endpoints sequentially with short timeout
-          // (These share the same infrastructure so unlikely to help in parallel)
-          for (let i = 1; i <= 4; i++) {
-            try {
-              const result = await tryBinanceEndpoint(allUrls[i], 3000)
-              if (result && result.length > 0) {
-                candles = result
+        for (const bUrl of binanceEndpoints) {
+          try {
+            const res = await fetch(bUrl, {
+              signal: AbortSignal.timeout(4000),
+              headers: { 'Accept': 'application/json' },
+            })
+            if (res.ok) {
+              const data = await res.json()
+              if (Array.isArray(data) && data.length > 0) {
+                const mapped = data.map((c: any[]) => ({
+                  symbol,
+                  timestamp: new Date(c[0]).toISOString(),
+                  datetime: new Date(c[0]).toISOString(),
+                  open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
+                  source: 'Binance',
+                }))
+                const flatRatio = flatCandleRatio(mapped)
+                if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
+                  console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles`)
+                  continue
+                }
+                candles = mapped
                 break
               }
-            } catch { /* try next */ }
-          }
-
-          // Round 3: Last resort — Binance.us with longer timeout
-          if (!candles || candles.length === 0) {
-            try {
-              const usResult = await tryBinanceEndpoint(allUrls[6], 5000)
-              if (usResult && usResult.length > 0) {
-                candles = usResult
-              }
-            } catch { /* All Binance endpoints exhausted */ }
+            }
+          } catch {
+            // Try next endpoint
           }
         }
       } catch (e: any) {

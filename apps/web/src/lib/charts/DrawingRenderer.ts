@@ -303,6 +303,24 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   // ── Drawing type: DrawData ─────────────────────────────
   private pp(d: { points: DrawingPoint[] }, index: number): number | null { return d.points[index]?.price ?? null; }
 
+  // ── Time coordinate helper ──
+  // FIX: Get the time value for a drawing point at the given index.
+  // Used by Fibonacci Time Zone and other time-based drawings to calculate
+  // intervals based on actual candle time, not pixel distance.
+  private tt(d: { points: DrawingPoint[] }, index: number): number | null { return d.points[index]?.time ?? null; }
+
+  // ── Time-to-pixel conversion ──
+  // Convert a chart time value to a pixel x-coordinate on the canvas.
+  // Returns null if the time is outside the visible range.
+  private timeToPixel(time: number, _d: { points: DrawingPoint[] }): number | null {
+    try {
+      const x = this._chart.timeScale().timeToCoordinate(time as Time);
+      return x; // null if outside visible range
+    } catch {
+      return null;
+    }
+  }
+
   // ── Horizontal Line ────────────────────────────────────
   private drawHorizontalLine(ctx: CanvasRenderingContext2D, pt: PixelPoint, canvasW: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     ctx.beginPath(); ctx.moveTo(0, pt.y); ctx.lineTo(canvasW, pt.y); ctx.stroke();
@@ -490,16 +508,50 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   }
 
   // ── Fibonacci Time Zone ────────────────────────────────
+  // FIX: Calculate time zone lines based on CANDLE COUNT, not pixel distance.
+  // Previously, the distance between the two anchor points was measured in
+  // pixels (b.x - a.x), which means the time zones would be at different
+  // candle positions depending on zoom level. The correct approach is:
+  // 1. Convert both anchor points from pixel coordinates to candle time
+  // 2. The time interval between anchors = 1 unit
+  // 3. Draw vertical lines at Fibonacci multiples of that interval
+  // This ensures the time zones are anchored to actual candle positions,
+  // just like TradingView and other professional charting platforms.
   private drawFibTimeZone(ctx: CanvasRenderingContext2D, a: PixelPoint, b: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
-    const timeDist = b.x - a.x;
-    for (const level of FIB_TIME_LEVELS) {
-      const x = a.x + timeDist * level;
-      if (x < 0 || x > canvasW) continue;
-      const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
-      ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 1 ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.5;
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
-      if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}`, x + 4, canvasH - 6); }
-      ctx.restore();
+    // Convert pixel positions to chart time coordinates
+    const timeA = this.tt(d, 0); // time at point A
+    const timeB = this.tt(d, 1); // time at point B
+
+    if (timeA !== null && timeB !== null && timeB !== timeA) {
+      // Calculate time interval between the two points
+      const timeInterval = timeB - timeA;
+
+      for (const level of FIB_TIME_LEVELS) {
+        const targetTime = timeA + timeInterval * level;
+
+        // Convert target time back to pixel x-coordinate
+        const x = this.timeToPixel(targetTime, d);
+        if (x === null || x < 0 || x > canvasW) continue;
+
+        const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
+        ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 1 ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.5;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+        if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}`, x + 4, canvasH - 6); }
+        ctx.restore();
+      }
+    } else {
+      // Fallback: use pixel distance if time conversion isn't available
+      // (e.g., during preview when the drawing hasn't been committed yet)
+      const timeDist = b.x - a.x;
+      for (const level of FIB_TIME_LEVELS) {
+        const x = a.x + timeDist * level;
+        if (x < 0 || x > canvasW) continue;
+        const color = FIBONACCI_COLORS[61.8] || DEFAULT_COLOR;
+        ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = level === 1 ? 1.5 : 1; ctx.globalAlpha = d.isPreview ? 0.35 : 0.5;
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+        if (!d.isPreview) { ctx.globalAlpha = 0.85; ctx.font = "10px 'JetBrains Mono', monospace"; ctx.fillStyle = color; ctx.fillText(`${level}`, x + 4, canvasH - 6); }
+        ctx.restore();
+      }
     }
     this.drawDot(ctx, a); this.drawDot(ctx, b);
   }
@@ -656,16 +708,35 @@ class DrawingPaneRenderer implements IPrimitivePaneRenderer {
   }
 
   // ── Gann Fan ───────────────────────────────────────────
+  // FIX: Draw Gann Fan in BOTH directions (up and down from the pivot point).
+  // Previously, only upward lines were drawn (positive angles from pivot).
+  // A proper Gann Fan should show lines going both UP and DOWN from the
+  // origin point, creating the characteristic fan shape that traders use
+  // to identify support/resistance from both directions.
   private drawGannFan(ctx: CanvasRenderingContext2D, a: PixelPoint, canvasW: number, canvasH: number, d: { isPreview: boolean; points: DrawingPoint[]; color: string }): void {
     for (const deg of GANN_ANGLES) {
-      const rad = (deg * Math.PI) / 180, dx = Math.cos(rad), dy = -Math.sin(rad);
-      let tM = this.tMax(a.x, a.y, dx, dy, canvasW, canvasH);
+      const rad = (deg * Math.PI) / 180;
       const main = Math.abs(deg - 45) < 0.1;
+
+      // Upward fan lines (positive direction from pivot)
+      const dxUp = Math.cos(rad), dyUp = -Math.sin(rad);
+      const tMUp = this.tMax(a.x, a.y, dxUp, dyUp, canvasW, canvasH);
       ctx.save(); ctx.strokeStyle = main ? DEFAULT_COLOR : ctx.strokeStyle; ctx.lineWidth = main ? 1.5 : 1;
       ctx.globalAlpha = d.isPreview ? (main ? 0.5 : 0.3) : (main ? DEFAULT_OPACITY : 0.5);
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + dx * tM, a.y + dy * tM); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + dxUp * tMUp, a.y + dyUp * tMUp); ctx.stroke();
       if (!d.isPreview) { ctx.globalAlpha = 0.7; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = main ? DEFAULT_COLOR : ctx.strokeStyle;
-        const lx = a.x + dx * Math.min(tM, 60), ly = a.y + dy * Math.min(tM, 60); ctx.fillText(`${deg}°`, lx + 4, ly - 4); }
+        const lx = a.x + dxUp * Math.min(tMUp, 60), ly = a.y + dyUp * Math.min(tMUp, 60); ctx.fillText(`${deg}°`, lx + 4, ly - 4); }
+      ctx.restore();
+
+      // Downward fan lines (negative direction from pivot — mirror vertically)
+      const dxDown = Math.cos(rad), dyDown = Math.sin(rad);
+      const tMDown = this.tMax(a.x, a.y, dxDown, dyDown, canvasW, canvasH);
+      ctx.save(); ctx.strokeStyle = main ? DEFAULT_COLOR : ctx.strokeStyle; ctx.lineWidth = main ? 1.5 : 1;
+      ctx.globalAlpha = d.isPreview ? (main ? 0.4 : 0.2) : (main ? DEFAULT_OPACITY * 0.7 : 0.35);
+      ctx.setLineDash(main ? [] : [4, 3]); // Dashed for down lines to distinguish direction
+      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(a.x + dxDown * tMDown, a.y + dyDown * tMDown); ctx.stroke();
+      if (!d.isPreview) { ctx.setLineDash([]); ctx.globalAlpha = 0.5; ctx.font = "9px 'JetBrains Mono', monospace"; ctx.fillStyle = main ? DEFAULT_COLOR : ctx.strokeStyle;
+        const lx = a.x + dxDown * Math.min(tMDown, 60), ly = a.y + dyDown * Math.min(tMDown, 60); ctx.fillText(`-${deg}°`, lx + 4, ly + 12); }
       ctx.restore();
     }
     this.drawDot(ctx, a);

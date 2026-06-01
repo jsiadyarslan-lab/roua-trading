@@ -129,10 +129,29 @@ export async function calcBB(candles: CandleData[], period: number = 20, stdDev:
 }
 
 // ── VWAP ────────────────────────────────────────────────
+// FIX: Add session reset logic. VWAP should reset at the start of each
+// trading session (daily for crypto 00:00 UTC, or market open for stocks/forex).
+// Without this, VWAP accumulates data from all previous sessions, becoming
+// a long-term average that's useless for intraday trading. Professional
+// traders use VWAP specifically because it resets daily, providing a fresh
+// benchmark for each session's institutional order flow.
 export function calcVWAP(candles: CandleData[]): OverlayResult[] {
   let cumVol = 0;
   let cumTP = 0;
+  let lastSessionDate: string | null = null;
+
   return candles.map(c => {
+    // Determine session boundary based on UTC date
+    const date = new Date(c.time * 1000);
+    const sessionKey = `${date.getUTCFullYear()}-${date.getUTCMonth()}-${date.getUTCDate()}`;
+
+    // Reset accumulated values when a new session starts
+    if (lastSessionDate !== null && sessionKey !== lastSessionDate) {
+      cumVol = 0;
+      cumTP = 0;
+    }
+    lastSessionDate = sessionKey;
+
     const tp = (c.high + c.low + c.close) / 3;
     cumVol += c.volume;
     cumTP += tp * c.volume;
@@ -262,78 +281,168 @@ export async function calcCCI(candles: CandleData[], period: number = 20): Promi
 }
 
 // ── Ichimoku Cloud ──────────────────────────────────────
+// FIX: Proper Ichimoku implementation with 26-period displacement.
+// Senkou Span A and Senkou Span B must be shifted FORWARD by basePeriod (26)
+// candles into the future. Without this displacement, the cloud is drawn at
+// the current candle instead of 26 candles ahead, which makes the indicator
+// useless for predicting support/resistance.
+// Chikou Span is shifted BACKWARD by basePeriod (26) candles.
 export function calcIchimoku(
   candles: CandleData[],
   conversionPeriod: number = 9,
   basePeriod: number = 26,
   spanBPeriod: number = 52
 ): IchimokuResult[] {
-  const results: IchimokuResult[] = [];
+  const len = candles.length;
+  const displacement = basePeriod; // Standard Ichimoku uses 26-period displacement
 
-  for (let i = 0; i < candles.length; i++) {
-    const tenkan = i >= conversionPeriod - 1
-      ? (() => {
-          const slice = candles.slice(i - conversionPeriod + 1, i + 1);
-          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
-        })()
-      : null;
+  // Step 1: Calculate raw Tenkan, Kijun, SenkouA, SenkouB values
+  const rawTenkan: (number | null)[] = new Array(len).fill(null);
+  const rawKijun: (number | null)[] = new Array(len).fill(null);
+  const rawSenkouA: (number | null)[] = new Array(len).fill(null);
+  const rawSenkouB: (number | null)[] = new Array(len).fill(null);
 
-    const kijun = i >= basePeriod - 1
-      ? (() => {
-          const slice = candles.slice(i - basePeriod + 1, i + 1);
-          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
-        })()
-      : null;
+  for (let i = 0; i < len; i++) {
+    // Tenkan-sen (Conversion Line): (highest high + lowest low) / 2 over conversionPeriod
+    if (i >= conversionPeriod - 1) {
+      const slice = candles.slice(i - conversionPeriod + 1, i + 1);
+      rawTenkan[i] = (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
+    }
 
-    const senkouA = (tenkan !== null && kijun !== null) ? (tenkan + kijun) / 2 : null;
+    // Kijun-sen (Base Line): (highest high + lowest low) / 2 over basePeriod
+    if (i >= basePeriod - 1) {
+      const slice = candles.slice(i - basePeriod + 1, i + 1);
+      rawKijun[i] = (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
+    }
 
-    const senkouB = i >= spanBPeriod - 1
-      ? (() => {
-          const slice = candles.slice(i - spanBPeriod + 1, i + 1);
-          return (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
-        })()
-      : null;
+    // Senkou Span A: (Tenkan + Kijun) / 2 — will be displaced forward
+    if (rawTenkan[i] !== null && rawKijun[i] !== null) {
+      rawSenkouA[i] = (rawTenkan[i]! + rawKijun[i]!) / 2;
+    }
 
-    const chikou = i < candles.length - basePeriod ? candles[i].close : null;
+    // Senkou Span B: (highest high + lowest low) / 2 over spanBPeriod — will be displaced forward
+    if (i >= spanBPeriod - 1) {
+      const slice = candles.slice(i - spanBPeriod + 1, i + 1);
+      rawSenkouB[i] = (safeMax(slice.map(c => c.high)) + safeMin(slice.map(c => c.low))) / 2;
+    }
+  }
 
-    results.push({
+  // Step 2: Build results with proper displacement
+  const results: IchimokuResult[] = new Array(len);
+
+  for (let i = 0; i < len; i++) {
+    // Tenkan and Kijun are NOT displaced — they are drawn at the current candle
+    const tenkan = rawTenkan[i];
+    const kijun = rawKijun[i];
+
+    // Senkou Span A: displaced FORWARD by `displacement` periods
+    // The value calculated at index i is drawn at index i + displacement
+    // For the current candle, we need the value from displacement periods ago
+    const senkouASourceIdx = i - displacement;
+    const senkouA = senkouASourceIdx >= 0 ? rawSenkouA[senkouASourceIdx] : null;
+
+    // Senkou Span B: displaced FORWARD by `displacement` periods
+    const senkouBSourceIdx = i - displacement;
+    const senkouB = senkouBSourceIdx >= 0 ? rawSenkouB[senkouBSourceIdx] : null;
+
+    // Chikou Span: displaced BACKWARD by `displacement` periods
+    // The close at index i is drawn at index i - displacement
+    // At the current candle, we show the close from displacement periods ago
+    // Actually, standard Ichimoku shows the CURRENT close shifted back.
+    // So at candle i, chikou = close[i] but drawn at position i - displacement.
+    // Since we're building results indexed by time, at time[i] we show the
+    // close from time[i + displacement] (looking ahead in the data).
+    const chikou = i + displacement < len ? candles[i + displacement].close : null;
+
+    results[i] = {
       time: sanitizeTime(candles[i].time),
       tenkan,
       kijun,
       senkouA,
       senkouB,
       chikou,
-    });
+    };
+  }
+
+  // Step 3: Add forward-looking Senkou projections for the last `displacement` candles
+  // The cloud extends `displacement` periods into the future beyond current price.
+  // We append these as additional result entries with future timestamps.
+  // The timestamp for each future point is extrapolated from the candle interval.
+  if (len >= 2) {
+    const avgInterval = candles[len - 1].time - candles[len - 2].time;
+    if (avgInterval > 0) {
+      for (let d = 1; d <= displacement; d++) {
+        const srcIdx = len - d; // Raw values from the end of the data
+        const futureTime = sanitizeTime(candles[len - 1].time + avgInterval * d);
+
+        results.push({
+          time: futureTime,
+          tenkan: null,  // Tenkan/Kijun don't extend into the future
+          kijun: null,
+          senkouA: rawSenkouA[srcIdx] ?? null,
+          senkouB: rawSenkouB[srcIdx] ?? null,
+          chikou: null,
+        });
+      }
+    }
   }
 
   return results;
 }
 
 // ── SuperTrend ──────────────────────────────────────────
+// FIX: Use Wilder's ATR (RMA — Running Moving Average) instead of SMA.
+// The original implementation used simple averaging (SMA) for ATR calculation,
+// but the correct SuperTrend formula requires Wilder's smoothing (RMA), which
+// gives more weight to recent data and is the standard used by TradingView,
+// Binance, and all major platforms. The difference is significant:
+//   SMA: atr[i] = sum(TR[i-period+1..i]) / period  (equal weight)
+//   RMA: atr[i] = (prev_atr * (period-1) + TR[i]) / period  (exponential decay)
+// This changes the SuperTrend band positions noticeably, especially in
+// volatile markets where the SMA's equal weighting causes lag.
 export function calcSuperTrend(
   candles: CandleData[],
   period: number = 10,
   multiplier: number = 3
 ): SuperTrendResult[] {
   const results: SuperTrendResult[] = [];
-  // Calculate ATR first
-  const atrVals: (number | null)[] = [];
+
+  // Step 1: Calculate True Range values
+  const trVals: number[] = [];
   for (let i = 0; i < candles.length; i++) {
-    if (i < period) {
+    const prevClose = i > 0 ? candles[i - 1].close : candles[i].open;
+    const tr = Math.max(
+      candles[i].high - candles[i].low,
+      Math.abs(candles[i].high - prevClose),
+      Math.abs(candles[i].low - prevClose)
+    );
+    trVals.push(tr);
+  }
+
+  // Step 2: Calculate ATR using Wilder's smoothing (RMA)
+  // First ATR value is a simple average of the first `period` TR values
+  // Subsequent values use: ATR[i] = (ATR[i-1] * (period-1) + TR[i]) / period
+  const atrVals: (number | null)[] = [];
+  let firstATR: number | null = null;
+  for (let i = 0; i < candles.length; i++) {
+    if (i < period - 1) {
       atrVals.push(null);
       continue;
     }
-    let atrSum = 0;
-    for (let j = i - period + 1; j <= i; j++) {
-      const prevClose = j > 0 ? candles[j - 1].close : candles[j].open;
-      const tr = Math.max(
-        candles[j].high - candles[j].low,
-        Math.abs(candles[j].high - prevClose),
-        Math.abs(candles[j].low - prevClose)
-      );
-      atrSum += tr;
+    if (firstATR === null) {
+      // First ATR: simple average of the first `period` TR values
+      let sum = 0;
+      for (let j = 0; j < period; j++) {
+        sum += trVals[j];
+      }
+      firstATR = sum / period;
+      atrVals.push(firstATR);
+    } else {
+      // Wilder's smoothing: RMA
+      const prevATR = atrVals[i - 1]!;
+      const currentATR = (prevATR * (period - 1) + trVals[i]) / period;
+      atrVals.push(currentATR);
     }
-    atrVals.push(atrSum / period);
   }
 
   let prevUpper = 0;

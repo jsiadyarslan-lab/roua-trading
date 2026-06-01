@@ -34,6 +34,19 @@ export const BINANCE_URLS = {
   tickerRest: 'https://api.binance.com/api/v3/ticker/24hr',
 } as const;
 
+// ── Binance REST API Endpoints (ordered by reliability for cloud servers) ──
+// FIX: api.binance.com may be geo-blocked on Railway/cloud. Binance.us has
+// very low liquidity (65%+ flat 1m candles). These alternatives provide
+// proper OHLC data with high liquidity from any geography.
+export const BINANCE_REST_ENDPOINTS = [
+  'https://api.binance.com/api/v3',
+  'https://api1.binance.com/api/v3',
+  'https://api2.binance.com/api/v3',
+  'https://api3.binance.com/api/v3',
+  'https://api4.binance.com/api/v3',
+  'https://data-api.binance.vision/api/v3',
+] as const;
+
 // ── Binance Interval Mapping ──
 export const BINANCE_INTERVALS: Record<string, string> = {
   '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
@@ -115,6 +128,9 @@ export const AUDIO_TONES = {
 } as const;
 
 // ── Binance US Fallback URL ──
+// WARNING: Binance.us has extremely low liquidity — 65%+ of 1m candles are flat
+// (open===high===low===close, volume=0). Only use as LAST resort after all
+// other Binance endpoints fail. Flat candles render as dots on the chart.
 export const BINANCE_US_REST = 'https://api.binance.us/api/v3';
 
 // ── Margin Warning Thresholds ──

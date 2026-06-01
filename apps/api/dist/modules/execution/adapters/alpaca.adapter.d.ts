@@ -1,0 +1,28 @@
+import { IExchangeAdapter, UnifiedOrder, ExecutionResult, OrderExecutionStatus, UnifiedBalance } from './base-adapter.interface';
+import { AuditService } from '../../../audit/audit.service';
+export declare class AlpacaAdapter implements IExchangeAdapter {
+    private readonly apiKey;
+    private readonly apiSecret;
+    private readonly auditService;
+    private readonly userId;
+    private readonly paper;
+    private readonly logger;
+    private readonly httpClient;
+    private readonly rateLimits;
+    constructor(apiKey: string, apiSecret: string, auditService: AuditService, userId: string, paper?: boolean);
+    placeOrder(order: UnifiedOrder): Promise<ExecutionResult>;
+    cancelOrder(orderId: string, symbol: string): Promise<boolean>;
+    getOrderStatus(orderId: string, symbol: string): Promise<OrderExecutionStatus>;
+    fetchOpenOrders(symbol?: string): Promise<UnifiedOrder[]>;
+    fetchBalance(): Promise<UnifiedBalance>;
+    getExchangeId(): string;
+    supportsWebSocket(): boolean;
+    getRateLimits(): {
+        maxRequestsPerSecond: number;
+        maxRequestsPerMinute: number;
+    };
+    private _mapStatus;
+    private _toUnifiedOrder;
+    private _normalizeError;
+    private _auditLog;
+}

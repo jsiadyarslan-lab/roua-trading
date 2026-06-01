@@ -2,3 +2,17 @@
 > @roua/api@0.1.0 build
 > tsc
 
+src/modules/ai/strategic-council/strategic-council.service.ts(1217,24): error TS2353: Object literal may only specify known properties, and 'outcome' does not exist in type 'TradingBriefWhereInput'.
+src/modules/ai/strategic-council/strategic-council.service.ts(1218,20): error TS2353: Object literal may only specify known properties, and 'outcomeAt' does not exist in type 'TradingBriefOrderByWithRelationInput | TradingBriefOrderByWithRelationInput[]'.
+src/modules/ai/strategic-council/strategic-council.service.ts(1220,19): error TS2353: Object literal may only specify known properties, and 'outcome' does not exist in type 'TradingBriefSelect<DefaultArgs>'.
+src/modules/ai/strategic-council/strategic-council.service.ts(1223,52): error TS2339: Property 'outcome' does not exist on type '{ id: string; createdAt: Date; updatedAt: Date; userId: string | null; isActive: boolean; expiresAt: Date; confidence: number; entryPrice: Decimal; stopLoss: Decimal; ... 8 more ...; analysisSummary: string | null; }'.
+src/modules/trading/trading.service.ts(1060,22): error TS2339: Property 'briefId' does not exist on type '{ symbol: string; exitPrice: Decimal | null; closeReason: string | null; id: string; updatedAt: Date; userId: string; exchange: string; source: string | null; status: PositionStatus; ... 14 more ...; exchangeSymbol: string | null; }'.
+src/modules/trading/trading.service.ts(1063,37): error TS2339: Property 'briefId' does not exist on type '{ symbol: string; exitPrice: Decimal | null; closeReason: string | null; id: string; updatedAt: Date; userId: string; exchange: string; source: string | null; status: PositionStatus; ... 14 more ...; exchangeSymbol: string | null; }'.
+src/modules/trading/trading.service.ts(1065,17): error TS2353: Object literal may only specify known properties, and 'outcome' does not exist in type '(Without<TradingBriefUpdateInput, TradingBriefUncheckedUpdateInput> & TradingBriefUncheckedUpdateInput) | (Without<...> & TradingBriefUpdateInput)'.
+npm error Lifecycle script `build` failed with error:
+npm error code 2
+npm error path /home/z/my-project/roua-trading/apps/api
+npm error workspace @roua/api@0.1.0
+npm error location /home/z/my-project/roua-trading/apps/api
+npm error command failed
+npm error command sh -c tsc

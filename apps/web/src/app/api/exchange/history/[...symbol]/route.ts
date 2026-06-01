@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { CRYPTO_BASES, BINANCE_URLS, BINANCE_INTERVALS, BINANCE_US_REST, BINANCE_REST_ENDPOINTS } from '../../../../../lib/charts/config'
 
+// CRITICAL: Force dynamic rendering — prevents Next.js from caching this route handler.
+// Without this, Next.js may cache the entire route output or the internal fetch()
+// responses (via next.revalidate), causing stale/identical data to be served
+// for different interval parameters.
+export const dynamic = 'force-dynamic'
+
 function normalizeRouteSymbol(parts: string[] | string) {
   const joined = Array.isArray(parts) ? parts.join('/') : parts
   try {
@@ -88,9 +94,11 @@ async function fetchCoinGeckoHistory(symbol: string, interval: string): Promise<
   const days = daysMap[interval] || '90'
 
   try {
+    // CRITICAL: NO next.revalidate — CoinGecko URLs are identical for different
+    // intraday intervals (days=1 for 1min, 5min, 15min), so Next.js data cache
+    // would return the same stale 30-min candles for ALL intraday requests.
     const url = `https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=${days}`
     const res = await fetch(url, {
-      next: { revalidate: 300 },
       signal: AbortSignal.timeout(10000),
     })
 
@@ -157,9 +165,10 @@ async function fetchYahooCryptoHistory(symbol: string, interval: string): Promis
   const yInterval = yIntervalMap[interval] || '1d'
 
   try {
+    // CRITICAL: NO next.revalidate — Yahoo Finance URLs may be identical for
+    // different intervals (e.g., range=1d&interval=1m), causing cache collisions.
     const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=${yahooRange}&interval=${yInterval}`
     const yRes = await fetch(yUrl, {
-      next: { revalidate: 300 },
       signal: AbortSignal.timeout(15000),
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
@@ -321,14 +330,29 @@ export async function GET(
 
       // Return whatever we have (even empty) — never throw 500
       if (candles && candles.length > 0) {
-        // Cache: 30s for intraday (faster refresh for 1m/5m), 5min for daily+
-        const ttl = ['1day', '1d', '1week', '1w', '1month', '1M'].includes(interval) ? 300_000 : 30_000
+        // Cache: 15s for short intraday (1m, 5m — needs fast refresh), 60s for
+        // other intraday, 5min for daily+. This ensures 1m/5m data stays fresh.
+        const isIntradayShort = ['1min', '5min', '1m', '5m'].includes(interval)
+        const isIntradayOther = ['15min', '30min', '1h', '2h', '4h', '15m', '30m'].includes(interval)
+        const ttl = isIntradayShort ? 15_000 : isIntradayOther ? 60_000 : 300_000
         setCachedHistory(cacheKey, candles, ttl)
-        return NextResponse.json({
+
+        // DIAGNOSTIC: Include metadata so we can verify the correct interval
+        // was used. This helps debug cases where all timeframes show same data.
+        const response = NextResponse.json({
           success: true,
           data: candles,
-          meta: { interval, source: candles[0]?.source || 'unknown', count: candles.length },
+          meta: {
+            interval,
+            source: candles[0]?.source || 'unknown',
+            count: candles.length,
+            firstTime: candles[0]?.timestamp || null,
+            lastTime: candles[candles.length - 1]?.timestamp || null,
+          },
         })
+        // Set cache-control to prevent CDN/proxy caching of stale data
+        response.headers.set('Cache-Control', 'no-store, max-age=0')
+        return response
       }
 
       return NextResponse.json({
@@ -357,7 +381,8 @@ export async function GET(
         const tdInterval = tdIntervalMap[interval] || interval
 
         const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${tdInterval}&outputsize=1000&apikey=${apiKey}`
-        const res = await fetch(tdUrl, { next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) })
+        // CRITICAL: NO next.revalidate — prevents stale data caching
+        const res = await fetch(tdUrl, { signal: AbortSignal.timeout(10000) })
         if (res.ok) {
           const data = await res.json()
           if (data.status !== 'error' && data.values && data.values.length > 0) {
@@ -407,9 +432,10 @@ export async function GET(
       }
       const yInterval = yIntervalMap[interval] || '1d'
 
+      // CRITICAL: NO next.revalidate — prevents Next.js data cache from
+      // returning stale data for different interval/range combinations.
       const yUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?range=${yahooRange}&interval=${yInterval}`
       const yRes = await fetch(yUrl, {
-        next: { revalidate: 300 },
         signal: AbortSignal.timeout(15000),
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',

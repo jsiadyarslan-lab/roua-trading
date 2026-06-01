@@ -181,6 +181,15 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
   }, []);
 
+  // FIX: Connection generation counter — prevents race conditions when
+  // symbol/timeframe changes during reconnection. Old onclose handlers
+  // check their generation and skip reconnect if stale.
+  const connectionGenRef = useRef(0);
+
+  // FIX: Timeframe seconds for correct candle time snapping in polling fallback.
+  // Without this, polling always snaps to 1-minute boundaries even on 1H/1D charts.
+  const tfSecondsRef = useRef(60);
+
   // ── Fetch latest candle via REST ───────────────────────
   const fetchLatestCandle = useCallback(async () => {
     if (!symbol) return;
@@ -208,8 +217,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
           const rawLow = data.low || price;
           const rawClose = price;
           const s = sanitizeOhlc(rawOpen, rawHigh, rawLow, rawClose);
+          // FIX: Use correct timeframe boundary instead of hardcoded 60s.
+          // Previously, polling always snapped to 1-minute boundaries, creating
+          // wrong candles on 1H/1D charts.
+          const tfSec = tfSecondsRef.current;
           const candle: CandleData = {
-            time: now - (now % 60),
+            time: now - (now % tfSec),
             open: s.open,
             high: s.high,
             low: s.low,
@@ -272,6 +285,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     const interval = BINANCE_INTERVALS[timeframe] || '1m';
     const wsUrl = `${BINANCE_URLS.ws}/stream?streams=${binanceSymbol}@kline_${interval}/${binanceSymbol}@ticker`;
 
+    // FIX: Capture current generation for stale connection detection.
+    // If symbol/timeframe changes while this connection is active, the
+    // generation counter will increment, and this connection's onclose
+    // handler will see wsGen !== connectionGenRef.current and skip reconnect.
+    const wsGen = connectionGenRef.current;
+
     try {
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
@@ -331,6 +350,10 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
 
         if (isClosingRef.current) return;
 
+        // FIX: Check generation counter — if a new connection was already
+        // started (symbol/timeframe changed), don't reconnect the old one.
+        if (wsGen !== connectionGenRef.current) return;
+
         if (reconnectAttemptsRef.current >= MAX_RECONNECT_ATTEMPTS) {
           startPolling();
           return;
@@ -357,11 +380,18 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
       // FIX: 24-hour connection rotation — Binance disconnects after 24h.
       // Proactively reconnect 10 minutes before the cutoff to avoid
       // data gaps during active trading sessions.
+      // FIX: Close old WebSocket BEFORE creating new one to prevent
+      // duplicate connections sending data simultaneously.
       connectionStartTimeRef.current = Date.now();
       if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
       rotationTimerRef.current = setTimeout(() => {
         if (!isClosingRef.current && wsRef.current) {
           console.log('[useChartWebSocket] Proactive 24h rotation — reconnecting...');
+          // Close old connection first, then reconnect
+          try { wsRef.current?.close(); } catch {}
+          wsRef.current = null;
+          // Increment generation to invalidate old onclose handler
+          connectionGenRef.current++;
           connectBinanceFallback();
         }
       }, CONNECTION_ROTATION_MS);
@@ -371,6 +401,15 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     }
   }, [symbol, timeframe, startPolling, onCandleUpdate, onPriceUpdate]);
 
+  // FIX: Update tfSecondsRef when timeframe changes
+  const tfSecondsMap: Record<string, number> = {
+    '1s': 1, '5s': 5, '15s': 15, '30s': 30,
+    '1min': 60, '5min': 300, '15min': 900, '30min': 1800,
+    '1h': 3600, '2h': 7200, '4h': 14400,
+    '1day': 86400, '1week': 604800, '1month': 2592000, '3month': 7776000,
+  };
+  tfSecondsRef.current = tfSecondsMap[timeframe] || 60;
+
   // ── Primary: Skip Socket.IO, use Binance WS or REST polling ──
   // NestJS has no WebSocket gateway deployed, so socket.io attempts
   // always return 404 errors. Skip directly to Binance WS fallback.
@@ -379,6 +418,9 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
   const connect = useCallback(() => {
     cleanup();
     isClosingRef.current = false;
+    // FIX: Increment generation counter to invalidate any stale onclose
+    // handlers from previous connections.
+    connectionGenRef.current++;
     if (!enabled) return;
 
     // Skip socket.io — go directly to Binance WS or REST polling

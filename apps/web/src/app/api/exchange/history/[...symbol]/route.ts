@@ -266,6 +266,13 @@ export async function GET(
           }
         }
         const binanceSymbol = normalizedSymbol.replace('/', '')
+        // FIX: Validate binanceSymbol to prevent SSRF — only allow alphanumeric.
+        // Without this, a crafted symbol could inject URL parameters into the
+        // downstream Binance API call (e.g., symbol with & or ? characters).
+        if (!/^[A-Z0-9]+$/.test(binanceSymbol)) {
+          console.warn(`[exchange/history] Invalid binance symbol: ${binanceSymbol} — skipping Binance`)
+          // Fall through to CoinGecko/Yahoo
+        } else {
         const binanceInterval = intervalMap[interval] || '1d'
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
@@ -304,6 +311,7 @@ export async function GET(
             // Try next endpoint
           }
         }
+        } // end valid binanceSymbol
       } catch (e: any) {
         console.warn(`[exchange/history] Binance failed for ${symbol}: ${e.message}`)
       }

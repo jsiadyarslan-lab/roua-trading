@@ -35,16 +35,18 @@ export const BINANCE_URLS = {
 } as const;
 
 // ── Binance REST API Endpoints (ordered by reliability for cloud servers) ──
-// FIX: api.binance.com may be geo-blocked on Railway/cloud. Binance.us has
-// very low liquidity (65%+ flat 1m candles). These alternatives provide
-// proper OHLC data with high liquidity from any geography.
+// FIX: Reordered to put data-api.binance.vision FIRST — it's the most reliable
+// endpoint from cloud servers (not geo-blocked like api.binance.com).
+// api.binance.com is geo-blocked on Railway/cloud. Binance.us has very low
+// liquidity (65%+ flat 1m candles). These alternatives provide proper OHLC
+// data with high liquidity from any geography.
 export const BINANCE_REST_ENDPOINTS = [
+  'https://data-api.binance.vision/api/v3',
   'https://api.binance.com/api/v3',
   'https://api1.binance.com/api/v3',
   'https://api2.binance.com/api/v3',
   'https://api3.binance.com/api/v3',
   'https://api4.binance.com/api/v3',
-  'https://data-api.binance.vision/api/v3',
 ] as const;
 
 // ── Binance Interval Mapping ──

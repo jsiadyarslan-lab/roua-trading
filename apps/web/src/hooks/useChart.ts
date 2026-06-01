@@ -752,11 +752,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   //
   // Now, save/restore are done via refs to prevent re-triggering.
   const saveChartStateRef = useRef(saveChartState);
-  useEffect(() => { saveChartStateRef.current = saveChartState; }, [saveChartState]);
+  saveChartStateRef.current = saveChartState; // SYNC: No useEffect — avoids stale closure for 1 render
   const debouncedSaveChartStateRef = useRef(debouncedSaveChartState);
-  useEffect(() => { debouncedSaveChartStateRef.current = debouncedSaveChartState; }, [debouncedSaveChartState]);
+  debouncedSaveChartStateRef.current = debouncedSaveChartState; // SYNC
   const restoreChartStateRef = useRef(restoreChartState);
-  useEffect(() => { restoreChartStateRef.current = restoreChartState; }, [restoreChartState]);
+  restoreChartStateRef.current = restoreChartState; // SYNC
+
+  // FIX: Track previous symbol/timeframe to save state for the CORRECT (old)
+  // symbol/timeframe on switch. Previously, saveChartState captured the NEW
+  // symbol because the ref was already updated by the time the effect ran.
+  const prevSymbolRef = useRef(symbol);
+  const prevTimeframeRef = useRef(timeframe);
 
   // ── beforeunload: Force-save chart state before page refresh/close ──
   // React cleanup effects may not execute reliably during page unload.
@@ -771,15 +777,25 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   useEffect(() => {
-    // Save current state BEFORE switching (save for the PREVIOUS symbol)
-    // FIX: Use ref to avoid stale closure — saveChartState captures the current
-    // symbol, but we need to save for the PREVIOUS symbol. We read the store
-    // directly instead to ensure we save the correct symbol's state.
-    if (restoredConfigRef.current) {
+    // FIX: Save state for the PREVIOUS symbol before switching.
+    // We must save using prevSymbolRef because saveChartState captures the
+    // current `symbol` from the closure — which is already the NEW symbol
+    // by the time this effect runs. So we manually save for the old one.
+    if (restoredConfigRef.current && prevSymbolRef.current !== symbol) {
       try {
-        saveChartStateRef.current();
+        const store = useChartStateStore.getState();
+        const oldSymbol = prevSymbolRef.current;
+        const indicators: SerializedIndicator[] = Array.from(activeIndicatorsRef.current.values()).map(ind => ({
+          key: ind.key, params: ind.params, color: ind.color, opacity: ind.opacity, visible: ind.visible,
+        }));
+        const drawings = drawingManagerRef.current?.getAll() || [];
+        store.saveChartConfig(oldSymbol, prevTimeframeRef.current, {
+          chartType: settings.type, settings, indicators, drawings, activeTool,
+          visibleRange: null, // Can't capture old visible range reliably
+        });
       } catch { /* ignore save errors during symbol switch */ }
     }
+    prevSymbolRef.current = symbol;
 
     if (drawingManagerRef.current) {
       drawingManagerRef.current.setSymbol(symbol);
@@ -850,12 +866,23 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // FIX: Same pattern as symbol useEffect — use refs for save/restore to prevent
   // the effect from re-firing when those functions are recreated.
   useEffect(() => {
-    // Save current state BEFORE switching timeframe
-    if (restoredConfigRef.current) {
+    // FIX: Save state for the PREVIOUS timeframe before switching.
+    // Same pattern as symbol switch — save for old timeframe explicitly.
+    if (restoredConfigRef.current && prevTimeframeRef.current !== timeframe) {
       try {
-        saveChartStateRef.current();
+        const store = useChartStateStore.getState();
+        const oldTf = prevTimeframeRef.current;
+        const indicators: SerializedIndicator[] = Array.from(activeIndicatorsRef.current.values()).map(ind => ({
+          key: ind.key, params: ind.params, color: ind.color, opacity: ind.opacity, visible: ind.visible,
+        }));
+        const drawings = drawingManagerRef.current?.getAll() || [];
+        store.saveChartConfig(symbol, oldTf, {
+          chartType: settings.type, settings, indicators, drawings, activeTool,
+          visibleRange: null,
+        });
       } catch { /* ignore save errors during timeframe switch */ }
     }
+    prevTimeframeRef.current = timeframe;
 
     // Cancel any pending indicator re-apply from a previous setCandles call
     cancelAnimationFrame(pendingIndicatorRafRef.current);
@@ -1232,30 +1259,25 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean; skipIndicatorRebuild?: boolean }) => {
-    // FIX: Store SANITIZED candles — not raw data.
-    // Previously, candlesRef.current stored the original (unsanitized) candles.
-    // When updateLastCandle or onCandleUpdate (RouaChart) later read from
-    // candlesRef.current, they got flat OHLC values (open===high===low===close)
-    // from forex/ticker sources. Those flat values were then sent to
-    // candleSeriesRef.current.update() WITHOUT sanitization, causing candles
-    // to render as dots. Now we sanitize BEFORE storing, so all downstream
-    // readers always get valid non-flat OHLC data.
-    candlesRef.current = candles.map(c => {
+    // FIX: Store SANITIZED + SORTED candles — not raw data.
+    // Previously, candlesRef.current stored unsorted data, but binarySearchByTime
+    // and updateCandle both assume ascending time order. This caused wrong
+    // crosshair data, wrong indicator values, and wrong volume display.
+    // Now we sort FIRST, then sanitize, then store.
+    let sorted = [...candles].sort((a, b) => a.time - b.time);
+    // PERF: Limit candle count to prevent performance degradation
+    if (sorted.length > MAX_VISIBLE_CANDLES) {
+      sorted = sorted.slice(sorted.length - MAX_VISIBLE_CANDLES);
+    }
+    candlesRef.current = sorted.map(c => {
       const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
       return { ...c, open: s.open, high: s.high, low: s.low, close: s.close };
     });
 
     // If chart isn't ready yet, store data as pending and return
     if (!candleSeriesRef.current || !volumeSeriesRef.current) {
-      pendingCandlesRef.current = candles;
+      pendingCandlesRef.current = sorted;
       return;
-    }
-
-    // Sort by time (lightweight-charts v5 requires strictly ascending time)
-    let sorted = [...candles].sort((a, b) => a.time - b.time);
-    // PERF: Limit candle count to prevent performance degradation
-    if (sorted.length > MAX_VISIBLE_CANDLES) {
-      sorted = sorted.slice(sorted.length - MAX_VISIBLE_CANDLES);
     }
 
     // Apply Heikin-Ashi if needed

@@ -1154,7 +1154,7 @@ export default function RouaChart({
           // and would cause "Value is null" crash if left on the chart.
           setCandlesRef.current(unique, { clearExternal: true });
           // Update AI panel candles if panel is open so overlays can redraw
-          if (showAIPanel) {
+          if (showAIPanelRef.current) {
             setAiPanelCandles([...unique]);
           }
           // REVOLUTIONARY: Initialize incremental computation state
@@ -1226,7 +1226,7 @@ export default function RouaChart({
       // simulated data means the timeframe changed.
       setCandlesRef.current(candles, { clearExternal: true });
       // Update AI panel candles if panel is open so overlays can redraw
-      if (showAIPanel) {
+      if (showAIPanelRef.current) {
         setAiPanelCandles([...candles]);
       }
       // FIX: Auto-fit after simulated data too
@@ -1831,16 +1831,18 @@ export default function RouaChart({
   // FIX: Uses refs for chart method access to prevent infinite re-render loops.
   const cleanupAIOverlays = useCallback(() => {
     try {
-      const { getOverlayRegistry, resetOverlayRegistry } = require('@/lib/charts/OverlayRegistry');
-      const reg = getOverlayRegistry();
-      // Set removePriceLine callback so clearAll() can remove price lines
-      reg.setRemovePriceLine(removePriceLineRef.current);
-      reg.clearAll();
-      // Destroy the singleton only on timeframe change — the chart will be
-      // recreated, so all primitives and price lines must go. The next
-      // renderOverlays call will create a fresh registry.
-      resetOverlayRegistry();
-      resetFallbackEntryCache();
+      // FIX: Use pre-loaded overlayRegistryRef instead of require().
+      // require() is CommonJS and doesn't work correctly with Next.js webpack
+      // in client components. The overlayRegistryRef was already loaded at
+      // mount time (line ~498-502).
+      const registryMod = overlayRegistryRef.current;
+      if (registryMod) {
+        const reg = registryMod.getOverlayRegistry();
+        reg.setRemovePriceLine(removePriceLineRef.current);
+        reg.clearAll();
+        registryMod.resetOverlayRegistry();
+        resetFallbackEntryCache();
+      }
     } catch {}
     // SAFETY NET: Brute-force remove ALL price lines from the candle series.
     // This catches orphaned lines from: delayed addPriceLine retries,

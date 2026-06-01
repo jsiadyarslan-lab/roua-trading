@@ -362,7 +362,7 @@ export class PositionMonitorService {
         this.logger.warn(
           `⏱️ MAX_HOLDING: ${position.symbol} held ${(holdingMs/3600000).toFixed(1)}h > 4h — closing`,
         );
-        await this._closePosition(position, currentPrice, 'STRATEGY_EXIT');
+        await this._closePosition(position, currentPrice, 'STOP_LOSS');
         result.slTriggered = true;
         return result;
       }

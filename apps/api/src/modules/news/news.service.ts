@@ -17,6 +17,9 @@ interface RawNewsItem {
   source: string;
   category?: string;
   imageUrl?: string;
+  sentiment?: number;
+  impactLevel?: string;
+  affectedAssets?: string;
 }
 
 /**

@@ -223,6 +223,14 @@ export async function GET(
     // Cache busting: if _t parameter is present, skip cache (for debugging)
     const skipCache = url.searchParams.has('_t')
 
+    // CRITICAL: intervalMap MUST be declared BEFORE it is used below.
+    // Previously, this was placed AFTER the normalizedInterval line, causing
+    // a JavaScript TDZ (Temporal Dead Zone) ReferenceError at runtime:
+    //   "Cannot access 'intervalMap' before initialization"
+    // The try-catch silently caught this error and returned empty data,
+    // causing ALL timeframes to fall back to simulated random data.
+    const intervalMap = BINANCE_INTERVALS
+
     // Normalize interval for cache key: '1min' and '1m' should produce the same key
     // to avoid storing duplicate data under different aliases
     const normalizedInterval = intervalMap[interval] || interval
@@ -239,8 +247,6 @@ export async function GET(
     const CRYPTO_QUOTE_CURRENCIES = ['USDT', 'BUSD', 'USD'] // Crypto can use USD too
     const baseCurrency = symbol.includes('/') ? symbol.split('/')[0] : ''
     const isCryptoPair = (symbol.includes('/') && CRYPTO_QUOTE_CURRENCIES.includes(quoteCurrency) && CRYPTO_BASES.has(baseCurrency)) || (!symbol.includes('/') && CRYPTO_BASES.has(symbol))
-
-    const intervalMap = BINANCE_INTERVALS
 
     if (isCryptoPair) {
       // ── Crypto History: NestJS ExchangeService → Binance → CoinGecko → Yahoo Finance ──

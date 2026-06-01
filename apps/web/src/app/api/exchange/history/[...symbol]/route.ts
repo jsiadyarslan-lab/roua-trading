@@ -223,8 +223,10 @@ export async function GET(
     // Cache busting: if _t parameter is present, skip cache (for debugging)
     const skipCache = url.searchParams.has('_t')
 
-    // Check cache first (unless cache-busting)
-    const cacheKey = `history:${symbol}:${interval}`
+    // Normalize interval for cache key: '1min' and '1m' should produce the same key
+    // to avoid storing duplicate data under different aliases
+    const normalizedInterval = intervalMap[interval] || interval
+    const cacheKey = `history:${symbol}:${normalizedInterval}`
     if (!skipCache) {
       const cached = getCachedHistory(cacheKey)
       if (cached) {
@@ -249,10 +251,10 @@ export async function GET(
       // To re-enable, deploy NestJS ExchangeGateway and set NESTJS_API_URL.
 
       // Step 1: Try Binance directly (fastest, most detailed)
-      // FIX: Use multiple Binance REST endpoints (api1-4, data-api.binance.vision)
-      // because api.binance.com may be geo-blocked on cloud servers (Railway, AWS, etc).
-      // Binance.us has extremely low liquidity (65%+ flat 1m candles) and is used
-      // only as the very last resort with a quality check.
+      // FIX: Use Promise.any() to race ALL Binance endpoints in parallel.
+      // Previous sequential approach (for...of with 8s timeout each) caused
+      // 8-56 second delays when endpoints were geo-blocked. Parallel racing
+      // returns in ~1-2 seconds (whichever endpoint responds first).
       try {
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
@@ -263,59 +265,95 @@ export async function GET(
         }
         const binanceSymbol = normalizedSymbol.replace('/', '')
         const binanceInterval = intervalMap[interval] || '1d'
-        // DIAGNOSTIC: Log the interval mapping to help debug timeframe issues
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
 
-        // FIX: Build endpoint list with all Binance alternatives + quality check.
-        // Order: api.binance.com → api1-4 → data-api.binance.vision → binance.us (last resort)
+        // Build endpoint list with all Binance alternatives
         const binanceEndpoints = [
           ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`),
           `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
         ]
 
-        for (const bUrl of binanceEndpoints) {
+        // PARALLEL RACE: Fire all endpoints at once, return first quality result.
+        // Each endpoint gets a 4s timeout (reduced from 8s since we're racing).
+        // Promise.any() resolves as soon as ONE promise succeeds.
+        const endpointResults = await Promise.any(
+          binanceEndpoints.map(async (bUrl) => {
+            const controller = new AbortController()
+            const timeoutId = setTimeout(() => controller.abort(), 4000)
+            try {
+              const res = await fetch(bUrl, {
+                signal: controller.signal,
+                headers: { 'Accept': 'application/json' },
+              })
+              clearTimeout(timeoutId)
+              if (!res.ok) throw new Error(`HTTP ${res.status}`)
+              const data = await res.json()
+              if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data')
+
+              const mapped = data.map((c: any[]) => ({
+                symbol,
+                timestamp: new Date(c[0]).toISOString(),
+                datetime: new Date(c[0]).toISOString(),
+                open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
+                source: 'Binance',
+              }))
+
+              // Quality check — reject data with too many flat candles
+              const flatRatio = flatCandleRatio(mapped)
+              if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
+                throw new Error(`${Math.round(flatRatio * 100)}% flat candles (>${MAX_FLAT_CANDLE_RATIO * 100}%)`)
+              }
+              return mapped
+            } catch (e: any) {
+              clearTimeout(timeoutId)
+              throw e // Let Promise.any() try other endpoints
+            }
+          })
+        ).catch(async () => {
+          // If Promise.any() fails (ALL endpoints failed), fall back to sequential
+          // try of Binance.us with longer timeout as last resort
+          const usUrl = `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`
           try {
-            const res = await fetch(bUrl, {
-              signal: AbortSignal.timeout(8000),
+            const res = await fetch(usUrl, {
+              signal: AbortSignal.timeout(6000),
               headers: { 'Accept': 'application/json' },
             })
             if (res.ok) {
               const data = await res.json()
               if (Array.isArray(data) && data.length > 0) {
-                const mapped = data.map((c: any[]) => ({
+                return data.map((c: any[]) => ({
                   symbol,
                   timestamp: new Date(c[0]).toISOString(),
                   datetime: new Date(c[0]).toISOString(),
                   open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
                   source: 'Binance',
                 }))
-                // FIX: Quality check — reject data with too many flat candles.
-                // Binance.us returns 65%+ flat candles on 1m/5m due to low liquidity.
-                // This causes candles to render as dots on the chart.
-                const flatRatio = flatCandleRatio(mapped)
-                if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
-                  console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles (> ${MAX_FLAT_CANDLE_RATIO * 100}% threshold)`)
-                  continue // Try next endpoint
-                }
-                candles = mapped
-                break // Got quality data, no need to try next endpoint
               }
             }
-          } catch {
-            // Try next endpoint
-          }
+          } catch { /* All Binance endpoints exhausted */ }
+          return null
+        })
+
+        if (endpointResults && Array.isArray(endpointResults) && endpointResults.length > 0) {
+          candles = endpointResults
         }
       } catch (e: any) {
         console.warn(`[exchange/history] Binance failed for ${symbol}: ${e.message}`)
       }
 
       // Step 2: Try CoinGecko OHLCV (free, no key needed)
-      if (!candles || candles.length === 0) {
+      // CRITICAL: CoinGecko OHLC doesn't support intraday granularity!
+      // For days=1, it always returns 30-min candles regardless of the
+      // requested interval (1min, 5min, 15min all get the SAME 30-min data).
+      // This was the ROOT CAUSE of "all timeframes show same data" bug.
+      // Skip CoinGecko for intervals shorter than 4h.
+      const skipCoinGecko = ['1min', '5min', '15min', '30min', '1m', '5m', '15m', '30m', '1h', '2h'].includes(interval)
+      if ((!candles || candles.length === 0) && !skipCoinGecko) {
         const cgCandles = await fetchCoinGeckoHistory(symbol, interval)
         if (cgCandles && cgCandles.length > 0) {
           candles = cgCandles
-          console.info(`[exchange/history] Using CoinGecko for ${symbol}`)
+          console.info(`[exchange/history] Using CoinGecko for ${symbol} (${interval})`)
         }
       }
 
@@ -332,9 +370,9 @@ export async function GET(
       if (candles && candles.length > 0) {
         // Cache: 15s for short intraday (1m, 5m — needs fast refresh), 60s for
         // other intraday, 5min for daily+. This ensures 1m/5m data stays fresh.
-        const isIntradayShort = ['1min', '5min', '1m', '5m'].includes(interval)
-        const isIntradayOther = ['15min', '30min', '1h', '2h', '4h', '15m', '30m'].includes(interval)
-        const ttl = isIntradayShort ? 15_000 : isIntradayOther ? 60_000 : 300_000
+        const isShortTf = ['1min', '5min', '1m', '5m'].includes(interval)
+        const isMidTf = ['15min', '30min', '1h', '2h', '4h', '15m', '30m'].includes(interval)
+        const ttl = isShortTf ? 15_000 : isMidTf ? 60_000 : 300_000
         setCachedHistory(cacheKey, candles, ttl)
 
         // DIAGNOSTIC: Include metadata so we can verify the correct interval

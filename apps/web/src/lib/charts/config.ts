@@ -51,9 +51,10 @@ export const BINANCE_REST_ENDPOINTS = [
 export const BINANCE_INTERVALS: Record<string, string> = {
   '1s': '1m', '5s': '1m', '15s': '1m', '30s': '1m', // seconds → 1m (Binance min)
   '1min': '1m', '3min': '3m', '5min': '5m', '15min': '15m', '30min': '30m',
+  '1m': '1m', '3m': '3m', '5m': '5m', '15m': '15m', '30m': '30m', // short aliases
   '1h': '1h', '2h': '2h', '4h': '4h', '6h': '6h', '8h': '8h', '12h': '12h',
   '1day': '1d', '3day': '3d', '1week': '1w', '1month': '1M', '3month': '3M',
-  '15m': '15m', '1d': '1d', // shorthand aliases
+  '1d': '1d', '1w': '1w', '1M': '1M', '3M': '3M', // daily+ shorthand aliases
 } as const;
 
 // ── Known Crypto Bases ──

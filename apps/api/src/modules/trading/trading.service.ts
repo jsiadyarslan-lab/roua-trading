@@ -1056,19 +1056,6 @@ export class TradingService {
           `📝 V175 Paper balance on close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
         );
 
-        // V175: تحديث نتيجة الـ brief — المجلس يتعلم من النتيجة
-        if (position.briefId) {
-          try {
-            await this.prisma.tradingBrief.update({
-              where: { id: position.briefId },
-              data: {
-                outcome:   pnl > 0.5 ? 'WIN' : pnl < -0.5 ? 'LOSS' : 'BREAKEVEN',
-                actualPnl: pnl,
-                outcomeAt: new Date(),
-              },
-            }).catch(() => {}); // non-blocking
-          } catch { /* non-critical */ }
-        }
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on close: ${err.message}`);
       }

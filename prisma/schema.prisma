@@ -1237,11 +1237,6 @@ model TradingBrief {
   // Analysis Context
   analysisSummary String? // AI reasoning / context for this brief
 
-  // V175: نتيجة الـ brief بعد تنفيذه — للتعلم من الأخطاء
-  outcome    String?   // WIN / LOSS / BREAKEVEN
-  actualPnl  Decimal?  @db.Decimal(18, 4)
-  outcomeAt  DateTime?
-
   // Audit
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

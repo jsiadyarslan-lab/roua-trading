@@ -135,6 +135,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // "Value is null" errors from stale indicator data.
   const pendingIndicatorRafRef = useRef<number>(0);
 
+  // ── Data loading guard ──
+  // FIX: Track the symbol+timeframe for which data was LAST successfully loaded.
+  // This prevents stale [symbol] effects from clearing data that was JUST set
+  // by the fetch. Without this, the following race condition occurs:
+  // 1. Symbol changes to ETH/USDT
+  // 2. [symbol] effect runs → clears data with setData([])
+  // 3. restoreChartState changes settings.type → triggers re-render
+  // 4. [isChartReady, setCandles] effect re-fires (setCandles changed)
+  // 5. Meanwhile, fetch completes and calls setCandles → data appears
+  // 6. BUT another re-render (from settings change) might trigger the [symbol]
+  //    effect's cleanup, or another effect might clear data again
+  // The guard ensures that clearing data in [symbol] effect only happens when
+  // the current data actually belongs to the OLD symbol.
+  const lastLoadedDataKeyRef = useRef<string>('');
+
   // ── Template restore flag ──
   // When a grid template is being loaded, the calling code pre-saves state
   // to useChartStateStore. We set this flag to tell restoreChartState()
@@ -777,6 +792,26 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, []);
 
   useEffect(() => {
+    // FIX: Guard against clearing data that was already loaded for the
+    // NEW symbol. This happens when restoreChartState triggers a settings
+    // change → re-render → this effect re-fires with the same symbol.
+    // Without this guard, the effect clears data that was JUST set by the
+    // fetch, causing candles to disappear on symbol switch.
+    const currentDataKey = `${symbol}:${timeframe}`;
+    if (lastLoadedDataKeyRef.current === currentDataKey && candlesRef.current.length > 0) {
+      // Data for the current symbol+timeframe is already loaded — skip clearing.
+      // Only update the drawing manager and restore chart state.
+      if (drawingManagerRef.current) {
+        drawingManagerRef.current.setSymbol(symbol);
+      }
+      drawingRendererRef.current?.redraw();
+      restoreChartStateRef.current();
+      console.log(`[useChart] Symbol effect SKIPPED clearing — data already loaded for ${currentDataKey} (${candlesRef.current.length} candles)`);
+      return;
+    }
+
+    console.log(`[useChart] Symbol change: prev=${prevSymbolRef.current} → new=${symbol}, clearing data...`);
+
     // FIX: Save state for the PREVIOUS symbol before switching.
     // We must save using prevSymbolRef because saveChartState captures the
     // current `symbol` from the closure — which is already the NEW symbol
@@ -820,6 +855,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Clear candle + volume data so chart is blank while new data loads
     candlesRef.current = [];
     pendingCandlesRef.current = null;
+    // Reset the data key since we're clearing for a new symbol
+    lastLoadedDataKeyRef.current = '';
     // PERF: Cancel any pending rAF-buffered candle update from old symbol
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = 0;
@@ -866,6 +903,14 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // FIX: Same pattern as symbol useEffect — use refs for save/restore to prevent
   // the effect from re-firing when those functions are recreated.
   useEffect(() => {
+    // FIX: Same guard as [symbol] effect — skip clearing if data for the
+    // current symbol+timeframe was already successfully loaded.
+    const currentDataKey = `${symbol}:${timeframe}`;
+    if (lastLoadedDataKeyRef.current === currentDataKey && candlesRef.current.length > 0) {
+      console.log(`[useChart] Timeframe effect SKIPPED clearing — data already loaded for ${currentDataKey}`);
+      return;
+    }
+
     // FIX: Save state for the PREVIOUS timeframe before switching.
     // Same pattern as symbol switch — save for old timeframe explicitly.
     if (restoredConfigRef.current && prevTimeframeRef.current !== timeframe) {
@@ -901,6 +946,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Clear candle + volume data so chart is blank while new data loads
     candlesRef.current = [];
     pendingCandlesRef.current = null;
+    // Reset the data key since we're clearing for a new timeframe
+    lastLoadedDataKeyRef.current = '';
     // PERF: Cancel any pending rAF-buffered candle update from old timeframe
     cancelAnimationFrame(rafIdRef.current);
     rafIdRef.current = 0;
@@ -995,7 +1042,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
 
-    if (settings.type === 'heikin-ashi') {
+    if (settings.type === 'line' || settings.type === 'area') {
+      // FIX C5: Line/Area series use {time, value} format, not OHLC
+      try {
+        candleSeriesRef.current.update({
+          time: lastTime as Time,
+          value: sanitized.close,
+        } as any);
+      } catch { /* chart was destroyed between the null check and update */ }
+    } else if (settings.type === 'heikin-ashi') {
       // Only recalculate last candle for HA, not entire series
       const prevCandle = candles.length > 1 ? candles[candles.length - 2] : sanitized;
       const haClose = (sanitized.open + sanitized.high + sanitized.low + sanitized.close) / 4;
@@ -1132,8 +1187,19 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const updated = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
       candles[candles.length - 1] = updated;
 
-      // Apply Heikin-Ashi transform for the last candle only
-      if (settings.type === 'heikin-ashi') {
+      // FIX C5: For Line/Area chart types, the series expects {time, value} format,
+      // NOT {time, open, high, low, close}. Sending OHLC data to a Line/Area series
+      // causes a silent error and the chart stops updating. This was the root cause
+      // of "candles disappear after switching to Line/Area type" bug.
+      const chartType = settings.type;
+      if (chartType === 'line' || chartType === 'area') {
+        try {
+          candleSeriesRef.current.update({
+            time: time as Time,
+            value: updated.close,
+          } as any);
+        } catch { /* chart destroyed */ }
+      } else if (chartType === 'heikin-ashi') {
         const prev = candles.length > 1 ? candles[candles.length - 2] : updated;
         const haClose = (updated.open + updated.high + updated.low + updated.close) / 4;
         const haOpen = prev === updated ? (updated.open + haClose) / 2 : (prev.open + prev.close) / 2;
@@ -1145,6 +1211,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           } as any);
         } catch { /* chart destroyed */ }
       } else {
+        // Candlestick, Hollow, Bar types — use OHLC format
         try {
           candleSeriesRef.current.update({
             time: time as Time,
@@ -1370,6 +1437,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       volumeSeriesRef.current.applyOptions({
         visible: hasVolume && (settings?.showVolume !== false),
       });
+      // FIX: Mark that data was successfully loaded for this symbol+timeframe.
+      // This prevents the [symbol] effect from accidentally clearing data
+      // that was JUST set by the fetch (race condition on symbol switch).
+      lastLoadedDataKeyRef.current = `${symbol}:${timeframe}`;
     } catch (e) {
       console.error('[useChart] setCandles setData error:', e);
     }

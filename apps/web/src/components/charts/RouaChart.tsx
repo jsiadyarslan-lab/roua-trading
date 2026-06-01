@@ -1110,12 +1110,17 @@ export default function RouaChart({
     const fetchCandles = async () => {
       try {
         setFeedState('waiting');
+        console.log(`[RouaChart] Fetching candles: ${selectedSymbol_} ${timeframe_}...`);
         const res = await fetch(`/api/exchange/history/${encodeURIComponent(selectedSymbol_)}?interval=${timeframe_}`);
         const j = await res.json();
 
-        if (cancelled) return; // Symbol/timeframe changed while fetching — discard
+        if (cancelled) {
+          console.log(`[RouaChart] Fetch cancelled (symbol changed): ${selectedSymbol_} ${timeframe_}`);
+          return; // Symbol/timeframe changed while fetching — discard
+        }
 
         if (j.success && j.data && j.data.length > 0) {
+          console.log(`[RouaChart] Fetched ${j.data.length} candles for ${selectedSymbol_} ${timeframe_} (source: ${j.meta?.source || 'unknown'})`);
           setFeedState('live');
           const formatted: CandleData[] = j.data
             .map((c: any) => {
@@ -1152,6 +1157,7 @@ export default function RouaChart({
           // Pass clearExternal:true because this is a timeframe/symbol change —
           // old AI overlay series have timestamps from the previous timeframe
           // and would cause "Value is null" crash if left on the chart.
+          console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
           setCandlesRef.current(unique, { clearExternal: true });
           // Update AI panel candles if panel is open so overlays can redraw
           if (showAIPanelRef.current) {
@@ -1175,6 +1181,7 @@ export default function RouaChart({
           // patterns on chart load, filling the chart with scribbles.
         } else {
           if (cancelled) return;
+          console.warn(`[RouaChart] No real data for ${selectedSymbol_} ${timeframe_}, falling back to simulated data`);
           setFeedState('fallback');
           // Generate simulated data as fallback
           generateSimulatedData();

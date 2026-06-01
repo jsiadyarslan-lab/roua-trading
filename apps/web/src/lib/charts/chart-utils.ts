@@ -4,6 +4,8 @@
 // and constants to eliminate code duplication.
 // ═══════════════════════════════════════════════════════════
 
+import type { CandleData } from './types';
+
 // ── Time Sanitization ─────────────────────────────────────
 // Ensures time is always a Unix timestamp (seconds), never a
 // Date object or string. Prevents the fatal "Cannot update
@@ -307,6 +309,78 @@ export interface CandleUpdateData {
 // like Ichimoku 52-period) and rendering performance.
 
 export const MAX_VISIBLE_CANDLES = 3000;
+
+// ── Gap Filling ──────────────────────────────────────────
+// FIX: Lightweight-charts renders every time slot on the time axis when using
+// UTCTimestamp (Unix seconds) with timeVisible:true. If candles are missing
+// (e.g., Binance rate limit, maintenance, forex market closed), the chart shows
+// visual GAPS between candles — empty spaces where the missing candles should be.
+//
+// This function fills those gaps by inserting "forward-fill" candles: each
+// missing slot gets a candle with open=high=low=close=previous_close, volume=0.
+// These render as tiny doji/cross candles that bridge the visual gap without
+// introducing fake price action.
+//
+// Performance: O(n) where n = number of filled candles. For typical gaps
+// (a few hours of missing 1m data = ~60-240 fill candles), this is negligible.
+// A safety cap prevents pathological cases (e.g., 1d timeframe with years of gaps).
+
+export function fillTimeGaps(
+  candles: CandleData[],
+  intervalSeconds: number,
+  maxFillCount: number = 500,
+): CandleData[] {
+  if (candles.length < 2 || intervalSeconds <= 0) return candles;
+
+  const filled: CandleData[] = [candles[0]];
+  let fillCount = 0;
+
+  for (let i = 1; i < candles.length; i++) {
+    const prevTime = candles[i - 1].time;
+    const currTime = candles[i].time;
+    const expectedNext = prevTime + intervalSeconds;
+
+    // Only fill if there's a gap of at least 1 interval and we haven't hit the cap
+    if (currTime > expectedNext && fillCount < maxFillCount) {
+      let fillTime = expectedNext;
+      const prevClose = candles[i - 1].close;
+
+      while (fillTime < currTime && fillCount < maxFillCount) {
+        filled.push({
+          time: fillTime,
+          open: prevClose,
+          high: prevClose,
+          low: prevClose,
+          close: prevClose,
+          volume: 0,
+        });
+        fillTime += intervalSeconds;
+        fillCount++;
+      }
+    }
+
+    filled.push(candles[i]);
+  }
+
+  return filled;
+}
+
+// ── Timeframe to Seconds ──────────────────────────────────
+// Maps timeframe strings (e.g., '1m', '5m', '1h', '1d') to seconds.
+// Used by fillTimeGaps and WebSocket candle alignment.
+
+export function timeframeToSeconds(tf: string): number {
+  const map: Record<string, number> = {
+    '1s': 1, '5s': 5, '15s': 15, '30s': 30,
+    '1m': 60, '5m': 300, '15m': 900, '1min': 60, '5min': 300, '15min': 900,
+    '30m': 1800, '30min': 1800,
+    '1h': 3600, '2h': 7200, '4h': 14400,
+    '1d': 86400, '1day': 86400,
+    '1w': 604800, '1week': 604800,
+    '1M': 2592000, '1month': 2592000, '3M': 7776000, '3month': 7776000,
+  };
+  return map[tf] || 60; // Default to 60s (1m)
+}
 
 // ── Safe Math Helpers ────────────────────────────────────────
 // Math.max(...array) / Math.min(...array) throws RangeError when

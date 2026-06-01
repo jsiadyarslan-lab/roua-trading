@@ -35,6 +35,8 @@ import {
   CHART_COLORS as SHARED_COLORS,
   MAX_VISIBLE_CANDLES,
   sanitizeOhlc,
+  fillTimeGaps,
+  timeframeToSeconds,
 } from '@/lib/charts/chart-utils';
 import { buildChartOptions, buildCandlestickOptions, buildVolumeOptions, CHART_COLORS as CHART_OPTIONS_COLORS } from '../lib/charts/chart-options';
 
@@ -1375,6 +1377,18 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // PERF: Limit candle count to prevent performance degradation
     if (sorted.length > MAX_VISIBLE_CANDLES) {
       sorted = sorted.slice(sorted.length - MAX_VISIBLE_CANDLES);
+    }
+    // FIX: Fill time gaps to prevent visual gaps between candles.
+    // When data sources return incomplete data (missing minutes/hours),
+    // lightweight-charts shows empty spaces on the time axis. By inserting
+    // forward-fill candles (OHL=prev_close, volume=0), we bridge the gaps.
+    // Skip gap filling for WebSocket incremental updates (skipIndicatorRebuild)
+    // to avoid O(n) overhead on every WS message — gaps are already filled
+    // from the initial historical fetch.
+    const shouldFillGaps = !options?.skipIndicatorRebuild;
+    if (shouldFillGaps) {
+      const tfSec = timeframeToSeconds(timeframe);
+      sorted = fillTimeGaps(sorted, tfSec);
     }
     candlesRef.current = sorted.map(c => {
       const s = sanitizeOhlc(c.open, c.high, c.low, c.close);

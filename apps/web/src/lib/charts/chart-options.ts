@@ -76,6 +76,13 @@ export function buildChartOptions(opts: {
       rightOffset: isMobile ? 3 : 5,
       barSpacing: isMobile ? 6 : 10,
       minBarSpacing: 3,
+      // FIX: Remove empty space at the edges of the chart.
+      // Without fixLeftEdge/fixRightEdge, the chart can show blank
+      // areas on the left (before first candle) and right (after last),
+      // making the chart look sparse and causing candles to cluster
+      // in the middle instead of filling the viewport.
+      fixLeftEdge: true,
+      fixRightEdge: true,
       // FIX: Data conflation is DISABLED because it destroys candlestick
       // OHLC rendering. When enabled, LWC merges multiple candles into a
       // single data point (dot) when zoomed out, losing open/high/low/close.

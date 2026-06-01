@@ -17,7 +17,7 @@ import { usePositionsStore } from '@/hooks/usePositionsStore';
 import { usePaperTradesStore } from '@/hooks/usePaperTradesStore';
 import type { CandleData, CrosshairData, ChartType, DrawingTool, ActiveIndicator, AIPattern, NewsMarker } from '@/lib/charts/types';
 import { TIMEFRAMES, INDICATOR_CONFIGS } from '@/lib/charts/types';
-import { sanitizeOhlc } from '@/lib/charts/chart-utils';
+import { sanitizeOhlc, fillTimeGaps, timeframeToSeconds } from '@/lib/charts/chart-utils';
 import { ChartToolbar } from './ChartToolbar';
 import { CrosshairOverlay } from './CrosshairOverlay';
 import { DrawingPanel } from './DrawingPanel';
@@ -1162,17 +1162,25 @@ export default function RouaChart({
           });
           // Sort by time (lightweight-charts v5 requires strictly ascending time)
           unique.sort((a, b) => a.time - b.time);
-          candlesRef.current = unique;
+          // FIX: Fill time gaps in candle data to prevent visual gaps on the chart.
+          // When Binance or other data sources return incomplete data (missing minutes/
+          // hours), lightweight-charts shows empty spaces between candles because it
+          // treats every timestamp as a position on the time axis. By inserting
+          // forward-fill candles (open=high=low=close=prev_close, volume=0), we
+          // bridge the gaps without introducing fake price action.
+          const tfSec = timeframeToSeconds(timeframe_);
+          const gapFilled = fillTimeGaps(unique, tfSec);
+          candlesRef.current = gapFilled;
           // Run pattern engine after candles are updated
           // FIX: Use ref to avoid stale closure over chart.setCandles
           // Pass clearExternal:true because this is a timeframe/symbol change —
           // old AI overlay series have timestamps from the previous timeframe
           // and would cause "Value is null" crash if left on the chart.
-          console.log(`[RouaChart] Setting ${unique.length} candles on chart for ${selectedSymbol_} ${timeframe_}`);
-          setCandlesRef.current(unique, { clearExternal: true });
+          console.log(`[RouaChart] Setting ${gapFilled.length} candles on chart for ${selectedSymbol_} ${timeframe_} (filled ${gapFilled.length - unique.length} gaps)`);
+          setCandlesRef.current(gapFilled, { clearExternal: true });
           // Update AI panel candles if panel is open so overlays can redraw
           if (showAIPanelRef.current) {
-            setAiPanelCandles([...unique]);
+            setAiPanelCandles([...gapFilled]);
           }
           // REVOLUTIONARY: Initialize incremental computation state
           try {

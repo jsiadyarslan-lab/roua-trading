@@ -825,11 +825,23 @@ export default function RouaChart({
       if (idx >= 0) {
         // Merge: keep the widest high/low, latest close
         const existing = candlesRef.current[idx];
+        let mergedHigh = Math.max(existing.high, alignedCandle.high);
+        let mergedLow = Math.min(existing.low, alignedCandle.low);
+        const mergedClose = alignedCandle.close;
+        // FIX: Sanitize OHLC — if merged candle is still flat (high===low),
+        // add a tiny range so it renders as a candle, not a dot.
+        // This happens when both existing and incoming candles have the same
+        // high/low (common with forex ticker data that lacks OHLC detail).
+        if (mergedHigh === mergedLow) {
+          const tick = mergedClose * 0.0001;
+          mergedHigh += tick;
+          mergedLow -= tick;
+        }
         const merged = {
           ...existing,
-          high: Math.max(existing.high, alignedCandle.high),
-          low: Math.min(existing.low, alignedCandle.low),
-          close: alignedCandle.close,
+          high: mergedHigh,
+          low: mergedLow,
+          close: mergedClose,
           volume: alignedCandle.volume || existing.volume,
         };
         candlesRef.current[idx] = merged;
@@ -849,7 +861,22 @@ export default function RouaChart({
         // NEW candle: append and use setCandles with skipIndicatorRebuild
         // This uses setData() but preserves indicator series (they stay
         // visible with slightly stale last-point data until next recalc).
-        candlesRef.current.push(alignedCandle);
+        // FIX: Sanitize the new candle's OHLC before storing in candlesRef
+        // to prevent flat candles (dots) from being written to the ref.
+        let newHigh = alignedCandle.high;
+        let newLow = alignedCandle.low;
+        const newClose = alignedCandle.close;
+        if (newClose > 0) {
+          if (newHigh < Math.max(alignedCandle.open, newClose)) newHigh = Math.max(alignedCandle.open, newClose);
+          if (newLow > Math.min(alignedCandle.open, newClose)) newLow = Math.min(alignedCandle.open, newClose);
+          if (newHigh === newLow) {
+            const tick = newClose * 0.0001;
+            newHigh += tick;
+            newLow -= tick;
+          }
+        }
+        const sanitizedCandle = { ...alignedCandle, high: newHigh, low: newLow };
+        candlesRef.current.push(sanitizedCandle);
         setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
       }
 

@@ -960,6 +960,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (lastTime === null) return; // Invalid time — skip this update entirely
 
     const updated = { ...last, time: lastTime, close: price, high: Math.max(last.high, price), low: Math.min(last.low, price) };
+    // FIX: Sanitize OHLC — if the candle is still flat after extending range,
+    // add a tiny artificial range so it renders as a candle, not a dot.
+    if (updated.high === updated.low) {
+      const tick = updated.close * 0.0001;
+      updated.high += tick;
+      updated.low -= tick;
+    }
     candlesRef.current = [...candles.slice(0, -1), updated]; // Immutable update to avoid stale refs
 
     if (!candleSeriesRef.current) return; // Chart was destroyed — skip update
@@ -1238,8 +1245,27 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean; skipIndicatorRebuild?: boolean }) => {
-    // Store candles regardless of chart readiness
-    candlesRef.current = candles;
+    // FIX: Store SANITIZED candles — not raw data.
+    // Previously, candlesRef.current stored the original (unsanitized) candles.
+    // When updateLastCandle or onCandleUpdate (RouaChart) later read from
+    // candlesRef.current, they got flat OHLC values (open===high===low===close)
+    // from forex/ticker sources. Those flat values were then sent to
+    // candleSeriesRef.current.update() WITHOUT sanitization, causing candles
+    // to render as dots. Now we sanitize BEFORE storing, so all downstream
+    // readers always get valid non-flat OHLC data.
+    candlesRef.current = candles.map(c => {
+      let { open, high, low, close } = c;
+      if (close > 0) {
+        if (!isValidNumber(high) || high <= 0 || high < Math.max(open, close)) high = Math.max(open, close);
+        if (!isValidNumber(low) || low <= 0 || low > Math.min(open, close)) low = Math.min(open, close);
+        if (high === low) {
+          const tick = close * 0.0001;
+          high += tick;
+          low -= tick;
+        }
+      }
+      return { ...c, open, high, low, close };
+    });
 
     // If chart isn't ready yet, store data as pending and return
     if (!candleSeriesRef.current || !volumeSeriesRef.current) {

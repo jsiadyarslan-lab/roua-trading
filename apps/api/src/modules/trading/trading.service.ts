@@ -2242,7 +2242,6 @@ export class TradingService {
               stopLoss: finalStopLoss,
               takeProfit: finalTakeProfit,
               source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
-              briefId: (request as any).briefId ?? null, // V175
             },
           });
         } catch (createError: any) {

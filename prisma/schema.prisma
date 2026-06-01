@@ -389,7 +389,6 @@ model Position {
   version        Int                @default(0) // FIX: Optimistic locking — prevents concurrent close race condition
   exchangeSymbol String? // FIX: Exchange-specific symbol (e.g. BTCUSD for Alpaca) for reconciliation
   // V175: ربط المركز بالـ brief الذي أصدره — للتعلم من النتائج
-  briefId        String?            // no FK constraint — safe to add without migration
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
   trades         Trade[]
@@ -401,7 +400,6 @@ model Position {
   @@index([userId, status])
   @@index([userId, symbol, status])
   @@index([userId, symbol, side, status])
-  @@index([briefId])
 }
 
 model Trade {

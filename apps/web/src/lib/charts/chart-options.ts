@@ -68,6 +68,7 @@ export function buildChartOptions(opts: {
     rightPriceScale: {
       borderColor: isMobile ? 'transparent' : cardBorderColor,
       scaleMargins: { top: 0.1, bottom: 0.2 },
+      autoScale: true,  // Keep true but explicit — prevents unexpected scale jumps
     },
     timeScale: {
       borderColor: cardBorderColor,
@@ -81,7 +82,18 @@ export function buildChartOptions(opts: {
       // single data point (dot) when zoomed out, losing open/high/low/close.
       enableConflation: false,
     },
-    handleScroll: { vertTouchDrag: !isMobile },
+    handleScroll: {
+      mouseWheel: true,
+      pressedMouseMove: true,
+      horzTouchDrag: true,
+      vertTouchDrag: !isMobile,
+    },
+    // FIX: Disable kinetic scroll — causes "rubber band" bounce effect
+    // when user releases the mouse/touch after scrolling
+    kineticScroll: {
+      mouse: false,   // No momentum after mouse drag
+      touch: false,   // No momentum after touch swipe
+    },
   };
 }
 

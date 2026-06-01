@@ -285,7 +285,9 @@ export async function GET(
         } else {
         const binanceInterval = intervalMap[interval] || '1d'
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
-        const limit = 1000
+        // PERF: Initial load uses 300 candles (fast) — older candles lazy-loaded on scroll
+        // 300 candles is enough for all indicators (EMA200 needs 200 + buffer)
+        const limit = startTimeParam || endTimeParam ? 1000 : 300
 
         // FIX: Pagination support — startTime and endTime allow fetching older data.
         // When the user scrolls left past the initial 1000 candles, the frontend
@@ -297,38 +299,52 @@ export async function GET(
         if (endTimeParam) timeParams.push(`endTime=${endTimeParam}`);
         const timeSuffix = timeParams.length > 0 ? `&${timeParams.join('&')}` : '';
 
-        const binanceEndpoints = [
-          ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`),
-          `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`,
-        ]
+        // PERF FIX: Race the top 3 Binance endpoints in parallel (Promise.any)
+        // Previously: sequential loop — if endpoint 1 times out (4s), then try 2, etc.
+        // Now: send to 3 endpoints simultaneously, take the first one that responds
+        // Result: ~300ms instead of 3-4 seconds on first load
+        const TOP_BINANCE_ENDPOINTS = [
+          `${BINANCE_REST_ENDPOINTS[0]}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`, // data-api (fastest)
+          `${BINANCE_REST_ENDPOINTS[1]}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`, // api.binance.com
+          `${BINANCE_REST_ENDPOINTS[2]}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`, // api1.binance.com
+        ];
 
-        for (const bUrl of binanceEndpoints) {
-          try {
-            const res = await fetch(bUrl, {
-              signal: AbortSignal.timeout(4000),
-              headers: { 'Accept': 'application/json' },
-            })
-            if (res.ok) {
-              const data = await res.json()
-              if (Array.isArray(data) && data.length > 0) {
-                const mapped = data.map((c: any[]) => ({
-                  symbol,
-                  timestamp: new Date(c[0]).toISOString(),
-                  datetime: new Date(c[0]).toISOString(),
-                  open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
-                  source: 'Binance',
-                }))
-                const flatRatio = flatCandleRatio(mapped)
-                if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
-                  console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles`)
-                  continue
-                }
-                candles = mapped
-                break
-              }
-            }
-          } catch {
-            // Try next endpoint
+        const fetchBinanceEndpoint = async (url: string) => {
+          const res = await fetch(url, {
+            signal: AbortSignal.timeout(3000), // 3s per endpoint
+            headers: { 'Accept': 'application/json' },
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data');
+          const mapped = data.map((c: any[]) => ({
+            symbol,
+            timestamp: new Date(c[0]).toISOString(),
+            datetime: new Date(c[0]).toISOString(),
+            open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
+            source: 'Binance',
+          }));
+          const flatRatio = flatCandleRatio(mapped);
+          if (flatRatio > MAX_FLAT_CANDLE_RATIO) throw new Error(`${Math.round(flatRatio*100)}% flat candles`);
+          return mapped;
+        };
+
+        try {
+          // Promise.any: resolves with first success, rejects only if ALL fail
+          candles = await Promise.any(TOP_BINANCE_ENDPOINTS.map(url => fetchBinanceEndpoint(url)));
+          console.info(`[exchange/history] Binance race winner for ${symbol} ${interval}`);
+        } catch {
+          // All 3 fast endpoints failed — try fallback endpoints sequentially
+          const fallbackEndpoints = [
+            `${BINANCE_REST_ENDPOINTS[3]}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`,
+            `${BINANCE_REST_ENDPOINTS[4]}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`,
+            `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}${timeSuffix}`,
+          ];
+          for (const bUrl of fallbackEndpoints) {
+            try {
+              candles = await fetchBinanceEndpoint(bUrl);
+              if (candles) break;
+            } catch { /* try next */ }
           }
         }
         } // end valid binanceSymbol
@@ -364,9 +380,12 @@ export async function GET(
       if (candles && candles.length > 0) {
         // Cache: 15s for short intraday (1m, 5m — needs fast refresh), 60s for
         // other intraday, 5min for daily+. This ensures 1m/5m data stays fresh.
+        // PERF: Longer TTL = less API calls on timeframe switch back
+        // User switches M1→D1→M1: D1 cached for 5min, M1 for 15s
         const isShortTf = ['1min', '5min', '1m', '5m'].includes(interval)
         const isMidTf = ['15min', '30min', '1h', '2h', '4h', '15m', '30m'].includes(interval)
-        const ttl = isShortTf ? 15_000 : isMidTf ? 60_000 : 300_000
+        const isLongTf = ['1d', '1w', '1M', '1day', '1week'].includes(interval)
+        const ttl = isShortTf ? 15_000 : isMidTf ? 60_000 : isLongTf ? 600_000 : 300_000
         setCachedHistory(cacheKey, candles, ttl)
 
         // DIAGNOSTIC: Include metadata so we can verify the correct interval

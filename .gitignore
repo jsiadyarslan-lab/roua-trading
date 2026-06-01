@@ -8,3 +8,9 @@ worklog.md
 upload/
 node_modules
 .next/
+dist/
+**/dist/
+.turbo/
+**/.turbo/
+tsconfig.tsbuildinfo
+**/tsconfig.tsbuildinfo

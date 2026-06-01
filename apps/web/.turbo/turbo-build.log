@@ -1,9 +1,0 @@
-
-> @roua/web@0.2.0 build
-> next build --webpack
-
-▲ Next.js 16.2.4 (webpack)
-- Experiments (use with caution):
-  · optimizePackageImports
-
-  Creating an optimized production build ...

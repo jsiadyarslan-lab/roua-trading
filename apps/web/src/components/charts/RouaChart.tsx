@@ -270,8 +270,8 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
       unsub = () => { try { chart.chartRef.current.timeScale().unsubscribeVisibleLogicalRangeChange(handler); } catch {} };
     }
 
-    // PERF: 2000ms — price label coordinate doesn't need sub-second updates
-    const interval = setInterval(update, 2000);
+    // PERF: 5000ms — price label coordinate, WebSocket handles live price
+    const interval = setInterval(update, 5000);
     return () => { unsub?.(); clearInterval(interval); };
   // FIX: Only depend on currentPrice, not `chart` (which changes every render)
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1290,14 +1290,14 @@ export default function RouaChart({
     };
 
     tick();
-    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 1000);
+    let intervalId: ReturnType<typeof setInterval> = setInterval(tick, 5000); // PERF: 5s sufficient
     // Pause when tab hidden to save CPU — FIX: store new interval ID on restore
     const handleVisibility = () => {
       if (document.visibilityState === 'hidden') {
         clearInterval(intervalId);
       } else {
         tick();
-        intervalId = setInterval(tick, 1000);
+        intervalId = setInterval(tick, 5000); // PERF: 5s sufficient
       }
     };
     document.addEventListener('visibilitychange', handleVisibility);
@@ -1567,7 +1567,7 @@ export default function RouaChart({
     // Periodic overlay refresh to catch vertical price-scale changes
     // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
     // PERF: 3000ms — positions update via DOM manipulation between full state updates
-    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
+    const priceScaleInterval = setInterval(scheduleOverlayUpdate, 8000); // PERF: 8s sufficient — WebSocket handles live updates
 
     return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps

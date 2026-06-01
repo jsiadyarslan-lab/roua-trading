@@ -251,10 +251,10 @@ export async function GET(
       // To re-enable, deploy NestJS ExchangeGateway and set NESTJS_API_URL.
 
       // Step 1: Try Binance directly (fastest, most detailed)
-      // FIX: Use Promise.any() to race ALL Binance endpoints in parallel.
-      // Previous sequential approach (for...of with 8s timeout each) caused
-      // 8-56 second delays when endpoints were geo-blocked. Parallel racing
-      // returns in ~1-2 seconds (whichever endpoint responds first).
+      // FIX: Race only 2 endpoints at a time to avoid Binance rate limiting (429).
+      // Previous attempt with Promise.any() on ALL 7 endpoints caused rate limits.
+      // Strategy: try primary + one backup in parallel (3s timeout each),
+      // then fall back to next pair if both fail. Worst case: ~6s (2 rounds).
       try {
         let normalizedSymbol = symbol
         if (symbol.endsWith('/USD') && !symbol.endsWith('/USDT') && !symbol.endsWith('/BUSD')) {
@@ -268,75 +268,75 @@ export async function GET(
         console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
 
-        // Build endpoint list with all Binance alternatives
-        const binanceEndpoints = [
+        // Helper: fetch from a single Binance endpoint with quality check
+        // IMPORTANT: Must THROW on failure (not return null) so Promise.any()
+        // can distinguish between "no data" and "good data" results.
+        async function tryBinanceEndpoint(bUrl: string, timeoutMs: number): Promise<any[]> {
+          const res = await fetch(bUrl, {
+            signal: AbortSignal.timeout(timeoutMs),
+            headers: { 'Accept': 'application/json' },
+          })
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          const data = await res.json()
+          if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data')
+
+          const mapped = data.map((c: any[]) => ({
+            symbol,
+            timestamp: new Date(c[0]).toISOString(),
+            datetime: new Date(c[0]).toISOString(),
+            open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
+            source: 'Binance',
+          }))
+
+          // Quality check — reject data with too many flat candles
+          const flatRatio = flatCandleRatio(mapped)
+          if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
+            console.warn(`[exchange/history] Rejected ${bUrl.split('/api')[0]} — ${Math.round(flatRatio * 100)}% flat candles`)
+            throw new Error('Too many flat candles')
+          }
+          return mapped
+        }
+
+        // Build all endpoint URLs
+        const allUrls = [
           ...BINANCE_REST_ENDPOINTS.map(base => `${base}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`),
           `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`,
         ]
 
-        // PARALLEL RACE: Fire all endpoints at once, return first quality result.
-        // Each endpoint gets a 4s timeout (reduced from 8s since we're racing).
-        // Promise.any() resolves as soon as ONE promise succeeds.
-        const endpointResults = await Promise.any(
-          binanceEndpoints.map(async (bUrl) => {
-            const controller = new AbortController()
-            const timeoutId = setTimeout(() => controller.abort(), 4000)
+        // Round 1: Race primary (api.binance.com) + vision backup in parallel (3s each)
+        // These are the most reliable endpoints on cloud servers
+        const round1Primary = allUrls[0] // api.binance.com
+        const round1Backup = allUrls[5]  // data-api.binance.vision
+
+        const round1Result = await Promise.any([
+          tryBinanceEndpoint(round1Primary, 3000),
+          tryBinanceEndpoint(round1Backup, 3000),
+        ]).catch(() => null)
+
+        if (round1Result && round1Result.length > 0) {
+          candles = round1Result
+        } else {
+          // Round 2: Try api1-4 endpoints sequentially with short timeout
+          // (These share the same infrastructure so unlikely to help in parallel)
+          for (let i = 1; i <= 4; i++) {
             try {
-              const res = await fetch(bUrl, {
-                signal: controller.signal,
-                headers: { 'Accept': 'application/json' },
-              })
-              clearTimeout(timeoutId)
-              if (!res.ok) throw new Error(`HTTP ${res.status}`)
-              const data = await res.json()
-              if (!Array.isArray(data) || data.length === 0) throw new Error('Empty data')
-
-              const mapped = data.map((c: any[]) => ({
-                symbol,
-                timestamp: new Date(c[0]).toISOString(),
-                datetime: new Date(c[0]).toISOString(),
-                open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
-                source: 'Binance',
-              }))
-
-              // Quality check — reject data with too many flat candles
-              const flatRatio = flatCandleRatio(mapped)
-              if (flatRatio > MAX_FLAT_CANDLE_RATIO) {
-                throw new Error(`${Math.round(flatRatio * 100)}% flat candles (>${MAX_FLAT_CANDLE_RATIO * 100}%)`)
+              const result = await tryBinanceEndpoint(allUrls[i], 3000)
+              if (result && result.length > 0) {
+                candles = result
+                break
               }
-              return mapped
-            } catch (e: any) {
-              clearTimeout(timeoutId)
-              throw e // Let Promise.any() try other endpoints
-            }
-          })
-        ).catch(async () => {
-          // If Promise.any() fails (ALL endpoints failed), fall back to sequential
-          // try of Binance.us with longer timeout as last resort
-          const usUrl = `${BINANCE_US_REST}/klines?symbol=${binanceSymbol}&interval=${binanceInterval}&limit=${limit}`
-          try {
-            const res = await fetch(usUrl, {
-              signal: AbortSignal.timeout(6000),
-              headers: { 'Accept': 'application/json' },
-            })
-            if (res.ok) {
-              const data = await res.json()
-              if (Array.isArray(data) && data.length > 0) {
-                return data.map((c: any[]) => ({
-                  symbol,
-                  timestamp: new Date(c[0]).toISOString(),
-                  datetime: new Date(c[0]).toISOString(),
-                  open: toNum(c[1]), high: toNum(c[2]), low: toNum(c[3]), close: toNum(c[4]), volume: toNum(c[5]),
-                  source: 'Binance',
-                }))
-              }
-            }
-          } catch { /* All Binance endpoints exhausted */ }
-          return null
-        })
+            } catch { /* try next */ }
+          }
 
-        if (endpointResults && Array.isArray(endpointResults) && endpointResults.length > 0) {
-          candles = endpointResults
+          // Round 3: Last resort — Binance.us with longer timeout
+          if (!candles || candles.length === 0) {
+            try {
+              const usResult = await tryBinanceEndpoint(allUrls[6], 5000)
+              if (usResult && usResult.length > 0) {
+                candles = usResult
+              }
+            } catch { /* All Binance endpoints exhausted */ }
+          }
         }
       } catch (e: any) {
         console.warn(`[exchange/history] Binance failed for ${symbol}: ${e.message}`)

@@ -255,7 +255,7 @@ export async function GET(
         }
         const binanceSymbol = normalizedSymbol.replace('/', '')
         const binanceInterval = intervalMap[interval] || '1d'
-        const limit = 200
+        const limit = 1000
 
         // FIX: Build endpoint list with all Binance alternatives + quality check.
         // Order: api.binance.com → api1-4 → data-api.binance.vision → binance.us (last resort)
@@ -350,7 +350,7 @@ export async function GET(
         }
         const tdInterval = tdIntervalMap[interval] || interval
 
-        const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${tdInterval}&outputsize=200&apikey=${apiKey}`
+        const tdUrl = `https://api.twelvedata.com/time_series?symbol=${encodeURIComponent(symbol)}&interval=${tdInterval}&outputsize=1000&apikey=${apiKey}`
         const res = await fetch(tdUrl, { next: { revalidate: 300 }, signal: AbortSignal.timeout(10000) })
         if (res.ok) {
           const data = await res.json()

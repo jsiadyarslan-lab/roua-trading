@@ -74,8 +74,8 @@ export function buildChartOptions(opts: {
       timeVisible: true,
       secondsVisible: true,
       rightOffset: isMobile ? 3 : 5,
-      barSpacing: isMobile ? 8 : 12,
-      minBarSpacing: isMobile ? 5 : 6,
+      barSpacing: isMobile ? 6 : 10,
+      minBarSpacing: 1,
       // FIX: Data conflation is DISABLED because it destroys candlestick
       // OHLC rendering. When enabled, LWC merges multiple candles into a
       // single data point (dot) when zoomed out, losing open/high/low/close.

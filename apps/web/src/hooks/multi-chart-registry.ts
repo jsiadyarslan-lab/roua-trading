@@ -110,3 +110,7 @@ export function getChartControl(id: string): ChartControlAPI | undefined {
   return chartControlRegistry.get(id);
 }
 
+export function getAllChartControls(): Map<string, ChartControlAPI> {
+  return chartControlRegistry;
+}
+

@@ -15,6 +15,12 @@ const activeOscillatorScales: Set<string> = new Set();
 interface SeriesRefs {
   overlaySeries: Map<string, ISeriesApi<SeriesType>>;
   oscillatorSeries: Map<string, ISeriesApi<SeriesType>>;
+  // M6 REAL FIX: Pass volume series separately — it's NOT in overlaySeries.
+  // Previously, recalcOscillatorMargins tried to find the volume series by
+  // iterating refs.overlaySeries, but the volume series is stored in its own
+  // volumeSeriesRef in useChart.ts, never added to overlaySeriesRef.
+  // This meant the M6 volume margin adjustment NEVER executed at runtime.
+  volumeSeries?: ISeriesApi<SeriesType> | null;
 }
 
 // ── Helper: Filter NaN/Infinity and sanitize time ──
@@ -86,23 +92,22 @@ function recalcOscillatorMargins(chart: IChartApi, refs: SeriesRefs): void {
     });
   } catch {}
 
-  // M6 FIX: Adjust volume series margins to avoid overlapping with oscillator panels.
+  // M6 REAL FIX: Adjust volume series margins to avoid overlapping with oscillator panels.
   // When oscillators take up the bottom portion of the chart, volume must be
   // compressed to the top area only. Without this, volume bars extend behind
   // oscillator panels, making them hard to read.
-  // Find the volume series by checking overlaySeries for a histogram without priceScaleId
-  refs.overlaySeries.forEach(s => {
+  // Previously, this code tried to find the volume series by iterating
+  // refs.overlaySeries — but the volume series is NEVER stored there.
+  // It lives in its own volumeSeriesRef in useChart.ts. Now we access it
+  // directly via refs.volumeSeries.
+  const volSeries = refs.volumeSeries;
+  if (volSeries) {
     try {
-      const opts = s.options() as any;
-      // Volume series uses the default price scale (no custom priceScaleId)
-      // and is a histogram. We detect it by checking if it has no priceScaleId.
-      if (!opts.priceScaleId && opts.priceLineVisible === false) {
-        s.priceScale().applyOptions({
-          scaleMargins: { top: Math.max(0.70, 1 - totalOscHeight - 0.15), bottom: totalOscHeight },
-        });
-      }
+      volSeries.priceScale().applyOptions({
+        scaleMargins: { top: Math.max(0.70, 1 - totalOscHeight - 0.15), bottom: totalOscHeight },
+      });
     } catch {}
-  });
+  }
 }
 
 function addOscillatorLine(
@@ -616,6 +621,18 @@ export function cleanupOrphanedScales(chart: IChartApi, refs: SeriesRefs): void 
         scaleMargins: { top: 0.1, bottom: 0.2 },
       });
     } catch {}
+    // BUG #4 FIX: Also reset volume series margins back to default.
+    // When oscillators were present, recalcOscillatorMargins compressed
+    // the volume to the top. Now that all oscillators are gone, volume
+    // should expand back to its normal 15% height at the bottom of the chart.
+    const volSeries = refs.volumeSeries;
+    if (volSeries) {
+      try {
+        volSeries.priceScale().applyOptions({
+          scaleMargins: { top: 0.85, bottom: 0 },
+        });
+      } catch {}
+    }
   } else {
     // Recalculate margins for remaining oscillators
     recalcOscillatorMargins(chart, refs);

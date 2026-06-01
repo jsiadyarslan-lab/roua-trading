@@ -220,7 +220,12 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
         const data = result?.data;
         if (data && (data.price || data.close) > 0) {
           const price = data.price || data.close;
-          onPriceUpdate(price);
+          // BUG #5 FIX: Use refs instead of closure values for callbacks.
+          // The closure captures onCandleUpdate/onPriceUpdate from the render
+          // when the polling interval was first set up. If callbacks change
+          // (e.g., symbol switch, chart type change), the stale closures would
+          // call the wrong handlers.
+          onPriceUpdateRef.current(price);
           const now = Math.floor(Date.now() / 1000);
           // FIX: Sanitize OHLC — near-flat candles from ticker/forex sources
           // render as dots. sanitizeOhlc ensures minimum visible range.
@@ -241,7 +246,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             close: s.close,
             volume: data.volume || 0,
           };
-          onCandleUpdate(candle);
+          onCandleUpdateRef.current(candle);
           return; // Success via backend — done
         }
       }
@@ -266,14 +271,14 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
             close: parseFloat(k[4]),
             volume: parseFloat(k[5]),
           };
-          onCandleUpdate(candle);
-          onPriceUpdate(candle.close);
+          onCandleUpdateRef.current(candle);
+          onPriceUpdateRef.current(candle.close);
         }
       }
     } catch {
       // Silent fail — will retry
     }
-  }, [symbol, timeframe, onCandleUpdate, onPriceUpdate]);
+  }, [symbol, timeframe]); // BUG #5 FIX: Removed onCandleUpdate/onPriceUpdate deps — now using refs
 
   // ── Start REST Polling Fallback ────────────────────────
   const startPolling = useCallback(() => {
@@ -411,7 +416,7 @@ export function useChartWebSocket(options: UseChartWebSocketOptions): UseChartWe
     } catch {
       startPolling();
     }
-  }, [symbol, timeframe, startPolling, onCandleUpdate, onPriceUpdate]);
+  }, [symbol, timeframe, startPolling]); // BUG #6 FIX: Removed onCandleUpdate/onPriceUpdate deps — already using refs
 
   // FIX: Update tfSecondsRef when timeframe changes
   const tfSecondsMap: Record<string, number> = {

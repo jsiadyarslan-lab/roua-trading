@@ -27,6 +27,7 @@ import { ChartExporter } from '../lib/charts/ChartExporter';
 import { ChartTemplateManager } from '../lib/charts/ChartTemplate';
 import { T } from '@/lib/unified-tokens';
 import { useChartStateStore, type SerializedIndicator } from '@/hooks/useChartStateStore';
+import { useAuthStore } from '@/lib/auth-store'; // M2 REAL FIX: Get userId for DrawingManager
 import {
   sanitizeTime,
   isValidNumber,
@@ -345,8 +346,21 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       const drawingsReady = !!drawingManagerRef.current;
 
       // Restore chart type (safe even if chart not ready — just sets React state)
+      // BUG #2 FIX: Previously only setSettings was called, which updates React
+      // state but does NOT actually swap the series on the chart instance.
+      // This meant restoreChartState was a no-op for chart type — the chart
+      // always stayed as CandlestickSeries even if the saved type was 'line'.
+      // Now we also call setChartType to actually swap the series, but only
+      // when the chart is ready (deferred via queueMicrotask to avoid calling
+      // during render, since setChartType is async).
       if (saved.chartType && saved.chartType !== 'candle') {
         setSettings(prev => ({ ...prev, type: saved.chartType }));
+        // Defer setChartType to after the current render cycle
+        if (chartReady) {
+          queueMicrotask(() => {
+            setChartTypeRef.current(saved.chartType!);
+          });
+        }
       }
 
       // Restore settings (merge with defaults)
@@ -656,8 +670,12 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
     // ── Init Drawing Manager ──
     // H2 FIX: Pass timeframe to DrawingManager so drawings are stored per-symbol:timeframe
+    // M2 REAL FIX: Pass userId from auth store so drawings are user-isolated.
+    // Previously, DrawingManager's getStorageKey() fell back to localStorage cache
+    // or 'guest', meaning most users' drawings were stored under the wrong key.
+    const currentUserId = useAuthStore.getState().user?.id;
     if (!drawingManagerRef.current) {
-      drawingManagerRef.current = new DrawingManager(symbol, timeframe);
+      drawingManagerRef.current = new DrawingManager(symbol, timeframe, currentUserId);
     } else {
       drawingManagerRef.current.setSymbol(symbol, timeframe);
     }
@@ -781,6 +799,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   debouncedSaveChartStateRef.current = debouncedSaveChartState; // SYNC
   const restoreChartStateRef = useRef(restoreChartState);
   restoreChartStateRef.current = restoreChartState; // SYNC
+  // BUG #2 FIX: Ref for setChartType so restoreChartState can call it
+  // without creating a circular dependency (restoreChartState is defined
+  // before setChartType, so it can't reference setChartType directly).
+  const setChartTypeRef = useRef<(type: ChartType) => Promise<void>>();
+  // Will be synced after setChartType is defined below
 
   // FIX: Track previous symbol/timeframe to save state for the CORRECT (old)
   // symbol/timeframe on switch. Previously, saveChartState captured the NEW
@@ -1164,6 +1187,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           renderIndicatorSeries(chart, {
             overlaySeries: overlaySeriesRef.current,
             oscillatorSeries: oscillatorSeriesRef.current,
+            volumeSeries: volumeSeriesRef.current, // M6 REAL FIX: Pass volume series for dynamic margin adjustment
           }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
         }
       } catch (e) {
@@ -1336,6 +1360,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     renderIndicatorSeries(chart, {
       overlaySeries: overlaySeriesRef.current,
       oscillatorSeries: oscillatorSeriesRef.current,
+      volumeSeries: volumeSeriesRef.current, // M6 REAL FIX: Pass volume series for dynamic margin adjustment
     }, indicator, results, candlesRef.current, { LineSeries, AreaSeries, HistogramSeries: LCHistogram });
   }, [hashIndicatorParams, getDataSignature]);
 
@@ -1417,19 +1442,40 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // - low must be <= min(open, close)
     // - flat candles (open===high===low===close) get a tiny range to render
     //   as visible candles instead of dots
-    const chartData = displayCandles
-      .map(c => ({ ...c, time: sanitizeTime(c.time) }))
-      .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time) && c.close > 0)
-      .map(c => {
-        const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
-        return {
+    //
+    // BUG #1 FIX: Format data based on current chart type.
+    // Previously, setCandles ALWAYS formatted as OHLC {time,open,high,low,close}.
+    // But Line/Area series expect {time, value}. Sending OHLC to a LineSeries
+    // causes value=undefined → blank chart. This was triggered every time
+    // setCandles was called after switching to Line/Area type (60s refresh,
+    // WebSocket new candle, symbol switch, etc.).
+    const chartType = settings.type;
+    let chartData: any[];
+    if (chartType === 'line' || chartType === 'area') {
+      // Line/Area series: only need {time, value}
+      chartData = displayCandles
+        .map(c => ({ ...c, time: sanitizeTime(c.time) }))
+        .filter(c => isValidNumber(c.close) && isValidNumber(c.time) && c.close > 0)
+        .map(c => ({
           time: c.time as Time,
-          open: s.open,
-          high: s.high,
-          low: s.low,
-          close: s.close,
-        };
-      });
+          value: c.close,
+        }));
+    } else {
+      // Candlestick/Heikin-Ashi/Hollow: need full OHLC
+      chartData = displayCandles
+        .map(c => ({ ...c, time: sanitizeTime(c.time) }))
+        .filter(c => isValidNumber(c.open) && isValidNumber(c.high) && isValidNumber(c.low) && isValidNumber(c.close) && isValidNumber(c.time) && c.close > 0)
+        .map(c => {
+          const s = sanitizeOhlc(c.open, c.high, c.low, c.close);
+          return {
+            time: c.time as Time,
+            open: s.open,
+            high: s.high,
+            low: s.low,
+            close: s.close,
+          };
+        });
+    }
 
     const volumeData = sorted
       .map(c => ({ ...c, time: sanitizeTime(c.time) }))
@@ -1536,6 +1582,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         cleanupOrphanedScales(c, {
           overlaySeries: overlaySeriesRef.current,
           oscillatorSeries: oscillatorSeriesRef.current,
+          volumeSeries: volumeSeriesRef.current, // M6 REAL FIX
         });
       }
     });
@@ -1701,6 +1748,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     const prevIndicators = Array.from(activeIndicatorsRef.current.values());
     prevIndicators.forEach(ind => addIndicator(ind));
   }, [addIndicator]);
+
+  // BUG #2 FIX: Sync setChartType ref so restoreChartState can call it
+  setChartTypeRef.current = setChartType;
 
   // ── Drawing Operations ─────────────────────────────────
   const addDrawing = useCallback((tool: DrawingTool, points: { time: number; price: number }[]) => {

@@ -211,12 +211,16 @@ export async function GET(
     const url = request.nextUrl
     const interval = url.searchParams.get('interval') || '1day'
     const source = url.searchParams.get('source')
+    // Cache busting: if _t parameter is present, skip cache (for debugging)
+    const skipCache = url.searchParams.has('_t')
 
-    // Check cache first
+    // Check cache first (unless cache-busting)
     const cacheKey = `history:${symbol}:${interval}`
-    const cached = getCachedHistory(cacheKey)
-    if (cached) {
-      return NextResponse.json({ success: true, data: cached, cached: true })
+    if (!skipCache) {
+      const cached = getCachedHistory(cacheKey)
+      if (cached) {
+        return NextResponse.json({ success: true, data: cached, cached: true })
+      }
     }
 
     // Determine if this is a crypto pair
@@ -250,6 +254,8 @@ export async function GET(
         }
         const binanceSymbol = normalizedSymbol.replace('/', '')
         const binanceInterval = intervalMap[interval] || '1d'
+        // DIAGNOSTIC: Log the interval mapping to help debug timeframe issues
+        console.info(`[exchange/history] Binance request: symbol=${binanceSymbol}, interval=${interval}→${binanceInterval}, limit=1000`)
         const limit = 1000
 
         // FIX: Build endpoint list with all Binance alternatives + quality check.
@@ -315,10 +321,14 @@ export async function GET(
 
       // Return whatever we have (even empty) — never throw 500
       if (candles && candles.length > 0) {
-        // Cache: 60s for intraday, 5min for daily+
-        const ttl = ['1day', '1d', '1week', '1w', '1month', '1M'].includes(interval) ? 300_000 : 60_000
+        // Cache: 30s for intraday (faster refresh for 1m/5m), 5min for daily+
+        const ttl = ['1day', '1d', '1week', '1w', '1month', '1M'].includes(interval) ? 300_000 : 30_000
         setCachedHistory(cacheKey, candles, ttl)
-        return NextResponse.json({ success: true, data: candles })
+        return NextResponse.json({
+          success: true,
+          data: candles,
+          meta: { interval, source: candles[0]?.source || 'unknown', count: candles.length },
+        })
       }
 
       return NextResponse.json({

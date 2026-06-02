@@ -1,13 +1,16 @@
 {
-  "name": "رؤى للتداول — منصة ربط الحسابات",
+  "name": "رؤى للتداول",
   "short_name": "رؤى",
-  "description": "منصة ربط الحسابات الآمنة للتداول الذكي",
-  "start_url": "/mobile",
+  "description": "منصة تداول ذكية بالذكاء الاصطناعي",
+  "start_url": "/ar/mobile",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
   "orientation": "portrait",
-  "categories": ["finance", "business"],
+  "categories": [
+    "finance",
+    "business"
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
@@ -27,5 +30,12 @@
       "type": "image/png",
       "purpose": "maskable"
     }
+  ],
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
   ]
 }

@@ -1065,14 +1065,7 @@ export default function DashboardPage() {
   const router = useRouter()
   const [chartExpanded, setChartExpanded] = useState(false)
   const [isMobileViewport, setIsMobileViewport] = useState(false)
-  // V175: Redirect mobile users to dedicated /mobile app
-  // This unifies the mobile experience under /[locale]/mobile/
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.innerWidth < 768) {
-      const locale = window.location.pathname.split('/')[1] || 'ar';
-      window.location.replace('/mobile');
-    }
-  }, []);
+
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)
   const [sidebarDrawerOpen, setSidebarDrawerOpen] = useState(false)
   const [sidebarPinned, setSidebarPinned] = useState(false)

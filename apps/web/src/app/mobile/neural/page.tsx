@@ -24,11 +24,11 @@ function PanelLoader() {
   )
 }
 
-const BacktestPanel = dynamic(() => import('../../dashboard/neural/BacktestPanel'), { ssr: false, loading: () => <PanelLoader /> })
-const NeuralPanel = dynamic(() => import('../../dashboard/neural/NeuralPanel'), { ssr: false, loading: () => <PanelLoader /> })
-const SwarmPanel = dynamic(() => import('../../dashboard/neural/SwarmPanel'), { ssr: false, loading: () => <PanelLoader /> })
-const OptimizerPanel = dynamic(() => import('../../dashboard/neural/OptimizerPanel'), { ssr: false, loading: () => <PanelLoader /> })
-const ComparisonPanel = dynamic(() => import('../../dashboard/neural/ComparisonPanel'), { ssr: false, loading: () => <PanelLoader /> })
+const BacktestPanel = dynamic(() => import('../../[locale]/dashboard/neural/BacktestPanel'), { ssr: false, loading: () => <PanelLoader /> })
+const NeuralPanel = dynamic(() => import('../../[locale]/dashboard/neural/NeuralPanel'), { ssr: false, loading: () => <PanelLoader /> })
+const SwarmPanel = dynamic(() => import('../../[locale]/dashboard/neural/SwarmPanel'), { ssr: false, loading: () => <PanelLoader /> })
+const OptimizerPanel = dynamic(() => import('../../[locale]/dashboard/neural/OptimizerPanel'), { ssr: false, loading: () => <PanelLoader /> })
+const ComparisonPanel = dynamic(() => import('../../[locale]/dashboard/neural/ComparisonPanel'), { ssr: false, loading: () => <PanelLoader /> })
 
 const TABS = [
   { id: 'backtest', label: 'الباك تست', icon: '📊' },

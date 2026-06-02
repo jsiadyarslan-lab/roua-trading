@@ -683,16 +683,9 @@ export class CredentialsService {
       const forexLeverage = settings?.paperForexLeverage || 50;
       const goldLeverage = settings?.paperGoldLeverage || 20;
       const cryptoLeverage = settings?.paperCryptoLeverage || 1;
-      // V172d: Correct margin-account model for paper trading.
-      // paperBalance = remaining FREE cash (after margin deductions)
-      // usedMargin   = sum of margin locked in all open positions
-      // unrealizedPnL = floating profit/loss on open positions
-      //
-      // equity = paperBalance + usedMargin + unrealizedPnL
-      //        = free cash + locked margin + floating PnL
-      //        = total account value at current prices
-      //
-      // available = equity - usedMargin = paperBalance + unrealizedPnL
+      // V175: paperBalance = full balance (margin is locked, NOT deducted)
+      // equity    = balance + unrealizedPnL
+      // available = balance - usedMargin + unrealizedPnL (what you can use)
       //           = what you can still use to open new positions
       //
       // Example: balance=10,000, open BTC 0.1 @ 77,000 (margin=7,700)
@@ -730,10 +723,11 @@ export class CredentialsService {
       } catch {
         // If position lookup fails, assume no margin used
       }
-      // V172d: equity = freeCash + lockedMargin + unrealizedPnL = total account value
-      // available = freeCash + unrealizedPnL = paperBalance + unrealizedPnL
-      const paperEquity = paperBalanceUsd + usedMargin + unrealizedPnl;
-      paperAvailableUsd = Math.max(0, paperBalanceUsd + unrealizedPnl);
+      // V175: paperBalance is now the FULL balance (margin NOT deducted on open).
+      // equity   = balance + unrealizedPnl  (no usedMargin double-count)
+      // available = balance - usedMargin + unrealizedPnl (free margin)
+      const paperEquity = paperBalanceUsd + unrealizedPnl;
+      paperAvailableUsd = Math.max(0, paperBalanceUsd - usedMargin + unrealizedPnl);
       // Add paper-trading as an exchange entry in the response
       exchanges.push({
         exchange: 'paper-trading',

@@ -751,17 +751,23 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveCash = 10000
             }
           } else if (hasOnlyPaperExchanges) {
-            // V173c FIX: Use paperBalance directly from API as effectiveCash.
-            // OLD: effectiveCash = totalEquityUsd - positionsUnrealizedPnl
-            //   → Both values update at different rates (API polling vs WebSocket)
-            //   → Timing mismatch causes الرصيد to jitter every second
-            // NEW: paperBalance = freeCash in DB, changes ONLY on open/close
-            //   → Completely stable between trades, no jitter
-            const paperExchangeBalance = (paperExchange as any)?.paperBalance
-            effectiveEquity = adjustedTotalEquityUsd   // equity = paperBalance + usedMargin + unrealizedPnL
-            effectiveCash = paperExchangeBalance > 0
-              ? paperExchangeBalance + (paperExchange?.usedMargin || 0)  // freeCash + lockedMargin = balance before PnL
-              : adjustedTotalEquityUsd - positionsUnrealizedPnl           // fallback
+            // V175 FIX: paperBalance = full balance (margin NOT deducted from DB).
+            // ──────────────────────────────────────────────────────────────────
+            // Balance  = paperBalance (stable, changes only on position close)
+            // Equity   = paperBalance + unrealizedPnL  (changes with price)
+            // Free Margin = Balance - usedMargin + unrealizedPnL
+            // Used Margin = sum of (entryNotional / leverage) for all open positions
+            // P/L     = unrealizedPnL
+            // ──────────────────────────────────────────────────────────────────
+            const paperBalanceDB = (paperExchange as any)?.paperBalance
+            if (paperBalanceDB > 0) {
+              effectiveCash   = paperBalanceDB                           // Balance = DB value, stable
+              effectiveEquity = paperBalanceDB + positionsUnrealizedPnl // Equity = Balance + floating PnL
+            } else {
+              // Fallback
+              effectiveCash   = adjustedTotalEquityUsd - positionsUnrealizedPnl
+              effectiveEquity = adjustedTotalEquityUsd
+            }
           } else if (exchangeUnavailable) {
             // V171: Real exchange failed, but we have paper balance as fallback.
             // exchangeUnavailable=true tells the UI to show a warning banner.

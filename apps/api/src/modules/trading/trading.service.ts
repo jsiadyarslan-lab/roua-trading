@@ -1372,7 +1372,7 @@ export class TradingService {
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V175 Paper balance on force-close: +margin $${marginToReturn.toFixed(2)} +PnL $${pnl.toFixed(2)} = +$${totalReturn.toFixed(2)} (${position.symbol})`,
+          `📝 V175 Paper balance on force-close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);

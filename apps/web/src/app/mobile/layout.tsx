@@ -4,7 +4,6 @@ import MobileToastOverlay from '@/components/mobile/MobileToastOverlay'
 import MobileNotificationAdapter from '@/components/mobile/MobileNotificationAdapter'
 import NotificationPermissionBanner from '@/components/shared/NotificationPermissionBanner'
 import PushNotificationManager from '@/components/shared/PushNotificationManager'
-import ServiceWorkerRegistrar from '@/components/dashboard/ServiceWorkerRegistrar'
 import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
@@ -45,7 +44,6 @@ export default function MobileLayout({ children }: { children: React.ReactNode }
     <MarketProvider>
       <AuthGuard>
         <ViewportHeightSetter />
-        <ServiceWorkerRegistrar />
         <MobileNotificationAdapter />
         <MobileToastOverlay />
         <NotificationPermissionBanner />

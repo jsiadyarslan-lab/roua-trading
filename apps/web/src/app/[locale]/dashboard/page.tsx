@@ -1070,7 +1070,7 @@ export default function DashboardPage() {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
       const locale = window.location.pathname.split('/')[1] || 'ar';
-      window.location.replace(`/${locale}/mobile`);
+      window.location.replace('/mobile');
     }
   }, []);
   const [isCompactDesktopViewport, setIsCompactDesktopViewport] = useState(false)

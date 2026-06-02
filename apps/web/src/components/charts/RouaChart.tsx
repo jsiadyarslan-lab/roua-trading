@@ -1852,17 +1852,18 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        addDesiredLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
+        // Entry: أزرق للـ Long، برتقالي للـ Short — أسمك (3px) ليكون واضحاً
+        addDesiredLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, isLong ? '▲ Entry' : '▼ Entry', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) {
         const slLabel = `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`;
-        addDesiredLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 1, 2, slLabel, false);
+        addDesiredLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 2, 1, slLabel, true); // solid line
       }
       const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) {
         const tpLabel = `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`;
-        addDesiredLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 1, 2, tpLabel, false);
+        addDesiredLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 2, 1, tpLabel, true); // solid line
       }
     });
 
@@ -1887,7 +1888,8 @@ export default function RouaChart({
       const isLong = (trade.side || '').toLowerCase() === 'long';
 
       const qty = Number(trade.qty || 1);
-      addDesiredLine(`trade-entry-grp-${key}`, entryPrice, '#00D4FF', 2, 2, isLong ? '▲ Entry' : '▼ Entry', false);
+      // Entry: أزرق للـ Long، برتقالي للـ Short
+      addDesiredLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, isLong ? '▲ Entry' : '▼ Entry', true);
       if (trade.sl && Number(trade.sl) > 0) {
         const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
         addDesiredLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, false);
@@ -2988,9 +2990,17 @@ export default function RouaChart({
                   left: 0,
                   right: 0,
                   height: Math.max(zone.height, 1),
+                  // SL zone: red gradient (danger zone)
+                  // TP zone: green gradient (profit zone)
                   background: zone.type === 'sl'
-                    ? 'rgba(248, 81, 73, 0.13)'
-                    : 'rgba(63, 185, 80, 0.13)',
+                    ? 'rgba(248, 81, 73, 0.10)'
+                    : 'rgba(63, 185, 80, 0.10)',
+                  borderTop: zone.type === 'sl'
+                    ? '1px dashed rgba(248, 81, 73, 0.35)'
+                    : '1px dashed rgba(63, 185, 80, 0.35)',
+                  borderBottom: zone.type === 'sl'
+                    ? '1px dashed rgba(248, 81, 73, 0.35)'
+                    : '1px dashed rgba(63, 185, 80, 0.35)',
                   pointerEvents: 'none',
                   zIndex: 2,
                   willChange: 'top, height',

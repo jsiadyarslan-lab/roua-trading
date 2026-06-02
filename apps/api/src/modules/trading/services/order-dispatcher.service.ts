@@ -24,6 +24,8 @@ export interface AutoOrderRequest {
   isPaperTrading?: boolean;
   /** V132: Timeframe of the brief/signal — used for smart idempotency TTL */
   timeframe?: string;
+  /** V175: Counter-trend flag — tighter SL/TP + shorter MAX_HOLDING */
+  isCounterTrend?: boolean;
 }
 
 export interface OrderResult {

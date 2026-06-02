@@ -543,6 +543,16 @@ function MoreScreen() {
 export default function MobilePage() {
   const [activeTab, setActiveTab] = useState<TabId>('home');
   const { fetchAccount, fetchPositions } = usePositionsStore();
+  const router = useRouter();
+  const params = useParams();
+  const locale = (params?.locale as string) || 'ar';
+
+  // على سطح المكتب → وجّه للـ dashboard الكامل
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      router.replace(`/${locale}/dashboard`);
+    }
+  }, [router, locale]);
 
   useEffect(() => {
     fetchAccount();

@@ -380,13 +380,26 @@ export class PositionMonitorService {
 
     // ── Below: Full monitoring for non-Agent positions ──
 
-    // ── MAX_HOLDING_TIME: Smart Executor positions (M1/M5/M15) close after 4h ──
+    // ── MAX_HOLDING_TIME: Smart Executor positions ──
+    // Counter-trend (reversal): 45 دقيقة
+    // مع الاتجاه: 4 ساعات
     if (position.source === 'smart_executor' && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
-      const maxHoldingMs = 4 * 60 * 60 * 1000; // 4 ساعات
+
+      // قراءة metadata للكشف عن الصفقة الارتدادية
+      let maxHoldingMs = 4 * 60 * 60 * 1000; // default: 4 ساعات
+      try {
+        const meta = JSON.parse(position.metadata || '{}');
+        if (meta.isCounterTrend && meta.maxHoldingMinutes) {
+          maxHoldingMs = meta.maxHoldingMinutes * 60 * 1000; // 45 دقيقة للارتداد
+        }
+      } catch { /* ignore parse errors */ }
+
       if (holdingMs > maxHoldingMs) {
+        const heldMin = (holdingMs / 60000).toFixed(0);
+        const maxMin  = (maxHoldingMs / 60000).toFixed(0);
         this.logger.warn(
-          `⏱️ MAX_HOLDING: ${position.symbol} held ${(holdingMs/3600000).toFixed(1)}h > 4h — closing`,
+          `⏱️ MAX_HOLDING: ${position.symbol} held ${heldMin}m > ${maxMin}m — closing`,
         );
         await this._closePosition(position, currentPrice, 'STOP_LOSS');
         result.slTriggered = true;

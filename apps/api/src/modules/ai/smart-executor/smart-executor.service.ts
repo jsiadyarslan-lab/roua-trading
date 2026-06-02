@@ -2836,6 +2836,43 @@ export class SmartExecutorService implements OnModuleDestroy {
         );
       }
 
+      // ── Counter-Trend Detection (V175) ──────────────────────────
+      // إذا الصفقة ضد الاتجاه العام (H1) → نُضيق SL/TP ونُقلل MAX_HOLDING
+      // الارتداد يجب أن يكون سريعاً وقصيراً وإلا يُغلق مبكراً
+      try {
+        const h1Trend = await this._getH1Trend(brief.pair, currentPrice);
+        const isCounterTrend = h1Trend !== null && h1Trend !== brief.direction;
+
+        if (isCounterTrend) {
+          this.logger.log(
+            `⚡ Counter-trend detected: ${brief.pair} brief=${brief.direction} H1=${h1Trend} ` +
+            `→ Tightening SL/TP for reversal trade`
+          );
+
+          // SL أضيق: 0.35% بدلاً من 0.8% (نصف الحجم)
+          // TP أقرب: 0.5% بدلاً من 1.6% (هدف سريع)
+          const REVERSAL_SL = 0.0035; // 0.35%
+          const REVERSAL_TP = 0.0050; // 0.5%
+
+          execStopLoss = brief.direction === 'BUY'
+            ? currentPrice * (1 - REVERSAL_SL)
+            : currentPrice * (1 + REVERSAL_SL);
+
+          execTakeProfit = brief.direction === 'BUY'
+            ? currentPrice * (1 + REVERSAL_TP)
+            : currentPrice * (1 - REVERSAL_TP);
+
+          this.logger.log(
+            `⚡ Reversal levels: SL=${execStopLoss.toFixed(4)} TP=${execTakeProfit.toFixed(4)} ` +
+            `(tight: SL=0.35% TP=0.5%)`
+          );
+        }
+      } catch (trendErr: any) {
+        this.logger.debug(`Counter-trend check skipped: ${trendErr.message}`);
+        // لا تمنع التنفيذ عند أي خطأ
+      }
+      // ─────────────────────────────────────────────────────────────
+
       // V124: Pass isSimulatedExecution to OrderDispatcher.
       // For testnet credentials, this is true (bypass risk checks)
       // even though the execution goes through CCXT (not simulated fill).
@@ -2854,6 +2891,8 @@ export class SmartExecutorService implements OnModuleDestroy {
         briefId: brief.id,
         isPaperTrading: isSimulatedExecution,
         timeframe: brief.timeframe, // V132: Pass timeframe for smart idempotency TTL
+        // V175: Counter-trend flag for shorter MAX_HOLDING
+        isCounterTrend: (execStopLoss !== brief.stopLoss && Math.abs(execStopLoss - brief.stopLoss) / brief.stopLoss > 0.001) as any
       });
 
       if (!dispatchResult.success) {
@@ -3516,4 +3555,49 @@ export class SmartExecutorService implements OnModuleDestroy {
   async closePosition(userId: string, positionId: string, closeReason: string): Promise<void> {
     await this.tradingService.closePositionWithRetry(userId, { positionId, closeReason });
   }
+  /**
+   * V175: يجلب اتجاه H1 من Binance باستخدام EMA20
+   * يُستدعى قبل كل صفقة للكشف عن الصفقات الارتدادية
+   * Returns: 'BUY' (صاعد), 'SELL' (هابط), null (غير متاح)
+   */
+  private async _getH1Trend(symbol: string, currentPrice: number): Promise<'BUY' | 'SELL' | null> {
+    try {
+      // تحويل الرمز لصيغة Binance
+      const binanceSymbol = symbol.replace('/', '').replace('-', '');
+
+      // جلب آخر 21 شمعة H1 من Binance
+      const url = `https://data-api.binance.vision/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=21`;
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(3000),
+        headers: { 'Accept': 'application/json' },
+      });
+
+      if (!res.ok) return null;
+
+      const candles: any[] = await res.json();
+      if (!Array.isArray(candles) || candles.length < 20) return null;
+
+      // حساب EMA20 على أسعار الإغلاق
+      const closes = candles.map((c: any) => parseFloat(c[4]));
+      const k = 2 / (20 + 1); // EMA multiplier
+      let ema = closes[0];
+      for (let i = 1; i < closes.length; i++) {
+        ema = closes[i] * k + ema * (1 - k);
+      }
+
+      // إذا السعر الحالي فوق EMA20 H1 → اتجاه صاعد (BUY)
+      // إذا السعر الحالي أسفل EMA20 H1 → اتجاه هابط (SELL)
+      const trend = currentPrice > ema ? 'BUY' : 'SELL';
+
+      this.logger.debug(
+        `📈 H1 Trend ${symbol}: price=${currentPrice.toFixed(4)} EMA20=${ema.toFixed(4)} → ${trend}`
+      );
+
+      return trend;
+    } catch {
+      return null; // أي خطأ → لا تُعطل التنفيذ
+    }
+  }
+
+
 }

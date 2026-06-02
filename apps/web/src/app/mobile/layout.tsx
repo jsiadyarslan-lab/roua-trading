@@ -8,6 +8,8 @@ import { AuthGuard } from '@/components/dashboard/AuthGuard'
 import { MarketProvider } from '@/components/dashboard/MarketProvider'
 import ViewportHeightSetter from '@/components/mobile/ViewportHeightSetter'
 
+export const dynamic = 'force-dynamic'
+
 export const metadata: Metadata = {
   title: 'رؤى للتداول — تطبيق الجوال',
   description: 'منصة رؤى لربط الحسابات',

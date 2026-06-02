@@ -128,7 +128,10 @@ export class PositionMonitorService {
           },
         });
 
-        // Agent positions: price updates only (no SL/TP modifications)
+        // V175 FIX: Agent positions NOW get full SL/TP monitoring
+        // Previously agent monitored its own positions every 60s only
+        // This caused TP/SL misses when agent was busy with council sessions
+        // Now position-monitor handles SL/TP for ALL positions every 10s
         agentPositions = await this.prisma.position.findMany({
           where: {
             status: 'OPEN',
@@ -330,8 +333,31 @@ export class PositionMonitorService {
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
-    // ── V143: Agent positions get price/PnL update ONLY ──
+    // ── V175 FIX: Agent SL/TP check first, then price update ──
     if (isAgentPosition) {
+      // SL check for agent
+      if (stopLossNum !== null) {
+        const agentSlHit = position.side === 'BUY' ? currentPrice <= stopLossNum : currentPrice >= stopLossNum;
+        if (agentSlHit) {
+          this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`);
+          await this._closePosition(position, currentPrice, 'STOP_LOSS');
+          this._checkSanctuary(position.userId).catch(() => {});
+          result.slTriggered = true;
+          return result;
+        }
+      }
+      // TP check for agent
+      if (takeProfitNum !== null) {
+        const agentTpHit = position.side === 'BUY' ? currentPrice >= takeProfitNum : currentPrice <= takeProfitNum;
+        if (agentTpHit) {
+          this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${currentPrice} (TP: ${takeProfitNum})`);
+          await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+          this._checkSanctuary(position.userId).catch(() => {});
+          result.tpTriggered = true;
+          return result;
+        }
+      }
+      // No SL/TP hit — update price/PnL only
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },

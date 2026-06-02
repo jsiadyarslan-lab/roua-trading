@@ -598,3 +598,10 @@
   border-bottom: 1px solid rgba(0,212,255,0.08);
   background: linear-gradient(90deg, rgba(0,212,255,0.06), transparent 60%);
 }
+
+/* ── Mobile: إخفاء AppHeader على شاشات الجوال ── */
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}

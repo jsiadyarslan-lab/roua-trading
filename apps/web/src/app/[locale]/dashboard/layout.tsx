@@ -77,7 +77,10 @@ export default async function DashboardLayout({
       <AuthGuard>
         <div style={{ minHeight: '100dvh', background: '#0B0E14', direction: dir, display: 'flex', flexDirection: 'column', overflowX: 'hidden' }}>
           <GuestBanner />
-          <AppHeader />
+          {/* AppHeader مخفي على الجوال — m2-shell عنده header خاص */}
+          <div className="hide-on-mobile">
+            <AppHeader />
+          </div>
           <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflowY: 'auto', overflowX: 'hidden' }}>
             <DashboardLayoutStyles />
             <ErrorBoundary>

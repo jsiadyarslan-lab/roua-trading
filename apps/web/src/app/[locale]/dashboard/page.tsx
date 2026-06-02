@@ -1545,38 +1545,28 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* ── CHART TOOLBAR ── */}
-          <div className="m2-chart-toolbar" style={{ gap:4 }}>
-            {/* Timeframe */}
+          {/* ── CHART TOOLBAR: 5 قوائم منسدلة فقط ── */}
+          <div className="m2-chart-toolbar" style={{ gap:3, padding:'4px 8px' }}>
+
+            {/* 1. الإطار الزمني */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
-                onClick={() => { setM2ShowTf(!m2ShowTf); setM2ShowInd(false); setM2ShowAI(false); }}
+                onClick={() => { setM2ShowTf(!m2ShowTf); setM2ShowInd(false); setM2ShowAI(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
                 style={{
-                  height:26, padding:'0 8px', display:'flex', alignItems:'center', gap:2,
-                  background:'rgba(0,212,255,0.1)', border:'1px solid rgba(0,212,255,0.28)',
-                  borderRadius:6, color:'#00D4FF', fontSize:11, fontWeight:800,
-                  fontFamily:"'JetBrains Mono',monospace", cursor:'pointer',
+                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
+                  background: m2ShowTf?'rgba(0,212,255,0.15)':'rgba(0,212,255,0.08)',
+                  border:'1px solid rgba(0,212,255,0.3)', borderRadius:7,
+                  color:'#00D4FF', fontSize:11, fontWeight:700,
+                  fontFamily:"'JetBrains Mono',monospace", cursor:'pointer', flexShrink:0,
                 }}>
-                {timeframe} <span style={{ fontSize:7 }}>▾</span>
+                {timeframe} <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowTf && (
-                <div style={{
-                  position:'absolute', top:'calc(100% + 5px)', left:0,
-                  background:'#141920', border:'1px solid rgba(255,255,255,0.09)',
-                  borderRadius:10, padding:6, display:'flex', flexWrap:'wrap',
-                  gap:3, width:165, zIndex:200,
-                  boxShadow:'0 10px 30px rgba(0,0,0,0.6)',
-                }}>
+                <div style={{ position:'absolute', top:'calc(100% + 5px)', left:0, background:'#141920', border:'1px solid rgba(0,212,255,0.2)', borderRadius:10, padding:8, display:'flex', flexWrap:'wrap', gap:4, width:170, zIndex:200, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
                   {m2TFs.map(tf => (
                     <button key={tf} type="button"
                       onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
-                      style={{
-                        padding:'5px 9px', borderRadius:6, cursor:'pointer', fontSize:11,
-                        fontFamily:"'JetBrains Mono',monospace", fontWeight:600,
-                        background: tf===timeframe?'rgba(0,212,255,0.12)':'transparent',
-                        border: tf===timeframe?'1px solid rgba(0,212,255,0.3)':'1px solid transparent',
-                        color: tf===timeframe?'#00D4FF':'#6A7A90',
-                      }}>
+                      style={{ padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:11, fontFamily:"'JetBrains Mono',monospace", fontWeight:600, background: tf===timeframe?'rgba(0,212,255,0.15)':'transparent', border: tf===timeframe?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.06)', color: tf===timeframe?'#00D4FF':'#6A7A90' }}>
                       {tf}
                     </button>
                   ))}
@@ -1584,99 +1574,92 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* Separator */}
-            <div style={{ width:1, height:22, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
-
-            {/* Drawing tools — MT5 style compact */}
-            {m2DrawTools.map(dt => (
-              <button key={dt.id} type="button"
-                onClick={() => setM2ActiveTool(dt.id)}
-                title={dt.id}
-                style={{
-                  width:26, height:26, display:'flex', alignItems:'center', justifyContent:'center',
-                  borderRadius:5, cursor:'pointer', fontSize:12, fontFamily:'monospace',
-                  flexShrink:0,
-                  background: m2ActiveTool===dt.id?'rgba(0,212,255,0.15)':'rgba(255,255,255,0.03)',
-                  border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.06)',
-                  color: m2ActiveTool===dt.id?'#00D4FF':'#6A7A90',
-                }}>
-                {dt.icon}
-              </button>
-            ))}
-
-            {/* Separator */}
-            <div style={{ width:1, height:22, background:'rgba(255,255,255,0.07)', flexShrink:0 }}/>
-
-            {/* Indicators */}
-            <button type="button"
-              onClick={() => { setM2ShowInd(!m2ShowInd); setM2ShowTf(false); setM2ShowAI(false); }}
-              style={{
-                height:26, padding:'0 7px', display:'flex', alignItems:'center', gap:3,
-                borderRadius:6, cursor:'pointer', fontSize:10, fontWeight:600,
-                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
-                background: m2ShowInd?'rgba(167,139,250,0.12)':'transparent',
-                border: m2ShowInd?'1px solid rgba(167,139,250,0.3)':'1px solid transparent',
-                color: m2ShowInd?'#A78BFA':'#5A6A82',
-              }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M2 12h4l3-9 6 18 3-9h4"/></svg>
-              IND
-            </button>
-
-            {/* AI */}
-            <button type="button"
-              onClick={() => { setM2ShowAI(!m2ShowAI); setM2ShowTf(false); setM2ShowInd(false); }}
-              style={{
-                height:26, padding:'0 7px', display:'flex', alignItems:'center', gap:3,
-                borderRadius:6, cursor:'pointer', fontSize:10, fontWeight:600,
-                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
-                background: m2ShowAI?'rgba(139,92,246,0.15)':'transparent',
-                border: m2ShowAI?'1px solid rgba(139,92,246,0.4)':'1px solid transparent',
-                color: m2ShowAI?'#C4B5FD':'#5A6A82',
-              }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-              AI
-            </button>
-
-            {/* Markets */}
+            {/* 2. أدوات الرسم */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
-                onClick={() => { setM2ShowMarkets(!m2ShowMarkets); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); }}
+                onClick={() => { setM2ShowDrawing(!m2ShowDrawing); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowMarkets(false); }}
                 style={{
-                  height:26, padding:'0 7px', display:'flex', alignItems:'center', gap:3,
-                  borderRadius:6, cursor:'pointer', fontSize:10, fontWeight:600,
-                  fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
-                  background: m2ShowMarkets?'rgba(255,184,0,0.12)':'transparent',
-                  border: m2ShowMarkets?'1px solid rgba(255,184,0,0.35)':'1px solid transparent',
-                  color: m2ShowMarkets?'#FFB800':'#5A6A82',
+                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
+                  background: m2ShowDrawing?'rgba(255,255,255,0.08)':'transparent',
+                  border: m2ShowDrawing?'1px solid rgba(255,255,255,0.2)':'1px solid rgba(255,255,255,0.08)',
+                  borderRadius:7, color: m2ShowDrawing?'#E8ECF4':'#6A7A90',
+                  fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
+                  fontFamily:"'JetBrains Mono',monospace",
                 }}>
-                📊 الأسواق
+                ✏️ رسم <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+              </button>
+              {m2ShowDrawing && (
+                <div style={{ position:'absolute', top:'calc(100% + 5px)', left:0, background:'#141920', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:8, zIndex:200, minWidth:150, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
+                  <div style={{ fontSize:9, color:'#4A5568', marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>أدوات الرسم</div>
+                  <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
+                    {m2DrawTools.map(dt => (
+                      <button key={dt.id} type="button"
+                        onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
+                        style={{ padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:13, background: m2ActiveTool===dt.id?'rgba(0,212,255,0.1)':'transparent', border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid rgba(255,255,255,0.06)', color: m2ActiveTool===dt.id?'#00D4FF':'#8090A8' }}>
+                        {dt.icon}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* 3. المؤشرات */}
+            <button type="button"
+              onClick={() => { setM2ShowInd(!m2ShowInd); setM2ShowTf(false); setM2ShowAI(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
+              style={{
+                height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
+                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
+                background: m2ShowInd?'rgba(167,139,250,0.12)':'transparent',
+                border: m2ShowInd?'1px solid rgba(167,139,250,0.3)':'1px solid rgba(255,255,255,0.08)',
+                color: m2ShowInd?'#A78BFA':'#6A7A90',
+              }}>
+              📈 IND <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+            </button>
+
+            {/* 4. التحليل الذكي */}
+            <button type="button"
+              onClick={() => { setM2ShowAI(!m2ShowAI); setM2ShowTf(false); setM2ShowInd(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
+              style={{
+                height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
+                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
+                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
+                background: m2ShowAI?'rgba(139,92,246,0.15)':'transparent',
+                border: m2ShowAI?'1px solid rgba(139,92,246,0.4)':'1px solid rgba(255,255,255,0.08)',
+                color: m2ShowAI?'#C4B5FD':'#6A7A90',
+              }}>
+              🤖 AI <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+            </button>
+
+            {/* 5. الأسواق */}
+            <div style={{ position:'relative', flexShrink:0 }}>
+              <button type="button"
+                onClick={() => { setM2ShowMarkets(!m2ShowMarkets); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowDrawing(false); }}
+                style={{
+                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
+                  background: m2ShowMarkets?'rgba(255,184,0,0.12)':'transparent',
+                  border: m2ShowMarkets?'1px solid rgba(255,184,0,0.35)':'1px solid rgba(255,255,255,0.08)',
+                  borderRadius:7, color: m2ShowMarkets?'#FFB800':'#6A7A90',
+                  fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
+                  fontFamily:"'JetBrains Mono',monospace",
+                }}>
+                🌐 أسواق <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowMarkets && (
-                <div style={{
-                  position:'absolute', top:'calc(100% + 4px)', right:0,
-                  background:'#141920', border:'1px solid rgba(255,184,0,0.2)',
-                  borderRadius:10, padding:8, zIndex:200, minWidth:160,
-                  boxShadow:'0 10px 30px rgba(0,0,0,0.6)',
-                }}>
-                  <div style={{ fontSize:10, color:'#FFB800', fontWeight:700, marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>اختر السوق</div>
+                <div style={{ position:'absolute', top:'calc(100% + 5px)', right:0, background:'#141920', border:'1px solid rgba(255,184,0,0.2)', borderRadius:10, padding:8, zIndex:200, minWidth:170, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
                   {[
-                    { label:'كريبتو', symbols:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
-                    { label:'فوركس', symbols:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
-                    { label:'سلع', symbols:['XAU/USD','XAG/USD','OIL/USD'] },
-                  ].map(group => (
-                    <div key={group.label} style={{ marginBottom:8 }}>
-                      <div style={{ fontSize:9, color:'#4A5568', marginBottom:4, letterSpacing:'0.5px', fontFamily:"'Cairo',sans-serif" }}>{group.label}</div>
+                    { label:'كريبتو', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
+                    { label:'فوركس', syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
+                    { label:'سلع', syms:['XAU/USD','XAG/USD'] },
+                  ].map(g => (
+                    <div key={g.label} style={{ marginBottom:8 }}>
+                      <div style={{ fontSize:9, color:'#4A5568', marginBottom:4, fontFamily:"'Cairo',sans-serif" }}>{g.label}</div>
                       <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-                        {group.symbols.map(sym => (
+                        {g.syms.map(sym => (
                           <button key={sym} type="button"
                             onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
-                            style={{
-                              padding:'3px 7px', borderRadius:5, cursor:'pointer', fontSize:9,
-                              fontFamily:"'JetBrains Mono',monospace", fontWeight:600,
-                              background: sym===selectedSymbol?'rgba(255,184,0,0.12)':'rgba(255,255,255,0.04)',
-                              border: sym===selectedSymbol?'1px solid rgba(255,184,0,0.35)':'1px solid rgba(255,255,255,0.08)',
-                              color: sym===selectedSymbol?'#FFB800':'#6A7A90',
-                            }}>
+                            style={{ padding:'3px 8px', borderRadius:5, cursor:'pointer', fontSize:9, fontFamily:"'JetBrains Mono',monospace", fontWeight:600, background: sym===selectedSymbol?'rgba(255,184,0,0.12)':'rgba(255,255,255,0.04)', border: sym===selectedSymbol?'1px solid rgba(255,184,0,0.35)':'1px solid rgba(255,255,255,0.08)', color: sym===selectedSymbol?'#FFB800':'#6A7A90' }}>
                             {sym.split('/')[0]}
                           </button>
                         ))}
@@ -1686,9 +1669,10 @@ export default function DashboardPage() {
                 </div>
               )}
             </div>
+
           </div>
 
-          {/* IND Bottom Sheet */}
+                    {/* IND Bottom Sheet */}
           {m2ShowInd && (
             <div style={{ position:'fixed', inset:0, zIndex:200, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
               onClick={() => setM2ShowInd(false)}>
@@ -1801,83 +1785,71 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── QUICK TRADE — أسفل OHLC bar، قابل للطي ── */}
+            {/* ── QUICK TRADE — cTrader style ──
+                 صف واحد: [SELL | حجم | BUY]
+                 أسفل OHLC bar مباشرة، ثابت ومدمج */}
             <div style={{
               position:'absolute', top:28, left:0, right:0, zIndex:15,
-              background:'rgba(8,11,18,0.88)', backdropFilter:'blur(8px)',
-              borderBottom: m2TradeCollapsed ? 'none' : '1px solid rgba(255,255,255,0.06)',
+              background:'rgba(7,10,16,0.92)', backdropFilter:'blur(10px)',
+              borderBottom:'1px solid rgba(255,255,255,0.05)',
+              display:'flex', alignItems:'stretch', height:44,
             }}>
-              {/* Header قابل للنقر للطي */}
+              {/* SELL */}
               <button type="button"
-                onClick={() => setM2TradeCollapsed(!m2TradeCollapsed)}
+                onClick={() => { setM2OrderSide('sell'); setM2ConfirmSheet(true); }}
                 style={{
-                  width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between',
-                  padding:'4px 10px', background:'none', border:'none', cursor:'pointer',
+                  flex:1, display:'flex', flexDirection:'column', alignItems:'center',
+                  justifyContent:'center', gap:1,
+                  background:'rgba(127,29,29,0.6)',
+                  border:'none', borderRight:'1px solid rgba(255,255,255,0.06)',
+                  cursor:'pointer',
                 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                  <span style={{ fontSize:9, color:'rgba(0,212,255,0.6)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.5px' }}>⚡ تنفيذ سريع</span>
-                  <span style={{ fontSize:9, color:'#4A5568', fontFamily:"'JetBrains Mono',monospace" }}>{m2Qty} lot</span>
-                </div>
-                <span style={{ fontSize:9, color:'#4A5568', transform: m2TradeCollapsed?'none':'rotate(180deg)', transition:'transform 0.2s' }}>▼</span>
+                <span style={{ fontSize:8, color:'rgba(248,113,113,0.55)', letterSpacing:'1px', fontFamily:"'Cairo',sans-serif" }}>بيع</span>
+                <span style={{ fontSize:13, fontWeight:800, color:'#F87171', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'-0.3px' }}>
+                  {currentPrice ? (currentPrice * 0.99995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
+                </span>
               </button>
 
-              {/* لوحة التنفيذ */}
-              {!m2TradeCollapsed && (
-                <div style={{ display:'flex', alignItems:'center', gap:6, padding:'4px 10px 8px' }}>
-                  {/* حجم */}
-                  <div style={{
-                    display:'flex', alignItems:'center',
-                    background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)',
-                    borderRadius:6, overflow:'hidden',
-                  }}>
-                    <button type="button"
-                      onClick={() => setM2Qty(q => String(Math.max(0.01, parseFloat(q)-0.01).toFixed(2)))}
-                      style={{ background:'none', border:'none', color:'#6A7A90', fontSize:14, cursor:'pointer', padding:'3px 7px' }}>−</button>
-                    <span style={{ fontSize:10, fontWeight:700, color:'#C8D4E4', fontFamily:"'JetBrains Mono',monospace", padding:'0 6px', minWidth:36, textAlign:'center' }}>
-                      {m2Qty}
-                    </span>
-                    <button type="button"
-                      onClick={() => setM2Qty(q => String((parseFloat(q)+0.01).toFixed(2)))}
-                      style={{ background:'none', border:'none', color:'#6A7A90', fontSize:14, cursor:'pointer', padding:'3px 7px' }}>+</button>
-                  </div>
-
-                  {/* BUY */}
-                  <button type="button"
-                    onClick={() => { setM2OrderSide('buy'); setM2ConfirmSheet(true); }}
-                    style={{
-                      flex:1, padding:'7px 6px', borderRadius:7, border:'1px solid rgba(74,222,128,0.25)',
-                      background:'rgba(22,101,52,0.85)', cursor:'pointer',
-                      display:'flex', flexDirection:'column', alignItems:'center', gap:1,
-                    }}>
-                    <span style={{ fontSize:8, color:'rgba(74,222,128,0.55)', letterSpacing:'0.5px' }}>شراء</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:'#4ADE80', fontFamily:"'JetBrains Mono',monospace" }}>
-                      {currentPrice ? (currentPrice * 1.00005).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
-                    </span>
-                  </button>
-
-                  {/* SELL */}
-                  <button type="button"
-                    onClick={() => { setM2OrderSide('sell'); setM2ConfirmSheet(true); }}
-                    style={{
-                      flex:1, padding:'7px 6px', borderRadius:7, border:'1px solid rgba(248,113,113,0.25)',
-                      background:'rgba(127,29,29,0.85)', cursor:'pointer',
-                      display:'flex', flexDirection:'column', alignItems:'center', gap:1,
-                    }}>
-                    <span style={{ fontSize:8, color:'rgba(248,113,113,0.55)', letterSpacing:'0.5px' }}>بيع</span>
-                    <span style={{ fontSize:12, fontWeight:800, color:'#F87171', fontFamily:"'JetBrains Mono',monospace" }}>
-                      {currentPrice ? (currentPrice * 0.99995).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
-                    </span>
-                  </button>
-
-                  {/* نافذة كاملة */}
-                  <button type="button"
-                    onClick={() => setTradeDialogOpen(true)}
-                    style={{ background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, color:'#6A7A90', cursor:'pointer', padding:'6px 8px', fontSize:11 }}>⚙</button>
+              {/* حجم العقد في المنتصف */}
+              <div style={{
+                display:'flex', alignItems:'center',
+                background:'rgba(255,255,255,0.03)',
+                borderLeft:'none', borderRight:'none',
+                padding:'0 2px',
+              }}>
+                <button type="button"
+                  onClick={() => setM2Qty(q => String(Math.max(0.01, parseFloat(q)-0.01).toFixed(2)))}
+                  style={{ background:'none', border:'none', color:'#6A7A90', fontSize:16, cursor:'pointer', padding:'0 8px', lineHeight:1 }}>−</button>
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'center', minWidth:42 }}>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>{m2Qty}</span>
+                  <span style={{ fontSize:8, color:'#4A5568' }}>lot</span>
                 </div>
-              )}
+                <button type="button"
+                  onClick={() => setM2Qty(q => String((parseFloat(q)+0.01).toFixed(2)))}
+                  style={{ background:'none', border:'none', color:'#6A7A90', fontSize:16, cursor:'pointer', padding:'0 8px', lineHeight:1 }}>+</button>
+                <button type="button"
+                  onClick={() => setTradeDialogOpen(true)}
+                  style={{ background:'none', border:'none', color:'#4A5568', cursor:'pointer', padding:'0 6px', fontSize:14, borderLeft:'1px solid rgba(255,255,255,0.06)' }}>⚙</button>
+              </div>
+
+              {/* BUY */}
+              <button type="button"
+                onClick={() => { setM2OrderSide('buy'); setM2ConfirmSheet(true); }}
+                style={{
+                  flex:1, display:'flex', flexDirection:'column', alignItems:'center',
+                  justifyContent:'center', gap:1,
+                  background:'rgba(22,101,52,0.6)',
+                  border:'none', borderLeft:'1px solid rgba(255,255,255,0.06)',
+                  cursor:'pointer',
+                }}>
+                <span style={{ fontSize:8, color:'rgba(74,222,128,0.55)', letterSpacing:'1px', fontFamily:"'Cairo',sans-serif" }}>شراء</span>
+                <span style={{ fontSize:13, fontWeight:800, color:'#4ADE80', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'-0.3px' }}>
+                  {currentPrice ? (currentPrice * 1.00005).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
+                </span>
+              </button>
             </div>
 
-            {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
+                        {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
             <RouaChart
               currentPrice={currentPrice}
               mobile

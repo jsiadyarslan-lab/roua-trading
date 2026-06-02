@@ -112,6 +112,7 @@ interface RouaChartProps {
     setCrosshairMode: (enabled: boolean) => void;
   } | null>;
   onCrosshairDataChange?: (data: CrosshairData | null) => void;
+  onSLTPDrag?: (key: string, type: 'sl' | 'tp', newPrice: number) => void;
 }
 
 // ── Mini Chart Header (for multi-chart compact mode) ──
@@ -1145,21 +1146,21 @@ export default function RouaChart({
         if (!active || !j.success || !j.data || j.data.length === 0) return;
 
         // Merge new data with existing candles — only add/update, don't remove
-        const newCandles: CandleData[] = j.data
-          .map((c: any) => ({
-            time: Math.floor(new Date(c.timestamp).getTime() / 1000),
-            open: Number(c.open) || 0,
-            high: Number(c.high) || 0,
-            low: Number(c.low) || 0,
-            close: Number(c.close) || 0,
-            volume: Number(c.volume) || 0,
+        const newCandles: CandleData[] = (j.data as any[])
+          .map((item: any): CandleData => ({
+            time: Math.floor(new Date(item.timestamp).getTime() / 1000),
+            open: Number(item.open) || 0,
+            high: Number(item.high) || 0,
+            low: Number(item.low) || 0,
+            close: Number(item.close) || 0,
+            volume: Number(item.volume) || 0,
           }))
-          .filter(c => !isNaN(c.time) && c.time > 0 && c.close > 0);
+          .filter((item: CandleData) => !isNaN(item.time) && item.time > 0 && item.close > 0);
 
         if (newCandles.length === 0) return;
 
         // Build a map for fast lookup
-        const existingMap = new Map(candlesRef.current.map(c => [c.time, c]));
+        const existingMap = new Map<number, CandleData>(candlesRef.current.map(cd => [cd.time, cd]));
         let changed = false;
         for (const nc of newCandles) {
           const existing = existingMap.get(nc.time);
@@ -1167,7 +1168,7 @@ export default function RouaChart({
             // New candle — add it
             existingMap.set(nc.time, nc);
             changed = true;
-          } else if (nc.close !== existing.close || nc.high !== existing.high || nc.low !== existing.low) {
+          } else if (nc.close !== (existing as CandleData).close || nc.high !== (existing as CandleData).high || nc.low !== (existing as CandleData).low) {
             // Updated candle — replace it
             existingMap.set(nc.time, nc);
             changed = true;
@@ -1175,7 +1176,7 @@ export default function RouaChart({
         }
 
         if (changed) {
-          const merged = Array.from(existingMap.values()).sort((a, b) => a.time - b.time);
+          const merged = (Array.from(existingMap.values()) as CandleData[]).sort((a, b) => a.time - b.time);
           candlesRef.current = merged;
           setCandlesRef.current(merged, { skipIndicatorRebuild: true });
         }
@@ -1537,9 +1538,22 @@ export default function RouaChart({
     source: 'manual' | 'bot' | 'exchange';
     qty: number;
     pnl?: number;
+    linePnl?: number;   // P&L if price hits this line (SL=loss, TP=profit)
+    positionId?: string; // for drag updates
   }
 
   const [tradeOverlays, setTradeOverlays] = useState<TradeOverlay[]>([]);
+  // Drag state for SL/TP lines
+  // Ref for onSLTPDrag callback (prop may not be available in inner scope)
+  const onSLTPDragRef = useRef<((key: string, type: 'sl'|'tp', price: number) => void) | undefined>(undefined);
+
+  const [dragState, setDragState] = useState<{
+    key: string; type: 'sl' | 'tp'; startY: number; currentY: number;
+    originalPrice: number; positionKey: string;
+  } | null>(null);
+  const dragStateRef = useRef<typeof dragState>(null);
+  useEffect(() => { dragStateRef.current = dragState; }, [dragState]);
+
   const [fillZones, setFillZones] = useState<Array<{
     top: number; height: number; type: 'sl' | 'tp'; key: string;
   }>>([]);
@@ -1608,18 +1622,22 @@ export default function RouaChart({
         }
 
         // SL overlay — independent of entry visibility
-        if (slY !== null) {
+        if (slY !== null && sl) {
+          const slPnl = (sl - entryPrice) * qty * (direction === 'long' ? 1 : -1);
           overlays.push({
-            key: `${prefix}sl`, y: slY, price: sl!,
+            key: `${prefix}sl`, y: slY, price: sl,
             type: 'sl', direction, source, qty,
+            linePnl: slPnl,
           });
         }
 
         // TP overlay — independent of entry visibility
-        if (tpY !== null) {
+        if (tpY !== null && tp) {
+          const tpPnl = (tp - entryPrice) * qty * (direction === 'long' ? 1 : -1);
           overlays.push({
-            key: `${prefix}tp`, y: tpY, price: tp!,
+            key: `${prefix}tp`, y: tpY, price: tp,
             type: 'tp', direction, source, qty,
+            linePnl: tpPnl,
           });
         }
 
@@ -1852,18 +1870,17 @@ export default function RouaChart({
       const entryPrice = Number(pos.entryPrice || pos.avgEntryPrice || 0);
       const isLong = (pos.side || '').toLowerCase() === 'long';
       if (entryPrice > 0) {
-        // Entry: أزرق للـ Long، برتقالي للـ Short — أسمك (3px) ليكون واضحاً
-        addDesiredLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, isLong ? '▲ Entry' : '▼ Entry', true);
+        addDesiredLine(`pos-entry-${pos.id || posSymbol}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, '', true);
       }
       const sl = Number(pos.stopLoss || pos.sl || 0);
       if (sl > 0) {
         const slLabel = `SL ${sl.toFixed(sl > 10 ? 2 : 5)}`;
-        addDesiredLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 2, 1, slLabel, true); // solid line
+        addDesiredLine(`pos-sl-${pos.id || posSymbol}`, sl, '#FF4757', 2, 1, '', true);
       }
       const tp = Number(pos.takeProfit || pos.tp || 0);
       if (tp > 0) {
         const tpLabel = `TP ${tp.toFixed(tp > 10 ? 2 : 5)}`;
-        addDesiredLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 2, 1, tpLabel, true); // solid line
+        addDesiredLine(`pos-tp-${pos.id || posSymbol}`, tp, '#00FFA3', 2, 1, '', true);
       }
     });
 
@@ -1888,15 +1905,16 @@ export default function RouaChart({
       const isLong = (trade.side || '').toLowerCase() === 'long';
 
       const qty = Number(trade.qty || 1);
-      // Entry: أزرق للـ Long، برتقالي للـ Short
-      addDesiredLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, isLong ? '▲ Entry' : '▼ Entry', true);
+      // Entry: السعر على المحور + label في tradeOverlays
+      addDesiredLine(`trade-entry-grp-${key}`, entryPrice, isLong ? '#00D4FF' : '#FF8C42', 3, 2, '', true);
       if (trade.sl && Number(trade.sl) > 0) {
         const slP = ((Number(trade.sl) - entryPrice) * qty * (isLong ? 1 : -1));
-        addDesiredLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 1, 2, `SL  ${slP > 0 ? '+' : ''}${slP.toFixed(2)}$`, false);
+        // السعر على محور السعر (axisLabelVisible:true) — label الجانب يأتي من tradeOverlays
+        addDesiredLine(`trade-sl-grp-${key}`, Number(trade.sl), '#FF4757', 2, 1, '', true);
       }
       if (trade.tp && Number(trade.tp) > 0) {
         const tpP = ((Number(trade.tp) - entryPrice) * qty * (isLong ? 1 : -1));
-        addDesiredLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 1, 2, `TP  ${tpP > 0 ? '+' : ''}${tpP.toFixed(2)}$`, false);
+        addDesiredLine(`trade-tp-grp-${key}`, Number(trade.tp), '#00FFA3', 2, 1, '', true);
       }
     });
 
@@ -1905,10 +1923,10 @@ export default function RouaChart({
     // lines that haven't changed.
 
     // 1. Remove lines that are no longer desired
-    const existingIds = new Set(positionLineIdsRef.current);
+    const existingIds = new Set<string>(positionLineIdsRef.current as string[]);
     for (const id of existingIds) {
       if (!desiredLines.has(id)) {
-        removePriceLine(id);
+        removePriceLine(id as string);
       }
     }
 
@@ -3009,63 +3027,143 @@ export default function RouaChart({
             ))}
 
             {/* ── Trade Line Labels — LEFT side HTML overlays ── */}
-            {/* Position/trade labels (Entry, SL, TP) rendered on the LEFT side
-                of the chart to avoid cluttering the right price scale where the
-                current price indicator lives. Price lines themselves are still
-                rendered via lightweight-charts createPriceLine (dashed lines
-                spanning the full chart width), but their axis labels are hidden. */}
+            {/* ── Trade Line Labels — redesigned ──
+                Layout:
+                - RIGHT axis: price value (via axisLabelVisible on createPriceLine)
+                - LEFT side: label (SL/TP/Entry) + P&L, positioned ABOVE the line
+                - SL/TP have drag handles for interactive adjustment */}
             {tradeOverlays.map(ov => {
               if (ov.y === null) return null;
               const isEntry = ov.type === 'entry';
-              const isSL = ov.type === 'sl';
-              const isTP = ov.type === 'tp';
-              const color = isEntry ? '#00D4FF' : isSL ? '#FF4757' : '#00FFA3';
-              const bg = isEntry ? 'rgba(0,212,255,0.12)' : isSL ? 'rgba(248,81,73,0.12)' : 'rgba(63,185,80,0.12)';
-              const label = isEntry
+              const isSL   = ov.type === 'sl';
+              const isTP   = ov.type === 'tp';
+
+              const color = isEntry ? (ov.direction === 'long' ? '#00D4FF' : '#FF8C42')
+                          : isSL   ? '#FF4757'
+                          : '#00FFA3';
+              const bgSolid = isEntry ? (ov.direction === 'long' ? 'rgba(0,212,255,0.25)' : 'rgba(255,140,66,0.25)')
+                            : isSL   ? 'rgba(248,81,73,0.30)'
+                            : 'rgba(0,255,163,0.25)';
+
+              // Label text: SL / TP / Entry direction
+              const typeLabel = isEntry
                 ? (ov.direction === 'long' ? '▲ Entry' : '▼ Entry')
-                : isSL ? `SL ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`
-                : `TP ${ov.price.toFixed(ov.price > 100 ? 2 : 5)}`;
+                : isSL ? 'SL' : 'TP';
+
+              // P&L text for SL/TP
+              const pnlText = !isEntry && ov.linePnl !== undefined
+                ? ` ${ov.linePnl >= 0 ? '+' : ''}$${Math.abs(ov.linePnl).toFixed(2)}`
+                : '';
+
+              const isDraggable = (isSL || isTP);
+
               return (
                 <div key={ov.key} data-trade-label={ov.key} style={{
                   position: 'absolute',
                   top: 0,
                   left: 6,
-                  zIndex: 10,
-                  pointerEvents: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 3,
-                  transform: `translateY(${ov.y - 9}px)`,
+                  zIndex: 15,
+                  pointerEvents: isDraggable ? 'auto' : 'none',
+                  // Position ABOVE the line (label height ~20px + 4px gap)
+                  transform: `translateY(${ov.y - 24}px)`,
                   willChange: 'transform',
-                }}>
-                  <span style={{
-                    background: bg,
-                    border: `1px solid ${color}33`,
-                    borderRadius: 3,
-                    color,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: 9,
-                    fontWeight: 700,
-                    padding: '1px 5px',
-                    whiteSpace: 'nowrap',
-                    letterSpacing: 0.3,
-                    textShadow: `0 0 6px ${color}44`,
+                  cursor: isDraggable ? 'ns-resize' : 'default',
+                  userSelect: 'none',
+                }}
+                  onMouseDown={isDraggable ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const posKey = ov.key.replace(/-(sl|tp)-.*$/, '');
+                    setDragState({ key: ov.key, type: ov.type as 'sl'|'tp',
+                      startY: e.clientY, currentY: e.clientY,
+                      originalPrice: ov.price, positionKey: posKey });
+                  } : undefined}
+                >
+                  {/* Main label badge */}
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    background: bgSolid,
+                    border: `1.5px solid ${color}`,
+                    borderRadius: 4,
+                    padding: '2px 7px 2px 6px',
+                    boxShadow: `0 0 8px ${color}55, 0 2px 4px rgba(0,0,0,0.4)`,
                   }}>
-                    {label}
-                  </span>
-                  {ov.qty > 0 && !isEntry && (
                     <span style={{
-                      color: color + '99',
+                      color,
                       fontFamily: "'JetBrains Mono', monospace",
-                      fontSize: 8,
-                      fontWeight: 500,
+                      fontSize: 10,
+                      fontWeight: 800,
+                      letterSpacing: 0.5,
+                      whiteSpace: 'nowrap',
                     }}>
-                      {ov.qty}x
+                      {typeLabel}
                     </span>
-                  )}
+                    {pnlText && (
+                      <span style={{
+                        color: ov.linePnl !== undefined && ov.linePnl >= 0 ? '#00FFA3' : '#FF4757',
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        whiteSpace: 'nowrap',
+                        borderLeft: `1px solid ${color}44`,
+                        paddingLeft: 4,
+                        marginLeft: 1,
+                      }}>
+                        {pnlText}
+                      </span>
+                    )}
+                    {/* Drag handle icon for SL/TP */}
+                    {isDraggable && (
+                      <span style={{
+                        color: color + 'AA',
+                        fontSize: 8,
+                        marginLeft: 2,
+                        lineHeight: 1,
+                      }}>⇕</span>
+                    )}
+                  </div>
                 </div>
               );
             })}
+
+            {/* ── Drag overlay: captures mouse during SL/TP drag ── */}
+            {dragState && (
+              <div style={{
+                position: 'absolute', inset: 0, zIndex: 100,
+                cursor: 'ns-resize', background: 'transparent',
+              }}
+                onMouseMove={(e) => {
+                  if (!dragStateRef.current) return;
+                  setDragState(prev => prev ? { ...prev, currentY: e.clientY } : null);
+                }}
+                onMouseUp={(e) => {
+                  if (!dragStateRef.current) return;
+                  const ds = dragStateRef.current;
+                  const deltaY = e.clientY - ds.startY;
+                  if (Math.abs(deltaY) > 2) {
+                    const getPriceCoord = chart.getPriceCoordinate;
+                    if (getPriceCoord) {
+                      const baseCoord = getPriceCoord(ds.originalPrice);
+                      // Use 0.1% price change to estimate pixels-per-unit
+                      const refCoord  = getPriceCoord(ds.originalPrice * 1.001);
+                      if (baseCoord !== null && refCoord !== null) {
+                        const pxPerUnit = Math.abs(baseCoord - refCoord) / (ds.originalPrice * 0.001);
+                        if (pxPerUnit > 0) {
+                          const priceChange = -deltaY / pxPerUnit;
+                          const newPrice = Math.max(0.00001, ds.originalPrice + priceChange);
+                          const decimals = ds.originalPrice > 100 ? 2 : ds.originalPrice > 1 ? 4 : 6;
+                          onSLTPDragRef.current?.(ds.key, ds.type, parseFloat(newPrice.toFixed(decimals)));
+                        }
+                      }
+                    }
+                  }
+                  setDragState(null);
+                }}
+                onMouseLeave={() => setDragState(null)}
+              />
+            )}
 
             {/* Volume Profile moved to draggable panel below */}
 

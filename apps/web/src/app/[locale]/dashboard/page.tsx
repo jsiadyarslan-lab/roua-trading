@@ -1274,11 +1274,14 @@ export default function DashboardPage() {
         return margin
       })()
     : 0
-  // V152: Client-side margin takes PRIORITY (always correct)
-  const initialMargin = clientSideMargin > 0
-    ? clientSideMargin
-    : accountMargin
-  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = الرصيد - الهامش المستخدم
+  // V175 FIX: For paper trading, use backend usedMargin (calculated from DB positions).
+  // clientSideMargin can be inflated by stale localStorage positions not in DB.
+  // Backend is the source of truth — it queries live DB open positions.
+  const isPaperMode = account?.isPaperTrading === true
+  const initialMargin = isPaperMode
+    ? accountMargin   // Backend usedMargin — always accurate for paper trading
+    : (clientSideMargin > 0 ? clientSideMargin : accountMargin)
+  const freeMargin = Math.max(0, equityValue - initialMargin) // الهامش الحر = حقوق الملكية - الهامش المستخدم
   // P&L لحظي من المراكز (محسوب من الأسعار المباشرة) بدلاً من account.unrealizedPnl المتجمد
   const livePositionsPnl = positions.reduce((sum, p) => sum + (p.unrealizedPnl || 0), 0)
   const unrealizedPnl = positions.length > 0 ? livePositionsPnl : (Number(account?.unrealizedPnl) || 0)

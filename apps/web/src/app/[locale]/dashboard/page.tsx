@@ -1351,8 +1351,11 @@ export default function DashboardPage() {
                 {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
                 {(() => {
                   const mlPct = equityValue > 0 ? (initialMargin / equityValue) * 100 : 0;
-                  const isCritical = mlPct > 0 && mlPct <= 30;
-                  const isWarning = mlPct > 30 && mlPct <= 50;
+                  // Margin Level = margin/equity × 100
+                  // عالي = خطر (استخدام كبير لرأس المال)
+                  // منخفض = آمن (استخدام محافظ)
+                  const isCritical = mlPct > 80;   // > 80% خطر فعلي
+                  const isWarning  = mlPct > 50 && mlPct <= 80; // 50-80% تحذير
                   const mlColor = isCritical ? T.danger : isWarning ? '#f59e0b' : T.cyan;
                   return (
                     <div style={{

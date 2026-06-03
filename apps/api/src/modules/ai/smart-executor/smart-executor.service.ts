@@ -2891,8 +2891,6 @@ export class SmartExecutorService implements OnModuleDestroy {
         briefId: brief.id,
         isPaperTrading: isSimulatedExecution,
         timeframe: brief.timeframe, // V132: Pass timeframe for smart idempotency TTL
-        // V175: Counter-trend flag for shorter MAX_HOLDING
-        isCounterTrend: (execStopLoss !== brief.stopLoss && Math.abs(execStopLoss - brief.stopLoss) / brief.stopLoss > 0.001) as any
       });
 
       if (!dispatchResult.success) {

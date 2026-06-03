@@ -239,8 +239,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     } catch {}
   }, [hydrated, settings.aiAlerts, settings.minConfidence, selectedSymbol, addNotification, locale])
 
-  useEffect(() => { fetchAiAlert() }, [fetchAiAlert])
-  // Poll AI alerts every 60s — pauses when tab hidden
+  // لا تُطلق عند أول تحميل — فقط بعد 60 ثانية من فتح الصفحة
   useVisibleInterval(fetchAiAlert, 60_000)
 
   // ── 3. مراقبة السكانر كل 5 دقائق ──────────────────────────
@@ -277,8 +276,7 @@ export function NotificationEngine({ quotes = new Map() }: { quotes?: Map<string
     } catch {}
   }, [hydrated, settings.scannerAlerts, settings.minConfidence, addNotification])
 
-  useEffect(() => { fetchScanAlert() }, [fetchScanAlert])
-  // Poll scanner alerts every 60s — pauses when tab hidden
+  // لا تُطلق عند أول تحميل — فقط بعد 60 ثانية
   useVisibleInterval(fetchScanAlert, 60_000)
 
   // ── 4. مراقبة تغيرات حادة في أسعار السوق ─────────────────

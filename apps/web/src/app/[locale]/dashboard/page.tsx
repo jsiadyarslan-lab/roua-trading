@@ -1566,14 +1566,22 @@ export default function DashboardPage() {
                 {timeframe} <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowTf && (
-                <div style={{ position:'fixed', top:130, left:8, background:'#141920', border:'1px solid rgba(0,212,255,0.2)', borderRadius:10, padding:8, display:'flex', flexWrap:'wrap', gap:4, width:170, zIndex:9999, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
-                  {m2TFs.map(tf => (
-                    <button key={tf} type="button"
-                      onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
-                      style={{ padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:11, fontFamily:"'JetBrains Mono',monospace", fontWeight:600, background: tf===timeframe?'rgba(0,212,255,0.15)':'transparent', border: tf===timeframe?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.06)', color: tf===timeframe?'#00D4FF':'#6A7A90' }}>
-                      {tf}
-                    </button>
-                  ))}
+                <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
+                  onClick={() => setM2ShowTf(false)}>
+                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(0,212,255,0.15)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                    onClick={e => e.stopPropagation()}>
+                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
+                    <div style={{ fontSize:11, color:'rgba(0,212,255,0.7)', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>الإطار الزمني</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                      {m2TFs.map(tf => (
+                        <button key={tf} type="button"
+                          onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
+                          style={{ padding:'8px 14px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.15)':'rgba(255,255,255,0.05)', border: tf===timeframe?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.08)', color: tf===timeframe?'#00D4FF':'#8090A8' }}>
+                          {tf}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -1593,16 +1601,21 @@ export default function DashboardPage() {
                 ✏️ رسم <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowDrawing && (
-                <div style={{ position:'fixed', top:130, left:8, background:'#141920', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:8, zIndex:9999, minWidth:150, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
-                  <div style={{ fontSize:9, color:'#4A5568', marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>أدوات الرسم</div>
-                  <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
-                    {m2DrawTools.map(dt => (
-                      <button key={dt.id} type="button"
-                        onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
-                        style={{ padding:'5px 10px', borderRadius:6, cursor:'pointer', fontSize:13, background: m2ActiveTool===dt.id?'rgba(0,212,255,0.1)':'transparent', border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid rgba(255,255,255,0.06)', color: m2ActiveTool===dt.id?'#00D4FF':'#8090A8' }}>
-                        {dt.icon}
-                      </button>
-                    ))}
+                <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
+                  onClick={() => setM2ShowDrawing(false)}>
+                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                    onClick={e => e.stopPropagation()}>
+                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
+                    <div style={{ fontSize:11, color:'#8090A8', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>أدوات الرسم</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
+                      {m2DrawTools.map(dt => (
+                        <button key={dt.id} type="button"
+                          onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
+                          style={{ padding:'12px 0', borderRadius:10, cursor:'pointer', fontSize:20, display:'flex', flexDirection:'column', alignItems:'center', gap:4, background: m2ActiveTool===dt.id?'rgba(0,212,255,0.1)':'rgba(255,255,255,0.04)', border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid rgba(255,255,255,0.06)', color: m2ActiveTool===dt.id?'#00D4FF':'#8090A8' }}>
+                          {dt.icon}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1651,25 +1664,31 @@ export default function DashboardPage() {
                 🌐 أسواق <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowMarkets && (
-                <div style={{ position:'fixed', top:130, right:8, background:'#141920', border:'1px solid rgba(255,184,0,0.2)', borderRadius:10, padding:8, zIndex:9999, minWidth:170, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
-                  {[
-                    { label:'كريبتو', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
-                    { label:'فوركس', syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
-                    { label:'سلع', syms:['XAU/USD','XAG/USD'] },
-                  ].map(g => (
-                    <div key={g.label} style={{ marginBottom:8 }}>
-                      <div style={{ fontSize:9, color:'#4A5568', marginBottom:4, fontFamily:"'Cairo',sans-serif" }}>{g.label}</div>
-                      <div style={{ display:'flex', flexWrap:'wrap', gap:3 }}>
-                        {g.syms.map(sym => (
-                          <button key={sym} type="button"
-                            onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
-                            style={{ padding:'3px 8px', borderRadius:5, cursor:'pointer', fontSize:9, fontFamily:"'JetBrains Mono',monospace", fontWeight:600, background: sym===selectedSymbol?'rgba(255,184,0,0.12)':'rgba(255,255,255,0.04)', border: sym===selectedSymbol?'1px solid rgba(255,184,0,0.35)':'1px solid rgba(255,255,255,0.08)', color: sym===selectedSymbol?'#FFB800':'#6A7A90' }}>
-                            {sym.split('/')[0]}
-                          </button>
-                        ))}
+                <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
+                  onClick={() => setM2ShowMarkets(false)}>
+                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(255,184,0,0.15)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                    onClick={e => e.stopPropagation()}>
+                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
+                    <div style={{ fontSize:11, color:'#FFB800', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>اختر السوق</div>
+                    {[
+                      { label:'كريبتو 🪙', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
+                      { label:'فوركس 💱', syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
+                      { label:'سلع 🏅', syms:['XAU/USD','XAG/USD'] },
+                    ].map(g => (
+                      <div key={g.label} style={{ marginBottom:12 }}>
+                        <div style={{ fontSize:10, color:'#4A5568', marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>{g.label}</div>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                          {g.syms.map(sym => (
+                            <button key={sym} type="button"
+                              onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
+                              style={{ padding:'7px 12px', borderRadius:8, cursor:'pointer', fontSize:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: sym===selectedSymbol?'rgba(255,184,0,0.12)':'rgba(255,255,255,0.05)', border: sym===selectedSymbol?'1px solid rgba(255,184,0,0.4)':'1px solid rgba(255,255,255,0.08)', color: sym===selectedSymbol?'#FFB800':'#8090A8' }}>
+                              {sym.split('/')[0]}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

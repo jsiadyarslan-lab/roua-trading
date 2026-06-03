@@ -196,12 +196,25 @@ function ActiveAccountSelector() {
     setSaving(true)
     setActiveCredentialId(credentialId)
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
       })
-    } catch { /* non-critical */ }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        console.error('[Settings] Failed to save activeCredentialId:', res.status, err)
+        // إعادة المحاولة مرة واحدة
+        await new Promise(r => setTimeout(r, 500))
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
+        })
+      }
+    } catch (e) {
+      console.error('[Settings] saveActiveAccount error:', e)
+    }
     setSaving(false)
   }
 

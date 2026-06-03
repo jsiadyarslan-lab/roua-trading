@@ -1770,10 +1770,10 @@ export default function DashboardPage() {
             <div style={{
               position:'absolute', top:0, left:0, right:0, zIndex:10,
               padding:'4px 8px 3px',
-              background:'rgba(0,0,0,0.75)',
-              backdropFilter:'blur(4px)',
+              background:'rgba(0,0,0,0.85)',
               borderBottom:'1px solid rgba(255,255,255,0.06)',
               pointerEvents:'none',
+              transform:'translateZ(0)',
             }}>
               {/* السطر الأول: الزوج + OHLC مثل MT5 */}
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
@@ -1816,7 +1816,7 @@ export default function DashboardPage() {
             <div style={{
               position:'absolute', top:28, left:0, right:0, zIndex:15,
               contain:'layout',
-              background:'rgba(7,10,16,0.92)', backdropFilter:'blur(10px)',
+              background:'rgba(7,10,16,0.95)',
               borderBottom:'1px solid rgba(255,255,255,0.05)',
               display:'flex', alignItems:'stretch', height:44,
             }}>

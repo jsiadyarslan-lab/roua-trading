@@ -797,7 +797,11 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            height: calc(100dvh - 52px);
+            position: fixed;
+            top: 52px;
+            left: 0;
+            right: 0;
+            bottom: 0;
             background: #0A0D13;
             overflow: hidden;
           }
@@ -2137,18 +2141,7 @@ export default function DashboardPage() {
         </button>
       )}
 
-      {/* FAB button for mobile — opens sidebar drawer */}
-      {isMobileViewport && (
-        <button
-          type="button"
-          className="sidebar-fab"
-          onClick={() => setSidebarDrawerOpen(true)}
-          title={tc('menu')}
-          aria-label={tc('menu')}
-        >
-          <PanelRight size={22} />
-        </button>
-      )}
+      {/* FAB hidden — mobile uses bottom nav "More" tab instead */}
 
       {/* Mobile drawer */}
       {isMobileViewport && sidebarDrawerOpen && (

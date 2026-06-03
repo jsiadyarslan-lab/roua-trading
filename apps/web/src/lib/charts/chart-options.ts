@@ -86,7 +86,13 @@ export function buildChartOptions(opts: {
       mouseWheel: true,
       pressedMouseMove: true,
       horzTouchDrag: true,
-      vertTouchDrag: !isMobile,
+      vertTouchDrag: false,  // منع التمرير العمودي للتعارض مع الصفحة
+    },
+    handleScale: {
+      axisPressedMouseMove: true,
+      axisDoubleClickReset: true,
+      mouseWheel: true,
+      pinch: true,  // تفعيل pinch-to-zoom باللمس
     },
     // FIX: Disable kinetic scroll — causes "rubber band" bounce effect
     // when user releases the mouse/touch after scrolling

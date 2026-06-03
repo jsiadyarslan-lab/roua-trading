@@ -837,6 +837,8 @@ export default function DashboardPage() {
             position: relative;
             min-height: 0;
             overflow: hidden;
+            touch-action: pan-x pan-y;  /* السماح بالتمرير والتكبير باللمس */
+            -webkit-overflow-scrolling: touch;
           }
           .m2-bottom-nav {
             display: flex !important;
@@ -1813,6 +1815,7 @@ export default function DashboardPage() {
                  أسفل OHLC bar مباشرة، ثابت ومدمج */}
             <div style={{
               position:'absolute', top:28, left:0, right:0, zIndex:15,
+              contain:'layout',
               background:'rgba(7,10,16,0.92)', backdropFilter:'blur(10px)',
               borderBottom:'1px solid rgba(255,255,255,0.05)',
               display:'flex', alignItems:'stretch', height:44,

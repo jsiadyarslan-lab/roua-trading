@@ -798,7 +798,7 @@ export default function DashboardPage() {
             flex-direction: column;
             width: 100%;
             position: fixed;
-            top: 52px;
+            top: 0;
             left: 0;
             right: 0;
             bottom: 0;
@@ -1491,7 +1491,7 @@ export default function DashboardPage() {
           {/* ── HEADER: لوغو + معلومات الحساب ── */}
           <div style={{
             display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'8px 14px 6px',
+            padding:'calc(env(safe-area-inset-top, 0px) + 8px) 14px 6px',
             borderBottom:'1px solid rgba(255,255,255,0.05)',
             flexShrink:0,
           }}>
@@ -1914,7 +1914,7 @@ export default function DashboardPage() {
                   {item.id === 'scanner' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>}
                   {item.id === 'ai' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#A78BFA':'#3A4558'} strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/></svg>}
                   {item.id === 'menu' && <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={active?'#00D4FF':'#3A4558'} strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
-                  <span style={{ fontSize:9, fontWeight:active?700:400, color:active?'#00D4FF':'#3A4558', fontFamily:"'Cairo',sans-serif" }}>
+                  <span style={{ fontSize:9, fontWeight:active?700:400, color:active?'#00D4FF':'#6A7A90', fontFamily:"'Cairo',sans-serif" }}>
                     {item.label}
                   </span>
                 </button>

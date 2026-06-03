@@ -1562,7 +1562,7 @@ export default function DashboardPage() {
                 {timeframe} <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowTf && (
-                <div style={{ position:'absolute', top:'calc(100% + 5px)', left:0, background:'#141920', border:'1px solid rgba(0,212,255,0.2)', borderRadius:10, padding:8, display:'flex', flexWrap:'wrap', gap:4, width:170, zIndex:200, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
+                <div style={{ position:'fixed', top:130, left:8, background:'#141920', border:'1px solid rgba(0,212,255,0.2)', borderRadius:10, padding:8, display:'flex', flexWrap:'wrap', gap:4, width:170, zIndex:9999, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
                   {m2TFs.map(tf => (
                     <button key={tf} type="button"
                       onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
@@ -1589,7 +1589,7 @@ export default function DashboardPage() {
                 ✏️ رسم <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowDrawing && (
-                <div style={{ position:'absolute', top:'calc(100% + 5px)', left:0, background:'#141920', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:8, zIndex:200, minWidth:150, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
+                <div style={{ position:'fixed', top:130, left:8, background:'#141920', border:'1px solid rgba(255,255,255,0.1)', borderRadius:10, padding:8, zIndex:9999, minWidth:150, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
                   <div style={{ fontSize:9, color:'#4A5568', marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>أدوات الرسم</div>
                   <div style={{ display:'flex', flexWrap:'wrap', gap:4 }}>
                     {m2DrawTools.map(dt => (
@@ -1647,7 +1647,7 @@ export default function DashboardPage() {
                 🌐 أسواق <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
               {m2ShowMarkets && (
-                <div style={{ position:'absolute', top:'calc(100% + 5px)', right:0, background:'#141920', border:'1px solid rgba(255,184,0,0.2)', borderRadius:10, padding:8, zIndex:200, minWidth:170, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
+                <div style={{ position:'fixed', top:130, right:8, background:'#141920', border:'1px solid rgba(255,184,0,0.2)', borderRadius:10, padding:8, zIndex:9999, minWidth:170, boxShadow:'0 10px 30px rgba(0,0,0,0.7)' }}>
                   {[
                     { label:'كريبتو', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
                     { label:'فوركس', syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },

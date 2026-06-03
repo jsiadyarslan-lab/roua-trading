@@ -2242,7 +2242,7 @@ export class TradingService {
               stopLoss: finalStopLoss,
               takeProfit: finalTakeProfit,
               source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
-              metadata: (request as any).isCounterTrend ? JSON.stringify({ isCounterTrend: true, maxHoldingMinutes: 45 }) : '{}',
+
             },
           });
         } catch (createError: any) {

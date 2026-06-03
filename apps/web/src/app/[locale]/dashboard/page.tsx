@@ -797,13 +797,12 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
+            height: 100svh;       /* svh = Small Viewport Height — ثابت لا يتغير مع iOS toolbar */
+            height: 100vh;        /* fallback للمتصفحات القديمة */
+            max-height: 100svh;
             background: #0A0D13;
             overflow: hidden;
+            position: relative;
           }
           .m2-ticker {
             display: flex !important;
@@ -1766,14 +1765,12 @@ export default function DashboardPage() {
           {/* ── CHART AREA ── */}
           <div className="m2-chart-area">
 
-            {/* OHLC Info Bar — MT5 style بالضبط */}
+            {/* OHLC Info Bar — خارج الـ canvas تماماً */}
             <div style={{
-              position:'absolute', top:0, left:0, right:0, zIndex:10,
+              flexShrink:0,
               padding:'4px 8px 3px',
-              background:'rgba(0,0,0,0.85)',
+              background:'rgba(10,13,19,0.98)',
               borderBottom:'1px solid rgba(255,255,255,0.06)',
-              pointerEvents:'none',
-              transform:'translateZ(0)',
             }}>
               {/* السطر الأول: الزوج + OHLC مثل MT5 */}
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
@@ -1814,9 +1811,8 @@ export default function DashboardPage() {
                  صف واحد: [SELL | حجم | BUY]
                  أسفل OHLC bar مباشرة، ثابت ومدمج */}
             <div style={{
-              position:'absolute', top:28, left:0, right:0, zIndex:15,
-              contain:'layout',
-              background:'rgba(7,10,16,0.95)',
+              flexShrink:0,
+              background:'rgba(10,13,19,0.98)',
               borderBottom:'1px solid rgba(255,255,255,0.05)',
               display:'flex', alignItems:'stretch', height:44,
             }}>

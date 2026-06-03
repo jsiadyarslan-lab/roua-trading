@@ -634,13 +634,17 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     if (resizeObserverRef.current) {
       resizeObserverRef.current.disconnect();
     }
+    // Debounce resize to prevent iOS Safari toolbar show/hide flash
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null;
     const ro = new ResizeObserver(entries => {
-      if (chart && entries[0]) {
-        chart.applyOptions({
-          width: entries[0].contentRect.width,
-          height: entries[0].contentRect.height,
-        });
-      }
+      if (!chart || !entries[0]) return;
+      const { width, height } = entries[0].contentRect;
+      if (width <= 0 || height <= 0) return;
+      if (resizeTimer) clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        if (chart) chart.applyOptions({ width, height });
+        resizeTimer = null;
+      }, 100); // 100ms debounce — ignores iOS toolbar flicker
     });
     ro.observe(container);
     resizeObserverRef.current = ro;
@@ -651,14 +655,20 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Listening to window resize as a fallback ensures the chart resizes
     // when the layout shifts (e.g. positions panel opens/closes).
     // Also, page.tsx dispatches a synthetic 'resize' event when posOpen changes.
+    let winResizeTimer: ReturnType<typeof setTimeout> | null = null;
     const handleWindowResize = () => {
-      if (chart && containerRef.current) {
-        const w = containerRef.current.clientWidth;
-        const h = containerRef.current.clientHeight;
-        if (w > 0 && h > 0) {
-          chart.applyOptions({ width: w, height: h });
+      if (!chart || !containerRef.current) return;
+      if (winResizeTimer) clearTimeout(winResizeTimer);
+      winResizeTimer = setTimeout(() => {
+        if (chart && containerRef.current) {
+          const w = containerRef.current.clientWidth;
+          const h = containerRef.current.clientHeight;
+          if (w > 0 && h > 0) {
+            chart.applyOptions({ width: w, height: h });
+          }
         }
-      }
+        winResizeTimer = null;
+      }, 100);
     };
     window.addEventListener('resize', handleWindowResize);
     windowResizeHandlerRef.current = handleWindowResize;

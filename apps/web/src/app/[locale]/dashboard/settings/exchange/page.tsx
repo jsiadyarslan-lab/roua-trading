@@ -54,6 +54,8 @@ export default function ExchangeSettingsPage() {
   const router = useRouter()
   const { loading: authLoading, isGuest } = useAuth()
   const [credentials, setCredentials] = useState<Credential[]>([])
+  const [activeCredentialId, setActiveCredentialId] = useState<string>('')
+  const [activeSaving, setActiveSaving] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -198,6 +200,19 @@ export default function ExchangeSettingsPage() {
   }
 
   // Toggle testnet mode
+  const handleSetActive = async (credentialId: string) => {
+    setActiveSaving(true)
+    setActiveCredentialId(credentialId)
+    try {
+      await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
+      })
+    } catch { /* non-critical */ }
+    setActiveSaving(false)
+  }
+
   const handleToggleTestnet = async (id: string, currentTestnet: boolean) => {
     const action = currentTestnet ? 'إلغاء وضع التجريب' : 'تفعيل وضع التجريب'
     if (!confirm(`هل أنت متأكد من ${action}؟ سيتم تغيير اتصال API key بين Testnet و Mainnet.`)) return
@@ -700,6 +715,21 @@ export default function ExchangeSettingsPage() {
                             {cred.testnet ? '🌐' : '🧪'}
                           </Button>
                         )}
+                        {/* زر تعيين كحساب نشط */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleSetActive(cred.id)}
+                          disabled={activeSaving}
+                          className={
+                            activeCredentialId === cred.id
+                              ? 'border-teal-500/50 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20'
+                              : 'text-slate-400 hover:text-teal-400 hover:bg-teal-500/10'
+                          }
+                          title={activeCredentialId === cred.id ? 'الحساب النشط' : 'تعيين كحساب نشط'}
+                        >
+                          {activeCredentialId === cred.id ? '✓ نشط' : 'تفعيل'}
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

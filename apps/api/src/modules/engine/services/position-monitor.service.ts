@@ -380,14 +380,18 @@ export class PositionMonitorService {
 
     // ── Below: Full monitoring for non-Agent positions ──
 
-    // ── MAX_HOLDING_TIME: Smart Executor positions ──
+    // ── MAX_HOLDING_TIME: Smart Executor + Agent positions ──
     // Counter-trend (reversal): 45 دقيقة
-    // مع الاتجاه: 4 ساعات
-    if (position.source === 'smart_executor' && position.openedAt) {
+    // Smart Executor مع الاتجاه: 4 ساعات
+    // Agent: 48 ساعة (swing trading)
+    if ((position.source === 'smart_executor' || position.source === 'agent') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
       // قراءة metadata للكشف عن الصفقة الارتدادية
-      let maxHoldingMs = 4 * 60 * 60 * 1000; // default: 4 ساعات
+      const isAgent = position.source === 'agent';
+      let maxHoldingMs = isAgent
+        ? 48 * 60 * 60 * 1000  // الوكيل: 48 ساعة (swing)
+        : 4 * 60 * 60 * 1000;  // المنفذ: 4 ساعات
       try {
         const meta = JSON.parse(position.metadata || '{}');
         if (meta.isCounterTrend && meta.maxHoldingMinutes) {
@@ -655,8 +659,8 @@ export class PositionMonitorService {
           closedAt: { gte: new Date(Date.now() - 3 * 60 * 60 * 1000) }, // آخر 3 ساعات
         },
       });
-      if (recentLosses >= 5) {
-        // خسارة 5 صفقات في 3 ساعات → halt المجلس ساعة
+      if (recentLosses >= 10) {
+        // خسارة 10 صفقات في 3 ساعات → halt المجلس ساعة (رُفع من 5 لتجنب halt غير ضروري)
         const haltUntil = new Date(Date.now() + 60 * 60 * 1000);
         await this.redis.set('council:sanctuary:halt', haltUntil.toISOString(), 60 * 60 * 1000);
         this.logger.warn(`🛡️ Sanctuary: ${recentLosses} خسائر في 3 ساعات → halt المجلس حتى ${haltUntil.toISOString()}`);

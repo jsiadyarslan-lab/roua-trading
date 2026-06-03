@@ -1210,40 +1210,6 @@ export class StrategicCouncilService {
       },
     });
 
-    // ── Performance Penalty (V175b) ─────────────────────────────────────
-    // يقرأ من Position.realizedPnl الموجود في DB — لا يحتاج migration
-    // إذا Win Rate < 30% في آخر 10 صفقات → خفض consensus score
-    let performancePenalty = 0;
-    try {
-      const recentClosed = await this.prisma.position.findMany({
-        where: {
-          symbol:    pair,
-          status:    'CLOSED',
-          closedAt:  { not: null },
-          source:    { in: ['smart_executor', 'agent', 'auto_paper'] },
-        },
-        orderBy: { closedAt: 'desc' },
-        take: 10,
-        select: { realizedPnl: true },
-      });
-
-      if (recentClosed.length >= 5) {
-        const wins    = recentClosed.filter(p => Number(p.realizedPnl) > 0).length;
-        const winRate = wins / recentClosed.length;
-
-        if (winRate < 0.20) {
-          performancePenalty = 20;
-          this.logger.warn(`📉 ${pair}: WinRate ${(winRate*100).toFixed(0)}% (${wins}/${recentClosed.length}) → penalty -${performancePenalty}`);
-        } else if (winRate < 0.30) {
-          performancePenalty = 10;
-          this.logger.debug(`📉 ${pair}: WinRate ${(winRate*100).toFixed(0)}% → penalty -${performancePenalty}`);
-        }
-      }
-    } catch (e: any) {
-      this.logger.debug(`Performance penalty skipped: ${e.message}`);
-    }
-    // ─────────────────────────────────────────────────────────────────────
-
     // V143: Fetch news context for this pair to inject into AI analysis.
     // This is the KEY integration point — previously the council was news-blind.
     // Now it sees recent news sentiment, impact levels, and affected assets
@@ -1287,11 +1253,7 @@ export class StrategicCouncilService {
     // V143: Apply news-adjusted confidence directly to the consensus object.
     // This way, all downstream code (including the effectiveConsensus = consensus line)
     // uses the news-adjusted values.
-    // تطبيق performance penalty إذا وجد
-    consensus.consensusScore = Math.max(0, newsAdjustedConfidence - performancePenalty);
-    if (performancePenalty > 0) {
-      this.logger.warn(`📉 ${pair}@${timeframe}: score ${newsAdjustedConfidence} → ${consensus.consensusScore} (penalty -${performancePenalty})`);
-    }
+    consensus.consensusScore = newsAdjustedConfidence;
     if (newsContext) {
       consensus.masterStrategy = (consensus.masterStrategy || '') +
         `\n\n📰 سياق الأخبار: مشاعر=${newsRisk.sentimentLabel}, مخاطر=${newsRisk.riskLevel}, نقاط=${newsRisk.score.toFixed(2)} (${newsRisk.recentArticleCount} خبر حديث)`;

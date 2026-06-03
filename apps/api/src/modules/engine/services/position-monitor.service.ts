@@ -66,7 +66,7 @@ export class PositionMonitorService {
    *
    * Checks all open positions for SL/TP hits and updates prices.
    */
-  @Interval(10000) // V139: reduced from 30000 to 10000 for faster SL/TP response
+  @Interval(30000) // restored to 30s to reduce DB load
   async runPositionMonitor(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
@@ -424,8 +424,7 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'STOP_LOSS');
-        // V175: Sanctuary check بعد كل SL
-        this._checkSanctuary(position.userId).catch(() => {});
+
         result.slTriggered = true;
         return result;
       }
@@ -463,7 +462,6 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
-        this._checkSanctuary(position.userId).catch(() => {});
         result.tpTriggered = true;
         return result;
       }

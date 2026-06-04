@@ -797,12 +797,13 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            height: 100svh;       /* svh = Small Viewport Height — ثابت لا يتغير مع iOS toolbar */
-            height: 100vh;        /* fallback للمتصفحات القديمة */
-            max-height: 100svh;
+            height: 100svh;
+            height: 100vh;
+            max-height: -webkit-fill-available;
             background: #0A0D13;
             overflow: hidden;
             position: relative;
+            padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
           }
           .m2-ticker {
             display: flex !important;
@@ -840,16 +841,18 @@ export default function DashboardPage() {
             -webkit-overflow-scrolling: touch;
           }
           .m2-bottom-nav {
+            position: fixed !important;
+            left: 0; right: 0; bottom: 0;
             display: flex !important;
-            height: calc(56px + env(safe-area-inset-bottom, 0px));
+            height: 56px;
             padding-bottom: env(safe-area-inset-bottom, 0px);
             background: rgba(8,11,16,0.98);
-            border-top: 1px solid rgba(255,255,255,0.05);
+            border-top: 1px solid rgba(255,255,255,0.06);
             align-items: flex-start;
             padding-top: 6px;
             padding-left: 4px;
             padding-right: 4px;
-            flex-shrink: 0;
+            z-index: 100;
           }
           /* keep old pill for fallback */
           .mobile-market-pill {
@@ -1818,20 +1821,27 @@ export default function DashboardPage() {
             <div style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column' }}>
 
               {/* بطاقة الحساب */}
-              <div style={{ margin:'10px 12px 6px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 14px' }}>
-                <div style={{ fontSize:8, color:'rgba(0,212,255,0.4)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1.5px', marginBottom:10 }}>ACCOUNT SUMMARY</div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 16px' }}>
+              <div style={{ margin:'10px 12px 6px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'14px' }}>
+                {/* الرصيد الرئيسي */}
+                <div style={{ marginBottom:12 }}>
+                  <div style={{ fontSize:9, color:'#4A5568', fontFamily:"'Cairo',sans-serif", marginBottom:3 }}>الرصيد</div>
+                  <div style={{ fontSize:22, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
+                    ${Math.max(Number(account?.balance)||0, Number(account?.paperBalance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                  </div>
+                  <div style={{ fontSize:13, fontWeight:700, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", marginTop:2 }}>
+                    {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$ P&L
+                  </div>
+                </div>
+                {/* باقي الحقول */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
-                    { label:'الرصيد', value:`$${Math.max(Number(account?.balance)||0, Number(account?.paperBalance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
-                    { label:'القيمة الحالية', value:`$${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
-                    { label:'الهامش المستخدم', value:`$${(Number(account?.usedMargin)||0).toFixed(2)}`, color:'#F59E0B' },
-                    { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(2)}`, color:'#10B981' },
-                    { label:'الربح / الخسارة', value:`${(Number(account?.unrealizedPnl)||0)>=0?'+':''}$${(Number(account?.unrealizedPnl)||0).toFixed(2)}`, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757' },
-                    { label:'مستوى الهامش', value:`${(Number(account?.marginLevel)||0).toFixed(1)}%`, color:(Number(account?.marginLevel)||0)>200?'#10B981':(Number(account?.marginLevel)||0)>100?'#F59E0B':'#FF4757' },
+                    { label:'القيمة', value:`$${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#C8D4E4' },
+                    { label:'الهامش المستخدم', value:`$${(Number(account?.usedMargin)||0).toFixed(0)}`, color:'#F59E0B' },
+                    { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(0)}`, color:'#10B981' },
                   ].map(item => (
                     <div key={item.label}>
-                      <div style={{ fontSize:8, color:'#2A3548', marginBottom:2, fontFamily:"'Cairo',sans-serif" }}>{item.label}</div>
-                      <div style={{ fontSize:13, fontWeight:800, color:item.color, fontFamily:"'JetBrains Mono',monospace" }}>{item.value}</div>
+                      <div style={{ fontSize:8, color:'#4A5568', marginBottom:3, fontFamily:"'Cairo',sans-serif", lineHeight:1.3 }}>{item.label}</div>
+                      <div style={{ fontSize:12, fontWeight:700, color:item.color, fontFamily:"'JetBrains Mono',monospace" }}>{item.value}</div>
                     </div>
                   ))}
                 </div>

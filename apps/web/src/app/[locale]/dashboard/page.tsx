@@ -841,11 +841,14 @@ export default function DashboardPage() {
           }
           .m2-bottom-nav {
             display: flex !important;
-            height: 70px;
+            height: calc(56px + env(safe-area-inset-bottom, 0px));
+            padding-bottom: env(safe-area-inset-bottom, 0px);
             background: rgba(8,11,16,0.98);
             border-top: 1px solid rgba(255,255,255,0.05);
             align-items: flex-start;
-            padding: 6px 4px 0;
+            padding-top: 6px;
+            padding-left: 4px;
+            padding-right: 4px;
             flex-shrink: 0;
           }
           /* keep old pill for fallback */
@@ -1087,7 +1090,8 @@ export default function DashboardPage() {
   const [m2ShowInd, setM2ShowInd] = useState(false)
   const [m2ShowAI, setM2ShowAI] = useState(false)
   const [m2ActiveTab, setM2ActiveTab] = useState('chart')
-  const [m2TradeCollapsed, setM2TradeCollapsed] = useState(false)  // طي/فتح لوحة التنفيذ
+  const [m2TradeCollapsed, setM2TradeCollapsed] = useState(false)
+  const [m2PositionsTab, setM2PositionsTab] = useState<'open'|'closed'>('open')  // طي/فتح لوحة التنفيذ
   const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة المزيد
   const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الأسواق
   const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الرسم
@@ -1100,7 +1104,7 @@ export default function DashboardPage() {
   const m2Indicators = ['RSI','MACD','EMA 20','EMA 50','Bollinger','Volume','ATR','Stoch']
   const m2NavItems = [
     { id:'chart',     label: 'الشارت'  },
-    { id:'portfolio', label: 'محفظتي'  },
+    { id:'positions', label: 'الصفقات' },
     { id:'scanner',   label: 'السكانر' },
     { id:'ai',        label: 'AI'       },
     { id:'menu',      label: 'المزيد'  },
@@ -1515,7 +1519,7 @@ export default function DashboardPage() {
               <div style={{ fontSize:13, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
                 ${(Number(account?.equity) || 0).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}
               </div>
-              <div style={{ fontSize:9, color: (Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>
+              <div style={{ fontSize:12, fontWeight:700, color: (Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>
                 {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$
               </div>
             </div>
@@ -1808,7 +1812,89 @@ export default function DashboardPage() {
           )}
 
           {/* ── CHART AREA ── */}
-          <div className="m2-chart-area">
+          {/* ── TAB: Positions ── */}
+          {m2ActiveTab === 'positions' && (
+            <div style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column' }}>
+
+              {/* بطاقة الحساب */}
+              <div style={{ margin:'10px 12px 6px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:12, padding:'12px 14px' }}>
+                <div style={{ fontSize:8, color:'rgba(0,212,255,0.4)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1.5px', marginBottom:10 }}>ACCOUNT SUMMARY</div>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 16px' }}>
+                  {[
+                    { label:'الرصيد', value:`$${(Number(account?.balance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
+                    { label:'القيمة الحالية', value:`$${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
+                    { label:'الهامش المستخدم', value:`$${(Number(account?.usedMargin)||0).toFixed(2)}`, color:'#F59E0B' },
+                    { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(2)}`, color:'#10B981' },
+                    { label:'الربح / الخسارة', value:`${(Number(account?.unrealizedPnl)||0)>=0?'+':''}$${(Number(account?.unrealizedPnl)||0).toFixed(2)}`, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757' },
+                    { label:'مستوى الهامش', value:`${(Number(account?.marginLevel)||0).toFixed(1)}%`, color:(Number(account?.marginLevel)||0)>200?'#10B981':(Number(account?.marginLevel)||0)>100?'#F59E0B':'#FF4757' },
+                  ].map(item => (
+                    <div key={item.label}>
+                      <div style={{ fontSize:8, color:'#2A3548', marginBottom:2, fontFamily:"'Cairo',sans-serif" }}>{item.label}</div>
+                      <div style={{ fontSize:13, fontWeight:800, color:item.color, fontFamily:"'JetBrains Mono',monospace" }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* تبويبان */}
+              <div style={{ display:'flex', margin:'0 12px 8px', background:'rgba(255,255,255,0.03)', borderRadius:8, padding:3, gap:3 }}>
+                {(['open','closed'] as const).map(tab => (
+                  <button key={tab} type="button" onClick={() => setM2PositionsTab(tab)}
+                    style={{ flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#3A4558', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
+                    {tab==='open' ? `مفتوحة (${positions.filter((p:any)=>p.status==='OPEN').length})` : 'مغلقة'}
+                  </button>
+                ))}
+              </div>
+
+              {/* الصفقات */}
+              <div style={{ flex:1, overflow:'auto', padding:'0 12px 16px' }}>
+                {m2PositionsTab === 'open' ? (
+                  positions.filter((p:any) => p.status === 'OPEN').length === 0
+                  ? <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>لا توجد صفقات مفتوحة</div>
+                  : positions.filter((p:any) => p.status === 'OPEN').map((pos:any) => {
+                      const pnl = Number(pos.unrealizedPnl)||0;
+                      const isPos = pnl >= 0;
+                      const ep = Number(pos.entryPrice)||0;
+                      const dec = ep > 100 ? 2 : 4;
+                      return (
+                        <div key={pos.id} style={{ background: isPos?'rgba(0,255,163,0.03)':'rgba(255,71,87,0.03)', border:`1px solid ${isPos?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}`, borderRadius:10, padding:'10px 12px', marginBottom:7 }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
+                            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <span style={{ fontSize:13, fontWeight:800, color:'#C8D4E4', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
+                              <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
+                              <span style={{ fontSize:8, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{pos.source==='smart_executor'?'AI':'وكيل'}</span>
+                            </div>
+                            <span style={{ fontSize:15, fontWeight:800, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                          </div>
+                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
+                            {[
+                              ['دخول', ep.toFixed(dec)],
+                              ['حالي', (Number(pos.currentPrice)||0).toFixed(dec)],
+                              ['حجم', Number(pos.quantity).toFixed(3)],
+                              ['SL', pos.stopLoss?(Number(pos.stopLoss)).toFixed(dec):'—'],
+                              ['TP', pos.takeProfit?(Number(pos.takeProfit)).toFixed(dec):'—'],
+                              ['هامش', `$${(Number(pos.margin)||0).toFixed(0)}`],
+                            ].map(([l,v]) => (
+                              <div key={l}>
+                                <div style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace", marginBottom:1 }}>{l}</div>
+                                <div style={{ fontSize:10, color:'#6A7A90', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })
+                ) : (
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>
+                    افتح صفحة المحفظة لعرض الصفقات المغلقة
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
+                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flex:1, flexDirection:'column' }}>
 
             {/* OHLC Info Bar — ارتفاع ثابت لمنع resize الشارت */}
             <div style={{

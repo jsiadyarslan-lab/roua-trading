@@ -820,13 +820,13 @@ export default function DashboardPage() {
           .m2-ticker::-webkit-scrollbar { display: none; }
           .m2-chart-toolbar {
             display: flex !important;
-            height: 44px;
+            height: 36px;
             align-items: center;
-            padding: 0 8px;
-            gap: 6px;
+            padding: 0 10px;
+            gap: 2px;
             flex-shrink: 0;
-            background: rgba(14,18,26,0.95);
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            background: rgba(10,13,19,0.98);
+            border-bottom: 1px solid rgba(255,255,255,0.04);
             overflow: visible;
             touch-action: manipulation;
           }
@@ -1550,35 +1550,40 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* ── CHART TOOLBAR: 5 قوائم منسدلة فقط ── */}
-          <div className="m2-chart-toolbar" style={{ gap:3, padding:'4px 8px' }}>
+          {/* ── CHART TOOLBAR: نمط Terminal نظيف ── */}
+          <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>
 
-            {/* 1. الإطار الزمني */}
+            {/* ─ TF ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
                 onClick={() => { setM2ShowTf(!m2ShowTf); setM2ShowInd(false); setM2ShowAI(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
                 style={{
-                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
-                  background: m2ShowTf?'rgba(0,212,255,0.15)':'rgba(0,212,255,0.08)',
-                  border:'1px solid rgba(0,212,255,0.3)', borderRadius:7,
-                  color:'#00D4FF', fontSize:11, fontWeight:700,
-                  fontFamily:"'JetBrains Mono',monospace", cursor:'pointer', flexShrink:0,
+                  height:20, padding:'0 7px',
+                  display:'flex', alignItems:'center', gap:3,
+                  background: m2ShowTf ? 'rgba(0,212,255,0.12)' : 'rgba(0,212,255,0.04)',
+                  border: `1px solid ${m2ShowTf ? 'rgba(0,212,255,0.5)' : 'rgba(0,212,255,0.18)'}`,
+                  borderRadius:4, cursor:'pointer', flexShrink:0,
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
-                {timeframe} <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+                <span style={{ fontSize:9, fontWeight:800, color: m2ShowTf?'#00D4FF':'rgba(0,212,255,0.7)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.3px' }}>
+                  {timeframe}
+                </span>
+                <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.5 }}>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowTf?'#00D4FF':'rgba(0,212,255,0.7)'}/>
+                </svg>
               </button>
               {m2ShowTf && (
                 <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
                   onClick={() => setM2ShowTf(false)}>
-                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(0,212,255,0.15)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                  <div style={{ background:'#0E1420', borderRadius:'16px 16px 0 0', border:'1px solid rgba(0,212,255,0.1)', borderBottom:'none', padding:'14px 14px calc(20px + env(safe-area-inset-bottom))' }}
                     onClick={e => e.stopPropagation()}>
-                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
-                    <div style={{ fontSize:11, color:'rgba(0,212,255,0.7)', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>الإطار الزمني</div>
-                    <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                    <div style={{ width:28, height:2, background:'rgba(255,255,255,0.08)', borderRadius:1, margin:'0 auto 12px' }}/>
+                    <div style={{ fontSize:9, color:'rgba(0,212,255,0.5)', fontWeight:700, marginBottom:10, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1px' }}>TIMEFRAME</div>
+                    <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
                       {m2TFs.map(tf => (
                         <button key={tf} type="button"
                           onClick={() => { setTimeframe(tf); setM2ShowTf(false); }}
-                          style={{ padding:'8px 14px', borderRadius:8, cursor:'pointer', fontSize:13, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.15)':'rgba(255,255,255,0.05)', border: tf===timeframe?'1px solid rgba(0,212,255,0.4)':'1px solid rgba(255,255,255,0.08)', color: tf===timeframe?'#00D4FF':'#8090A8' }}>
+                          style={{ padding:'7px 12px', borderRadius:6, cursor:'pointer', fontSize:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: tf===timeframe?'rgba(0,212,255,0.12)':'rgba(255,255,255,0.04)', border: tf===timeframe?'1px solid rgba(0,212,255,0.35)':'1px solid rgba(255,255,255,0.07)', color: tf===timeframe?'#00D4FF':'#5A6A80' }}>
                           {tf}
                         </button>
                       ))}
@@ -1588,33 +1593,41 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* 2. أدوات الرسم */}
+            {/* separator */}
+            <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
+
+            {/* ─ رسم ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
                 onClick={() => { setM2ShowDrawing(!m2ShowDrawing); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowMarkets(false); }}
                 style={{
-                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
-                  background: m2ShowDrawing?'rgba(255,255,255,0.08)':'transparent',
-                  border: m2ShowDrawing?'1px solid rgba(255,255,255,0.2)':'1px solid rgba(255,255,255,0.08)',
-                  borderRadius:7, color: m2ShowDrawing?'#E8ECF4':'#6A7A90',
-                  fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
-                  fontFamily:"'JetBrains Mono',monospace",
+                  height:20, padding:'0 7px',
+                  display:'flex', alignItems:'center', gap:3,
+                  background: m2ShowDrawing ? 'rgba(139,92,246,0.12)' : 'transparent',
+                  border: `1px solid ${m2ShowDrawing ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius:4, cursor:'pointer', flexShrink:0,
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
-                ✏️ رسم <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+                <svg width="9" height="9" viewBox="0 0 10 10" fill="none">
+                  <path d="M1 9L7 3L8 2M7 3L9 1M2 8L4 6" stroke={m2ShowDrawing?'#A78BFA':'#4A5568'} strokeWidth="1.2" strokeLinecap="round"/>
+                </svg>
+                <span style={{ fontSize:9, fontWeight:600, color: m2ShowDrawing?'#A78BFA':'#4A5568', fontFamily:"'Cairo',sans-serif" }}>رسم</span>
+                <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowDrawing?'#A78BFA':'#4A5568'}/>
+                </svg>
               </button>
               {m2ShowDrawing && (
                 <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
                   onClick={() => setM2ShowDrawing(false)}>
-                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(255,255,255,0.1)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                  <div style={{ background:'#0E1420', borderRadius:'16px 16px 0 0', border:'1px solid rgba(139,92,246,0.1)', borderBottom:'none', padding:'14px 14px calc(20px + env(safe-area-inset-bottom))' }}
                     onClick={e => e.stopPropagation()}>
-                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
-                    <div style={{ fontSize:11, color:'#8090A8', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>أدوات الرسم</div>
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:8 }}>
+                    <div style={{ width:28, height:2, background:'rgba(255,255,255,0.08)', borderRadius:1, margin:'0 auto 12px' }}/>
+                    <div style={{ fontSize:9, color:'rgba(139,92,246,0.5)', fontWeight:700, marginBottom:10, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1px' }}>DRAWING TOOLS</div>
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:6 }}>
                       {m2DrawTools.map(dt => (
                         <button key={dt.id} type="button"
                           onClick={() => { setM2ActiveTool(dt.id); setM2ShowDrawing(false); }}
-                          style={{ padding:'12px 0', borderRadius:10, cursor:'pointer', fontSize:20, display:'flex', flexDirection:'column', alignItems:'center', gap:4, background: m2ActiveTool===dt.id?'rgba(0,212,255,0.1)':'rgba(255,255,255,0.04)', border: m2ActiveTool===dt.id?'1px solid rgba(0,212,255,0.3)':'1px solid rgba(255,255,255,0.06)', color: m2ActiveTool===dt.id?'#00D4FF':'#8090A8' }}>
+                          style={{ padding:'10px 0', borderRadius:8, cursor:'pointer', fontSize:18, display:'flex', flexDirection:'column', alignItems:'center', background: m2ActiveTool===dt.id?'rgba(139,92,246,0.1)':'rgba(255,255,255,0.03)', border: m2ActiveTool===dt.id?'1px solid rgba(139,92,246,0.3)':'1px solid rgba(255,255,255,0.05)', color: m2ActiveTool===dt.id?'#A78BFA':'#5A6A80' }}>
                           {dt.icon}
                         </button>
                       ))}
@@ -1624,70 +1637,97 @@ export default function DashboardPage() {
               )}
             </div>
 
-            {/* 3. المؤشرات */}
+            {/* separator */}
+            <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
+
+            {/* ─ IND ─ */}
             <button type="button"
               onClick={() => { setM2ShowInd(!m2ShowInd); setM2ShowTf(false); setM2ShowAI(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
               style={{
-                height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
-                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
-                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
-                background: m2ShowInd?'rgba(167,139,250,0.12)':'transparent',
-                border: m2ShowInd?'1px solid rgba(167,139,250,0.3)':'1px solid rgba(255,255,255,0.08)',
-                color: m2ShowInd?'#A78BFA':'#6A7A90',
+                height:20, padding:'0 7px',
+                display:'flex', alignItems:'center', gap:3,
+                background: m2ShowInd ? 'rgba(16,185,129,0.1)' : 'transparent',
+                border: `1px solid ${m2ShowInd ? 'rgba(16,185,129,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius:4, cursor:'pointer', flexShrink:0,
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
-              📈 IND <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+              <svg width="10" height="9" viewBox="0 0 10 9" fill="none">
+                <path d="M0 7C2 7 2 2 4 2C6 2 6 7 8 7L10 7" stroke={m2ShowInd?'#10B981':'#3A4558'} strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              <span style={{ fontSize:9, fontWeight:600, color: m2ShowInd?'#10B981':'#3A4558', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.3px' }}>IND</span>
+              <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
+                <path d="M0 0L3 4L6 0" fill={m2ShowInd?'#10B981':'#3A4558'}/>
+              </svg>
             </button>
 
-            {/* 4. التحليل الذكي */}
+            {/* separator */}
+            <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
+
+            {/* ─ AI ─ */}
             <button type="button"
               onClick={() => { setM2ShowAI(!m2ShowAI); setM2ShowTf(false); setM2ShowInd(false); setM2ShowMarkets(false); setM2ShowDrawing(false); }}
               style={{
-                height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
-                borderRadius:7, cursor:'pointer', fontSize:11, fontWeight:600,
-                fontFamily:"'JetBrains Mono',monospace", flexShrink:0,
-                background: m2ShowAI?'rgba(139,92,246,0.15)':'transparent',
-                border: m2ShowAI?'1px solid rgba(139,92,246,0.4)':'1px solid rgba(255,255,255,0.08)',
-                color: m2ShowAI?'#C4B5FD':'#6A7A90',
+                height:20, padding:'0 7px',
+                display:'flex', alignItems:'center', gap:3,
+                background: m2ShowAI ? 'rgba(168,85,247,0.1)' : 'transparent',
+                border: `1px solid ${m2ShowAI ? 'rgba(168,85,247,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                borderRadius:4, cursor:'pointer', flexShrink:0,
                 touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
-              🤖 AI <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+              <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                <circle cx="4.5" cy="4.5" r="2" stroke={m2ShowAI?'#C084FC':'#3A4558'} strokeWidth="1.2"/>
+                <path d="M4.5 1V0M4.5 9V8M1 4.5H0M9 4.5H8" stroke={m2ShowAI?'#C084FC':'#3A4558'} strokeWidth="1" strokeLinecap="round"/>
+              </svg>
+              <span style={{ fontSize:9, fontWeight:700, color: m2ShowAI?'#C084FC':'#3A4558', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.5px' }}>AI</span>
+              <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
+                <path d="M0 0L3 4L6 0" fill={m2ShowAI?'#C084FC':'#3A4558'}/>
+              </svg>
             </button>
 
-            {/* 5. الأسواق */}
+            {/* separator */}
+            <div style={{ width:1, height:12, background:'rgba(255,255,255,0.06)', flexShrink:0 }}/>
+
+            {/* ─ أسواق ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
               <button type="button"
                 onClick={() => { setM2ShowMarkets(!m2ShowMarkets); setM2ShowTf(false); setM2ShowInd(false); setM2ShowAI(false); setM2ShowDrawing(false); }}
                 style={{
-                  height:28, padding:'0 10px', display:'flex', alignItems:'center', gap:4,
-                  background: m2ShowMarkets?'rgba(255,184,0,0.12)':'transparent',
-                  border: m2ShowMarkets?'1px solid rgba(255,184,0,0.35)':'1px solid rgba(255,255,255,0.08)',
-                  borderRadius:7, color: m2ShowMarkets?'#FFB800':'#6A7A90',
-                  fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
-                  fontFamily:"'JetBrains Mono',monospace",
+                  height:20, padding:'0 7px',
+                  display:'flex', alignItems:'center', gap:3,
+                  background: m2ShowMarkets ? 'rgba(245,158,11,0.1)' : 'transparent',
+                  border: `1px solid ${m2ShowMarkets ? 'rgba(245,158,11,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                  borderRadius:4, cursor:'pointer', flexShrink:0,
                   touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
-                🌐 أسواق <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
+                <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                  <rect x="0" y="5" width="2" height="4" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
+                  <rect x="3.5" y="2.5" width="2" height="6.5" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
+                  <rect x="7" y="0" width="2" height="9" fill={m2ShowMarkets?'#F59E0B':'#3A4558'} rx="0.5"/>
+                </svg>
+                <span style={{ fontSize:9, fontWeight:600, color: m2ShowMarkets?'#F59E0B':'#3A4558', fontFamily:"'Cairo',sans-serif" }}>سوق</span>
+                <svg width="6" height="4" viewBox="0 0 6 4" style={{ opacity:0.4 }}>
+                  <path d="M0 0L3 4L6 0" fill={m2ShowMarkets?'#F59E0B':'#3A4558'}/>
+                </svg>
               </button>
               {m2ShowMarkets && (
                 <div style={{ position:'fixed', inset:0, zIndex:9999, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}
                   onClick={() => setM2ShowMarkets(false)}>
-                  <div style={{ background:'#111820', borderRadius:'18px 18px 0 0', border:'1px solid rgba(255,184,0,0.15)', borderBottom:'none', padding:'16px 16px calc(24px + env(safe-area-inset-bottom))' }}
+                  <div style={{ background:'#0E1420', borderRadius:'16px 16px 0 0', border:'1px solid rgba(245,158,11,0.1)', borderBottom:'none', padding:'14px 14px calc(20px + env(safe-area-inset-bottom))' }}
                     onClick={e => e.stopPropagation()}>
-                    <div style={{ width:32, height:3, background:'rgba(255,255,255,0.1)', borderRadius:2, margin:'0 auto 14px' }}/>
-                    <div style={{ fontSize:11, color:'#FFB800', fontWeight:700, marginBottom:12, fontFamily:"'Cairo',sans-serif" }}>اختر السوق</div>
+                    <div style={{ width:28, height:2, background:'rgba(255,255,255,0.08)', borderRadius:1, margin:'0 auto 12px' }}/>
+                    <div style={{ fontSize:9, color:'rgba(245,158,11,0.5)', fontWeight:700, marginBottom:10, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1px' }}>MARKETS</div>
                     {[
-                      { label:'كريبتو 🪙', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
-                      { label:'فوركس 💱', syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
-                      { label:'سلع 🏅', syms:['XAU/USD','XAG/USD'] },
+                      { label:'CRYPTO', syms:['BTC/USD','ETH/USD','BNB/USD','SOL/USD','XRP/USD','DOGE/USD','ADA/USD'] },
+                      { label:'FOREX',  syms:['EUR/USD','GBP/USD','USD/JPY','AUD/USD'] },
+                      { label:'COMMODITIES', syms:['XAU/USD','XAG/USD'] },
                     ].map(g => (
-                      <div key={g.label} style={{ marginBottom:12 }}>
-                        <div style={{ fontSize:10, color:'#4A5568', marginBottom:6, fontFamily:"'Cairo',sans-serif" }}>{g.label}</div>
-                        <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                      <div key={g.label} style={{ marginBottom:10 }}>
+                        <div style={{ fontSize:8, color:'rgba(255,255,255,0.2)', marginBottom:5, fontFamily:"'JetBrains Mono',monospace", letterSpacing:'0.8px' }}>{g.label}</div>
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:5 }}>
                           {g.syms.map(sym => (
                             <button key={sym} type="button"
                               onClick={() => { handleSelectSymbol(sym); setM2ShowMarkets(false); }}
-                              style={{ padding:'7px 12px', borderRadius:8, cursor:'pointer', fontSize:12, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: sym===selectedSymbol?'rgba(255,184,0,0.12)':'rgba(255,255,255,0.05)', border: sym===selectedSymbol?'1px solid rgba(255,184,0,0.4)':'1px solid rgba(255,255,255,0.08)', color: sym===selectedSymbol?'#FFB800':'#8090A8' }}>
+                              style={{ padding:'5px 10px', borderRadius:5, cursor:'pointer', fontSize:10, fontFamily:"'JetBrains Mono',monospace", fontWeight:700, background: sym===selectedSymbol?'rgba(245,158,11,0.1)':'rgba(255,255,255,0.03)', border: sym===selectedSymbol?'1px solid rgba(245,158,11,0.3)':'1px solid rgba(255,255,255,0.06)', color: sym===selectedSymbol?'#F59E0B':'#4A5568' }}>
                               {sym.split('/')[0]}
                             </button>
                           ))}

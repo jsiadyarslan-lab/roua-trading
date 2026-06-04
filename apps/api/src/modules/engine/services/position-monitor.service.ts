@@ -404,7 +404,7 @@ export class PositionMonitorService {
         this.logger.warn(
           `⏱️ MAX_HOLDING: ${position.symbol} held ${heldMin}m > ${maxMin}m — closing`,
         );
-        await this._closePosition(position, currentPrice, 'STOP_LOSS');
+        await this._closePosition(position, currentPrice, 'TIME_EXPIRED');
         result.slTriggered = true;
         return result;
       }

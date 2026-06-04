@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/auth-store';
 import dynamic from 'next/dynamic';
 import './landing.css';
 
@@ -24,6 +26,15 @@ import BlackholeCTA from '@/components/landing/BlackholeCTA';
 import CosmicFooter from '@/components/landing/CosmicFooter';
 
 export default function Home() {
+  const router = useRouter()
+  const { isAuthenticated } = useAuthStore()
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/dashboard')
+    }
+  }, [isAuthenticated, router])
+
   // NOTE: Landing page bypass is handled by src/middleware.ts (SKIP_LANDING env var)
   // Intersection Observer for fade-in animations (matching original HTML)
   useEffect(() => {

@@ -2,7 +2,7 @@
   "name": "رؤى للتداول",
   "short_name": "رؤى",
   "description": "منصة تداول ذكية بالذكاء الاصطناعي",
-  "start_url": "/",
+  "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",

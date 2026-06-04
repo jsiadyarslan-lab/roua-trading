@@ -13,5 +13,5 @@ export const config = {
   // - /static (static files)
   // - /socket.io (WebSocket)
   // - Common static file extensions
-  matcher: ['/((?!api|_next|static|socket.io|.*\\..*).*)'],
+  matcher: ['/((?!api|_next|static|socket.io|pwa|.*\\..*).*)'],
 };

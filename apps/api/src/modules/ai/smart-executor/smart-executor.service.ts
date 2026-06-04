@@ -2841,6 +2841,10 @@ export class SmartExecutorService implements OnModuleDestroy {
       // even though the execution goes through CCXT (not simulated fill).
       // TradingService determines execution path by checking credential.exchange === 'paper-trading',
       // NOT by this flag — so testnet credentials still get CCXT execution.
+      // نحفظ الـ timeframe في Redis حتى يستخدمه position-monitor لـ MAX_HOLDING
+      const tfKey = `smart-executor:position-tf:${userId}:${brief.pair}`;
+      await this.redis.set(tfKey, brief.timeframe, 7 * 24 * 60 * 60 * 1000);
+
       const dispatchResult = await this.orderDispatcher.submitOrder({
         source: 'smart_executor',
         userId,

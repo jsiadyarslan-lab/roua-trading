@@ -387,17 +387,16 @@ export class PositionMonitorService {
     if ((position.source === 'smart_executor' || position.source === 'agent') && position.openedAt) {
       const holdingMs = Date.now() - new Date(position.openedAt).getTime();
 
-      // قراءة metadata للكشف عن الصفقة الارتدادية
       const isAgent = position.source === 'agent';
-      let maxHoldingMs = isAgent
-        ? 48 * 60 * 60 * 1000  // الوكيل: 48 ساعة (swing)
-        : 4 * 60 * 60 * 1000;  // المنفذ: 4 ساعات
+
+      // قراءة الـ timeframe من Redis لحساب MAX_HOLDING الصحيح
+      let timeframe: string | null = null;
       try {
-        const meta = JSON.parse(position.metadata || '{}');
-        if (meta.isCounterTrend && meta.maxHoldingMinutes) {
-          maxHoldingMs = meta.maxHoldingMinutes * 60 * 1000; // 45 دقيقة للارتداد
-        }
-      } catch { /* ignore parse errors */ }
+        const tfKey = `smart-executor:position-tf:${position.userId}:${position.symbol}`;
+        timeframe = await this.redis.get(tfKey);
+      } catch { /* non-critical */ }
+
+      let maxHoldingMs = this._getMaxHoldingMs(timeframe, isAgent);
 
       if (holdingMs > maxHoldingMs) {
         const heldMin = (holdingMs / 60000).toFixed(0);
@@ -646,6 +645,27 @@ export class PositionMonitorService {
       86400000, // 24 hours
     );
   }
+  /**
+   * يحسب MAX_HOLDING بحسب الإطار الزمني للصفقة
+   * M1/M5  → 4 ساعات   (scalping)
+   * M15/M30 → 12 ساعة  (intraday)
+   * H1/H4   → 48 ساعة  (swing)
+   * D1/W1   → 7 أيام   (position)
+   * Agent   → 48 ساعة  (swing default)
+   */
+  private _getMaxHoldingMs(timeframe: string | null, isAgent: boolean): number {
+    const H = 60 * 60 * 1000;
+    if (isAgent) return 48 * H;
+    if (!timeframe) return 8 * H; // default: 8 ساعات (آمن لكل TFs)
+    const tf = timeframe.toUpperCase();
+    if (tf === 'M1' || tf === 'M5')            return 4  * H;
+    if (tf === 'M15' || tf === 'M30')          return 12 * H;
+    if (tf === 'H1' || tf === 'H2' || tf === 'H4') return 48 * H;
+    if (tf === 'D1' || tf === 'D3')            return 7  * 24 * H;
+    if (tf === 'W1' || tf === 'W2')            return 14 * 24 * H;
+    return 8 * H; // fallback
+  }
+
   private async _checkSanctuary(userId: string): Promise<void> {
     // Non-blocking: يستدعي checkAndHaltCouncil إذا SanctuaryService متاح
     try {

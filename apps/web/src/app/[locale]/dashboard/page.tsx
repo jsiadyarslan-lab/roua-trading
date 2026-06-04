@@ -822,16 +822,13 @@ export default function DashboardPage() {
             display: flex !important;
             height: 44px;
             align-items: center;
-            padding: 0 10px;
-            gap: 4px;
+            padding: 0 8px;
+            gap: 6px;
             flex-shrink: 0;
             background: rgba(14,18,26,0.95);
             border-bottom: 1px solid rgba(255,255,255,0.06);
-            overflow-x: scroll;
-            overflow-y: visible;
-            scrollbar-width: none;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-x;
+            overflow: visible;
+            touch-action: manipulation;
           }
           .m2-chart-toolbar::-webkit-scrollbar { display: none; }
           .m2-chart-area {
@@ -1566,6 +1563,7 @@ export default function DashboardPage() {
                   border:'1px solid rgba(0,212,255,0.3)', borderRadius:7,
                   color:'#00D4FF', fontSize:11, fontWeight:700,
                   fontFamily:"'JetBrains Mono',monospace", cursor:'pointer', flexShrink:0,
+                  touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 {timeframe} <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
@@ -1601,6 +1599,7 @@ export default function DashboardPage() {
                   borderRadius:7, color: m2ShowDrawing?'#E8ECF4':'#6A7A90',
                   fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
                   fontFamily:"'JetBrains Mono',monospace",
+                  touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 ✏️ رسم <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>
@@ -1635,6 +1634,7 @@ export default function DashboardPage() {
                 background: m2ShowInd?'rgba(167,139,250,0.12)':'transparent',
                 border: m2ShowInd?'1px solid rgba(167,139,250,0.3)':'1px solid rgba(255,255,255,0.08)',
                 color: m2ShowInd?'#A78BFA':'#6A7A90',
+                touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               📈 IND <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
             </button>
@@ -1649,6 +1649,7 @@ export default function DashboardPage() {
                 background: m2ShowAI?'rgba(139,92,246,0.15)':'transparent',
                 border: m2ShowAI?'1px solid rgba(139,92,246,0.4)':'1px solid rgba(255,255,255,0.08)',
                 color: m2ShowAI?'#C4B5FD':'#6A7A90',
+                touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
               }}>
               🤖 AI <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
             </button>
@@ -1664,6 +1665,7 @@ export default function DashboardPage() {
                   borderRadius:7, color: m2ShowMarkets?'#FFB800':'#6A7A90',
                   fontSize:11, fontWeight:600, cursor:'pointer', flexShrink:0,
                   fontFamily:"'JetBrains Mono',monospace",
+                  touchAction:'manipulation', WebkitTapHighlightColor:'transparent',
                 }}>
                 🌐 أسواق <span style={{ fontSize:8, opacity:0.7 }}>▾</span>
               </button>

@@ -2988,6 +2988,8 @@ export default function RouaChart({
               background: T.bg,
               position: 'relative',
               zIndex: 1,
+              touchAction: 'none',        // يتيح للشارت معالجة كل touch gestures
+              WebkitUserSelect: 'none',   // منع text selection عند اللمس
             }}
           />
 

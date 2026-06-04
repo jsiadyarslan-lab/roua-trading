@@ -1526,7 +1526,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── TICKER STRIP ── */}
-          <div className="m2-ticker">
+          <div className="m2-ticker" style={{ display: m2ActiveTab==='chart'?undefined:'none' }}>
             {['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD','SOL/USD'].map(sym => {
               const q = globalQuotes[sym]
               const chgPct = q?.changePercent ?? 0
@@ -1554,8 +1554,9 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {/* ── CHART TOOLBAR: نمط Terminal نظيف ── */}
-          <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>
+          {/* ── CHART TOOLBAR ── */}
+          {m2ActiveTab === 'chart' && <div className="m2-chart-toolbar" style={{display:'none'}}/>}
+          <div className="m2-chart-toolbar" style={{ display: m2ActiveTab==='chart'?undefined:'none' }} style={{ gap:2, padding:'0 10px' }}>
 
             {/* ─ TF ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
@@ -1821,7 +1822,7 @@ export default function DashboardPage() {
                 <div style={{ fontSize:8, color:'rgba(0,212,255,0.4)', fontFamily:"'JetBrains Mono',monospace", letterSpacing:'1.5px', marginBottom:10 }}>ACCOUNT SUMMARY</div>
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'10px 16px' }}>
                   {[
-                    { label:'الرصيد', value:`$${(Number(account?.balance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
+                    { label:'الرصيد', value:`$${Math.max(Number(account?.balance)||0, Number(account?.paperBalance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
                     { label:'القيمة الحالية', value:`$${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`, color:'#E8ECF4' },
                     { label:'الهامش المستخدم', value:`$${(Number(account?.usedMargin)||0).toFixed(2)}`, color:'#F59E0B' },
                     { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(2)}`, color:'#10B981' },
@@ -1896,7 +1897,8 @@ export default function DashboardPage() {
           {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
                     <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flex:1, flexDirection:'column' }}>
 
-            {/* OHLC Info Bar — ارتفاع ثابت لمنع resize الشارت */}
+            {/* OHLC Info Bar — يظهر فقط في تاب الشارت */}
+            {m2ActiveTab === 'chart' &&
             <div style={{
               flexShrink:0,
               height:28,
@@ -1940,10 +1942,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* ── QUICK TRADE — cTrader style ──
-                 صف واحد: [SELL | حجم | BUY]
-                 أسفل OHLC bar مباشرة، ثابت ومدمج */}
-            <div style={{
+            {m2ActiveTab === 'chart' && <div style={{
               flexShrink:0,
               background:'rgba(10,13,19,0.98)',
               borderBottom:'1px solid rgba(255,255,255,0.05)',

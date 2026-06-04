@@ -1284,13 +1284,36 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       }
 
       // PERF: Schedule debounced indicator refresh after WS candle update.
-      // This ensures indicators update with real-time data without
-      // the overhead of removing/recreating series on every tick.
       if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
       indicatorRefreshTimerRef.current = setTimeout(() => {
         refreshIndicatorsData();
         indicatorRefreshTimerRef.current = null;
-      }, 500); // 500ms debounce — balances responsiveness with performance
+      }, 500);
+    } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
+      // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
+      // نُضيف الشمعة الجديدة للـ chart بدلاً من تجاهلها
+      const s = sanitizeOhlc(candle.open, candle.high, candle.low, candle.close);
+      const newCandle = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
+      candles.push(newCandle);
+
+      const chartType = settings.type;
+      try {
+        if (chartType === 'line' || chartType === 'area') {
+          candleSeriesRef.current.update({ time: time as Time, value: newCandle.close } as any);
+        } else if (chartType === 'heikin-ashi') {
+          const prev = candles[candles.length - 2] ?? newCandle;
+          const haClose = (newCandle.open + newCandle.high + newCandle.low + newCandle.close) / 4;
+          const haOpen = (prev.open + prev.close) / 2;
+          const haHigh = Math.max(newCandle.high, haOpen, haClose);
+          const haLow  = Math.min(newCandle.low,  haOpen, haClose);
+          candleSeriesRef.current.update({ time: time as Time, open: haOpen, high: haHigh, low: haLow, close: haClose } as any);
+        } else {
+          candleSeriesRef.current.update({ time: time as Time, open: newCandle.open, high: newCandle.high, low: newCandle.low, close: newCandle.close } as any);
+        }
+        if (volumeSeriesRef.current) {
+          volumeSeriesRef.current.update({ time: time as Time, value: candle.volume || 0, color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown } as any);
+        }
+      } catch { /* chart destroyed */ }
     }
   }, [isPaused, settings.type, refreshIndicatorsData]);
 

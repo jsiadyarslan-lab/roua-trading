@@ -3066,6 +3066,7 @@ export default function RouaChart({
                   left: 6,
                   zIndex: 15,
                   pointerEvents: isDraggable ? 'auto' : 'none',
+                  touchAction: isDraggable ? 'none' : 'auto',
                   // Position ABOVE the line (label height ~20px + 4px gap)
                   transform: `translateY(${ov.y - 24}px)`,
                   willChange: 'transform',
@@ -3188,7 +3189,7 @@ export default function RouaChart({
                 border: '1px solid rgba(255,255,255,0.07)',
                 boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
                 padding: tradePanelCollapsed ? '3px' : '5px 6px',
-                pointerEvents: chart.activeTool === 'cursor' ? 'auto' : 'none',
+                pointerEvents: (chart.activeTool === 'cursor' && !mobile) ? 'auto' : 'none',
                 overflow: 'hidden',
                 transition: 'all 0.2s ease',
               }}

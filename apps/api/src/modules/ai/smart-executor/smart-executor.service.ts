@@ -2728,13 +2728,26 @@ export class SmartExecutorService implements OnModuleDestroy {
         `on ${credential.exchange} (testnet=${credential.testnet || false}, simulated=${isSimulatedExecution})`,
       );
 
-      // Calculate position size based on risk
-      // V146: Now uses symbol-metadata for proper lot sizing.
-      // Forex pairs: quantity in units (1 lot = 100,000 units)
-      // Crypto: quantity in base currency (e.g., 0.5 BTC)
-      // Margin = notional / leverage (forex: /50, crypto: /1 = full value)
-      const riskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
+      // ── Confidence-Based Position Sizing ────────────────────────────
+      // كلما ارتفعت ثقة المجلس → حجم أكبر (حد أقصى 1.5x)
+      // 55-64% → 0.50x | 65-74% → 0.75x | 75-84% → 1.00x
+      // 85-94% → 1.25x | 95%+   → 1.50x
+      const confidenceMultiplier = (() => {
+        const conf = brief.confidence ?? 70;
+        if (conf >= 95) return 1.50;
+        if (conf >= 85) return 1.25;
+        if (conf >= 75) return 1.00;
+        if (conf >= 65) return 0.75;
+        return 0.50; // 55-64%
+      })();
+
+      const baseRiskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
+      const riskPercent = baseRiskPercent * confidenceMultiplier;
       const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
+
+      this.logger.log(
+        `⚔️ Position sizing: confidence=${brief.confidence}% → multiplier=${confidenceMultiplier}x → risk=${(riskPercent*100).toFixed(2)}%`
+      );
       const priceRisk = Math.abs(currentPrice - brief.stopLoss);
 
       if (priceRisk === 0) {

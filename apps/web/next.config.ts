@@ -65,6 +65,17 @@ const nextConfig: NextConfig = {
   // Removed destructive Webpack minimizer overrides that broke Next.js App Router client-side routing.
   // Next.js relies on its internal SWC minifier and chunking to correctly resolve RSC payloads.
 
+  async redirects() {
+    return [
+      // PWA entry point - يعمل دائماً
+      {
+        source: '/pwa',
+        destination: '/ar/dashboard',
+        permanent: false,
+      },
+    ]
+  },
+
   async rewrites() {
     return [
       // ── Socket.IO proxy to NestJS ──

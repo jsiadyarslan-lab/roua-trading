@@ -1810,10 +1810,12 @@ export default function DashboardPage() {
           {/* ── CHART AREA ── */}
           <div className="m2-chart-area">
 
-            {/* OHLC Info Bar — خارج الـ canvas تماماً */}
+            {/* OHLC Info Bar — ارتفاع ثابت لمنع resize الشارت */}
             <div style={{
               flexShrink:0,
-              padding:'4px 8px 3px',
+              height:28,
+              overflow:'hidden',
+              padding:'3px 8px 0',
               background:'rgba(10,13,19,0.98)',
               borderBottom:'1px solid rgba(255,255,255,0.06)',
             }}>

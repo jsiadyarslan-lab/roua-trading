@@ -1283,12 +1283,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
         } catch { /* chart destroyed */ }
       }
 
-      // PERF: Schedule debounced indicator refresh after WS candle update.
-      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
-      indicatorRefreshTimerRef.current = setTimeout(() => {
-        refreshIndicatorsData();
-        indicatorRefreshTimerRef.current = null;
-      }, 500);
+      // لا نُحدَّث المؤشرات مع كل tick — فقط عند فتح شمعة جديدة
     } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
       // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
       // نُضيف الشمعة الجديدة للـ chart بدلاً من تجاهلها
@@ -1314,6 +1309,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           volumeSeriesRef.current.update({ time: time as Time, value: candle.volume || 0, color: newCandle.close >= newCandle.open ? SHARED_COLORS.volumeUp : SHARED_COLORS.volumeDown } as any);
         }
       } catch { /* chart destroyed */ }
+
+      // تحديث المؤشرات عند فتح شمعة جديدة فقط
+      if (indicatorRefreshTimerRef.current) clearTimeout(indicatorRefreshTimerRef.current);
+      indicatorRefreshTimerRef.current = setTimeout(() => {
+        refreshIndicatorsData();
+        indicatorRefreshTimerRef.current = null;
+      }, 200);
     }
   }, [isPaused, settings.type, refreshIndicatorsData]);
 

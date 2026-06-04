@@ -827,8 +827,11 @@ export default function DashboardPage() {
             flex-shrink: 0;
             background: rgba(14,18,26,0.95);
             border-bottom: 1px solid rgba(255,255,255,0.06);
-            overflow-x: auto;
+            overflow-x: scroll;
+            overflow-y: visible;
             scrollbar-width: none;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-x;
           }
           .m2-chart-toolbar::-webkit-scrollbar { display: none; }
           .m2-chart-area {
@@ -836,7 +839,7 @@ export default function DashboardPage() {
             position: relative;
             min-height: 0;
             overflow: hidden;
-            touch-action: pan-x pan-y;  /* السماح بالتمرير والتكبير باللمس */
+            touch-action: none;  /* none يسمح للشارت بمعالجة كل gestures بنفسه */
             -webkit-overflow-scrolling: touch;
           }
           .m2-bottom-nav {

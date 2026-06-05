@@ -840,11 +840,9 @@ export default function DashboardPage() {
             -webkit-overflow-scrolling: touch;
           }
           .m2-bottom-nav {
-            position: fixed !important;
-            left: 0; right: 0; bottom: 0;
             display: flex !important;
-            height: auto;
-            min-height: 56px;
+            flex-shrink: 0;
+            height: 58px;
             padding-top: 6px;
             padding-left: 4px;
             padding-right: 4px;
@@ -852,7 +850,6 @@ export default function DashboardPage() {
             background: rgba(8,11,16,0.98);
             border-top: 1px solid rgba(255,255,255,0.06);
             align-items: flex-start;
-            z-index: 100;
           }
           /* keep old pill for fallback */
           .mobile-market-pill {
@@ -2014,13 +2011,15 @@ export default function DashboardPage() {
             </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
-            <RouaChart
-              currentPrice={currentPrice}
-              mobile
-              hideToolbar
-              isChartFullscreen={chartFullscreen}
-              onToggleChartFullscreen={toggleChartFullscreen}
-            />
+            <div style={{ flex:1, minHeight:0, position:'relative' }}>
+              <RouaChart
+                currentPrice={currentPrice}
+                mobile
+                hideToolbar
+                isChartFullscreen={chartFullscreen}
+                onToggleChartFullscreen={toggleChartFullscreen}
+              />
+            </div>
 
             {/* Bottom info strip */}
             <div style={{

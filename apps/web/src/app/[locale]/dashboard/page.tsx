@@ -1950,7 +1950,7 @@ export default function DashboardPage() {
                   </>
                 )}
               </div>
-            </div>
+            </div>}
 
             {m2ActiveTab === 'chart' && <div style={{
               flexShrink:0,
@@ -2011,7 +2011,7 @@ export default function DashboardPage() {
                   {currentPrice ? (currentPrice * 1.00005).toFixed(currentPrice > 100 ? 2 : 5) : '—'}
                 </span>
               </button>
-            </div>
+            </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
             <RouaChart

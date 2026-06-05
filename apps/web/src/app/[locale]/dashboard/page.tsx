@@ -1091,7 +1091,9 @@ export default function DashboardPage() {
   const [m2ShowAI, setM2ShowAI] = useState(false)
   const [m2ActiveTab, setM2ActiveTab] = useState('chart')
   const [m2TradeCollapsed, setM2TradeCollapsed] = useState(false)
-  const [m2PositionsTab, setM2PositionsTab] = useState<'open'|'closed'>('open')  // طي/فتح لوحة التنفيذ
+  const [m2PositionsTab, setM2PositionsTab] = useState<'open'|'closed'>('open')
+  const [closedPositions, setClosedPositions] = useState<any[]>([])
+  const [loadingClosed, setLoadingClosed] = useState(false)  // طي/فتح لوحة التنفيذ
   const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة المزيد
   const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الأسواق
   const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الرسم
@@ -1153,6 +1155,28 @@ export default function DashboardPage() {
     return () => { window.clearInterval(intervalId); clearTimeout(quickFetch) }
   }, [fetchAccount, fetchPositions])
 
+  // تحديث البيانات عند فتح تاب الصفقات
+  useEffect(() => {
+    if (m2ActiveTab === 'positions') {
+      fetchAccount()
+      fetchPositions()
+    }
+  }, [m2ActiveTab, fetchAccount, fetchPositions])
+
+  // جلب الصفقات المغلقة
+  const fetchClosedPositions = useCallback(async () => {
+    if (loadingClosed) return
+    setLoadingClosed(true)
+    try {
+      const res = await fetch('/api/trading/positions/history?limit=20')
+      if (res.ok) {
+        const data = await res.json()
+        setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingClosed(false) }
+  }, [loadingClosed])
+
   // Cross-device sync: refresh data when the page becomes visible
   // (user switches back from another tab/device or returns to the app)
   useEffect(() => {
@@ -1166,6 +1190,28 @@ export default function DashboardPage() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
   }, [fetchAccount, fetchPositions])
 
+  // تحديث البيانات عند فتح تاب الصفقات
+  useEffect(() => {
+    if (m2ActiveTab === 'positions') {
+      fetchAccount()
+      fetchPositions()
+    }
+  }, [m2ActiveTab, fetchAccount, fetchPositions])
+
+  // جلب الصفقات المغلقة
+  const fetchClosedPositions = useCallback(async () => {
+    if (loadingClosed) return
+    setLoadingClosed(true)
+    try {
+      const res = await fetch('/api/trading/positions/history?limit=20')
+      if (res.ok) {
+        const data = await res.json()
+        setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingClosed(false) }
+  }, [loadingClosed])
+
   // Cross-tab sync: listen for account data changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -1177,6 +1223,28 @@ export default function DashboardPage() {
     window.addEventListener('storage', handleStorageChange)
     return () => window.removeEventListener('storage', handleStorageChange)
   }, [fetchAccount, fetchPositions])
+
+  // تحديث البيانات عند فتح تاب الصفقات
+  useEffect(() => {
+    if (m2ActiveTab === 'positions') {
+      fetchAccount()
+      fetchPositions()
+    }
+  }, [m2ActiveTab, fetchAccount, fetchPositions])
+
+  // جلب الصفقات المغلقة
+  const fetchClosedPositions = useCallback(async () => {
+    if (loadingClosed) return
+    setLoadingClosed(true)
+    try {
+      const res = await fetch('/api/trading/positions/history?limit=20')
+      if (res.ok) {
+        const data = await res.json()
+        setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
+      }
+    } catch { /* ignore */ }
+    finally { setLoadingClosed(false) }
+  }, [loadingClosed])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -1846,9 +1914,9 @@ export default function DashboardPage() {
               {/* تبويبان */}
               <div style={{ display:'flex', margin:'0 12px 8px', background:'rgba(255,255,255,0.03)', borderRadius:8, padding:3, gap:3 }}>
                 {(['open','closed'] as const).map(tab => (
-                  <button key={tab} type="button" onClick={() => setM2PositionsTab(tab)}
+                  <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(); }}
                     style={{ flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#3A4558', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
-                    {tab==='open' ? `مفتوحة (${positions.filter((p:any)=>p.status==='OPEN').length})` : 'مغلقة'}
+                    {tab==='open' ? `مفتوحة (${positions.filter((p:any)=>p.status==='OPEN').length})` : `مغلقة (${closedPositions.length})`}
                   </button>
                 ))}
               </div>
@@ -1891,10 +1959,34 @@ export default function DashboardPage() {
                         </div>
                       );
                     })
+                ) : loadingClosed ? (
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'#4A5568', fontSize:12 }}>جاري التحميل...</div>
+                ) : closedPositions.length === 0 ? (
+                  <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>لا توجد صفقات مغلقة</div>
                 ) : (
-                  <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>
-                    افتح صفحة المحفظة لعرض الصفقات المغلقة
-                  </div>
+                  closedPositions.slice(0,20).map((pos:any) => {
+                    const pnl = Number(pos.realizedPnl||pos.pnl||0)
+                    const isPos = pnl >= 0
+                    const ep = Number(pos.entryPrice||0)
+                    const dec = ep > 100 ? 2 : 4
+                    return (
+                      <div key={pos.id} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10, padding:'10px 12px', marginBottom:7 }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                          <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                            <span style={{ fontSize:13, fontWeight:800, color:'#8090A8', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
+                            <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
+                            <span style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{pos.closeReason||''}</span>
+                          </div>
+                          <span style={{ fontSize:14, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                        </div>
+                        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
+                          {[['دخول',ep.toFixed(dec)],['إغلاق',(Number(pos.closePrice||pos.exitPrice||0)).toFixed(dec)],['حجم',Number(pos.quantity).toFixed(3)]].map(([l,v])=>(
+                            <div key={l}><div style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{l}</div><div style={{ fontSize:9, color:'#4A5568', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div></div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })
                 )}
               </div>
             </div>

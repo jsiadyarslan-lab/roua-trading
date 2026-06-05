@@ -1199,19 +1199,6 @@ export default function DashboardPage() {
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
   // جلب الصفقات المغلقة
-  const fetchClosedPositions = useCallback(async () => {
-    if (loadingClosed) return
-    setLoadingClosed(true)
-    try {
-      const res = await fetch('/api/trading/positions/history?limit=20')
-      if (res.ok) {
-        const data = await res.json()
-        setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
-      }
-    } catch { /* ignore */ }
-    finally { setLoadingClosed(false) }
-  }, [loadingClosed])
-
   // Cross-tab sync: listen for account data changes from other tabs
   useEffect(() => {
     const handleStorageChange = (e: StorageEvent) => {
@@ -1233,19 +1220,6 @@ export default function DashboardPage() {
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
   // جلب الصفقات المغلقة
-  const fetchClosedPositions = useCallback(async () => {
-    if (loadingClosed) return
-    setLoadingClosed(true)
-    try {
-      const res = await fetch('/api/trading/positions/history?limit=20')
-      if (res.ok) {
-        const data = await res.json()
-        setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
-      }
-    } catch { /* ignore */ }
-    finally { setLoadingClosed(false) }
-  }, [loadingClosed])
-
   useEffect(() => {
     if (typeof window === 'undefined') return
 

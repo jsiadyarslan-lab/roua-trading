@@ -1554,8 +1554,7 @@ export default function DashboardPage() {
           </div>
 
           {/* ── CHART TOOLBAR ── */}
-          {m2ActiveTab === 'chart' && <div className="m2-chart-toolbar" style={{display:'none'}}/>}
-          <div className="m2-chart-toolbar" style={{ display: m2ActiveTab==='chart'?undefined:'none' }} style={{ gap:2, padding:'0 10px' }}>
+          <div className="m2-chart-toolbar" style={{ display: m2ActiveTab==='chart'?undefined:'none', gap:2, padding:'0 10px' }}>
 
             {/* ─ TF ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>

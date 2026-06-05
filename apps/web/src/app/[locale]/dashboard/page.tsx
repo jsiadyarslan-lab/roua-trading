@@ -1093,7 +1093,9 @@ export default function DashboardPage() {
   const [m2TradeCollapsed, setM2TradeCollapsed] = useState(false)
   const [m2PositionsTab, setM2PositionsTab] = useState<'open'|'closed'>('open')
   const [closedPositions, setClosedPositions] = useState<any[]>([])
-  const [loadingClosed, setLoadingClosed] = useState(false)  // طي/فتح لوحة التنفيذ
+  const [loadingClosed, setLoadingClosed] = useState(false)
+  const [expandedPositionId, setExpandedPositionId] = useState<string|null>(null)
+  const [closedDateFilter, setClosedDateFilter] = useState<'day'|'week'|'month'|'year'|'all'>('all')  // طي/فتح لوحة التنفيذ
   const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة المزيد
   const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الأسواق
   const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الرسم
@@ -1164,18 +1166,24 @@ export default function DashboardPage() {
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
   // جلب الصفقات المغلقة
-  const fetchClosedPositions = useCallback(async () => {
-    if (loadingClosed) return
+  const fetchClosedPositions = useCallback(async (filter: 'day'|'week'|'month'|'year'|'all' = closedDateFilter) => {
     setLoadingClosed(true)
     try {
-      const res = await fetch('/api/trading/positions/history?limit=100')
+      const now = new Date()
+      let from = ''
+      if (filter === 'day')   { const d = new Date(now); d.setHours(0,0,0,0);       from = d.toISOString() }
+      if (filter === 'week')  { const d = new Date(now); d.setDate(d.getDate()-7);  from = d.toISOString() }
+      if (filter === 'month') { const d = new Date(now); d.setMonth(d.getMonth()-1); from = d.toISOString() }
+      if (filter === 'year')  { const d = new Date(now); d.setFullYear(d.getFullYear()-1); from = d.toISOString() }
+      const url = '/api/trading/positions/history?limit=200' + (from ? `&from=${encodeURIComponent(from)}` : '')
+      const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
         setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
       }
     } catch { /* ignore */ }
     finally { setLoadingClosed(false) }
-  }, [loadingClosed])
+  }, [closedDateFilter])
 
   // Cross-device sync: refresh data when the page becomes visible
   // (user switches back from another tab/device or returns to the app)
@@ -1596,8 +1604,9 @@ export default function DashboardPage() {
             })}
           </div>
 
+          {m2ActiveTab === 'chart' && (
           {/* ── CHART TOOLBAR ── */}
-          <div className="m2-chart-toolbar" style={{ display: m2ActiveTab==='chart'?undefined:'none', gap:2, padding:'0 10px' }}>
+          <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>
 
             {/* ─ TF ─ */}
             <div style={{ position:'relative', flexShrink:0 }}>
@@ -1786,6 +1795,7 @@ export default function DashboardPage() {
             </div>
 
           </div>
+          )}
 
                     {/* IND Bottom Sheet */}
           {m2ShowInd && (
@@ -1860,22 +1870,20 @@ export default function DashboardPage() {
 
               {/* بطاقة الحساب */}
               <div style={{ margin:'10px 12px 6px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'14px' }}>
-                {/* الرصيد الرئيسي */}
                 <div style={{ marginBottom:12 }}>
                   <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:3 }}>الرصيد</div>
                   <div style={{ fontSize:22, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
-                    ${Math.max(Number(account?.balance)||0, Number(account?.paperBalance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                    ${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                   </div>
                   <div style={{ fontSize:13, fontWeight:700, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", marginTop:2 }}>
                     {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$ P&L
                   </div>
                 </div>
-                {/* باقي الحقول */}
                 <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
-                    { label:'القيمة', value:`$${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#C8D4E4' },
-                    { label:'الهامش المستخدم', value:`$${(Number(account?.usedMargin)||0).toFixed(0)}`, color:'#F59E0B' },
-                    { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(0)}`, color:'#10B981' },
+                    { label:'قوة الشراء', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#10B981' },
+                    { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#F59E0B' },
+                    { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#6A9EFF' },
                   ].map(item => (
                     <div key={item.label}>
                       <div style={{ fontSize:8, color:'#6A7A90', marginBottom:3, fontFamily:"'Cairo',sans-serif", lineHeight:1.3 }}>{item.label}</div>
@@ -1888,12 +1896,28 @@ export default function DashboardPage() {
               {/* تبويبان */}
               <div style={{ display:'flex', margin:'0 12px 8px', background:'rgba(255,255,255,0.03)', borderRadius:8, padding:3, gap:3 }}>
                 {(['open','closed'] as const).map(tab => (
-                  <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(); }}
+                  <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(closedDateFilter); }}
                     style={{ flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#3A4558', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
                     {tab==='open' ? `مفتوحة (${positions.length})` : `مغلقة (${closedPositions.length})`}
                   </button>
                 ))}
               </div>
+
+              {/* أزرار فلتر المغلقة */}
+              {m2PositionsTab === 'closed' && (
+                <div style={{ display:'flex', margin:'-4px 12px 8px', gap:4 }}>
+                  {(['day','week','month','year','all'] as const).map(f => {
+                    const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'الكل'}
+                    return (
+                      <button key={f} type="button"
+                        onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
+                        style={{ flex:1, padding:'4px 0', borderRadius:5, border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?'#00D4FF':'#4A5568', fontSize:9, fontFamily:"'Cairo',sans-serif", cursor:'pointer', touchAction:'manipulation' }}>
+                        {labels[f]}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
 
               {/* الصفقات */}
               <div style={{ flex:1, overflow:'auto', padding:'0 12px 16px' }}>
@@ -1901,39 +1925,50 @@ export default function DashboardPage() {
                   positions.length === 0
                   ? <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>لا توجد صفقات مفتوحة</div>
                   : positions.map((pos:any) => {
-                      const pnl = Number(pos.unrealizedPnl)||0;
-                      const isPos = pnl >= 0;
-                      const ep = Number(pos.entryPrice)||0;
-                      const dec = ep > 100 ? 2 : 4;
+                      const pnl = Number(pos.unrealizedPnl)||0
+                      const isPos = pnl >= 0
+                      const ep = Number(pos.avgEntryPrice||pos.entryPrice)||0
+                      const cp = Number(pos.currentPrice)||0
+                      const dec = ep > 100 ? 2 : 4
+                      const posKey = pos.id || pos.dbId || pos.symbol
+                      const isExpanded = expandedPositionId === posKey
                       return (
-                        <div key={pos.id} style={{ background: isPos?'rgba(0,255,163,0.03)':'rgba(255,71,87,0.03)', border:`1px solid ${isPos?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}`, borderRadius:10, padding:'10px 12px', marginBottom:7 }}>
-                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:7 }}>
+                        <div key={posKey}
+                          onClick={() => setExpandedPositionId(isExpanded ? null : posKey)}
+                          style={{ background:isPos?'rgba(0,255,163,0.03)':'rgba(255,71,87,0.03)', border:`1px solid ${isPos?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}`, borderRadius:10, padding:'10px 12px', marginBottom:7, cursor:'pointer', userSelect:'none' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                               <span style={{ fontSize:13, fontWeight:800, color:'#C8D4E4', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
                               <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                              <span style={{ fontSize:8, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{pos.tradeSource==='smart_executor'||pos.source==='smart_executor'?'AI':'وكيل'}</span>
                             </div>
-                            <span style={{ fontSize:15, fontWeight:800, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                              <span style={{ fontSize:10, color:'#8090A8', fontFamily:"'JetBrains Mono',monospace" }}>{Number(pos.qty||pos.quantity||0).toFixed(3)}</span>
+                              <span style={{ fontSize:15, fontWeight:800, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                            </div>
                           </div>
-                          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6 }}>
-                            {[
-                              ['دخول', ep.toFixed(dec)],
-                              ['حالي', (Number(pos.currentPrice)||0).toFixed(dec)],
-                              ['حجم', Number(pos.qty||pos.quantity||0).toFixed(3)],
-                              ['SL', (pos.sl||pos.stopLoss)?(Number(pos.sl||pos.stopLoss)).toFixed(dec):'—'],
-                              ['TP', (pos.tp||pos.takeProfit)?(Number(pos.tp||pos.takeProfit)).toFixed(dec):'—'],
-                              ['هامش', `$${(Number(pos.margin)||0).toFixed(0)}`],
-                            ].map(([l,v]) => (
-                              <div key={l}>
-                                <div style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace", marginBottom:1 }}>{l}</div>
-                                <div style={{ fontSize:10, color:'#9AAABB', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div>
+                          <div style={{ fontSize:10, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace", marginTop:3 }}>@ {cp > 0 ? cp.toFixed(dec) : '—'}</div>
+                          {isExpanded && (
+                            <div style={{ marginTop:8, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.06)' }}>
+                              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6 }}>
+                                {[
+                                  ['دخول', ep.toFixed(dec)],
+                                  ['SL', (pos.sl||pos.stopLoss) ? Number(pos.sl||pos.stopLoss).toFixed(dec) : '—'],
+                                  ['TP', (pos.tp||pos.takeProfit) ? Number(pos.tp||pos.takeProfit).toFixed(dec) : '—'],
+                                  ['تاريخ الفتح', pos.openedAt ? new Date(pos.openedAt).toLocaleString('ar',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '—'],
+                                  ['المصدر', (pos.tradeSource||pos.source)==='smart_executor'?'AI':'وكيل'],
+                                  ['الحجم الكامل', Number(pos.qty||pos.quantity||0).toFixed(5)],
+                                ].map(([l,v]) => (
+                                  <div key={String(l)}>
+                                    <div style={{ fontSize:7, color:'#4A5A70', fontFamily:"'JetBrains Mono',monospace", marginBottom:2 }}>{l}</div>
+                                    <div style={{ fontSize:9, color:'#9AAABB', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div>
+                                  </div>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            </div>
+                          )}
                         </div>
                       );
-                    })
-                ) : loadingClosed ? (
+                    })                ) : loadingClosed ? (
                   <div style={{ textAlign:'center', padding:'40px 0', color:'#4A5568', fontSize:12 }}>جاري التحميل...</div>
                 ) : closedPositions.length === 0 ? (
                   <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>لا توجد صفقات مغلقة</div>
@@ -1949,12 +1984,16 @@ export default function DashboardPage() {
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                             <span style={{ fontSize:13, fontWeight:800, color:'#B0C0D0', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
                             <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                            <span style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{pos.closeReason||''}</span>
+                            <span style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>
+                              {({'STOP_LOSS':'SL وقف','TAKE_PROFIT':'TP هدف','TIME_EXPIRED':'منتهي الوقت','MANUAL':'يدوي','STRATEGY_EXIT':'استراتيجية'})[pos.closeReason]||pos.closeReason||''}</span>
                           </div>
-                          <span style={{ fontSize:14, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
+                          <div style={{ textAlign:'right' }}>
+                            <div style={{ fontSize:14, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</div>
+                            <div style={{ fontSize:7, color:'#4A5568', fontFamily:"'JetBrains Mono',monospace" }}>{pos.closedAt?new Date(pos.closedAt).toLocaleDateString('ar',{month:'short',day:'numeric'}):''}</div>
+                          </div>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
-                          {[['دخول',ep.toFixed(dec)],['إغلاق',(Number(pos.closePrice||pos.exitPrice||0)).toFixed(dec)],['حجم',Number(pos.quantity).toFixed(3)]].map(([l,v])=>(
+                          {[['دخول',ep.toFixed(dec)],['إغلاق',(Number(pos.exitPrice||pos.closePrice||0)).toFixed(dec)],['حجم',Number(pos.quantity||0).toFixed(3)]].map(([l,v])=>(
                             <div key={l}><div style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{l}</div><div style={{ fontSize:9, color:'#8090A8', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div></div>
                           ))}
                         </div>

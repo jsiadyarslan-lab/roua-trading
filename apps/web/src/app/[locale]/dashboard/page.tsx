@@ -797,12 +797,13 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            height: 100vh;
+            min-height: 100vh;
+            min-height: 100svh;
             height: 100svh;
-            height: -webkit-fill-available;
             background: #0A0D13;
             overflow: hidden;
-            position: relative;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
           }
           .m2-ticker {
             display: flex !important;
@@ -832,12 +833,10 @@ export default function DashboardPage() {
           }
           .m2-chart-toolbar::-webkit-scrollbar { display: none; }
           .m2-chart-area {
-            flex: 1;
             position: relative;
             min-height: 0;
             overflow: hidden;
-            touch-action: none;  /* none يسمح للشارت بمعالجة كل gestures بنفسه */
-            -webkit-overflow-scrolling: touch;
+            touch-action: none;
           }
           .m2-bottom-nav {
             display: flex !important;
@@ -1902,7 +1901,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
-                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flex:1, minHeight:0, flexDirection:'column' }}>
+                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flexGrow:1, flexShrink:1, flexBasis:'0px', minHeight:0, flexDirection:'column' }}>
 
             {/* OHLC Info Bar — يظهر فقط في تاب الشارت */}
             {m2ActiveTab === 'chart' &&
@@ -2011,7 +2010,7 @@ export default function DashboardPage() {
             </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
-            <div style={{ flex:1, minHeight:0, position:'relative' }}>
+            <div style={{ flexGrow:1, flexShrink:1, flexBasis:'0px', minHeight:0, height:0, position:'relative' }}>
               <RouaChart
                 currentPrice={currentPrice}
                 mobile

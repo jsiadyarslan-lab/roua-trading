@@ -2021,23 +2021,7 @@ export default function DashboardPage() {
               />
             </div>
 
-            {/* Bottom info strip */}
-            <div style={{
-              position:'absolute', bottom:0, left:0, right:0, height:48,
-              background:'linear-gradient(180deg, transparent 0%, rgba(10,13,19,0.97) 50%, #0A0D13 100%)',
-              display:'flex', alignItems:'flex-end', padding:'0 12px 8px', gap:0,
-              pointerEvents:'none',
-            }}>
-              {mobileSummaryCards.map((card, i, arr) => (
-                <div key={card.label} style={{
-                  flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:1,
-                  borderRight: i < arr.length-1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-                }}>
-                  <span style={{ fontSize:8, color:'#4A5568' }}>{card.label}</span>
-                  <span style={{ fontSize:12, fontWeight:700, color:card.tone, fontFamily:"'JetBrains Mono',monospace" }}>{card.value}</span>
-                </div>
-              ))}
-            </div>
+
           </div>
 
           {/* ── BOTTOM NAVBAR ── */}

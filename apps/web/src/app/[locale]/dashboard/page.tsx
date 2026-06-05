@@ -797,9 +797,9 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            height: 100svh;
             height: 100vh;
-            max-height: -webkit-fill-available;
+            height: 100svh;
+            height: -webkit-fill-available;
             background: #0A0D13;
             overflow: hidden;
             position: relative;
@@ -843,14 +843,15 @@ export default function DashboardPage() {
             position: fixed !important;
             left: 0; right: 0; bottom: 0;
             display: flex !important;
-            height: 56px;
+            height: auto;
+            min-height: 56px;
+            padding-top: 6px;
+            padding-left: 4px;
+            padding-right: 4px;
             padding-bottom: env(safe-area-inset-bottom, 0px);
             background: rgba(8,11,16,0.98);
             border-top: 1px solid rgba(255,255,255,0.06);
             align-items: flex-start;
-            padding-top: 6px;
-            padding-left: 4px;
-            padding-right: 4px;
             z-index: 100;
           }
           /* keep old pill for fallback */
@@ -2013,15 +2014,13 @@ export default function DashboardPage() {
             </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
-            <div style={{ flex:1, minHeight:0, marginBottom:'calc(56px + env(safe-area-inset-bottom,0px))' }}>
-              <RouaChart
-                currentPrice={currentPrice}
-                mobile
-                hideToolbar
-                isChartFullscreen={chartFullscreen}
-                onToggleChartFullscreen={toggleChartFullscreen}
-              />
-            </div>
+            <RouaChart
+              currentPrice={currentPrice}
+              mobile
+              hideToolbar
+              isChartFullscreen={chartFullscreen}
+              onToggleChartFullscreen={toggleChartFullscreen}
+            />
 
             {/* Bottom info strip */}
             <div style={{

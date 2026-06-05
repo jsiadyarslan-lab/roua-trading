@@ -1604,8 +1604,8 @@ export default function DashboardPage() {
             })}
           </div>
 
-          {m2ActiveTab === 'chart' && (
           {/* ── CHART TOOLBAR ── */}
+          {m2ActiveTab === 'chart' && (
           <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>
 
             {/* ─ TF ─ */}

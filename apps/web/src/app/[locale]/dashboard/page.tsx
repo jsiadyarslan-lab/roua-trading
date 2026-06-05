@@ -803,7 +803,6 @@ export default function DashboardPage() {
             background: #0A0D13;
             overflow: hidden;
             position: relative;
-            padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
           }
           .m2-ticker {
             display: flex !important;
@@ -2042,6 +2041,8 @@ export default function DashboardPage() {
           </div>
 
           {/* ── BOTTOM NAVBAR ── */}
+          {/* Spacer: يمنع إخفاء الـ timeline تحت الناف بار */}
+          <div style={{ height: 'calc(56px + env(safe-area-inset-bottom, 0px))', flexShrink:0 }}/>
           <div className="m2-bottom-nav">
             {m2NavItems.map(item => {
               const active = m2ActiveTab === item.id

@@ -1904,7 +1904,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
-                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flex:1, flexDirection:'column' }}>
+                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flex:1, minHeight:0, flexDirection:'column' }}>
 
             {/* OHLC Info Bar — يظهر فقط في تاب الشارت */}
             {m2ActiveTab === 'chart' &&
@@ -2013,13 +2013,15 @@ export default function DashboardPage() {
             </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
-            <RouaChart
-              currentPrice={currentPrice}
-              mobile
-              hideToolbar
-              isChartFullscreen={chartFullscreen}
-              onToggleChartFullscreen={toggleChartFullscreen}
-            />
+            <div style={{ flex:1, minHeight:0, marginBottom:'calc(56px + env(safe-area-inset-bottom,0px))' }}>
+              <RouaChart
+                currentPrice={currentPrice}
+                mobile
+                hideToolbar
+                isChartFullscreen={chartFullscreen}
+                onToggleChartFullscreen={toggleChartFullscreen}
+              />
+            </div>
 
             {/* Bottom info strip */}
             <div style={{
@@ -2041,8 +2043,6 @@ export default function DashboardPage() {
           </div>
 
           {/* ── BOTTOM NAVBAR ── */}
-          {/* Spacer: يمنع إخفاء الـ timeline تحت الناف بار */}
-          <div style={{ height: 'calc(56px + env(safe-area-inset-bottom, 0px))', flexShrink:0 }}/>
           <div className="m2-bottom-nav">
             {m2NavItems.map(item => {
               const active = m2ActiveTab === item.id

@@ -119,7 +119,8 @@ export class AuthController {
   async checkSession(@Req() req: Request) {
     const sessionToken =
       req.cookies?.['roua_session'] ||
-      req.headers.authorization?.replace('Bearer ', '');
+      req.headers.authorization?.replace('Bearer ', '') ||
+      (req.headers['x-roua-session'] as string | undefined);
 
     if (!sessionToken) {
       return { authenticated: false };
@@ -139,7 +140,8 @@ export class AuthController {
   ) {
     const sessionToken =
       req.cookies?.['roua_session'] ||
-      req.headers.authorization?.replace('Bearer ', '');
+      req.headers.authorization?.replace('Bearer ', '') ||
+      (req.headers['x-roua-session'] as string | undefined);
 
     if (sessionToken) {
       await this.authService.destroySession(sessionToken);
@@ -257,7 +259,10 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   async revokeAllOtherSessions(@Req() req: Request) {
     const userId = (req as any).user?.id;
-    const currentToken = req.cookies?.['roua_session'] || req.headers.authorization?.replace('Bearer ', '');
+    const currentToken =
+      req.cookies?.['roua_session'] ||
+      req.headers.authorization?.replace('Bearer ', '') ||
+      (req.headers['x-roua-session'] as string | undefined);
 
     if (!userId) {
       return { success: false, error: 'UNAUTHENTICATED' };

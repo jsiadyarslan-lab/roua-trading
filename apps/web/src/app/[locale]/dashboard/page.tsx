@@ -833,6 +833,7 @@ export default function DashboardPage() {
           }
           .m2-chart-toolbar::-webkit-scrollbar { display: none; }
           .m2-chart-area {
+            flex: 1;
             position: relative;
             min-height: 0;
             overflow: hidden;
@@ -1900,17 +1901,18 @@ export default function DashboardPage() {
           )}
 
           {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
-                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : 'flex', flexGrow:1, flexShrink:1, flexBasis:'0px', minHeight:0, flexDirection:'column' }}>
+                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : undefined }}>
 
             {/* OHLC Info Bar — يظهر فقط في تاب الشارت */}
             {m2ActiveTab === 'chart' &&
             <div style={{
-              flexShrink:0,
-              height:28,
+              position:'absolute', top:0, left:0, right:0,
+              height:28, zIndex:10,
               overflow:'hidden',
               padding:'3px 8px 0',
-              background:'rgba(10,13,19,0.98)',
+              background:'rgba(10,13,19,0.95)',
               borderBottom:'1px solid rgba(255,255,255,0.06)',
+              pointerEvents:'none',
             }}>
               {/* السطر الأول: الزوج + OHLC مثل MT5 */}
               <div style={{ display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
@@ -1948,7 +1950,7 @@ export default function DashboardPage() {
             </div>}
 
             {m2ActiveTab === 'chart' && <div style={{
-              flexShrink:0,
+              position:'absolute', top:28, left:0, right:0, zIndex:15,
               background:'rgba(10,13,19,0.98)',
               borderBottom:'1px solid rgba(255,255,255,0.05)',
               display:'flex', alignItems:'stretch', height:44,
@@ -2009,15 +2011,13 @@ export default function DashboardPage() {
             </div>}
 
                         {/* الشارت — hideToolbar لأن toolbar الجديد يحل محله */}
-            <div style={{ flexGrow:1, flexShrink:1, flexBasis:'0px', minHeight:0, height:0, position:'relative' }}>
-              <RouaChart
-                currentPrice={currentPrice}
-                mobile
-                hideToolbar
-                isChartFullscreen={chartFullscreen}
-                onToggleChartFullscreen={toggleChartFullscreen}
-              />
-            </div>
+            <RouaChart
+              currentPrice={currentPrice}
+              mobile
+              hideToolbar
+              isChartFullscreen={chartFullscreen}
+              onToggleChartFullscreen={toggleChartFullscreen}
+            />
 
 
           </div>

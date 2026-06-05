@@ -1168,7 +1168,7 @@ export default function DashboardPage() {
     if (loadingClosed) return
     setLoadingClosed(true)
     try {
-      const res = await fetch('/api/trading/positions/history?limit=20')
+      const res = await fetch('/api/trading/positions/history?limit=100')
       if (res.ok) {
         const data = await res.json()
         setClosedPositions(Array.isArray(data) ? data : (data.positions || data.data || []))
@@ -1862,7 +1862,7 @@ export default function DashboardPage() {
               <div style={{ margin:'10px 12px 6px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'14px' }}>
                 {/* الرصيد الرئيسي */}
                 <div style={{ marginBottom:12 }}>
-                  <div style={{ fontSize:9, color:'#4A5568', fontFamily:"'Cairo',sans-serif", marginBottom:3 }}>الرصيد</div>
+                  <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:3 }}>الرصيد</div>
                   <div style={{ fontSize:22, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
                     ${Math.max(Number(account?.balance)||0, Number(account?.paperBalance)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                   </div>
@@ -1878,7 +1878,7 @@ export default function DashboardPage() {
                     { label:'الهامش الحر', value:`$${(Number(account?.freeMargin)||0).toFixed(0)}`, color:'#10B981' },
                   ].map(item => (
                     <div key={item.label}>
-                      <div style={{ fontSize:8, color:'#4A5568', marginBottom:3, fontFamily:"'Cairo',sans-serif", lineHeight:1.3 }}>{item.label}</div>
+                      <div style={{ fontSize:8, color:'#6A7A90', marginBottom:3, fontFamily:"'Cairo',sans-serif", lineHeight:1.3 }}>{item.label}</div>
                       <div style={{ fontSize:12, fontWeight:700, color:item.color, fontFamily:"'JetBrains Mono',monospace" }}>{item.value}</div>
                     </div>
                   ))}
@@ -1890,7 +1890,7 @@ export default function DashboardPage() {
                 {(['open','closed'] as const).map(tab => (
                   <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(); }}
                     style={{ flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#3A4558', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
-                    {tab==='open' ? `مفتوحة (${positions.filter((p:any)=>p.status==='OPEN').length})` : `مغلقة (${closedPositions.length})`}
+                    {tab==='open' ? `مفتوحة (${positions.length})` : `مغلقة (${closedPositions.length})`}
                   </button>
                 ))}
               </div>
@@ -1898,9 +1898,9 @@ export default function DashboardPage() {
               {/* الصفقات */}
               <div style={{ flex:1, overflow:'auto', padding:'0 12px 16px' }}>
                 {m2PositionsTab === 'open' ? (
-                  positions.filter((p:any) => p.status === 'OPEN').length === 0
+                  positions.length === 0
                   ? <div style={{ textAlign:'center', padding:'40px 0', color:'#2A3548', fontSize:12, fontFamily:"'Cairo',sans-serif" }}>لا توجد صفقات مفتوحة</div>
-                  : positions.filter((p:any) => p.status === 'OPEN').map((pos:any) => {
+                  : positions.map((pos:any) => {
                       const pnl = Number(pos.unrealizedPnl)||0;
                       const isPos = pnl >= 0;
                       const ep = Number(pos.entryPrice)||0;
@@ -1911,7 +1911,7 @@ export default function DashboardPage() {
                             <div style={{ display:'flex', alignItems:'center', gap:6 }}>
                               <span style={{ fontSize:13, fontWeight:800, color:'#C8D4E4', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
                               <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.08)':'rgba(255,71,87,0.08)', color:pos.side==='BUY'?'#00FFA3':'#FF4757', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.15)':'rgba(255,71,87,0.15)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                              <span style={{ fontSize:8, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{pos.source==='smart_executor'?'AI':'وكيل'}</span>
+                              <span style={{ fontSize:8, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{pos.tradeSource==='smart_executor'||pos.source==='smart_executor'?'AI':'وكيل'}</span>
                             </div>
                             <span style={{ fontSize:15, fontWeight:800, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
                           </div>
@@ -1919,14 +1919,14 @@ export default function DashboardPage() {
                             {[
                               ['دخول', ep.toFixed(dec)],
                               ['حالي', (Number(pos.currentPrice)||0).toFixed(dec)],
-                              ['حجم', Number(pos.quantity).toFixed(3)],
-                              ['SL', pos.stopLoss?(Number(pos.stopLoss)).toFixed(dec):'—'],
-                              ['TP', pos.takeProfit?(Number(pos.takeProfit)).toFixed(dec):'—'],
+                              ['حجم', Number(pos.qty||pos.quantity||0).toFixed(3)],
+                              ['SL', (pos.sl||pos.stopLoss)?(Number(pos.sl||pos.stopLoss)).toFixed(dec):'—'],
+                              ['TP', (pos.tp||pos.takeProfit)?(Number(pos.tp||pos.takeProfit)).toFixed(dec):'—'],
                               ['هامش', `$${(Number(pos.margin)||0).toFixed(0)}`],
                             ].map(([l,v]) => (
                               <div key={l}>
-                                <div style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace", marginBottom:1 }}>{l}</div>
-                                <div style={{ fontSize:10, color:'#6A7A90', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div>
+                                <div style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace", marginBottom:1 }}>{l}</div>
+                                <div style={{ fontSize:10, color:'#9AAABB', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div>
                               </div>
                             ))}
                           </div>
@@ -1947,15 +1947,15 @@ export default function DashboardPage() {
                       <div key={pos.id} style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:10, padding:'10px 12px', marginBottom:7 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
                           <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                            <span style={{ fontSize:13, fontWeight:800, color:'#8090A8', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
+                            <span style={{ fontSize:13, fontWeight:800, color:'#B0C0D0', fontFamily:"'JetBrains Mono',monospace" }}>{pos.symbol}</span>
                             <span style={{ fontSize:8, padding:'2px 6px', borderRadius:4, fontWeight:700, background:pos.side==='BUY'?'rgba(0,255,163,0.06)':'rgba(255,71,87,0.06)', color:pos.side==='BUY'?'rgba(0,255,163,0.6)':'rgba(255,71,87,0.6)', border:`1px solid ${pos.side==='BUY'?'rgba(0,255,163,0.1)':'rgba(255,71,87,0.1)'}` }}>{pos.side==='BUY'?'شراء':'بيع'}</span>
-                            <span style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{pos.closeReason||''}</span>
+                            <span style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{pos.closeReason||''}</span>
                           </div>
                           <span style={{ fontSize:14, fontWeight:800, color:isPos?'rgba(0,255,163,0.7)':'rgba(255,71,87,0.7)', fontFamily:"'JetBrains Mono',monospace" }}>{isPos?'+':''}{pnl.toFixed(2)}$</span>
                         </div>
                         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:4 }}>
                           {[['دخول',ep.toFixed(dec)],['إغلاق',(Number(pos.closePrice||pos.exitPrice||0)).toFixed(dec)],['حجم',Number(pos.quantity).toFixed(3)]].map(([l,v])=>(
-                            <div key={l}><div style={{ fontSize:7, color:'#2A3548', fontFamily:"'JetBrains Mono',monospace" }}>{l}</div><div style={{ fontSize:9, color:'#4A5568', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div></div>
+                            <div key={l}><div style={{ fontSize:7, color:'#5A6A80', fontFamily:"'JetBrains Mono',monospace" }}>{l}</div><div style={{ fontSize:9, color:'#8090A8', fontFamily:"'JetBrains Mono',monospace", fontWeight:600 }}>{v}</div></div>
                           ))}
                         </div>
                       </div>

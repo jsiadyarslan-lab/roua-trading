@@ -642,9 +642,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (width <= 0 || height <= 0) return;
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
-        if (chart) chart.applyOptions({ width, height });
+        if (!chart) return;
+        // تجاهل إذا الأبعاد لم تتغير — يمنع الفلاش أثناء React re-renders
+        const opts = chart.options() as any;
+        const cw = opts?.width ?? 0;
+        const ch = opts?.height ?? 0;
+        if (Math.abs(cw - width) < 1 && Math.abs(ch - height) < 1) return;
+        chart.applyOptions({ width, height });
         resizeTimer = null;
-      }, 100); // 100ms debounce — ignores iOS toolbar flicker
+      }, 100);
     });
     ro.observe(container);
     resizeObserverRef.current = ro;
@@ -664,6 +670,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           const w = containerRef.current.clientWidth;
           const h = containerRef.current.clientHeight;
           if (w > 0 && h > 0) {
+            const opts = chart.options() as any;
+            const cw = opts?.width ?? 0;
+            const ch = opts?.height ?? 0;
+            // تجاهل إذا الأبعاد لم تتغير — يمنع التمط من dispatch resize
+            if (Math.abs(cw - w) < 1 && Math.abs(ch - h) < 1) return;
             chart.applyOptions({ width: w, height: h });
           }
         }

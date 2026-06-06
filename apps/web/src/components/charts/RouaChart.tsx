@@ -247,6 +247,26 @@ function PriceSyncedTimer({ chart, currentPrice, countdown, isBull }: {
   // Only re-subscribe when currentPrice actually changes.
   const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
   useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
+
+  // Synchronous DOM update — يُستدعى مباشرة في onVisibleRangeChange بدون RAF
+  const syncOverlayPositions = useCallback(() => {
+    const getPriceCoordinate = getPriceCoordinateRef.current;
+    if (!getPriceCoordinate) return;
+    const overlayContainer = document.querySelector('.roua-overlay-layer') as HTMLElement;
+    if (!overlayContainer) return;
+    // نحصل على الـ price lines من الـ DOM عبر data attributes
+    const labels = overlayContainer.querySelectorAll('[data-trade-label]') as NodeListOf<HTMLElement>;
+    labels.forEach(el => {
+      const priceStr = el.getAttribute('data-price');
+      if (!priceStr) return;
+      const price = parseFloat(priceStr);
+      if (!price || isNaN(price)) return;
+      const y = getPriceCoordinate(price);
+      if (y !== null) {
+        el.style.transform = `translateY(${y - 24}px)`;
+      }
+    });
+  }, []);
   const onVisibleRangeChangeRef = useRef(chart.onVisibleRangeChange);
   useEffect(() => { onVisibleRangeChangeRef.current = chart.onVisibleRangeChange; }, [chart.onVisibleRangeChange]);
 
@@ -1588,6 +1608,26 @@ export default function RouaChart({
   const getPriceCoordinateRef = useRef(chart.getPriceCoordinate);
   useEffect(() => { getPriceCoordinateRef.current = chart.getPriceCoordinate; }, [chart.getPriceCoordinate]);
 
+  // Synchronous DOM update — يُستدعى مباشرة في onVisibleRangeChange بدون RAF
+  const syncOverlayPositions = useCallback(() => {
+    const getPriceCoordinate = getPriceCoordinateRef.current;
+    if (!getPriceCoordinate) return;
+    const overlayContainer = document.querySelector('.roua-overlay-layer') as HTMLElement;
+    if (!overlayContainer) return;
+    // نحصل على الـ price lines من الـ DOM عبر data attributes
+    const labels = overlayContainer.querySelectorAll('[data-trade-label]') as NodeListOf<HTMLElement>;
+    labels.forEach(el => {
+      const priceStr = el.getAttribute('data-price');
+      if (!priceStr) return;
+      const price = parseFloat(priceStr);
+      if (!price || isNaN(price)) return;
+      const y = getPriceCoordinate(price);
+      if (y !== null) {
+        el.style.transform = `translateY(${y - 24}px)`;
+      }
+    });
+  }, []);
+
   // ── Recalculate overlay positions (runs on every scroll/zoom via rAF) ──
   // FIX: Removed `chart` from useCallback deps. Uses refs instead to prevent
   // the callback from being recreated on every render, which caused the
@@ -1765,7 +1805,13 @@ export default function RouaChart({
     let unsub: (() => void) | null = null;
     const onVisibleRangeChange = onVisibleRangeChangeRef.current;
     if (onVisibleRangeChange) {
-      unsub = onVisibleRangeChange(scheduleOverlayUpdate);
+      // syncOverlayPositions: يعمل synchronously في نفس الـ frame → لا تأخر بصري
+      // scheduleOverlayUpdate: يُزامن React state (أقل تكراراً)
+      const handleRangeChange = () => {
+        syncOverlayPositions();      // فوري — نفس frame الـ canvas
+        scheduleOverlayUpdateRef.current(); // state sync عند الحاجة
+      };
+      unsub = onVisibleRangeChange(handleRangeChange);
     }
     // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
@@ -3062,7 +3108,7 @@ export default function RouaChart({
               const isDraggable = (isSL || isTP);
 
               return (
-                <div key={ov.key} data-trade-label={ov.key} style={{
+                <div key={ov.key} data-trade-label={ov.key} data-price={String(ov.price)} style={{
                   position: 'absolute',
                   top: 0,
                   left: 6,

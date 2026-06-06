@@ -1127,15 +1127,16 @@ export default function DashboardPage() {
   // and resizes the TradingView canvas.
   const chartPanelRef = useRef<HTMLDivElement | null>(null)
 
-  // Force chart canvas resize after positions toggle
+  // Force chart canvas resize after positions toggle (desktop only)
+  // الجوال لا يحتاج لهذا — الـ ResizeObserver يتعامل مع التغييرات
   useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const isMobile = window.innerWidth < 768;
+    if (isMobile) return; // الجوال: نتجنب dispatch غير ضروري
     const timer = setTimeout(() => {
       window.dispatchEvent(new Event('resize'))
-    }, 50)
-    const timer2 = setTimeout(() => {
-      window.dispatchEvent(new Event('resize'))
-    }, 300)
-    return () => { clearTimeout(timer); clearTimeout(timer2) }
+    }, 150) // 150ms بدل 50ms — نعطي CSS وقتاً كافياً
+    return () => { clearTimeout(timer) }
   }, [posOpen])
 
   useEffect(() => {

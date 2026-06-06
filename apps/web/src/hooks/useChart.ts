@@ -117,6 +117,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   const shortcutsRef = useRef<KeyboardShortcuts | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const windowResizeHandlerRef = useRef<(() => void) | null>(null);
+  // نتتبع آخر dimensions طبقناها على الشارت — أدق من chart.options()
+  const lastAppliedSizeRef = useRef<{ w: number; h: number }>({ w: 0, h: 0 });
   const mainSeriesRef = useRef<ISeriesApi<SeriesType> | null>(null);
   const priceLinesRef = useRef<Map<string, any>>(new Map());
   // FIX: Persist markers across data updates — lightweight-charts v5 clears markers
@@ -505,6 +507,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     });
 
     const chart = createChart(container, chartOptions);
+    lastAppliedSizeRef.current = { w: initialWidth, h: initialHeight };
 
     // ── Block setPointerCapture on mobile ──
     // lightweight-charts calls setPointerCapture() on the canvas on every
@@ -643,12 +646,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       if (resizeTimer) clearTimeout(resizeTimer);
       resizeTimer = setTimeout(() => {
         if (!chart) return;
-        // تجاهل إذا الأبعاد لم تتغير — يمنع الفلاش أثناء React re-renders
-        const opts = chart.options() as any;
-        const cw = opts?.width ?? 0;
-        const ch = opts?.height ?? 0;
-        if (Math.abs(cw - width) < 1 && Math.abs(ch - height) < 1) return;
+        const last = lastAppliedSizeRef.current;
+        if (Math.abs(last.w - width) < 1 && Math.abs(last.h - height) < 1) return;
         chart.applyOptions({ width, height });
+        lastAppliedSizeRef.current = { w: width, h: height };
         resizeTimer = null;
       }, 100);
     });
@@ -670,12 +671,10 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           const w = containerRef.current.clientWidth;
           const h = containerRef.current.clientHeight;
           if (w > 0 && h > 0) {
-            const opts = chart.options() as any;
-            const cw = opts?.width ?? 0;
-            const ch = opts?.height ?? 0;
-            // تجاهل إذا الأبعاد لم تتغير — يمنع التمط من dispatch resize
-            if (Math.abs(cw - w) < 1 && Math.abs(ch - h) < 1) return;
+            const last = lastAppliedSizeRef.current;
+            if (Math.abs(last.w - w) < 1 && Math.abs(last.h - h) < 1) return;
             chart.applyOptions({ width: w, height: h });
+            lastAppliedSizeRef.current = { w, h };
           }
         }
         winResizeTimer = null;

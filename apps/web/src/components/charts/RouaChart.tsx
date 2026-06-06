@@ -1720,6 +1720,16 @@ export default function RouaChart({
         lastOverlayStructureRef.current = structureHash;
         setTradeOverlays(overlays);
         setFillZones(zones);
+        // نُطبّق DOM update مباشرة بعد React state حتى لا يحدث flash
+        requestAnimationFrame(() => {
+          const overlayContainer = document.querySelector('.roua-overlay-layer');
+          if (overlayContainer) {
+            overlays.forEach((ov) => {
+              const el = overlayContainer.querySelector(`[data-trade-label="${ov.key}"]`) as HTMLElement;
+              if (el) el.style.transform = `translateY(${ov.y - 24}px)`;
+            });
+          }
+        });
       } else {
         // Position-only update: move existing DOM elements directly without React re-render
         // This is the KEY optimization — no setState → no re-render → chart stays smooth
@@ -1735,12 +1745,11 @@ export default function RouaChart({
                 el.style.height = Math.max(zone.height, 1) + 'px';
               }
             });
-            // Update trade label positions directly using GPU-accelerated transform
-            const labelEls = overlayContainer.querySelectorAll('[data-trade-label]');
-            overlays.forEach((ov, i) => {
-              const el = labelEls[i] as HTMLElement;
+            // Update trade label positions directly (no React re-render lag)
+            overlays.forEach((ov) => {
+              const el = overlayContainer.querySelector(`[data-trade-label="${ov.key}"]`) as HTMLElement;
               if (el) {
-                el.style.transform = `translateY(${ov.y - 9}px)`;
+                el.style.transform = `translateY(${ov.y - 24}px)`;
               }
             });
           }
@@ -3070,7 +3079,7 @@ export default function RouaChart({
                   pointerEvents: isDraggable ? 'auto' : 'none',
                   touchAction: isDraggable ? 'none' : 'auto',
                   // Position ABOVE the line (label height ~20px + 4px gap)
-                  transform: `translateY(${ov.y - 24}px)`,
+                  transform: 'none', /* DOM manipulation handles positioning */
                   willChange: 'transform',
                   cursor: isDraggable ? 'ns-resize' : 'default',
                   userSelect: 'none',

@@ -17,7 +17,7 @@ import { SignalEvaluatorService } from './services/signal-evaluator.service';
 import { RiskCalculatorService } from './services/risk-calculator.service';
 import { OrderExecutorService } from './services/order-executor.service';
 import { StrategicCouncilService } from '../../modules/ai/strategic-council/strategic-council.service';
-import { TradingBriefDTO, AGENT_TIMEFRAMES, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
+import { TradingBriefDTO, AGENT_TIMEFRAMES, TIMEFRAME_RR, isAgentTimeframe, isSymbolSupportedByExchange } from '../../modules/ai/strategic-council/strategic-council.types';
 
 import {
   AgentStatus,
@@ -1677,6 +1677,41 @@ export class AutonomousTraderAgentService implements OnModuleInit {
 
           signalsGenerated++;
 
+          // ── FIX: Validate SL/TP against CURRENT market price ──
+          // Brief levels were calculated at creation time. By execution time,
+          // price may have moved significantly. If TP is on the wrong side
+          // of the current entry price, recalculate from current price.
+          let execEntryPrice = brief.entryPrice;
+          let execStopLoss = brief.stopLoss;
+          let execTakeProfit = brief.takeProfit;
+          try {
+            const liveQuote = await this.exchangeService.getQuote(brief.pair);
+            if (liveQuote?.price) {
+              execEntryPrice = liveQuote.price;
+              const isBuy = brief.direction === 'BUY';
+              const { sl, tp } = TIMEFRAME_RR[brief.timeframe] || { sl: 0.01, tp: 0.02 };
+              // Check if TP is on wrong side of CURRENT price
+              const tpIsWrong = isBuy
+                ? execTakeProfit <= execEntryPrice   // BUY TP must be above entry
+                : execTakeProfit >= execEntryPrice;  // SELL TP must be below entry
+              const slIsWrong = isBuy
+                ? execStopLoss >= execEntryPrice     // BUY SL must be below entry
+                : execStopLoss <= execEntryPrice;    // SELL SL must be above entry
+              if (tpIsWrong || slIsWrong) {
+                this.logger.warn(
+                  `🧠 SL/TP stale for ${brief.pair} ${brief.direction}: ` +
+                  `entry=${execEntryPrice} SL=${execStopLoss} TP=${execTakeProfit} — recalculating from live price`
+                );
+                execStopLoss = isBuy
+                  ? execEntryPrice * (1 - sl)
+                  : execEntryPrice * (1 + sl);
+                execTakeProfit = isBuy
+                  ? execEntryPrice * (1 + tp)
+                  : execEntryPrice * (1 - tp);
+              }
+            }
+          } catch { /* use brief levels as fallback */ }
+
           // Risk assessment using the brief's SL/TP
           const signal: EvaluatedSignal = {
             id: brief.id,
@@ -1685,15 +1720,15 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             type: OrderType.MARKET,
             confidence: brief.confidence,
             strategy: state.config.strategy,
-            entryPrice: brief.entryPrice,
-            stopLoss: brief.stopLoss,
-            takeProfit: brief.takeProfit,
+            entryPrice: execEntryPrice,
+            stopLoss: execStopLoss,
+            takeProfit: execTakeProfit,
             quantity: 0, // Will be calculated by risk assessment
             reasoning: brief.analysisSummary || `Council brief: ${brief.timeframe} ${brief.direction}`,
-            riskRewardRatio: Math.abs(brief.takeProfit - brief.entryPrice) / Math.abs(brief.entryPrice - brief.stopLoss),
+            riskRewardRatio: Math.abs(execTakeProfit - execEntryPrice) / Math.abs(execEntryPrice - execStopLoss),
             riskScore: 100 - brief.confidence,
             timestamp: new Date(),
-            timeframe: brief.timeframe, // V146b: Pass timeframe for proper idempotency TTL
+            timeframe: brief.timeframe,
             metadata: { briefId: brief.id, timeframe: brief.timeframe, source: 'council' },
           };
 

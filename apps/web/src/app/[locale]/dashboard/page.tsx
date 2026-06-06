@@ -37,6 +37,9 @@ const ScannerMini = dynamic(() => import('@/components/dashboard/ScannerMini').t
 const AlNarratorMini = dynamic(() => import('@/components/ai/AlNarratorMini').then(m => ({ default: m.AlNarratorMini })), { ssr: false })
 const PortfolioMini = dynamic(() => import('@/components/portfolio/PortfolioMini').then(m => ({ default: m.PortfolioMini })), { ssr: false })
 const QuickExecutionMini = dynamic(() => import('@/components/dashboard/QuickExecutionMini').then(m => ({ default: m.QuickExecutionMini })), { ssr: false })
+const AgentControlMini   = dynamic(() => import('@/components/dashboard/AgentControlMini').then(m => ({ default: m.AgentControlMini })), { ssr: false })
+const StrategicCouncilPanel = dynamic(() => import('@/components/dashboard/StrategicCouncilPanel').then(m => ({ default: m.StrategicCouncilPanel })), { ssr: false })
+const SmartExecutorPanel = dynamic(() => import('@/components/dashboard/SmartExecutorPanel').then(m => ({ default: m.SmartExecutorPanel })), { ssr: false })
 
 const T = {
   bg: SharedT.bg,
@@ -1112,7 +1115,7 @@ export default function DashboardPage() {
     { id:'chart',     label: 'الشارت'  },
     { id:'positions', label: 'الصفقات' },
     { id:'scanner',   label: 'السكانر' },
-    { id:'ai',        label: 'AI'       },
+    { id:'ai',        label: 'القرار'   },
     { id:'menu',      label: 'المزيد'  },
   ]
 
@@ -1865,6 +1868,61 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* ── مركز القرار ── */}
+          {m2ActiveTab === 'ai' && (
+            <div style={{
+              flex:1, overflowY:'auto', overflowX:'hidden',
+              background:'#080B10', paddingBottom:70,
+            }}>
+              {/* Header */}
+              <div style={{ padding:'12px 14px 8px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ fontSize:14, fontWeight:800, color:'#E0ECF8', fontFamily:"'Cairo',sans-serif" }}>
+                  مركز صنع القرار
+                </div>
+                <div style={{ fontSize:10, color:'#5A6A80', fontFamily:"'Cairo',sans-serif", marginTop:2 }}>
+                  المنفذ · الوكيل · المجلس · الإشارات
+                </div>
+              </div>
+
+              {/* المنفذ الذكي */}
+              <div style={{ margin:'10px 12px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding:'8px 12px', background:'rgba(0,212,255,0.05)', borderBottom:'1px solid rgba(0,212,255,0.08)', display:'flex', alignItems:'center', gap:6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00D4FF" strokeWidth="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#00D4FF', fontFamily:"'Cairo',sans-serif" }}>المنفذ الذكي</span>
+                </div>
+                <SmartExecutorPanel />
+              </div>
+
+              {/* الوكيل */}
+              <div style={{ margin:'10px 12px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding:'8px 12px', background:'rgba(167,139,250,0.05)', borderBottom:'1px solid rgba(167,139,250,0.1)', display:'flex', alignItems:'center', gap:6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#A78BFA', fontFamily:"'Cairo',sans-serif" }}>الوكيل الآلي</span>
+                </div>
+                <AgentControlMini />
+              </div>
+
+              {/* المجلس الاستراتيجي */}
+              <div style={{ margin:'10px 12px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding:'8px 12px', background:'rgba(245,158,11,0.05)', borderBottom:'1px solid rgba(245,158,11,0.1)', display:'flex', alignItems:'center', gap:6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#F59E0B', fontFamily:"'Cairo',sans-serif" }}>المجلس الاستراتيجي</span>
+                </div>
+                <StrategicCouncilPanel />
+              </div>
+
+              {/* إشارات السكانر */}
+              <div style={{ margin:'10px 12px 0', borderRadius:12, overflow:'hidden', border:'1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding:'8px 12px', background:'rgba(0,255,163,0.04)', borderBottom:'1px solid rgba(0,255,163,0.08)', display:'flex', alignItems:'center', gap:6 }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" strokeWidth="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                  <span style={{ fontSize:11, fontWeight:700, color:'#00FFA3', fontFamily:"'Cairo',sans-serif" }}>إشارات السكانر</span>
+                </div>
+                <ScannerMini mobile />
+              </div>
+
+            </div>
+          )}
+
           {/* ── CHART AREA ── */}
           {/* ── TAB: Positions ── */}
           {m2ActiveTab === 'positions' && (
@@ -2028,7 +2086,7 @@ export default function DashboardPage() {
           )}
 
           {/* ── الشارت + toolbar — يظهر فقط في تاب الشارت ── */}
-                    <div className="m2-chart-area" style={{ display: m2ActiveTab==='positions' ? 'none' : undefined }}>
+                    <div className="m2-chart-area" style={{ display: (m2ActiveTab==='positions' || m2ActiveTab==='ai') ? 'none' : undefined }}>
 
             {/* OHLC Info Bar — يظهر فقط في تاب الشارت */}
             {m2ActiveTab === 'chart' &&
@@ -2160,7 +2218,7 @@ export default function DashboardPage() {
                     if (item.id === 'menu') setM2ShowMore(true)
                     else if (item.id === 'portfolio') router.push('/dashboard/portfolio')
                     else if (item.id === 'scanner')   router.push('/dashboard/scanner')
-                    else if (item.id === 'ai')        router.push('/dashboard/ai')
+                    // AI tab is now inline decision center
                     else if (item.id === 'chart')     router.push('/dashboard')
                   }}
                   style={{

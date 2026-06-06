@@ -1763,43 +1763,19 @@ export default function RouaChart({
   // React error #185 (infinite update depth exceeded).
   useEffect(() => {
     let unsub: (() => void) | null = null;
-    let panHideTimer: ReturnType<typeof setTimeout> | null = null;
-
-    // عند تحريك الشارت: نخفي الـ overlay فوراً لمنع التأخر البصري
-    // عند التوقف: نُظهره ونُحدَّث المواضع
-    const handleVisibleRangeChange = () => {
-      // إخفاء فوري — لا انتظار
-      const overlayContainer = document.querySelector('.roua-overlay-layer') as HTMLElement;
-      if (overlayContainer) overlayContainer.style.opacity = '0';
-
-      // إلغاء أي timer سابق
-      if (panHideTimer) clearTimeout(panHideTimer);
-
-      // بعد 120ms من التوقف: تحديث المواضع وإظهار
-      panHideTimer = setTimeout(() => {
-        scheduleOverlayUpdateRef.current();
-        if (overlayContainer) {
-          overlayContainer.style.transition = 'opacity 0.08s ease';
-          overlayContainer.style.opacity = '1';
-          // نحذف الـ transition بعد الانتهاء حتى لا تؤثر على الإخفاء القادم
-          setTimeout(() => { if (overlayContainer) overlayContainer.style.transition = ''; }, 100);
-        }
-      }, 120);
-    };
-
     const onVisibleRangeChange = onVisibleRangeChangeRef.current;
     if (onVisibleRangeChange) {
-      unsub = onVisibleRangeChange(handleVisibleRangeChange);
+      unsub = onVisibleRangeChange(scheduleOverlayUpdate);
     }
+    // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
+
+    // Periodic overlay refresh to catch vertical price-scale changes
+    // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
+    // PERF: 3000ms — positions update via DOM manipulation between full state updates
     const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
 
-    return () => {
-      unsub?.();
-      clearTimeout(timer);
-      clearInterval(priceScaleInterval);
-      if (panHideTimer) clearTimeout(panHideTimer);
-    };
+    return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps — stable refs used inside
 

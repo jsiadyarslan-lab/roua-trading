@@ -1244,11 +1244,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Only use incremental update for the LAST candle
     // (which is the one WebSocket updates in real-time)
     if (lastCandle && lastCandle.time === time) {
-      // FIX: الـ kline من Binance يصل متأخراً قليلاً — قد يحتوي high/low أقل من
-      // ما رسمناه بالفعل عبر updateLastCandle. نحافظ على أعلى high وأدنى low.
+      // الـ kline من Binance يصل متأخراً — close وhigh وlow قد تكون أقل دقة
+      // من البيانات التي رسمناها عبر updateLastCandle
+      const isClosed = !!(candle as any)._isClosed;
+      // للشمعة المفتوحة: close من آخر price tick (أحدث)
+      // للشمعة المغلقة: close من kline (نهائي ودقيق)
+      const closeToUse = isClosed ? candle.close : lastCandle.close;
+      // high وlow: دائماً نأخذ الأقصى — لا يتراجعان أبداً
       const mergedHigh = Math.max(lastCandle.high, candle.high);
       const mergedLow  = Math.min(lastCandle.low,  candle.low);
-      const s = sanitizeOhlc(candle.open, mergedHigh, mergedLow, candle.close);
+      const s = sanitizeOhlc(candle.open, mergedHigh, mergedLow, closeToUse);
       const updated = { ...candle, time, open: s.open, high: s.high, low: s.low, close: s.close };
       candles[candles.length - 1] = updated;
 

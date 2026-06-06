@@ -152,6 +152,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // The guard ensures that clearing data in [symbol] effect only happens when
   // the current data actually belongs to the OLD symbol.
   const lastLoadedDataKeyRef = useRef<string>('');
+  // Refs للـ symbol وtimeframe الحاليين — دائماً محدَّثان
+  // يُستخدمان داخل setCandles بدل الـ closure المتجمدة
+  const currentSymbolRef = useRef(symbol);
+  const currentTimeframeRef = useRef(timeframe);
+  // نُزامنهما في كل render (مزامنة synchronous — لا useEffect)
+  currentSymbolRef.current = symbol;
+  currentTimeframeRef.current = timeframe;
 
   // ── Template restore flag ──
   // When a grid template is being loaded, the calling code pre-saves state
@@ -1567,7 +1574,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       // FIX: Mark that data was successfully loaded for this symbol+timeframe.
       // This prevents the [symbol] effect from accidentally clearing data
       // that was JUST set by the fetch (race condition on symbol switch).
-      lastLoadedDataKeyRef.current = `${symbol}:${timeframe}`;
+      // استخدام ref بدل closure — دائماً يحوي الرمز الحالي وليس القديم
+      lastLoadedDataKeyRef.current = `${currentSymbolRef.current}:${currentTimeframeRef.current}`;
     } catch (e) {
       console.error('[useChart] setCandles setData error:', e);
     }

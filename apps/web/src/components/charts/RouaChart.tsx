@@ -1016,8 +1016,8 @@ export default function RouaChart({
         const { updatePositionPrice } = usePositionsStore.getState();
         updatePositionPrice(selectedSymbol_, price);
       } catch { /* store may not be ready */ }
-      // Schedule overlay recalculation so trade markers stay aligned
-      scheduleOverlayUpdateRef.current();
+      // Overlay positions update via onVisibleRangeChange + 3s interval
+      // لا نستدعي scheduleOverlayUpdate هنا — كل تحديث سعر كان يُطلق React re-render
     },
     // FIX: When the main chart is in multi-chart mode (canvas hidden),
     // disable WebSocket to prevent wasted resources. Mini charts have their
@@ -1582,7 +1582,7 @@ export default function RouaChart({
   // every rAF, we use direct DOM manipulation for position updates and only
   // setState when the structure changes (e.g. trades added/removed).
   const lastOverlayUpdateRef = useRef(0);
-  const OVERLAY_THROTTLE_MS = 50; // ~20fps for overlay position updates (reduced from 120ms to fix label jitter)
+  const OVERLAY_THROTTLE_MS = 200; // 5fps is enough for label positions
   const lastOverlayStructureRef = useRef(''); // Hash to detect structural changes
 
   // Keep latest positions/trades in ref so the rAF callback always has fresh data

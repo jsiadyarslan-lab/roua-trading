@@ -647,11 +647,11 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       resizeTimer = setTimeout(() => {
         if (!chart) return;
         const last = lastAppliedSizeRef.current;
-        if (Math.abs(last.w - width) < 1 && Math.abs(last.h - height) < 1) return;
+        if (Math.abs(last.w - width) < 3 && Math.abs(last.h - height) < 3) return;
         chart.applyOptions({ width, height });
         lastAppliedSizeRef.current = { w: width, h: height };
         resizeTimer = null;
-      }, 100);
+      }, 150);
     });
     ro.observe(container);
     resizeObserverRef.current = ro;
@@ -672,13 +672,13 @@ export function useChart(options: UseChartOptions): UseChartReturn {
           const h = containerRef.current.clientHeight;
           if (w > 0 && h > 0) {
             const last = lastAppliedSizeRef.current;
-            if (Math.abs(last.w - w) < 1 && Math.abs(last.h - h) < 1) return;
+            if (Math.abs(last.w - w) < 3 && Math.abs(last.h - h) < 3) return;
             chart.applyOptions({ width: w, height: h });
             lastAppliedSizeRef.current = { w, h };
           }
         }
         winResizeTimer = null;
-      }, 100);
+      }, 200);
     };
     window.addEventListener('resize', handleWindowResize);
     windowResizeHandlerRef.current = handleWindowResize;

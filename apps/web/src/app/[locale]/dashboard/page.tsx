@@ -1100,7 +1100,8 @@ export default function DashboardPage() {
   const [closedPositions, setClosedPositions] = useState<any[]>([])
   const [loadingClosed, setLoadingClosed] = useState(false)
   const [expandedPositionId, setExpandedPositionId] = useState<string|null>(null)
-  const [closedDateFilter, setClosedDateFilter] = useState<'day'|'week'|'month'|'year'|'all'>('all')  // طي/فتح لوحة التنفيذ
+  const [closedDateFilter, setClosedDateFilter] = useState<'day'|'week'|'month'|'year'|'all'>('all')
+  const closedPnlTotal = closedPositions.reduce((sum:number, p:any) => sum + (Number(p.realizedPnl||p.pnl)||0), 0)  // طي/فتح لوحة التنفيذ
   const [m2ShowMore, setM2ShowMore] = useState(false)               // قائمة المزيد
   const [m2ShowMarkets, setM2ShowMarkets] = useState(false)         // قائمة الأسواق
   const [m2ShowDrawing, setM2ShowDrawing] = useState(false)         // قائمة أدوات الرسم
@@ -1580,8 +1581,8 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* ── TICKER STRIP ── */}
-          <div className="m2-ticker" style={{ display: m2ActiveTab==='chart'?undefined:'none' }}>
+          {/* ── TICKER STRIP — يظهر فقط في الشارت ── */}
+          {m2ActiveTab === 'chart' && <div className="m2-ticker">
             {['BTC/USD','ETH/USD','EUR/USD','GBP/USD','USD/JPY','XAU/USD','SOL/USD'].map(sym => {
               const q = globalQuotes[sym]
               const chgPct = q?.changePercent ?? 0
@@ -1609,6 +1610,7 @@ export default function DashboardPage() {
             })}
           </div>
 
+          }
           {/* ── CHART TOOLBAR ── */}
           {m2ActiveTab === 'chart' && (
           <div className="m2-chart-toolbar" style={{ gap:2, padding:'0 10px' }}>
@@ -1929,37 +1931,37 @@ export default function DashboardPage() {
             <div style={{ flex:1, overflow:'auto', display:'flex', flexDirection:'column' }}>
 
               {/* بطاقة الحساب */}
-              <div style={{ margin:'10px 12px 6px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'14px' }}>
+              <div style={{ margin:'6px 12px 4px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'10px 12px' }}>
                 {/* P&L — أعلى المنتصف، الأهم للمتداول */}
                 {(() => {
                   const pnl = Number(account?.unrealizedPnl)||0
                   const isPos = pnl >= 0
                   return (
-                    <div style={{ textAlign:'center', marginBottom:12, paddingBottom:12, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+                    <div style={{ textAlign:'center', marginBottom:8, paddingBottom:8, borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
                       <div style={{ fontSize:9, color:'#6A7A90', fontFamily:"'Cairo',sans-serif", marginBottom:4 }}>الربح / الخسارة</div>
-                      <div style={{ fontSize:26, fontWeight:900, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", lineHeight:1, letterSpacing:'-0.5px' }}>
+                      <div style={{ fontSize:22, fontWeight:900, color:isPos?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
                         {isPos?'+':''}{pnl.toFixed(2)}$
                       </div>
                     </div>
                   )
                 })()}
                 {/* الرصيد + الرصيد الحالي */}
-                <div style={{ marginBottom:12 }}>
+                <div style={{ marginBottom:8 }}>
                   <div>
-                    <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:2 }}>الرصيد</div>
-                    <div style={{ fontSize:18, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
+                    <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:1 }}>الرصيد</div>
+                    <div style={{ fontSize:16, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
                       ${(Number(account?.cash||account?.portfolioValue)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </div>
                   </div>
                   <div style={{ marginTop:6 }}>
                     <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:2 }}>الرصيد الحالي</div>
-                    <div style={{ fontSize:15, fontWeight:700, color:'#B0C0D0', fontFamily:"'JetBrains Mono',monospace" }}>
+                    <div style={{ fontSize:13, fontWeight:700, color:'#B0C0D0', fontFamily:"'JetBrains Mono',monospace" }}>
                       ${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
                     </div>
                   </div>
                 </div>
                 {/* الهامش + هامش مستخدم + نسبة الهامش */}
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:6, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
                   {[
                     { label:'الهامش', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#34D399' },
                     { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#FBBF24' },
@@ -1974,28 +1976,40 @@ export default function DashboardPage() {
               </div>
 
               {/* تبويبان */}
-              <div style={{ display:'flex', margin:'0 12px 8px', background:'rgba(255,255,255,0.03)', borderRadius:8, padding:3, gap:3 }}>
+              <div style={{ display:'flex', margin:'0 12px 4px', background:'rgba(255,255,255,0.03)', borderRadius:7, padding:2, gap:2 }}>
                 {(['open','closed'] as const).map(tab => (
                   <button key={tab} type="button" onClick={() => { setM2PositionsTab(tab); if(tab==='closed') fetchClosedPositions(closedDateFilter); }}
-                    style={{ flex:1, padding:'7px 0', borderRadius:6, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#7A8A9A', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
+                    style={{ flex:1, padding:'5px 0', borderRadius:5, border:'none', cursor:'pointer', background: m2PositionsTab===tab?'rgba(0,212,255,0.1)':'transparent', color: m2PositionsTab===tab?'#00D4FF':'#7A8A9A', fontSize:11, fontWeight:700, fontFamily:"'Cairo',sans-serif", touchAction:'manipulation' }}>
                     {tab==='open' ? `مفتوحة (${positions.length})` : `مغلقة (${closedPositions.length})`}
                   </button>
                 ))}
               </div>
 
-              {/* أزرار فلتر المغلقة */}
+              {/* أزرار فلتر المغلقة + إجمالي الربح/الخسارة */}
               {m2PositionsTab === 'closed' && (
-                <div style={{ display:'flex', margin:'-4px 12px 8px', gap:4 }}>
-                  {(['day','week','month','year','all'] as const).map(f => {
-                    const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'الكل'}
-                    return (
-                      <button key={f} type="button"
-                        onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
-                        style={{ flex:1, padding:'4px 0', borderRadius:5, border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?'#00D4FF':'#7A8A9A', fontSize:9, fontFamily:"'Cairo',sans-serif", cursor:'pointer', touchAction:'manipulation' }}>
-                        {labels[f]}
-                      </button>
-                    )
-                  })}
+                <div style={{ margin:'0 12px 4px' }}>
+                  <div style={{ display:'flex', gap:3, marginBottom:4 }}>
+                    {(['day','week','month','year','all'] as const).map(f => {
+                      const labels = {day:'يومي',week:'أسبوعي',month:'شهري',year:'سنوي',all:'الكل'}
+                      return (
+                        <button key={f} type="button"
+                          onClick={() => { setClosedDateFilter(f); fetchClosedPositions(f); }}
+                          style={{ flex:1, padding:'3px 0', borderRadius:4, border:`1px solid ${closedDateFilter===f?'rgba(0,212,255,0.3)':'rgba(255,255,255,0.06)'}`, background: closedDateFilter===f?'rgba(0,212,255,0.08)':'transparent', color: closedDateFilter===f?'#00D4FF':'#7A8A9A', fontSize:9, fontFamily:"'Cairo',sans-serif", cursor:'pointer', touchAction:'manipulation' }}>
+                          {labels[f]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {closedPositions.length > 0 && (
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'4px 6px', background:'rgba(255,255,255,0.02)', borderRadius:6, border:'1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ fontSize:9, color:'#6A7A90', fontFamily:"'Cairo',sans-serif" }}>
+                        إجمالي {closedPositions.length} صفقة
+                      </span>
+                      <span style={{ fontSize:12, fontWeight:800, fontFamily:"'JetBrains Mono',monospace", color: closedPnlTotal >= 0 ? '#00FFA3' : '#FF4757' }}>
+                        {closedPnlTotal >= 0 ? '+' : ''}{closedPnlTotal.toFixed(2)}$
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
 

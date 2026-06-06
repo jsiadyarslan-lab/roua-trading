@@ -1541,7 +1541,7 @@ export default function DashboardPage() {
            MOBILE V2 — التصميم الجديد
           ═══════════════════════════════════════════ */}
       {isMobileViewport && (
-        <div className="m2-shell">
+        <div className="m2-shell" dir="rtl">
 
           {/* ── HEADER: لوغو + معلومات الحساب ── */}
           <div style={{

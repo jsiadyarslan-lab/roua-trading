@@ -2658,11 +2658,13 @@ export default function RouaChart({
   return (
     <div
       onMouseDown={isGridCell ? onActivate : undefined}
+      dir="ltr"
       style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         width: '100%',
+        direction: 'ltr',
         background: T.bg,
         // Active cell gets a bright border so the user knows which chart the toolbar controls
         outline: isGridCell && isActive ? '1.5px solid rgba(0,212,255,0.4)' : isGridCell ? '1px solid #1E2530' : 'none',

@@ -792,6 +792,8 @@ export default function DashboardPage() {
             display: none;
           }
 
+          .show-on-mobile-only { display: flex !important; }
+
           /* ── Mobile V2 shell ── */
           .m2-shell {
             display: flex !important;

@@ -243,7 +243,7 @@ export const useNotificationStore = create<NotificationState>()(
 
         set((state) => ({
           notifications: [notif, ...state.notifications].slice(0, 100),
-          toasts: [notif, ...state.toasts].slice(0, 10),
+          toasts: [notif, ...state.toasts].slice(0, 4), // max 4 visible at once
         }))
 
         // Play sound for urgent/high priority

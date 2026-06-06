@@ -119,9 +119,11 @@ function timeAgo(ts: number) {
 function ToastCard({
   notif,
   onDismiss,
+  isMobile = false,
 }: {
   notif: Notification
   onDismiss: (id: string) => void
+  isMobile?: boolean
 }) {
   const [visible, setVisible] = useState(false)
   const [executed, setExecuted] = useState(false)
@@ -429,23 +431,56 @@ export function NotificationToasts() {
   const locale = useLocale()
   const isRtl = isRtlLocale(locale)
 
+  // الجوال: نكشفه من الـ CSS class
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+
+  // Desktop: max 3 — Mobile: max 2
+  const visibleToasts = isMobile
+    ? toasts.slice(0, 2)
+    : toasts.slice(0, 3)
+
   return (
     <>
+      {/* Desktop */}
       <div
+        className="hide-on-mobile"
         style={{
           position: 'fixed',
           bottom: 20,
           ...(isRtl ? { left: 20 } : { right: 20 }),
           zIndex: 99999,
           display: 'flex',
-          flexDirection: 'column',
-          gap: 10,
+          flexDirection: 'column-reverse',
+          gap: 8,
+          maxWidth: 380,
           pointerEvents: 'none',
         }}
       >
-        {toasts.map((n) => (
+        {visibleToasts.map((n) => (
           <div key={n.id} style={{ pointerEvents: 'all' }}>
             <ToastCard notif={n} onDismiss={dismissToast} />
+          </div>
+        ))}
+      </div>
+
+      {/* Mobile: أعلى الشاشة تحت الهيدر مباشرة */}
+      <div
+        className="show-on-mobile-only"
+        style={{
+          position: 'fixed',
+          top: 70,
+          left: 10,
+          right: 10,
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          pointerEvents: 'none',
+        }}
+      >
+        {visibleToasts.map((n) => (
+          <div key={n.id} style={{ pointerEvents: 'all' }}>
+            <ToastCard notif={n} onDismiss={dismissToast} isMobile />
           </div>
         ))}
       </div>

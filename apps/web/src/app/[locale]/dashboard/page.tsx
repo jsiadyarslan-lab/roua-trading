@@ -1416,12 +1416,12 @@ export default function DashboardPage() {
                 </div>
                 {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
                 {(() => {
-                  const mlPct = equityValue > 0 ? (initialMargin / equityValue) * 100 : 0;
+                  const mlPct = initialMargin > 0 ? (equityValue / initialMargin) * 100 : 0;
                   // Margin Level = margin/equity × 100
                   // عالي = خطر (استخدام كبير لرأس المال)
                   // منخفض = آمن (استخدام محافظ)
-                  const isCritical = mlPct > 80;   // > 80% خطر فعلي
-                  const isWarning  = mlPct > 50 && mlPct <= 80; // 50-80% تحذير
+                  const isCritical = mlPct < 120 && mlPct > 0;  // < 120% خطر فعلي (قريب من margin call)
+                  const isWarning  = mlPct >= 120 && mlPct < 200;              // 120-200% تحذير
                   const mlColor = isCritical ? T.danger : isWarning ? '#f59e0b' : T.cyan;
                   return (
                     <div style={{
@@ -1872,18 +1872,31 @@ export default function DashboardPage() {
 
               {/* بطاقة الحساب */}
               <div style={{ margin:'10px 12px 6px', background:'rgba(0,212,255,0.03)', border:'1px solid rgba(0,212,255,0.08)', borderRadius:12, padding:'14px' }}>
-                <div style={{ marginBottom:12 }}>
-                  <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:3 }}>الرصيد</div>
-                  <div style={{ fontSize:22, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace", lineHeight:1 }}>
-                    ${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                {/* صف 1: الرصيد الكلي + الرصيد الحالي */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:8 }}>
+                  <div>
+                    <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:2 }}>الرصيد الكلي</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
+                      ${(Number(account?.cash||account?.portfolioValue)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                    </div>
                   </div>
-                  <div style={{ fontSize:13, fontWeight:700, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace", marginTop:2 }}>
+                  <div>
+                    <div style={{ fontSize:9, color:'#8090A8', fontFamily:"'Cairo',sans-serif", marginBottom:2 }}>الرصيد الحالي</div>
+                    <div style={{ fontSize:15, fontWeight:800, color:'#E8ECF4', fontFamily:"'JetBrains Mono',monospace" }}>
+                      ${(Number(account?.equity)||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
+                    </div>
+                  </div>
+                </div>
+                {/* P&L */}
+                <div style={{ marginBottom:10, paddingBottom:8, borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:(Number(account?.unrealizedPnl)||0)>=0?'#00FFA3':'#FF4757', fontFamily:"'JetBrains Mono',monospace" }}>
                     {(Number(account?.unrealizedPnl)||0)>=0?'+':''}{(Number(account?.unrealizedPnl)||0).toFixed(2)}$ P&L
                   </div>
                 </div>
-                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                {/* صف 2: الهامش + هامش مستخدم + نسبة الهامش */}
+                <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:8 }}>
                   {[
-                    { label:'قوة الشراء', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#10B981' },
+                    { label:'الهامش', value:`$${(Number(account?.buyingPower)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#10B981' },
                     { label:'هامش مستخدم', value:`$${(Number(account?.initialMargin)||0).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0})}`, color:'#F59E0B' },
                     { label:'نسبة الهامش', value: (Number(account?.initialMargin)||0) > 0 ? `${((Number(account?.equity)||0) / (Number(account?.initialMargin)||1) * 100).toFixed(0)}%` : '—', color:'#6A9EFF' },
                   ].map(item => (

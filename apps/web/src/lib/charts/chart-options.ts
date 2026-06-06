@@ -105,6 +105,18 @@ export function buildChartOptions(opts: {
 
 // ── Build Candlestick Series Options ────────────────────
 // Pure function that returns candlestick series options.
+// حساب دقة السعر المناسبة بناءً على قيمة السعر
+export function getPriceFormat(price: number): { precision: number; minMove: number } {
+  if (price >= 1000)  return { precision: 2, minMove: 0.01 };
+  if (price >= 100)   return { precision: 2, minMove: 0.01 };
+  if (price >= 10)    return { precision: 3, minMove: 0.001 };
+  if (price >= 1)     return { precision: 4, minMove: 0.0001 };
+  if (price >= 0.1)   return { precision: 5, minMove: 0.00001 };
+  if (price >= 0.01)  return { precision: 6, minMove: 0.000001 };
+  if (price >= 0.001) return { precision: 7, minMove: 0.0000001 };
+  return               { precision: 8, minMove: 0.00000001 };
+}
+
 export function buildCandlestickOptions(isMobile: boolean): Record<string, any> {
   return {
     upColor: isMobile ? MOBILE_UP : CHART_COLORS.upColor,

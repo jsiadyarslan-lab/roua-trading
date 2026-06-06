@@ -36,7 +36,7 @@ import {
   MAX_VISIBLE_CANDLES,
   sanitizeOhlc,
 } from '@/lib/charts/chart-utils';
-import { buildChartOptions, buildCandlestickOptions, buildVolumeOptions, CHART_COLORS as CHART_OPTIONS_COLORS } from '../lib/charts/chart-options';
+import { buildChartOptions, buildCandlestickOptions, buildVolumeOptions, getPriceFormat, CHART_COLORS as CHART_OPTIONS_COLORS } from '../lib/charts/chart-options';
 
 interface UseChartOptions {
   symbol: string;
@@ -1554,6 +1554,16 @@ export function useChart(options: UseChartOptions): UseChartReturn {
       volumeSeriesRef.current.applyOptions({
         visible: hasVolume && (settings?.showVolume !== false),
       });
+
+      // تطبيق دقة السعر المناسبة — يُصلح مشكلة 0.08 بدل 0.08151 لأصول كـ DOGE
+      if (chartData.length > 0) {
+        const sp = (chartData[chartData.length - 1] as any).close || (chartData[0] as any).close || 0;
+        if (sp > 0) {
+          const fmt = getPriceFormat(sp);
+          candleSeriesRef.current.applyOptions({ priceFormat: { type: 'price', ...fmt } });
+        }
+      }
+
       // FIX: Mark that data was successfully loaded for this symbol+timeframe.
       // This prevents the [symbol] effect from accidentally clearing data
       // that was JUST set by the fetch (race condition on symbol switch).

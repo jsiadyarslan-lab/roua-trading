@@ -1562,8 +1562,10 @@ export default function RouaChart({
   // every rAF, we use direct DOM manipulation for position updates and only
   // setState when the structure changes (e.g. trades added/removed).
   const lastOverlayUpdateRef = useRef(0);
-  const OVERLAY_THROTTLE_MS = 50; // ~20fps for overlay position updates (reduced from 120ms to fix label jitter)
-  const lastOverlayStructureRef = useRef(''); // Hash to detect structural changes
+  const OVERLAY_THROTTLE_MS = 50;
+  const lastOverlayStructureRef = useRef('');
+  const isPanningRef = useRef(false);       // أثناء الـ pan: نمنع React setState
+  const panStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep latest positions/trades in ref so the rAF callback always has fresh data
   const positionsRef = useRef(positions);
@@ -1715,7 +1717,11 @@ export default function RouaChart({
       const structureHash = overlays.map(o => o.key).join(',') + zones.map(z => z.key).join(',');
       const structureChanged = structureHash !== lastOverlayStructureRef.current;
 
-      if (structureChanged || now - lastOverlayUpdateRef.current >= OVERLAY_THROTTLE_MS) {
+      // أثناء الـ pan: نمنع setState تماماً — DOM فقط
+      const canSetState = !isPanningRef.current &&
+        (structureChanged || now - lastOverlayUpdateRef.current >= OVERLAY_THROTTLE_MS);
+
+      if (canSetState) {
         lastOverlayUpdateRef.current = now;
         lastOverlayStructureRef.current = structureHash;
         setTradeOverlays(overlays);
@@ -1763,19 +1769,36 @@ export default function RouaChart({
   // React error #185 (infinite update depth exceeded).
   useEffect(() => {
     let unsub: (() => void) | null = null;
+
+    const handlePan = () => {
+      // بداية الـ pan: نمنع setState
+      isPanningRef.current = true;
+      if (panStopTimerRef.current) clearTimeout(panStopTimerRef.current);
+
+      // تحديث DOM مباشرة أثناء الـ pan
+      scheduleOverlayUpdateRef.current();
+
+      // بعد 150ms من التوقف: نُزامن React state مرة واحدة
+      panStopTimerRef.current = setTimeout(() => {
+        isPanningRef.current = false;
+        lastOverlayUpdateRef.current = 0; // نجبر setState في المرة القادمة
+        scheduleOverlayUpdateRef.current();
+      }, 150);
+    };
+
     const onVisibleRangeChange = onVisibleRangeChangeRef.current;
     if (onVisibleRangeChange) {
-      unsub = onVisibleRangeChange(scheduleOverlayUpdate);
+      unsub = onVisibleRangeChange(handlePan);
     }
-    // Initial calculation with a small delay to ensure chart is rendered
     const timer = setTimeout(scheduleOverlayUpdate, 200);
-
-    // Periodic overlay refresh to catch vertical price-scale changes
-    // (lightweight-charts v5 has no priceScale subscribeVisiblePriceRangeChange)
-    // PERF: 3000ms — positions update via DOM manipulation between full state updates
     const priceScaleInterval = setInterval(scheduleOverlayUpdate, 3000);
 
-    return () => { unsub?.(); clearTimeout(timer); clearInterval(priceScaleInterval); };
+    return () => {
+      unsub?.();
+      clearTimeout(timer);
+      clearInterval(priceScaleInterval);
+      if (panStopTimerRef.current) clearTimeout(panStopTimerRef.current);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps — stable refs used inside
 

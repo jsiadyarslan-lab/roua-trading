@@ -802,13 +802,13 @@ export default function DashboardPage() {
             display: flex !important;
             flex-direction: column;
             width: 100%;
-            min-height: 100vh;
-            min-height: 100svh;
-            height: 100svh;
             background: #0A0D13;
             overflow: hidden;
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0; left: 0; right: 0;
+            /* 100svh ثابت — لا يتغير عند إخفاء/إظهار شريط URL في Safari */
+            /* bottom:0 كان يجعله يتمدد مع الـ viewport → الشموع تتمط */
+            height: 100svh;
           }
           .m2-ticker {
             display: flex !important;

@@ -1181,15 +1181,20 @@ export default function RouaChart({
 
         // Build a map for fast lookup
         const existingMap = new Map<number, CandleData>(candlesRef.current.map(cd => [cd.time, cd]));
+        // الشمعة الحالية (المفتوحة) — نتخطاها في الدمج
+        // REST API يُعيد بيانات أقدم من WebSocket للشمعة الجارية
+        // وبدون هذا الحماية: REST يستبدل high/close الجديد بقيم قديمة → تمط
+        const currentCandleTime = candlesRef.current.length > 0
+          ? candlesRef.current[candlesRef.current.length - 1].time
+          : 0;
         let changed = false;
         for (const nc of newCandles) {
+          if (nc.time === currentCandleTime) continue; // تخطِّ الشمعة الحالية
           const existing = existingMap.get(nc.time);
           if (!existing) {
-            // New candle — add it
             existingMap.set(nc.time, nc);
             changed = true;
           } else if (nc.close !== (existing as CandleData).close || nc.high !== (existing as CandleData).high || nc.low !== (existing as CandleData).low) {
-            // Updated candle — replace it
             existingMap.set(nc.time, nc);
             changed = true;
           }

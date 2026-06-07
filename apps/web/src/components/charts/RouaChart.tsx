@@ -5,6 +5,7 @@
 
 'use client';
 
+import { ChartDiagOverlay } from './ChartDiagOverlay';
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { createPortal } from 'react-dom';
@@ -2725,6 +2726,7 @@ export default function RouaChart({
       }}
       className="roua-chart-root"
     >
+      <ChartDiagOverlay connectionState={ws.connectionState} />
       {/* ── TOOLBAR ── */}
       {isGridCell ? (
         /* Grid Cell Header — interactive bar with symbol selector, timeframe buttons + close.

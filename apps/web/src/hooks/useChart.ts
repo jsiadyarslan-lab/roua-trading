@@ -5,6 +5,7 @@
 
 'use client';
 
+import { chartDiag } from '../lib/charts/diag';
 import { useEffect, useRef, useCallback, useState } from 'react';
 import type { IChartApi, ISeriesApi, SeriesType, Time, MouseEventParams, DeepPartial, ChartOptions } from 'lightweight-charts';
 // FIX: Removed static `import { createSeriesMarkers } from 'lightweight-charts'`
@@ -1090,6 +1091,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   // ── Update Last Candle (live tick) ─────────────────────
   const updateLastCandle = useCallback((price: number) => {
     if (isPaused || !candleSeriesRef.current || !candlesRef.current.length) return;
+    chartDiag.priceTicks++; chartDiag.lastPriceAt = Date.now();
 
     const candles = candlesRef.current;
     const last = candles[candles.length - 1];
@@ -1249,6 +1251,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     // Only use incremental update for the LAST candle
     // (which is the one WebSocket updates in real-time)
     if (lastCandle && lastCandle.time === time) {
+      chartDiag.klineUpdates++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
       // الـ kline من Binance يصل متأخراً — close وhigh وlow قد تكون أقل دقة
       // من البيانات التي رسمناها عبر updateLastCandle
       const isClosed = !!(candle as any)._isClosed;
@@ -1308,6 +1311,7 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
       // لا نُحدَّث المؤشرات مع كل tick — فقط عند فتح شمعة جديدة
     } else if (lastCandle && time !== null && time > (lastCandle.time as number)) {
+      chartDiag.newCandleFired++; chartDiag.lastKlineAt = Date.now(); chartDiag.lastCandleTime = time as number;
       // ── شمعة جديدة: الوقت أكبر من آخر شمعة ──────────────────────────
       // نُضيف الشمعة الجديدة للـ chart بدلاً من تجاهلها
       const s = sanitizeOhlc(candle.open, candle.high, candle.low, candle.close);
@@ -1428,6 +1432,9 @@ export function useChart(options: UseChartOptions): UseChartReturn {
 
   // ── Set Candles ────────────────────────────────────────
   const setCandles = useCallback((candles: CandleData[], options?: { clearExternal?: boolean; skipIndicatorRebuild?: boolean }) => {
+    chartDiag.setCandlesCalls++;
+    chartDiag.lastSetReason = options?.clearExternal ? 'clearExternal' : options?.skipIndicatorRebuild ? 'skipIndicator' : 'plain';
+
     // FIX: Store SORTED candles — not raw data.
     // Previously, candlesRef.current stored unsorted data, but binarySearchByTime
     // and updateCandle both assume ascending time order. This caused wrong

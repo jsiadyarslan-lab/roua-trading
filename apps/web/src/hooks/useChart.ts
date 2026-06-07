@@ -767,7 +767,6 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     return () => {
       setIsChartReady(false);
       // PERF: Cancel any pending rAF-buffered candle update
-      cancelAnimationFrame(rafIdRef.current);
       rafIdRef.current = 0;
       rafBufferRef.current = null;
       if (drawingRendererRef.current) {
@@ -915,9 +914,8 @@ export function useChart(options: UseChartOptions): UseChartReturn {
     pendingCandlesRef.current = null;
     // Reset the data key since we're clearing for a new symbol
     lastLoadedDataKeyRef.current = '';
-    // PERF: Cancel any pending rAF-buffered candle update from old symbol
-    cancelAnimationFrame(rafIdRef.current);
-    rafIdRef.current = 0;
+    // Cancel any pending buffered candle update from old symbol
+    rafIdRef.current = 0;  // Flag — microtask يتحقق من هذا قبل التنفيذ
     rafBufferRef.current = null;
     // Cancel debounced indicator refresh
     if (indicatorRefreshTimerRef.current) {
@@ -1345,14 +1343,15 @@ export function useChart(options: UseChartOptions): UseChartReturn {
   }, [isPaused, settings.type, refreshIndicatorsData]);
 
   const updateCandle = useCallback((candle: CandleData) => {
-    // Buffer the latest candle — if another update arrives before this
-    // frame is painted, it overwrites the buffer (we only care about
-    // the most recent value, not intermediate ones).
+    // Buffer the latest candle — if multiple updates arrive, keep only the most recent
     rafBufferRef.current = candle;
 
-    // Schedule a flush if one isn't already pending
+    // FIX: استخدم queueMicrotask بدل requestAnimationFrame
+    // RAF يُطبَّق في الـ FRAME التالي → updateLastCandle يُرسم أولاً ثم kline يُعيد الرسم = تمط
+    // queueMicrotask يُطبَّق قبل Paint في نفس الـ frame → كلاهما يُطبَّق معاً، canvas يُرسم مرة واحدة
     if (rafIdRef.current === 0) {
-      rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = 1; // منع التكرار
+      queueMicrotask(() => {
         const buffered = rafBufferRef.current;
         rafBufferRef.current = null;
         rafIdRef.current = 0;

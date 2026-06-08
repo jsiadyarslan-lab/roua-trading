@@ -621,7 +621,7 @@ export class PositionMonitorService {
   private async _closePosition(
     position: any,
     currentPrice: number,
-    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED',
+    reason: 'STOP_LOSS' | 'TAKE_PROFIT' | 'TIME_EXPIRED' | 'STALE_POSITION',
   ): Promise<void> {
     try {
       // FIX: Use closePositionWithRetry + convert Decimal to number

@@ -352,7 +352,7 @@ export class TradingService {
         quantity: request.quantity,
         filledQuantity: execution.filledQuantity,
         averagePrice: execution.averagePrice,
-        riskScore: riskCheck.riskScore,
+        // V176: riskCheck removed from scope — RiskGatekeeper already logged the risk assessment
       }),
       ipAddress,
       userAgent,

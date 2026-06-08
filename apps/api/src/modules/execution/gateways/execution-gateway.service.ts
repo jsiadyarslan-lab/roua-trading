@@ -124,7 +124,7 @@ export class ExecutionGatewayService {
     }
 
     // Step 5: Create the appropriate adapter
-    const adapter = this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true);
+    const adapter = await this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true);
 
     // Step 6: Cache the adapter
     this.adapterCache.set(exchangeCredentialId, {
@@ -220,7 +220,7 @@ export class ExecutionGatewayService {
   /**
    * Create the appropriate adapter based on exchange type
    */
-  private _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string, isCredentialTestnet: boolean = false): IExchangeAdapter {
+  private async _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string, isCredentialTestnet: boolean = false): Promise<IExchangeAdapter> {
     const exchangeLower = exchange.toLowerCase();
 
     switch (exchangeLower) {

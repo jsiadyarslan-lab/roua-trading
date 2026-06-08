@@ -1994,6 +1994,26 @@ export class SmartExecutorService implements OnModuleDestroy {
 
     // Process each brief
     for (const brief of briefs) {
+      // V177 FIX #15: Correlation check — max 3 correlated crypto positions
+      const CRYPTO_CORRELATION_LIMIT = 3;
+      try {
+        const cryptoPositions = await this.prisma.position.count({
+          where: {
+            userId,
+            status: 'OPEN',
+            source: { in: ['smart_executor', 'auto_paper'] },
+            symbol: { in: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'DOGE/USDT', 'ADA/USDT', 'XRP/USDT'] },
+          },
+        });
+        if (cryptoPositions >= CRYPTO_CORRELATION_LIMIT) {
+          const isCryptoBrief = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'DOGE/USDT', 'ADA/USDT', 'XRP/USDT'].includes(brief.pair);
+          if (isCryptoBrief) {
+            this.logger.debug(`⚔️ V177 Correlation limit: ${cryptoPositions} crypto positions ≥ ${CRYPTO_CORRELATION_LIMIT} — skipping ${brief.pair}`);
+            continue; // Skip this brief — too many correlated positions
+          }
+        }
+      } catch { /* non-critical */ }
+
       // Skip already processed briefs (per user) — Redis-backed for crash safety
       const processedKey = `${this.REDIS_PROCESSED_PREFIX}${brief.id}:${userId}`;
       // FIX: Check DB as fallback — Redis may have been cleared on restart
@@ -2774,8 +2794,22 @@ export class SmartExecutorService implements OnModuleDestroy {
         return 0.50; // 55-64%
       })();
 
+      // V177 FIX #15: Drawdown-based position sizing
+      // Reduce position size during losing streaks to protect capital
+      let drawdownMultiplier = 1.0;
+      try {
+        const recentLossesKey = `executor:recent-losses:${userId}`;
+        const recentLosses = parseInt(await this.redis.get(recentLossesKey) || '0', 10);
+        if (recentLosses >= 5) drawdownMultiplier = 0.25;  // 5+ losses → 25% size
+        else if (recentLosses >= 3) drawdownMultiplier = 0.50;  // 3-4 losses → 50% size
+        else if (recentLosses >= 2) drawdownMultiplier = 0.75;  // 2 losses → 75% size
+        if (drawdownMultiplier < 1.0) {
+          this.logger.debug(`⚔️ V177 Drawdown scaling: ${recentLosses} recent losses → ${drawdownMultiplier}x multiplier`);
+        }
+      } catch { /* non-critical */ }
+
       const baseRiskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
-      const riskPercent = baseRiskPercent * confidenceMultiplier;
+      const riskPercent = baseRiskPercent * confidenceMultiplier * drawdownMultiplier;
       const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
 
       this.logger.log(

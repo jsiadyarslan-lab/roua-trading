@@ -1036,6 +1036,30 @@ export class TradingService {
       `📈 Position closed: ${position.symbol} — PnL: ${pnl.toFixed(2)} USD`,
     );
 
+    // V177 FIX #17: Update trade repetition tracking after close
+    try {
+      const closedSide = position.side;
+      const repDirLockKey = `trade-rep:dir-lock:${userId}:${position.symbol}:${closedSide}`;
+      await this.redis.set(repDirLockKey, '1', 30 * 60 * 1000); // 30 min lockout
+
+      const dailyCountKey = `trade-rep:daily:${userId}:${position.symbol}`;
+      const currentCount = parseInt(await this.redis.get(dailyCountKey) || '0', 10);
+      // TTL: reset at midnight
+      const ttlMs = new Date().setHours(24, 0, 0, 0) - Date.now();
+      await this.redis.set(dailyCountKey, String(currentCount + 1), Math.max(ttlMs, 60000));
+
+      // Track consecutive losses
+      const consecLossKey = `trade-rep:consec-loss:${userId}:${position.symbol}`;
+      if (pnl < 0) {
+        const currentLosses = parseInt(await this.redis.get(consecLossKey) || '0', 10);
+        await this.redis.set(consecLossKey, String(currentLosses + 1), 2 * 60 * 60 * 1000); // 2h TTL
+      } else {
+        await this.redis.del(consecLossKey); // Reset on win
+      }
+    } catch (repErr: any) {
+      // Non-critical — trade repetition tracking failure should not block closes
+    }
+
     // FIX: Clear Smart Executor processed keys for this position so new briefs
     // for the same symbol can be executed. Without this, the processedKey
     // `smart-executor:processed:{briefId}:{userId}` persists for 24 hours,

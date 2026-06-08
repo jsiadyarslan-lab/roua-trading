@@ -42,8 +42,8 @@ export class PositionMonitorService {
   /** Trailing stop activation threshold (% profit) */
   private readonly TRAILING_ACTIVATION_PCT = 0.02; // 2%
 
-  /** Trailing stop distance (% from highest price) */
-  private readonly TRAILING_DISTANCE_PCT = 0.015; // 1.5%
+  /** Trailing stop distance (% from highest price) — V177 FIX #16: tightened from 1.5% to 1.2% */
+  private readonly TRAILING_DISTANCE_PCT = 0.012; // 1.2%
 
   /** Maximum position age before warning (days) */
   private readonly MAX_POSITION_AGE_DAYS = 7;
@@ -548,6 +548,30 @@ export class PositionMonitorService {
           await this.redis.set(alertThrottleKey, '1', 300000);
           result.alertSent = true;
         }
+      }
+    }
+
+    // ── V177 FIX #16: Break-Even Stop ──
+    // When unrealized profit reaches 1%, move stop-loss to entry price.
+    // This ensures a winning trade never becomes a losing one.
+    if (pnlPercent >= 1.0 && stopLossNum !== null) {
+      const breakEvenSL = position.side === 'BUY'
+        ? entryPrice * 1.0001  // slightly above entry to cover fees
+        : entryPrice * 0.9999; // slightly below entry to cover fees
+      
+      const shouldMoveBE = position.side === 'BUY'
+        ? stopLossNum < breakEvenSL  // current SL below break-even
+        : stopLossNum > breakEvenSL; // current SL above break-even (for shorts)
+      
+      if (shouldMoveBE) {
+        await this.prisma.position.update({
+          where: { id: position.id },
+          data: { stopLoss: breakEvenSL },
+        });
+        this.logger.log(
+          `🛡️ V177 Break-even: ${position.symbol} SL moved to entry (${breakEvenSL.toFixed(4)}) — profit protected`,
+        );
+        result.trailingUpdated = true;
       }
     }
 

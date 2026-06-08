@@ -287,6 +287,10 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     const circuitCheck = await this.checkCircuitBreakers(command.userId, command.symbol);
     if (!circuitCheck.allowed) return circuitCheck;
 
+    // Check 6: Trade repetition filter (V177 FIX #17)
+    const repetitionCheck = await this.checkTradeRepetitionFilter(command);
+    if (!repetitionCheck.allowed) return repetitionCheck;
+
     // All checks passed — calculate risk score
     const riskScore = await this._calculateRiskScore(command);
 
@@ -360,6 +364,25 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         reason: 'وقف الخسارة لأمر البيع يجب أن يكون أعلى من سعر الدخول.',
         failedCheck: 'STOPLOGIC_ENFORCEMENT',
       };
+    }
+
+    // V177 FIX #13: Validate Risk/Reward ratio
+    // Minimum R:R of 1:1.5 — trades with worse ratio are rejected
+    // This ensures every trade has a positive expected value over time
+    if (command.takeProfit && command.takeProfit > 0 && referencePrice) {
+      const slDistance = Math.abs(referencePrice - command.stopLoss);
+      const tpDistance = Math.abs(command.takeProfit - referencePrice);
+      if (slDistance > 0) {
+        const riskRewardRatio = tpDistance / slDistance;
+        if (riskRewardRatio < 1.5) {
+          this.logger.warn(`🛡️ ORDER REJECTED: R:R ratio ${riskRewardRatio.toFixed(2)} < 1.5 minimum for ${command.symbol}`);
+          return {
+            allowed: false,
+            reason: `نسبة المخاطرة/المكافأة (${riskRewardRatio.toFixed(2)}:1) أقل من الحد الأدنى (1.5:1). وسّع هدف الربح أو قلّل وقف الخسارة.`,
+            failedCheck: 'RISK_REWARD_RATIO',
+          };
+        }
+      }
     }
 
     return { allowed: true };
@@ -1219,6 +1242,64 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     if (suffixes.some(s => lower.endsWith(s))) return true;
     if (lower.includes('testnet')) return true;
     return false;
+  }
+
+  /**
+   * CHECK 6: Trade Repetition Filter (V177 FIX #17)
+   *
+   * Prevents repetitive trading patterns:
+   * 1. Same userId+symbol+direction within 30 minutes → block
+   * 2. More than 5 trades on the same symbol per day → block
+   * 3. More than 3 consecutive losses on the same symbol → 2-hour block
+   */
+  async checkTradeRepetitionFilter(command: OrderCommand): Promise<RiskCheckResult> {
+    try {
+      const { userId, symbol, side } = command;
+
+      // ── Rule 1: Same direction lockout (30 min) ──
+      // If user closed a position in this direction on this symbol
+      // less than 30 minutes ago, block the same direction.
+      const dirLockKey = `trade-rep:dir-lock:${userId}:${symbol}:${side}`;
+      const dirLocked = await this.redis?.get(dirLockKey);
+      if (dirLocked) {
+        this.logger.warn(`🛡️ V177 Direction lockout: ${symbol} ${side} blocked for user ${userId} — same direction closed <30m ago`);
+        return {
+          allowed: false,
+          reason: `تم إغلاق مركز ${side === 'BUY' ? 'شراء' : 'بيع'} على ${symbol} مؤخراً — انتظر 30 دقيقة قبل فتح مركز جديد بنفس الاتجاه.`,
+          failedCheck: 'TRADE_REPETITION',
+        };
+      }
+
+      // ── Rule 2: Daily symbol trade limit (max 5 per day) ──
+      const dailyCountKey = `trade-rep:daily:${userId}:${symbol}`;
+      const dailyCount = parseInt(await this.redis?.get(dailyCountKey) || '0', 10);
+      if (dailyCount >= 5) {
+        this.logger.warn(`🛡️ V177 Daily symbol limit: ${symbol} has ${dailyCount} trades today for user ${userId} — blocking`);
+        return {
+          allowed: false,
+          reason: `لديك ${dailyCount} صفقات على ${symbol} اليوم (الحد: 5). تنويع أفضل من التكرار.`,
+          failedCheck: 'TRADE_REPETITION',
+        };
+      }
+
+      // ── Rule 3: Consecutive loss block (3 losses → 2-hour block) ──
+      const consecLossKey = `trade-rep:consec-loss:${userId}:${symbol}`;
+      const consecLosses = parseInt(await this.redis?.get(consecLossKey) || '0', 10);
+      if (consecLosses >= 3) {
+        this.logger.warn(`🛡️ V177 Consecutive loss block: ${symbol} has ${consecLosses} consecutive losses for user ${userId} — 2h block`);
+        return {
+          allowed: false,
+          reason: `${consecLosses} خسائر متتالية على ${symbol} — تم حظر التداول عليه لمدة ساعتين لحماية رأس المال.`,
+          failedCheck: 'TRADE_REPETITION',
+        };
+      }
+
+      return { allowed: true };
+    } catch (error: any) {
+      // Non-critical — if Redis fails, allow the trade
+      this.logger.warn(`🛡️ Trade repetition check failed: ${error.message} — allowing order`);
+      return { allowed: true };
+    }
   }
 
   /**

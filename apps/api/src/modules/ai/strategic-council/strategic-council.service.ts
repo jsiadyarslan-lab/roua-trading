@@ -734,10 +734,38 @@ export class StrategicCouncilService {
           D1: 0.8, W1: 0.5,
         };
 
-        const buyScore = buyBriefs.reduce((sum, b) =>
+        let buyScore = buyBriefs.reduce((sum, b) =>
           sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
-        const sellScore = sellBriefs.reduce((sum, b) =>
+        let sellScore = sellBriefs.reduce((sum, b) =>
           sum + b.confidence * (TF_WEIGHT[b.timeframe] || 1.0), 0);
+
+        // V177 FIX #14: Direction balance enforcement
+        // If one direction dominates (>70% of today's executed trades),
+        // boost the other direction's scores to encourage diversity
+        try {
+          const todayStart = new Date();
+          todayStart.setHours(0, 0, 0, 0);
+          const todayBuyCount = await this.prisma.position.count({
+            where: { side: 'BUY', status: { in: ['OPEN', 'CLOSED'] }, openedAt: { gte: todayStart } },
+          });
+          const todaySellCount = await this.prisma.position.count({
+            where: { side: 'SELL', status: { in: ['OPEN', 'CLOSED'] }, openedAt: { gte: todayStart } },
+          });
+          const totalToday = todayBuyCount + todaySellCount;
+          if (totalToday >= 4) { // Only enforce balance after 4+ trades
+            const buyRatio = todayBuyCount / totalToday;
+            const sellRatio = todaySellCount / totalToday;
+            if (sellRatio > 0.70) {
+              // SELL dominates — boost BUY score
+              buyScore *= 1.3;
+              this.logger.debug(`🏛️ V177 Direction balance: SELL dominates (${(sellRatio*100).toFixed(0)}%) — boosting BUY score by 1.3x`);
+            } else if (buyRatio > 0.70) {
+              // BUY dominates — boost SELL score
+              sellScore *= 1.3;
+              this.logger.debug(`🏛️ V177 Direction balance: BUY dominates (${(buyRatio*100).toFixed(0)}%) — boosting SELL score by 1.3x`);
+            }
+          }
+        } catch { /* non-critical — balance enforcement is best-effort */ }
 
         const winningBriefs = buyScore >= sellScore ? buyBriefs : sellBriefs;
         const losingBriefs = buyScore >= sellScore ? sellBriefs : buyBriefs;
@@ -1620,34 +1648,56 @@ export class StrategicCouncilService {
       }
 
       // Priority 3: RSI-based direction (when no clear momentum)
-      // FIX: Expanded RSI zones — the old thresholds (45/55) were too narrow.
-      // RSI between 45-55 is the "neutral zone" but in practice, even RSI 48
-      // has a slight bearish bias. Expanded to use RSI < 50 = SELL, > 50 = BUY
-      // when we have no other signal. This ensures we ALWAYS produce a direction.
-      if (rsi < 50) {
-        // RSI below 50 = bearish bias
-        confidence = 48; // FIX: Lowered from 52 to 48 — below minConfidence=50 but
-        // this is intentional: weak RSI signals should have lower confidence.
-        // The executor's minConfidence was also lowered to 40.
+      // V177 FIX #14: Wider RSI neutral zone to reduce SELL bias.
+      // Old: RSI < 50 = SELL, RSI >= 50 = BUY → 85%+ SELL because crypto RSI
+      // often hovers in 40-55 range, slightly below 50.
+      // New: RSI < 40 = SELL, RSI > 60 = BUY, 40-60 = use 24h change
+      if (rsi < 40) {
+        // RSI below 40 = strong bearish
+        confidence = 48;
         return {
           recommendation: 'SELL',
           consensusScore: confidence,
-          masterStrategy: `تحليل تقني — RSI منخفض (${rsi.toFixed(0)}) يشير لضغط بيع. وقف خسارة قريب مطلوب.`,
+          masterStrategy: `تحليل تقني — RSI منخفض (${rsi.toFixed(0)}) يشير لضغط بيع قوي. وقف خسارة قريب مطلوب.`,
           analyses: [
-            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'SELL', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} دون 50 — ضغط بيعي` },
+            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'SELL', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} دون 40 — ضغط بيعي قوي` },
           ],
         };
-      } else {
-        // RSI 50+ = bullish bias
+      } else if (rsi > 60) {
+        // RSI above 60 = strong bullish
         confidence = 48;
         return {
           recommendation: 'BUY',
           consensusScore: confidence,
-          masterStrategy: `تحليل تقني — RSI مرتفع (${rsi.toFixed(0)}) يشير لزخم شرائي. وقف خسارة قريب مطلوب.`,
+          masterStrategy: `تحليل تقني — RSI مرتفع (${rsi.toFixed(0)}) يشير لزخم شرائي قوي. وقف خسارة قريب مطلوب.`,
           analyses: [
-            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 50 — زخم إيجابي` },
+            { role: 'محلل تقني', model: 'Technical/RSI', vote: 'BUY', confidence: confidence, reason: `RSI ${rsi.toFixed(0)} فوق 60 — زخم إيجابي قوي` },
           ],
         };
+      } else {
+        // V177 FIX #14: RSI 40-60 = neutral zone — use 24h change for direction
+        // This prevents the 85%+ SELL bias caused by RSI hovering slightly below 50
+        if (change24h > 0) {
+          confidence = 48;
+          return {
+            recommendation: 'BUY',
+            consensusScore: confidence,
+            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h صاعد (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+            analyses: [
+              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'BUY', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع ارتفاع ${change24h.toFixed(2)}% خلال 24 ساعة` },
+            ],
+          };
+        } else {
+          confidence = 48;
+          return {
+            recommendation: 'SELL',
+            consensusScore: confidence,
+            masterStrategy: `تحليل تقني — RSI محايد (${rsi.toFixed(0)})، اتجاه 24h هابط (${change24h.toFixed(2)}%). وقف خسارة قريب مطلوب.`,
+            analyses: [
+              { role: 'محلل تقني', model: 'Technical/RSI-Neutral+24h', vote: 'SELL', confidence: confidence, reason: `RSI محايد ${rsi.toFixed(0)} مع انخفاض ${change24h.toFixed(2)}% خلال 24 ساعة` },
+            ],
+          };
+        }
       }
 
       // Priority 4: ULTIMATE FALLBACK — This should now be unreachable

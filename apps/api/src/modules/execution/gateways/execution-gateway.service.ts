@@ -52,8 +52,11 @@ export class ExecutionGatewayService {
   /** Cache of adapters per credential (short-lived, cleared on error) */
   private readonly adapterCache: Map<string, { adapter: IExchangeAdapter; createdAt: number }> = new Map();
 
-  /** Cache TTL: 5 minutes */
-  private readonly ADAPTER_CACHE_TTL_MS = 5 * 60 * 1000;
+  /** V176 FIX: Reduced cache TTL from 5 minutes to 60 seconds.
+   * Previously, adapters (containing decrypted API keys) lived in memory for 5 minutes.
+   * This increased the window for memory-scraping attacks to extract keys.
+   * Now: 60 seconds is sufficient for batching related orders while minimizing exposure. */
+  private readonly ADAPTER_CACHE_TTL_MS = 60 * 1000;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -233,7 +236,23 @@ export class ExecutionGatewayService {
         return new BinanceAdapter(apiKey, apiSecret, this.auditService, userId, true /* isSandbox */, 'future');
 
       case 'alpaca':
-        return new AlpacaAdapter(apiKey, apiSecret, this.auditService, userId, true /* paper first */);
+        // V176 FIX: Support live Alpaca trading via ALPACA_LIVE_ENABLED env var.
+        // Previously, paper mode was hardcoded to true, making live trading impossible.
+        // Now: check env var AND credential testnet flag before defaulting to paper.
+        // Safety: live mode requires explicit opt-in (env var OR credential flag).
+        const isAlpacaLive = this.configService?.get('ALPACA_LIVE_ENABLED', 'false') === 'true'
+          || isCredentialTestnet === false; // credential.testnet=false implies live intent
+        const alpacaPaper = !isAlpacaLive; // Default to paper unless explicitly enabled
+        if (isAlpacaLive) {
+          this.logger.warn(`🔴 Alpaca LIVE mode activated for user ${userId} — real money at risk!`);
+          await this.auditService.log({
+            userId,
+            action: 'ALPACA_LIVE_MODE_ACTIVATED',
+            resource: 'execution-gateway',
+            details: JSON.stringify({ credentialId: `${exchangeLower}-***`, isLive: true }),
+          });
+        }
+        return new AlpacaAdapter(apiKey, apiSecret, this.auditService, userId, alpacaPaper);
 
       case 'paper':
       case 'paper-trading':  // FIX: DB stores 'paper-trading' but switch only matched 'paper'

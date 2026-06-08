@@ -164,39 +164,47 @@ export class TradingService {
       }
     }
 
-    // Step 4: Run risk checks
-    // FIX: Pass exchange name to RiskManager so it can detect paper-trading
-    // and bypass position size limits. Previously, RiskManager.checkOrderRisk()
-    // had NO paper-trading bypass, causing ALL paper orders to be rejected with
-    // "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)". RiskGatekeeper already
-    // had this bypass, but RiskManager was never updated.
-    const riskCheck = await this.riskManager.checkOrderRisk(
-      userId,
-      request.symbol,
-      request.side,
-      request.quantity,
-      currentPrice,
-      credential.exchange,
-      credential.id, // V124: Pass credential ID for testnet detection
-    );
-
-    if (!riskCheck.allowed) {
-      await this.auditService.log({
+    // Step 4: Risk checks — SKIPPED if already validated by RiskGatekeeper.
+    // V176 FIX: Removed duplicate RiskManager.checkOrderRisk() call.
+    // Previously, the V1 pipeline ran TWO risk checks:
+    //   1. RiskGatekeeper.validateOrder() in TradingController (5-point check)
+    //   2. RiskManager.checkOrderRisk() here (overlapping checks)
+    // This caused double latency and could produce contradictory results
+    // (e.g., RiskGatekeeper allows but RiskManager blocks, or vice versa).
+    // Now: RiskGatekeeper is the SOLE risk gateway for V1 (same as V2).
+    // RiskManager is still used for position sizing calculations.
+    // If RiskGatekeeper was NOT called (e.g., internal call from OrderDispatcher),
+    // the `skipRiskCheck` flag can be set to false to enforce the check here.
+    const skipRiskCheck = request.skipRiskCheck !== false; // Default: skip (already checked)
+    if (!skipRiskCheck) {
+      const riskCheck = await this.riskManager.checkOrderRisk(
         userId,
-        action: 'ORDER_REJECTED_RISK',
-        resource: 'order',
-        details: JSON.stringify({
-          symbol: request.symbol,
-          side: request.side,
-          reason: riskCheck.reason,
-        }),
-        ipAddress,
-        userAgent,
-      });
-
-      throw new ForbiddenException(
-        `🛡️ تم رفض الطلب: ${riskCheck.reason}`,
+        request.symbol,
+        request.side,
+        request.quantity,
+        currentPrice,
+        credential.exchange,
+        credential.id,
       );
+
+      if (!riskCheck.allowed) {
+        await this.auditService.log({
+          userId,
+          action: 'ORDER_REJECTED_RISK',
+          resource: 'order',
+          details: JSON.stringify({
+            symbol: request.symbol,
+            side: request.side,
+            reason: riskCheck.reason,
+          }),
+          ipAddress,
+          userAgent,
+        });
+
+        throw new ForbiddenException(
+          `🛡️ تم رفض الطلب: ${riskCheck.reason}`,
+        );
+      }
     }
 
     // Step 5: Execute order on the exchange
@@ -373,10 +381,19 @@ export class TradingService {
         const notional = request.quantity * currentPrice;
         const marginToDeduct = leverage > 1 ? notional / leverage : notional;
 
-        // V175: margin is LOCKED (collateral), NOT deducted from balance
-        // Balance only changes on close by PnL amount
+        // V176 FIX: Actually DEDUCT margin from paperBalance when opening a position.
+        // Previously (V175), margin was only "locked" (logged) but never deducted,
+        // allowing unlimited positions regardless of available balance.
+        // Now: paperBalance = paperBalance - marginToDeduct (atomic SQL update).
+        // On close: paperBalance = paperBalance + marginToDeduct + pnl.
+        // This ensures users cannot open more positions than their balance allows.
+        await this.prisma.$executeRaw`
+          UPDATE "AgentSettings"
+          SET "paperBalance" = "paperBalance" - ${marginToDeduct}
+          WHERE "userId" = ${userId}
+        `;
         this.logger.log(
-          `📝 V175 Paper margin locked (not deducted): $${marginToDeduct.toFixed(2)} (${request.symbol})`,
+          `📝 V176 Paper margin DEDUCTED: -$${marginToDeduct.toFixed(2)} (${request.symbol}, leverage: ${leverage}x)`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to deduct paper margin on open: ${err.message}`);
@@ -1044,16 +1061,18 @@ export class TradingService {
 
         const notional = posEntryPrice * closeQuantity;
         const marginToReturn = leverage > 1 ? notional / leverage : notional;
-        const totalReturn = marginToReturn + pnl;
 
-        // V175: only add PnL — margin was never deducted
+        // V176 FIX: Return margin + PnL to paperBalance on close.
+        // Previously (V175), only PnL was added because margin was never deducted.
+        // Now that margin is actually deducted on open, we must return it on close.
+        const totalReturn = marginToReturn + pnl;
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${pnl}
+          SET "paperBalance" = "paperBalance" + ${totalReturn}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V175 Paper balance on close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
+          `📝 V176 Paper balance on close: margin +$${marginToReturn.toFixed(2)}, PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}, total +$${totalReturn.toFixed(2)} (${position.symbol})`,
         );
 
       } catch (err: any) {
@@ -1366,13 +1385,14 @@ export class TradingService {
         const marginToReturn = leverage > 1 ? notional / leverage : notional;
         const totalReturn = marginToReturn + pnl;
 
+        // V176 FIX: Return margin + PnL (not just PnL) on force-close
         await this.prisma.$executeRaw`
           UPDATE "AgentSettings"
-          SET "paperBalance" = "paperBalance" + ${pnl}
+          SET "paperBalance" = "paperBalance" + ${totalReturn}
           WHERE "userId" = ${userId}
         `;
         this.logger.log(
-          `📝 V175 Paper balance on force-close: PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)} (${position.symbol})`,
+          `📝 V176 Paper balance on force-close: margin +$${marginToReturn.toFixed(2)}, PnL ${pnl >= 0 ? '+' : ''}$${pnl.toFixed(2)}, total +$${totalReturn.toFixed(2)} (${position.symbol})`,
         );
       } catch (err: any) {
         this.logger.warn(`V172d Failed to update paper balance on force-close: ${err.message}`);

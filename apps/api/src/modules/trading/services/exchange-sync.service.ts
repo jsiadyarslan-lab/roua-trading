@@ -119,6 +119,10 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
       // We include credential relationship to verify userId ownership.
       // Each position's credential includes the userId, so we process
       // positions grouped by credential — each credential is user-specific.
+      // V176 FIX: Added userId validation — before processing each position,
+      // we verify that position.credential.userId matches position.userId.
+      // This prevents cross-user data contamination if a credential is shared
+      // or if position.credentialId references another user's credential.
       const openPositions = await this.prisma.position.findMany({
         where: {
           status: 'OPEN',
@@ -143,6 +147,13 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
       // Group positions by credential to batch exchange calls
       const byCredential = new Map<string, any[]>();
       for (const pos of openPositions) {
+        // V176 FIX: Validate userId ownership — ensure credential belongs to position's user
+        if (pos.credential && pos.credential.userId !== pos.userId) {
+          this.logger.error(
+            `🔄 SECURITY: Position ${pos.id} userId=${pos.userId} doesn't match credential userId=${pos.credential.userId} — skipping`
+          );
+          continue;
+        }
         const credId = pos.credentialId;
         if (!byCredential.has(credId)) byCredential.set(credId, []);
         byCredential.get(credId)!.push(pos);

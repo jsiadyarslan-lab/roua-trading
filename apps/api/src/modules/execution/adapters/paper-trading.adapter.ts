@@ -48,6 +48,10 @@ export class PaperTradingAdapter implements IExchangeAdapter {
   /** In-memory store for pending limit orders (checked periodically) */
   private readonly pendingLimitOrders: Map<string, UnifiedOrder> = new Map();
 
+  /** V176: Interval for checking pending limit orders */
+  private limitCheckInterval: NodeJS.Timeout | null = null;
+  private readonly LIMIT_CHECK_INTERVAL_MS = 10_000; // Check every 10 seconds
+
   /** Paper trading rate limits (generous — no real exchange to throttle) */
   private readonly rateLimits = {
     maxRequestsPerSecond: 20,
@@ -71,6 +75,21 @@ export class PaperTradingAdapter implements IExchangeAdapter {
     this.logger.log(
       `📝 Paper Trading adapter initialized (slippage: ${this.slippagePercent}%, commission: ${this.commissionPercent}%)`,
     );
+
+    // V176 FIX: Start periodic limit order checker.
+    // Previously, limit orders were stored in Redis with TTL but NEVER checked.
+    // They stayed PENDING forever because no code compared market price vs limit price.
+    // Now: every 10 seconds, check all pending limit orders and fill if price reached.
+    this.limitCheckInterval = setInterval(() => this._checkPendingLimitOrders(), this.LIMIT_CHECK_INTERVAL_MS);
+    this.logger.log(`📝 V176 Limit order checker started — checking every ${this.LIMIT_CHECK_INTERVAL_MS / 1000}s`);
+  }
+
+  /** V176: Cleanup interval on adapter disposal */
+  destroy(): void {
+    if (this.limitCheckInterval) {
+      clearInterval(this.limitCheckInterval);
+      this.limitCheckInterval = null;
+    }
   }
 
   // ── IExchangeAdapter Implementation ──
@@ -472,6 +491,109 @@ export class PaperTradingAdapter implements IExchangeAdapter {
       status: OrderExecutionStatus.ACCEPTED,
       timestamp: new Date(),
     };
+  }
+
+  // ── Private: Limit Order Checker ──
+
+  /**
+   * V176 FIX: Periodically check all pending limit orders and fill them
+   * if the current market price has reached the limit price.
+   *
+   * Previously, limit orders were stored in Redis + in-memory Map but
+   * NO code ever compared market price vs limit price. They stayed
+   * PENDING forever. This is the missing piece.
+   *
+   * Fill logic:
+   * - BUY limit: fill when marketPrice <= limitPrice
+   * - SELL limit: fill when marketPrice >= limitPrice
+   *
+   * Also auto-cancels orders older than 24 hours.
+   */
+  private async _checkPendingLimitOrders(): Promise<void> {
+    if (this.pendingLimitOrders.size === 0) return;
+
+    const orderIds = [...this.pendingLimitOrders.keys()];
+
+    for (const orderId of orderIds) {
+      try {
+        // Fetch order from DB to check status and age
+        const paperOrder = await this.prisma.paperOrder.findUnique({
+          where: { id: orderId },
+        });
+
+        if (!paperOrder || paperOrder.status !== 'PENDING') {
+          // Order was already filled/cancelled externally — remove from memory
+          this.pendingLimitOrders.delete(orderId);
+          continue;
+        }
+
+        // Auto-cancel orders older than 24 hours
+        const orderAge = Date.now() - new Date(paperOrder.createdAt).getTime();
+        if (orderAge > 86400000) {
+          await this.prisma.paperOrder.update({
+            where: { id: orderId },
+            data: { status: 'CANCELLED' as any },
+          });
+          this.pendingLimitOrders.delete(orderId);
+          await this._cleanupRedisKey(orderId);
+          this.logger.log(`📝 V176 Limit order auto-cancelled (24h expired): ${orderId}`);
+          continue;
+        }
+
+        // Get current market price
+        const currentPrice = await this._getCurrentPrice(paperOrder.symbol);
+        const limitPrice = Number(paperOrder.price);
+        const side = paperOrder.side as 'BUY' | 'SELL';
+
+        // Check if limit price is reachable
+        const isFillable =
+          (side === 'BUY' && currentPrice <= limitPrice) ||
+          (side === 'SELL' && currentPrice >= limitPrice);
+
+        if (isFillable) {
+          // Fill the order at limit price
+          const commission = (Number(paperOrder.quantity) * limitPrice) * (this.commissionPercent / 100);
+
+          await this.prisma.paperOrder.update({
+            where: { id: orderId },
+            data: {
+              status: 'FILLED' as any,
+              filledQuantity: Number(paperOrder.quantity),
+              averagePrice: limitPrice,
+              fee: commission,
+              feeCurrency: 'USD',
+              slippage: 0,
+            },
+          });
+
+          this.pendingLimitOrders.delete(orderId);
+          await this._cleanupRedisKey(orderId);
+
+          await this._auditLog('LIMIT_ORDER_FILLED', {
+            orderId,
+            symbol: paperOrder.symbol,
+            side,
+            limitPrice,
+            currentPrice,
+            quantity: Number(paperOrder.quantity),
+            commission,
+          });
+
+          this.logger.log(
+            `✅ V176 Limit order filled by checker: ${orderId} — ${side} ${paperOrder.quantity} ${paperOrder.symbol} @ ${limitPrice} (market: ${currentPrice})`,
+          );
+        }
+      } catch (error: any) {
+        this.logger.error(`V176 Limit check failed for order ${orderId}: ${error.message}`);
+      }
+    }
+  }
+
+  /** V176: Clean up Redis key for a filled/cancelled limit order */
+  private async _cleanupRedisKey(orderId: string): Promise<void> {
+    try {
+      await this.redisService.del(`paper:limit:${orderId}`);
+    } catch { /* non-critical */ }
   }
 
   // ── Private Helpers ──

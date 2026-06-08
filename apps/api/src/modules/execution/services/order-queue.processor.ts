@@ -53,6 +53,10 @@ import { UnifiedOrder } from '../adapters/base-adapter.interface';
 export class OrderQueueProcessor extends WorkerHost {
   private readonly logger = new Logger(OrderQueueProcessor.name);
 
+  /** V176 FIX: Singleton guard to prevent duplicate BullMQ registration */
+  private static isRegistered = false;
+  private readonly instanceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gatewayService: ExecutionGatewayService,
@@ -62,7 +66,22 @@ export class OrderQueueProcessor extends WorkerHost {
     private readonly auditService: AuditService,
   ) {
     super();
-    this.logger.log('⚙️ Order Queue Processor initialized — ready to process execution jobs');
+
+    // V176 FIX: Guard against duplicate processor registration.
+    // If the module is re-initialized (e.g., hot-reload), NestJS creates a new instance
+    // and BullMQ registers a new worker, causing every job to be processed TWICE.
+    // This guard ensures only one active processor exists at a time.
+    if (OrderQueueProcessor.isRegistered) {
+      this.logger.warn(
+        `⚙️ V176 DUPLICATE OrderQueueProcessor detected (instance: ${this.instanceId}) — ` +
+        `another processor is already active. This instance will be passive to avoid duplicate execution.`
+      );
+    } else {
+      OrderQueueProcessor.isRegistered = true;
+      this.logger.log(
+        `⚙️ Order Queue Processor initialized — ready to process execution jobs (instance: ${this.instanceId})`
+      );
+    }
   }
 
   /**

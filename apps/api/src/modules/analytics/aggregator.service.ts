@@ -31,6 +31,24 @@ import { switchMap, map, catchError, tap, defaultIfEmpty } from 'rxjs/operators'
 export class MarketDataAggregatorService {
   private readonly logger = new Logger(MarketDataAggregatorService.name);
 
+  /** V176: Price sanity ranges — reject obviously wrong prices at the aggregator level.
+   * This mirrors ExchangeService.PRICE_SANITY but is applied AFTER merging sources,
+   * catching corrupted prices that slip through individual adapters.
+   * Issue #9: BTC was recorded at $1,921.80 instead of ~$63,000 because the
+   * aggregator accepted a bad price from a single source without validation. */
+  private static readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
+    'BTC/USDT':  { min: 20000, max: 200000 },
+    'BTC/USD':   { min: 20000, max: 200000 },
+    'ETH/USDT':  { min: 1000, max: 20000 },
+    'ETH/USD':   { min: 1000, max: 20000 },
+    'BNB/USDT':  { min: 100, max: 5000 },
+    'SOL/USDT':  { min: 10, max: 1000 },
+    'XRP/USDT':  { min: 0.1, max: 100 },
+    'ADA/USDT':  { min: 0.05, max: 50 },
+    'DOGE/USDT': { min: 0.01, max: 10 },
+    'XAU/USD':   { min: 1000, max: 5000 },
+  };
+
   constructor(
     private readonly exchangeService: ExchangeService,
     private readonly finnhubAdapter: FinnhubAdapter,
@@ -243,14 +261,51 @@ export class MarketDataAggregatorService {
       timestamp: base.timestamp,
     };
 
-    // Cross-validate with Finnhub if available
-    if (primary && finnhub) {
-      const priceDeviation = Math.abs(primary.price - finnhub.price) / primary.price;
+    // V176 FIX: Price sanity check — reject prices outside reasonable ranges.
+    // Prevents corrupted prices like BTC=$1,921 (should be ~$63,000+) from
+    // being used for trading decisions. This was the root cause of issue #9:
+    // a CoinGecko/Binance API glitch returned BTC at $1,921.80, which was
+    // accepted without validation and stored as the position entry price.
+    const sanity = MarketDataAggregatorService.PRICE_SANITY[symbol]
+      || MarketDataAggregatorService.PRICE_SANITY[symbol.replace('USD', 'USDT')];
+    if (sanity && merged.price > 0 && (merged.price < sanity.min || merged.price > sanity.max)) {
+      this.logger.error(
+        `🔴 V176 PRICE SANITY FAILED: ${symbol} price=$${merged.price} outside [${sanity.min}, ${sanity.max}] — ` +
+        `rejecting corrupted price! Primary=${primary?.price}, Finnhub=${finnhub?.price}`,
+      );
+      // If the other source has a valid price, use it instead
+      if (primary && finnhub) {
+        const primaryValid = primary.price >= sanity.min && primary.price <= sanity.max;
+        const finnhubValid = finnhub.price >= sanity.min && finnhub.price <= sanity.max;
+        if (merged.price === primary.price && finnhubValid) {
+          this.logger.warn(`🔴 V176 Using Finnhub price $${finnhub.price} instead of corrupted primary $${primary.price}`);
+          merged.price = finnhub.price;
+          merged.primarySource = finnhub.source;
+        } else if (merged.price === finnhub.price && primaryValid) {
+          this.logger.warn(`🔴 V176 Using primary price $${primary.price} instead of corrupted Finnhub $${finnhub.price}`);
+          merged.price = primary.price;
+          merged.primarySource = primary.source;
+        } else {
+          // Both sources are wrong — return price=0 to prevent trading
+          merged.price = 0;
+          this.logger.error(`🔴 V176 ALL PRICE SOURCES CORRUPTED for ${symbol} — returning price=0 to prevent bad trades`);
+        }
+      } else {
+        // Only one source and it's wrong
+        merged.price = 0;
+      }
+    }
 
-      if (priceDeviation > 0.01) {
-        // More than 1% deviation — use primary but log warning
+    // Cross-validate with Finnhub if available
+    if (primary && finnhub && merged.price > 0) {
+      const priceDeviation = Math.abs(primary.price - finnhub.price) / Math.max(primary.price, finnhub.price);
+
+      if (priceDeviation > 0.10) {
+        // V176 FIX: More than 10% deviation — likely one source is corrupted.
+        // Previously only logged a warning at 1% deviation (too sensitive for crypto volatility).
+        // Now: 10% threshold catches real corruption while tolerating normal crypto moves.
         this.logger.warn(
-          `⚠️ Price deviation > 1% for ${symbol}: Primary=${primary.price}, Finnhub=${finnhub.price}`,
+          `⚠️ V176 Price deviation > 10% for ${symbol}: Primary=${primary.price}, Finnhub=${finnhub.price} — using sanity-validated price`,
         );
       }
 

@@ -48,6 +48,19 @@ export class PositionMonitorService {
   /** Maximum position age before warning (days) */
   private readonly MAX_POSITION_AGE_DAYS = 7;
 
+  /** V176 FIX: Maximum age for paper-trading positions without SL/TP (hours).
+   * Issue #10: ETH position stuck 131 hours because it had no SL/TP and
+   * was paper-trading — the position monitor only warned but never auto-closed.
+   * Now: paper positions older than 48h without SL/TP are auto-closed. */
+  private readonly STALE_PAPER_POSITION_MAX_HOURS = 48;
+
+  /** V176 FIX: Cooldown period after auto-close (TIME_EXPIRED, STOP_LOSS).
+   * Issue #11: DOGE/SOL trades repeating every 8-10 seconds because after
+   * TIME_EXPIRED auto-close, the SmartExecutor immediately re-opened the same
+   * position. Now: after auto-close, the same symbol is blocked for 5 minutes.
+   * Key format: cooldown:userId:symbol, Value: closeReason, TTL: 5 minutes */
+  private readonly COOLDOWN_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
   /** Is monitor currently running */
   private isMonitoring = false;
 
@@ -380,6 +393,48 @@ export class PositionMonitorService {
 
     // ── Below: Full monitoring for non-Agent positions ──
 
+    // ── V176 FIX: Stale paper-trading position detector ──
+    // Issue #10: Paper positions without SL/TP were never auto-closed.
+    // They stayed open for 131+ hours, blocking new trades and showing
+    // stale P&L. Now: any paper position older than 48h without SL/TP
+    // is automatically closed with reason='STALE_POSITION'.
+    if (position.exchange === 'paper-trading' && position.openedAt) {
+      const holdingMs = Date.now() - new Date(position.openedAt).getTime();
+      const holdingHours = holdingMs / (60 * 60 * 1000);
+      const hasSLTP = stopLossNum !== null || takeProfitNum !== null;
+
+      if (holdingHours > this.STALE_PAPER_POSITION_MAX_HOURS && !hasSLTP) {
+        this.logger.warn(
+          `🔴 V176 STALE POSITION: ${position.symbol} held ${holdingHours.toFixed(1)}h without SL/TP — auto-closing`,
+        );
+        await this._closePosition(position, currentPrice, 'STALE_POSITION');
+        result.slTriggered = true;
+        return result;
+      }
+    }
+
+    // ── V176 FIX: Cooldown check after auto-close ──
+    // Issue #11: After TIME_EXPIRED auto-close, the SmartExecutor immediately
+    // re-opened the same position, creating a loop of trades every 8-10 seconds.
+    // Now: after auto-close, the same userId+symbol is blocked for 5 minutes.
+    try {
+      const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+      const cooldownReason = await this.redis.get(cooldownKey);
+      if (cooldownReason) {
+        this.logger.debug(
+          `⏳ V176 COOLDOWN: ${position.symbol} blocked for user ${position.userId} (reason: ${cooldownReason})`,
+        );
+        // Just update price — don't trigger any SL/TP/trailing while in cooldown
+        priceUpdates.push(
+          this.prisma.position.update({
+            where: { id: position.id },
+            data: { currentPrice, unrealizedPnl },
+          }),
+        );
+        return result;
+      }
+    } catch { /* non-critical */ }
+
     // ── MAX_HOLDING_TIME: Smart Executor + Agent positions ──
     // Counter-trend (reversal): 45 دقيقة
     // Smart Executor مع الاتجاه: 4 ساعات
@@ -405,6 +460,11 @@ export class PositionMonitorService {
           `⏱️ MAX_HOLDING: ${position.symbol} held ${heldMin}m > ${maxMin}m — closing`,
         );
         await this._closePosition(position, currentPrice, 'TIME_EXPIRED');
+        // V176 FIX: Set cooldown after TIME_EXPIRED to prevent immediate re-open
+        try {
+          const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+          await this.redis.set(cooldownKey, 'TIME_EXPIRED', this.COOLDOWN_TTL_MS);
+        } catch { /* non-critical */ }
         result.slTriggered = true;
         return result;
       }
@@ -423,6 +483,12 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'STOP_LOSS');
+
+        // V176 FIX: Set cooldown after STOP_LOSS to prevent immediate re-open
+        try {
+          const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+          await this.redis.set(cooldownKey, 'STOP_LOSS', this.COOLDOWN_TTL_MS);
+        } catch { /* non-critical */ }
 
         result.slTriggered = true;
         return result;

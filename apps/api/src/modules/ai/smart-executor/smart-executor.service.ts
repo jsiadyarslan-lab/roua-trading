@@ -1850,6 +1850,39 @@ export class SmartExecutorService implements OnModuleDestroy {
     const rgMaxPositions = rgParams.maxOpenPositions;
     const effectiveMaxPositions = Math.min(executorMaxPositions, rgMaxPositions);
 
+    // V176 FIX: Check cooldown before opening any new positions.
+    // Issue #11: After TIME_EXPIRED/STOP_LOSS auto-close, the SmartExecutor
+    // immediately re-opened the same position, creating trades every 8-10 seconds.
+    // The position monitor now sets a 5-minute cooldown per userId+symbol.
+    // We must check this cooldown before processing any briefs.
+    try {
+      const cooldownBriefs: string[] = [];
+      for (const brief of briefs) {
+        const cooldownKey = `cooldown:${userId}:${brief.pair}`;
+        const cooldownReason = await this.redis.get(cooldownKey);
+        if (cooldownReason) {
+          this.logger.debug(
+            `⏳ V176 COOLDOWN: Skipping ${brief.pair} for user ${userId} — cooldown active (reason: ${cooldownReason})`,
+          );
+          cooldownBriefs.push(brief.pair);
+        }
+      }
+      // Filter out briefs that are in cooldown
+      if (cooldownBriefs.length > 0) {
+        const before = briefs.length;
+        briefs = briefs.filter(b => !cooldownBriefs.includes(b.pair));
+        this.logger.debug(
+          `⏳ V176: Filtered ${cooldownBriefs.length} cooldown briefs (${before} → ${briefs.length} remaining)`,
+        );
+        if (briefs.length === 0) {
+          this.logger.debug(`⏳ V176: All briefs for user ${userId} are in cooldown — skipping cycle`);
+          return;
+        }
+      }
+    } catch (cooldownErr: any) {
+      this.logger.warn(`V176 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
+    }
+
     if (openPositionsCount >= executorMaxPositions && !isSimulated) {
       this.logger.debug(
         `⚔️ User ${userId} at EXECUTOR max positions (${openPositionsCount}/${executorMaxPositions}) — skipping all briefs`,

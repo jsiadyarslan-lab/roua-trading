@@ -991,7 +991,7 @@ export class TradingService {
             closedAt: new Date(),
             realizedPnl: posRealizedPnl + pnl,
             exitPrice, // V140: Store the actual close price
-            closeReason: request.closeReason || 'MANUAL', // V141: Default to MANUAL if not specified
+            closeReason: request.closeReason || 'AUTO_CLOSE', // V176: Default to AUTO_CLOSE (not MANUAL). Issue #12: auto-closes from position monitor (TIME_EXPIRED, STOP_LOSS, STALE_POSITION) were recorded as 'MANUAL' because closeReason defaulted to 'MANUAL'. This made it impossible to distinguish user-initiated closes from automatic ones. Now: 'AUTO_CLOSE' clearly indicates the close was triggered by the system.
             version: positionVersion + 1,
           },
         });

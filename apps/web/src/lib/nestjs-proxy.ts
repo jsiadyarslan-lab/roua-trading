@@ -207,10 +207,49 @@ function extractSessionToken(request: NextRequest): string | null {
   return null
 }
 
+/**
+ * Check if the request comes from a mobile app.
+ * Mobile apps send X-Platform: ios or X-Platform: android header.
+ *
+ * V170 FIX: Mobile clients must NOT get auto-created guest sessions
+ * when their real session expires — they need a 401 to trigger
+ * their token refresh flow instead.
+ */
+function isMobileRequest(request: NextRequest): boolean {
+  const platform = request.headers.get('x-platform')?.toLowerCase()
+  return platform === 'ios' || platform === 'android'
+}
+
+/**
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ * V170 FIX: Don't delete expired sessions — preserve refresh tokens!
+ *
+ * ROOT CAUSE of "mobile app data not syncing":
+ * When a mobile user's session expired, this proxy DELETED the session
+ * record from the DB. But the refreshToken is stored on the SAME record.
+ * Deleting the session destroyed the refresh token, making it impossible
+ * for the mobile app to refresh its session.
+ *
+ * Additionally, for mobile clients, the proxy was creating a GUEST session
+ * instead of returning 401. The mobile app's APIClient has built-in 401
+ * handling that automatically refreshes the token — but it never triggered
+ * because the proxy returned 200 with guest data instead of 401.
+ *
+ * NEW BEHAVIOR:
+ * - Expired sessions are NOT deleted — they remain for the refresh flow
+ * - Mobile clients with expired sessions get 401 (triggers token refresh)
+ * - Browser clients still get auto-created guest sessions (existing behavior)
+ * ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ */
 async function ensureSession(request: NextRequest): Promise<{
   token: string
   cookieAlreadySet: boolean
+  /** V170: If true, the mobile client's session expired and we should return 401
+   * instead of creating a guest session, so the mobile app can refresh its token. */
+  mobileSessionExpired?: boolean
 }> {
+  const isMobile = isMobileRequest(request)
+
   // Check existing token from cookie, Authorization header, or x-roua-session header
   const existingToken = extractSessionToken(request)
   if (existingToken) {
@@ -224,9 +263,26 @@ async function ensureSession(request: NextRequest): Promise<{
         if (session && session.isActive !== false && session.expiresAt > new Date()) {
           return { token: existingToken, cookieAlreadySet: true }
         }
-        // Invalid/expired/inactive — clean up
-        if (session) {
-          await db.session.delete({ where: { id: session.id } }).catch(() => {})
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // V170 FIX: Do NOT delete expired sessions!
+        //
+        // The session record contains the refreshToken that the mobile app
+        // needs to refresh its session. Deleting the record destroys the
+        // refresh token, making it impossible for the mobile client to
+        // recover. Instead, just skip the expired session so the mobile
+        // app gets a 401 and triggers its token refresh flow.
+        //
+        // OLD CODE (BROKEN):
+        //   await db.session.delete({ where: { id: session.id } })
+        //
+        // NEW CODE: Just skip — don't delete or deactivate.
+        // The /api/auth/refresh endpoint will handle the refresh token
+        // lookup on this same session record.
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        if (session && isMobile) {
+          // Mobile client with expired session — return 401 so the
+          // mobile app's APIClient triggers its token refresh flow.
+          return { token: '', cookieAlreadySet: false, mobileSessionExpired: true }
         }
       } else {
         // DB unavailable — trust the token, NestJS will validate
@@ -236,6 +292,17 @@ async function ensureSession(request: NextRequest): Promise<{
       // DB error — trust the token
       return { token: existingToken, cookieAlreadySet: true }
     }
+  }
+
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // V170 FIX: Mobile clients without any session should also get 401,
+  // not a guest session. A guest session would show empty data and
+  // confuse the user. The mobile app's AuthViewModel handles the
+  // "no session" case by prompting login or creating a guest session
+  // through the proper /api/auth/guest endpoint.
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (isMobile) {
+    return { token: '', cookieAlreadySet: false, mobileSessionExpired: true }
   }
 
   // No valid cookie — create a guest session so ALL API endpoints work.
@@ -271,7 +338,29 @@ async function ensureSession(request: NextRequest): Promise<{
 export async function proxyToNestJS(request: NextRequest, method: string): Promise<NextResponse> {
   const session = await ensureSession(request)
 
-  // If no session could be created, return 502 immediately
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // V170 FIX: Return 401 for mobile clients with expired sessions.
+  //
+  // The mobile app's APIClient has built-in 401 handling that
+  // automatically calls refreshSession() and retries the request.
+  // Previously, the proxy was creating a GUEST session for expired
+  // mobile sessions, which meant the mobile app got empty guest data
+  // instead of triggering its refresh flow.
+  //
+  // Browser clients still get guest sessions (existing behavior).
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  if (session.mobileSessionExpired) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'SESSION_EXPIRED',
+        message: 'انتهت صلاحية الجلسة — يرجى تحديث الجلسة',
+      },
+      { status: 401 },
+    )
+  }
+
+  // If no session could be created (and it's not a mobile expired session), return 502
   if (!session.token) {
     return NextResponse.json(
       {
@@ -318,7 +407,10 @@ async function proxyWithToken(
     }
 
     // Forward relevant headers
-    const forwardedHeaders = ['accept', 'user-agent', 'x-forwarded-for', 'x-real-ip']
+    // V170 FIX: Added 'x-platform' so NestJS knows if the request
+    // comes from a mobile app (ios/android). This is needed for
+    // endpoints that include tokens in the response body for mobile clients.
+    const forwardedHeaders = ['accept', 'user-agent', 'x-forwarded-for', 'x-real-ip', 'x-platform']
     for (const h of forwardedHeaders) {
       const val = request.headers.get(h)
       if (val) headers[h] = val

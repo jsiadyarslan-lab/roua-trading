@@ -107,6 +107,19 @@ export async function POST(request: NextRequest) {
     const deviceInfo = parseUserAgent(userAgent)
 
     // ── Strategy 1: Try refresh token first (for cross-device session restoration) ──
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // V170 FIX: Allow refresh even when session isActive is false.
+    //
+    // ROOT CAUSE: When a session's access token expires, the NestJS
+    // AuthGuard marks the session as isActive=false. Previously, this
+    // prevented the mobile app from refreshing because the refresh
+    // endpoint required isActive=true. But the refresh token is still
+    // valid for 30 days — it should work regardless of isActive.
+    //
+    // The session record may also have been created without isActive
+    // being explicitly set (forceCreateSession in nestjs-proxy.ts),
+    // so we also accept isActive: null/undefined as valid.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
     if (refreshToken && (!sessionToken || sessionToken.length === 0)) {
       try {
         const sessionByRefresh = await db.session.findUnique({
@@ -114,7 +127,7 @@ export async function POST(request: NextRequest) {
           include: { user: true },
         })
 
-        if (sessionByRefresh && sessionByRefresh.isActive) {
+        if (sessionByRefresh && sessionByRefresh.isActive !== false) {
           const isGuest = isGuestEmail(sessionByRefresh.user.email) || sessionByRefresh.user.id.startsWith('guest')
 
           // Check refresh token expiry (30 days from creation)

@@ -121,6 +121,23 @@ const nextConfig: NextConfig = {
         source: '/api/auth/session',
         destination: `${apiTarget}/api/auth/session`,
       },
+      // ── WebAuthn endpoints (proxied to NestJS) ──
+      // FIX: Mobile app needs access to WebAuthn registration, challenge, and
+      // verify endpoints. Without these proxies, all WebAuthn requests from
+      // mobile return 404 because there are no Next.js route handlers for them.
+      // These are NestJS-only endpoints that need to be accessible from mobile.
+      {
+        source: '/api/auth/register',
+        destination: `${apiTarget}/api/auth/register`,
+      },
+      {
+        source: '/api/auth/challenge',
+        destination: `${apiTarget}/api/auth/challenge`,
+      },
+      {
+        source: '/api/auth/verify',
+        destination: `${apiTarget}/api/auth/verify`,
+      },
       // ── OAuth Callbacks (EXPLICIT BYPASS) ──
       // These routes MUST be handled by Next.js Route Handlers, NOT proxied to NestJS.
       // Next.js processes rewrites in order; these don't have a destination, so they pass through.

@@ -75,6 +75,19 @@ export class AuthController {
         });
       }
 
+      // FIX: Include tokens in response body for mobile/native clients
+      // that can't read httpOnly Set-Cookie headers. Detected via
+      // X-Platform header (ios/android).
+      const isMobile = req.headers['x-platform'] === 'ios' || req.headers['x-platform'] === 'android';
+      if (isMobile) {
+        return {
+          success: true,
+          user: result.user,
+          sessionToken: result.sessionToken,
+          refreshToken: result.refreshToken,
+        };
+      }
+
       return { success: true, user: result.user };
     }
 
@@ -103,6 +116,17 @@ export class AuthController {
           maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
           path: '/',
         });
+      }
+
+      // FIX: Include tokens in response body for mobile/native clients
+      const isMobile = req.headers['x-platform'] === 'ios' || req.headers['x-platform'] === 'android';
+      if (isMobile) {
+        return {
+          success: true,
+          user: result.user,
+          sessionToken: result.sessionToken,
+          refreshToken: result.refreshToken,
+        };
       }
 
       return { success: true, user: result.user };

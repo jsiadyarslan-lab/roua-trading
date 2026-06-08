@@ -47,13 +47,38 @@ export async function POST(request: NextRequest) {
 
     // Set session + refresh cookies if NestJS returned them
     const setCookieHeaders = response.headers.getSetCookie?.() || []
-    const result: NextResponse = NextResponse.json({
+
+    // FIX: Detect mobile client to include tokens in response body.
+    // Mobile apps (iOS URLSession, Android OkHttp) cannot reliably
+    // read httpOnly Set-Cookie headers, so we must include sessionToken
+    // and refreshToken in the JSON body for them to store in Keychain.
+    const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+      || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+    const responseBody: Record<string, any> = {
       success: true,
       user: data.user,
-    })
+    }
 
     // Parse and forward cookies from NestJS
     const allCookies = setCookieHeaders.length > 0 ? setCookieHeaders : [response.headers.get('set-cookie') || '']
+
+    let extractedSessionToken: string | undefined
+    let extractedRefreshToken: string | undefined
+
+    for (const setCookie of allCookies) {
+      const sessionMatch = setCookie.match(/roua_session=([^;]+)/)
+      if (sessionMatch) {
+        extractedSessionToken = sessionMatch[1]
+      }
+
+      const refreshMatch = setCookie.match(/roua_refresh=([^;]+)/)
+      if (refreshMatch) {
+        extractedRefreshToken = refreshMatch[1]
+      }
+    }
+
+    const result: NextResponse = NextResponse.json(responseBody)
 
     for (const setCookie of allCookies) {
       const sessionMatch = setCookie.match(/roua_session=([^;]+)/)
@@ -77,6 +102,42 @@ export async function POST(request: NextRequest) {
           path: '/',
         })
       }
+    }
+
+    // FIX: Include tokens in response body for mobile clients
+    if (isMobile) {
+      if (extractedSessionToken) {
+        responseBody.sessionToken = extractedSessionToken
+      }
+      if (extractedRefreshToken) {
+        responseBody.refreshToken = extractedRefreshToken
+      }
+      // Re-create the response with the updated body
+      const mobileResult = NextResponse.json(responseBody)
+      // Still set cookies for any web-based access
+      for (const setCookie of allCookies) {
+        const sessionMatch = setCookie.match(/roua_session=([^;]+)/)
+        if (sessionMatch) {
+          mobileResult.cookies.set('roua_session', sessionMatch[1], {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 24 * 60 * 60,
+            path: '/',
+          })
+        }
+        const refreshMatch = setCookie.match(/roua_refresh=([^;]+)/)
+        if (refreshMatch) {
+          mobileResult.cookies.set('roua_refresh', refreshMatch[1], {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 30 * 24 * 60 * 60,
+            path: '/',
+          })
+        }
+      }
+      return mobileResult
     }
 
     return result

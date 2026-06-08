@@ -218,28 +218,49 @@ export class AuthService {
 
       const deviceInfo = this.parseUserAgent(userAgent);
 
-      // Session rotation: invalidate all previous sessions for this user
-      // before creating a new one. This prevents session accumulation and
-      // ensures only the latest login is active.
+      // ── Session Management: Keep existing sessions alive ──
+      // FIX: Previously, ALL existing sessions were invalidated on every login,
+      // meaning logging in from mobile killed the web session (and vice versa).
+      // This broke cross-device usage — users couldn't stay logged in on both
+      // mobile and web simultaneously.
+      //
+      // NEW BEHAVIOR: Only clean up STALE sessions (expired or older than 7 days).
+      // Active recent sessions on other devices are preserved so users can
+      // use the platform on multiple devices at the same time.
       try {
-        const existingSessions = await this.prisma.session.findMany({
-          where: { userId: user.id, isActive: true },
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const staleSessions = await this.prisma.session.findMany({
+          where: {
+            userId: user.id,
+            isActive: true,
+            OR: [
+              { expiresAt: { lt: new Date() } },  // Expired sessions
+              { createdAt: { lt: sevenDaysAgo } },  // Very old sessions
+            ],
+          },
           select: { id: true, token: true },
         });
-        if (existingSessions.length > 0) {
+        if (staleSessions.length > 0) {
           await this.prisma.session.updateMany({
-            where: { userId: user.id, isActive: true },
+            where: {
+              userId: user.id,
+              isActive: true,
+              OR: [
+                { expiresAt: { lt: new Date() } },
+                { createdAt: { lt: sevenDaysAgo } },
+              ],
+            },
             data: { isActive: false },
           });
-          // Clear all old sessions from Redis cache
-          for (const s of existingSessions) {
+          // Clear stale sessions from Redis cache
+          for (const s of staleSessions) {
             const cacheKey = `${this.sessionRedisPrefix}${s.token}`;
             await this.redis.del(cacheKey).catch(() => {});
           }
         }
       } catch (rotationError: any) {
-        // Don't fail login if session rotation fails — just log
-        this.logger.warn(`Session rotation failed for ${email}: ${rotationError?.message || rotationError}`);
+        // Don't fail login if session cleanup fails — just log
+        this.logger.warn(`Session cleanup failed for ${email}: ${rotationError?.message || rotationError}`);
       }
 
       const session = await this.createSession(user.id, { userAgent, ipAddress, deviceInfo });
@@ -302,28 +323,49 @@ export class AuthService {
 
       const deviceInfo = this.parseUserAgent(userAgent);
 
-      // Session rotation: invalidate all previous sessions for this user
-      // before creating a new one. This prevents session accumulation and
-      // ensures only the latest login is active.
+      // ── Session Management: Keep existing sessions alive ──
+      // FIX: Previously, ALL existing sessions were invalidated on every login,
+      // meaning logging in from mobile killed the web session (and vice versa).
+      // This broke cross-device usage — users couldn't stay logged in on both
+      // mobile and web simultaneously.
+      //
+      // NEW BEHAVIOR: Only clean up STALE sessions (expired or older than 7 days).
+      // Active recent sessions on other devices are preserved so users can
+      // use the platform on multiple devices at the same time.
       try {
-        const existingSessions = await this.prisma.session.findMany({
-          where: { userId: user.id, isActive: true },
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const staleSessions = await this.prisma.session.findMany({
+          where: {
+            userId: user.id,
+            isActive: true,
+            OR: [
+              { expiresAt: { lt: new Date() } },  // Expired sessions
+              { createdAt: { lt: sevenDaysAgo } },  // Very old sessions
+            ],
+          },
           select: { id: true, token: true },
         });
-        if (existingSessions.length > 0) {
+        if (staleSessions.length > 0) {
           await this.prisma.session.updateMany({
-            where: { userId: user.id, isActive: true },
+            where: {
+              userId: user.id,
+              isActive: true,
+              OR: [
+                { expiresAt: { lt: new Date() } },
+                { createdAt: { lt: sevenDaysAgo } },
+              ],
+            },
             data: { isActive: false },
           });
-          // Clear all old sessions from Redis cache
-          for (const s of existingSessions) {
+          // Clear stale sessions from Redis cache
+          for (const s of staleSessions) {
             const cacheKey = `${this.sessionRedisPrefix}${s.token}`;
             await this.redis.del(cacheKey).catch(() => {});
           }
         }
       } catch (rotationError: any) {
-        // Don't fail login if session rotation fails — just log
-        this.logger.warn(`Session rotation failed for ${email}: ${rotationError?.message || rotationError}`);
+        // Don't fail login if session cleanup fails — just log
+        this.logger.warn(`Session cleanup failed for ${email}: ${rotationError?.message || rotationError}`);
       }
 
       const session = await this.createSession(user.id, { userAgent, ipAddress, deviceInfo });

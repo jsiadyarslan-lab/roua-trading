@@ -81,7 +81,14 @@ export async function GET(request: NextRequest) {
           include: { user: true },
         })
         if (session && session.isActive && session.expiresAt > new Date()) {
-          return NextResponse.json({
+          // FIX: Mobile clients need tokens in the response body because
+          // URLSession doesn't reliably expose Set-Cookie headers.
+          // When X-Platform header is present (ios/android), include tokens
+          // so the mobile app can store them in Keychain/EncryptedSharedPreferences.
+          const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+            || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+          const responseBody: Record<string, any> = {
             authenticated: true,
             user: {
               id: session.user.id,
@@ -89,7 +96,18 @@ export async function GET(request: NextRequest) {
               displayName: session.user.displayName,
               tier: session.user.tier,
             },
-          })
+          }
+
+          // Include tokens in body for mobile clients
+          if (isMobile) {
+            responseBody.sessionToken = sessionToken
+            // Look up the refresh token for this session
+            if (session.refreshToken) {
+              responseBody.refreshToken = session.refreshToken
+            }
+          }
+
+          return NextResponse.json(responseBody)
         }
         // Session expired or inactive — clean up
         if (session) {

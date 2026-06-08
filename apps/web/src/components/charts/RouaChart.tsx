@@ -890,10 +890,13 @@ export default function RouaChart({
         const isLastCandle = idx === candlesRef.current.length - 1;
         if (isLastCandle) {
           updateCandleRef.current(merged);
-        } else {
-          // Rare: updating a historical candle (shouldn't normally happen)
-          setCandlesRef.current([...candlesRef.current], { skipIndicatorRebuild: true });
         }
+        // FIX (تمط الشموع): سابقاً كان تحديث شمعة غير أخيرة يستدعي setData
+        // كاملاً في كل نبضة. عند انقطاع WS على إطار الدقيقة، الـ polling
+        // يبني شمعة بوقت ساعة الجهاز قد يقع في دلو ماضٍ → يطابق شمعة غير
+        // أخيرة → setData متكرر (29 مرة/65ث) يمسح الجسم المتراكم = "يرسم
+        // ثم يختفي". الإصلاح: نحدّث المصفوفة في مكانها (تم أعلاه) بلا setData.
+        // التصحيحات التاريخية الحقيقية (نادرة) يغطّيها الـ refresh الدوري.
       } else {
         // NEW candle: append and use setCandles with skipIndicatorRebuild
         // This uses setData() but preserves indicator series (they stay

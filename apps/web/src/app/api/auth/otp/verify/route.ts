@@ -210,7 +210,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
     }
 
-    const response = NextResponse.json({
+    // CRITICAL FIX: Mobile clients need tokens in the response body,
+    // not just in Set-Cookie headers. iOS URLSession does not reliably
+    // expose Set-Cookie headers, so we include them in the JSON body
+    // for clients that send X-Platform: ios or X-Platform: android.
+    const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+      || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+    const responseBody: Record<string, any> = {
       authenticated: true,
       isGuest: false,
       user: {
@@ -220,7 +227,15 @@ export async function POST(request: NextRequest) {
         tier: user.tier,
         isGuest: false,
       },
-    })
+    }
+
+    // Include tokens in body for mobile clients
+    if (isMobile) {
+      responseBody.sessionToken = newToken
+      responseBody.refreshToken = newRefreshToken
+    }
+
+    const response = NextResponse.json(responseBody)
 
     response.cookies.set('roua_session', newToken, {
       httpOnly: true,

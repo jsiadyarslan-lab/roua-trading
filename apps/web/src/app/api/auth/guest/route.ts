@@ -22,10 +22,24 @@ import crypto from 'crypto'
 
 const GUEST_SESSION_DURATION_MS = 2 * 60 * 60 * 1000 // 2 hours (shorter than real sessions)
 
+/**
+ * Check if the request comes from a mobile app.
+ * Mobile apps send X-Platform: ios or X-Platform: android header.
+ */
+function isMobileClient(request: NextRequest): boolean {
+  const platform = request.headers.get('x-platform')?.toLowerCase()
+  return platform === 'ios' || platform === 'android'
+}
+
 export async function GET(request: NextRequest) {
   try {
-    // If user already has a valid session, redirect to dashboard
+    const isMobile = isMobileClient(request)
+
+    // If user already has a valid session, redirect (web) or return JSON (mobile)
     const existingToken = request.cookies.get('roua_session')?.value
+      || request.headers.get('x-roua-session')
+      || (request.headers.get('authorization')?.startsWith('Bearer ') ? request.headers.get('authorization')!.substring(7) : null)
+
     if (existingToken) {
       try {
         const dbReady = await ensureDbReady()
@@ -35,7 +49,21 @@ export async function GET(request: NextRequest) {
             include: { user: true },
           })
           if (session && session.isActive && session.expiresAt > new Date()) {
-            // Already authenticated — redirect to dashboard
+            // Already authenticated
+            if (isMobile) {
+              return NextResponse.json({
+                authenticated: true,
+                isGuest: true,
+                sessionToken: existingToken,
+                user: {
+                  id: session.user.id,
+                  email: session.user.email,
+                  displayName: session.user.displayName,
+                  tier: session.user.tier,
+                  isGuest: true,
+                },
+              })
+            }
             return NextResponse.redirect(new URL('/dashboard', request.url))
           }
         }
@@ -46,7 +74,9 @@ export async function GET(request: NextRequest) {
 
     const dbReady = await ensureDbReady()
     if (!dbReady) {
-      // DB not available — redirect to login with error
+      if (isMobile) {
+        return NextResponse.json({ authenticated: false, error: 'DB_UNAVAILABLE' }, { status: 503 })
+      }
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('error', 'db_unavailable')
       return NextResponse.redirect(loginUrl)
@@ -70,6 +100,21 @@ export async function GET(request: NextRequest) {
       })
       if (recentGuestSessions) {
         // Reuse existing guest session
+        if (isMobile) {
+          const mobileUser = await db.user.findUnique({ where: { id: recentGuestSessions.userId } }).catch(() => null)
+          return NextResponse.json({
+            authenticated: true,
+            isGuest: true,
+            sessionToken: recentGuestSessions.token,
+            user: mobileUser ? {
+              id: mobileUser.id,
+              email: mobileUser.email,
+              displayName: mobileUser.displayName,
+              tier: mobileUser.tier,
+              isGuest: true,
+            } : null,
+          })
+        }
         const response = NextResponse.redirect(new URL('/dashboard', request.url))
         response.cookies.set('roua_session', recentGuestSessions.token, {
           httpOnly: true,
@@ -119,13 +164,19 @@ export async function GET(request: NextRequest) {
           },
         })
       } catch {
-        // Still failed — redirect to login
+        // Still failed
+        if (isMobile) {
+          return NextResponse.json({ authenticated: false, error: 'GUEST_CREATION_FAILED' }, { status: 500 })
+        }
         const loginUrl = new URL('/login', request.url)
         loginUrl.searchParams.set('error', 'guest_creation_failed')
         return NextResponse.redirect(loginUrl)
       }
     }
     if (!guestUser) {
+      if (isMobile) {
+        return NextResponse.json({ authenticated: false, error: 'GUEST_CREATION_FAILED' }, { status: 500 })
+      }
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('error', 'guest_creation_failed')
       return NextResponse.redirect(loginUrl)
@@ -151,12 +202,57 @@ export async function GET(request: NextRequest) {
 
     if (!createdToken) {
       console.error('[auth/guest] Failed to create session for guest user:', userId)
+      if (isMobile) {
+        return NextResponse.json({ authenticated: false, error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+      }
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('error', 'session_creation_failed')
       return NextResponse.redirect(loginUrl)
     }
 
-    // Set cookies and redirect to dashboard
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    // CRITICAL FIX: Mobile clients need JSON with tokens, NOT redirect!
+    //
+    // The iOS app uses URLSession which follows redirects automatically,
+    // losing the Set-Cookie headers. Mobile apps need the session token
+    // and refresh token in the JSON response body so they can store them
+    // in the Keychain.
+    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+    if (isMobile) {
+      const response = NextResponse.json({
+        authenticated: true,
+        isGuest: true,
+        sessionToken: sessionToken,
+        refreshToken: refreshToken,
+        user: {
+          id: userId,
+          email: guestEmail,
+          displayName: guestDisplayName,
+          tier: 'FREE',
+          isGuest: true,
+        },
+      })
+
+      // Also set cookies for any subsequent requests
+      response.cookies.set('roua_session', sessionToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 2 * 60 * 60,
+        path: '/',
+      })
+      response.cookies.set('roua_refresh', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 24 * 60 * 60,
+        path: '/',
+      })
+
+      return response
+    }
+
+    // Web clients: Set cookies and redirect to dashboard
     const response = NextResponse.redirect(new URL('/dashboard', request.url))
     response.cookies.set('roua_session', sessionToken, {
       httpOnly: true,
@@ -176,6 +272,9 @@ export async function GET(request: NextRequest) {
     return response
   } catch (error: any) {
     console.error('[auth/guest] Error:', error?.message || error)
+    if (isMobileClient(request)) {
+      return NextResponse.json({ authenticated: false, error: 'GUEST_AUTH_ERROR' }, { status: 500 })
+    }
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('error', 'unknown')
     return NextResponse.redirect(loginUrl)

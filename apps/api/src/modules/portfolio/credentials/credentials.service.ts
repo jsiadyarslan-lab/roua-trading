@@ -664,6 +664,8 @@ export class CredentialsService {
         currency: 'USD',
         usedMargin: 0,
         paperBalance: undefined as number | undefined,
+        unrealizedPnl: undefined as number | undefined,
+        _dbPaperBalance: undefined as number | undefined,
         assets: [],
         error: r.reason?.message || 'خطأ غير معروف',
       },
@@ -805,6 +807,8 @@ export class CredentialsService {
         available: 10000,
         currency: 'USD',
         usedMargin: 0,
+        unrealizedPnl: 0,
+        _dbPaperBalance: 10000,
         assets: [{ currency: 'USD', free: 10000, used: 0, total: 10000 }],
       });
     }
@@ -949,6 +953,10 @@ export class CredentialsService {
     usedMargin: number;
     /** V173d: paperBalance — only set for paper-trading, undefined for real exchanges */
     paperBalance?: number;
+    /** V183: Total unrealized P/L — only set for paper-trading */
+    unrealizedPnl?: number;
+    /** V183: DB balance after margin deduction — only for diagnostics */
+    _dbPaperBalance?: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
     /** V164d: Raw error detail for diagnostics */

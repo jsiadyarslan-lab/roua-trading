@@ -210,7 +210,12 @@ export async function GET(request: NextRequest) {
         })
       }
 
-      const response = NextResponse.json({
+      // CRITICAL FIX: Include tokens in response body for mobile clients
+      // that can't read httpOnly Set-Cookie headers.
+      const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+        || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+      const responseBody: Record<string, any> = {
         authenticated: true,
         user: {
           id: user.id,
@@ -218,7 +223,14 @@ export async function GET(request: NextRequest) {
           displayName: user.displayName,
           tier: user.tier,
         },
-      })
+      }
+
+      if (isMobile) {
+        responseBody.sessionToken = newToken
+        responseBody.refreshToken = newRefreshToken
+      }
+
+      const response = NextResponse.json(responseBody)
 
       response.cookies.set('roua_session', newToken, {
         httpOnly: true,
@@ -349,7 +361,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    const response = NextResponse.json({
+    // CRITICAL FIX: Include tokens in response body for mobile clients
+    // that can't read httpOnly Set-Cookie headers.
+    const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+      || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+    const responseBody: Record<string, any> = {
       authenticated: true,
       user: {
         id: user.id,
@@ -357,7 +374,14 @@ export async function POST(request: NextRequest) {
         displayName: user.displayName,
         tier: user.tier,
       },
-    })
+    }
+
+    if (isMobile) {
+      responseBody.sessionToken = newToken
+      responseBody.refreshToken = newRefreshToken
+    }
+
+    const response = NextResponse.json(responseBody)
 
     response.cookies.set('roua_session', newToken, {
       httpOnly: true,

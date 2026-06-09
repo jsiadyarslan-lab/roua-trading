@@ -267,33 +267,21 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/trading.service.ts');
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    // Diagnostic info to understand production behavior
-    const hasMethod = content.includes('_executePaperTrade');
-    const hasPositionPercent = content.includes('positionPercent');
-    const hasMaxNotional = content.includes('maxNotional');
-    const hasMaxOrderValue = content.includes('maxOrderValue');
-    const hasMAX_PAPER = content.includes('MAX_PAPER_NOTIONAL') || content.includes('MAX_POSITION_PERCENT');
-    const fileSize = content.length;
-    // Find first occurrence of _executePaperTrade and show context
-    const methodIdx = content.indexOf('_executePaperTrade');
-    const methodCtx = methodIdx >= 0 ? content.substring(Math.max(0, methodIdx - 30), methodIdx + 80) : 'N/A';
-    const diag = `file=${fileSize}B, _executePaperTrade=${hasMethod}, positionPercent=${hasPositionPercent}, maxNotional=${hasMaxNotional}, maxOrderValue=${hasMaxOrderValue}, MAX_POS=${hasMAX_PAPER}, ctx="${methodCtx.replace(/\n/g, '\\n')}"`;
-
-    if (!hasMethod) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: `لم أجد _executePaperTrade في الملف. ${diag}` };
+    if (!content.includes('_executePaperTrade')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade في الملف' };
     }
 
     // Check for dynamic positionPercent check (V180 fix)
-    if (hasPositionPercent) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: `_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent). ${diag}` };
+    if (content.includes('positionPercent')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
     }
 
     // Check for static size limits (pre-V180)
-    if (hasMaxNotional || hasMaxOrderValue) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: `_executePaperTrade يفحص حجم الصفقة (حد ثابت). ${diag}` };
+    if (content.includes('maxNotional') || content.includes('maxOrderValue')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد ثابت)' };
     }
 
-    return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'FAIL', detail: `_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر! ${diag}` };
+    return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'FAIL', detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر!' };
   }
 
   // ── V08: TradeCoordination atomic lock ──

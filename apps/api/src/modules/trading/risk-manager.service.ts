@@ -161,74 +161,29 @@ export class RiskManagerService {
     // Sync settings from DB before each check (rate-limited internally)
     await this.syncSettingsFromDB();
 
-    // ── V124: Simulated Trading Detection (Paper + Testnet) ──
-    // FIX: Determine if this is a simulated order (paper OR testnet).
-    // If so, skip position size percentage and daily loss limit checks —
-    // only enforce position count. Both paper and testnet use virtual funds;
-    // blocking them for "position too large" or "daily drawdown" defeats the
-    // purpose and was the root cause of ALL trades being rejected.
-    //
-    // V124 FIX: Previously only checked _isTestExchange(exchangeName), which
-    // MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
-    // Now also checks the credential's testnet flag.
-    let isSimulated = this._isTestExchange(exchangeName || '');
-
-    // V124: Also check if the credential has testnet=true flag
-    if (!isSimulated && exchangeCredentialId) {
-      try {
-        const cred = await this.prisma.exchangeCredential.findUnique({
-          where: { id: exchangeCredentialId },
-          select: { testnet: true, exchange: true },
-        });
-        if (cred && cred.testnet === true) {
-          isSimulated = true;
-          this.logger.debug(`🛡️ RiskManager: Testnet credential detected (${cred.exchange}, testnet=true) — treating as simulated`);
-        }
-      } catch { /* non-critical */ }
-    }
+    // ── V181: Paper-Only Trading Detection ──
+    // FIX: Only PURE paper/simulation accounts (no broker connection) should
+    // take the simplified risk check path. Broker demo accounts (mt5_demo,
+    // binance_test, testnet credentials) connect to REAL brokers and MUST
+    // enforce all risk checks to simulate realistic conditions.
+    // Previously, _isTestExchange() included mt5_demo which caused it to
+    // bypass drawdown and position size checks — defeating the purpose of demo.
+    let isPaperOnly = this._isPaperOnly(exchangeName || '');
 
     // If exchange name wasn't provided, check user's credentials
-    if (!isSimulated) {
-      // V124: Also exclude testnet credentials from "real" check
+    if (!isPaperOnly) {
+      // Check if user only has paper-trading credentials (no real broker)
       const realCredential = await this.prisma.exchangeCredential.findFirst({
-        where: { userId, isValid: true, exchange: { not: 'paper-trading' }, testnet: { not: true } },
+        where: { userId, isValid: true, exchange: { notIn: ['paper-trading', 'paper', 'sandbox', 'simulation'] }, testnet: { not: true } },
       });
-      const hasOnlySimulatedCredentials = !realCredential;
-      if (hasOnlySimulatedCredentials) {
-        // User only has simulated credentials (paper/testnet) — treat as simulated
-        this.logger.debug(`🛡️ RiskManager: User ${userId} has only simulated credentials — bypassing value limits`);
-      }
-      if (hasOnlySimulatedCredentials) {
-        // V180 FIX: Simulated trading must ALSO check position size %.
-        // Previously bypassed completely → positions of 86% of portfolio.
-        const openPositions = await this.prisma.position.count({
-          where: { userId, status: 'OPEN' },
-        });
-        if (openPositions >= this.maxOpenPositions) {
-          return {
-            allowed: false,
-            reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
-          };
-        }
-        // V180+FIX: Position size % check for simulated-only users.
-        // NO guard condition — must ALWAYS check. If portfolioValue is unknown,
-        // use default $10,000 to prevent unbounded positions.
-        const simPortfolioValue = await this._estimatePortfolioValue(userId, true) || 10000;
-        const simOrderValue = (quantity || 0) * (price || 0);
-        if (simOrderValue > 0) {
-          const simPositionPercent = (simOrderValue / simPortfolioValue) * 100;
-          if (simPositionPercent > this.maxPositionSizePercent) {
-            return {
-              allowed: false,
-              reason: `حجم المركز (${simPositionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%)`,
-            };
-          }
-        }
-        return { allowed: true, riskScore: 10 };
+      const hasOnlyPaperCredentials = !realCredential;
+      if (hasOnlyPaperCredentials) {
+        isPaperOnly = true;
+        this.logger.debug(`🛡️ RiskManager: User ${userId} has only paper credentials — using simplified risk path`);
       }
     }
 
-    if (isSimulated) {
+    if (isPaperOnly) {
       // V180 FIX: Paper trading must ALSO check position size %.
       // Previously bypassed completely → positions of 86% of portfolio.
       const openPositions = await this.prisma.position.count({
@@ -470,12 +425,33 @@ export class RiskManagerService {
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation', 'mt5_demo'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
     if (exactMatches.includes(lower)) return true;
     const suffixPatterns = ['_test', '_paper', '_demo', '_sandbox', '_simulation', '-test', '-paper'];
     if (suffixPatterns.some(s => lower.endsWith(s))) return true;
     if (lower.includes('testnet')) return true;
     return false;
+  }
+
+  /**
+   * V181: Pure paper/simulation detection — NO real broker connection.
+   * Same logic as RiskGatekeeperService._isPaperOnly().
+   * Only pure paper accounts should bypass risk checks.
+   * Broker demo accounts (mt5_demo, binance_test, testnet) must enforce risk checks.
+   */
+  private _isPaperOnly(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['paper-trading', 'paper', 'sandbox', 'simulation'].includes(lower);
+  }
+
+  /**
+   * V181: Check if the exchange is an MT5/MetaTrader variant.
+   */
+  private _isMT5Exchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
   }
 
   private async _calculateDailyLoss(userId: string): Promise<number> {

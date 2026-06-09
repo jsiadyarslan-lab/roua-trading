@@ -110,22 +110,27 @@ export class ExecutionGatewayService {
     // Step 3: Re-validate permissions (security: check before EVERY execution)
     await this._validatePermissions(credential, userId);
 
-    // Step 4: Decrypt credentials — skip for paper/test exchanges
-    // FIX: Paper-trading credentials use demo values ("demo-xxx") that would
-    // fail AES decryption. PaperTradingAdapter doesn't need real API keys.
+    // Step 4: Decrypt credentials
+    // V181 FIX: Only skip decryption for PURE paper/simulation (no broker connection).
+    // Previously, _isTestExchange() included mt5_demo and other broker demo accounts,
+    // which caused their credentials (account number + password) to be replaced with
+    // 'paper'/'paper' — making them completely non-functional.
+    // MT5 accounts (both live and demo) need their real credentials decrypted.
     let apiKey: string;
     let apiSecret: string;
-    if (this._isTestExchange(credential.exchange)) {
+    let passphrase: string | undefined;
+    if (this._isPaperOnly(credential.exchange)) {
       apiKey = 'paper';
       apiSecret = 'paper';
     } else {
       const decrypted = await this.credentialsService.decryptCredential(exchangeCredentialId, userId);
       apiKey = decrypted.apiKey;
       apiSecret = decrypted.apiSecret;
+      passphrase = decrypted.passphrase;
     }
 
     // Step 5: Create the appropriate adapter
-    const adapter = await this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true);
+    const adapter = await this._createAdapter(credential.exchange, apiKey, apiSecret, userId, (credential as any).testnet === true, passphrase);
 
     // Step 6: Cache the adapter
     this.adapterCache.set(exchangeCredentialId, {
@@ -221,7 +226,7 @@ export class ExecutionGatewayService {
   /**
    * Create the appropriate adapter based on exchange type
    */
-  private async _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string, isCredentialTestnet: boolean = false): Promise<IExchangeAdapter> {
+  private async _createAdapter(exchange: string, apiKey: string, apiSecret: string, userId: string, isCredentialTestnet: boolean = false, passphrase?: string): Promise<IExchangeAdapter> {
     const exchangeLower = exchange.toLowerCase();
 
     switch (exchangeLower) {
@@ -276,16 +281,17 @@ export class ExecutionGatewayService {
       case 'metatrader':
         // MT5 integration via MetaAPI Cloud SDK.
         // apiKey = account number, apiSecret = password, passphrase = server name.
-        // MT5 demo accounts are treated as simulated (risk bypass applies).
+        // V181 FIX: MT5 Demo accounts are NO LONGER treated as paper trading.
+        // They connect to a real MetaTrader broker and must enforce risk checks.
         const isMT5Demo = exchangeLower === 'mt5_demo' || isCredentialTestnet;
         return new MT5Adapter(
           this.prisma,
           this.auditService,
           userId,
           {
-            accountId: apiKey,       // MT5 account number stored as apiKey
-            password: apiSecret,     // MT5 password stored as apiSecret
-            server: '',              // Will be populated from passphrase below
+            accountId: apiKey,            // MT5 account number stored as apiKey
+            password: apiSecret,          // MT5 password stored as apiSecret
+            server: passphrase || '',     // MT5 server name from passphrase
             isDemo: isMT5Demo,
           },
         );
@@ -303,12 +309,16 @@ export class ExecutionGatewayService {
    * SECURITY: This check runs before EVERY order execution
    */
   private async _validatePermissions(credential: any, userId: string): Promise<void> {
-    // FIX: Skip permission validation for paper/test exchanges.
-    // These credentials have demo values ("demo-xxx") that would fail JSON.parse
-    // if permissions is the Prisma default string "read" (not a JSON array).
-    // Paper trading doesn't need real API permissions — it's a simulation.
-    if (this._isTestExchange(credential.exchange)) {
-      this.logger.debug(`🛡️ Test exchange "${credential.exchange}" permission check: BYPASSED (simulation)`);
+    // V181 FIX: Only skip permission validation for PURE paper/simulation.
+    // Previously, mt5_demo and other broker demo accounts also bypassed this check,
+    // which was wrong because they use real broker credentials that need validation.
+    if (this._isPaperOnly(credential.exchange)) {
+      this.logger.debug(`🛡️ Paper-only exchange "${credential.exchange}" permission check: BYPASSED (pure simulation)`);
+      return;
+    }
+    // MT5 accounts don't use CCXT permission model — they use account/password
+    if (this._isMT5Exchange(credential.exchange)) {
+      this.logger.debug(`🛡️ MT5 exchange "${credential.exchange}" — skipping CCXT permission check (uses MetaAPI auth)`);
       return;
     }
 
@@ -361,17 +371,39 @@ export class ExecutionGatewayService {
   }
 
   /**
+   * V181: Check if the exchange is an MT5/MetaTrader variant.
+   * MT5 accounts need special handling for permissions (no CCXT permission model).
+   */
+  private _isMT5Exchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
+  }
+
+  /**
    * Check if an exchange name represents a test/paper/simulation environment.
    * Mirrors the same logic in RiskGatekeeperService._isTestExchange().
+   * V181: Removed mt5_demo from exact matches — broker demos are NOT paper.
    */
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation', 'mt5_demo'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
     if (exactMatches.includes(lower)) return true;
     const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
     if (suffixes.some(s => lower.endsWith(s))) return true;
     if (lower.includes('testnet')) return true;
     return false;
+  }
+
+  /**
+   * V181: Pure paper/simulation detection — NO real broker connection.
+   * Same logic as RiskGatekeeperService._isPaperOnly().
+   * Only these accounts should skip credential decryption and permission checks.
+   */
+  private _isPaperOnly(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['paper-trading', 'paper', 'sandbox', 'simulation'].includes(lower);
   }
 }

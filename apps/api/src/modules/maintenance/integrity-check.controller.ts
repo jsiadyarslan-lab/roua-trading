@@ -210,6 +210,8 @@ export class IntegrityCheckController {
     results.push(this.checkV12());
     // V13: ExecutionGateway MT5 routing
     results.push(this.checkV13());
+    // V14: V181 — MT5 Demo NOT treated as paper (risk checks enforced)
+    results.push(this.checkV14());
 
     return results;
   }
@@ -544,13 +546,55 @@ export class IntegrityCheckController {
       return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'WARN', detail: 'يوجد case mt5 لكن لا يوجد استيراد لـ MT5Adapter' };
     }
 
-    // Check for mt5_demo in test exchange detection
-    const hasMT5Demo = content.includes('mt5_demo');
-    if (!hasMT5Demo) {
-      return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'WARN', detail: 'MT5 routing موجود لكن mt5_demo غير معرّف كحساب ورقي' };
+    // V181: Check that _isPaperOnly() exists (not _isTestExchange for paper bypass)
+    const hasPaperOnly = content.includes('_isPaperOnly');
+    if (!hasPaperOnly) {
+      return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'WARN', detail: 'MT5 routing موجود لكن لا يوجد _isPaperOnly() — قد تُعامل حسابات Demo كورقية' };
     }
 
-    return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'PASS', detail: 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح (mt5, mt5_demo, metatrader5)' };
+    return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'PASS', detail: 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح مع فصل الورقي عن Demo' };
+  }
+
+  // ── V14: V181 — MT5 Demo NOT treated as paper (risk checks enforced) ──
+  private checkV14(): CheckResult {
+    const riskGK = this.read('modules/trading/services/risk-gatekeeper.service.ts');
+    if (!riskGK) return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'MISSING', detail: 'ملف RiskGatekeeper غير موجود' };
+
+    // Check 1: _isPaperOnly() method exists in RiskGatekeeper
+    const hasPaperOnlyInGK = riskGK.includes('_isPaperOnly');
+
+    // Check 2: _isPaperOnly() method exists in RiskManager
+    const riskMgr = this.read('modules/trading/risk-manager.service.ts');
+    const hasPaperOnlyInRM = riskMgr?.includes('_isPaperOnly');
+
+    // Check 3: _isPaperOnly() method exists in ExecutionGateway
+    const execGW = this.read('modules/execution/gateways/execution-gateway.service.ts');
+    const hasPaperOnlyInEG = execGW?.includes('_isPaperOnly');
+
+    // Check 4: _isMT5Exchange() method exists in RiskGatekeeper
+    const hasMT5Check = riskGK.includes('_isMT5Exchange');
+
+    // Check 5: mt5_demo is NOT in _isTestExchange exactMatches
+    // V181: We check the exactMatches array in _isTestExchange — it should NOT contain 'mt5_demo'
+    const testExchangeSection = riskGK.substring(
+      Math.max(0, riskGK.indexOf('_isTestExchange')),
+      Math.min(riskGK.length, riskGK.indexOf('_isTestExchange') + 500)
+    );
+    const mt5DemoInExact = testExchangeSection.includes("'mt5_demo'") || testExchangeSection.includes('"mt5_demo"');
+
+    if (!hasPaperOnlyInGK || !hasPaperOnlyInRM || !hasPaperOnlyInEG) {
+      return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'FAIL', detail: `_isPaperOnly() مفقود في: ${!hasPaperOnlyInGK ? 'RiskGatekeeper ' : ''}${!hasPaperOnlyInRM ? 'RiskManager ' : ''}${!hasPaperOnlyInEG ? 'ExecutionGateway' : ''} — حسابات Demo قد تتجاوز فحوصات المخاطر` };
+    }
+
+    if (mt5DemoInExact) {
+      return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'FAIL', detail: 'mt5_demo لا يزال في _isTestExchange() — حسابات Demo تُعامل كورقية وتتجاوز فحوصات المخاطر!' };
+    }
+
+    if (!hasMT5Check) {
+      return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'WARN', detail: '_isMT5Exchange() مفقود — لا يوجد فصل خاص لحسابات MT5 في فحص الرصيد' };
+    }
+
+    return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'PASS', detail: 'حسابات Demo (mt5_demo) تمر بفحوصات المخاطر كاملة — فقط الورقي البحت يتجاوز الرصيد والتراجع' };
   }
 
   // ── HTML Renderer ──

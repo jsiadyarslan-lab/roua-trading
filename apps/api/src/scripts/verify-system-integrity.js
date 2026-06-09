@@ -539,11 +539,11 @@ check('V13', 'MT5 Adapter يفحص حجم الصفقة',
 );
 
 // ───────────────────────────────────────────────────────────────
-// الفحص #14: ExecutionGateway — توجيه MT5 (NEW)
+// الفحص #14: ExecutionGateway — توجيه MT5 + V181 فصل الورقي عن Demo
 // ───────────────────────────────────────────────────────────────
-console.log(`\n${BOLD}── الفحص #14: ExecutionGateway — توجيه MT5 (NEW) ──${RESET}`);
+console.log(`\n${BOLD}── الفحص #14: ExecutionGateway — توجيه MT5 + V181 فصل الورقي عن Demo ──${RESET}`);
 
-check('V14', 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح',
+check('V14', 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح مع فصل الورقي عن Demo',
   'modules/execution/gateways/execution-gateway.service.ts',
   (content) => {
     const code = stripComments(content);
@@ -558,12 +558,48 @@ check('V14', 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح',
       return { warn: true, detail: 'يوجد case mt5 لكن لا يوجد استيراد لـ MT5Adapter' };
     }
 
-    const hasMT5Demo = code.includes('mt5_demo');
-    if (!hasMT5Demo) {
-      return { warn: true, detail: 'MT5 routing موجود لكن mt5_demo غير معرّف كحساب ورقي' };
+    // V181: Check _isPaperOnly() exists (separates paper from broker demo)
+    const hasPaperOnly = code.includes('_isPaperOnly');
+    if (!hasPaperOnly) {
+      return { warn: true, detail: 'MT5 routing موجود لكن لا يوجد _isPaperOnly() — حسابات Demo قد تُعامل كورقية' };
     }
 
-    return { pass: true, detail: 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح (mt5, mt5_demo, metatrader5)' };
+    return { pass: true, detail: 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح مع فصل الورقي عن Demo' };
+  }
+);
+
+// ───────────────────────────────────────────────────────────────
+// الفحص #15: V181 — MT5 Demo لا يُعامل كورقي (فحوصات المخاطر مُطبقة)
+// ───────────────────────────────────────────────────────────────
+console.log(`\n${BOLD}── الفحص #15: V181 — MT5 Demo لا يُعامل كورقي ──${RESET}`);
+
+check('V15', 'V181 فصل الورقي عن Demo',
+  'modules/trading/services/risk-gatekeeper.service.ts',
+  (content) => {
+    const code = stripComments(content);
+
+    // Check 1: _isPaperOnly() method exists
+    const hasPaperOnly = code.includes('_isPaperOnly');
+    if (!hasPaperOnly) {
+      return { pass: false, detail: '_isPaperOnly() مفقود — حسابات Demo قد تتجاوز فحوصات المخاطر' };
+    }
+
+    // Check 2: _isMT5Exchange() method exists
+    const hasMT5Check = code.includes('_isMT5Exchange');
+    if (!hasMT5Check) {
+      return { warn: true, detail: '_isMT5Exchange() مفقود — لا يوجد فصل خاص لحسابات MT5' };
+    }
+
+    // Check 3: mt5_demo is NOT in _isTestExchange exactMatches
+    const testExchangeIdx = code.indexOf('_isTestExchange');
+    if (testExchangeIdx >= 0) {
+      const testExchangeSection = code.substring(testExchangeIdx, testExchangeIdx + 500);
+      if (testExchangeSection.includes("'mt5_demo'") || testExchangeSection.includes('"mt5_demo"')) {
+        return { pass: false, detail: 'mt5_demo لا يزال في _isTestExchange() — حسابات Demo تُعامل كورقية!' };
+      }
+    }
+
+    return { pass: true, detail: 'حسابات Demo (mt5_demo) تمر بفحوصات المخاطر كاملة — فقط الورقي البحت يتجاوز الرصيد والتراجع' };
   }
 );
 

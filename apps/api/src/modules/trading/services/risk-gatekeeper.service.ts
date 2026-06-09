@@ -556,14 +556,48 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         };
       }
 
-      // ── V124: Simulated Trading Bypass (Paper + Testnet) ──
-      // FIX: Previously, only _isTestExchange(credential.exchange) was checked,
-      // which MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
-      // Now: Use _isSimulatedCredential() which checks BOTH the exchange name AND the testnet flag.
-      // This ensures testnet accounts get the same risk check bypasses as paper trading —
-      // both use virtual funds and don't need real balance verification.
+      // ── V181: Pure Paper Trading Bypass ONLY ──
+      // FIX: Previously, _isSimulatedCredential() returned true for broker demo
+      // accounts (mt5_demo, binance_test, testnet credentials), treating them
+      // the same as pure paper trading. This was WRONG because:
+      // 1. Broker demos connect to REAL brokers with REAL market data
+      // 2. They execute orders on real platforms (MetaTrader, Binance testnet API)
+      // 3. Bypassing risk checks on demo defeats the purpose — users won't discover
+      //    risk limit violations until they switch to live accounts
+      // Now: Only bypass for PURE paper/simulation (no broker connection at all).
       if (this._isSimulatedCredential(credential)) {
-        this.logger.debug(`🛡️ Simulated credential "${credential.exchange}" (testnet=${(credential as any).testnet}) balance check: BYPASSED (virtual balance) — allowing order`);
+        this.logger.debug(`🛡️ Paper-only credential "${credential.exchange}" balance check: BYPASSED (pure simulation) — allowing order`);
+        return { allowed: true };
+      }
+
+      // ── V181: Broker Demo / MT5 Accounts ──
+      // For MT5 accounts (both live and demo), we can't use CCXT to verify balance.
+      // Instead, we enforce order value limits and position size checks.
+      // The MT5Adapter itself also enforces a 5% max position size limit.
+      const isMT5Account = this._isMT5Exchange(credential.exchange);
+      if (isMT5Account) {
+        // MT5 accounts: Skip CCXT balance verification, but enforce value limits
+        const orderValue = command.quantity * (command.price || 0);
+
+        // Minimum order size check
+        if (orderValue < this.minOrderSizeUSD) {
+          return {
+            allowed: false,
+            reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) أقل من الحد الأدنى (${this.minOrderSizeUSD} USD).`,
+            failedCheck: 'BALANCE_CHECK',
+          };
+        }
+
+        // Maximum order size check
+        if (orderValue > this.maxOrderSizeUSD) {
+          return {
+            allowed: false,
+            reason: `قيمة الطلب (${orderValue.toFixed(2)} USD) تتجاوز الحد الأقصى (${this.maxOrderSizeUSD} USD).`,
+            failedCheck: 'BALANCE_CHECK',
+          };
+        }
+
+        this.logger.debug(`🛡️ MT5 account "${credential.exchange}" balance check: CCXT bypassed (MT5 uses MetaAPI), order value limits enforced ($${orderValue.toFixed(2)})`);
         return { allowed: true };
       }
 
@@ -719,14 +753,14 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
    */
   async checkPositionSizeLimit(command: OrderCommand): Promise<RiskCheckResult> {
     try {
-      // ── Paper/Test Trading Bypass ──
-      // FIX: For test/paper-trading credentials (including binance_test, alpaca_paper, etc.),
-      // paper trading has virtual unlimited balance. Only enforce the max open
-      // positions count. Previously, checkPositionSizeLimit would fail for
-      // paper-trading because it tried to fetch the price via getQuote() when
-      // command.price was not set, and paper-trading credentials can't fetch
-      // real exchange quotes. This caused ALL paper-trading orders to be rejected
-      // at this check, resulting in 0 executions despite active briefs.
+      // ── V181: Paper Trading Path ──
+      // Only PURE paper/simulation accounts (no broker connection) take this path.
+      // Broker demo accounts (mt5_demo, binance_test, testnet) now go through
+      // the REAL trading path below, enforcing all risk checks to simulate
+      // realistic conditions. This is critical because:
+      // 1. Demo accounts connect to real brokers with real market data
+      // 2. Users must experience realistic risk constraints before going live
+      // 3. Bypassing risk checks on demo defeats the purpose of demo trading
       //
       // CRITICAL FIX v2: Also check command.isPaperTrading flag. The Smart Executor
       // sets this flag when submitting paper trades. The credential-based check
@@ -738,10 +772,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       //    a small portfolio estimation, orders were calculated as 100% of portfolio
       // This caused the error: "حجم المركز (100.0%) يتجاوز الحد الأقصى (5%)"
       // blocking ALL paper-trading executions.
-      // ── V124: Simulated Trading Bypass (Paper + Testnet) ──
-      // FIX: Previously, only checked command.isPaperTrading flag and _isTestExchange().
-      // This MISSED Binance Testnet credentials stored as exchange='binance' with testnet=true.
-      // Now: Also check credential.testnet flag via _isSimulatedCredential().
+      // ── V181: Now uses _isSimulatedCredential() which only matches pure paper ──
       const isPaperByFlag = command.isPaperTrading === true;
       const credential = await this.prisma.exchangeCredential.findUnique({
         where: { id: command.exchangeCredentialId },
@@ -939,22 +970,19 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   async checkDailyDrawdownLimit(userId: string, exchangeCredentialId?: string): Promise<RiskCheckResult> {
     try {
       // ═══════════════════════════════════════════════════════════════
-      // V124 FIX: Skip daily drawdown check for SIMULATED trading users.
-      // "Simulated" = paper-trading OR testnet. Both use virtual funds —
-      // blocking simulated trading for "daily drawdown" defeats the purpose.
-      // The user should be able to keep practicing even after a bad day.
-      // Real-money accounts still enforce this check to protect capital.
-      //
-      // FIX: Previously only checked _isTestExchange(credential.exchange),
-      // which MISSED Binance Testnet credentials with exchange='binance' + testnet=true.
-      // Now uses _isSimulatedCredential() which checks the testnet flag too.
+      // V181 FIX: Skip daily drawdown check for PURE PAPER trading ONLY.
+      // Previously, broker demo accounts (mt5_demo, binance_test, testnet)
+      // also bypassed this check, which defeated the purpose of demo trading.
+      // Demo accounts connect to REAL brokers and MUST enforce risk checks
+      // so users experience realistic constraints before going live.
+      // Now: _isSimulatedCredential() only returns true for pure paper/simulation.
       // ═══════════════════════════════════════════════════════════════
       if (exchangeCredentialId) {
         const credential = await this.prisma.exchangeCredential.findUnique({
           where: { id: exchangeCredentialId },
         });
         if (this._isSimulatedCredential(credential)) {
-          this.logger.debug(`🛡️ Simulated credential "${credential?.exchange}" (testnet=${(credential as any)?.testnet}) daily drawdown check: BYPASSED (simulation)`);
+          this.logger.debug(`🛡️ Paper-only credential "${credential?.exchange}" daily drawdown check: BYPASSED (pure simulation)`);
           return { allowed: true };
         }
       } else {
@@ -1379,12 +1407,52 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation', 'mt5_demo'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
     if (exactMatches.includes(lower)) return true;
     const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
     if (suffixes.some(s => lower.endsWith(s))) return true;
     if (lower.includes('testnet')) return true;
     return false;
+  }
+
+  /**
+   * V181: Pure paper/simulation detection — NO real broker connection.
+   *
+   * This method identifies accounts that are PURELY internal simulations
+   * with no connection to any external broker or exchange. These are the
+   * ONLY accounts that should bypass certain risk checks (balance, drawdown)
+   * because they have no real execution path and no real market data.
+   *
+   * CRITICAL DISTINCTION from _isTestExchange():
+   * - _isTestExchange() includes broker demo accounts (mt5_demo, binance_test, etc.)
+   *   which connect to REAL brokers with REAL market data but virtual funds.
+   * - _isPaperOnly() excludes broker demos because they MUST enforce risk checks
+   *   to simulate realistic trading conditions. If risk checks are bypassed on
+   *   a broker demo, the user won't discover risk limit violations until they
+   *   switch to a live account — which defeats the purpose of demo trading.
+   *
+   * Examples:
+   * - 'paper-trading' / 'paper' → TRUE (pure simulation)
+   * - 'mt5_demo'               → FALSE (real MetaTrader broker, virtual funds)
+   * - 'binance_test'           → FALSE (real Binance API, testnet funds)
+   */
+  private _isPaperOnly(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['paper-trading', 'paper', 'sandbox', 'simulation'].includes(lower);
+  }
+
+  /**
+   * V181: Check if the exchange is an MT5/MetaTrader variant.
+   * MT5 accounts (both live and demo) need special handling because:
+   * - They use MetaAPI Cloud SDK, not CCXT
+   * - Balance verification must go through MetaAPI, not CCXT
+   * - They have their own position sizing rules (lot-based)
+   */
+  private _isMT5Exchange(exchangeName: string): boolean {
+    if (!exchangeName) return false;
+    const lower = exchangeName.toLowerCase();
+    return ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(lower);
   }
 
   /**
@@ -1446,36 +1514,24 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * V124 SUSTAINABLE FIX: Determine if a credential represents a SIMULATED
-   * trading environment (paper OR testnet). This is the CORRECT method to use
-   * when deciding whether to bypass risk checks — it checks BOTH:
+   * V181: Determine if a credential represents a PURE paper/simulation account.
    *
-   * 1. The exchange name string (via _isTestExchange)
-   * 2. The `testnet` boolean flag on the credential
+   * This is the CORRECT method to use when deciding whether to bypass risk checks.
+   * It ONLY returns true for accounts with no real broker connection — meaning
+   * pure internal simulations where balance/drawdown checks are meaningless.
    *
-   * WHY THIS EXISTS: Binance Testnet credentials are stored as:
-   *   exchange: 'binance', testnet: true
-   *
-   * The old `_isTestExchange('binance')` returns FALSE, causing the system to
-   * treat Testnet as REAL trading. This means:
-   *   - CCXT balance verification with testnet API keys → fails
-   *   - Daily drawdown limits enforced → blocks simulated trading
-   *   - Strict entry conditions applied → rejects valid simulated trades
-   *   - Position size limits enforced → rejects simulated orders
-   *
-   * ALL of these are wrong for testnet — testnet uses VIRTUAL funds, just like
-   * paper trading. The only difference is the execution path: testnet executes
-   * via CCXT on the testnet exchange, while paper uses simulated fills.
-   * Risk checks should be IDENTICAL for both.
-   *
-   * This method unifies the concept: "simulated" = paper OR testnet = bypass risk.
+   * Broker demo accounts (mt5_demo, binance_test, testnet credentials) return FALSE
+   * because they connect to real brokers and MUST enforce risk checks to simulate
+   * realistic trading conditions. The whole point of a demo account is to practice
+   * with realistic constraints — bypassing risk checks defeats this purpose.
    */
   private _isSimulatedCredential(credential: { exchange: string; testnet?: boolean } | null): boolean {
     if (!credential) return false;
-    // Check 1: Exchange name indicates test/demo/paper
-    if (this._isTestExchange(credential.exchange)) return true;
-    // Check 2: The testnet FLAG is set on the credential (e.g., Binance Testnet)
-    if ((credential as any).testnet === true) return true;
+    // Check 1: Exchange name indicates PURE paper/simulation (no broker)
+    if (this._isPaperOnly(credential.exchange)) return true;
+    // Check 2: The testnet FLAG with a generic 'demo'/'sandbox' exchange name
+    // Note: Real broker testnet (e.g. Binance with testnet=true) is NOT paper-only
+    if ((credential as any).testnet === true && this._isPaperOnly(credential.exchange)) return true;
     return false;
   }
 

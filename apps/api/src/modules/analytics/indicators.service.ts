@@ -9,29 +9,39 @@ import {
   AtrResult,
 } from './analytics.types';
 import { AggregatedCandleDto } from './analytics.types';
+// V178 FIX #20: Import canonical indicator algorithms — single source of truth.
+// Previously, this service had FULL DUPLICATE implementations of SMA, EMA, RSI, MACD,
+// Bollinger, and ATR that were identical to indicator-algorithms.util.ts.
+// Now delegates to canonical util for calculations and adds only the interpretation/
+// summary enrichment layer on top.
+import {
+  calcSma,
+  calcEma,
+  calcRsi,
+  calcMacd,
+  calcBollingerBands,
+  calcAtr,
+} from '../../common/utils/indicator-algorithms.util';
 
 /**
- * Technical Indicator Service — Pure JavaScript Implementation
+ * Technical Indicator Service — Delegates to Canonical Indicator Algorithms
  *
- * Computes technical indicators from OHLCV candle data.
- * Uses pure JavaScript implementations (no native dependencies) for:
- * - SMA (Simple Moving Average)
- * - EMA (Exponential Moving Average)
- * - RSI (Relative Strength Index)
- * - MACD (Moving Average Convergence Divergence)
- * - Bollinger Bands
- * - ATR (Average True Range)
+ * V178 FIX #20: This service now delegates ALL indicator calculations to the
+ * canonical `indicator-algorithms.util.ts` instead of reimplementing them.
+ * This service adds the interpretation/summary enrichment layer:
+ *   - Technical score calculation (-100 to +100)
+ *   - Human-readable summary generation
+ *   - RSI interpretation (OVERBOUGHT/OVERSOLD/NEUTRAL)
+ *   - ATR volatility level (LOW/NORMAL/HIGH)
  *
- * Note: While `tulind` was initially planned, we use a pure JS implementation
- * to avoid native compilation issues and ensure cross-platform compatibility.
- * The algorithms produce identical results to tulind's implementations.
+ * DO NOT add raw indicator calculations here — use indicator-algorithms.util.ts instead.
  */
 @Injectable()
 export class TechnicalIndicatorService {
   private readonly logger = new Logger(TechnicalIndicatorService.name);
 
   constructor() {
-    this.logger.log('📈 Technical Indicator Service initialized — pure JS indicators ready');
+    this.logger.log('📈 Technical Indicator Service initialized — delegating to canonical indicator-algorithms.util.ts (V178)');
   }
 
   /**
@@ -49,19 +59,30 @@ export class TechnicalIndicatorService {
     const lows = candles.map((c) => c.low);
     const volumes = candles.map((c) => c.volume);
 
-    // Compute all indicators
-    const sma20 = this.sma(closes, 20);
-    const sma50 = this.sma(closes, 50);
-    const sma200 = this.sma(closes, 200);
+    // Compute all indicators — V178: Delegated to canonical indicator-algorithms.util.ts
+    const sma20 = calcSma(closes, 20);
+    const sma50 = calcSma(closes, 50);
+    const sma200 = calcSma(closes, 200);
 
-    const ema12 = this.ema(closes, 12);
-    const ema26 = this.ema(closes, 26);
-    const ema50 = this.ema(closes, 50);
+    const ema12 = calcEma(closes, 12);
+    const ema26 = calcEma(closes, 26);
+    const ema50 = calcEma(closes, 50);
 
-    const rsiResult = this.rsi(closes, 14);
-    const macdResult = this.macd(closes, 12, 26, 9);
-    const bbResult = this.bollingerBands(closes, 20, 2);
-    const atrResult = this.atr(highs, lows, closes, 14);
+    const rsiValues = calcRsi(closes, 14);
+    const macdResult = calcMacd(closes, 12, 26, 9);
+    const bbResult = calcBollingerBands(closes, 20, 2);
+    const atrValues = calcAtr(highs, lows, closes, 14);
+
+    // V178: Build enriched result objects with interpretation (layer on top of canonical util)
+    const rsiResult = rsiValues.length > 0 ? this._enrichRsi(rsiValues) : null;
+    const atrResult = atrValues.length > 0 ? this._enrichAtr(atrValues) : null;
+    // Map canonical MacdCalcResult to MacdResult expected by analytics types
+    const macdMapped: MacdResult | null = macdResult ? {
+      macd: macdResult.macdLine,
+      signal: macdResult.signalLine,
+      histogram: macdResult.histogram,
+      crossover: macdResult.crossover,
+    } : null;
 
     // Calculate aggregate technical score (-100 to +100)
     const technicalScore = this._calculateTechnicalScore(
@@ -71,12 +92,12 @@ export class TechnicalIndicatorService {
       ema12,
       ema26,
       rsiResult,
-      macdResult,
+      macdMapped,
       bbResult,
     );
 
     // Generate summary
-    const summary = this._generateSummary(symbol, closes, rsiResult, macdResult, bbResult, technicalScore);
+    const summary = this._generateSummary(symbol, closes, rsiResult, macdMapped, bbResult, technicalScore);
 
     return {
       symbol,
@@ -98,7 +119,7 @@ export class TechnicalIndicatorService {
         values: rsiResult.values,
         interpretation: rsiResult.interpretation,
       } : null,
-      macd: macdResult,
+      macd: macdMapped,
       bollingerBands: bbResult,
       atr: atrResult,
       technicalScore,
@@ -106,116 +127,63 @@ export class TechnicalIndicatorService {
     };
   }
 
-  // ── SMA: Simple Moving Average ──
+  // ── V178: Public methods now delegate to canonical util ──
+  // These methods exist for backward compatibility with consumers that call
+  // TechnicalIndicatorService.sma() etc. They simply delegate to the canonical util.
 
-  /**
-   * Compute Simple Moving Average
-   * SMA(n) = sum(close[i-n+1..i]) / n
-   */
   sma(data: number[], period: number): number[] {
-    if (data.length < period) return [];
-
-    const result: number[] = [];
-    let sum = 0;
-
-    // Initial window
-    for (let i = 0; i < period; i++) {
-      sum += data[i];
-    }
-    result.push(sum / period);
-
-    // Sliding window
-    for (let i = period; i < data.length; i++) {
-      sum += data[i] - data[i - period];
-      result.push(sum / period);
-    }
-
-    return result;
+    return calcSma(data, period);
   }
 
-  // ── EMA: Exponential Moving Average ──
-
-  /**
-   * Compute Exponential Moving Average
-   * EMA(n) = close * k + EMA_prev * (1 - k), where k = 2/(n+1)
-   */
   ema(data: number[], period: number): number[] {
-    if (data.length < period) return [];
-
-    const k = 2 / (period + 1);
-    const result: number[] = [];
-
-    // Start with SMA for the first value
-    let sum = 0;
-    for (let i = 0; i < period; i++) {
-      sum += data[i];
-    }
-    result.push(sum / period);
-
-    // Calculate EMA for the rest
-    for (let i = period; i < data.length; i++) {
-      const emaValue = data[i] * k + result[result.length - 1] * (1 - k);
-      result.push(emaValue);
-    }
-
-    return result;
+    return calcEma(data, period);
   }
 
-  // ── RSI: Relative Strength Index ──
-
-  /**
-   * Compute RSI
-   * RSI = 100 - (100 / (1 + RS))
-   * RS = Average Gain / Average Loss over period
-   * Uses Wilder's smoothing method for running averages
-   */
   rsi(data: number[], period: number = 14): RsiResult | null {
-    if (data.length < period + 1) return null;
+    const values = calcRsi(data, period);
+    if (values.length === 0) return null;
+    return this._enrichRsi(values);
+  }
 
-    const values: number[] = [];
-    let avgGain = 0;
-    let avgLoss = 0;
+  macd(
+    data: number[],
+    fastPeriod: number = 12,
+    slowPeriod: number = 26,
+    signalPeriod: number = 9,
+  ): MacdResult | null {
+    const result = calcMacd(data, fastPeriod, slowPeriod, signalPeriod);
+    if (!result) return null;
+    // Map canonical result to the MacdResult type expected by consumers
+    return {
+      macd: result.macdLine,
+      signal: result.signalLine,
+      histogram: result.histogram,
+      crossover: result.crossover,
+    };
+  }
 
-    // Initial averages
-    for (let i = 1; i <= period; i++) {
-      const change = data[i] - data[i - 1];
-      if (change > 0) {
-        avgGain += change;
-      } else {
-        avgLoss += Math.abs(change);
-      }
-    }
-    avgGain /= period;
-    avgLoss /= period;
+  bollingerBands(
+    data: number[],
+    period: number = 20,
+    multiplier: number = 2,
+  ): BollingerBandsResult | null {
+    return calcBollingerBands(data, period, multiplier);
+  }
 
-    // FIX: When avgLoss === 0, RSI should be exactly 100, not 99.01
-    // Previously: rs = 100 → 100 - 100/(1+100) = 99.01 (mathematically wrong)
-    if (avgLoss === 0) {
-      values.push(100);
-    } else {
-      const rs = avgGain / avgLoss;
-      values.push(100 - 100 / (1 + rs));
-    }
+  atr(
+    highs: number[],
+    lows: number[],
+    closes: number[],
+    period: number = 14,
+  ): AtrResult | null {
+    const values = calcAtr(highs, lows, closes, period);
+    if (values.length === 0) return null;
+    return this._enrichAtr(values);
+  }
 
-    // Subsequent values using Wilder's smoothing
-    for (let i = period + 1; i < data.length; i++) {
-      const change = data[i] - data[i - 1];
-      const gain = change > 0 ? change : 0;
-      const loss = change < 0 ? Math.abs(change) : 0;
+  // ── V178: Enrichment methods (interpretation layer on top of canonical util) ──
 
-      avgGain = (avgGain * (period - 1) + gain) / period;
-      avgLoss = (avgLoss * (period - 1) + loss) / period;
-
-      // FIX: Same correction for subsequent RSI values
-      if (avgLoss === 0) {
-        values.push(100);
-      } else {
-        const rs = avgGain / avgLoss;
-        values.push(100 - 100 / (1 + rs));
-      }
-    }
-
-    // Interpretation based on latest RSI
+  private _enrichRsi(values: number[]): RsiResult {
     const latestRsi = values[values.length - 1];
     let interpretation: 'OVERBOUGHT' | 'OVERSOLD' | 'NEUTRAL';
     if (latestRsi >= 70) {
@@ -225,184 +193,21 @@ export class TechnicalIndicatorService {
     } else {
       interpretation = 'NEUTRAL';
     }
-
-    return { period, values, interpretation };
+    return { period: 14, values, interpretation };
   }
 
-  // ── MACD: Moving Average Convergence Divergence ──
-
-  /**
-   * Compute MACD
-   * MACD Line = EMA(12) - EMA(26)
-   * Signal Line = EMA(9) of MACD Line
-   * Histogram = MACD - Signal
-   */
-  macd(
-    data: number[],
-    fastPeriod: number = 12,
-    slowPeriod: number = 26,
-    signalPeriod: number = 9,
-  ): MacdResult | null {
-    if (data.length < slowPeriod + signalPeriod) return null;
-
-    const fastEma = this.ema(data, fastPeriod);
-    const slowEma = this.ema(data, slowPeriod);
-
-    if (fastEma.length === 0 || slowEma.length === 0) return null;
-
-    // MACD line: fast EMA - slow EMA
-    // Align: fastEma starts at index fastPeriod-1, slowEma at slowPeriod-1
-    const offset = slowPeriod - fastPeriod;
-    const macdLine: number[] = [];
-
-    for (let i = 0; i < slowEma.length; i++) {
-      const fastIdx = i + offset;
-      if (fastIdx < fastEma.length) {
-        macdLine.push(fastEma[fastIdx] - slowEma[i]);
-      }
-    }
-
-    if (macdLine.length < signalPeriod) return null;
-
-    // Signal line: EMA of MACD line
-    const signalLine = this.ema(macdLine, signalPeriod);
-
-    // Histogram: MACD - Signal (aligned)
-    const histogram: number[] = [];
-    const histOffset = macdLine.length - signalLine.length;
-    for (let i = 0; i < signalLine.length; i++) {
-      histogram.push(macdLine[i + histOffset] - signalLine[i]);
-    }
-
-    // Detect crossover
-    let crossover: 'BULLISH_CROSSOVER' | 'BEARISH_CROSSOVER' | 'NONE' = 'NONE';
-    if (histogram.length >= 2) {
-      const prev = histogram[histogram.length - 2];
-      const curr = histogram[histogram.length - 1];
-      if (prev < 0 && curr >= 0) {
-        crossover = 'BULLISH_CROSSOVER';
-      } else if (prev >= 0 && curr < 0) {
-        crossover = 'BEARISH_CROSSOVER';
-      }
-    }
-
-    // Align all arrays to the same length
-    const resultLen = Math.min(macdLine.length, signalLine.length, histogram.length);
-    const startOffset = macdLine.length - resultLen;
-
-    return {
-      macd: macdLine.slice(startOffset),
-      signal: signalLine.slice(signalLine.length - resultLen),
-      histogram: histogram.slice(histogram.length - resultLen),
-      crossover,
-    };
-  }
-
-  // ── Bollinger Bands ──
-
-  /**
-   * Compute Bollinger Bands
-   * Middle = SMA(period)
-   * Upper = Middle + multiplier * StdDev
-   * Lower = Middle - multiplier * StdDev
-   */
-  bollingerBands(
-    data: number[],
-    period: number = 20,
-    multiplier: number = 2,
-  ): BollingerBandsResult | null {
-    if (data.length < period) return null;
-
-    const middle = this.sma(data, period);
-    const upper: number[] = [];
-    const lower: number[] = [];
-    const bandwidth: number[] = [];
-
-    for (let i = 0; i < middle.length; i++) {
-      const dataIdx = i + period - 1;
-      // Calculate standard deviation for the window
-      const window = data.slice(dataIdx - period + 1, dataIdx + 1);
-      const mean = middle[i];
-      const variance = window.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / period;
-      const stdDev = Math.sqrt(variance);
-
-      const upperBand = mean + multiplier * stdDev;
-      const lowerBand = mean - multiplier * stdDev;
-
-      upper.push(upperBand);
-      lower.push(lowerBand);
-      bandwidth.push(mean !== 0 ? (upperBand - lowerBand) / mean : 0);
-    }
-
-    // Determine position of latest price relative to bands
-    let position: 'ABOVE_UPPER' | 'BELOW_LOWER' | 'WITHIN' = 'WITHIN';
-    if (data.length > 0 && upper.length > 0 && lower.length > 0) {
-      const latestPrice = data[data.length - 1];
-      const latestUpper = upper[upper.length - 1];
-      const latestLower = lower[lower.length - 1];
-
-      if (latestPrice > latestUpper) {
-        position = 'ABOVE_UPPER';
-      } else if (latestPrice < latestLower) {
-        position = 'BELOW_LOWER';
-      }
-    }
-
-    return { upper, middle, lower, bandwidth, position };
-  }
-
-  // ── ATR: Average True Range ──
-
-  /**
-   * Compute Average True Range
-   * TR = max(high-low, |high-prevClose|, |low-prevClose|)
-   * ATR = Wilder's smoothing of TR over period
-   */
-  atr(
-    highs: number[],
-    lows: number[],
-    closes: number[],
-    period: number = 14,
-  ): AtrResult | null {
-    if (highs.length < period + 1) return null;
-
-    const trueRanges: number[] = [];
-
-    for (let i = 1; i < highs.length; i++) {
-      const hl = highs[i] - lows[i];
-      const hpc = Math.abs(highs[i] - closes[i - 1]);
-      const lpc = Math.abs(lows[i] - closes[i - 1]);
-      trueRanges.push(Math.max(hl, hpc, lpc));
-    }
-
-    if (trueRanges.length < period) return null;
-
-    const values: number[] = [];
-
-    // First ATR: simple average of first 'period' true ranges
-    let atr = trueRanges.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    values.push(atr);
-
-    // Subsequent: Wilder's smoothing
-    for (let i = period; i < trueRanges.length; i++) {
-      atr = (atr * (period - 1) + trueRanges[i]) / period;
-      values.push(atr);
-    }
-
-    // Volatility level
+  private _enrichAtr(values: number[]): AtrResult {
     let volatilityLevel: 'LOW' | 'NORMAL' | 'HIGH' = 'NORMAL';
     if (values.length >= 20) {
       const recentAtr = values[values.length - 1];
       const atrSma = values.slice(-20).reduce((a, b) => a + b, 0) / 20;
-
       if (recentAtr > atrSma * 1.5) {
         volatilityLevel = 'HIGH';
       } else if (recentAtr < atrSma * 0.5) {
         volatilityLevel = 'LOW';
       }
     }
-
-    return { period, values, volatilityLevel };
+    return { period: 14, values, volatilityLevel };
   }
 
   // ── Private: Score & Summary ──

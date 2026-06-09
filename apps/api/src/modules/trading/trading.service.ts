@@ -175,7 +175,12 @@ export class TradingService {
     // RiskManager is still used for position sizing calculations.
     // If RiskGatekeeper was NOT called (e.g., internal call from OrderDispatcher),
     // the `skipRiskCheck` flag can be set to false to enforce the check here.
-    const skipRiskCheck = request.skipRiskCheck !== false; // Default: skip (already checked)
+    // V178 FIX: Inverted default — risk check runs by DEFAULT (skipRiskCheck === true means skip).
+    // Previously: skipRiskCheck !== false → undefined = skip (INSECURE).
+    // Now: skipRiskCheck === true → must explicitly opt-in to skip.
+    // Controllers set skipRiskCheck=true after RiskGatekeeper validates.
+    // Internal calls without a controller MUST go through risk check.
+    const skipRiskCheck = request.skipRiskCheck === true;
     if (!skipRiskCheck) {
       const riskCheck = await this.riskManager.checkOrderRisk(
         userId,

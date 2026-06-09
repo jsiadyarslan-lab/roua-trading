@@ -27,6 +27,10 @@ export class OrderCommand {
   /** V145: Source of the trade — 'smart_executor' | 'agent' | 'auto_paper' | 'user_manual'.
    * Used by RiskGatekeeper to count positions per-source against per-source limits. */
   source?: string;
+  /** V178: Strategy name for strategy-aware R:R validation.
+   * Values: 'dca' | 'grid' | 'mean_reversion' | 'scalping' | 'vwap_rsi' | 'momentum_breakout' | 'swing'
+   * If not provided, defaults to source-based lookup. */
+  strategy?: string;
 }
 
 /**

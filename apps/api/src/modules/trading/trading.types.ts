@@ -104,9 +104,11 @@ export interface PlaceOrderRequest {
   source?: 'user_manual' | 'smart_executor' | 'agent' | 'auto_paper';
   /** Unique key to prevent double execution */
   idempotencyKey?: string;
-  /** V176: Skip RiskManager.checkOrderRisk() in TradingService.
-   * Set to true (default) when RiskGatekeeper already validated the order.
-   * Set to false for internal calls that bypass the controller. */
+  /** V178: Skip RiskManager.checkOrderRisk() in TradingService.
+   * Default is false (run risk check) for safety.
+   * Set to true ONLY when RiskGatekeeper already validated the order
+   * (i.e., calls from TradingController / OrderController).
+   * Internal calls that bypass the controller should leave this unset (false). */
   skipRiskCheck?: boolean;
 }
 

@@ -55,6 +55,8 @@ export class OrderQueueProcessor extends WorkerHost {
 
   /** V176 FIX: Singleton guard to prevent duplicate BullMQ registration */
   private static isRegistered = false;
+  /** V178 FIX: Track which instance is the ACTIVE one (first registered) */
+  private static activeInstanceId: string | null = null;
   private readonly instanceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   constructor(
@@ -71,13 +73,15 @@ export class OrderQueueProcessor extends WorkerHost {
     // If the module is re-initialized (e.g., hot-reload), NestJS creates a new instance
     // and BullMQ registers a new worker, causing every job to be processed TWICE.
     // This guard ensures only one active processor exists at a time.
+    // V178 FIX: Now ACTUALLY prevents duplicate processing, not just warns.
     if (OrderQueueProcessor.isRegistered) {
       this.logger.warn(
-        `⚙️ V176 DUPLICATE OrderQueueProcessor detected (instance: ${this.instanceId}) — ` +
-        `another processor is already active. This instance will be passive to avoid duplicate execution.`
+        `⚙️ V178 DUPLICATE OrderQueueProcessor detected (instance: ${this.instanceId}) — ` +
+        `active instance is ${OrderQueueProcessor.activeInstanceId}. This instance will SKIP all jobs.`
       );
     } else {
       OrderQueueProcessor.isRegistered = true;
+      OrderQueueProcessor.activeInstanceId = this.instanceId;
       this.logger.log(
         `⚙️ Order Queue Processor initialized — ready to process execution jobs (instance: ${this.instanceId})`
       );
@@ -95,6 +99,17 @@ export class OrderQueueProcessor extends WorkerHost {
    * @param token Optional token for job stabilization
    */
   async process(job: Job<ExecutionJobData>, token?: string): Promise<ExecutionJobResult> {
+    // V178 FIX: Singleton guard — ACTUALLY prevent duplicate processing.
+    // Only the first-registered instance processes jobs.
+    // Duplicate instances (from hot-reload) skip to avoid double-execution.
+    if (this.instanceId !== OrderQueueProcessor.activeInstanceId) {
+      this.logger.warn(
+        `⚙️ V178 SKIP: Instance ${this.instanceId} is NOT the active processor ` +
+        `(active: ${OrderQueueProcessor.activeInstanceId}). Skipping job ${job.id}.`
+      );
+      return { success: false, error: 'Skipped — duplicate processor instance (V178 singleton guard)' };
+    }
+
     const { orderId, userId, exchangeCredentialId, symbol, side, type, quantity, price, stopLoss, takeProfit, idempotencyKey, clientOrderId, source } = job.data;
 
     this.logger.log(

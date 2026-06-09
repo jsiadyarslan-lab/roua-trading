@@ -7,11 +7,13 @@ import {
   Query,
   Body,
   Req,
+  Res,
   UseGuards,
   Logger,
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
 import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
@@ -28,7 +30,15 @@ import {
 import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from './trading.types';
 
 /**
- * Trading Controller — REST API for Trading Engine
+ * Trading Controller — REST API for Trading Engine (V1 — DEPRECATED)
+ *
+ * V178: This controller is DEPRECATED. Use /api/trading/v2/* instead.
+ * All V1 endpoints now include deprecation headers (Sunset, Deprecation).
+ * V1 will be removed in a future version. Migrate to V2 which provides:
+ * - Idempotency via IdempotencyService
+ * - CQRS pipeline with OrderStateManager
+ * - BullMQ/RabbitMQ dual-queue async execution
+ * - Full event sourcing with OrderEvent records
  *
  * All endpoints require authentication via AuthGuard.
  * Each handler wraps service calls in try/catch to return
@@ -44,6 +54,16 @@ export class TradingController {
     private readonly riskManager: RiskManagerService,
     private readonly riskGatekeeper: RiskGatekeeperService,
   ) {}
+
+  /**
+   * V178: Add deprecation headers to V1 responses.
+   * Clients should migrate to /api/trading/v2/* endpoints.
+   */
+  private _addDeprecationHeaders(res: Response): void {
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', 'Sat, 01 Jan 2027 00:00:00 GMT');
+    res.setHeader('Link', '</api/trading/v2/orders>; rel="successor-version"');
+  }
 
   // ── Order Endpoints ──
 
@@ -76,7 +96,7 @@ export class TradingController {
    */
   @Post('orders')
   @Throttle({ medium: { limit: 10, ttl: 60000 } })
-  async placeOrder(@Req() req: any, @Body() body: PlaceOrderDto) {
+  async placeOrder(@Req() req: any, @Body() body: PlaceOrderDto, @Res({ passthrough: true }) res: Response) {
     const userId = req.user.id;
 
     const request: PlaceOrderRequest = {
@@ -157,6 +177,13 @@ export class TradingController {
         `🛡️ تم رفض الطلب: ${riskResult.reason || 'فشل في فحص المخاطر'}`,
       );
     }
+
+    // V178 FIX: Set skipRiskCheck=true because RiskGatekeeper already validated above.
+    // Without this, TradingService would run a SECOND risk check (redundant + slower).
+    request.skipRiskCheck = true;
+
+    // V178: Mark V1 as deprecated in response headers
+    this._addDeprecationHeaders(res);
 
     return this.tradingService.placeOrder(
       userId,

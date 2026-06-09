@@ -366,19 +366,36 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       };
     }
 
-    // V177 FIX #13: Validate Risk/Reward ratio
-    // Minimum R:R of 1:1.5 — trades with worse ratio are rejected
-    // This ensures every trade has a positive expected value over time
+    // V177 FIX #13 / V178 FIX: Strategy-aware Risk/Reward ratio validation
+    // Different strategies have different R:R expectations:
+    // - DCA: 0.4 (averages into positions, low R:R acceptable)
+    // - Grid: 0.8 (many small trades)
+    // - Mean Reversion: 0.8 (counter-trend, tight targets)
+    // - Scalping: 1.0 (quick in-and-out)
+    // - Default/Swing: 1.5 (standard trend-following)
+    // The minimum R:R is now determined by the strategy source, not a flat 1.5.
     if (command.takeProfit && command.takeProfit > 0 && referencePrice) {
       const slDistance = Math.abs(referencePrice - command.stopLoss);
       const tpDistance = Math.abs(command.takeProfit - referencePrice);
       if (slDistance > 0) {
         const riskRewardRatio = tpDistance / slDistance;
-        if (riskRewardRatio < 1.5) {
-          this.logger.warn(`🛡️ ORDER REJECTED: R:R ratio ${riskRewardRatio.toFixed(2)} < 1.5 minimum for ${command.symbol}`);
+        // V178: Strategy-specific minimum R:R (matches RiskCalculator STRATEGY_MIN_RR table)
+        const STRATEGY_MIN_RR: Record<string, number> = {
+          dca: 0.4,
+          grid: 0.8,
+          mean_reversion: 0.8,
+          scalping: 1.0,
+          vwap_rsi: 1.0,
+          momentum_breakout: 1.2,
+          swing: 1.5,
+        };
+        const strategyKey = (command.strategy || command.source || '').toLowerCase();
+        const minRR = STRATEGY_MIN_RR[strategyKey] || 1.2; // Default 1.2 (was flat 1.5)
+        if (riskRewardRatio < minRR) {
+          this.logger.warn(`🛡️ ORDER REJECTED: R:R ratio ${riskRewardRatio.toFixed(2)} < ${minRR} minimum (strategy: ${strategyKey || 'default'}) for ${command.symbol}`);
           return {
             allowed: false,
-            reason: `نسبة المخاطرة/المكافأة (${riskRewardRatio.toFixed(2)}:1) أقل من الحد الأدنى (1.5:1). وسّع هدف الربح أو قلّل وقف الخسارة.`,
+            reason: `نسبة المخاطرة/المكافأة (${riskRewardRatio.toFixed(2)}:1) أقل من الحد الأدنى للاستراتيجية ${strategyKey || 'الافتراضية'} (${minRR}:1). وسّع هدف الربح أو قلّل وقف الخسارة.`,
             failedCheck: 'RISK_REWARD_RATIO',
           };
         }

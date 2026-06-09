@@ -109,19 +109,37 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         };
       }
 
-      // V180 FIX: Re-introduce order value limit for paper trading.
+      // V180+FIX: Dynamic position size limit for paper trading.
       // Previously REMOVED entirely, allowing positions of 86% of portfolio.
-      // Paper trading must enforce the same risk discipline as real trading,
-      // otherwise test results don't reflect real-world behavior.
-      // A position of $8,500 on a $10K account is gambling, not trading.
-      const MAX_PAPER_ORDER_VALUE = 500; // $500 max notional per order (5% of $10K)
-      const orderNotional = order.quantity * currentPrice;
-      if (orderNotional > MAX_PAPER_ORDER_VALUE) {
-        return {
-          success: false,
-          error: `قيمة الطلب الورقي ($${orderNotional.toFixed(2)}) تتجاوز الحد الأقصى ($${MAX_PAPER_ORDER_VALUE}). يجب أن يعكس التداول الورقي السلوك الحقيقي.`,
-          timestamp: new Date(),
-        };
+      // Then re-introduced as static $500 — but that's too rigid.
+      // Now: check positionPercent relative to paper balance.
+      // Max 5% of portfolio per order — consistent with real trading limits.
+      const MAX_POSITION_PERCENT = 5;
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId: order.userId },
+          select: { paperBalance: true },
+        });
+        const balance = settings?.paperBalance ? Number(settings.paperBalance) : 10000;
+        const orderNotional = order.quantity * currentPrice;
+        const positionPercent = (orderNotional / balance) * 100;
+        if (positionPercent > MAX_POSITION_PERCENT) {
+          return {
+            success: false,
+            error: `حجم المركز الورقي (${positionPercent.toFixed(1)}% = $${orderNotional.toFixed(2)} من $${balance.toFixed(0)}) يتجاوز الحد (${MAX_POSITION_PERCENT}%). يجب أن يعكس التداول الورقي السلوك الحقيقي.`,
+            timestamp: new Date(),
+          };
+        }
+      } catch {
+        // Fallback: if settings lookup fails, use static $500 cap
+        const orderNotional = order.quantity * currentPrice;
+        if (orderNotional > 500) {
+          return {
+            success: false,
+            error: `قيمة الطلب الورقي ($${orderNotional.toFixed(2)}) تتجاوز الحد الأقصى ($500).`,
+            timestamp: new Date(),
+          };
+        }
       }
 
       // Step 2: Handle order type

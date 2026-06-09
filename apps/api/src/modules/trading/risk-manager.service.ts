@@ -210,10 +210,12 @@ export class RiskManagerService {
             reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
           };
         }
-        // V180: Position size % check for simulated-only users
-        const simPortfolioValue = await this._estimatePortfolioValue(userId, true);
-        if (simPortfolioValue > 0 && quantity && price) {
-          const simOrderValue = quantity * price;
+        // V180+FIX: Position size % check for simulated-only users.
+        // NO guard condition — must ALWAYS check. If portfolioValue is unknown,
+        // use default $10,000 to prevent unbounded positions.
+        const simPortfolioValue = await this._estimatePortfolioValue(userId, true) || 10000;
+        const simOrderValue = (quantity || 0) * (price || 0);
+        if (simOrderValue > 0) {
           const simPositionPercent = (simOrderValue / simPortfolioValue) * 100;
           if (simPositionPercent > this.maxPositionSizePercent) {
             return {
@@ -238,10 +240,12 @@ export class RiskManagerService {
           reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
         };
       }
-      // V180: Position size % check for paper trading
-      const paperPortfolioValue = await this._estimatePortfolioValue(userId, true);
-      if (paperPortfolioValue > 0 && quantity && price) {
-        const paperOrderValue = quantity * price;
+      // V180+FIX: Position size % check for paper trading.
+      // NO guard condition — must ALWAYS check. If portfolioValue is unknown,
+      // use default $10,000 to prevent unbounded positions.
+      const paperPortfolioValue = await this._estimatePortfolioValue(userId, true) || 10000;
+      const paperOrderValue = (quantity || 0) * (price || 0);
+      if (paperOrderValue > 0) {
         const paperPositionPercent = (paperOrderValue / paperPortfolioValue) * 100;
         if (paperPositionPercent > this.maxPositionSizePercent) {
           return {

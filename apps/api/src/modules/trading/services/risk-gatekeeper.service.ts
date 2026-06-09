@@ -832,14 +832,15 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
           // Non-fatal — if margin check fails, allow the order
         }
 
-        // V180 FIX: Position size percentage check for paper/simulated accounts.
+        // V180+FIX: Position size percentage check for paper/simulated accounts.
         // Previously, paper trading completely bypassed position size % checks,
         // allowing positions of 86% of portfolio. Paper trading MUST enforce
         // the same position size limits as real trading so test results
         // reflect real-world behavior.
-        const paperBalance = await this._getPaperBalance(command.userId);
-        if (paperBalance > 0 && command.quantity && command.price) {
-          const orderValue = Math.abs(command.quantity * command.price);
+        // NO guard condition — must ALWAYS check. If balance unknown, use $10,000 default.
+        const paperBalance = await this._getPaperBalance(command.userId) || 10000;
+        const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
+        if (orderValue > 0) {
           const positionPercent = (orderValue / paperBalance) * 100;
           if (positionPercent > this.maxPositionSizePercent) {
             return {

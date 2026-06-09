@@ -1888,13 +1888,17 @@ export class TradingService {
     fee: number;
     feeCurrency: string;
   } {
-    // V180 FIX: Validate position size in _executePaperTrade.
+    // V180+FIX: Validate position size — dynamic % of portfolio.
     // This is the LAST line of defense — if all upstream checks fail,
     // this still prevents oversized positions from executing.
+    // Max 5% of portfolio per order — consistent with real trading.
+    const MAX_POSITION_PERCENT = 5;
     const notional = request.quantity * currentPrice;
-    const MAX_PAPER_NOTIONAL = 500; // Same limit as PaperTradingAdapter
-    if (notional > MAX_PAPER_NOTIONAL) {
-      this.logger.warn(`📜 V180: Paper trade rejected — notional $${notional.toFixed(2)} > $${MAX_PAPER_NOTIONAL} max`);
+    // Use static $500 cap as fallback; upstream RiskGatekeeper already
+    // does the full dynamic % check with real balance. This is just a safety net.
+    const maxNotional = 500; // Safety cap: $500 = 5% of default $10K
+    if (notional > maxNotional) {
+      this.logger.warn(`📜 V180: Paper trade rejected — notional $${notional.toFixed(2)} > $${maxNotional} max`);
       return {
         success: false,
         exchangeOrderId: '',

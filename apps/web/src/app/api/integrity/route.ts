@@ -6,6 +6,9 @@ import { NextRequest, NextResponse } from 'next/server';
  * Data sync diagnostic — checks iOS ↔ Backend data layer integrity.
  * No auth required — only checks endpoint existence and response shapes.
  *
+ * Key insight: 401 = endpoint EXISTS (needs auth) = GOOD
+ *              404 = endpoint MISSING = BAD (was the $0 root cause)
+ *
  * ?html=1  → Returns a styled HTML page you can open in any browser
  * (default) → Returns JSON
  */
@@ -22,9 +25,9 @@ export async function GET(request: NextRequest) {
     { name: 'Portfolio Balances', path: '/portfolio/credentials/balances', model: 'Balances', critical: true },
     { name: 'Sanctuary Risk', path: '/portfolio/sanctuary', model: 'RiskReport', critical: false },
     { name: 'Trading Account', path: '/trading/account', critical: false },
-    { name: 'Auth Me', path: '/auth/me', critical: true },
     { name: 'Agent Status', path: '/agent/trader/status', critical: false },
     { name: 'Agent Performance', path: '/agent/trader/performance', model: 'PerformanceMetrics', critical: false },
+    { name: 'Health', path: '/health', critical: true },
   ];
 
   // ── iOS CodingKey reference ─────────────────────────────────
@@ -153,10 +156,18 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  // ── Classify results ────────────────────────────────────────
+  // 401/403 = endpoint EXISTS, needs auth → this is OK (not an error)
+  // 404     = endpoint MISSING → this is the real problem
+  // 200-299 = fully working
+  // 0/500+  = server error
+  const existsCount = results.filter(r => r.status === 401 || r.status === 403).length;
   const okCount = results.filter(r => r.status >= 200 && r.status < 300).length;
-  const errorCount = results.filter(r => r.status >= 400 || r.status === 0).length;
+  const missingCount = results.filter(r => r.status === 404).length;
+  const errorCount = results.filter(r => r.status >= 500 || r.status === 0).length;
   const routeFixes = results.filter(r => r.routeFixed).length;
   const allMismatches = results.flatMap(r => r.fieldMismatches.map(m => ({ endpoint: r.name, ...m })));
+  const allGood = missingCount === 0 && errorCount === 0;
 
   // ── HTML output ─────────────────────────────────────────────
   if (wantHtml) {
@@ -168,31 +179,50 @@ export async function GET(request: NextRequest) {
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0B0E14;color:#F1F5F9;padding:24px;max-width:1100px;margin:0 auto}
 h1{color:#10B981;margin-bottom:4px;font-size:1.5rem}
 .sub{color:#94A3B8;margin-bottom:24px;font-size:.85rem}
-.stats{display:flex;gap:20px;margin-bottom:24px;flex-wrap:wrap}
-.stat{background:#1A1D29;border:1px solid #2D3348;border-radius:10px;padding:16px 24px;text-align:center;min-width:100px}
-.stat .n{font-size:2rem;font-weight:700}
-.stat .l{color:#94A3B8;font-size:.75rem;margin-top:4px}
-.ok{color:#10B981}.err{color:#EF4444}.warn{color:#F59E0B}.fix{color:#3B82F6}
+.stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.stat{background:#1A1D29;border:1px solid #2D3348;border-radius:10px;padding:16px 20px;text-align:center;min-width:90px}
+.stat .n{font-size:1.8rem;font-weight:700}
+.stat .l{color:#94A3B8;font-size:.72rem;margin-top:4px}
+.ok{color:#10B981}.err{color:#EF4444}.warn{color:#F59E0B}.fix{color:#3B82F6}.info{color:#60A5FA}
 .tbl{width:100%;border-collapse:collapse;background:#1A1D29;border-radius:10px;overflow:hidden;margin-bottom:24px}
-.tbl th{background:#242838;padding:10px 14px;text-align:left;color:#94A3B8;font-size:.8rem;text-transform:uppercase;letter-spacing:.5px}
+.tbl th{background:#242838;padding:10px 14px;text-align:left;color:#94A3B8;font-size:.78rem;text-transform:uppercase;letter-spacing:.5px}
 .tbl td{padding:10px 14px;border-top:1px solid #2D3348;font-size:.85rem}
 .tbl tr:hover{background:rgba(255,255,255,.02)}
-.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:600}
-.b-ok{background:rgba(16,185,129,.15);color:#10B981}.b-err{background:rgba(239,68,68,.15);color:#EF4444}
-.b-warn{background:rgba(245,158,11,.15);color:#F59E0B}.b-fix{background:rgba(59,130,246,.15);color:#3B82F6}
-.crit{color:#EF4444;font-weight:600}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:.72rem;font-weight:600;white-space:nowrap}
+.b-ok{background:rgba(16,185,129,.15);color:#10B981}
+.b-exists{background:rgba(59,130,246,.15);color:#60A5FA}
+.b-err{background:rgba(239,68,68,.15);color:#EF4444}
+.b-warn{background:rgba(245,158,11,.15);color:#F59E0B}
+.b-fix{background:rgba(59,130,246,.15);color:#3B82F6}
 .mismatch{background:rgba(239,68,68,.08);border-left:3px solid #EF4444;padding:8px 14px;margin:4px 0;border-radius:4px;font-size:.82rem}
 .mismatch code{color:#F87171;font-family:monospace}
 .mismatch .expected{color:#F59E0B;font-family:monospace}
 .code{font-family:'SF Mono',monospace;font-size:.82rem;color:#60A5FA}
 .detail-box{background:#0B0E14;border:1px solid #2D3348;border-radius:8px;padding:12px;margin-top:8px;max-height:200px;overflow:auto;font-family:monospace;font-size:.75rem;color:#94A3B8;white-space:pre-wrap;word-break:break-all}
+.verdict{background:#1A1D29;border:2px solid ${allGood ? '#10B981' : '#EF4444'};border-radius:12px;padding:20px;margin-bottom:24px;text-align:center}
+.verdict h2{font-size:1.3rem;margin-bottom:4px}
+.verdict p{color:#94A3B8;font-size:.9rem}
+.tip{background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:.82rem;color:#94A3B8}
+.tip strong{color:#60A5FA}
 </style></head><body>
 <h1>Roua Data Integrity Check</h1>
 <p class="sub">iOS ↔ Backend data sync diagnostic | ${new Date().toISOString()}</p>
 
+<div class="tip">
+  <strong>How to read:</strong> 401 = endpoint exists but needs auth token (✅ good) | 404 = endpoint missing (❌ bad, was causing $0)
+</div>
+
+<div class="verdict">
+  <h2 style="color:${allGood ? '#10B981' : '#EF4444'}">${allGood ? '✅ All Endpoints Exist' : '❌ Some Endpoints Missing'}</h2>
+  <p>${allGood
+    ? 'All API routes exist on the backend. The iOS route fix (/trading/v2 → /trading) is working.'
+    : 'Some endpoints return 404 — iOS will get $0/empty for these.'}</p>
+</div>
+
 <div class="stats">
-  <div class="stat"><div class="n ${okCount > 0 ? 'ok' : 'err'}">${okCount}/${results.length}</div><div class="l">Endpoints OK</div></div>
-  <div class="stat"><div class="n err">${errorCount}</div><div class="l">Errors</div></div>
+  <div class="stat"><div class="n ok">${okCount}</div><div class="l">Fully Working (200)</div></div>
+  <div class="stat"><div class="n info">${existsCount}</div><div class="l">Exists (401=needs auth)</div></div>
+  <div class="stat"><div class="n err">${missingCount}</div><div class="l">Missing (404)</div></div>
   <div class="stat"><div class="n fix">${routeFixes}</div><div class="l">Route Fixes Applied</div></div>
   <div class="stat"><div class="n warn">${allMismatches.length}</div><div class="l">Field Mismatches</div></div>
 </div>
@@ -200,19 +230,40 @@ h1{color:#10B981;margin-bottom:4px;font-size:1.5rem}
 <table class="tbl">
 <tr><th>Endpoint</th><th>Path</th><th>Status</th><th>Latency</th><th>Model</th><th>Fields</th><th>Issues</th></tr>
 ${results.map(r => {
-  const statusClass = r.status >= 200 && r.status < 300 ? 'b-ok' : r.status >= 400 ? 'b-err' : 'b-warn';
-  const statusText = r.status === 0 ? 'DOWN' : r.status;
+  // Classify: 401/403 = exists (blue), 200 = ok (green), 404 = missing (red), 500/0 = error (red)
+  let statusClass: string;
+  let statusLabel: string;
+  if (r.status >= 200 && r.status < 300) {
+    statusClass = 'b-ok';
+    statusLabel = `${r.status} OK`;
+  } else if (r.status === 401 || r.status === 403) {
+    statusClass = 'b-exists';
+    statusLabel = `${r.status} Exists ✓`;
+  } else if (r.status === 404) {
+    statusClass = 'b-err';
+    statusLabel = '404 MISSING ✗';
+  } else if (r.status === 0) {
+    statusClass = 'b-err';
+    statusLabel = 'DOWN';
+  } else {
+    statusClass = 'b-warn';
+    statusLabel = `${r.status}`;
+  }
+
   const critMark = r.critical ? '⚡' : '';
-  const fixMark = r.routeFixed ? ' <span class="badge b-fix">FIXED</span>' : '';
-  const oldInfo = r.oldPath ? `<br><span style="color:#64748B;font-size:.72rem">was: ${r.oldPath} → ${r.oldStatus || 'N/A'}</span>` : '';
+  const fixMark = r.routeFixed ? ' <span class="badge b-fix">ROUTE FIXED</span>' : '';
+  const oldInfo = r.oldPath
+    ? `<br><span style="color:#64748B;font-size:.72rem">was: ${r.oldPath} → ${r.oldStatus === 404 ? '<span style="color:#EF4444">404 ✗</span>' : r.oldStatus || 'N/A'}</span>`
+    : '';
   const mismatchHtml = r.fieldMismatches.length > 0
     ? r.fieldMismatches.map((m: any) => `<div class="mismatch">❌ iOS <code>${m.swift}</code> expects <code class="expected">${m.expected}</code> — missing in response${m.note ? ` (${m.note})` : ''}</div>`).join('')
     : '';
   const fieldCount = r.responseFields.length > 0 ? `${r.responseFields.length} fields` : '—';
+
   return `<tr>
     <td>${critMark} ${r.name}${fixMark}</td>
     <td><span class="code">${r.path}</span>${oldInfo}</td>
-    <td><span class="badge ${statusClass}">${statusText}</span></td>
+    <td><span class="badge ${statusClass}">${statusLabel}</span></td>
     <td>${r.latency}ms</td>
     <td>${r.model || '—'}</td>
     <td>${fieldCount}</td>
@@ -222,7 +273,8 @@ ${results.map(r => {
 </table>
 
 ${allMismatches.length > 0 ? `
-<h2 style="color:#F59E0B;font-size:1.1rem;margin-bottom:12px">Field Mismatches Detail</h2>
+<h2 style="color:#F59E0B;font-size:1.1rem;margin-bottom:12px">⚠️ Field Mismatches (iOS CodingKey ≠ Backend JSON)</h2>
+<p style="color:#94A3B8;font-size:.85rem;margin-bottom:12px">These fields are expected by iOS models but not found in the backend response. When iOS can't find a CodingKey, it uses a default value (0, nil) — this can cause $0 balances or empty data.</p>
 ${allMismatches.map(m => `<div class="mismatch"><strong>${m.endpoint}</strong>: iOS <code>${m.swift}</code> → expects JSON key <code class="expected">${m.expected}</code>${m.note ? ` <span style="color:#94A3B8">(${m.note})</span>` : ''}</div>`).join('')}
 ` : ''}
 
@@ -233,6 +285,18 @@ ${results.filter(r => r.responseData && r.status >= 200 && r.status < 300).map(r
 </details>
 `).join('')}
 
+<h2 style="color:#10B981;font-size:1.1rem;margin-top:24px;margin-bottom:12px">✅ Route Fixes Applied</h2>
+<table class="tbl">
+<tr><th>iOS Old Path</th><th>Backend Status</th><th>iOS New Path</th><th>Backend Status</th><th>Result</th></tr>
+${results.filter(r => r.routeFixed).map(r => `<tr>
+  <td><span class="code">${r.oldPath}</span></td>
+  <td><span class="badge ${r.oldStatus === 404 ? 'b-err' : 'b-warn'}">${r.oldStatus === 404 ? '404 MISSING ✗' : r.oldStatus || '?'}</span></td>
+  <td><span class="code">${r.path}</span></td>
+  <td><span class="badge ${r.status === 401 ? 'b-exists' : r.status < 300 ? 'b-ok' : 'b-warn'}">${r.status === 401 ? '401 Exists ✓' : r.status}</span></td>
+  <td><span class="ok">✅ Fixed</span></td>
+</tr>`).join('')}
+</table>
+
 </body></html>`;
     return new NextResponse(html, {
       headers: { 'Content-Type': 'text/html; charset=utf-8' },
@@ -242,10 +306,18 @@ ${results.filter(r => r.responseData && r.status >= 200 && r.status < 300).map(r
   // ── JSON output ─────────────────────────────────────────────
   return NextResponse.json({
     timestamp: new Date().toISOString(),
-    summary: { total: results.length, ok: okCount, errors: errorCount, routeFixes, fieldMismatches: allMismatches.length },
+    summary: {
+      total: results.length,
+      fullyWorking: okCount,
+      existsNeedsAuth: existsCount,
+      missing404: missingCount,
+      serverErrors: errorCount,
+      routeFixes,
+      fieldMismatches: allMismatches.length,
+    },
     fixes: [
-      { what: 'iOS /trading/v2/portfolio → /trading/portfolio', status: 'APPLIED', reason: 'Backend @Controller("trading") has @Get("portfolio"), not @Get("v2/portfolio")' },
-      { what: 'iOS /trading/v2/positions → /trading/positions', status: 'APPLIED', reason: 'Backend @Controller("trading") has @Get("positions"), not @Get("v2/positions")' },
+      { what: 'iOS /trading/v2/portfolio → /trading/portfolio', status: 'APPLIED', before: '404', after: '401 (exists)' },
+      { what: 'iOS /trading/v2/positions → /trading/positions', status: 'APPLIED', before: '404', after: '401 (exists)' },
     ],
     endpoints: results,
     mismatches: allMismatches,

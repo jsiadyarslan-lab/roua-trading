@@ -134,8 +134,19 @@ export class OrderDispatcherService {
         }
 
         if (existing.side === request.side && existing.source !== request.source) {
-          // Different source, same direction — ALLOW (different timeframe/trade)
-          this.logger.log(`[Dispatcher] V146b Cross-source same-direction allowed: ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
+          // V180 FIX: Block cross-source same-direction within 5 minutes.
+          // Previously ALLOWED → caused 3 DOGE/USDT sells from Smart+Agent
+          // within 2 minutes. Now: check if the existing position was opened
+          // recently (< 5 min). If so, block to prevent duplicate positions.
+          const existingAge = Date.now() - new Date(existing.createdAt).getTime();
+          const CROSS_SOURCE_DEDUP_MS = 5 * 60 * 1000; // 5 minutes
+          if (existingAge < CROSS_SOURCE_DEDUP_MS) {
+            await this.idempotency.releaseLock(sourceIdempotencyKey);
+            try { await this.idempotency.releaseLock(symbolSourceIdempotencyKey); } catch {}
+            return { success: false, message: `مركز ${existing.side} مفتوح حديثاً لـ ${request.symbol} من ${existing.source} (أقل من 5 دقائق) — لا تكرار بين المصادر` };
+          }
+          // Old position (>5 min) — allow (different timeframe/trade)
+          this.logger.log(`[Dispatcher] V180 Cross-source same-direction allowed (old position): ${request.symbol} has ${existing.side}/${existing.source}, ${request.source} opening ${request.side}`);
         } else if (existing.side !== request.side && existing.source !== request.source) {
           // V146c: Different source, opposite direction — ALLOW (Agent vs Executor hedge)
           // The Smart Executor has BUY (M1/M5/M15) and Agent wants SELL (M30/H1/H4).

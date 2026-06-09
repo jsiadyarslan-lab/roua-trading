@@ -2817,6 +2817,18 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
+      // V180 FIX: Minimum SL distance check.
+      // Without this, a stop loss only 0.1% away from entry produces
+      // enormous quantities (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
+      // This was the ROOT CAUSE of positions reaching 86% of portfolio.
+      const MIN_SL_DISTANCE_PERCENT = 0.5; // Minimum 0.5% distance from entry
+      const slDistancePercent = (priceRisk / currentPrice) * 100;
+      if (slDistancePercent < MIN_SL_DISTANCE_PERCENT) {
+        result.error = `Stop loss too close (${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}%) — risk of oversized position`;
+        this.logger.warn(`⚔️ V180: Brief ${brief.id} SL distance ${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}% — skipping to prevent oversized position`);
+        return result;
+      }
+
       // V146: Use symbol-aware position sizing with lot normalization
       const meta = getSymbolMetadata(brief.pair);
       const posResult = calculatePositionSizeFromRisk(riskAmount, currentPrice, brief.stopLoss, brief.pair);
@@ -2824,10 +2836,11 @@ export class SmartExecutorService implements OnModuleDestroy {
       let quantity = posResult.quantityUnits;
       let lots = posResult.quantityLots;
 
-      // Cap by max order value (paper: $5K or 5%, real: $10K or 2%)
-      const maxOrderValue = isSimulatedExecution
-        ? Math.min(5000, portfolioValue * 0.05)
-        : Math.min(10000, portfolioValue * 0.02);
+      // V180 FIX: Cap by max order value — SAME limit for paper and real (2%).
+      // Previously paper was 5% which allowed positions of 86% of portfolio.
+      // Paper trading must enforce the same risk discipline as real trading
+      // so that test results reflect real-world behavior.
+      const maxOrderValue = Math.min(portfolioValue * 0.02, 200);
 
       if (posResult.notional > maxOrderValue) {
         // Reduce quantity to fit within max order value
@@ -3185,44 +3198,22 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   private async _getPaperPortfolioValue(userId: string): Promise<number> {
-    // V172d: paperBalance is now FREE CASH (margin deducted on open).
-    // Portfolio value = freeCash + lockedMargin + unrealizedPnL = full equity.
-    // We approximate: equity ≈ freeCash + lockedMargin (skip unrealizedPnL for simplicity).
+    // V180 FIX: Use freeCash (paperBalance) as portfolio value for position sizing.
+    // Previously: equity = freeCash + lockedMargin + unrealizedPnl
+    // Problem: For crypto (1:1 leverage), lockedMargin = full notional value.
+    // A DOGE position of $8,000 added $8,000 to equity, inflating the
+    // portfolio value and allowing even larger positions — positive feedback loop.
+    // Fix: Use freeCash only for position sizing. This is conservative but safe:
+    // - A $10K account with $2K in open positions = $8K freeCash
+    // - Max position = 2% of $8K = $160 (not 2% of $10K+)
+    // This prevents the inflation spiral that caused 86% positions.
     try {
       const settings = await this.prisma.agentSettings.findUnique({
         where: { userId },
-        select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true, paperGoldLeverage: true },
+        select: { paperBalance: true },
       });
       const freeCash = settings ? Number(settings.paperBalance) : 10000;
-
-      // Calculate locked margin from open positions
-      const openPositions = await this.prisma.position.findMany({
-        where: { userId, status: 'OPEN', exchange: 'paper-trading' },
-        select: { quantity: true, entryPrice: true, symbol: true, currentPrice: true, side: true },
-      });
-
-      let lockedMargin = 0;
-      let unrealizedPnl = 0;
-      const cryptoLev = Number(settings?.paperCryptoLeverage) || 1;
-      const forexLev = Number(settings?.paperForexLeverage) || 50;
-      const goldLev = Number(settings?.paperGoldLeverage) || 20;
-
-      for (const pos of openPositions) {
-        const qty = Number(pos.quantity) || 0;
-        const entry = Number(pos.entryPrice) || 0;
-        const current = Number(pos.currentPrice) || entry;
-        const { getSymbolMetadata, AssetClass } = require('../../../modules/trading/services/symbol-metadata');
-        const meta = getSymbolMetadata(pos.symbol);
-        let leverage = cryptoLev;
-        if (meta.assetClass === AssetClass.FOREX) leverage = forexLev;
-        else if (meta.assetClass === AssetClass.COMMODITY) leverage = goldLev;
-        const notional = qty * entry;
-        lockedMargin += leverage > 1 ? notional / leverage : notional;
-        unrealizedPnl += pos.side === 'BUY' ? (current - entry) * qty : (entry - current) * qty;
-      }
-
-      const equity = freeCash + lockedMargin + unrealizedPnl;
-      return equity > 0 ? equity : 10000;
+      return freeCash > 0 ? freeCash : 10000;
     } catch {
       return 10000;
     }

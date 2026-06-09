@@ -1888,6 +1888,23 @@ export class TradingService {
     fee: number;
     feeCurrency: string;
   } {
+    // V180 FIX: Validate position size in _executePaperTrade.
+    // This is the LAST line of defense — if all upstream checks fail,
+    // this still prevents oversized positions from executing.
+    const notional = request.quantity * currentPrice;
+    const MAX_PAPER_NOTIONAL = 500; // Same limit as PaperTradingAdapter
+    if (notional > MAX_PAPER_NOTIONAL) {
+      this.logger.warn(`📜 V180: Paper trade rejected — notional $${notional.toFixed(2)} > $${MAX_PAPER_NOTIONAL} max`);
+      return {
+        success: false,
+        exchangeOrderId: '',
+        filledQuantity: 0,
+        averagePrice: currentPrice,
+        fee: 0,
+        feeCurrency: 'USD',
+      };
+    }
+
     // Simulate slippage: 0.1% in the direction of the trade
     const slippagePercent = 0.001;
     const rawFillPrice = request.side === 'BUY'

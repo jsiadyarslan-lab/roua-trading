@@ -109,14 +109,20 @@ export class PaperTradingAdapter implements IExchangeAdapter {
         };
       }
 
-      // FIX: REMOVED order value limit for paper trading entirely.
-      // Paper trading is SIMULATION — there is no real money at risk.
-      // Previous limits ($500, 5%, 20%, 80%) all blocked legitimate trades
-      // and prevented users from testing strategies with realistic position sizes.
-      // The risk gatekeeper already checks position COUNT, which is the only
-      // meaningful limit for a simulation. The paper balance tracking in
-      // fetchBalance() handles accounting correctly regardless of position size.
-      // Users should be free to trade any size in paper mode to learn and test.
+      // V180 FIX: Re-introduce order value limit for paper trading.
+      // Previously REMOVED entirely, allowing positions of 86% of portfolio.
+      // Paper trading must enforce the same risk discipline as real trading,
+      // otherwise test results don't reflect real-world behavior.
+      // A position of $8,500 on a $10K account is gambling, not trading.
+      const MAX_PAPER_ORDER_VALUE = 500; // $500 max notional per order (5% of $10K)
+      const orderNotional = order.quantity * currentPrice;
+      if (orderNotional > MAX_PAPER_ORDER_VALUE) {
+        return {
+          success: false,
+          error: `قيمة الطلب الورقي ($${orderNotional.toFixed(2)}) تتجاوز الحد الأقصى ($${MAX_PAPER_ORDER_VALUE}). يجب أن يعكس التداول الورقي السلوك الحقيقي.`,
+          timestamp: new Date(),
+        };
+      }
 
       // Step 2: Handle order type
       if (order.type === 'MARKET') {

@@ -199,7 +199,8 @@ export class RiskManagerService {
         this.logger.debug(`🛡️ RiskManager: User ${userId} has only simulated credentials — bypassing value limits`);
       }
       if (hasOnlySimulatedCredentials) {
-        // Simulated trading: only check position count, skip value-based checks
+        // V180 FIX: Simulated trading must ALSO check position size %.
+        // Previously bypassed completely → positions of 86% of portfolio.
         const openPositions = await this.prisma.position.count({
           where: { userId, status: 'OPEN' },
         });
@@ -209,12 +210,25 @@ export class RiskManagerService {
             reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
           };
         }
+        // V180: Position size % check for simulated-only users
+        const simPortfolioValue = await this._estimatePortfolioValue(userId, true);
+        if (simPortfolioValue > 0 && quantity && price) {
+          const simOrderValue = quantity * price;
+          const simPositionPercent = (simOrderValue / simPortfolioValue) * 100;
+          if (simPositionPercent > this.maxPositionSizePercent) {
+            return {
+              allowed: false,
+              reason: `حجم المركز (${simPositionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%)`,
+            };
+          }
+        }
         return { allowed: true, riskScore: 10 };
       }
     }
 
     if (isSimulated) {
-      // Paper trading: only check position count — no value limits for simulation
+      // V180 FIX: Paper trading must ALSO check position size %.
+      // Previously bypassed completely → positions of 86% of portfolio.
       const openPositions = await this.prisma.position.count({
         where: { userId, status: 'OPEN' },
       });
@@ -224,7 +238,19 @@ export class RiskManagerService {
           reason: `لديك ${openPositions} مركز مفتوح بالفعل (الحد الأقصى: ${this.maxOpenPositions})`,
         };
       }
-      this.logger.debug(`🛡️ Paper trading order ALLOWED by RiskManager (position count: ${openPositions}/${this.maxOpenPositions}, no value limit for simulation)`);
+      // V180: Position size % check for paper trading
+      const paperPortfolioValue = await this._estimatePortfolioValue(userId, true);
+      if (paperPortfolioValue > 0 && quantity && price) {
+        const paperOrderValue = quantity * price;
+        const paperPositionPercent = (paperOrderValue / paperPortfolioValue) * 100;
+        if (paperPositionPercent > this.maxPositionSizePercent) {
+          return {
+            allowed: false,
+            reason: `حجم المركز (${paperPositionPercent.toFixed(1)}% من المحفظة) يتجاوز الحد الأقصى (${this.maxPositionSizePercent}%) حتى في التداول الورقي`,
+          };
+        }
+      }
+      this.logger.debug(`🛡️ Paper trading order ALLOWED by RiskManager (position count: ${openPositions}/${this.maxOpenPositions}, size check: passed)`);
       return { allowed: true, riskScore: 10 };
     }
 

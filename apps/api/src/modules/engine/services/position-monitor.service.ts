@@ -367,6 +367,11 @@ export class PositionMonitorService {
         if (agentTpHit) {
           this.logger.warn(`🎯 AGENT TP HIT: ${position.symbol} @ ${currentPrice} (TP: ${takeProfitNum})`);
           await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+          // V180 FIX: Set cooldown after Agent TP too
+          try {
+            const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+            await this.redis.set(cooldownKey, 'TAKE_PROFIT', this.COOLDOWN_TTL_MS);
+          } catch { /* non-critical */ }
           this._checkSanctuary(position.userId).catch(() => {});
           result.tpTriggered = true;
           return result;
@@ -529,6 +534,15 @@ export class PositionMonitorService {
         );
 
         await this._closePosition(position, currentPrice, 'TAKE_PROFIT');
+
+        // V180 FIX: Set cooldown after TAKE_PROFIT too.
+        // Previously cooldown was only after STOP_LOSS and TIME_EXPIRED,
+        // causing an open→close→reopen loop for TP-hit positions.
+        try {
+          const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+          await this.redis.set(cooldownKey, 'TAKE_PROFIT', this.COOLDOWN_TTL_MS);
+        } catch { /* non-critical */ }
+
         result.tpTriggered = true;
         return result;
       }

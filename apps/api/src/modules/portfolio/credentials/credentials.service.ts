@@ -503,6 +503,10 @@ export class CredentialsService {
       usedMargin: number;
       /** V173d: freeCash in DB — changes ONLY on open/close, never on price moves */
       paperBalance?: number;
+      /** V183: Total unrealized P/L for paper-trading positions */
+      unrealizedPnl?: number;
+      /** V183: DB balance after margin deduction (for diagnostics) */
+      _dbPaperBalance?: number;
       assets: Array<{ currency: string; free: number; used: number; total: number }>;
       error?: string;
       /** V164d: Raw error message from exchange (for diagnostics) */

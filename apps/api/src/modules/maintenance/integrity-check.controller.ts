@@ -61,13 +61,26 @@ export class IntegrityCheckController {
     }
   }
 
+  /**
+   * Read a source file — tries .ts first (dev), then .js (production/dist).
+   * In production, only compiled .js files exist in the dist/ directory.
+   * The search patterns work on both .ts and .js since they look for
+   * identifiers, string literals, and operators that are identical in both.
+   */
   private read(filePath: string): string | null {
-    const fullPath = path.resolve(this.SRC_DIR, filePath);
+    // Try .ts first (development: src/ directory exists)
+    const tsPath = path.resolve(this.SRC_DIR, filePath);
     try {
-      return fs.readFileSync(fullPath, 'utf-8');
-    } catch {
-      return null;
-    }
+      return fs.readFileSync(tsPath, 'utf-8');
+    } catch {}
+
+    // Try .js (production: only dist/ with compiled .js exists)
+    const jsPath = tsPath.replace(/\.ts$/, '.js');
+    try {
+      return fs.readFileSync(jsPath, 'utf-8');
+    } catch {}
+
+    return null;
   }
 
   private runAllChecks(): CheckResult[] {

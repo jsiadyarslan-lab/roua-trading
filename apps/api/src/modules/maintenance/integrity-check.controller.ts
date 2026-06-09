@@ -268,11 +268,27 @@ export class IntegrityCheckController {
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
     // V180: Extract method body using brace counting (more robust than regex)
-    const methodStartIdx = content.indexOf('_executePaperTrade');
-    if (methodStartIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade' };
+    // Search for the METHOD DEFINITION, not a call site.
+    // In TS: "private async _executePaperTrade(" or "_executePaperTrade("
+    // In compiled JS: "_executePaperTrade(" but NOT "this._executePaperTrade("
+    // Strategy: find all occurrences and pick the one that is a definition (preceded by "private" or not preceded by "this.")
+    let methodStartIdx = -1;
+    let searchFrom = 0;
+    while (searchFrom < content.length) {
+      const idx = content.indexOf('_executePaperTrade', searchFrom);
+      if (idx === -1) break;
+      // Check if this is a definition (not a call like "this._executePaperTrade")
+      const before = content.substring(Math.max(0, idx - 20), idx);
+      if (!before.includes('this._executePaperTrade') && !before.includes('yield this._executePaperTrade')) {
+        methodStartIdx = idx;
+        break;
+      }
+      searchFrom = idx + 1;
+    }
+    if (methodStartIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد تعريف _executePaperTrade' };
 
     const openBraceIdx = content.indexOf('{', methodStartIdx);
-    if (openBraceIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد جسم _executePaperTrade' };
+    if (openBraceIdx === -1 || openBraceIdx - methodStartIdx > 200) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد جسم _executePaperTrade' };
 
     let depth = 0;
     let methodEndIdx = openBraceIdx;

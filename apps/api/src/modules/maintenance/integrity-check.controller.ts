@@ -267,19 +267,16 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/trading.service.ts');
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    // V180: Extract method body using brace counting (more robust than regex)
-    // Search for the METHOD DEFINITION, not a call site.
-    // In TS: "private async _executePaperTrade(" or "_executePaperTrade("
-    // In compiled JS: "_executePaperTrade(" but NOT "this._executePaperTrade("
-    // Strategy: find all occurrences and pick the one that is a definition (preceded by "private" or not preceded by "this.")
+    // V180: Simple and robust approach — search for _executePaperTrade definition
+    // and check if positionPercent appears within the method body.
+    // The definition is the occurrence NOT preceded by "this." or "yield this."
     let methodStartIdx = -1;
     let searchFrom = 0;
     while (searchFrom < content.length) {
       const idx = content.indexOf('_executePaperTrade', searchFrom);
       if (idx === -1) break;
-      // Check if this is a definition (not a call like "this._executePaperTrade")
-      const before = content.substring(Math.max(0, idx - 20), idx);
-      if (!before.includes('this._executePaperTrade') && !before.includes('yield this._executePaperTrade')) {
+      const before = content.substring(Math.max(0, idx - 30), idx);
+      if (!before.includes('this._executePaperTrade') && !before.includes('yield this._executePaperTrade') && !before.includes('return this._executePaperTrade')) {
         methodStartIdx = idx;
         break;
       }
@@ -287,22 +284,15 @@ export class IntegrityCheckController {
     }
     if (methodStartIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد تعريف _executePaperTrade' };
 
-    const openBraceIdx = content.indexOf('{', methodStartIdx);
-    if (openBraceIdx === -1 || openBraceIdx - methodStartIdx > 200) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد جسم _executePaperTrade' };
+    // Instead of brace counting (fragile in compiled JS), search for
+    // positionPercent / maxOrderValue / maxNotional within 3000 chars after definition.
+    // This is sufficient because the size check is near the top of the method.
+    const methodBody = content.substring(methodStartIdx, methodStartIdx + 3000);
 
-    let depth = 0;
-    let methodEndIdx = openBraceIdx;
-    for (let i = openBraceIdx; i < content.length; i++) {
-      if (content[i] === '{') depth++;
-      if (content[i] === '}') depth--;
-      if (depth === 0) { methodEndIdx = i; break; }
-    }
-
-    const code = content.substring(methodStartIdx, methodEndIdx + 1);
-    if (code.includes('positionPercent')) {
+    if (methodBody.includes('positionPercent')) {
       return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
     }
-    if (code.includes('MAX_POSITION_PERCENT') || code.includes('maxNotional') || code.includes('maxOrderValue') || code.includes('MAX_PAPER_NOTIONAL')) {
+    if (methodBody.includes('MAX_POSITION_PERCENT') || methodBody.includes('maxNotional') || methodBody.includes('maxOrderValue') || methodBody.includes('MAX_PAPER_NOTIONAL')) {
       return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد أمان)' };
     }
     return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'FAIL', detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر!' };

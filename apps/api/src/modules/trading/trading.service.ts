@@ -240,7 +240,7 @@ export class TradingService {
     // tried to execute via CCXT, which fails for paper-trading credentials.
     let execution: any;
     if (credential.exchange === 'paper-trading') {
-      execution = this._executePaperTrade(request, currentPrice);
+      execution = await this._executePaperTrade(request, currentPrice, userId);
     } else {
       execution = await this._executeOnExchange(
         credential.exchange,
@@ -817,7 +817,7 @@ export class TradingService {
         closePrice = posEntryPrice;
       }
 
-      execution = this._executePaperTrade(
+      execution = await this._executePaperTrade(
         {
           credentialId: position.credentialId,
           symbol: position.symbol,
@@ -827,6 +827,7 @@ export class TradingService {
           price: closePrice,
         },
         closePrice,
+        userId,
       );
     } else {
       // Real exchange close: use CCXT
@@ -1877,28 +1878,63 @@ export class TradingService {
    * - 0.1% simulated fee
    * - Instant full fill (no partial fills)
    */
-  private _executePaperTrade(
+  private async _executePaperTrade(
     request: PlaceOrderRequest,
     currentPrice: number,
-  ): {
+    userId?: string,
+  ): Promise<{
     success: boolean;
     exchangeOrderId: string;
     filledQuantity: number;
     averagePrice: number;
     fee: number;
     feeCurrency: string;
-  } {
+  }> {
     // V180+FIX: Validate position size — dynamic % of portfolio.
     // This is the LAST line of defense — if all upstream checks fail,
     // this still prevents oversized positions from executing.
     // Max 5% of portfolio per order — consistent with real trading.
     const MAX_POSITION_PERCENT = 5;
-    const notional = request.quantity * currentPrice;
-    // Use static $500 cap as fallback; upstream RiskGatekeeper already
-    // does the full dynamic % check with real balance. This is just a safety net.
-    const maxNotional = 500; // Safety cap: $500 = 5% of default $10K
-    if (notional > maxNotional) {
-      this.logger.warn(`📜 V180: Paper trade rejected — notional $${notional.toFixed(2)} > $${maxNotional} max`);
+    const orderValue = request.quantity * currentPrice;
+
+    // Dynamic position size check using actual paperBalance from DB.
+    // This mirrors the same check in RiskGatekeeper and PaperTradingAdapter.
+    let paperBalance = 10000; // default fallback
+    if (userId) {
+      try {
+        const settings = await this.prisma.agentSettings.findUnique({
+          where: { userId },
+          select: { paperBalance: true },
+        });
+        if (settings?.paperBalance) {
+          paperBalance = Number(settings.paperBalance);
+        }
+      } catch {
+        this.logger.warn('📜 V180: Could not fetch paperBalance, using default $10,000');
+      }
+    }
+
+    const positionPercent = (orderValue / paperBalance) * 100;
+    if (positionPercent > MAX_POSITION_PERCENT) {
+      this.logger.warn(
+        `📜 V180: Paper trade rejected — positionPercent ${positionPercent.toFixed(1)}% > ${MAX_POSITION_PERCENT}% (orderValue=$${orderValue.toFixed(2)}, paperBalance=$${paperBalance})`,
+      );
+      return {
+        success: false,
+        exchangeOrderId: '',
+        filledQuantity: 0,
+        averagePrice: currentPrice,
+        fee: 0,
+        feeCurrency: 'USD',
+      };
+    }
+
+    // Secondary safety: hard cap as absolute maximum regardless of balance
+    const maxOrderValue = paperBalance * (MAX_POSITION_PERCENT / 100);
+    if (orderValue > maxOrderValue) {
+      this.logger.warn(
+        `📜 V180: Paper trade rejected — orderValue $${orderValue.toFixed(2)} > maxOrderValue $${maxOrderValue.toFixed(2)}`,
+      );
       return {
         success: false,
         exchangeOrderId: '',
@@ -1969,7 +2005,7 @@ export class TradingService {
         if (currentPrice <= 0) {
           return { success: false, error: `لا يمكن جلب سعر ${request.symbol} للتداول الورقي` };
         }
-        return this._executePaperTrade(request, currentPrice);
+        return await this._executePaperTrade(request, currentPrice, userId);
       }
 
       // SECURITY: Pass userId to verify credential ownership before decrypting

@@ -166,6 +166,17 @@ export class IntegrityCheckController {
     const content = this.read('modules/ai/smart-executor/smart-executor.service.ts');
     if (!content) return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'MISSING', detail: 'الملف غير موجود' };
 
+    // V180: unified pattern — Math.min(portfolioValue * 0.02, 200)
+    const unifiedPattern = content.match(/maxOrderValue\s*=\s*Math\.min\s*\(\s*portfolioValue\s*\*\s*0\.(\d+)/);
+    if (unifiedPattern) {
+      const pct = parseInt(unifiedPattern[1]);
+      if (pct <= 2) {
+        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'PASS', detail: `حد موحد للورقي والحقيقي = ${pct}% من المحفظة (V180 fix)` };
+      }
+      return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'FAIL', detail: `حد الصفقة = ${pct}% من المحفظة. يجب أن يكون ≤ 2%` };
+    }
+
+    // Legacy pattern: isSimulatedExecution ternary
     const paperPercentMatch = content.match(/isSimulatedExecution\s*\n?\s*\?[\s\S]*?portfolioValue\s*\*\s*0\.(\d+)/);
     if (paperPercentMatch) {
       const paperPercent = parseInt(paperPercentMatch[1]);
@@ -209,6 +220,24 @@ export class IntegrityCheckController {
 
     if (content.includes('.del(processedKey)')) {
       if (content.includes('cooldown:') && content.includes('redis.get(cooldownKey)')) {
+        // V180: Verify cooldown is set after ALL close reasons in position-monitor
+        const monitorContent = this.read('modules/engine/services/position-monitor.service.ts');
+        if (monitorContent) {
+          const closeReasons = ['STOP_LOSS', 'TAKE_PROFIT', 'TIME_EXPIRED', 'STALE_POSITION'];
+          const missingCooldown: string[] = [];
+          for (const reason of closeReasons) {
+            const closeIdx = monitorContent.indexOf(`'${reason}'`);
+            if (closeIdx === -1) continue;
+            const afterClose = monitorContent.substring(closeIdx, closeIdx + 500);
+            if (!afterClose.includes('cooldownKey') || !afterClose.includes('redis.set')) {
+              missingCooldown.push(reason);
+            }
+          }
+          if (missingCooldown.length > 0) {
+            return { id: 'V05', name: 'processedKey لا يُحذف فوراً', status: 'WARN', detail: `processedKey يُحذف فوراً لكن cooldown غير موجود بعد: ${missingCooldown.join(', ')}` };
+          }
+          return { id: 'V05', name: 'processedKey لا يُحذف فوراً', status: 'PASS', detail: 'processedKey يُحذف فوراً لكن cooldown يُطبق بعد كل أسباب الإغلاق' };
+        }
         return { id: 'V05', name: 'processedKey لا يُحذف فوراً', status: 'WARN', detail: 'processedKey يُحذف فوراً لكن يوجد cooldown. تحقق من تطبيقه بعد كل أسباب الإغلاق' };
       }
       return { id: 'V05', name: 'processedKey لا يُحذف فوراً', status: 'FAIL', detail: 'processedKey يُحذف فوراً عند إغلاق الصفقة — يسمح بإعادة الفتح في الـ tick التالي' };
@@ -238,14 +267,26 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/trading.service.ts');
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    const paperTradeMatch = content.match(/_executePaperTrade[\s\S]*?\n\s*\}/);
-    if (!paperTradeMatch) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade' };
+    // V180: Extract method body using brace counting (more robust than regex)
+    const methodStartIdx = content.indexOf('_executePaperTrade');
+    if (methodStartIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade' };
 
-    const code = paperTradeMatch[0];
-    if (code.includes('MAX_POSITION_PERCENT') || code.includes('positionPercent')) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً' };
+    const openBraceIdx = content.indexOf('{', methodStartIdx);
+    if (openBraceIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد جسم _executePaperTrade' };
+
+    let depth = 0;
+    let methodEndIdx = openBraceIdx;
+    for (let i = openBraceIdx; i < content.length; i++) {
+      if (content[i] === '{') depth++;
+      if (content[i] === '}') depth--;
+      if (depth === 0) { methodEndIdx = i; break; }
     }
-    if (code.includes('maxNotional') || code.includes('maxOrderValue') || code.includes('MAX_PAPER_NOTIONAL')) {
+
+    const code = content.substring(methodStartIdx, methodEndIdx + 1);
+    if (code.includes('positionPercent')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
+    }
+    if (code.includes('MAX_POSITION_PERCENT') || code.includes('maxNotional') || code.includes('maxOrderValue') || code.includes('MAX_PAPER_NOTIONAL')) {
       return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد أمان)' };
     }
     return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'FAIL', detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر!' };

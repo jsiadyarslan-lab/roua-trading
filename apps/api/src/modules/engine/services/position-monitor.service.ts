@@ -356,6 +356,11 @@ export class PositionMonitorService {
         if (agentSlHit) {
           this.logger.warn(`🚨 AGENT SL HIT: ${position.symbol} @ ${currentPrice} (SL: ${stopLossNum})`);
           await this._closePosition(position, currentPrice, 'STOP_LOSS');
+          // V180 FIX: Set cooldown after Agent SL to prevent immediate re-open
+          try {
+            const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+            await this.redis.set(cooldownKey, 'STOP_LOSS', this.COOLDOWN_TTL_MS);
+          } catch { /* non-critical */ }
           this._checkSanctuary(position.userId).catch(() => {});
           result.slTriggered = true;
           return result;
@@ -415,6 +420,11 @@ export class PositionMonitorService {
           `🔴 V176 STALE POSITION: ${position.symbol} held ${holdingHours.toFixed(1)}h without SL/TP — auto-closing`,
         );
         await this._closePosition(position, currentPrice, 'STALE_POSITION');
+        // V180 FIX: Set cooldown after STALE_POSITION close to prevent immediate re-open
+        try {
+          const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+          await this.redis.set(cooldownKey, 'STALE_POSITION', this.COOLDOWN_TTL_MS);
+        } catch { /* non-critical */ }
         result.slTriggered = true;
         return result;
       }

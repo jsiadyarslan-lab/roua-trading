@@ -238,24 +238,34 @@ console.log(`\n${BOLD}── الفحص #3: Smart Executor — حد حجم ال�
 check('V03', 'Smart Executor maxOrderValue للورقي ≤ 2% من المحفظة',
   'modules/ai/smart-executor/smart-executor.service.ts',
   (content) => {
-    // البحث عن maxOrderValue
+    // نمط V180: unified 2% limit for both paper and real
+    // Code: Math.min(portfolioValue * 0.02, 200)
+    const unifiedPattern = content.match(/maxOrderValue\s*=\s*Math\.min\s*\(\s*portfolioValue\s*\*\s*0\.(\d+)/);
+    if (unifiedPattern) {
+      const pct = parseInt(unifiedPattern[1]);
+      if (pct <= 2) {
+        return { pass: true, detail: `حد موحد للورقي والحقيقي = ${pct}% من المحفظة (V180 fix)` };
+      }
+      return {
+        pass: false,
+        detail: `حد الصفقة = ${pct}% من المحفظة. يجب أن يكون ≤ 2%.`
+      };
+    }
+
+    // نمط قديم: isSimulatedExecution ternary
     const maxOrderMatch = content.match(/maxOrderValue\s*=\s*isSimulatedExecution\s*\n?\s*:\s*[\s\S]*?:\s*([\s\S]*?);/);
 
     if (!maxOrderMatch) {
       // نمط بديل
       const altMatch = content.match(/const\s+maxOrderValue[\s\S]*?portfolioValue\s*\*\s*0\.(\d+)/g);
       if (altMatch) {
-        const paperMatch = altMatch.join('\n').match(/isSimulated[\s\S]*?0\.(\d+)/);
-        const realMatch = altMatch.join('\n').match(/isSimulated[\s\S]*?0\.(\d+)/g);
-
-        // فحص بسيط: هل النسبة للورقي ≤ 0.02 (2%)؟
         const paperLine = content.match(/isSimulatedExecution[\s\S]*?portfolioValue\s*\*\s*0\.(\d+)/);
         if (paperLine) {
           const paperPercent = parseInt(paperLine[1]);
           if (paperPercent > 2) {
             return {
               pass: false,
-              detail: `حد الورقي = ${paperPercent}% من المحفظة. يجب أن يكون ≤ 2%. حالياً صفقات تصل لـ 86% من المحفظة!`
+              detail: `حد الورقي = ${paperPercent}% من المحفظة. يجب أن يكون ≤ 2%.`
             };
           }
           return { pass: true, detail: `حد الورقي = ${paperPercent}% من المحفظة` };
@@ -275,7 +285,7 @@ check('V03', 'Smart Executor maxOrderValue للورقي ≤ 2% من المحفظ
       if (paperPercent > 2) {
         return {
           pass: false,
-          detail: `حد الورقي = ${paperPercent}% من المحفظة (${paperPercent}%). يجب أن يكون ≤ 2%.`
+          detail: `حد الورقي = ${paperPercent}% من المحفظة. يجب أن يكون ≤ 2%.`
         };
       }
       return { pass: true, detail: `حد الورقي = ${paperPercent}% — ضمن الحد المطلوب (≤2%)` };
@@ -362,6 +372,9 @@ check('V05', 'processedKey لا يُحذف فوراً بعد إغلاق الصف
       /await.*\.del\(processedKey\)/,
     ];
 
+    // V180: Also check position-monitor for cooldown after ALL close reasons
+    const monitorContent = read('modules/engine/services/position-monitor.service.ts');
+
     for (const pattern of deletePatterns) {
       if (pattern.test(content)) {
         const match = content.match(pattern);
@@ -379,9 +392,31 @@ check('V05', 'processedKey لا يُحذف فوراً بعد إغلاق الصف
 
         // هل يوجد cooldown منفصل يمنع إعادة الفتح؟
         if (content.includes('cooldown:') && content.includes('redis.get(cooldownKey)')) {
+          // V180: Verify cooldown is set after ALL close reasons in position-monitor
+          if (monitorContent) {
+            const closeReasons = ['STOP_LOSS', 'TAKE_PROFIT', 'TIME_EXPIRED', 'STALE_POSITION'];
+            const missingCooldown = [];
+            for (const reason of closeReasons) {
+              // Find the _closePosition call for this reason
+              const closeIdx = monitorContent.indexOf(`'${reason}'`);
+              if (closeIdx === -1) continue;
+              // Look for cooldown set within 500 chars after this close
+              const afterClose = monitorContent.substring(closeIdx, closeIdx + 500);
+              if (!afterClose.includes('cooldownKey') || !afterClose.includes('redis.set')) {
+                missingCooldown.push(reason);
+              }
+            }
+            if (missingCooldown.length > 0) {
+              return {
+                warn: true,
+                detail: `processedKey يُحذف فوراً لكن يوجد cooldown check. لكن cooldown غير موجود بعد: ${missingCooldown.join(', ')}. تحقق من position-monitor.service.ts`
+              };
+            }
+            return { pass: true, detail: `processedKey يُحذف فوراً لكن cooldown يُطبق بعد كل أسباب الإغلاق (SL, TP, TIME_EXPIRED, STALE_POSITION)` };
+          }
           return {
             warn: true,
-            detail: `processedKey يُحذف فوراً (سطر ~${lineNum}) لكن يوجد cooldown check. تحقق: هل cooldown يُطبق بعد كل أسباب الإغلاق (بما فيه TP)؟`
+            detail: `processedKey يُحذف فوراً (سطر ~${lineNum}) لكن يوجد cooldown check. تحقق: هل cooldown يُطبق بعد كل أسباب الإغلاق؟`
           };
         }
 
@@ -437,13 +472,31 @@ console.log(`\n${BOLD}── الفحص #7: TradingService._executePaperTrade �
 check('V07', 'TradingService._executePaperTrade يفحص حجم الصفقة',
   'modules/trading/trading.service.ts',
   (content) => {
-    // ابحث عن _executePaperTrade
-    const paperTradeMatch = content.match(/_executePaperTrade[\s\S]*?\{[\s\S]*?\n\s*\}/);
-    if (!paperTradeMatch) {
+    // V180: Improved search — extract the full method body using brace counting
+    const methodStartIdx = content.indexOf('_executePaperTrade');
+    if (methodStartIdx === -1) {
       return { warn: true, detail: 'لم أجد _executePaperTrade. ربما تم تغيير اسمه.' };
     }
 
-    const paperTradeCode = paperTradeMatch[0];
+    // Find the opening brace of the method
+    const openBraceIdx = content.indexOf('{', methodStartIdx);
+    if (openBraceIdx === -1) {
+      return { warn: true, detail: 'لم أجد جسم _executePaperTrade.' };
+    }
+
+    // Count braces to find the matching closing brace
+    let depth = 0;
+    let methodEndIdx = openBraceIdx;
+    for (let i = openBraceIdx; i < content.length; i++) {
+      if (content[i] === '{') depth++;
+      if (content[i] === '}') depth--;
+      if (depth === 0) {
+        methodEndIdx = i;
+        break;
+      }
+    }
+
+    const paperTradeCode = content.substring(methodStartIdx, methodEndIdx + 1);
 
     // هل يفحص حجم الصفقة؟
     const hasSizeCheck = paperTradeCode.includes('maxNotional') ||
@@ -454,12 +507,16 @@ check('V07', 'TradingService._executePaperTrade يفحص حجم الصفقة',
                          paperTradeCode.includes('orderValue >');
 
     if (hasSizeCheck) {
-      return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة' };
+      // Check if it uses dynamic positionPercent (best) or static maxNotional (weak)
+      if (paperTradeCode.includes('positionPercent')) {
+        return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
+      }
+      return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة (حد ثابت)' };
     }
 
     return {
       pass: false,
-      detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً! يحسب فقط slippage و fee ويرجع النتيجة. هذا يعني أي كمية تمر حتى لو كانت 86% من المحفظة.'
+      detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر!'
     };
   }
 );

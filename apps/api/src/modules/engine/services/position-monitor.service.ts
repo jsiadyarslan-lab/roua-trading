@@ -470,11 +470,81 @@ export class PositionMonitorService {
 
       let maxHoldingMs = this._getMaxHoldingMs(timeframe, isAgent);
 
+      // V184: Check if holding time was extended (for profitable positions)
+      try {
+        const extendKey = `time-expired-extended:${position.userId}:${position.symbol}:${position.id}`;
+        const extendedMax = await this.redis.get(extendKey);
+        if (extendedMax) {
+          maxHoldingMs = Number(extendedMax); // Use extended holding time
+        }
+      } catch { /* non-critical */ }
+
       if (holdingMs > maxHoldingMs) {
         const heldMin = (holdingMs / 60000).toFixed(0);
         const maxMin  = (maxHoldingMs / 60000).toFixed(0);
+        const profitPct = pnlPercent; // reuse the pnlPercent calculated above
+
+        // V184 FIX: P/L-Aware TIME_EXPIRED close
+        // If position is profitable, don't force-close — protect profit instead:
+        //   - Move SL to breakeven (if not already there)
+        //   - Extend holding time by 50% (one-time extension)
+        //   - Let the position run with protected downside
+        // Only force-close if position is losing or flat (<=0% profit).
+        if (profitPct > 0.5) {
+          // Position is profitable — protect it instead of closing
+          const breakEvenSL = position.side === 'BUY'
+            ? entryPrice * 1.0001  // slightly above entry to cover fees
+            : entryPrice * 0.9999; // slightly below entry to cover fees
+          const currentSL = stopLossNum;
+          const shouldMoveSL = position.side === 'BUY'
+            ? (currentSL === null || currentSL < breakEvenSL)
+            : (currentSL === null || currentSL > breakEvenSL);
+
+          // Check if we already extended this position
+          const extendKey = `time-expired-extended:${position.userId}:${position.symbol}:${position.id}`;
+          let alreadyExtended = false;
+          try {
+            alreadyExtended = !!(await this.redis.get(extendKey));
+          } catch { /* non-critical */ }
+
+          if (shouldMoveSL) {
+            await this.prisma.position.update({
+              where: { id: position.id },
+              data: { stopLoss: breakEvenSL },
+            });
+            this.logger.log(
+              `🛡️ V184 TIME_EXPIRED + PROFIT: ${position.symbol} +${profitPct.toFixed(1)}% — SL moved to breakeven (${breakEvenSL.toFixed(4)}) instead of closing`,
+            );
+          }
+
+          if (!alreadyExtended) {
+            // Extend holding time by 50% (one-time only)
+            // Example: M1/M5 4h → 6h, H1 48h → 72h
+            const extensionMs = maxHoldingMs * 0.5;
+            try {
+              await this.redis.set(extendKey, String(maxHoldingMs + extensionMs), maxHoldingMs + extensionMs);
+              this.logger.log(
+                `⏱️ V184 TIME_EXPIRED + PROFIT: ${position.symbol} holding extended from ${maxMin}m → ${((maxHoldingMs + extensionMs) / 60000).toFixed(0)}m (one-time, profit protected)`,
+              );
+            } catch { /* non-critical */ }
+          } else {
+            // Already extended once — now close at market (profit is protected by SL)
+            this.logger.warn(
+              `⏱️ V184 MAX_HOLDING (extended): ${position.symbol} held ${heldMin}m — closing at market (SL at breakeven)`,
+            );
+            await this._closePosition(position, currentPrice, 'TIME_EXPIRED');
+            try {
+              const cooldownKey = `cooldown:${position.userId}:${position.symbol}`;
+              await this.redis.set(cooldownKey, 'TIME_EXPIRED', this.COOLDOWN_TTL_MS);
+            } catch { /* non-critical */ }
+          }
+          result.trailingUpdated = true;
+          return result;
+        }
+
+        // Position is losing or flat — close it
         this.logger.warn(
-          `⏱️ MAX_HOLDING: ${position.symbol} held ${heldMin}m > ${maxMin}m — closing`,
+          `⏱️ MAX_HOLDING: ${position.symbol} held ${heldMin}m > ${maxMin}m (P/L: ${profitPct.toFixed(1)}%) — closing`,
         );
         await this._closePosition(position, currentPrice, 'TIME_EXPIRED');
         // V176 FIX: Set cooldown after TIME_EXPIRED to prevent immediate re-open

@@ -2317,19 +2317,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
         let shouldClose = false;
         let reason = '';
 
-        // FIX: MAX_HOLDING_TIME — close paper positions open >4h at breakeven to prevent accumulation.
-        // Reduced from 24h to 4h: paper positions that haven't hit SL/TP in 4 hours are likely stuck
-        // due to API issues, and keeping them open blocks maxOpenPositions for new trades.
-        const holdingDurationMs = Date.now() - new Date(position.openedAt).getTime();
-        const MAX_HOLDING_TIME_MS = 4 * 60 * 60 * 1000; // 4 hours (was 24 hours)
-        if (isPaperPosition && holdingDurationMs > MAX_HOLDING_TIME_MS) {
-          this.logger.log(
-            `🧠 Paper position ${position.symbol} held for ${(holdingDurationMs / 3600000).toFixed(1)}h (>4h), closing at breakeven`,
-          );
-          currentPrice = Number(position.entryPrice); // breakeven exit
-          shouldClose = true;
-          reason = 'MAX_HOLDING_TIME';
-        }
+        // V184 FIX: REMOVED hardcoded 4h breakeven close for paper positions.
+        // Previously, this closed ALL paper positions at 4h with currentPrice = entryPrice,
+        // which destroyed profitable trades and recorded wrong PnL (0 instead of actual).
+        //
+        // Now: MAX_HOLDING_TIME is handled exclusively by Position Monitor service,
+        // which uses dynamic timeframe-based holding limits AND checks P/L before closing.
+        // Agent positions get 48h (swing trading), Smart Executor gets 4h-7d by timeframe.
+        //
+        // The Position Monitor also implements "profit protection": if a position is
+        // profitable when TIME_EXPIRED triggers, it moves SL to breakeven and extends
+        // the holding time instead of force-closing.
+        //
+        // This prevents the #1 complaint: "4h auto-close destroyed my big profits".
 
         if (position.side === 'BUY') {
           if (stopLoss > 0 && currentPrice <= stopLoss) {
@@ -2366,10 +2366,16 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                 closeReason: reason, // STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
               });
 
-              // Calculate PnL for daily tracking
+              // V184 FIX: Use actual exit price from close result, not local currentPrice.
+              // Previously, when MAX_HOLDING_TIME triggered, currentPrice was set to
+              // entryPrice (breakeven), making PnL always = 0 in tracking records.
+              // Now: read the actual close price from the result or position record.
+              const actualExitPrice = result?.position?.exitPrice
+                ? Number(result.position.exitPrice)
+                : (result?.order?.price ? Number(result.order.price) : currentPrice);
               const pnl = position.side === 'BUY'
-                ? (currentPrice - Number(position.entryPrice)) * Number(position.quantity)
-                : (Number(position.entryPrice) - currentPrice) * Number(position.quantity);
+                ? (actualExitPrice - Number(position.entryPrice)) * Number(position.quantity)
+                : (Number(position.entryPrice) - actualExitPrice) * Number(position.quantity);
 
               // Update daily PnL tracking
               state.dailyPnL += pnl;
@@ -2389,13 +2395,13 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                     exitPrice: null,
                   },
                   data: {
-                    exitPrice: currentPrice,
+                    exitPrice: actualExitPrice,
                     pnl,
                     closedAt: new Date(),
                     holdingDurationMs: Date.now() - new Date(position.openedAt).getTime(),
                     exitReason: reason === 'STOP_LOSS_HIT' ? 'STOP_LOSS' : reason === 'MAX_HOLDING_TIME' ? 'STRATEGY_EXIT' : 'TAKE_PROFIT',
                     isWinning: pnl > 0,
-                    currentPrice,
+                    currentPrice: actualExitPrice as number,
                     status: 'FILLED',
                   },
                 });

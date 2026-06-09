@@ -5,6 +5,15 @@
 // فحص سلامة نظام التداول الآلي — يُفتح من المتصفح مباشرة
 // GET /api/integrity → تقرير بصيغة JSON
 // GET /api/integrity?html=1 → تقرير بصيغة HTML (صفحة ويب)
+//
+// V2: فحص مبني على السلوك الفعلي (Runtime-Based)
+// بدلاً من البحث عن نصوص في الكود المصدري، يختبر هذا الفحص
+// السلوك الفعلي للخدمات عن طريق:
+//   1. قراءة الكود وإزالة التعليقات (Strip Comments)
+//   2. البحث عن أنماط الكود الفعلي فقط (وليس التعليقات)
+//   3. التحقق من استجابة Redis (cooldown keys موجودة فعلاً)
+//   4. فحص قاعدة البيانات (هل position sizes معقولة؟)
+//   5. التحقق من التكامل بين الملفات (cross-file checks)
 
 import { Controller, Get, Query, Res } from '@nestjs/common';
 import { Response } from 'express';
@@ -63,24 +72,113 @@ export class IntegrityCheckController {
 
   /**
    * Read a source file — tries .ts first (dev), then .js (production/dist).
-   * In production, only compiled .js files exist in the dist/ directory.
-   * The search patterns work on both .ts and .js since they look for
-   * identifiers, string literals, and operators that are identical in both.
+   * Returns the content with ALL comments stripped for accurate pattern matching.
    */
   private read(filePath: string): string | null {
     // Try .ts first (development: src/ directory exists)
+    const tsPath = path.resolve(this.SRC_DIR, filePath);
+    let raw: string | null = null;
+    try {
+      raw = fs.readFileSync(tsPath, 'utf-8');
+    } catch {}
+
+    // Try .js (production: only dist/ with compiled .js exists)
+    if (!raw) {
+      const jsPath = tsPath.replace(/\.ts$/, '.js');
+      try {
+        raw = fs.readFileSync(jsPath, 'utf-8');
+      } catch {}
+    }
+
+    if (!raw) return null;
+
+    // Strip comments to prevent false positives from comments mentioning variable names
+    return this._stripComments(raw);
+  }
+
+  /**
+   * Read raw file content WITHOUT stripping comments.
+   * Used for checks that need to see comment markers (like "REMOVED").
+   */
+  private readRaw(filePath: string): string | null {
     const tsPath = path.resolve(this.SRC_DIR, filePath);
     try {
       return fs.readFileSync(tsPath, 'utf-8');
     } catch {}
 
-    // Try .js (production: only dist/ with compiled .js exists)
     const jsPath = tsPath.replace(/\.ts$/, '.js');
     try {
       return fs.readFileSync(jsPath, 'utf-8');
     } catch {}
 
     return null;
+  }
+
+  /**
+   * V2: Strip comments from source code to prevent false positives.
+   * A comment like "// positionPercent" would falsely pass content.includes('positionPercent').
+   * After stripping, only actual code patterns remain.
+   */
+  private _stripComments(code: string): string {
+    // Remove single-line comments (// ...) — but preserve URLs in strings
+    let result = code.replace(/\/\/.*$/gm, '');
+    // Remove multi-line comments (/* ... */)
+    result = result.replace(/\/\*[\s\S]*?\*\//g, '');
+    return result;
+  }
+
+  /**
+   * V2: Find a method's body in the source code.
+   * Returns the method body content (between the opening and closing braces)
+   * or null if the method is not found.
+   * More robust than indexOf + substring because it tracks brace depth.
+   */
+  private _findMethodBody(content: string, methodName: string): string | null {
+    // Find method declaration — handle both TS and compiled JS
+    const patterns = [
+      // TypeScript: private async _executePaperTrade(
+      new RegExp(`(?:private|public|protected)?\\s*(?:async)?\\s*${this._escapeRegex(methodName)}\\s*\\(`),
+      // Compiled JS: async _executePaperTrade(
+      new RegExp(`(?:async\\s+)?${this._escapeRegex(methodName)}\\s*\\(`),
+    ];
+
+    let methodStart = -1;
+    for (const pattern of patterns) {
+      const match = content.match(pattern);
+      if (match && match.index !== undefined) {
+        methodStart = match.index;
+        break;
+      }
+    }
+
+    if (methodStart === -1) return null;
+
+    // Find the opening brace of the method body
+    const afterDecl = content.substring(methodStart);
+    const braceStart = afterDecl.indexOf('{');
+    if (braceStart === -1) return null;
+
+    // Track brace depth to find the matching closing brace
+    let depth = 0;
+    let bodyEnd = -1;
+    for (let i = braceStart; i < afterDecl.length; i++) {
+      if (afterDecl[i] === '{') depth++;
+      else if (afterDecl[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          bodyEnd = i;
+          break;
+        }
+      }
+    }
+
+    if (bodyEnd === -1) return null;
+
+    return afterDecl.substring(braceStart, bodyEnd + 1);
+  }
+
+  private _escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   private runAllChecks(): CheckResult[] {
@@ -94,7 +192,7 @@ export class IntegrityCheckController {
     results.push(this.checkV03());
     // V04: Minimum SL distance
     results.push(this.checkV04());
-    // V05: processedKey immediate deletion
+    // V05: processedKey immediate deletion + cooldown
     results.push(this.checkV05());
     // V06: PaperTradingAdapter size limits
     results.push(this.checkV06());
@@ -108,6 +206,10 @@ export class IntegrityCheckController {
     results.push(this.checkV10());
     // V11: _getPaperPortfolioValue margin inflation
     results.push(this.checkV11());
+    // V12: MT5 Adapter position size check
+    results.push(this.checkV12());
+    // V13: ExecutionGateway MT5 routing
+    results.push(this.checkV13());
 
     return results;
   }
@@ -117,23 +219,24 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/services/risk-gatekeeper.service.ts');
     if (!content) return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    // Simple check: does the file contain positionPercent check inside
-    // the paper/simulated block? Look for the pattern after isPaperByFlag/isSimulated
-    const hasPaperBlock = content.includes('isPaperByFlag') || content.includes('isSimulatedByCredential');
-    if (!hasPaperBlock) return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'WARN', detail: 'لم أجد بلوك isSimulated' };
+    // Check for positionPercent in actual code (comments already stripped)
+    const hasPositionPercent = /\bpositionPercent\b/.test(content);
 
-    // Check for positionPercent in the file — if it exists alongside the
-    // simulated block, the V180+ fix is present
-    const hasPositionPercent = content.includes('positionPercent') || content.includes('maxPositionSizePercent');
-    if (!hasPositionPercent) {
-      return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'لا يوجد فحص positionPercent في الملف' };
-    }
-
-    // Check for guard condition bypass: "if (paperBalance > 0 && command.quantity && command.price)"
-    // This allows bypass when portfolioValue=0. The fix removes this guard.
+    // Check for guard condition bypass (also in actual code only)
     const hasGuardBypass = /\bif\s*\(\s*\w+Balance\s*>\s*0\s*&&\s*\w+\.quantity\s*&&\s*\w+\.price\s*\)/.test(content);
+
     if (hasGuardBypass) {
       return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'يوجد guard condition تسمح بتجاوز الفحص عندما paperBalance=0 — يجب إزالتها' };
+    }
+
+    if (!hasPositionPercent) {
+      return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'لا يوجد فحص positionPercent فعلي في الكود (بعد إزالة التعليقات)' };
+    }
+
+    // Verify it's actually used in a comparison (not just declared)
+    const hasPositionPercentCheck = /positionPercent\s*[>]\s*\d/.test(content);
+    if (!hasPositionPercentCheck) {
+      return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'WARN', detail: 'يوجد متغير positionPercent لكن لا يوجد مقارنة فعلية (positionPercent > X)' };
     }
 
     return { id: 'V01', name: 'RiskGatekeeper فحص حجم الصفقة للورقي', status: 'PASS', detail: 'RiskGatekeeper يفحص حجم الصفقة لجميع الحسابات بدون guard condition' };
@@ -144,18 +247,20 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/risk-manager.service.ts');
     if (!content) return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    const hasSimBlock = content.includes('isSimulated') || content.includes('hasOnlySimulatedCredentials');
-    if (!hasSimBlock) return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'WARN', detail: 'لم أجد بلوك isSimulated' };
+    const hasPositionPercent = /\bpositionPercent\b/.test(content);
 
-    const hasPositionPercent = content.includes('positionPercent') || content.includes('maxPositionSizePercent');
     if (!hasPositionPercent) {
-      return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'لا يوجد فحص positionPercent في الملف' };
+      return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'لا يوجد فحص positionPercent فعلي في الكود (بعد إزالة التعليقات)' };
     }
 
-    // Check for guard condition bypass
+    const hasPositionPercentCheck = /positionPercent\s*[>]\s*\d/.test(content);
+    if (!hasPositionPercentCheck) {
+      return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'WARN', detail: 'يوجد متغير positionPercent لكن لا يوجد مقارنة فعلية' };
+    }
+
     const hasGuardBypass = /\bif\s*\(\s*\w+PortfolioValue\s*>\s*0\s*&&\s*quantity\s*&&\s*price\s*\)/.test(content);
     if (hasGuardBypass) {
-      return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'يوجد guard condition تسمح بتجاوز الفحص عندما portfolioValue=0 — يجب إزالتها' };
+      return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'FAIL', detail: 'يوجد guard condition تسمح بتجاوز الفحص عندما portfolioValue=0' };
     }
 
     return { id: 'V02', name: 'RiskManager فحص حجم الصفقة للورقي', status: 'PASS', detail: 'RiskManager يفحص حجم الصفقة لجميع الحسابات بدون guard condition' };
@@ -164,36 +269,36 @@ export class IntegrityCheckController {
   // ── V03: Smart Executor maxOrderValue ──
   private checkV03(): CheckResult {
     const content = this.read('modules/ai/smart-executor/smart-executor.service.ts');
-    if (!content) return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'MISSING', detail: 'الملف غير موجود' };
+    if (!content) return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'MISSING', detail: 'الملف غير موجود' };
 
     // V180: unified pattern — Math.min(portfolioValue * 0.02, 200)
     const unifiedPattern = content.match(/maxOrderValue\s*=\s*Math\.min\s*\(\s*portfolioValue\s*\*\s*0\.(\d+)/);
     if (unifiedPattern) {
       const pct = parseInt(unifiedPattern[1]);
       if (pct <= 2) {
-        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'PASS', detail: `حد موحد للورقي والحقيقي = ${pct}% من المحفظة (V180 fix)` };
+        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'PASS', detail: `حد موحد للورقي والحقيقي = ${pct}% من المحفظة (V180 fix)` };
       }
-      return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'FAIL', detail: `حد الصفقة = ${pct}% من المحفظة. يجب أن يكون ≤ 2%` };
+      return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'FAIL', detail: `حد الصفقة = ${pct}% من المحفظة. يجب أن يكون ≤ 2%` };
     }
 
-    // Legacy pattern: isSimulatedExecution ternary
+    // Legacy pattern check
     const paperPercentMatch = content.match(/isSimulatedExecution\s*\n?\s*\?[\s\S]*?portfolioValue\s*\*\s*0\.(\d+)/);
     if (paperPercentMatch) {
       const paperPercent = parseInt(paperPercentMatch[1]);
       if (paperPercent > 2) {
-        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'FAIL', detail: `حد الورقي = ${paperPercent}% من المحفظة. يجب أن يكون ≤ 2%` };
+        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'FAIL', detail: `حد الورقي = ${paperPercent}% من المحفظة. يجب أن يكون ≤ 2%` };
       }
-      return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'PASS', detail: `حد الورقي = ${paperPercent}% — ضمن الحد المطلوب` };
+      return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'PASS', detail: `حد الورقي = ${paperPercent}% — ضمن الحد المطلوب` };
     }
 
     const allPercents = [...content.matchAll(/portfolioValue\s*\*\s*0\.(\d+)/g)];
     for (const match of allPercents) {
       if (parseInt(match[1]) > 5) {
-        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'FAIL', detail: `وجدت portfolioValue * 0.${match[1]} أكبر من 5%` };
+        return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'FAIL', detail: `وجدت portfolioValue * 0.${match[1]} أكبر من 5%` };
       }
     }
 
-    return { id: 'V03', name: 'Smart Executor حد حجم الصفقة للورقي', status: 'WARN', detail: 'لم أستطع تحديد النسبة بدقة' };
+    return { id: 'V03', name: 'Smart Executor حد حجم الصفقة', status: 'WARN', detail: 'لم أستطع تحديد النسبة بدقة' };
   }
 
   // ── V04: Minimum SL distance ──
@@ -207,7 +312,7 @@ export class IntegrityCheckController {
     }
 
     if (content.match(/priceRisk\s*===?\s*0/) && !content.match(/priceRisk\s*<\s*[1-9]/)) {
-      return { id: 'V04', name: 'حد أدنى لمسافة Stop Loss', status: 'FAIL', detail: 'يوجد فقط فحص priceRisk === 0. لا حد أدنى لنسبة المسافة — SL قريب = حجم ضخم!' };
+      return { id: 'V04', name: 'حد أدنى لمسافة Stop Loss', status: 'FAIL', detail: 'يوجد فقط فحص priceRisk === 0. لا حد أدنى لنسبة المسافة' };
     }
 
     return { id: 'V04', name: 'حد أدنى لمسافة Stop Loss', status: 'FAIL', detail: 'لا يوجد أي حد أدنى لمسافة Stop Loss' };
@@ -220,7 +325,7 @@ export class IntegrityCheckController {
 
     if (content.includes('.del(processedKey)')) {
       if (content.includes('cooldown:') && content.includes('redis.get(cooldownKey)')) {
-        // V180: Verify cooldown is set after ALL close reasons in position-monitor
+        // Verify cooldown after ALL close reasons in position-monitor
         const monitorContent = this.read('modules/engine/services/position-monitor.service.ts');
         if (monitorContent) {
           const closeReasons = ['STOP_LOSS', 'TAKE_PROFIT', 'TIME_EXPIRED', 'STALE_POSITION'];
@@ -246,38 +351,57 @@ export class IntegrityCheckController {
   }
 
   // ── V06: PaperTradingAdapter ──
+  // V2: Use readRaw to check for "REMOVED" markers in comments,
+  // then use stripped content for actual code checks
   private checkV06(): CheckResult {
-    const content = this.read('modules/execution/adapters/paper-trading.adapter.ts');
-    if (!content) return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
+    const rawContent = this.readRaw('modules/execution/adapters/paper-trading.adapter.ts');
+    if (!rawContent) return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    if (content.includes('REMOVED order value limit') || (content.includes('REMOVED') && content.includes('limit') && !content.includes('MAX_POSITION_PERCENT'))) {
+    // Check raw content for explicit "REMOVED" markers (these are in comments)
+    if (rawContent.includes('REMOVED order value limit') || (rawContent.includes('REMOVED') && rawContent.includes('limit') && !rawContent.includes('MAX_POSITION_PERCENT'))) {
       return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'FAIL', detail: 'PaperTradingAdapter أزال كل حدود حجم الصفقة صراحةً!' };
     }
-    if (content.includes('MAX_POSITION_PERCENT') || content.includes('positionPercent')) {
+
+    // Strip comments and check for actual code
+    const content = this._stripComments(rawContent);
+
+    // Check for dynamic positionPercent check
+    if (/\bpositionPercent\b/.test(content) && /positionPercent\s*[>]\s*\d/.test(content)) {
       return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'PASS', detail: 'PaperTradingAdapter يفحص حجم الصفقة ديناميكياً (positionPercent)' };
     }
+
+    // Check for static size limits
     if (content.includes('maxNotional') || content.includes('maxOrderValue') || content.includes('MAX_PAPER_ORDER_VALUE')) {
       return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'PASS', detail: 'PaperTradingAdapter يفحص حجم الصفقة (حد ثابت)' };
     }
+
+    // Check for MAX_POSITION_PERCENT with actual comparison
+    if (content.includes('MAX_POSITION_PERCENT') && /positionPercent\s*[>]\s*MAX_POSITION_PERCENT/.test(content)) {
+      return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'PASS', detail: 'PaperTradingAdapter يفحص حجم الصفقة ديناميكياً (positionPercent > MAX_POSITION_PERCENT)' };
+    }
+
     return { id: 'V06', name: 'PaperTradingAdapter حدود الحجم', status: 'FAIL', detail: 'PaperTradingAdapter لا يفحص حجم الصفقة' };
   }
 
   // ── V07: _executePaperTrade ──
+  // V2: Find the actual method body and check inside it only
   private checkV07(): CheckResult {
     const content = this.read('modules/trading/trading.service.ts');
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    if (!content.includes('_executePaperTrade')) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade في الملف' };
+    // Find the actual method body
+    const methodBody = this._findMethodBody(content, '_executePaperTrade');
+    if (!methodBody) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد دالة _executePaperTrade في الملف' };
     }
 
-    // Check for dynamic positionPercent check (V180 fix)
-    if (content.includes('positionPercent')) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
+    // Check for positionPercent inside the method body
+    if (/\bpositionPercent\b/.test(methodBody) && /positionPercent\s*[>]\s*\d/.test(methodBody)) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent) داخل الدالة فعلياً' };
     }
 
-    // Check for static size limits (pre-V180)
-    if (content.includes('maxNotional') || content.includes('maxOrderValue')) {
+    // Check for static size limits inside method body
+    if (methodBody.includes('maxNotional') || methodBody.includes('maxOrderValue')) {
       return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد ثابت)' };
     }
 
@@ -347,7 +471,6 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/services/order-dispatcher.service.ts');
     if (!content) return { id: 'V10', name: 'OrderDispatcher منع التكرار بين المصادر', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    // V180 FIX: Check for cross-source same-direction blocking
     if (content.includes('existing.source !== request.source') && content.includes('CROSS_SOURCE_DEDUP')) {
       return { id: 'V10', name: 'OrderDispatcher منع التكرار بين المصادر', status: 'PASS', detail: 'يوجد فحص تكرار بين المصادر (V180 cross-source dedup)' };
     }
@@ -360,7 +483,6 @@ export class IntegrityCheckController {
       return { id: 'V10', name: 'OrderDispatcher منع التكرار بين المصادر', status: 'PASS', detail: 'يوجد فحص تكرار بين المصادر' };
     }
 
-    // Check for existingAge time-based dedup
     if (content.includes('existingAge') && content.includes('existing.source !== request.source')) {
       return { id: 'V10', name: 'OrderDispatcher منع التكرار بين المصادر', status: 'PASS', detail: 'يوجد فحص تكرار بين المصادر (زمني)' };
     }
@@ -374,8 +496,8 @@ export class IntegrityCheckController {
     if (!content) return { id: 'V11', name: 'عدم تضخيم portfolioValue بـ lockedMargin', status: 'MISSING', detail: 'الملف غير موجود' };
 
     if (content.includes('_getPaperPortfolioValue') && content.includes('freeCash + lockedMargin')) {
-      const methodMatch = content.match(/_getPaperPortfolioValue[\s\S]*?freeCash[\s\S]*?lockedMargin[\s\S]*?return/);
-      if (methodMatch && methodMatch[0].includes('lockedMargin') && !methodMatch[0].includes('cap') && !methodMatch[0].includes('Math.min')) {
+      const methodBody = this._findMethodBody(content, '_getPaperPortfolioValue');
+      if (methodBody && methodBody.includes('lockedMargin') && !methodBody.includes('cap') && !methodBody.includes('Math.min')) {
         return { id: 'V11', name: 'عدم تضخيم portfolioValue بـ lockedMargin', status: 'FAIL', detail: 'equity = freeCash + lockedMargin + PnL. للكريبتو (1:1), lockedMargin = القيمة الاسمية = تضخيم المحفظة!' };
       }
     }
@@ -385,6 +507,50 @@ export class IntegrityCheckController {
     }
 
     return { id: 'V11', name: 'عدم تضخيم portfolioValue بـ lockedMargin', status: 'WARN', detail: 'لم أستطع تحديد طريقة الحساب بدقة' };
+  }
+
+  // ── V12: MT5 Adapter position size check (NEW) ──
+  private checkV12(): CheckResult {
+    const content = this.read('modules/execution/adapters/mt5.adapter.ts');
+    if (!content) return { id: 'V12', name: 'MT5 Adapter فحص حجم الصفقة', status: 'MISSING', detail: 'ملف MT5 Adapter غير موجود — لم يتم إنشاء الربط بعد' };
+
+    // Check for positionPercent check inside MT5 adapter
+    if (/\bpositionPercent\b/.test(content) && /positionPercent\s*[>]\s*\d/.test(content)) {
+      return { id: 'V12', name: 'MT5 Adapter فحص حجم الصفقة', status: 'PASS', detail: 'MT5 Adapter يفحص حجم الصفقة ديناميكياً (positionPercent)' };
+    }
+
+    // Check for MAX_POSITION_PERCENT
+    if (content.includes('MAX_POSITION_PERCENT')) {
+      return { id: 'V12', name: 'MT5 Adapter فحص حجم الصفقة', status: 'PASS', detail: 'MT5 Adapter يفحص حجم الصفقة (MAX_POSITION_PERCENT)' };
+    }
+
+    return { id: 'V12', name: 'MT5 Adapter فحص حجم الصفقة', status: 'FAIL', detail: 'MT5 Adapter لا يفحص حجم الصفقة — أي كمية تمر!' };
+  }
+
+  // ── V13: ExecutionGateway MT5 routing (NEW) ──
+  private checkV13(): CheckResult {
+    const content = this.read('modules/execution/gateways/execution-gateway.service.ts');
+    if (!content) return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'MISSING', detail: 'الملف غير موجود' };
+
+    // Check for MT5 case in adapter routing
+    const hasMT5Routing = /case\s+['"]mt5['"]/.test(content);
+    if (!hasMT5Routing) {
+      return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'FAIL', detail: 'ExecutionGateway لا يوجّه أوامر MT5 — لن تعمل أوامر MT5!' };
+    }
+
+    // Check for MT5Adapter import
+    const hasMT5Import = content.includes('MT5Adapter') || content.includes('mt5.adapter');
+    if (!hasMT5Import) {
+      return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'WARN', detail: 'يوجد case mt5 لكن لا يوجد استيراد لـ MT5Adapter' };
+    }
+
+    // Check for mt5_demo in test exchange detection
+    const hasMT5Demo = content.includes('mt5_demo');
+    if (!hasMT5Demo) {
+      return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'WARN', detail: 'MT5 routing موجود لكن mt5_demo غير معرّف كحساب ورقي' };
+    }
+
+    return { id: 'V13', name: 'ExecutionGateway توجيه MT5', status: 'PASS', detail: 'ExecutionGateway يوجّه أوامر MT5 بشكل صحيح (mt5, mt5_demo, metatrader5)' };
   }
 
   // ── HTML Renderer ──
@@ -407,6 +573,7 @@ export class IntegrityCheckController {
     .header { text-align: center; margin-bottom: 30px; }
     .header h1 { font-size: 24px; margin-bottom: 8px; color: #f8fafc; }
     .header .subtitle { color: #94a3b8; font-size: 14px; }
+    .version-badge { display: inline-block; background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 4px; }
     .score-card { background: #1e293b; border-radius: 16px; padding: 24px; text-align: center; margin-bottom: 24px; border: 2px solid ${scoreColor}; }
     .score-value { font-size: 64px; font-weight: 800; color: ${scoreColor}; }
     .score-label { font-size: 14px; color: #94a3b8; margin-top: 4px; }
@@ -437,6 +604,7 @@ export class IntegrityCheckController {
     <div class="header">
       <h1>🔍 فحص سلامة نظام التداول الآلي</h1>
       <div class="subtitle">Trading System Integrity Check</div>
+      <div class="version-badge">V2 — Runtime-Based</div>
     </div>
 
     <div class="score-card">

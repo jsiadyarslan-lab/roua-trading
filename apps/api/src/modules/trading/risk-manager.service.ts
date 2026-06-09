@@ -470,7 +470,7 @@ export class RiskManagerService {
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation', 'mt5_demo'];
     if (exactMatches.includes(lower)) return true;
     const suffixPatterns = ['_test', '_paper', '_demo', '_sandbox', '_simulation', '-test', '-paper'];
     if (suffixPatterns.some(s => lower.endsWith(s))) return true;

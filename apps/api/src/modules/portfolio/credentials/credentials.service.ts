@@ -1252,6 +1252,13 @@ export class CredentialsService {
     passphrase?: string,
     testnet: boolean = false,
   ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
+    // ── MT5 Validation: Uses MetaAPI Cloud, not CCXT ──
+    // For MT5, apiKey = account number, apiSecret = password, passphrase = server name
+    const isMT5 = ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(exchange.toLowerCase());
+    if (isMT5) {
+      return this._validateMT5Credentials(apiKey, apiSecret, passphrase, testnet);
+    }
+
     const isBinance = exchange.toLowerCase().startsWith('binance');
     const isBinanceTest = testnet || exchange === 'binance_test' || exchange === 'binance_future_test' || (isBinance && exchange !== 'binance');
     try {
@@ -1455,6 +1462,118 @@ export class CredentialsService {
 
       // For any other error, accept the key rather than rejecting it
       this.logger.warn(`Accepting API key for ${exchange} despite validation error: ${message.substring(0, 100)}`);
+      return { valid: true, permissions: ['read', 'trade'] };
+    }
+  }
+
+  /**
+   * Validate MT5 credentials via MetaAPI Cloud.
+   * For MT5: apiKey = account number, apiSecret = password, passphrase = server name.
+   * This method attempts to connect to the MT5 account via MetaAPI and verify
+   * that the credentials are valid by checking account information.
+   */
+  private async _validateMT5Credentials(
+    accountId: string,
+    password: string,
+    server?: string,
+    isDemo: boolean = false,
+  ): Promise<{ valid: boolean; permissions?: string[]; error?: string }> {
+    try {
+      // Check if MetaAPI token is configured
+      const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
+      if (!metaApiToken) {
+        // MetaAPI not configured — accept credentials but warn
+        this.logger.warn(
+          `📊 METAAPI_TOKEN not configured — MT5 credential validation skipped. ` +
+          `Set METAAPI_TOKEN environment variable to enable full MT5 validation.`
+        );
+        return { valid: true, permissions: ['read', 'trade'] };
+      }
+
+      // Validate required fields
+      if (!accountId || !password) {
+        return { valid: false, error: 'رقم حساب MT5 وكلمة السر مطلوبان' };
+      }
+      if (!server) {
+        return { valid: false, error: 'اسم سيرفر MT5 مطلوب (مثال: MetaQuotes-Demo)' };
+      }
+
+      // Try to connect via MetaAPI
+      const metaApiModule: any = await import('metaapi.cloud-sdk');
+      const MetaApiClass = metaApiModule.default || metaApiModule;
+      const metaApi = new MetaApiClass(metaApiToken);
+
+      // Try to find existing account or register a new one
+      let account;
+      try {
+        account = await metaApi.getAccount(accountId);
+        this.logger.log(`📊 MT5 account ${accountId} already registered with MetaAPI`);
+      } catch {
+        // Account not found — try to register it
+        this.logger.log(`📊 Registering MT5 account ${accountId} with MetaAPI...`);
+        try {
+          account = await metaApi.addAccount({
+            login: accountId,
+            password,
+            server,
+            type: isDemo ? 'demo' : 'live',
+            name: `Roua-Validation-${Date.now()}`,
+          });
+
+          // Wait for deployment with timeout
+          await account.waitDeployed(60000);
+          this.logger.log(`📊 MT5 account ${accountId} deployed successfully`);
+        } catch (registerErr: any) {
+          const msg = registerErr.message || '';
+          if (msg.includes('already exists')) {
+            // Account already registered by another user — try to access it
+            account = await metaApi.getAccount(accountId);
+          } else if (msg.includes('Invalid credentials') || msg.includes('authentication')) {
+            return { valid: false, error: 'بيانات حساب MT5 غير صحيحة — تأكد من رقم الحساب وكلمة السر واسم السيرفر' };
+          } else if (msg.includes('server not found') || msg.includes('Unknown server')) {
+            return { valid: false, error: `سيرفر MT5 "${server}" غير معروف — تأكد من كتابة الاسم بشكل صحيح` };
+          } else {
+            // Registration failed — accept with warning (connection may work later)
+            this.logger.warn(`📊 MT5 account registration failed: ${msg} — accepting with warning`);
+            return { valid: true, permissions: ['read', 'trade'] };
+          }
+        }
+      }
+
+      // Try to connect and get account information
+      try {
+        const connection = account.getRPCConnection();
+        await connection.connect();
+        await connection.waitSynchronized();
+
+        const accountInfo = await connection.getAccountInformation();
+        if (accountInfo) {
+          this.logger.log(
+            `📊 MT5 account ${accountId} validated: ` +
+            `balance=${accountInfo.balance}, equity=${accountInfo.equity}, ` +
+            `currency=${accountInfo.currency}, leverage=${accountInfo.leverage}`
+          );
+          return { valid: true, permissions: ['read', 'trade'] };
+        }
+      } catch (connErr: any) {
+        const msg = connErr.message || '';
+        if (msg.includes('Invalid credentials') || msg.includes('authentication failed')) {
+          return { valid: false, error: 'فشل المصادقة على حساب MT5 — تأكد من بيانات الاعتماد' };
+        }
+        if (msg.includes('No connection') || msg.includes('timeout')) {
+          // Connection issue — accept with warning (Terminal may be offline)
+          this.logger.warn(`📊 MT5 connection failed during validation: ${msg} — accepting with warning`);
+          return { valid: true, permissions: ['read', 'trade'] };
+        }
+        // Other errors — accept with warning
+        this.logger.warn(`📊 MT5 validation error: ${msg} — accepting with warning`);
+        return { valid: true, permissions: ['read', 'trade'] };
+      }
+
+      return { valid: true, permissions: ['read', 'trade'] };
+    } catch (error: any) {
+      // MetaAPI SDK not available or other unexpected error
+      this.logger.warn(`📊 MT5 validation error: ${error.message} — accepting with warning`);
       return { valid: true, permissions: ['read', 'trade'] };
     }
   }

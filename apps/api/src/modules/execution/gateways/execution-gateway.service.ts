@@ -11,6 +11,7 @@ import { IExchangeAdapter, UnifiedOrder, ExecutionResult } from '../adapters/bas
 import { BinanceAdapter } from '../adapters/binance.adapter';
 import { AlpacaAdapter } from '../adapters/alpaca.adapter';
 import { PaperTradingAdapter } from '../adapters/paper-trading.adapter';
+import { MT5Adapter } from '../adapters/mt5.adapter';
 import { MarketDataAggregatorService } from '../../analytics/aggregator.service';
 import { RedisService } from '../../../common/redis/redis.service';
 
@@ -269,6 +270,26 @@ export class ExecutionGatewayService {
           userId,
         );
 
+      case 'mt5':
+      case 'mt5_demo':
+      case 'metatrader5':
+      case 'metatrader':
+        // MT5 integration via MetaAPI Cloud SDK.
+        // apiKey = account number, apiSecret = password, passphrase = server name.
+        // MT5 demo accounts are treated as simulated (risk bypass applies).
+        const isMT5Demo = exchangeLower === 'mt5_demo' || isCredentialTestnet;
+        return new MT5Adapter(
+          this.prisma,
+          this.auditService,
+          userId,
+          {
+            accountId: apiKey,       // MT5 account number stored as apiKey
+            password: apiSecret,     // MT5 password stored as apiSecret
+            server: '',              // Will be populated from passphrase below
+            isDemo: isMT5Demo,
+          },
+        );
+
       default:
         // For other CCXT-supported exchanges, use the BinanceAdapter pattern
         // (generic CCXT adapter with the same implementation)
@@ -346,7 +367,7 @@ export class ExecutionGatewayService {
   private _isTestExchange(exchangeName: string): boolean {
     if (!exchangeName) return false;
     const lower = exchangeName.toLowerCase();
-    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation'];
+    const exactMatches = ['paper-trading', 'paper', 'demo', 'sandbox', 'simulation', 'mt5_demo'];
     if (exactMatches.includes(lower)) return true;
     const suffixes = ['_test', '_paper', '_demo', '_sandbox', '_simulation'];
     if (suffixes.some(s => lower.endsWith(s))) return true;

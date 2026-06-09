@@ -118,14 +118,12 @@ export class TradeCoordinationService {
     try {
       // V180 FIX: Use SET NX (atomic) instead of GET + SET (race condition).
       // Previously: GET returns null → another process also GETs null → both SET.
-      // Now: SET NX atomically sets only if key doesn't exist — no race window.
-      const acquired = await this.redis.setnx(lockKey, source);
+      // Now: setIfNotExists atomically sets only if key doesn't exist — no race window.
+      const acquired = await this.redis.setIfNotExists(lockKey, source, this.LOCK_TTL_MS / 1000);
       if (!acquired) {
         this.logger.debug(`⏳ Lock already held on ${symbol} — ${source} must wait`);
         return false;
       }
-      // Set TTL after acquisition (setnx doesn't support TTL in one call)
-      await this.redis.expire(lockKey, this.LOCK_TTL_MS / 1000);
       return true;
     } catch {
       // Redis unavailable — allow trade (fail open, not closed)

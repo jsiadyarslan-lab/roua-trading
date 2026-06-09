@@ -120,7 +120,7 @@ export class OrderDispatcherService {
       // ═══════════════════════════════════════════════════════════
       const existing = await this.prisma.position.findFirst({
         where: { userId: request.userId, symbol: request.symbol, status: 'OPEN' },
-      });
+      }); // Note: Prisma returns all scalar fields by default, including openedAt
       if (existing) {
         // V146b FIX: Allow Agent to open same-direction positions alongside
         // Smart Executor. The Agent trades on different timeframes (M30+).
@@ -138,7 +138,7 @@ export class OrderDispatcherService {
           // Previously ALLOWED → caused 3 DOGE/USDT sells from Smart+Agent
           // within 2 minutes. Now: check if the existing position was opened
           // recently (< 5 min). If so, block to prevent duplicate positions.
-          const existingAge = Date.now() - new Date(existing.createdAt).getTime();
+          const existingAge = Date.now() - new Date(existing.openedAt).getTime();
           const CROSS_SOURCE_DEDUP_MS = 5 * 60 * 1000; // 5 minutes
           if (existingAge < CROSS_SOURCE_DEDUP_MS) {
             await this.idempotency.releaseLock(sourceIdempotencyKey);

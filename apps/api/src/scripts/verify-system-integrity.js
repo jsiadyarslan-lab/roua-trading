@@ -482,9 +482,9 @@ check('V08', 'TradeCoordinationService.acquireTradeLock يستخدم SET NX (ذ�
       return { pass: true, detail: 'acquireTradeLock يستخدم SET NX ذري' };
     }
 
-    // هل يستخدم setnx أو setIfNotExist؟
-    if (content.includes('setnx') || content.includes('setIfNotExist') || content.includes('setnx')) {
-      return { pass: true, detail: 'acquireTradeLock يستخدم setnx ذري' };
+    // هل يستخدم setIfNotExists أو setnx؟
+    if (content.includes('setIfNotExists') || content.includes('setnx') || (content.includes('SET') && content.includes('NX'))) {
+      return { pass: true, detail: 'acquireTradeLock يستخدم SET NX ذري (setIfNotExists)' };
     }
 
     // هل يستخدم GET ثم SET؟ (race condition!)

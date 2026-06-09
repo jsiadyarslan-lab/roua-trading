@@ -34,7 +34,7 @@ export class IntegrityCheckController {
    * فحص سلامة نظام التداول — يمكن فتحه من المتصفح
    */
   @Get()
-  async check(@Query('html') html: string, @Res() res?: Response) {
+  async check(@Query('html') html: string, @Res() res: Response) {
     const results = this.runAllChecks();
     const passed = results.filter(r => r.status === 'PASS').length;
     const failed = results.filter(r => r.status === 'FAIL').length;
@@ -280,7 +280,7 @@ export class IntegrityCheckController {
 
     if (!content.includes('acquireTradeLock')) return { id: 'V08', name: 'TradeCoordination قفل ذري', status: 'WARN', detail: 'لم أجد acquireTradeLock' };
 
-    if ((content.includes('SET') && content.includes('NX')) || content.includes('setnx') || content.includes('setIfNotExist')) {
+    if ((content.includes('SET') && content.includes('NX')) || content.includes('setnx') || content.includes('setIfNotExists')) {
       return { id: 'V08', name: 'TradeCoordination قفل ذري', status: 'PASS', detail: 'acquireTradeLock يستخدم SET NX ذري' };
     }
 

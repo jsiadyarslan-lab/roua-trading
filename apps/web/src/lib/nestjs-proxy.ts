@@ -469,12 +469,35 @@ async function proxyWithToken(
     }
 
     // If NestJS returns 401, the AuthGuard should have auto-authenticated.
-    // This means something is wrong with the session. Create a new one and retry.
-    // Max 2 retries to prevent infinite loops.
-    // IMPORTANT: Do NOT overwrite the user's real cookie with a guest session.
-    // Guest sessions should only be used for the current request, not persisted.
+    // This means something is wrong with the session.
+    //
+    // V171 FIX: For mobile clients, return 401 immediately so the mobile app
+    // can trigger its token refresh flow. Creating a guest session for mobile
+    // clients was the ROOT CAUSE of "real accounts not syncing" — the mobile
+    // app received guest data (empty $0 balances) instead of a 401 that would
+    // trigger token refresh.
+    //
+    // For browser clients, create a new guest session and retry (existing behavior).
     if (response.status === 401 && retryCount < 2) {
-      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — retrying with new session (attempt ${retryCount + 1}/2)`)
+      const isMobile = request.headers.get('x-platform')?.toLowerCase() === 'ios'
+        || request.headers.get('x-platform')?.toLowerCase() === 'android'
+
+      if (isMobile) {
+        // Return 401 to mobile client — the iOS APIClient will catch this
+        // and call refreshSession(), then retry the original request.
+        console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — mobile client, returning 401 for token refresh`)
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'SESSION_EXPIRED',
+            message: 'انتهت صلاحية الجلسة — يرجى تحديث الجلسة',
+          },
+          { status: 401 },
+        )
+      }
+
+      // Browser client — create guest session and retry
+      console.warn(`[nestjs-proxy] 401 on ${method} ${pathname} — browser client, retrying with new session (attempt ${retryCount + 1}/2)`)
       const newSession = await forceCreateSession()
       if (newSession) {
         // setCookie=false to avoid overwriting real user's cookie with guest token

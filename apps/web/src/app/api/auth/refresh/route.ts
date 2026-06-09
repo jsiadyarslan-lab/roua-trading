@@ -222,7 +222,104 @@ export async function POST(request: NextRequest) {
         include: { user: true },
       })
 
+      // V171 FIX: If the session is inactive but we have a refresh token,
+      // fall through to try the refresh token instead of returning 401 immediately.
+      // This fixes the case where the NestJS AuthGuard or proxy marked the session
+      // as inactive, but the refresh token is still valid.
       if (!session || !session.isActive) {
+        // If we have a refresh token, try to use it (same as Strategy 1 but
+        // we got here because a session token was also provided)
+        if (refreshToken) {
+          try {
+            const sessionByRefresh = await db.session.findUnique({
+              where: { refreshToken },
+              include: { user: true },
+            })
+
+            if (sessionByRefresh && sessionByRefresh.isActive !== false) {
+              const isGuest = isGuestEmail(sessionByRefresh.user.email) || sessionByRefresh.user.id.startsWith('guest')
+              const refreshExpiryMs = sessionByRefresh.createdAt.getTime() + REFRESH_DURATION_MS
+              if (Date.now() > refreshExpiryMs || isGuest) {
+                await db.session.update({
+                  where: { id: sessionByRefresh.id },
+                  data: { isActive: false },
+                }).catch(() => {})
+                const response = NextResponse.json({ error: 'REFRESH_TOKEN_EXPIRED' }, { status: 401 })
+                response.cookies.delete('roua_session')
+                response.cookies.delete('roua_refresh')
+                return response
+              }
+
+              // Deactivate old session
+              await db.session.update({
+                where: { id: sessionByRefresh.id },
+                data: { isActive: false },
+              })
+
+              // Create new session with same device info
+              const newToken = crypto.randomBytes(32).toString('hex')
+              const newRefreshToken = crypto.randomBytes(48).toString('hex')
+              const newExpiresAt = new Date(Date.now() + SESSION_DURATION_MS)
+
+              const created = await createSessionSafely({
+                userId: sessionByRefresh.user.id,
+                token: newToken,
+                refreshToken: newRefreshToken,
+                deviceInfo: deviceInfo ? JSON.stringify(deviceInfo) : sessionByRefresh.deviceInfo,
+                ipAddress: ipAddress || sessionByRefresh.ipAddress,
+                userAgent: userAgent || sessionByRefresh.userAgent,
+                isActive: true,
+                expiresAt: newExpiresAt,
+              })
+
+              if (!created) {
+                const response = NextResponse.json({ error: 'SESSION_CREATION_FAILED' }, { status: 500 })
+                response.cookies.delete('roua_session')
+                response.cookies.delete('roua_refresh')
+                return response
+              }
+
+              const response = NextResponse.json({
+                refreshed: true,
+                authenticated: true,
+                isGuest: false,
+                user: {
+                  id: sessionByRefresh.user.id,
+                  email: sessionByRefresh.user.email,
+                  displayName: sessionByRefresh.user.displayName,
+                  tier: sessionByRefresh.user.tier,
+                  isGuest: false,
+                },
+                data: {
+                  token: newToken,
+                  refresh: newRefreshToken,
+                },
+              })
+
+              response.cookies.set('roua_session', newToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 24 * 60 * 60,
+                path: '/',
+              })
+
+              response.cookies.set('roua_refresh', newRefreshToken, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 30 * 24 * 60 * 60,
+                path: '/',
+              })
+
+              return response
+            }
+          } catch (dbErr: any) {
+            console.warn('[auth/refresh] Refresh token fallback failed:', dbErr?.message || dbErr)
+          }
+        }
+
+        // No refresh token or refresh token lookup failed — session is truly invalid
         const response = NextResponse.json({ error: 'INVALID_SESSION' }, { status: 401 })
         response.cookies.delete('roua_session')
         response.cookies.delete('roua_refresh')

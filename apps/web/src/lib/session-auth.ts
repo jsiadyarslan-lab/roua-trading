@@ -19,7 +19,17 @@ export async function verifyUserSession(
   request: NextRequest,
   options: { allowGuest?: boolean } = {},
 ): Promise<{ session: VerifiedSession; error: null } | { session: null; error: NextResponse }> {
-  const token = request.cookies.get('roua_session')?.value
+  // Mobile support: check cookie, Authorization header, and x-roua-session header
+  let token = request.cookies.get('roua_session')?.value
+  if (!token) {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim()
+    }
+  }
+  if (!token) {
+    token = request.headers.get('x-roua-session')?.trim() || null
+  }
 
   if (!token) {
     return {

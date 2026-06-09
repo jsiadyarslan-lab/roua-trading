@@ -31,7 +31,17 @@ export async function GET(request: NextRequest) {
     }
 
     // ── Check if user already has a valid roua_session ──
-    const existingToken = request.cookies.get('roua_session')?.value
+    // Mobile support: check cookie, Authorization header, and x-roua-session header
+    let existingToken = request.cookies.get('roua_session')?.value
+    if (!existingToken) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        existingToken = authHeader.substring(7).trim()
+      }
+    }
+    if (!existingToken) {
+      existingToken = request.headers.get('x-roua-session')?.trim() || null
+    }
     if (existingToken) {
       try {
         const existingSession = await db.session.findUnique({

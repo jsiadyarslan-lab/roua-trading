@@ -31,7 +31,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'AUTH_SERVICE_UNAVAILABLE' }, { status: 503 })
     }
 
-    const sessionToken = request.cookies.get('roua_session')?.value
+    // Mobile support: check cookie, Authorization header, and x-roua-session header
+    let sessionToken = request.cookies.get('roua_session')?.value
+    if (!sessionToken) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        sessionToken = authHeader.substring(7).trim()
+      }
+    }
+    if (!sessionToken) {
+      sessionToken = request.headers.get('x-roua-session')?.trim() || undefined
+    }
     if (!sessionToken) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
     }
@@ -95,7 +105,17 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'AUTH_SERVICE_UNAVAILABLE' }, { status: 503 })
     }
 
-    const sessionToken = request.cookies.get('roua_session')?.value
+    // Mobile support: check cookie, Authorization header, and x-roua-session header
+    let sessionToken = request.cookies.get('roua_session')?.value
+    if (!sessionToken) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        sessionToken = authHeader.substring(7).trim()
+      }
+    }
+    if (!sessionToken) {
+      sessionToken = request.headers.get('x-roua-session')?.trim() || undefined
+    }
     if (!sessionToken) {
       return NextResponse.json({ error: 'UNAUTHENTICATED' }, { status: 401 })
     }

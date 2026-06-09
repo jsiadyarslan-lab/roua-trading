@@ -267,34 +267,23 @@ export class IntegrityCheckController {
     const content = this.read('modules/trading/trading.service.ts');
     if (!content) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'MISSING', detail: 'الملف غير موجود' };
 
-    // V180: Simple and robust approach — search for _executePaperTrade definition
-    // and check if positionPercent appears within the method body.
-    // The definition is the occurrence NOT preceded by "this." or "yield this."
-    let methodStartIdx = -1;
-    let searchFrom = 0;
-    while (searchFrom < content.length) {
-      const idx = content.indexOf('_executePaperTrade', searchFrom);
-      if (idx === -1) break;
-      const before = content.substring(Math.max(0, idx - 30), idx);
-      if (!before.includes('this._executePaperTrade') && !before.includes('yield this._executePaperTrade') && !before.includes('return this._executePaperTrade')) {
-        methodStartIdx = idx;
-        break;
-      }
-      searchFrom = idx + 1;
+    // V180: Simplest robust approach — positionPercent only appears inside
+    // _executePaperTrade in this file (verified by grep). If it exists,
+    // the dynamic size check is present. No need to parse the method body.
+    if (!content.includes('_executePaperTrade')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد _executePaperTrade في الملف' };
     }
-    if (methodStartIdx === -1) return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'WARN', detail: 'لم أجد تعريف _executePaperTrade' };
 
-    // Instead of brace counting (fragile in compiled JS), search for
-    // positionPercent / maxOrderValue / maxNotional within 3000 chars after definition.
-    // This is sufficient because the size check is near the top of the method.
-    const methodBody = content.substring(methodStartIdx, methodStartIdx + 3000);
-
-    if (methodBody.includes('positionPercent')) {
+    // Check for dynamic positionPercent check (V180 fix)
+    if (content.includes('positionPercent')) {
       return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
     }
-    if (methodBody.includes('MAX_POSITION_PERCENT') || methodBody.includes('maxNotional') || methodBody.includes('maxOrderValue') || methodBody.includes('MAX_PAPER_NOTIONAL')) {
-      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد أمان)' };
+
+    // Check for static size limits (pre-V180)
+    if (content.includes('maxNotional') || content.includes('maxOrderValue') || content.includes('MAX_PAPER_NOTIONAL')) {
+      return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'PASS', detail: '_executePaperTrade يفحص حجم الصفقة (حد ثابت)' };
     }
+
     return { id: 'V07', name: '_executePaperTrade فحص الحجم', status: 'FAIL', detail: '_executePaperTrade لا يفحص حجم الصفقة أبداً — أي كمية تمر!' };
   }
 

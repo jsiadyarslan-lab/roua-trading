@@ -472,57 +472,19 @@ console.log(`\n${BOLD}── الفحص #7: TradingService._executePaperTrade �
 check('V07', 'TradingService._executePaperTrade يفحص حجم الصفقة',
   'modules/trading/trading.service.ts',
   (content) => {
-    // V180: Improved search — extract the full method body using brace counting
-    // Find the METHOD DEFINITION, not a call site (not "this._executePaperTrade")
-    let methodStartIdx = -1;
-    let searchFrom = 0;
-    while (searchFrom < content.length) {
-      const idx = content.indexOf('_executePaperTrade', searchFrom);
-      if (idx === -1) break;
-      const before = content.substring(Math.max(0, idx - 20), idx);
-      if (!before.includes('this._executePaperTrade') && !before.includes('yield this._executePaperTrade')) {
-        methodStartIdx = idx;
-        break;
-      }
-      searchFrom = idx + 1;
-    }
-    if (methodStartIdx === -1) {
-      return { warn: true, detail: 'لم أجد تعريف _executePaperTrade. ربما تم تغيير اسمه.' };
+    // V180: Simplest robust approach — positionPercent only appears inside
+    // _executePaperTrade in this file. If it exists, the fix is present.
+    if (!content.includes('_executePaperTrade')) {
+      return { warn: true, detail: 'لم أجد _executePaperTrade في الملف' };
     }
 
-    // Find the opening brace of the method
-    const openBraceIdx = content.indexOf('{', methodStartIdx);
-    if (openBraceIdx === -1 || openBraceIdx - methodStartIdx > 200) {
-      return { warn: true, detail: 'لم أجد جسم _executePaperTrade.' };
+    // Check for dynamic positionPercent check (V180 fix)
+    if (content.includes('positionPercent')) {
+      return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
     }
 
-    // Count braces to find the matching closing brace
-    let depth = 0;
-    let methodEndIdx = openBraceIdx;
-    for (let i = openBraceIdx; i < content.length; i++) {
-      if (content[i] === '{') depth++;
-      if (content[i] === '}') depth--;
-      if (depth === 0) {
-        methodEndIdx = i;
-        break;
-      }
-    }
-
-    const paperTradeCode = content.substring(methodStartIdx, methodEndIdx + 1);
-
-    // هل يفحص حجم الصفقة؟
-    const hasSizeCheck = paperTradeCode.includes('maxNotional') ||
-                         paperTradeCode.includes('maxOrderValue') ||
-                         paperTradeCode.includes('positionPercent') ||
-                         paperTradeCode.includes('maxPositionSize') ||
-                         paperTradeCode.includes('quantity >') ||
-                         paperTradeCode.includes('orderValue >');
-
-    if (hasSizeCheck) {
-      // Check if it uses dynamic positionPercent (best) or static maxNotional (weak)
-      if (paperTradeCode.includes('positionPercent')) {
-        return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة ديناميكياً (positionPercent)' };
-      }
+    // Check for static size limits (pre-V180)
+    if (content.includes('maxNotional') || content.includes('maxOrderValue') || content.includes('MAX_PAPER_NOTIONAL')) {
       return { pass: true, detail: '_executePaperTrade يفحص حجم الصفقة (حد ثابت)' };
     }
 

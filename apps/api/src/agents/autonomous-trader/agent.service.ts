@@ -10,6 +10,7 @@ import { RedisService } from '../../common/redis/redis.service';
 import { AuditService } from '../../audit/audit.service';
 import { ExchangeService } from '../../modules/exchange/exchange.service';
 import { TradingService } from '../../modules/trading/trading.service';
+import { TradeCoordinationService } from '../../modules/trading/services/trade-coordination.service';
 import { isMarketOpen } from '../../common/utils/market-hours.util';
 
 import { MarketAnalyzerService } from './services/market-analyzer.service';
@@ -113,6 +114,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
     private readonly riskCalculator: RiskCalculatorService,
     private readonly orderExecutor: OrderExecutorService,
     private readonly councilService: StrategicCouncilService,  // V145: No longer @Optional — module imports StrategicCouncilModule
+    @Optional() private readonly tradeCoordination: TradeCoordinationService,  // #18: Trade coordination service
   ) {
     // FIX: Lazy readiness check — try to connect to dependencies on first use
     // instead of permanently blocking if they're unavailable at constructor time.
@@ -309,19 +311,14 @@ export class AutonomousTraderAgentService implements OnModuleInit {
       }
 
       // ── PURGE: Clear OLD format circuit breaker keys from Redis (V137) ──
-      // V137 changed circuit breaker keys from `circuit-breaker:{symbol}` (cross-user)
-      // to `circuit-breaker:v2:{userId}:{symbol}` (per-user isolated).
-      // Old keys could apply User A's circuit breaker to ALL users on restart.
+      // #18: Consolidated into TradeCoordinationService.cleanupV1CircuitBreakerKeys()
+      // This ensures a single cleanup implementation shared by SmartExecutor and Agent.
       try {
-        const oldCbKeys = await this.redis.scanKeys('circuit-breaker:*');
-        let oldCbCleaned = 0;
-        for (const key of oldCbKeys) {
-          if (key.startsWith('circuit-breaker:v2:')) continue; // Skip new format
-          await this.redis.del(key);
-          oldCbCleaned++;
-        }
-        if (oldCbCleaned > 0) {
-          this.logger.log(`🧠 STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) (V137 — cross-user contamination fix)`);
+        if (this.tradeCoordination) {
+          const oldCbCleaned = await this.tradeCoordination.cleanupV1CircuitBreakerKeys();
+          if (oldCbCleaned > 0) {
+            this.logger.log(`🧠 STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) via TradeCoordinationService (V137/#18)`);
+          }
         }
       } catch (cbErr: any) {
         this.logger.warn(`🧠 Failed to clear old circuit breaker keys: ${cbErr.message}`);

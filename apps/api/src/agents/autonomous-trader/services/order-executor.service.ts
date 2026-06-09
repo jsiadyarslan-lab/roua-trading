@@ -12,6 +12,7 @@ import { PlaceOrderRequest, OrderSide, OrderType } from '../../../modules/tradin
 import { EvaluatedSignal, TradeExecution, RiskAssessment, AgentDecision } from '../types/agent.types';
 import { OrderDispatcherService } from '../../../modules/trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../../modules/trading/services/exposure-manager.service';
+import { TradeCoordinationService } from '../../../modules/trading/services/trade-coordination.service';
 import { CredentialsService } from '../../../modules/portfolio/credentials/credentials.service';
 
 /**
@@ -66,6 +67,7 @@ export class OrderExecutorService implements OnModuleDestroy {
     @Optional() private readonly exposureManager: ExposureManagerService,
     @Optional() private readonly exchangeService: ExchangeService,
     @Optional() private readonly credentialsService: CredentialsService,
+    @Optional() private readonly tradeCoordination: TradeCoordinationService,
   ) {
     this.logger.log('⚡ Order Executor initialized — safe execution ready');
 
@@ -92,6 +94,7 @@ export class OrderExecutorService implements OnModuleDestroy {
   ): Promise<TradeExecution> {
     const startTime = Date.now();
     const idempotencyKey = `${userId}-${signal.id}`;
+    let coordinationLockAcquired = false; // #18: Track if coordination lock was acquired
 
     // FIX: Guard against missing forwardRef dependencies
     if (!this.orderDispatcher) {
@@ -109,24 +112,58 @@ export class OrderExecutorService implements OnModuleDestroy {
 
     try {
       // ═══════════════════════════════════════════════════════════════
-      // V146b FIX: Only block if the Agent already has its OWN position.
-      // Same-direction from Smart Executor is OK — different timeframe.
-      // The Agent trades M30/H1/H4/D1/W1, Smart Executor trades M1/M5/M15.
+      // #18: Trade Coordination — prevent Agent and SmartExecutor conflicts.
+      // Checks if ANY source has an open position on this symbol, and
+      // acquires a distributed lock to prevent race conditions.
+      // FAIL-OPEN: If coordination service is unavailable, trade proceeds.
       // ═══════════════════════════════════════════════════════════════
-      const existingPosition = await this.prisma.position.findFirst({
-        where: { userId, symbol: signal.symbol, status: 'OPEN', source: 'agent' },
-      });
+      if (this.tradeCoordination) {
+        try {
+          const coordination = await this.tradeCoordination.canOpenPosition(userId, signal.symbol, 'agent');
+          if (!coordination.allowed) {
+            this.logger.warn(
+              `⚡ ORDER REJECTED (coordination): ${coordination.reason}`,
+            );
+            return {
+              success: false,
+              error: coordination.reason,
+              executionTimeMs: Date.now() - startTime,
+            };
+          }
 
-      if (existingPosition) {
-        this.logger.warn(
-          `⚡ ORDER REJECTED: Agent already has position for ${signal.symbol} ` +
-          `(existing: ${existingPosition.side})`,
-        );
-        return {
-          success: false,
-          error: `يوجد مركز خاص بالوكيل لـ ${signal.symbol} (${existingPosition.side}) — لا يمكن فتح مركز آخر`,
-          executionTimeMs: Date.now() - startTime,
-        };
+          const lockAcquired = await this.tradeCoordination.acquireTradeLock(userId, signal.symbol, 'agent');
+          if (!lockAcquired) {
+            this.logger.warn(
+              `⚡ ORDER REJECTED: Trade lock not acquired for ${signal.symbol}`,
+            );
+            return {
+              success: false,
+              error: 'Trade lock not acquired — another execution in progress',
+              executionTimeMs: Date.now() - startTime,
+            };
+          }
+          coordinationLockAcquired = true;
+        } catch (coordErr: any) {
+          // FAIL-OPEN: Coordination check failed — log but proceed
+          this.logger.warn(`⚡ Trade coordination check failed: ${coordErr.message} — proceeding anyway`);
+        }
+      } else {
+        // Fallback: No TradeCoordinationService — use the old V146b check
+        const existingPosition = await this.prisma.position.findFirst({
+          where: { userId, symbol: signal.symbol, status: 'OPEN', source: 'agent' },
+        });
+
+        if (existingPosition) {
+          this.logger.warn(
+            `⚡ ORDER REJECTED: Agent already has position for ${signal.symbol} ` +
+            `(existing: ${existingPosition.side})`,
+          );
+          return {
+            success: false,
+            error: `يوجد مركز خاص بالوكيل لـ ${signal.symbol} (${existingPosition.side}) — لا يمكن فتح مركز آخر`,
+            executionTimeMs: Date.now() - startTime,
+          };
+        }
       }
 
       // Pre-flight: Check for duplicate order (in-memory 30s window)
@@ -565,6 +602,11 @@ export class OrderExecutorService implements OnModuleDestroy {
         error: `فشل في التنفيذ: ${error.message}`,
         executionTimeMs,
       };
+    } finally {
+      // #18: Always release the coordination lock if it was acquired
+      if (coordinationLockAcquired && this.tradeCoordination) {
+        await this.tradeCoordination.releaseTradeLock(userId, signal.symbol);
+      }
     }
   }
 

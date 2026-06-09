@@ -44,6 +44,7 @@ import { OrderSideEnum, OrderTypeEnum } from '../../trading/events/order.events'
 import { NotificationService } from '../../notification/notification.service';
 import { OrderDispatcherService, AutoOrderRequest } from '../../trading/services/order-dispatcher.service';
 import { ExposureManagerService } from '../../trading/services/exposure-manager.service';
+import { TradeCoordinationService } from '../../trading/services/trade-coordination.service';
 import { NewsService } from '../../news/news.service';
 import { CredentialsService } from '../../portfolio/credentials/credentials.service';
 import {
@@ -106,6 +107,7 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly exposureManager: ExposureManagerService,
     private readonly newsService: NewsService,
     private readonly credentialsService: CredentialsService,
+    private readonly tradeCoordination: TradeCoordinationService,
   ) {
     this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)');
 
@@ -285,20 +287,12 @@ export class SmartExecutorService implements OnModuleDestroy {
       }
 
       // ── STEP 5.3: Clear OLD format circuit breaker keys from Redis (V137) ──
-      // V137 changed the circuit breaker key format from `circuit-breaker:{symbol}`
-      // (cross-user contamination) to `circuit-breaker:v2:{userId}:{symbol}` (per-user).
-      // Old keys could apply User A's circuit breaker to ALL users on restart.
+      // #18: Consolidated into TradeCoordinationService.cleanupV1CircuitBreakerKeys()
+      // This ensures a single cleanup implementation shared by SmartExecutor and Agent.
       try {
-        const oldCbKeys = await this.redis.scanKeys('circuit-breaker:*');
-        let oldCbCleaned = 0;
-        for (const key of oldCbKeys) {
-          // Only delete old-format keys (no 'v2:' prefix)
-          if (key.startsWith('circuit-breaker:v2:')) continue;
-          await this.redis.del(key);
-          oldCbCleaned++;
-        }
+        const oldCbCleaned = await this.tradeCoordination.cleanupV1CircuitBreakerKeys();
         if (oldCbCleaned > 0) {
-          this.logger.log(`⚔️ STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) from Redis (V137 — cross-user contamination fix)`);
+          this.logger.log(`⚔️ STARTUP: Cleared ${oldCbCleaned} old-format circuit breaker key(s) via TradeCoordinationService (V137/#18)`);
         }
       } catch (cbCleanErr: any) {
         this.logger.warn(`⚔️ Failed to clear old circuit breaker keys: ${cbCleanErr.message}`);
@@ -2925,48 +2919,78 @@ export class SmartExecutorService implements OnModuleDestroy {
       const tfKey = `smart-executor:position-tf:${userId}:${brief.pair}`;
       await this.redis.set(tfKey, brief.timeframe, 7 * 24 * 60 * 60 * 1000);
 
-      const dispatchResult = await this.orderDispatcher.submitOrder({
-        source: 'smart_executor',
-        userId,
-        credentialId: credential.id,
-        symbol: brief.pair,
-        side: brief.direction as 'BUY' | 'SELL',
-        quantity,
-        price: currentPrice,
-        stopLoss: execStopLoss,
-        takeProfit: execTakeProfit,
-        briefId: brief.id,
-        isPaperTrading: isSimulatedExecution,
-        timeframe: brief.timeframe, // V132: Pass timeframe for smart idempotency TTL
-      });
+      // ═══════════════════════════════════════════════════════════════
+      // #18: Trade Coordination — prevent SmartExecutor and Agent conflicts
+      // Check if another source (Agent) already has an open position on this symbol.
+      // Also acquires a distributed lock to prevent race conditions.
+      // FAIL-OPEN: If coordination service fails, trade proceeds anyway.
+      // ═══════════════════════════════════════════════════════════════
+      try {
+        const coordination = await this.tradeCoordination.canOpenPosition(userId, brief.pair, 'smart_executor');
+        if (!coordination.allowed) {
+          this.logger.debug(`🔗 SmartExecutor blocked: ${coordination.reason}`);
+          result.error = coordination.reason;
+          return result;
+        }
 
-      if (!dispatchResult.success) {
-        result.error = dispatchResult.error || dispatchResult.message || 'فشل الموزع';
-        return result;
+        const lockAcquired = await this.tradeCoordination.acquireTradeLock(userId, brief.pair, 'smart_executor');
+        if (!lockAcquired) {
+          this.logger.debug(`🔗 SmartExecutor: lock not acquired for ${brief.pair} — another execution in progress`);
+          result.error = `Trade lock not acquired for ${brief.pair}`;
+          return result;
+        }
+      } catch (coordErr: any) {
+        // FAIL-OPEN: Coordination check failed — log but proceed with trade
+        this.logger.warn(`🔗 Trade coordination check failed for ${brief.pair}: ${coordErr.message} — proceeding anyway`);
       }
 
-      result.success = true;
-      result.orderId = dispatchResult.orderId || 'unknown';
-
-      // Audit log for the execution
-      await this.audit.log({
-        userId,
-        action: 'SMART_EXECUTOR_TRADE',
-        resource: 'smart-executor',
-        details: JSON.stringify({
-          briefId: brief.id,
-          orderId: result.orderId,
-          pair: brief.pair,
-          direction: brief.direction,
-          entryPrice: currentPrice,
-          stopLoss: brief.stopLoss,
-          takeProfit: brief.takeProfit,
+      try {
+        const dispatchResult = await this.orderDispatcher.submitOrder({
+          source: 'smart_executor',
+          userId,
+          credentialId: credential.id,
+          symbol: brief.pair,
+          side: brief.direction as 'BUY' | 'SELL',
           quantity,
-          confidence: brief.confidence,
-          timeframe: brief.timeframe,
+          price: currentPrice,
+          stopLoss: execStopLoss,
+          takeProfit: execTakeProfit,
+          briefId: brief.id,
           isPaperTrading: isSimulatedExecution,
-        }),
-      });
+          timeframe: brief.timeframe, // V132: Pass timeframe for smart idempotency TTL
+        });
+
+        if (!dispatchResult.success) {
+          result.error = dispatchResult.error || dispatchResult.message || 'فشل الموزع';
+          return result;
+        }
+
+        result.success = true;
+        result.orderId = dispatchResult.orderId || 'unknown';
+
+        // Audit log for the execution
+        await this.audit.log({
+          userId,
+          action: 'SMART_EXECUTOR_TRADE',
+          resource: 'smart-executor',
+          details: JSON.stringify({
+            briefId: brief.id,
+            orderId: result.orderId,
+            pair: brief.pair,
+            direction: brief.direction,
+            entryPrice: currentPrice,
+            stopLoss: brief.stopLoss,
+            takeProfit: brief.takeProfit,
+            quantity,
+            confidence: brief.confidence,
+            timeframe: brief.timeframe,
+            isPaperTrading: isSimulatedExecution,
+          }),
+        });
+      } finally {
+        // #18: Always release the coordination lock after execution
+        await this.tradeCoordination.releaseTradeLock(userId, brief.pair);
+      }
     } catch (error: any) {
       result.error = error.message;
       this.logger.error(`⚔️ Execution failed for brief ${brief.id} user ${userId}: ${error.message}`);

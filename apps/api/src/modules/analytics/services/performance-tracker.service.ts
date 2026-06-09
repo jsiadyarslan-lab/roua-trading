@@ -52,9 +52,16 @@ export class PerformanceTrackerService {
   @Cron('*/30 * * * *')
   async updatePerformanceCache(): Promise<void> {
     try {
-      const userId = await this._getFirstActiveUser();
-      if (!userId) return;
-      await this.getSystemHealth(userId);
+      // V176 FIX: Instead of _getFirstActiveUser() which returned null,
+      // find users with recent trading activity and update their caches.
+      const activeUsers = await this._getActiveTradingUsers();
+      for (const userId of activeUsers) {
+        try {
+          await this.getSystemHealth(userId);
+        } catch (err: any) {
+          this.logger.debug(`Performance cache update failed for user ${userId}: ${err.message}`);
+        }
+      }
     } catch (err: any) {
       this.logger.debug(`Performance cache update: ${err.message}`);
     }
@@ -248,15 +255,28 @@ export class PerformanceTrackerService {
   }
 
   /**
-   * V168 SECURITY FIX: Removed _getFirstActiveUser() which returned
-   * the first user from the database — a cross-user data leakage vector.
-   * The cron job that used this method now simply skips if no userId
-   * is provided. Performance data should only be calculated per-user.
+   * V176: Find users with recent trading activity (last 24h).
+   * Safe replacement for _getFirstActiveUser() — only updates users
+   * who actually have trades, not arbitrary first user.
    */
-  private async _getFirstActiveUser(): Promise<string | null> {
-    // V168: Do NOT return any user's ID from here.
-    // Performance cache updates should only happen when a specific
-    // user requests their data, not by blindly picking the first user.
-    return null;
+  private async _getActiveTradingUsers(): Promise<string[]> {
+    try {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const activeUsers = await this.prisma.trade.groupBy({
+        by: ['userId'],
+        where: {
+          executedAt: { gte: since },
+          pnl: { not: null },
+        },
+        _count: true,
+        having: {
+          userId: { _count: { gt: 0 } },
+        },
+      });
+      return activeUsers.map(u => u.userId);
+    } catch (err: any) {
+      this.logger.debug(`_getActiveTradingUsers failed: ${err.message}`);
+      return [];
+    }
   }
 }

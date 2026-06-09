@@ -9,6 +9,7 @@ import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
 import { TradingService } from '../../trading/trading.service';
 import { AuditService } from '../../../audit/audit.service';
+import { PerformanceEventsService } from '../../analytics/services/performance-events.service';
 
 /**
  * Position Monitor Service — Real-Time Position Surveillance
@@ -70,6 +71,7 @@ export class PositionMonitorService {
     private readonly exchangeService: ExchangeService,
     private readonly tradingService: TradingService,
     private readonly audit: AuditService,
+    private readonly performanceEvents: PerformanceEventsService,
   ) {
     this.logger.log('🛡️ Position Monitor initialized — protective surveillance active');
   }
@@ -677,6 +679,30 @@ export class PositionMonitorService {
           quantity: position.quantity,
         }),
       });
+
+      // V176: Record the trade closed event for real-time performance monitoring
+      // This is fail-safe — if it errors, we log and continue (never block trading)
+      try {
+        const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+        const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+        await this.performanceEvents.recordTradeClosed({
+          userId: position.userId,
+          symbol: position.symbol,
+          side: position.side,
+          source: position.source || 'unknown',
+          pnl: position.side === 'BUY'
+            ? (currentPrice - entryPrice) * quantity
+            : (entryPrice - currentPrice) * quantity,
+          entryPrice,
+          exitPrice: currentPrice,
+          quantity,
+          openedAt: position.openedAt ? new Date(position.openedAt) : new Date(),
+          closedAt: new Date(),
+          closeReason: reason,
+        });
+      } catch (err: any) {
+        this.logger.debug(`Failed to record trade closed event: ${err.message}`);
+      }
     } catch (error: any) {
       this.logger.error(
         `🛡️ Failed to close position ${position.id}: ${error.message}`,

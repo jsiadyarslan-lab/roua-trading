@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional, Inject, forwardRef, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, Optional, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GroqService, AIAnalysisRequest, AIAnalysisResponse } from './groq.service';
 import { GlmService } from './glm.service';
@@ -14,10 +14,9 @@ import { NvidiaService } from './nvidia.service';
 import { RagService } from './rag.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { withExponentialBackoff } from './retry.util';
-import { RedisService } from '../../../common/redis/redis.service';
+import { AiCacheService } from './ai-cache.service';
 import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
-import * as crypto from 'crypto';
-import axios from 'axios';
+import { MarketDataService } from './market-data.service';
 
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
@@ -50,11 +49,8 @@ import axios from 'axios';
  * └──────────────────────┴──────────────────────────────────────────────────────────────┘
  */
 @Injectable()
-export class AIOrchestratorService implements OnModuleDestroy {
+export class AIOrchestratorService {
   private readonly logger = new Logger(AIOrchestratorService.name);
-
-  /** FIX (C4): Reference to cache cleanup interval so it can be cleared on shutdown */
-  private _cacheCleanupInterval: NodeJS.Timeout | null = null;
 
   /** Circuit breaker: track consecutive failures per model
    *  BUG 6 FIX: Exponential backoff starting at 30s, doubling each time,
@@ -91,99 +87,6 @@ export class AIOrchestratorService implements OnModuleDestroy {
   private readonly LATENCY_SAMPLE_WINDOW = 5;     // Use last 5 samples for average
   private readonly LATENCY_COOLDOWN_MS = 10 * 60 * 1000; // 10 minutes cooldown for slow models
   private readonly modelLatencyCooldowns = new Map<string, number>(); // model → cooldown until timestamp
-
-  /** In-flight request deduplication — prevents duplicate AI calls for the same symbol+type */
-  private readonly inFlightRequests = new Map<string, Promise<AIAnalysisResponse>>();
-
-  /** Cleanup on module destroy — prevents orphaned intervals on hot-reload */
-  onModuleDestroy() {
-    if (this._cacheCleanupInterval) {
-      clearInterval(this._cacheCleanupInterval);
-      this._cacheCleanupInterval = null;
-      this.logger.log('🧹 Cache cleanup interval cleared on module destroy');
-    }
-  }
-
-  /** In-memory cache for AI responses with TTL */
-  private readonly responseCache = new Map<string, { result: AIAnalysisResponse; expiresAt: number }>();
-  /** Maximum number of entries in the in-memory cache (prevents unbounded growth) */
-  private readonly MAX_CACHE_SIZE = 500;
-
-  /** Last-known-good price cache — prevents hallucination when all sources fail */
-  private readonly lastKnownPriceCache = new Map<string, { price: number; rsi: number; macd: string; timestamp: number }>();
-  private readonly PRICE_CACHE_MAX_AGE = 30 * 60 * 1000; // 30 minutes — stale price > no price
-
-  /**
-   * Price sanity ranges — reject absurd prices BEFORE they reach the executor.
-   * BTC at $34.98 is clearly wrong (should be ~$80,000+).
-   * These ranges MUST be kept updated as markets move.
-   */
-  private readonly PRICE_SANITY: Record<string, { min: number; max: number }> = {
-    'BTC/USDT': { min: 20000, max: 250000 }, 'BTC/USD': { min: 20000, max: 250000 },
-    'ETH/USDT': { min: 500, max: 15000 }, 'ETH/USD': { min: 500, max: 15000 },
-    'SOL/USDT': { min: 5, max: 1000 }, 'SOL/USD': { min: 5, max: 1000 },
-    'BNB/USDT': { min: 100, max: 3000 }, 'BNB/USD': { min: 100, max: 3000 },
-    'XRP/USDT': { min: 0.1, max: 10 }, 'XRP/USD': { min: 0.1, max: 10 },
-    'ADA/USDT': { min: 0.05, max: 5 }, 'ADA/USD': { min: 0.05, max: 5 },
-    'DOGE/USDT': { min: 0.01, max: 2 }, 'DOGE/USD': { min: 0.01, max: 2 },
-    'DOT/USDT': { min: 1, max: 50 }, 'DOT/USD': { min: 1, max: 50 },
-    'AVAX/USDT': { min: 5, max: 200 }, 'AVAX/USD': { min: 5, max: 200 },
-    'LINK/USDT': { min: 2, max: 50 }, 'LINK/USD': { min: 2, max: 50 },
-    'MATIC/USDT': { min: 0.1, max: 5 }, 'MATIC/USD': { min: 0.1, max: 5 },
-    'EUR/USD': { min: 0.8, max: 1.5 }, 'GBP/USD': { min: 1.0, max: 1.8 },
-    'USD/JPY': { min: 100, max: 200 }, 'XAU/USD': { min: 1000, max: 5000 },
-    'AAPL': { min: 100, max: 400 }, 'MSFT': { min: 200, max: 600 },
-    'GOOGL': { min: 100, max: 300 }, 'TSLA': { min: 100, max: 500 },
-  };
-
-  /**
-   * Reference prices — used as fallback when all live sources fail or return insane prices.
-   * Updated 2026-05.
-   */
-  private readonly REFERENCE_PRICES: Record<string, number> = {
-    'BTC/USDT': 81000, 'BTC/USD': 81000,
-    'ETH/USDT': 2340, 'ETH/USD': 2340,
-    'SOL/USDT': 95, 'SOL/USD': 95,
-    'BNB/USDT': 652, 'BNB/USD': 652,
-    'XRP/USDT': 2.4, 'XRP/USD': 2.4,
-    'ADA/USDT': 0.75, 'ADA/USD': 0.75,
-    'DOGE/USDT': 0.22, 'DOGE/USD': 0.22,
-    'DOT/USDT': 7.0, 'DOT/USD': 7.0,
-    'AVAX/USDT': 35, 'AVAX/USD': 35,
-    'LINK/USDT': 15, 'LINK/USD': 15,
-    'MATIC/USDT': 0.50, 'MATIC/USD': 0.50,
-    'EUR/USD': 1.135, 'GBP/USD': 1.325, 'USD/JPY': 143.5,
-    'XAU/USD': 3250,
-    'AAPL': 210, 'MSFT': 440, 'GOOGL': 168, 'TSLA': 280,
-  };
-
-  /**
-   * CoinCap ID mapping — CoinCap requires full lowercase IDs, not ticker symbols.
-   * e.g., "bitcoin" not "btc". Without this, /assets/btc returns wrong data or 404.
-   */
-  private static readonly COINCAP_IDS: Record<string, string> = {
-    'BTC': 'bitcoin', 'ETH': 'ethereum', 'SOL': 'solana',
-    'BNB': 'binance-coin', 'XRP': 'xrp', 'ADA': 'cardano',
-    'DOGE': 'dogecoin', 'DOT': 'polkadot', 'LTC': 'litecoin',
-    'AVAX': 'avalanche', 'LINK': 'chainlink', 'UNI': 'uniswap',
-    'ATOM': 'cosmos', 'MATIC': 'polygon', 'SHIB': 'shiba-inu',
-    'SUI': 'sui', 'ARB': 'arbitrum', 'OP': 'optimism',
-    'PEPE': 'pepe', 'WIF': 'dogwifcoin', 'INJ': 'injective-protocol',
-    'NEAR': 'near-protocol', 'FTM': 'fantom', 'AAVE': 'aave',
-    'ETC': 'ethereum-classic', 'XLM': 'stellar', 'BCH': 'bitcoin-cash',
-  };
-
-  private readonly CACHE_TTL: Record<string, number> = {
-    sentiment: 5 * 60 * 1000,        // 5 minutes
-    market_analysis: 15 * 60 * 1000,  // 15 minutes
-    prediction: 10 * 60 * 1000,       // 10 minutes
-    signal_generation: 5 * 60 * 1000, // 5 minutes
-    risk_analysis: 15 * 60 * 1000,    // 15 minutes
-    translation: 30 * 60 * 1000,      // 30 minutes
-    general: 10 * 60 * 1000,          // 10 minutes
-    consensus: 3 * 60 * 1000,        // 3 minutes for FULL consensus results
-    consensus_partial: 1 * 60 * 1000, // 1 minute for PARTIAL consensus (< 3 models)
-  };
 
   /** Model key environment variable mapping
    *  FIX: Added alternate env var names for ALL models to match the
@@ -269,6 +172,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
   constructor(
     private readonly configService: ConfigService,
+    private readonly marketData: MarketDataService,
     private readonly groqService: GroqService,
     private readonly glmService: GlmService,
     private readonly geminiService: GeminiService,
@@ -281,9 +185,9 @@ export class AIOrchestratorService implements OnModuleDestroy {
     private readonly mistralService: MistralService,
     private readonly nvidiaService: NvidiaService,
     private readonly usageLogger: AiUsageLoggerService,
+    private readonly cache: AiCacheService,
     @Optional() private readonly ragService?: RagService,
     @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
-    @Optional() private readonly redis?: RedisService,
   ) {
     // FIX: Make Bedrock budget configurable via env var (default $100)
     this.BEDROCK_MONTHLY_BUDGET_USD = parseInt(
@@ -303,23 +207,6 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // Log which models have keys available
     const available = this.getModelsStatus().filter(m => m.available);
     this.logger.log(`🔑 Models with API keys: ${available.map(m => m.model).join(', ') || 'NONE'}`);
-
-    // FIX (C4): Periodic cleanup of expired in-memory cache entries (every 5 minutes)
-    // Prevents memory leak where expired entries persist indefinitely when the service is idle.
-    // Store the interval reference so it can be cleared in onModuleDestroy().
-    this._cacheCleanupInterval = setInterval(() => {
-      const now = Date.now();
-      let expired = 0;
-      for (const [key, entry] of this.responseCache) {
-        if (now >= entry.expiresAt) {
-          this.responseCache.delete(key);
-          expired++;
-        }
-      }
-      if (expired > 0) {
-        this.logger.debug(`🧹 Cleaned ${expired} expired cache entries (remaining: ${this.responseCache.size})`);
-      }
-    }, 5 * 60 * 1000);
   }
 
   /**
@@ -328,25 +215,23 @@ export class AIOrchestratorService implements OnModuleDestroy {
    */
   async analyze(request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
     // Generate a single consistent cache key for Redis
-    const redisCacheKey = `ai:analysis:${this._hashPrompt(this._stableStringify(request))}`;
+    const redisCacheKey = this.cache.generateRedisCacheKey(request);
 
     // Check Redis cache first (shared across instances)
-    try {
-      const cached = await this.redis?.get(redisCacheKey);
-      if (cached) {
-        this.logger.debug(`🎼 Redis cache hit for ${request.type} analysis`);
-        // FIX: Log cache hits so the dashboard shows real cache rate instead of 0%
-        this.usageLogger?.logSuccess({
-          model: 'cache/redis',
-          endpoint: request.type || 'general',
-          inputPrompt: request.prompt,
-          outputContent: '[cached]',
-          latencyMs: 0,
-          cached: true,
-        });
-        return JSON.parse(cached);
-      }
-    } catch {}
+    const redisCached = await this.cache.getRedisCache(redisCacheKey);
+    if (redisCached) {
+      this.logger.debug(`🎼 Redis cache hit for ${request.type} analysis`);
+      // FIX: Log cache hits so the dashboard shows real cache rate instead of 0%
+      this.usageLogger?.logSuccess({
+        model: 'cache/redis',
+        endpoint: request.type || 'general',
+        inputPrompt: request.prompt,
+        outputContent: '[cached]',
+        latencyMs: 0,
+        cached: true,
+      });
+      return redisCached;
+    }
 
     const enrichedRequest = await this._enrichWithContext(request);
 
@@ -355,7 +240,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // via analyze() had ZERO price grounding, causing AI to invent prices like "BTC is $28,500".
     if (enrichedRequest.symbol) {
       try {
-        const marketData = await this._fetchQuickMarketData(enrichedRequest.symbol);
+        const marketData = await this.marketData.fetchQuickMarketData(enrichedRequest.symbol);
         if (marketData.price > 0) {
           enrichedRequest.prompt = `⛔ بيانات السوق الحية (لا تخترع أسعاراً!): السعر الفعلي=${marketData.price.toLocaleString()}$, RSI=${marketData.rsi}, MACD=${marketData.macd}. ممنوع اختراع أسعار مختلفة.\n\n${enrichedRequest.prompt}`;
         } else {
@@ -367,8 +252,8 @@ export class AIOrchestratorService implements OnModuleDestroy {
     }
 
     // Check in-memory cache as fallback (faster, per-instance)
-    const memCacheKey = this._getCacheKey(enrichedRequest);
-    const memCached = this._getCachedResult(memCacheKey);
+    const memCacheKey = this.cache.generateMemoryCacheKey(enrichedRequest);
+    const memCached = this.cache.getMemoryCache(memCacheKey);
     if (memCached) {
       this.logger.debug(`🎯 Memory cache hit for ${enrichedRequest.type} analysis`);
       // FIX: Log cache hits so the dashboard shows real cache rate instead of 0%
@@ -385,19 +270,19 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
     // In-flight request deduplication: if the same symbol+type+prompt is already
     // being processed, reuse that promise instead of making a duplicate AI call.
-    const dedupeKey = `ai:${enrichedRequest.type}:${enrichedRequest.symbol || ''}:${this._hashPrompt(this._stableStringify(enrichedRequest))}`;
-    const existing = this.inFlightRequests.get(dedupeKey);
+    const dedupeKey = this.cache.generateDedupeKey(enrichedRequest);
+    const existing = this.cache.getInFlightRequest(dedupeKey);
     if (existing) {
       this.logger.debug(`🔄 Deduplicating in-flight AI request for ${dedupeKey}`);
       return existing;
     }
 
     const promise = this._executeAnalysis(enrichedRequest, redisCacheKey, memCacheKey);
-    this.inFlightRequests.set(dedupeKey, promise);
+    this.cache.setInFlightRequest(dedupeKey, promise);
     try {
       return await promise;
     } finally {
-      this.inFlightRequests.delete(dedupeKey);
+      this.cache.removeInFlightRequest(dedupeKey);
     }
   }
 
@@ -525,13 +410,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
     }
 
     // Cache the result in both Redis and in-memory with type-specific TTL
-    const redisTTL = this.CACHE_TTL[enrichedRequest.type] || this.CACHE_TTL.general;
-    try {
-      await this.redis?.set(redisCacheKey, JSON.stringify(result), redisTTL);
-    } catch {}
+    await this.cache.setRedisCache(redisCacheKey, result, enrichedRequest.type);
 
     // Also cache in memory for faster subsequent access
-    this._setCachedResult(memCacheKey, result, enrichedRequest.type);
+    this.cache.setMemoryCache(memCacheKey, result, enrichedRequest.type);
 
     return result;
   }
@@ -567,9 +449,10 @@ export class AIOrchestratorService implements OnModuleDestroy {
     // FIX: Cache key version bumped to v8 to invalidate stale v7 results
     // that were produced during startup when models weren't ready.
     const cacheKey = `ai:consensus:v8:${symbol}`;
+    const redis = this.cache.getRedis();
     if (!forceFresh) {
       try {
-        const cached = await this.redis?.get(cacheKey);
+        const cached = await redis?.get(cacheKey);
         if (cached) {
           const parsed = JSON.parse(cached);
           this.logger.debug(`🎼 Redis cache hit for consensus: ${symbol}`);
@@ -580,7 +463,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
       this.logger.log(`🎼 ForceFresh=true: bypassing cache for consensus: ${symbol}`);
       // Also delete the old cache entry to prevent stale data
       try {
-        await this.redis?.del(cacheKey);
+        await redis?.del(cacheKey);
       } catch {}
     }
 
@@ -605,7 +488,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
 
       // FIX: Fetch live market data before building prompts to prevent hallucinations
       // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
-      const marketData = await this._fetchQuickMarketData(symbol);
+      const marketData = await this.marketData.fetchQuickMarketData(symbol);
       const marketDataPrefix = marketData.price > 0
         ? language === 'en'
           ? `\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketData.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketData.rsi} (use this value only)\n- MACD: ${marketData.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketData.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketData.price.toLocaleString()}$ and nothing else.\n`
@@ -948,7 +831,7 @@ export class AIOrchestratorService implements OnModuleDestroy {
         ];
         let scannerData: any = null;
         for (const key of scannerKeys) {
-          const raw = await this.redis?.get(key);
+          const raw = await this.cache.getRedis()?.get(key);
           if (raw) { scannerData = JSON.parse(raw); break; }
         }
 
@@ -1142,10 +1025,8 @@ export class AIOrchestratorService implements OnModuleDestroy {
       const isPartial = analyses.length < 3;
       const consensusCacheTTL = isPartial
         ? 60 * 1000                          // 1 minute for partial (< 3 models) — retry sooner
-        : this.CACHE_TTL.consensus;           // 10 minutes for full (3+ models)
-      try {
-        await this.redis?.set(cacheKey, JSON.stringify(result), consensusCacheTTL);
-      } catch {}
+        : this.cache.getTTL('consensus');     // 10 minutes for full (3+ models)
+      await this.cache.setRedisCacheWithTTL(cacheKey, result, consensusCacheTTL);
       // NOTE: In-memory cache for consensus was disabled to prevent stale HOLD results.
       // Redis cache (v5 key) is the only cache for consensus now.
       // const memKey = `consensus:${symbol}`;
@@ -1552,75 +1433,12 @@ export class AIOrchestratorService implements OnModuleDestroy {
     return 'HOLD';
   }
 
-  // ── Private: Cache Management ──
-  /**
-   * Generate a cache key from the request parameters
-   */
-  private _getCacheKey(request: AIAnalysisRequest): string {
-    const raw = `${request.type}:${request.symbol || ''}:${request.language || ''}:${request.prompt}`;
-    return crypto.createHash('sha256').update(raw).digest('hex');
-  }
-
-  /**
-   * Retrieve a cached result if it exists and hasn't expired
-   */
-  private _getCachedResult(key: string): AIAnalysisResponse | null {
-    const entry = this.responseCache.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry.expiresAt) {
-      this.responseCache.delete(key);
-      return null;
-    }
-    return entry.result;
-  }
-
-  /**
-   * Store a result in the cache with the appropriate TTL
-   */
-  private _setCachedResult(key: string, result: AIAnalysisResponse, type: string): void {
-    const ttl = this.CACHE_TTL[type] || this.CACHE_TTL.general;
-    this.responseCache.set(key, { result, expiresAt: Date.now() + ttl });
-    // FIX: Evict oldest entries when cache exceeds max size to prevent unbounded growth
-    if (this.responseCache.size > this.MAX_CACHE_SIZE) {
-      this._evictOldestEntries(Math.floor(this.MAX_CACHE_SIZE * 0.2)); // Remove 20% of oldest entries
-    }
-    // Periodically clean up expired entries (every 100 inserts)
-    if (this.responseCache.size % 100 === 0) {
-      this._cleanExpiredCache();
-    }
-  }
-
-  /**
-   * Remove all expired entries from the cache
-   */
-  private _cleanExpiredCache(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.responseCache) {
-      if (now > entry.expiresAt) {
-        this.responseCache.delete(key);
-      }
-    }
-  }
-
-  /**
-   * Evict the oldest entries from the cache (by insertion order in Map)
-   * Called when cache exceeds MAX_CACHE_SIZE to prevent unbounded memory growth.
-   */
-  private _evictOldestEntries(count: number): void {
-    let evicted = 0;
-    for (const key of this.responseCache.keys()) {
-      if (evicted >= count) break;
-      this.responseCache.delete(key);
-      evicted++;
-    }
-    this.logger.debug(`🗑️ Cache eviction: removed ${evicted} oldest entries (size: ${this.responseCache.size})`);
-  }
-
   /**
    * Invalidate all cached results (call when new data arrives)
+   * Delegates to AiCacheService for both in-memory and Redis cache.
    */
   clearCache(): void {
-    this.responseCache.clear();
+    this.cache.clearCache();
     this.logger.debug('🗑️ AI response cache cleared');
   }
 
@@ -1750,494 +1568,18 @@ export class AIOrchestratorService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * FIX: Deterministic JSON serialization — sort object keys recursively.
-   * Prevents cache key mismatches when the same request object has
-   * different key ordering across calls.
-   */
-  private _stableStringify(obj: any): string {
-    if (obj === null || typeof obj !== 'object') return JSON.stringify(obj);
-    if (Array.isArray(obj)) return '[' + obj.map(v => this._stableStringify(v)).join(',') + ']';
-    const keys = Object.keys(obj).sort();
-    return '{' + keys.map(k => JSON.stringify(k) + ':' + this._stableStringify(obj[k])).join(',') + '}';
-  }
 
-  // ── Private: Cache Key Hashing ──
-  // FIX: Upgraded from MD5 to SHA-256 for stronger dedup hashing
-  private _hashPrompt(prompt: string): string {
-    return crypto.createHash('sha256').update(prompt).digest('hex');
-  }
+  // ── Market Data: Delegated to MarketDataService ──
 
-  // ── Private: Live Market Data Fetch ──
-  /**
-   * FIX: Fetch quick market data (price, RSI, MACD) to prevent AI hallucinations.
-   * Models like Groq were inventing prices (e.g., saying BTC is $28,500 when it's
-   * actually $95,000+). This method fetches real data and injects it into prompts.
-   * Uses Binance public API for crypto — no auth required.
-   * Falls back to CoinGecko if Binance is unreachable (common on Railway).
-   */
   /**
    * Public method: Fetch quick market data (price, RSI, MACD) for a symbol.
-   * Used by Strategic Council for technical fallback analysis.
-   * This method uses multiple parallel price sources (Binance, CoinGecko, CoinCap, Bybit, TwelveData)
-   * and works reliably on Railway/cloud platforms where individual sources may be blocked.
+   * Backward-compatible redirect — delegates to MarketDataService.
+   * External consumers (Strategic Council, Smart Executor) call this method.
    */
   async fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string; change24h?: number }> {
-    return this._fetchQuickMarketData(symbol);
+    return this.marketData.fetchQuickMarketData(symbol);
   }
 
-  private async _fetchQuickMarketData(symbol: string): Promise<{ price: number; rsi: number; macd: string; change24h?: number }> {
-    // FIX: Normalize symbol for Binance — handle both /USD and /USDT pairs correctly.
-    const stripped = symbol.replace(/[\/\-]/g, '').toUpperCase();
-    const binanceSymbol = stripped.endsWith('USDT') ? stripped : stripped.replace('USD', 'USDT');
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // CRITICAL FIX: Use Promise.allSettled() instead of Promise.any()
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // OLD BUG: Promise.any() returned the FIRST valid price (> 0), even if wrong.
-    // Example: CoinCap with wrong ID "/assets/btc" returns $34.98 for a different
-    // asset → Promise.any() accepts it → BTC trades at wrong price → all downstream fails.
-    //
-    // NEW APPROACH: Gather ALL results, then:
-    // 1. Filter by price sanity ranges (reject BTC at $34.98)
-    // 2. Cross-validate — if multiple sources agree (within 5%), use median
-    // 3. If only one source passes sanity, use it
-    // 4. If none pass, use reference price as last resort
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-    const sanity = this.PRICE_SANITY[symbol];
-    const refPrice = this.REFERENCE_PRICES[symbol];
-
-    // Run ALL sources in parallel — no early termination
-    const allResults = await Promise.allSettled([
-      // Source 1: Binance (most accurate, but often blocked on Railway)
-      (async () => {
-        const res = await axios.get(`https://api.binance.com/api/v3/ticker/24hr?symbol=${binanceSymbol}`, { timeout: 4000 });
-        const price = parseFloat(res.data?.lastPrice || '0');
-        if (price <= 0) throw new Error('Binance price=0');
-        const change24h = parseFloat(res.data?.priceChangePercent || '0');
-        return { price, source: 'binance', change24h };
-      })(),
-      // Source 2: CoinGecko (reliable, free, no auth)
-      (async () => {
-        const coingeckoId = this._symbolToCoingeckoId(symbol);
-        const res = await axios.get(`https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`, { timeout: 5000 });
-        const price = res.data?.[coingeckoId]?.usd;
-        if (!price || price <= 0) throw new Error('CoinGecko no price');
-        const change24h = res.data?.[coingeckoId]?.usd_24h_change;
-        return { price, source: 'coingecko', change24h };
-      })(),
-      // Source 3: CoinCap (FIX: Use proper CoinCap IDs instead of raw ticker)
-      // OLD BUG: Used symbol.split('/')[0].toLowerCase() = "btc" → wrong asset
-      // FIX: Use COINCAP_IDS mapping → "bitcoin" → correct price
-      (async () => {
-        const base = symbol.split('/')[0].toUpperCase();
-        const coincapId = AIOrchestratorService.COINCAP_IDS[base];
-        if (!coincapId) {
-          // Unknown symbol — skip CoinCap to avoid returning wrong asset data
-          // (e.g., "BTC" → Bitcoin Group SE stock at $34.98 instead of Bitcoin at $79K)
-          throw new Error(`No CoinCap ID mapping for ${base} — skipping to prevent wrong price`);
-        }
-        const res = await axios.get(`https://api.coincap.io/v2/assets/${coincapId}`, { timeout: 5000 });
-        const price = parseFloat(res.data?.data?.priceUsd || '0');
-        if (price <= 0) throw new Error('CoinCap price=0');
-        const change24h = parseFloat(res.data?.data?.changePercent24Hr || '0');
-        return { price, source: 'coincap', change24h };
-      })(),
-      // Source 4: Bybit (alternative exchange, works on cloud)
-      (async () => {
-        const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase();
-        const res = await axios.get(`https://api.bybit.com/v5/market/tickers?category=spot&symbol=${bybitSymbol}`, { timeout: 4000 });
-        const price = parseFloat(res.data?.result?.list?.[0]?.lastPrice || '0');
-        if (price <= 0) throw new Error('Bybit price=0');
-        const change24h = parseFloat(res.data?.result?.list?.[0]?.price24hPcnt || '0') * 100;
-        return { price, source: 'bybit', change24h };
-      })(),
-      // Source 5: TwelveData (API key available, reliable on cloud)
-      (async () => {
-        const tdApiKey = this.configService.get<string>('TWELVE_DATA_API_KEY', '');
-        if (!tdApiKey) throw new Error('No TwelveData key');
-        const tdSymbol = symbol.replace(/[\/\-]/g, '');
-        const res = await axios.get(`https://api.twelvedata.com/price?symbol=${tdSymbol}&apikey=${tdApiKey}`, { timeout: 5000 });
-        const price = parseFloat(res.data?.price || '0');
-        if (price <= 0) throw new Error('TwelveData price=0');
-        return { price, source: 'twelvedata', change24h: undefined };
-      })(),
-      // Source 6: Yahoo Finance (FREE, no API key, works for Forex/Stocks/Commodities on cloud)
-      (async () => {
-        let yahooSymbol: string;
-        const base = symbol.split('/')[0].toUpperCase();
-        const quote = symbol.split('/')[1]?.toUpperCase();
-
-        if (quote && ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'].includes(base) &&
-            ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'].includes(quote)) {
-          yahooSymbol = `${base}${quote}=X`;
-        } else if (base === 'XAU' || base === 'XAG' || base === 'XPT') {
-          yahooSymbol = `${base}${quote}=X`;
-        } else if (!quote || quote === 'USD' || quote === 'USDT') {
-          yahooSymbol = `${base}-USD`;  // FIX: "BTC" → stock price ($34.98), "BTC-USD" → crypto price (~$79K)
-        } else {
-          yahooSymbol = `${base}-${quote}`;
-        }
-
-        const res = await axios.get(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1d&range=2d`,
-          {
-            timeout: 6000,
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            },
-          },
-        );
-        const result = res.data?.chart?.result?.[0];
-        const meta = result?.meta;
-        const price = meta?.regularMarketPrice;
-        if (!price || price <= 0) throw new Error('Yahoo Finance price=0');
-        let change24h: number | undefined;
-        const closes: number[] = result?.indicators?.quote?.[0]?.close?.filter((v: number) => v != null) || [];
-        if (closes.length >= 2) {
-          const prevClose = closes[closes.length - 2];
-          const latestClose = closes[closes.length - 1];
-          if (prevClose > 0) {
-            change24h = ((latestClose - prevClose) / prevClose) * 100;
-          }
-        }
-        return { price, source: 'yahoo-finance', change24h };
-      })(),
-      // Source 7: ExchangeRate API (FREE, no API key, Forex-only)
-      (async () => {
-        const base = symbol.split('/')[0].toUpperCase();
-        const quote = symbol.split('/')[1]?.toUpperCase();
-        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD', 'CNY', 'SGD', 'HKD'];
-        if (!fiatCurrencies.includes(base) || !fiatCurrencies.includes(quote)) {
-          throw new Error('Not a fiat pair');
-        }
-        const res = await axios.get(`https://api.exchangerate-api.com/v4/latest/${base}`, { timeout: 5000 });
-        const rate = res.data?.rates?.[quote];
-        if (!rate || rate <= 0) throw new Error('ExchangeRate no rate');
-        return { price: rate, source: 'exchangerate-api', change24h: undefined };
-      })(),
-      // Source 8: Alpha Vantage (FREE tier: 25 req/day, Forex + Stocks + Commodities)
-      (async () => {
-        const avApiKey = this.configService.get<string>('ALPHA_VANTAGE_API_KEY', 'demo');
-        if (!avApiKey || avApiKey === 'disabled') throw new Error('No Alpha Vantage key');
-        const base = symbol.split('/')[0].toUpperCase();
-        const quote = symbol.split('/')[1]?.toUpperCase();
-        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
-
-        if (fiatCurrencies.includes(base) && fiatCurrencies.includes(quote)) {
-          const res = await axios.get(
-            `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${base}&to_currency=${quote}&apikey=${avApiKey}`,
-            { timeout: 6000 },
-          );
-          const rate = parseFloat(res.data?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'] || '0');
-          if (rate <= 0) throw new Error('Alpha Vantage forex rate=0');
-          return { price: rate, source: 'alpha-vantage-forex', change24h: undefined };
-        } else if (base === 'XAU' || base === 'XAG') {
-          const res = await axios.get(
-            `https://www.alphavantage.co/query?function=CURRENCY_EXCHANGE_RATE&from_currency=${base}&to_currency=${quote || 'USD'}&apikey=${avApiKey}`,
-            { timeout: 6000 },
-          );
-          const rate = parseFloat(res.data?.['Realtime Currency Exchange Rate']?.['5. Exchange Rate'] || '0');
-          if (rate <= 0) throw new Error('Alpha Vantage commodity rate=0');
-          return { price: rate, source: 'alpha-vantage-commodity', change24h: undefined };
-        } else {
-          const res = await axios.get(
-            `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${base}&apikey=${avApiKey}`,
-            { timeout: 6000 },
-          );
-          const price = parseFloat(res.data?.['Global Quote']?.['05. price'] || '0');
-          if (price <= 0) throw new Error('Alpha Vantage stock price=0');
-          const prevClose = parseFloat(res.data?.['Global Quote']?.['08. previous close'] || '0');
-          let change24h: number | undefined;
-          if (prevClose > 0) {
-            change24h = ((price - prevClose) / prevClose) * 100;
-          }
-          return { price, source: 'alpha-vantage-stock', change24h };
-        }
-      })(),
-    ]);
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // STEP 2: Extract successful results and filter by sanity ranges
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    const validPrices: { price: number; source: string; change24h?: number }[] = [];
-    const rejectedPrices: { price: number; source: string; reason: string }[] = [];
-
-    for (const result of allResults) {
-      if (result.status === 'fulfilled' && result.value?.price > 0) {
-        const { price, source, change24h: srcChange24h } = result.value;
-
-        // Sanity check: reject prices outside expected range
-        if (sanity && (price < sanity.min || price > sanity.max)) {
-          rejectedPrices.push({ price, source, reason: `outside [${sanity.min}, ${sanity.max}]` });
-          this.logger.warn(
-            `📊 PRICE SANITY REJECTED ${symbol}: $${price} from ${source} — outside range [$${sanity.min}, $${sanity.max}]`
-          );
-          continue;
-        }
-
-        validPrices.push({ price, source, change24h: srcChange24h });
-      }
-    }
-
-    // Log rejected prices for debugging
-    if (rejectedPrices.length > 0) {
-      this.logger.warn(
-        `📊 ${symbol}: ${rejectedPrices.length} source(s) rejected by sanity check: ` +
-        rejectedPrices.map(r => `${r.source}=$${r.price} (${r.reason})`).join(', ')
-      );
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // STEP 3: Select the best price using cross-validation
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    let finalPrice = 0;
-    let finalSource = 'none';
-    let change24h: number | undefined;
-
-    if (validPrices.length >= 2) {
-      // Multiple sources — cross-validate: if prices agree within 5%, use median
-      const prices = validPrices.map(v => v.price).sort((a, b) => a - b);
-      const medianPrice = prices.length % 2 === 0
-        ? (prices[prices.length / 2 - 1] + prices[prices.length / 2]) / 2
-        : prices[Math.floor(prices.length / 2)];
-
-      // Check if most sources agree (within 5% of median)
-      const agreeing = validPrices.filter(v => {
-        const deviation = Math.abs(v.price - medianPrice) / medianPrice;
-        return deviation < 0.05; // 5% tolerance
-      });
-
-      if (agreeing.length >= 2) {
-        // Use the median of agreeing sources
-        const agreeingPrices = agreeing.map(v => v.price).sort((a, b) => a - b);
-        finalPrice = agreeingPrices.length % 2 === 0
-          ? (agreeingPrices[agreeingPrices.length / 2 - 1] + agreeingPrices[agreeingPrices.length / 2]) / 2
-          : agreeingPrices[Math.floor(agreeingPrices.length / 2)];
-        finalSource = agreeing.map(v => v.source).join('+');
-        change24h = agreeing[0].change24h;
-        this.logger.debug(
-          `📊 ${symbol}: Cross-validated price $${finalPrice} from ${agreeing.length} agreeing sources (${finalSource})`
-        );
-      } else {
-        // Sources disagree — use the most reliable single source
-        // Priority: binance > coingecko > bybit > coincap > yahoo > others
-        const sourcePriority = ['binance', 'coingecko', 'bybit', 'coincap', 'yahoo-finance', 'twelvedata', 'exchangerate-api', 'alpha-vantage'];
-        const sorted = [...validPrices].sort((a, b) => {
-          const aIdx = sourcePriority.indexOf(a.source);
-          const bIdx = sourcePriority.indexOf(b.source);
-          return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
-        });
-        finalPrice = sorted[0].price;
-        finalSource = sorted[0].source + ' (disputed)';
-        change24h = sorted[0].change24h;
-        this.logger.warn(
-          `📊 ${symbol}: Sources disagree — using most reliable: $${finalPrice} from ${finalSource}`
-        );
-      }
-    } else if (validPrices.length === 1) {
-      // Only one source — use it (already passed sanity check)
-      finalPrice = validPrices[0].price;
-      finalSource = validPrices[0].source;
-      change24h = validPrices[0].change24h;
-      this.logger.debug(`📊 ${symbol}: Single source price $${finalPrice} from ${finalSource}`);
-    }
-
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    // STEP 4: Fallback chain if no valid price found
-    // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-    if (!finalPrice || finalPrice <= 0) {
-      // Try reference price
-      if (refPrice && refPrice > 0) {
-        finalPrice = refPrice;
-        finalSource = 'reference-table';
-        this.logger.warn(`📊 ${symbol}: ALL live sources failed/insane — using reference price $${refPrice}`);
-      } else {
-        // Try last-known-good cache
-        const cachedPrice = this.lastKnownPriceCache.get(symbol);
-        if (cachedPrice && (Date.now() - cachedPrice.timestamp) < this.PRICE_CACHE_MAX_AGE) {
-          finalPrice = cachedPrice.price;
-          finalSource = `cache (${Math.round((Date.now() - cachedPrice.timestamp) / 1000)}s old)`;
-          this.logger.warn(`📊 ${symbol}: Using cached price $${finalPrice} (${finalSource})`);
-        } else {
-          this.logger.error(`📊 ALL price sources FAILED for ${symbol} — no reference price, no cache`);
-          return { price: 0, rsi: 50, macd: 'غير متوفر', change24h: 0 };
-        }
-      }
-    }
-
-    // Also try to get klines for RSI/MACD (Binance only)
-    let rsi = 50;
-    let macd = 'غير متوفر';
-    try {
-      const klinesRes = await axios.get(`https://api.binance.com/api/v3/klines?symbol=${binanceSymbol}&interval=1h&limit=30`, { timeout: 4000 });
-      const closes: number[] = (klinesRes.data || []).map((k: any) => parseFloat(k[4])).filter((v: number) => !isNaN(v));
-      if (closes.length > 14) {
-        rsi = this._calculateRSI(closes);
-        macd = this._calculateMACD(closes);
-      }
-    } catch {
-      // Klines unavailable — use defaults
-    }
-
-    // Try Bybit klines as fallback for RSI/MACD when Binance is blocked
-    if (rsi === 50) {
-      try {
-        const bybitSymbol = symbol.replace(/[\/\-]/g, '').toUpperCase();
-        const bybitKlinesRes = await axios.get(
-          `https://api.bybit.com/v5/market/kline?category=spot&symbol=${bybitSymbol}&interval=60&limit=30`,
-          { timeout: 4000 },
-        );
-        const closes: number[] = (bybitKlinesRes.data?.result?.list || [])
-          .map((k: any) => parseFloat(k[4]))
-          .filter((v: number) => !isNaN(v))
-          .reverse();
-        if (closes.length > 14) {
-          rsi = this._calculateRSI(closes);
-          macd = this._calculateMACD(closes);
-        }
-      } catch {
-        // Bybit klines also unavailable
-      }
-    }
-
-    // Try Yahoo Finance klines as fallback for Forex/Stock/Commodity RSI/MACD
-    if (rsi === 50) {
-      try {
-        let yahooKlineSymbol: string;
-        const base = symbol.split('/')[0].toUpperCase();
-        const quote = symbol.split('/')[1]?.toUpperCase();
-        const fiatCurrencies = ['USD', 'EUR', 'GBP', 'JPY', 'CHF', 'CAD', 'AUD', 'NZD'];
-
-        if (fiatCurrencies.includes(base) && fiatCurrencies.includes(quote)) {
-          yahooKlineSymbol = `${base}${quote}=X`;
-        } else if (base === 'XAU' || base === 'XAG' || base === 'XPT') {
-          yahooKlineSymbol = `${base}${quote}=X`;
-        } else if (!quote || quote === 'USD' || quote === 'USDT') {
-          yahooKlineSymbol = base;
-        } else {
-          yahooKlineSymbol = `${base}-${quote}`;
-        }
-
-        const yfKlineRes = await axios.get(
-          `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooKlineSymbol)}?interval=1h&range=5d`,
-          {
-            timeout: 6000,
-            headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-          },
-        );
-        const yfCloses: number[] = (yfKlineRes.data?.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [])
-          .filter((v: number) => v != null && v > 0);
-        if (yfCloses.length > 14) {
-          rsi = this._calculateRSI(yfCloses);
-          macd = this._calculateMACD(yfCloses);
-        }
-      } catch {
-        // Yahoo Finance klines also unavailable
-      }
-    }
-
-    // Save to last-known-good cache
-    this.lastKnownPriceCache.set(symbol, { price: finalPrice, rsi, macd, timestamp: Date.now() });
-    if (this.lastKnownPriceCache.size > 50) {
-      const now = Date.now();
-      for (const [key, entry] of this.lastKnownPriceCache) {
-        if (now - entry.timestamp > this.PRICE_CACHE_MAX_AGE) this.lastKnownPriceCache.delete(key);
-      }
-    }
-
-    this.logger.log(
-      `📊 ${symbol}: price=$${finalPrice} from ${finalSource}, RSI=${rsi}, MACD=${macd}, 24h=${change24h?.toFixed(2) || 'N/A'}%` +
-      (validPrices.length > 0 ? ` (${validPrices.length}/${allResults.length} sources valid)` : ' (fallback)')
-    );
-    return { price: finalPrice, rsi, macd, change24h };
-  }
-
-  /**
-   * Map trading symbol to CoinGecko asset ID.
-   * CoinGecko uses different IDs than Binance (e.g., BTC/USD → bitcoin).
-   */
-  private _symbolToCoingeckoId(symbol: string): string {
-    const map: Record<string, string> = {
-      'BTC/USD': 'bitcoin', 'BTC/USDT': 'bitcoin', 'BTCUSDT': 'bitcoin',
-      'ETH/USD': 'ethereum', 'ETH/USDT': 'ethereum', 'ETHUSDT': 'ethereum',
-      'SOL/USD': 'solana', 'SOL/USDT': 'solana', 'SOLUSDT': 'solana',
-      'XRP/USD': 'ripple', 'XRP/USDT': 'ripple', 'XRPUSDT': 'ripple',
-      'BNB/USD': 'binancecoin', 'BNB/USDT': 'binancecoin', 'BNBUSDT': 'binancecoin',
-      'ADA/USD': 'cardano', 'ADA/USDT': 'cardano', 'ADAUSDT': 'cardano',
-      'DOGE/USD': 'dogecoin', 'DOGE/USDT': 'dogecoin', 'DOGEUSDT': 'dogecoin',
-      'DOT/USD': 'polkadot', 'DOT/USDT': 'polkadot', 'DOTUSDT': 'polkadot',
-      'AVAX/USD': 'avalanche-2', 'AVAX/USDT': 'avalanche-2', 'AVAXUSDT': 'avalanche-2',
-      'MATIC/USD': 'matic-network', 'MATIC/USDT': 'matic-network', 'MATICUSDT': 'matic-network',
-      'LINK/USD': 'chainlink', 'LINK/USDT': 'chainlink', 'LINKUSDT': 'chainlink',
-    };
-    const normalized = symbol.replace(/[\/\-]/g, '').replace('USD', 'USDT').toUpperCase();
-    // Try direct match first
-    for (const [key, id] of Object.entries(map)) {
-      if (key.toUpperCase() === normalized || key.toUpperCase() === symbol.toUpperCase()) return id;
-    }
-    // Fallback: extract base currency
-    const base = symbol.split('/')[0].toUpperCase();
-    for (const [key, id] of Object.entries(map)) {
-      if (key.startsWith(base)) return id;
-    }
-    return base.toLowerCase();
-  }
-
-  /**
-   * CoinGecko fallback for when Binance is blocked/unreachable (common on Railway).
-   * Free, no auth required, works on cloud platforms.
-   */
-  private async _fetchCoinGeckoFallback(symbol: string): Promise<{ price: number; rsi: number; macd: string }> {
-    try {
-      const coingeckoId = this._symbolToCoingeckoId(symbol);
-      const cgUrl = `https://api.coingecko.com/api/v3/simple/price?ids=${coingeckoId}&vs_currencies=usd&include_24hr_change=true`;
-      const cgRes = await axios.get(cgUrl, { timeout: 5000 });
-      const cgPrice = cgRes.data?.[coingeckoId]?.usd;
-      if (cgPrice && cgPrice > 0) {
-        this.logger.debug(`📊 CoinGecko fallback for ${symbol}: price=${cgPrice}`);
-        return { price: cgPrice, rsi: 50, macd: 'غير متوفر' };
-      }
-    } catch (error: any) {
-      this.logger.debug(`📊 CoinGecko fallback also failed for ${symbol}: ${error.message}`);
-    }
-    return { price: 0, rsi: 50, macd: 'غير متوفر' };
-  }
-
-  /** Calculate RSI (Relative Strength Index) from closing prices */
-  private _calculateRSI(closes: number[], period = 14): number {
-    if (closes.length < period + 1) return 50; // Not enough data
-    let gains = 0, losses = 0;
-    for (let i = closes.length - period; i < closes.length; i++) {
-      const change = closes[i] - closes[i - 1];
-      if (change > 0) gains += change;
-      else losses += Math.abs(change);
-    }
-    if (losses === 0) return 100;
-    const rs = gains / losses;
-    return Math.round(100 - (100 / (1 + rs)));
-  }
-
-  /** Calculate MACD summary from closing prices */
-  private _calculateMACD(closes: number[]): string {
-    if (closes.length < 26) return 'غير متوفر (بيانات غير كافية)';
-    const ema12 = this._calculateEMA(closes, 12);
-    const ema26 = this._calculateEMA(closes, 26);
-    const macdLine = ema12 - ema26;
-    const direction = macdLine > 0 ? 'صاعد' : 'هبوطي';
-    return `${direction} (القيمة: ${macdLine.toFixed(2)})`;
-  }
-
-  /** Calculate Exponential Moving Average */
-  private _calculateEMA(data: number[], period: number): number {
-    const multiplier = 2 / (period + 1);
-    let ema = data.slice(0, period).reduce((a, b) => a + b, 0) / period;
-    for (let i = period; i < data.length; i++) {
-      ema = (data[i] - ema) * multiplier + ema;
-    }
-    return ema;
-  }
 
   // ── Private: Dynamic Confidence Scoring ──
   /**

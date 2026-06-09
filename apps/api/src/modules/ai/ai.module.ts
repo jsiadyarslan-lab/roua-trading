@@ -15,6 +15,8 @@ import { NvidiaService } from './services/nvidia.service';
 import { EmbeddingService } from './services/embedding.service';
 import { RagService } from './services/rag.service';
 import { AiUsageLoggerService } from './services/ai-usage-logger.service';
+import { AiCacheService } from './services/ai-cache.service';
+import { MarketDataService } from './services/market-data.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
 @Module({
@@ -43,6 +45,12 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     // AI Usage Logger — tracks all AI API calls to AiUsageLog table
     AiUsageLoggerService,
 
+    // AI Cache Service — Redis + in-memory caching for AI analysis results
+    AiCacheService,
+
+    // Market Data Service — 9-source price fetching with cross-validation
+    MarketDataService,
+
     // Orchestrator (depends on all above + optional PredictionMarketService via forwardRef)
     AIOrchestratorService,
   ],
@@ -62,6 +70,8 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     RagService,
     EmbeddingService,
     AiUsageLoggerService,
+    AiCacheService,
+    MarketDataService,
   ],
 })
 export class AiModule {}

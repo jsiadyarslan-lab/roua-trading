@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Query, UseGuards, Request, Logger } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards, Request, Logger, ForbiddenException } from '@nestjs/common';
 import { AnalyticalAIService } from './analytical-ai.service';
 import { SignalGeneratorService } from './signal-generator.service';
+import { PerformanceEventsService } from './services/performance-events.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 
@@ -25,6 +26,7 @@ export class AnalyticsController {
   constructor(
     private readonly analyticalAI: AnalyticalAIService,
     private readonly signalGenerator: SignalGeneratorService,
+    private readonly performanceEvents: PerformanceEventsService,
   ) {
     this.logger.log('📊 Analytics Controller initialized');
   }
@@ -94,6 +96,41 @@ export class AnalyticsController {
     return {
       success: true,
       data: signals,
+    };
+  }
+
+  /**
+   * GET /api/analytics/performance/snapshot
+   *
+   * Real-time performance snapshot for the authenticated user.
+   * Returns unified metrics: Sharpe ratio, max drawdown, Kelly criterion,
+   * daily PnL, win rate — broken down by source (smart_executor, agent).
+   */
+  @Get('performance/snapshot')
+  async getPerformanceSnapshot(@Request() req: any) {
+    const userId = req.user?.id;
+    if (!userId) throw new ForbiddenException('User not authenticated');
+    const snapshot = await this.performanceEvents.getPerformanceSnapshot(userId);
+    return {
+      success: true,
+      data: snapshot,
+    };
+  }
+
+  /**
+   * GET /api/analytics/performance/events
+   *
+   * Recent trade closure events for the authenticated user (last 24h).
+   * Used by dashboard for real-time trade feed.
+   */
+  @Get('performance/events')
+  async getRecentTradeEvents(@Request() req: any, @Query('limit') limit?: string) {
+    const userId = req.user?.id;
+    if (!userId) throw new ForbiddenException('User not authenticated');
+    const events = await this.performanceEvents.getRecentTradeEvents(userId, parseInt(limit || '50'));
+    return {
+      success: true,
+      data: events,
     };
   }
 }

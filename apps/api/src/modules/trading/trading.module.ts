@@ -27,6 +27,9 @@ import { OrderDispatcherService } from './services/order-dispatcher.service';
 // ✅ NEW: Exposure Manager — مدير التعرض الموحد بين المنفذ الذكي والوكيل
 import { ExposureManagerService } from './services/exposure-manager.service';
 
+// ✅ #18: Trade Coordination Service — prevents duplicate positions across SmartExecutor and Agent
+import { TradeCoordinationService } from './services/trade-coordination.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -90,6 +93,9 @@ import { ExposureManagerService } from './services/exposure-manager.service';
 
     // ✅ NEW: Exposure Manager
     ExposureManagerService,
+
+    // ✅ #18: Trade Coordination — prevents SmartExecutor and Agent conflicts
+    TradeCoordinationService,
   ],
   exports: [
     TradingService,
@@ -108,6 +114,9 @@ import { ExposureManagerService } from './services/exposure-manager.service';
 
     // ✅ NEW: Export Exposure Manager for cross-system exposure tracking
     ExposureManagerService,
+
+    // ✅ #18: Export Trade Coordination for SmartExecutor and Agent to use
+    TradeCoordinationService,
   ],
 })
 export class TradingModule {}

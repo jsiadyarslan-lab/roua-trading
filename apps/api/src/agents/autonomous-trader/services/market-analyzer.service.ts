@@ -6,6 +6,7 @@ import { Injectable, Logger, Optional } from '@nestjs/common';
 import { ExchangeService } from '../../../modules/exchange/exchange.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { MarketAnalysis, MACDResult, BollingerBandsResult, EMAResult, StrategySignal } from '../types/agent.types';
+import { calcRsiLatest, calcMacdScalar, calcBollingerBandsScalar, calcEmaLatest, calcAtrLatest } from '../../../common/utils/indicator-algorithms.util';
 
 /**
  * MarketAnalyzerService — Real-time market analysis engine
@@ -153,178 +154,53 @@ export class MarketAnalyzerService {
   // ── Technical Indicators ──
 
   /**
-   * RSI (Relative Strength Index) — 14-period
+   * RSI (Relative Strength Index) — 14-period using canonical Wilder's smoothing
    * Values > 70: Overbought, < 30: Oversold
+   * Delegates to shared indicator utility for consistent results across all services.
    */
   private _calculateRSI(closes: number[], period: number = 14): number {
-    if (closes.length < period + 1) return 50;
-
-    let gains = 0;
-    let losses = 0;
-
-    // Initial average
-    for (let i = 1; i <= period; i++) {
-      const change = closes[i] - closes[i - 1];
-      if (change > 0) gains += change;
-      else losses += Math.abs(change);
-    }
-
-    let avgGain = gains / period;
-    let avgLoss = losses / period;
-
-    // Smoothed averages
-    for (let i = period + 1; i < closes.length; i++) {
-      const change = closes[i] - closes[i - 1];
-      if (change > 0) {
-        avgGain = (avgGain * (period - 1) + change) / period;
-        avgLoss = (avgLoss * (period - 1)) / period;
-      } else {
-        avgGain = (avgGain * (period - 1)) / period;
-        avgLoss = (avgLoss * (period - 1) + Math.abs(change)) / period;
-      }
-    }
-
-    if (avgLoss === 0) return 100;
-    const rs = avgGain / avgLoss;
-    return parseFloat((100 - 100 / (1 + rs)).toFixed(2));
+    return calcRsiLatest(closes, period);
   }
 
   /**
-   * MACD (12, 26, 9)
+   * MACD (12, 26, 9) using canonical algorithms with proper EMA alignment
+   * Delegates to shared indicator utility for consistent results across all services.
    */
   private _calculateMACD(closes: number[]): MACDResult {
-    const ema12 = this._calculateEMAValues(closes, 12);
-    const ema26 = this._calculateEMAValues(closes, 26);
-
-    if (ema12.length < 2 || ema26.length < 2) {
-      return { macd: 0, signal: 0, histogram: 0, crossover: 'NONE' };
-    }
-
-    // MACD line = EMA12 - EMA26
-    const macdLine: number[] = [];
-    const minLength = Math.min(ema12.length, ema26.length);
-    for (let i = 0; i < minLength; i++) {
-      macdLine.push(ema12[ema12.length - minLength + i] - ema26[ema26.length - minLength + i]);
-    }
-
-    // Signal line = 9-period EMA of MACD line
-    const signalLine = this._calculateEMAValues(macdLine, 9);
-
-    const macdValue = macdLine[macdLine.length - 1] || 0;
-    const signalValue = signalLine[signalLine.length - 1] || 0;
-    const histogram = macdValue - signalValue;
-
-    // Detect crossover
-    let crossover: 'BULLISH' | 'BEARISH' | 'NONE' = 'NONE';
-    if (macdLine.length >= 2 && signalLine.length >= 2) {
-      const prevHist = (macdLine[macdLine.length - 2] || 0) - (signalLine[signalLine.length - 2] || 0);
-      if (prevHist <= 0 && histogram > 0) crossover = 'BULLISH';
-      else if (prevHist >= 0 && histogram < 0) crossover = 'BEARISH';
-    }
-
-    return {
-      macd: parseFloat(macdValue.toFixed(6)),
-      signal: parseFloat(signalValue.toFixed(6)),
-      histogram: parseFloat(histogram.toFixed(6)),
-      crossover,
-    };
+    return calcMacdScalar(closes);
   }
 
   /**
-   * Bollinger Bands (20, 2)
+   * Bollinger Bands (20, 2) using canonical algorithms with standard deviation from SMA
+   * Delegates to shared indicator utility for consistent results across all services.
    */
   private _calculateBollingerBands(closes: number[], period: number = 20, stdDev: number = 2): BollingerBandsResult {
-    if (closes.length < period) {
-      const price = closes[closes.length - 1] || 0;
-      return { upper: price * 1.02, middle: price, lower: price * 0.98, bandwidth: 0.04, percentB: 0.5 };
-    }
-
-    const recent = closes.slice(-period);
-    const middle = recent.reduce((sum, p) => sum + p, 0) / period;
-    const variance = recent.reduce((sum, p) => sum + Math.pow(p - middle, 2), 0) / period;
-    const sd = Math.sqrt(variance);
-
-    const upper = middle + stdDev * sd;
-    const lower = middle - stdDev * sd;
-    const bandwidth = middle > 0 ? (upper - lower) / middle : 0;
-
-    // %B: Where is current price relative to bands?
-    const currentPrice = closes[closes.length - 1];
-    const percentB = (upper - lower) > 0
-      ? (currentPrice - lower) / (upper - lower)
-      : 0.5;
-
-    return {
-      upper: parseFloat(upper.toFixed(8)),
-      middle: parseFloat(middle.toFixed(8)),
-      lower: parseFloat(lower.toFixed(8)),
-      bandwidth: parseFloat(bandwidth.toFixed(6)),
-      percentB: parseFloat(Math.max(0, Math.min(1, percentB)).toFixed(4)),
-    };
+    return calcBollingerBandsScalar(closes, period, stdDev);
   }
 
   /**
-   * EMA (9, 21, 50, 200)
+   * EMA (9, 21, 50, 200) using canonical EMA algorithm with SMA seed
+   * Delegates to shared indicator utility for consistent results across all services.
    */
   private _calculateEMA(closes: number[]): EMAResult {
-    const ema9 = this._calculateEMAValues(closes, 9);
-    const ema21 = this._calculateEMAValues(closes, 21);
-    const ema50 = this._calculateEMAValues(closes, 50);
-    const ema200 = closes.length >= 200 ? this._calculateEMAValues(closes, 200) : undefined;
-
     return {
-      ema9: ema9[ema9.length - 1] || 0,
-      ema21: ema21[ema21.length - 1] || 0,
-      ema50: ema50[ema50.length - 1] || 0,
-      ema200: ema200 ? ema200[ema200.length - 1] : undefined,
+      ema9: calcEmaLatest(closes, 9),
+      ema21: calcEmaLatest(closes, 21),
+      ema50: calcEmaLatest(closes, 50),
+      ema200: closes.length >= 200 ? calcEmaLatest(closes, 200) : undefined,
     };
   }
 
   /**
-   * ATR (Average True Range) — 14-period
+   * ATR (Average True Range) — 14-period using canonical Wilder's smoothing
+   * FIX: Previously used simple average — now uses Wilder's smoothing for correctness.
+   * Delegates to shared indicator utility for consistent results across all services.
    */
   private _calculateATR(highs: number[], lows: number[], closes: number[], period: number = 14): number {
-    if (highs.length < period + 1) return 0;
-
-    const trueRanges: number[] = [];
-    for (let i = 1; i < highs.length; i++) {
-      const tr = Math.max(
-        highs[i] - lows[i],
-        Math.abs(highs[i] - closes[i - 1]),
-        Math.abs(lows[i] - closes[i - 1]),
-      );
-      trueRanges.push(tr);
-    }
-
-    if (trueRanges.length < period) return 0;
-
-    // Use simple average for ATR
-    const recent = trueRanges.slice(-period);
-    return parseFloat((recent.reduce((sum, tr) => sum + tr, 0) / period).toFixed(8));
+    return calcAtrLatest(highs, lows, closes, period);
   }
 
   // ── Helper Functions ──
-
-  private _calculateEMAValues(data: number[], period: number): number[] {
-    if (data.length < period) return [];
-
-    const multiplier = 2 / (period + 1);
-    const ema: number[] = [];
-
-    // Initial SMA
-    let sum = 0;
-    for (let i = 0; i < period; i++) {
-      sum += data[i];
-    }
-    ema.push(sum / period);
-
-    // EMA calculation
-    for (let i = period; i < data.length; i++) {
-      ema.push((data[i] - ema[ema.length - 1]) * multiplier + ema[ema.length - 1]);
-    }
-
-    return ema;
-  }
 
   private _assessVolatility(
     atr: number,

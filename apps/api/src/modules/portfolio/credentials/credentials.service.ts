@@ -576,7 +576,7 @@ export class CredentialsService {
       (c) => c.exchange === 'paper-trading'
     );
 
-    // Real exchange credentials: fetch balances via CCXT
+    // Real exchange credentials: fetch balances via CCXT or MT5 adapter
     const exchangeResults = await Promise.allSettled(
       realCredentials.map(async (cred) => {
         try {
@@ -594,6 +594,12 @@ export class CredentialsService {
               assets: [],
               error: 'بيانات الاعتماد غير مكتملة — يرجى حذف المفتاح وإضافته مرة أخرى',
             };
+          }
+
+          // ── MT5 Balance: Use MetaAPI Cloud, not CCXT ──
+          const isMT5Cred = ['mt5', 'mt5_demo', 'metatrader5', 'metatrader'].includes(cred.exchange.toLowerCase());
+          if (isMT5Cred) {
+            return await this._fetchMT5Balance(cred, userId);
           }
 
           const decrypted = await this.decryptCredential(cred.id, userId);
@@ -1575,6 +1581,151 @@ export class CredentialsService {
       // MetaAPI SDK not available or other unexpected error
       this.logger.warn(`📊 MT5 validation error: ${error.message} — accepting with warning`);
       return { valid: true, permissions: ['read', 'trade'] };
+    }
+  }
+
+  /**
+   * Fetch balance from an MT5 account via MetaAPI Cloud.
+   * MT5 accounts don't use CCXT — they connect through MetaAPI SDK.
+   * Returns the same format as _fetchSingleExchangeBalance for consistency.
+   */
+  private async _fetchMT5Balance(
+    cred: any,
+    userId: string,
+  ): Promise<{
+    exchange: string;
+    label: string;
+    credentialId: string;
+    isTestnet: boolean;
+    equity: number;
+    available: number;
+    currency: string;
+    usedMargin: number;
+    assets: Array<{ currency: string; free: number; used: number; total: number }>;
+    error?: string;
+  }> {
+    const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
+    try {
+      const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
+      if (!metaApiToken) {
+        return {
+          exchange: cred.exchange,
+          label: cred.label,
+          credentialId: cred.id,
+          isTestnet: isDemo,
+          equity: 0,
+          available: 0,
+          currency: 'USD',
+          usedMargin: 0,
+          assets: [],
+          error: 'METAAPI_TOKEN غير مضبوط — لا يمكن جلب رصيد MT5',
+        };
+      }
+
+      // Decrypt MT5 credentials: apiKey=accountId, apiSecret=password, passphrase=server
+      const decrypted = await this.decryptCredential(cred.id, userId);
+      const accountId = decrypted.apiKey;
+      const password = decrypted.apiSecret;
+      const server = decrypted.passphrase || '';
+
+      if (!accountId || !password || !server) {
+        return {
+          exchange: cred.exchange,
+          label: cred.label,
+          credentialId: cred.id,
+          isTestnet: isDemo,
+          equity: 0,
+          available: 0,
+          currency: 'USD',
+          usedMargin: 0,
+          assets: [],
+          error: 'بيانات MT5 غير مكتملة — تأكد من رقم الحساب وكلمة السر واسم السيرفر',
+        };
+      }
+
+      // Connect via MetaAPI
+      const metaApiModule: any = await import('metaapi.cloud-sdk');
+      const MetaApiClass = metaApiModule.default || metaApiModule;
+      const metaApi = new MetaApiClass(metaApiToken);
+
+      let account;
+      try {
+        account = await metaApi.getAccount(accountId);
+      } catch {
+        // Try to register if not found
+        try {
+          account = await metaApi.addAccount({
+            login: accountId,
+            password,
+            server,
+            type: isDemo ? 'demo' : 'live',
+            name: `Roua-${userId.slice(0, 8)}`,
+          });
+          await account.waitDeployed(30000);
+        } catch (regErr: any) {
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: isDemo,
+            equity: 0,
+            available: 0,
+            currency: 'USD',
+            usedMargin: 0,
+            assets: [],
+            error: `فشل تسجيل حساب MT5: ${regErr.message?.substring(0, 100) || 'خطأ غير معروف'}`,
+          };
+        }
+      }
+
+      const connection = account.getRPCConnection();
+      if (!connection.isConnected()) {
+        await connection.connect();
+        await connection.waitSynchronized();
+      }
+
+      const accountInfo = await connection.getAccountInformation();
+      const equity = accountInfo?.equity || 0;
+      const balance = accountInfo?.balance || 0;
+      const margin = accountInfo?.margin || 0;
+      const freeMargin = accountInfo?.freeMargin || Math.max(0, equity - margin);
+      const currency = accountInfo?.currency || 'USD';
+
+      this.logger.log(
+        `📊 MT5 balance for ${accountId}: balance=$${balance}, equity=$${equity}, ` +
+        `margin=$${margin}, free=$${freeMargin}, currency=${currency}, demo=${isDemo}`
+      );
+
+      return {
+        exchange: cred.exchange,
+        label: cred.label,
+        credentialId: cred.id,
+        isTestnet: isDemo,
+        equity,
+        available: freeMargin,
+        currency,
+        usedMargin: margin,
+        assets: [{
+          currency,
+          free: freeMargin,
+          used: margin,
+          total: equity,
+        }],
+      };
+    } catch (error: any) {
+      this.logger.warn(`📊 Failed to fetch MT5 balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+      return {
+        exchange: cred.exchange,
+        label: cred.label,
+        credentialId: cred.id,
+        isTestnet: isDemo,
+        equity: 0,
+        available: 0,
+        currency: 'USD',
+        usedMargin: 0,
+        assets: [],
+        error: `فشل جلب رصيد MT5: ${error.message?.substring(0, 100) || 'خطأ غير معروف'}`,
+      };
     }
   }
 

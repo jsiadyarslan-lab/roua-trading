@@ -47,6 +47,8 @@ const SUPPORTED_EXCHANGES = [
   { id: 'bybit', name: 'Bybit', icon: '🟠' },
   { id: 'okx', name: 'OKX', icon: '⚪', requiresPassphrase: true },
   { id: 'gateio', name: 'Gate.io', icon: '🔵' },
+  { id: 'mt5', name: 'MetaTrader 5', icon: '📊', isMT5: true },
+  { id: 'mt5_demo', name: 'MT5 Demo', icon: '📋', isMT5: true },
 ]
 
 export default function ExchangeSettingsPage() {
@@ -85,7 +87,7 @@ export default function ExchangeSettingsPage() {
   }, [agentSettings])
 
   const hasTestAccount = credentials.some(c =>
-    c.exchange === 'paper-trading' || c.exchange?.includes('test')
+    c.exchange === 'paper-trading' || c.exchange?.includes('test') || c.exchange === 'mt5_demo'
   )
 
   const handleSaveLeverage = async () => {
@@ -112,6 +114,8 @@ export default function ExchangeSettingsPage() {
   const [keyType, setKeyType] = useState<'hmac' | 'ed25519' | 'rsa'>('hmac')
 
   const isBinance = exchange.toLowerCase().startsWith('binance') && !exchange.includes('test')
+  const isMT5 = exchange === 'mt5' || exchange === 'mt5_demo'
+  const isMT5Demo = exchange === 'mt5_demo'
 
   // Fetch server IP for Binance IP whitelist
   const fetchServerIp = useCallback(async () => {
@@ -400,7 +404,7 @@ export default function ExchangeSettingsPage() {
                     {/* Exchange Selection */}
                     <div className="space-y-2">
                       <Label>البورصة</Label>
-                      <div className="grid grid-cols-5 gap-2">
+                      <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                         {SUPPORTED_EXCHANGES.map((ex) => (
                           <button
                             key={ex.id}
@@ -500,7 +504,76 @@ export default function ExchangeSettingsPage() {
                       />
                     </div>
 
-                    {/* API Key */}
+                    {/* MT5: Account Number */}
+                    {isMT5 ? (
+                      <>
+                        {/* MT5 Info Banner */}
+                        <div className="flex items-start gap-2 p-2.5 rounded-md bg-purple-500/5 border border-purple-500/10">
+                          <Info className="w-4 h-4 text-purple-400 mt-0.5 flex-shrink-0" />
+                          <p className="text-xs text-muted-foreground leading-relaxed">
+                            ربط حساب MetaTrader 5 يتطلب حساباً على <span className="text-purple-300 font-medium">MetaAPI Cloud</span>.
+                            الحسابات التجريبية (Demo) تُنفذ <span className="text-purple-300 font-medium">جميع فحوصات المخاطر</span> كاملةً —
+                            تماماً كالحساب الحقيقي. الفرق الوحيد هو نوع الأموال (افتراضية مقابل حقيقية).
+                          </p>
+                        </div>
+
+                        {/* MT5 Account Number */}
+                        <div className="space-y-2">
+                          <Label htmlFor="apiKey">رقم حساب MT5</Label>
+                          <Input
+                            id="apiKey"
+                            type="text"
+                            placeholder="مثال: 12345678"
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            dir="ltr"
+                            className="bg-background"
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            رقم حساب التداول الخاص بك في MetaTrader 5 (Login ID)
+                          </p>
+                        </div>
+
+                        {/* MT5 Password */}
+                        <div className="space-y-2">
+                          <Label htmlFor="apiSecret">كلمة سر الحساب</Label>
+                          <Input
+                            id="apiSecret"
+                            type="password"
+                            placeholder="كلمة سر حساب MT5"
+                            value={apiSecret}
+                            onChange={(e) => setApiSecret(e.target.value)}
+                            dir="ltr"
+                            className="bg-background"
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            كلمة السر التي تستخدمها لتسجيل الدخول إلى MetaTrader 5
+                          </p>
+                        </div>
+
+                        {/* MT5 Server Name */}
+                        <div className="space-y-2">
+                          <Label htmlFor="passphrase">اسم السيرفر</Label>
+                          <Input
+                            id="passphrase"
+                            type="text"
+                            placeholder="مثال: MetaQuotes-Demo أو XMGlobal-Server"
+                            value={passphrase}
+                            onChange={(e) => setPassphrase(e.target.value)}
+                            dir="ltr"
+                            className="bg-background"
+                            required
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            اسم السيرفر الذي يظهر في نافذة تسجيل الدخول في MT5
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                    <>
+                    {/* Non-MT5: API Key */}
                     <div className="space-y-2">
                       <Label htmlFor="apiKey">API Key</Label>
                       <Input
@@ -515,7 +588,7 @@ export default function ExchangeSettingsPage() {
                       />
                     </div>
 
-                    {/* API Secret / Private Key */}
+                    {/* Non-MT5: API Secret / Private Key */}
                     <div className="space-y-2">
                       <Label htmlFor="apiSecret">
                         {keyType !== 'hmac' && isBinance ? 'المفتاح الخاص (Private Key)' : 'API Secret'}
@@ -540,6 +613,20 @@ export default function ExchangeSettingsPage() {
                         </p>
                       )}
                     </div>
+                    </>
+                    )}
+
+                    {/* MT5 Demo Account Notice */}
+                    {isMT5Demo && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-md bg-amber-500/5 border border-amber-500/10">
+                        <Info className="w-4 h-4 text-amber-400 mt-0.5 flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          حساب MT5 Demo يُعامل <span className="text-amber-300 font-medium">كحساب تجريبي حقيقي</span> —
+                          جميع فحوصات المخاطر (حد المركز، وقف الخسارة، السحب اليومي) تُنفّذ بالكامل.
+                          هذا يضمن أن تجربتك على الحساب التجريبي تعكس سلوك الحساب الحقيقي بدقة.
+                        </p>
+                      </div>
+                    )}
 
                     {/* Testnet Mode (for Binance and other exchanges that support it) */}
                     {(exchange === 'binance' || exchange === 'binance_test' || exchange === 'binance_future_test') && (
@@ -562,8 +649,8 @@ export default function ExchangeSettingsPage() {
                       </div>
                     )}
 
-                    {/* Passphrase (for OKX and other exchanges that require it) */}
-                    {SUPPORTED_EXCHANGES.find(e => e.id === exchange)?.requiresPassphrase && (
+                    {/* Passphrase (for OKX, KuCoin and other exchanges that require it — NOT MT5, which has its own server field above) */}
+                    {!isMT5 && SUPPORTED_EXCHANGES.find(e => e.id === exchange)?.requiresPassphrase && (
                       <div className="space-y-2">
                         <Label htmlFor="passphrase">عبارة المرور (Passphrase)</Label>
                         <Input
@@ -600,18 +687,18 @@ export default function ExchangeSettingsPage() {
                     <div className="flex items-center gap-3">
                       <Button
                         type="submit"
-                        disabled={submitting || !apiKey || !apiSecret}
+                        disabled={submitting || !apiKey || !apiSecret || (isMT5 && !passphrase)}
                         className="bg-teal-500 hover:bg-teal-600 text-background"
                       >
                         {submitting ? (
                           <>
                             <Loader2 className="w-4 h-4 ml-2 animate-spin" />
-                            جارٍ التحقق والتشفير...
+                            {isMT5 ? 'جارٍ التحقق من حساب MT5...' : 'جارٍ التحقق والتشفير...'}
                           </>
                         ) : (
                           <>
                             <Shield className="w-4 h-4 ml-2" />
-                            إضافة وتحقق
+                            {isMT5 ? 'ربط حساب MT5' : 'إضافة وتحقق'}
                           </>
                         )}
                       </Button>
@@ -694,6 +781,16 @@ export default function ExchangeSettingsPage() {
                               {(cred.testnet || cred.exchange.includes('test')) && (
                                 <Badge variant="outline" className="text-xs bg-blue-500/10 border-blue-500/30 text-blue-400">
                                   🧪 Testnet
+                                </Badge>
+                              )}
+                              {cred.exchange === 'mt5_demo' && (
+                                <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-500/30 text-purple-400">
+                                  📋 Demo
+                                </Badge>
+                              )}
+                              {(cred.exchange === 'mt5' || cred.exchange === 'mt5_demo') && (
+                                <Badge variant="outline" className="text-xs bg-purple-500/10 border-purple-500/30 text-purple-400">
+                                  MT5
                                 </Badge>
                               )}
                               {permissions.map((p: string) => (

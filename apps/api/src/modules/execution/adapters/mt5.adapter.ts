@@ -4,11 +4,15 @@
 //
 // يربط منصة رؤى بحسابات MT5 عبر MetaAPI Cloud SDK.
 // يدعم:
-//   - حسابات Demo (تُعامل كورقي/محاكي)
+//   - حسابات Demo (تُنفذ فحوصات المخاطر بالكامل — كحساب حقيقي)
 //   - حسابات Live (تُعامل كحقيقي)
 //   - تنفيذ الأوامر Market/Limit
 //   - جلب الأرصدة والمراكز المفتوحة
 //   - إلغاء الأوامر المعلقة
+//
+// V181: حسابات Demo لا تتجاوز فحوصات المخاطر. الفرق الوحيد بين
+// Demo و Live هو نوع الأموال (افتراضية مقابل حقيقية)، وليس مستوى الحماية.
+// هذا يضمن أن سلوك التداول التجريبي يعكس الحساب الحقيقي بدقة.
 //
 // بيانات الاعتماد:
 //   - apiKey      = رقم حساب MT5 (مثال: "12345678")
@@ -56,7 +60,7 @@ interface MT5ConnectionState {
  * Connection Management:
  * - Connections are cached per accountId with 5-minute TTL
  * - Reconnection is automatic via MetaAPI SDK
- * - Demo accounts are detected and flagged for risk bypass
+ * - Demo accounts are flagged for display/audit only (V181: NOT for risk bypass)
  *
  * Symbol Mapping:
  * - MT5 uses formats like "EURUSD", "XAUUSD", "BTCUSD"

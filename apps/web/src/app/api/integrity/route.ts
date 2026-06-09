@@ -18,11 +18,11 @@ export async function GET(request: NextRequest) {
 
   // ── Endpoints to check ──────────────────────────────────────
   const endpoints = [
-    { name: 'Portfolio Summary', iosOld: '/trading/v2/portfolio', actual: '/trading/portfolio', model: 'PortfolioSummary', critical: true },
+    { name: 'Portfolio Summary (DB)', iosOld: '/trading/v2/portfolio', actual: '/trading/portfolio', model: 'PortfolioSummary', critical: true, note: 'Stale DB data — iOS now uses Balances endpoint for display' },
     { name: 'Agent Positions', iosOld: '/trading/v2/positions', actual: '/trading/positions', model: 'PositionSummary', critical: true },
+    { name: 'Live Balances (Exchange)', path: '/portfolio/credentials/balances', model: 'Balances', critical: true, note: 'REAL exchange balance — same as web platform uses' },
     { name: 'Position Summary V1', path: '/trading/positions/summary', model: 'PositionSummary', critical: false },
     { name: 'Portfolio Credentials', path: '/portfolio/credentials', critical: false },
-    { name: 'Portfolio Balances', path: '/portfolio/credentials/balances', model: 'Balances', critical: true },
     { name: 'Sanctuary Risk', path: '/portfolio/sanctuary', model: 'RiskReport', critical: false },
     { name: 'Trading Account', path: '/trading/account', critical: false },
     { name: 'Agent Status', path: '/agent/trader/status', critical: false },
@@ -74,6 +74,14 @@ export async function GET(request: NextRequest) {
       totalPnl: { codingKey: 'totalPnL', note: 'Capital L' },
       avgWin: { codingKey: 'averageWin', note: 'Swift name ≠ CodingKey' },
       avgLoss: { codingKey: 'averageLoss', note: 'Swift name ≠ CodingKey' },
+    },
+    Balances: {
+      totalEquityUsd: { codingKey: 'totalEquityUsd', note: 'Live exchange equity' },
+      totalAvailableUsd: { codingKey: 'totalAvailableUsd' },
+      totalUsedMargin: { codingKey: 'totalUsedMargin' },
+      exchanges: { codingKey: 'exchanges' },
+      allRealExchangesFailed: { codingKey: 'allRealExchangesFailed' },
+      hasRealCredentials: { codingKey: 'hasRealCredentials' },
     },
   };
 

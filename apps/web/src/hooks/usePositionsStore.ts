@@ -751,18 +751,21 @@ export const usePositionsStore = create<PositionsState>()(
               effectiveCash = 10000
             }
           } else if (hasOnlyPaperExchanges) {
-            // V175 FIX: paperBalance = full balance (margin NOT deducted from DB).
+            // V183 FIX: Backend now returns paperBalance with margin ADDED BACK.
             // ──────────────────────────────────────────────────────────────────
-            // Balance  = paperBalance (stable, changes only on position close)
+            // Previously (V175), paperBalance was the DB value (margin already deducted).
+            // Now (V183), paperBalance = DB value + usedMargin = true wallet balance.
+            //
+            // Balance  = paperBalance (true wallet balance, stable — margin NOT deducted)
             // Equity   = paperBalance + unrealizedPnL  (changes with price)
             // Free Margin = Balance - usedMargin + unrealizedPnL
             // Used Margin = sum of (entryNotional / leverage) for all open positions
             // P/L     = unrealizedPnL
             // ──────────────────────────────────────────────────────────────────
-            const paperBalanceDB = (paperExchange as any)?.paperBalance
-            if (paperBalanceDB > 0) {
-              effectiveCash   = paperBalanceDB                           // Balance = DB value, stable
-              effectiveEquity = paperBalanceDB + positionsUnrealizedPnl // Equity = Balance + floating PnL
+            const paperBalanceFromAPI = (paperExchange as any)?.paperBalance
+            if (paperBalanceFromAPI > 0) {
+              effectiveCash   = paperBalanceFromAPI                           // Balance = true wallet balance (margin included)
+              effectiveEquity = paperBalanceFromAPI + positionsUnrealizedPnl  // Equity = Balance + floating PnL
             } else {
               // Fallback
               effectiveCash   = adjustedTotalEquityUsd - positionsUnrealizedPnl
@@ -771,13 +774,17 @@ export const usePositionsStore = create<PositionsState>()(
           } else if (exchangeUnavailable) {
             // V171: Real exchange failed, but we have paper balance as fallback.
             // exchangeUnavailable=true tells the UI to show a warning banner.
-            // V171 FIX: adjustedTotalEquityUsd is ALWAYS > 0 now (backend V171 ensures
-            // paper-trading entry exists and is included in totals when all real fail).
-            // We still guard against 0 as a safety net, using the same logic as hasOnlyPaperExchanges.
+            // V183: paperBalance from API now includes margin (added back by backend).
             if (adjustedTotalEquityUsd > 0) {
-              // Paper balance already includes unrealized PnL from backend positions
-              effectiveEquity = adjustedTotalEquityUsd
-              effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
+              // Use paperExchange paperBalance if available (V183: margin already added back)
+              const paperBalanceFallback = (paperExchange as any)?.paperBalance
+              if (paperBalanceFallback > 0) {
+                effectiveCash   = paperBalanceFallback
+                effectiveEquity = paperBalanceFallback + positionsUnrealizedPnl
+              } else {
+                effectiveEquity = adjustedTotalEquityUsd
+                effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
+              }
             } else {
               // Safety net: should never reach here with V171 backend fix
               effectiveEquity = 10000 + positionsUnrealizedPnl

@@ -729,11 +729,22 @@ export class CredentialsService {
       } catch {
         // If position lookup fails, assume no margin used
       }
-      // V175: paperBalance is now the FULL balance (margin NOT deducted on open).
-      // equity   = balance + unrealizedPnl  (no usedMargin double-count)
-      // available = balance - usedMargin + unrealizedPnl (free margin)
-      const paperEquity = paperBalanceUsd + unrealizedPnl;
-      paperAvailableUsd = Math.max(0, paperBalanceUsd - usedMargin + unrealizedPnl);
+      // V183 FIX: paperBalance in DB has margin DEDUCTED on open (V176).
+      // To show the TRUE wallet balance (what the user deposited), we must
+      // ADD BACK the usedMargin. This way:
+      //   displayedBalance = paperBalance(DB) + usedMargin = actual full balance
+      //   equity           = displayedBalance + unrealizedPnl
+      //   freeMargin       = displayedBalance - usedMargin + unrealizedPnl = paperBalance(DB) + unrealizedPnl
+      //
+      // Example: User starts with $10,000, opens EUR/USD (margin $200)
+      //   paperBalance(DB) = 9,800  (after V176 deduction)
+      //   usedMargin       = 200
+      //   displayedBalance = 9,800 + 200 = 10,000  ← user sees the REAL balance
+      //   equity           = 10,000 + unrealizedPnl
+      //   freeMargin       = 10,000 - 200 + unrealizedPnl = 9,800 + unrealizedPnl
+      const displayedBalance = paperBalanceUsd + usedMargin; // True wallet balance before margin lock
+      const paperEquity = displayedBalance + unrealizedPnl;
+      paperAvailableUsd = Math.max(0, displayedBalance - usedMargin + unrealizedPnl);
       // Add paper-trading as an exchange entry in the response
       exchanges.push({
         exchange: 'paper-trading',
@@ -744,10 +755,15 @@ export class CredentialsService {
         available: paperAvailableUsd,
         currency: 'USD',
         usedMargin,
-        // V173c: Expose paperBalance directly so frontend can show stable "الرصيد"
-        // without subtracting positionsUnrealizedPnl (which causes timing mismatch jitter).
-        // paperBalance = free cash in DB, changes ONLY on position open/close.
-        paperBalance: paperBalanceUsd,
+        // V183: paperBalance now = displayedBalance (true wallet balance, margin ADDED BACK)
+        // Previously (V175), paperBalance was the DB value which had margin already deducted,
+        // causing the user to see their balance drop when opening a position — confusing!
+        // Now: paperBalance = what the user actually has (deposits + closed P&L), stable.
+        paperBalance: displayedBalance,
+        // V183: Expose unrealizedPnL so frontend can show P/L breakdown
+        unrealizedPnl,
+        // V183: Expose DB balance (after margin deduction) for diagnostics
+        _dbPaperBalance: paperBalanceUsd,
         assets: [{
           currency: 'USD',
           free: paperAvailableUsd,

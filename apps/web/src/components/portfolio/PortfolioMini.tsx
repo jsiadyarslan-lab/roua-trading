@@ -17,6 +17,7 @@ const DEFAULT: PortfolioSummary = {
   totalPositions: 0,
   winRate:       0,
   margin:        0,
+  freeMargin:    0,
   totalProfit:   0,
   totalLoss:     0,
   winCount:      0,
@@ -32,6 +33,7 @@ interface PortfolioSummary {
   totalPositions: number
   winRate: number
   margin: number
+  freeMargin: number
   totalProfit: number
   totalLoss: number
   winCount: number
@@ -143,9 +145,13 @@ export function usePortfolioSummary() {
 
     if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
 
+    // V183: freeMargin = what's available for new positions
+    const freeMargin = Math.max(0, cash + totalPnl - margin)
+
     return {
-      balance,
+      balance: cash, // V183: cash = true wallet balance (margin included)
       margin,
+      freeMargin,
       totalPnl,
       totalPositions,
       pnlPercent,
@@ -562,18 +568,42 @@ export function PortfolioMini({
         </div>
       )}
 
-      {/* Margin */}
-      {!compact && <div style={{
-        display: 'flex', justifyContent: 'space-between',
-        alignItems: 'center',
-        borderTop: `0.5px solid ${T.border}`, paddingTop: 5,
-      }}>
-        <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>{tp('marginUsed')}</span>
-        <span style={{
-          fontFamily: "'JetBrains Mono', monospace",
-          fontSize: 9.5, color: T.amber,
-        }}>${fmt(data.margin, 0)}</span>
-      </div>}
+      {/* V183: Full margin breakdown — Used Margin, Free Margin, Balance */}
+      {!compact && <>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center',
+          borderTop: `0.5px solid ${T.border}`, paddingTop: 4,
+        }}>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>{tp('marginUsed')}</span>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9.5, color: T.amber,
+          }}>${fmt(data.margin, 0)}</span>
+        </div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingTop: 2,
+        }}>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>{tp('freeMargin')}</span>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9.5, color: T.green,
+          }}>${fmt(data.freeMargin, 0)}</span>
+        </div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between',
+          alignItems: 'center',
+          paddingTop: 2,
+        }}>
+          <span style={{ fontFamily: "'Cairo', sans-serif", fontSize: 8.5, color: T.text3 }}>{tp('balance')}</span>
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontSize: 9.5, color: T.text,
+          }}>${fmt(data.balance, 0)}</span>
+        </div>
+      </>}
     </div>
   )
 }

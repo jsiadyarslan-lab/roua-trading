@@ -1398,26 +1398,29 @@ export default function DashboardPage() {
                 background: 'linear-gradient(90deg, rgba(0,212,255,0.05), transparent 60%)',
                 overflow: 'hidden',
               }}>
-                {/* LED + الرصيد */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                {/* LED + الرصيد — V183: Balance = true wallet balance (margin NOT deducted) */}
+                <div title={isPaperMode
+                  ? `${t('balance')}: ${t('balanceTooltipPaper')}`
+                  : `${t('balance')}: ${t('balanceTooltipReal')}`
+                } style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <div className="led-indicator" style={{ background: getStatusTone(accountDataStatus), boxShadow: `0 0 6px ${getStatusTone(accountDataStatus)}, 0 0 12px ${getStatusTone(accountDataStatus)}33` }} />
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('balance')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(cashValue)}</span>
                 </div>
-                {/* الرصيد الحالي */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                {/* الرصيد الحالي (Equity) — V183: Balance + unrealized P/L */}
+                <div title={`${t('equity')}: ${t('equityTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('equity')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace", color: T.cyan }}>{formatMoney(equityValue)}</span>
                 </div>
-                {/* الهامش المتاح */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                {/* الهامش المتاح — V183: Balance - Used Margin + unrealized P/L */}
+                <div title={`${t('freeMargin')}: ${t('freeMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{t('freeMargin')}</span>
                   <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.success }}>{formatMoney(freeMargin)}</span>
                 </div>
-                {/* الهامش المستخدم */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0 }}>
+                {/* الهامش المستخدم — V183: Margin locked in open positions */}
+                <div title={`${tc('margin')}: ${t('usedMarginTooltip')}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderInlineEnd: '1px solid rgba(255,255,255,0.06)', flexShrink: 0, cursor: 'help' }}>
                   <span style={{ fontSize: 9, color: T.text3, fontWeight: 700, fontFamily: "'Cairo', sans-serif" }}>{tc('margin')}</span>
-                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: T.text }}>{formatMoney(initialMargin)}</span>
+                  <span dir="ltr" style={{ fontSize: 12, fontWeight: 700, fontFamily: "'JetBrains Mono', monospace", color: initialMargin > 0 ? T.amber : T.text }}>{formatMoney(initialMargin)}</span>
                 </div>
                 {/* نسبة الهامش — تحذير صارخ عند المستوى المنخفض */}
                 {(() => {

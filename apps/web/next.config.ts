@@ -169,6 +169,13 @@ const nextConfig: NextConfig = {
         source: '/api/integration/:path*',
         destination: `${apiTarget}/api/integration/:path*`,
       },
+      // ── Integrity Check (proxied to NestJS — no auth required) ──
+      // Public diagnostic endpoint for verifying trading system safety.
+      // No auth needed — anyone can check system integrity.
+      {
+        source: '/api/integrity',
+        destination: `${apiTarget}/api/integrity`,
+      },
       // ── REMOVED: Strategic Council and Smart Executor rewrites ──
       // These were bypassing the Next.js Route Handlers that inject auth tokens.
       // The rewrites sent requests directly to NestJS without Authorization headers,

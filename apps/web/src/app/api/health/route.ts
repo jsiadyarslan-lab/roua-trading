@@ -92,6 +92,36 @@ export async function GET() {
 
   // ALWAYS return HTTP 200 — Railway requires 200 for healthy replicas.
   // The 'status' field in the body reflects actual health for dashboards.
+  // MetaAPI Cloud health check
+  const metaapiStart = Date.now();
+  try {
+    const metaapiToken = process.env.METAAPI_TOKEN;
+    if (!metaapiToken) {
+      checks.metaapi = { status: 'degraded' as const, detail: 'METAAPI_TOKEN not set' };
+    } else {
+      // Call NestJS MetaAPI health endpoint
+      try {
+        const metaapiRes = await fetch(`${apiTarget}/api/health/metaapi`, {
+          signal: AbortSignal.timeout(10000),
+        });
+        if (metaapiRes.ok) {
+          const metaapiData = await metaapiRes.json();
+          checks.metaapi = {
+            status: (metaapiData.status === 'ok' ? 'ok' : 'degraded') as 'ok' | 'degraded',
+            latencyMs: Date.now() - metaapiStart,
+            detail: metaapiData.message || `tokenPresent=${metaapiData.tokenPresent}, accounts=${metaapiData.accountsFound ?? 0}`,
+          };
+        } else {
+          checks.metaapi = { status: 'degraded' as const, latencyMs: Date.now() - metaapiStart, detail: `HTTP ${metaapiRes.status}` };
+        }
+      } catch (fetchErr: any) {
+        checks.metaapi = { status: 'degraded' as const, detail: fetchErr.message?.substring(0, 60) || 'MetaAPI check failed' };
+      }
+    }
+  } catch {
+    checks.metaapi = { status: 'degraded', detail: 'MetaAPI check error' };
+  }
+
   const hasError = Object.values(checks).some(c => c.status === 'error');
   const allOk = Object.values(checks).every(c => c.status === 'ok');
 

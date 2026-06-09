@@ -12,11 +12,23 @@ import {
   Logger,
   BadRequestException,
   ForbiddenException,
+  ConflictException,
+  NotFoundException,
+  HttpCode,
+  HttpStatus,
+  Optional,
+  Inject,
 } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { Response } from 'express';
 import { TradingService } from './trading.service';
 import { RiskManagerService } from './risk-manager.service';
 import { RiskGatekeeperService } from './services/risk-gatekeeper.service';
+import { IdempotencyService } from './services/idempotency.service';
+import { OrderStateManagerService } from './services/order-state-manager.service';
+import { PositionManagerService } from './services/position-manager.service';
+import { OrderProducerService } from './services/order-producer.service';
 import { AuthGuard } from '../../common/guards/auth.guard';
 import { Throttle } from '@nestjs/throttler';
 import {
@@ -28,17 +40,27 @@ import {
   OrderType,
 } from './trading.types';
 import { OrderSide as PrismaOrderSide, OrderType as PrismaOrderType } from './trading.types';
+import {
+  OrderCommand,
+  OrderSideEnum,
+  OrderTypeEnum,
+} from './events/order.events';
+import { PlaceOrderDto as V2PlaceOrderDto } from './controllers/dtos/place-order.dto';
 
 /**
- * Trading Controller — REST API for Trading Engine (V1 — DEPRECATED)
+ * Trading Controller — Unified REST API for Trading Engine
  *
- * V178: This controller is DEPRECATED. Use /api/trading/v2/* instead.
- * All V1 endpoints now include deprecation headers (Sunset, Deprecation).
- * V1 will be removed in a future version. Migrate to V2 which provides:
+ * #18 UNIFIED: This controller now provides BOTH V1 and V2 pipelines.
+ * The V1 code path is DEPRECATED and will be removed in a future version.
+ * The V2 pipeline (idempotency → state manager → BullMQ) is now the default
+ * when V2 services are available.
+ *
+ * V2 features integrated into this controller:
  * - Idempotency via IdempotencyService
  * - CQRS pipeline with OrderStateManager
  * - BullMQ/RabbitMQ dual-queue async execution
  * - Full event sourcing with OrderEvent records
+ * - Position management via PositionManagerService
  *
  * All endpoints require authentication via AuthGuard.
  * Each handler wraps service calls in try/catch to return
@@ -53,16 +75,39 @@ export class TradingController {
     private readonly tradingService: TradingService,
     private readonly riskManager: RiskManagerService,
     private readonly riskGatekeeper: RiskGatekeeperService,
-  ) {}
+    // #18: V2 services — optional so controller still works if V2 infra is down
+    @Optional() private readonly idempotencyService?: IdempotencyService,
+    @Optional() private readonly stateManager?: OrderStateManagerService,
+    @Optional() private readonly positionManager?: PositionManagerService,
+    @Optional() private readonly orderProducer?: OrderProducerService,
+    // #18: BullMQ queue — optional, may be null if Redis is down
+    @Optional() @InjectQueue('execution_queue') private readonly executionQueue?: Queue | null,
+  ) {
+    const v2Available = !!(this.idempotencyService && this.stateManager && this.positionManager && this.orderProducer);
+    this.logger.log(`📋 TradingController initialized — V2 pipeline: ${v2Available ? '✅ AVAILABLE' : '❌ UNAVAILABLE (falling back to V1)'}`);
+  }
 
   /**
-   * V178: Add deprecation headers to V1 responses.
-   * Clients should migrate to /api/trading/v2/* endpoints.
+   * #18: Check if the V2 pipeline (idempotency + state manager + BullMQ) is available.
+   */
+  private _isV2Available(): boolean {
+    return !!(
+      this.idempotencyService &&
+      this.stateManager &&
+      this.positionManager &&
+      this.orderProducer
+    );
+  }
+
+  /**
+   * #18: Add deprecation headers to V1-only responses.
+   * Now also indicates V2 pipeline availability.
    */
   private _addDeprecationHeaders(res: Response): void {
     res.setHeader('Deprecation', 'true');
     res.setHeader('Sunset', 'Sat, 01 Jan 2027 00:00:00 GMT');
     res.setHeader('Link', '</api/trading/v2/orders>; rel="successor-version"');
+    res.setHeader('X-V2-Pipeline-Available', this._isV2Available() ? 'true' : 'false');
   }
 
   // ── Order Endpoints ──
@@ -91,14 +136,30 @@ export class TradingController {
   }
 
   /**
-   * Place a new order
+   * Place a new order — Unified V1/V2 pipeline
    * POST /api/trading/orders
+   *
+   * #18 UNIFIED: Tries V2 pipeline first (idempotency + state manager + BullMQ)
+   * when V2 services are available. Falls back to V1 pipeline if V2 is down.
+   *
+   * V2 pipeline flow:
+   * 1. Validate request body
+   * 2. Check idempotencyKey → 409 if duplicate
+   * 3. Create OrderCommand & register in OrderStateManager (PENDING)
+   * 4. Run RiskGatekeeperService checks
+   * 5. Update to ACCEPTED & send to execution queue
+   * 6. Return { orderId, status }
+   *
+   * V1 pipeline (fallback):
+   * 1. Validate + RiskGatekeeper
+   * 2. TradingService.placeOrder (direct execution)
    */
   @Post('orders')
   @Throttle({ medium: { limit: 10, ttl: 60000 } })
   async placeOrder(@Req() req: any, @Body() body: PlaceOrderDto, @Res({ passthrough: true }) res: Response) {
     const userId = req.user.id;
 
+    // ── Shared validation (used by both V1 and V2 pipelines) ──
     const request: PlaceOrderRequest = {
       credentialId: body.credentialId,
       symbol: body.symbol,
@@ -141,18 +202,166 @@ export class TradingController {
     }
 
     // ── Stop-loss is MANDATORY (enforced by RiskGatekeeper check #1) ──
-    // Validate here BEFORE calling gatekeeper to give a clear error message
     if (!body.stopLoss || Number(body.stopLoss) <= 0) {
       throw new BadRequestException(
         'وقف الخسارة إجباري. لا يمكن تقديم أمر بدون وقف خسارة — هذا القانون الأول في منصة رؤى.',
       );
     }
 
+    // ── LIMIT orders require a price (#18: added from V2 validation) ──
+    if (request.type === 'LIMIT' && !request.price) {
+      throw new BadRequestException('سعر الحد مطلوب للطلبات المحددة (LIMIT)');
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // #18 UNIFIED: Try V2 pipeline first when V2 services are available
+    // ═══════════════════════════════════════════════════════════════
+    if (this._isV2Available()) {
+      return this._placeOrderV2(userId, body, request, req, res);
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // V1 FALLBACK (DEPRECATED) — used when V2 services are unavailable
+    // ═══════════════════════════════════════════════════════════════
+    this.logger.warn('⚠️ V2 pipeline unavailable — falling back to V1 (deprecated)');
+    return this._placeOrderV1(userId, request, req, res);
+  }
+
+  /**
+   * #18: V2 order pipeline — Idempotency → State Manager → Risk → Queue
+   * Extracted from OrderController for unified access.
+   */
+  private async _placeOrderV2(
+    userId: string,
+    body: PlaceOrderDto,
+    request: PlaceOrderRequest,
+    req: any,
+    res: Response,
+  ) {
+    // ── Step 1: Check idempotency (if key provided) ──
+    const idempotencyKey = (body as any).idempotencyKey ||
+      `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}-${Math.floor(Date.now() / 1000)}`;
+
+    const isUnique = await this.idempotencyService!.checkAndLock(idempotencyKey);
+    if (!isUnique) {
+      throw new ConflictException(
+        'تم استلام هذا الطلب مسبقاً. لا يمكن تكرار نفس idempotencyKey خلال 24 ساعة.',
+      );
+    }
+
+    // ── Step 2: Build OrderCommand ──
+    const command: OrderCommand = {
+      userId,
+      exchangeCredentialId: request.credentialId,
+      symbol: request.symbol,
+      side: request.side === 'BUY' ? OrderSideEnum.BUY : OrderSideEnum.SELL,
+      type: request.type === 'MARKET' ? OrderTypeEnum.MARKET : OrderTypeEnum.LIMIT,
+      quantity: request.quantity,
+      price: request.price,
+      stopLoss: request.stopLoss ?? 0,
+      takeProfit: request.takeProfit,
+      idempotencyKey,
+      clientOrderId: (body as any).clientOrderId,
+      ipAddress: req.ip,
+      userAgent: req.headers['user-agent'],
+    };
+
+    // ── Step 3: Create order in PENDING state ──
+    let order: any;
+    try {
+      order = await this.stateManager!.createOrder(command);
+    } catch (error: any) {
+      await this.idempotencyService!.releaseLock(idempotencyKey);
+      throw error;
+    }
+
+    // ── Step 4: Run risk checks ──
+    const riskResult = await this.riskGatekeeper.validateOrder(command);
+
+    if (!riskResult.allowed) {
+      await this.stateManager!.rejectOrder(
+        order.id,
+        riskResult.reason || 'فشل في فحص المخاطر',
+        riskResult.failedCheck,
+      );
+      await this.idempotencyService!.releaseLock(idempotencyKey);
+      throw new ForbiddenException(
+        `🛡️ تم رفض الطلب: ${riskResult.reason}`,
+      );
+    }
+
+    // ── Step 5: Update status to ACCEPTED ──
+    await this.stateManager!.updateOrderStatus(order.id, 'ACCEPTED', {
+      riskScore: riskResult.riskScore,
+      validatedAt: new Date().toISOString(),
+    });
+
+    // ── Step 6: Send to execution queue ──
+    const queueMessage = {
+      orderId: order.id,
+      userId: command.userId,
+      exchangeCredentialId: command.exchangeCredentialId,
+      symbol: command.symbol,
+      side: command.side,
+      type: command.type,
+      quantity: command.quantity,
+      price: command.price,
+      stopLoss: command.stopLoss,
+      takeProfit: command.takeProfit,
+      clientOrderId: command.clientOrderId,
+      idempotencyKey: command.idempotencyKey,
+      submittedAt: new Date(),
+    };
+
+    try {
+      await this.orderProducer!.sendOrder(queueMessage);
+      this.logger.log(`📤 Order ${order.id} submitted to RabbitMQ order_queue`);
+    } catch (rabbitError: any) {
+      this.logger.warn(
+        `RabbitMQ failed for ${order.id}: ${rabbitError.message} — trying BullMQ fallback`,
+      );
+      try {
+        if (!this.executionQueue) {
+          throw new Error('BullMQ execution_queue not available');
+        }
+        await this.executionQueue.add('execute', queueMessage, {
+          jobId: command.idempotencyKey,
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        });
+        this.logger.log(`📤 Order ${order.id} added to BullMQ execution_queue (fallback)`);
+      } catch (bullError: any) {
+        this.logger.error(
+          `Both queues failed for order ${order.id}. Order is ACCEPTED but not submitted. ` +
+          `RabbitMQ: ${rabbitError.message}, BullMQ: ${bullError.message}`,
+        );
+      }
+    }
+
+    // ── Step 7: Return V2 response ──
+    return {
+      success: true,
+      data: {
+        orderId: order.id,
+        status: 'ACCEPTED',
+        idempotencyKey,
+        riskScore: riskResult.riskScore,
+        pipeline: 'v2',
+      },
+    };
+  }
+
+  /**
+   * #18: V1 order pipeline (DEPRECATED) — direct TradingService execution
+   * Only used when V2 services (idempotency, state manager) are unavailable.
+   */
+  private async _placeOrderV1(
+    userId: string,
+    request: PlaceOrderRequest,
+    req: any,
+    res: Response,
+  ) {
     // ── Risk Gatekeeper Check ──
-    // Run the same 5-point safety checks as the v2 OrderController:
-    // 1. Stop-loss enforcement  2. Sufficient balance  3. Position size limit
-    // 4. Daily drawdown limit  5. Circuit breakers
-    // Note: stopLoss is guaranteed > 0 by the validation above
     const riskResult = await this.riskGatekeeper.validateOrder({
       userId,
       exchangeCredentialId: request.credentialId,
@@ -162,13 +371,6 @@ export class TradingController {
       quantity: request.quantity,
       price: request.price,
       stopLoss: request.stopLoss!,
-      // FIX: Semi-deterministic idempotency key for v1 pipeline.
-      // The key includes a timestamp (1-second granularity) to allow legitimate
-      // repeat orders (same symbol+side+type+qty+price) while still preventing
-      // rapid double-submission within the same second. This balances:
-      // - Deduplication: network retries within 1s are caught
-      // - Flexibility: users can place identical orders seconds apart
-      // Previously used fully deterministic key which blocked legitimate repeat orders.
       idempotencyKey: `v1-${userId}-${request.symbol}-${request.side}-${request.type}-${request.quantity}-${request.price || 'market'}-${Math.floor(Date.now() / 1000)}`,
     });
 
@@ -178,28 +380,65 @@ export class TradingController {
       );
     }
 
-    // V178 FIX: Set skipRiskCheck=true because RiskGatekeeper already validated above.
-    // Without this, TradingService would run a SECOND risk check (redundant + slower).
+    // Set skipRiskCheck=true because RiskGatekeeper already validated above.
     request.skipRiskCheck = true;
 
-    // V178: Mark V1 as deprecated in response headers
+    // Mark V1 as deprecated in response headers
     this._addDeprecationHeaders(res);
 
-    return this.tradingService.placeOrder(
+    const result = await this.tradingService.placeOrder(
       userId,
       request,
       req.ip,
       req.headers['user-agent'],
     );
+
+    // Add pipeline indicator to the response
+    if (result && typeof result === 'object') {
+      (result as any).pipeline = 'v1-deprecated';
+    }
+    return result;
   }
 
   /**
-   * Cancel an order
+   * Cancel an order — Unified V1/V2 pipeline
    * DELETE /api/trading/orders/:id
+   *
+   * #18 UNIFIED: Uses V2 state manager when available for proper event sourcing.
    */
   @Delete('orders/:id')
   @Throttle({ medium: { limit: 10, ttl: 60000 } })
   async cancelOrder(@Req() req: any, @Param('id') orderId: string) {
+    // ── V2 path: State manager with event sourcing ──
+    if (this.stateManager) {
+      const order = await this.stateManager.findOrderById(orderId);
+
+      if (!order) {
+        throw new NotFoundException('الطلب غير موجود');
+      }
+
+      if (order.userId !== req.user.id) {
+        throw new ForbiddenException('ليس لديك صلاحية إلغاء هذا الطلب');
+      }
+
+      if (!['PENDING', 'ACCEPTED'].includes(order.status)) {
+        throw new BadRequestException(
+          `لا يمكن إلغاء طلب بحالة "${order.status}"`,
+        );
+      }
+
+      await this.stateManager.updateOrderStatus(orderId, 'CANCELLED', {
+        cancelledBy: req.user.id,
+        cancelledAt: new Date().toISOString(),
+      });
+
+      return {
+        success: true,
+        data: { orderId, status: 'CANCELLED' },
+      };
+    }
+
+    // ── V1 fallback (deprecated) ──
     return this.tradingService.cancelOrder(
       req.user.id,
       orderId,
@@ -209,8 +448,10 @@ export class TradingController {
   }
 
   /**
-   * Get orders
+   * Get orders — Unified V1/V2 pipeline
    * GET /api/trading/orders
+   *
+   * #18 UNIFIED: Uses V2 state manager when available for richer order data.
    */
   @Get('orders')
   async getOrders(
@@ -219,6 +460,18 @@ export class TradingController {
     @Query('status') status?: string,
     @Query('limit') limit?: string,
   ) {
+    // ── V2 path: State manager with event-sourced orders ──
+    if (this.stateManager) {
+      const filters = {
+        symbol,
+        status,
+        limit: limit ? parseInt(limit, 10) : undefined,
+      };
+      const orders = await this.stateManager.findOrders(req.user.id, filters);
+      return { success: true, data: orders };
+    }
+
+    // ── V1 fallback (deprecated) ──
     return this.tradingService.getOrders(req.user.id, {
       symbol,
       status,
@@ -227,11 +480,29 @@ export class TradingController {
   }
 
   /**
-   * Get a specific order
+   * Get a specific order — Unified V1/V2 pipeline
    * GET /api/trading/orders/:id
+   *
+   * #18 UNIFIED: Uses V2 state manager when available for full event history.
    */
   @Get('orders/:id')
   async getOrder(@Req() req: any, @Param('id') orderId: string) {
+    // ── V2 path: State manager with event-sourced order details ──
+    if (this.stateManager) {
+      const order = await this.stateManager.findOrderById(orderId);
+
+      if (!order) {
+        throw new NotFoundException('الطلب غير موجود');
+      }
+
+      if (order.userId !== req.user.id) {
+        throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الطلب');
+      }
+
+      return { success: true, data: order };
+    }
+
+    // ── V1 fallback (deprecated) ──
     return this.tradingService.getOrder(req.user.id, orderId);
   }
 
@@ -477,6 +748,65 @@ export class TradingController {
       );
       throw error;
     }
+  }
+
+  // ── V2-Style Endpoints (newly added for #18 unification) ──
+
+  /**
+   * Get portfolio summary — V2 PositionManagerService
+   * GET /api/trading/portfolio
+   *
+   * #18 UNIFIED: Provides V2 portfolio summary via PositionManagerService.
+   * Falls back to TradingService position summary if V2 is unavailable.
+   */
+  @Get('portfolio')
+  async getPortfolioSummary(@Req() req: any) {
+    try {
+      const userId = req.user.id;
+
+      // ── V2 path: PositionManagerService with live P&L ──
+      if (this.positionManager) {
+        const summary = await this.positionManager.getPortfolioSummary(userId);
+        return { success: true, data: summary };
+      }
+
+      // ── V1 fallback ──
+      return await this.tradingService.getPositionSummary(userId);
+    } catch (error: any) {
+      this.logger.error(
+        `❌ Failed to fetch portfolio summary: ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Check V2 pipeline availability
+   * GET /api/trading/v2/status
+   *
+   * #18 UNIFIED: Returns whether the V2 pipeline services are available.
+   * Useful for client-side feature flags and monitoring.
+   */
+  @Get('v2/status')
+  getV2Status() {
+    const available = this._isV2Available();
+    return {
+      success: true,
+      data: {
+        v2Pipeline: available,
+        services: {
+          idempotency: !!this.idempotencyService,
+          stateManager: !!this.stateManager,
+          positionManager: !!this.positionManager,
+          orderProducer: !!this.orderProducer,
+          executionQueue: !!this.executionQueue,
+        },
+        message: available
+          ? 'V2 pipeline is active — all V2 services available'
+          : 'V2 pipeline is inactive — falling back to V1 (deprecated)',
+      },
+    };
   }
 
   // ── Risk Management ──

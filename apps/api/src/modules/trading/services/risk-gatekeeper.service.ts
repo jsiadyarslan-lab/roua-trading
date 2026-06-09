@@ -291,6 +291,10 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
     const repetitionCheck = await this.checkTradeRepetitionFilter(command);
     if (!repetitionCheck.allowed) return repetitionCheck;
 
+    // Check 7: Price sanity filter (#9 FIX)
+    const sanityCheck = await this.checkPriceSanity(command);
+    if (!sanityCheck.allowed) return sanityCheck;
+
     // All checks passed — calculate risk score
     const riskScore = await this._calculateRiskScore(command);
 
@@ -302,6 +306,109 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
       allowed: true,
       riskScore,
     };
+  }
+
+  /**
+   * CHECK 7: Price Sanity Filter
+   *
+   * Validates that the order price is within reasonable range
+   * of the last known price. Prevents orders at clearly wrong prices
+   * (stale data, API errors, flash crash misreads).
+   *
+   * #9 FIX: Aggregates sanity check results into a Redis report
+   * for monitoring (total checks, passes, rejects by symbol).
+   */
+  async checkPriceSanity(command: OrderCommand): Promise<RiskCheckResult> {
+    // Skip for simulated trading
+    if (command.isPaperTrading) {
+      return { allowed: true };
+    }
+
+    // Get the order's reference price
+    let orderPrice = command.price;
+    if (!orderPrice || orderPrice <= 0) {
+      try {
+        const quote = await this.exchangeService.getQuote(command.symbol);
+        orderPrice = quote?.price;
+      } catch {
+        return { allowed: true }; // Can't check — allow
+      }
+    }
+
+    if (!orderPrice || orderPrice <= 0) {
+      return { allowed: true };
+    }
+
+    // Get last known price from Redis
+    const sanityKey = `price-sanity:last:${command.symbol}`;
+    let lastKnownPrice: number | null = null;
+    try {
+      const raw = this.redis ? await this.redis.get(sanityKey) : null;
+      lastKnownPrice = raw ? parseFloat(raw) : null;
+    } catch {
+      lastKnownPrice = null;
+    }
+
+    if (lastKnownPrice && lastKnownPrice > 0) {
+      const deviation = Math.abs(orderPrice - lastKnownPrice) / lastKnownPrice;
+      const MAX_DEVIATION = 0.10; // 10% max deviation
+
+      if (deviation > MAX_DEVIATION) {
+        // Update sanity report (aggregate)
+        await this._updatePriceSanityReport(command.symbol, false, deviation);
+
+        this.logger.warn(
+          `🛡️ PRICE_SANITY: ${command.symbol} price ${orderPrice} deviates ${(deviation * 100).toFixed(1)}% from last known ${lastKnownPrice} — rejecting`,
+        );
+        return {
+          allowed: false,
+          reason: `سعر ${command.symbol} (${orderPrice}) يختلف بنسبة ${(deviation * 100).toFixed(1)}% عن آخر سعر معروف (${lastKnownPrice}) — قد يكون هناك خطأ في البيانات.`,
+          failedCheck: 'PRICE_SANITY',
+        };
+      }
+    }
+
+    // Update last known price
+    try {
+      if (this.redis) {
+        await this.redis.set(sanityKey, orderPrice.toString(), 300000); // 5 min TTL
+      }
+    } catch {}
+
+    // Update sanity report (pass)
+    await this._updatePriceSanityReport(command.symbol, true, 0);
+
+    return { allowed: true };
+  }
+
+  /**
+   * Update the price sanity report in Redis.
+   * Aggregates ~10 lines of stats per symbol.
+   */
+  private async _updatePriceSanityReport(symbol: string, passed: boolean, deviation: number): Promise<void> {
+    if (!this.redis) return;
+    try {
+      const reportKey = 'price-sanity:report';
+      const raw = await this.redis.get(reportKey);
+      const report: Record<string, { checks: number; passes: number; rejects: number; lastDeviation: number }> = raw ? JSON.parse(raw) : {};
+
+      if (!report[symbol]) {
+        report[symbol] = { checks: 0, passes: 0, rejects: 0, lastDeviation: 0 };
+      }
+
+      report[symbol].checks++;
+      if (passed) report[symbol].passes++;
+      else report[symbol].rejects++;
+      report[symbol].lastDeviation = deviation;
+
+      // Keep only last 100 symbols
+      const keys = Object.keys(report);
+      if (keys.length > 100) {
+        delete report[keys[0]]; // Remove oldest
+      }
+
+      await this.redis.set(reportKey, JSON.stringify(report), 86400000); // 24h TTL
+    } catch {}
   }
 
   /**

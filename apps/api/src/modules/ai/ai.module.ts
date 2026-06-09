@@ -17,6 +17,7 @@ import { RagService } from './services/rag.service';
 import { AiUsageLoggerService } from './services/ai-usage-logger.service';
 import { AiCacheService } from './services/ai-cache.service';
 import { MarketDataService } from './services/market-data.service';
+import { StrategicCouncilService } from './services/strategic-council.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 
 @Module({
@@ -51,10 +52,14 @@ import { PrismaModule } from '../../common/prisma/prisma.module';
     // Market Data Service — 9-source price fetching with cross-validation
     MarketDataService,
 
+    // Strategic Council Service — AI Council consensus logic (extracted from orchestrator)
+    StrategicCouncilService,
+
     // Orchestrator (depends on all above + optional PredictionMarketService via forwardRef)
     AIOrchestratorService,
   ],
   exports: [
+    StrategicCouncilService,
     AIOrchestratorService,
     GroqService,
     GlmService,

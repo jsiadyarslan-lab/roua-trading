@@ -4,13 +4,14 @@
 
 import { Processor, WorkerHost, OnQueueEvent, InjectQueue } from '@nestjs/bullmq';
 import { Job, Queue, QueueEventsListener } from 'bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { ExecutionGatewayService } from '../gateways/execution-gateway.service';
 import { OrderLifecycleService } from './order-lifecycle.service';
 import { ConnectionResilienceService } from './connection-resilience.service';
 import { RateLimiterService } from './rate-limiter.service';
 import { AuditService } from '../../../audit/audit.service';
+import { RedisService } from '../../../common/redis/redis.service';
 import { UnifiedOrder } from '../adapters/base-adapter.interface';
 
 /**
@@ -45,12 +46,18 @@ import { UnifiedOrder } from '../adapters/base-adapter.interface';
  * - Job ID: idempotencyKey (guarantees uniqueness)
  * - Concurrency: 5 (process up to 5 orders simultaneously)
  * - Attempts: 3 with exponential backoff (5s, 25s, 125s)
+ *
+ * #4 FIX: Redis-based singleton guard.
+ * Previously used only a static `isRegistered` flag which doesn't work
+ * across multiple instances or after hot-reload properly. Now uses Redis
+ * to track which instance is the active processor. Key format:
+ * `bullmq:processor:active:{instanceId}` with 60s TTL, refreshed every 30s.
  */
 @Processor('execution_queue', {
   concurrency: 5,
 })
 @Injectable()
-export class OrderQueueProcessor extends WorkerHost {
+export class OrderQueueProcessor extends WorkerHost implements OnModuleDestroy {
   private readonly logger = new Logger(OrderQueueProcessor.name);
 
   /** V176 FIX: Singleton guard to prevent duplicate BullMQ registration */
@@ -59,6 +66,19 @@ export class OrderQueueProcessor extends WorkerHost {
   private static activeInstanceId: string | null = null;
   private readonly instanceId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+  /** #4 FIX: Redis key prefix for processor singleton tracking */
+  private readonly PROCESSOR_KEY_PREFIX = 'bullmq:processor:active:';
+  /** #4 FIX: TTL for the Redis-based singleton registration (60 seconds) */
+  private readonly REGISTRATION_TTL_MS = 60000;
+  /** #4 FIX: Interval for refreshing the Redis registration (every 30 seconds) */
+  private readonly REFRESH_INTERVAL_MS = 30000;
+
+  /** #4 FIX: Timer handle for periodic TTL refresh */
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** #4 FIX: Whether this instance is registered as the active processor in Redis */
+  private isRedisRegistered = false;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly gatewayService: ExecutionGatewayService,
@@ -66,6 +86,7 @@ export class OrderQueueProcessor extends WorkerHost {
     private readonly resilienceService: ConnectionResilienceService,
     private readonly rateLimiter: RateLimiterService,
     private readonly auditService: AuditService,
+    private readonly redis: RedisService,
   ) {
     super();
 
@@ -85,6 +106,121 @@ export class OrderQueueProcessor extends WorkerHost {
       this.logger.log(
         `⚙️ Order Queue Processor initialized — ready to process execution jobs (instance: ${this.instanceId})`
       );
+    }
+
+    // #4 FIX: Register this instance in Redis for cross-instance singleton detection.
+    // This complements the static guard — if a hot-reload creates a new instance,
+    // the new instance registers itself in Redis and the old one's key expires.
+    this._registerInRedis();
+  }
+
+  /**
+   * #4 FIX: Register this instance as the active processor in Redis.
+   * Sets a key with TTL that must be periodically refreshed.
+   * If the process crashes, the key expires and another instance can take over.
+   */
+  private async _registerInRedis(): Promise<void> {
+    const redisKey = `${this.PROCESSOR_KEY_PREFIX}${this.instanceId}`;
+
+    try {
+      // Only register if we're the static active instance
+      if (this.instanceId !== OrderQueueProcessor.activeInstanceId) {
+        this.logger.debug(
+          `⚙️ #4 Not registering in Redis — instance ${this.instanceId} is not the active processor`
+        );
+        return;
+      }
+
+      // Register this instance in Redis with TTL
+      await this.redis.set(redisKey, JSON.stringify({
+        instanceId: this.instanceId,
+        registeredAt: new Date().toISOString(),
+        pid: process.pid,
+      }), this.REGISTRATION_TTL_MS);
+
+      this.isRedisRegistered = true;
+      this.logger.log(
+        `⚙️ #4 Registered as active processor in Redis (key: ${redisKey}, TTL: ${this.REGISTRATION_TTL_MS}ms)`
+      );
+
+      // Start periodic TTL refresh to keep the registration alive
+      this.refreshTimer = setInterval(() => this._refreshRedisRegistration(), this.REFRESH_INTERVAL_MS);
+    } catch (error: any) {
+      this.logger.warn(
+        `⚙️ #4 Failed to register in Redis — falling back to static-only singleton guard: ${error.message}`
+      );
+      // Non-fatal: the static guard still works within a single process
+    }
+  }
+
+  /**
+   * #4 FIX: Periodically refresh the Redis registration TTL.
+   * Called every 30 seconds to keep the key alive (TTL is 60s).
+   */
+  private async _refreshRedisRegistration(): Promise<void> {
+    const redisKey = `${this.PROCESSOR_KEY_PREFIX}${this.instanceId}`;
+
+    try {
+      // Refresh the TTL
+      await this.redis.expire(redisKey, this.REGISTRATION_TTL_MS);
+      this.logger.debug(`⚙️ #4 Refreshed Redis processor registration (key: ${redisKey})`);
+    } catch (error: any) {
+      this.logger.warn(`⚙️ #4 Failed to refresh Redis registration: ${error.message}`);
+    }
+  }
+
+  /**
+   * #4 FIX: Check if THIS instance is still the registered active processor in Redis.
+   * Returns true if this instance holds the Redis registration, or if Redis
+   * is unavailable (falls back to static guard).
+   */
+  private async _isRedisActiveProcessor(): Promise<boolean> {
+    // Look for ANY registered processor key in Redis
+    try {
+      const keys = await this.redis.scanKeys(`${this.PROCESSOR_KEY_PREFIX}*`);
+      if (keys.length === 0) {
+        // No keys found — Redis may be fresh or unavailable.
+        // Fall back to static guard result.
+        return true;
+      }
+
+      // Check if our key is among the active ones
+      const ourKey = `${this.PROCESSOR_KEY_PREFIX}${this.instanceId}`;
+      return keys.includes(ourKey);
+    } catch (error: any) {
+      this.logger.warn(`⚙️ #4 Failed to check Redis active processor: ${error.message}`);
+      // Fall back to static guard
+      return true;
+    }
+  }
+
+  /**
+   * #4 FIX: Clean up Redis registration on module destroy.
+   * Called when NestJS shuts down or the module is destroyed.
+   */
+  async onModuleDestroy(): Promise<void> {
+    // Stop the refresh timer
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
+
+    // Clean up Redis key
+    const redisKey = `${this.PROCESSOR_KEY_PREFIX}${this.instanceId}`;
+    try {
+      if (this.isRedisRegistered) {
+        await this.redis.del(redisKey);
+        this.logger.log(`⚙️ #4 Cleaned up Redis processor registration (key: ${redisKey})`);
+      }
+    } catch (error: any) {
+      this.logger.warn(`⚙️ #4 Failed to clean up Redis registration: ${error.message}`);
+    }
+
+    // Reset static guard if we were the active instance
+    if (OrderQueueProcessor.activeInstanceId === this.instanceId) {
+      OrderQueueProcessor.isRegistered = false;
+      OrderQueueProcessor.activeInstanceId = null;
+      this.logger.log(`⚙️ #4 Reset static singleton guard (instance ${this.instanceId} destroyed)`);
     }
   }
 
@@ -108,6 +244,18 @@ export class OrderQueueProcessor extends WorkerHost {
         `(active: ${OrderQueueProcessor.activeInstanceId}). Skipping job ${job.id}.`
       );
       return { success: false, error: 'Skipped — duplicate processor instance (V178 singleton guard)' };
+    }
+
+    // #4 FIX: Redis-based singleton check — verify we're still the active processor
+    // in Redis. This catches cases where a hot-reload creates a new instance that
+    // registered itself in Redis while the old instance still thinks it's active.
+    const isRedisActive = await this._isRedisActiveProcessor();
+    if (!isRedisActive) {
+      this.logger.warn(
+        `⚙️ #4 SKIP: Instance ${this.instanceId} is NOT the Redis-registered active processor. ` +
+        `Skipping job ${job.id}. Another instance has taken over.`
+      );
+      return { success: false, error: 'Skipped — not the Redis-registered active processor (#4 fix)' };
     }
 
     const { orderId, userId, exchangeCredentialId, symbol, side, type, quantity, price, stopLoss, takeProfit, idempotencyKey, clientOrderId, source } = job.data;

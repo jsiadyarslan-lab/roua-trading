@@ -19,7 +19,7 @@ interface EndpointPercentiles {
 }
 
 // V178: Shape of the full metrics object returned by getMetrics()
-interface SystemMetricsResult {
+export interface SystemMetricsResult {
   system: {
     cpuUsage: NodeJS.CpuUsage;
     memoryUsage: {

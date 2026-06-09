@@ -30,6 +30,13 @@ import { ExposureManagerService } from './services/exposure-manager.service';
 // ✅ #18: Trade Coordination Service — prevents duplicate positions across SmartExecutor and Agent
 import { TradeCoordinationService } from './services/trade-coordination.service';
 
+// ✅ #11: Distributed Lock Service — Redis-based distributed locking for trade operations
+import { DistributedLockService } from './services/distributed-lock.service';
+
+// ✅ #14: Agent Strategy Full Healing — safety valves for strategy decisions
+import { SignalEvaluatorService } from './services/signal-evaluator.service';
+import { AdaptiveStrategySelectorService } from './services/adaptive-strategy-selector.service';
+
 /**
  * Trading Module — Complete Trading Engine
  *
@@ -51,6 +58,8 @@ import { TradeCoordinationService } from './services/trade-coordination.service'
  * - PositionReconciliationService: Background job to reconcile failed position updates
  * - ExchangeSyncService: Exchange ↔ DB position reconciliation (detects exchange closures)
  * - OrderDispatcherService: ✅ NEW — الموزع المركزي لجميع الأوامر الآلية
+ * - SignalEvaluatorService: ✅ #14 — Pre-risk signal quality assessment with strategy healing
+ * - AdaptiveStrategySelectorService: ✅ #14 — Dynamic strategy allocation based on performance
  */
 @Module({
   imports: [
@@ -96,6 +105,13 @@ import { TradeCoordinationService } from './services/trade-coordination.service'
 
     // ✅ #18: Trade Coordination — prevents SmartExecutor and Agent conflicts
     TradeCoordinationService,
+
+    // ✅ #14: Agent Strategy Full Healing — safety valves for strategy decisions
+    SignalEvaluatorService,
+    AdaptiveStrategySelectorService,
+
+    // ✅ #11: Distributed Lock — Redis-based concurrent trade protection
+    DistributedLockService,
   ],
   exports: [
     TradingService,
@@ -117,6 +133,13 @@ import { TradeCoordinationService } from './services/trade-coordination.service'
 
     // ✅ #18: Export Trade Coordination for SmartExecutor and Agent to use
     TradeCoordinationService,
+
+    // ✅ #14: Export Strategy Healing services for Agent and SmartExecutor to use
+    SignalEvaluatorService,
+    AdaptiveStrategySelectorService,
+
+    // ✅ #11: Export Distributed Lock for cross-service trade operation locking
+    DistributedLockService,
   ],
 })
 export class TradingModule {}

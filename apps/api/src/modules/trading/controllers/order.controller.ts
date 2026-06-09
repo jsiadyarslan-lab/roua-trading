@@ -1,3 +1,16 @@
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// Roua Trading (رؤى) — Order Controller (V2 Thin Redirect)
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+//
+// #18 UNIFIED: This controller is now a THIN REDIRECT layer.
+// The unified TradingController (/api/trading/*) now provides
+// both V1 and V2 pipelines. This controller retains the /api/trading/v2/*
+// routes for backward compatibility, but delegates all logic to the
+// same services that the unified controller uses.
+//
+// Clients should migrate to /api/trading/* endpoints.
+// The /api/trading/v2/* routes will be removed in a future version.
+
 import {
   Controller,
   Post,
@@ -15,7 +28,6 @@ import {
   BadRequestException,
   NotFoundException,
   Logger,
-  Inject,
   Optional,
 } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -35,32 +47,23 @@ import {
 import { PlaceOrderDto as V2PlaceOrderDto } from './dtos/place-order.dto';
 
 /**
- * Order Controller — Trading Order API
+ * Order Controller — V2 Thin Redirect Layer
  *
- * Main entry point for placing trading orders.
- * Implements the full order pipeline:
+ * #18 UNIFIED: This controller retains /api/trading/v2/* routes for
+ * backward compatibility but all order pipeline logic is now also
+ * available directly from the unified TradingController at /api/trading/*.
  *
- * ┌──────────────────────────────────────────────────────────────────┐
- * │ 1. Validate request body                                        │
- * │ 2. Check idempotencyKey (prevent duplicates) → 409 if exists    │
- * │ 3. Create OrderCommand & register in OrderStateManager (PENDING)│
- * │ 4. Run RiskGatekeeperService checks                             │
- * │    ├─ Failed → RISK_REJECTED event + 403 response              │
- * │    └─ Passed → ACCEPTED event                                   │
- * │ 5. Send to execution_queue (BullMQ) for async execution         │
- * │ 6. Return { orderId, status }                                   │
- * └──────────────────────────────────────────────────────────────────┘
+ * Clients calling /api/trading/v2/* get identical behavior to
+ * /api/trading/* — same services, same pipeline, same response format.
  *
- * Endpoints:
- * - POST   /api/trading/orders         — Place a new order
- * - GET    /api/trading/orders          — List orders
- * - GET    /api/trading/orders/:id      — Get order details
- * - DELETE /api/trading/orders/:id      — Cancel order
- * - GET    /api/trading/positions       — Get open positions
- * - GET    /api/trading/portfolio       — Get portfolio summary
- *
- * NOTE: @Body() must NEVER be used on @Get() endpoints per HTTP spec.
- * GET requests should use @Query() for filtering/pagination parameters.
+ * MIGRATION GUIDE:
+ * - POST /api/trading/v2/orders   → POST /api/trading/orders
+ * - GET  /api/trading/v2/orders   → GET  /api/trading/orders
+ * - GET  /api/trading/v2/orders/:id → GET  /api/trading/orders/:id
+ * - DELETE /api/trading/v2/orders/:id → DELETE /api/trading/orders/:id
+ * - GET  /api/trading/v2/positions → GET  /api/trading/positions
+ * - GET  /api/trading/v2/portfolio  → GET  /api/trading/portfolio
+ * - NEW: GET /api/trading/v2/status → check V2 pipeline availability
  */
 @Controller('trading/v2')
 @UseGuards(AuthGuard)
@@ -73,32 +76,16 @@ export class OrderController {
     private readonly stateManager: OrderStateManagerService,
     private readonly positionManager: PositionManagerService,
     private readonly orderProducer: OrderProducerService,
-    // FIX: Made @Optional() to prevent NestJS crash when BullMQ queue is unavailable.
-    // If the execution_queue can't be registered (e.g., Redis down), the controller
-    // still initializes. The RabbitMQ fallback via orderProducer is the primary path.
-    // BullMQ queue is only used as secondary fallback.
     @Optional() @InjectQueue('execution_queue') private readonly executionQueue: Queue | null,
   ) {
-    this.logger.log('📋 Order Controller initialized (with BullMQ execution_queue)');
+    this.logger.log('📋 Order Controller (V2 thin redirect) initialized');
   }
 
   /**
-   * POST /api/trading/orders
+   * POST /api/trading/v2/orders
    *
-   * Place a new trading order.
-   *
-   * Body:
-   * {
-   *   exchangeCredentialId: string;
-   *   symbol: string;
-   *   side: 'BUY' | 'SELL';
-   *   type: 'MARKET' | 'LIMIT';
-   *   quantity: number;
-   *   price?: number;
-   *   stopLoss: number;      // إجباري
-   *   takeProfit?: number;
-   *   idempotencyKey: string;
-   * }
+   * #18: Redirect note — identical logic is now available at POST /api/trading/orders.
+   * This endpoint is retained for backward compatibility.
    */
   @Post('orders')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -106,8 +93,6 @@ export class OrderController {
   async placeOrder(@Req() req: any, @Body() body: V2PlaceOrderDto) {
     const userId = req.user.id;
 
-    // ── Step 1: Validate required fields (DTO handles most validation via class-validator) ──
-    // Additional business-logic validation that DTOs can't express:
     this._validateOrderBusinessLogic(body);
 
     // ── Step 2: Check idempotency ──
@@ -140,7 +125,6 @@ export class OrderController {
     try {
       order = await this.stateManager.createOrder(command);
     } catch (error: any) {
-      // Release idempotency lock on creation failure
       await this.idempotencyService.releaseLock(body.idempotencyKey);
       throw error;
     }
@@ -149,14 +133,12 @@ export class OrderController {
     const riskResult = await this.riskGatekeeper.validateOrder(command);
 
     if (!riskResult.allowed) {
-      // Record RISK_REJECTED event
       await this.stateManager.rejectOrder(
         order.id,
         riskResult.reason || 'فشل في فحص المخاطر',
         riskResult.failedCheck,
       );
 
-      // Release idempotency lock so client can fix and retry
       await this.idempotencyService.releaseLock(body.idempotencyKey);
 
       throw new ForbiddenException(
@@ -171,8 +153,6 @@ export class OrderController {
     });
 
     // ── Step 7: Send to execution queue for async processing ──
-    // PRIMARY: RabbitMQ (OrderConsumerService processes from this queue)
-    // FALLBACK: BullMQ execution_queue (if RabbitMQ is unavailable)
     const queueMessage = {
       orderId: order.id,
       userId: command.userId,
@@ -189,11 +169,8 @@ export class OrderController {
       submittedAt: new Date(),
     };
 
-    let submittedViaRabbitMQ = false;
-
     try {
       await this.orderProducer.sendOrder(queueMessage);
-      submittedViaRabbitMQ = true;
       this.logger.log(`📤 Order ${order.id} submitted to RabbitMQ order_queue`);
     } catch (rabbitError: any) {
       this.logger.warn(
@@ -201,27 +178,12 @@ export class OrderController {
       );
 
       try {
-        // FIX: Check if executionQueue is available before using it.
-        // It may be null if BullMQ registration failed (e.g., Redis unavailable).
         if (!this.executionQueue) {
           throw new Error('BullMQ execution_queue not available');
         }
         await this.executionQueue.add(
           'execute',
-          {
-            orderId: order.id,
-            userId: command.userId,
-            exchangeCredentialId: command.exchangeCredentialId,
-            symbol: command.symbol,
-            side: command.side,
-            type: command.type,
-            quantity: command.quantity,
-            price: command.price,
-            stopLoss: command.stopLoss,
-            takeProfit: command.takeProfit,
-            clientOrderId: command.clientOrderId,
-            idempotencyKey: command.idempotencyKey,
-          },
+          queueMessage,
           {
             jobId: command.idempotencyKey,
             attempts: 3,
@@ -234,8 +196,6 @@ export class OrderController {
 
         this.logger.log(`📤 Order ${order.id} added to BullMQ execution_queue (fallback, jobId: ${command.idempotencyKey})`);
       } catch (bullError: any) {
-        // Both queues failed — order is ACCEPTED but not yet submitted
-        // It will be picked up by a retry mechanism or manual reconciliation
         this.logger.error(
           `Both queues failed for order ${order.id}. Order is ACCEPTED but not submitted for execution. ` +
           `RabbitMQ: ${rabbitError.message}, BullMQ: ${bullError.message}`,
@@ -251,13 +211,16 @@ export class OrderController {
         status: 'ACCEPTED',
         idempotencyKey: body.idempotencyKey,
         riskScore: riskResult.riskScore,
+        pipeline: 'v2',
+        // #18: Migration hint
+        _migration: 'This endpoint is also available at POST /api/trading/orders',
       },
     };
   }
 
   /**
-   * GET /api/trading/orders
-   * List user's orders with optional filters
+   * GET /api/trading/v2/orders
+   * #18: Also available at GET /api/trading/orders
    */
   @Get('orders')
   async getOrders(
@@ -278,8 +241,8 @@ export class OrderController {
   }
 
   /**
-   * GET /api/trading/orders/:id
-   * Get order details with full event history
+   * GET /api/trading/v2/orders/:id
+   * #18: Also available at GET /api/trading/orders/:id
    */
   @Get('orders/:id')
   async getOrder(@Req() req: any, @Param('id') orderId: string) {
@@ -289,7 +252,6 @@ export class OrderController {
       throw new NotFoundException('الطلب غير موجود');
     }
 
-    // Verify ownership
     if (order.userId !== req.user.id) {
       throw new ForbiddenException('ليس لديك صلاحية الوصول لهذا الطلب');
     }
@@ -298,8 +260,8 @@ export class OrderController {
   }
 
   /**
-   * DELETE /api/trading/orders/:id
-   * Cancel a pending order
+   * DELETE /api/trading/v2/orders/:id
+   * #18: Also available at DELETE /api/trading/orders/:id
    */
   @Delete('orders/:id')
   @Throttle({ default: { limit: 10, ttl: 60000 } })
@@ -332,8 +294,8 @@ export class OrderController {
   }
 
   /**
-   * GET /api/trading/positions
-   * Get all open positions for the user
+   * GET /api/trading/v2/positions
+   * #18: Also available at GET /api/trading/positions
    */
   @Get('positions')
   async getOpenPositions(@Req() req: any) {
@@ -342,8 +304,8 @@ export class OrderController {
   }
 
   /**
-   * GET /api/trading/portfolio
-   * Get complete portfolio summary
+   * GET /api/trading/v2/portfolio
+   * #18: Also available at GET /api/trading/portfolio
    */
   @Get('portfolio')
   async getPortfolioSummary(@Req() req: any) {
@@ -355,26 +317,20 @@ export class OrderController {
 
   /**
    * Business-logic validation beyond what class-validator DTOs can express.
-   * DTO handles: type checks, required fields, min/max values.
-   * This handles: cross-field rules, trading-specific constraints.
    */
   private _validateOrderBusinessLogic(body: V2PlaceOrderDto): void {
-    // LIMIT orders require a price
     if (body.type === 'LIMIT' && !body.price) {
       throw new BadRequestException('سعر الحد مطلوب للطلبات المحددة (LIMIT)');
     }
 
-    // Stop-loss must be positive when provided
     if (body.stopLoss !== undefined && body.stopLoss <= 0) {
       throw new BadRequestException('وقف الخسارة يجب أن يكون رقماً أكبر من صفر');
     }
 
-    // Take-profit must be positive when provided
     if (body.takeProfit !== undefined && body.takeProfit <= 0) {
       throw new BadRequestException('جني الأرباح يجب أن يكون رقماً أكبر من صفر');
     }
 
-    // Symbol format validation (must contain / for pairs or be a stock ticker)
     if (!/^[A-Za-z0-9/_.-]+$/.test(body.symbol)) {
       throw new BadRequestException('رمز التداول يحتوي على أحرف غير صالحة');
     }

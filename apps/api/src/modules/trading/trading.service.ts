@@ -108,6 +108,26 @@ export class TradingService {
       `📋 Order request: ${request.side} ${request.quantity} ${request.symbol} (${request.type})`,
     );
 
+    // #1 FIX: Round quantity to appropriate precision BEFORE execution.
+    // This ensures margin = quantity * price matches exactly,
+    // preventing rounding errors that cause margin drift.
+    // Different asset classes need different precision:
+    // - Crypto: 6 decimal places (e.g., 0.001234 BTC)
+    // - Forex: 2 decimal places (e.g., 1000 units)
+    // - Stocks: 0 decimal places (whole shares)
+    const meta = getSymbolMetadata(request.symbol);
+    const precision = meta.assetClass === AssetClass.CRYPTO ? 6
+      : meta.assetClass === AssetClass.FOREX ? 2
+      : meta.assetClass === AssetClass.COMMODITY ? 2
+      : 0;
+    request.quantity = Math.round(request.quantity * Math.pow(10, precision)) / Math.pow(10, precision);
+
+    if (request.quantity <= 0) {
+      throw new BadRequestException(
+        `الكمية بعد التقريب أصبحت صفراً — قيمة الطلب صغيرة جداً (${request.quantity})`,
+      );
+    }
+
     // Step 1: Validate credential ownership
     // DATA ISOLATION: Use findFirst with userId to prevent accessing other users' credentials
     const credential = await this.prisma.exchangeCredential.findFirst({

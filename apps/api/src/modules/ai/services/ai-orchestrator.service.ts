@@ -17,6 +17,7 @@ import { withExponentialBackoff } from './retry.util';
 import { AiCacheService } from './ai-cache.service';
 import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
 import { MarketDataService } from './market-data.service';
+import { StrategicCouncilService, ConsensusAnalysisResult } from './strategic-council.service';
 
 /**
  * AI Orchestrator — Routes tasks to the optimal AI model
@@ -186,6 +187,7 @@ export class AIOrchestratorService {
     private readonly nvidiaService: NvidiaService,
     private readonly usageLogger: AiUsageLoggerService,
     private readonly cache: AiCacheService,
+    @Inject(forwardRef(() => StrategicCouncilService)) private readonly strategicCouncil: StrategicCouncilService,
     @Optional() private readonly ragService?: RagService,
     @Optional() @Inject(forwardRef(() => PredictionMarketService)) private readonly predictionMarket?: PredictionMarketService,
   ) {
@@ -426,618 +428,18 @@ export class AIOrchestratorService {
    * dashboard generates 72 API calls/minute (6 models × 12 polls/min).
    * With caching, it's at most 6 calls per 5 minutes per symbol.
    */
-  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<{
-    consensusScore: number;
-    recommendation: 'BUY' | 'SELL' | 'HOLD';
-    analyses: { role: string; model: string; vote: string; confidence: number; reason: string }[];
-    masterStrategy: string;
-    isFallback?: boolean;
-  }> {
-    // FIX: Added `forceFresh` option — when the Strategic Council calls this method,
-    // it passes forceFresh=true to bypass the Redis cache. This is CRITICAL because:
-    // 1. The startup council session (30s after boot) runs before AI models are ready
-    // 2. It produces fallback/HOLD results that get cached for 10 minutes
-    // 3. All subsequent council sessions read the stale HOLD cache → 0 briefs issued
-    // 4. Even manual consensus triggers don't help because the Council reads the OLD cache
-    // By forcing fresh results during Council sessions, we guarantee that each session
-    // gets the CURRENT state of all AI models, not stale startup data.
-    const forceFresh = options?.forceFresh ?? false;
-    const newsContext = options?.newsContext ?? '';
-    const language = options?.language ?? 'ar';
-
-    // Check Redis cache first — consensus valid for 10 minutes (increased from 5)
-    // FIX: Cache key version bumped to v8 to invalidate stale v7 results
-    // that were produced during startup when models weren't ready.
-    const cacheKey = `ai:consensus:v8:${symbol}`;
-    const redis = this.cache.getRedis();
-    if (!forceFresh) {
-      try {
-        const cached = await redis?.get(cacheKey);
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          this.logger.debug(`🎼 Redis cache hit for consensus: ${symbol}`);
-          return parsed;
-        }
-      } catch {}
-    } else {
-      this.logger.log(`🎼 ForceFresh=true: bypassing cache for consensus: ${symbol}`);
-      // Also delete the old cache entry to prevent stale data
-      try {
-        await redis?.del(cacheKey);
-      } catch {}
-    }
-
-    // Also check in-memory cache
-    // FIX: Disabled in-memory cache for consensus to prevent stale HOLD results
-    // from blocking brief issuance. The Redis cache (v5 key) is sufficient.
-    // The in-memory cache was holding old HOLD results from before the fix,
-    // causing the council to never issue briefs even after code update.
-    // const memKey = `consensus:${symbol}`;
-    // const memCached = this._getCachedResult(memKey);
-    // if (memCached) {
-    //   this.logger.debug(`🎯 Memory cache hit for consensus: ${symbol}`);
-    //   return memCached as any;
-    // }
-
-    this.logger.log(`🎼 Initiating AI Council Consensus for ${symbol} — 8 models + Prediction Market`);
-
-    try {
-      const decisionInstruction = language === 'en'
-        ? '\n\n⛔⛔⛔ CRITICAL decision instructions:\n- You MUST end your response with exactly one line in this format: "DECISION: BUY" or "DECISION: SELL"\n- Writing "DECISION: HOLD" is STRICTLY FORBIDDEN — there is no waiting in active trading!\n- If you are not 100% sure, choose the most probable direction based on analysis\n- Even if signals are conflicting, choose the stronger direction (BUY or SELL)\n- The market always moves — there is no "wait" — pick a direction!\nThis line MUST be the last line of your response.'
-        : '\n\n⛔⛔⛔ تعليمات حاسمة حول القرار:\n- يجب أن تنهي ردك بسطر واحد بالضبط بهذا الشكل: "DECISION: BUY" أو "DECISION: SELL"\n- ممنوع تماماً كتابة "DECISION: HOLD" — لا يوجد انتظار في التداول النشط!\n- إذا لم تكن متأكداً بنسبة 100%، اختر الاتجاه الأكثر احتمالاً بناءً على التحليل\n- حتى لو كانت الإشارات متضاربة، اختر الاتجاه الأقوى (BUY أو SELL)\n- السوق دائماً يتحرك — ليس هناك "انتظار" — اختر اتجاهاً!\nهذا السطر يجب أن يكون آخر سطر في ردك.';
-
-      // FIX: Fetch live market data before building prompts to prevent hallucinations
-      // (e.g., Groq saying BTC is $28,500 when it's actually much higher)
-      const marketData = await this.marketData.fetchQuickMarketData(symbol);
-      const marketDataPrefix = marketData.price > 0
-        ? language === 'en'
-          ? `\n⛔⛔⛔ CRITICAL WARNING — Live market data (DO NOT invent prices!):\n- 🔴 Actual current price: ${marketData.price.toLocaleString()}$ — use ONLY this number! Any other price you mention will be false!\n- Real RSI: ${marketData.rsi} (use this value only)\n- MACD: ${marketData.macd}\n\n⚠️ Final warning: If you mention any price other than ${marketData.price.toLocaleString()}$ your entire analysis will be rejected as false. The price is ${marketData.price.toLocaleString()}$ and nothing else.\n`
-          : `\n⛔⛔⛔ تحذير حرج — بيانات السوق الحية (ممنوع اختراع أسعار!):\n- 🔴 السعر الحالي الفعلي: ${marketData.price.toLocaleString()}$ — استخدم هذا الرقم فقط! أي سعر آخر تذكره سيكون كاذباً!\n- مؤشر RSI الحقيقي: ${marketData.rsi} (استخدم هذه القيمة فقط)\n- مؤشر MACD: ${marketData.macd}\n\n⚠️ تحذير نهائي: إذا ذكرت أي سعر غير ${marketData.price.toLocaleString()}$ فتحليلك كله سيكون مرفوضاً وكاذباً. السعر هو ${marketData.price.toLocaleString()}$ فقط لا غير.\n`
-        : language === 'en'
-          ? '\n⚠️⚠️⚠️ Unable to fetch live market data — DO NOT invent any price or number. If you need to mention a price, write "Price unavailable". Any fabricated price makes your analysis unreliable.\n'
-          : '\n⚠️⚠️⚠️ لم نتمكن من جلب بيانات السوق الحية — ممنوع تماماً اختراع أي سعر أو رقم من عندك. إذا احتجت لذكر السعر اكتب "السعر غير متاح". أي سعر تختلقه سيجعل تحليلك غير موثوق.\n';
-
-      // V143: Inject news context into all AI prompts.
-      // This is the critical integration point where analyzed news
-      // reaches the AI models for the first time.
-      const newsPrefix = newsContext
-        ? `\n📰📰📰 بيانات الأخبار المحللة (مصدر موثوق — خذها بعين الاعتبار!):\n${newsContext}\n⚠️ هذه أخبار حقيقية محللة — يجب أن تؤثر على قرارك!\n\n`
-        : '';
-
-      // FIX: Each model has exactly ONE role — no duplicates, no role overlap
-      // 8 models = 8 roles (1:1 mapping) — clean, predictable, no rate-limiting
-      // + 1 Prediction Market role (9th model) — votes only when relevant events exist
-      //
-      // FIX: Added deepseek and ollama to more fallback chains to prevent
-      // all roles from collapsing to a single model (GLM-4) when primary
-      // models fail. This was causing 6+ roles to use GLM-4 simultaneously,
-      // which defeats the multi-model purpose and causes rate-limiting.
-      const roles = language === 'en' ? [
-        { id: 'tech',   name: 'Technical Analyst',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}Analyze the technical chart for ${symbol} based on trend, momentum, and resistance levels.${decisionInstruction}` },
-        { id: 'sent',   name: 'Sentiment Analyst',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze current market sentiment for ${symbol} from a news and momentum perspective.${decisionInstruction}` },
-        { id: 'risk',   name: 'Risk Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}Identify risks of entering a trade on ${symbol} now, stop-loss levels, and worst-case scenario assessment.${decisionInstruction}` },
-        { id: 'macro',  name: 'Macro Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze the macroeconomic situation and its impact on ${symbol}.${decisionInstruction}` },
-        { id: 'pattern',name: 'Pattern Expert',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Do you see any recurring historical patterns in the current movement of ${symbol}?${decisionInstruction}` },
-        { id: 'exec',   name: 'Execution Strategist', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}What is the best timing for entering ${symbol} based on liquidity and available models?${decisionInstruction}` },
-        { id: 'diverge',name: 'Divergence Analyst',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Look for counter-signals or divergences in the analysis of ${symbol} — is there a reason not to follow the prevailing trend?${decisionInstruction}` },
-        { id: 'scenario', name: 'Scenario Analyst', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Analyze possible scenarios for ${symbol} with probability estimates for each scenario.${decisionInstruction}` },
-      ] : [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
-        { id: 'diverge',name: 'محلل التباين',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
-        { id: 'scenario', name: 'محلل السيناريوهات', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
-      ];
-
-      // ── 9th Model: Prediction Market Analyst ──
-      // Only votes when there are relevant prediction market events for this symbol.
-      // Dynamic confidence based on event count and liquidity (per architecture review).
-      let predictionMarketVote: { role: string; model: string; vote: string; confidence: number; reason: string } | null = null;
-      if (this.predictionMarket) {
-        try {
-          const pmVote = await this.predictionMarket.getCouncilVote(symbol);
-          if (pmVote) {
-            predictionMarketVote = {
-              role: 'محلل الأسواق التنبؤية',
-              model: 'PredictionMarket/8th',
-              vote: pmVote.vote,
-              confidence: pmVote.confidence,
-              reason: pmVote.reason,
-            };
-            this.logger.log(`🔮 9th model vote: ${pmVote.vote} (${pmVote.confidence}%) — ${pmVote.eventsAnalyzed} events`);
-          }
-        } catch (error: any) {
-          this.logger.debug(`🔮 9th model abstained (no data or error): ${error.message}`);
-        }
-      }
-
-      const start = Date.now();
-
-      // FIX: Resolve the best available model for each role (primary → fallback chain)
-      // Uses the new lenient cooldown: only skip if 3+ consecutive 429 failures
-      // FIX: On cloud with localhost Ollama URL, skip it as primary for 'exec' role
-      // FIX 2: If Ollama has a cloud URL (like ollama.com), keep it as primary — it works!
-      // FIX 3: Model diversification — prevent the same model from being used for
-      // too many roles. When multiple roles fall back to the same model (e.g.,
-      // GLM-4), we try to distribute across available working models instead.
-      // This prevents rate-limiting and ensures genuine multi-model analysis.
-      // FIX: Dynamic MAX_MODEL_REUSE — when few models are available, allow more reuse.
-      // If only 3 models work, we NEED each to serve 3 roles to fill all 8 slots.
-      // Previous fixed MAX_MODEL_REUSE=2 meant only 6/8 roles filled with 3 models.
-      const availableModelCount = ['groq', 'glm', 'gemini', 'cerebras', 'ollama', 'bedrock', 'nvidia', 'mistral']
-        .filter(m => this._isModelKeyAvailable(m)).length;
-      const MAX_MODEL_REUSE = availableModelCount <= 3 ? 3 : 2; // Allow 3 reuse when models are scarce
-      const modelUsageCount = new Map<string, number>(); // Track how many roles each model is assigned to
-
-      const activeRoles = roles.map(role => {
-        let roleModels = [role.model, ...(role.fallbackModels || [])];
-        // If Ollama is the primary model but we're on cloud WITH localhost URL, move it to end of fallback list
-        // Cloud Ollama URLs (ollama.com, etc.) should remain as primary — they work fine
-        if (role.model === 'ollama' && this._isCloudEnvironment()) {
-          const ollamaBaseUrl = this.configService.get<string>('OLLAMA_BASE_URL', 'http://localhost:11434');
-          if (this._isLocalhostUrl(ollamaBaseUrl || 'http://localhost:11434')) {
-            roleModels = [...(role.fallbackModels || []), 'ollama'];
-          }
-          // If Ollama has a cloud URL, keep it as primary — no deprioritization needed
-        }
-        const models = roleModels;
-
-        // FIX: Two-pass resolution — first pass respects diversification,
-        // second pass relaxes it to ensure NO role goes unfilled.
-        // A role with a reused model is better than a role with a stub (confidence=0).
-        for (const model of models) {
-          // Check cooldown: only active after 3+ consecutive 429 failures
-          const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
-          if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
-            const cooldownUntil = this.modelCooldowns.get(model) || 0;
-            if (Date.now() < cooldownUntil) continue; // In short cooldown
-          }
-          if (!this._isModelKeyAvailable(model)) continue; // Skip — no API key
-          // Check model diversification — skip if model is already used for MAX_MODEL_REUSE roles
-          const currentUsage = modelUsageCount.get(model) || 0;
-          if (currentUsage >= MAX_MODEL_REUSE) {
-            this.logger.debug(`🔀 Model ${model} already used for ${currentUsage} roles — trying next model for role ${role.name}`);
-            continue; // Try next model in fallback chain
-          }
-          // Assign this model to this role and increment usage count
-          modelUsageCount.set(model, currentUsage + 1);
-          return { ...role, resolvedModel: model };
-        }
-
-        // FIX: Second pass — relax diversification. Better to reuse a model
-        // than to have a role with no working model (stub = confidence=0 = wasted role).
-        for (const model of models) {
-          const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
-          if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
-            const cooldownUntil = this.modelCooldowns.get(model) || 0;
-            if (Date.now() < cooldownUntil) continue;
-          }
-          if (!this._isModelKeyAvailable(model)) continue;
-          // Skip models already at a very high reuse count (5+) to avoid rate limits
-          const currentUsage = modelUsageCount.get(model) || 0;
-          if (currentUsage >= 5) continue;
-          modelUsageCount.set(model, currentUsage + 1);
-          this.logger.warn(`⚠️ Relaxed diversification for role ${role.name}: using model ${model} (${currentUsage + 1} roles now)`);
-          return { ...role, resolvedModel: model };
-        }
-
-        // All models for this role unavailable — keep primary (will return stub)
-        this.logger.warn(`⚠️ All models for role ${role.name} are unavailable`);
-        return { ...role, resolvedModel: role.model };
-      });
-
-      this.logger.log(`🎼 Resolved models for consensus: ${activeRoles.map(r => `${r.name}→${r.resolvedModel}`).join(', ')}`);
-
-      const results = await Promise.allSettled(
-        activeRoles.map(async (role) => {
-          const roleStart = Date.now();
-          try {
-            const response = await this._callModel(role.resolvedModel, {
-              symbol,
-              prompt: role.prompt,
-              type: 'market_analysis',
-              language,
-            });
-            // Log each council member's AI usage
-            if (response.confidence > 0) {
-              this.usageLogger?.logSuccess({
-                model: response.model,
-                endpoint: 'consensus',
-                inputPrompt: role.prompt,
-                outputContent: response.content,
-                latencyMs: Date.now() - roleStart,
-                cached: false,
-              });
-            }
-            // If model returned stub (confidence 0), track as consecutive failure
-            // But DON'T put in cooldown — stub means key missing, cooldown won't help
-            if (response.confidence === 0) {
-              this.logger.warn(`🚫 Model ${role.resolvedModel} returned stub — no cooldown (key likely missing)`);
-            }
-            // Reset consecutive failures on success
-            if (response.confidence > 0) {
-              this.modelConsecutiveFailures.delete(role.resolvedModel);
-              this.modelCooldownLevel.delete(role.resolvedModel); // FIX #4: Reset progressive level
-            }
-            return { ...role, response };
-          } catch (error: any) {
-            this.usageLogger?.logFailure({
-              model: role.model,
-              endpoint: 'consensus',
-              inputPrompt: role.prompt,
-              latencyMs: Date.now() - roleStart,
-              errorMessage: error.message,
-            });
-            // Track 429 failures but don't cooldown for other errors
-            if (error.response?.status === 429 || error.message?.includes('429')) {
-              const fails = (this.modelConsecutiveFailures.get(role.resolvedModel) || 0) + 1;
-              this.modelConsecutiveFailures.set(role.resolvedModel, fails);
-              if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
-                // FIX #4: Progressive cooldown
-                const level = (this.modelCooldownLevel.get(role.resolvedModel) || 0) + 1;
-                this.modelCooldownLevel.set(role.resolvedModel, level);
-                const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
-                this.modelCooldowns.set(role.resolvedModel, Date.now() + cooldownMs);
-              }
-            }
-            // Don't put model in cooldown for other errors — just try again next time
-            throw error;
-          }
-        }),
-      );
-
-      const analyses: any[] = [];
-      let buyWeight = 0;
-      let sellWeight = 0;
-      let holdWeight = 0;
-      let totalConfidence = 0;
-      // FIX: Track individual confidences per vote type for accurate consensus calculation
-      let buyConfidences: number[] = [];
-      let sellConfidences: number[] = [];
-      let holdConfidences: number[] = [];
-
-      // Track which roles got valid responses and which need fallback retry
-      const roleResponses = new Map<string, { name: string; response: AIAnalysisResponse }>();
-
-      for (const res of results) {
-        if (res.status === 'fulfilled' && res.value && res.value.response) {
-          const { name, response, id } = res.value;
-          if (response.confidence > 0) {
-            roleResponses.set(id, { name, response });
-          }
-        }
-      }
-
-      // ── Phase 2: Retry failed/stub roles with fallback models ──
-      // FIX: When a model returns confidence=0 (stub) or throws an error,
-      // the role gets no valid response. Previously, the role was simply
-      // skipped. Now we try fallback models for each failed role.
-      const failedRoles = activeRoles.filter(role => !roleResponses.has(role.id));
-      if (failedRoles.length > 0) {
-        this.logger.log(`🔄 Phase 2: Retrying ${failedRoles.length} failed roles with fallback models...`);
-
-        for (const role of failedRoles) {
-          for (const fallbackModel of role.fallbackModels || []) {
-            // Skip if same as already-tried model, or unavailable, or in cooldown
-            if (fallbackModel === role.resolvedModel) continue;
-            if (!this._isModelKeyAvailable(fallbackModel)) continue;
-            const consecutiveFails = this.modelConsecutiveFailures.get(fallbackModel) || 0;
-            if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
-              const cooldownUntil = this.modelCooldowns.get(fallbackModel) || 0;
-              if (Date.now() < cooldownUntil) continue;
-            }
-
-            try {
-              this.logger.log(`🔄 Retrying role "${role.name}" with fallback model: ${fallbackModel}`);
-              const response = await this._callModel(fallbackModel, {
-                symbol,
-                prompt: role.prompt,
-                type: 'market_analysis',
-                language,
-              });
-
-              if (response.confidence > 0) {
-                this.logger.log(`✅ Fallback model ${fallbackModel} succeeded for role "${role.name}"`);
-                roleResponses.set(role.id, { name: role.name, response });
-                // Reset consecutive failures on success
-                this.modelConsecutiveFailures.delete(fallbackModel);
-                break; // Role filled, stop trying fallbacks
-              } else {
-                this.logger.warn(`⚠️ Fallback model ${fallbackModel} returned stub for role "${role.name}"`);
-              }
-            } catch (error: any) {
-              // Track 429 errors
-              if (error.response?.status === 429 || error.message?.includes('429')) {
-                const fails = (this.modelConsecutiveFailures.get(fallbackModel) || 0) + 1;
-                this.modelConsecutiveFailures.set(fallbackModel, fails);
-                if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
-                  // FIX #4: Progressive cooldown
-                  const level = (this.modelCooldownLevel.get(fallbackModel) || 0) + 1;
-                  this.modelCooldownLevel.set(fallbackModel, level);
-                  const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
-                  this.modelCooldowns.set(fallbackModel, Date.now() + cooldownMs);
-                }
-              }
-              this.logger.warn(`❌ Fallback model ${fallbackModel} failed for role "${role.name}": ${error.message}`);
-              continue;
-            }
-          }
-        }
-      }
-
-      // ── Build analyses from all successful role responses ──
-      // FIX: HOLD votes are weighted at 0.3x to prevent HOLD-dominance.
-      // In active trading, staying out (HOLD) is not a productive signal.
-      // A directional vote (BUY/SELL) should carry more weight because it
-      // represents conviction and actionable analysis. HOLD is often the
-      // lazy/default answer from small models. Reducing its weight ensures
-      // that even 2-3 directional votes out of 8 can produce a consensus.
-      const HOLD_WEIGHT_MULTIPLIER = 0.3;
-
-      for (const [roleId, { name, response }] of roleResponses) {
-        const content = response.content || '';
-        const vote = this._parseVote(content);
-
-        const conf = response.confidence || 0.5;
-        if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf); }
-        else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf); }
-        else { holdWeight += conf * HOLD_WEIGHT_MULTIPLIER; holdConfidences.push(conf); }
-        totalConfidence += vote === 'HOLD' ? conf * HOLD_WEIGHT_MULTIPLIER : conf;
-
-        analyses.push({
-          role: name,
-          model: response.model,
-          vote,
-          confidence: Math.round(conf * 100),
-          reason: content.slice(0, 300) + '...',
-        });
-      }
-
-      // ── Add 9th model (Prediction Market) vote — V175: Dynamic Weight ──
-      // الأحداث الكبيرة (FOMC, halving, regulation) تُؤثر فعلاً على المجلس
-      if (predictionMarketVote) {
-        const pmConf = predictionMarketVote.confidence / 100;
-        // وزن ديناميكي: كلما كان Prediction Market واثقاً أكثر، وزنه أعلى
-        const pmWeight = pmConf > 0.70 ? 3.0   // ثقة عالية جداً → 3x وزن
-                       : pmConf > 0.55 ? 1.8   // ثقة عالية → 1.8x
-                       : pmConf > 0.40 ? 1.0   // ثقة متوسطة → وزن عادي
-                       :                 0.4;  // ثقة منخفضة → تقليل التأثير
-        const pmWeightedConf = pmConf * pmWeight;
-
-        if (predictionMarketVote.vote === 'BUY')  { buyWeight  += pmWeightedConf; buyConfidences.push(pmWeightedConf); }
-        else if (predictionMarketVote.vote === 'SELL') { sellWeight += pmWeightedConf; sellConfidences.push(pmWeightedConf); }
-        else { holdWeight += pmConf; holdConfidences.push(pmConf); }
-        totalConfidence += pmWeightedConf;
-
-        analyses.push({
-          ...predictionMarketVote,
-          reason: predictionMarketVote.reason + ` [weight×${pmWeight.toFixed(1)}]`,
-        });
-      }
-
-      // ── Add 10th vote: Advanced Scanner (SmartScore) ──
-      // يقرأ مباشرة من Redis — بدون circular dependency
-      // Scanner:deep:SYMBOL يُحدَّث كل 2 دقيقة بالتحليل الفني الكامل
-      try {
-        const scannerCacheKey = `scanner:deep:${symbol.replace('/','').replace('-','')}`;
-        // جرب أشكال مختلفة للـ symbol
-        const scannerKeys = [
-          `scanner:deep:${symbol}`,
-          `scanner:deep:${symbol.replace('/USDT','').replace('/USD','')}USDT`,
-          scannerCacheKey,
-        ];
-        let scannerData: any = null;
-        for (const key of scannerKeys) {
-          const raw = await this.cache.getRedis()?.get(key);
-          if (raw) { scannerData = JSON.parse(raw); break; }
-        }
-
-        if (scannerData?.smartScore && scannerData.smartScore.action !== 'HOLD') {
-          const isBuy    = scannerData.smartScore.action.includes('BUY');
-          const rawScore = Math.abs(scannerData.smartScore.score || 0); // 0-100
-          const scanConf = rawScore / 100;
-
-          // وزن Scanner أعلى لأنه تحليل فني حقيقي لا توقعات لغوية
-          // STRONG_BUY/STRONG_SELL → وزن 2x | BUY/SELL → وزن 1.2x
-          const isStrong  = scannerData.smartScore.action.includes('STRONG');
-          const scanWeight = isStrong ? 2.0 : 1.2;
-          const scanWeightedConf = scanConf * scanWeight;
-
-          if (isBuy)  { buyWeight  += scanWeightedConf; buyConfidences.push(scanWeightedConf); }
-          else        { sellWeight += scanWeightedConf; sellConfidences.push(scanWeightedConf); }
-          totalConfidence += scanWeightedConf;
-
-          analyses.push({
-            role:       'السكانر الفني المتقدم',
-            model:      'TechnicalScanner/10th',
-            vote:       isBuy ? 'BUY' : 'SELL',
-            confidence: Math.round(rawScore),
-            reason:     `SmartScore:${rawScore} | ${scannerData.smartScore.signalType || ''} | ${scannerData.smartScore.tradeTimeframe || ''} | divergence:${scannerData.divergence?.type || 'none'} [weight×${scanWeight}]`,
-          });
-
-          this.logger.debug(`🔍 Scanner vote for ${symbol}: ${isBuy?'BUY':'SELL'} score=${rawScore} weight=${scanWeight}`);
-        }
-      } catch (scanErr: any) {
-        this.logger.debug(`Scanner vote skipped for ${symbol}: ${scanErr.message}`);
-      }
-
-      let recommendation: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
-      let consensusScore = 0;
-
-      // FIX: Active trading consensus — directional votes beat HOLD.
-      // Previous logic: Majority wins, which meant 7 HOLD + 1 SELL = HOLD (useless!)
-      // New logic: If ANY directional signal (BUY or SELL) exists, prefer it over HOLD.
-      // Trading requires action — HOLD is only valid when there's genuine uncertainty
-      // (equal BUY and SELL votes). With the 0.3x HOLD weight reduction above,
-      // even 2-3 BUY/SELL votes out of 8 will dominate the weighted calculation.
-      if (totalConfidence > 0) {
-        const buyPct = buyWeight / totalConfidence;
-        const sellPct = sellWeight / totalConfidence;
-        const holdPct = holdWeight / totalConfidence;
-
-        // Direction-first logic: if there are ANY directional votes,
-        // choose the stronger direction. Only HOLD if no direction exists.
-        if (buyWeight > 0 || sellWeight > 0) {
-          if (buyWeight >= sellWeight) {
-            recommendation = 'BUY';
-            consensusScore = buyConfidences.length > 0
-              ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
-              : Math.round(buyPct * 100);
-          } else {
-            recommendation = 'SELL';
-            consensusScore = sellConfidences.length > 0
-              ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
-              : Math.round(sellPct * 100);
-          }
-        } else {
-          // Pure HOLD — no directional signal at all
-          recommendation = 'HOLD';
-          consensusScore = holdConfidences.length > 0
-            ? Math.round(holdConfidences.reduce((a, b) => a + b, 0) / holdConfidences.length * 100)
-            : 50;
-        }
-
-        // Ensure minimum consensus score of 50% when majority direction is clear
-        // (prevents showing 30% consensus when 5/8 models agree just because confidences are low)
-        if (recommendation !== 'HOLD' && consensusScore < 50) {
-          const votersForRec = recommendation === 'BUY' ? buyConfidences : sellConfidences;
-          const totalVoters = analyses.length + (predictionMarketVote ? 1 : 0);
-          if (votersForRec.length >= Math.ceil(totalVoters / 2)) {
-            consensusScore = Math.max(consensusScore, Math.round((votersForRec.length / totalVoters) * 100));
-          }
-        }
-      }
-
-      // FIX: Generate master strategy with 15s timeout — don't let it block the response
-      // If it fails, use a quick summary instead
-      const totalModels = 8 + (predictionMarketVote ? 1 : 0);
-      // FIX: Label must ALWAYS match recommendation — no contradictions
-      const recLabel = language === 'en'
-        ? (recommendation === 'BUY' ? 'Buy' : recommendation === 'SELL' ? 'Sell' : 'Hold')
-        : (recommendation === 'BUY' ? 'شراء' : recommendation === 'SELL' ? 'بيع' : 'انتظار');
-      const recStrength = language === 'en'
-        ? (consensusScore >= 80 ? 'Strong' : consensusScore >= 60 ? 'Clear' : 'Probable')
-        : (consensusScore >= 80 ? 'قوي' : consensusScore >= 60 ? 'واضح' : 'محتمل');
-      let masterStrategyContent = language === 'en'
-        ? `Council consensus (${analyses.length}/${totalModels} models): ${recLabel} ${recStrength} with ${consensusScore}% confidence.`
-        : `إجماع المجلس (${analyses.length}/${totalModels} نماذج): ${recLabel} ${recStrength} بنسبة ثقة ${consensusScore}%.`;
-
-      if (analyses.length > 0) {
-        try {
-          const strategyPrompt = language === 'en'
-            ? `Based on the following council analyses, summarize the final trading strategy for ${symbol} in English concisely:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`
-            : `بناءً على تحليلات المجلس التالية، لخص الاستراتيجية النهائية للتداول على ${symbol} بالعربية بإيجاز:\n${analyses.map(a => `${a.role} (${a.model}): ${a.vote} (${a.confidence}%)`).join('\n')}`;
-
-          // FIX: Try multiple models for master strategy, not just Groq.
-          // Groq is often rate-limited (429), which means the master strategy
-          // generation always fails when Groq is down. Now we try available
-          // models in order: GLM-4 (always works), Ollama (fast), Bedrock (reliable),
-          // then Groq as last resort.
-          const strategyModels = ['glm', 'ollama', 'bedrock', 'groq'];
-          let masterStrategy: AIAnalysisResponse | null = null;
-
-          for (const model of strategyModels) {
-            // Skip models in cooldown or without keys
-            if (!this._isModelKeyAvailable(model)) continue;
-            const consecutiveFails = this.modelConsecutiveFailures.get(model) || 0;
-            if (consecutiveFails >= this.FAILURES_BEFORE_COOLDOWN) {
-              const cooldownUntil = this.modelCooldowns.get(model) || 0;
-              if (Date.now() < cooldownUntil) continue;
-            }
-
-            try {
-              const response = await this._callModel(model, {
-                symbol,
-                prompt: strategyPrompt,
-                type: 'signal_generation',
-                language,
-              });
-              if (response.confidence > 0 && response.content.length > 10) {
-                masterStrategy = response;
-                this.logger.log(`✅ Master strategy generated by ${model}`);
-                break;
-              }
-            } catch {
-              // Try next model
-              continue;
-            }
-          }
-
-          if (masterStrategy && masterStrategy.confidence > 0 && masterStrategy.content.length > 10) {
-            masterStrategyContent = masterStrategy.content;
-          }
-        } catch {
-          // Use the summary already set above
-        }
-      }
-
-      // FIX: When very few models responded (< 3) and consensus is HOLD,
-      // boost confidence of directional signals. With only 2-3 models working,
-      // even a single BUY/SELL vote should be respected because:
-      // 1. The models that ARE working are the reliable ones (GLM-4, Bedrock, Ollama)
-      // 2. Their analysis is still valid even if fewer perspectives are available
-      // 3. HOLD with few models means "we couldn't get enough data", not "market is flat"
-      if (analyses.length < 3 && recommendation === 'HOLD' && (buyWeight > 0 || sellWeight > 0)) {
-        // There ARE directional votes — just not enough to override HOLD weight
-        // Recalculate ignoring HOLD votes entirely
-        if (buyWeight > 0 || sellWeight > 0) {
-          const prevRecommendation = recommendation;
-          if (buyWeight >= sellWeight) {
-            recommendation = 'BUY';
-            consensusScore = buyConfidences.length > 0
-              ? Math.round(buyConfidences.reduce((a, b) => a + b, 0) / buyConfidences.length * 100)
-              : Math.round((buyWeight / (buyWeight + sellWeight)) * 100);
-          } else {
-            recommendation = 'SELL';
-            consensusScore = sellConfidences.length > 0
-              ? Math.round(sellConfidences.reduce((a, b) => a + b, 0) / sellConfidences.length * 100)
-              : Math.round((sellWeight / (buyWeight + sellWeight)) * 100);
-          }
-          // Ensure minimum score so briefs get issued
-          consensusScore = Math.max(consensusScore, 55);
-          this.logger.log(`🎼 Few-model override: ${prevRecommendation} → ${recommendation} (${consensusScore}%) — ${analyses.length}/${totalModels} models, ignoring HOLD with sparse data`);
-        }
-      }
-
-      // FIX: When all working models agree on a direction, boost confidence
-      // If 2+ models agree and 0 disagree, this is actually a strong signal
-      if (recommendation !== 'HOLD' && analyses.length >= 2) {
-        const dirVotes = recommendation === 'BUY' ? buyConfidences : sellConfidences;
-        const oppVotes = recommendation === 'BUY' ? sellConfidences : buyConfidences;
-        if (dirVotes.length >= 2 && oppVotes.length === 0) {
-          // Unanimous directional vote — boost confidence
-          consensusScore = Math.max(consensusScore, Math.min(75, dirVotes.length * 20 + 35));
-          this.logger.log(`🎼 Unanimous ${recommendation} from ${dirVotes.length} models — boosting confidence to ${consensusScore}%`);
-        }
-      }
-
-      this.logger.log(`✅ Consensus: ${recommendation} (${consensusScore}%) from ${analyses.length}/${totalModels} models in ${Date.now() - start}ms`);
-
-      const result = { consensusScore, recommendation, analyses, masterStrategy: masterStrategyContent };
-
-      // FIX: Cache with differentiated TTL — partial results (2 min) vs full results (10 min)
-      // This prevents stale partial results from blocking retries that could reach more models.
-      // FIX: Reduced partial TTL from 2 min to 1 min to allow faster retries when
-      // models recover from rate limits.
-      const isPartial = analyses.length < 3;
-      const consensusCacheTTL = isPartial
-        ? 60 * 1000                          // 1 minute for partial (< 3 models) — retry sooner
-        : this.cache.getTTL('consensus');     // 10 minutes for full (3+ models)
-      await this.cache.setRedisCacheWithTTL(cacheKey, result, consensusCacheTTL);
-      // NOTE: In-memory cache for consensus was disabled to prevent stale HOLD results.
-      // Redis cache (v5 key) is the only cache for consensus now.
-      // const memKey = `consensus:${symbol}`;
-      // this._setCachedResult(memKey, result as any, isPartial ? 'consensus_partial' : 'consensus');
-
-      return result;
-    } catch (error: unknown) {
-      const err = error instanceof Error ? error : new Error(String(error));
-      this.logger.error(`❌ AI Council failed: ${err.message}`, err.stack);
-      return { consensusScore: 0, recommendation: 'HOLD', analyses: [], masterStrategy: language === 'en' ? 'Error processing consensus request.' : 'خطأ في معالجة طلب إجماع النماذج.', isFallback: true };
-    }
+  /**
+   * AI Council Consensus — delegates to StrategicCouncilService
+   *
+   * This method is now a thin wrapper that delegates to the StrategicCouncilService,
+   * which was extracted from the orchestrator to isolate the council/consensus
+   * responsibility (~600 lines) from the single-model routing logic.
+   *
+   * Cache keys remain the same (`ai:consensus:v8:{symbol}`) so existing
+   * cached results are not invalidated.
+   */
+  async getConsensusAnalysis(symbol: string, options?: { forceFresh?: boolean; newsContext?: string; language?: 'ar' | 'en' }): Promise<ConsensusAnalysisResult> {
+    return this.strategicCouncil.getConsensusAnalysis(symbol, options);
   }
 
   /**
@@ -1440,6 +842,68 @@ export class AIOrchestratorService {
   clearCache(): void {
     this.cache.clearCache();
     this.logger.debug('🗑️ AI response cache cleared');
+  }
+
+  // ── Public Accessors for StrategicCouncilService ──
+  // These methods expose internal functionality needed by the council service
+  // for model calling, key checking, vote parsing, and circuit breaker state.
+
+  /** Public accessor for model calling — used by StrategicCouncilService */
+  callModel(model: string, request: AIAnalysisRequest): Promise<AIAnalysisResponse> {
+    return this._callModel(model, request);
+  }
+
+  /** Public accessor for key availability checking — used by StrategicCouncilService */
+  isModelKeyAvailable(model: string): boolean {
+    return this._isModelKeyAvailable(model);
+  }
+
+  /** Public accessor for vote parsing — used by StrategicCouncilService */
+  parseVote(content: string): 'BUY' | 'SELL' | 'HOLD' {
+    return this._parseVote(content);
+  }
+
+  /** Public accessor for cloud environment detection — used by StrategicCouncilService */
+  isCloudEnvironment(): boolean {
+    return this._isCloudEnvironment();
+  }
+
+  /** Public accessor for localhost URL detection — used by StrategicCouncilService */
+  isLocalhostUrl(url: string): boolean {
+    return this._isLocalhostUrl(url);
+  }
+
+  /** Get consecutive failure count for a model — used by StrategicCouncilService */
+  getModelConsecutiveFailures(model: string): number {
+    return this.modelConsecutiveFailures.get(model) || 0;
+  }
+
+  /** Get cooldown expiry timestamp for a model — used by StrategicCouncilService */
+  getModelCooldown(model: string): number {
+    return this.modelCooldowns.get(model) || 0;
+  }
+
+  /** Get the FAILURES_BEFORE_COOLDOWN threshold — used by StrategicCouncilService */
+  getFailuresBeforeCooldown(): number {
+    return this.FAILURES_BEFORE_COOLDOWN;
+  }
+
+  /** Record a model success (reset consecutive failures and cooldown level) — used by StrategicCouncilService */
+  recordModelSuccess(model: string): void {
+    this.modelConsecutiveFailures.delete(model);
+    this.modelCooldownLevel.delete(model);
+  }
+
+  /** Record a 429 rate-limit failure for a model — used by StrategicCouncilService */
+  recordModel429Failure(model: string): void {
+    const fails = (this.modelConsecutiveFailures.get(model) || 0) + 1;
+    this.modelConsecutiveFailures.set(model, fails);
+    if (fails >= this.FAILURES_BEFORE_COOLDOWN) {
+      const level = (this.modelCooldownLevel.get(model) || 0) + 1;
+      this.modelCooldownLevel.set(model, level);
+      const cooldownMs = Math.min(this.BASE_COOLDOWN_MS * Math.pow(2, level - 1), this.MAX_COOLDOWN_MS);
+      this.modelCooldowns.set(model, Date.now() + cooldownMs);
+    }
   }
 
   // ── Private: RAG Context ──

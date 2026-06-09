@@ -173,7 +173,7 @@ export class TradeCoordinationService {
         smart_executor: smartExecutor,
         agent: agent,
         total: positions.length,
-        symbols: [...new Set(positions.map((p) => p.symbol))],
+        symbols: [...new Set<string>(positions.map((p: any) => String(p.symbol || '')))],
       };
     } catch (err: any) {
       this.logger.warn(`🔗 Position summary failed for ${userId}: ${err.message}`);

@@ -319,6 +319,109 @@ async function bootstrap() {
       });
     });
 
+    // ── MetaAPI Cloud health check (no auth required — for admin diagnostics) ──
+    app.getHttpAdapter().getInstance().get('/api/health/metaapi', async (req: any, res: any) => {
+      const start = Date.now();
+      const token = process.env.METAAPI_TOKEN;
+
+      if (!token) {
+        return res.json({
+          status: 'error',
+          message: 'METAAPI_TOKEN غير مضبوط — أضفه كمتغير بيئة في Railway',
+          tokenPresent: false,
+          elapsed: Date.now() - start,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      try {
+        const metaApiModule: any = await import('metaapi.cloud-sdk');
+        const MetaApiClass = metaApiModule.default || metaApiModule;
+        const api = new MetaApiClass(token);
+
+        let accounts: any[] = [];
+        let method = 'unknown';
+        let tokenValid = false;
+
+        try {
+          const accountApi = api.metatraderAccountApi;
+          if (accountApi && typeof accountApi.getAccounts === 'function') {
+            accounts = await accountApi.getAccounts();
+            method = 'metatraderAccountApi.getAccounts';
+            tokenValid = true;
+          } else if (typeof api.getAccounts === 'function') {
+            accounts = await api.getAccounts();
+            method = 'api.getAccounts';
+            tokenValid = true;
+          } else {
+            // Try provisioning profile as fallback validation
+            const provApi = api.provisioningProfileApi;
+            if (provApi && typeof provApi.getProvisioningProfiles === 'function') {
+              await provApi.getProvisioningProfiles();
+              method = 'provisioningProfileApi (token validated)';
+              tokenValid = true;
+            }
+          }
+        } catch (apiErr: any) {
+          const msg = apiErr?.message || String(apiErr);
+          if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('Invalid token') || msg.includes('Forbidden')) {
+            return res.json({
+              status: 'error',
+              message: 'مفتاح MetaAPI غير صالح — تم رفض الاتصال',
+              tokenPresent: true,
+              tokenValid: false,
+              error: msg.substring(0, 200),
+              elapsed: Date.now() - start,
+              timestamp: new Date().toISOString(),
+            });
+          }
+          // Token might be valid but no accounts or other issue
+          tokenValid = true;
+          return res.json({
+            status: 'partial',
+            message: 'المفتاح موجود لكن فشل جلب الحسابات',
+            tokenPresent: true,
+            tokenValid: true,
+            error: msg.substring(0, 200),
+            method,
+            elapsed: Date.now() - start,
+            timestamp: new Date().toISOString(),
+          });
+        }
+
+        return res.json({
+          status: tokenValid ? 'ok' : 'error',
+          message: tokenValid
+            ? `مفتاح MetaAPI صحيح — ${accounts.length} حساب MT5 مسجل`
+            : 'فشل التحقق من المفتاح',
+          tokenPresent: true,
+          tokenValid,
+          accountsFound: accounts.length,
+          accounts: accounts.map((a: any) => ({
+            id: a.id,
+            login: a.login,
+            name: a.name,
+            type: a.type || a.accountType,
+            server: a.server,
+            state: a.state || a.status,
+          })),
+          method,
+          elapsed: Date.now() - start,
+          timestamp: new Date().toISOString(),
+        });
+      } catch (error: any) {
+        return res.json({
+          status: 'error',
+          message: 'فشل اختبار اتصال MetaAPI Cloud',
+          tokenPresent: true,
+          tokenValid: false,
+          error: (error?.message || String(error)).substring(0, 200),
+          elapsed: Date.now() - start,
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
+
     // Global exception filter
     app.useGlobalFilters(new AllExceptionsFilter());
 

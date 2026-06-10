@@ -528,11 +528,13 @@ export const usePositionsStore = create<PositionsState>()(
         const newActiveCredId = settingsData?.settings?.activeCredentialId || null
         const currentActiveCredId = get().activeCredentialId
         if (newActiveCredId !== currentActiveCredId) {
+          console.log(`[PositionsStore] V175: activeCredentialId changed: ${currentActiveCredId?.slice(0,8) || 'null'} → ${newActiveCredId?.slice(0,8) || 'null'}`)
           set({ activeCredentialId: newActiveCredId } as any)
         }
       }
-    } catch {
+    } catch (err) {
       // Settings fetch failed — keep existing activeCredentialId
+      console.warn('[PositionsStore] V175: Failed to fetch settings:', err)
     }
 
     // V154/V166 FIX: Handle auth-blocked responses — don't fall through to paper fallback.
@@ -600,6 +602,14 @@ export const usePositionsStore = create<PositionsState>()(
             ? exchanges.find((e: any) => e.credentialId === activeCredId)
             : null
           const activeExchangeSucceeded = activeExchange && !activeExchange.error && (activeExchange as any).equity > 0
+
+          // V176: Debug logging — understand why dashboard might not show active account
+          console.log(
+            `[PositionsStore] V176: Balance debug: activeCredId=${activeCredId?.slice(0,8) || 'null'}, ` +
+            `activeExchange=${activeExchange ? (activeExchange as any).exchange : 'NOT_FOUND'}, ` +
+            `activeSucceeded=${activeExchangeSucceeded}, ` +
+            `exchanges=[${exchanges.map((e: any) => `${e.exchange}($${(e as any).equity || 0}${(e as any).error ? ',ERR' : ''})`).join(', ')}]`
+          )
 
           let adjustedTotalEquityUsd = totalEquityUsd
           let adjustedTotalAvailableUsd = totalAvailableUsd

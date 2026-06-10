@@ -1766,15 +1766,56 @@ export class CredentialsService {
       const connection = account.getRPCConnection();
       // V175 FIX: isConnected() removed from MetaAPI SDK v29+.
       // Just call connect() directly — if already connected, it's a no-op.
+      // V176: Add timeout protection — MetaAPI can hang for minutes during
+      // cold start or when the broker server is down. Without a timeout,
+      // the entire fetchAllExchangeBalances() call blocks forever.
+      const CONNECT_TIMEOUT_MS = 15_000; // 15 seconds max for connect+sync
       try {
-        await connection.connect();
-        await connection.waitSynchronized();
+        await Promise.race([
+          (async () => {
+            await connection.connect();
+            await connection.waitSynchronized();
+          })(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MT5 connect/sync timeout (15s)')), CONNECT_TIMEOUT_MS)
+          ),
+        ]);
       } catch (connectErr: any) {
-        // Connection might already be established — try to proceed anyway
-        this.logger.warn(`📊 MT5 connect/sync note for ${accountId}: ${connectErr.message?.substring(0, 80)}`);
+        // Connection might already be established, or timeout occurred.
+        // Try to proceed anyway — getAccountInformation() might still work
+        // if the connection is partially established.
+        this.logger.warn(
+          `📊 MT5 connect/sync note for ${accountId}: ${connectErr.message?.substring(0, 80)}. ` +
+          `Will attempt getAccountInformation() anyway.`
+        );
       }
 
-      const accountInfo = await connection.getAccountInformation();
+      // V176: getAccountInformation() can also hang. Add timeout protection.
+      const API_TIMEOUT_MS = 10_000; // 10 seconds max
+      let accountInfo: any;
+      try {
+        accountInfo = await Promise.race([
+          connection.getAccountInformation(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MT5 getAccountInformation timeout (10s)')), API_TIMEOUT_MS)
+          ),
+        ]) as any;
+      } catch (apiErr: any) {
+        this.logger.warn(`📊 MT5 getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 80)}`);
+        return {
+          exchange: cred.exchange,
+          label: cred.label,
+          credentialId: cred.id,
+          isTestnet: isDemo,
+          equity: 0,
+          available: 0,
+          currency: 'USD',
+          usedMargin: 0,
+          assets: [],
+          error: `فشل جلب بيانات MT5: ${apiErr.message?.substring(0, 80) || 'timeout'}`,
+        };
+      }
+
       const equity = accountInfo?.equity || 0;
       const balance = accountInfo?.balance || 0;
       const margin = accountInfo?.margin || 0;

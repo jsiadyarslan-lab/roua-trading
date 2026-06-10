@@ -395,6 +395,20 @@ export default function SettingsPage() {
   const [aiAutoTrade, setAiAutoTrade] = useState(false)
   const [aiModel, setAiModel] = useState('balanced')
 
+  // AI Monitoring Features
+  const [continuousMonitoringEnabled, setContinuousMonitoringEnabled] = useState(false)
+  const [monitoringInterval, setMonitoringInterval] = useState('5m')
+  const [monitoringPairs, setMonitoringPairs] = useState('BTC/USDT,ETH/USDT,SOL/USDT')
+  const [entryExitSignalsEnabled, setEntryExitSignalsEnabled] = useState(false)
+  const [signalMinConfidence, setSignalMinConfidence] = useState('75')
+  const [signalAlertMethod, setSignalAlertMethod] = useState('both')
+  const [riskAlertsEnabled, setRiskAlertsEnabled] = useState(true)
+  const [volatilityThreshold, setVolatilityThreshold] = useState('3')
+  const [riskAlertTypes, setRiskAlertTypes] = useState('all')
+  const [sentimentEnabled, setSentimentEnabled] = useState(false)
+  const [sentimentSources, setSentimentSources] = useState('all')
+  const [sentimentSensitivity, setSentimentSensitivity] = useState('medium')
+
   // Feature 2: Advanced Strategy Settings
   const [scalpingTimeframe, setScalpingTimeframe] = useState('5m')
   const [scalpingTakeProfitPips, setScalpingTakeProfitPips] = useState('15')
@@ -555,6 +569,19 @@ export default function SettingsPage() {
           if (s.tradingScheduleStart) setTradingScheduleStart(s.tradingScheduleStart)
           if (s.tradingScheduleEnd) setTradingScheduleEnd(s.tradingScheduleEnd)
           if (s.tradingScheduleDays) setTradingScheduleDays(s.tradingScheduleDays)
+          // AI Monitoring Features
+          if (s.continuousMonitoringEnabled !== undefined) setContinuousMonitoringEnabled(s.continuousMonitoringEnabled)
+          if (s.monitoringInterval) setMonitoringInterval(s.monitoringInterval)
+          if (s.monitoringPairs) setMonitoringPairs(s.monitoringPairs)
+          if (s.entryExitSignalsEnabled !== undefined) setEntryExitSignalsEnabled(s.entryExitSignalsEnabled)
+          if (s.signalMinConfidence) setSignalMinConfidence(String(s.signalMinConfidence))
+          if (s.signalAlertMethod) setSignalAlertMethod(s.signalAlertMethod)
+          if (s.riskAlertsEnabled !== undefined) setRiskAlertsEnabled(s.riskAlertsEnabled)
+          if (s.volatilityThreshold) setVolatilityThreshold(String(s.volatilityThreshold))
+          if (s.riskAlertTypes) setRiskAlertTypes(s.riskAlertTypes)
+          if (s.sentimentEnabled !== undefined) setSentimentEnabled(s.sentimentEnabled)
+          if (s.sentimentSources) setSentimentSources(s.sentimentSources)
+          if (s.sentimentSensitivity) setSentimentSensitivity(s.sentimentSensitivity)
         }
         setSettingsLoaded(true)
       })
@@ -585,11 +612,16 @@ export default function SettingsPage() {
             pairFilterMode, pairWhitelist, pairBlacklist,
             // Feature 5: Trading Schedule
             tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays,
+            // AI Monitoring Features
+            continuousMonitoringEnabled, monitoringInterval, monitoringPairs,
+            entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod,
+            riskAlertsEnabled, volatilityThreshold, riskAlertTypes,
+            sentimentEnabled, sentimentSources, sentimentSensitivity,
           },
         }),
       }).catch(() => {})
     }, 2000) // Debounce: save 2s after last change
-  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays])
+  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity])
 
   // Auto-save on any settings change
   useEffect(() => {
@@ -1771,41 +1803,265 @@ export default function SettingsPage() {
               </SettingRow>
             </SectionCard>
 
+            {/* ─── Continuous Market Monitoring ─── */}
             <SectionCard
-              icon={<MessageSquare size={18} color={T.cyan} />}
+              icon={<Radar size={18} color={T.cyan} />}
               iconColor={T.cyan}
               iconBg={`${T.cyan}14`}
-              title={t('monitoringRecommendations')}
-              subtitle={t('aiCommSubtitle')}
+              title={t('continuousMarketMonitoring')}
+              subtitle={t('analysis247')}
             >
               <SettingRow
                 icon={<Radar size={13} color={T.cyan} />}
-                label={t('continuousMarketMonitoring')}
-                description={t('analysis247')}
+                label={t('enableMonitoring')}
+                description={t('enableMonitoringDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={continuousMonitoringEnabled} onChange={() => setContinuousMonitoringEnabled(!continuousMonitoringEnabled)} color={T.cyan} />
               </SettingRow>
+              {continuousMonitoringEnabled && (
+                <>
+                  <SettingRow
+                    icon={<Clock size={13} color={T.amber} />}
+                    label={t('monitoringInterval')}
+                    description={t('monitoringIntervalDesc')}
+                  >
+                    <SelectBox
+                      value={monitoringInterval}
+                      onChange={setMonitoringInterval}
+                      options={[
+                        { value: '1m', label: '1m' },
+                        { value: '5m', label: '5m' },
+                        { value: '15m', label: '15m' },
+                        { value: '1h', label: '1h' },
+                      ]}
+                      small
+                    />
+                  </SettingRow>
+                  <div style={{ padding: '8px 0' }}>
+                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                      {t('monitoringPairsLabel')}
+                    </div>
+                    <textarea
+                      value={monitoringPairs}
+                      onChange={e => setMonitoringPairs(e.target.value)}
+                      placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
+                      rows={3}
+                      style={{
+                        width: '100%', padding: '8px 12px', borderRadius: 8,
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr', resize: 'vertical',
+                        lineHeight: 1.6,
+                      }}
+                    />
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: 'rgba(0,212,255,0.04)', border: `1px solid rgba(0,212,255,0.10)`,
+                    marginTop: 8,
+                  }}>
+                    <Radar size={16} color={T.cyan} />
+                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                      {t('monitoringInfo')}
+                    </div>
+                  </div>
+                </>
+              )}
+            </SectionCard>
+
+            {/* ─── Entry & Exit Signals ─── */}
+            <SectionCard
+              icon={<Activity size={18} color={T.green} />}
+              iconColor={T.green}
+              iconBg={`${T.green}14`}
+              title={t('entryExitSignals')}
+              subtitle={t('instantOpportunityAlerts')}
+            >
               <SettingRow
                 icon={<Activity size={13} color={T.green} />}
-                label={t('entryExitSignals')}
-                description={t('instantOpportunityAlerts')}
+                label={t('enableSignals')}
+                description={t('enableSignalsDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={entryExitSignalsEnabled} onChange={() => setEntryExitSignalsEnabled(!entryExitSignalsEnabled)} color={T.green} />
               </SettingRow>
+              {entryExitSignalsEnabled && (
+                <>
+                  <SettingRow
+                    icon={<Target size={13} color={T.cyan} />}
+                    label={t('signalMinConfidence')}
+                    description={t('signalMinConfidenceDesc')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="range" min={50} max={99} step={5}
+                        value={signalMinConfidence}
+                        onChange={e => setSignalMinConfidence(e.target.value)}
+                        style={{ width: 80, accentColor: T.green, height: 3 }}
+                      />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.green, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                        {signalMinConfidence}%
+                      </span>
+                    </div>
+                  </SettingRow>
+                  <SettingRow
+                    icon={<Bell size={13} color={T.amber} />}
+                    label={t('signalAlertMethod')}
+                    description={t('signalAlertMethodDesc')}
+                  >
+                    <SelectBox
+                      value={signalAlertMethod}
+                      onChange={setSignalAlertMethod}
+                      options={[
+                        { value: 'platform', label: t('signalAlertPlatform') },
+                        { value: 'external', label: t('signalAlertExternal') },
+                        { value: 'both', label: t('signalAlertBoth') },
+                      ]}
+                      small
+                    />
+                  </SettingRow>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.10)`,
+                    marginTop: 8,
+                  }}>
+                    <Activity size={16} color={T.green} />
+                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                      {t('signalsInfo')}
+                    </div>
+                  </div>
+                </>
+              )}
+            </SectionCard>
+
+            {/* ─── Risk Alerts ─── */}
+            <SectionCard
+              icon={<AlertTriangle size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title={t('riskAlerts')}
+              subtitle={t('highVolatilityWarnings')}
+            >
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.amber} />}
-                label={t('riskAlerts')}
-                description={t('highVolatilityWarnings')}
+                label={t('enableRiskAlerts')}
+                description={t('enableRiskAlertsDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={riskAlertsEnabled} onChange={() => setRiskAlertsEnabled(!riskAlertsEnabled)} color={T.amber} />
               </SettingRow>
+              {riskAlertsEnabled && (
+                <>
+                  <SettingRow
+                    icon={<TrendingUp size={13} color={T.red} />}
+                    label={t('volatilityThreshold')}
+                    description={t('volatilityThresholdDesc')}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <input
+                        type="range" min={1} max={10} step={0.5}
+                        value={volatilityThreshold}
+                        onChange={e => setVolatilityThreshold(e.target.value)}
+                        style={{ width: 80, accentColor: T.amber, height: 3 }}
+                      />
+                      <span style={{ fontSize: 11, fontWeight: 700, color: T.amber, fontFamily: "'JetBrains Mono', monospace", minWidth: 30, textAlign: 'center' }}>
+                        {volatilityThreshold}%
+                      </span>
+                    </div>
+                  </SettingRow>
+                  <SettingRow
+                    icon={<Shield size={13} color={T.cyan} />}
+                    label={t('riskAlertTypes')}
+                    description={t('riskAlertTypesDesc')}
+                  >
+                    <SelectBox
+                      value={riskAlertTypes}
+                      onChange={setRiskAlertTypes}
+                      options={[
+                        { value: 'all', label: t('riskTypeAll') },
+                        { value: 'high', label: t('riskTypeHigh') },
+                        { value: 'critical', label: t('riskTypeCritical') },
+                      ]}
+                      small
+                    />
+                  </SettingRow>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.10)`,
+                    marginTop: 8,
+                  }}>
+                    <AlertTriangle size={16} color={T.amber} />
+                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                      {t('riskAlertsInfo')}
+                    </div>
+                  </div>
+                </>
+              )}
+            </SectionCard>
+
+            {/* ─── Sentiment Analysis ─── */}
+            <SectionCard
+              icon={<BarChart3 size={18} color={T.purple} />}
+              iconColor={T.purple}
+              iconBg={`${T.purple}14`}
+              title={t('sentimentAnalysis')}
+              subtitle={t('sentimentAnalysisDesc')}
+            >
               <SettingRow
                 icon={<BarChart3 size={13} color={T.purple} />}
-                label={t('sentimentAnalysis')}
-                description={t('sentimentAnalysisDesc')}
+                label={t('enableSentiment')}
+                description={t('enableSentimentDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={sentimentEnabled} onChange={() => setSentimentEnabled(!sentimentEnabled)} color={T.purple} />
               </SettingRow>
+              {sentimentEnabled && (
+                <>
+                  <SettingRow
+                    icon={<Globe size={13} color={T.cyan} />}
+                    label={t('sentimentSources')}
+                    description={t('sentimentSourcesDesc')}
+                  >
+                    <SelectBox
+                      value={sentimentSources}
+                      onChange={setSentimentSources}
+                      options={[
+                        { value: 'all', label: t('sentimentSourceAll') },
+                        { value: 'news', label: t('sentimentSourceNews') },
+                        { value: 'social', label: t('sentimentSourceSocial') },
+                      ]}
+                      small
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    icon={<Sliders size={13} color={T.green} />}
+                    label={t('sentimentSensitivity')}
+                    description={t('sentimentSensitivityDesc')}
+                  >
+                    <SelectBox
+                      value={sentimentSensitivity}
+                      onChange={setSentimentSensitivity}
+                      options={[
+                        { value: 'low', label: t('sensitivityLow') },
+                        { value: 'medium', label: t('sensitivityMedium') },
+                        { value: 'high', label: t('sensitivityHigh') },
+                      ]}
+                      small
+                    />
+                  </SettingRow>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: 'rgba(139,92,246,0.04)', border: `1px solid rgba(139,92,246,0.10)`,
+                    marginTop: 8,
+                  }}>
+                    <BarChart3 size={16} color={T.purple} />
+                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                      {t('sentimentInfo')}
+                    </div>
+                  </div>
+                </>
+              )}
             </SectionCard>
 
             {/* Feature 2: Advanced Strategy Settings */}

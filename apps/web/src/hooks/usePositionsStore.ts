@@ -46,6 +46,8 @@ interface PositionsState {
     available: number
     currency: string
     error?: string
+    /** V191: Raw error detail for diagnostics */
+    errorDetail?: string
   }>
   /** V175: Active credential ID from user settings — determines which exchange is primary */
   activeCredentialId: string | null

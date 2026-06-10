@@ -416,7 +416,7 @@ export function PortfolioMini({
                 </span>
                 {ex.error && (
                   <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>
-                    ⚠ {tp('error')}
+                    ⚠ {(ex as any).errorDetail || ex.error?.length > 30 ? ex.error?.substring(0, 25) + '…' : ex.error}
                   </span>
                 )}
                 {!isPaper && !ex.isTestnet && (

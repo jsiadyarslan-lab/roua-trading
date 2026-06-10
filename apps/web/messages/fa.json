@@ -1229,7 +1229,15 @@
       "sensitivityLow": "Low",
       "sensitivityMedium": "Medium",
       "sensitivityHigh": "High",
-      "sentimentInfo": "AI analyzes news articles, social media posts, and market commentary to gauge overall market sentiment and detect potential market-moving events."
+      "sentimentInfo": "AI analyzes news articles, social media posts, and market commentary to gauge overall market sentiment and detect potential market-moving events.",
+      "deleteAccountWarning": "This action is irreversible. Your account and all data will be permanently deleted after 30 days. Type DELETE to confirm.",
+      "typeToConfirm": "Type",
+      "deleteAccountError": "Failed to delete account. Please try again later.",
+      "antiPhishingSecretWord": "Secret Word",
+      "antiPhishingPlaceholder": "Enter your secret word...",
+      "antiPhishingHint": "This word will appear in every platform notification to verify it's genuinely from Roua. Choose something only you would know.",
+      "importLabel": "Import",
+      "importSettingsInvalid": "Invalid settings file. Please select a valid Roua settings export file."
     },
     "profile": {
       "deleteAccount": "حذف اکانت برای همیشه",

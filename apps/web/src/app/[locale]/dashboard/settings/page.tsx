@@ -23,20 +23,6 @@ import { useLocale } from 'next-intl'
 
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
 
-/* ─── Coming Soon Badge (V189) ─── */
-function ComingSoonBadge() {
-  const t = useTranslations('dashboard.settings')
-  return (
-    <span style={{
-      fontSize: 10, padding: '3px 8px', borderRadius: 10,
-      background: 'rgba(0,212,255,0.08)', color: T.cyan,
-      fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
-      border: '1px solid rgba(0,212,255,0.15)',
-      letterSpacing: '0.03em',
-    }}>{t('comingSoon')}</span>
-  )
-}
-
 /* ─── Toggle Switch ─── */
 function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
   checked: boolean; onChange: () => void; color: string; size?: 'sm' | 'md'; ariaLabel?: string
@@ -460,6 +446,21 @@ export default function SettingsPage() {
     return localStorage.getItem('roua_stealth_mode') === 'true'
   })
 
+  // Security features
+  const [sessionDuration, setSessionDuration] = useState('24h')
+  const [autoSessionRenewal, setAutoSessionRenewal] = useState(true)
+  const [antiPhishingEnabled, setAntiPhishingEnabled] = useState(false)
+  const [antiPhishingCode, setAntiPhishingCode] = useState('')
+  const [passkeysEnabled, setPasskeysEnabled] = useState(false)
+
+  // Data features
+  const [cacheDuration, setCacheDuration] = useState('5m')
+  const [importLoading, setImportLoading] = useState(false)
+
+  // Delete account dialog
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+
   // Sessions — V189: Real session data from API
   const [sessions, setSessions] = useState<Array<{ id: string; device: string; deviceInfo: any; lastActive: string; current: boolean; maskedIp: string | null; createdAt: string; expiresAt: string }>>([])
   const [sessionsLoading, setSessionsLoading] = useState(false)
@@ -582,6 +583,14 @@ export default function SettingsPage() {
           if (s.sentimentEnabled !== undefined) setSentimentEnabled(s.sentimentEnabled)
           if (s.sentimentSources) setSentimentSources(s.sentimentSources)
           if (s.sentimentSensitivity) setSentimentSensitivity(s.sentimentSensitivity)
+          // Security features
+          if (s.sessionDuration) setSessionDuration(s.sessionDuration)
+          if (s.autoSessionRenewal !== undefined) setAutoSessionRenewal(s.autoSessionRenewal)
+          if (s.antiPhishingEnabled !== undefined) setAntiPhishingEnabled(s.antiPhishingEnabled)
+          if (s.antiPhishingCode) setAntiPhishingCode(s.antiPhishingCode)
+          if (s.passkeysEnabled !== undefined) setPasskeysEnabled(s.passkeysEnabled)
+          // Data features
+          if (s.cacheDuration) setCacheDuration(s.cacheDuration)
         }
         setSettingsLoaded(true)
       })
@@ -617,11 +626,15 @@ export default function SettingsPage() {
             entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod,
             riskAlertsEnabled, volatilityThreshold, riskAlertTypes,
             sentimentEnabled, sentimentSources, sentimentSensitivity,
+            // Security features
+            sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled,
+            // Data features
+            cacheDuration,
           },
         }),
       }).catch(() => {})
     }, 2000) // Debounce: save 2s after last change
-  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity])
+  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays, continuousMonitoringEnabled, monitoringInterval, monitoringPairs, entryExitSignalsEnabled, signalMinConfidence, signalAlertMethod, riskAlertsEnabled, volatilityThreshold, riskAlertTypes, sentimentEnabled, sentimentSources, sentimentSensitivity, sessionDuration, autoSessionRenewal, antiPhishingEnabled, antiPhishingCode, passkeysEnabled, cacheDuration])
 
   // Auto-save on any settings change
   useEffect(() => {
@@ -947,7 +960,7 @@ export default function SettingsPage() {
                 label={t('autoSessionRenewal')}
                 description={t('autoRenewSessionDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={autoSessionRenewal} onChange={() => setAutoSessionRenewal(!autoSessionRenewal)} color={T.green} size="sm" />
               </SettingRow>
             </SectionCard>
 
@@ -985,13 +998,81 @@ export default function SettingsPage() {
                   label={t("deleteAccount")}
                   description={t("deleteAccountDesc")}
                 >
-                  <span style={{
-                    fontSize: 10, padding: '3px 8px', borderRadius: 10,
-                    background: 'rgba(255,255,255,0.04)', color: T.text3,
-                    fontFamily: "'JetBrains Mono', monospace",
-                  }}>{t('comingSoon')}</span>
+                  <button
+                    onClick={() => setShowDeleteDialog(true)}
+                    style={{
+                      padding: '6px 14px', borderRadius: 8,
+                      background: 'rgba(255,71,87,0.10)', border: '1px solid rgba(255,71,87,0.25)',
+                      color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      fontFamily: "'Cairo', sans-serif", transition: 'all 0.2s',
+                    }}
+                  >
+                    {t('deleteAccount')}
+                  </button>
                 </SettingRow>
               </div>
+              {/* Delete Account Confirmation Dialog */}
+              {showDeleteDialog && (
+                <div style={{
+                  padding: '16px 20px', borderTop: `1px solid rgba(255,71,87,0.15)`,
+                  background: 'rgba(255,71,87,0.03)',
+                }}>
+                  <div style={{ fontSize: 12, color: T.text2, marginBottom: 10, lineHeight: 1.6 }}>
+                    {t('deleteAccountWarning')}
+                  </div>
+                  <div style={{ marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: T.text3, marginBottom: 4 }}>
+                      {t('typeToConfirm')} &quot;DELETE&quot;
+                    </div>
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={e => setDeleteConfirmText(e.target.value)}
+                      placeholder="DELETE"
+                      style={{
+                        width: '100%', padding: '6px 10px', borderRadius: 8,
+                        background: T.surface, border: `1px solid rgba(255,71,87,0.20)`,
+                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr',
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => { setShowDeleteDialog(false); setDeleteConfirmText('') }}
+                      style={{
+                        padding: '6px 14px', borderRadius: 8,
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        color: T.text3, fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                        fontFamily: "'Cairo', sans-serif",
+                      }}
+                    >
+                      {tc('cancel')}
+                    </button>
+                    <button
+                      disabled={deleteConfirmText !== 'DELETE'}
+                      onClick={async () => {
+                        try {
+                          const res = await fetch('/api/auth/delete-account', { method: 'POST' })
+                          if (res.ok) { authLogout() } else { alert(t('deleteAccountError')) }
+                        } catch { alert(t('deleteAccountError')) }
+                        setShowDeleteDialog(false); setDeleteConfirmText('')
+                      }}
+                      style={{
+                        padding: '6px 14px', borderRadius: 8,
+                        background: deleteConfirmText === 'DELETE' ? 'rgba(255,71,87,0.15)' : T.surface,
+                        border: '1px solid rgba(255,71,87,0.25)',
+                        color: T.red, fontSize: 11, fontWeight: 700,
+                        cursor: deleteConfirmText === 'DELETE' ? 'pointer' : 'not-allowed',
+                        fontFamily: "'Cairo', sans-serif",
+                        opacity: deleteConfirmText === 'DELETE' ? 1 : 0.5,
+                      }}
+                    >
+                      {t('deleteAccount')}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}
@@ -2320,11 +2401,7 @@ export default function SettingsPage() {
                 label={t('passkeys')}
                 description={t('passkeysDesc')}
               >
-                <span style={{
-                  fontSize: 10, padding: '3px 8px', borderRadius: 10,
-                  background: 'rgba(255,255,255,0.04)', color: T.text3,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>{t('comingSoon')}</span>
+                <Toggle checked={passkeysEnabled} onChange={() => setPasskeysEnabled(!passkeysEnabled)} color={T.purple} size="sm" />
               </SettingRow>
             </SectionCard>
 
@@ -2340,14 +2417,25 @@ export default function SettingsPage() {
                 label={t('sessionDuration')}
                 description={t('sessionDurationDesc')}
               >
-                <ComingSoonBadge />
+                <SelectBox
+                  value={sessionDuration}
+                  onChange={setSessionDuration}
+                  options={[
+                    { value: '15m', label: t('fifteenMinutes') },
+                    { value: '1h', label: t('oneHour') },
+                    { value: '24h', label: t('twentyFourHours') },
+                    { value: '7d', label: t('sevenDays') },
+                    { value: '30d', label: t('thirtyDays') },
+                  ]}
+                  small
+                />
               </SettingRow>
               <SettingRow
                 icon={<RefreshCw size={13} color={T.green} />}
                 label={t('autoSessionRenewal')}
                 description={t('autoSessionRenewalDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={autoSessionRenewal} onChange={() => setAutoSessionRenewal(!autoSessionRenewal)} color={T.green} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Wifi size={13} color={T.text3} />}
@@ -2452,12 +2540,31 @@ export default function SettingsPage() {
                 label={t('enableAntiPhishing')}
                 description={t('antiPhishingCodeEnabled')}
               >
-                <span style={{
-                  fontSize: 10, padding: '3px 8px', borderRadius: 10,
-                  background: 'rgba(255,255,255,0.04)', color: T.text3,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>{t('comingSoon')}</span>
+                <Toggle checked={antiPhishingEnabled} onChange={() => setAntiPhishingEnabled(!antiPhishingEnabled)} color={T.amber} size="sm" />
               </SettingRow>
+              {antiPhishingEnabled && (
+                <div style={{ padding: '8px 0' }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                    {t('antiPhishingSecretWord')}
+                  </div>
+                  <input
+                    type="text"
+                    value={antiPhishingCode}
+                    onChange={e => setAntiPhishingCode(e.target.value)}
+                    placeholder={t('antiPhishingPlaceholder')}
+                    maxLength={20}
+                    style={{
+                      width: '100%', padding: '6px 10px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      outline: 'none', direction: 'ltr',
+                    }}
+                  />
+                  <div style={{ fontSize: 10, color: T.text3, marginTop: 4, lineHeight: 1.5 }}>
+                    {t('antiPhishingHint')}
+                  </div>
+                </div>
+              )}
             </SectionCard>
           </>
         )}
@@ -2498,11 +2605,48 @@ export default function SettingsPage() {
                 label={t('importSettings')}
                 description={t('importSettingsDesc')}
               >
-                <span style={{
-                  fontSize: 10, padding: '3px 8px', borderRadius: 10,
-                  background: 'rgba(255,255,255,0.04)', color: T.text3,
-                  fontFamily: "'JetBrains Mono', monospace",
-                }}>{t('comingSoon')}</span>
+                <button
+                  onClick={() => {
+                    const input = document.createElement('input')
+                    input.type = 'file'
+                    input.accept = '.json'
+                    input.onchange = async (e: any) => {
+                      const file = e.target?.files?.[0]
+                      if (!file) return
+                      setImportLoading(true)
+                      try {
+                        const text = await file.text()
+                        const data = JSON.parse(text)
+                        if (data?.settings && typeof data.settings === 'object') {
+                          fetch('/api/settings', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ settings: data.settings }),
+                          }).then(() => window.location.reload())
+                        } else {
+                          alert(t('importSettingsInvalid'))
+                        }
+                      } catch {
+                        alert(t('importSettingsInvalid'))
+                      }
+                      setImportLoading(false)
+                    }
+                    input.click()
+                  }}
+                  disabled={importLoading}
+                  style={{
+                    padding: '5px 12px', borderRadius: 8,
+                    background: `${T.purple}12`, border: `1px solid ${T.purple}25`,
+                    color: T.purple, fontSize: 11, fontWeight: 700,
+                    cursor: importLoading ? 'wait' : 'pointer',
+                    fontFamily: "'Cairo', sans-serif",
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    opacity: importLoading ? 0.6 : 1,
+                  }}
+                >
+                  {importLoading ? <RefreshCw size={11} className="animate-spin" /> : <Upload size={11} />}
+                  {importLoading ? t('preparing') : t('importLabel')}
+                </button>
               </SettingRow>
             </SectionCard>
 
@@ -2566,7 +2710,18 @@ export default function SettingsPage() {
                 label={t('cacheDuration')}
                 description={t('cacheDurationDesc')}
               >
-                <ComingSoonBadge />
+                <SelectBox
+                  value={cacheDuration}
+                  onChange={setCacheDuration}
+                  options={[
+                    { value: '1m', label: t('oneMinute') },
+                    { value: '5m', label: t('fiveMinutes') },
+                    { value: '15m', label: t('fifteenMinutes') },
+                    { value: '1h', label: t('oneHour') },
+                    { value: '24h', label: t('twentyFourHours') },
+                  ]}
+                  small
+                />
               </SettingRow>
             </SectionCard>
           </>

@@ -1802,6 +1802,13 @@ export class CredentialsService {
         ]) as any;
       } catch (apiErr: any) {
         this.logger.warn(`📊 MT5 getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 80)}`);
+
+        // V185: Try cached MT5 balance when getAccountInformation fails
+        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, apiErr.message);
+        if (cachedResult) {
+          return cachedResult;
+        }
+
         return {
           exchange: cred.exchange,
           label: cred.label,
@@ -1827,6 +1834,27 @@ export class CredentialsService {
         `margin=$${margin}, free=$${freeMargin}, currency=${currency}, demo=${isDemo}`
       );
 
+      // V185: Cache successful MT5 balance so we can use it when MetaAPI fails
+      try {
+        const cacheKey = `user:${userId}:mt5CachedBalance:${cred.id}`;
+        const cachedData = JSON.stringify({
+          equity, balance, margin, freeMargin, currency,
+          isDemo, exchange: cred.exchange, label: cred.label,
+          credentialId: cred.id, timestamp: Date.now(),
+        });
+        await this.prisma.setting.upsert({
+          where: { key: cacheKey },
+          update: { value: cachedData, updatedAt: new Date() },
+          create: {
+            id: `mt5cache_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            key: cacheKey,
+            value: cachedData,
+          },
+        });
+      } catch (cacheErr: any) {
+        this.logger.warn(`📊 V185: Failed to cache MT5 balance: ${cacheErr.message}`);
+      }
+
       return {
         exchange: cred.exchange,
         label: cred.label,
@@ -1845,6 +1873,13 @@ export class CredentialsService {
       };
     } catch (error: any) {
       this.logger.warn(`📊 Failed to fetch MT5 balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+
+      // V185: Try to use cached MT5 balance when MetaAPI fails (503/timeout/etc)
+      const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, error.message);
+      if (cachedResult) {
+        return cachedResult;
+      }
+
       return {
         exchange: cred.exchange,
         label: cred.label,
@@ -1857,6 +1892,81 @@ export class CredentialsService {
         assets: [],
         error: `فشل جلب رصيد MT5: ${error.message?.substring(0, 100) || 'خطأ غير معروف'}`,
       };
+    }
+  }
+
+  /**
+   * V185: Get cached MT5 balance from the Setting table.
+   * When MetaAPI fails (503, timeout, etc.), we return the last known balance
+   * with a "stale" flag so the frontend can show it with a warning instead of
+   * falling back to paper trading.
+   */
+  private async _getCachedMT5Balance(
+    cred: any,
+    userId: string,
+    isDemo: boolean,
+    errorMsg?: string,
+  ): Promise<{
+    exchange: string;
+    label: string;
+    credentialId: string;
+    isTestnet: boolean;
+    equity: number;
+    available: number;
+    currency: string;
+    usedMargin: number;
+    assets: Array<{ currency: string; free: number; used: number; total: number }>;
+    error?: string;
+    _stale?: boolean;
+    _staleTimestamp?: number;
+  } | null> {
+    try {
+      const cacheKey = `user:${userId}:mt5CachedBalance:${cred.id}`;
+      const cached = await this.prisma.setting.findUnique({
+        where: { key: cacheKey },
+      });
+      if (!cached) {
+        this.logger.warn(`📊 V185: No cached MT5 balance found for ${cred.exchange}/${cred.label}`);
+        return null;
+      }
+
+      const data = JSON.parse(cached.value);
+      const ageMs = Date.now() - (data.timestamp || 0);
+      const ageMin = Math.round(ageMs / 60000);
+
+      // Don't use cache older than 30 minutes
+      if (ageMs > 30 * 60 * 1000) {
+        this.logger.warn(`📊 V185: Cached MT5 balance too old (${ageMin}min) — not using it`);
+        return null;
+      }
+
+      this.logger.log(
+        `📊 V185: Using cached MT5 balance for ${cred.exchange}/${cred.label}: ` +
+        `equity=$${data.equity}, age=${ageMin}min (MetaAPI failed: ${errorMsg?.substring(0, 50)})`
+      );
+
+      return {
+        exchange: data.exchange || cred.exchange,
+        label: data.label || cred.label,
+        credentialId: cred.id,
+        isTestnet: data.isDemo ?? isDemo,
+        equity: data.equity || 0,
+        available: data.freeMargin || 0,
+        currency: data.currency || 'USD',
+        usedMargin: data.margin || 0,
+        assets: [{
+          currency: data.currency || 'USD',
+          free: data.freeMargin || 0,
+          used: data.margin || 0,
+          total: data.equity || 0,
+        }],
+        error: `رصيد مخزّن (${ageMin === 0 ? 'أقل من دقيقة' : `منذ ${ageMin} دقيقة`}) — اتصال MetaAPI غير متاح`,
+        _stale: true,
+        _staleTimestamp: data.timestamp,
+      };
+    } catch (err: any) {
+      this.logger.warn(`📊 V185: Failed to read cached MT5 balance: ${err.message}`);
+      return null;
     }
   }
 

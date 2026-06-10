@@ -220,6 +220,8 @@ export function PortfolioMini({
   const exchangeUnavailable = usePositionsStore(s => s.account?.exchangeUnavailable === true)
   // V175: Read the active exchange name — when set, dashboard shows this exchange's balance
   const activeExchangeName = usePositionsStore(s => s.account?.activeExchangeName as string | null)
+  // V185: Check if the balance is stale (from cache, MetaAPI down)
+  const isStaleBalance = usePositionsStore(s => s.account?.isStaleBalance === true)
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null)
   const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
@@ -325,14 +327,16 @@ export function PortfolioMini({
             }}>{tp('totalBalance')}</div>
             {/* V175: Show active exchange badge (e.g., "MT5") when active account succeeded */}
             {/* V164: Show "ورقي" badge only when falling back to paper balance */}
+            {/* V185: Show "مخزّن" indicator when balance is from cache */}
             {activeExchangeName && !exchangeUnavailable ? (
               <span style={{
                 fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
-                background: 'rgba(0,255,163,0.15)', color: T.green,
+                background: isStaleBalance ? 'rgba(245,158,11,0.15)' : 'rgba(0,255,163,0.15)',
+                color: isStaleBalance ? T.amber : T.green,
                 fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
-                border: '0.5px solid rgba(0,255,163,0.3)',
+                border: isStaleBalance ? '0.5px solid rgba(245,158,11,0.3)' : '0.5px solid rgba(0,255,163,0.3)',
               }}>
-                {activeExchangeName.toUpperCase()}
+                {activeExchangeName.toUpperCase()}{isStaleBalance ? ' ⏳' : ''}
               </span>
             ) : exchangeUnavailable ? (
               <span style={{

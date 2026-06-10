@@ -591,10 +591,12 @@ export const usePositionsStore = create<PositionsState>()(
           // back to paper just because OTHER exchanges failed.
           // ═══════════════════════════════════════════════════════════════
           const realExchangesSuccess = exchanges.filter(
-            (e: any) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
+            // V185: Stale balance (_stale=true) with equity > 0 counts as success
+            (e: any) => e.exchange !== 'paper-trading' && ((!e.error || (e as any)._stale) && e.equity > 0)
           )
           const realExchangesFailed = exchanges.filter(
-            (e: any) => e.exchange !== 'paper-trading' && (e.error || e.equity <= 0)
+            // V185: Stale balance is NOT a failure — it's usable cached data
+            (e: any) => e.exchange !== 'paper-trading' && (e.error && !(e as any)._stale) && e.equity <= 0
           )
           const paperExchange = exchanges.find(
             (e: any) => e.exchange === 'paper-trading'
@@ -605,7 +607,14 @@ export const usePositionsStore = create<PositionsState>()(
           const activeExchange = activeCredId
             ? exchanges.find((e: any) => e.credentialId === activeCredId)
             : null
-          const activeExchangeSucceeded = activeExchange && !activeExchange.error && (activeExchange as any).equity > 0
+          // V185: Stale balance (from MT5 cache) is still usable — treat as "succeeded"
+          // as long as it has equity > 0. This prevents falling back to paper trading
+          // when MetaAPI is temporarily down (503/timeout).
+          const isStaleButValid = activeExchange && (activeExchange as any)._stale === true && (activeExchange as any).equity > 0
+          const activeExchangeSucceeded = activeExchange && (
+            (!activeExchange.error && (activeExchange as any).equity > 0) ||
+            isStaleButValid
+          )
 
           // V176/V184: Debug logging — understand why dashboard might not show active account
           const _activeCredInfo = activeExchange
@@ -627,13 +636,34 @@ export const usePositionsStore = create<PositionsState>()(
               `Available credentialIds: [${exchanges.map((e: any) => e.credentialId?.slice(0,8)).join(', ')}]. ` +
               `This usually means the credential was deleted or the ID format changed.`
             )
+            // V185: Clear stale activeCredentialId that doesn't match any exchange
+            try {
+              await fetch('/api/settings', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ settings: { activeCredentialId: '' } }),
+              })
+              console.log(`[PositionsStore] V185: Cleared stale activeCredentialId`)
+              set({ activeCredentialId: null } as any)
+            } catch {}
           }
           if (activeCredId && activeExchange && !activeExchangeSucceeded) {
-            console.warn(
-              `[PositionsStore] V184: ⚠️ Active exchange "${(activeExchange as any).exchange}" FAILED: ` +
-              `equity=$${(activeExchange as any).equity}, error="${(activeExchange as any).error || 'none'}". ` +
-              `Dashboard will fall back to paper trading.`
-            )
+            // V185: Check if the active exchange has a stale/cached balance (from MetaAPI cache)
+            const isStaleBalance = (activeExchange as any)._stale === true
+            const staleEquity = (activeExchange as any).equity || 0
+            if (isStaleBalance && staleEquity > 0) {
+              console.log(
+                `[PositionsStore] V185: Active exchange "${(activeExchange as any).exchange}" has STALE balance ` +
+                `(equity=$${staleEquity}, from ${new Date((activeExchange as any)._staleTimestamp).toLocaleTimeString()}). ` +
+                `Using stale balance as primary instead of falling back to paper.`
+              )
+            } else {
+              console.warn(
+                `[PositionsStore] V184: ⚠️ Active exchange "${(activeExchange as any).exchange}" FAILED: ` +
+                `equity=$${(activeExchange as any).equity}, error="${(activeExchange as any).error || 'none'}". ` +
+                `Dashboard will fall back to paper trading.`
+              )
+            }
           }
 
           let adjustedTotalEquityUsd = totalEquityUsd
@@ -902,6 +932,8 @@ export const usePositionsStore = create<PositionsState>()(
             // V175: Store which exchange is the active/primary one
             activeExchangeName: activeExchangeSucceeded ? (activeExchange as any).exchange : null,
             activeCredentialId: activeCredId,
+            // V185: Mark if the active exchange balance is stale (from cache)
+            isStaleBalance: isStaleButValid ? true : false,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 

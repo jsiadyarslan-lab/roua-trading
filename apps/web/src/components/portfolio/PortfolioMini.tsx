@@ -218,6 +218,8 @@ export function PortfolioMini({
   const exchangeBalances = usePositionsStore(s => s.exchangeBalances)
   // V164: Read the exchangeUnavailable flag to show warning when real exchange fails
   const exchangeUnavailable = usePositionsStore(s => s.account?.exchangeUnavailable === true)
+  // V175: Read the active exchange name — when set, dashboard shows this exchange's balance
+  const activeExchangeName = usePositionsStore(s => s.account?.activeExchangeName as string | null)
   const [closingSymbol, setClosingSymbol] = useState<string | null>(null)
   const pnlUp = data.totalPnl > 0
   const cardGap = compact ? 6 : 8
@@ -321,8 +323,18 @@ export function PortfolioMini({
               fontFamily: "'Cairo', sans-serif",
               fontSize: 9, color: T.text2,
             }}>{tp('totalBalance')}</div>
-            {/* V164: Show "ورقي" badge when displaying paper balance as fallback */}
-            {exchangeUnavailable && (
+            {/* V175: Show active exchange badge (e.g., "MT5") when active account succeeded */}
+            {/* V164: Show "ورقي" badge only when falling back to paper balance */}
+            {activeExchangeName && !exchangeUnavailable ? (
+              <span style={{
+                fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
+                background: 'rgba(0,255,163,0.15)', color: T.green,
+                fontWeight: 800, fontFamily: "'JetBrains Mono', monospace",
+                border: '0.5px solid rgba(0,255,163,0.3)',
+              }}>
+                {activeExchangeName.toUpperCase()}
+              </span>
+            ) : exchangeUnavailable ? (
               <span style={{
                 fontSize: 6.5, padding: '1px 4px', borderRadius: 3,
                 background: 'rgba(0,212,255,0.15)', color: T.cyan,
@@ -331,12 +343,12 @@ export function PortfolioMini({
               }}>
                 {tp('paper')}
               </span>
-            )}
+            ) : null}
           </div>
           <div style={{
             fontFamily: "'JetBrains Mono', monospace",
             fontSize: balanceSize, fontWeight: 800,
-            color: exchangeUnavailable ? T.cyan : T.text,
+            color: activeExchangeName && !exchangeUnavailable ? T.text : (exchangeUnavailable ? T.cyan : T.text),
             letterSpacing: '-0.02em',
           }}>${fmt(data.balance, 0)}</div>
         </div>

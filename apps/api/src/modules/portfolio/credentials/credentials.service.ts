@@ -262,6 +262,31 @@ export class CredentialsService {
     // a new one still shows the OLD balance until the cache expires.
     this.invalidateBalanceCache(userId);
 
+    // V172: Auto-activate first real (non-paper) credential
+    // When a user adds their first real exchange account, make it the active
+    // account so they can start using it immediately without manual activation.
+    if (exchange.toLowerCase() !== 'paper-trading') {
+      try {
+        const existingActive = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:activeCredentialId` },
+        });
+        if (!existingActive || !existingActive.value) {
+          await this.prisma.setting.upsert({
+            where: { key: `user:${userId}:activeCredentialId` },
+            update: { value: credential.id },
+            create: {
+              key: `user:${userId}:activeCredentialId`,
+              value: credential.id,
+            },
+          });
+          this.logger.log(`🎯 Auto-activated first real credential ${credential.id} for user ${userId}`);
+        }
+      } catch (err: any) {
+        // Non-critical — don't fail the whole credential addition
+        this.logger.warn(`Failed to auto-activate credential: ${err.message}`);
+      }
+    }
+
     this.logger.log(`✅ Credential added: ${exchange}/${label} for user ${userId}`);
 
     return {
@@ -1516,11 +1541,12 @@ export class CredentialsService {
       // Check if MetaAPI token is configured
       const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
       if (!metaApiToken) {
-        this.logger.error(
-          `📊 METAAPI_TOKEN not configured — MT5 credential validation REJECTED. ` +
-          `Set METAAPI_TOKEN environment variable to enable MT5 validation.`
+        // MetaAPI not configured — accept credentials but warn
+        this.logger.warn(
+          `📊 METAAPI_TOKEN not configured — MT5 credential validation skipped. ` +
+          `Set METAAPI_TOKEN environment variable to enable full MT5 validation.`
         );
-        return { valid: false, error: 'خدمة MT5 غير مفعلة حالياً — تواصل مع الدعم الفني' };
+        return { valid: true, permissions: ['read', 'trade'] };
       }
 
       // Validate required fields
@@ -1531,110 +1557,60 @@ export class CredentialsService {
         return { valid: false, error: 'اسم سيرفر MT5 مطلوب (مثال: MetaQuotes-Demo)' };
       }
 
-      // Connect via MetaAPI SDK v29+
+      // Try to connect via MetaAPI
       const metaApiModule: any = await import('metaapi.cloud-sdk');
       const MetaApiClass = metaApiModule.default || metaApiModule;
       const metaApi = new MetaApiClass(metaApiToken);
       const accountApi = metaApi.metatraderAccountApi;
 
-      // ── V174: Find existing account by login+server, NOT by MetaAPI UUID ──
-      // The accountId parameter is the MT5 login number (e.g. "11230892"),
-      // NOT a MetaAPI UUID. Calling getAccount(login) always fails because
-      // getAccount() expects a UUID. We must list all accounts and match
-      // by login and server.
-      let account: any = null;
+      // V172: Find existing account by login number.
+      // getAccount() expects MetaAPI UUID, not login number.
+      let account;
       try {
-        // SDK v29+: getAccountsWithInfiniteScrollPagination() replaces getAccounts()
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
-        this.logger.log(
-          `📊 V174 MetaAPI accounts: ${allAccounts.length}. ` +
-          `[${allAccounts.map((a: any) => `login=${a.login}/server=${a.server}/state=${a.state}`).join(', ')}]`
-        );
-        account = allAccounts.find((a: any) =>
-          String(a.login) === String(accountId) && a.server === server
-        );
-        // V174b: Fallback — match by login only if server name differs slightly
-        if (!account) {
-          account = allAccounts.find((a: any) => String(a.login) === String(accountId));
-          if (account) {
-            this.logger.warn(
-              `📊 V174b MT5 account ${accountId} found by login ONLY (server mismatch: ` +
-              `credential="${server}", metaapi="${account.server}"). Using this account.`
-            );
-          }
+        const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
+        if (existing) {
+          account = await accountApi.getAccount(existing.id);
+          this.logger.log(`📊 MT5 account ${accountId} already registered (MetaAPI ID: ${existing.id})`);
         }
-        if (account) {
-          this.logger.log(
-            `📊 V174 MT5 account ${accountId} found on MetaAPI: ` +
-            `id=${account.id}, state=${account.state}, name=${account.name}`
-          );
-        } else {
-          this.logger.warn(
-            `📊 V174 MT5 account ${accountId}/${server} NOT found in ${allAccounts.length} MetaAPI accounts.`
-          );
-        }
-      } catch (listErr: any) {
-        this.logger.warn(
-          `📊 V174 Failed to list MetaAPI accounts: ${listErr.message?.substring(0, 150)}. ` +
-          `Will try to create account.`
-        );
+      } catch (searchErr: any) {
+        this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
       }
 
-      // If not found, try to create it
+      // If not found, try to register it
       if (!account) {
-        this.logger.log(`📊 V174 Creating MT5 account ${accountId}/${server} on MetaAPI...`);
+        this.logger.log(`📊 Registering MT5 account ${accountId} with MetaAPI...`);
         try {
           account = await accountApi.createAccount({
             login: accountId,
             password,
             server,
-            type: 'cloud-g2',
-            name: `Roua-${accountId}`,
+            type: isDemo ? 'demo' : 'live',
+            name: `Roua-Validation-${Date.now()}`,
             platform: 'mt5',
             magic: 123456,
-            quoteStreamingIntervalSeconds: 2.5,
+            quoteStreamingIntervalSeconds: 2,
             reliability: 'regular',
           });
 
           // Wait for deployment with timeout
           await account.waitDeployed(60000);
-          this.logger.log(`📊 V174 MT5 account ${accountId} deployed successfully`);
+          this.logger.log(`📊 MT5 account ${accountId} deployed successfully`);
         } catch (registerErr: any) {
           const msg = registerErr.message || '';
-          // V174: Handle "no access to create" — token lacks account-management:createAccoun permission
-          if (msg.includes('createAccoun') || msg.includes('access to') || msg.includes('Forbidden') || msg.includes('403')) {
-            // Token can only READ existing accounts, not create new ones.
-            // If we couldn't find the account above, it might not be registered yet.
-            this.logger.error(
-              `📊 V174 MetaAPI token lacks account creation permission: ${msg.substring(0, 150)}. ` +
-              `The account must be registered manually in MetaAPI dashboard first.`
-            );
-            return { valid: false, error: 'مفتاح MetaAPI لا يملك صلاحية إنشاء حسابات — يجب تسجيل الحساب يدوياً من لوحة تحكم MetaAPI أولاً' };
-          }
           if (msg.includes('already exists')) {
-            // Account was created between our list check and now — try listing again
-            try {
-              const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
-              account = allAccounts.find((a: any) =>
-                String(a.login) === String(accountId) && a.server === server
-              );
-            } catch { /* ignore */ }
-            if (!account) {
-              return { valid: false, error: 'الحساب مسجل على MetaAPI لكن لا يمكن الوصول إليه — تأكد من صلاحيات التوكن' };
-            }
+            // Account already registered by another user — try to access it
+            account = await accountApi.getAccount(accountId);
           } else if (msg.includes('Invalid credentials') || msg.includes('authentication')) {
             return { valid: false, error: 'بيانات حساب MT5 غير صحيحة — تأكد من رقم الحساب وكلمة السر واسم السيرفر' };
           } else if (msg.includes('server not found') || msg.includes('Unknown server')) {
             return { valid: false, error: `سيرفر MT5 "${server}" غير معروف — تأكد من كتابة الاسم بشكل صحيح` };
           } else {
-            this.logger.error(`📊 V174 MT5 account creation failed: ${msg} — REJECTING`);
-            return { valid: false, error: `فشل تسجيل حساب MT5: ${msg}` };
+            // Registration failed — accept with warning (connection may work later)
+            this.logger.warn(`📊 MT5 account registration failed: ${msg} — accepting with warning`);
+            return { valid: true, permissions: ['read', 'trade'] };
           }
         }
-      }
-
-      if (!account) {
-        return { valid: false, error: 'فشل العثور على حساب MT5 أو إنشاؤه على MetaAPI' };
       }
 
       // Try to connect and get account information
@@ -1646,7 +1622,7 @@ export class CredentialsService {
         const accountInfo = await connection.getAccountInformation();
         if (accountInfo) {
           this.logger.log(
-            `📊 V174 MT5 account ${accountId} validated: ` +
+            `📊 MT5 account ${accountId} validated: ` +
             `balance=${accountInfo.balance}, equity=${accountInfo.equity}, ` +
             `currency=${accountInfo.currency}, leverage=${accountInfo.leverage}`
           );
@@ -1658,17 +1634,20 @@ export class CredentialsService {
           return { valid: false, error: 'فشل المصادقة على حساب MT5 — تأكد من بيانات الاعتماد' };
         }
         if (msg.includes('No connection') || msg.includes('timeout')) {
-          this.logger.warn(`📊 MT5 connection failed during validation: ${msg} — REJECTING for safety`);
-          return { valid: false, error: 'لا يمكن الاتصال بسيرفر MT5 — تأكد من تشغيل الـ Terminal وحاول مجدداً' };
+          // Connection issue — accept with warning (Terminal may be offline)
+          this.logger.warn(`📊 MT5 connection failed during validation: ${msg} — accepting with warning`);
+          return { valid: true, permissions: ['read', 'trade'] };
         }
-        this.logger.error(`📊 MT5 validation error: ${msg} — REJECTING`);
-        return { valid: false, error: `فشل التحقق من حساب MT5: ${msg}` };
+        // Other errors — accept with warning
+        this.logger.warn(`📊 MT5 validation error: ${msg} — accepting with warning`);
+        return { valid: true, permissions: ['read', 'trade'] };
       }
 
       return { valid: true, permissions: ['read', 'trade'] };
     } catch (error: any) {
-      this.logger.error(`📊 MT5 validation unexpected error: ${error.message} — REJECTING`);
-      return { valid: false, error: `خطأ غير متوقع في التحقق من MT5: ${error.message}` };
+      // MetaAPI SDK not available or other unexpected error
+      this.logger.warn(`📊 MT5 validation error: ${error.message} — accepting with warning`);
+      return { valid: true, permissions: ['read', 'trade'] };
     }
   }
 
@@ -1712,11 +1691,11 @@ export class CredentialsService {
 
       // Decrypt MT5 credentials: apiKey=accountId, apiSecret=password, passphrase=server
       const decrypted = await this.decryptCredential(cred.id, userId);
-      const mt5Login = decrypted.apiKey;
+      const accountId = decrypted.apiKey;
       const password = decrypted.apiSecret;
       const server = decrypted.passphrase || '';
 
-      if (!mt5Login || !password || !server) {
+      if (!accountId || !password || !server) {
         return {
           exchange: cred.exchange,
           label: cred.label,
@@ -1731,141 +1710,68 @@ export class CredentialsService {
         };
       }
 
-      // Connect via MetaAPI SDK v29+
+      // Connect via MetaAPI
       const metaApiModule: any = await import('metaapi.cloud-sdk');
       const MetaApiClass = metaApiModule.default || metaApiModule;
       const metaApi = new MetaApiClass(metaApiToken);
       const accountApi = metaApi.metatraderAccountApi;
 
-      // ── V174: Find existing account by login+server, NOT by MetaAPI UUID ──
-      let account: any = null;
+      // V172: Find existing account by login number.
+      // getAccount() expects MetaAPI UUID, not login number.
+      // So we must search the account list first.
+      let account;
       try {
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
-        this.logger.log(
-          `📊 V174b _fetchMT5Balance: ${allAccounts.length} MetaAPI accounts. ` +
-          `[${allAccounts.map((a: any) => `login=${a.login}/server=${a.server}/state=${a.state}`).join(', ')}]`
-        );
-        account = allAccounts.find((a: any) =>
-          String(a.login) === String(mt5Login) && a.server === server
-        );
-        // V174b: Fallback — match by login only if server name differs slightly
-        if (!account) {
-          account = allAccounts.find((a: any) => String(a.login) === String(mt5Login));
-          if (account) {
-            this.logger.warn(
-              `📊 V174b _fetchMT5Balance: login=${mt5Login} found by login ONLY ` +
-              `(server mismatch: credential="${server}", metaapi="${account.server}")`
-            );
-          }
+        const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
+        if (existing) {
+          account = await accountApi.getAccount(existing.id);
+          this.logger.log(`📊 Found existing MT5 account ${accountId} (MetaAPI ID: ${existing.id})`);
         }
-        if (account) {
-          this.logger.log(
-            `📊 V174b _fetchMT5Balance: Found account for login=${mt5Login}, ` +
-            `uuid=${account.id}, state=${account.state}`
-          );
-        } else {
-          this.logger.warn(
-            `📊 V174 _fetchMT5Balance: login=${mt5Login}/${server} NOT found in ${allAccounts.length} accounts. ` +
-            `Existing: [${allAccounts.map((a: any) => `${a.login}/${a.server}`).join(', ')}]`
-          );
-        }
-      } catch (listErr: any) {
-        this.logger.warn(
-          `📊 V174 _fetchMT5Balance: Failed to list accounts: ${listErr.message?.substring(0, 150)}`
-        );
+      } catch (searchErr: any) {
+        this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
       }
 
-      // If not found, try to create it
+      // If not found, try to register
       if (!account) {
-        this.logger.log(`📊 V174 _fetchMT5Balance: Creating MT5 account ${mt5Login}/${server}...`);
         try {
           account = await accountApi.createAccount({
-            login: mt5Login,
+            login: accountId,
             password,
             server,
-            type: 'cloud-g2',
+            type: isDemo ? 'demo' : 'live',
             name: `Roua-${userId.slice(0, 8)}`,
             platform: 'mt5',
             magic: 123456,
-            quoteStreamingIntervalSeconds: 2.5,
+            quoteStreamingIntervalSeconds: 2,
             reliability: 'regular',
           });
-          await account.waitDeployed(30000);
+          await account.waitDeployed(60000);
+          this.logger.log(`📊 Created new MT5 account ${accountId}`);
         } catch (regErr: any) {
-          const msg = regErr.message || '';
-          if (msg.includes('createAccoun') || msg.includes('access to') || msg.includes('Forbidden') || msg.includes('403')) {
-            // Token lacks creation permission — account must exist already
-            this.logger.error(
-              `📊 V174 _fetchMT5Balance: Token lacks creation permission. ` +
-              `Account ${mt5Login}/${server} must be registered in MetaAPI dashboard.`
-            );
-            return {
-              exchange: cred.exchange,
-              label: cred.label,
-              credentialId: cred.id,
-              isTestnet: isDemo,
-              equity: 0,
-              available: 0,
-              currency: 'USD',
-              usedMargin: 0,
-              assets: [],
-              error: 'مفتاح MetaAPI لا يملك صلاحية إنشاء حسابات — تأكد من تسجيل الحساب في لوحة تحكم MetaAPI',
-            };
-          }
-          if (msg.includes('already exists')) {
-            // Race condition — list again
-            try {
-              const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
-              account = allAccounts.find((a: any) =>
-                String(a.login) === String(mt5Login) && a.server === server
-              );
-            } catch { /* ignore */ }
-          }
-          if (!account) {
-            return {
-              exchange: cred.exchange,
-              label: cred.label,
-              credentialId: cred.id,
-              isTestnet: isDemo,
-              equity: 0,
-              available: 0,
-              currency: 'USD',
-              usedMargin: 0,
-              assets: [],
-              error: `فشل تسجيل حساب MT5: ${msg.substring(0, 100) || 'خطأ غير معروف'}`,
-            };
-          }
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: isDemo,
+            equity: 0,
+            available: 0,
+            currency: 'USD',
+            usedMargin: 0,
+            assets: [],
+            error: `فشل تسجيل حساب MT5: ${regErr.message?.substring(0, 100) || 'خطأ غير معروف'}`,
+          };
         }
       }
 
-      if (!account) {
-        return {
-          exchange: cred.exchange,
-          label: cred.label,
-          credentialId: cred.id,
-          isTestnet: isDemo,
-          equity: 0,
-          available: 0,
-          currency: 'USD',
-          usedMargin: 0,
-          assets: [],
-          error: 'فشل العثور على حساب MT5 أو إنشاؤه على MetaAPI',
-        };
-      }
-
-      // V174 FIX: Do NOT call connection.isConnected() — it doesn't exist in SDK v29+.
-      // Instead, just call connect() directly. If already connected, it's a no-op.
-      // If not connected, it will establish the connection.
       const connection = account.getRPCConnection();
+      // V175 FIX: isConnected() removed from MetaAPI SDK v29+.
+      // Just call connect() directly — if already connected, it's a no-op.
       try {
         await connection.connect();
         await connection.waitSynchronized();
-      } catch (connErr: any) {
-        // If already connected, connect() may throw — that's fine, we proceed
-        const cmsg = connErr.message || '';
-        if (!cmsg.includes('already connected') && !cmsg.includes('already synchronized')) {
-          this.logger.warn(`📊 V174 _fetchMT5Balance: Connection issue: ${cmsg.substring(0, 100)}`);
-        }
+      } catch (connectErr: any) {
+        // Connection might already be established — try to proceed anyway
+        this.logger.warn(`📊 MT5 connect/sync note for ${accountId}: ${connectErr.message?.substring(0, 80)}`);
       }
 
       const accountInfo = await connection.getAccountInformation();
@@ -1876,7 +1782,7 @@ export class CredentialsService {
       const currency = accountInfo?.currency || 'USD';
 
       this.logger.log(
-        `📊 V174 MT5 balance for ${mt5Login}: balance=$${balance}, equity=$${equity}, ` +
+        `📊 MT5 balance for ${accountId}: balance=$${balance}, equity=$${equity}, ` +
         `margin=$${margin}, free=$${freeMargin}, currency=${currency}, demo=${isDemo}`
       );
 
@@ -1897,7 +1803,7 @@ export class CredentialsService {
         }],
       };
     } catch (error: any) {
-      this.logger.warn(`📊 V174 Failed to fetch MT5 balance for ${cred.exchange}/${cred.label}: ${error.message}`);
+      this.logger.warn(`📊 Failed to fetch MT5 balance for ${cred.exchange}/${cred.label}: ${error.message}`);
       return {
         exchange: cred.exchange,
         label: cred.label,

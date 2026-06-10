@@ -43,6 +43,8 @@ interface PositionsState {
     currency: string
     error?: string
   }>
+  /** V175: Active credential ID from user settings — determines which exchange is primary */
+  activeCredentialId: string | null
   loading: boolean
   error: string | null
   lastUpdate: string | null
@@ -264,6 +266,8 @@ export const usePositionsStore = create<PositionsState>()(
   positions: [],
   account: null,
   exchangeBalances: [],
+  /** V175: Active credential from user settings */
+  activeCredentialId: null as string | null,
   loading: false,
   error: null,
   lastUpdate: null,
@@ -272,6 +276,7 @@ export const usePositionsStore = create<PositionsState>()(
   /** Current userId that the store data belongs to */
   _ownerUserId: null as string | null,
   _lastFetchStart: null as number | null,
+  _lastRefreshAfterTrade: 0 as number,
   setPositions: (positions) => set({ positions }),
   setAccount: (account) => set({ account }),
   setLoading: (loading) => set({ loading }),
@@ -512,6 +517,24 @@ export const usePositionsStore = create<PositionsState>()(
     // Track current user as owner of this data
     if (currentUserId) set({ _ownerUserId: currentUserId } as any)
 
+    // V175: Fetch activeCredentialId from user settings so the dashboard
+    // knows which exchange account to prioritize for the main balance display.
+    // Without this, the dashboard shows aggregated or paper balance even when
+    // the user has set MT5 (or another exchange) as their active account.
+    try {
+      const settingsRes = await fetch('/api/settings')
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json()
+        const newActiveCredId = settingsData?.settings?.activeCredentialId || null
+        const currentActiveCredId = get().activeCredentialId
+        if (newActiveCredId !== currentActiveCredId) {
+          set({ activeCredentialId: newActiveCredId } as any)
+        }
+      }
+    } catch {
+      // Settings fetch failed — keep existing activeCredentialId
+    }
+
     // V154/V166 FIX: Handle auth-blocked responses — don't fall through to paper fallback.
     // Previously, when the backend returned 401 (expired session), fetchAccount()
     // silently fell through all try/catch blocks and showed $10,000 to every user.
@@ -547,19 +570,19 @@ export const usePositionsStore = create<PositionsState>()(
 
           // ═══════════════════════════════════════════════════════════════
           // V162 CRITICAL FIX: Don't silently show paper balance as total.
+          // V175 OVERRIDE: Respect activeCredentialId — when user has set
+          // a specific exchange (like MT5) as active, prioritize its balance.
           //
-          // ROOT CAUSE of $12,342.85 shared balance bug:
-          //   1. Binance balance ALWAYS fails from Railway (IP blocked / timeout)
-          //   2. Backend returns: Binance=0(error) + paperEquity → total includes paper
-          //   3. Frontend used to show total (which = paper only) → ALL users
-          //      with failed Binance see the same paper trading balance
-          //   4. Smart Executor creates identical positions for all users
-          //      → same $10,000 base + same PnL = same $12,342.85 for everyone
+          // ROOT CAUSE of "ورقي" shown when MT5 is active:
+          //   1. User sets MT5 as active in Settings → activeCredentialId saved
+          //   2. Dashboard fetches ALL exchange balances
+          //   3. If Binance fails → allRealExchangesFailed=true
+          //   4. Dashboard falls back to paper-trading and shows "ورقي" badge
+          //   5. Even though MT5 balance succeeded, it's ignored!
           //
-          // FIX: When ALL real exchanges fail for a user who HAS real credentials,
-          // DON'T use paper trading balance as the displayed total.
-          // Instead, show 0 with a clear error indicator.
-          // Paper-only users (no real exchange) continue to see their paper balance.
+          // FIX: If activeCredentialId points to an exchange that succeeded,
+          // use THAT exchange's balance as the primary balance. Don't fall
+          // back to paper just because OTHER exchanges failed.
           // ═══════════════════════════════════════════════════════════════
           const realExchangesSuccess = exchanges.filter(
             (e: any) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
@@ -571,6 +594,13 @@ export const usePositionsStore = create<PositionsState>()(
             (e: any) => e.exchange === 'paper-trading'
           )
 
+          // V175: Find the active exchange balance
+          const activeCredId = get().activeCredentialId
+          const activeExchange = activeCredId
+            ? exchanges.find((e: any) => e.credentialId === activeCredId)
+            : null
+          const activeExchangeSucceeded = activeExchange && !activeExchange.error && (activeExchange as any).equity > 0
+
           let adjustedTotalEquityUsd = totalEquityUsd
           let adjustedTotalAvailableUsd = totalAvailableUsd
           let adjustedTotalUsedMargin = totalUsedMargin
@@ -579,44 +609,40 @@ export const usePositionsStore = create<PositionsState>()(
 
           // V162: Use the backend's allRealExchangesFailed flag when available,
           // otherwise compute it from the exchange results
-          const allRealFailed = allRealExchangesFailed || 
+          const allRealFailed = allRealExchangesFailed ||
             (hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0)
 
-          if (allRealFailed) {
+          // V175: If the user's active exchange succeeded, use it as primary
+          // even if other real exchanges failed. This fixes the case where
+          // Binance fails but MT5 (which is the active account) works fine.
+          if (activeExchangeSucceeded) {
+            // The active exchange (e.g., MT5) succeeded — use its balance as primary
+            adjustedTotalEquityUsd = (activeExchange as any).equity
+            adjustedTotalAvailableUsd = (activeExchange as any).available || 0
+            adjustedTotalUsedMargin = (activeExchange as any).usedMargin || 0
+            exchangeUnavailable = false
+            console.log(
+              `[PositionsStore] V175: Active exchange "${(activeExchange as any).exchange}" ` +
+              `(credentialId=${activeCredId?.slice(0, 8)}...) succeeded with equity=$${adjustedTotalEquityUsd.toFixed(2)}. ` +
+              `Using as primary balance.`
+            )
+          } else if (allRealFailed) {
             // V170.2 FIX: Real exchanges failed, but user still needs to see their balance.
-            //
-            // OLD V162 BEHAVIOR (too aggressive): Set everything to $0 → user sees
-            // empty dashboard with no explanation. This was meant to prevent the
-            // "shared balance" bug but the root cause is now fixed (V136: Smart Executor
-            // no longer auto-enabled for all users, each user has own paper balance).
-            //
-            // NEW BEHAVIOR: Show the paper-trading balance as a FALLBACK, but set
-            // exchangeUnavailable=true so the UI can show a clear warning:
-            //   "⚠️ حساب Binance غير متاح — الرصيد المعروض هو تداول تجريبي"
-            // This way the user sees their balance AND understands why it might differ
-            // from their real exchange account.
             console.warn(
               `[PositionsStore] ALL ${realExchangesFailed.length} real exchange balance(s) FAILED. ` +
               `Falling back to paper-trading balance with warning. ` +
               `Failed: [${realExchangesFailed.map((e: any) => e.exchange).join(', ')}]`
             )
             exchangeUnavailable = true
-            // V171: Use paper-trading balance as fallback (user's own, not shared)
-            // V171 FIX: With the backend V171 fix, paperExchange should ALWAYS exist
-            // now (backend adds default $10,000 entry if AgentSettings query fails).
-            // But as a safety net, if paperExchange is still missing, use totalEquityUsd
-            // from backend (which now includes paper when all real failed), or $10,000.
             if (paperExchange && paperExchange.equity > 0) {
               adjustedTotalEquityUsd = paperExchange.equity
               adjustedTotalAvailableUsd = paperExchange.available || 0
               adjustedTotalUsedMargin = paperExchange.usedMargin || 0
             } else if (totalEquityUsd > 0) {
-              // Backend already included paper in totals (V171 backend fix)
               adjustedTotalEquityUsd = totalEquityUsd
               adjustedTotalAvailableUsd = totalAvailableUsd
               adjustedTotalUsedMargin = totalUsedMargin
             } else {
-              // Last resort: hardcoded $10,000 default
               console.warn('[PositionsStore] No paper balance and no backend total — using $10,000 default')
               adjustedTotalEquityUsd = 10000
               adjustedTotalAvailableUsd = 10000
@@ -630,7 +656,6 @@ export const usePositionsStore = create<PositionsState>()(
             adjustedTotalUsedMargin = totalUsedMargin
           } else {
             // No real exchange credentials — paper trading only.
-            // This is the user's actual balance, so show it.
             adjustedTotalEquityUsd = paperExchange?.equity || totalEquityUsd
             adjustedTotalAvailableUsd = paperExchange?.available || totalAvailableUsd
             adjustedTotalUsedMargin = paperExchange?.usedMargin || totalUsedMargin
@@ -732,7 +757,20 @@ export const usePositionsStore = create<PositionsState>()(
           let effectiveEquity = adjustedTotalEquityUsd
           let effectiveCash = adjustedTotalEquityUsd  // V140B: Use total balance, not just available
 
-          if (hasOnlyPaperExchanges && adjustedTotalEquityUsd <= 0) {
+          // V175: When the active exchange succeeded, use its balance directly.
+          // For MT5: accountInfo.equity already includes floating PnL from MetaAPI,
+          // so we should NOT add positionsUnrealizedPnl again (would double-count).
+          // For Binance/CCXT: equity from fetchBalance may or may not include PnL
+          // depending on spot vs futures. To keep it safe, when using the active
+          // exchange's balance, we trust the exchange's own equity number.
+          if (activeExchangeSucceeded) {
+            // Active exchange (e.g., MT5) — equity already includes PnL from MetaAPI
+            effectiveEquity = adjustedTotalEquityUsd
+            effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
+            // For MT5: cash ≈ balance (wallet balance without floating PnL)
+            // If positionsUnrealizedPnl is 0 (no local positions for MT5), cash = equity
+            if (effectiveCash <= 0) effectiveCash = adjustedTotalEquityUsd
+          } else if (hasOnlyPaperExchanges && adjustedTotalEquityUsd <= 0) {
             // FIX: Paper trading — use default paper balance from agent settings
             // or $10,000 as the standard paper trading balance.
             // This prevents the agent/bot from seeing $0 and refusing to trade.
@@ -808,7 +846,7 @@ export const usePositionsStore = create<PositionsState>()(
             maintenanceMargin: 0,
             unrealizedPnl: positionsUnrealizedPnl,
             unrealizedPnlPct: adjustedTotalEquityUsd > 0 ? (positionsUnrealizedPnl / adjustedTotalEquityUsd) * 100 : 0,
-            isPaperTrading: isTestnet,
+            isPaperTrading: isTestnet && !activeExchangeSucceeded,
             tradingBlocked: false,
             accountBlocked: false,
             // V148B: Store the backend's leverage-aware margin separately.
@@ -822,10 +860,13 @@ export const usePositionsStore = create<PositionsState>()(
             _marginVersion: Date.now(),
             // V153: Mark whether margin came from real exchange API
             // If true, updatePositionPrice() should trust it over client-side calc
-            isRealExchangeMargin: hasRealExchanges && realExchangeMargin > 0,
+            isRealExchangeMargin: (hasRealExchanges && realExchangeMargin > 0) || activeExchangeSucceeded,
             // V162: Flag for UI to show "Exchange unavailable" indicator
             // instead of silently showing wrong/paper balance
             exchangeUnavailable,
+            // V175: Store which exchange is the active/primary one
+            activeExchangeName: activeExchangeSucceeded ? (activeExchange as any).exchange : null,
+            activeCredentialId: activeCredId,
           }
           set({ account, exchangeBalances: exchanges, dataSource: 'nestjs', _cacheTimestamp: Date.now() })
 

@@ -212,6 +212,8 @@ export class IntegrityCheckController {
     results.push(this.checkV13());
     // V14: V181 — MT5 Demo NOT treated as paper (risk checks enforced)
     results.push(this.checkV14());
+    // V15: V184 — 4h auto-close fix (profit protection + P/L awareness)
+    results.push(this.checkV15());
 
     return results;
   }
@@ -595,6 +597,122 @@ export class IntegrityCheckController {
     }
 
     return { id: 'V14', name: 'V181 فصل الورقي عن Demo', status: 'PASS', detail: 'حسابات Demo (mt5_demo) تمر بفحوصات المخاطر كاملة — فقط الورقي البحت يتجاوز الرصيد والتراجع' };
+  }
+
+  // ── V15: V184 — 4h auto-close fix ──
+  private checkV15(): CheckResult {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const passes: string[] = [];
+
+    // ── V15a: Agent Service no longer has hardcoded 4h breakeven close ──
+    const agentContent = this.readRaw('agents/autonomous-trader/agent.service.ts');
+    if (!agentContent) {
+      failures.push('ملف Agent Service غير موجود');
+    } else {
+      // The old bug: currentPrice = Number(position.entryPrice); // breakeven exit
+      // inside a 4h holding check block
+      const hasOld4hBreakeven = /currentPrice\s*=\s*Number\(position\.entryPrice\)\s*;\s*\/\/?\s*breakeven exit/.test(agentContent);
+      const hasHardcoded4h = /MAX_HOLDING_TIME_MS\s*=\s*4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent);
+      const hasV184Comment = /V184 FIX.*REMOVED hardcoded 4h breakeven/.test(agentContent);
+
+      if (hasOld4hBreakeven) {
+        failures.push('Agent لا يزال يضع currentPrice = entryPrice (breakeven exit) — الصفقات الرابحة تُغسل!');
+      }
+      if (hasHardcoded4h && !hasV184Comment) {
+        failures.push('Agent لا يزال يملك MAX_HOLDING_TIME_MS = 4h hardcoded — يجب إزالته');
+      }
+      if (hasV184Comment) {
+        passes.push('Agent أزال إغلاق الـ 4h breakeven (V184)');
+      } else if (!hasOld4hBreakeven && !hasHardcoded4h) {
+        warnings.push('لم أجد كود الإغلاق القديم ولا تعليق V184 — قد يكون تم تعديله بطرقة مختلفة');
+      }
+    }
+
+    // ── V15b: Position Monitor has P/L-aware TIME_EXPIRED logic ──
+    const monitorContent = this.read('modules/engine/services/position-monitor.service.ts');
+    if (!monitorContent) {
+      failures.push('ملف Position Monitor غير موجود');
+    } else {
+      const hasProfitCheck = /profitPct\s*>\s*0\.5/.test(monitorContent) || /pnlPercent\s*>\s*0\.5/.test(monitorContent);
+      const hasBreakEvenSL = /breakEvenSL/.test(monitorContent) && /TIME_EXPIRED/.test(monitorContent);
+      const hasExtension = /time-expired-extended/.test(monitorContent);
+      const hasV184Log = /V184 TIME_EXPIRED \+ PROFIT/.test(monitorContent);
+
+      if (!hasProfitCheck) {
+        failures.push('Position Monitor لا يفحص الربح قبل TIME_EXPIRED — صفقات رابحة تُغلق بالقوة');
+      } else {
+        passes.push('Position Monitor يفحص الربح قبل إغلاق TIME_EXPIRED');
+      }
+
+      if (!hasBreakEvenSL) {
+        warnings.push('Position Monitor لا ينقل SL للبريكيفن عند TIME_EXPIRED + ربح');
+      } else {
+        passes.push('Position Monitor ينقل SL للبريكيفن لحماية الأرباح');
+      }
+
+      if (!hasExtension) {
+        warnings.push('Position Monitor لا يمدد وقت الاحتفاظ للصفقات الرابحة');
+      } else {
+        passes.push('Position Monitor يمدد وقت الاحتفاظ 50% للصفقات الرابحة (مرة واحدة)');
+      }
+
+      if (!hasV184Log) {
+        warnings.push('لم أجد علامة V184 في Position Monitor — قد لا يكون الإصلاح مطبقاً');
+      }
+    }
+
+    // ── V15c: Agent uses actualExitPrice (not local currentPrice) for PnL tracking ──
+    if (agentContent) {
+      const hasActualExitPrice = /actualExitPrice\s*=\s*result\?\.position\?\.exitPrice/.test(agentContent);
+      if (!hasActualExitPrice) {
+        failures.push('Agent لا يزال يستخدم currentPrice المحلي لحساب PnL — سجلات خاطئة عند breakeven close');
+      } else {
+        passes.push('Agent يستخدم actualExitPrice الفعلي لحساب PnL');
+      }
+    }
+
+    // ── V15d: Position Monitor has unified MAX_HOLDING_TIME ──
+    if (monitorContent) {
+      const hasGetMaxHoldingMs = /_getMaxHoldingMs/.test(monitorContent);
+      const hasAgent48h = /isAgent\) return 48 \* H/.test(monitorContent) || /isAgent.*48.*H/.test(monitorContent);
+
+      if (!hasGetMaxHoldingMs) {
+        failures.push('Position Monitor لا يملك _getMaxHoldingMs — لا توجد أوقات ديناميكية');
+      } else {
+        passes.push('Position Monitor يستخدم أوقات ديناميكية حسب الإطار الزمني');
+      }
+
+      if (!hasAgent48h) {
+        warnings.push('Position Monitor لا يعطي Agent positions 48h — قد يستخدم وقت أقل');
+      }
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V15',
+        name: 'V184 إغلاق 4 ساعات: حماية الأرباح',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    if (warnings.length > 0) {
+      return {
+        id: 'V15',
+        name: 'V184 إغلاق 4 ساعات: حماية الأرباح',
+        status: 'WARN',
+        detail: `يعمل لكن ${warnings.length} تحذير: ${warnings.join(' | ')}${passes.length > 0 ? ` | ✅ ${passes.join(' | ')}` : ''}`,
+      };
+    }
+
+    return {
+      id: 'V15',
+      name: 'V184 إغلاق 4 ساعات: حماية الأرباح',
+      status: 'PASS',
+      detail: `كل الإصلاحات مطبقة: ${passes.join(' | ')}`,
+    };
   }
 
   // ── HTML Renderer ──

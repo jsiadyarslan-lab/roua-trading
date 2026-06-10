@@ -1771,31 +1771,19 @@ export class CredentialsService {
       //   4. Fallback to RPC only if REST API is unavailable
       //   5. Reduce failure cache to 15s (not 60s) so the user gets fresh data sooner
       // ═══════════════════════════════════════════════════════════════
+      // V192: REMOVE failure cache for REST API attempts!
+      //
+      // Problem: Failure cache blocks ALL requests for 5-15s after a failure.
+      // This means if MetaAPI fails once, the user sees "إعادة المحاولة خلال ثواني"
+      // for every subsequent request during the cooldown — even though REST API
+      // is fast (100-500ms) and should always be tried.
+      //
+      // FIX: Only apply failure cache to the SLOW RPC path, not REST.
+      // REST API is a simple HTTP GET — retrying it has zero cost.
+      // RPC requires WebSocket + connect + waitSynchronized — expensive to retry.
+      // ═══════════════════════════════════════════════════════════════
 
-      // V191: Check failure cache with REDUCED cooldown (5s for live accounts, 15s for demo)
       const failureCacheKey = `mt5fail:${cred.id}`;
-      const lastFailure = this.mt5FailureCache?.get(failureCacheKey);
-      const failureCooldown = !isDemo ? 5_000 : 15_000;  // V191: Real accounts retry faster
-      if (lastFailure && Date.now() - lastFailure < failureCooldown) {
-        // This credential failed VERY recently — skip for 15 seconds only
-        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Recently failed, skipping');
-        if (cachedResult) {
-          return cachedResult;
-        }
-        return {
-          exchange: cred.exchange,
-          label: cred.label,
-          credentialId: cred.id,
-          isTestnet: isDemo,
-          equity: 0,
-          available: 0,
-          currency: 'USD',
-          usedMargin: 0,
-          assets: [],
-          error: 'إعادة المحاولة خلال ثواني',
-          errorDetail: `MT5 failure cooldown (${failureCooldown/1000}s) — retrying soon`,
-        };
-      }
 
       // Step 1: Find existing account in MetaAPI
       let account;
@@ -1857,6 +1845,8 @@ export class CredentialsService {
       // and doesn't require connect() + waitSynchronized().
       // ═══════════════════════════════════════════════════════════════
       let accountInfo: any = null;
+      let restError = '';
+      let rpcError = '';
 
       // Try REST API first — V191: Try even if NOT DEPLOYED (MetaAPI cloud may have cached data)
       if (metaApiAccountId) {
@@ -1867,7 +1857,8 @@ export class CredentialsService {
             this.logger.log(`📊 V191: REST API succeeded for ${accountId} — balance=$${restResult.balance}, equity=$${restResult.equity}`);
           }
         } catch (restErr: any) {
-          this.logger.warn(`📊 V191: REST API failed for ${accountId}: ${restErr.message?.substring(0, 100)}`);
+          restError = restErr.message?.substring(0, 120) || 'unknown';
+          this.logger.warn(`📊 V191: REST API failed for ${accountId}: ${restError}`);
         }
       }
 
@@ -1876,14 +1867,15 @@ export class CredentialsService {
         // If not DEPLOYED, try a quick deploy first
         if (accountState && !['DEPLOYED', 'DEPLOYING'].includes(accountState)) {
           try {
-            this.logger.log(`📊 V190: Quick deploy for ${accountId} (state=${accountState})...`);
+            this.logger.log(`📊 V191: Quick deploy for ${accountId} (state=${accountState})...`);
             await (account as any).deploy();
             await Promise.race([
               (account as any).waitDeployed(),
               new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10_000)),
             ]);
           } catch (deployErr: any) {
-            this.logger.warn(`📊 V190: Deploy failed: ${deployErr.message?.substring(0, 60)}`);
+            const deployErrorMsg = deployErr.message?.substring(0, 80) || 'unknown';
+            this.logger.warn(`📊 V191: Deploy failed: ${deployErrorMsg}`);
             this._recordMT5Failure(failureCacheKey);
             const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, `Deploy failed: ${accountState}`);
             if (cachedResult) return cachedResult;
@@ -1892,42 +1884,57 @@ export class CredentialsService {
               isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
               usedMargin: 0, assets: [],
               error: `حساب غير مُنشر (${accountState})`,
-              errorDetail: `MT5 account state is ${accountState}, not DEPLOYED — deploy failed`,
+              errorDetail: `Deploy failed (${accountState}): ${deployErrorMsg}. REST: ${restError || 'not tried'}`,
             };
           }
         }
 
-        // Try RPC connection as fallback
-        const connection = account.getRPCConnection();
-        let connected = false;
+        // V192: Only try RPC if NOT in failure cooldown — RPC is expensive
+        const rpcFailureCooldown = !isDemo ? 30_000 : 60_000;  // RPC failure: 30s real, 60s demo
+        const lastRpcFailure = this.mt5FailureCache?.get(`rpc:${failureCacheKey}`);
+        const rpcOnCooldown = lastRpcFailure && Date.now() - lastRpcFailure < rpcFailureCooldown;
 
-        try {
-          await Promise.race([
-            (async () => {
-              await connection.connect();
-              await connection.waitSynchronized();
-            })(),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('connect timeout (8s)')), 8_000)
-            ),
-          ]);
-          connected = true;
-        } catch (connectErr: any) {
-          this.logger.warn(
-            `📊 V190: RPC connect failed for ${accountId}: ${connectErr.message?.substring(0, 60)}`
-          );
-        }
+        if (rpcOnCooldown) {
+          // RPC is on cooldown — don't waste time trying
+          this.logger.log(`📊 V192: RPC on cooldown for ${accountId} — skipping (REST already failed)`);
+          rpcError = 'RPC on cooldown';
+        } else {
+          // Try RPC connection as fallback
+          const connection = account.getRPCConnection();
+          let connected = false;
 
-        if (connected) {
           try {
-            accountInfo = await Promise.race([
-              connection.getAccountInformation(),
+            await Promise.race([
+              (async () => {
+                await connection.connect();
+                await connection.waitSynchronized();
+              })(),
               new Promise((_, reject) =>
-                setTimeout(() => reject(new Error('getAccountInfo timeout (5s)')), 5_000)
+                setTimeout(() => reject(new Error('connect timeout (8s)')), 8_000)
               ),
-            ]) as any;
-          } catch (apiErr: any) {
-            this.logger.warn(`📊 V190: getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 60)}`);
+            ]);
+            connected = true;
+          } catch (connectErr: any) {
+            rpcError = connectErr.message?.substring(0, 80) || 'unknown';
+            this.logger.warn(
+              `📊 V192: RPC connect failed for ${accountId}: ${rpcError}`
+            );
+            // V192: Record RPC-specific failure to avoid wasting time on retry
+            this.mt5FailureCache.set(`rpc:${failureCacheKey}`, Date.now());
+          }
+
+          if (connected) {
+            try {
+              accountInfo = await Promise.race([
+                connection.getAccountInformation(),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('getAccountInfo timeout (5s)')), 5_000)
+                ),
+              ]) as any;
+            } catch (apiErr: any) {
+              rpcError += ` | getInfo: ${apiErr.message?.substring(0, 60) || 'unknown'}`;
+              this.logger.warn(`📊 V192: getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 60)}`);
+            }
           }
         }
       }
@@ -1942,7 +1949,7 @@ export class CredentialsService {
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
           error: `فشل الاتصال بـ ${accountId}`,
-          errorDetail: `All methods failed (REST + RPC) for MT5 account ${accountId}`,
+          errorDetail: `REST: ${restError || 'skipped'} | RPC: ${rpcError || 'skipped'}`,
         };
       }
 

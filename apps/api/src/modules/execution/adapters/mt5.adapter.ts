@@ -387,57 +387,67 @@ export class MT5Adapter implements IExchangeAdapter {
       this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
     }
 
-    // V186: If not found, try to create — but with timeout protection.
-    // If the MetaAPI token lacks trading-account-management-api permissions,
-    // createAccount will fail. We wrap it in a timeout to avoid blocking forever.
+    // V187: If not found, create with CORRECT MetaAPI parameters.
+    // ROOT CAUSE of 503/timeout errors (deep research):
+    //   1. type was 'demo'/'live' — WRONG! Must be 'cloud-g1' or 'cloud-g2'
+    //   2. quoteStreamingIntervalSeconds — WRONG! Must be quoteStreamingIntervalInSeconds
+    //   3. Missing deploy() + waitConnected() after createAccount()
     if (!account) {
-      this.logger.log(`📊 V186: Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
+      this.logger.log(`📊 V187: Creating MT5 account ${this.accountInfo.accountId} (type=cloud-g2)...`);
       try {
         account = await accountApi.createAccount({
           login: this.accountInfo.accountId,
           password: this.accountInfo.password,
           server: this.accountInfo.server,
-          type: this.accountInfo.isDemo ? 'demo' : 'live',
+          type: 'cloud-g2',  // V187: MUST be 'cloud-g1' or 'cloud-g2', NOT 'demo'/'live'!
           name: `Roua-${this.userId.slice(0, 8)}`,
           platform: 'mt5',
           magic: 123456,
-          quoteStreamingIntervalSeconds: 2,
-          reliability: 'regular',
+          quoteStreamingIntervalInSeconds: 2.5,  // V187: Correct field name
+          reliability: 'high',
         });
 
-        // V186: Wait for deployment with 30s timeout (was 60s — too long for trading)
-        this.logger.log(`📊 V186: Waiting for MT5 account deployment (30s max)...`);
-        await Promise.race([
-          account.waitDeployed(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('MT5 deploy timeout (30s)')), 30_000)
-          ),
-        ]);
+        // V187: CRITICAL — deploy() + waitConnected() are required!
+        this.logger.log(`📊 V187: Deploying MT5 account ${this.accountInfo.accountId}...`);
+        await account.deploy();
+        this.logger.log(`📊 V187: Waiting for broker connection...`);
+        await account.waitConnected();
+        this.logger.log(`📊 V187: MT5 account created, deployed, and connected!`);
       } catch (createErr: any) {
         this.logger.warn(
-          `📊 V186: Failed to create/deploy MT5 account ${this.accountInfo.accountId}: ` +
-          `${createErr.message?.substring(0, 100)}. ` +
-          `The account must be registered via credential validation first.`
+          `📊 V187: Failed to create/deploy MT5 account ${this.accountInfo.accountId}: ` +
+          `${createErr.message?.substring(0, 100)}`
         );
         throw new Error(`فشل تسجيل حساب MT5: ${createErr.message?.substring(0, 80) || 'خطأ غير معروف'}`);
       }
     }
 
-    // V186: Check account state before connecting
+    // V187: Check account state and connection status
     const accountState = (account as any).state;
-    if (accountState && accountState !== 'DEPLOYED') {
-      this.logger.warn(`📊 V186: Account ${this.accountInfo.accountId} is ${accountState}, deploying...`);
+    const connectionStatus = (account as any).connectionStatus;
+    this.logger.log(
+      `📊 V187: Account ${this.accountInfo.accountId} state=${accountState || '?'}, ` +
+      `connectionStatus=${connectionStatus || '?'}`
+    );
+
+    if (accountState && !['DEPLOYED', 'DEPLOYING'].includes(accountState)) {
+      this.logger.warn(`📊 V187: Account is ${accountState}, deploying...`);
       try {
         await (account as any).deploy();
-        await Promise.race([
-          (account as any).waitDeployed(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('Deploy timeout (30s)')), 30_000)
-          ),
-        ]);
+        await (account as any).waitDeployed();
       } catch (deployErr: any) {
-        this.logger.warn(`📊 V186: Deploy failed: ${deployErr.message?.substring(0, 80)}`);
+        this.logger.warn(`📊 V187: Deploy failed: ${deployErr.message?.substring(0, 80)}`);
         throw new Error(`حساب MT5 غير مُنشر (حالة: ${accountState}): ${deployErr.message?.substring(0, 60)}`);
+      }
+    }
+
+    // V187: Wait for broker connection if not connected
+    if (connectionStatus && connectionStatus !== 'CONNECTED') {
+      this.logger.warn(`📊 V187: Account deployed but not connected to broker (status=${connectionStatus}). Waiting...`);
+      try {
+        await account.waitConnected();
+      } catch {
+        // Try to proceed anyway
       }
     }
 

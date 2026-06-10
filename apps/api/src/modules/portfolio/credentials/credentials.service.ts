@@ -1702,6 +1702,8 @@ export class CredentialsService {
     usedMargin: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
+    /** V191: Raw error detail for frontend diagnostics */
+    errorDetail?: string;
   }> {
     const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
     try {
@@ -1717,7 +1719,8 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: 'METAAPI_TOKEN غير مضبوط — لا يمكن جلب رصيد MT5',
+          error: 'METAAPI_TOKEN غير مضبوط',
+          errorDetail: 'METAAPI_TOKEN env var not set — add it in Railway environment variables',
         };
       }
 
@@ -1738,7 +1741,8 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: 'بيانات MT5 غير مكتملة — تأكد من رقم الحساب وكلمة السر واسم السيرفر',
+          error: 'بيانات MT5 غير مكتملة',
+          errorDetail: 'Missing accountId, password, or server name for MT5 credential',
         };
       }
 
@@ -1788,7 +1792,8 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: `اتصال MT5 غير متاح حالياً — سيتم إعادة المحاولة خلال ثواني`,
+          error: 'إعادة المحاولة خلال ثواني',
+          errorDetail: `MT5 failure cooldown (${failureCooldown/1000}s) — retrying soon`,
         };
       }
 
@@ -1824,7 +1829,8 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: `حساب MT5 ${accountId} غير مسجل في MetaAPI`,
+          error: `حساب ${accountId} غير مسجل`,
+          errorDetail: `MT5 account ${accountId} not found in MetaAPI — may need to be re-registered`,
         };
       }
 
@@ -1885,7 +1891,8 @@ export class CredentialsService {
               exchange: cred.exchange, label: cred.label, credentialId: cred.id,
               isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
               usedMargin: 0, assets: [],
-              error: `حساب MT5 غير مُنشر (حالة: ${accountState})`,
+              error: `حساب غير مُنشر (${accountState})`,
+              errorDetail: `MT5 account state is ${accountState}, not DEPLOYED — deploy failed`,
             };
           }
         }
@@ -1934,7 +1941,8 @@ export class CredentialsService {
           exchange: cred.exchange, label: cred.label, credentialId: cred.id,
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
-          error: `فشل جلب بيانات MT5 — الحساب ${accountId} غير متصل`,
+          error: `فشل الاتصال بـ ${accountId}`,
+          errorDetail: `All methods failed (REST + RPC) for MT5 account ${accountId}`,
         };
       }
 
@@ -2009,7 +2017,8 @@ export class CredentialsService {
         currency: 'USD',
         usedMargin: 0,
         assets: [],
-        error: `فشل جلب رصيد MT5: ${error.message?.substring(0, 100) || 'خطأ غير معروف'}`,
+        error: `خطأ MT5: ${error.message?.substring(0, 60) || 'غير معروف'}`,
+        errorDetail: `MT5 fetch error: ${error.message?.substring(0, 200) || 'unknown'}`,
       };
     }
   }
@@ -2038,6 +2047,8 @@ export class CredentialsService {
     usedMargin: number;
     assets: Array<{ currency: string; free: number; used: number; total: number }>;
     error?: string;
+    /** V191: Raw error detail for frontend diagnostics */
+    errorDetail?: string;
     _stale?: boolean;
     _staleTimestamp?: number;
   } | null> {
@@ -2083,7 +2094,8 @@ export class CredentialsService {
           used: data.margin || 0,
           total: cachedBalance,  // V191: Use balance (not equity) as total
         }],
-        error: `رصيد مخزّن (${ageMin === 0 ? 'أقل من دقيقة' : `منذ ${ageMin} دقيقة`}) — اتصال MetaAPI غير متاح`,
+        error: `رصيد مخزّن (${ageMin === 0 ? '<1د' : `${ageMin}د`})`,
+        errorDetail: `Cached balance from ${ageMin}min ago — MetaAPI connection failed: ${errorMsg?.substring(0, 100)}`,
         _stale: true,
         _staleTimestamp: data.timestamp,
       };

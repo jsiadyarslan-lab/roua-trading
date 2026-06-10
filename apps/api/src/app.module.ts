@@ -27,6 +27,7 @@ import { SmartExecutorModule } from './modules/ai/smart-executor/smart-executor.
 import { NotificationModule } from './modules/notification/notification.module';
 import { IntegrationModule } from './modules/integration/integration.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { CouncilIntelligenceModule } from './modules/ai/council-intelligence/council-intelligence.module';
 import { UserIsolationInterceptor } from './common/interceptors/user-isolation.interceptor';
 import { PrismaService } from './common/prisma/prisma.service';
 
@@ -123,6 +124,7 @@ import { PrismaService } from './common/prisma/prisma.service';
     NotificationModule,
     IntegrationModule,
     MaintenanceModule,
+    CouncilIntelligenceModule, // V185: حلقة التعلم + كشف وضع السوق + الارتباط + الحجم الذكي + الذاكرة + الجدول الذكي + الشفاء الذاتي + Backtesting
   ],
 })
 export class AppModule {}

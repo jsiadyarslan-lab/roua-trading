@@ -214,6 +214,8 @@ export class IntegrityCheckController {
     results.push(this.checkV14());
     // V15: V184 — 4h auto-close fix (profit protection + P/L awareness)
     results.push(this.checkV15());
+    // V16: V185 — Council Intelligence features
+    results.push(this.checkV16());
 
     return results;
   }
@@ -745,6 +747,220 @@ export class IntegrityCheckController {
       name: 'V184 إغلاق 4 ساعات: حماية الأرباح',
       status: 'PASS',
       detail: `كل الإصلاحات مطبقة: ${passes.join(' | ')}`,
+    };
+  }
+
+  // ── V16: V185 — Council Intelligence features (9 new services) ──
+  private checkV16(): CheckResult {
+    const failures: string[] = [];
+    const warnings: string[] = [];
+    const passes: string[] = [];
+
+    // ── V16a: Trade Journal Service exists ──
+    const journalContent = this.read('modules/ai/council-intelligence/trade-journal.service.ts');
+    if (!journalContent) {
+      failures.push('ملف TradeJournalService غير موجود');
+    } else {
+      const hasRecordOpen = journalContent.includes('recordTradeOpen');
+      const hasRecordClose = journalContent.includes('recordTradeClose');
+      const hasWasRight = journalContent.includes('_evaluateCouncilVotes');
+      if (hasRecordOpen && hasRecordClose && hasWasRight) {
+        passes.push('مجلة التداول تسجّل الفتح والإغلاق وتقيّم أصوات المجلس');
+      } else {
+        failures.push('مجلة التداول ناقصة — تحتاج recordTradeOpen + recordTradeClose + _evaluateCouncilVotes');
+      }
+    }
+
+    // ── V16b: Council Vote Accuracy Service exists ──
+    const accuracyContent = this.read('modules/ai/council-intelligence/council-vote-accuracy.service.ts');
+    if (!accuracyContent) {
+      failures.push('ملف CouncilVoteAccuracyService غير موجود');
+    } else {
+      const hasGetWeight = accuracyContent.includes('getRoleWeight');
+      const hasRecalc = accuracyContent.includes('recalculateWeights');
+      const hasRecordVote = accuracyContent.includes('recordVoteResult');
+      if (hasGetWeight && hasRecalc && hasRecordVote) {
+        passes.push('حلقة التعلم تتتبع الأصوات وتُعدّل الأوزان ديناميكياً');
+      } else {
+        failures.push('حلقة التعلم ناقصة — تحتاج getRoleWeight + recalculateWeights + recordVoteResult');
+      }
+    }
+
+    // ── V16c: Market Regime Detection exists ──
+    const regimeContent = this.read('modules/ai/council-intelligence/market-regime.service.ts');
+    if (!regimeContent) {
+      failures.push('ملف MarketRegimeService غير موجود');
+    } else {
+      const hasDetect = regimeContent.includes('detectRegime');
+      const hasBull = regimeContent.includes("'BULL'");
+      const hasBear = regimeContent.includes("'BEAR'");
+      const hasRange = regimeContent.includes("'RANGE'");
+      const hasContext = regimeContent.includes('buildRegimeContext');
+      const hasRRAdjust = regimeContent.includes('rrAdjustment');
+      if (hasDetect && hasBull && hasBear && hasRange && hasContext && hasRRAdjust) {
+        passes.push('كشف وضع السوق يحدد BULL/BEAR/RANGE + يُعدّل R:R + يبني سياق AI');
+      } else {
+        failures.push('كشف وضع السوق ناقص — يحتاج detectRegime + BULL/BEAR/RANGE + buildRegimeContext + rrAdjustment');
+      }
+    }
+
+    // ── V16d: Cross-Pair Correlation exists ──
+    const corrContent = this.read('modules/ai/council-intelligence/cross-pair-correlation.service.ts');
+    if (!corrContent) {
+      failures.push('ملف CrossPairCorrelationService غير موجود');
+    } else {
+      const hasCheckRisk = corrContent.includes('checkCorrelatedRisk');
+      const hasSizeMult = corrContent.includes('getPositionSizeMultiplier');
+      const hasPearson = corrContent.includes('_pearsonCorrelation');
+      if (hasCheckRisk && hasSizeMult && hasPearson) {
+        passes.push('الارتباط بين الأزواج يحسب Pearson + يُعدّل حجم الصفقة');
+      } else {
+        failures.push('الارتباط بين الأزواج ناقص — يحتاج checkCorrelatedRisk + getPositionSizeMultiplier + Pearson');
+      }
+    }
+
+    // ── V16e: Dynamic Position Sizing exists ──
+    const sizingContent = this.read('modules/ai/council-intelligence/dynamic-position-sizing.service.ts');
+    if (!sizingContent) {
+      failures.push('ملف DynamicPositionSizingService غير موجود');
+    } else {
+      const hasCalc = sizingContent.includes('calculateSizeMultiplier');
+      const hasRegimeFactor = sizingContent.includes('regimeAlignmentFactor');
+      const hasCorrFactor = sizingContent.includes('correlationService');
+      const hasMinMax = sizingContent.includes('MAX_MULTIPLIER') && sizingContent.includes('MIN_MULTIPLIER');
+      if (hasCalc && hasRegimeFactor && hasCorrFactor && hasMinMax) {
+        passes.push('الحجم الذكي يُعدّل بناءً على Regime + الارتباط + الإجماع مع حدود 0.3×–2.0×');
+      } else {
+        failures.push('الحجم الذكي ناقص — يحتاج calculateSizeMultiplier + regime + correlation + MIN/MAX');
+      }
+    }
+
+    // ── V16f: System Memory exists ──
+    const memoryContent = this.read('modules/ai/council-intelligence/system-memory.service.ts');
+    if (!memoryContent) {
+      failures.push('ملف SystemMemoryService غير موجود');
+    } else {
+      const hasStore = memoryContent.includes('storeMemory');
+      const hasGenFromTrade = memoryContent.includes('generateMemoriesFromTrade');
+      const hasContext = memoryContent.includes('getMemoryContext');
+      const hasDailySummary = memoryContent.includes('generateDailySummary');
+      if (hasStore && hasGenFromTrade && hasContext && hasDailySummary) {
+        passes.push('ذاكرة النظام تخزن وتتعلم من الصفقات وتُولّد ملخص يومي');
+      } else {
+        failures.push('ذاكرة النظام ناقصة — تحتاج storeMemory + generateMemoriesFromTrade + getMemoryContext');
+      }
+    }
+
+    // ── V16g: Adaptive Schedule exists ──
+    const scheduleContent = this.read('modules/ai/council-intelligence/adaptive-schedule.service.ts');
+    if (!scheduleContent) {
+      failures.push('ملف AdaptiveScheduleService غير موجود');
+    } else {
+      const hasRecommended = scheduleContent.includes('getRecommendedInterval');
+      const hasEmergency = scheduleContent.includes('triggerEmergencySession');
+      const hasMin = scheduleContent.includes('MIN_INTERVAL_MS');
+      if (hasRecommended && hasEmergency && hasMin) {
+        passes.push('الجدول الذكي يُعدّل حسب التقلب + جلسات طارئة عند أحداث مهمة');
+      } else {
+        failures.push('الجدول الذكي ناقص — يحتاج getRecommendedInterval + triggerEmergencySession');
+      }
+    }
+
+    // ── V16h: Self-Healing exists ──
+    const healingContent = this.read('modules/ai/council-intelligence/self-healing.service.ts');
+    if (!healingContent) {
+      failures.push('ملف SelfHealingService غير موجود');
+    } else {
+      const hasReportFail = healingContent.includes('reportFailure');
+      const hasReportSuccess = healingContent.includes('reportSuccess');
+      const hasIsDisabled = healingContent.includes('isComponentDisabled');
+      const hasLevel3 = healingContent.includes('DISABLED');
+      if (hasReportFail && hasReportSuccess && hasIsDisabled && hasLevel3) {
+        passes.push('الشفاء الذاتي يكتشف الفشل + يعطّل المكونات + يعيد التفعيل تلقائياً');
+      } else {
+        failures.push('الشفاء الذاتي ناقص — يحتاج reportFailure + reportSuccess + isComponentDisabled');
+      }
+    }
+
+    // ── V16i: Backtesting Engine exists ──
+    const backtestContent = this.read('modules/ai/council-intelligence/backtesting-engine.service.ts');
+    if (!backtestContent) {
+      failures.push('ملف BacktestingEngineService غير موجود');
+    } else {
+      const hasRun = backtestContent.includes('runBacktest');
+      const hasOptimize = backtestContent.includes('optimizeParameters');
+      const hasSharpe = backtestContent.includes('sharpeRatio');
+      if (hasRun && hasOptimize && hasSharpe) {
+        passes.push('محرك الاختبار الرجعي يختبر الاستراتيجيات ويحسب Sharpe Ratio');
+      } else {
+        failures.push('محرك الاختبار الرجعي ناقص — يحتاج runBacktest + optimizeParameters + sharpeRatio');
+      }
+    }
+
+    // ── V16j: CouncilIntelligenceModule registered in AppModule ──
+    const appModuleContent = this.read('app.module.ts');
+    if (!appModuleContent) {
+      warnings.push('ملف AppModule غير موجود — لا يمكن التحقق من تسجيل الموديول');
+    } else {
+      const hasModuleImport = appModuleContent.includes('CouncilIntelligenceModule');
+      if (hasModuleImport) {
+        passes.push('CouncilIntelligenceModule مسجّل في AppModule');
+      } else {
+        failures.push('CouncilIntelligenceModule غير مسجّل في AppModule — الميزات لن تعمل!');
+      }
+    }
+
+    // ── V16k: Prisma schema has new models ──
+    // We check for TradeJournal model in schema (no comment stripping needed for .prisma)
+    const schemaContent = this.readRaw('../../prisma/schema.prisma');
+    if (!schemaContent) {
+      warnings.push('ملف schema.prisma غير موجود — لا يمكن التحقق من النماذج الجديدة');
+    } else {
+      const hasJournal = schemaContent.includes('model TradeJournal');
+      const hasAccuracy = schemaContent.includes('model CouncilVoteAccuracy');
+      const hasRegime = schemaContent.includes('model MarketRegimeSnapshot');
+      const hasCorr = schemaContent.includes('model CrossPairCorrelation');
+      const hasMemory = schemaContent.includes('model SystemMemory');
+      const hasSchedule = schemaContent.includes('model AdaptiveSchedule');
+      const missing: string[] = [];
+      if (!hasJournal) missing.push('TradeJournal');
+      if (!hasAccuracy) missing.push('CouncilVoteAccuracy');
+      if (!hasRegime) missing.push('MarketRegimeSnapshot');
+      if (!hasCorr) missing.push('CrossPairCorrelation');
+      if (!hasMemory) missing.push('SystemMemory');
+      if (!hasSchedule) missing.push('AdaptiveSchedule');
+
+      if (missing.length === 0) {
+        passes.push('كل النماذج الجديدة (6) موجودة في Prisma schema');
+      } else {
+        failures.push(`نماذج مفقودة من Prisma schema: ${missing.join(', ')}`);
+      }
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V16',
+        name: 'V185 مجلس الذكاء: ٩ ميزات جديدة',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    if (warnings.length > 0) {
+      return {
+        id: 'V16',
+        name: 'V185 مجلس الذكاء: ٩ ميزات جديدة',
+        status: 'WARN',
+        detail: `${warnings.length} تحذير: ${warnings.join(' | ')} | ✅ ${passes.join(' | ')}`,
+      };
+    }
+
+    return {
+      id: 'V16',
+      name: 'V185 مجلس الذكاء: ٩ ميزات جديدة',
+      status: 'PASS',
+      detail: `كل الميزات مطبقة (${passes.length}): ${passes.join(' | ')}`,
     };
   }
 

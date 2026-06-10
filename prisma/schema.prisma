@@ -42,6 +42,9 @@ model User {
   agentSettings       AgentSettings?
   contentArticles     ContentArticle[]
   tradingBriefs       TradingBrief[]
+  journals            TradeJournal[]
+  councilAccuracy     CouncilVoteAccuracy[]
+  systemMemories      SystemMemory[]
   telegramChatId      String? // معرّف محادثة Telegram للمستخدم
   userNotifications   UserNotification[]
   notificationPrefs   UserNotificationPreferences?
@@ -375,7 +378,7 @@ model Position {
   entryPrice     Decimal            @default(0) @db.Decimal(18, 8)
   currentPrice   Decimal?           @db.Decimal(18, 8)
   exitPrice      Decimal?           @db.Decimal(18, 8) // V140: Actual close price when position is closed
-  closeReason    String?             // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, EXCHANGE_SYNC, LIQUIDATED)
+  closeReason    String? // V141: Why the position was closed (STOP_LOSS, TAKE_PROFIT, MANUAL, AUTO_STALE, STRATEGY_EXIT, EXCHANGE_SYNC, LIQUIDATED)
   unrealizedPnl  Decimal            @default(0) @db.Decimal(18, 4)
   realizedPnl    Decimal            @default(0) @db.Decimal(18, 4)
   stopLoss       Decimal?           @db.Decimal(18, 8)
@@ -1044,9 +1047,9 @@ model AgentSettings {
   // Paper Trading Leverage (V153: user-configurable, NOT hardcoded)
   // The platform only CONNECTS accounts — leverage is set by the broker/exchange.
   // These settings are for paper trading simulation only.
-  paperForexLeverage Int @default(50)    // Default 1:50, user can change to 500 etc.
-  paperGoldLeverage  Int @default(20)    // Default 1:20 for XAU/XAG
-  paperCryptoLeverage Int @default(1)    // Default 1:1 (spot, no leverage)
+  paperForexLeverage  Int @default(50) // Default 1:50, user can change to 500 etc.
+  paperGoldLeverage   Int @default(20) // Default 1:20 for XAU/XAG
+  paperCryptoLeverage Int @default(1) // Default 1:1 (spot, no leverage)
 
   // Risk Parameters
   maxPositionSizePercent Decimal @default(2) @db.Decimal(5, 2)
@@ -1239,7 +1242,7 @@ model TradingBrief {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user      User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([pair])
@@ -1250,4 +1253,256 @@ model TradingBrief {
   @@index([isActive, expiresAt])
   @@index([pair, timeframe, isActive])
   @@index([userId, isActive, reviewStatus])
+}
+
+// ── V185: Intelligence Council Enhancement (Phase 11) ──
+
+enum MarketRegime {
+  BULL
+  BEAR
+  RANGE
+  VOLATILE
+}
+
+enum TradeResult {
+  WIN
+  LOSS
+  BREAKEVEN
+}
+
+model TradeJournal {
+  id     String @id @default(cuid())
+  userId String
+
+  // Trade Reference
+  positionId String? // Link to Position or PaperOrder
+  orderId    String? // Link to Order
+  briefId    String? // Link to TradingBrief that generated this trade
+
+  // Trade Details
+  symbol     String
+  side       String // BUY / SELL
+  entryPrice Decimal  @db.Decimal(19, 8)
+  exitPrice  Decimal? @db.Decimal(19, 8)
+  quantity   Decimal  @db.Decimal(19, 8)
+
+  // Result
+  pnl        Decimal?     @db.Decimal(19, 8)
+  pnlPercent Decimal?     @db.Decimal(8, 4)
+  result     TradeResult?
+
+  // Council Context (what the council said when this trade was opened)
+  councilVotes     String  @default("{}") // JSON: {tech:BUY, sent:SELL, risk:BUY, ...}
+  consensusScore   Int     @default(0) // 0-100
+  regimeAtEntry    String? // BULL, BEAR, RANGE, VOLATILE
+  newsContext      String  @default("[]") // JSON array of news headlines at entry time
+  rejectionReasons String  @default("[]") // JSON: what was rejected and why
+
+  // AI Reasoning (first 500 chars from each council member)
+  aiReasoning String @default("{}") // JSON: {tech: "...", sent: "...", ...}
+
+  // Post-Trade Analysis
+  wasRight String  @default("{}") // JSON: {tech:true, sent:false, ...} — per-member accuracy
+  lesson   String? // Auto-generated lesson from this trade
+  tags     String  @default("[]") // JSON: ["momentum", "breakdown", "fakeout"]
+
+  // Timing
+  openedAt   DateTime
+  closedAt   DateTime?
+  durationMs Int? // How long the trade was held
+
+  // Metadata
+  source  String  @default("COUNCIL") // COUNCIL, AGENT, MANUAL
+  isPaper Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([symbol])
+  @@index([result])
+  @@index([openedAt])
+  @@index([userId, symbol])
+  @@index([userId, result])
+  @@index([briefId])
+  @@index([source])
+}
+
+model CouncilVoteAccuracy {
+  id     String @id @default(cuid())
+  userId String
+
+  // Which council role
+  roleId   String // tech, sent, risk, macro, pattern, exec, diverge, scenario, prediction-market, scanner
+  roleName String // Arabic name for display
+
+  // Tracking
+  totalVotes   Int @default(0)
+  correctVotes Int @default(0)
+
+  // Recent performance (rolling window)
+  last10Votes   String @default("[]") // JSON array of last 10 results: [1,0,1,1,0,...]
+  streakCurrent Int    @default(0) // Current streak (positive = correct, negative = wrong)
+  streakBest    Int    @default(0)
+
+  // Dynamic weight
+  baseWeight    Decimal @default(1.00) @db.Decimal(5, 2)
+  currentWeight Decimal @default(1.00) @db.Decimal(5, 2)
+  weightReason  String? // Why weight changed
+
+  // Performance by market regime
+  bullAccuracy  Decimal @default(0) @db.Decimal(5, 2)
+  bearAccuracy  Decimal @default(0) @db.Decimal(5, 2)
+  rangeAccuracy Decimal @default(0) @db.Decimal(5, 2)
+
+  // Performance by symbol
+  symbolAccuracy String @default("{}") // JSON: {"BTC/USDT": 0.72, "ETH/USDT": 0.55}
+
+  // Timing
+  lastVotedAt      DateTime?
+  lastCalculatedAt DateTime  @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([currentWeight])
+}
+
+model MarketRegimeSnapshot {
+  id     String @id @default(cuid())
+  symbol String
+
+  // Regime Detection
+  regime     MarketRegime
+  confidence Int          @default(0) // 0-100
+  sma50      Decimal      @db.Decimal(19, 8)
+  sma200     Decimal      @db.Decimal(19, 8)
+  adx        Decimal      @db.Decimal(8, 4)
+  atr        Decimal      @db.Decimal(19, 8)
+  rsi        Decimal      @db.Decimal(8, 4)
+
+  // Trend Strength
+  trendDirection String? // UP, DOWN, SIDEWAYS
+  trendStrength  Int     @default(0) // 0-100
+
+  // Volatility
+  volatilityIndex Decimal @default(0) @db.Decimal(8, 4) // Normalized 0-100
+
+  // Regime Duration
+  regimeStartedAt DateTime?
+  previousRegime  String?
+
+  // Recommendation Adjustment
+  recommendedAction String? // AGGRESSIVE_BUY, BUY, CAUTIOUS_BUY, NEUTRAL, CAUTIOUS_SELL, SELL, AGGRESSIVE_SELL, NO_TRADE
+  rrAdjustment      Decimal @default(1.00) @db.Decimal(5, 2) // R:R multiplier for this regime
+
+  createdAt DateTime @default(now())
+
+  @@index([symbol])
+  @@index([regime])
+  @@index([createdAt])
+  @@index([symbol, createdAt])
+}
+
+model CrossPairCorrelation {
+  id String @id @default(cuid())
+
+  symbolA String
+  symbolB String
+
+  // Correlation Metrics
+  correlation30d Decimal @db.Decimal(5, 4) // -1.0 to 1.0
+  correlation7d  Decimal @db.Decimal(5, 4) // -1.0 to 1.0
+  correlation24h Decimal @db.Decimal(5, 4) // -1.0 to 1.0
+
+  // Risk Assessment
+  riskLevel        String  @default("LOW") // LOW, MEDIUM, HIGH, EXTREME
+  sameDirectionPct Decimal @default(0) @db.Decimal(5, 2) // % of time they move together
+
+  // Sample Info
+  dataPoints Int @default(0)
+
+  calculatedAt DateTime @default(now())
+
+  @@unique([symbolA, symbolB])
+  @@index([symbolA])
+  @@index([symbolB])
+  @@index([riskLevel])
+  @@index([calculatedAt])
+}
+
+model SystemMemory {
+  id     String  @id @default(cuid())
+  userId String?
+
+  // Memory Type
+  type String // INSIGHT, PATTERN, FAILED_SETUP, REGIME_HISTORY, DAILY_SUMMARY, WEEKLY_PATTERN, LESSON
+
+  // Content
+  symbol  String?
+  content String  @db.Text
+
+  // Relevance
+  confidence     Int     @default(0) // 0-100
+  relevanceScore Decimal @default(0) @db.Decimal(5, 2) // How often this memory is used
+  timesUsed      Int     @default(0)
+  timesCorrect   Int     @default(0)
+
+  // Validity
+  validFrom  DateTime  @default(now())
+  validUntil DateTime?
+  isActive   Boolean   @default(true)
+
+  // Source
+  sourceTradeId String? // Link to TradeJournal
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([type])
+  @@index([symbol])
+  @@index([isActive])
+  @@index([validUntil])
+  @@index([userId, type, isActive])
+}
+
+model AdaptiveSchedule {
+  id     String @id @default(cuid())
+  symbol String
+
+  // Current Schedule
+  currentIntervalMs Int @default(900000) // 15 min default
+  baseIntervalMs    Int @default(900000)
+
+  // Adjustment Factors
+  atrMultiplier   Decimal @default(1.00) @db.Decimal(5, 2)
+  volatilityScore Int     @default(50) // 0-100
+  newsImpactScore Int     @default(0) // 0-100
+  recentActivity  Int     @default(50) // 0-100
+
+  // Recommended Interval
+  recommendedIntervalMs Int     @default(900000)
+  adjustmentReason      String?
+
+  // Tracking
+  lastSessionAt    DateTime?
+  lastAdjustmentAt DateTime  @default(now())
+  sessionsToday    Int       @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([symbol])
+  @@index([symbol])
+  @@index([currentIntervalMs])
 }

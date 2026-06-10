@@ -19,8 +19,23 @@ import { hasPermission, getPermissions, ROLE_INFO, type Role, type Permission } 
 import { T as SharedT } from '@/lib/unified-tokens'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
 import { useTranslations } from 'next-intl'
+import { useLocale } from 'next-intl'
 
 const T = { ...SharedT, pink: '#f472b6', text4: '#475569' }
+
+/* ─── Coming Soon Badge (V189) ─── */
+function ComingSoonBadge() {
+  const t = useTranslations('dashboard.settings')
+  return (
+    <span style={{
+      fontSize: 10, padding: '3px 8px', borderRadius: 10,
+      background: 'rgba(0,212,255,0.08)', color: T.cyan,
+      fontFamily: "'JetBrains Mono', monospace", fontWeight: 600,
+      border: '1px solid rgba(0,212,255,0.15)',
+      letterSpacing: '0.03em',
+    }}>{t('comingSoon')}</span>
+  )
+}
 
 /* ─── Toggle Switch ─── */
 function Toggle({ checked, onChange, color, size = 'md', ariaLabel }: {
@@ -356,6 +371,7 @@ export default function SettingsPage() {
   const setMode = useDashboardStore(state => state.setMode)
   const [isDark, setIsDark] = useState(true)
   const [activeTab, setActiveTab] = useState('account')
+  const currentLocale = useLocale()
 
   // Trading preferences
   const [orderSize, setOrderSize] = useState('5')
@@ -384,8 +400,85 @@ export default function SettingsPage() {
   const [crashReports, setCrashReports] = useState(true)
   const [dataExportLoading, setDataExportLoading] = useState(false)
 
-  // Sessions
-  const [sessions, setSessions] = useState<Array<{ id: string; device: string; lastActive: string; current: boolean }>>([])
+  // V189: Real appearance settings (persisted to localStorage)
+  const [fontSize, setFontSize] = useState(() => {
+    if (typeof window === 'undefined') return 'default'
+    return localStorage.getItem('roua_font_size') || 'default'
+  })
+  const [animationsEnabled, setAnimationsEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('roua_animations')
+    return stored !== null ? stored === 'true' : true
+  })
+  const [gridLinesEnabled, setGridLinesEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('roua_grid_lines')
+    return stored !== null ? stored === 'true' : true
+  })
+  const [stealthMode, setStealthMode] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('roua_stealth_mode') === 'true'
+  })
+
+  // Sessions — V189: Real session data from API
+  const [sessions, setSessions] = useState<Array<{ id: string; device: string; deviceInfo: any; lastActive: string; current: boolean; maskedIp: string | null; createdAt: string; expiresAt: string }>>([])
+  const [sessionsLoading, setSessionsLoading] = useState(false)
+  const [killLoading, setKillLoading] = useState(false)
+
+  // ─── V189: Persist appearance settings to localStorage ───
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('roua_font_size', fontSize)
+    const scale = fontSize === 'small' ? '0.9' : fontSize === 'large' ? '1.1' : '1'
+    document.documentElement.style.setProperty('--roua-font-scale', scale)
+  }, [fontSize])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('roua_animations', String(animationsEnabled))
+    if (animationsEnabled) {
+      document.documentElement.classList.remove('roua-reduced-motion')
+    } else {
+      document.documentElement.classList.add('roua-reduced-motion')
+    }
+  }, [animationsEnabled])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('roua_grid_lines', String(gridLinesEnabled))
+  }, [gridLinesEnabled])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('roua_stealth_mode', String(stealthMode))
+    if (stealthMode) {
+      document.documentElement.classList.add('roua-stealth')
+    } else {
+      document.documentElement.classList.remove('roua-stealth')
+    }
+  }, [stealthMode])
+
+  // ─── V189: Dark mode persistence ───
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    localStorage.setItem('roua_dark_mode', String(isDark))
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+      document.documentElement.style.colorScheme = 'dark'
+    } else {
+      document.documentElement.classList.remove('dark')
+      document.documentElement.style.colorScheme = 'light'
+    }
+  }, [isDark])
+
+  // Initialize dark mode from localStorage on mount
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = localStorage.getItem('roua_dark_mode')
+    if (stored !== null) {
+      setIsDark(stored === 'true')
+    }
+  }, [])
 
   // ─── Settings persistence: Load from API on mount ───
   const [settingsLoaded, setSettingsLoaded] = useState(false)
@@ -451,33 +544,54 @@ export default function SettingsPage() {
   const roleInfo = ROLE_INFO[userTier] || ROLE_INFO.FREE
   const userPermissions = getPermissions(userTier)
 
-  // Fetch active sessions
+  // V189: Fetch real active sessions from API
   useEffect(() => {
     if (activeTab === 'security') {
-      fetch('/api/auth/me')
+      setSessionsLoading(true)
+      fetch('/api/auth/sessions')
         .then(r => r.json())
-        .then(() => {
-          // Show current session as active
-          setSessions([{
-            id: 'current',
-            device: t('thisDevice'),
-            lastActive: t('now'),
-            current: true,
-          }])
+        .then(data => {
+          if (data?.sessions && Array.isArray(data.sessions)) {
+            setSessions(data.sessions.map((s: any) => ({
+              id: s.id,
+              device: s.isCurrent ? t('thisDevice') : (s.device?.browser || s.device?.os || s.userAgent?.split(' ').pop() || t('unknownDevice')),
+              deviceInfo: s.device,
+              lastActive: new Date(s.lastActive).toLocaleString(),
+              current: s.isCurrent,
+              maskedIp: s.maskedIp,
+              createdAt: s.createdAt,
+              expiresAt: s.expiresAt,
+            })))
+          } else {
+            // Fallback for guest or error
+            setSessions([])
+          }
         })
-        .catch(() => {})
+        .catch(() => setSessions([]))
+        .finally(() => setSessionsLoading(false))
     }
   }, [activeTab])
 
+  // V189: Real data export — fetches actual trading data from API
   const handleDataExport = async () => {
     setDataExportLoading(true)
     try {
-      // Simulate export — in production this would generate a real file
-      await new Promise(resolve => setTimeout(resolve, 2000))
+      const [settingsRes, positionsRes, tradesRes] = await Promise.allSettled([
+        fetch('/api/settings').then(r => r.json()),
+        fetch('/api/trading/positions').then(r => r.json()).catch(() => ({})),
+        fetch('/api/trading/account').then(r => r.json()).catch(() => ({})),
+      ])
+      const settingsData = settingsRes.status === 'fulfilled' ? settingsRes.value : {}
+      const positionsData = positionsRes.status === 'fulfilled' ? positionsRes.value : {}
+      const accountData = tradesRes.status === 'fulfilled' ? tradesRes.value : {}
       const data = {
         user: { id: user?.id, email: user?.email, displayName: user?.displayName, tier: user?.tier },
         exportDate: new Date().toISOString(),
         platform: 'ROUA Trading',
+        version: 'V189',
+        settings: settingsData?.settings || {},
+        positions: positionsData?.positions || [],
+        account: accountData || {},
       }
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
@@ -486,18 +600,32 @@ export default function SettingsPage() {
       a.download = `roua-data-export-${new Date().toISOString().slice(0, 10)}.json`
       a.click()
       URL.revokeObjectURL(url)
-    } catch {
-      // Handle error
+    } catch (err) {
+      console.error('[Settings] Data export failed:', err)
     } finally {
       setDataExportLoading(false)
     }
   }
 
+  // V189: Real session termination — calls DELETE /api/auth/sessions
   const handleKillOtherSessions = async () => {
+    setKillLoading(true)
     try {
-      // In production, this would call an API to delete all sessions except current
-      await fetch('/api/auth/me')
-    } catch {}
+      const res = await fetch('/api/auth/sessions', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ revokeAll: true }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        // Refresh sessions list after killing
+        setSessions(prev => prev.filter(s => s.current))
+      }
+    } catch (err) {
+      console.error('[Settings] Failed to kill sessions:', err)
+    } finally {
+      setKillLoading(false)
+    }
   }
 
   const tabs = [
@@ -731,7 +859,7 @@ export default function SettingsPage() {
                 label={t('autoSessionRenewal')}
                 description={t('autoRenewSessionDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
             </SectionCard>
 
@@ -1267,14 +1395,14 @@ export default function SettingsPage() {
                 label={t('doNotDisturb')}
                 description={t('doNotDisturbDesc')}
               >
-                <Toggle checked={false} onChange={() => {}} color={T.amber} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.text3} />}
                 label={t('emergencyOnly')}
                 description={t('emergencyOnlyDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.red} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
             </SectionCard>
           </>
@@ -1344,28 +1472,28 @@ export default function SettingsPage() {
                 label={t('continuousMarketMonitoring')}
                 description={t('analysis247')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.cyan} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.green} />}
                 label={t('entryExitSignals')}
                 description={t('instantOpportunityAlerts')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.amber} />}
                 label={t('riskAlerts')}
                 description={t('highVolatilityWarnings')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.amber} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<BarChart3 size={13} color={T.purple} />}
                 label={t('sentimentAnalysis')}
                 description={t('sentimentAnalysisDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.purple} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
             </SectionCard>
           </>
@@ -1394,11 +1522,20 @@ export default function SettingsPage() {
                 description={t('languageDesc')}
               >
                 <SelectBox
-                  value="ar"
-                  onChange={() => {}}
+                  value={currentLocale}
+                  onChange={(locale) => {
+                    router.replace('/', { locale })
+                  }}
                   options={[
                     { value: 'ar', label: t('arabic') },
                     { value: 'en', label: 'English' },
+                    { value: 'fr', label: 'Français' },
+                    { value: 'tr', label: 'Türkçe' },
+                    { value: 'es', label: 'Español' },
+                    { value: 'zh', label: '中文' },
+                    { value: 'ru', label: 'Русский' },
+                    { value: 'de', label: 'Deutsch' },
+                    { value: 'ja', label: '日本語' },
                   ]}
                   small
                 />
@@ -1421,8 +1558,8 @@ export default function SettingsPage() {
                 description={t('fontSizeDesc')}
               >
                 <SelectBox
-                  value="default"
-                  onChange={() => {}}
+                  value={fontSize}
+                  onChange={(v) => setFontSize(v)}
                   options={[
                     { value: 'small', label: t('fontSizeSmall') },
                     { value: 'default', label: t('default') },
@@ -1436,7 +1573,7 @@ export default function SettingsPage() {
                 label={t('animations')}
                 description={t('animationsDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.cyan} size="sm" />
+                <Toggle checked={animationsEnabled} onChange={() => setAnimationsEnabled(!animationsEnabled)} color={T.cyan} size="sm" />
               </SettingRow>
             </SectionCard>
 
@@ -1465,7 +1602,7 @@ export default function SettingsPage() {
                 label={t('gridLines')}
                 description={t('gridLinesDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.blue} size="sm" />
+                <Toggle checked={gridLinesEnabled} onChange={() => setGridLinesEnabled(!gridLinesEnabled)} color={T.blue} size="sm" />
               </SettingRow>
             </SectionCard>
           </>
@@ -1518,24 +1655,14 @@ export default function SettingsPage() {
                 label={t('sessionDuration')}
                 description={t('sessionDurationDesc')}
               >
-                <SelectBox
-                  value="30d"
-                  onChange={() => {}}
-                  options={[
-                    { value: '1h', label: t('oneHour') },
-                    { value: '24h', label: t('twentyFourHours') },
-                    { value: '7d', label: t('sevenDays') },
-                    { value: '30d', label: t('thirtyDays') },
-                  ]}
-                  small
-                />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<RefreshCw size={13} color={T.green} />}
                 label={t('autoSessionRenewal')}
                 description={t('autoSessionRenewalDesc')}
               >
-                <Toggle checked={true} onChange={() => {}} color={T.green} size="sm" />
+                <ComingSoonBadge />
               </SettingRow>
               <SettingRow
                 icon={<Wifi size={13} color={T.text3} />}
@@ -1544,17 +1671,19 @@ export default function SettingsPage() {
               >
                 <button
                   onClick={handleKillOtherSessions}
+                  disabled={killLoading}
                   style={{
                     padding: '5px 12px', borderRadius: 8,
                     background: 'rgba(255,71,87,0.08)', border: '1px solid rgba(255,71,87,0.20)',
-                    color: T.red, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                    color: T.red, fontSize: 11, fontWeight: 700, cursor: killLoading ? 'wait' : 'pointer',
                     fontFamily: "'Cairo', sans-serif",
+                    opacity: killLoading ? 0.6 : 1,
                   }}
-                >{t('terminate')}</button>
+                >{killLoading ? '...' : t('terminate')}</button>
               </SettingRow>
             </SectionCard>
 
-            {/* Active Sessions */}
+            {/* Active Sessions — V189: Real session data */}
             <SectionCard
               icon={<Monitor size={18} color={T.cyan} />}
               iconColor={T.cyan}
@@ -1563,6 +1692,16 @@ export default function SettingsPage() {
               subtitle={t('activeSessionsDesc')}
             >
               <div style={{ padding: '8px 0' }}>
+                {sessionsLoading && (
+                  <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+                    {t('loadingAccounts')}
+                  </div>
+                )}
+                {!sessionsLoading && sessions.length === 0 && (
+                  <div style={{ padding: '12px 0', textAlign: 'center', color: T.text3, fontSize: 11 }}>
+                    {t('noActiveSessions')}
+                  </div>
+                )}
                 {sessions.map(session => (
                   <div key={session.id} style={{
                     display: 'flex', alignItems: 'center', gap: 12,
@@ -1583,8 +1722,34 @@ export default function SettingsPage() {
                           }}>{t('current')}</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 10, color: T.text4 }}>{t('lastActivity')}: {session.lastActive}</div>
+                      <div style={{ fontSize: 10, color: T.text4, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <span>{t('lastActivity')}: {session.lastActive}</span>
+                        {session.maskedIp && <span>IP: {session.maskedIp}</span>}
+                      </div>
                     </div>
+                    {!session.current && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/auth/sessions', {
+                              method: 'DELETE',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ sessionId: session.id }),
+                            })
+                            const data = await res.json()
+                            if (data.success) {
+                              setSessions(prev => prev.filter(s => s.id !== session.id))
+                            }
+                          } catch {}
+                        }}
+                        style={{
+                          padding: '3px 8px', borderRadius: 6,
+                          background: 'rgba(255,71,87,0.06)', border: '1px solid rgba(255,71,87,0.15)',
+                          color: T.red, fontSize: 9, fontWeight: 700, cursor: 'pointer',
+                          fontFamily: "'Cairo', sans-serif",
+                        }}
+                      >{t('terminate')}</button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1682,7 +1847,7 @@ export default function SettingsPage() {
                 label={t('stealthMode')}
                 description={t('hideBalances')}
               >
-                <Toggle checked={false} onChange={() => {}} color={T.purple} size="sm" />
+                <Toggle checked={stealthMode} onChange={() => setStealthMode(!stealthMode)} color={T.purple} size="sm" />
               </SettingRow>
             </SectionCard>
 
@@ -1716,17 +1881,7 @@ export default function SettingsPage() {
                 label={t('cacheDuration')}
                 description={t('cacheDurationDesc')}
               >
-                <SelectBox
-                  value="5m"
-                  onChange={() => {}}
-                  options={[
-                    { value: '1m', label: t('minute') },
-                    { value: '5m', label: t('fiveMinutes') },
-                    { value: '15m', label: t('fifteenMinutes') },
-                    { value: '1h', label: t('hour') },
-                  ]}
-                  small
-                />
+                <ComingSoonBadge />
               </SettingRow>
             </SectionCard>
           </>

@@ -619,21 +619,34 @@ export class IntegrityCheckController {
       // with shouldClose = true and reason = 'MAX_HOLDING_TIME'
       const hasOldBreakevenSet =
         /currentPrice\s*=\s*Number\s*\(\s*position\.entryPrice\s*\)/.test(agentContent) &&
-        /MAX_HOLDING_TIME/.test(agentContent) &&
         /shouldClose\s*=\s*true/.test(agentContent);
 
-      // Also check for the hardcoded 4h constant
-      const hasHardcoded4h = /MAX_HOLDING_TIME_MS\s*=\s*4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) ||
-        /4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) && /MAX_HOLDING/.test(agentContent);
+      // Check for the hardcoded 4h constant — must be on the SAME LINE as MAX_HOLDING
+      // to avoid false positives from unrelated lines like:
+      //   closeReason: reason, // STOP_LOSS_HIT, TAKE_PROFIT_HIT, or MAX_HOLDING_TIME
+      //   7 * 24 * 60 * 60 * 1000 (7 days calculation)
+      // We search line-by-line for a line that has BOTH the 4h calculation AND MAX_HOLDING
+      let hasHardcoded4hLine = false;
+      const lines = agentContent.split('\n');
+      for (const line of lines) {
+        if (/4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(line) && /MAX_HOLDING/.test(line)) {
+          hasHardcoded4hLine = true;
+          break;
+        }
+      }
+      // Also check for the variable assignment pattern (more specific)
+      if (!hasHardcoded4hLine) {
+        hasHardcoded4hLine = /MAX_HOLDING_TIME_MS\s*=\s*4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent);
+      }
 
       // V184 fix indicator: actualExitPrice (the new variable we added)
       const hasActualExitPrice = /actualExitPrice\s*=\s*result/.test(agentContent);
 
-      if (hasOldBreakevenSet && hasHardcoded4h) {
+      if (hasOldBreakevenSet && hasHardcoded4hLine) {
         failures.push('Agent لا يزال يغلق المراكز الورقية بسعر الدخول بعد 4h (breakeven exit) — الصفقات الرابحة تُغسل!');
       } else if (hasOldBreakevenSet) {
         failures.push('Agent لا يزال يضع currentPrice = entryPrice عند إغلاق MAX_HOLDING_TIME');
-      } else if (hasHardcoded4h) {
+      } else if (hasHardcoded4hLine) {
         failures.push('Agent لا يزال يملك MAX_HOLDING_TIME_MS = 4h hardcoded');
       } else if (hasActualExitPrice) {
         // The old code is gone AND the new fix is present — confirmed

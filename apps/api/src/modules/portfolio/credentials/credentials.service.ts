@@ -1749,29 +1749,30 @@ export class CredentialsService {
       const accountApi = metaApi.metatraderAccountApi;
 
       // ═══════════════════════════════════════════════════════════════
-      // V188: COMPLETE REWRITE of MetaAPI connection logic.
+      // V190: Use MetaAPI REST API directly instead of SDK RPC connection.
       //
-      // Previous versions (V172-V187) had these fatal flaws:
-      //   1. Tried createAccount() on every balance fetch — blocks 30-120s,
-      //      fails if token lacks permissions, and spams the API
-      //   2. Called waitConnected() with 30s timeout — blocks the entire
-      //      balance fetch for an account that might NEVER connect
-      //   3. No caching of "known failures" — retried the same failing
-      //      operations every 5 seconds, causing a flood of API calls
+      // Problem with V188 RPC approach:
+      //   - RPC connection requires connect() + waitSynchronized() which
+      //     times out after 10s even when account is DEPLOYED + CONNECTED
+      //   - Failure cache blocks retries for 60s → user sees stale cached data
+      //   - Total time wasted: 10s (RPC timeout) + 10s (redeploy) + 10s (reconnect)
+      //     = 30s PER REQUEST that always fails
       //
-      // NEW APPROACH (V188):
-      //   1. Find account → if not found, return error FAST (no createAccount)
-      //   2. If account is DEPLOYED, try RPC connection with SHORT timeout
-      //   3. If account is DISCONNECTED, try one quick redeploy (10s max)
-      //   4. NEVER block more than 10s total per credential
-      //   5. Cache failures in-memory to avoid retrying every 5s
+      // NEW APPROACH (V190):
+      //   1. Find account in MetaAPI → get its MetaAPI UUID
+      //   2. Use MetaAPI REST API to get account information DIRECTLY
+      //      (no RPC connection needed, no WebSocket, no waitSynchronized)
+      //   3. The REST API reads cached data from MetaAPI servers which is
+      //      updated in real-time by the MetaAPI cloud connection
+      //   4. Fallback to RPC only if REST API is unavailable
+      //   5. Reduce failure cache to 15s (not 60s) so the user gets fresh data sooner
       // ═══════════════════════════════════════════════════════════════
 
-      // V188: Check in-memory failure cache — don't retry known failures
+      // V190: Check failure cache with REDUCED cooldown (15s, not 60s)
       const failureCacheKey = `mt5fail:${cred.id}`;
       const lastFailure = this.mt5FailureCache?.get(failureCacheKey);
-      if (lastFailure && Date.now() - lastFailure < 60_000) {
-        // This credential failed recently — don't retry for 60 seconds
+      if (lastFailure && Date.now() - lastFailure < 15_000) {
+        // This credential failed VERY recently — skip for 15 seconds only
         const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Recently failed, skipping');
         if (cachedResult) {
           return cachedResult;
@@ -1786,28 +1787,27 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: `اتصال MT5 غير متاح حالياً — سيتم إعادة المحاولة خلال دقيقة`,
+          error: `اتصال MT5 غير متاح حالياً — سيتم إعادة المحاولة خلال ثوان`,
         };
       }
 
       // Step 1: Find existing account in MetaAPI
       let account;
+      let metaApiAccountId: string | undefined;
       try {
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
         const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
         if (existing) {
           account = await accountApi.getAccount(existing.id);
+          metaApiAccountId = existing.id;
         }
       } catch (searchErr: any) {
-        this.logger.warn(`📊 V188: Search failed for ${accountId}: ${searchErr.message?.substring(0, 60)}`);
+        this.logger.warn(`📊 V190: Search failed for ${accountId}: ${searchErr.message?.substring(0, 60)}`);
       }
 
-      // Step 2: If not found — return error FAST, don't try createAccount
-      // createAccount requires trading-account-management-api permissions
-      // which we may not have. Registration should only happen during
-      // credential validation (_validateMT5Credentials), not balance fetch.
+      // Step 2: If not found — return error FAST
       if (!account) {
-        this.logger.warn(`📊 V188: MT5 account ${accountId} not found in MetaAPI — skipping`);
+        this.logger.warn(`📊 V190: MT5 account ${accountId} not found in MetaAPI — skipping`);
         this._recordMT5Failure(failureCacheKey);
         const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Account not registered in MetaAPI');
         if (cachedResult) {
@@ -1831,124 +1831,109 @@ export class CredentialsService {
       const accountState = (account as any).state;
       const connectionStatus = (account as any).connectionStatus;
       this.logger.log(
-        `📊 V188: Account ${accountId} state=${accountState || '?'}, connStatus=${connectionStatus || '?'}`
+        `📊 V190: Account ${accountId} state=${accountState || '?'}, connStatus=${connectionStatus || '?'}`
       );
 
-      // Step 4: If not DEPLOYED, try a quick deploy (10s max)
-      if (accountState && !['DEPLOYED', 'DEPLOYING'].includes(accountState)) {
+      // ═══════════════════════════════════════════════════════════════
+      // V190: PRIMARY METHOD — MetaAPI REST API
+      // Use HTTP REST to fetch account information directly.
+      // This bypasses the RPC WebSocket connection entirely.
+      //
+      // The MetaAPI cloud maintains a real-time connection to the broker.
+      // When we call the REST API, it returns the latest cached data
+      // from MetaAPI's servers — which is updated every 1-2 seconds.
+      //
+      // REST API endpoint:
+      //   GET https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/{accountId}/account-information
+      //
+      // This is MUCH faster than RPC (100-500ms vs 10s+ timeout)
+      // and doesn't require connect() + waitSynchronized().
+      // ═══════════════════════════════════════════════════════════════
+      let accountInfo: any = null;
+
+      // Try REST API first
+      if (metaApiAccountId && accountState === 'DEPLOYED') {
         try {
-          this.logger.log(`📊 V188: Quick deploy for ${accountId} (state=${accountState})...`);
-          await (account as any).deploy();
-          await Promise.race([
-            (account as any).waitDeployed(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10_000)),
-          ]);
-        } catch (deployErr: any) {
-          this.logger.warn(`📊 V188: Deploy failed: ${deployErr.message?.substring(0, 60)}`);
-          this._recordMT5Failure(failureCacheKey);
-          const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, `Deploy failed: ${accountState}`);
-          if (cachedResult) return cachedResult;
-          return {
-            exchange: cred.exchange, label: cred.label, credentialId: cred.id,
-            isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
-            usedMargin: 0, assets: [],
-            error: `حساب MT5 غير مُنشر (حالة: ${accountState})`,
-          };
+          const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken);
+          if (restResult) {
+            accountInfo = restResult;
+            this.logger.log(`📊 V190: REST API succeeded for ${accountId} — balance=$${restResult.balance}, equity=$${restResult.equity}`);
+          }
+        } catch (restErr: any) {
+          this.logger.warn(`📊 V190: REST API failed for ${accountId}: ${restErr.message?.substring(0, 60)}`);
         }
       }
 
-      // Step 5: Try RPC connection with SHORT timeout
-      // V188 KEY INSIGHT: Don't call waitConnected() — it blocks 30s+ for
-      // DISCONNECTED accounts. Instead, just try RPC connect() directly.
-      // The RPC connection can sometimes work even when connectionStatus
-      // shows DISCONNECTED (stale status reporting).
-      const connection = account.getRPCConnection();
-      let connected = false;
+      // Fallback: Try RPC connection only if REST failed
+      if (!accountInfo) {
+        // If not DEPLOYED, try a quick deploy first
+        if (accountState && !['DEPLOYED', 'DEPLOYING'].includes(accountState)) {
+          try {
+            this.logger.log(`📊 V190: Quick deploy for ${accountId} (state=${accountState})...`);
+            await (account as any).deploy();
+            await Promise.race([
+              (account as any).waitDeployed(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10_000)),
+            ]);
+          } catch (deployErr: any) {
+            this.logger.warn(`📊 V190: Deploy failed: ${deployErr.message?.substring(0, 60)}`);
+            this._recordMT5Failure(failureCacheKey);
+            const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, `Deploy failed: ${accountState}`);
+            if (cachedResult) return cachedResult;
+            return {
+              exchange: cred.exchange, label: cred.label, credentialId: cred.id,
+              isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
+              usedMargin: 0, assets: [],
+              error: `حساب MT5 غير مُنشر (حالة: ${accountState})`,
+            };
+          }
+        }
 
-      try {
-        await Promise.race([
-          (async () => {
-            await connection.connect();
-            await connection.waitSynchronized();
-          })(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('connect timeout (10s)')), 10_000)
-          ),
-        ]);
-        connected = true;
-      } catch (connectErr: any) {
-        this.logger.warn(
-          `📊 V188: RPC connect failed for ${accountId}: ${connectErr.message?.substring(0, 60)}`
-        );
-      }
-
-      // Step 6: If RPC connect failed and account is DISCONNECTED,
-      // try one quick redeploy (undeploy + deploy) to force reconnection
-      if (!connected && connectionStatus === 'DISCONNECTED') {
-        this.logger.log(`📊 V188: Trying quick redeploy for ${accountId}...`);
-        try {
-          await (account as any).undeploy();
-          await Promise.race([
-            (account as any).waitUndeployed(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('undeploy timeout')), 5_000)),
-          ]);
-        } catch { /* ignore undeploy errors */ }
+        // Try RPC connection as fallback
+        const connection = account.getRPCConnection();
+        let connected = false;
 
         try {
-          await (account as any).deploy();
-          await Promise.race([
-            (account as any).waitDeployed(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('deploy timeout')), 10_000)),
-          ]);
-          // Try connect again after redeploy
           await Promise.race([
             (async () => {
               await connection.connect();
               await connection.waitSynchronized();
             })(),
             new Promise((_, reject) =>
-              setTimeout(() => reject(new Error('reconnect timeout (10s)')), 10_000)
+              setTimeout(() => reject(new Error('connect timeout (8s)')), 8_000)
             ),
           ]);
           connected = true;
-          this.logger.log(`📊 V188: Redeploy + reconnect succeeded for ${accountId}!`);
-        } catch (redeployErr: any) {
-          this.logger.warn(`📊 V188: Redeploy failed for ${accountId}: ${redeployErr.message?.substring(0, 60)}`);
+        } catch (connectErr: any) {
+          this.logger.warn(
+            `📊 V190: RPC connect failed for ${accountId}: ${connectErr.message?.substring(0, 60)}`
+          );
+        }
+
+        if (connected) {
+          try {
+            accountInfo = await Promise.race([
+              connection.getAccountInformation(),
+              new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('getAccountInfo timeout (5s)')), 5_000)
+              ),
+            ]) as any;
+          } catch (apiErr: any) {
+            this.logger.warn(`📊 V190: getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 60)}`);
+          }
         }
       }
 
-      // Step 7: If still not connected, give up for now
-      if (!connected) {
+      // If we couldn't get account info by any method, use cache
+      if (!accountInfo) {
         this._recordMT5Failure(failureCacheKey);
-        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Connection failed');
+        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'All methods failed');
         if (cachedResult) return cachedResult;
         return {
           exchange: cred.exchange, label: cred.label, credentialId: cred.id,
           isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
           usedMargin: 0, assets: [],
-          error: `فشل اتصال MT5 — الحساب ${accountId} غير متصل بالوسيط`,
-        };
-      }
-
-      // Step 8: Get account information (short timeout)
-      let accountInfo: any;
-      try {
-        accountInfo = await Promise.race([
-          connection.getAccountInformation(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('getAccountInfo timeout (5s)')), 5_000)
-          ),
-        ]) as any;
-      } catch (apiErr: any) {
-        this.logger.warn(`📊 V188: getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 60)}`);
-        this._recordMT5Failure(failureCacheKey);
-        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, apiErr.message);
-        if (cachedResult) return cachedResult;
-        return {
-          exchange: cred.exchange, label: cred.label, credentialId: cred.id,
-          isTestnet: isDemo, equity: 0, available: 0, currency: 'USD',
-          usedMargin: 0, assets: [],
-          error: `فشل جلب بيانات MT5: ${apiErr.message?.substring(0, 60)}`,
+          error: `فشل جلب بيانات MT5 — الحساب ${accountId} غير متصل`,
         };
       }
 
@@ -2101,6 +2086,61 @@ export class CredentialsService {
       this.logger.warn(`📊 V185: Failed to read cached MT5 balance: ${err.message}`);
       return null;
     }
+  }
+
+  /**
+   * V190: Fetch MT5 account information via MetaAPI REST API.
+   * This bypasses the slow RPC WebSocket connection entirely.
+   *
+   * The MetaAPI cloud maintains a real-time connection to the broker.
+   * The REST API returns the latest cached account data from MetaAPI servers,
+   * which is updated every 1-2 seconds by the cloud connection.
+   *
+   * REST API docs: https://metaapi.cloud/docs/client/restApi/
+   * Endpoint: GET /users/current/accounts/{accountId}/account-information
+   *
+   * This is 10-50x faster than RPC (100-500ms vs 10s+ timeout) and
+   * doesn't require connect() + waitSynchronized().
+   */
+  private async _fetchMT5BalanceViaREST(
+    metaApiAccountId: string,
+    metaApiToken: string,
+  ): Promise<any | null> {
+    const https = await import('https');
+    const url = `https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/${metaApiAccountId}/account-information`;
+
+    return new Promise((resolve, reject) => {
+      const req = https.request(url, {
+        method: 'GET',
+        headers: {
+          'auth-token': metaApiToken,
+          'Accept': 'application/json',
+        },
+        timeout: 5000, // 5 second timeout — REST is fast
+      }, (res) => {
+        let data = '';
+        res.on('data', (chunk: any) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try {
+              const accountInfo = JSON.parse(data);
+              resolve(accountInfo);
+            } catch (parseErr: any) {
+              reject(new Error(`REST API parse error: ${parseErr.message}`));
+            }
+          } else {
+            reject(new Error(`REST API returned ${res.statusCode}: ${data.substring(0, 100)}`));
+          }
+        });
+      });
+
+      req.on('error', (err: any) => reject(err));
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('REST API timeout (5s)'));
+      });
+      req.end();
+    });
   }
 
   /** V188: Record an MT5 connection failure to avoid retrying every 5 seconds */

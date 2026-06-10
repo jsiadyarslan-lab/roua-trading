@@ -262,6 +262,31 @@ export class CredentialsService {
     // a new one still shows the OLD balance until the cache expires.
     this.invalidateBalanceCache(userId);
 
+    // V172: Auto-activate first real (non-paper) credential
+    // When a user adds their first real exchange account, make it the active
+    // account so they can start using it immediately without manual activation.
+    if (exchange.toLowerCase() !== 'paper-trading') {
+      try {
+        const existingActive = await this.prisma.setting.findFirst({
+          where: { key: `user:${userId}:activeCredentialId` },
+        });
+        if (!existingActive || !existingActive.value) {
+          await this.prisma.setting.upsert({
+            where: { key: `user:${userId}:activeCredentialId` },
+            update: { value: credential.id },
+            create: {
+              key: `user:${userId}:activeCredentialId`,
+              value: credential.id,
+            },
+          });
+          this.logger.log(`🎯 Auto-activated first real credential ${credential.id} for user ${userId}`);
+        }
+      } catch (err: any) {
+        // Non-critical — don't fail the whole credential addition
+        this.logger.warn(`Failed to auto-activate credential: ${err.message}`);
+      }
+    }
+
     this.logger.log(`✅ Credential added: ${exchange}/${label} for user ${userId}`);
 
     return {
@@ -1536,22 +1561,28 @@ export class CredentialsService {
       const metaApiModule: any = await import('metaapi.cloud-sdk');
       const MetaApiClass = metaApiModule.default || metaApiModule;
       const metaApi = new MetaApiClass(metaApiToken);
+      const accountApi = metaApi.metatraderAccountApi;
 
       // Try to find existing account or register a new one
       let account;
       try {
-        account = await metaApi.getAccount(accountId);
+        // V172: Use metatraderAccountApi instead of removed top-level methods
+        account = await accountApi.getAccount(accountId);
         this.logger.log(`📊 MT5 account ${accountId} already registered with MetaAPI`);
       } catch {
         // Account not found — try to register it
         this.logger.log(`📊 Registering MT5 account ${accountId} with MetaAPI...`);
         try {
-          account = await metaApi.addAccount({
+          account = await accountApi.createAccount({
             login: accountId,
             password,
             server,
             type: isDemo ? 'demo' : 'live',
             name: `Roua-Validation-${Date.now()}`,
+            platform: 'mt5',
+            magic: 123456,
+            quoteStreamingIntervalSeconds: 2,
+            reliability: 'regular',
           });
 
           // Wait for deployment with timeout
@@ -1561,7 +1592,7 @@ export class CredentialsService {
           const msg = registerErr.message || '';
           if (msg.includes('already exists')) {
             // Account already registered by another user — try to access it
-            account = await metaApi.getAccount(accountId);
+            account = await accountApi.getAccount(accountId);
           } else if (msg.includes('Invalid credentials') || msg.includes('authentication')) {
             return { valid: false, error: 'بيانات حساب MT5 غير صحيحة — تأكد من رقم الحساب وكلمة السر واسم السيرفر' };
           } else if (msg.includes('server not found') || msg.includes('Unknown server')) {
@@ -1675,21 +1706,27 @@ export class CredentialsService {
       const metaApiModule: any = await import('metaapi.cloud-sdk');
       const MetaApiClass = metaApiModule.default || metaApiModule;
       const metaApi = new MetaApiClass(metaApiToken);
+      const accountApi = metaApi.metatraderAccountApi;
 
       let account;
       try {
-        account = await metaApi.getAccount(accountId);
+        // V172: Use metatraderAccountApi instead of removed top-level methods
+        account = await accountApi.getAccount(accountId);
       } catch {
         // Try to register if not found
         try {
-          account = await metaApi.addAccount({
+          account = await accountApi.createAccount({
             login: accountId,
             password,
             server,
             type: isDemo ? 'demo' : 'live',
             name: `Roua-${userId.slice(0, 8)}`,
+            platform: 'mt5',
+            magic: 123456,
+            quoteStreamingIntervalSeconds: 2,
+            reliability: 'regular',
           });
-          await account.waitDeployed(30000);
+          await account.waitDeployed(60000);
         } catch (regErr: any) {
           return {
             exchange: cred.exchange,

@@ -371,20 +371,26 @@ export class MT5Adapter implements IExchangeAdapter {
 
     // Create new connection
     const metaApi = await this._getMetaApiInstance();
+    const accountApi = metaApi.metatraderAccountApi;
 
     // Add or get account
     let account;
     try {
-      account = await metaApi.getAccount(this.accountInfo.accountId);
+      // V172: Use metatraderAccountApi instead of removed top-level methods
+      account = await accountApi.getAccount(this.accountInfo.accountId);
     } catch {
       // Account not registered — create it
       this.logger.log(`📊 Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
-      account = await metaApi.addAccount({
+      account = await accountApi.createAccount({
         login: this.accountInfo.accountId,
         password: this.accountInfo.password,
         server: this.accountInfo.server,
         type: this.accountInfo.isDemo ? 'demo' : 'live',
         name: `Roua-${this.userId.slice(0, 8)}`,
+        platform: 'mt5',
+        magic: 123456,
+        quoteStreamingIntervalSeconds: 2,
+        reliability: 'regular',
       });
 
       // Wait for account to be deployed (max 60 seconds)

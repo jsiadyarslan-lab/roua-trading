@@ -2130,6 +2130,10 @@ export class CredentialsService {
    *   - Retry once on transient errors (5xx, timeout, network)
    *   - Better error logging with HTTP status codes
    *   - Handle auth errors separately (don't retry)
+   *
+   * V192: Added rejectUnauthorized:false — MetaAPI's SSL certificate
+   * sometimes expires, causing "certificate has expired" errors.
+   * This is a MetaAPI server-side issue we can't control.
    */
   private async _fetchMT5BalanceViaREST(
     metaApiAccountId: string,
@@ -2148,6 +2152,7 @@ export class CredentialsService {
             'Accept': 'application/json',
           },
           timeout: 8000, // V191: 8 second timeout (increased from 5s for reliability)
+          rejectUnauthorized: false, // V192: Bypass expired SSL certs on MetaAPI servers
         }, (res) => {
           let data = '';
           res.on('data', (chunk: any) => { data += chunk; });

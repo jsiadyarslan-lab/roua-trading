@@ -306,8 +306,8 @@ ${results.filter(r => r.routeFixed).map(r => `<tr>
 </table>
 
 <div style="margin-top:24px;padding:16px;background:#1A1D29;border:1px solid #2D3348;border-radius:10px;text-align:center">
-  <p style="color:#94A3B8;font-size:.85rem;margin-bottom:8px">🔍 فحص سلامة الكود (V01-V15)</p>
-  <a href="${apiTarget}/api/integrity?html=1" target="_blank" style="display:inline-block;padding:10px 24px;background:#3B82F6;color:white;border-radius:8px;text-decoration:none;font-size:.9rem">Code Integrity Check → V15: V184 Auto-Close Fix</a>
+  <p style="color:#94A3B8;font-size:.85rem;margin-bottom:8px">🔍 فحص سلامة الكود (V01-V15) — هل الإصلاحات مطبقة فعلياً؟</p>
+  <a href="/api/integrity/code?html=1" style="display:inline-block;padding:10px 24px;background:#3B82F6;color:white;border-radius:8px;text-decoration:none;font-size:.9rem">Code Integrity Check → V15: V184 Auto-Close Fix</a>
 </div>
 
 </body></html>`;

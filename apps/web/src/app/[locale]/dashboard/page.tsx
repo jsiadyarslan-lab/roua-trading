@@ -1025,7 +1025,11 @@ export default function DashboardPage() {
   const currentPrice = globalQuotes[selectedSymbol]?.price ?? null
   const activeQuote = globalQuotes[selectedSymbol] ?? null
   const account = usePositionsStore(state => state.account)
-  const positions = usePositionsStore(state => state.positions)
+  // V189: Use getActivePositions to filter by active account
+  const allPositions = usePositionsStore(state => state.positions)
+  const activeCredentialId = usePositionsStore(state => state.activeCredentialId)
+  const getActivePositions = usePositionsStore(state => state.getActivePositions)
+  const positions = activeCredentialId ? getActivePositions() : allPositions
   const lastUpdate = usePositionsStore(state => state.lastUpdate)
   const positionsError = usePositionsStore(state => state.error)
   const fetchAccount = usePositionsStore(state => state.fetchAccount)

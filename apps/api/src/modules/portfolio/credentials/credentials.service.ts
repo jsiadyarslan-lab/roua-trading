@@ -524,6 +524,8 @@ export class CredentialsService {
       credentialId: string;
       isTestnet: boolean;
       equity: number;
+      /** V189: Actual account balance (without floating PnL). For MT5: balance from broker. For crypto: same as equity. */
+      balance?: number;
       available: number;
       currency: string;
       /** V150 FIX: Leverage-aware used margin for this exchange (not raw asset 'used') */
@@ -984,6 +986,8 @@ export class CredentialsService {
     credentialId: string;
     isTestnet: boolean;
     equity: number;
+    /** V189: Actual account balance (without floating PnL). For crypto exchanges: same as equity. */
+    balance?: number;
     available: number;
     currency: string;
     /** V150: Leverage-aware used margin for real exchanges (USDT locked in orders for spot) */
@@ -1228,6 +1232,7 @@ export class CredentialsService {
       credentialId,
       isTestnet,
       equity,
+      balance: equity,  // V189: For crypto exchanges, balance = equity (no separate balance concept)
       available,
       currency: 'USD',
       usedMargin: exchangeUsedMargin,
@@ -1690,6 +1695,8 @@ export class CredentialsService {
     credentialId: string;
     isTestnet: boolean;
     equity: number;
+    /** V189: Actual account balance from broker (without floating PnL) */
+    balance?: number;
     available: number;
     currency: string;
     usedMargin: number;
@@ -1986,6 +1993,7 @@ export class CredentialsService {
         credentialId: cred.id,
         isTestnet: isDemo,
         equity,
+        balance,  // V189: Actual account balance from broker (without floating PnL)
         available: freeMargin,
         currency,
         usedMargin: margin,
@@ -1993,7 +2001,7 @@ export class CredentialsService {
           currency,
           free: freeMargin,
           used: margin,
-          total: equity,
+          total: balance,  // V189: Use balance (not equity) as total — this is the real deposited amount
         }],
       };
     } catch (error: any) {

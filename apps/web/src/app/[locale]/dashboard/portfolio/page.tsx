@@ -230,7 +230,11 @@ export default function PortfolioPage() {
   const [showClosed, setShowClosed] = useState(false)
   const { closedTrades: closedPaperTrades } = usePaperTradesStore()
   // V168: Use the shared positions store which merges API + paper trading positions
-  const storePositions = usePositionsStore(s => s.positions)
+  // V189: Filter positions by active credential
+  const storeAllPositions = usePositionsStore(s => s.positions)
+  const storeActiveCredentialId = usePositionsStore(s => s.activeCredentialId)
+  const storeGetActivePositions = usePositionsStore(s => s.getActivePositions)
+  const storePositions = storeActiveCredentialId ? storeGetActivePositions() : storeAllPositions
   const storeAccount = usePositionsStore(s => s.account)
   const storeFetchPositions = usePositionsStore(s => s.fetchPositions)
   const storeFetchAccount = usePositionsStore(s => s.fetchAccount)

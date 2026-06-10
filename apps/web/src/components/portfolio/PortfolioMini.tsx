@@ -12,6 +12,7 @@ import { useTranslations } from 'next-intl'
 /* ── Default Real Data State ── */
 const DEFAULT: PortfolioSummary = {
   balance:       0,
+  equity:        0,
   totalPnl:      0,
   pnlPercent:    0,
   totalPositions: 0,
@@ -28,6 +29,8 @@ const DEFAULT: PortfolioSummary = {
 
 interface PortfolioSummary {
   balance: number
+  /** V189: Equity = balance + unrealized PnL (for MT5: different from balance) */
+  equity?: number
   totalPnl: number
   pnlPercent: number
   totalPositions: number
@@ -53,7 +56,12 @@ import { toast } from '@/hooks/use-toast'
 import { getSymbolLeverage } from '@/lib/margin-calculator'
 
 export function usePortfolioSummary() {
-  const positions = usePositionsStore(s => s.positions)
+  // V189: Use getActivePositions to filter by active account
+  const allPositions = usePositionsStore(s => s.positions)
+  const activeCredentialId = usePositionsStore(s => s.activeCredentialId)
+  const getActivePositions = usePositionsStore(s => s.getActivePositions)
+  // V189: When activeCredentialId is set, show only positions from that account
+  const positions = activeCredentialId ? getActivePositions() : allPositions
   const account = usePositionsStore(s => s.account)
   const fetchAccount = usePositionsStore(s => s.fetchAccount)
   const fetchPositions = usePositionsStore(s => s.fetchPositions)
@@ -70,8 +78,9 @@ export function usePortfolioSummary() {
   }, [fetchAccount, fetchPositions])
 
   const data = (() => {
-    const balance = Number(account?.equity) || 0
-    const cash = Number(account?.cash) || 0
+    // V189: Use cash (which is now balance for MT5) instead of equity as the primary display
+    const balance = Number(account?.cash) || 0
+    const equity = Number(account?.equity) || 0
     // FIX: When real positions exist (from exchange), don't include paper trades
     // in the summary calculations. Paper trades are demo/fake and shouldn't
     // affect the real portfolio summary numbers.
@@ -145,11 +154,14 @@ export function usePortfolioSummary() {
 
     if (balance > 0) pnlPercent = (totalPnl / (balance - totalPnl)) * 100
 
-    // V183: freeMargin = what's available for new positions
-    const freeMargin = Math.max(0, cash + totalPnl - margin)
+    // V189: freeMargin = what's available for new positions
+    // balance = cash = true wallet balance (margin included, without floating PnL)
+    // equity = balance + unrealized PnL
+    const freeMargin = Math.max(0, balance + totalPnl - margin)
 
     return {
-      balance: cash, // V183: cash = true wallet balance (margin included)
+      balance, // V189: balance = cash = true wallet balance (margin included, without floating PnL)
+      equity,  // V189: equity = balance + floating PnL (for display comparison)
       margin,
       freeMargin,
       totalPnl,

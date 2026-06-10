@@ -23,6 +23,8 @@ interface Position {
   stopLoss?: number
   takeProfit?: number
   exchange?: string
+  /** V189: Credential ID this position belongs to — used for filtering by active account */
+  credentialId?: string
   openedAt?: string
   source?: 'nestjs' | 'alpaca'
   /** Trade source from DB: user_manual, smart_executor, agent, auto_paper */
@@ -39,6 +41,8 @@ interface PositionsState {
     credentialId: string
     isTestnet: boolean
     equity: number
+    /** V189: Actual account balance (without floating PnL) */
+    balance?: number
     available: number
     currency: string
     error?: string
@@ -65,6 +69,8 @@ interface PositionsState {
   clearUserData: () => void
   /** FIX: Remove a single position from cache by id or symbol-side key — used when POSITION_CLOSED notification is received */
   removePosition: (positionIdOrKey: string) => void
+  /** V189: Get positions filtered by the active credential — only positions belonging to the active account */
+  getActivePositions: () => Position[]
   /** SECURITY: Current userId that the store data belongs to */
   _ownerUserId: string | null
   /** Timestamp-based concurrency guard for fetchPositions */
@@ -215,6 +221,8 @@ function mergePositions(
       // dbId from NestJS. This caused close buttons to fall through to Alpaca
       // (which returns 404 for DB-only positions like paper-trading/Binance Testnet).
       dbId: inc.dbId || existing.dbId || undefined,
+      // V189: Preserve credentialId from existing or incoming (for active account filtering)
+      credentialId: inc.credentialId || existing.credentialId || undefined,
     })
   }
 
@@ -680,16 +688,23 @@ export const usePositionsStore = create<PositionsState>()(
           // V175: If the user's active exchange succeeded, use it as primary
           // even if other real exchanges failed. This fixes the case where
           // Binance fails but MT5 (which is the active account) works fine.
+          // V189: Use `balance` (without floating PnL) instead of `equity` for MT5 accounts
+          let adjustedTotalBalanceUsd = totalEquityUsd  // V189: True balance (without floating PnL)
           if (activeExchangeSucceeded) {
             // The active exchange (e.g., MT5) succeeded — use its balance as primary
+            // V189: Prefer `balance` field over `equity` — balance is the real deposited amount
+            // without unrealized PnL. For MT5: balance ≠ equity. For crypto: balance = equity.
+            const activeBal = (activeExchange as any).balance || (activeExchange as any).equity
             adjustedTotalEquityUsd = (activeExchange as any).equity
+            adjustedTotalBalanceUsd = activeBal
             adjustedTotalAvailableUsd = (activeExchange as any).available || 0
             adjustedTotalUsedMargin = (activeExchange as any).usedMargin || 0
             exchangeUnavailable = false
             console.log(
-              `[PositionsStore] V175: Active exchange "${(activeExchange as any).exchange}" ` +
-              `(credentialId=${activeCredId?.slice(0, 8)}...) succeeded with equity=$${adjustedTotalEquityUsd.toFixed(2)}. ` +
-              `Using as primary balance.`
+              `[PositionsStore] V189: Active exchange "${(activeExchange as any).exchange}" ` +
+              `(credentialId=${activeCredId?.slice(0, 8)}...) succeeded with ` +
+              `balance=$${adjustedTotalBalanceUsd.toFixed(2)}, equity=$${adjustedTotalEquityUsd.toFixed(2)}. ` +
+              `Using balance as primary display value.`
             )
           } else if (activeCredId && activeExchange && !activeExchangeSucceeded) {
             // V189 CRITICAL FIX: User chose an active exchange but it FAILED.
@@ -728,15 +743,18 @@ export const usePositionsStore = create<PositionsState>()(
             exchangeUnavailable = true
             if (paperExchange && paperExchange.equity > 0) {
               adjustedTotalEquityUsd = paperExchange.equity
+              adjustedTotalBalanceUsd = (paperExchange as any).balance || paperExchange.equity
               adjustedTotalAvailableUsd = paperExchange.available || 0
               adjustedTotalUsedMargin = paperExchange.usedMargin || 0
             } else if (totalEquityUsd > 0) {
               adjustedTotalEquityUsd = totalEquityUsd
+              adjustedTotalBalanceUsd = totalEquityUsd
               adjustedTotalAvailableUsd = totalAvailableUsd
               adjustedTotalUsedMargin = totalUsedMargin
             } else {
               console.warn('[PositionsStore] No paper balance and no backend total — using $10,000 default')
               adjustedTotalEquityUsd = 10000
+              adjustedTotalBalanceUsd = 10000
               adjustedTotalAvailableUsd = 10000
               adjustedTotalUsedMargin = 0
             }
@@ -744,11 +762,13 @@ export const usePositionsStore = create<PositionsState>()(
             // At least one real exchange succeeded — backend totals exclude
             // paper trading when real credentials exist.
             adjustedTotalEquityUsd = totalEquityUsd
+            adjustedTotalBalanceUsd = totalEquityUsd  // V189: For mixed crypto exchanges, balance = equity
             adjustedTotalAvailableUsd = totalAvailableUsd
             adjustedTotalUsedMargin = totalUsedMargin
           } else {
             // No real exchange credentials — paper trading only.
             adjustedTotalEquityUsd = paperExchange?.equity || totalEquityUsd
+            adjustedTotalBalanceUsd = (paperExchange as any)?.balance || adjustedTotalEquityUsd
             adjustedTotalAvailableUsd = paperExchange?.available || totalAvailableUsd
             adjustedTotalUsedMargin = paperExchange?.usedMargin || totalUsedMargin
           }
@@ -855,12 +875,15 @@ export const usePositionsStore = create<PositionsState>()(
           // For Binance/CCXT: equity from fetchBalance may or may not include PnL
           // depending on spot vs futures. To keep it safe, when using the active
           // exchange's balance, we trust the exchange's own equity number.
+          // V189: Use `balance` field from backend — for MT5, this is the real
+          // deposited balance (without floating PnL). For crypto: balance = equity.
           if (activeExchangeSucceeded) {
             // Active exchange (e.g., MT5) — equity already includes PnL from MetaAPI
             effectiveEquity = adjustedTotalEquityUsd
-            effectiveCash = adjustedTotalEquityUsd - positionsUnrealizedPnl
-            // For MT5: cash ≈ balance (wallet balance without floating PnL)
-            // If positionsUnrealizedPnl is 0 (no local positions for MT5), cash = equity
+            // V189: Use the `balance` field from the active exchange.
+            // For MT5: balance = real wallet balance (without unrealized PnL)
+            // For crypto: balance = equity (no separate balance concept)
+            effectiveCash = adjustedTotalBalanceUsd
             if (effectiveCash <= 0) effectiveCash = adjustedTotalEquityUsd
           } else if (hasOnlyPaperExchanges && adjustedTotalEquityUsd <= 0) {
             // FIX: Paper trading — use default paper balance from agent settings
@@ -1251,6 +1274,47 @@ export const usePositionsStore = create<PositionsState>()(
     }
   },
   /**
+   * V189: Get positions filtered by the active credential.
+   * When the user switches to a specific account (e.g., MT5), the portfolio
+   * should show ONLY that account's positions — not positions from all accounts.
+   *
+   * Logic:
+   * - If activeCredentialId is set AND the position has a credentialId:
+   *   - Return only positions where position.credentialId === activeCredentialId
+   * - If activeCredentialId is set but position has no credentialId:
+   *   - For paper-trading exchange: include if activeCredentialId points to paper-trading
+   *   - For other positions: include them (legacy compatibility — positions without credentialId)
+   * - If no activeCredentialId is set: return all positions (default behavior)
+   */
+  getActivePositions: () => {
+    const { positions, activeCredentialId } = get()
+    if (!activeCredentialId) return positions  // No active account set — show all
+
+    return positions.filter((p) => {
+      // Position has credentialId — direct match
+      if (p.credentialId) {
+        return p.credentialId === activeCredentialId
+      }
+      // Position without credentialId — include if it's from the same exchange type
+      // as the active credential. This handles legacy positions that don't have
+      // credentialId mapped yet.
+      const activeExchangeBalances = get().exchangeBalances
+      const activeBal = activeExchangeBalances.find((e: any) => e.credentialId === activeCredentialId)
+      if (activeBal && p.exchange === activeBal.exchange) {
+        return true
+      }
+      // Paper-trading positions: include only if the active credential is paper-trading
+      if (p.exchange === 'paper-trading' && activeBal?.exchange === 'paper-trading') {
+        return true
+      }
+      // Legacy: include positions without credentialId and matching exchange
+      if (!p.credentialId && !activeBal) {
+        return true
+      }
+      return false
+    })
+  },
+  /**
    * SECURITY: Clear all cached data when user changes.
    * This prevents user B from seeing user A's positions.
    */
@@ -1383,6 +1447,8 @@ export const usePositionsStore = create<PositionsState>()(
             stopLoss: Number(p.stopLoss) || undefined,
             takeProfit: Number(p.takeProfit) || undefined,
             exchange: p.exchange,
+            // V189: Preserve credentialId so positions can be filtered by active account
+            credentialId: p.credentialId || p.exchangeCredentialId || undefined,
             openedAt: p.openedAt,
             source: 'nestjs' as const,
             // FIX: Preserve the trade source from DB (user_manual/smart_executor/agent/auto_paper)
@@ -1457,6 +1523,7 @@ export const usePositionsStore = create<PositionsState>()(
           stopLoss: Number(p.stopLoss) || undefined,
           takeProfit: Number(p.takeProfit) || undefined,
           exchange: 'alpaca',
+          credentialId: p.credentialId || undefined,  // V189: For filtering by active account
           source: 'alpaca' as const,
         }))
 
@@ -1511,8 +1578,9 @@ export const usePositionsStore = create<PositionsState>()(
         dataSource: state.dataSource,
         _cacheTimestamp: state._cacheTimestamp,
         _ownerUserId: state._ownerUserId,
-        activeCredentialId: state.activeCredentialId,  // V189: PERSIST THIS!
-        exchangeBalances: state.exchangeBalances,       // V189: Also persist for faster rehydrate
+        // V189: Persist activeCredentialId and exchangeBalances for account switching
+        activeCredentialId: state.activeCredentialId,
+        exchangeBalances: state.exchangeBalances,
       }),
       // Sync across tabs via storage events & force refresh stale data
       onRehydrateStorage: () => {

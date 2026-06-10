@@ -412,7 +412,7 @@ export function PortfolioMini({
                   {exLabel}
                 </span>
                 <span style={{ color: T.text, fontWeight: 800, fontFamily: "'JetBrains Mono', monospace" }}>
-                  ${fmt(ex.equity, 2)}
+                  ${fmt((ex as any).balance ?? ex.equity, 2)}
                 </span>
                 {ex.error && (
                   <span style={{ fontSize: 6.5, color: T.red, fontFamily: "'Cairo', sans-serif" }} title={(ex as any).errorDetail || ex.error}>

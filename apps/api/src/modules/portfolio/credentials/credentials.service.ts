@@ -1546,18 +1546,31 @@ export class CredentialsService {
       try {
         // SDK v29+: getAccountsWithInfiniteScrollPagination() replaces getAccounts()
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+        this.logger.log(
+          `📊 V174 MetaAPI accounts: ${allAccounts.length}. ` +
+          `[${allAccounts.map((a: any) => `login=${a.login}/server=${a.server}/state=${a.state}`).join(', ')}]`
+        );
         account = allAccounts.find((a: any) =>
           String(a.login) === String(accountId) && a.server === server
         );
+        // V174b: Fallback — match by login only if server name differs slightly
+        if (!account) {
+          account = allAccounts.find((a: any) => String(a.login) === String(accountId));
+          if (account) {
+            this.logger.warn(
+              `📊 V174b MT5 account ${accountId} found by login ONLY (server mismatch: ` +
+              `credential="${server}", metaapi="${account.server}"). Using this account.`
+            );
+          }
+        }
         if (account) {
           this.logger.log(
             `📊 V174 MT5 account ${accountId} found on MetaAPI: ` +
             `id=${account.id}, state=${account.state}, name=${account.name}`
           );
         } else {
-          this.logger.log(
-            `📊 V174 MT5 account ${accountId}/${server} NOT found in ${allAccounts.length} MetaAPI accounts. ` +
-            `Existing: [${allAccounts.map((a: any) => `${a.login}/${a.server}`).join(', ')}]`
+          this.logger.warn(
+            `📊 V174 MT5 account ${accountId}/${server} NOT found in ${allAccounts.length} MetaAPI accounts.`
           );
         }
       } catch (listErr: any) {
@@ -1575,7 +1588,7 @@ export class CredentialsService {
             login: accountId,
             password,
             server,
-            type: isDemo ? 'demo' : 'live',
+            type: 'cloud-g2',
             name: `Roua-${accountId}`,
             platform: 'mt5',
             magic: 123456,
@@ -1728,12 +1741,26 @@ export class CredentialsService {
       let account: any = null;
       try {
         const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+        this.logger.log(
+          `📊 V174b _fetchMT5Balance: ${allAccounts.length} MetaAPI accounts. ` +
+          `[${allAccounts.map((a: any) => `login=${a.login}/server=${a.server}/state=${a.state}`).join(', ')}]`
+        );
         account = allAccounts.find((a: any) =>
           String(a.login) === String(mt5Login) && a.server === server
         );
+        // V174b: Fallback — match by login only if server name differs slightly
+        if (!account) {
+          account = allAccounts.find((a: any) => String(a.login) === String(mt5Login));
+          if (account) {
+            this.logger.warn(
+              `📊 V174b _fetchMT5Balance: login=${mt5Login} found by login ONLY ` +
+              `(server mismatch: credential="${server}", metaapi="${account.server}")`
+            );
+          }
+        }
         if (account) {
           this.logger.log(
-            `📊 V174 _fetchMT5Balance: Found MetaAPI account for login=${mt5Login}, ` +
+            `📊 V174b _fetchMT5Balance: Found account for login=${mt5Login}, ` +
             `uuid=${account.id}, state=${account.state}`
           );
         } else {
@@ -1756,7 +1783,7 @@ export class CredentialsService {
             login: mt5Login,
             password,
             server,
-            type: isDemo ? 'demo' : 'live',
+            type: 'cloud-g2',
             name: `Roua-${userId.slice(0, 8)}`,
             platform: 'mt5',
             magic: 123456,

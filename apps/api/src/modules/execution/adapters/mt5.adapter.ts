@@ -448,9 +448,22 @@ export class MT5Adapter implements IExchangeAdapter {
     let account: any = null;
     try {
       const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+      this.logger.log(
+        `📊 V174b MetaAPI accounts: ${allAccounts.length}. ` +
+        `[${allAccounts.map((a: any) => `login=${a.login}/server=${a.server}`).join(', ')}]`
+      );
       account = allAccounts.find((a: any) =>
         String(a.login) === String(this.accountInfo.accountId) && a.server === this.accountInfo.server
       );
+      // V174b: Fallback — match by login only if server name differs
+      if (!account) {
+        account = allAccounts.find((a: any) => String(a.login) === String(this.accountInfo.accountId));
+        if (account) {
+          this.logger.warn(
+            `📊 V174b Found by login ONLY (server mismatch: "${this.accountInfo.server}" vs "${account.server}")`
+          );
+        }
+      }
       if (account) {
         this.logger.log(
           `📊 V174 Found MetaAPI account for login=${this.accountInfo.accountId}, ` +
@@ -469,7 +482,7 @@ export class MT5Adapter implements IExchangeAdapter {
           login: this.accountInfo.accountId,
           password: this.accountInfo.password,
           server: this.accountInfo.server,
-          type: this.accountInfo.isDemo ? 'demo' : 'live',
+          type: 'cloud-g2',
           name: `Roua-${this.userId.slice(0, 8)}`,
           platform: 'mt5',
           magic: 123456,

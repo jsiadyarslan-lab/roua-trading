@@ -1765,6 +1765,19 @@ export class AutonomousTraderAgentService implements OnModuleInit {
             signalsExecuted++;
             state.dailyTradesCount++;
             state.dailyPnL -= (execution.fee || 0);
+
+            // V187 FIX: Save timeframe to Redis so Position Monitor uses correct MAX_HOLDING.
+            // Without this, Position Monitor can't find the timeframe for Agent positions,
+            // so _getMaxHoldingMs() gets null → falls back to 8h default instead of 48h.
+            // SmartExecutor already saves this (line 3020-3021) but Agent was missing it.
+            try {
+              const tfKey = `smart-executor:position-tf:${userId}:${brief.pair}`;
+              await this.redis.set(tfKey, brief.timeframe, 7 * 24 * 60 * 60 * 1000);
+              this.logger.debug(`🧠 V187: Saved timeframe ${brief.timeframe} for ${brief.pair} to Redis`);
+            } catch (tfErr: any) {
+              this.logger.warn(`🧠 V187: Failed to save timeframe for ${brief.pair}: ${tfErr.message}`);
+            }
+
             this.logger.log(
               `✅ Agent ${userId}: Trade executed — ${signal.action} ${signal.symbol} ` +
               `@ ${execution.averagePrice?.toFixed(2)} (order: ${execution.orderId})`,

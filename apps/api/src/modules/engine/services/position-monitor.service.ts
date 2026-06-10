@@ -364,7 +364,15 @@ export class PositionMonitorService {
 
     const pnlPercent = (unrealizedPnl / (entryPrice * quantity)) * 100;
 
-    // ── V175 FIX: Agent SL/TP check first, then price update ──
+    // ── V187 FIX: Agent SL/TP + MAX_HOLDING check ──
+    // Previously, Agent positions did early return after SL/TP check,
+    // which meant MAX_HOLDING_TIME was NEVER checked for Agent positions.
+    // This caused Agent positions to stay open indefinitely (V184 removed
+    // the Agent's own 4h close, and the Position Monitor never checked
+    // holding time for Agents due to the early return).
+    //
+    // Now: Agent positions check SL/TP first (like before), but then
+    // fall through to the MAX_HOLDING_TIME check (48h for Agents).
     if (isAgentPosition) {
       // SL check for agent
       if (stopLossNum !== null) {
@@ -398,7 +406,7 @@ export class PositionMonitorService {
           return result;
         }
       }
-      // No SL/TP hit — update price/PnL only
+      // No SL/TP hit — update price/PnL and highest/lowest, then fall through to MAX_HOLDING check
       priceUpdates.push(
         this.prisma.position.update({
           where: { id: position.id },
@@ -416,10 +424,11 @@ export class PositionMonitorService {
           },
         }),
       );
-      return result;
+      // V187: DO NOT return here — fall through to MAX_HOLDING_TIME check below
+      // Agent positions should be checked for 48h max holding time.
     }
 
-    // ── Below: Full monitoring for non-Agent positions ──
+    // ── Below: Full monitoring for ALL positions (including Agent) ──
 
     // ── V176 FIX: Stale paper-trading position detector ──
     // Issue #10: Paper positions without SL/TP were never auto-closed.
@@ -574,6 +583,8 @@ export class PositionMonitorService {
     }
 
     // ── Stop-Loss Check ──
+    // V187: Skip duplicate SL/TP checks for Agent positions — already checked above
+    if (!isAgentPosition) {
     if (stopLossNum !== null) {
       const slHit =
         position.side === 'BUY'
@@ -730,6 +741,8 @@ export class PositionMonitorService {
       });
       result.alertSent = true;
     }
+
+    } // V187: end of if (!isAgentPosition) — skip SL/TP/trailing for Agent positions
 
     // ── Batch price/PnL update (no SL/TP hit — just update current price) ──
     // Instead of updating each position individually, collect them for a batch transaction

@@ -2326,7 +2326,14 @@
       "used": "使用中",
       "hidePositions": "ポジションを非表示",
       "openExecutionWindow": "執行ウィンドウを開く",
-      "freeMargin": "余剰証拠金"
+      "freeMargin": "余剰証拠金",
+      "balance": "残高",
+      "balanceTooltipPaper": "デモトレードのシミュレート残高（実際の資金ではありません）",
+      "balanceTooltipReal": "接続された取引所からの実際のウォレット残高",
+      "equity": "エクイティ",
+      "equityTooltip": "残高 + 未実現損益（未決済ポジション）",
+      "freeMarginTooltip": "新規ポジションに使用可能な証拠金（エクイティ - 使用証拠金）",
+      "usedMarginTooltip": "未決済ポジションにロックされた証拠金（出金不可）"
     },
     "rightPanel": {
       "headlineSignals": "トレード シグナル",

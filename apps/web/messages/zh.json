@@ -2326,7 +2326,14 @@
       "used": "已用",
       "hidePositions": "隐藏持仓",
       "openExecutionWindow": "打开执行窗口",
-      "freeMargin": "免费 保证金"
+      "freeMargin": "免费 保证金",
+      "balance": "余额",
+      "balanceTooltipPaper": "模拟交易余额（非真实资金）",
+      "balanceTooltipReal": "来自已连接交易所的实际钱包余额",
+      "equity": "净值",
+      "equityTooltip": "余额 + 未实现盈亏（来自未平仓位）",
+      "freeMarginTooltip": "可用于开新仓的保证金（净值 - 已用保证金）",
+      "usedMarginTooltip": "被未平仓位锁定的保证金（不可提取）"
     },
     "rightPanel": {
       "headlineSignals": "交易信号",

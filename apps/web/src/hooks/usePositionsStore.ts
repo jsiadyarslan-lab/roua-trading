@@ -564,7 +564,11 @@ export const usePositionsStore = create<PositionsState>()(
           const allRealExchangesFailed = data.data.allRealExchangesFailed === true
           const backendHasRealCredentials = data.data.hasRealCredentials === true
 
-          const isTestnet = exchanges.some((e: any) => e.isTestnet)
+          // V184 FIX: Exclude paper-trading from isTestnet check.
+          // Paper-trading ALWAYS has isTestnet=true, which made isTestnet ALWAYS true,
+          // causing isPaperTrading = true even when the user has a real MT5 account.
+          // Now: isTestnet only reflects real exchange testnet status (e.g., Binance Testnet).
+          const isTestnet = exchanges.some((e: any) => e.isTestnet && e.exchange !== 'paper-trading')
           const hasDecryptionError = exchanges.some((e: any) => e.error)
           const hasRealCredentials = backendHasRealCredentials || exchanges.some(
             (e: any) => e.exchange !== 'paper-trading'
@@ -603,13 +607,34 @@ export const usePositionsStore = create<PositionsState>()(
             : null
           const activeExchangeSucceeded = activeExchange && !activeExchange.error && (activeExchange as any).equity > 0
 
-          // V176: Debug logging — understand why dashboard might not show active account
+          // V176/V184: Debug logging — understand why dashboard might not show active account
+          const _activeCredInfo = activeExchange
+            ? `${(activeExchange as any).exchange}/credId=${(activeExchange as any).credentialId?.slice(0,8)}/eq=$${(activeExchange as any).equity}/err=${(activeExchange as any).error || 'none'}`
+            : 'NOT_FOUND'
           console.log(
-            `[PositionsStore] V176: Balance debug: activeCredId=${activeCredId?.slice(0,8) || 'null'}, ` +
-            `activeExchange=${activeExchange ? (activeExchange as any).exchange : 'NOT_FOUND'}, ` +
-            `activeSucceeded=${activeExchangeSucceeded}, ` +
-            `exchanges=[${exchanges.map((e: any) => `${e.exchange}($${(e as any).equity || 0}${(e as any).error ? ',ERR' : ''})`).join(', ')}]`
+            `[PositionsStore] V184: Balance debug:\n` +
+            `  activeCredId=${activeCredId?.slice(0,8) || 'NULL'}\n` +
+            `  activeExchange=${_activeCredInfo}\n` +
+            `  activeSucceeded=${activeExchangeSucceeded}\n` +
+            `  isTestnet=${isTestnet}\n` +
+            `  isPaperTrading=${isTestnet && !activeExchangeSucceeded}\n` +
+            `  exchanges=[${exchanges.map((e: any) => `${e.exchange}($${(e as any).equity || 0}${(e as any).error ? ',ERR:' + (e as any).error?.substring(0,40) : ''})`).join(', ')}]`
           )
+          // V184: Warn if activeCredentialId is set but the matching exchange failed
+          if (activeCredId && !activeExchange) {
+            console.warn(
+              `[PositionsStore] V184: ⚠️ activeCredentialId=${activeCredId?.slice(0,8)} NOT found in exchange balances! ` +
+              `Available credentialIds: [${exchanges.map((e: any) => e.credentialId?.slice(0,8)).join(', ')}]. ` +
+              `This usually means the credential was deleted or the ID format changed.`
+            )
+          }
+          if (activeCredId && activeExchange && !activeExchangeSucceeded) {
+            console.warn(
+              `[PositionsStore] V184: ⚠️ Active exchange "${(activeExchange as any).exchange}" FAILED: ` +
+              `equity=$${(activeExchange as any).equity}, error="${(activeExchange as any).error || 'none'}". ` +
+              `Dashboard will fall back to paper trading.`
+            )
+          }
 
           let adjustedTotalEquityUsd = totalEquityUsd
           let adjustedTotalAvailableUsd = totalAvailableUsd

@@ -2326,7 +2326,14 @@
       "used": "ใช้แล้ว",
       "hidePositions": "ซ่อนตำแหน่ง",
       "openExecutionWindow": "เปิดหน้าต่างการดำเนินการ",
-      "freeMargin": "มาร์จิ้นฟรี"
+      "freeMargin": "มาร์จิ้นฟรี",
+      "balance": "ยอดเงิน",
+      "balanceTooltipPaper": "ยอดเงินจำลองสำหรับ paper trading (ไม่ใช่เงินจริง)",
+      "balanceTooltipReal": "ยอดเงินกระเป๋าจริงจาก exchange ที่เชื่อมต่อ",
+      "equity": "ส่วนของผู้ถือหุ้น",
+      "equityTooltip": "ยอดเงิน + กำไร/ขาดทุนที่ยังไม่รับรู้จากตำแหน่งที่เปิด",
+      "freeMarginTooltip": "มาร์จินที่ใช้ได้สำหรับเปิดตำแหน่งใหม่ (ส่วนของผู้ถือหุ้น - มาร์จินที่ใช้)",
+      "usedMarginTooltip": "มาร์จินที่ล็อคในตำแหน่งที่เปิด (ถอนไม่ได้)"
     },
     "rightPanel": {
       "headlineSignals": "สัญญาณการซื้อขาย",

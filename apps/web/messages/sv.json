@@ -2326,7 +2326,14 @@
       "used": "Begagnad",
       "hidePositions": "Göm positioner",
       "openExecutionWindow": "Öppna körningsfönstret",
-      "freeMargin": "Fri marginal"
+      "freeMargin": "Fri marginal",
+      "balance": "Saldo",
+      "balanceTooltipPaper": "Simulerat saldo för paper trading (inte riktiga pengar)",
+      "balanceTooltipReal": "Faktiskt plånbokssaldo från din anslutna börs",
+      "equity": "Kapital",
+      "equityTooltip": "Saldo + orealiserad vinst/förlust från öppna positioner",
+      "freeMarginTooltip": "Tillgänglig marginal för nya positioner (kapital - använd marginal)",
+      "usedMarginTooltip": "Marginal låst i öppna positioner (kan inte tas ut)"
     },
     "rightPanel": {
       "headlineSignals": "Handelssignaler",

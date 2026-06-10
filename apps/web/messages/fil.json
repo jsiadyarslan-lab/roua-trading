@@ -2326,7 +2326,14 @@
       "used": "Ginamit",
       "hidePositions": "Itago ang mga Posisyon",
       "openExecutionWindow": "Buksan ang Execution Window",
-      "freeMargin": "Libreng Margin"
+      "freeMargin": "Libreng Margin",
+      "balance": "Balance",
+      "balanceTooltipPaper": "Simulated balance for paper trading (not real money)",
+      "balanceTooltipReal": "Actual wallet balance from your connected exchange",
+      "equity": "Equity",
+      "equityTooltip": "Balance + unrealized profit/loss from open positions",
+      "freeMarginTooltip": "Available margin to open new positions (equity - used margin)",
+      "usedMarginTooltip": "Margin locked in open positions (cannot be withdrawn)"
     },
     "rightPanel": {
       "headlineSignals": "Mga Signal ng Trading",

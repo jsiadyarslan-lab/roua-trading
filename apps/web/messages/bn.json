@@ -2683,7 +2683,14 @@
       "modeAiLabel": "এআই মোড",
       "smartExecutorOpenedPosition": "স্মার্ট এক্সিকিউটর একটি নতুন অবস্থান @ ${price} খুলেছে",
       "openExecutionWindow": "এক্সিকিউশন উইন্ডো খুলুন",
-      "freeMargin": "ফ্রি মার্জিন"
+      "freeMargin": "ফ্রি মার্জিন",
+      "balance": "Balance",
+      "balanceTooltipPaper": "Simulated balance for paper trading (not real money)",
+      "balanceTooltipReal": "Actual wallet balance from your connected exchange",
+      "equity": "Equity",
+      "equityTooltip": "Balance + unrealized profit/loss from open positions",
+      "freeMarginTooltip": "Available margin to open new positions (equity - used margin)",
+      "usedMarginTooltip": "Margin locked in open positions (cannot be withdrawn)"
     },
     "watchlist": {
       "loading": "লোড হচ্ছে...",

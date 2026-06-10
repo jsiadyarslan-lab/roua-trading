@@ -2326,7 +2326,14 @@
       "used": "Gebruikt",
       "hidePositions": "Posities verbergen",
       "openExecutionWindow": "Uitvoeringsvenster openen",
-      "freeMargin": "Vrije marge"
+      "freeMargin": "Vrije marge",
+      "balance": "Saldo",
+      "balanceTooltipPaper": "Gesimuleerd saldo voor paper trading (geen echt geld)",
+      "balanceTooltipReal": "Werkelijke walletsaldo van uw verbonden exchange",
+      "equity": "Vermogen",
+      "equityTooltip": "Saldo + ongerealiseerde winst/verlies uit open posities",
+      "freeMarginTooltip": "Beschikbare marge voor nieuwe posities (vermogen - gebruikte marge)",
+      "usedMarginTooltip": "Marge vergrendeld in open posities (niet opneembaar)"
     },
     "rightPanel": {
       "headlineSignals": "Handelssignalen",

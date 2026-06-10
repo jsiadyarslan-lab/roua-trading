@@ -2326,7 +2326,14 @@
       "used": "מְשׁוּמָשׁ",
       "hidePositions": "הסתר עמדות",
       "openExecutionWindow": "פתח את חלון הביצוע",
-      "freeMargin": "שולי חינם"
+      "freeMargin": "שולי חינם",
+      "balance": "יתרה",
+      "balanceTooltipPaper": "יתרה מדומה למסחר ניירת (לא כסף אמיתי)",
+      "balanceTooltipReal": "יתרת הארנק בפועל מהבורסה המחוברת שלך",
+      "equity": "הון עצמי",
+      "equityTooltip": "יתרה + רווח/הפסד לא ממומש מפוזיציות פתוחות",
+      "freeMarginTooltip": "מרווח זמין לפתיחת פוזיציות חדשות (הון עצמי - מרווח בשימוש)",
+      "usedMarginTooltip": "מרווח נעול בפוזיציות פתוחות (לא ניתן למשיכה)"
     },
     "rightPanel": {
       "headlineSignals": "אותות מסחר",

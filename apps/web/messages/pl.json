@@ -2326,7 +2326,14 @@
       "used": "Używany",
       "hidePositions": "Ukryj pozycje",
       "openExecutionWindow": "Otwórz okno realizacji",
-      "freeMargin": "Wolny margines"
+      "freeMargin": "Wolny margines",
+      "balance": "Saldo",
+      "balanceTooltipPaper": "Symulowane saldo dla paper trading (nieprawdziwe pieniądze)",
+      "balanceTooltipReal": "Rzeczywiste saldo portfela z podłączonej giełdy",
+      "equity": "Kapitał",
+      "equityTooltip": "Saldo + niezrealizowane zyski/straty z otwartych pozycji",
+      "freeMarginTooltip": "Dostępna marża na nowe pozycje (kapitał - użyta marża)",
+      "usedMarginTooltip": "Marża zablokowana w otwartych pozycjach (niewypłacalna)"
     },
     "rightPanel": {
       "headlineSignals": "Sygnały handlowe",

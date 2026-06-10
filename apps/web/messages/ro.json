@@ -2326,7 +2326,14 @@
       "used": "Folosit",
       "hidePositions": "Ascundeți pozițiile",
       "openExecutionWindow": "Deschideți fereastra de execuție",
-      "freeMargin": "Marja liberă"
+      "freeMargin": "Marja liberă",
+      "balance": "Sold",
+      "balanceTooltipPaper": "Sold simulat pentru paper trading (nu bani reali)",
+      "balanceTooltipReal": "Soldul real al portofelului de la exchange-ul conectat",
+      "equity": "Capital",
+      "equityTooltip": "Sold + profit/pierdere nerealizat din poziții deschise",
+      "freeMarginTooltip": "Marjă disponibilă pentru poziții noi (capital - marjă folosită)",
+      "usedMarginTooltip": "Marjă blocată în poziții deschise (nu se poate retrage)"
     },
     "rightPanel": {
       "headlineSignals": "Semnale comerciale",

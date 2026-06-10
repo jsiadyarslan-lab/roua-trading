@@ -2326,7 +2326,14 @@
       "used": "Đã sử dụng",
       "hidePositions": "Ẩn vị trí",
       "openExecutionWindow": "Mở cửa sổ thực thi",
-      "freeMargin": "Ký quỹ miễn phí"
+      "freeMargin": "Ký quỹ miễn phí",
+      "balance": "Số dư",
+      "balanceTooltipPaper": "Số dư mô phỏng cho paper trading (không phải tiền thật)",
+      "balanceTooltipReal": "Số dư ví thực tế từ sàn giao dịch đã kết nối",
+      "equity": "Vốn chủ sở hữu",
+      "equityTooltip": "Số dư + lợi nhuận/lỗ chưa thực hiện từ vị thế mở",
+      "freeMarginTooltip": "Ký quỹ sẵn sàng cho vị thế mới (vốn chủ sở hữu - ký quỹ đã dùng)",
+      "usedMarginTooltip": "Ký quỹ bị khóa trong vị thế mở (không thể rút)"
     },
     "rightPanel": {
       "headlineSignals": "Tín hiệu giao dịch",

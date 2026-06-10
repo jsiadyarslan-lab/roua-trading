@@ -2326,7 +2326,14 @@
       "used": "استعمال کیا جاتا ہے",
       "hidePositions": "عہدوں کو چھپائیں۔",
       "openExecutionWindow": "ایگزیکیوشن ونڈو کھولیں۔",
-      "freeMargin": "مفت مارجن"
+      "freeMargin": "مفت مارجن",
+      "balance": "بیلنس",
+      "balanceTooltipPaper": "پیپر ٹریڈنگ کے لیے نقلی بیلنس (حقیقی رقم نہیں)",
+      "balanceTooltipReal": "آپ کے منسلک ایکسچینج سے اصل والٹ بیلنس",
+      "equity": "ایکویٹی",
+      "equityTooltip": "بیلنس + کھلے پوزیشن سے غیر حاصل شدہ منافع/نقصان",
+      "freeMarginTooltip": "نئی پوزیشن کھولنے کے لیے دستیاب مارجن (ایکویٹی - استعمال شدہ مارجن)",
+      "usedMarginTooltip": "کھلی پوزیشن میں بند مارجن (نکالا نہیں جا سکتا)"
     },
     "rightPanel": {
       "headlineSignals": "تجارتی سگنل",

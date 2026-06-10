@@ -2326,7 +2326,14 @@
       "used": "उपयोगित",
       "hidePositions": "छिपाएं पोजीशनs",
       "openExecutionWindow": "Open Execution Window",
-      "freeMargin": "मुफ़्त मार्जिन"
+      "freeMargin": "मुफ़्त मार्जिन",
+      "balance": "शेष",
+      "balanceTooltipPaper": "पेपर ट्रेडिंग के लिए अनुकरणित शेष (वास्तविक धन नहीं)",
+      "balanceTooltipReal": "आपके कनेक्टेड एक्सचेंज से वास्तविक वॉलेट शेष",
+      "equity": "इक्विटी",
+      "equityTooltip": "शेष + खुले पोजीशन से अवास्तविक लाभ/हानि",
+      "freeMarginTooltip": "नई पोजीशन खोलने के लिए उपलब्ध मार्जिन (इक्विटी - उपयोग मार्जिन)",
+      "usedMarginTooltip": "खुले पोजीशन में लॉक मार्जिन (निकाला नहीं जा सकता)"
     },
     "rightPanel": {
       "headlineSignals": "ट्रेडिंग सिग्नलs",

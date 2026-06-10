@@ -2683,7 +2683,14 @@
       "modeAiLabel": "Režim AI",
       "smartExecutorOpenedPosition": "Smart Executor otevřel novou pozici @ ${price}",
       "openExecutionWindow": "Otevřete okno Provedení",
-      "freeMargin": "Volná marže"
+      "freeMargin": "Volná marže",
+      "balance": "Zůstatek",
+      "balanceTooltipPaper": "Simulovaný zůstatek pro paper trading (ne skutečné peníze)",
+      "balanceTooltipReal": "Skutečný zůstatek peněženky z připojené burzy",
+      "equity": "Kapitál",
+      "equityTooltip": "Zůstatek + nerealizovaný zisk/ztráta z otevřených pozic",
+      "freeMarginTooltip": "Dostupná marže pro nové pozice (kapitál - použitá marže)",
+      "usedMarginTooltip": "Marže uzamčená v otevřených pozicích (nelze vybrat)"
     },
     "watchlist": {
       "loading": "Načítání...",

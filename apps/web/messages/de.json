@@ -645,7 +645,14 @@
       "openExecutionWindow": "Ausführungsfenster öffnen",
       "collapseChart": "Chart einklappen",
       "expandChart": "Chart aufklappen",
-      "openSidebar": "Seitenleiste öffnen"
+      "openSidebar": "Seitenleiste öffnen",
+      "balance": "Guthaben",
+      "balanceTooltipPaper": "Simuliertes Guthaben für Paper-Trading (kein echtes Geld)",
+      "balanceTooltipReal": "Tatsächliches Wallet-Guthaben von Ihrer verbundenen Börse",
+      "equity": "Eigenkapital",
+      "equityTooltip": "Guthaben + unrealisierte Gewinne/Verluste aus offenen Positionen",
+      "freeMarginTooltip": "Verfügbare Marge für neue Positionen (Eigenkapital - verwendete Marge)",
+      "usedMarginTooltip": "In offenen Positionen gebundene Marge (nicht abhebbar)"
     },
     "newsPage": {
       "title": "Newsroom",

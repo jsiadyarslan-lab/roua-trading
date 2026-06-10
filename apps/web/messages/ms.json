@@ -2326,7 +2326,14 @@
       "used": "terpakai",
       "hidePositions": "Sembunyikan Kedudukan",
       "openExecutionWindow": "Buka Tetingkap Pelaksanaan",
-      "freeMargin": "Margin Percuma"
+      "freeMargin": "Margin Percuma",
+      "balance": "Baki",
+      "balanceTooltipPaper": "Baki simulasi untuk dagangan kertas (bukan wang sebenar)",
+      "balanceTooltipReal": "Baki dompet sebenar dari exchange yang disambungkan",
+      "equity": "Ekuiti",
+      "equityTooltip": "Baki + untung/rugi tidak direalisasikan dari posisi terbuka",
+      "freeMarginTooltip": "Margin tersedia untuk posisi baharu (ekuiti - margin digunakan)",
+      "usedMarginTooltip": "Margin terkunci dalam posisi terbuka (tidak boleh dikeluarkan)"
     },
     "rightPanel": {
       "headlineSignals": "Isyarat Dagangan",

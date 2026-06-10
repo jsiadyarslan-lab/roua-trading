@@ -2326,7 +2326,14 @@
       "used": "Kullanılan",
       "hidePositions": "Pozisyonları Gizle",
       "openExecutionWindow": "İşlem Penceresini Aç",
-      "freeMargin": "Kullanılabilir Teminat"
+      "freeMargin": "Kullanılabilir Teminat",
+      "balance": "Bakiye",
+      "balanceTooltipPaper": "Kağıt ticaret için simüle bakiye (gerçek para değil)",
+      "balanceTooltipReal": "Bağlı borsanızdan gerçek cüzdan bakiyesi",
+      "equity": "Özsermaye",
+      "equityTooltip": "Bakiye + açık pozisyonlardan gerçekleşmemiş kâr/zarar",
+      "freeMarginTooltip": "Yeni pozisyonlar için kullanılabilir marjin (özsermaye - kullanılan marjin)",
+      "usedMarginTooltip": "Açık pozisyonlarda kilitli marjin (çekilemez)"
     },
     "rightPanel": {
       "headlineSignals": "İşlem Sinyalleri",

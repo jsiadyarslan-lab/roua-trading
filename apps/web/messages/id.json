@@ -2326,7 +2326,14 @@
       "used": "Digunakan",
       "hidePositions": "Sembunyikan Posisi",
       "openExecutionWindow": "Buka Jendela Eksekusi",
-      "freeMargin": "Margin Bebas"
+      "freeMargin": "Margin Bebas",
+      "balance": "Saldo",
+      "balanceTooltipPaper": "Saldo simulasi untuk paper trading (bukan uang asli)",
+      "balanceTooltipReal": "Saldo dompet aktual dari exchange yang terhubung",
+      "equity": "Ekuitas",
+      "equityTooltip": "Saldo + keuntungan/kerugian terealisasi dari posisi terbuka",
+      "freeMarginTooltip": "Margin tersedia untuk posisi baru (ekuitas - margin terpakai)",
+      "usedMarginTooltip": "Margin terkunci di posisi terbuka (tidak dapat ditarik)"
     },
     "rightPanel": {
       "headlineSignals": "Sinyal Perdagangan",

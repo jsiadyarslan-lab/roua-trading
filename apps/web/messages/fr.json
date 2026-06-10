@@ -2326,7 +2326,14 @@
       "used": "Utilisé",
       "hidePositions": "Masquer les positions",
       "openExecutionWindow": "Ouvrir la fenêtre d'exécution",
-      "freeMargin": "Marge disponible"
+      "freeMargin": "Marge disponible",
+      "balance": "Solde",
+      "balanceTooltipPaper": "Solde simulé pour le trading papier (argent fictif)",
+      "balanceTooltipReal": "Solde réel du portefeuille depuis votre exchange connecté",
+      "equity": "Équité",
+      "equityTooltip": "Solde + profits/pertes non réalisés des positions ouvertes",
+      "freeMarginTooltip": "Marge disponible pour ouvrir de nouvelles positions (équité - marge utilisée)",
+      "usedMarginTooltip": "Marge bloquée dans les positions ouvertes (non retirable)"
     },
     "rightPanel": {
       "headlineSignals": "Signaux de trading",

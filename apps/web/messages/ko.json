@@ -2326,7 +2326,14 @@
       "used": "사용됨",
       "hidePositions": "포지션 숨기기",
       "openExecutionWindow": "실행 창 열기",
-      "freeMargin": "여유 마진"
+      "freeMargin": "여유 마진",
+      "balance": "잔고",
+      "balanceTooltipPaper": "모의 트레이딩 시뮬레이션 잔고 (실제 자금 아님)",
+      "balanceTooltipReal": "연결된 거래소의 실제 지갑 잔고",
+      "equity": "에퀴티",
+      "equityTooltip": "잔고 + 미실현 손익 (오픈 포지션)",
+      "freeMarginTooltip": "새 포지션 개시에 사용 가능한 증거금 (에퀴티 - 사용 증거금)",
+      "usedMarginTooltip": "오픈 포지션에 잠긴 증거금 (출금 불가)"
     },
     "rightPanel": {
       "headlineSignals": "거래 신호",

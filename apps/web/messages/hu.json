@@ -2326,7 +2326,14 @@
       "used": "Használt",
       "hidePositions": "Pozíciók elrejtése",
       "openExecutionWindow": "Diagram összecsukása",
-      "freeMargin": "Szabad marzs"
+      "freeMargin": "Szabad marzs",
+      "balance": "Egyenleg",
+      "balanceTooltipPaper": "Szimulált egyenleg papírkereskedéshez (nem valódi pénz)",
+      "balanceTooltipReal": "Tényleges pénztárca egyenleg a csatlakoztatott tőzsdéről",
+      "equity": "Saját tőke",
+      "equityTooltip": "Egyenleg + nyitott pozíciók nem realizált nyeresége/vesztesége",
+      "freeMarginTooltip": "Új pozíciók nyitásához rendelkezésre álló fedezet (saját tőke - használt fedezet)",
+      "usedMarginTooltip": "Nyitott pozíciókban zárolt fedezet (nem elvehető)"
     },
     "rightPanel": {
       "headlineSignals": "Kereskedési jelek",

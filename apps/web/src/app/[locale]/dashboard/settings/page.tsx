@@ -1370,21 +1370,21 @@ export default function SettingsPage() {
               icon={<Filter size={18} color={T.green} />}
               iconColor={T.green}
               iconBg={`${T.green}14`}
-              title="تصفية أزواج التداول"
-              subtitle="حدد الأزواج التي تريد تداولها أو استبعادها"
+              title={t('pairFilterTitle')}
+              subtitle={t('pairFilterSubtitle')}
             >
               <SettingRow
                 icon={<Filter size={13} color={T.green} />}
-                label="وضع التصفية"
-                description="تحديد طريقة تصفية الأزواج"
+                label={t('pairFilterMode')}
+                description={t('pairFilterModeDesc')}
               >
                 <SelectBox
                   value={pairFilterMode}
                   onChange={setPairFilterMode}
                   options={[
-                    { value: 'all', label: 'الكل' },
-                    { value: 'whitelist', label: 'القائمة البيضاء فقط' },
-                    { value: 'blacklist', label: 'استبعاد القائمة السوداء' },
+                    { value: 'all', label: t('pairFilterAll') },
+                    { value: 'whitelist', label: t('pairFilterWhitelist') },
+                    { value: 'blacklist', label: t('pairFilterBlacklist') },
                   ]}
                   small
                 />
@@ -1392,7 +1392,7 @@ export default function SettingsPage() {
               {pairFilterMode === 'whitelist' && (
                 <div style={{ padding: '8px 0' }}>
                   <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
-                    القائمة البيضاء (الأزواج المسموحة فقط)
+                    {t('pairWhitelistLabel')}
                   </div>
                   <textarea
                     value={pairWhitelist}
@@ -1412,7 +1412,7 @@ export default function SettingsPage() {
               {pairFilterMode === 'blacklist' && (
                 <div style={{ padding: '8px 0' }}>
                   <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
-                    القائمة السوداء (الأزواج المستبعدة)
+                    {t('pairBlacklistLabel')}
                   </div>
                   <textarea
                     value={pairBlacklist}
@@ -1438,7 +1438,7 @@ export default function SettingsPage() {
               }}>
                 <CheckCircle2 size={16} color={T.green} />
                 <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
-                  عند اختيار القائمة البيضاء، لن يتداول النظام إلا الأزواج المحددة. عند اختيار القائمة السوداء، يتم استبعاد الأزواج المحددة فقط.
+                  {t('pairFilterInfo')}
                 </div>
               </div>
             </SectionCard>
@@ -1448,13 +1448,13 @@ export default function SettingsPage() {
               icon={<Clock size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="جدول التداول"
-              subtitle="حدد أوقات التداول المسموحة — خارج هذه الأوقات، لن يفتح النظام صفقات جديدة"
+              title={t('tradingScheduleTitle')}
+              subtitle={t('tradingScheduleSubtitle')}
             >
               <SettingRow
                 icon={<Clock size={13} color={T.amber} />}
-                label="تفعيل جدول التداول"
-                description="تشغيل/إيقاف جدول التداول"
+                label={t('tradingScheduleEnable')}
+                description={t('tradingScheduleEnableDesc')}
               >
                 <Toggle checked={tradingScheduleEnabled} onChange={() => setTradingScheduleEnabled(!tradingScheduleEnabled)} color={T.amber} size="sm" />
               </SettingRow>
@@ -1462,8 +1462,8 @@ export default function SettingsPage() {
                 <>
                   <SettingRow
                     icon={<Zap size={13} color={T.green} />}
-                    label="بداية التداول (UTC)"
-                    description="وقت بداية التداول بالتوقيت العالمي"
+                    label={t('tradingScheduleStart')}
+                    description={t('tradingScheduleStartDesc')}
                   >
                     <input
                       type="time"
@@ -1479,8 +1479,8 @@ export default function SettingsPage() {
                   </SettingRow>
                   <SettingRow
                     icon={<Target size={13} color={T.red} />}
-                    label="نهاية التداول (UTC)"
-                    description="وقت نهاية التداول بالتوقيت العالمي"
+                    label={t('tradingScheduleEnd')}
+                    description={t('tradingScheduleEndDesc')}
                   >
                     <input
                       type="time"
@@ -1496,17 +1496,17 @@ export default function SettingsPage() {
                   </SettingRow>
                   <div style={{ padding: '8px 0' }}>
                     <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
-                      أيام التداول
+                      {t('tradingDays')}
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                       {([
-                        { day: 1, label: 'الاثنين' },
-                        { day: 2, label: 'الثلاثاء' },
-                        { day: 3, label: 'الأربعاء' },
-                        { day: 4, label: 'الخميس' },
-                        { day: 5, label: 'الجمعة' },
-                        { day: 6, label: 'السبت' },
-                        { day: 7, label: 'الأحد' },
+                        { day: 1, label: t('dayMon') },
+                        { day: 2, label: t('dayTue') },
+                        { day: 3, label: t('dayWed') },
+                        { day: 4, label: t('dayThu') },
+                        { day: 5, label: t('dayFri') },
+                        { day: 6, label: t('daySat') },
+                        { day: 7, label: t('daySun') },
                       ]).map(d => {
                         const selectedDays = tradingScheduleDays.split(',').map(Number).filter(n => !isNaN(n))
                         const isSelected = selectedDays.includes(d.day)
@@ -1544,7 +1544,7 @@ export default function SettingsPage() {
                   }}>
                     <AlertTriangle size={16} color={T.amber} />
                     <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
-                      الأوقات بتوقيت UTC. عند التفعيل، لن يُفتح أي مركز جديد خارج الساعات والأيام المحددة. المراكز المفتوحة لن تُغلق تلقائياً.
+                      {t('tradingScheduleInfo')}
                     </div>
                   </div>
                 </>
@@ -1651,13 +1651,13 @@ export default function SettingsPage() {
               icon={<Send size={18} color={T.purple} />}
               iconColor={T.purple}
               iconBg={`${T.purple}14`}
-              title="قنوات الإشعارات الخارجية"
-              subtitle="استلم تنبيهات التداول على هاتفك عبر Telegram أو Discord"
+              title={t('extNotifChannelsTitle')}
+              subtitle={t('extNotifChannelsSubtitle')}
             >
               <SettingRow
                 icon={<Smartphone size={13} color={T.purple} />}
                 label="Telegram Bot Token"
-                description="رمز بوت تيليجرام"
+                description={t('telegramBotTokenDesc')}
               >
                 <input
                   type="password"
@@ -1675,7 +1675,7 @@ export default function SettingsPage() {
               <SettingRow
                 icon={<MessageSquare size={13} color={T.cyan} />}
                 label="Telegram Chat ID"
-                description="معرف محادثة تيليجرام"
+                description={t('telegramChatIdDesc')}
               >
                 <input
                   type="text"
@@ -1693,7 +1693,7 @@ export default function SettingsPage() {
               <SettingRow
                 icon={<Wifi size={13} color={T.purple} />}
                 label="Discord Webhook URL"
-                description="رابط ويبهوك ديسكورد"
+                description={t('discordWebhookDesc')}
               >
                 <input
                   type="password"
@@ -1710,8 +1710,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Send size={13} color={T.green} />}
-                label="تفعيل الإشعارات الخارجية"
-                description="إرسال التنبيهات عبر القنوات الخارجية"
+                label={t('extNotifEnable')}
+                description={t('extNotifEnableDesc')}
               >
                 <Toggle checked={externalNotificationsEnabled} onChange={() => setExternalNotificationsEnabled(!externalNotificationsEnabled)} color={T.green} size="sm" />
               </SettingRow>
@@ -1813,8 +1813,8 @@ export default function SettingsPage() {
               icon={<Cpu size={18} color={T.amber} />}
               iconColor={T.amber}
               iconBg={`${T.amber}14`}
-              title="إعدادات الاستراتيجية المتقدمة"
-              subtitle="معاملات الاستراتيجية المتقدمة — للمتداولين ذوي الخبرة فقط"
+              title={t('advStrategyTitle')}
+              subtitle={t('advStrategySubtitle')}
             >
               {/* Warning banner */}
               <div style={{
@@ -1825,13 +1825,13 @@ export default function SettingsPage() {
               }}>
                 <AlertTriangle size={16} color={T.amber} />
                 <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
-                  تحذير: تغيير هذه الإعدادات قد يؤثر على أداء التداول. استخدمها فقط إذا كنت تفهم تأثيرها.
+                  {t('advStrategyWarning')}
                 </div>
               </div>
               <SettingRow
                 icon={<Clock size={13} color={T.amber} />}
-                label="إطار السكالبينغ"
-                description="الإطار الزمني لاستراتيجية السكالبينغ"
+                label={t('scalpingTimeframe')}
+                description={t('scalpingTimeframeDesc')}
               >
                 <SelectBox
                   value={scalpingTimeframe}
@@ -1846,8 +1846,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Target size={13} color={T.green} />}
-                label="جني أرباح السكالبينغ (نقاط)"
-                description="الحد الأدنى: 5 — الحد الأقصى: 50"
+                label={t('scalpingTakeProfit')}
+                description={t('scalpingTakeProfitDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1866,8 +1866,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<AlertTriangle size={13} color={T.red} />}
-                label="وقف خسارة السكالبينغ (نقاط)"
-                description="الحد الأدنى: 3 — الحد الأقصى: 30"
+                label={t('scalpingStopLoss')}
+                description={t('scalpingStopLossDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1886,8 +1886,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.cyan} />}
-                label="الحد الأقصى للسبريد (نقاط)"
-                description="الحد الأدنى: 1 — الحد الأقصى: 10"
+                label={t('maxSpreadPips')}
+                description={t('maxSpreadPipsDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input
@@ -1906,8 +1906,8 @@ export default function SettingsPage() {
               </SettingRow>
               <SettingRow
                 icon={<Sliders size={13} color={T.purple} />}
-                label="مستويات الشبكة"
-                description="الحد الأدنى: 3 — الحد الأقصى: 15"
+                label={t('gridLevelsLabel')}
+                description={t('gridLevelsDesc')}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <input

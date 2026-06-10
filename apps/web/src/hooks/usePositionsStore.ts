@@ -691,6 +691,33 @@ export const usePositionsStore = create<PositionsState>()(
               `(credentialId=${activeCredId?.slice(0, 8)}...) succeeded with equity=$${adjustedTotalEquityUsd.toFixed(2)}. ` +
               `Using as primary balance.`
             )
+          } else if (activeCredId && activeExchange && !activeExchangeSucceeded) {
+            // V189 CRITICAL FIX: User chose an active exchange but it FAILED.
+            // DO NOT silently fall back to paper trading!
+            // Instead, show the active exchange as "offline" with paper balance
+            // as a TEMPORARY fallback, but mark it clearly as unavailable.
+            // The UI should show "MT5 (offline)" not "ورقي".
+            console.warn(
+              `[PositionsStore] V189: Active exchange "${(activeExchange as any).exchange}" FAILED ` +
+              `(error: ${(activeExchange as any).error || 'unknown'}). ` +
+              `Showing as offline — NOT falling back to paper badge.`
+            )
+            exchangeUnavailable = true
+            // Use paper balance as temporary display value, but the badge
+            // will show the active exchange name (not "ورقي")
+            if (paperExchange && paperExchange.equity > 0) {
+              adjustedTotalEquityUsd = paperExchange.equity
+              adjustedTotalAvailableUsd = paperExchange.available || 0
+              adjustedTotalUsedMargin = paperExchange.usedMargin || 0
+            } else if (totalEquityUsd > 0) {
+              adjustedTotalEquityUsd = totalEquityUsd
+              adjustedTotalAvailableUsd = totalAvailableUsd
+              adjustedTotalUsedMargin = totalUsedMargin
+            } else {
+              adjustedTotalEquityUsd = 0
+              adjustedTotalAvailableUsd = 0
+              adjustedTotalUsedMargin = 0
+            }
           } else if (allRealFailed) {
             // V170.2 FIX: Real exchanges failed, but user still needs to see their balance.
             console.warn(
@@ -911,7 +938,22 @@ export const usePositionsStore = create<PositionsState>()(
             maintenanceMargin: 0,
             unrealizedPnl: positionsUnrealizedPnl,
             unrealizedPnlPct: adjustedTotalEquityUsd > 0 ? (positionsUnrealizedPnl / adjustedTotalEquityUsd) * 100 : 0,
-            isPaperTrading: isTestnet && !activeExchangeSucceeded,
+            // V189 FIX: isPaperTrading logic — respect user's active account choice!
+            // OLD BUG: When MT5 was set as active but MetaAPI failed, isPaperTrading
+            // was computed as `isTestnet && !activeExchangeSucceeded` → true.
+            // This made the dashboard show "ورقي" (paper) even though the user
+            // explicitly chose MT5 as their active account.
+            //
+            // NEW LOGIC: If the user has set activeCredentialId to a real exchange
+            // (MT5, Binance, etc.), we should NEVER mark it as paper trading.
+            // isPaperTrading should only be true when:
+            //   1. No activeCredentialId is set AND only paper trading exists
+            //   2. The active credential IS paper-trading
+            // When MetaAPI fails, the dashboard should show "MT5 (offline)" 
+            // NOT "ورقي" — the exchangeUnavailable flag handles the offline UI.
+            isPaperTrading: activeCredId
+              ? (activeExchange?.exchange === 'paper-trading')  // V189: If user chose an account, only paper if it IS paper
+              : (isTestnet && !activeExchangeSucceeded),        // No active choice: use old logic
             tradingBlocked: false,
             accountBlocked: false,
             // V148B: Store the backend's leverage-aware margin separately.
@@ -930,7 +972,11 @@ export const usePositionsStore = create<PositionsState>()(
             // instead of silently showing wrong/paper balance
             exchangeUnavailable,
             // V175: Store which exchange is the active/primary one
-            activeExchangeName: activeExchangeSucceeded ? (activeExchange as any).exchange : null,
+            // V189: Show active exchange name EVEN WHEN it failed — the UI needs
+            // to know the user chose MT5 so it shows "MT5 (offline)" not "ورقي"
+            activeExchangeName: activeCredId && activeExchange
+              ? (activeExchange as any).exchange
+              : (activeExchangeSucceeded ? (activeExchange as any).exchange : null),
             activeCredentialId: activeCredId,
             // V185: Mark if the active exchange balance is stale (from cache)
             isStaleBalance: isStaleButValid ? true : false,
@@ -1216,6 +1262,7 @@ export const usePositionsStore = create<PositionsState>()(
       positions: [],
       account: null,
       exchangeBalances: [],
+      activeCredentialId: null,  // V189: Also clear active credential
       lastUpdate: null,
       _cacheTimestamp: null,
       dataSource: null,
@@ -1453,6 +1500,10 @@ export const usePositionsStore = create<PositionsState>()(
       name: getStorageKey(),
       storage: createJSONStorage(() => localStorage),
       // Only persist account data and positions (not loading/error states)
+      // V189 CRITICAL FIX: activeCredentialId MUST be persisted!
+      // Without it, every page refresh loses the user's active account choice,
+      // and the dashboard falls back to paper trading. This was THE root cause
+      // of the "dashboard still shows ورقي after 10+ activation attempts" bug.
       partialize: (state) => ({
         account: state.account,
         positions: state.positions,
@@ -1460,6 +1511,8 @@ export const usePositionsStore = create<PositionsState>()(
         dataSource: state.dataSource,
         _cacheTimestamp: state._cacheTimestamp,
         _ownerUserId: state._ownerUserId,
+        activeCredentialId: state.activeCredentialId,  // V189: PERSIST THIS!
+        exchangeBalances: state.exchangeBalances,       // V189: Also persist for faster rehydrate
       }),
       // Sync across tabs via storage events & force refresh stale data
       onRehydrateStorage: () => {

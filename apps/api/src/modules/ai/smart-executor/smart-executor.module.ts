@@ -22,6 +22,7 @@ import { NotificationModule } from '../../notification/notification.module';
 import { AiModule } from '../ai.module';
 import { NewsModule } from '../../news/news.module';
 import { CredentialsModule } from '../../portfolio/credentials/credentials.module';
+import { CouncilIntelligenceModule } from '../council-intelligence/council-intelligence.module';
 
 @Module({
   imports: [
@@ -35,6 +36,9 @@ import { CredentialsModule } from '../../portfolio/credentials/credentials.modul
     NotificationModule,
     NewsModule,
     CredentialsModule,
+
+    // V185: مجلس الذكاء — DynamicSizing + Correlation + TradeJournal
+    CouncilIntelligenceModule,
   ],
   controllers: [SmartExecutorController],
   providers: [SmartExecutorService],

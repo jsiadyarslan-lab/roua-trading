@@ -23,6 +23,7 @@ import { AnalyticsModule } from '../analytics/analytics.module';
 import { TradingModule } from '../trading/trading.module';
 import { ExchangeModule } from '../exchange/exchange.module';
 import { PortfolioModule } from '../portfolio/portfolio.module';
+import { CouncilIntelligenceModule } from '../ai/council-intelligence/council-intelligence.module';
 
 // Live Infrastructure Engines
 import { MarketScannerService } from './services/market-scanner.service';
@@ -63,6 +64,9 @@ import { EngineController } from './engine.controller';
     TradingModule,
     ExchangeModule,
     PortfolioModule,
+
+    // V185: مجلس الذكاء — TradeJournal + SelfHealing لربط مراقب المراكز
+    CouncilIntelligenceModule,
   ],
   controllers: [EngineController],
   providers: [

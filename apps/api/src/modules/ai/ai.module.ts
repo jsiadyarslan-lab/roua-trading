@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AiController } from './ai.controller';
 import { AIOrchestratorService } from './services/ai-orchestrator.service';
 import { GroqService } from './services/groq.service';
@@ -19,9 +19,14 @@ import { AiCacheService } from './services/ai-cache.service';
 import { MarketDataService } from './services/market-data.service';
 import { StrategicCouncilService } from './services/strategic-council.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
+import { CouncilIntelligenceModule } from './council-intelligence/council-intelligence.module';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    // V185: مجلس الذكاء — Regime + Memory + VoteAccuracy (forwardRef لمنع الاعتماد الدائري)
+    forwardRef(() => CouncilIntelligenceModule),
+  ],
   controllers: [AiController],
   providers: [
     // AI Model Services — 8 Primary Models + 3 Legacy (backward compatibility)

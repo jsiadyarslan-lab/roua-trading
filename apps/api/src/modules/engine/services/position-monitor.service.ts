@@ -2,7 +2,7 @@
 // Roua Trading (رؤى) — Position Monitor Service
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
@@ -10,6 +10,9 @@ import { ExchangeService } from '../../exchange/exchange.service';
 import { TradingService } from '../../trading/trading.service';
 import { AuditService } from '../../../audit/audit.service';
 import { PerformanceEventsService } from '../../analytics/services/performance-events.service';
+// V185: مجلس الذكاء — مجلة التداول + الشفاء الذاتي
+import { TradeJournalService } from '../../ai/council-intelligence/trade-journal.service';
+import { SelfHealingService } from '../../ai/council-intelligence/self-healing.service';
 
 /**
  * Position Monitor Service — Real-Time Position Surveillance
@@ -72,8 +75,11 @@ export class PositionMonitorService {
     private readonly tradingService: TradingService,
     private readonly audit: AuditService,
     private readonly performanceEvents: PerformanceEventsService,
+    // V185: مجلس الذكاء — @Optional حتى لا يفشل إذا لم يكن الموديول متاحاً
+    @Optional() private readonly journal?: TradeJournalService,
+    @Optional() private readonly selfHealing?: SelfHealingService,
   ) {
-    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active');
+    this.logger.log('🛡️ Position Monitor initialized — protective surveillance active' + (this.journal ? ' + TradeJournal' : '') + (this.selfHealing ? ' + SelfHealing' : ''));
   }
 
   /**
@@ -85,6 +91,12 @@ export class PositionMonitorService {
   async runPositionMonitor(): Promise<void> {
     // FIX: Skip cycle when DB is unavailable to prevent connection pool exhaustion
     if (!this.prisma.isAvailable?.()) {
+      return;
+    }
+
+    // V185: الشفاء الذاتي — تخطي إذا كان المكون معطلاً
+    if (this.selfHealing?.isComponentDisabled('position-monitor')) {
+      this.logger.warn('🛡️ Position Monitor is DISABLED by self-healing — skipping cycle');
       return;
     }
 
@@ -238,10 +250,14 @@ export class PositionMonitorService {
       );
     } catch (error: any) {
       this.logger.error(`🛡️ Position monitor cycle failed: ${error.message}`);
+      // V185: الشفاء الذاتي — تسجيل الفشل
+      this.selfHealing?.reportFailure('position-monitor', error.message);
     } finally {
       this.isMonitoring = false;
       // RLS: Disable bypass after background service completes
       await this.prisma.disableRlsBypass().catch(() => {});
+      // V185: الشفاء الذاتي — تسجيل النجاح
+      this.selfHealing?.reportSuccess('position-monitor');
     }
   }
 
@@ -796,6 +812,29 @@ export class PositionMonitorService {
         });
       } catch (err: any) {
         this.logger.debug(`Failed to record trade closed event: ${err.message}`);
+      }
+
+      // V185: مجلة التداول — تسجيل إغلاق الصفقة لتغذية حلقة التعلم
+      // هذا هو المفتاح الرئيسي: بدون هذا السطر، حلقة journal → accuracy → memory لا تحصل على بيانات أبداً
+      try {
+        if (this.journal) {
+          const entryPrice = position.entryPrice?.toNumber?.() ?? Number(position.entryPrice);
+          const quantity = position.quantity?.toNumber?.() ?? Number(position.quantity);
+          const pnl = position.side === 'BUY'
+            ? (currentPrice - entryPrice) * quantity
+            : (entryPrice - currentPrice) * quantity;
+          const pnlPct = (pnl / (entryPrice * quantity)) * 100;
+
+          await this.journal.recordTradeClose(
+            position.id,
+            currentPrice,
+            pnl,
+            pnlPct,
+            { tags: [reason] },
+          );
+        }
+      } catch (journalErr: any) {
+        this.logger.debug(`V185 Journal: Failed to record trade close: ${journalErr.message}`);
       }
     } catch (error: any) {
       this.logger.error(

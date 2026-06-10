@@ -28,7 +28,7 @@
 // ══════════════════════════════════════════════
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, Optional } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
 import { ExchangeService } from '../../exchange/exchange.service';
@@ -57,6 +57,10 @@ import {
   calculateNotionalValue,
   AssetClass,
 } from '../../trading/services/symbol-metadata';
+// V185: مجلس الذكاء — الحجم الذكي + الارتباط + مجلة التداول
+import { DynamicPositionSizingService } from '../council-intelligence/dynamic-position-sizing.service';
+import { CrossPairCorrelationService } from '../council-intelligence/cross-pair-correlation.service';
+import { TradeJournalService } from '../council-intelligence/trade-journal.service';
 
 @Injectable()
 export class SmartExecutorService implements OnModuleDestroy {
@@ -108,8 +112,17 @@ export class SmartExecutorService implements OnModuleDestroy {
     private readonly newsService: NewsService,
     private readonly credentialsService: CredentialsService,
     private readonly tradeCoordination: TradeCoordinationService,
+    // V185: مجلس الذكاء — @Optional حتى لا يفشل إذا لم يكن الموديول متاحاً
+    @Optional() private readonly dynamicSizing?: DynamicPositionSizingService,
+    @Optional() private readonly correlationCheck?: CrossPairCorrelationService,
+    @Optional() private readonly journal?: TradeJournalService,
   ) {
-    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)');
+    const extras = [
+      this.dynamicSizing && 'DynamicSizing',
+      this.correlationCheck && 'Correlation',
+      this.journal && 'TradeJournal',
+    ].filter(Boolean).join('+');
+    this.logger.log('⚔️ Smart Executor initialized — DISABLED auto-start. Will ONLY run when a user explicitly enables it. (with news risk gate)' + (extras ? ` + V185 [${extras}]` : ''));
 
     // FIX (V136): Only run startup cleanup. No auto-restore, no heartbeat.
     //
@@ -2803,7 +2816,82 @@ export class SmartExecutorService implements OnModuleDestroy {
       } catch { /* non-critical */ }
 
       const baseRiskPercent = (userState.riskPerTradePercent || this.config.riskPerTradePercent) / 100;
-      const riskPercent = baseRiskPercent * confidenceMultiplier * drawdownMultiplier;
+      let riskPercent = baseRiskPercent * confidenceMultiplier * drawdownMultiplier;
+
+      // V185: الحجم الذكي — تعديل الحجم بناءً على Regime + الإجماع + الارتباط
+      let v185SizingMultiplier = 1.0;
+      try {
+        if (this.dynamicSizing) {
+          // Gather existing positions for sizing context
+          const existingPositions = await this.prisma.position.findMany({
+            where: { userId, status: 'OPEN' },
+            select: { symbol: true, side: true, quantity: true },
+          }).catch(() => []);
+
+          const sizingResult = await this.dynamicSizing.calculateSizeMultiplier({
+            userId,
+            symbol: brief.pair,
+            direction: brief.direction as 'BUY' | 'SELL',
+            consensusScore: brief.confidence ?? 70,
+            confidence: brief.confidence ?? 70,
+            councilVotes: {},
+            existingPositions: (existingPositions || []).map((p: any) => ({
+              symbol: p.symbol,
+              side: p.side,
+              quantity: typeof p.quantity?.toNumber === 'function' ? p.quantity.toNumber() : Number(p.quantity),
+            })),
+          });
+          v185SizingMultiplier = sizingResult.finalMultiplier;
+          if (v185SizingMultiplier !== 1.0) {
+            this.logger.log(`⚔️ V185 DynamicSizing: ${v185SizingMultiplier.toFixed(2)}x multiplier for ${brief.pair} (consensus=${brief.confidence}%)`);
+          }
+        }
+      } catch (sizingErr: any) {
+        this.logger.debug(`V185 DynamicSizing: ${sizingErr.message}`);
+      }
+
+      // V185: الارتباط بين الأزواج — تقليل الحجم إذا كانت صفقات مرتبطة مفتوحة
+      try {
+        if (this.correlationCheck) {
+          const existingPositions = await this.prisma.position.findMany({
+            where: { userId, status: 'OPEN' },
+            select: { symbol: true, side: true, quantity: true },
+          }).catch(() => []);
+
+          const corrResult = await this.correlationCheck.checkCorrelatedRisk(
+            userId,
+            brief.pair,
+            brief.direction,
+            (existingPositions || []).map((p: any) => ({
+              symbol: p.symbol,
+              side: p.side,
+              quantity: typeof p.quantity?.toNumber === 'function' ? p.quantity.toNumber() : Number(p.quantity),
+            })),
+          );
+          if (corrResult?.riskLevel === 'EXTREME') {
+            this.logger.warn(`⚔️ V185 Correlation: EXTREME risk — ${brief.pair} highly correlated with ${corrResult.correlatedOpenPositions.join(',')} → exposure=${corrResult.effectiveExposure.toFixed(1)}x`);
+          }
+          // Use getPositionSizeMultiplier for the actual size adjustment
+          if (corrResult?.riskLevel === 'HIGH' || corrResult?.riskLevel === 'EXTREME') {
+            const corrMultiplier = await this.correlationCheck.getPositionSizeMultiplier(
+              userId,
+              brief.pair,
+              brief.direction,
+              (existingPositions || []).map((p: any) => ({
+                symbol: p.symbol,
+                side: p.side,
+                quantity: typeof p.quantity?.toNumber === 'function' ? p.quantity.toNumber() : Number(p.quantity),
+              })),
+            );
+            v185SizingMultiplier *= corrMultiplier;
+          }
+        }
+      } catch (corrErr: any) {
+        this.logger.debug(`V185 Correlation: ${corrErr.message}`);
+      }
+
+      // Apply V185 multiplier (clamped 0.3x–2.0x by the service itself)
+      riskPercent = riskPercent * v185SizingMultiplier;
       const riskAmount = Math.max(portfolioValue * riskPercent, 10); // minimum $10
 
       this.logger.log(
@@ -3000,6 +3088,26 @@ export class SmartExecutorService implements OnModuleDestroy {
             isPaperTrading: isSimulatedExecution,
           }),
         });
+
+        // V185: مجلة التداول — تسجيل فتح الصفقة لتغذية حلقة التعلم
+        try {
+          if (this.journal) {
+            await this.journal.recordTradeOpen({
+              userId,
+              positionId: result.orderId || 'unknown',
+              symbol: brief.pair,
+              side: brief.direction,
+              entryPrice: currentPrice,
+              quantity,
+              councilVotes: {},
+              consensusScore: brief.confidence ?? 70,
+              source: 'smart_executor',
+              isPaper: isSimulatedExecution,
+            });
+          }
+        } catch (journalErr: any) {
+          this.logger.debug(`V185 Journal: Failed to record trade open: ${journalErr.message}`);
+        }
       } finally {
         // #18: Always release the coordination lock after execution
         await this.tradeCoordination.releaseTradeLock(userId, brief.pair);

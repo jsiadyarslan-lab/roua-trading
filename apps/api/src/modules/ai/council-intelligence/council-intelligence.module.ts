@@ -4,7 +4,7 @@
 // V185: كل ميزات تطوير مجلس الذكاء في موديول واحد
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { CouncilIntelligenceController } from './council-intelligence.controller';
 import { TradeJournalService } from './trade-journal.service';
 import { CouncilVoteAccuracyService } from './council-vote-accuracy.service';
@@ -20,7 +20,7 @@ import { RedisModule } from '../../../common/redis/redis.module';
 import { AiModule } from '../ai.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule, AiModule],
+  imports: [PrismaModule, RedisModule, forwardRef(() => AiModule)],
   controllers: [CouncilIntelligenceController],
   providers: [
     TradeJournalService,

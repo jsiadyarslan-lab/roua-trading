@@ -6,6 +6,10 @@ import { AiCacheService } from './ai-cache.service';
 import { AiUsageLoggerService } from './ai-usage-logger.service';
 import { MarketDataService } from './market-data.service';
 import { PredictionMarketService } from '../../prediction-market/prediction-market.service';
+// V185: مجلس الذكاء — كشف وضع السوق + ذاكرة النظام + أوزان ديناميكية
+import { MarketRegimeService } from '../council-intelligence/market-regime.service';
+import { SystemMemoryService } from '../council-intelligence/system-memory.service';
+import { CouncilVoteAccuracyService } from '../council-intelligence/council-vote-accuracy.service';
 
 /**
  * Consensus Analysis result — returned by the AI Council
@@ -57,8 +61,17 @@ export class StrategicCouncilService {
     private readonly usageLogger: AiUsageLoggerService,
     @Inject(forwardRef(() => AIOrchestratorService)) private readonly orchestrator: AIOrchestratorService,
     @Optional() private readonly predictionMarket?: PredictionMarketService,
+    // V185: مجلس الذكاء — @Optional لمنع فشل التشغيل إذا لم يكن الموديول متاحاً
+    @Optional() private readonly regimeService?: MarketRegimeService,
+    @Optional() private readonly memoryService?: SystemMemoryService,
+    @Optional() private readonly voteAccuracy?: CouncilVoteAccuracyService,
   ) {
-    this.logger.log('🏛️ Strategic Council Service initialized — 8-role AI Council + Prediction Market');
+    const extras = [
+      this.regimeService && 'Regime',
+      this.memoryService && 'Memory',
+      this.voteAccuracy && 'VoteAccuracy',
+    ].filter(Boolean).join('+');
+    this.logger.log(`🏛️ Strategic Council Service initialized — 8-role AI Council + Prediction Market` + (extras ? ` + V185 [${extras}]` : ''));
   }
 
   /**
@@ -118,25 +131,59 @@ export class StrategicCouncilService {
         ? `\n📰📰📰 بيانات الأخبار المحللة (مصدر موثوق — خذها بعين الاعتبار!):\n${newsContext}\n⚠️ هذه أخبار حقيقية محللة — يجب أن تؤثر على قرارك!\n\n`
         : '';
 
+      // ── V185: كشف وضع السوق — سياق BULL/BEAR/RANGE للذكاء الاصطناعي ──
+      let regimePrefix = '';
+      try {
+        if (this.regimeService) {
+          const regimeResult = await this.regimeService.detectRegime(symbol);
+          if (regimeResult) {
+            const regimeContext = this.regimeService.buildRegimeContext(regimeResult, symbol);
+            if (regimeContext) {
+              regimePrefix = `\n${regimeContext}\n⚠️ هذا هو وضع السوق الحالي — يجب أن تؤثر على قرارك!\n\n`;
+              this.logger.debug(`🏛️ V185 Regime context injected for ${symbol}: ${regimeResult.regime} (${regimeResult.confidence}%)`);
+            }
+          }
+        }
+      } catch (regimeErr: any) {
+        this.logger.debug(`V185 Regime: ${regimeErr.message}`);
+      }
+
+      // ── V185: ذاكرة النظام — دروس من الصفقات السابقة ──
+      let memoryPrefix = '';
+      try {
+        if (this.memoryService) {
+          const memoryContext = await this.memoryService.getMemoryContext('system', symbol);
+          if (memoryContext) {
+            memoryPrefix = `\n🧠🧠🧠 دروس من صفقات سابقة (تاريخ حقيقي — تعلم منها!):\n${memoryContext}\n⚠️ هذه دروس حقيقية من صفقات سابقة — لا تكرر نفس الأخطاء!\n\n`;
+            this.logger.debug(`🏛️ V185 Memory context injected for ${symbol}`);
+          }
+        }
+      } catch (memErr: any) {
+        this.logger.debug(`V185 Memory: ${memErr.message}`);
+      }
+
+      // ── Combined context prefix: news + regime + memory ──
+      const contextPrefix = `${regimePrefix}${memoryPrefix}${newsPrefix}`;
+
       // ── Define the 8 Council Roles ──
       const roles: CouncilRole[] = language === 'en' ? [
-        { id: 'tech',   name: 'Technical Analyst',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}Analyze the technical chart for ${symbol} based on trend, momentum, and resistance levels.${decisionInstruction}` },
-        { id: 'sent',   name: 'Sentiment Analyst',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze current market sentiment for ${symbol} from a news and momentum perspective.${decisionInstruction}` },
-        { id: 'risk',   name: 'Risk Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}Identify risks of entering a trade on ${symbol} now, stop-loss levels, and worst-case scenario assessment.${decisionInstruction}` },
-        { id: 'macro',  name: 'Macro Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}Analyze the macroeconomic situation and its impact on ${symbol}.${decisionInstruction}` },
-        { id: 'pattern',name: 'Pattern Expert',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Do you see any recurring historical patterns in the current movement of ${symbol}?${decisionInstruction}` },
-        { id: 'exec',   name: 'Execution Strategist', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}What is the best timing for entering ${symbol} based on liquidity and available models?${decisionInstruction}` },
-        { id: 'diverge',name: 'Divergence Analyst',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Look for counter-signals or divergences in the analysis of ${symbol} — is there a reason not to follow the prevailing trend?${decisionInstruction}` },
-        { id: 'scenario', name: 'Scenario Analyst', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}Analyze possible scenarios for ${symbol} with probability estimates for each scenario.${decisionInstruction}` },
+        { id: 'tech',   name: 'Technical Analyst',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${contextPrefix}${marketDataPrefix}Analyze the technical chart for ${symbol} based on trend, momentum, and resistance levels.${decisionInstruction}` },
+        { id: 'sent',   name: 'Sentiment Analyst',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${contextPrefix}${marketDataPrefix}Analyze current market sentiment for ${symbol} from a news and momentum perspective.${decisionInstruction}` },
+        { id: 'risk',   name: 'Risk Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${contextPrefix}${marketDataPrefix}Identify risks of entering a trade on ${symbol} now, stop-loss levels, and worst-case scenario assessment.${decisionInstruction}` },
+        { id: 'macro',  name: 'Macro Expert',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${contextPrefix}${marketDataPrefix}Analyze the macroeconomic situation and its impact on ${symbol}.${decisionInstruction}` },
+        { id: 'pattern',name: 'Pattern Expert',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}Do you see any recurring historical patterns in the current movement of ${symbol}?${decisionInstruction}` },
+        { id: 'exec',   name: 'Execution Strategist', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${contextPrefix}${marketDataPrefix}What is the best timing for entering ${symbol} based on liquidity and available models?${decisionInstruction}` },
+        { id: 'diverge',name: 'Divergence Analyst',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}Look for counter-signals or divergences in the analysis of ${symbol} — is there a reason not to follow the prevailing trend?${decisionInstruction}` },
+        { id: 'scenario', name: 'Scenario Analyst', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}Analyze possible scenarios for ${symbol} with probability estimates for each scenario.${decisionInstruction}` },
       ] : [
-        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${newsPrefix}${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
-        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
-        { id: 'risk',   name: 'خبير المخاطر',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${newsPrefix}${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
-        { id: 'macro',  name: 'خبير الماكرو',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${newsPrefix}${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
-        { id: 'pattern',name: 'خبير الأنماط',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
-        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${newsPrefix}${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
-        { id: 'diverge',name: 'محلل التباين',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
-        { id: 'scenario', name: 'محلل السيناريوهات', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${newsPrefix}${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
+        { id: 'tech',   name: 'المحلل الفني',    model: 'gemini',     fallbackModels: ['groq', 'ollama', 'deepseek', 'glm', 'bedrock', 'huggingface', 'openrouter'],  prompt: `${contextPrefix}${marketDataPrefix}حلل الشارت الفني لـ ${symbol} بناءً على الاتجاه والزخم والمقاومات.${decisionInstruction}` },
+        { id: 'sent',   name: 'محلل المشاعر',     model: 'groq',       fallbackModels: ['deepseek', 'ollama', 'gemini', 'bedrock', 'glm', 'huggingface', 'openrouter'], prompt: `${contextPrefix}${marketDataPrefix}حلل مشاعر السوق الحالية لـ ${symbol} من منظور الأخبار والزخم.${decisionInstruction}` },
+        { id: 'risk',   name: 'خبير المخاطر',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'ollama', 'deepseek', 'glm', 'mistral', 'nvidia', 'bedrock'],        prompt: `${contextPrefix}${marketDataPrefix}حدد مخاطر دخول صفقة على ${symbol} الآن ومستويات وقف الخسارة مع تقييم السيناريو الأسوأ.${decisionInstruction}` },
+        { id: 'macro',  name: 'خبير الماكرو',     model: 'gemini',     fallbackModels: ['cerebras', 'groq', 'deepseek', 'ollama', 'glm', 'bedrock', 'huggingface', 'openrouter'], prompt: `${contextPrefix}${marketDataPrefix}حلل الوضع الاقتصادي العام وتأثيره على ${symbol} مع مراعاة السياق العربي.${decisionInstruction}` },
+        { id: 'pattern',name: 'خبير الأنماط',     model: 'cerebras',   fallbackModels: ['ollama', 'mistral', 'groq', 'gemini', 'bedrock', 'glm', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}هل ترى أي أنماط تاريخية متكررة في حركة ${symbol} الحالية؟${decisionInstruction}` },
+        { id: 'exec',   name: 'استراتيجي التنفيذ', model: 'ollama',     fallbackModels: ['deepseek', 'bedrock', 'glm', 'gemini', 'groq', 'huggingface', 'openrouter'],        prompt: `${contextPrefix}${marketDataPrefix}ما هو أفضل توقيت للدخول في ${symbol} بناءً على السيولة والنماذج المتاحة؟${decisionInstruction}` },
+        { id: 'diverge',name: 'محلل التباين',     model: 'cerebras',   fallbackModels: ['groq', 'ollama', 'bedrock', 'gemini', 'mistral', 'glm', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}ابحث عن إشارات معاكسة أو تباينات في تحليل ${symbol} — هل هناك سبب لعدم اتباع الاتجاه السائد؟${decisionInstruction}` },
+        { id: 'scenario', name: 'محلل السيناريوهات', model: 'mistral',  fallbackModels: ['ollama', 'bedrock', 'gemini', 'groq', 'glm', 'cerebras', 'nvidia'],        prompt: `${contextPrefix}${marketDataPrefix}حلل السيناريوهات المحتملة لـ ${symbol} مع تقدير احتمالات كل سيناريو.${decisionInstruction}` },
       ];
 
       // ── 9th Model: Prediction Market Analyst ──
@@ -466,16 +513,30 @@ export class StrategicCouncilService {
 
     const HOLD_WEIGHT_MULTIPLIER = 0.3;
 
+    // V185: حلقة التعلم — استخدم أوزان ديناميكية من CouncilVoteAccuracyService
+    // كل دور في المجلس يملك وزناً بناءً على دقة أصواته السابقة
+    // بدون VoteAccuracy: أوزان متساوية (السلوك القديم)
+    const useDynamicWeights = !!this.voteAccuracy;
+
     // Build analyses from role responses
-    for (const [, { name, response }] of roleResponses) {
+    for (const [roleId, { name, response }] of roleResponses) {
       const content = response.content || '';
       const vote = this.orchestrator.parseVote(content);
 
       const conf = response.confidence || 0.5;
-      if (vote === 'BUY') { buyWeight += conf; buyConfidences.push(conf); }
-      else if (vote === 'SELL') { sellWeight += conf; sellConfidences.push(conf); }
-      else { holdWeight += conf * HOLD_WEIGHT_MULTIPLIER; holdConfidences.push(conf); }
-      totalConfidence += vote === 'HOLD' ? conf * HOLD_WEIGHT_MULTIPLIER : conf;
+      // V185: تطبيق الوزن الديناميكي — الدور الأكثر دقة يحصل على وزن أعلى
+      let dynamicWeight = 1.0;
+      if (useDynamicWeights) {
+        try {
+          dynamicWeight = await this.voteAccuracy!.getRoleWeight('system', roleId);
+        } catch { /* fallback to 1.0 */ }
+      }
+      const weightedConf = conf * dynamicWeight;
+
+      if (vote === 'BUY') { buyWeight += weightedConf; buyConfidences.push(weightedConf); }
+      else if (vote === 'SELL') { sellWeight += weightedConf; sellConfidences.push(weightedConf); }
+      else { holdWeight += weightedConf * HOLD_WEIGHT_MULTIPLIER; holdConfidences.push(weightedConf); }
+      totalConfidence += vote === 'HOLD' ? weightedConf * HOLD_WEIGHT_MULTIPLIER : weightedConf;
 
       analyses.push({
         role: name,

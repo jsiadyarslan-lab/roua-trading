@@ -1768,10 +1768,11 @@ export class CredentialsService {
       //   5. Reduce failure cache to 15s (not 60s) so the user gets fresh data sooner
       // ═══════════════════════════════════════════════════════════════
 
-      // V190: Check failure cache with REDUCED cooldown (15s, not 60s)
+      // V191: Check failure cache with REDUCED cooldown (5s for live accounts, 15s for demo)
       const failureCacheKey = `mt5fail:${cred.id}`;
       const lastFailure = this.mt5FailureCache?.get(failureCacheKey);
-      if (lastFailure && Date.now() - lastFailure < 15_000) {
+      const failureCooldown = !isDemo ? 5_000 : 15_000;  // V191: Real accounts retry faster
+      if (lastFailure && Date.now() - lastFailure < failureCooldown) {
         // This credential failed VERY recently — skip for 15 seconds only
         const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Recently failed, skipping');
         if (cachedResult) {
@@ -1787,7 +1788,7 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: `اتصال MT5 غير متاح حالياً — سيتم إعادة المحاولة خلال ثوان`,
+          error: `اتصال MT5 غير متاح حالياً — سيتم إعادة المحاولة خلال ثواني`,
         };
       }
 
@@ -1835,7 +1836,7 @@ export class CredentialsService {
       );
 
       // ═══════════════════════════════════════════════════════════════
-      // V190: PRIMARY METHOD — MetaAPI REST API
+      // V191: PRIMARY METHOD — MetaAPI REST API
       // Use HTTP REST to fetch account information directly.
       // This bypasses the RPC WebSocket connection entirely.
       //
@@ -1851,16 +1852,16 @@ export class CredentialsService {
       // ═══════════════════════════════════════════════════════════════
       let accountInfo: any = null;
 
-      // Try REST API first
-      if (metaApiAccountId && accountState === 'DEPLOYED') {
+      // Try REST API first — V191: Try even if NOT DEPLOYED (MetaAPI cloud may have cached data)
+      if (metaApiAccountId) {
         try {
           const restResult = await this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken);
           if (restResult) {
             accountInfo = restResult;
-            this.logger.log(`📊 V190: REST API succeeded for ${accountId} — balance=$${restResult.balance}, equity=$${restResult.equity}`);
+            this.logger.log(`📊 V191: REST API succeeded for ${accountId} — balance=$${restResult.balance}, equity=$${restResult.equity}`);
           }
         } catch (restErr: any) {
-          this.logger.warn(`📊 V190: REST API failed for ${accountId}: ${restErr.message?.substring(0, 60)}`);
+          this.logger.warn(`📊 V191: REST API failed for ${accountId}: ${restErr.message?.substring(0, 100)}`);
         }
       }
 
@@ -1943,11 +1944,11 @@ export class CredentialsService {
       const freeMargin = accountInfo?.freeMargin || Math.max(0, equity - margin);
       const currency = accountInfo?.currency || 'USD';
 
-      // V188: Clear failure cache on success
+      // V191: Clear failure cache on success
       this.mt5FailureCache.delete(failureCacheKey);
 
       this.logger.log(
-        `📊 V188: MT5 balance for ${accountId}: balance=$${balance}, equity=$${equity}, ` +
+        `📊 V191: MT5 balance for ${accountId}: balance=$${balance}, equity=$${equity}, ` +
         `margin=$${margin}, free=$${freeMargin}, currency=${currency}, demo=${isDemo}`
       );
 
@@ -2030,6 +2031,8 @@ export class CredentialsService {
     credentialId: string;
     isTestnet: boolean;
     equity: number;
+    /** V191: Actual account balance from cache */
+    balance?: number;
     available: number;
     currency: string;
     usedMargin: number;
@@ -2063,12 +2066,14 @@ export class CredentialsService {
         `equity=$${data.equity}, age=${ageMin}min (MetaAPI failed: ${errorMsg?.substring(0, 50)})`
       );
 
+      const cachedBalance = data.balance || data.equity || 0;
       return {
         exchange: data.exchange || cred.exchange,
         label: data.label || cred.label,
         credentialId: cred.id,
         isTestnet: data.isDemo ?? isDemo,
         equity: data.equity || 0,
+        balance: cachedBalance,  // V191: Return balance from cache (not just equity)
         available: data.freeMargin || 0,
         currency: data.currency || 'USD',
         usedMargin: data.margin || 0,
@@ -2076,7 +2081,7 @@ export class CredentialsService {
           currency: data.currency || 'USD',
           free: data.freeMargin || 0,
           used: data.margin || 0,
-          total: data.equity || 0,
+          total: cachedBalance,  // V191: Use balance (not equity) as total
         }],
         error: `رصيد مخزّن (${ageMin === 0 ? 'أقل من دقيقة' : `منذ ${ageMin} دقيقة`}) — اتصال MetaAPI غير متاح`,
         _stale: true,
@@ -2089,7 +2094,7 @@ export class CredentialsService {
   }
 
   /**
-   * V190: Fetch MT5 account information via MetaAPI REST API.
+   * V191: Fetch MT5 account information via MetaAPI REST API.
    * This bypasses the slow RPC WebSocket connection entirely.
    *
    * The MetaAPI cloud maintains a real-time connection to the broker.
@@ -2101,46 +2106,86 @@ export class CredentialsService {
    *
    * This is 10-50x faster than RPC (100-500ms vs 10s+ timeout) and
    * doesn't require connect() + waitSynchronized().
+   *
+   * V191 improvements:
+   *   - Retry once on transient errors (5xx, timeout, network)
+   *   - Better error logging with HTTP status codes
+   *   - Handle auth errors separately (don't retry)
    */
   private async _fetchMT5BalanceViaREST(
     metaApiAccountId: string,
     metaApiToken: string,
+    _retryCount = 0,
   ): Promise<any | null> {
     const https = await import('https');
     const url = `https://mt-client-api-v1.agiliumtrade.agiliumtrade.ai/users/current/accounts/${metaApiAccountId}/account-information`;
 
-    return new Promise((resolve, reject) => {
-      const req = https.request(url, {
-        method: 'GET',
-        headers: {
-          'auth-token': metaApiToken,
-          'Accept': 'application/json',
-        },
-        timeout: 5000, // 5 second timeout — REST is fast
-      }, (res) => {
-        let data = '';
-        res.on('data', (chunk: any) => { data += chunk; });
-        res.on('end', () => {
-          if (res.statusCode === 200) {
-            try {
-              const accountInfo = JSON.parse(data);
-              resolve(accountInfo);
-            } catch (parseErr: any) {
-              reject(new Error(`REST API parse error: ${parseErr.message}`));
+    const makeRequest = (): Promise<any | null> => {
+      return new Promise((resolve, reject) => {
+        const req = https.request(url, {
+          method: 'GET',
+          headers: {
+            'auth-token': metaApiToken,
+            'Accept': 'application/json',
+          },
+          timeout: 8000, // V191: 8 second timeout (increased from 5s for reliability)
+        }, (res) => {
+          let data = '';
+          res.on('data', (chunk: any) => { data += chunk; });
+          res.on('end', () => {
+            if (res.statusCode === 200) {
+              try {
+                const accountInfo = JSON.parse(data);
+                if (accountInfo && (accountInfo.balance !== undefined || accountInfo.equity !== undefined)) {
+                  resolve(accountInfo);
+                } else {
+                  reject(new Error(`REST API returned 200 but missing balance/equity fields: ${data.substring(0, 200)}`));
+                }
+              } catch (parseErr: any) {
+                reject(new Error(`REST API parse error: ${parseErr.message}`));
+              }
+            } else if (res.statusCode === 401 || res.statusCode === 403) {
+              // Auth errors — don't retry, these are permanent
+              reject(new Error(`REST API auth error (${res.statusCode}): token may be invalid`));
+            } else if (res.statusCode && res.statusCode >= 500) {
+              // Server errors — retry once
+              reject(new Error(`REST API server error (${res.statusCode}): ${data.substring(0, 100)}`));
+            } else if (res.statusCode === 404) {
+              reject(new Error(`REST API 404: account ${metaApiAccountId} not found or not deployed`));
+            } else {
+              reject(new Error(`REST API returned ${res.statusCode}: ${data.substring(0, 100)}`));
             }
-          } else {
-            reject(new Error(`REST API returned ${res.statusCode}: ${data.substring(0, 100)}`));
-          }
+          });
         });
-      });
 
-      req.on('error', (err: any) => reject(err));
-      req.on('timeout', () => {
-        req.destroy();
-        reject(new Error('REST API timeout (5s)'));
+        req.on('error', (err: any) => reject(err));
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('REST API timeout (8s)'));
+        });
+        req.end();
       });
-      req.end();
-    });
+    };
+
+    try {
+      return await makeRequest();
+    } catch (firstError: any) {
+      // V191: Retry once for transient errors (timeout, network, 5xx)
+      const isTransient = firstError.message?.includes('timeout') ||
+        firstError.message?.includes('server error') ||
+        firstError.message?.includes('ECONNRESET') ||
+        firstError.message?.includes('ECONNREFUSED') ||
+        firstError.message?.includes('socket hang up');
+
+      if (isTransient && _retryCount < 1) {
+        this.logger.warn(`📊 V191: REST API transient error for ${metaApiAccountId}, retrying... (${firstError.message?.substring(0, 60)})`);
+        // Wait 500ms before retry
+        await new Promise(r => setTimeout(r, 500));
+        return this._fetchMT5BalanceViaREST(metaApiAccountId, metaApiToken, _retryCount + 1);
+      }
+
+      throw firstError;
+    }
   }
 
   /** V188: Record an MT5 connection failure to avoid retrying every 5 seconds */

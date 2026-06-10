@@ -152,6 +152,18 @@ export default function ExchangeSettingsPage() {
     }
   }, [])
 
+  // V174: Load activeCredentialId from user settings on mount
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => r.json())
+      .then(data => {
+        if (data?.settings?.activeCredentialId) {
+          setActiveCredentialId(data.settings.activeCredentialId)
+        }
+      })
+      .catch(() => { /* non-critical */ })
+  }, [])
+
   useEffect(() => {
     fetchCredentials()
     fetchServerIp()
@@ -208,11 +220,20 @@ export default function ExchangeSettingsPage() {
     setActiveSaving(true)
     setActiveCredentialId(credentialId)
     try {
-      await fetch('/api/settings', {
+      const res = await fetch('/api/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
       })
+      if (!res.ok) {
+        // Retry once
+        await new Promise(r => setTimeout(r, 500))
+        await fetch('/api/settings', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings: { activeCredentialId: credentialId } }),
+        })
+      }
     } catch { /* non-critical */ }
     setActiveSaving(false)
   }

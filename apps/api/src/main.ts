@@ -345,14 +345,10 @@ async function bootstrap() {
 
         try {
           const accountApi = api.metatraderAccountApi;
-          // V172: SDK v29+ replaced getAccounts() with pagination methods
+          // V174: SDK v29+ uses getAccountsWithInfiniteScrollPagination() instead of getAccounts()
           if (accountApi && typeof accountApi.getAccountsWithInfiniteScrollPagination === 'function') {
             accounts = await accountApi.getAccountsWithInfiniteScrollPagination();
             method = 'metatraderAccountApi.getAccountsWithInfiniteScrollPagination';
-            tokenValid = true;
-          } else if (accountApi && typeof accountApi.getAccountsWithClassicPagination === 'function') {
-            accounts = await accountApi.getAccountsWithClassicPagination();
-            method = 'metatraderAccountApi.getAccountsWithClassicPagination';
             tokenValid = true;
           } else if (accountApi && typeof accountApi.getAccounts === 'function') {
             accounts = await accountApi.getAccounts();
@@ -373,7 +369,7 @@ async function bootstrap() {
           }
         } catch (apiErr: any) {
           const msg = apiErr?.message || String(apiErr);
-          if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('Invalid token') || msg.includes('Forbidden') || msg.includes('invalid auth-token')) {
+          if (msg.includes('Unauthorized') || msg.includes('401') || msg.includes('Invalid token') || msg.includes('Forbidden')) {
             return res.json({
               status: 'error',
               message: 'مفتاح MetaAPI غير صالح — تم رفض الاتصال',

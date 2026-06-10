@@ -107,10 +107,37 @@ export class MT5Adapter implements IExchangeAdapter {
   // ── IExchangeAdapter Implementation ──
 
   async placeOrder(order: UnifiedOrder): Promise<ExecutionResult> {
-    this.logger.log(`📊 MT5 placing order: ${order.side} ${order.quantity} ${order.symbol}`);
+    this.logger.log(`📊 MT5 placing order: ${order.side} ${order.type} ${order.quantity} ${order.symbol}`);
 
     try {
       const connection = await this._getConnection();
+
+      // Step 0 (V4): Margin level check — reject if margin is dangerously low
+      try {
+        const accountInfo = await connection.getAccountInformation();
+        const equity = accountInfo.equity || 0;
+        const margin = accountInfo.margin || 0;
+        if (margin > 0) {
+          const marginLevel = (equity / margin) * 100;
+          const stopOutLevel = accountInfo.marginCallLevel || 100;
+          // Reject if margin level is at or below the stop-out level + 20% safety buffer
+          if (marginLevel <= stopOutLevel * 1.2) {
+            this.logger.error(
+              `📊 MT5 order REJECTED — margin level too low: ${marginLevel.toFixed(1)}% ` +
+              `(stop-out at ${stopOutLevel}%, safety buffer requires >${(stopOutLevel * 1.2).toFixed(0)}%). ` +
+              `equity=$${equity}, margin=$${margin}`
+            );
+            return {
+              success: false,
+              error: `مستوى الهامش (${marginLevel.toFixed(1)}%) منخفض جداً — يتجاوز الحد الأدنى الآمن (${(stopOutLevel * 1.2).toFixed(0)}%). قد يقوم الوسيط بإغلاق مراكزك تلقائياً.`,
+              timestamp: new Date(),
+            };
+          }
+        }
+      } catch (marginErr: any) {
+        // If we can't check margin, proceed with caution (don't block all trading)
+        this.logger.warn(`📊 Could not check margin level before order: ${marginErr.message}`);
+      }
 
       // Step 1: Position size check — max 5% of equity
       const equity = await this._getEquity(connection);
@@ -137,19 +164,49 @@ export class MT5Adapter implements IExchangeAdapter {
       // Step 2: Convert symbol format
       const mt5Symbol = this._toMT5Symbol(order.symbol);
 
-      // Step 3: Execute order via MetaAPI
-      const actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL';
+      // Step 3: Determine MT5 action type based on order type
+      let actionType: string;
+      switch (order.type) {
+        case 'MARKET':
+          actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL';
+          break;
+        case 'LIMIT':
+          actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY_LIMIT' : 'ORDER_TYPE_SELL_LIMIT';
+          break;
+        case 'STOP':
+          actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY_STOP' : 'ORDER_TYPE_SELL_STOP';
+          break;
+        case 'STOP_LIMIT':
+          actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY_STOP_LIMIT' : 'ORDER_TYPE_SELL_STOP_LIMIT';
+          break;
+        default:
+          actionType = order.side === 'BUY' ? 'ORDER_TYPE_BUY' : 'ORDER_TYPE_SELL';
+      }
       const volume = this._normalizeVolume(order.quantity, mt5Symbol);
 
-      const result = await connection.createOrder({
+      // Build order payload with conditional fields based on order type
+      const orderPayload: Record<string, any> = {
         actionType,
         symbol: mt5Symbol,
         volume,
-        ...(order.type === 'LIMIT' && order.price ? { price: order.price } : {}),
-        ...(order.stopLoss ? { stopLoss: order.stopLoss } : {}),
-        ...(order.takeProfit ? { takeProfit: order.takeProfit } : {}),
         comment: `Roua-${order.idempotencyKey?.slice(0, 20) || Date.now()}`,
-      });
+      };
+
+      // LIMIT and STOP_LIMIT orders require a price (the limit price)
+      if ((order.type === 'LIMIT' || order.type === 'STOP_LIMIT') && order.price) {
+        orderPayload.price = order.price;
+      }
+
+      // STOP and STOP_LIMIT orders require a stopPrice (the trigger price)
+      if ((order.type === 'STOP' || order.type === 'STOP_LIMIT') && order.stopPrice) {
+        orderPayload.stopPrice = order.stopPrice;
+      }
+
+      // SL/TP apply to all order types
+      if (order.stopLoss) orderPayload.stopLoss = order.stopLoss;
+      if (order.takeProfit) orderPayload.takeProfit = order.takeProfit;
+
+      const result = await connection.createOrder(orderPayload);
 
       // Step 4: Map result to ExecutionResult
       const executionResult: ExecutionResult = {
@@ -302,9 +359,24 @@ export class MT5Adapter implements IExchangeAdapter {
       const freeMargin = accountInfo.freeMargin || Math.max(0, equity - margin);
       const currency = accountInfo.currency || 'USD';
 
+      // V4: Calculate margin level — critical metric for MT5
+      // Margin Level = (Equity / Used Margin) * 100
+      // MT5 auto-closes positions when margin level drops below margin call level (typically 50-100%)
+      const marginLevel = margin > 0 ? (equity / margin) * 100 : undefined;
+      const marginCallLevel = accountInfo.marginCallLevel || accountInfo.marginMode === 'flex' ? 50 : 100;
+
+      // V4: Warn if margin level is dangerously low
+      if (marginLevel && marginLevel < 150) {
+        this.logger.warn(
+          `📊 MT5 MARGIN WARNING: marginLevel=${marginLevel?.toFixed(1)}%, ` +
+          `equity=$${equity}, margin=$${margin}. ` +
+          `Broker may auto-close positions if margin level drops below ${marginCallLevel}%!`
+        );
+      }
+
       this.logger.debug(
         `📊 MT5 balance: balance=$${balance}, equity=$${equity}, ` +
-        `margin=$${margin}, free=$${freeMargin}, currency=${currency}`,
+        `margin=$${margin}, free=$${freeMargin}, marginLevel=${marginLevel?.toFixed(1) || 'N/A'}%, currency=${currency}`,
       );
 
       return {
@@ -319,6 +391,8 @@ export class MT5Adapter implements IExchangeAdapter {
             total: equity,
           },
         },
+        marginLevel,
+        marginCallLevel,
         timestamp: new Date(),
       };
     } catch (error: any) {
@@ -351,67 +425,93 @@ export class MT5Adapter implements IExchangeAdapter {
   /**
    * Get or create a MetaAPI connection for this account.
    * Connections are cached for 5 minutes to avoid repeated setup.
+   *
+   * V174 FIX: Uses metatraderAccountApi + getAccountsWithInfiniteScrollPagination()
+   * instead of the deprecated getAccount()/addAccount() methods.
+   * Also removed isConnected() calls — not available in SDK v29+.
    */
   private async _getConnection(): Promise<any> {
     const cacheKey = this.accountInfo.accountId;
     const cached = MT5Adapter.connectionCache.get(cacheKey);
 
-    // Check cache validity
+    // Check cache validity — V174: removed isConnected() call (doesn't exist in SDK v29+)
     if (cached && Date.now() - cached.connectedAt < MT5Adapter.CONNECTION_TTL_MS) {
-      try {
-        // Test connection is still alive
-        if (cached.connection.isConnected()) {
-          return cached.connection;
-        }
-      } catch {
-        // Connection dead — remove from cache and reconnect
-        MT5Adapter.connectionCache.delete(cacheKey);
-      }
+      // Return cached connection — trust the TTL
+      return cached.connection;
     }
 
     // Create new connection
     const metaApi = await this._getMetaApiInstance();
     const accountApi = metaApi.metatraderAccountApi;
 
-    // V172: Find existing account by login number first.
-    // getAccount() expects MetaAPI UUID, not login number.
-    let account;
+    // V174: Find existing account by login+server (NOT by UUID)
+    let account: any = null;
     try {
       const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
-      const existing = allAccounts.find((a: any) => String(a.login) === String(this.accountInfo.accountId));
-      if (existing) {
-        account = await accountApi.getAccount(existing.id);
-        this.logger.log(`📊 Found existing MT5 account ${this.accountInfo.accountId} (MetaAPI ID: ${existing.id})`);
+      account = allAccounts.find((a: any) =>
+        String(a.login) === String(this.accountInfo.accountId) && a.server === this.accountInfo.server
+      );
+      if (account) {
+        this.logger.log(
+          `📊 V174 Found MetaAPI account for login=${this.accountInfo.accountId}, ` +
+          `uuid=${account.id}, state=${account.state}`
+        );
       }
-    } catch (searchErr: any) {
-      this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
+    } catch (listErr: any) {
+      this.logger.warn(`📊 V174 Failed to list MetaAPI accounts: ${listErr.message?.substring(0, 100)}`);
     }
 
-    // If not found, create it
+    // If not found, try to create it
     if (!account) {
-      this.logger.log(`📊 Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
-      account = await accountApi.createAccount({
-        login: this.accountInfo.accountId,
-        password: this.accountInfo.password,
-        server: this.accountInfo.server,
-        type: this.accountInfo.isDemo ? 'demo' : 'live',
-        name: `Roua-${this.userId.slice(0, 8)}`,
-        platform: 'mt5',
-        magic: 123456,
-        quoteStreamingIntervalSeconds: 2,
-        reliability: 'regular',
-      });
+      this.logger.log(`📊 V174 Registering MT5 account ${this.accountInfo.accountId}/${this.accountInfo.server} with MetaAPI...`);
+      try {
+        account = await accountApi.createAccount({
+          login: this.accountInfo.accountId,
+          password: this.accountInfo.password,
+          server: this.accountInfo.server,
+          type: this.accountInfo.isDemo ? 'demo' : 'live',
+          name: `Roua-${this.userId.slice(0, 8)}`,
+          platform: 'mt5',
+          magic: 123456,
+          quoteStreamingIntervalSeconds: 2.5,
+          reliability: 'regular',
+        });
 
-      // Wait for account to be deployed (max 60 seconds)
-      this.logger.log(`📊 Waiting for MT5 account deployment...`);
-      await account.waitDeployed(60000);
+        // Wait for account to be deployed (max 60 seconds)
+        this.logger.log(`📊 V174 Waiting for MT5 account deployment...`);
+        await account.waitDeployed(60000);
+      } catch (regErr: any) {
+        const msg = regErr.message || '';
+        if (msg.includes('already exists')) {
+          // Race condition — list again
+          try {
+            const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+            account = allAccounts.find((a: any) =>
+              String(a.login) === String(this.accountInfo.accountId) && a.server === this.accountInfo.server
+            );
+          } catch { /* ignore */ }
+        }
+        if (!account) {
+          throw new Error(`فشل تسجيل حساب MT5 على MetaAPI: ${msg.substring(0, 100)}`);
+        }
+      }
     }
 
-    // Connect to the account
+    if (!account) {
+      throw new Error(`فشل العثور على حساب MT5 ${this.accountInfo.accountId} على MetaAPI`);
+    }
+
+    // V174 FIX: Removed isConnected() check — call connect() directly.
+    // If already connected, connect() is a no-op or throws "already connected" which we catch.
     const connection = account.getRPCConnection();
-    if (!connection.isConnected()) {
+    try {
       await connection.connect();
       await connection.waitSynchronized();
+    } catch (connErr: any) {
+      const cmsg = connErr.message || '';
+      if (!cmsg.includes('already connected') && !cmsg.includes('already synchronized')) {
+        this.logger.warn(`📊 V174 Connection issue: ${cmsg.substring(0, 100)}`);
+      }
     }
 
     // Cache the connection
@@ -426,7 +526,7 @@ export class MT5Adapter implements IExchangeAdapter {
     // Cleanup old connections
     this._cleanupStaleConnections();
 
-    this.logger.log(`📊 MT5 connected: account=${this.accountInfo.accountId}, demo=${this.accountInfo.isDemo}`);
+    this.logger.log(`📊 V174 MT5 connected: account=${this.accountInfo.accountId}, demo=${this.accountInfo.isDemo}`);
 
     return connection;
   }

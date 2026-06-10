@@ -43,6 +43,15 @@ const DEFAULT_AGENT_EXECUTOR_CONFIG = {
   agentAnalysisIntervalMin: '30',
 }
 
+const DEFAULT_COUNCIL_CONFIG = {
+  consensusThreshold: '55',
+  minBriefConfidence: '50',
+  dailyCostCapUsd: '50',
+  executorIntervalMin: '15',
+  agentIntervalMin: '30',
+  maxPairsPerSession: '7',
+}
+
 const DEFAULT_PLATFORM_CONFIG = {
   maintenanceMode: false,
   registrationOpen: true,
@@ -60,6 +69,7 @@ export async function GET(req: NextRequest) {
     botConfig: DEFAULT_BOT_CONFIG,
     riskConfig: DEFAULT_RISK_CONFIG,
     agentExecutorConfig: DEFAULT_AGENT_EXECUTOR_CONFIG,
+    councilConfig: DEFAULT_COUNCIL_CONFIG,
     platformConfig: DEFAULT_PLATFORM_CONFIG,
     apiKeys: [],
     error: 'قاعدة البيانات غير متاحة',
@@ -73,7 +83,7 @@ export async function GET(req: NextRequest) {
 
     // V188: Only fetch the config keys we need instead of ALL settings
     const settings = await db.setting.findMany({
-      where: { key: { in: ['botConfig', 'riskConfig', 'agentExecutorConfig', 'platformConfig'] } },
+      where: { key: { in: ['botConfig', 'riskConfig', 'agentExecutorConfig', 'councilConfig', 'platformConfig'] } },
     })
 
     const settingsMap: Record<string, any> = {}
@@ -154,6 +164,7 @@ export async function GET(req: NextRequest) {
       botConfig: settingsMap.botConfig || DEFAULT_BOT_CONFIG,
       riskConfig: settingsMap.riskConfig || DEFAULT_RISK_CONFIG,
       agentExecutorConfig: settingsMap.agentExecutorConfig || DEFAULT_AGENT_EXECUTOR_CONFIG,
+      councilConfig: settingsMap.councilConfig || DEFAULT_COUNCIL_CONFIG,
       platformConfig: settingsMap.platformConfig || DEFAULT_PLATFORM_CONFIG,
       apiKeys,
     })
@@ -180,7 +191,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { botConfig, riskConfig, agentExecutorConfig, platformConfig } = body
+    const { botConfig, riskConfig, agentExecutorConfig, councilConfig, platformConfig } = body
 
     // V188: Validate each config group before saving
     const validationErrors: string[] = []
@@ -205,6 +216,11 @@ export async function POST(req: NextRequest) {
       const result = validateAdminConfig('platformConfig', platformConfig)
       if (!result.valid) validationErrors.push(...result.errors)
       sanitizedConfigs.platformConfig = { ...platformConfig, ...result.sanitized }
+    }
+    if (councilConfig) {
+      const result = validateAdminConfig('councilConfig', councilConfig)
+      if (!result.valid) validationErrors.push(...result.errors)
+      sanitizedConfigs.councilConfig = { ...councilConfig, ...result.sanitized }
     }
 
     if (validationErrors.length > 0) {
@@ -241,6 +257,7 @@ export async function POST(req: NextRequest) {
     const sRiskConfig = sanitizedConfigs.riskConfig || riskConfig
     const sPlatformConfig = sanitizedConfigs.platformConfig || platformConfig
     const sAgentExecutorConfig = sanitizedConfigs.agentExecutorConfig || agentExecutorConfig
+    const sCouncilConfig = sanitizedConfigs.councilConfig || councilConfig
 
     if (sBotConfig) {
       upserts.push(
@@ -282,6 +299,16 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    if (sCouncilConfig) {
+      upserts.push(
+        db.setting.upsert({
+          where: { key: 'councilConfig' },
+          update: { value: JSON.stringify(sCouncilConfig) },
+          create: { key: 'councilConfig', value: JSON.stringify(sCouncilConfig) },
+        })
+      )
+    }
+
     if (upserts.length === 0) {
       return NextResponse.json({ error: 'لم يتم توفير أي إعدادات للحفظ' }, { status: 400 })
     }
@@ -292,6 +319,7 @@ export async function POST(req: NextRequest) {
       botConfig: !!botConfig,
       riskConfig: !!riskConfig,
       agentExecutorConfig: !!agentExecutorConfig,
+      councilConfig: !!councilConfig,
       platformConfig: !!platformConfig,
     })
 

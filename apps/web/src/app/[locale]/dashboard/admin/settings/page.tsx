@@ -20,6 +20,7 @@ import {
   X as XIcon,
   Plus,
   Loader2,
+  Brain,
 } from 'lucide-react'
 import { COLORS, CARD_STYLE } from '@/lib/admin-ui'
 import { useScopedStyle } from '@/hooks/useScopedStyle'
@@ -68,6 +69,15 @@ interface PlatformConfig {
   sessionTimeout: string
 }
 
+interface CouncilConfig {
+  consensusThreshold: string
+  minBriefConfidence: string
+  dailyCostCapUsd: string
+  executorIntervalMin: string
+  agentIntervalMin: string
+  maxPairsPerSession: string
+}
+
 const DEFAULT_BOT_CONFIG: BotConfig = {
   autoTrading: false,
   maxPositionSize: '10000',
@@ -101,6 +111,15 @@ const DEFAULT_PLATFORM_CONFIG: PlatformConfig = {
   notificationsEnabled: true,
   autoLogout: '30',
   sessionTimeout: '24',
+}
+
+const DEFAULT_COUNCIL_CONFIG: CouncilConfig = {
+  consensusThreshold: '55',
+  minBriefConfidence: '50',
+  dailyCostCapUsd: '50',
+  executorIntervalMin: '15',
+  agentIntervalMin: '30',
+  maxPairsPerSession: '7',
 }
 
 export default function AdminSettingsPage() {
@@ -137,6 +156,9 @@ export default function AdminSettingsPage() {
   // Platform Settings
   const [platformConfig, setPlatformConfig] = useState<PlatformConfig>(DEFAULT_PLATFORM_CONFIG)
 
+  // Council Config
+  const [councilConfig, setCouncilConfig] = useState<CouncilConfig>(DEFAULT_COUNCIL_CONFIG)
+
   // Fetch settings from API on load
   const fetchSettings = useCallback(async () => {
     setLoading(true)
@@ -159,6 +181,7 @@ export default function AdminSettingsPage() {
         if (data.botConfig) setBotConfig(data.botConfig)
         if (data.riskConfig) setRiskConfig(data.riskConfig)
         if (data.agentExecutorConfig) setAgentExecutorConfig(data.agentExecutorConfig)
+        if (data.councilConfig) setCouncilConfig(data.councilConfig)
         if (data.platformConfig) setPlatformConfig(data.platformConfig)
         if (data.apiKeys && data.apiKeys.length > 0) {
           setApiKeys(data.apiKeys.map((k: any) => ({
@@ -222,7 +245,7 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ botConfig, riskConfig: finalRiskConfig, agentExecutorConfig, platformConfig }),
+        body: JSON.stringify({ botConfig, riskConfig: finalRiskConfig, agentExecutorConfig, councilConfig, platformConfig }),
       })
 
       // Check for auth errors first
@@ -690,6 +713,62 @@ export default function AdminSettingsPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* Council Settings — V190 */}
+          <div style={{ ...CARD_STYLE, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Brain size={14} color={COLORS.purple} />
+              <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, fontFamily: "'Cairo', sans-serif" }}>🏛️ إعدادات مجلس الذكاء</span>
+            </div>
+            <div style={{ fontSize: 10, color: COLORS.muted, fontFamily: "'Cairo', sans-serif", marginBottom: 14, lineHeight: 1.6 }}>
+              تحكم في معلمات مجلس الذكاء: عتبة الإجماع، حد الثقة، تكلفة AI، وتردد الجلسات.
+              <br />
+              <span style={{ color: COLORS.amber }}>ملاحظة:</span> التغييرات تُطبق على الجلسة القادمة للمجلس.
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {[
+                { key: 'consensusThreshold', label: 'عتبة الإجماع (%)', min: 30, max: 90 },
+                { key: 'minBriefConfidence', label: 'الحد الأدنى لثقة البريف (%)', min: 20, max: 90 },
+                { key: 'dailyCostCapUsd', label: 'الحد اليومي لتكلفة AI ($)', min: 5, max: 200 },
+                { key: 'executorIntervalMin', label: 'فاصل جلسة المنفذ (دقيقة)', min: 5, max: 60 },
+                { key: 'agentIntervalMin', label: 'فاصل جلسة الوكيل (دقيقة)', min: 10, max: 120 },
+                { key: 'maxPairsPerSession', label: 'الحد الأقصى للأزواج لكل جلسة', min: 3, max: 30 },
+              ].map(field => (
+                <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <label style={{ fontSize: 11, color: COLORS.muted, fontFamily: "'Cairo', sans-serif" }}>{field.label}</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input
+                      type="range"
+                      min={field.min}
+                      max={field.max}
+                      step={field.key === 'dailyCostCapUsd' ? 1 : 1}
+                      value={councilConfig[field.key as keyof typeof councilConfig]}
+                      onChange={e => setCouncilConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      style={{ flex: 1, accentColor: '#a855f7' }}
+                    />
+                    <input
+                      type="number"
+                      min={field.min}
+                      max={field.max}
+                      step={field.key === 'dailyCostCapUsd' ? 1 : 1}
+                      value={councilConfig[field.key as keyof typeof councilConfig]}
+                      onChange={e => setCouncilConfig(prev => ({ ...prev, [field.key]: e.target.value }))}
+                      style={{
+                        width: 60, padding: '6px 8px', borderRadius: 6,
+                        background: 'rgba(255,255,255,0.03)',
+                        border: `1px solid ${COLORS.border}`,
+                        color: COLORS.text, fontSize: 11,
+                        fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', textAlign: 'center',
+                      }}
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

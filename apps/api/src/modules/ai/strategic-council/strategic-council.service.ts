@@ -69,6 +69,19 @@ export class StrategicCouncilService {
    */
   private readonly DAILY_COST_CAP_USD = 50.00;
 
+  /** V190: Cached council config from DB with 60-second TTL */
+  private _councilConfigCache: {
+    data: {
+      consensusThreshold: number;
+      minBriefConfidence: number;
+      dailyCostCapUsd: number;
+      executorIntervalMin: number;
+      agentIntervalMin: number;
+      maxPairsPerSession: number;
+    } | null;
+    expiresAt: number;
+  } | null = null;
+
   /** Redis keys */
   private readonly REDIS_DAILY_COST_KEY = 'strategic-council:daily_cost';
   private readonly REDIS_DAILY_COST_DATE_KEY = 'strategic-council:daily_cost_date';
@@ -103,6 +116,60 @@ export class StrategicCouncilService {
 
   // REMOVED: _ensureTradingBriefTable() — all DDL removed from application code.
   // Schema changes must ONLY be done via `prisma migrate deploy` in start.sh.
+
+  /**
+   * V190: Read council configuration from DB (admin settings).
+   * Falls back to hardcoded constants if DB is unavailable.
+   * Cached with 60-second TTL to avoid DB queries every tick.
+   */
+  private async _getCouncilConfig(): Promise<{
+    consensusThreshold: number;
+    minBriefConfidence: number;
+    dailyCostCapUsd: number;
+    executorIntervalMin: number;
+    agentIntervalMin: number;
+    maxPairsPerSession: number;
+  }> {
+    // Return cached config if still valid
+    if (this._councilConfigCache && Date.now() < this._councilConfigCache.expiresAt) {
+      return this._councilConfigCache.data!;
+    }
+
+    const defaults = {
+      consensusThreshold: MIN_CONSENSUS_SCORE,   // 55
+      minBriefConfidence: MIN_BRIEF_CONFIDENCE,  // 50
+      dailyCostCapUsd: this.DAILY_COST_CAP_USD,  // 50
+      executorIntervalMin: 15,
+      agentIntervalMin: 30,
+      maxPairsPerSession: BINANCE_SUPPORTED_PAIRS.length, // 7
+    };
+
+    try {
+      const setting = await this.prisma.setting.findUnique({
+        where: { key: 'councilConfig' },
+      });
+      if (!setting) {
+        this._councilConfigCache = { data: defaults, expiresAt: Date.now() + 60000 };
+        return defaults;
+      }
+
+      const config = typeof setting.value === 'string' ? JSON.parse(setting.value) : setting.value;
+      const parsed = {
+        consensusThreshold: Math.max(30, Math.min(90, parseInt(config.consensusThreshold, 10) || defaults.consensusThreshold)),
+        minBriefConfidence: Math.max(20, Math.min(90, parseInt(config.minBriefConfidence, 10) || defaults.minBriefConfidence)),
+        dailyCostCapUsd: Math.max(5, Math.min(200, parseFloat(config.dailyCostCapUsd) || defaults.dailyCostCapUsd)),
+        executorIntervalMin: Math.max(5, Math.min(60, parseInt(config.executorIntervalMin, 10) || defaults.executorIntervalMin)),
+        agentIntervalMin: Math.max(10, Math.min(120, parseInt(config.agentIntervalMin, 10) || defaults.agentIntervalMin)),
+        maxPairsPerSession: Math.max(3, Math.min(30, parseInt(config.maxPairsPerSession, 10) || defaults.maxPairsPerSession)),
+      };
+
+      this._councilConfigCache = { data: parsed, expiresAt: Date.now() + 60000 };
+      return parsed;
+    } catch {
+      this._councilConfigCache = { data: defaults, expiresAt: Date.now() + 60000 };
+      return defaults;
+    }
+  }
 
   /**
    * FIX: Trigger an initial council session after startup — but ONLY after
@@ -230,8 +297,10 @@ export class StrategicCouncilService {
       // All current users trade on Binance (binance_test). Future multi-
       // exchange support can filter per-user based on their exchange.
       // ═══════════════════════════════════════════════════════════════════
-      const agentPairs = BINANCE_SUPPORTED_PAIRS; // V144: Use ALL pairs (was slice(0, 5))
-      this.logger.log(`🏛️ Agent Council: analyzing ${agentPairs.length} crypto pairs: ${agentPairs.join(', ')}`);
+      // V190: Read maxPairsPerSession from DB admin settings
+      const councilCfg = await this._getCouncilConfig();
+      const agentPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
+      this.logger.log(`🏛️ Agent Council: analyzing ${agentPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${agentPairs.join(', ')}`);
 
       // V132: Parallel processing — process all pairs concurrently instead of sequentially.
       // Previously, pairs were processed one-by-one, taking 20-30 minutes for 15 pairs.
@@ -374,9 +443,12 @@ export class StrategicCouncilService {
       this.logger.log('🏛️ Strategic Council convening hourly session...');
 
       // Check daily cost cap
+      // V190: Read dailyCostCapUsd from DB admin settings
+      const councilCfg = await this._getCouncilConfig();
+      const dailyCostCap = councilCfg.dailyCostCapUsd;
       const todayCost = await this._getTodayCost();
-      if (todayCost >= this.DAILY_COST_CAP_USD) {
-        this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${this.DAILY_COST_CAP_USD}) — skipping session`);
+      if (todayCost >= dailyCostCap) {
+        this.logger.warn(`💰 Daily cost cap reached ($${todayCost.toFixed(2)}/$${dailyCostCap}) — skipping session`);
         return result;
       }
 
@@ -392,8 +464,9 @@ export class StrategicCouncilService {
       // executor brief generation. Non-crypto pairs can be analyzed for
       // market context in the future when multi-exchange support is added.
       // ═══════════════════════════════════════════════════════════════════
-      const executorPairs = BINANCE_SUPPORTED_PAIRS;
-      this.logger.log(`🏛️ Executor Council: analyzing ${executorPairs.length} crypto pairs: ${executorPairs.join(', ')}`);
+      // V190: Read maxPairsPerSession from DB admin settings
+      const executorPairs = BINANCE_SUPPORTED_PAIRS.slice(0, councilCfg.maxPairsPerSession);
+      this.logger.log(`🏛️ Executor Council: analyzing ${executorPairs.length} crypto pairs (maxPairs=${councilCfg.maxPairsPerSession}): ${executorPairs.join(', ')}`);
 
       // V132: Parallel processing — process all pairs concurrently instead of sequentially.
       // Previously: 15 pairs × 3 timeframes × 5-10s AI call = 225-450s (4-8 minutes)
@@ -403,7 +476,7 @@ export class StrategicCouncilService {
         async (pair) => {
           // Check cost before each pair
           const cost = await this._getTodayCost();
-          if (cost >= this.DAILY_COST_CAP_USD) {
+          if (cost >= dailyCostCap) {
             this.logger.warn('💰 Daily cost cap reached — stopping session early');
             return { analyzed: false, error: 'cost_cap' };
           }
@@ -1385,9 +1458,11 @@ export class StrategicCouncilService {
     // FIX: Lowered threshold from 15 to MIN_CONSENSUS_SCORE (40).
     // The old 15% threshold was arbitrary and didn't match MIN_CONSENSUS_SCORE.
     // Now uses the same constant consistently.
-    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < MIN_CONSENSUS_SCORE) {
-      this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping (news-adjusted from original AI score)`);
-      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${MIN_CONSENSUS_SCORE}%) [news-adjusted]`);
+    // V190: Read consensusThreshold from DB admin settings (cached).
+    const councilCfg = await this._getCouncilConfig();
+    if (!isAIFallback && consensus.recommendation !== 'HOLD' && consensus.consensusScore < councilCfg.consensusThreshold) {
+      this.logger.debug(`🏛️ Consensus too low (${consensus.consensusScore}%) for ${pair} ${timeframe} — skipping (threshold=${councilCfg.consensusThreshold}%, news-adjusted)`);
+      result.diagnostics?.push(`${pair} ${timeframe}: SKIPPED — consensus too low (${consensus.consensusScore}% < ${councilCfg.consensusThreshold}%) [news-adjusted]`);
       if (existingBrief) {
         await this.prisma.tradingBrief.update({
           where: { id: existingBrief.id },
@@ -1732,7 +1807,7 @@ export class StrategicCouncilService {
       // This ensures: (1) same pair gets consistent direction, (2) direction changes hourly
       const hash = this._deterministicHash(pair + new Date().getUTCHours().toString());
       const fallbackDir: 'BUY' | 'SELL' = hash % 2 === 0 ? 'BUY' : 'SELL';
-      const fallbackConfidence = 58; // V175: رُفع ليتجاوز MIN_CONSENSUS_SCORE=55
+      const fallbackConfidence = 58; // V175: رُفع ليتجاوز default MIN_CONSENSUS_SCORE=55
 
       return {
         recommendation: fallbackDir,

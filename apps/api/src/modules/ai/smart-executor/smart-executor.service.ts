@@ -1890,6 +1890,100 @@ export class SmartExecutorService implements OnModuleDestroy {
       this.logger.warn(`V176 Cooldown check failed: ${cooldownErr.message} — continuing without cooldown check`);
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // V190: PAIR FILTER — Respect user's whitelist/blacklist preferences.
+    // Users can specify which pairs they want to trade (whitelist) or
+    // exclude (blacklist) via their settings page.
+    // ═══════════════════════════════════════════════════════════════════
+    try {
+      const [pairFilterModeSetting, pairWhitelistSetting, pairBlacklistSetting] = await Promise.all([
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:pairFilterMode` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:pairWhitelist` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:pairBlacklist` } }).catch(() => null),
+      ]);
+
+      const pairFilterMode = pairFilterModeSetting?.value || 'all';
+      const pairWhitelist = pairWhitelistSetting?.value ? pairWhitelistSetting.value.split('\n').map((p: string) => p.trim()).filter(Boolean) : [];
+      const pairBlacklist = pairBlacklistSetting?.value ? pairBlacklistSetting.value.split('\n').map((p: string) => p.trim()).filter(Boolean) : [];
+
+      if (pairFilterMode === 'whitelist' && pairWhitelist.length > 0) {
+        const before = briefs.length;
+        briefs = briefs.filter(b => pairWhitelist.includes(b.pair));
+        if (briefs.length < before) {
+          this.logger.debug(`⚔️ V190 PAIR WHITELIST: User ${userId} — filtered ${before - briefs.length} briefs not in whitelist (${pairWhitelist.join(', ')}). ${briefs.length} remaining.`);
+        }
+      } else if (pairFilterMode === 'blacklist' && pairBlacklist.length > 0) {
+        const before = briefs.length;
+        briefs = briefs.filter(b => !pairBlacklist.includes(b.pair));
+        if (briefs.length < before) {
+          this.logger.debug(`⚔️ V190 PAIR BLACKLIST: User ${userId} — filtered ${before - briefs.length} blacklisted briefs (${pairBlacklist.join(', ')}). ${briefs.length} remaining.`);
+        }
+      }
+
+      if (briefs.length === 0) {
+        this.logger.debug(`⚔️ V190: All briefs filtered by pair preferences for user ${userId} — skipping cycle`);
+        return;
+      }
+    } catch (pairFilterErr: any) {
+      this.logger.debug(`⚔️ V190 Pair filter check failed: ${pairFilterErr.message} — continuing without filter`);
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // V190: TRADING SCHEDULE — Respect user's trading hours.
+    // Users can specify allowed trading hours (UTC) and days.
+    // Outside these hours, no NEW positions are opened (existing
+    // positions are NOT auto-closed).
+    // ═══════════════════════════════════════════════════════════════════
+    try {
+      const [scheduleEnabledSetting, scheduleStartSetting, scheduleEndSetting, scheduleDaysSetting] = await Promise.all([
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:tradingScheduleEnabled` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:tradingScheduleStart` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:tradingScheduleEnd` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:tradingScheduleDays` } }).catch(() => null),
+      ]);
+
+      const scheduleEnabled = scheduleEnabledSetting?.value === 'true';
+      if (scheduleEnabled) {
+        const now = new Date();
+        const utcHour = now.getUTCHours();
+        const utcMin = now.getUTCMinutes();
+        const currentMinutes = utcHour * 60 + utcMin;
+
+        // Parse start/end times (format: "HH:MM")
+        const startStr = scheduleStartSetting?.value || '09:00';
+        const endStr = scheduleEndSetting?.value || '17:00';
+        const [startH, startM] = startStr.split(':').map(Number);
+        const [endH, endM] = endStr.split(':').map(Number);
+        const startMinutes = (startH || 0) * 60 + (startM || 0);
+        const endMinutes = (endH || 0) * 60 + (endM || 0);
+
+        // Check time window
+        let withinTimeWindow = true;
+        if (startMinutes <= endMinutes) {
+          // Normal range (e.g., 09:00-17:00)
+          withinTimeWindow = currentMinutes >= startMinutes && currentMinutes < endMinutes;
+        } else {
+          // Overnight range (e.g., 22:00-06:00)
+          withinTimeWindow = currentMinutes >= startMinutes || currentMinutes < endMinutes;
+        }
+
+        // Check allowed days (format: "1,2,3,4,5" where 0=Sun, 1=Mon, ..., 6=Sat)
+        const allowedDays = (scheduleDaysSetting?.value || '1,2,3,4,5').split(',').map(Number).filter(d => !isNaN(d));
+        const currentDay = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+        const withinDays = allowedDays.includes(currentDay);
+
+        if (!withinTimeWindow || !withinDays) {
+          this.logger.debug(
+            `⚔️ V190 SCHEDULE: User ${userId} outside trading hours (UTC ${startStr}-${endStr}, days: ${allowedDays.join(',')}) ` +
+            `— now is ${utcHour}:${String(utcMin).padStart(2, '0')} UTC, day=${currentDay}. Skipping new trades.`
+          );
+          return;
+        }
+      }
+    } catch (scheduleErr: any) {
+      this.logger.debug(`⚔️ V190 Schedule check failed: ${scheduleErr.message} — continuing without schedule`);
+    }
+
     if (openPositionsCount >= executorMaxPositions && !isSimulated) {
       this.logger.debug(
         `⚔️ User ${userId} at EXECUTOR max positions (${openPositionsCount}/${executorMaxPositions}) — skipping all briefs`,

@@ -189,6 +189,11 @@ export class NotificationService {
         this.logger.debug(`Notification persisted for offline user ${userId}: [${type}] ${title}`);
       }
 
+      // V190: Send to external channels (Telegram/Discord) if user has them configured
+      this._sendToExternalChannels(userId, { type, priority, title, body, pair, source }).catch(() => {
+        // Non-blocking — don't fail the notification if external channels fail
+      });
+
       // Auto-execute logic: if this is a signal and user has auto-execute enabled
       if (type === 'SIGNAL_GENERATED' && data.signalId && data.action && data.action !== 'WAIT') {
         await this._checkAutoExecute(userId, notification?.id, data, prefs);
@@ -409,6 +414,94 @@ export class NotificationService {
         NotificationService._tablesExist = false;
       }
       return { count: 0 };
+    }
+  }
+
+  // ── Private: External Channels (Telegram/Discord) ──
+
+  /**
+   * V190: Send notification to user's external channels (Telegram/Discord).
+   * Reads the user's channel config from the Setting table and sends
+   * the notification via HTTP POST. Non-blocking — failures are logged
+   * but don't affect the core notification flow.
+   */
+  private async _sendToExternalChannels(
+    userId: string,
+    notif: { type: string; priority?: string; title: string; body: string; pair?: string; source?: string },
+  ): Promise<void> {
+    try {
+      // Read user's external notification settings from DB
+      const [enabledSetting, telegramBotToken, telegramChatId, discordWebhookUrl] = await Promise.all([
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:externalNotificationsEnabled` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:telegramBotToken` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:telegramChatId` } }).catch(() => null),
+        this.prisma.setting.findUnique({ where: { key: `user:${userId}:discordWebhookUrl` } }).catch(() => null),
+      ]);
+
+      // Check if external notifications are enabled
+      if (enabledSetting?.value !== 'true') return;
+
+      const priorityEmoji: Record<string, string> = {
+        URGENT: '🔴',
+        HIGH: '🟠',
+        MEDIUM: '🟡',
+        LOW: '🟢',
+      };
+      const emoji = priorityEmoji[notif.priority || 'MEDIUM'] || '🔔';
+      const text = `${emoji} **${notif.title}**\n${notif.body}${notif.pair ? `\n\n💱 الزوج: ${notif.pair}` : ''}${notif.source ? `\n📍 المصدر: ${notif.source}` : ''}`;
+
+      // Send to Telegram
+      const botToken = telegramBotToken?.value;
+      const chatId = telegramChatId?.value;
+      if (botToken && chatId) {
+        try {
+          const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+          const response = await fetch(telegramUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chat_id: chatId,
+              text,
+              parse_mode: 'Markdown',
+            }),
+            signal: AbortSignal.timeout(5000), // 5-second timeout
+          });
+          if (response.ok) {
+            this.logger.debug(`📱 Telegram notification sent to user ${userId}`);
+          } else {
+            const errText = await response.text().catch(() => 'unknown error');
+            this.logger.warn(`📱 Telegram API error for user ${userId}: ${response.status} ${errText}`);
+          }
+        } catch (tgErr: any) {
+          this.logger.warn(`📱 Telegram send failed for user ${userId}: ${tgErr.message}`);
+        }
+      }
+
+      // Send to Discord
+      const webhookUrl = discordWebhookUrl?.value;
+      if (webhookUrl) {
+        try {
+          const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              content: text,
+              username: 'Roua Trading',
+            }),
+            signal: AbortSignal.timeout(5000), // 5-second timeout
+          });
+          if (response.ok) {
+            this.logger.debug(`💬 Discord notification sent to user ${userId}`);
+          } else {
+            const errText = await response.text().catch(() => 'unknown error');
+            this.logger.warn(`💬 Discord webhook error for user ${userId}: ${response.status} ${errText}`);
+          }
+        } catch (dcErr: any) {
+          this.logger.warn(`💬 Discord send failed for user ${userId}: ${dcErr.message}`);
+        }
+      }
+    } catch (err: any) {
+      this.logger.debug(`External channel send failed for user ${userId}: ${err.message}`);
     }
   }
 

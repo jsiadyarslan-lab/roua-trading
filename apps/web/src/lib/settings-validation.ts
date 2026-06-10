@@ -47,6 +47,28 @@ export const ALLOWED_USER_SETTINGS_KEYS = new Set([
   'language',
   'fontSize',
   'tradingMode',
+  // Feature 2: Advanced Strategy Settings
+  'scalpingTimeframe',
+  'scalpingTakeProfitPips',
+  'scalpingStopLossPips',
+  'scalpingMaxSpread',
+  'gridLevels',
+  // Feature 3: Telegram/Discord Notifications
+  'telegramBotToken',
+  'telegramChatId',
+  'discordWebhookUrl',
+  'externalNotificationsEnabled',
+  'doNotDisturb',
+  'emergencyOnly',
+  // Feature 4: Pair Whitelist/Blacklist
+  'pairFilterMode',
+  'pairWhitelist',
+  'pairBlacklist',
+  // Feature 5: Trading Schedule
+  'tradingScheduleEnabled',
+  'tradingScheduleStart',
+  'tradingScheduleEnd',
+  'tradingScheduleDays',
 ])
 
 // ── Value range constraints ──
@@ -59,6 +81,11 @@ export const SETTINGS_RANGES = {
   aiConfidence: { min: 50, max: 99, type: 'integer' as const },
   orderSize: { min: 1, max: 100, type: 'number' as const },
   fontSize: { min: 12, max: 24, type: 'integer' as const },
+  // Feature 2: Advanced Strategy Settings
+  scalpingTakeProfitPips: { min: 5, max: 50, type: 'integer' as const },
+  scalpingStopLossPips: { min: 3, max: 30, type: 'integer' as const },
+  scalpingMaxSpread: { min: 1, max: 10, type: 'number' as const },
+  gridLevels: { min: 3, max: 15, type: 'integer' as const },
 } as const
 
 // ── Allowed admin config keys (whitelist for /api/admin/settings POST) ──
@@ -66,6 +93,7 @@ export const ALLOWED_ADMIN_CONFIG_KEYS = new Set([
   'botConfig',
   'riskConfig',
   'agentExecutorConfig',
+  'councilConfig',
   'platformConfig',
 ])
 
@@ -98,6 +126,16 @@ export const AGENT_EXECUTOR_CONFIG_RANGES = {
   executorRiskPerTrade: { min: 0.1, max: 10, type: 'number' as const },
   executorTickIntervalSec: { min: 5, max: 300, type: 'integer' as const },
   agentAnalysisIntervalMin: { min: 5, max: 1440, type: 'integer' as const },
+}
+
+// ── Council config field constraints ──
+export const COUNCIL_CONFIG_RANGES = {
+  consensusThreshold: { min: 30, max: 90, type: 'integer' as const },
+  minBriefConfidence: { min: 20, max: 90, type: 'integer' as const },
+  dailyCostCapUsd: { min: 5, max: 200, type: 'number' as const },
+  executorIntervalMin: { min: 5, max: 60, type: 'integer' as const },
+  agentIntervalMin: { min: 10, max: 120, type: 'integer' as const },
+  maxPairsPerSession: { min: 3, max: 30, type: 'integer' as const },
 }
 
 // ── Platform config field constraints ──
@@ -165,7 +203,9 @@ export function validateUserSetting(
       key === 'analyticsEnabled' || key === 'crashReports' || key === 'notificationsEnabled' ||
       key === 'soundEnabled' || key === 'browserNotifications' || key === 'botAlerts' ||
       key === 'aiAlerts' || key === 'scannerAlerts' || key === 'tradeAlerts' ||
-      key === 'autoExecute' || key === 'isDark') {
+      key === 'autoExecute' || key === 'isDark' ||
+      key === 'externalNotificationsEnabled' || key === 'doNotDisturb' ||
+      key === 'emergencyOnly' || key === 'tradingScheduleEnabled') {
     const bool = value === true || value === 'true' || value === false || value === 'false'
     if (!bool && typeof value !== 'boolean') {
       return { valid: false, error: `قيمة ${key} يجب أن تكون true أو false` }
@@ -192,9 +232,26 @@ export function validateUserSetting(
       return { valid: false, error: `وضع التداول يجب أن يكون: ${valid.join('، ')}` }
     }
   }
+  // Feature 2: scalpingTimeframe enum
+  if (key === 'scalpingTimeframe') {
+    const valid = ['1m', '5m', '15m']
+    if (!valid.includes(value)) {
+      return { valid: false, error: `إطار السكالبينغ يجب أن يكون: ${valid.join('، ')}` }
+    }
+  }
+  // Feature 4: pairFilterMode enum
+  if (key === 'pairFilterMode') {
+    const valid = ['all', 'whitelist', 'blacklist']
+    if (!valid.includes(value)) {
+      return { valid: false, error: `وضع التصفية يجب أن يكون: ${valid.join('، ')}` }
+    }
+  }
 
-  // String fields — sanitize
-  return { valid: true, sanitized: typeof value === 'string' ? value.substring(0, 255) : value }
+  // String fields — sanitize with appropriate length limits
+  const longerStringFields = new Set(['pairWhitelist', 'pairBlacklist'])
+  const maxLen = longerStringFields.has(key) ? 2048 : 512
+
+  return { valid: true, sanitized: typeof value === 'string' ? value.substring(0, maxLen) : value }
 }
 
 /**
@@ -216,6 +273,7 @@ export function validateAdminConfig(
   if (configKey === 'botConfig') ranges = BOT_CONFIG_RANGES
   else if (configKey === 'riskConfig') ranges = RISK_CONFIG_RANGES
   else if (configKey === 'agentExecutorConfig') ranges = AGENT_EXECUTOR_CONFIG_RANGES
+  else if (configKey === 'councilConfig') ranges = COUNCIL_CONFIG_RANGES
   else if (configKey === 'platformConfig') ranges = PLATFORM_CONFIG_RANGES
 
   for (const [field, value] of Object.entries(config)) {

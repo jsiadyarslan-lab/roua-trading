@@ -10,7 +10,7 @@ import {
   TrendingUp, Cpu, MessageSquare, Activity, Sliders,
   CheckCircle2, ExternalLink, LogOut, UserCircle, Monitor,
   Wifi, Trash2, Download, Upload, RefreshCw, CreditCard,
-  Crown, Star, Sparkles
+  Crown, Star, Sparkles, Send, Filter
 } from 'lucide-react'
 import { useNotificationStore } from '@/hooks/useNotificationStore'
 import { useAuthStore } from '@/lib/auth-store'
@@ -395,6 +395,32 @@ export default function SettingsPage() {
   const [aiAutoTrade, setAiAutoTrade] = useState(false)
   const [aiModel, setAiModel] = useState('balanced')
 
+  // Feature 2: Advanced Strategy Settings
+  const [scalpingTimeframe, setScalpingTimeframe] = useState('5m')
+  const [scalpingTakeProfitPips, setScalpingTakeProfitPips] = useState('15')
+  const [scalpingStopLossPips, setScalpingStopLossPips] = useState('10')
+  const [scalpingMaxSpread, setScalpingMaxSpread] = useState('3')
+  const [gridLevels, setGridLevels] = useState('5')
+
+  // Feature 3: Telegram/Discord Notifications
+  const [telegramBotToken, setTelegramBotToken] = useState('')
+  const [telegramChatId, setTelegramChatId] = useState('')
+  const [discordWebhookUrl, setDiscordWebhookUrl] = useState('')
+  const [externalNotificationsEnabled, setExternalNotificationsEnabled] = useState(false)
+  const [doNotDisturb, setDoNotDisturb] = useState(false)
+  const [emergencyOnly, setEmergencyOnly] = useState(false)
+
+  // Feature 4: Pair Whitelist/Blacklist
+  const [pairFilterMode, setPairFilterMode] = useState('all')
+  const [pairWhitelist, setPairWhitelist] = useState('')
+  const [pairBlacklist, setPairBlacklist] = useState('')
+
+  // Feature 5: Trading Schedule
+  const [tradingScheduleEnabled, setTradingScheduleEnabled] = useState(false)
+  const [tradingScheduleStart, setTradingScheduleStart] = useState('09:00')
+  const [tradingScheduleEnd, setTradingScheduleEnd] = useState('17:00')
+  const [tradingScheduleDays, setTradingScheduleDays] = useState('1,2,3,4,5')
+
   // Data & privacy
   const [analyticsEnabled, setAnalyticsEnabled] = useState(true)
   const [crashReports, setCrashReports] = useState(true)
@@ -507,6 +533,28 @@ export default function SettingsPage() {
           if (s.aiModel) setAiModel(s.aiModel)
           if (s.analyticsEnabled !== undefined) setAnalyticsEnabled(s.analyticsEnabled)
           if (s.crashReports !== undefined) setCrashReports(s.crashReports)
+          // Feature 2: Advanced Strategy Settings
+          if (s.scalpingTimeframe) setScalpingTimeframe(s.scalpingTimeframe)
+          if (s.scalpingTakeProfitPips) setScalpingTakeProfitPips(String(s.scalpingTakeProfitPips))
+          if (s.scalpingStopLossPips) setScalpingStopLossPips(String(s.scalpingStopLossPips))
+          if (s.scalpingMaxSpread) setScalpingMaxSpread(String(s.scalpingMaxSpread))
+          if (s.gridLevels) setGridLevels(String(s.gridLevels))
+          // Feature 3: Telegram/Discord
+          if (s.telegramBotToken) setTelegramBotToken(s.telegramBotToken)
+          if (s.telegramChatId) setTelegramChatId(s.telegramChatId)
+          if (s.discordWebhookUrl) setDiscordWebhookUrl(s.discordWebhookUrl)
+          if (s.externalNotificationsEnabled !== undefined) setExternalNotificationsEnabled(s.externalNotificationsEnabled)
+          if (s.doNotDisturb !== undefined) setDoNotDisturb(s.doNotDisturb)
+          if (s.emergencyOnly !== undefined) setEmergencyOnly(s.emergencyOnly)
+          // Feature 4: Pair Filter
+          if (s.pairFilterMode) setPairFilterMode(s.pairFilterMode)
+          if (s.pairWhitelist) setPairWhitelist(s.pairWhitelist)
+          if (s.pairBlacklist) setPairBlacklist(s.pairBlacklist)
+          // Feature 5: Trading Schedule
+          if (s.tradingScheduleEnabled !== undefined) setTradingScheduleEnabled(s.tradingScheduleEnabled)
+          if (s.tradingScheduleStart) setTradingScheduleStart(s.tradingScheduleStart)
+          if (s.tradingScheduleEnd) setTradingScheduleEnd(s.tradingScheduleEnd)
+          if (s.tradingScheduleDays) setTradingScheduleDays(s.tradingScheduleDays)
         }
         setSettingsLoaded(true)
       })
@@ -529,11 +577,19 @@ export default function SettingsPage() {
             aiConfidence, aiAutoTrade, aiModel,
             analyticsEnabled, crashReports,
             userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions,
+            // Feature 2: Advanced Strategy Settings
+            scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels,
+            // Feature 3: Telegram/Discord
+            telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly,
+            // Feature 4: Pair Filter
+            pairFilterMode, pairWhitelist, pairBlacklist,
+            // Feature 5: Trading Schedule
+            tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays,
           },
         }),
       }).catch(() => {})
     }, 2000) // Debounce: save 2s after last change
-  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions])
+  }, [settingsLoaded, orderSize, riskLevel, chartType, timeframe, confirmTrades, showPositions, autoStopLoss, trailingStop, aiConfidence, aiAutoTrade, aiModel, analyticsEnabled, crashReports, userStopLoss, userTakeProfit, userRiskPerTrade, userMaxDailyLoss, userMaxOpenPositions, scalpingTimeframe, scalpingTakeProfitPips, scalpingStopLossPips, scalpingMaxSpread, gridLevels, telegramBotToken, telegramChatId, discordWebhookUrl, externalNotificationsEnabled, doNotDisturb, emergencyOnly, pairFilterMode, pairWhitelist, pairBlacklist, tradingScheduleEnabled, tradingScheduleStart, tradingScheduleEnd, tradingScheduleDays])
 
   // Auto-save on any settings change
   useEffect(() => {
@@ -1308,10 +1364,194 @@ export default function SettingsPage() {
                 />
               </SettingRow>
             </SectionCard>
+
+            {/* Feature 4: Trading Pair Filter */}
+            <SectionCard
+              icon={<Filter size={18} color={T.green} />}
+              iconColor={T.green}
+              iconBg={`${T.green}14`}
+              title="تصفية أزواج التداول"
+              subtitle="حدد الأزواج التي تريد تداولها أو استبعادها"
+            >
+              <SettingRow
+                icon={<Filter size={13} color={T.green} />}
+                label="وضع التصفية"
+                description="تحديد طريقة تصفية الأزواج"
+              >
+                <SelectBox
+                  value={pairFilterMode}
+                  onChange={setPairFilterMode}
+                  options={[
+                    { value: 'all', label: 'الكل' },
+                    { value: 'whitelist', label: 'القائمة البيضاء فقط' },
+                    { value: 'blacklist', label: 'استبعاد القائمة السوداء' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              {pairFilterMode === 'whitelist' && (
+                <div style={{ padding: '8px 0' }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                    القائمة البيضاء (الأزواج المسموحة فقط)
+                  </div>
+                  <textarea
+                    value={pairWhitelist}
+                    onChange={e => setPairWhitelist(e.target.value)}
+                    placeholder={'BTC/USDT\nETH/USDT\nSOL/USDT'}
+                    rows={4}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                      outline: 'none', direction: 'ltr', resize: 'vertical',
+                      lineHeight: 1.6,
+                    }}
+                  />
+                </div>
+              )}
+              {pairFilterMode === 'blacklist' && (
+                <div style={{ padding: '8px 0' }}>
+                  <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 6 }}>
+                    القائمة السوداء (الأزواج المستبعدة)
+                  </div>
+                  <textarea
+                    value={pairBlacklist}
+                    onChange={e => setPairBlacklist(e.target.value)}
+                    placeholder={'DOGE/USDT\nXRP/USDT'}
+                    rows={4}
+                    style={{
+                      width: '100%', padding: '8px 12px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                      outline: 'none', direction: 'ltr', resize: 'vertical',
+                      lineHeight: 1.6,
+                    }}
+                  />
+                </div>
+              )}
+              {/* Info note */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 10,
+                background: 'rgba(0,255,163,0.04)', border: `1px solid rgba(0,255,163,0.10)`,
+                marginTop: 8,
+              }}>
+                <CheckCircle2 size={16} color={T.green} />
+                <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                  عند اختيار القائمة البيضاء، لن يتداول النظام إلا الأزواج المحددة. عند اختيار القائمة السوداء، يتم استبعاد الأزواج المحددة فقط.
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Feature 5: Trading Schedule */}
+            <SectionCard
+              icon={<Clock size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title="جدول التداول"
+              subtitle="حدد أوقات التداول المسموحة — خارج هذه الأوقات، لن يفتح النظام صفقات جديدة"
+            >
+              <SettingRow
+                icon={<Clock size={13} color={T.amber} />}
+                label="تفعيل جدول التداول"
+                description="تشغيل/إيقاف جدول التداول"
+              >
+                <Toggle checked={tradingScheduleEnabled} onChange={() => setTradingScheduleEnabled(!tradingScheduleEnabled)} color={T.amber} size="sm" />
+              </SettingRow>
+              {tradingScheduleEnabled && (
+                <>
+                  <SettingRow
+                    icon={<Zap size={13} color={T.green} />}
+                    label="بداية التداول (UTC)"
+                    description="وقت بداية التداول بالتوقيت العالمي"
+                  >
+                    <input
+                      type="time"
+                      value={tradingScheduleStart}
+                      onChange={e => setTradingScheduleStart(e.target.value)}
+                      style={{
+                        padding: '4px 8px', borderRadius: 8,
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr',
+                      }}
+                    />
+                  </SettingRow>
+                  <SettingRow
+                    icon={<Target size={13} color={T.red} />}
+                    label="نهاية التداول (UTC)"
+                    description="وقت نهاية التداول بالتوقيت العالمي"
+                  >
+                    <input
+                      type="time"
+                      value={tradingScheduleEnd}
+                      onChange={e => setTradingScheduleEnd(e.target.value)}
+                      style={{
+                        padding: '4px 8px', borderRadius: 8,
+                        background: T.surface, border: `1px solid ${T.border}`,
+                        color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                        outline: 'none', direction: 'ltr',
+                      }}
+                    />
+                  </SettingRow>
+                  <div style={{ padding: '8px 0' }}>
+                    <div style={{ fontSize: 12, color: T.text, fontWeight: 600, marginBottom: 8 }}>
+                      أيام التداول
+                    </div>
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      {([
+                        { day: 1, label: 'الاثنين' },
+                        { day: 2, label: 'الثلاثاء' },
+                        { day: 3, label: 'الأربعاء' },
+                        { day: 4, label: 'الخميس' },
+                        { day: 5, label: 'الجمعة' },
+                        { day: 6, label: 'السبت' },
+                        { day: 7, label: 'الأحد' },
+                      ]).map(d => {
+                        const selectedDays = tradingScheduleDays.split(',').map(Number).filter(n => !isNaN(n))
+                        const isSelected = selectedDays.includes(d.day)
+                        return (
+                          <button
+                            key={d.day}
+                            onClick={() => {
+                              const newDays = isSelected
+                                ? selectedDays.filter(x => x !== d.day)
+                                : [...selectedDays, d.day].sort()
+                              setTradingScheduleDays(newDays.length > 0 ? newDays.join(',') : '1,2,3,4,5')
+                            }}
+                            style={{
+                              padding: '6px 10px', borderRadius: 8,
+                              border: isSelected ? `1px solid ${T.amber}40` : `1px solid ${T.border}`,
+                              background: isSelected ? `${T.amber}12` : T.surface,
+                              color: isSelected ? T.amber : T.text3,
+                              fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                              fontFamily: "'Cairo', sans-serif",
+                              transition: 'all 0.2s',
+                            }}
+                          >
+                            {d.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  {/* Info note */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '10px 14px', borderRadius: 10,
+                    background: 'rgba(255,184,0,0.04)', border: `1px solid rgba(255,184,0,0.10)`,
+                    marginTop: 8,
+                  }}>
+                    <AlertTriangle size={16} color={T.amber} />
+                    <div style={{ fontSize: 10, color: T.text2, lineHeight: 1.6 }}>
+                      الأوقات بتوقيت UTC. عند التفعيل، لن يُفتح أي مركز جديد خارج الساعات والأيام المحددة. المراكز المفتوحة لن تُغلق تلقائياً.
+                    </div>
+                  </div>
+                </>
+              )}
+            </SectionCard>
           </>
         )}
-
-        {/* ═══ Notifications Tab ═══ */}
         {activeTab === 'notifications' && (
           <>
             <SectionCard
@@ -1395,14 +1635,85 @@ export default function SettingsPage() {
                 label={t('doNotDisturb')}
                 description={t('doNotDisturbDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={doNotDisturb} onChange={() => setDoNotDisturb(!doNotDisturb)} color={T.amber} size="sm" />
               </SettingRow>
               <SettingRow
                 icon={<Activity size={13} color={T.text3} />}
                 label={t('emergencyOnly')}
                 description={t('emergencyOnlyDesc')}
               >
-                <ComingSoonBadge />
+                <Toggle checked={emergencyOnly} onChange={() => setEmergencyOnly(!emergencyOnly)} color={T.red} size="sm" />
+              </SettingRow>
+            </SectionCard>
+
+            {/* Feature 3: External Notification Channels */}
+            <SectionCard
+              icon={<Send size={18} color={T.purple} />}
+              iconColor={T.purple}
+              iconBg={`${T.purple}14`}
+              title="قنوات الإشعارات الخارجية"
+              subtitle="استلم تنبيهات التداول على هاتفك عبر Telegram أو Discord"
+            >
+              <SettingRow
+                icon={<Smartphone size={13} color={T.purple} />}
+                label="Telegram Bot Token"
+                description="رمز بوت تيليجرام"
+              >
+                <input
+                  type="password"
+                  value={telegramBotToken || ''}
+                  onChange={e => setTelegramBotToken(e.target.value)}
+                  placeholder="123456:ABC-DEF..."
+                  style={{
+                    width: 180, padding: '4px 8px', borderRadius: 8,
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    outline: 'none', direction: 'ltr',
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<MessageSquare size={13} color={T.cyan} />}
+                label="Telegram Chat ID"
+                description="معرف محادثة تيليجرام"
+              >
+                <input
+                  type="text"
+                  value={telegramChatId || ''}
+                  onChange={e => setTelegramChatId(e.target.value)}
+                  placeholder="-1001234567890"
+                  style={{
+                    width: 180, padding: '4px 8px', borderRadius: 8,
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    outline: 'none', direction: 'ltr',
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Wifi size={13} color={T.purple} />}
+                label="Discord Webhook URL"
+                description="رابط ويبهوك ديسكورد"
+              >
+                <input
+                  type="password"
+                  value={discordWebhookUrl || ''}
+                  onChange={e => setDiscordWebhookUrl(e.target.value)}
+                  placeholder="https://discord.com/api/webhooks/..."
+                  style={{
+                    width: 180, padding: '4px 8px', borderRadius: 8,
+                    background: T.surface, border: `1px solid ${T.border}`,
+                    color: T.text, fontSize: 11, fontFamily: "'JetBrains Mono', monospace",
+                    outline: 'none', direction: 'ltr',
+                  }}
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Send size={13} color={T.green} />}
+                label="تفعيل الإشعارات الخارجية"
+                description="إرسال التنبيهات عبر القنوات الخارجية"
+              >
+                <Toggle checked={externalNotificationsEnabled} onChange={() => setExternalNotificationsEnabled(!externalNotificationsEnabled)} color={T.green} size="sm" />
               </SettingRow>
             </SectionCard>
           </>
@@ -1494,6 +1805,124 @@ export default function SettingsPage() {
                 description={t('sentimentAnalysisDesc')}
               >
                 <ComingSoonBadge />
+              </SettingRow>
+            </SectionCard>
+
+            {/* Feature 2: Advanced Strategy Settings */}
+            <SectionCard
+              icon={<Cpu size={18} color={T.amber} />}
+              iconColor={T.amber}
+              iconBg={`${T.amber}14`}
+              title="إعدادات الاستراتيجية المتقدمة"
+              subtitle="معاملات الاستراتيجية المتقدمة — للمتداولين ذوي الخبرة فقط"
+            >
+              {/* Warning banner */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 10,
+                background: 'rgba(255,184,0,0.06)', border: `1px solid rgba(255,184,0,0.15)`,
+                marginBottom: 12,
+              }}>
+                <AlertTriangle size={16} color={T.amber} />
+                <div style={{ fontSize: 11, color: T.text2, lineHeight: 1.6 }}>
+                  تحذير: تغيير هذه الإعدادات قد يؤثر على أداء التداول. استخدمها فقط إذا كنت تفهم تأثيرها.
+                </div>
+              </div>
+              <SettingRow
+                icon={<Clock size={13} color={T.amber} />}
+                label="إطار السكالبينغ"
+                description="الإطار الزمني لاستراتيجية السكالبينغ"
+              >
+                <SelectBox
+                  value={scalpingTimeframe}
+                  onChange={setScalpingTimeframe}
+                  options={[
+                    { value: '1m', label: '1m' },
+                    { value: '5m', label: '5m' },
+                    { value: '15m', label: '15m' },
+                  ]}
+                  small
+                />
+              </SettingRow>
+              <SettingRow
+                icon={<Target size={13} color={T.green} />}
+                label="جني أرباح السكالبينغ (نقاط)"
+                description="الحد الأدنى: 5 — الحد الأقصى: 50"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={5} max={50} step={1}
+                    value={scalpingTakeProfitPips}
+                    onChange={e => setScalpingTakeProfitPips(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<AlertTriangle size={13} color={T.red} />}
+                label="وقف خسارة السكالبينغ (نقاط)"
+                description="الحد الأدنى: 3 — الحد الأقصى: 30"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={3} max={30} step={1}
+                    value={scalpingStopLossPips}
+                    onChange={e => setScalpingStopLossPips(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<Activity size={13} color={T.cyan} />}
+                label="الحد الأقصى للسبريد (نقاط)"
+                description="الحد الأدنى: 1 — الحد الأقصى: 10"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={1} max={10} step={0.5}
+                    value={scalpingMaxSpread}
+                    onChange={e => setScalpingMaxSpread(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                </div>
+              </SettingRow>
+              <SettingRow
+                icon={<Sliders size={13} color={T.purple} />}
+                label="مستويات الشبكة"
+                description="الحد الأدنى: 3 — الحد الأقصى: 15"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input
+                    type="number" min={3} max={15} step={1}
+                    value={gridLevels}
+                    onChange={e => setGridLevels(e.target.value)}
+                    style={{
+                      width: 60, padding: '4px 8px', borderRadius: 8,
+                      background: T.surface, border: `1px solid ${T.border}`,
+                      color: T.text, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
+                      textAlign: 'center', outline: 'none',
+                    }}
+                    dir="ltr"
+                  />
+                </div>
               </SettingRow>
             </SectionCard>
           </>

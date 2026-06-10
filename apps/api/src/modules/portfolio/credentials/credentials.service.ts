@@ -1563,14 +1563,22 @@ export class CredentialsService {
       const metaApi = new MetaApiClass(metaApiToken);
       const accountApi = metaApi.metatraderAccountApi;
 
-      // Try to find existing account or register a new one
+      // V172: Find existing account by login number.
+      // getAccount() expects MetaAPI UUID, not login number.
       let account;
       try {
-        // V172: Use metatraderAccountApi instead of removed top-level methods
-        account = await accountApi.getAccount(accountId);
-        this.logger.log(`📊 MT5 account ${accountId} already registered with MetaAPI`);
-      } catch {
-        // Account not found — try to register it
+        const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+        const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
+        if (existing) {
+          account = await accountApi.getAccount(existing.id);
+          this.logger.log(`📊 MT5 account ${accountId} already registered (MetaAPI ID: ${existing.id})`);
+        }
+      } catch (searchErr: any) {
+        this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
+      }
+
+      // If not found, try to register it
+      if (!account) {
         this.logger.log(`📊 Registering MT5 account ${accountId} with MetaAPI...`);
         try {
           account = await accountApi.createAccount({
@@ -1708,12 +1716,23 @@ export class CredentialsService {
       const metaApi = new MetaApiClass(metaApiToken);
       const accountApi = metaApi.metatraderAccountApi;
 
+      // V172: Find existing account by login number.
+      // getAccount() expects MetaAPI UUID, not login number.
+      // So we must search the account list first.
       let account;
       try {
-        // V172: Use metatraderAccountApi instead of removed top-level methods
-        account = await accountApi.getAccount(accountId);
-      } catch {
-        // Try to register if not found
+        const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+        const existing = allAccounts.find((a: any) => String(a.login) === String(accountId));
+        if (existing) {
+          account = await accountApi.getAccount(existing.id);
+          this.logger.log(`📊 Found existing MT5 account ${accountId} (MetaAPI ID: ${existing.id})`);
+        }
+      } catch (searchErr: any) {
+        this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
+      }
+
+      // If not found, try to register
+      if (!account) {
         try {
           account = await accountApi.createAccount({
             login: accountId,
@@ -1727,6 +1746,7 @@ export class CredentialsService {
             reliability: 'regular',
           });
           await account.waitDeployed(60000);
+          this.logger.log(`📊 Created new MT5 account ${accountId}`);
         } catch (regErr: any) {
           return {
             exchange: cred.exchange,

@@ -373,13 +373,22 @@ export class MT5Adapter implements IExchangeAdapter {
     const metaApi = await this._getMetaApiInstance();
     const accountApi = metaApi.metatraderAccountApi;
 
-    // Add or get account
+    // V172: Find existing account by login number first.
+    // getAccount() expects MetaAPI UUID, not login number.
     let account;
     try {
-      // V172: Use metatraderAccountApi instead of removed top-level methods
-      account = await accountApi.getAccount(this.accountInfo.accountId);
-    } catch {
-      // Account not registered — create it
+      const allAccounts = await accountApi.getAccountsWithInfiniteScrollPagination();
+      const existing = allAccounts.find((a: any) => String(a.login) === String(this.accountInfo.accountId));
+      if (existing) {
+        account = await accountApi.getAccount(existing.id);
+        this.logger.log(`📊 Found existing MT5 account ${this.accountInfo.accountId} (MetaAPI ID: ${existing.id})`);
+      }
+    } catch (searchErr: any) {
+      this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
+    }
+
+    // If not found, create it
+    if (!account) {
       this.logger.log(`📊 Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
       account = await accountApi.createAccount({
         login: this.accountInfo.accountId,

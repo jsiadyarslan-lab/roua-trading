@@ -859,11 +859,21 @@ export class CredentialsService {
     // paper trading balance IS their real balance, so no warning needed.
     // ═══════════════════════════════════════════════════════════════
     const hasRealCredentials = realCredentials.length > 0;
+    // V186 FIX: Stale balance (_stale=true with equity > 0) should count as success!
+    // Previously, stale balances had both `error` AND `_stale=true`, so `!e.error`
+    // classified them as "failed". This made allRealExchangesFailed=true even when
+    // we had a perfectly usable cached balance, causing the frontend to fall back
+    // to paper trading instead of showing the stale MT5 balance.
     const realExchangesSuccess = exchanges.filter(
-      (e) => e.exchange !== 'paper-trading' && !e.error && e.equity > 0
+      (e) => e.exchange !== 'paper-trading' && (
+        (!e.error && e.equity > 0) ||
+        ((e as any)._stale === true && e.equity > 0)
+      )
     );
     const realExchangesFailed = exchanges.filter(
-      (e) => e.exchange !== 'paper-trading' && (e.error || e.equity <= 0)
+      (e) => e.exchange !== 'paper-trading' &&
+        (e.error && !(e as any)._stale) &&
+        e.equity <= 0
     );
     const allRealExchangesFailed = hasRealCredentials && realExchangesFailed.length > 0 && realExchangesSuccess.length === 0;
 
@@ -1731,84 +1741,30 @@ export class CredentialsService {
         this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
       }
 
-      // If not found, try to register
+      // V186 CRITICAL FIX: DO NOT try createAccount() during balance fetching!
+      //
+      // Previous code called createAccount() + waitDeployed(60000) when the
+      // account wasn't found. This caused TWO major problems:
+      //   1. MetaAPI token might lack trading-account-management-api permissions
+      //      → createAccount always fails → wastes 5-10s every balance fetch
+      //   2. waitDeployed(60000) blocks the entire balance fetch for up to 60s
+      //      → makes the whole /api/credentials/balances endpoint extremely slow
+      //
+      // Account registration should ONLY happen during credential validation
+      // (_validateMT5Credentials), not during every balance fetch.
+      //
+      // If the account doesn't exist in MetaAPI, return error immediately.
       if (!account) {
-        try {
-          account = await accountApi.createAccount({
-            login: accountId,
-            password,
-            server,
-            type: isDemo ? 'demo' : 'live',
-            name: `Roua-${userId.slice(0, 8)}`,
-            platform: 'mt5',
-            magic: 123456,
-            quoteStreamingIntervalSeconds: 2,
-            reliability: 'regular',
-          });
-          await account.waitDeployed(60000);
-          this.logger.log(`📊 Created new MT5 account ${accountId}`);
-        } catch (regErr: any) {
-          return {
-            exchange: cred.exchange,
-            label: cred.label,
-            credentialId: cred.id,
-            isTestnet: isDemo,
-            equity: 0,
-            available: 0,
-            currency: 'USD',
-            usedMargin: 0,
-            assets: [],
-            error: `فشل تسجيل حساب MT5: ${regErr.message?.substring(0, 100) || 'خطأ غير معروف'}`,
-          };
-        }
-      }
-
-      const connection = account.getRPCConnection();
-      // V175 FIX: isConnected() removed from MetaAPI SDK v29+.
-      // Just call connect() directly — if already connected, it's a no-op.
-      // V176: Add timeout protection — MetaAPI can hang for minutes during
-      // cold start or when the broker server is down. Without a timeout,
-      // the entire fetchAllExchangeBalances() call blocks forever.
-      const CONNECT_TIMEOUT_MS = 15_000; // 15 seconds max for connect+sync
-      try {
-        await Promise.race([
-          (async () => {
-            await connection.connect();
-            await connection.waitSynchronized();
-          })(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('MT5 connect/sync timeout (15s)')), CONNECT_TIMEOUT_MS)
-          ),
-        ]);
-      } catch (connectErr: any) {
-        // Connection might already be established, or timeout occurred.
-        // Try to proceed anyway — getAccountInformation() might still work
-        // if the connection is partially established.
         this.logger.warn(
-          `📊 MT5 connect/sync note for ${accountId}: ${connectErr.message?.substring(0, 80)}. ` +
-          `Will attempt getAccountInformation() anyway.`
+          `📊 V186: MT5 account ${accountId} NOT found in MetaAPI. ` +
+          `It must be registered first (via credential validation). ` +
+          `Skipping createAccount to avoid 60s block + permission errors.`
         );
-      }
-
-      // V176: getAccountInformation() can also hang. Add timeout protection.
-      const API_TIMEOUT_MS = 10_000; // 10 seconds max
-      let accountInfo: any;
-      try {
-        accountInfo = await Promise.race([
-          connection.getAccountInformation(),
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('MT5 getAccountInformation timeout (10s)')), API_TIMEOUT_MS)
-          ),
-        ]) as any;
-      } catch (apiErr: any) {
-        this.logger.warn(`📊 MT5 getAccountInformation failed for ${accountId}: ${apiErr.message?.substring(0, 80)}`);
-
-        // V185: Try cached MT5 balance when getAccountInformation fails
-        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, apiErr.message);
+        // V186: Try cached balance before returning error
+        const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, 'Account not found in MetaAPI');
         if (cachedResult) {
           return cachedResult;
         }
-
         return {
           exchange: cred.exchange,
           label: cred.label,
@@ -1819,8 +1775,143 @@ export class CredentialsService {
           currency: 'USD',
           usedMargin: 0,
           assets: [],
-          error: `فشل جلب بيانات MT5: ${apiErr.message?.substring(0, 80) || 'timeout'}`,
+          error: `حساب MT5 ${accountId} غير مسجل في MetaAPI — سجّله من صفحة الإعدادات أولاً`,
         };
+      }
+
+      // V186: Check account state before connecting.
+      // If the account is not DEPLOYED, we need to deploy it first.
+      // Connecting to an UNDEPLOYED account will always timeout.
+      const accountState = (account as any).state;
+      this.logger.log(
+        `📊 V186: Account ${accountId} state=${accountState || 'unknown'}`
+      );
+      if (accountState && accountState !== 'DEPLOYED') {
+        this.logger.warn(
+          `📊 V186: Account ${accountId} is ${accountState}, not DEPLOYED. ` +
+          `Attempting to deploy...`
+        );
+        try {
+          await (account as any).deploy();
+          // Wait for deployment with 30s timeout (shorter than 60s default)
+          await Promise.race([
+            (account as any).waitDeployed(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Deploy timeout (30s)')), 30_000)
+            ),
+          ]);
+          this.logger.log(`📊 V186: Account ${accountId} deployed successfully`);
+        } catch (deployErr: any) {
+          this.logger.warn(`📊 V186: Deploy failed for ${accountId}: ${deployErr.message?.substring(0, 80)}`);
+          // Even if deploy fails, try cached balance
+          const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, deployErr.message);
+          if (cachedResult) {
+            return cachedResult;
+          }
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: isDemo,
+            equity: 0,
+            available: 0,
+            currency: 'USD',
+            usedMargin: 0,
+            assets: [],
+            error: `حساب MT5 غير مُنشر (حالة: ${accountState}) — فشل النشر: ${deployErr.message?.substring(0, 60)}`,
+          };
+        }
+      }
+
+      const connection = account.getRPCConnection();
+      // V175 FIX: isConnected() removed from MetaAPI SDK v29+.
+      // Just call connect() directly — if already connected, it's a no-op.
+      // V176: Add timeout protection — MetaAPI can hang for minutes during
+      // cold start or when the broker server is down. Without a timeout,
+      // the entire fetchAllExchangeBalances() call blocks forever.
+      // V186: Increased from 15s to 25s — MT5 cold starts can take 20+ seconds.
+      const CONNECT_TIMEOUT_MS = 25_000; // 25 seconds max for connect+sync
+      try {
+        await Promise.race([
+          (async () => {
+            await connection.connect();
+            await connection.waitSynchronized();
+          })(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MT5 connect/sync timeout (25s)')), CONNECT_TIMEOUT_MS)
+          ),
+        ]);
+      } catch (connectErr: any) {
+        // Connection might already be established, or timeout occurred.
+        // Try to proceed anyway — getAccountInformation() might still work
+        // if the connection is partially established.
+        this.logger.warn(
+          `📊 V186: MT5 connect/sync note for ${accountId}: ${connectErr.message?.substring(0, 80)}. ` +
+          `Will attempt getAccountInformation() anyway.`
+        );
+      }
+
+      // V186: getAccountInformation with retry.
+      // MetaAPI cold starts can be slow. First attempt: 20s timeout.
+      // If timeout, retry once with a fresh approach (disconnect + reconnect).
+      const API_TIMEOUT_MS = 20_000; // 20 seconds (was 10s — too short for cold starts)
+      let accountInfo: any;
+      let lastApiError: string = '';
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (attempt === 2) {
+            this.logger.log(`📊 V186: Retrying getAccountInformation for ${accountId} (attempt 2/2)`);
+            // Try reconnecting on retry
+            try {
+              await connection.connect();
+              await Promise.race([
+                connection.waitSynchronized(),
+                new Promise((_, reject) =>
+                  setTimeout(() => reject(new Error('Re-sync timeout (10s)')), 10_000)
+                ),
+              ]);
+            } catch {
+              // Ignore reconnection errors — try getAccountInformation anyway
+            }
+          }
+          accountInfo = await Promise.race([
+            connection.getAccountInformation(),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error(`MT5 getAccountInformation timeout (${API_TIMEOUT_MS / 1000}s)`)), API_TIMEOUT_MS)
+            ),
+          ]) as any;
+          // Success! Break out of retry loop
+          break;
+        } catch (apiErr: any) {
+          lastApiError = apiErr.message?.substring(0, 80) || 'timeout';
+          this.logger.warn(
+            `📊 V186: MT5 getAccountInformation attempt ${attempt}/2 failed for ${accountId}: ${lastApiError}`
+          );
+          if (attempt === 1) {
+            // Will retry — don't return error yet
+            continue;
+          }
+          // Both attempts failed — try cached balance
+          this.logger.warn(`📊 V186: Both getAccountInformation attempts failed for ${accountId}`);
+          const cachedResult = await this._getCachedMT5Balance(cred, userId, isDemo, lastApiError);
+          if (cachedResult) {
+            return cachedResult;
+          }
+
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: isDemo,
+            equity: 0,
+            available: 0,
+            currency: 'USD',
+            usedMargin: 0,
+            assets: [],
+            error: `فشل جلب بيانات MT5 بعد محاولتين: ${lastApiError}`,
+          };
+        }
       }
 
       const equity = accountInfo?.equity || 0;

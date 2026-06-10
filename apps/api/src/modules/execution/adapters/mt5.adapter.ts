@@ -387,24 +387,58 @@ export class MT5Adapter implements IExchangeAdapter {
       this.logger.warn(`📊 Failed to search MetaAPI accounts: ${searchErr.message?.substring(0, 100)}`);
     }
 
-    // If not found, create it
+    // V186: If not found, try to create — but with timeout protection.
+    // If the MetaAPI token lacks trading-account-management-api permissions,
+    // createAccount will fail. We wrap it in a timeout to avoid blocking forever.
     if (!account) {
-      this.logger.log(`📊 Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
-      account = await accountApi.createAccount({
-        login: this.accountInfo.accountId,
-        password: this.accountInfo.password,
-        server: this.accountInfo.server,
-        type: this.accountInfo.isDemo ? 'demo' : 'live',
-        name: `Roua-${this.userId.slice(0, 8)}`,
-        platform: 'mt5',
-        magic: 123456,
-        quoteStreamingIntervalSeconds: 2,
-        reliability: 'regular',
-      });
+      this.logger.log(`📊 V186: Registering MT5 account ${this.accountInfo.accountId} with MetaAPI...`);
+      try {
+        account = await accountApi.createAccount({
+          login: this.accountInfo.accountId,
+          password: this.accountInfo.password,
+          server: this.accountInfo.server,
+          type: this.accountInfo.isDemo ? 'demo' : 'live',
+          name: `Roua-${this.userId.slice(0, 8)}`,
+          platform: 'mt5',
+          magic: 123456,
+          quoteStreamingIntervalSeconds: 2,
+          reliability: 'regular',
+        });
 
-      // Wait for account to be deployed (max 60 seconds)
-      this.logger.log(`📊 Waiting for MT5 account deployment...`);
-      await account.waitDeployed(60000);
+        // V186: Wait for deployment with 30s timeout (was 60s — too long for trading)
+        this.logger.log(`📊 V186: Waiting for MT5 account deployment (30s max)...`);
+        await Promise.race([
+          account.waitDeployed(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('MT5 deploy timeout (30s)')), 30_000)
+          ),
+        ]);
+      } catch (createErr: any) {
+        this.logger.warn(
+          `📊 V186: Failed to create/deploy MT5 account ${this.accountInfo.accountId}: ` +
+          `${createErr.message?.substring(0, 100)}. ` +
+          `The account must be registered via credential validation first.`
+        );
+        throw new Error(`فشل تسجيل حساب MT5: ${createErr.message?.substring(0, 80) || 'خطأ غير معروف'}`);
+      }
+    }
+
+    // V186: Check account state before connecting
+    const accountState = (account as any).state;
+    if (accountState && accountState !== 'DEPLOYED') {
+      this.logger.warn(`📊 V186: Account ${this.accountInfo.accountId} is ${accountState}, deploying...`);
+      try {
+        await (account as any).deploy();
+        await Promise.race([
+          (account as any).waitDeployed(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('Deploy timeout (30s)')), 30_000)
+          ),
+        ]);
+      } catch (deployErr: any) {
+        this.logger.warn(`📊 V186: Deploy failed: ${deployErr.message?.substring(0, 80)}`);
+        throw new Error(`حساب MT5 غير مُنشر (حالة: ${accountState}): ${deployErr.message?.substring(0, 60)}`);
+      }
     }
 
     // Connect to the account

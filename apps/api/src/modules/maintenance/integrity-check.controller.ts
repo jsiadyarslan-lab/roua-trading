@@ -221,8 +221,8 @@ export class IntegrityCheckController {
     // V18: V187 — Agent 4h auto-close fix (fall-through to MAX_HOLDING)
     results.push(this.checkV18());
     // V19: V188 — Settings Security & Validation Overhaul
-    results.push(this.checkV19());
-    // V20: V189 — Settings Deception Removal (async — calls Next.js endpoint)
+    // V19 & V20: Call Next.js endpoints (async — runtime-based checks)
+    results.push(await this.checkV19());
     results.push(await this.checkV20());
 
     return results;
@@ -1247,108 +1247,48 @@ export class IntegrityCheckController {
   }
 
   // ── V19: V188 — Settings Security & Validation Overhaul ──
-  private checkV19(): CheckResult {
+  // V2: Calls the Next.js /api/integrity/settings-security endpoint which
+  // does runtime-based checks (API behavior) instead of reading source files.
+  // Falls back to local NestJS-side checks (SmartExecutor, RiskManager).
+  private async checkV19(): Promise<CheckResult> {
     const failures: string[] = [];
     const warnings: string[] = [];
     const passes: string[] = [];
 
-    // ── V19a: User settings key whitelist exists ──
-    // The Next.js route at apps/web/src/app/api/settings/route.ts
-    // is NOT accessible from the NestJS side (different process).
-    // So we check the compiled JS in the web dist or look for the
-    // validation module which IS imported by the NestJS-side code.
-    // Strategy: Check that settings-validation.ts exists and has ALLOWED_USER_SETTINGS_KEYS
-    const webRoot = path.resolve(this.SRC_DIR, '..', '..', 'web');
-    let validationContent: string | null = null;
-    const validationPaths = [
-      path.resolve(webRoot, 'src', 'lib', 'settings-validation.ts'),
-      path.resolve(webRoot, 'src', 'lib', 'settings-validation.js'),
-    ];
-    for (const vp of validationPaths) {
-      try {
-        validationContent = fs.readFileSync(vp, 'utf-8');
-        break;
-      } catch {}
-    }
-
-    if (!validationContent) {
-      // Try from project root (monorepo layout)
-      const altPaths = [
-        path.resolve(process.cwd(), 'apps', 'web', 'src', 'lib', 'settings-validation.ts'),
-        path.resolve(process.cwd(), 'apps', 'web', 'src', 'lib', 'settings-validation.js'),
-      ];
-      for (const ap of altPaths) {
-        try {
-          validationContent = fs.readFileSync(ap, 'utf-8');
-          break;
-        } catch {}
-      }
-    }
-
-    if (!validationContent) {
-      warnings.push('موديول settings-validation.ts غير موجود في المسارات المتوقعة — لا يمكن التحقق من الأمان');
-    } else {
-      // Check for key whitelist
-      const hasWhitelist = validationContent.includes('ALLOWED_USER_SETTINGS_KEYS');
-      if (hasWhitelist) {
-        passes.push('قائمة مفاتيح مسموحة (ALLOWED_USER_SETTINGS_KEYS) — يمنع حقن مفاتيح عشوائية');
+    // ── V19-web: Call Next.js integrity endpoint for web-side checks ──
+    const webUrl = process.env.WEB_INTERNAL_URL || process.env.NEXTAUTH_URL || 'http://127.0.0.1:3000';
+    try {
+      const res = await fetch(`${webUrl}/api/integrity/settings-security`, {
+        signal: AbortSignal.timeout(8000),
+        headers: { 'Accept': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json() as any;
+        // Merge web-side sub-checks
+        if (data.subChecks && Array.isArray(data.subChecks)) {
+          for (const sc of data.subChecks) {
+            if (sc.status === 'FAIL') failures.push(sc.detail);
+            else if (sc.status === 'WARN') warnings.push(sc.detail);
+            else passes.push(sc.detail);
+          }
+        }
       } else {
-        failures.push('لا توجد قائمة مفاتيح مسموحة — يمكن للمستخدمين كتابة أي مفتاح');
+        warnings.push(`Next.js settings-security endpoint returned ${res.status}`);
       }
-
-      // Check for value validation
-      const hasValueValidation = validationContent.includes('validateUserSetting') || validationContent.includes('SETTINGS_RANGES');
-      if (hasValueValidation) {
-        passes.push('تحقق من القيم (validateUserSetting) — نطاقات وأنواع محددة');
-      } else {
-        failures.push('لا يوجد تحقق من القيم — يمكن حفظ قيم خطيرة');
-      }
-
-      // Check for cross-field validation
-      const hasCrossField = validationContent.includes('validateUserRiskCrossFields') || validationContent.includes('cross-field');
-      if (hasCrossField) {
-        passes.push('تحقق متبادل (SL < TP, riskPerTrade <= maxDailyLoss)');
-      } else {
-        warnings.push('لا يوجد تحقق متبادل بين الحقول');
-      }
-
-      // Check for admin config validation
-      const hasAdminValidation = validationContent.includes('validateAdminConfig');
-      if (hasAdminValidation) {
-        passes.push('تحقق إعدادات الأدمن (validateAdminConfig) — كل مجموعة محققة');
-      } else {
-        failures.push('لا يوجد تحقق لإعدادات الأدمن — يمكن حفظ أي قيمة');
-      }
-
-      // Check for unified defaults
-      const hasUnifiedDefaults = validationContent.includes('UNIFIED_DEFAULTS');
-      if (hasUnifiedDefaults) {
-        passes.push('قيم موحدة (UNIFIED_DEFAULTS) — maxOpenPositions=20, minConfidence=65');
-      } else {
-        warnings.push('لا توجد قيم موحدة — قد تختلف القيم الافتراضية بين الأنظمة');
-      }
-
-      // Check for NaN-safe parsing
-      const hasSafeParse = validationContent.includes('safeParseFloat') || validationContent.includes('safeParseInt');
-      if (hasSafeParse) {
-        passes.push('تحليل آمن من NaN (safeParseFloat/safeParseInt)');
-      } else {
-        warnings.push('لا يوجد تحليل آمن — parseFloat قد ينتج NaN');
-      }
+    } catch (error: any) {
+      warnings.push(`Next.js settings-security API غير متاح (${error?.message || 'unknown'}) — فحص جانب الويب متخطى`);
     }
 
     // ── V19b: SmartExecutor maxOpenPositions unified to 20 ──
     const executorContent = this.read('modules/ai/smart-executor/smart-executor.service.ts');
     if (executorContent) {
-      const maxPosMatch = executorContent.match(/maxOpenPositions: *(20|5|15)/);
-      // Look for the config object pattern
-      const configMatch = executorContent.match(/maxOpenPositions[: ]*= *(20|5|15)/);
-      const has20 = /maxOpenPositions.*?20/.test(executorContent.substring(0, 3000)); // First 3000 chars (config section)
+      const maxPosMatch = executorContent.match(/maxOpenPositions: *(20|5|15)/);
+      const configMatch = executorContent.match(/maxOpenPositions[: ]*= *(20|5|15)/);
+      const has20 = /maxOpenPositions.*?20/.test(executorContent.substring(0, 3000));
       if (has20 || (configMatch && configMatch[1] === '20') || (maxPosMatch && maxPosMatch[1] === '20')) {
         passes.push('SmartExecutor maxOpenPositions = 20 (موحد)');
       } else {
-        // Check old default
-        const has5 = /maxOpenPositions.*?5(?!0)/.test(executorContent.substring(0, 3000));
+        const has5 = /maxOpenPositions.*?5(?!0)/.test(executorContent.substring(0, 3000));
         if (has5) {
           failures.push('SmartExecutor maxOpenPositions لا يزال 5 — يجب أن يكون 20 (موحد)');
         } else {
@@ -1360,8 +1300,8 @@ export class IntegrityCheckController {
     // ── V19c: RiskManager riskPerTrade * 3 (not * 5) ──
     const riskMgrContent = this.read('modules/trading/risk-manager.service.ts');
     if (riskMgrContent) {
-      const hasOldScaling = /riskPerTrade.* * *5/.test(riskMgrContent) && riskMgrContent.includes('maxPositionSizePercent');
-      const hasNewScaling = /riskPct.* * *3/.test(riskMgrContent) && riskMgrContent.includes('Math.min(30');
+      const hasOldScaling = /riskPerTrade.* * *5/.test(riskMgrContent) && riskMgrContent.includes('maxPositionSizePercent');
+      const hasNewScaling = /riskPct.* * *3/.test(riskMgrContent) && riskMgrContent.includes('Math.min(30');
       if (hasNewScaling) {
         passes.push('RiskManager riskPerTrade × 3 (حد أقصى 30%) — آمن');
       } else if (hasOldScaling && !hasNewScaling) {
@@ -1377,64 +1317,6 @@ export class IntegrityCheckController {
       } else {
         warnings.push('RiskManager قد يحمّل كل الإعدادات من DB — يمكن تحسينه');
       }
-    }
-
-    // ── V19e: No resetDbInitialized on notification config error ──
-    // This is in Next.js routes — can't easily check from NestJS
-    // So we check the compiled .next server files or skip
-    passes.push('إزالة resetDbInitialized() من مسار أخطاء التنبيهات — فحص يدوي مطلوب');
-
-    // ── V19f: agentExecutorConfig defaults are unified (20/20/65) ──
-    // We can verify this by checking the web route files
-    let botSettingsContent: string | null = null;
-    const botSettingsPaths = [
-      path.resolve(webRoot, 'src', 'app', 'api', 'bot', 'settings', 'route.ts'),
-      path.resolve(webRoot, 'src', 'app', 'api', 'bot', 'settings', 'route.js'),
-    ];
-    for (const bp of botSettingsPaths) {
-      try {
-        botSettingsContent = fs.readFileSync(bp, 'utf-8');
-        break;
-      } catch {}
-    }
-    if (!botSettingsContent) {
-      const altPaths = [
-        path.resolve(process.cwd(), 'apps', 'web', 'src', 'app', 'api', 'bot', 'settings', 'route.ts'),
-      ];
-      for (const ap of altPaths) {
-        try {
-          botSettingsContent = fs.readFileSync(ap, 'utf-8');
-          break;
-        } catch {}
-      }
-    }
-
-    if (botSettingsContent) {
-      // Check that agentExecutorConfig is included in the response
-      const includesAgentConfig = botSettingsContent.includes('agentExecutorConfig');
-      if (includesAgentConfig) {
-        passes.push('bot/settings يرجع agentExecutorConfig (كان مفقوداً)');
-      } else {
-        failures.push('bot/settings لا يرجع agentExecutorConfig — المنفذ الذكي لا يرى هذه القيم');
-      }
-
-      // Check for filtered findMany
-      const hasFilteredBot = botSettingsContent.includes("key: { in:") || botSettingsContent.includes('BOT_SETTINGS_KEYS');
-      if (hasFilteredBot) {
-        passes.push('bot/settings يفلتر findMany — لا يسرب بيانات المستخدمين');
-      } else {
-        failures.push('bot/settings يستخدم findMany() بدون فلتر — يسرب كل الإعدادات!');
-      }
-
-      // Check for safeParseFloat/Int
-      const hasSafeParseBot = botSettingsContent.includes('safeParseFloat') || botSettingsContent.includes('safeParseInt');
-      if (hasSafeParseBot) {
-        passes.push('bot/settings يستخدم تحليل آمن من NaN');
-      } else {
-        warnings.push('bot/settings يستخدم parseFloat مباشرة — يمكن أن ينتج NaN');
-      }
-    } else {
-      warnings.push('لم يتم العثور على ملف bot/settings — لا يمكن فحص الأمان');
     }
 
     // ── Build result ──
@@ -1461,9 +1343,12 @@ export class IntegrityCheckController {
   // NOT on the NestJS side (which only has compiled dist/ files).
   // The Next.js endpoint at /api/integrity/settings does the actual file checks.
   private async checkV20(): Promise<CheckResult> {
+    // V2: Runtime-based check — calls the Next.js /api/integrity/settings endpoint
+    // which now tests actual API behavior instead of reading source files.
+    // This works in ALL environments (dev + production Docker where src/ is absent).
+    const webUrl = process.env.WEB_INTERNAL_URL || process.env.NEXTAUTH_URL || 'http://127.0.0.1:3000';
+
     try {
-      // Try to call the Next.js integrity settings endpoint
-      const webUrl = process.env.WEB_INTERNAL_URL || process.env.NEXTAUTH_URL || 'http://127.0.0.1:3000';
       const res = await fetch(`${webUrl}/api/integrity/settings`, {
         signal: AbortSignal.timeout(8000),
         headers: { 'Accept': 'application/json' },
@@ -1481,16 +1366,24 @@ export class IntegrityCheckController {
         detail: data.detail || 'لا توجد تفاصيل',
       };
     } catch (error: any) {
-      // Fallback: try reading the file directly (works in development where source is accessible)
+      // Fallback: try reading the source file directly (development only)
+      // In production Docker, apps/web/src/ is not available.
+      // The Next.js endpoint above should always be reachable since both
+      // services run in the same container (start.sh starts both).
       const failures: string[] = [];
       const warnings: string[] = [];
       const passes: string[] = [];
 
-      const webRoot = path.resolve(this.SRC_DIR, '..', '..', 'web');
+      // Try multiple possible paths for the settings page source
       let settingsPageContent: string | null = null;
       const settingsPaths = [
-        path.resolve(webRoot, 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.tsx'),
-        path.resolve(webRoot, 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.jsx'),
+        // Monorepo structure: apps/web/src/... (from project root)
+        path.resolve(process.cwd(), '..', 'web', 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.tsx'),
+        path.resolve(process.cwd(), '..', 'web', 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.jsx'),
+        // Direct: from apps/api/ to apps/web/src/
+        path.resolve(this.SRC_DIR, '..', '..', 'web', 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.tsx'),
+        // Monorepo root
+        path.resolve(process.cwd(), 'apps', 'web', 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.tsx'),
       ];
       for (const sp of settingsPaths) {
         try {
@@ -1498,23 +1391,21 @@ export class IntegrityCheckController {
           break;
         } catch {}
       }
-      if (!settingsPageContent) {
-        const altPaths = [
-          path.resolve(process.cwd(), 'apps', 'web', 'src', 'app', '[locale]', 'dashboard', 'settings', 'page.tsx'),
-        ];
-        for (const ap of altPaths) {
-          try {
-            settingsPageContent = fs.readFileSync(ap, 'utf-8');
-            break;
-          } catch {}
-        }
-      }
 
       if (!settingsPageContent) {
-        return { id: 'V20', name: 'V189 إزالة خداع الإعدادات', status: 'WARN', detail: `ملف صفحة الإعدادات غير موجود و Next.js API غير متاح (${error?.message || 'unknown error'})` };
+        // Neither the API nor source files are available — likely production
+        // where Next.js hasn't started yet or is unreachable.
+        // Don't fail the check, just warn — the runtime API will work once
+        // Next.js is fully started.
+        return {
+          id: 'V20',
+          name: 'V189 إزالة خداع الإعدادات',
+          status: 'WARN',
+          detail: `Next.js API غير متاح (${error?.message || 'unknown'}) وملفات المصدر غير موجودة — فحص سلوكي سيعمل بعد بدء Next.js بالكامل`,
+        };
       }
 
-      // V20a: No fake toggle switches
+      // Source-level checks (development fallback)
       const noopToggles = (settingsPageContent.match(/onChange=\{\(\) => \{\}\}/g) || []).length;
       if (noopToggles === 0) {
         passes.push('لا مفاتيح وهمية');
@@ -1522,21 +1413,18 @@ export class IntegrityCheckController {
         failures.push(`${noopToggles} مفتاح وهمي`);
       }
 
-      // V20b: Language switching
       if (settingsPageContent.includes('currentLocale') && settingsPageContent.includes('router.replace')) {
         passes.push('تغيير اللغة حقيقي');
       } else {
         failures.push('تغيير اللغة وهمي');
       }
 
-      // V20f: Real data export
       if (settingsPageContent.includes('/api/trading/positions') && !settingsPageContent.includes('Simulate export')) {
         passes.push('تصدير البيانات حقيقي');
       } else {
         failures.push('تصدير البيانات وهمي');
       }
 
-      // V20g: Real sessions
       if (settingsPageContent.includes('/api/auth/sessions')) {
         passes.push('الجلسات حقيقية');
       } else {
@@ -1547,7 +1435,7 @@ export class IntegrityCheckController {
         return { id: 'V20', name: 'V189 إزالة خداع الإعدادات', status: 'FAIL', detail: `${failures.length} مشكلة: ${failures.join(' | ')}` };
       }
 
-      return { id: 'V20', name: 'V189 إزالة خداع الإعدادات', status: 'PASS', detail: `كل الإصلاحات مطبقة: ${passes.join(' | ')}` };
+      return { id: 'V20', name: 'V189 إزالة خداع الإعدادات', status: 'PASS', detail: `كل الإصلاحات مطبقة (من الكود المصدري): ${passes.join(' | ')}` };
     }
   }
 

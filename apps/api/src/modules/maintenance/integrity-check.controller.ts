@@ -218,6 +218,8 @@ export class IntegrityCheckController {
     results.push(this.checkV16());
     // V17: V185 — Council Intelligence INTEGRATION (services called from trading pipeline)
     results.push(this.checkV17());
+    // V18: V187 — Agent 4h auto-close fix (fall-through to MAX_HOLDING)
+    results.push(this.checkV18());
 
     return results;
   }
@@ -1146,6 +1148,88 @@ export class IntegrityCheckController {
       name: 'V185 تكامل مجلس الذكاء',
       status: 'PASS',
       detail: `كل الميزات مربوطة بخط التداول: ${passes.join(' | ')}`,
+    };
+  }
+
+  // ── V18: V187 — Agent 4h auto-close fix (fall-through to MAX_HOLDING) ──
+  private checkV18(): CheckResult {
+    const passes: string[] = [];
+    const failures: string[] = [];
+    const warnings: string[] = [];
+
+    // ── V18a: Position Monitor does NOT early-return for Agent positions ──
+    // Before V187, Agent positions did "return result" after SL/TP check,
+    // which meant MAX_HOLDING_TIME was never checked for Agent positions.
+    // V187 removed the early return so Agent positions fall through.
+    const monitorContent = this.read('modules/engine/services/position-monitor.service.ts');
+    if (!monitorContent) {
+      return { id: 'V18', name: 'V187 إصلاح إغلاق 4h للوكيل', status: 'MISSING', detail: 'position-monitor.service.ts غير موجود' };
+    }
+
+    // Check that there's NO "return result" after the Agent SL/TP block
+    // The old code had: if (isAgentPosition) { ... return result; }
+    // The new code has: if (isAgentPosition) { ... // DO NOT return here }
+    const hasAgentFallThrough = 
+      /V187.*fall.*through/i.test(monitorContent) ||
+      /DO NOT return here/i.test(monitorContent) ||
+      /fall through to MAX_HOLDING/i.test(monitorContent);
+    
+    if (hasAgentFallThrough) {
+      passes.push('Position Monitor يسمح لصفقات Agent بالمرور لفحص MAX_HOLDING (بدون early return)');
+    } else {
+      failures.push('Position Monitor لا يزال يعمل early return لصفقات Agent — MAX_HOLDING لا يُفحص');
+    }
+
+    // ── V18b: Agent saves timeframe to Redis (like SmartExecutor) ──
+    const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
+    if (!agentContent) {
+      warnings.push('agent.service.ts غير موجود — لا يمكن التحقق من حفظ timeframe');
+    } else {
+      const agentSavesTf = /position-tf/.test(agentContent) && /redis\.set.*position-tf/.test(agentContent);
+      if (agentSavesTf) {
+        passes.push('Agent يحفظ timeframe في Redis لاستخدامه في حساب MAX_HOLDING');
+      } else {
+        failures.push('Agent لا يحفظ timeframe في Redis — Position Monitor سيستخدم fallback بدل 48h');
+      }
+    }
+
+    // ── V18c: Agent positions get isAgent=true → 48h in _getMaxHoldingMs ──
+    if (monitorContent) {
+      const hasAgent48h = /isAgent.*48/.test(monitorContent) || /48.*isAgent/.test(monitorContent);
+      if (hasAgent48h) {
+        passes.push('_getMaxHoldingMs يعطي Agent = 48 ساعة');
+      } else {
+        failures.push('_getMaxHoldingMs لا يعطي Agent 48 ساعة');
+      }
+    }
+
+    // ── V18d: Trailing stop and break-even skip Agent positions ──
+    if (monitorContent) {
+      const agentSkipTrailing = /isAgentPosition/.test(monitorContent) && 
+        /if\s*\(\s*!isAgentPosition\s*\)/.test(monitorContent);
+      if (agentSkipTrailing) {
+        passes.push('Trailing stop و break-even لا تتدخل مع Agent (يدير SL بنفسه)');
+      } else {
+        warnings.push('قد يتدخل trailing stop مع Agent positions — يحتاج فحص');
+      }
+    }
+
+    // ── Build result ──
+    if (failures.length > 0) {
+      return {
+        id: 'V18',
+        name: 'V187 إصلاح إغلاق 4h للوكيل',
+        status: 'FAIL',
+        detail: `${failures.length} مشكلة: ${failures.join(' | ')}`,
+      };
+    }
+
+    const warningStr = warnings.length > 0 ? ` | ⚠️ ${warnings.join(' | ')}` : '';
+    return {
+      id: 'V18',
+      name: 'V187 إصلاح إغلاق 4h للوكيل',
+      status: 'PASS',
+      detail: `${passes.join(' | ')}${warningStr}`,
     };
   }
 

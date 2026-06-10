@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
 import { verifyAdminAuth } from '@/lib/admin-auth'
+import { validateAdminConfig, UNIFIED_DEFAULTS, safeParseFloat, safeParseInt } from '@/lib/settings-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -30,13 +31,13 @@ const DEFAULT_RISK_CONFIG = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '20',  // V144: Increased from 15 to 20 — global RiskGatekeeper limit
+  maxOpenPositions: '20',  // V188: Unified default — same as SmartExecutor, RiskManager
 }
 
 const DEFAULT_AGENT_EXECUTOR_CONFIG = {
-  executorMaxOpenPositions: '15',
-  agentMaxOpenPositions: '15',
-  executorMinConfidence: '40',
+  executorMaxOpenPositions: '20',   // V188: Unified from 15 → 20
+  agentMaxOpenPositions: '20',     // V188: Unified from 15 → 20
+  executorMinConfidence: '65',     // V188: Unified from 40 → 65 (SAFE default)
   executorRiskPerTrade: '1',
   executorTickIntervalSec: '10',
   agentAnalysisIntervalMin: '30',
@@ -70,8 +71,10 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(emptyResponse())
     }
 
-    // Fetch all settings from the Setting table
-    const settings = await db.setting.findMany()
+    // V188: Only fetch the config keys we need instead of ALL settings
+    const settings = await db.setting.findMany({
+      where: { key: { in: ['botConfig', 'riskConfig', 'agentExecutorConfig', 'platformConfig'] } },
+    })
 
     const settingsMap: Record<string, any> = {}
     for (const s of settings) {
@@ -170,8 +173,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'قاعدة البيانات غير متاحة' }, { status: 503 })
     }
 
+    // V188: Limit request body size to 10KB
+    const contentLength = req.headers.get('content-length')
+    if (contentLength && parseInt(contentLength, 10) > 10240) {
+      return NextResponse.json({ error: 'حجم البيانات كبير جداً' }, { status: 413 })
+    }
+
     const body = await req.json()
     const { botConfig, riskConfig, agentExecutorConfig, platformConfig } = body
+
+    // V188: Validate each config group before saving
+    const validationErrors: string[] = []
+    const sanitizedConfigs: Record<string, any> = {}
+
+    if (botConfig) {
+      const result = validateAdminConfig('botConfig', botConfig)
+      if (!result.valid) validationErrors.push(...result.errors)
+      sanitizedConfigs.botConfig = { ...botConfig, ...result.sanitized }
+    }
+    if (riskConfig) {
+      const result = validateAdminConfig('riskConfig', riskConfig)
+      if (!result.valid) validationErrors.push(...result.errors)
+      sanitizedConfigs.riskConfig = { ...riskConfig, ...result.sanitized }
+    }
+    if (agentExecutorConfig) {
+      const result = validateAdminConfig('agentExecutorConfig', agentExecutorConfig)
+      if (!result.valid) validationErrors.push(...result.errors)
+      sanitizedConfigs.agentExecutorConfig = { ...agentExecutorConfig, ...result.sanitized }
+    }
+    if (platformConfig) {
+      const result = validateAdminConfig('platformConfig', platformConfig)
+      if (!result.valid) validationErrors.push(...result.errors)
+      sanitizedConfigs.platformConfig = { ...platformConfig, ...result.sanitized }
+    }
+
+    if (validationErrors.length > 0) {
+      return NextResponse.json({
+        error: 'أخطاء في التحقق من الإعدادات',
+        details: validationErrors,
+      }, { status: 400 })
+    }
 
     // Verify Setting table exists before attempting upsert
     // FIX: DDL (CREATE TABLE, ALTER TABLE) has been REMOVED from application code.
@@ -195,42 +236,48 @@ export async function POST(req: NextRequest) {
     // Upsert each settings group
     const upserts: Promise<any>[] = []
 
-    if (botConfig) {
+    // V188: Use sanitized configs instead of raw input
+    const sBotConfig = sanitizedConfigs.botConfig || botConfig
+    const sRiskConfig = sanitizedConfigs.riskConfig || riskConfig
+    const sPlatformConfig = sanitizedConfigs.platformConfig || platformConfig
+    const sAgentExecutorConfig = sanitizedConfigs.agentExecutorConfig || agentExecutorConfig
+
+    if (sBotConfig) {
       upserts.push(
         db.setting.upsert({
           where: { key: 'botConfig' },
-          update: { value: JSON.stringify(botConfig) },
-          create: { key: 'botConfig', value: JSON.stringify(botConfig) },
+          update: { value: JSON.stringify(sBotConfig) },
+          create: { key: 'botConfig', value: JSON.stringify(sBotConfig) },
         })
       )
     }
 
-    if (riskConfig) {
+    if (sRiskConfig) {
       upserts.push(
         db.setting.upsert({
           where: { key: 'riskConfig' },
-          update: { value: JSON.stringify(riskConfig) },
-          create: { key: 'riskConfig', value: JSON.stringify(riskConfig) },
+          update: { value: JSON.stringify(sRiskConfig) },
+          create: { key: 'riskConfig', value: JSON.stringify(sRiskConfig) },
         })
       )
     }
 
-    if (platformConfig) {
+    if (sPlatformConfig) {
       upserts.push(
         db.setting.upsert({
           where: { key: 'platformConfig' },
-          update: { value: JSON.stringify(platformConfig) },
-          create: { key: 'platformConfig', value: JSON.stringify(platformConfig) },
+          update: { value: JSON.stringify(sPlatformConfig) },
+          create: { key: 'platformConfig', value: JSON.stringify(sPlatformConfig) },
         })
       )
     }
 
-    if (agentExecutorConfig) {
+    if (sAgentExecutorConfig) {
       upserts.push(
         db.setting.upsert({
           where: { key: 'agentExecutorConfig' },
-          update: { value: JSON.stringify(agentExecutorConfig) },
-          create: { key: 'agentExecutorConfig', value: JSON.stringify(agentExecutorConfig) },
+          update: { value: JSON.stringify(sAgentExecutorConfig) },
+          create: { key: 'agentExecutorConfig', value: JSON.stringify(sAgentExecutorConfig) },
         })
       )
     }
@@ -255,7 +302,9 @@ export async function POST(req: NextRequest) {
     if (error?.code === 'P2021') {
       return NextResponse.json({ error: 'جدول الإعدادات غير موجود في قاعدة البيانات — يرجى تشغيل prisma db push' }, { status: 500 })
     }
-    return NextResponse.json({ error: `فشل في حفظ الإعدادات: ${error?.message || 'خطأ غير معروف'}` }, { status: 500 })
+    // V188: Don't leak raw error messages to client
+    console.error('[admin/settings] POST Error details:', error?.message, error?.code)
+    return NextResponse.json({ error: 'فشل في حفظ الإعدادات — يرجى المحاولة مرة أخرى' }, { status: 500 })
   }
 }
 

@@ -76,13 +76,13 @@ export class SmartExecutorService implements OnModuleDestroy {
   /** Configuration */
   private readonly config: ExecutorConfig = {
     tickIntervalMs: 10000,          // FIX: 10 seconds (was 2s) — reduces DB load by 5x
-    maxOpenPositions: 5,            // Safe default for real accounts. Paper/testnet can increase via settings.
+    maxOpenPositions: 20,           // V188: Unified from 5 → 20 (same as admin default, RiskManager)
     maxDailyLossPercent: 5,
     defaultSlippage: 0.005,         // 0.5% — FIX: Increased from 0.1% to 0.5%
     riskPerTradePercent: 1,
-    minConfidence: 65,              // SAFE DEFAULT for real accounts: 65% minimum confidence.
+    minConfidence: 65,              // V188: Unified SAFE DEFAULT (was 65, stays 65)
+                                    // Admin agentExecutorConfig also now defaults to 65
                                     // 40% means the AI is more uncertain than certain.
-                                    // For paper/testnet, this can be lowered via settings.
   };
 
   /** Redis key patterns */
@@ -1388,7 +1388,7 @@ export class SmartExecutorService implements OnModuleDestroy {
   }> {
     const defaults = {
       riskPerTradePercent: this.config.riskPerTradePercent,    // 1%
-      maxOpenPositions: this.config.maxOpenPositions,          // 15 (V132: Increased from 5 to 15)
+      maxOpenPositions: this.config.maxOpenPositions,          // V188: 20 (unified)
       maxDailyLossPercent: this.config.maxDailyLossPercent,    // 5%
       stopLossPercent: 2,                                       // 2%
       takeProfitPercent: 4,                                     // 4%
@@ -1431,13 +1431,13 @@ export class SmartExecutorService implements OnModuleDestroy {
         maxOpenPositions: map.userMaxOpenPositions
           ? (() => {
               let val = Math.max(1, Math.min(50, parseInt(map.userMaxOpenPositions, 10)));
-              // V143: If the stored value is the OLD default (5), auto-upgrade to new default (15).
+              // V188: If the stored value is the OLD default (≤5), auto-upgrade to new default (20).
               // The value 5 was NEVER a deliberate user choice — it was the hardcoded default
               // in auth.service.ts, SmartExecutorPanel.tsx, and mobile/bot/page.tsx.
               // Upgrading it here prevents the "refresh risk settings" code from
-              // downgrading the auto-migrated 15 back to 5 on every tick.
+              // downgrading the auto-migrated value back to 5 on every tick.
               if (val <= 5) {
-                val = globalExecutorMaxPositions || this.config.maxOpenPositions; // 15
+                val = globalExecutorMaxPositions || this.config.maxOpenPositions; // V188: 20
                 // Also update the DB setting so next read returns the new value
                 this.prisma.setting.upsert({
                   where: { key: `user:${userId}:userMaxOpenPositions` },

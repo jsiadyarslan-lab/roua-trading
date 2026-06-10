@@ -175,8 +175,9 @@ export async function POST(req: NextRequest) {
     }
   } catch (error: any) {
     console.error('[admin/notifications/config] POST Error:', error?.message || error)
-    // Reset DB connection on error to force reconnection on next request
-    resetDbInitialized()
-    return NextResponse.json({ error: `فشل في حفظ الإعدادات: ${error?.message || 'خطأ غير معروف'}` }, { status: 500 })
+    // V188: Removed resetDbInitialized() — resetting the entire DB connection pool
+    // on a single POST error causes cascading failures for other in-flight requests.
+    // The DB client will handle reconnection naturally on the next request.
+    return NextResponse.json({ error: 'فشل في حفظ إعدادات التنبيهات — يرجى المحاولة مرة أخرى' }, { status: 500 })
   }
 }

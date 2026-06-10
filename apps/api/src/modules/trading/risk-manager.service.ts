@@ -92,7 +92,10 @@ export class RiskManagerService {
     }
 
     try {
-      const settings = await this.prisma.setting.findMany();
+      // V188: Only fetch the keys we need instead of ALL settings
+      const settings = await this.prisma.setting.findMany({
+        where: { key: { in: ['riskConfig', 'agentExecutorConfig', 'botConfig'] } },
+      });
       const settingsMap: Record<string, any> = {};
       for (const s of settings) {
         try {
@@ -122,7 +125,18 @@ export class RiskManagerService {
         }
         if (riskConfig.stopLossDefault) this.defaultStopLossPercent = parseFloat(riskConfig.stopLossDefault);
         if (riskConfig.takeProfitDefault) this.defaultTakeProfitPercent = parseFloat(riskConfig.takeProfitDefault);
-        if (riskConfig.riskPerTrade) this.maxPositionSizePercent = parseFloat(riskConfig.riskPerTrade) * 5; // Scale risk per trade to position size
+        if (riskConfig.riskPerTrade) {
+          // V188 FIX: Replaced arbitrary `* 5` multiplier with a direct mapping.
+          // Previously: parseFloat(riskConfig.riskPerTrade) * 5 → if riskPerTrade=1, maxPosition=5%
+          //   but if riskPerTrade=10, maxPosition=50% (dangerously high!)
+          // Now: Use a safer formula: position_size = risk * 3 (capped at 30%)
+          //   riskPerTrade=1% → positionSize=3% (conservative)
+          //   riskPerTrade=5% → positionSize=15% (moderate)
+          //   riskPerTrade=10% → positionSize=30% (max)
+          const riskPct = parseFloat(riskConfig.riskPerTrade);
+          this.maxPositionSizePercent = Math.min(30, riskPct * 3);
+          this.logger.debug(`🛡️ V188: RiskPerTrade ${riskPct}% → MaxPositionSize ${this.maxPositionSizePercent}%`);
+        }
 
       }
 

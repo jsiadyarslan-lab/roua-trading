@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db, ensureDbReady } from '@/lib/db'
+import { safeParseFloat, safeParseInt, UNIFIED_DEFAULTS, BOT_SETTINGS_KEYS } from '@/lib/settings-validation'
 
 export const dynamic = 'force-dynamic'
 
@@ -31,7 +32,17 @@ const DEFAULT_RISK_CONFIG = {
   stopLossDefault: '2',
   takeProfitDefault: '4',
   riskPerTrade: '1',
-  maxOpenPositions: '20',  // V144: Increased from 15 to 20 — global RiskGatekeeper limit
+  maxOpenPositions: '20',  // V188: Unified default — same as RiskManager, ExposureManager
+}
+
+// V188: Added agentExecutorConfig defaults (was missing from bot settings)
+const DEFAULT_AGENT_EXECUTOR_CONFIG = {
+  executorMaxOpenPositions: '20',   // V188: Unified from 15 → 20
+  agentMaxOpenPositions: '20',     // V188: Unified from 15 → 20
+  executorMinConfidence: '65',     // V188: Unified from 40 → 65 (SAFE default)
+  executorRiskPerTrade: '1',
+  executorTickIntervalSec: '10',
+  agentAnalysisIntervalMin: '30',
 }
 
 export async function GET(req: NextRequest) {
@@ -45,8 +56,11 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Fetch all settings from the Setting table
-    const settings = await db.setting.findMany()
+    // V188 SECURITY FIX: Only fetch needed keys (botConfig, riskConfig, agentExecutorConfig)
+    // Previously, findMany() with NO filter loaded ALL settings including user-scoped data.
+    const settings = await db.setting.findMany({
+      where: { key: { in: BOT_SETTINGS_KEYS } },
+    })
 
     const settingsMap: Record<string, any> = {}
     for (const s of settings) {
@@ -59,9 +73,10 @@ export async function GET(req: NextRequest) {
 
     const botConfig = settingsMap.botConfig || DEFAULT_BOT_CONFIG
     const riskConfig = settingsMap.riskConfig || DEFAULT_RISK_CONFIG
+    const agentExecutorConfig = settingsMap.agentExecutorConfig || DEFAULT_AGENT_EXECUTOR_CONFIG
 
     return NextResponse.json({
-      settings: mapToBotSettings(botConfig, riskConfig),
+      settings: mapToBotSettings(botConfig, riskConfig, agentExecutorConfig),
       source: settingsMap.botConfig ? 'database' : 'defaults',
       updatedAt: new Date().toISOString(),
     })
@@ -84,24 +99,46 @@ export async function GET(req: NextRequest) {
 function mapToBotSettings(
   botConfig: typeof DEFAULT_BOT_CONFIG,
   riskConfig: typeof DEFAULT_RISK_CONFIG,
+  agentExecutorConfig?: typeof DEFAULT_AGENT_EXECUTOR_CONFIG,
 ) {
   return {
     // ── Protection limits (the most critical settings) ──
-    maxDailyLoss: -Math.abs(parseFloat(botConfig.maxDailyLoss || '2000')),
-    maxDrawdown: parseFloat(riskConfig.maxDrawdown || '15'),
-    maxOpenPositions: parseInt(riskConfig.maxOpenPositions || '20', 10), // V144: '5'→'15'→'20'
-    stopLossDefault: parseFloat(riskConfig.stopLossDefault || '2'),
-    takeProfitDefault: parseFloat(riskConfig.takeProfitDefault || '4'),
+    // V188: Use safeParseFloat/Int to prevent NaN from malformed strings
+    maxDailyLoss: -Math.abs(safeParseFloat(botConfig.maxDailyLoss, 2000)),
+    maxDrawdown: safeParseFloat(riskConfig.maxDrawdown, UNIFIED_DEFAULTS.maxDailyLossPercent),
+    maxOpenPositions: safeParseInt(riskConfig.maxOpenPositions, UNIFIED_DEFAULTS.maxOpenPositions),
+    stopLossDefault: safeParseFloat(riskConfig.stopLossDefault, UNIFIED_DEFAULTS.stopLossDefault),
+    takeProfitDefault: safeParseFloat(riskConfig.takeProfitDefault, UNIFIED_DEFAULTS.takeProfitDefault),
 
     // ── Bot execution settings ──
-    riskPerTrade: parseFloat(riskConfig.riskPerTrade || '1'),
+    riskPerTrade: safeParseFloat(riskConfig.riskPerTrade, UNIFIED_DEFAULTS.riskPerTrade),
     strategy: botConfig.strategy || 'Scalp AI',
-    refreshInterval: parseInt(botConfig.refreshInterval || '30', 10),
-    cooldownPeriod: parseInt(botConfig.cooldownPeriod || '60', 10),
-    confLimit: 65, // Not stored in admin settings, use default
+    refreshInterval: safeParseInt(botConfig.refreshInterval, 30),
+    cooldownPeriod: safeParseInt(botConfig.cooldownPeriod, 60),
+    // V188: confLimit now reads from agentExecutorConfig instead of being hardcoded
+    confLimit: agentExecutorConfig
+      ? safeParseInt(agentExecutorConfig.executorMinConfidence, UNIFIED_DEFAULTS.minConfidence)
+      : UNIFIED_DEFAULTS.minConfidence,
 
     // ── Raw admin values (for display) ──
-    maxPositionSize: parseFloat(botConfig.maxPositionSize || '10000'),
+    maxPositionSize: safeParseFloat(botConfig.maxPositionSize, 10000),
     autoTrading: botConfig.autoTrading || false,
+
+    // V188: Include agentExecutorConfig values for the bot engine
+    executorMaxOpenPositions: agentExecutorConfig
+      ? safeParseInt(agentExecutorConfig.executorMaxOpenPositions, UNIFIED_DEFAULTS.maxOpenPositions)
+      : UNIFIED_DEFAULTS.maxOpenPositions,
+    agentMaxOpenPositions: agentExecutorConfig
+      ? safeParseInt(agentExecutorConfig.agentMaxOpenPositions, UNIFIED_DEFAULTS.maxOpenPositions)
+      : UNIFIED_DEFAULTS.maxOpenPositions,
+    executorRiskPerTrade: agentExecutorConfig
+      ? safeParseFloat(agentExecutorConfig.executorRiskPerTrade, UNIFIED_DEFAULTS.riskPerTrade)
+      : UNIFIED_DEFAULTS.riskPerTrade,
+    executorTickIntervalSec: agentExecutorConfig
+      ? safeParseInt(agentExecutorConfig.executorTickIntervalSec, 10)
+      : 10,
+    agentAnalysisIntervalMin: agentExecutorConfig
+      ? safeParseInt(agentExecutorConfig.agentAnalysisIntervalMin, 30)
+      : 30,
   }
 }

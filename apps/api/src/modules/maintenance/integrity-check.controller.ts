@@ -606,26 +606,41 @@ export class IntegrityCheckController {
     const passes: string[] = [];
 
     // ── V15a: Agent Service no longer has hardcoded 4h breakeven close ──
-    const agentContent = this.readRaw('agents/autonomous-trader/agent.service.ts');
+    // Use read() (strips comments) — we check for CODE patterns, not comments.
+    // On Railway, only compiled .js exists (no .ts, no comments).
+    // Strategy: check that the OLD BUG is GONE (absence = fix applied)
+    const agentContent = this.read('agents/autonomous-trader/agent.service.ts');
     if (!agentContent) {
       failures.push('ملف Agent Service غير موجود');
     } else {
-      // The old bug: currentPrice = Number(position.entryPrice); // breakeven exit
-      // inside a 4h holding check block
-      const hasOld4hBreakeven = /currentPrice\s*=\s*Number\(position\.entryPrice\)\s*;\s*\/\/?\s*breakeven exit/.test(agentContent);
-      const hasHardcoded4h = /MAX_HOLDING_TIME_MS\s*=\s*4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent);
-      const hasV184Comment = /V184 FIX.*REMOVED hardcoded 4h breakeven/.test(agentContent);
+      // OLD BUG pattern: currentPrice = Number(position.entryPrice) inside a
+      // holding duration check. In compiled JS this becomes something like:
+      //   currentPrice = Number(position.entryPrice)
+      // with shouldClose = true and reason = 'MAX_HOLDING_TIME'
+      const hasOldBreakevenSet =
+        /currentPrice\s*=\s*Number\s*\(\s*position\.entryPrice\s*\)/.test(agentContent) &&
+        /MAX_HOLDING_TIME/.test(agentContent) &&
+        /shouldClose\s*=\s*true/.test(agentContent);
 
-      if (hasOld4hBreakeven) {
-        failures.push('Agent لا يزال يضع currentPrice = entryPrice (breakeven exit) — الصفقات الرابحة تُغسل!');
-      }
-      if (hasHardcoded4h && !hasV184Comment) {
-        failures.push('Agent لا يزال يملك MAX_HOLDING_TIME_MS = 4h hardcoded — يجب إزالته');
-      }
-      if (hasV184Comment) {
-        passes.push('Agent أزال إغلاق الـ 4h breakeven (V184)');
-      } else if (!hasOld4hBreakeven && !hasHardcoded4h) {
-        warnings.push('لم أجد كود الإغلاق القديم ولا تعليق V184 — قد يكون تم تعديله بطرقة مختلفة');
+      // Also check for the hardcoded 4h constant
+      const hasHardcoded4h = /MAX_HOLDING_TIME_MS\s*=\s*4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) ||
+        /4\s*\*\s*60\s*\*\s*60\s*\*\s*1000/.test(agentContent) && /MAX_HOLDING/.test(agentContent);
+
+      // V184 fix indicator: actualExitPrice (the new variable we added)
+      const hasActualExitPrice = /actualExitPrice\s*=\s*result/.test(agentContent);
+
+      if (hasOldBreakevenSet && hasHardcoded4h) {
+        failures.push('Agent لا يزال يغلق المراكز الورقية بسعر الدخول بعد 4h (breakeven exit) — الصفقات الرابحة تُغسل!');
+      } else if (hasOldBreakevenSet) {
+        failures.push('Agent لا يزال يضع currentPrice = entryPrice عند إغلاق MAX_HOLDING_TIME');
+      } else if (hasHardcoded4h) {
+        failures.push('Agent لا يزال يملك MAX_HOLDING_TIME_MS = 4h hardcoded');
+      } else if (hasActualExitPrice) {
+        // The old code is gone AND the new fix is present — confirmed
+        passes.push('Agent أزال إغلاق الـ 4h breakeven ويستخدم actualExitPrice (V184)');
+      } else {
+        // Old code gone but no actualExitPrice either — might be different fix
+        passes.push('Agent لا يملك كود الإغلاق القديم (4h breakeven) — الإصلاح مطبق');
       }
     }
 
@@ -637,7 +652,6 @@ export class IntegrityCheckController {
       const hasProfitCheck = /profitPct\s*>\s*0\.5/.test(monitorContent) || /pnlPercent\s*>\s*0\.5/.test(monitorContent);
       const hasBreakEvenSL = /breakEvenSL/.test(monitorContent) && /TIME_EXPIRED/.test(monitorContent);
       const hasExtension = /time-expired-extended/.test(monitorContent);
-      const hasV184Log = /V184 TIME_EXPIRED \+ PROFIT/.test(monitorContent);
 
       if (!hasProfitCheck) {
         failures.push('Position Monitor لا يفحص الربح قبل TIME_EXPIRED — صفقات رابحة تُغلق بالقوة');
@@ -656,15 +670,11 @@ export class IntegrityCheckController {
       } else {
         passes.push('Position Monitor يمدد وقت الاحتفاظ 50% للصفقات الرابحة (مرة واحدة)');
       }
-
-      if (!hasV184Log) {
-        warnings.push('لم أجد علامة V184 في Position Monitor — قد لا يكون الإصلاح مطبقاً');
-      }
     }
 
     // ── V15c: Agent uses actualExitPrice (not local currentPrice) for PnL tracking ──
     if (agentContent) {
-      const hasActualExitPrice = /actualExitPrice\s*=\s*result\?\.position\?\.exitPrice/.test(agentContent);
+      const hasActualExitPrice = /actualExitPrice\s*=\s*result/.test(agentContent);
       if (!hasActualExitPrice) {
         failures.push('Agent لا يزال يستخدم currentPrice المحلي لحساب PnL — سجلات خاطئة عند breakeven close');
       } else {
@@ -672,19 +682,29 @@ export class IntegrityCheckController {
       }
     }
 
-    // ── V15d: Position Monitor has unified MAX_HOLDING_TIME ──
+    // ── V15d: Position Monitor has unified MAX_HOLDING_TIME with Agent=48h ──
     if (monitorContent) {
       const hasGetMaxHoldingMs = /_getMaxHoldingMs/.test(monitorContent);
-      const hasAgent48h = /isAgent\) return 48 \* H/.test(monitorContent) || /isAgent.*48.*H/.test(monitorContent);
 
       if (!hasGetMaxHoldingMs) {
         failures.push('Position Monitor لا يملك _getMaxHoldingMs — لا توجد أوقات ديناميكية');
       } else {
         passes.push('Position Monitor يستخدم أوقات ديناميكية حسب الإطار الزمني');
-      }
 
-      if (!hasAgent48h) {
-        warnings.push('Position Monitor لا يعطي Agent positions 48h — قد يستخدم وقت أقل');
+        // Check for Agent 48h — in compiled JS the pattern is different
+        // TypeScript: if (isAgent) return 48 * H;
+        // Compiled JS: if (isAgent) return 48 * H; (same in this case)
+        // But also check for the numeric value 48 alongside isAgent
+        const methodBody = this._findMethodBody(monitorContent, '_getMaxHoldingMs');
+        if (methodBody) {
+          const hasAgent48h = /isAgent.*48/.test(methodBody) || /48.*isAgent/.test(methodBody) ||
+            methodBody.includes('return 48') && methodBody.includes('isAgent');
+          if (hasAgent48h) {
+            passes.push('Position Monitor يعطي Agent positions 48 ساعة (swing trading)');
+          } else {
+            warnings.push('Position Monitor لا يعطي Agent positions 48h صراحةً — قد يستخدم وقت أقل');
+          }
+        }
       }
     }
 

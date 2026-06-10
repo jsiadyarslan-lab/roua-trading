@@ -12,9 +12,11 @@ export interface UnifiedOrder {
   exchangeCredentialId: string;
   symbol: string;
   side: 'BUY' | 'SELL';
-  type: 'MARKET' | 'LIMIT';
+  type: 'MARKET' | 'LIMIT' | 'STOP' | 'STOP_LIMIT';
   quantity: number;
   price?: number;
+  /** V174: Stop price for STOP and STOP_LIMIT order types */
+  stopPrice?: number;
   stopLoss?: number;
   takeProfit?: number;
   idempotencyKey: string;
@@ -63,6 +65,10 @@ export interface UnifiedBalance {
   usedMargin: number;
   currency: string;
   balances: Record<string, { free: number; used: number; total: number }>;
+  /** V174: Margin level percentage (equity/margin * 100) — for MT5 and margin-aware exchanges */
+  marginLevel?: number;
+  /** V174: Broker's margin call level percentage — positions auto-close below this */
+  marginCallLevel?: number;
   timestamp: Date;
 }
 

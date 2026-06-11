@@ -2843,6 +2843,62 @@ export class CredentialsService {
       steps.push({ step: 'Find Account', success: false, message: findErr.message?.substring(0, 100), durationMs: Date.now() - step5Start });
     }
 
+    // Step 5b: V202 — If account is UNDEPLOYED, try to deploy it!
+    // Previously the diagnostic only TESTED but never fixed. Now we actually
+    // deploy the account if it's in UNDEPLOYED/CREATED state, so the user
+    // doesn't have to delete and re-add their account.
+    if (account && account.state && !['DEPLOYED', 'DEPLOYING'].includes(account.state)) {
+      const deployStart = Date.now();
+      try {
+        this.logger.log(`📊 V202: Diagnosing UNDEPLOYED account ${accountId} — deploying...`);
+        await account.deploy();
+        await Promise.race([
+          account.waitDeployed(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('waitDeployed timeout (60s)')), 60_000)),
+        ]);
+        // Wait for broker connection
+        try {
+          await Promise.race([
+            account.waitConnected(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (30s)')), 30_000)),
+          ]);
+        } catch {
+          // Broker may connect later — that's OK
+        }
+        // Refresh account state after deploy
+        const refreshed = await metaApi.metatraderAccountApi.getAccount(metaApiAccountId!);
+        account = refreshed;
+        testAccountRegion = (refreshed as any).region || testAccountRegion;
+        steps.push({ step: 'Auto-Deploy', success: true, message: `Account deployed! state=${refreshed.state}, conn=${refreshed.connectionStatus || '?'}`, durationMs: Date.now() - deployStart });
+      } catch (deployErr: any) {
+        steps.push({ step: 'Auto-Deploy', success: false, message: `Deploy failed: ${deployErr.message?.substring(0, 100)}`, durationMs: Date.now() - deployStart });
+      }
+    } else if (account && account.state === 'DEPLOYED' && account.connectionStatus !== 'CONNECTED') {
+      // DEPLOYED but DISCONNECTED — redeploy
+      const redeployStart = Date.now();
+      try {
+        this.logger.log(`📊 V202: Diagnosing DEPLOYED+DISCONNECTED account ${accountId} — redeploying...`);
+        await account.redeploy();
+        await Promise.race([
+          account.waitDeployed(),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('waitDeployed timeout (60s)')), 60_000)),
+        ]);
+        try {
+          await Promise.race([
+            account.waitConnected(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (30s)')), 30_000)),
+          ]);
+        } catch {
+          // Broker may connect later
+        }
+        const refreshed = await metaApi.metatraderAccountApi.getAccount(metaApiAccountId!);
+        account = refreshed;
+        steps.push({ step: 'Auto-Redeploy', success: true, message: `Account redeployed! state=${refreshed.state}, conn=${refreshed.connectionStatus || '?'}`, durationMs: Date.now() - redeployStart });
+      } catch (redeployErr: any) {
+        steps.push({ step: 'Auto-Redeploy', success: false, message: `Redeploy failed: ${redeployErr.message?.substring(0, 100)}`, durationMs: Date.now() - redeployStart });
+      }
+    }
+
     // Step 6: Test REST API
     const step6Start = Date.now();
     let restWorks = false;

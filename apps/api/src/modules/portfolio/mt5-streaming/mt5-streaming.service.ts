@@ -300,51 +300,67 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
       const metaApiAccount = await accountApi.getAccount(account.id);
       const metaApiAccountId = account.id;
 
-      // 3. Ensure account is deployed and connected
-      if (metaApiAccount.state !== 'DEPLOYED') {
+      // 3. Ensure account is deployed and connected to broker
+      // CRITICAL: This uses if/else, NOT sequential checks!
+      // BUG FIX (V202): Previously, after deploying an UNDEPLOYED account,
+      // the code would check connStatus immediately. Since the broker needs
+      // 10-30s to connect after deploy, connStatus was still DISCONNECTED,
+      // triggering a redeploy() which = undeploy()+deploy() — killing the
+      // terminal that JUST started. This created an infinite loop:
+      // deploy → broker not connected yet → redeploy → broker not connected → ...
+      const wasJustDeployed = metaApiAccount.state !== 'DEPLOYED';
+
+      if (wasJustDeployed) {
+        // Account is UNDEPLOYED/CREATED — deploy it first
         this.logger.log(`📊 MT5 Streaming: Deploying account ${accountId} (state=${metaApiAccount.state})...`);
         await metaApiAccount.deploy();
         await Promise.race([
           metaApiAccount.waitDeployed(),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('deploy timeout')), 60_000)),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('deploy timeout (60s)')), 60_000)),
         ]);
-      }
+        this.logger.log(`📊 MT5 Streaming: Account ${accountId} deployed — waiting for broker connection...`);
 
-      // 3b. CRITICAL FIX: Handle DEPLOYED+DISCONNECTED state.
-      // When the account is DEPLOYED but connectionStatus is not CONNECTED,
-      // deploy() is a NO-OP — MetaAPI server ignores it.
-      // We MUST use redeploy() which forces a terminal restart.
-      // This is the ROOT CAUSE of "ALL_METHODS_FAILED" — the streaming
-      // service was trying to connect() on a disconnected account without
-      // first triggering a reconnect at the MetaAPI Cloud level.
-      const connStatus = (metaApiAccount as any).connectionStatus;
-      if (metaApiAccount.state === 'DEPLOYED' && connStatus !== 'CONNECTED') {
-        this.logger.log(
-          `📊 MT5 Streaming: Account ${accountId} is DEPLOYED but ${connStatus || 'disconnected'} — redeploying...`
-        );
+        // After deploy, give the broker time to connect (10-30s normally)
+        // Don't skip this! The broker MUST connect before getStreamingConnection().
         try {
-          await metaApiAccount.redeploy();
           await Promise.race([
-            metaApiAccount.waitDeployed(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('redeploy timeout (60s)')), 60_000)),
+            metaApiAccount.waitConnected(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (45s)')), 45_000)),
           ]);
-          // Wait for broker connection
+          this.logger.log(`📊 MT5 Streaming: Account ${accountId} connected to broker after deploy!`);
+        } catch {
+          this.logger.warn(`📊 MT5 Streaming: Broker not connected after 45s for ${accountId} — proceeding with streaming anyway (broker may connect later)`);
+        }
+      } else {
+        // Account is already DEPLOYED — check if broker is connected
+        const connStatus = (metaApiAccount as any).connectionStatus;
+        if (connStatus !== 'CONNECTED') {
+          // DEPLOYED but broker DISCONNECTED — redeploy forces terminal restart.
+          // deploy() is a NO-OP when state is already DEPLOYED, so we MUST
+          // use redeploy() which = undeploy() + deploy().
+          this.logger.log(
+            `📊 MT5 Streaming: Account ${accountId} is DEPLOYED but ${connStatus || 'disconnected'} — redeploying...`
+          );
           try {
+            await metaApiAccount.redeploy();
             await Promise.race([
-              metaApiAccount.waitConnected(),
-              new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (30s)')), 30_000)),
+              metaApiAccount.waitDeployed(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('redeploy timeout (60s)')), 60_000)),
             ]);
-            this.logger.log(`📊 MT5 Streaming: Account ${accountId} reconnected to broker!`);
-          } catch {
-            this.logger.warn(`📊 MT5 Streaming: waitConnected timed out after redeploy for ${accountId} — proceeding with streaming anyway`);
+            // Wait for broker connection after redeploy
+            try {
+              await Promise.race([
+                metaApiAccount.waitConnected(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (30s)')), 30_000)),
+              ]);
+              this.logger.log(`📊 MT5 Streaming: Account ${accountId} reconnected to broker!`);
+            } catch {
+              this.logger.warn(`📊 MT5 Streaming: waitConnected timed out after redeploy for ${accountId} — proceeding anyway`);
+            }
+          } catch (redeployErr: any) {
+            this.logger.warn(`📊 MT5 Streaming: Redeploy failed for ${accountId}: ${redeployErr.message?.substring(0, 80)}`);
+            // Continue anyway — the streaming connection might still work
           }
-          // Refresh account state after redeploy
-          const refreshedAccount = await accountApi.getAccount(metaApiAccountId);
-          const newConnStatus = (refreshedAccount as any).connectionStatus;
-          this.logger.log(`📊 MT5 Streaming: After redeploy — state=${refreshedAccount.state}, connStatus=${newConnStatus || '?'}`);
-        } catch (redeployErr: any) {
-          this.logger.warn(`📊 MT5 Streaming: Redeploy failed for ${accountId}: ${redeployErr.message?.substring(0, 80)}`);
-          // Continue anyway — the streaming connection might still work
         }
       }
 

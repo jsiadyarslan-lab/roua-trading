@@ -321,11 +321,14 @@ export default function PortfolioPage() {
         const allClosed = Array.isArray(data) ? data : (data.data || data.positions || [])
         // V205: Backend now filters by credentialId, so no need for client-side filtering
         setClosedPositions(allClosed)
+      } else {
+        // V207: Log API error instead of silently swallowing — helps debug why trades don't appear
+        const errData = await res.json().catch(() => ({}))
+        console.warn(`[Portfolio] Closed positions API error (${res.status}):`, errData?.error || errData?.message || res.statusText)
       }
-      // Don't override apiError from open positions fetch
-    } catch (_e: unknown) {
-      // Closed positions fetch failure is non-critical, but log a user-friendly message
-      // Error handled silently — closed positions fetch is non-critical
+    } catch (e: unknown) {
+      // V207: Log network errors instead of silently swallowing
+      console.warn('[Portfolio] Closed positions fetch failed:', e instanceof Error ? e.message : e)
     }
   }, [])
 
@@ -362,9 +365,14 @@ export default function PortfolioPage() {
       if (res.ok) {
         const data = await res.json()
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
+      } else {
+        // V207: Log API error instead of silently swallowing
+        const errData = await res.json().catch(() => ({}))
+        console.warn(`[Portfolio] Trades API error (${res.status}):`, errData?.error || errData?.message || res.statusText)
       }
-    } catch (_e: unknown) {
-      // Error handled silently
+    } catch (e: unknown) {
+      // V207: Log network errors instead of silently swallowing
+      console.warn('[Portfolio] Trades fetch failed:', e instanceof Error ? e.message : e)
     }
   }, [])
 

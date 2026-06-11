@@ -1529,12 +1529,35 @@ export class TradingService {
         if (to) where.closedAt.lte = new Date(to);
       }
 
-      return await this.prisma.position.findMany({
-        where,
-        orderBy: { closedAt: 'desc' },
-        take: limit,
-        include: { trades: true }, // V140: Include related trades for exit price
-      });
+      // V207 FIX: Try with trades include first. If it fails (e.g., Trade table
+      // doesn't have credentialId column yet because migration wasn't applied),
+      // fall back to querying without the trades include. This makes the API
+      // resilient to migration failures — the user still sees their closed positions,
+      // just without the trade details (exit price fallback uses entryPrice instead).
+      try {
+        return await this.prisma.position.findMany({
+          where,
+          orderBy: { closedAt: 'desc' },
+          take: limit,
+          include: { trades: true }, // V140: Include related trades for exit price
+        });
+      } catch (includeError: any) {
+        // If the error is about a missing column (migration not applied), retry without include
+        const errMsg = includeError?.message || '';
+        if (errMsg.includes('does not exist') || errMsg.includes('column') || includeError?.code === 'P2021') {
+          this.logger.warn(
+            `V207: getClosedPositions failed with trades include (migration not applied?): ${errMsg.substring(0, 200)}. Retrying without trades include.`
+          );
+          return await this.prisma.position.findMany({
+            where,
+            orderBy: { closedAt: 'desc' },
+            take: limit,
+            // No trades include — exit price will use position.exitPrice or entryPrice
+          });
+        }
+        // Other errors — re-throw
+        throw includeError;
+      }
     } catch (error: any) {
       this.logger.error(
         `Failed to fetch closed positions: ${error.message}`,
@@ -1666,6 +1689,35 @@ export class TradingService {
         take: limit,
       });
     } catch (error: any) {
+      // V207 FIX: If the query fails because the credentialId column doesn't exist
+      // in the Trade table (migration not applied yet), retry WITHOUT credentialId
+      // filtering. This ensures the user still sees their trades even if the
+      // migration hasn't been applied on Railway yet.
+      const errMsg = error?.message || '';
+      if (credentialId && (errMsg.includes('does not exist') || errMsg.includes('column') || error?.code === 'P2021')) {
+        this.logger.warn(
+          `V207: getTradeHistory failed with credentialId filter (migration not applied?): ${errMsg.substring(0, 200)}. Retrying without credentialId.`
+        );
+        try {
+          const fallbackWhere: any = { userId };
+          if (from || to) {
+            fallbackWhere.executedAt = {};
+            if (from) fallbackWhere.executedAt.gte = new Date(from);
+            if (to) fallbackWhere.executedAt.lte = new Date(to);
+          }
+          return await this.prisma.trade.findMany({
+            where: fallbackWhere,
+            orderBy: { executedAt: 'desc' },
+            take: limit,
+          });
+        } catch (fallbackError: any) {
+          this.logger.error(
+            `V207: getTradeHistory fallback also failed: ${fallbackError.message}`,
+            fallbackError.stack,
+          );
+          throw fallbackError;
+        }
+      }
       this.logger.error(
         `Failed to fetch trade history: ${error.message}`,
         error.stack,

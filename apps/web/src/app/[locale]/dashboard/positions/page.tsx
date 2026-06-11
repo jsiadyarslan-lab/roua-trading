@@ -242,6 +242,14 @@ export default function PositionsPage() {
     }
   }, [storePositions, storeActiveCredentialId])
 
+  // V210: Re-fetch positions when activeCredentialId changes (account switch)
+  useEffect(() => {
+    if (storeActiveCredentialId !== undefined) {
+      // Trigger a re-fetch from the API with the new credentialId
+      storeFetchPositions()
+    }
+  }, [storeActiveCredentialId, storeFetchPositions])
+
   const fetchSummary = useCallback(async () => {
     try {
       // V192: Use store account data as primary source (respects activeCredentialId)

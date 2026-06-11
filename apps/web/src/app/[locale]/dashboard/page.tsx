@@ -1241,10 +1241,12 @@ export default function DashboardPage() {
     }
   }, [m2ActiveTab, fetchAccount, fetchPositions])
 
-  // V205: Re-fetch closed positions when activeCredentialId changes (user switches account)
+  // V205/V210: Re-fetch ALL data when activeCredentialId changes (user switches account)
   useEffect(() => {
+    // V210: Also re-fetch open positions from the store (which sends credentialId to API)
+    fetchPositions()
     fetchClosedPositions(closedDateFilter)
-  }, [activeCredentialId, fetchClosedPositions, closedDateFilter])
+  }, [activeCredentialId, fetchPositions, fetchClosedPositions, closedDateFilter])
 
   // جلب الصفقات المغلقة
   useEffect(() => {

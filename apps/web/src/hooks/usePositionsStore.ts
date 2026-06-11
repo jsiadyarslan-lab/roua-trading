@@ -557,6 +557,16 @@ export const usePositionsStore = create<PositionsState>()(
         if (newActiveCredId !== currentActiveCredId) {
           console.log(`[PositionsStore] V175: activeCredentialId changed: ${currentActiveCredId?.slice(0,8) || 'null'} → ${newActiveCredId?.slice(0,8) || 'null'}`)
           set({ activeCredentialId: newActiveCredId } as any)
+          // V210 CRITICAL FIX: Re-fetch positions with the new credentialId!
+          // Without this, the store keeps positions from the old account and
+          // getActivePositions() filters them by the NEW credentialId → empty list.
+          // The user sees "لا توجد مراكز مفتوحة" even though the new account has positions.
+          console.log(`[PositionsStore] V210: Re-fetching positions with new credentialId=${newActiveCredId?.slice(0,8) || 'null'}`)
+          // Clear old positions first to avoid showing stale data from the previous account
+          set({ positions: [], _lastFetchStart: 0 } as any)
+          get().fetchPositions().catch((err: any) => {
+            console.warn('[PositionsStore] V210: Re-fetch after credentialId change failed:', err)
+          })
         }
       }
     } catch (err) {

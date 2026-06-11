@@ -410,12 +410,14 @@ export default function PortfolioPage() {
     }
   }, [storePositions, storeActiveCredentialId])
 
-  // V205: Re-fetch closed positions AND trades when activeCredentialId changes
+  // V205/V210: Re-fetch ALL data (open + closed + trades) when activeCredentialId changes
   // This ensures the portfolio immediately reflects the newly selected account's data
   useEffect(() => {
+    // V210: Also re-fetch open positions from the store (which sends credentialId to API)
+    storeFetchPositions()
     fetchClosedPositions()
     fetchTrades()
-  }, [storeActiveCredentialId, fetchClosedPositions, fetchTrades])
+  }, [storeActiveCredentialId, storeFetchPositions, fetchClosedPositions, fetchTrades])
 
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)

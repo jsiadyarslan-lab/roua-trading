@@ -545,9 +545,16 @@ export class TradingService {
       status: 'OPEN',
     };
     // V209: Filter by credentialId when provided (for account switching).
-    // Position.credentialId is NOT NULL, so no need for OR null clause.
+    // V211 FIX: Use OR clause like getClosedPositions/getTradeHistory for consistency.
+    // Even though Position.credentialId is NOT NULL in schema, there may be edge cases
+    // where positions exist without it (migration issues, manual DB edits). Also,
+    // using OR consistently across all query methods ensures the same filtering logic
+    // regardless of the model. This prevents subtle bugs when switching accounts.
     if (credentialId) {
-      where.credentialId = credentialId;
+      where.OR = [
+        { credentialId },
+        { credentialId: null }, // Safety: include positions without credentialId
+      ];
     }
     const positions = await this.prisma.position.findMany({
       where,

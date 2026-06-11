@@ -29,6 +29,8 @@ export interface UnifiedPosition {
   dbId?: string
   /** Exchange-specific symbol — for Alpaca/Exchange reconciliation */
   exchangeSymbol?: string
+  /** V192: Credential ID this position belongs to — used for filtering by active account */
+  credentialId?: string
 }
 
 /** صيغة ملخص المراكز الموحدة */
@@ -118,6 +120,8 @@ export async function fetchPositionsUnified(): Promise<{
         tradeSource: p.source || undefined,
         dbId: p.id,              // FIX: Always pass DB UUID so closePositionUnified can use it
         exchangeSymbol: p.exchangeSymbol,  // FIX: Pass exchange-specific symbol for reconciliation
+        // V192: Include credentialId so positions can be filtered by active account
+        credentialId: p.credentialId || undefined,
       }))
       return { positions, source: 'nestjs' }
     }

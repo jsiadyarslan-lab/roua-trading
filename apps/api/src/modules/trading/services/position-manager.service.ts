@@ -110,6 +110,8 @@ export class PositionManagerService {
           stopLoss: position.stopLoss != null ? Number(position.stopLoss) : null,
           takeProfit: position.takeProfit != null ? Number(position.takeProfit) : null,
           exchange: position.exchange,
+          credentialId: position.credentialId,
+          source: position.source,
           openedAt: position.openedAt,
         });
       } else {
@@ -132,6 +134,8 @@ export class PositionManagerService {
           stopLoss: position.stopLoss != null ? Number(position.stopLoss) : null,
           takeProfit: position.takeProfit != null ? Number(position.takeProfit) : null,
           exchange: position.exchange,
+          credentialId: position.credentialId,
+          source: position.source,
           openedAt: position.openedAt,
         });
       }

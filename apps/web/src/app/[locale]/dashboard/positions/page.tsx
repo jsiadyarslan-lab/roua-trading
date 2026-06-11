@@ -39,6 +39,8 @@ interface Position {
   source?: string
   /** Trade source from DB: smart_executor, agent, auto_paper, user_manual */
   tradeSource?: string
+  /** V192: Credential ID this position belongs to — for filtering by active account */
+  credentialId?: string
 }
 
 interface PositionSummary {
@@ -129,6 +131,13 @@ export default function PositionsPage() {
   const router = useRouter()
   const { loading: authLoading } = useAuth()
 
+  // V192: Use the shared positions store which respects activeCredentialId filtering
+  const storePositions = usePositionsStore(s => s.activeCredentialId ? s.getActivePositions() : s.positions)
+  const storeActiveCredentialId = usePositionsStore(s => s.activeCredentialId)
+  const storeFetchPositions = usePositionsStore(s => s.fetchPositions)
+  const storeAccount = usePositionsStore(s => s.account)
+  const storeFetchAccount = usePositionsStore(s => s.fetchAccount)
+
   const [positions, setPositions] = useState<Position[]>([])
   const [summary, setSummary] = useState<PositionSummary | null>(null)
   const [loading, setLoading] = useState(true)
@@ -157,28 +166,96 @@ export default function PositionsPage() {
   const fetchPositions = useCallback(async () => {
     setLoading(true)
     try {
-      const result = await fetchPositionsUnified()
-      setPositions(result.positions as Position[])
-      if (result.error) {
-        setApiUnavailable(true)
-      } else {
-        setApiUnavailable(false)
-      }
+      // V192: Use the shared store which merges API + paper positions and filters by activeCredentialId
+      await storeFetchPositions()
+      const storeP = usePositionsStore.getState()
+      const filteredPositions = storeP.activeCredentialId
+        ? storeP.getActivePositions()
+        : storeP.positions
+      setPositions(filteredPositions.map((p: any) => ({
+        id: p.id || p.dbId,
+        dbId: p.dbId || p.id,
+        symbol: p.symbol,
+        side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
+        quantity: Number(p.qty) || 0,
+        entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
+        currentPrice: Number(p.currentPrice) || 0,
+        unrealizedPnl: Number(p.unrealizedPnl) || 0,
+        exchange: p.exchange || '',
+        stopLoss: Number(p.stopLoss || p.sl) || undefined,
+        takeProfit: Number(p.takeProfit || p.tp) || undefined,
+        openedAt: p.openedAt || '',
+        source: p.source,
+        tradeSource: p.tradeSource,
+        credentialId: p.credentialId,
+      })) as Position[])
+      setApiUnavailable(false)
     } catch {
-      setApiUnavailable(true)
+      // Fallback to direct API fetch if store fails
+      try {
+        const result = await fetchPositionsUnified()
+        setPositions(result.positions as Position[])
+        if (result.error) {
+          setApiUnavailable(true)
+        } else {
+          setApiUnavailable(false)
+        }
+      } catch {
+        setApiUnavailable(true)
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [storeFetchPositions])
+
+  // V192: Sync store positions when they change (e.g., when activeCredentialId changes)
+  useEffect(() => {
+    const storeP = usePositionsStore.getState()
+    const filteredPositions = storeP.activeCredentialId
+      ? storeP.getActivePositions()
+      : storeP.positions
+    if (filteredPositions.length > 0 || storeP.positions.length === 0) {
+      setPositions(filteredPositions.map((p: any) => ({
+        id: p.id || p.dbId,
+        dbId: p.dbId || p.id,
+        symbol: p.symbol,
+        side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
+        quantity: Number(p.qty) || 0,
+        entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
+        currentPrice: Number(p.currentPrice) || 0,
+        unrealizedPnl: Number(p.unrealizedPnl) || 0,
+        exchange: p.exchange || '',
+        stopLoss: Number(p.stopLoss || p.sl) || undefined,
+        takeProfit: Number(p.takeProfit || p.tp) || undefined,
+        openedAt: p.openedAt || '',
+        source: p.source,
+        tradeSource: p.tradeSource,
+        credentialId: p.credentialId,
+      })) as Position[])
+    }
+  }, [storePositions, storeActiveCredentialId])
 
   const fetchSummary = useCallback(async () => {
     try {
+      // V192: Use store account data as primary source (respects activeCredentialId)
+      await storeFetchAccount()
+      const acct = usePositionsStore.getState().account
+      if (acct) {
+        setSummary({
+          totalPositions: positions.length,
+          totalValue: Number(acct.equity) || Number(acct.totalValue) || 0,
+          unrealizedPnl: Number(acct.unrealizedPnl) || 0,
+          realizedPnl: Number(acct.realizedPnl) || 0,
+        })
+        return
+      }
+      // Fallback to unified fetch
       const result = await fetchSummaryUnified()
       if (result.summary) {
         setSummary(result.summary as PositionSummary)
       }
     } catch { /* */ }
-  }, [])
+  }, [storeFetchAccount, positions.length])
 
   useEffect(() => {
     fetchPositions()

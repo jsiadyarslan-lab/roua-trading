@@ -75,6 +75,10 @@ export class PositionInfo {
   stopLoss: number | null;
   takeProfit: number | null;
   exchange: string;
+  /** V192: Credential ID this position belongs to — used for filtering by active account */
+  credentialId: string;
+  /** Trade source: user_manual, smart_executor, agent, auto_paper */
+  source: string | null;
   openedAt: Date;
 }
 

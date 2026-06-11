@@ -281,54 +281,54 @@ export default function PortfolioPage() {
 
   const fetchPositions = useCallback(async () => {
     try {
-      // V168: First try the shared store (which merges API + paper trading)
+      // V192: Use the shared store as primary source (respects activeCredentialId filtering)
       await storeFetchPositions()
-      const storeP = usePositionsStore.getState().positions
-      // Also try the direct unified fetch as backup
-      const result = await fetchPositionsUnified()
-      // Merge: deduplicate by symbol+side
-      const apiPositions = result.positions as Position[]
-      const allMap = new Map<string, Position>()
-      // Add store positions first (includes paper trades)
-      storeP.forEach((p: any) => {
-        const key = `${p.symbol}-${p.side}`
-        if (!allMap.has(key)) allMap.set(key, {
-          id: p.id || p.dbId || key,
-          symbol: p.symbol,
-          side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
-          quantity: Number(p.qty) || 0,
-          entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
-          currentPrice: Number(p.currentPrice) || 0,
-          unrealizedPnl: Number(p.unrealizedPnl) || 0,
-          exchange: p.exchange,
-          stopLoss: Number(p.stopLoss || p.sl) || undefined,
-          takeProfit: Number(p.takeProfit || p.tp) || undefined,
-          openedAt: p.openedAt,
-          source: p.source || p.tradeSource,
-        })
-      })
-      // Add API positions (override if same key)
-      apiPositions.forEach((p: Position) => {
-        const key = `${p.symbol}-${p.side}`
-        allMap.set(key, p)
-      })
-      setPositions(Array.from(allMap.values()))
-      if (result.error) {
-        setApiError(result.error)
-      } else {
-        setApiError(null)
-      }
+      // Also fetch account to ensure activeCredentialId is loaded
+      await storeFetchAccount()
+      const storeP = usePositionsStore.getState()
+      const filteredPositions = storeP.activeCredentialId
+        ? storeP.getActivePositions()
+        : storeP.positions
+      const mappedPositions = filteredPositions.map((p: any) => ({
+        id: p.id || p.dbId,
+        symbol: p.symbol,
+        side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
+        quantity: Number(p.qty) || 0,
+        entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
+        currentPrice: Number(p.currentPrice) || 0,
+        unrealizedPnl: Number(p.unrealizedPnl) || 0,
+        exchange: p.exchange,
+        stopLoss: Number(p.stopLoss || p.sl) || undefined,
+        takeProfit: Number(p.takeProfit || p.tp) || undefined,
+        openedAt: p.openedAt,
+        source: p.source || p.tradeSource,
+      })) as Position[]
+      setPositions(mappedPositions)
+      setApiError(null)
     } catch (e: unknown) {
       setApiError(`${t('connectionError')}: ${e instanceof Error ? e.message : t('unknown')}`)
     }
-  }, [storeFetchPositions])
+  }, [storeFetchPositions, storeFetchAccount])
 
   const fetchClosedPositions = useCallback(async () => {
     try {
       const res = await fetch('/api/trading/positions/history?limit=500')
       if (res.ok) {
         const data = await res.json()
-        setClosedPositions(Array.isArray(data) ? data : (data.data || data.positions || []))
+        const allClosed = Array.isArray(data) ? data : (data.data || data.positions || [])
+        // V192: Filter closed positions by active credential if set
+        const activeCredId = usePositionsStore.getState().activeCredentialId
+        const filtered = activeCredId
+          ? allClosed.filter((p: any) => {
+              if (p.credentialId) return p.credentialId === activeCredId
+              // Legacy: if position has no credentialId, check exchange match
+              const storeP = usePositionsStore.getState()
+              const activeBal = storeP.exchangeBalances.find((e: any) => e.credentialId === activeCredId)
+              if (activeBal && p.exchange === activeBal.exchange) return true
+              return false
+            })
+          : allClosed
+        setClosedPositions(filtered)
       }
       // Don't override apiError from open positions fetch
     } catch (_e: unknown) {
@@ -381,6 +381,31 @@ export default function PortfolioPage() {
   }, [fetchPositions, fetchClosedPositions, fetchSummary, fetchTrades])
 
   useEffect(() => { fetchAll() }, [fetchAll])
+
+  // V192: Sync positions when activeCredentialId changes (e.g., user switches account)
+  useEffect(() => {
+    const storeP = usePositionsStore.getState()
+    const filteredPositions = storeP.activeCredentialId
+      ? storeP.getActivePositions()
+      : storeP.positions
+    if (filteredPositions.length > 0 || storeP.positions.length === 0) {
+      const mappedPositions = filteredPositions.map((p: any) => ({
+        id: p.id || p.dbId,
+        symbol: p.symbol,
+        side: p.side === 'long' ? 'BUY' : p.side === 'short' ? 'SELL' : p.side,
+        quantity: Number(p.qty) || 0,
+        entryPrice: Number(p.avgEntryPrice || p.entryPrice) || 0,
+        currentPrice: Number(p.currentPrice) || 0,
+        unrealizedPnl: Number(p.unrealizedPnl) || 0,
+        exchange: p.exchange,
+        stopLoss: Number(p.stopLoss || p.sl) || undefined,
+        takeProfit: Number(p.takeProfit || p.tp) || undefined,
+        openedAt: p.openedAt,
+        source: p.source || p.tradeSource,
+      })) as Position[]
+      setPositions(mappedPositions)
+    }
+  }, [storePositions, storeActiveCredentialId])
 
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)

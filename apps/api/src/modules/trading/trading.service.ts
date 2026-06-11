@@ -1512,8 +1512,14 @@ export class TradingService {
       const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
 
       // V205: Filter by credentialId for account-based filtering
+      // V206 FIX: Include positions where credentialId is NULL (legacy data before migration)
+      // During migration period, some positions may not have credentialId set yet.
+      // Also include positions that belong to the selected credential.
       if (credentialId) {
-        where.credentialId = credentialId;
+        where.OR = [
+          { credentialId },
+          { credentialId: null }, // Legacy positions without credentialId
+        ];
       }
 
       // V140: Add date range filtering for daily/weekly/monthly/yearly classification
@@ -1638,8 +1644,13 @@ export class TradingService {
       const where: any = { userId };
 
       // V205: Filter by credentialId for account-based filtering
+      // V206 FIX: Include trades where credentialId is NULL (legacy data before migration)
+      // During migration period, some Trade records may not have credentialId set yet.
       if (credentialId) {
-        where.credentialId = credentialId;
+        where.OR = [
+          { credentialId },
+          { credentialId: null }, // Legacy trades without credentialId
+        ];
       }
 
       // V140: Add date range filtering

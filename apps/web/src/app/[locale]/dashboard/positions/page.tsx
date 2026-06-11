@@ -80,6 +80,13 @@ function getSourceBadge(source?: string | null, tradeSource?: string | null) {
       border: 'rgba(255,184,0,0.25)',
       icon: '\uD83D\uDCDD',
     },
+    mt5_sync: {
+      label: 'MT5',
+      bg: 'rgba(16,185,129,0.12)',
+      color: '#10B981',
+      border: 'rgba(16,185,129,0.25)',
+      icon: '\uD83D\uDCF1',
+    },
     reconciliation: {
       label: 'تسوية',
       bg: 'rgba(48,209,88,0.12)',

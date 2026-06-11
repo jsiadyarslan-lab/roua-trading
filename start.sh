@@ -262,6 +262,74 @@ if [ "$DB_REACHABLE" -eq 1 ]; then
   else
     echo "⚠️ Could not verify tables (non-fatal): $TABLE_CHECK"
   fi
+
+  # ── V207: Verify Trade.credentialId column exists and backfill if needed ──
+  # This is CRITICAL because the API code now references Trade.credentialId.
+  # If the migration wasn't applied or was only partially applied, all Trade
+  # queries would fail, causing "no trades appeared" for the user.
+  echo "📦 Verifying Trade.credentialId column..."
+  CRED_COL_CHECK=$(DATABASE_URL_IN="$ORIG_DB_URL" timeout 15 node -e "
+    const { Client } = require('pg');
+    async function check() {
+      const client = new Client({
+        connectionString: process.env.DATABASE_URL_IN,
+        connectionTimeoutMillis: 5000,
+        statement_timeout: 15000,
+      });
+      try {
+        await client.connect();
+        // Check if credentialId column exists in Trade table
+        const colCheck = await client.query(
+          \`SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'Trade' AND column_name = 'credentialId')\`
+        );
+        if (!colCheck.rows[0].exists) {
+          console.log('MISSING_COL');
+          // Add the column directly
+          await client.query('ALTER TABLE \"Trade\" ADD COLUMN \"credentialId\" TEXT');
+          console.log('COL_ADDED');
+        } else {
+          console.log('COL_EXISTS');
+        }
+        // Backfill: Set credentialId from related Position
+        const bf1 = await client.query(
+          \`UPDATE \"Trade\" t SET \"credentialId\" = p.\"credentialId\" FROM \"Position\" p WHERE t.\"positionId\" = p.id AND t.\"credentialId\" IS NULL AND p.\"credentialId\" IS NOT NULL\`
+        );
+        console.log('BACKFILL_POS:' + bf1.rowCount);
+        // Backfill: Set credentialId from related Order
+        const bf2 = await client.query(
+          \`UPDATE \"Trade\" t SET \"credentialId\" = o.\"exchangeCredentialId\" FROM \"Order\" o WHERE t.\"orderId\" = o.id AND t.\"credentialId\" IS NULL AND o.\"exchangeCredentialId\" IS NOT NULL\`
+        );
+        console.log('BACKFILL_ORD:' + bf2.rowCount);
+        // Ensure indexes exist
+        await client.query('CREATE INDEX IF NOT EXISTS \"Trade_credentialId_idx\" ON \"Trade\"(\"credentialId\")');
+        await client.query('CREATE INDEX IF NOT EXISTS \"Trade_userId_credentialId_idx\" ON \"Trade\"(\"userId\", \"credentialId\")');
+        console.log('INDEXES_OK');
+        await client.end();
+      } catch(e) {
+        console.error('CHECK_ERROR:' + e.message.substring(0, 300));
+        try { await client.end(); } catch {}
+      }
+    }
+    check();
+  " 2>&1)
+
+  if echo "$CRED_COL_CHECK" | grep -q "COL_ADDED"; then
+    echo "⚠️ Trade.credentialId column was MISSING — added directly"
+  elif echo "$CRED_COL_CHECK" | grep -q "COL_EXISTS"; then
+    echo "✅ Trade.credentialId column exists"
+  fi
+  if echo "$CRED_COL_CHECK" | grep -q "BACKFILL_POS"; then
+    BF_POS=$(echo "$CRED_COL_CHECK" | grep "BACKFILL_POS:" | sed 's/BACKFILL_POS://')
+    echo "   Backfill from Position: ${BF_POS:-0} rows updated"
+  fi
+  if echo "$CRED_COL_CHECK" | grep -q "BACKFILL_ORD"; then
+    BF_ORD=$(echo "$CRED_COL_CHECK" | grep "BACKFILL_ORD:" | sed 's/BACKFILL_ORD://')
+    echo "   Backfill from Order: ${BF_ORD:-0} rows updated"
+  fi
+  if echo "$CRED_COL_CHECK" | grep -q "CHECK_ERROR"; then
+    ERR=$(echo "$CRED_COL_CHECK" | grep "CHECK_ERROR:" | sed 's/CHECK_ERROR://')
+    echo "⚠️ Trade.credentialId verification failed (non-fatal): $ERR"
+  fi
 else
   echo "⚠️ Database not reachable — skipping migrations (will retry on next deploy)"
 fi

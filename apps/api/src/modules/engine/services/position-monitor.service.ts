@@ -513,7 +513,7 @@ export class PositionMonitorService {
         }
       } catch { /* non-critical */ }
 
-      let maxHoldingMs = this._getMaxHoldingMs(timeframe, isAgent);
+      let maxHoldingMs = this._getMaxHoldingMs(timeframe, isAgent, position.id, position.symbol);
 
       // V184: Check if holding time was extended (for profitable positions)
       try {
@@ -528,6 +528,14 @@ export class PositionMonitorService {
         const heldMin = (holdingMs / 60000).toFixed(0);
         const maxMin  = (maxHoldingMs / 60000).toFixed(0);
         const profitPct = pnlPercent; // reuse the pnlPercent calculated above
+
+        // V213 DIAGNOSTIC: Log TIME_EXPIRED trigger with full context
+        this.logger.warn(
+          `⏱️ V213 TIME_EXPIRED: ${position.symbol} id=${position.id.slice(0,12)}... ` +
+          `source=${position.source} isAgent=${isAgent} timeframe=${timeframe || 'null'} ` +
+          `held=${heldMin}m > max=${maxMin}m profitPct=${profitPct.toFixed(1)}% ` +
+          `closeReason will be TIME_EXPIRED`
+        );
 
         // V184 FIX: P/L-Aware TIME_EXPIRED close
         // If position is profitable, don't force-close — protect profit instead:
@@ -935,17 +943,37 @@ export class PositionMonitorService {
    * D1/W1   → 7 أيام   (position)
    * Agent   → 48 ساعة  (swing default)
    */
-  private _getMaxHoldingMs(timeframe: string | null, isAgent: boolean): number {
+  private _getMaxHoldingMs(timeframe: string | null, isAgent: boolean, positionId?: string, symbol?: string): number {
     const H = 60 * 60 * 1000;
-    if (isAgent) return 48 * H;
-    if (!timeframe) return 8 * H; // default: 8 ساعات (آمن لكل TFs)
-    const tf = timeframe.toUpperCase();
-    if (tf === 'M1' || tf === 'M5')            return 4  * H;
-    if (tf === 'M15' || tf === 'M30')          return 12 * H;
-    if (tf === 'H1' || tf === 'H2' || tf === 'H4') return 48 * H;
-    if (tf === 'D1' || tf === 'D3')            return 7  * 24 * H;
-    if (tf === 'W1' || tf === 'W2')            return 14 * 24 * H;
-    return 8 * H; // fallback
+    let maxHoldingMs: number;
+    let reason: string;
+
+    if (isAgent) {
+      maxHoldingMs = 48 * H;
+      reason = 'Agent → 48h';
+    } else if (!timeframe) {
+      maxHoldingMs = 8 * H;
+      reason = 'No timeframe → 8h default';
+    } else {
+      const tf = timeframe.toUpperCase();
+      if (tf === 'M1' || tf === 'M5') { maxHoldingMs = 4 * H; reason = `${tf} → 4h`; }
+      else if (tf === 'M15' || tf === 'M30') { maxHoldingMs = 12 * H; reason = `${tf} → 12h`; }
+      else if (tf === 'H1' || tf === 'H2' || tf === 'H4') { maxHoldingMs = 48 * H; reason = `${tf} → 48h`; }
+      else if (tf === 'D1' || tf === 'D3') { maxHoldingMs = 7 * 24 * H; reason = `${tf} → 7d`; }
+      else if (tf === 'W1' || tf === 'W2') { maxHoldingMs = 14 * 24 * H; reason = `${tf} → 14d`; }
+      else { maxHoldingMs = 8 * H; reason = `Unknown TF ${tf} → 8h fallback`; }
+    }
+
+    // V213 DIAGNOSTIC: Log every MAX_HOLDING calculation for Agent positions
+    // This helps diagnose why Agent positions close at 4h instead of 48h.
+    if (isAgent || (positionId && symbol)) {
+      this.logger.log(
+        `🛡️ V213 _getMaxHoldingMs: ${symbol || '?'} id=${positionId?.slice(0,12) || '?'}... ` +
+        `isAgent=${isAgent} timeframe=${timeframe || 'null'} → maxHolding=${(maxHoldingMs / H).toFixed(0)}h (${reason})`
+      );
+    }
+
+    return maxHoldingMs;
   }
 
   private async _checkSanctuary(userId: string): Promise<void> {

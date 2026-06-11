@@ -2909,4 +2909,121 @@ export class TradingService {
 
     return results;
   }
+
+  /**
+   * V213 DIAGNOSTIC: Check Agent position MAX_HOLDING settings
+   * Returns all open Agent positions with their source, timeframe, and calculated
+   * maxHoldingMs — critical for diagnosing why Agent positions close at 4h instead of 48h.
+   */
+  async diagnoseAgentMaxHolding(userId: string): Promise<any> {
+    const results: any = { userId, timestamp: new Date().toISOString() };
+
+    // Step 1: Get ALL open positions (not just agent)
+    try {
+      const allOpen = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+      });
+      results.totalOpenPositions = allOpen.length;
+
+      // Step 2: Analyze each position
+      results.positions = allOpen.map(p => {
+        const isAgent = p.source === 'agent';
+        const isSmartExecutor = p.source === 'smart_executor';
+        const timeframe = (p as any).timeframe || null;
+        const holdingMs = Date.now() - new Date(p.openedAt).getTime();
+        const holdingHours = (holdingMs / (60 * 60 * 1000)).toFixed(1);
+        const H = 60 * 60 * 1000;
+
+        // Calculate maxHoldingMs using same logic as position-monitor
+        let maxHoldingMs: number;
+        let maxHoldingReason: string;
+
+        if (isAgent) {
+          maxHoldingMs = 48 * H;
+          maxHoldingReason = 'Agent → 48h';
+        } else if (!timeframe) {
+          maxHoldingMs = 8 * H;
+          maxHoldingReason = 'No timeframe → 8h default';
+        } else {
+          const tf = timeframe.toUpperCase();
+          if (tf === 'M1' || tf === 'M5') { maxHoldingMs = 4 * H; maxHoldingReason = `${tf} → 4h`; }
+          else if (tf === 'M15' || tf === 'M30') { maxHoldingMs = 12 * H; maxHoldingReason = `${tf} → 12h`; }
+          else if (tf === 'H1' || tf === 'H2' || tf === 'H4') { maxHoldingMs = 48 * H; maxHoldingReason = `${tf} → 48h`; }
+          else if (tf === 'D1' || tf === 'D3') { maxHoldingMs = 7 * 24 * H; maxHoldingReason = `${tf} → 7d`; }
+          else if (tf === 'W1' || tf === 'W2') { maxHoldingMs = 14 * 24 * H; maxHoldingReason = `${tf} → 14d`; }
+          else { maxHoldingMs = 8 * H; maxHoldingReason = `Unknown TF ${tf} → 8h fallback`; }
+        }
+
+        const maxHoldingHours = (maxHoldingMs / (60 * 60 * 1000)).toFixed(0);
+        const willCloseSoon = holdingMs > maxHoldingMs * 0.8; // 80% of max holding
+
+        return {
+          id: `${p.id.slice(0, 12)}...`,
+          symbol: p.symbol,
+          side: p.side,
+          exchange: p.exchange,
+          source: p.source,
+          isAgent,
+          isSmartExecutor,
+          timeframe: timeframe || 'NULL',
+          openedAt: p.openedAt,
+          holdingHours: `${holdingHours}h`,
+          maxHoldingHours: `${maxHoldingHours}h`,
+          maxHoldingReason,
+          willCloseSoon,
+          overMaxHolding: holdingMs > maxHoldingMs,
+          stopLoss: p.stopLoss?.toNumber() || null,
+          takeProfit: p.takeProfit?.toNumber() || null,
+          entryPrice: p.entryPrice?.toNumber(),
+          currentPrice: p.currentPrice?.toNumber() || null,
+        };
+      });
+
+      // Step 3: Summary
+      const agentPositions = allOpen.filter(p => p.source === 'agent');
+      const smartPositions = allOpen.filter(p => p.source === 'smart_executor');
+      const otherPositions = allOpen.filter(p => p.source !== 'agent' && p.source !== 'smart_executor');
+
+      results.summary = {
+        agentPositions: agentPositions.length,
+        smartExecutorPositions: smartPositions.length,
+        otherPositions: otherPositions.length,
+        agentPositionsWithTimeframe: agentPositions.filter(p => (p as any).timeframe).length,
+        agentPositionsWithoutTimeframe: agentPositions.filter(p => !(p as any).timeframe).length,
+      };
+
+      // Step 4: Check recent closed positions for TIME_EXPIRED pattern
+      const recentClosed = await this.prisma.position.findMany({
+        where: {
+          userId,
+          status: { in: ['CLOSED', 'LIQUIDATED'] },
+          source: 'agent',
+          closedAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+        orderBy: { closedAt: 'desc' },
+        take: 10,
+      });
+
+      results.recentAgentCloses = recentClosed.map(p => {
+        const holdMs = p.closedAt
+          ? new Date(p.closedAt).getTime() - new Date(p.openedAt).getTime()
+          : 0;
+        return {
+          symbol: p.symbol,
+          side: p.side,
+          closeReason: p.closeReason,
+          holdingTime: `${(holdMs / (60 * 60 * 1000)).toFixed(1)}h`,
+          openedAt: p.openedAt,
+          closedAt: p.closedAt,
+          pnl: p.realizedPnl?.toNumber() || 0,
+          timeframe: (p as any).timeframe || 'NULL',
+        };
+      });
+
+    } catch (err: any) {
+      results.error = err.message;
+    }
+
+    return results;
+  }
 }

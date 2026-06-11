@@ -895,6 +895,23 @@ export class TradingController {
     return { success: true, diagnostic: results };
   }
 
+  /**
+   * V213 DIAGNOSTIC: Check Agent MAX_HOLDING settings
+   * GET /api/trading/diagnose/max-holding
+   */
+  @Get('diagnose/max-holding')
+  async diagnoseMaxHolding(@Req() req: any) {
+    try {
+      const userId = req.user.id;
+      this.logger.log(`🛡️ V213: Diagnosing MAX_HOLDING for user ${userId}`);
+      const result = await this.tradingService.diagnoseAgentMaxHolding(userId);
+      return { success: true, diagnostic: result };
+    } catch (error: any) {
+      this.logger.error(`V213 diagnose max-holding failed: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
   // ── Risk Management ──
 
   /**

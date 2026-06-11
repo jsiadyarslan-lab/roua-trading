@@ -137,16 +137,20 @@ export function AlpacaPositions() {
   }
 
   // V141: Translate closeReason to Arabic for display
+  // V213: Added TIME_EXPIRED, AUTO_CLOSE, EMERGENCY_STOP translations
   function getCloseReasonLabel(reason: string | null | undefined): { label: string; color: string } | null {
     if (!reason) return null
     const r = reason.toUpperCase()
     if (r.includes('STOP_LOSS') || r === 'STOP_LOSS_HIT') return { label: t('reasonStopLoss'), color: T.danger }
     if (r.includes('TAKE_PROFIT') || r === 'TAKE_PROFIT_HIT') return { label: t('reasonTakeProfit'), color: T.success }
     if (r === 'MANUAL') return { label: t('reasonManual'), color: T.text2 }
+    if (r.includes('TIME_EXPIRED')) return { label: t('reasonAuto'), color: T.amber }
+    if (r === 'AUTO_CLOSE') return { label: t('reasonAuto'), color: T.amber }
     if (r.includes('STALE') || r.includes('AUTO')) return { label: t('reasonAuto'), color: T.amber }
     if (r.includes('STRATEGY') || r.includes('MAX_HOLDING')) return { label: t('reasonStrategic'), color: T.purple }
     if (r.includes('EXCHANGE_SYNC')) return { label: t('reasonSync'), color: T.cyan }
     if (r === 'FORCE_CLOSE') return { label: t('reasonForce'), color: T.danger }
+    if (r.includes('EMERGENCY')) return { label: t('reasonForce'), color: T.danger }
     return { label: reason, color: T.text3 }
   }
 

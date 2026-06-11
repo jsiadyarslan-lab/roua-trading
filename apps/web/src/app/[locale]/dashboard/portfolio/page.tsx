@@ -312,23 +312,15 @@ export default function PortfolioPage() {
 
   const fetchClosedPositions = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/positions/history?limit=500')
+      // V205: Pass credentialId to API for server-side filtering instead of client-side
+      const activeCredId = usePositionsStore.getState().activeCredentialId
+      const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const res = await fetch(`/api/trading/positions/history?limit=500${credParam}`)
       if (res.ok) {
         const data = await res.json()
         const allClosed = Array.isArray(data) ? data : (data.data || data.positions || [])
-        // V192: Filter closed positions by active credential if set
-        const activeCredId = usePositionsStore.getState().activeCredentialId
-        const filtered = activeCredId
-          ? allClosed.filter((p: any) => {
-              if (p.credentialId) return p.credentialId === activeCredId
-              // Legacy: if position has no credentialId, check exchange match
-              const storeP = usePositionsStore.getState()
-              const activeBal = storeP.exchangeBalances.find((e: any) => e.credentialId === activeCredId)
-              if (activeBal && p.exchange === activeBal.exchange) return true
-              return false
-            })
-          : allClosed
-        setClosedPositions(filtered)
+        // V205: Backend now filters by credentialId, so no need for client-side filtering
+        setClosedPositions(allClosed)
       }
       // Don't override apiError from open positions fetch
     } catch (_e: unknown) {
@@ -363,7 +355,10 @@ export default function PortfolioPage() {
 
   const fetchTrades = useCallback(async () => {
     try {
-      const res = await fetch('/api/trading/trades?limit=100')
+      // V205: Pass credentialId to API for server-side filtering
+      const activeCredId = usePositionsStore.getState().activeCredentialId
+      const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const res = await fetch(`/api/trading/trades?limit=100${credParam}`)
       if (res.ok) {
         const data = await res.json()
         setTrades(Array.isArray(data) ? data : (data.data || data.trades || []))
@@ -406,6 +401,13 @@ export default function PortfolioPage() {
       setPositions(mappedPositions)
     }
   }, [storePositions, storeActiveCredentialId])
+
+  // V205: Re-fetch closed positions AND trades when activeCredentialId changes
+  // This ensures the portfolio immediately reflects the newly selected account's data
+  useEffect(() => {
+    fetchClosedPositions()
+    fetchTrades()
+  }, [storeActiveCredentialId, fetchClosedPositions, fetchTrades])
 
   const handleClosePosition = async (pos: Position) => {
     setClosing(pos.id)

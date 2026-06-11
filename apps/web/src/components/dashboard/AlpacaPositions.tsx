@@ -123,7 +123,10 @@ export function AlpacaPositions() {
     if (closedLoading) return
     setClosedLoading(true)
     try {
-      const res = await fetch('/api/trading/positions/history?limit=500')
+      // V205: Pass credentialId to API for server-side filtering by active account
+      const activeCredId = usePositionsStore.getState().activeCredentialId
+      const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const res = await fetch(`/api/trading/positions/history?limit=500${credParam}`)
       if (res.ok) {
         const data = await res.json()
         const positions = Array.isArray(data) ? data : (data.data || data.positions || [])

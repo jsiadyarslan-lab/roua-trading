@@ -402,6 +402,7 @@ export class OrderConsumerService implements OnModuleInit, OnModuleDestroy {
         await tx.trade.create({
           data: {
             userId: message.userId,
+            credentialId: message.exchangeCredentialId,
             exchange: credential.exchange,
             symbol: message.symbol,
             side: message.side as any,

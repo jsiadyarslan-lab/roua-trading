@@ -1186,7 +1186,10 @@ export default function DashboardPage() {
       if (filter === 'week')  { const d = new Date(now); d.setDate(d.getDate()-7);  from = d.toISOString() }
       if (filter === 'month') { const d = new Date(now); d.setMonth(d.getMonth()-1); from = d.toISOString() }
       if (filter === 'year')  { const d = new Date(now); d.setFullYear(d.getFullYear()-1); from = d.toISOString() }
-      const url = '/api/trading/positions/history?limit=200' + (from ? `&from=${encodeURIComponent(from)}` : '')
+      // V205: Pass credentialId to API for server-side filtering by active account
+      const activeCredId = usePositionsStore.getState().activeCredentialId
+      const credParam = activeCredId ? `&credentialId=${encodeURIComponent(activeCredId)}` : ''
+      const url = '/api/trading/positions/history?limit=200' + (from ? `&from=${encodeURIComponent(from)}` : '') + credParam
       const res = await fetch(url)
       if (res.ok) {
         const data = await res.json()
@@ -1237,6 +1240,11 @@ export default function DashboardPage() {
       fetchPositions()
     }
   }, [m2ActiveTab, fetchAccount, fetchPositions])
+
+  // V205: Re-fetch closed positions when activeCredentialId changes (user switches account)
+  useEffect(() => {
+    fetchClosedPositions(closedDateFilter)
+  }, [activeCredentialId, fetchClosedPositions, closedDateFilter])
 
   // جلب الصفقات المغلقة
   useEffect(() => {

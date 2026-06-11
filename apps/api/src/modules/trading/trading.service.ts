@@ -337,6 +337,7 @@ export class TradingService {
           data: {
             userId,
             orderId: createdOrder.id,
+            credentialId: request.credentialId,
             exchange: credential.exchange,
             symbol: request.symbol,
             side: request.side,
@@ -992,6 +993,7 @@ export class TradingService {
           userId,
           orderId: order.id,
           positionId: position.id,
+          credentialId: position.credentialId,
           exchange: position.exchange,
           symbol: position.symbol,
           side: closeSide as PrismaOrderSide,
@@ -1362,6 +1364,7 @@ export class TradingService {
           userId,
           orderId: order.id,
           positionId: position.id,
+          credentialId: position.credentialId,
           exchange: position.exchange,
           symbol: position.symbol,
           side: closeSide as PrismaOrderSide,
@@ -1504,9 +1507,14 @@ export class TradingService {
   /**
    * Get closed positions for a user
    */
-  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string) {
+  async getClosedPositions(userId: string, limit: number = 100, from?: string, to?: string, credentialId?: string) {
     try {
       const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
+
+      // V205: Filter by credentialId for account-based filtering
+      if (credentialId) {
+        where.credentialId = credentialId;
+      }
 
       // V140: Add date range filtering for daily/weekly/monthly/yearly classification
       if (from || to) {
@@ -1625,9 +1633,14 @@ export class TradingService {
   /**
    * Get trade history
    */
-  async getTradeHistory(userId: string, limit: number = 50, from?: string, to?: string) {
+  async getTradeHistory(userId: string, limit: number = 50, from?: string, to?: string, credentialId?: string) {
     try {
       const where: any = { userId };
+
+      // V205: Filter by credentialId for account-based filtering
+      if (credentialId) {
+        where.credentialId = credentialId;
+      }
 
       // V140: Add date range filtering
       if (from || to) {

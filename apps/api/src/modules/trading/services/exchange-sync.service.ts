@@ -353,6 +353,7 @@ export class ExchangeSyncService implements OnModuleInit, OnModuleDestroy {
           data: {
             userId: position.userId,
             positionId: position.id,
+            credentialId: position.credentialId,
             symbol: position.symbol,
             side: position.side === 'BUY' ? 'SELL' : 'BUY',
             type: 'EXIT',

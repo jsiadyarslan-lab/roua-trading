@@ -542,15 +542,17 @@ export class TradingController {
     @Query('limit') limit?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('credentialId') credentialId?: string,
   ) {
     try {
       const userId = req.user.id;
-      this.logger.log(`📋 Fetching trading history for user: ${userId}`);
+      this.logger.log(`📋 Fetching trading history for user: ${userId}, credentialId: ${credentialId || 'all'}`);
       const positions = await this.tradingService.getClosedPositions(
         userId,
         limit ? (parseInt(limit, 10) || 50) : 50,
         from,
         to,
+        credentialId,
       );
       // Map Prisma Position model to frontend-friendly trade format
       const trades = (Array.isArray(positions) ? positions : []).map((p: any) => {
@@ -588,15 +590,17 @@ export class TradingController {
     @Query('limit') limit?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('credentialId') credentialId?: string,
   ) {
     try {
       const userId = req.user.id;
-      this.logger.log(`📋 Fetching closed positions for user: ${userId}, from: ${from || 'all'}, to: ${to || 'all'}`);
+      this.logger.log(`📋 Fetching closed positions for user: ${userId}, credentialId: ${credentialId || 'all'}, from: ${from || 'all'}, to: ${to || 'all'}`);
       return await this.tradingService.getClosedPositions(
         userId,
         limit ? (parseInt(limit, 10) || 100) : 100,
         from,
         to,
+        credentialId,
       );
     } catch (error: any) {
       this.logger.error(
@@ -732,6 +736,7 @@ export class TradingController {
     @Query('limit') limit?: string,
     @Query('from') from?: string,
     @Query('to') to?: string,
+    @Query('credentialId') credentialId?: string,
   ) {
     try {
       const userId = req.user.id;
@@ -740,6 +745,7 @@ export class TradingController {
         limit ? (parseInt(limit, 10) || 50) : 50,
         from,
         to,
+        credentialId,
       );
     } catch (error: any) {
       this.logger.error(

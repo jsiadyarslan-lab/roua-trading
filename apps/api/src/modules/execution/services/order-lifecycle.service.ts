@@ -361,6 +361,7 @@ export class OrderLifecycleService {
           data: {
             userId,
             orderId,
+            credentialId: order.exchangeCredentialId,
             exchange: credential?.exchange || order.exchange || 'unknown',
             symbol: order.symbol,
             side: order.side,

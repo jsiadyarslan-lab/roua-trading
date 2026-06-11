@@ -171,6 +171,7 @@ export class PositionReconciliationService implements OnModuleInit, OnModuleDest
           data: {
             userId: record.userId,
             orderId: record.orderId,
+            credentialId: record.exchangeCredentialId,
             exchange: credential.exchange,
             symbol: record.symbol,
             side: record.side as any,

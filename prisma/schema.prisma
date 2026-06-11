@@ -423,6 +423,8 @@ model Trade {
   exchangeTradeId String?
   executedAt      DateTime  @default(now())
   source          String?   @default("user_manual")
+  // V205: ربط التداول بحساب الاعتماد — للفلترة عند تبديل الحساب
+  credentialId    String?
   user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   order           Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
   position        Position? @relation(fields: [positionId], references: [id], onDelete: SetNull)
@@ -432,6 +434,8 @@ model Trade {
   @@index([positionId])
   @@index([executedAt])
   @@index([userId, type, executedAt])
+  @@index([credentialId])
+  @@index([userId, credentialId])
 }
 
 // ── Position Reconciliation Queue ──

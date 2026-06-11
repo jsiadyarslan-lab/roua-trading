@@ -2450,6 +2450,7 @@ export class AutonomousTraderAgentService implements OnModuleInit {
                   data: {
                     userId,
                     positionId: position.id,
+                    credentialId: position.credentialId,
                     exchange: position.exchange,
                     symbol: position.symbol,
                     side: position.side === 'BUY' ? 'SELL' : 'BUY',

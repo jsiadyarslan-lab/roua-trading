@@ -4,6 +4,8 @@ import {
   BadRequestException,
   NotFoundException,
   ForbiddenException,
+  Optional,
+  Inject,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../../common/prisma/prisma.service';
@@ -50,6 +52,7 @@ export class CredentialsService {
     private readonly prismaExtension: PrismaExtensionService,
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
+    @Optional() @Inject('MT5StreamingService') private readonly mt5StreamingService?: any,
   ) {
     // FIX: Wrap entire key derivation in try-catch to prevent NestJS crash.
     // If ANY step of the key derivation fails (invalid hex, scryptSync error,
@@ -1707,6 +1710,33 @@ export class CredentialsService {
   }> {
     const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
     try {
+      // V196: Check streaming service first — instant if connected
+      if ((this as any).mt5StreamingService) {
+        const streamInfo = (this as any).mt5StreamingService.getAccountInfo(cred.id);
+        if (streamInfo) {
+          this.logger.log(`📊 V196: MT5 streaming hit for ${cred.label} — balance=$${streamInfo.balance}, equity=$${streamInfo.equity} (instant, no API call)`);
+          // Sync positions in background
+          (this as any).mt5StreamingService.getPositions(cred.id);
+          return {
+            exchange: cred.exchange,
+            label: cred.label,
+            credentialId: cred.id,
+            isTestnet: isDemo,
+            equity: streamInfo.equity,
+            balance: streamInfo.balance,
+            available: streamInfo.freeMargin,
+            currency: streamInfo.currency,
+            usedMargin: streamInfo.margin,
+            assets: [{
+              currency: streamInfo.currency,
+              free: streamInfo.freeMargin,
+              used: streamInfo.margin,
+              total: streamInfo.balance,
+            }],
+          };
+        }
+      }
+
       const metaApiToken = this.configService.get<string>('METAAPI_TOKEN');
       if (!metaApiToken) {
         this.logger.error(

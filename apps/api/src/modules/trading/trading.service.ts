@@ -2676,11 +2676,24 @@ export class TradingService {
       where: { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } },
     });
 
-    // Get distinct credentialIds for this user's positions
+    // Get distinct credentialIds for ALL positions
     const positionsByCred = await this.prisma.position.groupBy({
       by: ['credentialId'],
       where: { userId },
       _count: { id: true },
+    });
+
+    // Get distinct credentialIds for OPEN positions only
+    const openByCred = await this.prisma.position.groupBy({
+      by: ['credentialId'],
+      where: { userId, status: 'OPEN' },
+      _count: { id: true },
+    });
+
+    // Get actual open position details (symbol, credentialId, side)
+    const openPositionDetails = await this.prisma.position.findMany({
+      where: { userId, status: 'OPEN' },
+      select: { id: true, symbol: true, side: true, credentialId: true, exchange: true },
     });
 
     return {
@@ -2689,6 +2702,17 @@ export class TradingService {
       positionsByCredential: positionsByCred.map((g: any) => ({
         credentialId: g.credentialId?.substring(0, 12) + '...' || 'NULL',
         count: g._count.id,
+      })),
+      openPositionsByCredential: openByCred.map((g: any) => ({
+        credentialId: g.credentialId?.substring(0, 12) + '...' || 'NULL',
+        count: g._count.id,
+      })),
+      openPositionDetails: openPositionDetails.map((p: any) => ({
+        id: p.id.substring(0, 12) + '...',
+        symbol: p.symbol,
+        side: p.side,
+        exchange: p.exchange,
+        credentialId: p.credentialId?.substring(0, 12) + '...' || 'NULL',
       })),
     };
   }

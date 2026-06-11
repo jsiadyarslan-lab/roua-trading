@@ -2732,17 +2732,43 @@ export class TradingService {
       },
     });
 
-    // activeCredentialId is stored in frontend Zustand store, not in DB.
-    // We just list the credentials here so the diagnostic can see them.
+    // Check Setting table for activeCredentialId
+    let activeCredentialId: string | null = null;
+    let activeCredentialSource: string = 'NOT_FOUND';
+    try {
+      const setting = await this.prisma.setting.findFirst({
+        where: { key: `user:${userId}:activeCredentialId` },
+      });
+      if (setting?.value) {
+        activeCredentialId = setting.value;
+        activeCredentialSource = 'Setting table';
+      }
+    } catch (err: any) {
+      activeCredentialSource = `ERROR: ${err.message?.substring(0, 100)}`;
+    }
+
+    // Check if the activeCredentialId matches any credential
+    const activeCredExists = activeCredentialId
+      ? credentials.some((c: any) => c.id === activeCredentialId)
+      : null;
+    const activeCredExchange = activeCredentialId
+      ? credentials.find((c: any) => c.id === activeCredentialId)?.exchange || 'UNKNOWN'
+      : null;
+
     return {
       totalCredentials: credentials.length,
       credentials: credentials.map((c: any) => ({
         id: c.id.substring(0, 12) + '...',
+        fullId: c.id,
         exchange: c.exchange,
         isValid: c.isValid,
         testnet: c.testnet,
       })),
-      note: 'activeCredentialId is stored in frontend Zustand store, not in DB',
+      activeCredentialId: activeCredentialId ? activeCredentialId.substring(0, 12) + '...' : null,
+      activeCredentialFull: activeCredentialId,
+      activeCredentialExists: activeCredExists,
+      activeCredentialExchange: activeCredExchange,
+      activeCredentialSource,
     };
   }
 }

@@ -545,16 +545,11 @@ export class TradingService {
       status: 'OPEN',
     };
     // V209: Filter by credentialId when provided (for account switching).
-    // V211 FIX: Use OR clause like getClosedPositions/getTradeHistory for consistency.
-    // Even though Position.credentialId is NOT NULL in schema, there may be edge cases
-    // where positions exist without it (migration issues, manual DB edits). Also,
-    // using OR consistently across all query methods ensures the same filtering logic
-    // regardless of the model. This prevents subtle bugs when switching accounts.
+    // V212 FIX: Position.credentialId is NOT NULL in schema, so we CANNOT use
+    // OR with { credentialId: null } — Prisma rejects it. Use direct filter instead.
+    // Trade.credentialId IS nullable, so OR with null is fine for Trade queries.
     if (credentialId) {
-      where.OR = [
-        { credentialId },
-        { credentialId: null }, // Safety: include positions without credentialId
-      ];
+      where.credentialId = credentialId;
     }
     const positions = await this.prisma.position.findMany({
       where,
@@ -1526,14 +1521,10 @@ export class TradingService {
       const where: any = { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } }; // V140B: Include LIQUIDATED positions
 
       // V205: Filter by credentialId for account-based filtering
-      // V206 FIX: Include positions where credentialId is NULL (legacy data before migration)
-      // During migration period, some positions may not have credentialId set yet.
-      // Also include positions that belong to the selected credential.
+      // V212 FIX: Position.credentialId is NOT NULL in schema, so we CANNOT use
+      // OR with { credentialId: null } — Prisma rejects it. Use direct filter instead.
       if (credentialId) {
-        where.OR = [
-          { credentialId },
-          { credentialId: null }, // Legacy positions without credentialId
-        ];
+        where.credentialId = credentialId;
       }
 
       // V140: Add date range filtering for daily/weekly/monthly/yearly classification
@@ -2836,13 +2827,8 @@ export class TradingService {
           credentialId: `${p.credentialId.slice(0, 12)}...`,
         }));
 
-        // Also test with OR null clause (like getClosedPositions)
-        const whereWithOr: any = { userId, status: 'OPEN', OR: [{ credentialId: activeCredentialId }, { credentialId: null }] };
-        const orOpen = await this.prisma.position.findMany({
-          where: whereWithOr,
-          orderBy: { openedAt: 'desc' },
-        });
-        results.openPositionsWithOr = orOpen.length;
+        // V212: Removed OR null clause — Position.credentialId is NOT NULL, so Prisma rejects { credentialId: null }.
+        // Direct credentialId filter is the correct approach for Position queries.
       }
     } catch (err: any) {
       results.openPositionsError = err.message;
@@ -2860,10 +2846,11 @@ export class TradingService {
       }));
 
       if (activeCredentialId) {
+        // V212: Position.credentialId is NOT NULL — use direct filter, not OR with null
         const whereWithCred: any = {
           userId,
           status: { in: ['CLOSED', 'LIQUIDATED'] },
-          OR: [{ credentialId: activeCredentialId }, { credentialId: null }],
+          credentialId: activeCredentialId,
         };
         const filteredClosed = await this.prisma.position.findMany({
           where: whereWithCred,

@@ -196,6 +196,7 @@ export class OrderDispatcherService {
         stopLoss: request.stopLoss,
         takeProfit: request.takeProfit,
         source: request.source as any,
+        timeframe: request.timeframe, // V204: Pass timeframe to Position DB record
       });
 
       this.logger.log(`✅ [${request.source}] ${request.symbol} ${request.side} | orderId: ${result?.id}`);

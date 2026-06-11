@@ -402,12 +402,16 @@ export class RiskManagerService {
         const agentSettings = await this.prisma.agentSettings.findUnique({
           where: { userId },
         });
-        const paperBalance = agentSettings?.paperBalance?.toNumber() ?? 10000;
+        const paperBalance = agentSettings?.paperBalance?.toNumber() ?? 0; // V204: was 10000
+        if (paperBalance <= 0) {
+          this.logger.warn(`🛡️ V204: Paper balance is $${paperBalance} — no capital available`);
+          return 0;
+        }
         this.logger.debug(`🛡️ Paper trading portfolio value: $${paperBalance} (from AgentSettings)`);
         return paperBalance;
-      } catch {
-        this.logger.debug(`🛡️ Paper trading portfolio value: $10000 (default)`);
-        return 10000;
+      } catch (err: any) {
+        this.logger.error(`🛡️ V204: Failed to fetch paper balance: ${err.message} — returning 0`);
+        return 0;
       }
     }
 

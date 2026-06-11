@@ -486,11 +486,31 @@ export class PositionMonitorService {
 
       const isAgent = position.source === 'agent';
 
-      // قراءة الـ timeframe من Redis لحساب MAX_HOLDING الصحيح
+      // قراءة الـ timeframe من DB أولاً (V204)، ثم Redis كـ fallback
+      // V204 FIX: Previously timeframe was ONLY in Redis. If Redis restarted
+      // or key expired, timeframe=null → wrong MAX_HOLDING (8h default instead
+      // of correct value). This caused Agent positions to close at 4-8h instead
+      // of 48h. Now: DB is primary (persistent), Redis is fallback (for legacy
+      // positions created before V204).
       let timeframe: string | null = null;
       try {
-        const tfKey = `smart-executor:position-tf:${position.userId}:${position.symbol}`;
-        timeframe = await this.redis.get(tfKey);
+        // V204: Read from Position.timeframe column first (persistent)
+        timeframe = (position as any).timeframe || null;
+        if (!timeframe) {
+          // Fallback: Check Redis for positions created before V204
+          const tfKey = `smart-executor:position-tf:${position.userId}:${position.symbol}`;
+          timeframe = await this.redis.get(tfKey);
+          if (timeframe) {
+            // V204: Backfill the DB field for this position so we don't need Redis next time
+            try {
+              await this.prisma.position.update({
+                where: { id: position.id },
+                data: { timeframe },
+              });
+              this.logger.debug(`🛡️ V204: Backfilled timeframe=${timeframe} for position ${position.id} from Redis`);
+            } catch { /* non-critical */ }
+          }
+        }
       } catch { /* non-critical */ }
 
       let maxHoldingMs = this._getMaxHoldingMs(timeframe, isAgent);

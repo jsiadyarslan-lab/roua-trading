@@ -2999,11 +2999,13 @@ export class SmartExecutorService implements OnModuleDestroy {
         return result;
       }
 
-      // V180 FIX: Minimum SL distance check.
+      // V204 FIX: Minimum SL distance check raised from 0.5% to 1.0%.
       // Without this, a stop loss only 0.1% away from entry produces
       // enormous quantities (e.g., DOGE: $150 risk / $0.0001 = 1.5M units).
       // This was the ROOT CAUSE of positions reaching 86% of portfolio.
-      const MIN_SL_DISTANCE_PERCENT = 0.5; // Minimum 0.5% distance from entry
+      // V204: Raised from 0.5% to 1.0% because crypto moves 2-5% routinely
+      // and the old 0.5% minimum still produced 36% SL hit rate.
+      const MIN_SL_DISTANCE_PERCENT = 1.0; // V204: was 0.5
       const slDistancePercent = (priceRisk / currentPrice) * 100;
       if (slDistancePercent < MIN_SL_DISTANCE_PERCENT) {
         result.error = `Stop loss too close (${slDistancePercent.toFixed(2)}% < ${MIN_SL_DISTANCE_PERCENT}%) — risk of oversized position`;
@@ -3400,24 +3402,32 @@ export class SmartExecutorService implements OnModuleDestroy {
   }
 
   private async _getPaperPortfolioValue(userId: string): Promise<number> {
-    // V180 FIX: Use freeCash (paperBalance) as portfolio value for position sizing.
-    // Previously: equity = freeCash + lockedMargin + unrealizedPnl
-    // Problem: For crypto (1:1 leverage), lockedMargin = full notional value.
-    // A DOGE position of $8,000 added $8,000 to equity, inflating the
-    // portfolio value and allowing even larger positions — positive feedback loop.
-    // Fix: Use freeCash only for position sizing. This is conservative but safe:
-    // - A $10K account with $2K in open positions = $8K freeCash
-    // - Max position = 2% of $8K = $160 (not 2% of $10K+)
-    // This prevents the inflation spiral that caused 86% positions.
+    // V204 FIX: NEVER assume $10,000 fallback for paper portfolio.
+    // V180 used freeCash (paperBalance) which was correct, but fell back to
+    // $10,000 when balance was 0 or settings missing. This caused:
+    //   - Positions of $200 (2% of phantom $10K) on a $200 account = 100% exposure
+    //   - Smart strategy positions reaching $8,657 (when balance was small)
+    //   - The 99,677 DOGE position ($8,657) that lost -$37.27
+    // Now: Return ACTUAL balance. If unknown, return 0 (will block trading).
+    // The caller checks portfolioValue > 0 before sizing positions.
     try {
       const settings = await this.prisma.agentSettings.findUnique({
         where: { userId },
         select: { paperBalance: true },
       });
-      const freeCash = settings ? Number(settings.paperBalance) : 10000;
-      return freeCash > 0 ? freeCash : 10000;
-    } catch {
-      return 10000;
+      if (!settings || settings.paperBalance === null || settings.paperBalance === undefined) {
+        this.logger.warn(`⚔️ V204: paperBalance not found for user ${userId} — cannot calculate portfolio value, returning 0`);
+        return 0;
+      }
+      const freeCash = Number(settings.paperBalance);
+      if (freeCash <= 0) {
+        this.logger.warn(`⚔️ V204: paperBalance is $${freeCash} for user ${userId} — no capital available`);
+        return 0;
+      }
+      return freeCash;
+    } catch (err: any) {
+      this.logger.error(`⚔️ V204: Failed to fetch paperBalance for user ${userId}: ${err.message} — returning 0`);
+      return 0;
     }
   }
 

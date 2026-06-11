@@ -1890,16 +1890,11 @@ export class TradingService {
     fee: number;
     feeCurrency: string;
   }> {
-    // V180+FIX: Validate position size — dynamic % of portfolio.
-    // This is the LAST line of defense — if all upstream checks fail,
-    // this still prevents oversized positions from executing.
-    // Max 5% of portfolio per order — consistent with real trading.
-    const MAX_POSITION_PERCENT = 5;
-    const orderValue = request.quantity * currentPrice;
-
-    // Dynamic position size check using actual paperBalance from DB.
-    // This mirrors the same check in RiskGatekeeper and PaperTradingAdapter.
-    let paperBalance = 10000; // default fallback
+    // V204 FIX: Unified with smart-executor — NEVER assume $10,000 fallback.
+    // If we don't know the real balance, we cannot safely size a position.
+    // Returning 0 will cause the position size check to fail (0% > 5% → false)
+    // which is the CORRECT behavior — don't trade if you don't know the balance.
+    let paperBalance = 0; // V204: was 10000 — caused positions of 86% of actual balance
     if (userId) {
       try {
         const settings = await this.prisma.agentSettings.findUnique({
@@ -1908,11 +1903,48 @@ export class TradingService {
         });
         if (settings?.paperBalance) {
           paperBalance = Number(settings.paperBalance);
+        } else {
+          this.logger.warn(`📜 V204: paperBalance not found for user ${userId} — blocking trade (safety)`);
+          return {
+            success: false,
+            exchangeOrderId: '',
+            filledQuantity: 0,
+            averagePrice: currentPrice,
+            fee: 0,
+            feeCurrency: 'USD',
+          };
         }
-      } catch {
-        this.logger.warn('📜 V180: Could not fetch paperBalance, using default $10,000');
+      } catch (err: any) {
+        this.logger.error(`📜 V204: Could not fetch paperBalance: ${err.message} — blocking trade (safety)`);
+        return {
+          success: false,
+          exchangeOrderId: '',
+          filledQuantity: 0,
+          averagePrice: currentPrice,
+          fee: 0,
+          feeCurrency: 'USD',
+        };
       }
     }
+    // V204: If paperBalance is 0 or negative, block the trade
+    if (paperBalance <= 0) {
+      this.logger.warn(`📜 V204: paperBalance is $${paperBalance} — blocking trade (no capital)`);
+      return {
+        success: false,
+        exchangeOrderId: '',
+        filledQuantity: 0,
+        averagePrice: currentPrice,
+        fee: 0,
+        feeCurrency: 'USD',
+      };
+    }
+
+    // V204 FIX: Unified MAX_POSITION_PERCENT to 2% (was 5% — inconsistent with smart-executor's 2%).
+    // The smart-executor caps at portfolioValue * 0.02, but this service allowed 5%,
+    // creating a loophole where positions passed smart-executor's 2% check but
+    // trading.service's 5% check allowed them through.
+    const MAX_POSITION_PERCENT = 2;
+    const orderValue = request.quantity * currentPrice;
 
     const positionPercent = (orderValue / paperBalance) * 100;
     if (positionPercent > MAX_POSITION_PERCENT) {
@@ -2368,6 +2400,7 @@ export class TradingService {
               stopLoss: finalStopLoss,
               takeProfit: finalTakeProfit,
               source:  request.source || (exchangeName === 'paper-trading' ? 'auto_paper' : 'user_manual'),
+              timeframe: request.timeframe || null, // V204: Persist timeframe for position-monitor MAX_HOLDING
 
             },
           });

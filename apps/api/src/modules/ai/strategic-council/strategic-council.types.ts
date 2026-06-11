@@ -130,16 +130,23 @@ export const TIMEFRAME_EXPIRY_MS: Record<BriefTimeframe, number> = {
  *
  *  V134 FIX (preserved): The old M1 SL of 0.1% was IMMEDIATELY triggered
  *  by normal crypto volatility. Minimums M1=0.5% survive noise.
+ *
+ *  V204 FIX: SL distances were still too tight for crypto markets.
+ *  Analysis of 103 trades showed Smart strategy SL hit rate = 36.2%
+ *  because M1 SL of 0.5% is triggered by normal crypto noise (DOGE
+ *  routinely moves 2-5% in hours). Increased all SLs by 2x to survive
+ *  crypto volatility. TP also adjusted to maintain R:R ratios.
+ *  This should reduce SL hit rate from 36% to below 20%.
  */
 export const TIMEFRAME_RR: Record<BriefTimeframe, { sl: number; tp: number; maxSlippage: number }> = {
-  M1: { sl: 0.005, tp: 0.0125, maxSlippage: 0.002 },   // V177: 1:2.5 — Scalping: tighter stops, better reward
-  M5: { sl: 0.008, tp: 0.020, maxSlippage: 0.003 },    // V177: 1:2.5 — Scalping
-  M15: { sl: 0.010, tp: 0.030, maxSlippage: 0.004 },   // V177: 1:3 — Intraday: more room
-  M30: { sl: 0.012, tp: 0.036, maxSlippage: 0.005 },   // V177: 1:3 — Intraday
-  H1: { sl: 0.015, tp: 0.045, maxSlippage: 0.005 },    // V177: 1:3 — Swing: needs room
-  H4: { sl: 0.02, tp: 0.060, maxSlippage: 0.005 },     // V177: 1:3 — Swing
-  D1: { sl: 0.03, tp: 0.075, maxSlippage: 0.008 },     // V177: 1:2.5 — Position: wider stops
-  W1: { sl: 0.05, tp: 0.125, maxSlippage: 0.010 },     // V177: 1:2.5 — Position
+  M1: { sl: 0.010, tp: 0.025, maxSlippage: 0.003 },   // V204: SL 0.5%→1.0%, TP 1.25%→2.5% (1:2.5) — was 36% SL hit rate
+  M5: { sl: 0.015, tp: 0.0375, maxSlippage: 0.004 },   // V204: SL 0.8%→1.5%, TP 2.0%→3.75% (1:2.5)
+  M15: { sl: 0.020, tp: 0.060, maxSlippage: 0.005 },   // V204: SL 1.0%→2.0%, TP 3.0%→6.0% (1:3)
+  M30: { sl: 0.024, tp: 0.072, maxSlippage: 0.006 },   // V204: SL 1.2%→2.4%, TP 3.6%→7.2% (1:3)
+  H1: { sl: 0.025, tp: 0.075, maxSlippage: 0.006 },    // V204: SL 1.5%→2.5%, TP 4.5%→7.5% (1:3)
+  H4: { sl: 0.030, tp: 0.090, maxSlippage: 0.007 },    // V204: SL 2.0%→3.0%, TP 6.0%→9.0% (1:3)
+  D1: { sl: 0.050, tp: 0.125, maxSlippage: 0.010 },    // V204: SL 3.0%→5.0%, TP 7.5%→12.5% (1:2.5) — same as old W1
+  W1: { sl: 0.070, tp: 0.175, maxSlippage: 0.012 },    // V204: SL 5.0%→7.0%, TP 12.5%→17.5% (1:2.5)
 };
 
 /** V177 FIX #13: Minimum risk/reward ratio enforced by RiskGatekeeper.

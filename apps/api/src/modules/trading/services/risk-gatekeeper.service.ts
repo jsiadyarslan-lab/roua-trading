@@ -81,7 +81,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
   ) {
     // Initialize with env var defaults — will be overwritten by DB settings
     this.maxPositionSizePercent = parseFloat(
-      this.configService.get('RISK_MAX_POSITION_PERCENT', '5'),
+      this.configService.get('RISK_MAX_POSITION_PERCENT', '2'),  // V204: was 5 — unified to 2% across all services
     );
     this.maxOpenPositions = parseInt(
       this.configService.get('RISK_MAX_OPEN_POSITIONS', '10'), // Safe default for real accounts
@@ -829,7 +829,7 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
             where: { userId: command.userId },
             select: { paperBalance: true, paperCryptoLeverage: true, paperForexLeverage: true },
           });
-          const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 10000;
+          const paperBalance = settings?.paperBalance ? Number(settings.paperBalance) : 0; // V204: was 10000
           const cryptoLev = settings?.paperCryptoLeverage ? Number(settings.paperCryptoLeverage) : 1;
           const forexLev = settings?.paperForexLeverage ? Number(settings.paperForexLeverage) : 50;
 
@@ -868,8 +868,8 @@ export class RiskGatekeeperService implements OnModuleInit, OnModuleDestroy {
         // allowing positions of 86% of portfolio. Paper trading MUST enforce
         // the same position size limits as real trading so test results
         // reflect real-world behavior.
-        // NO guard condition — must ALWAYS check. If balance unknown, use $10,000 default.
-        const paperBalance = await this._getPaperBalance(command.userId) || 10000;
+        // NO guard condition — must ALWAYS check. If balance unknown, block the trade.
+        const paperBalance = await this._getPaperBalance(command.userId) || 0; // V204: was || 10000
         const orderValue = Math.abs((command.quantity || 0) * (command.price || 0));
         if (orderValue > 0) {
           const positionPercent = (orderValue / paperBalance) * 100;

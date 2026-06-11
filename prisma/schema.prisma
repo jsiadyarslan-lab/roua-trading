@@ -391,6 +391,7 @@ model Position {
   source         String?            @default("user_manual")
   version        Int                @default(0) // FIX: Optimistic locking — prevents concurrent close race condition
   exchangeSymbol String? // FIX: Exchange-specific symbol (e.g. BTCUSD for Alpaca) for reconciliation
+  timeframe      String? // V204: Trading timeframe (M1, M5, M15, H1, H4, D1, W1) — persisted in DB for position-monitor MAX_HOLDING calculation. Was only in Redis (lost on restart → wrong holding time).
   // V175: ربط المركز بالـ brief الذي أصدره — للتعلم من النتائج
   user           User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   credential     ExchangeCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)

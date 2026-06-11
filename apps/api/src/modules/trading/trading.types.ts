@@ -110,6 +110,9 @@ export interface PlaceOrderRequest {
    * (i.e., calls from TradingController / OrderController).
    * Internal calls that bypass the controller should leave this unset (false). */
   skipRiskCheck?: boolean;
+  /** V204: Trading timeframe (M1, M5, M15, H1, H4, D1, W1) — persisted in Position
+   * for position-monitor MAX_HOLDING calculation. Was only in Redis (lost on restart). */
+  timeframe?: string;
 }
 
 export interface ClosePositionRequest {

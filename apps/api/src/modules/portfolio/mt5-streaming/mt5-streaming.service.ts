@@ -301,6 +301,44 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
         ]);
       }
 
+      // 3b. CRITICAL FIX: Handle DEPLOYED+DISCONNECTED state.
+      // When the account is DEPLOYED but connectionStatus is not CONNECTED,
+      // deploy() is a NO-OP — MetaAPI server ignores it.
+      // We MUST use redeploy() which forces a terminal restart.
+      // This is the ROOT CAUSE of "ALL_METHODS_FAILED" — the streaming
+      // service was trying to connect() on a disconnected account without
+      // first triggering a reconnect at the MetaAPI Cloud level.
+      const connStatus = (metaApiAccount as any).connectionStatus;
+      if (metaApiAccount.state === 'DEPLOYED' && connStatus !== 'CONNECTED') {
+        this.logger.log(
+          `📊 MT5 Streaming: Account ${accountId} is DEPLOYED but ${connStatus || 'disconnected'} — redeploying...`
+        );
+        try {
+          await metaApiAccount.redeploy();
+          await Promise.race([
+            metaApiAccount.waitDeployed(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('redeploy timeout (60s)')), 60_000)),
+          ]);
+          // Wait for broker connection
+          try {
+            await Promise.race([
+              metaApiAccount.waitConnected(),
+              new Promise((_, reject) => setTimeout(() => reject(new Error('waitConnected timeout (30s)')), 30_000)),
+            ]);
+            this.logger.log(`📊 MT5 Streaming: Account ${accountId} reconnected to broker!`);
+          } catch {
+            this.logger.warn(`📊 MT5 Streaming: waitConnected timed out after redeploy for ${accountId} — proceeding with streaming anyway`);
+          }
+          // Refresh account state after redeploy
+          const refreshedAccount = await accountApi.getAccount(metaApiAccountId);
+          const newConnStatus = (refreshedAccount as any).connectionStatus;
+          this.logger.log(`📊 MT5 Streaming: After redeploy — state=${refreshedAccount.state}, connStatus=${newConnStatus || '?'}`);
+        } catch (redeployErr: any) {
+          this.logger.warn(`📊 MT5 Streaming: Redeploy failed for ${accountId}: ${redeployErr.message?.substring(0, 80)}`);
+          // Continue anyway — the streaming connection might still work
+        }
+      }
+
       // 4. Create STREAMING connection (not RPC!)
       const connection = metaApiAccount.getStreamingConnection();
 
@@ -312,10 +350,13 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
       await connection.connect();
       this.logger.log(`📊 MT5 Streaming: Connecting to ${accountId}...`);
 
-      // Wait for sync (can take a while for large history)
+      // Wait for sync (can take a while for large history or after redeploy)
+      // V197: Increased timeout to 60s — after redeploy, the terminal
+      // needs time to start up, connect to broker, and sync history.
+      // 30s was too short and caused streaming to fail on every startup.
       await Promise.race([
         connection.waitSynchronized(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('sync timeout (30s)')), 30_000)),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('sync timeout (60s)')), 60_000)),
       ]);
 
       // 7. Subscribe to market data for symbols of open positions
@@ -488,7 +529,7 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
 
       /** Fired when disconnected from broker */
       async onDisconnected(instanceIndex: string) {
-        self.logger.warn(`📊 MT5 Streaming: ${accountId} disconnected from broker`);
+        self.logger.warn(`📊 MT5 Streaming: ${accountId} disconnected from broker — triggering auto-reconnect`);
 
         self._emitConnectionStatus(credentialId, {
           credentialId,
@@ -497,8 +538,22 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
           connectedToBroker: false,
           synchronized: false,
           healthy: false,
-          message: 'Disconnected from broker',
+          message: 'Disconnected from broker — auto-reconnecting',
         });
+
+        // V197: Auto-reconnect on broker disconnect.
+        // Previously, onDisconnected just emitted a status update and did nothing.
+        // Now we schedule a reconnect so the streaming connection can recover.
+        const conn = self.connections.get(credentialId);
+        if (conn) {
+          conn.reconnectAttempts = (conn.reconnectAttempts || 0) + 1;
+          // Close the stale connection first
+          try { await conn.connection?.close(); } catch { /* ignore */ }
+          self.connections.delete(credentialId);
+          // Schedule reconnect with the credential data
+          const cred = { id: credentialId, userId, exchange: 'mt5' };
+          self._scheduleReconnect(cred);
+        }
       },
 
       /** Fired when broker connection status changes */
@@ -514,6 +569,37 @@ export class MT5StreamingService implements OnModuleInit, OnModuleDestroy {
             synchronized: false,
             healthy: false,
             message: 'Broker disconnected — reconnecting...',
+          });
+
+          // V197: Try to redeploy the account when broker disconnects.
+          // MetaAPI Cloud should auto-reconnect, but sometimes it gets stuck
+          // in DISCONNECTED state. A redeploy forces a terminal restart.
+          try {
+            const conn = self.connections.get(credentialId);
+            if (conn?.account) {
+              self.logger.log(`📊 MT5 Streaming: Attempting redeploy for ${accountId} after broker disconnect...`);
+              await conn.account.redeploy();
+              await Promise.race([
+                conn.account.waitDeployed(),
+                new Promise((_, reject) => setTimeout(() => reject(new Error('redeploy timeout')), 60_000)),
+              ]);
+              self.logger.log(`📊 MT5 Streaming: Redeployed ${accountId} — waiting for broker reconnection`);
+            }
+          } catch (redeployErr: any) {
+            self.logger.warn(`📊 MT5 Streaming: Broker disconnect redeploy failed for ${accountId}: ${redeployErr.message?.substring(0, 60)}`);
+          }
+        } else {
+          // Broker reconnected — reset reconnect attempts
+          const conn = self.connections.get(credentialId);
+          if (conn) conn.reconnectAttempts = 0;
+
+          self._emitConnectionStatus(credentialId, {
+            credentialId,
+            accountId,
+            connected: true,
+            connectedToBroker: true,
+            synchronized: true,
+            healthy: true,
           });
         }
       },

@@ -363,10 +363,12 @@ export const usePositionsStore = create<PositionsState>()(
     // use BTC/USDT format, but quotes may arrive as BTC/USD from Binance WS.
     // Without this, positions with BTC/USDT never match BTC/USD quotes → frozen P&L.
     const normalizedInput = symbol.toUpperCase().replace(/\//g, '').replace(/USD$/, 'USDT')
-    const currentPositions = get().positions
+    // V197 FIX: Use all positions for the map (we need to update matching positions),
+    // but compute PnL/metrics from ONLY active positions to avoid mixing MT5 with paper.
+    const allPositions = get().positions
     let changed = false
 
-    const positions = currentPositions.map((p) => {
+    const positions = allPositions.map((p) => {
       const normalizedPos = p.symbol.toUpperCase().replace(/\//g, '').replace(/USD$/, 'USDT')
       if (normalizedPos !== normalizedInput) return p
 
@@ -432,7 +434,16 @@ export const usePositionsStore = create<PositionsState>()(
     // ═══════════════════════════════════════════════════════════════
     const currentAccount = get().account
     if (currentAccount) {
-      const positionsMarketValue = positions.reduce(
+      // V197 FIX: Compute metrics from ONLY active positions to avoid mixing
+      // MT5 balance/equity with paper-trading PnL. Previously, positions.reduce()
+      // summed ALL positions (MT5 + paper), so:
+      //   - MT5 equity (from MetaAPI) was correct
+      //   - But positionsMarketValue and positionsUnrealizedPnl included paper positions
+      //   - This caused "Position value: $12,457" when only $2,457 was from MT5
+      const activePositions = get().activeCredentialId
+        ? get().getActivePositions()
+        : positions
+      const positionsMarketValue = activePositions.reduce(
         (sum, p) => sum + Math.abs(Number(p.marketValue || p.qty * p.currentPrice || 0)),
         0,
       )
@@ -440,7 +451,7 @@ export const usePositionsStore = create<PositionsState>()(
       // Do NOT recalculate equity from client-side positions — that overwrites the
       // real equity with cash + mixed PnL (paper + real).
       const isRealExchangeActive = !!(currentAccount as any).isRealExchangeMargin
-      const positionsUnrealizedPnl = positions.reduce(
+      const positionsUnrealizedPnl = activePositions.reduce(
         (sum, p) => sum + (p.unrealizedPnl || 0),
         0,
       )

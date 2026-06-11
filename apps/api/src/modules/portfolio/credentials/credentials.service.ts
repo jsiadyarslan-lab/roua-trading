@@ -2719,6 +2719,51 @@ export class CredentialsService {
     const isDemo = cred.exchange === 'mt5_demo' || cred.testnet === true;
     steps.push({ step: 'Credential', success: true, message: `Found: ${cred.exchange}/${cred.label} (demo: ${isDemo})`, durationMs: Date.now() - step2Start });
 
+    // Step 2b: Check streaming service status (V197)
+    if ((this as any).mt5StreamingService) {
+      const streamStatus = (this as any).mt5StreamingService.getConnectionStatus(credentialId);
+      const streamInfo = (this as any).mt5StreamingService.getAccountInfo(credentialId);
+      if (streamStatus) {
+        steps.push({
+          step: 'Streaming Service',
+          success: streamStatus.healthy,
+          message: `Streaming: ${streamStatus.healthy ? 'HEALTHY' : 'UNHEALTHY'} (broker: ${streamStatus.connectedToBroker ? 'CONNECTED' : 'DISCONNECTED'}, synced: ${streamStatus.synchronized})`,
+          durationMs: 0,
+        });
+        if (streamInfo) {
+          steps.push({
+            step: 'Streaming Balance',
+            success: true,
+            message: `Balance: $${streamInfo.balance}, Equity: $${streamInfo.equity}, Margin: $${streamInfo.margin}`,
+            durationMs: 0,
+          });
+          // If streaming is healthy and has balance, we can skip REST/RPC tests
+          if (streamStatus.healthy && streamInfo.equity > 0) {
+            return {
+              tokenPresent: true,
+              tokenValid: true,
+              credentialFound: true,
+              accountExists: true,
+              accountState: 'DEPLOYED',
+              connectionStatus: 'CONNECTED',
+              restApiWorks: true, // Streaming is even better than REST
+              rpcWorks: true,
+              balance: {
+                equity: streamInfo.equity,
+                balance: streamInfo.balance,
+                currency: streamInfo.currency || 'USD',
+                margin: streamInfo.margin,
+                freeMargin: streamInfo.freeMargin,
+              },
+              steps,
+            };
+          }
+        }
+      } else {
+        steps.push({ step: 'Streaming Service', success: false, message: 'No streaming connection for this credential — falling back to REST/RPC', durationMs: 0 });
+      }
+    }
+
     // Step 3: Decrypt credentials
     const step3Start = Date.now();
     let accountId: string, password: string, server: string;

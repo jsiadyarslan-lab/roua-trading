@@ -3,6 +3,7 @@ import {
   WebSocketServer,
   OnGatewayConnection,
   OnGatewayDisconnect,
+  SubscribeMessage,
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
@@ -168,8 +169,59 @@ export class MT5Gateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   // ═══════════════════════════════════════════════════════════
-  // CLIENT EVENT HANDLERS
+  // CLIENT EVENT HANDLERS (V197: Added @SubscribeMessage handlers)
   // ═══════════════════════════════════════════════════════════
+
+  /**
+   * V197: Handle mt5:subscribe — client subscribes to a credential's updates.
+   * Without this, the frontend's socket.emit('mt5:subscribe', { credentialId })
+   * was silently ignored, so price/status events were never delivered.
+   */
+  @SubscribeMessage('mt5:subscribe')
+  handleSubscribe(client: Socket, payload: { credentialId: string }) {
+    const subs = this.socketSubscriptions.get(client.id);
+    if (subs && payload?.credentialId) {
+      subs.add(payload.credentialId);
+      this.logger.log(`📊 MT5 WS: Socket ${client.id} subscribed to credential ${payload.credentialId.slice(0, 8)}...`);
+
+      // Send current status immediately on subscribe
+      const status = this.streamingService.getConnectionStatus(payload.credentialId);
+      if (status) {
+        client.emit('mt5:status', status);
+      }
+
+      // Send cached balance if available
+      const balance = this.streamingService.getAccountInfo(payload.credentialId);
+      if (balance) {
+        client.emit('mt5:balance', balance);
+      }
+    }
+  }
+
+  /**
+   * V197: Handle mt5:unsubscribe — client unsubscribes from a credential's updates.
+   */
+  @SubscribeMessage('mt5:unsubscribe')
+  handleUnsubscribe(client: Socket, payload: { credentialId: string }) {
+    const subs = this.socketSubscriptions.get(client.id);
+    if (subs && payload?.credentialId) {
+      subs.delete(payload.credentialId);
+      this.logger.log(`📊 MT5 WS: Socket ${client.id} unsubscribed from credential ${payload.credentialId.slice(0, 8)}...`);
+    }
+  }
+
+  /**
+   * V197: Handle mt5:subscribe:symbol — client requests live price for a symbol.
+   */
+  @SubscribeMessage('mt5:subscribe:symbol')
+  async handleSubscribeSymbol(client: Socket, payload: { credentialId: string; symbol: string }) {
+    if (payload?.credentialId && payload?.symbol) {
+      const success = await this.streamingService.subscribeToSymbol(payload.credentialId, payload.symbol);
+      if (success) {
+        this.logger.log(`📊 MT5 WS: Socket ${client.id} subscribed to symbol ${payload.symbol}`);
+      }
+    }
+  }
 
   private async _sendInitialStatus(client: Socket, userId: string) {
     // Find user's MT5 credentials and send their streaming status

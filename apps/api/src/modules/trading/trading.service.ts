@@ -1689,33 +1689,83 @@ export class TradingService {
         take: limit,
       });
     } catch (error: any) {
-      // V207 FIX: If the query fails because the credentialId column doesn't exist
-      // in the Trade table (migration not applied yet), retry WITHOUT credentialId
-      // filtering. This ensures the user still sees their trades even if the
-      // migration hasn't been applied on Railway yet.
+      // V208 FIX: If the query fails, use raw SQL as fallback.
+      // Prisma always includes ALL schema columns in SELECT, so even removing
+      // credentialId from WHERE doesn't help — the SELECT still references it.
+      // Only raw SQL can avoid referencing a column that doesn't exist yet.
       const errMsg = error?.message || '';
-      if (credentialId && (errMsg.includes('does not exist') || errMsg.includes('column') || error?.code === 'P2021')) {
+      const isColumnMissing = errMsg.includes('does not exist') || errMsg.includes('column') || error?.code === 'P2021';
+
+      if (isColumnMissing) {
         this.logger.warn(
-          `V207: getTradeHistory failed with credentialId filter (migration not applied?): ${errMsg.substring(0, 200)}. Retrying without credentialId.`
+          `V208: getTradeHistory Prisma query failed (column missing?): ${errMsg.substring(0, 200)}. Using raw SQL fallback.`
         );
         try {
-          const fallbackWhere: any = { userId };
-          if (from || to) {
-            fallbackWhere.executedAt = {};
-            if (from) fallbackWhere.executedAt.gte = new Date(from);
-            if (to) fallbackWhere.executedAt.lte = new Date(to);
+          // Build raw SQL that only selects columns that definitely exist
+          let sql = `SELECT id, "userId", "orderId", "positionId", exchange, symbol, side, type, quantity, price, fee, "feeCurrency", pnl, "exchangeTradeId", "executedAt", source FROM "Trade" WHERE "userId" = $1`;
+          const params: any[] = [userId];
+          let paramIdx = 2;
+
+          if (credentialId) {
+            sql += ` AND ("credentialId" = $${paramIdx} OR "credentialId" IS NULL)`;
+            params.push(credentialId);
+            paramIdx++;
           }
-          return await this.prisma.trade.findMany({
-            where: fallbackWhere,
-            orderBy: { executedAt: 'desc' },
-            take: limit,
-          });
-        } catch (fallbackError: any) {
-          this.logger.error(
-            `V207: getTradeHistory fallback also failed: ${fallbackError.message}`,
-            fallbackError.stack,
-          );
-          throw fallbackError;
+
+          if (from) {
+            sql += ` AND "executedAt" >= $${paramIdx}`;
+            params.push(new Date(from));
+            paramIdx++;
+          }
+          if (to) {
+            sql += ` AND "executedAt" <= $${paramIdx}`;
+            params.push(new Date(to));
+            paramIdx++;
+          }
+
+          sql += ` ORDER BY "executedAt" DESC LIMIT $${paramIdx}`;
+          params.push(limit);
+
+          const trades = await this.prisma.$queryRawUnsafe(sql, ...params);
+
+          // Add credentialId: null to each trade for consistent shape
+          return (trades as any[]).map(t => ({ ...t, credentialId: t.credentialId ?? null }));
+        } catch (rawErr: any) {
+          // If credentialId filter fails in raw SQL too, try WITHOUT it
+          if (credentialId && (rawErr?.message || '').includes('credentialId')) {
+            this.logger.warn(
+              `V208: Raw SQL with credentialId also failed: ${(rawErr?.message || '').substring(0, 200)}. Trying without credentialId.`
+            );
+            try {
+              let sql = `SELECT id, "userId", "orderId", "positionId", exchange, symbol, side, type, quantity, price, fee, "feeCurrency", pnl, "exchangeTradeId", "executedAt", source FROM "Trade" WHERE "userId" = $1`;
+              const params: any[] = [userId];
+              let paramIdx = 2;
+
+              if (from) {
+                sql += ` AND "executedAt" >= $${paramIdx}`;
+                params.push(new Date(from));
+                paramIdx++;
+              }
+              if (to) {
+                sql += ` AND "executedAt" <= $${paramIdx}`;
+                params.push(new Date(to));
+                paramIdx++;
+              }
+
+              sql += ` ORDER BY "executedAt" DESC LIMIT $${paramIdx}`;
+              params.push(limit);
+
+              const trades = await this.prisma.$queryRawUnsafe(sql, ...params);
+              return (trades as any[]).map(t => ({ ...t, credentialId: null }));
+            } catch (rawErr2: any) {
+              this.logger.error(
+                `V208: Raw SQL fallback without credentialId also failed: ${rawErr2.message}`,
+                rawErr2.stack,
+              );
+              throw rawErr2;
+            }
+          }
+          throw rawErr;
         }
       }
       this.logger.error(

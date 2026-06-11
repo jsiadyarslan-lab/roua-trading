@@ -105,12 +105,43 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
         column: 'closeReason',
         sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "closeReason" TEXT`,
       },
+      // V204: Position columns that may be missing if migration 20260612000000 wasn't applied
+      {
+        table: 'Position',
+        column: 'timeframe',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "timeframe" TEXT`,
+      },
+      {
+        table: 'Position',
+        column: 'version',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "version" INTEGER NOT NULL DEFAULT 0`,
+      },
+      {
+        table: 'Position',
+        column: 'exchangeSymbol',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "exchangeSymbol" TEXT`,
+      },
+      {
+        table: 'Position',
+        column: 'source',
+        sql: `ALTER TABLE "Position" ADD COLUMN IF NOT EXISTS "source" TEXT NOT NULL DEFAULT 'user_manual'`,
+      },
       // V171: keyType column for ExchangeCredential — if this migration fails,
       // ALL credential queries throw "column keyType does not exist" → $0 balance
       {
         table: 'ExchangeCredential',
         column: 'keyType',
         sql: `ALTER TABLE "ExchangeCredential" ADD COLUMN IF NOT EXISTS "keyType" TEXT NOT NULL DEFAULT 'hmac'`,
+      },
+      // V208: credentialId column for Trade — if this migration fails,
+      // ALL trade queries throw "column credentialId does not exist" → zero trades shown.
+      // Prisma always includes ALL schema columns in SELECT, so even the V207
+      // fallback (which removes credentialId from WHERE) still crashes because
+      // the SELECT clause references the missing column.
+      {
+        table: 'Trade',
+        column: 'credentialId',
+        sql: `ALTER TABLE "Trade" ADD COLUMN IF NOT EXISTS "credentialId" TEXT`,
       },
     ];
 
@@ -126,6 +157,39 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
           this.logger.warn(`📦 Auto-migration failed for ${migration.table}.${migration.column}: ${error?.message?.substring(0, 200)}`);
         }
       }
+    }
+
+    // V208: Backfill Trade.credentialId from Position and Order for existing records
+    // This runs AFTER the column is added (above) to populate it for existing data.
+    try {
+      // Step A: Backfill from Position (most reliable — credentialId is NOT NULL)
+      const posResult = await this.$executeRawUnsafe(`
+        UPDATE "Trade" t SET "credentialId" = p."credentialId"
+        FROM "Position" p WHERE t."positionId" = p.id
+        AND t."credentialId" IS NULL AND p."credentialId" IS NOT NULL
+      `);
+      this.logger.log(`📦 Auto-migration: Backfilled Trade.credentialId from Position (${posResult} rows)`);
+    } catch (err: any) {
+      this.logger.warn(`📦 Auto-migration: Trade.credentialId backfill from Position failed: ${err?.message?.substring(0, 200)}`);
+    }
+    try {
+      // Step B: Backfill from Order (for trades without Position link)
+      const ordResult = await this.$executeRawUnsafe(`
+        UPDATE "Trade" t SET "credentialId" = o."exchangeCredentialId"
+        FROM "Order" o WHERE t."orderId" = o.id
+        AND t."credentialId" IS NULL AND o."exchangeCredentialId" IS NOT NULL
+      `);
+      this.logger.log(`📦 Auto-migration: Backfilled Trade.credentialId from Order (${ordResult} rows)`);
+    } catch (err: any) {
+      this.logger.warn(`📦 Auto-migration: Trade.credentialId backfill from Order failed: ${err?.message?.substring(0, 200)}`);
+    }
+    try {
+      // Step C: Create indexes for efficient filtering
+      await this.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Trade_credentialId_idx" ON "Trade"("credentialId")`);
+      await this.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Trade_userId_credentialId_idx" ON "Trade"("userId", "credentialId")`);
+      this.logger.log(`📦 Auto-migration: Trade.credentialId indexes created ✅`);
+    } catch (err: any) {
+      this.logger.warn(`📦 Auto-migration: Trade.credentialId indexes failed: ${err?.message?.substring(0, 200)}`);
     }
   }
 

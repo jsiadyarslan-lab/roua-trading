@@ -2704,31 +2704,21 @@ export class TradingService {
         id: true,
         exchange: true,
         isValid: true,
-        isTestnet: true,
+        testnet: true,
       },
     });
 
-    // Check user settings for activeCredentialId
-    const settings = await this.prisma.userSettings.findUnique({
-      where: { userId },
-      select: { activeCredentialId: true },
-    });
-
-    const activeCredId = settings?.activeCredentialId;
-    const activeCredExists = activeCredId
-      ? credentials.some((c: any) => c.id === activeCredId)
-      : null;
-
+    // activeCredentialId is stored in frontend Zustand store, not in DB.
+    // We just list the credentials here so the diagnostic can see them.
     return {
       totalCredentials: credentials.length,
       credentials: credentials.map((c: any) => ({
         id: c.id.substring(0, 12) + '...',
         exchange: c.exchange,
         isValid: c.isValid,
-        isTestnet: c.isTestnet,
+        testnet: c.testnet,
       })),
-      activeCredentialId: activeCredId ? activeCredId.substring(0, 12) + '...' : null,
-      activeCredentialExists: activeCredExists,
+      note: 'activeCredentialId is stored in frontend Zustand store, not in DB',
     };
   }
 }

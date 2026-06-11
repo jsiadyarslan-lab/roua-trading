@@ -1,4 +1,4 @@
-import { Controller, Post, Headers, UnauthorizedException, Logger, Query } from '@nestjs/common';
+import { Controller, Post, Get, Headers, UnauthorizedException, Logger, Query } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { AuditService } from '../../audit/audit.service';
 import { ConfigService } from '@nestjs/config';
@@ -23,6 +23,145 @@ export class MaintenanceController {
    * - Unverified users with no passkeyId and no OAuth accounts (abandoned registrations)
    * - Shared guest@roua.auto is EXCLUDED from deletion
    */
+  /**
+   * GET /api/maintenance/db-audit
+   * Audit database for missing closed positions.
+   * Requires X-Admin-Token header matching ADMIN_TOKEN env var.
+   */
+  @Get('db-audit')
+  async dbAudit(
+    @Headers('x-admin-token') adminToken: string,
+  ) {
+    const expectedToken = this.config.get('ADMIN_TOKEN') || 'roua-admin-secret-2026';
+    if (!adminToken || adminToken !== expectedToken) {
+      throw new UnauthorizedException('Invalid admin token');
+    }
+
+    try {
+      // 1. Total position counts by status
+      const [total, open, closed, liquidated] = await Promise.all([
+        this.prisma.position.count(),
+        this.prisma.position.count({ where: { status: 'OPEN' } }),
+        this.prisma.position.count({ where: { status: 'CLOSED' } }),
+        this.prisma.position.count({ where: { status: 'LIQUIDATED' } }),
+      ]);
+
+      // 2. Positions by exchange
+      const byExchange = await this.prisma.position.groupBy({
+        by: ['exchange'],
+        _count: { id: true },
+        where: { status: { in: ['CLOSED', 'LIQUIDATED'] } },
+      });
+
+      // 3. Positions by source
+      const bySource = await this.prisma.position.groupBy({
+        by: ['source'],
+        _count: { id: true },
+        where: { status: { in: ['CLOSED', 'LIQUIDATED'] } },
+      });
+
+      // 4. Recent closed positions (last 20)
+      const recentClosed = await this.prisma.position.findMany({
+        where: { status: { in: ['CLOSED', 'LIQUIDATED'] } },
+        orderBy: { closedAt: 'desc' },
+        take: 20,
+        select: {
+          id: true,
+          symbol: true,
+          side: true,
+          source: true,
+          exchange: true,
+          openedAt: true,
+          closedAt: true,
+          closeReason: true,
+          realizedPnl: true,
+          credentialId: true,
+          userId: true,
+        },
+      });
+
+      // 5. Users with positions
+      const usersWithPositions = await this.prisma.position.groupBy({
+        by: ['userId'],
+        _count: { id: true },
+        _max: { closedAt: true },
+      });
+
+      // 6. Check if columns exist (timeframe, closeReason, version, source, exchangeSymbol)
+      let columnCheck: any = {};
+      try {
+        const samplePosition = await this.prisma.position.findFirst({
+          where: { status: { in: ['CLOSED', 'LIQUIDATED'] } },
+        });
+        if (samplePosition) {
+          columnCheck = {
+            hasTimeframe: 'timeframe' in samplePosition,
+            hasCloseReason: 'closeReason' in samplePosition,
+            hasVersion: 'version' in samplePosition,
+            hasSource: 'source' in samplePosition,
+            hasExchangeSymbol: 'exchangeSymbol' in samplePosition,
+            timeframeValue: (samplePosition as any).timeframe,
+            closeReasonValue: (samplePosition as any).closeReason,
+            sourceValue: (samplePosition as any).source,
+          };
+        }
+      } catch (e: any) {
+        columnCheck = { error: e.message };
+      }
+
+      // 7. RLS check — try querying without user context
+      let rlsCheck: any = {};
+      try {
+        await this.prisma.enableRlsBypass();
+        const totalWithBypass = await this.prisma.position.count();
+        const closedWithBypass = await this.prisma.position.count({ where: { status: 'CLOSED' } });
+        await this.prisma.disableRlsBypass();
+        rlsCheck = {
+          totalWithBypass,
+          closedWithBypass,
+          bypassWorks: true,
+        };
+      } catch (e: any) {
+        rlsCheck = { error: e.message };
+      }
+
+      // 8. All-time trade count
+      const tradeCount = await this.prisma.trade.count();
+
+      // 9. Credentials count
+      const credentialCount = await this.prisma.exchangeCredential.count();
+      const deletedCredentialIds: string[] = []; // Can't check without credential
+
+      // 10. Check for positions with NULL credentialId (would mean credential was deleted)
+      const orphanedPositions = await this.prisma.position.count({
+        where: { credentialId: '' },
+      });
+
+      return {
+        positionCounts: { total, open, closed, liquidated, tradeCount },
+        closedByExchange: byExchange.map(e => ({ exchange: e.exchange || 'NULL', count: e._count.id })),
+        closedBySource: bySource.map(s => ({ source: s.source || 'NULL', count: s._count.id })),
+        recentClosed: recentClosed.map(p => ({
+          ...p,
+          realizedPnl: p.realizedPnl?.toNumber?.() ?? p.realizedPnl,
+          userId: p.userId.slice(0, 8) + '...',
+          credentialId: p.credentialId.slice(0, 8) + '...',
+        })),
+        usersWithPositions: usersWithPositions.map(u => ({
+          userId: u.userId.slice(0, 8) + '...',
+          positionCount: u._count.id,
+          lastClosedAt: u._max.closedAt,
+        })),
+        columnCheck,
+        rlsCheck,
+        credentialCount,
+        orphanedPositions,
+      };
+    } catch (error: any) {
+      return { error: error.message, stack: error.stack?.substring(0, 500) };
+    }
+  }
+
   @Post('cleanup-guests')
   async cleanupGuests(
     @Headers('x-admin-token') adminToken: string,

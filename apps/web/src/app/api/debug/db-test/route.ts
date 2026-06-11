@@ -46,6 +46,39 @@ export async function GET(request: NextRequest) {
       user: dbResult.rows[0]?.current_user,
       version: dbResult.rows[0]?.version?.substring(0, 50),
     }
+    // V205: Query position counts to investigate missing closed positions
+    const posTotal = await client.query('SELECT count(*) as cnt FROM "Position"')
+    const posOpen = await client.query('SELECT count(*) as cnt FROM "Position" WHERE status = \'OPEN\'')
+    const posClosed = await client.query('SELECT count(*) as cnt FROM "Position" WHERE status = \'CLOSED\'')
+    const posLiquidated = await client.query('SELECT count(*) as cnt FROM "Position" WHERE status = \'LIQUIDATED\'')
+    const posByExchange = await client.query('SELECT exchange, status, count(*) as cnt FROM "Position" GROUP BY exchange, status ORDER BY cnt DESC')
+    const posBySource = await client.query('SELECT source, status, count(*) as cnt FROM "Position" GROUP BY source, status ORDER BY cnt DESC')
+    const recentClosed = await client.query('SELECT id, symbol, side, exchange, source, "closeReason", "openedAt", "closedAt", "realizedPnl", "credentialId", "userId" FROM "Position" WHERE status IN (\'CLOSED\', \'LIQUIDATED\') ORDER BY "closedAt" DESC NULLS LAST LIMIT 20')
+    const tradeCount = await client.query('SELECT count(*) as cnt FROM "Trade"')
+    const credCount = await client.query('SELECT count(*) as cnt FROM "ExchangeCredential"')
+    // Check RLS policies
+    const rlsPolicies = await client.query('SELECT tablename, policyname, permissive, roles, cmd, qual FROM pg_policies WHERE schemaname = \'public\' AND tablename = \'Position\'')
+    // Check column existence
+    const columns = await client.query('SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name = \'Position\' ORDER BY ordinal_position')
+
+    results.positions = {
+      total: parseInt(posTotal.rows[0]?.cnt || '0'),
+      open: parseInt(posOpen.rows[0]?.cnt || '0'),
+      closed: parseInt(posClosed.rows[0]?.cnt || '0'),
+      liquidated: parseInt(posLiquidated.rows[0]?.cnt || '0'),
+      byExchange: posByExchange.rows,
+      bySource: posBySource.rows,
+      recentClosed: recentClosed.rows.map((r: any) => ({
+        ...r,
+        userId: r.userId?.substring(0, 8) + '...',
+        credentialId: r.credentialId?.substring(0, 8) + '...',
+      })),
+      tradeCount: parseInt(tradeCount.rows[0]?.cnt || '0'),
+      credentialCount: parseInt(credCount.rows[0]?.cnt || '0'),
+    }
+    results.rlsPolicies = rlsPolicies.rows
+    results.positionColumns = columns.rows.map((c: any) => `${c.column_name} (${c.data_type}, nullable=${c.is_nullable})`)
+
     await client.end()
   } catch (e: any) {
     results.pgClient = {

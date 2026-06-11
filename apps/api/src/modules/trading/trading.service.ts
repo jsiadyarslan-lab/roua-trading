@@ -2787,14 +2787,13 @@ export class TradingService {
   async diagnoseApiQueries(userId: string): Promise<any> {
     const results: any = {};
 
-    // Step 1: Get activeCredentialId from settings
+    // Step 1: Get activeCredentialId from settings (key-value pattern)
     let activeCredentialId: string | null = null;
     try {
       const setting = await this.prisma.setting.findFirst({
-        where: { userId },
-        select: { activeCredentialId: true },
+        where: { key: `user:${userId}:activeCredentialId` },
       });
-      activeCredentialId = setting?.activeCredentialId || null;
+      activeCredentialId = setting?.value || null;
       results.activeCredentialId = activeCredentialId
         ? `${activeCredentialId.slice(0, 12)}...`
         : null;

@@ -2771,4 +2771,149 @@ export class TradingService {
       activeCredentialSource,
     };
   }
+
+  /**
+   * DIAGNOSTIC: Test the exact API queries used by the frontend
+   * This tests getOpenPositions, getClosedPositions, and getTradeHistory
+   * with the user's activeCredentialId to see if they return data.
+   */
+  async diagnoseApiQueries(userId: string): Promise<any> {
+    const results: any = {};
+
+    // Step 1: Get activeCredentialId from settings
+    let activeCredentialId: string | null = null;
+    try {
+      const setting = await this.prisma.setting.findFirst({
+        where: { userId },
+        select: { activeCredentialId: true },
+      });
+      activeCredentialId = setting?.activeCredentialId || null;
+      results.activeCredentialId = activeCredentialId
+        ? `${activeCredentialId.slice(0, 12)}...`
+        : null;
+      results.activeCredentialIdFull = activeCredentialId;
+    } catch (err: any) {
+      results.activeCredentialId = `ERROR: ${err.message}`;
+    }
+
+    // Step 2: Test getOpenPositions query (exact same as the real method)
+    try {
+      // Without credentialId
+      const allOpen = await this.prisma.position.findMany({
+        where: { userId, status: 'OPEN' },
+        orderBy: { openedAt: 'desc' },
+      });
+      results.openPositionsAll = allOpen.length;
+      results.openPositionsAllDetails = allOpen.map(p => ({
+        id: `${p.id.slice(0, 12)}...`,
+        symbol: p.symbol,
+        side: p.side,
+        exchange: p.exchange,
+        credentialId: `${p.credentialId.slice(0, 12)}...`,
+        entryPrice: p.entryPrice.toNumber(),
+        quantity: p.quantity.toNumber(),
+      }));
+
+      // With credentialId (same as getOpenPositions does)
+      if (activeCredentialId) {
+        const whereWithCred: any = { userId, status: 'OPEN', credentialId: activeCredentialId };
+        const filteredOpen = await this.prisma.position.findMany({
+          where: whereWithCred,
+          orderBy: { openedAt: 'desc' },
+        });
+        results.openPositionsWithCred = filteredOpen.length;
+        results.openPositionsWithCredDetails = filteredOpen.map(p => ({
+          id: `${p.id.slice(0, 12)}...`,
+          symbol: p.symbol,
+          side: p.side,
+          exchange: p.exchange,
+          credentialId: `${p.credentialId.slice(0, 12)}...`,
+        }));
+
+        // Also test with OR null clause (like getClosedPositions)
+        const whereWithOr: any = { userId, status: 'OPEN', OR: [{ credentialId: activeCredentialId }, { credentialId: null }] };
+        const orOpen = await this.prisma.position.findMany({
+          where: whereWithOr,
+          orderBy: { openedAt: 'desc' },
+        });
+        results.openPositionsWithOr = orOpen.length;
+      }
+    } catch (err: any) {
+      results.openPositionsError = err.message;
+    }
+
+    // Step 3: Test getClosedPositions query
+    try {
+      const allClosed = await this.prisma.position.findMany({
+        where: { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } },
+        orderBy: { closedAt: 'desc' },
+        take: 5,
+      });
+      results.closedPositionsAll = (await this.prisma.position.count({
+        where: { userId, status: { in: ['CLOSED', 'LIQUIDATED'] } },
+      }));
+
+      if (activeCredentialId) {
+        const whereWithCred: any = {
+          userId,
+          status: { in: ['CLOSED', 'LIQUIDATED'] },
+          OR: [{ credentialId: activeCredentialId }, { credentialId: null }],
+        };
+        const filteredClosed = await this.prisma.position.findMany({
+          where: whereWithCred,
+          orderBy: { closedAt: 'desc' },
+          take: 5,
+        });
+        results.closedPositionsWithCred = (await this.prisma.position.count({ where: whereWithCred }));
+        results.closedPositionsWithCredSample = filteredClosed.map(p => ({
+          id: `${p.id.slice(0, 12)}...`,
+          symbol: p.symbol,
+          exchange: p.exchange,
+          credentialId: `${p.credentialId.slice(0, 12)}...`,
+        }));
+      }
+    } catch (err: any) {
+      results.closedPositionsError = err.message;
+    }
+
+    // Step 4: Test getTradeHistory query
+    try {
+      const allTradesCount = await this.prisma.trade.count({ where: { userId } });
+      results.tradesAll = allTradesCount;
+
+      if (activeCredentialId) {
+        const whereWithCred: any = {
+          userId,
+          OR: [{ credentialId: activeCredentialId }, { credentialId: null }],
+        };
+        const filteredTradesCount = await this.prisma.trade.count({ where: whereWithCred });
+        results.tradesWithCred = filteredTradesCount;
+
+        // Also test strict filtering (without OR null)
+        const strictCount = await this.prisma.trade.count({
+          where: { userId, credentialId: activeCredentialId },
+        });
+        results.tradesStrictCred = strictCount;
+      }
+    } catch (err: any) {
+      results.tradesError = err.message;
+    }
+
+    // Step 5: Test calling the ACTUAL getOpenPositions method
+    try {
+      const actualOpen = await this.getOpenPositions(userId, activeCredentialId || undefined);
+      results.actualGetOpenPositionsCount = actualOpen.length;
+      results.actualGetOpenPositionsSample = actualOpen.slice(0, 3).map((p: any) => ({
+        id: `${(p.id || '').slice(0, 12)}...`,
+        symbol: p.symbol,
+        side: p.side,
+        exchange: p.exchange,
+        credentialId: p.credentialId ? `${p.credentialId.slice(0, 12)}...` : 'MISSING',
+      }));
+    } catch (err: any) {
+      results.actualGetOpenPositionsError = err.message;
+    }
+
+    return results;
+  }
 }

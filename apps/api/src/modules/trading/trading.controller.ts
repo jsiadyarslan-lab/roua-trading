@@ -884,6 +884,14 @@ export class TradingController {
       results.checks.credentials = `ERROR: ${err.message}`;
     }
 
+    try {
+      // Check 6: Test actual API queries with credentialId
+      const apiQueryResults = await this.tradingService.diagnoseApiQueries(userId);
+      results.checks.apiQueries = apiQueryResults;
+    } catch (err: any) {
+      results.checks.apiQueries = `ERROR: ${err.message}`;
+    }
+
     return { success: true, diagnostic: results };
   }
 
